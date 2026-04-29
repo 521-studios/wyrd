@@ -143,15 +143,15 @@ async function roll() {
     const seedFromUrl = url.searchParams.get("seed");
     if (seedFromUrl) params.seed = parseInt(seedFromUrl, 10);
 
-    const body = JSON.stringify(params);
-    const bodyHash = await sha256Hex(body);
+    const requestBody = JSON.stringify(params);
+    const bodyHash = await sha256Hex(requestBody);
     const resp = await fetch(`${API_BASE}/${currentGenerator.name}`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             "x-amz-content-sha256": bodyHash,
         },
-        body,
+        body: requestBody,
     });
     if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
