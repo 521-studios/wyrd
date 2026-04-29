@@ -102,13 +102,33 @@ button.link {
     text-decoration: underline;
 }
 
-#result {
-    font-size: 2rem;
-    color: var(--accent);
-    margin: 0 0 0.5rem;
+#results {
+    list-style: none;
+    counter-reset: result;
+    padding: 0;
+    margin: 0 0 1rem;
 }
 
-.explanation { margin: 0 0 0.75rem; }
+#results li {
+    counter-increment: result;
+    margin-bottom: 1rem;
+    padding-left: 0;
+}
+
+#results li::before {
+    content: counter(result) ".";
+    color: var(--muted);
+    margin-right: 0.5rem;
+}
+
+#results .name {
+    font-size: 1.5rem;
+    color: var(--accent);
+    font-weight: 600;
+}
+
+#results .explanation { margin: 0.25rem 0 0.5rem; color: var(--fg); }
+
 .muted { color: var(--muted); font-size: 0.9rem; }
 
 pre {

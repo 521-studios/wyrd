@@ -59,7 +59,8 @@ def test_get_endpoint_returns_envelope():
     body = resp.get_json()
     assert body["generator"] == "kenning"
     assert body["seed"] == 99
-    assert body["result"]
+    assert len(body["results"]) == 1
+    assert body["results"][0]["result"]
     assert body["parameters"]["culture"] == "english"
 
 
@@ -71,6 +72,36 @@ def test_post_endpoint_accepts_json_body():
     body = resp.get_json()
     assert body["generator"] == "kenning"
     assert body["seed"] == 100
+    assert len(body["results"]) == 1
+
+
+def test_count_returns_n_results():
+    app = create_app()
+    client = app.test_client()
+    resp = client.post("/api/kenning", json={"culture": "english", "count": 5, "seed": 7})
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert len(body["results"]) == 5
+    assert all(r["result"] for r in body["results"])
+
+
+def test_count_is_seed_reproducible():
+    app = create_app()
+    client = app.test_client()
+    a = client.post(
+        "/api/kenning", json={"culture": "english", "count": 4, "seed": 2026}
+    ).get_json()
+    b = client.post(
+        "/api/kenning", json={"culture": "english", "count": 4, "seed": 2026}
+    ).get_json()
+    assert [r["result"] for r in a["results"]] == [r["result"] for r in b["results"]]
+
+
+def test_count_out_of_range_is_400():
+    app = create_app()
+    client = app.test_client()
+    resp = client.post("/api/kenning", json={"culture": "english", "count": 11})
+    assert resp.status_code == 400
 
 
 def test_unknown_culture_is_a_400():

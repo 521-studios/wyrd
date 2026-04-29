@@ -71,6 +71,13 @@ class Kenning(Generator):
                         "with that meaning category."
                     ),
                 },
+                "count": {
+                    "type": "integer",
+                    "default": 1,
+                    "minimum": 1,
+                    "maximum": 10,
+                    "description": "How many names to generate (1–10).",
+                },
                 "seed": {
                     "type": "integer",
                     "description": "Optional 64-bit seed for reproducible output.",

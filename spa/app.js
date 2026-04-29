@@ -92,6 +92,9 @@ function renderForm(schema) {
             input.type = "number";
             input.id = `field-${key}`;
             input.name = key;
+            if (prop.minimum !== undefined) input.min = prop.minimum;
+            if (prop.maximum !== undefined) input.max = prop.maximum;
+            if (prop.type === "integer") input.step = 1;
             if (urlVal !== null) input.value = urlVal;
             else if (prop.default !== undefined) input.value = prop.default;
             wrap.appendChild(input);
@@ -153,17 +156,38 @@ async function roll() {
         },
         body: requestBody,
     });
+    const list = $("results");
+    list.innerHTML = "";
     if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
-        $("result").textContent = `error: ${err.error || resp.status}`;
-        $("explanation").textContent = err.detail || "";
+        const li = document.createElement("li");
+        li.textContent = `error: ${err.error || resp.status}${err.detail ? " — " + err.detail : ""}`;
+        list.appendChild(li);
+        $("seed").textContent = "";
         $("output").hidden = false;
         return;
     }
     const body = await resp.json();
-    $("result").textContent = body.result;
-    $("explanation").textContent = body.explanation || "";
-    $("components").textContent = JSON.stringify(body.components, null, 2);
+    for (const r of body.results) {
+        const li = document.createElement("li");
+        const name = document.createElement("span");
+        name.className = "name";
+        name.textContent = r.result;
+        const explanation = document.createElement("p");
+        explanation.className = "explanation";
+        explanation.textContent = r.explanation || "";
+        const details = document.createElement("details");
+        const summary = document.createElement("summary");
+        summary.textContent = "Components";
+        const pre = document.createElement("pre");
+        pre.textContent = JSON.stringify(r.components, null, 2);
+        details.appendChild(summary);
+        details.appendChild(pre);
+        li.appendChild(name);
+        li.appendChild(explanation);
+        li.appendChild(details);
+        list.appendChild(li);
+    }
     $("seed").textContent = body.seed;
     $("output").hidden = false;
 

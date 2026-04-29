@@ -13,15 +13,20 @@ def envelope(
     generator: str,
     parameters: dict[str, Any],
     seed: int,
-    result: GenerationResult,
+    results: list[GenerationResult],
 ) -> dict[str, Any]:
     return {
         "generator": generator,
         "parameters": parameters,
         "seed": seed,
-        "result": result.result,
-        "explanation": result.explanation,
-        "components": [
-            asdict(c) if hasattr(c, "__dataclass_fields__") else c for c in result.components
+        "results": [
+            {
+                "result": r.result,
+                "explanation": r.explanation,
+                "components": [
+                    asdict(c) if hasattr(c, "__dataclass_fields__") else c for c in r.components
+                ],
+            }
+            for r in results
         ],
     }

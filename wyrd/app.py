@@ -9,7 +9,9 @@ from flask import Flask, jsonify, request, send_from_directory
 
 from wyrd import registry
 from wyrd.envelope import envelope
-from wyrd.seed import resolve_seed
+from wyrd.seed import resolve_seed, rng_for
+
+MAX_COUNT = 10
 
 _SPA_DIR = Path(__file__).resolve().parent.parent / "spa"
 
@@ -90,8 +92,13 @@ def _dispatch(generator_name: str, params: dict[str, Any]):
         return jsonify({"error": "unknown_generator", "name": generator_name}), 404
 
     seed = resolve_seed(params.pop("seed", None))
+
     try:
-        result = generator.generate(params, seed)
+        count = _coerce_count(params.pop("count", 1))
+        # Sub-seeds derived deterministically from the top-level seed so that the
+        # same (seed, count) pair always reproduces the same set of results.
+        seed_rng = rng_for(seed)
+        results = [generator.generate(params, seed_rng.randrange(2**63)) for _ in range(count)]
     except (ValueError, KeyError) as e:
         return jsonify({"error": "bad_params", "detail": str(e)}), 400
 
@@ -100,6 +107,16 @@ def _dispatch(generator_name: str, params: dict[str, Any]):
             generator=generator.name,
             parameters=params,
             seed=seed,
-            result=result,
+            results=results,
         )
     )
+
+
+def _coerce_count(value: Any) -> int:
+    try:
+        n = int(value)
+    except (TypeError, ValueError) as e:
+        raise ValueError(f"count must be an integer, got {value!r}") from e
+    if n < 1 or n > MAX_COUNT:
+        raise ValueError(f"count must be between 1 and {MAX_COUNT}, got {n}")
+    return n

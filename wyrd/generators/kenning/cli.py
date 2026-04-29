@@ -16,7 +16,7 @@ from wyrd.generators.kenning import (
 )
 from wyrd.generators.kenning.meaning import load_meanings
 from wyrd.generators.kenning.name import load_names
-from wyrd.seed import resolve_seed
+from wyrd.seed import resolve_seed, rng_for
 
 
 @click.group()
@@ -27,14 +27,19 @@ def cli() -> None:
 @cli.command()
 @click.argument("culture", type=click.Choice(CULTURES))
 @click.option("--tag", "tags", multiple=True, help="Filter by tag (repeatable).")
+@click.option(
+    "--count", "-n", type=click.IntRange(1, 10), default=1, help="Generate N names (1–10)."
+)
 @click.option("--seed", type=int, default=None, help="Reproducible 64-bit seed.")
 @click.option(
     "--describe/--no-describe",
     default=True,
-    help="Print the morpheme breakdown after the name.",
+    help="Print the morpheme breakdown after each name.",
 )
-def generate(culture: str, tags: tuple[str, ...], seed: int | None, describe: bool) -> None:
-    """Generate a town name. Replaces Rando's `bin/generator`."""
+def generate(
+    culture: str, tags: tuple[str, ...], count: int, seed: int | None, describe: bool
+) -> None:
+    """Generate town names. Replaces Rando's `bin/generator`."""
     known_tags = set(available_tags()) | {"male name", "female name", "saint"}
     bad = [t for t in tags if t not in known_tags]
     if bad:
@@ -45,10 +50,14 @@ def generate(culture: str, tags: tuple[str, ...], seed: int | None, describe: bo
         sys.exit(1)
 
     resolved = resolve_seed(seed)
-    result = Kenning().generate({"culture": culture, "tags": list(tags)}, resolved)
-    click.echo(result.result)
-    if describe:
-        click.echo(result.explanation)
+    seed_rng = rng_for(resolved)
+    kenning = Kenning()
+    params = {"culture": culture, "tags": list(tags)}
+    for _ in range(count):
+        result = kenning.generate(params, seed_rng.randrange(2**63))
+        click.echo(result.result)
+        if describe:
+            click.echo(result.explanation)
     click.echo(f"(seed: {resolved})", err=True)
 
 
