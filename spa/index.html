@@ -13,17 +13,19 @@
 </header>
 
 <main>
-    <section id="picker">
-        <label for="generator-select">Generator</label>
-        <select id="generator-select"></select>
-        <p id="generator-description" class="muted"></p>
-    </section>
+    <div class="controls">
+        <section id="picker">
+            <label for="generator-select">Generator</label>
+            <select id="generator-select"></select>
+            <p id="generator-description" class="muted"></p>
+        </section>
 
-    <form id="params-form"></form>
+        <form id="params-form"></form>
 
-    <button id="roll" type="button">Roll</button>
+        <button id="roll" type="button">Roll</button>
+    </div>
 
-    <section id="output" hidden>
+    <section id="output" class="results-panel" hidden>
         <ol id="results"></ol>
         <p class="muted">
             seed:

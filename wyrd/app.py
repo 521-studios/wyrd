@@ -94,7 +94,7 @@ def _dispatch(generator_name: str, params: dict[str, Any]):
     seed = resolve_seed(params.pop("seed", None))
 
     try:
-        count = _coerce_count(params.pop("count", 1))
+        count = _coerce_count(params.pop("count", 5))
         # Sub-seeds derived deterministically from the top-level seed so that the
         # same (seed, count) pair always reproduces the same set of results.
         seed_rng = rng_for(seed)

@@ -73,7 +73,7 @@ class Kenning(Generator):
                 },
                 "count": {
                     "type": "integer",
-                    "default": 1,
+                    "default": 5,
                     "minimum": 1,
                     "maximum": 10,
                     "description": "How many names to generate (1–10).",

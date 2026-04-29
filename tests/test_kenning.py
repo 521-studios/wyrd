@@ -54,7 +54,7 @@ def test_manifest_lists_kenning():
 def test_get_endpoint_returns_envelope():
     app = create_app()
     client = app.test_client()
-    resp = client.get("/api/kenning?culture=english&seed=99")
+    resp = client.get("/api/kenning?culture=english&seed=99&count=1")
     assert resp.status_code == 200
     body = resp.get_json()
     assert body["generator"] == "kenning"
@@ -67,12 +67,21 @@ def test_get_endpoint_returns_envelope():
 def test_post_endpoint_accepts_json_body():
     app = create_app()
     client = app.test_client()
-    resp = client.post("/api/kenning", json={"culture": "welsh", "seed": 100})
+    resp = client.post("/api/kenning", json={"culture": "welsh", "seed": 100, "count": 1})
     assert resp.status_code == 200
     body = resp.get_json()
     assert body["generator"] == "kenning"
     assert body["seed"] == 100
     assert len(body["results"]) == 1
+
+
+def test_default_count_is_five():
+    app = create_app()
+    client = app.test_client()
+    resp = client.get("/api/kenning?culture=english&seed=99")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert len(body["results"]) == 5
 
 
 def test_count_returns_n_results():

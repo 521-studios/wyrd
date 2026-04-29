@@ -37,9 +37,22 @@ header .tagline {
 }
 
 main {
-    max-width: 640px;
+    max-width: 1100px;
     margin: 0 auto;
     padding: 2rem 1rem;
+    display: grid;
+    grid-template-columns: minmax(280px, 1fr) minmax(0, 2fr);
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.controls > * { margin-bottom: 1rem; }
+.controls > *:last-child { margin-bottom: 0; }
+
+@media (max-width: 720px) {
+    main {
+        grid-template-columns: 1fr;
+    }
 }
 
 section, form {

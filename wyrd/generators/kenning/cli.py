@@ -28,7 +28,7 @@ def cli() -> None:
 @click.argument("culture", type=click.Choice(CULTURES))
 @click.option("--tag", "tags", multiple=True, help="Filter by tag (repeatable).")
 @click.option(
-    "--count", "-n", type=click.IntRange(1, 10), default=1, help="Generate N names (1–10)."
+    "--count", "-n", type=click.IntRange(1, 10), default=5, help="Generate N names (1–10)."
 )
 @click.option("--seed", type=int, default=None, help="Reproducible 64-bit seed.")
 @click.option(
