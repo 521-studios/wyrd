@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, Response, jsonify, request, send_from_directory
 
 from wyrd import registry
 from wyrd.envelope import envelope
@@ -25,7 +25,6 @@ def create_app() -> Flask:
         # and Lambda only handles /api/*. Source spa/index.html uses __SHA__
         # placeholders for hashed asset names; the deploy.yml templates them at
         # upload time. Here we substitute "dev" and accept any hash on the way out.
-        from flask import Response
 
         @app.get("/")
         def index():

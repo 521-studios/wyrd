@@ -10,6 +10,7 @@ from typing import Any
 from wyrd.generators.kenning.meaning import load_meanings
 from wyrd.generators.kenning.proportions import load_proportions
 from wyrd.registry import GenerationResult, Generator, register
+from wyrd.seed import rng_for
 
 CULTURES = ["english", "scottish", "welsh", "irish"]
 
@@ -83,12 +84,10 @@ class Kenning(Generator):
                     "description": "Optional 64-bit seed for reproducible output.",
                 },
             },
-            "required": ["culture"],
+            "required": [],
         }
 
     def generate(self, params: dict[str, Any], seed: int) -> GenerationResult:
-        from wyrd.seed import rng_for
-
         culture = params.get("culture", "english")
         raw_tags = params.get("tags", []) or []
         if isinstance(raw_tags, str):

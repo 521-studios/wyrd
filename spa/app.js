@@ -37,6 +37,77 @@ function selectGenerator(name) {
     renderForm(currentGenerator.input_schema);
 }
 
+function _buildSelectField(key, prop, urlVal) {
+    const input = document.createElement("select");
+    input.id = `field-${key}`;
+    input.name = key;
+    for (const v of prop.enum) {
+        const opt = document.createElement("option");
+        opt.value = v;
+        opt.textContent = v;
+        input.appendChild(opt);
+    }
+    input.value = urlVal || prop.default || prop.enum[0];
+    return input;
+}
+
+function _buildTagGrid(key, prop, url) {
+    const grid = document.createElement("div");
+    grid.className = "tag-grid";
+    grid.dataset.field = key;
+    const urlVals = url.searchParams.getAll(key);
+    const selected = new Set(urlVals.length ? urlVals : prop.default || []);
+    for (const v of prop.items.enum) {
+        const tagLabel = document.createElement("label");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.name = key;
+        cb.value = v;
+        cb.checked = selected.has(v);
+        tagLabel.appendChild(cb);
+        tagLabel.appendChild(document.createTextNode(v));
+        grid.appendChild(tagLabel);
+    }
+    return grid;
+}
+
+function _buildNumberField(key, prop, urlVal) {
+    const input = document.createElement("input");
+    input.type = "number";
+    input.id = `field-${key}`;
+    input.name = key;
+    if (prop.minimum !== undefined) input.min = prop.minimum;
+    if (prop.maximum !== undefined) input.max = prop.maximum;
+    if (prop.type === "integer") input.step = 1;
+    if (urlVal !== null) input.value = urlVal;
+    else if (prop.default !== undefined) input.value = prop.default;
+    return input;
+}
+
+function _buildTextField(key, prop, urlVal) {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.id = `field-${key}`;
+    input.name = key;
+    if (urlVal !== null) input.value = urlVal;
+    else if (prop.default !== undefined) input.value = prop.default;
+    return input;
+}
+
+function _buildField(key, prop, url) {
+    const urlVal = url.searchParams.get(key);
+    if (prop.type === "string" && Array.isArray(prop.enum)) {
+        return _buildSelectField(key, prop, urlVal);
+    }
+    if (prop.type === "array" && prop.items?.enum) {
+        return _buildTagGrid(key, prop, url);
+    }
+    if (prop.type === "integer" || prop.type === "number") {
+        return _buildNumberField(key, prop, urlVal);
+    }
+    return _buildTextField(key, prop, urlVal);
+}
+
 function renderForm(schema) {
     const form = $("params-form");
     form.innerHTML = "";
@@ -59,60 +130,7 @@ function renderForm(schema) {
         label.htmlFor = `field-${key}`;
         wrap.appendChild(label);
 
-        let input;
-        const urlVal = url.searchParams.get(key);
-        if (prop.type === "string" && Array.isArray(prop.enum)) {
-            input = document.createElement("select");
-            input.id = `field-${key}`;
-            input.name = key;
-            for (const v of prop.enum) {
-                const opt = document.createElement("option");
-                opt.value = v;
-                opt.textContent = v;
-                input.appendChild(opt);
-            }
-            input.value = urlVal || prop.default || prop.enum[0];
-            wrap.appendChild(input);
-        } else if (prop.type === "array" && prop.items?.enum) {
-            input = document.createElement("div");
-            input.className = "tag-grid";
-            input.dataset.field = key;
-            const selected = new Set(
-                urlVal ? url.searchParams.getAll(key) : prop.default || []
-            );
-            for (const v of prop.items.enum) {
-                const tagLabel = document.createElement("label");
-                const cb = document.createElement("input");
-                cb.type = "checkbox";
-                cb.name = key;
-                cb.value = v;
-                cb.checked = selected.has(v);
-                tagLabel.appendChild(cb);
-                tagLabel.appendChild(document.createTextNode(v));
-                input.appendChild(tagLabel);
-            }
-            wrap.appendChild(input);
-        } else if (prop.type === "integer" || prop.type === "number") {
-            input = document.createElement("input");
-            input.type = "number";
-            input.id = `field-${key}`;
-            input.name = key;
-            if (prop.minimum !== undefined) input.min = prop.minimum;
-            if (prop.maximum !== undefined) input.max = prop.maximum;
-            if (prop.type === "integer") input.step = 1;
-            if (urlVal !== null) input.value = urlVal;
-            else if (prop.default !== undefined) input.value = prop.default;
-            wrap.appendChild(input);
-        } else {
-            input = document.createElement("input");
-            input.type = "text";
-            input.id = `field-${key}`;
-            input.name = key;
-            if (urlVal !== null) input.value = urlVal;
-            else if (prop.default !== undefined) input.value = prop.default;
-            wrap.appendChild(input);
-        }
-
+        wrap.appendChild(_buildField(key, prop, url));
         form.appendChild(wrap);
     }
 }
@@ -145,6 +163,65 @@ async function sha256Hex(text) {
     return [...new Uint8Array(hashBuf)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+function _renderResultItem(r) {
+    const li = document.createElement("li");
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = r.result;
+    const explanation = document.createElement("p");
+    explanation.className = "explanation";
+    explanation.textContent = r.explanation || "";
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    summary.textContent = "Components";
+    const pre = document.createElement("pre");
+    pre.textContent = JSON.stringify(r.components, null, 2);
+    details.appendChild(summary);
+    details.appendChild(pre);
+    li.appendChild(name);
+    li.appendChild(explanation);
+    li.appendChild(details);
+    return li;
+}
+
+function _renderResults(body) {
+    const list = $("results");
+    list.innerHTML = "";
+    for (const r of body.results) {
+        list.appendChild(_renderResultItem(r));
+    }
+    $("seed").textContent = body.seed;
+    $("output").hidden = false;
+}
+
+async function _renderError(resp) {
+    const list = $("results");
+    list.innerHTML = "";
+    const err = await resp.json().catch(() => ({}));
+    const li = document.createElement("li");
+    li.textContent = `error: ${err.error || resp.status}${err.detail ? " — " + err.detail : ""}`;
+    list.appendChild(li);
+    $("seed").textContent = "";
+    $("output").hidden = false;
+}
+
+function _wireShareLink(body) {
+    $("copy-link").onclick = () => {
+        const share = new URL(window.location.href);
+        share.searchParams.set("generator", currentGenerator.name);
+        share.searchParams.set("seed", body.seed);
+        for (const [k, v] of Object.entries(body.parameters || {})) {
+            if (Array.isArray(v)) {
+                share.searchParams.delete(k);
+                v.forEach((x) => share.searchParams.append(k, x));
+            } else {
+                share.searchParams.set(k, v);
+            }
+        }
+        navigator.clipboard.writeText(share.toString());
+    };
+}
+
 async function roll() {
     const params = readForm();
     const url = new URL(window.location.href);
@@ -161,40 +238,13 @@ async function roll() {
         },
         body: requestBody,
     });
-    const list = $("results");
-    list.innerHTML = "";
+
     if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        const li = document.createElement("li");
-        li.textContent = `error: ${err.error || resp.status}${err.detail ? " — " + err.detail : ""}`;
-        list.appendChild(li);
-        $("seed").textContent = "";
-        $("output").hidden = false;
+        await _renderError(resp);
         return;
     }
     const body = await resp.json();
-    for (const r of body.results) {
-        const li = document.createElement("li");
-        const name = document.createElement("span");
-        name.className = "name";
-        name.textContent = r.result;
-        const explanation = document.createElement("p");
-        explanation.className = "explanation";
-        explanation.textContent = r.explanation || "";
-        const details = document.createElement("details");
-        const summary = document.createElement("summary");
-        summary.textContent = "Components";
-        const pre = document.createElement("pre");
-        pre.textContent = JSON.stringify(r.components, null, 2);
-        details.appendChild(summary);
-        details.appendChild(pre);
-        li.appendChild(name);
-        li.appendChild(explanation);
-        li.appendChild(details);
-        list.appendChild(li);
-    }
-    $("seed").textContent = body.seed;
-    $("output").hidden = false;
+    _renderResults(body);
 
     // Once we've rolled, drop the URL seed so the next roll is fresh unless the
     // user explicitly clicks the share link.
@@ -202,20 +252,7 @@ async function roll() {
         url.searchParams.delete("seed");
         window.history.replaceState({}, "", url.toString());
     }
-    $("copy-link").onclick = () => {
-        const share = new URL(window.location.href);
-        share.searchParams.set("generator", currentGenerator.name);
-        share.searchParams.set("seed", body.seed);
-        for (const [k, v] of Object.entries(body.parameters || {})) {
-            if (Array.isArray(v)) {
-                share.searchParams.delete(k);
-                v.forEach((x) => share.searchParams.append(k, x));
-            } else {
-                share.searchParams.set(k, v);
-            }
-        }
-        navigator.clipboard.writeText(share.toString());
-    };
+    _wireShareLink(body);
 }
 
 document.addEventListener("DOMContentLoaded", () => {

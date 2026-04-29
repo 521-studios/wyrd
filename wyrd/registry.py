@@ -58,6 +58,8 @@ def all_generators() -> list[Generator]:
 
 def discover() -> None:
     """Import every subpackage of wyrd.generators so plugins self-register."""
+    # Deferred import: wyrd.generators subpackages import register() from this
+    # module, so importing them at module load would create a circular import.
     import wyrd.generators as gens
 
     for module_info in pkgutil.iter_modules(gens.__path__):
