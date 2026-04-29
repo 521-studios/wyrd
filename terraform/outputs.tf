@@ -22,8 +22,3 @@ output "spa_bucket_regional_domain" {
   description = "wyrd SPA S3 bucket regional domain (used as CloudFront origin)"
   value       = aws_s3_bucket.spa.bucket_regional_domain_name
 }
-
-output "active_sha" {
-  description = "Git SHA of the currently deployed SPA build"
-  value       = var.active_sha
-}

@@ -32,6 +32,7 @@ jobs:
     env:
       TF_STATE_BUCKET: 521studios-infra-tfstate-242288027927
       S3_BUCKET: 521studios-staging-wyrd-spa
+      SITE_DOMAIN: wyrd.staging.521studios.com
 
     steps:
       - uses: actions/checkout@v6
@@ -67,10 +68,7 @@ jobs:
 
       - name: Terraform apply
         working-directory: terraform
-        run: |
-          terraform apply -auto-approve -input=false \
-            -var="env=staging" \
-            -var="active_sha=${{ github.sha }}"
+        run: terraform apply -auto-approve -input=false -var="env=staging"
 
       - name: Update Lambda code
         working-directory: terraform
@@ -83,12 +81,10 @@ jobs:
           aws lambda wait function-updated --function-name "$FUNCTION"
 
       - name: Upload SPA to S3
-        run: |
-          aws s3 sync spa/ "s3://${{ env.S3_BUCKET }}/${{ github.sha }}/" \
-            --cache-control "public, max-age=31536000, immutable" \
-            --exclude "index.html"
-          aws s3 cp spa/index.html "s3://${{ env.S3_BUCKET }}/${{ github.sha }}/index.html" \
-            --cache-control "no-cache"
+        run: bin/deploy-spa.sh "${{ env.S3_BUCKET }}" "${{ github.sha }}"
+
+      - name: Invalidate CloudFront
+        run: bin/invalidate-cloudfront.sh "${{ env.SITE_DOMAIN }}"
 
   # ── Production: manual dispatch only ──────────────────────────────────────
 
@@ -101,6 +97,7 @@ jobs:
     env:
       TF_STATE_BUCKET: 521studios-infra-tfstate-242258465702
       S3_BUCKET: 521studios-production-wyrd-spa
+      SITE_DOMAIN: wyrd.521studios.com
 
     steps:
       - uses: actions/checkout@v6
@@ -142,10 +139,7 @@ jobs:
 
       - name: Terraform apply
         working-directory: terraform
-        run: |
-          terraform apply -auto-approve -input=false \
-            -var="env=production" \
-            -var="active_sha=${{ github.sha }}"
+        run: terraform apply -auto-approve -input=false -var="env=production"
 
       - name: Update Lambda code
         working-directory: terraform
@@ -158,9 +152,7 @@ jobs:
           aws lambda wait function-updated --function-name "$FUNCTION"
 
       - name: Upload SPA to S3
-        run: |
-          aws s3 sync spa/ "s3://${{ env.S3_BUCKET }}/${{ github.sha }}/" \
-            --cache-control "public, max-age=31536000, immutable" \
-            --exclude "index.html"
-          aws s3 cp spa/index.html "s3://${{ env.S3_BUCKET }}/${{ github.sha }}/index.html" \
-            --cache-control "no-cache"
+        run: bin/deploy-spa.sh "${{ env.S3_BUCKET }}" "${{ github.sha }}"
+
+      - name: Invalidate CloudFront
+        run: bin/invalidate-cloudfront.sh "${{ env.SITE_DOMAIN }}"

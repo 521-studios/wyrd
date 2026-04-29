@@ -19,17 +19,29 @@ def create_app() -> Flask:
     app = Flask(__name__)
 
     if _SPA_DIR.exists():
+        # Dev-only SPA serving. In production CloudFront serves the SPA from S3
+        # and Lambda only handles /api/*. Source spa/index.html uses __SHA__
+        # placeholders for hashed asset names; the deploy.yml templates them at
+        # upload time. Here we substitute "dev" and accept any hash on the way out.
+        from flask import Response
 
         @app.get("/")
         def index():
-            return send_from_directory(_SPA_DIR, "index.html")
+            text = (_SPA_DIR / "index.html").read_text().replace("__SHA__", "dev")
+            return Response(text, mimetype="text/html")
 
         @app.get("/<path:filename>")
         def spa_static(filename: str):
             target = _SPA_DIR / filename
             if target.is_file():
                 return send_from_directory(_SPA_DIR, filename)
-            return send_from_directory(_SPA_DIR, "index.html")
+            # Strip a hash component: app.dev.js → app.js, style.dev.css → style.css
+            parts = filename.rsplit(".", 2)
+            if len(parts) == 3:
+                unhashed = f"{parts[0]}.{parts[2]}"
+                if (_SPA_DIR / unhashed).is_file():
+                    return send_from_directory(_SPA_DIR, unhashed)
+            return index()
 
     @app.get("/api/manifest")
     def manifest():
