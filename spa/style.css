@@ -46,8 +46,19 @@ main {
     align-items: start;
 }
 
-.controls > * { margin-bottom: 1rem; }
-.controls > *:last-child { margin-bottom: 0; }
+.results-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.panel-title {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
 
 @media (max-width: 720px) {
     main {

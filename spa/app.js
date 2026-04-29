@@ -42,6 +42,11 @@ function renderForm(schema) {
     form.innerHTML = "";
     if (!schema || !schema.properties) return;
 
+    const heading = document.createElement("h3");
+    heading.className = "panel-title";
+    heading.textContent = "Options";
+    form.appendChild(heading);
+
     const url = new URL(window.location.href);
 
     for (const [key, prop] of Object.entries(schema.properties)) {
