@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>wyrd</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+    <h1>wyrd</h1>
+    <p class="tagline">Random generation for tabletop RPGs.</p>
+</header>
+
+<main>
+    <section id="picker">
+        <label for="generator-select">Generator</label>
+        <select id="generator-select"></select>
+        <p id="generator-description" class="muted"></p>
+    </section>
+
+    <form id="params-form"></form>
+
+    <button id="roll" type="button">Roll</button>
+
+    <section id="output" hidden>
+        <h2 id="result"></h2>
+        <p class="explanation" id="explanation"></p>
+        <details>
+            <summary>Components</summary>
+            <pre id="components"></pre>
+        </details>
+        <p class="muted">
+            seed:
+            <code id="seed"></code>
+            <button type="button" id="copy-link" class="link">copy share link</button>
+        </p>
+    </section>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

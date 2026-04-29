@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+.coverage
+*.swp
+.DS_Store
+
+# Lambda packaging output
+function.zip
+
+# Terraform local state and provider plugins (not state — that's in S3)
+terraform/.terraform/
+terraform/.terraform.tfstate.lock.info
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/*.tfvars.local

@@ -1,0 +1,122 @@
+:root {
+    --bg: #0f1115;
+    --fg: #e6e6e6;
+    --muted: #8a8a8a;
+    --accent: #c8a96a;
+    --panel: #1a1d24;
+    --border: #2a2f3a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+}
+
+header {
+    padding: 2rem 1rem 1rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+}
+
+header h1 {
+    margin: 0;
+    font-size: 2.5rem;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+}
+
+header .tagline {
+    margin: 0.25rem 0 0;
+    color: var(--muted);
+}
+
+main {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+section, form {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+}
+
+select, input[type="text"], input[type="number"] {
+    width: 100%;
+    padding: 0.5rem;
+    background: var(--bg);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.tag-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.25rem 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.tag-grid label {
+    font-weight: normal;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+}
+
+button {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+}
+
+button.link {
+    background: none;
+    color: var(--accent);
+    padding: 0;
+    width: auto;
+    font-size: 0.85rem;
+    text-decoration: underline;
+}
+
+#result {
+    font-size: 2rem;
+    color: var(--accent);
+    margin: 0 0 0.5rem;
+}
+
+.explanation { margin: 0 0 0.75rem; }
+.muted { color: var(--muted); font-size: 0.9rem; }
+
+pre {
+    background: var(--bg);
+    padding: 0.75rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+}
+
+.field { margin-bottom: 0.75rem; }
