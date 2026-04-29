@@ -205,12 +205,18 @@ async function _renderError(resp) {
     $("output").hidden = false;
 }
 
-function _wireShareLink(body) {
+function _wireShareLink(body, requestParams) {
+    // Merge server-echoed parameters with the original request params so values
+    // the dispatcher pops before echoing (e.g. count) still make it into the
+    // share URL.
+    const merged = { ...requestParams, ...(body.parameters || {}) };
+    delete merged.seed; // seed is set explicitly below from the resolved value
+
     $("copy-link").onclick = () => {
         const share = new URL(window.location.href);
         share.searchParams.set("generator", currentGenerator.name);
         share.searchParams.set("seed", body.seed);
-        for (const [k, v] of Object.entries(body.parameters || {})) {
+        for (const [k, v] of Object.entries(merged)) {
             if (Array.isArray(v)) {
                 share.searchParams.delete(k);
                 v.forEach((x) => share.searchParams.append(k, x));
@@ -243,6 +249,9 @@ async function roll() {
 
     if (!resp.ok) {
         await _renderError(resp);
+        // Clear the share-link handler so it can't copy a stale link from a
+        // previous successful roll.
+        $("copy-link").onclick = null;
         return;
     }
     const body = await resp.json();
@@ -254,7 +263,7 @@ async function roll() {
         url.searchParams.delete("seed");
         window.history.replaceState({}, "", url.toString());
     }
-    _wireShareLink(body);
+    _wireShareLink(body, params);
 }
 
 document.addEventListener("DOMContentLoaded", () => {

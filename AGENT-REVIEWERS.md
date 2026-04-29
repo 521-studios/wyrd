@@ -48,6 +48,7 @@ Review code for PEP8-compliant import practices. Imports belong at the top of th
 **Exceptions:**
 - Conditional imports for optional dependencies (wrapped in try/except).
 - Imports that genuinely break a circular dependency (must be documented with a comment explaining why).
+- Imports deferred to minimize startup cost in CLI tools or other entry points (must be documented with a comment explaining why).
 
 **Review approach:**
 1. Search for `import` statements inside function bodies (`def` blocks).
