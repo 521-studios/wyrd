@@ -42,6 +42,8 @@ def manifest() -> None:
 @click.option("--debug", is_flag=True, default=False)
 def serve(host: str, port: int, debug: bool) -> None:
     """Run the Flask dev server."""
+    # Deferred import: pulling Flask in only when serve runs keeps `wyrd --help`
+    # and other CLI subcommands lightweight.
     from wyrd.app import create_app
 
     app = create_app()

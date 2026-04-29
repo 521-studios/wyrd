@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from collections import Counter
+from importlib import resources
 from pathlib import Path
 
 import click
@@ -78,8 +79,6 @@ def rebuild_proportions(culture: str, place_names: Path, meanings: Path | None) 
     against the meaning DB, and emits a fresh proportions JSON to stdout.
     """
     if meanings is None:
-        from importlib import resources
-
         meanings_text = (
             resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
         )
@@ -132,21 +131,20 @@ def _proportions_from(names) -> dict:
     }
 
 
+def _encode_meaning(qualities) -> dict:
+    out: dict = {}
+    for quality in qualities:
+        if quality in ("pre", "post", "inner"):
+            out["location"] = quality
+        else:
+            out[quality] = True
+    return out
+
+
 def _encode_structs(struct: Counter) -> list:
     structs = []
     for key, value in struct.items():
-        words = []
-        for word in key:
-            w = []
-            for meaning in word:
-                m: dict = {}
-                for quality in meaning:
-                    if quality in ("pre", "post", "inner"):
-                        m["location"] = quality
-                    else:
-                        m[quality] = True
-                w.append(m)
-            words.append(w)
+        words = [[_encode_meaning(meaning) for meaning in word] for word in key]
         structs.append({"proportion": value, "words": words})
     return structs
 
