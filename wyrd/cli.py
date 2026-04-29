@@ -28,6 +28,8 @@ def manifest() -> None:
                 "name": g.name,
                 "display_name": g.display_name,
                 "description": g.description,
+                "details": g.details,
+                "legend": g.legend,
                 "input_schema": g.input_schema(),
             }
             for g in registry.all_generators()

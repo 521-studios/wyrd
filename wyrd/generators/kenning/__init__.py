@@ -52,6 +52,33 @@ class Kenning(Generator):
         "Old French, and Celtic morphemes. Pick a culture; optionally filter morphemes "
         "by tag (e.g. 'tree', 'water', 'religion')."
     )
+    details = (
+        "<p>"
+        "Town names from the British Isles aren't arbitrary — they're stitched from "
+        "old <strong>morphemes</strong>, the small meaning-bearing fragments inside "
+        "a word. Place-name scholars call the names themselves <strong>toponyms</strong>; "
+        'the morphemes are their building blocks. <em>Ashton</em> is "ash" + "-ton" '
+        '(Old English for an enclosed settlement). <em>Bridgwater</em> is "bridge" + '
+        '"water". The vocabulary is bounded; the combinations are nearly endless.'
+        "</p>"
+        "<p>"
+        "Kenning learned the patterns by analyzing roughly "
+        "<strong>66,000 real British Isles place names</strong> "
+        "(English, Scottish, Welsh, Irish) against a corpus of about "
+        "2,900 morphemes. For each culture it knows which morphemes show up, "
+        "in which structures (prefix + root, two words, saint's name, etc.), "
+        "and how often. Each rolled name is a fresh sample from those statistics."
+        "</p>"
+    )
+    legend = [
+        {"code": "EN", "name": "Old English"},
+        {"code": "SC", "name": "Old Scandinavian"},
+        {"code": "FR", "name": "Old French"},
+        {"code": "CL", "name": "Celtic"},
+        {"code": "LA", "name": "Latin"},
+        {"code": "GE", "name": "Germanic"},
+        {"code": "GR", "name": "Greek"},
+    ]
 
     def input_schema(self) -> dict[str, Any]:
         return {

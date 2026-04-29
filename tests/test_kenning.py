@@ -51,6 +51,19 @@ def test_manifest_lists_kenning():
     assert "kenning" in names
 
 
+def test_manifest_kenning_has_details_and_legend():
+    app = create_app()
+    client = app.test_client()
+    body = client.get("/api/manifest").get_json()
+    kenning = next(g for g in body["generators"] if g["name"] == "kenning")
+    assert kenning["details"], "kenning should publish a details panel"
+    assert "morphemes" in kenning["details"]
+    legend_codes = {entry["code"] for entry in kenning["legend"]}
+    assert legend_codes == {"EN", "SC", "FR", "CL", "LA", "GE", "GR"}
+    for entry in kenning["legend"]:
+        assert entry["name"], f"legend entry {entry['code']} missing name"
+
+
 def test_get_endpoint_returns_envelope():
     app = create_app()
     client = app.test_client()

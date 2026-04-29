@@ -35,6 +35,50 @@ function selectGenerator(name) {
     if (!currentGenerator) return;
     $("generator-description").textContent = currentGenerator.description;
     renderForm(currentGenerator.input_schema);
+    _renderAbout(currentGenerator.details);
+    // Switching generators invalidates any prior results — different generators
+    // produce different output shapes, and a stale legend would mislead.
+    $("results").innerHTML = "";
+    $("legend").hidden = true;
+    $("seed-line").hidden = true;
+}
+
+function _renderAbout(details) {
+    const div = $("about");
+    div.innerHTML = "";
+    if (!details) {
+        div.hidden = true;
+        return;
+    }
+    const heading = document.createElement("h3");
+    heading.className = "panel-title";
+    heading.textContent = "What is this?";
+    div.appendChild(heading);
+    // `details` is HTML authored in the generator's Python source — it never
+    // contains user input. The manifest is fetched from our own backend over
+    // the same origin as this SPA, so innerHTML here doesn't open an XSS hole.
+    const body = document.createElement("div");
+    body.innerHTML = details;
+    div.appendChild(body);
+    div.hidden = false;
+}
+
+function _renderLegend(legend) {
+    const el = $("legend");
+    el.innerHTML = "";
+    if (!legend || legend.length === 0) {
+        el.hidden = true;
+        return;
+    }
+    el.appendChild(document.createTextNode("Sources: "));
+    legend.forEach((entry, i) => {
+        if (i > 0) el.appendChild(document.createTextNode(" · "));
+        const code = document.createElement("strong");
+        code.textContent = entry.code;
+        el.appendChild(code);
+        el.appendChild(document.createTextNode(" " + entry.name));
+    });
+    el.hidden = false;
 }
 
 function _buildSelectField(key, prop, urlVal) {
@@ -192,7 +236,7 @@ function _renderResults(body) {
     }
     $("seed").textContent = body.seed;
     $("about").hidden = true;
-    $("legend").hidden = false;
+    _renderLegend(currentGenerator?.legend);
     $("seed-line").hidden = false;
 }
 
