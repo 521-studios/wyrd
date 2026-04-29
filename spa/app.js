@@ -12,7 +12,7 @@ async function loadManifest() {
     const resp = await fetch(`${API_BASE}/manifest`);
     manifest = await resp.json();
     const select = $("generator-select");
-    select.innerHTML = "";
+    select.replaceChildren();
     for (const g of manifest.generators) {
         const opt = document.createElement("option");
         opt.value = g.name;
@@ -35,6 +35,63 @@ function selectGenerator(name) {
     if (!currentGenerator) return;
     $("generator-description").textContent = currentGenerator.description;
     renderForm(currentGenerator.input_schema);
+    _renderAbout(currentGenerator.details);
+    // Switching generators invalidates any prior results — different generators
+    // produce different output shapes, and a stale legend would mislead.
+    $("results").replaceChildren();
+    $("legend").hidden = true;
+    $("seed-line").hidden = true;
+    _updateOutputVisibility();
+}
+
+// #output is the panel containing #about, #results, #legend, and #seed-line.
+// It should be visible whenever any of those have content and hidden otherwise,
+// so the empty styled panel never shows on first load or on a generator with
+// no details.
+function _updateOutputVisibility() {
+    const hasAbout = !$("about").hidden;
+    const hasResults = $("results").children.length > 0;
+    $("output").hidden = !hasAbout && !hasResults;
+}
+
+function _renderAbout(details) {
+    const div = $("about");
+    div.replaceChildren();
+    if (!details) {
+        div.hidden = true;
+        return;
+    }
+    const heading = document.createElement("h3");
+    heading.className = "panel-title";
+    heading.textContent = "What is this?";
+    div.appendChild(heading);
+    // `details` is a static string defined in the generator's Python source —
+    // it never contains user input or anything fetched at request time. Same-
+    // origin doesn't prevent XSS; the safety here is that the content cannot
+    // be influenced by anything the user does. If a future generator builds
+    // `details` from external data, this branch must use a sanitizer.
+    const body = document.createElement("div");
+    body.innerHTML = details;
+    div.appendChild(body);
+    div.hidden = false;
+}
+
+function _renderLegend(legend) {
+    const el = $("legend");
+    el.replaceChildren();
+    if (!legend || legend.length === 0) {
+        el.hidden = true;
+        return;
+    }
+    el.appendChild(document.createTextNode("Sources: "));
+    legend.forEach((entry, i) => {
+        if (i > 0) el.appendChild(document.createTextNode(" · "));
+        const code = document.createElement("strong");
+        code.textContent = entry.code;
+        el.appendChild(code);
+        el.appendChild(document.createTextNode(" " + entry.name));
+    });
+    el.hidden = false;
 }
 
 function _buildSelectField(key, prop, urlVal) {
@@ -110,7 +167,7 @@ function _buildField(key, prop, url) {
 
 function renderForm(schema) {
     const form = $("params-form");
-    form.innerHTML = "";
+    form.replaceChildren();
     if (!schema || !schema.properties) return;
 
     const heading = document.createElement("h3");
@@ -186,23 +243,29 @@ function _renderResultItem(r) {
 
 function _renderResults(body) {
     const list = $("results");
-    list.innerHTML = "";
+    list.replaceChildren();
     for (const r of body.results) {
         list.appendChild(_renderResultItem(r));
     }
     $("seed").textContent = body.seed;
-    $("output").hidden = false;
+    $("about").hidden = true;
+    _renderLegend(currentGenerator?.legend);
+    $("seed-line").hidden = false;
+    _updateOutputVisibility();
 }
 
 async function _renderError(resp) {
     const list = $("results");
-    list.innerHTML = "";
+    list.replaceChildren();
     const err = await resp.json().catch(() => ({}));
     const li = document.createElement("li");
     li.textContent = `error: ${err.error || resp.status}${err.detail ? " — " + err.detail : ""}`;
     list.appendChild(li);
     $("seed").textContent = "";
-    $("output").hidden = false;
+    $("about").hidden = true;
+    $("legend").hidden = true;
+    $("seed-line").hidden = true;
+    _updateOutputVisibility();
 }
 
 function _wireShareLink(body, requestParams) {

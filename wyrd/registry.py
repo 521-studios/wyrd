@@ -31,6 +31,16 @@ class Generator(ABC):
     display_name: str
     description: str
 
+    # Optional long-form explanation for the SPA's pre-roll "About" panel. May
+    # contain a small subset of HTML (paragraphs, em, strong). None means the
+    # SPA shows no panel for this generator.
+    details: str | None = None
+
+    # Optional legend of source/category codes the generator embeds in its
+    # results, surfaced under the results list. Each entry is
+    # {"code": "EN", "name": "Old English"}. None means no legend.
+    legend: list[dict[str, str]] | None = None
+
     @abstractmethod
     def input_schema(self) -> dict[str, Any]:
         """JSON Schema for the request body. SPA renders forms from this."""
