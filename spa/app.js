@@ -65,9 +65,11 @@ function _renderAbout(details) {
     heading.className = "panel-title";
     heading.textContent = "What is this?";
     div.appendChild(heading);
-    // `details` is HTML authored in the generator's Python source — it never
-    // contains user input. The manifest is fetched from our own backend over
-    // the same origin as this SPA, so innerHTML here doesn't open an XSS hole.
+    // `details` is a static string defined in the generator's Python source —
+    // it never contains user input or anything fetched at request time. Same-
+    // origin doesn't prevent XSS; the safety here is that the content cannot
+    // be influenced by anything the user does. If a future generator builds
+    // `details` from external data, this branch must use a sanitizer.
     const body = document.createElement("div");
     body.innerHTML = details;
     div.appendChild(body);
