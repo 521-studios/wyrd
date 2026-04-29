@@ -45,7 +45,7 @@ class Name:
             if words[0].word_has_meaning(lower):
                 self.chunks.extend(words)
 
-    def find_meaning(self, word_db):
+    def find_meaning(self, word_db, reduce=True):
         self.word_db = word_db
         self.find_chunks()
         for word in self.words:
@@ -56,7 +56,8 @@ class Name:
                     self.words[word].append(meaning)
             if len(self.words[word]) == 0:
                 self.words[word].append(w)
-        self.reduce()
+        if reduce:
+            self.reduce()
 
     def reduce(self):
         self._filter_for_unaccounted()

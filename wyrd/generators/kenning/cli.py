@@ -174,6 +174,105 @@ def add_meaning(tags: tuple[str, ...]) -> None:
         click.echo(json.dumps(entry) + ",")
 
 
+@cli.command("unaccounted")
+@click.argument("culture", type=click.Choice(CULTURES))
+@click.argument("place_names", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option(
+    "--meanings",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="Path to meanings.json (defaults to bundled).",
+)
+@click.option("--top", type=int, default=50, help="Show top N most-frequent fragments.")
+@click.option("--examples", type=int, default=3, help="Up to N example names per fragment.")
+@click.option("--min-length", type=int, default=2, help="Skip fragments shorter than this.")
+@click.option("--as-json", is_flag=True, default=False, help="Emit machine-readable JSON.")
+def unaccounted(
+    culture: str,
+    place_names: Path,
+    meanings: Path | None,
+    top: int,
+    examples: int,
+    min_length: int,
+    as_json: bool,
+) -> None:
+    """Surface morpheme fragments the corpus uses but the meaning DB doesn't.
+
+    Decomposes every name in <place_names>; for names that don't fully decompose,
+    aggregates the leftover string fragments by frequency. The top fragments are
+    candidates for new entries in meanings.json — this is the mining tool that
+    surfaces what the previous deconstruction silently dropped.
+    """
+    if meanings is None:
+        meanings_text = (
+            resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
+        )
+        meanings_data = json.loads(meanings_text)
+    else:
+        meanings_data = json.loads(meanings.read_text())
+
+    names_data = json.loads(place_names.read_text())
+    names = load_names(names_data)
+    word_db, _ = load_meanings(meanings_data)
+
+    fragments: Counter = Counter()
+    examples_by_frag: dict[str, list[str]] = {}
+    imperfect_count = 0
+    for name in names:
+        name.find_meaning(word_db)
+        if name.count_unaccounted() == 0:
+            continue
+        imperfect_count += 1
+        seen_in_name: set[str] = set()
+        for word_list in name.words.values():
+            for word in word_list:
+                for chunk in word.word:
+                    if not isinstance(chunk, str):
+                        continue
+                    frag = chunk.lower()
+                    if len(frag) < min_length:
+                        continue
+                    if frag in seen_in_name:
+                        continue
+                    seen_in_name.add(frag)
+                    fragments[frag] += 1
+                    bucket = examples_by_frag.setdefault(frag, [])
+                    if name.name not in bucket and len(bucket) < examples:
+                        bucket.append(name.name)
+
+    if as_json:
+        out = [
+            {"fragment": frag, "count": count, "examples": examples_by_frag[frag]}
+            for frag, count in fragments.most_common(top)
+        ]
+        click.echo(json.dumps(out, indent=2))
+        return
+
+    click.echo(
+        f"culture={culture} imperfect_names={imperfect_count} unique_fragments={len(fragments)}",
+        err=True,
+    )
+    click.echo(f"{'fragment':<20} {'count':>6}  examples")
+    click.echo("-" * 70)
+    for frag, count in fragments.most_common(top):
+        ex = ", ".join(examples_by_frag[frag])
+        click.echo(f"{frag:<20} {count:>6}  {ex}")
+
+
+@cli.command("explain")
+@click.argument("name")
+def explain(name: str) -> None:
+    """Decompose a name into morphemes; print every matching reading."""
+    # Local import keeps the cli module light and avoids a circular import,
+    # since wyrd.generators.kenning registers generators at import time.
+    from wyrd.generators.kenning import KenningExplain
+
+    explainer = KenningExplain()
+    results = explainer.generate_all({"name": name}, 0)
+    for r in results:
+        click.echo(r.explanation)
+
+
 @cli.command("validate-meanings")
 @click.argument(
     "meanings",

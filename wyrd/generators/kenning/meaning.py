@@ -35,17 +35,24 @@ class Meaning:
         return word.find(str(self)) > -1
 
     def test(self, word):
+        # str(self) lowercases the usage, so all matching is case-insensitive.
+        # Slice (not str.replace) to strip the matched span without depending on
+        # the original word's casing — fixes a bug from the original Rando port
+        # where "Hill" matched post-Meaning("-hill") but left "Hill" as residue
+        # because lowercase replace() couldn't find uppercase "H".
         token = str(self)
+        lower = word.lower()
+        n = len(token)
         if self.location == "pre":
-            if word.lower().startswith(token):
-                return [self, word.lower().replace(token, "")]
+            if lower.startswith(token):
+                return [self, word[n:]]
         elif self.location == "post":
-            if word.lower().endswith(token):
-                return [word.replace(token, ""), self]
+            if lower.endswith(token):
+                return [word[: len(word) - n], self]
         else:
-            if word.find(token) > -1:
-                parts = word.split(token)
-                return [parts[0], self, parts[1]]
+            idx = lower.find(token)
+            if idx > -1:
+                return [word[:idx], self, word[idx + n :]]
         return None
 
     def is_name(self):

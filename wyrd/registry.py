@@ -41,12 +41,24 @@ class Generator(ABC):
     # {"code": "EN", "name": "Old English"}. None means no legend.
     legend: list[dict[str, str]] | None = None
 
+    # When True, the dispatcher uses generate_all() and ignores the count
+    # param. Use this when the result count is determined by the input itself
+    # (e.g. an explainer that returns every decomposition that matches), not
+    # by a "roll N times" knob.
+    multi_result: bool = False
+
     @abstractmethod
     def input_schema(self) -> dict[str, Any]:
         """JSON Schema for the request body. SPA renders forms from this."""
 
     @abstractmethod
     def generate(self, params: dict[str, Any], seed: int) -> GenerationResult: ...
+
+    def generate_all(self, params: dict[str, Any], seed: int) -> list[GenerationResult]:
+        """Return a variable-length result set in one call. Override when
+        multi_result is True. The default wraps a single generate() so
+        single-result generators don't need to implement both."""
+        return [self.generate(params, seed)]
 
 
 _registry: dict[str, Generator] = {}

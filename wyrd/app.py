@@ -95,11 +95,18 @@ def _dispatch(generator_name: str, params: dict[str, Any]):
     seed = resolve_seed(params.pop("seed", None))
 
     try:
-        count = _coerce_count(params.pop("count", 5))
-        # Sub-seeds derived deterministically from the top-level seed so that the
-        # same (seed, count) pair always reproduces the same set of results.
-        seed_rng = rng_for(seed)
-        results = [generator.generate(params, seed_rng.randrange(2**63)) for _ in range(count)]
+        if generator.multi_result:
+            # Multi-result generators size their own output from the input
+            # (e.g. an explainer returning every matching decomposition), so
+            # count and per-result sub-seeds don't apply.
+            params.pop("count", None)
+            results = generator.generate_all(params, seed)
+        else:
+            count = _coerce_count(params.pop("count", 5))
+            # Sub-seeds derived deterministically from the top-level seed so that
+            # the same (seed, count) pair always reproduces the same set of results.
+            seed_rng = rng_for(seed)
+            results = [generator.generate(params, seed_rng.randrange(2**63)) for _ in range(count)]
     except (ValueError, KeyError) as e:
         return jsonify({"error": "bad_params", "detail": str(e)}), 400
 
