@@ -191,7 +191,9 @@ function _renderResults(body) {
         list.appendChild(_renderResultItem(r));
     }
     $("seed").textContent = body.seed;
-    $("output").hidden = false;
+    $("about").hidden = true;
+    $("legend").hidden = false;
+    $("seed-line").hidden = false;
 }
 
 async function _renderError(resp) {
@@ -202,7 +204,9 @@ async function _renderError(resp) {
     li.textContent = `error: ${err.error || resp.status}${err.detail ? " — " + err.detail : ""}`;
     list.appendChild(li);
     $("seed").textContent = "";
-    $("output").hidden = false;
+    $("about").hidden = true;
+    $("legend").hidden = true;
+    $("seed-line").hidden = true;
 }
 
 function _wireShareLink(body, requestParams) {

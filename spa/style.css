@@ -155,6 +155,30 @@ button.link {
 
 .muted { color: var(--muted); font-size: 0.9rem; }
 
+.small { font-size: 0.8rem; }
+
+#about p {
+    margin: 0 0 0.75rem;
+    line-height: 1.55;
+}
+
+#about p:last-child { margin-bottom: 0; }
+
+#about em { font-style: italic; color: var(--accent); }
+
+#legend {
+    margin: 0 0 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+    line-height: 1.7;
+}
+
+#legend strong {
+    color: var(--accent);
+    font-weight: 600;
+    margin-right: 0.15rem;
+}
+
 pre {
     background: var(--bg);
     padding: 0.75rem;

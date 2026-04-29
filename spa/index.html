@@ -26,9 +26,42 @@
     <div class="results-col">
         <button id="roll" type="button">Roll</button>
 
-        <section id="output" class="results-panel" hidden>
+        <section id="output" class="results-panel">
+            <div id="about">
+                <h3 class="panel-title">What is this?</h3>
+                <p>
+                    Town names from the British Isles aren't arbitrary — they're stitched
+                    from old <strong>morphemes</strong>, the small meaning-bearing fragments
+                    inside a word. Place-name scholars call the names themselves
+                    <strong>toponyms</strong>; the morphemes are their building blocks.
+                    <em>Ashton</em> is "ash" + "-ton" (Old English for an enclosed settlement).
+                    <em>Bridgwater</em> is "bridge" + "water". The vocabulary is bounded;
+                    the combinations are nearly endless.
+                </p>
+                <p>
+                    Kenning learned the patterns by analyzing roughly
+                    <strong>66,000 real British Isles place names</strong>
+                    (English, Scottish, Welsh, Irish) against a corpus of about
+                    2,900 morphemes. For each culture it knows which morphemes show up,
+                    in which structures (prefix + root, two words, saint's name, etc.),
+                    and how often. Each rolled name is a fresh sample from those statistics.
+                </p>
+            </div>
+
             <ol id="results"></ol>
-            <p class="muted">
+
+            <p id="legend" class="muted small" hidden>
+                Sources:
+                <strong>EN</strong> Old English ·
+                <strong>SC</strong> Old Scandinavian ·
+                <strong>FR</strong> Old French ·
+                <strong>CL</strong> Celtic ·
+                <strong>LA</strong> Latin ·
+                <strong>GE</strong> Germanic ·
+                <strong>GR</strong> Greek
+            </p>
+
+            <p id="seed-line" class="muted" hidden>
                 seed:
                 <code id="seed"></code>
                 <button type="button" id="copy-link" class="link">copy share link</button>
