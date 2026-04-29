@@ -12,7 +12,7 @@ async function loadManifest() {
     const resp = await fetch(`${API_BASE}/manifest`);
     manifest = await resp.json();
     const select = $("generator-select");
-    select.innerHTML = "";
+    select.replaceChildren();
     for (const g of manifest.generators) {
         const opt = document.createElement("option");
         opt.value = g.name;
@@ -38,14 +38,25 @@ function selectGenerator(name) {
     _renderAbout(currentGenerator.details);
     // Switching generators invalidates any prior results — different generators
     // produce different output shapes, and a stale legend would mislead.
-    $("results").innerHTML = "";
+    $("results").replaceChildren();
     $("legend").hidden = true;
     $("seed-line").hidden = true;
+    _updateOutputVisibility();
+}
+
+// #output is the panel containing #about, #results, #legend, and #seed-line.
+// It should be visible whenever any of those have content and hidden otherwise,
+// so the empty styled panel never shows on first load or on a generator with
+// no details.
+function _updateOutputVisibility() {
+    const hasAbout = !$("about").hidden;
+    const hasResults = $("results").children.length > 0;
+    $("output").hidden = !hasAbout && !hasResults;
 }
 
 function _renderAbout(details) {
     const div = $("about");
-    div.innerHTML = "";
+    div.replaceChildren();
     if (!details) {
         div.hidden = true;
         return;
@@ -65,7 +76,7 @@ function _renderAbout(details) {
 
 function _renderLegend(legend) {
     const el = $("legend");
-    el.innerHTML = "";
+    el.replaceChildren();
     if (!legend || legend.length === 0) {
         el.hidden = true;
         return;
@@ -154,7 +165,7 @@ function _buildField(key, prop, url) {
 
 function renderForm(schema) {
     const form = $("params-form");
-    form.innerHTML = "";
+    form.replaceChildren();
     if (!schema || !schema.properties) return;
 
     const heading = document.createElement("h3");
@@ -230,7 +241,7 @@ function _renderResultItem(r) {
 
 function _renderResults(body) {
     const list = $("results");
-    list.innerHTML = "";
+    list.replaceChildren();
     for (const r of body.results) {
         list.appendChild(_renderResultItem(r));
     }
@@ -238,11 +249,12 @@ function _renderResults(body) {
     $("about").hidden = true;
     _renderLegend(currentGenerator?.legend);
     $("seed-line").hidden = false;
+    _updateOutputVisibility();
 }
 
 async function _renderError(resp) {
     const list = $("results");
-    list.innerHTML = "";
+    list.replaceChildren();
     const err = await resp.json().catch(() => ({}));
     const li = document.createElement("li");
     li.textContent = `error: ${err.error || resp.status}${err.detail ? " — " + err.detail : ""}`;
@@ -251,6 +263,7 @@ async function _renderError(resp) {
     $("about").hidden = true;
     $("legend").hidden = true;
     $("seed-line").hidden = true;
+    _updateOutputVisibility();
 }
 
 function _wireShareLink(body, requestParams) {

@@ -165,6 +165,7 @@ button.link {
 #about p:last-child { margin-bottom: 0; }
 
 #about em { font-style: italic; color: var(--accent); }
+#about strong { color: var(--accent); }
 
 #legend {
     margin: 0 0 1rem;
