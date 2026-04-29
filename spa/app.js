@@ -129,16 +129,29 @@ function readForm() {
     return params;
 }
 
+async function sha256Hex(text) {
+    // CloudFront OAC + Lambda Function URL requires POST/PUT clients to send
+    // x-amz-content-sha256 — CloudFront doesn't compute the body hash itself.
+    const buf = new TextEncoder().encode(text);
+    const hashBuf = await crypto.subtle.digest("SHA-256", buf);
+    return [...new Uint8Array(hashBuf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 async function roll() {
     const params = readForm();
     const url = new URL(window.location.href);
     const seedFromUrl = url.searchParams.get("seed");
     if (seedFromUrl) params.seed = parseInt(seedFromUrl, 10);
 
+    const body = JSON.stringify(params);
+    const bodyHash = await sha256Hex(body);
     const resp = await fetch(`${API_BASE}/${currentGenerator.name}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(params),
+        headers: {
+            "Content-Type": "application/json",
+            "x-amz-content-sha256": bodyHash,
+        },
+        body,
     });
     if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
