@@ -218,7 +218,9 @@ function _wireShareLink(body) {
                 share.searchParams.set(k, v);
             }
         }
-        navigator.clipboard.writeText(share.toString());
+        navigator.clipboard.writeText(share.toString()).catch((err) => {
+            console.error("clipboard write failed:", err);
+        });
     };
 }
 
