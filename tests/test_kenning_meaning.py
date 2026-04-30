@@ -44,6 +44,25 @@ def test_test_inner_returns_left_meaning_right():
     assert m.test("Westbycombe") == ["West", m, "combe"]
 
 
+def test_test_post_strips_match_case_insensitively():
+    # Regression: case-sensitive str.replace used to leave 'Hill' as residue
+    # when matching post-Meaning('-hill'), inflating unaccounted counts.
+    m = make_meaning("-hill")
+    assert m.test("Hill") == ["", m]
+    assert m.test("Bushhill") == ["Bush", m]
+
+
+def test_test_pre_preserves_remainder_casing():
+    m = make_meaning("Bre-")
+    # Token comparison is lowercase, but the residue keeps the original case.
+    assert m.test("BreCombe") == [m, "Combe"]
+
+
+def test_test_inner_preserves_residue_casing():
+    m = make_meaning("-by-")
+    assert m.test("WestByCombe") == ["West", m, "Combe"]
+
+
 def test_is_name_true_for_male_female_or_family():
     assert make_meaning("Alf-", tags=["male name"]).is_name()
     assert make_meaning("Alf-", tags=["female name"]).is_name()
