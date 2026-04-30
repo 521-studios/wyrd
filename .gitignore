@@ -25,6 +25,11 @@ terraform/*.tfvars.local
 # `wyrd kenning lexicon build`
 wyrd/generators/kenning/data/lexicon.db
 
+# Public-domain etymology corpus — fetch instructions in sources/MANIFEST.md.
+# OCR books and OS OpenNames CSVs (~1.8G) are not committed.
+sources/*
+!sources/MANIFEST.md
+
 # Beads / Dolt files (added by bd init)
 .dolt/
 *.db
