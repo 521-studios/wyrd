@@ -16,6 +16,7 @@ import click
 from wyrd.generators.kenning import (
     CULTURES,
     Kenning,
+    KenningExplain,
     anthropic_extractor,
     available_tags,
     gemini_extractor,
@@ -363,10 +364,6 @@ def unaccounted(
 @click.argument("name")
 def explain(name: str) -> None:
     """Decompose a name into morphemes; print every matching reading."""
-    # Local import keeps the cli module light and avoids a circular import,
-    # since wyrd.generators.kenning registers generators at import time.
-    from wyrd.generators.kenning import KenningExplain
-
     explainer = KenningExplain()
     results = explainer.generate_all({"name": name}, 0)
     for r in results:
