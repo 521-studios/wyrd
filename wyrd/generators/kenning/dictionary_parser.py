@@ -75,24 +75,22 @@ def find_body_bounds(lines: list[str]) -> tuple[int, int]:
        to scan too much than too little (Joyce 1875, Moore 1890 both
        under-yielded by ~99% before this safety net).
     """
+
+    def _find_end(from_line: int) -> int:
+        # Scan from `from_line` (not from_line+1) so an end-marker on the
+        # very next line — common in TOC lines like "PART II. ELEMENTS .... 100"
+        # — is recognized and collapses the candidate span to zero.
+        for j in range(from_line, len(lines)):
+            if any(p.match(lines[j]) for p in _BODY_END_PATTERNS):
+                return j
+        return len(lines)
+
     starts: list[int] = []
     for i, line in enumerate(lines):
         if any(p.match(line) for p in _BODY_START_PATTERNS):
             starts.append(i)
 
-    candidates: list[tuple[int, int]] = []
-    for s in starts:
-        body_start = s + 1
-        body_end = len(lines)
-        # Scan from body_start (not body_start+1) so an end-marker on the
-        # very next line — common in TOC lines like "PART II. ELEMENTS .... 100"
-        # — collapses the candidate span to zero and gets out-voted by real
-        # body candidates.
-        for j in range(body_start, len(lines)):
-            if any(p.match(lines[j]) for p in _BODY_END_PATTERNS):
-                body_end = j
-                break
-        candidates.append((body_start, body_end))
+    candidates = [(s + 1, _find_end(s + 1)) for s in starts]
 
     if candidates:
         # Pick the candidate with the largest body span.
@@ -108,11 +106,7 @@ def find_body_bounds(lines: list[str]) -> tuple[int, int]:
                 break
         if start < 0:
             return 0, len(lines)
-        end = len(lines)
-        for i in range(start + 1, len(lines)):
-            if any(p.match(lines[i]) for p in _BODY_END_PATTERNS):
-                end = i
-                break
+        end = _find_end(start + 1)
 
     # Safety net: tiny bodies on big documents almost always mean the
     # heuristic mis-fired. 5% is conservative — the smallest legitimate

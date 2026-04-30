@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from wyrd.generators.kenning.dictionary_parser import (
+    _ENTRY_BODY_SIGNALS,
     _is_real_headword,
     _split_packed_paragraph,
     find_body_bounds,
@@ -170,8 +171,6 @@ def test_dotted_signal_markers_match_when_followed_by_space() -> None:
     character followed the literal period — meaning `O.E. ham` (the typical
     body shape) silently failed the test, and the regex was qualifying
     bodies via the year alternative alone."""
-    from wyrd.generators.kenning.dictionary_parser import _ENTRY_BODY_SIGNALS
-
     cases = [
         ("from O.E. ham, a homestead", True),
         ("ends in O.E.", True),
@@ -248,6 +247,38 @@ def test_find_body_bounds_picks_largest_span_when_marker_repeats() -> None:
     assert "Entry1999" in body, "real body must extend through to the end marker"
     assert "TITLE PAGE" not in body
     assert "ending matter" not in body
+
+
+def test_find_body_bounds_recognizes_end_marker_on_line_after_start() -> None:
+    """Regression: when a start marker is immediately followed by an end
+    marker on the very next line (TOC entry shape: 'PART I. ... 1\\nPART II.
+    ... 100'), the candidate's span must collapse to zero so that the real
+    body candidate wins the largest-span vote.
+
+    Before the fix, the end-marker scan started at `body_start + 1` and
+    skipped past an adjacent end-line, letting the bogus TOC candidate run
+    all the way to a later end marker and grow large enough to win."""
+    text = "\n".join(
+        [
+            "TITLE",
+            "",
+            "PART I. ALPHABETICAL ORDER",  # TOC entry — line 2
+            "PART II. ELEMENTS",  # adjacent end marker — line 3
+            "",
+            "PART I. ALPHABETICAL ORDER",  # real body — line 5
+            *[f"Entry{i} (Parish). 1{i:03d} Pipe Foo. O.E. bar." for i in range(1500)],
+            "PART II. ELEMENTS",
+            "trailing",
+        ]
+    )
+    lines = text.split("\n")
+    s, e = find_body_bounds(lines)
+    body = "\n".join(lines[s:e])
+    assert "Entry0" in body, "real body candidate should win"
+    # The TOC candidate should have collapsed to span 0; if the offset bug
+    # returned, the TOC candidate would have spanned line 3..end-of-real-body
+    # and the start would land at line 3.
+    assert s >= 5, f"start={s}: TOC candidate appears to have won (offset bug)"
 
 
 def test_find_body_bounds_safety_net_for_tiny_body_on_big_doc() -> None:
