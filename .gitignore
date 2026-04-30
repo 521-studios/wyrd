@@ -20,3 +20,12 @@ terraform/.terraform.tfstate.lock.info
 terraform/*.tfstate
 terraform/*.tfstate.backup
 terraform/*.tfvars.local
+
+# Kenning lexicon DB — build artifact, regenerable via
+# `wyrd kenning lexicon build`
+wyrd/generators/kenning/data/lexicon.db
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
