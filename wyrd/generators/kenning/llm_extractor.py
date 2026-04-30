@@ -311,9 +311,12 @@ def validate_response(
             ValidationFailure("element_count_out_of_range", f"got {len(elements)} elements")
         )
 
+    # Normalize the body once; the form-in-body check runs per element and the
+    # body is the larger of the two strings.
+    norm_body = _normalize_for_match(body)
     for i, el in enumerate(elements):
         form = (el.get("form") or "").strip().rstrip("-").lstrip("-")
-        if not _form_in_body(form, body):
+        if len(form) < 2 or _normalize_for_match(form) not in norm_body:
             failures.append(
                 ValidationFailure("form_not_in_body", f"element[{i}].form={el.get('form')!r}")
             )

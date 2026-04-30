@@ -188,33 +188,22 @@ class LexiconDB:
         position_pref: str | None = None,
         notes: str | None = None,
     ) -> int:
-        cur = self.conn.execute(
-            "SELECT id FROM etymon WHERE canonical_form = ? AND language = ?",
-            (canonical_form, language),
-        )
-        row = cur.fetchone()
-        if row is not None:
-            etymon_id = row["id"]
-            # Fill in missing fields without overwriting existing non-null values.
-            self.conn.execute(
-                """
-                UPDATE etymon
-                SET modifier_type = COALESCE(modifier_type, ?),
-                    position_pref = COALESCE(position_pref, ?),
-                    notes         = COALESCE(notes, ?)
-                WHERE id = ?
-                """,
-                (modifier_type, position_pref, notes, etymon_id),
-            )
-            return etymon_id
+        # ON CONFLICT lets us do this in a single statement: insert if new,
+        # otherwise fill in any missing fields without overwriting existing
+        # non-null values. RETURNING id avoids a follow-up SELECT.
         cur = self.conn.execute(
             """
             INSERT INTO etymon (canonical_form, language, modifier_type, position_pref, notes)
             VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(canonical_form, language) DO UPDATE SET
+                modifier_type = COALESCE(etymon.modifier_type, excluded.modifier_type),
+                position_pref = COALESCE(etymon.position_pref, excluded.position_pref),
+                notes         = COALESCE(etymon.notes, excluded.notes)
+            RETURNING id
             """,
             (canonical_form, language, modifier_type, position_pref, notes),
         )
-        return cur.lastrowid
+        return cur.fetchone()[0]
 
     def add_gloss(self, etymon_id: int, gloss: str) -> None:
         self.conn.execute(
