@@ -161,3 +161,83 @@ def test_entry_with_phonetic_bracket() -> None:
     # Body should preserve OE form text (with macron) and modern spelling.
     assert "ācum" in acomb.body_text
     assert "Akum" in acomb.body_text
+
+
+def test_celtic_signal_words_qualify_as_real_entries() -> None:
+    """wyrd-3qq regression: Celtic / Norse / Gaelic / Welsh / Manx markers
+    must qualify a body as a real etymology entry. Before the broadening,
+    the signal regex was English-only (O.E. / A.S. / O.N. / year / Domesday)
+    and Celtic books with G./Ir./W./Manx/Norse markers had legitimate
+    bodies rejected, dropping yield by 90-100% on Joyce, Moore, Johnston,
+    Gillies."""
+    # Note: each test paragraph wraps in a body-bounds frame so the parser's
+    # body-detection logic doesn't filter the fixture out.
+    celtic = """\
+THE PLACE-NAMES OF NOWHERESHIRE
+
+PART I. PLACE-NAMES IN ALPHABETICAL ORDER
+
+Aberdeen (Aberdeen). Gaelic Obar Dheathain, Welsh Aberdeen, mouth of the Don.
+
+Tobermory (Mull). Gael. tobar Mhoire, the well of Mary. Recorded as such.
+
+Snaefell (Man). From Norse snae 'snow' + fjall 'mountain', the snow mountain.
+
+Ballyfoyle (Kilkenny). Old Irish baile + Foghail, the personal name.
+
+PART II. ELEMENTS
+"""
+    entries = parse_alphabetical_text(celtic)
+    names = {e.toponym for e in entries}
+    # Each Celtic-signal flavor should be retained.
+    assert "Aberdeen" in names, "Gaelic + Welsh markers should qualify"
+    assert "Tobermory" in names, "Gael. abbreviation should qualify"
+    assert "Snaefell" in names, "Norse marker should qualify"
+    assert "Ballyfoyle" in names, "Old Irish marker should qualify"
+
+
+def test_find_body_bounds_picks_largest_span_when_marker_repeats() -> None:
+    """wyrd-3qq regression: when 'PART I' appears in TOC, body chapter, AND
+    nested subsections (Moore Isle of Man has five 'Part I' headings), the
+    bounds finder must pick the candidate with the LARGEST body span — not
+    blindly take the last one. Otherwise nested subsection labels collapse
+    the body to a tiny span and yield drops to single digits."""
+    text = "\n".join(
+        [
+            "TITLE PAGE",
+            "",
+            "PART I. SOMETHING",  # TOC entry — 0-line body
+            "PART II. SOMETHING ELSE",  # ends the above
+            "",
+            "PART I. THE REAL BODY",  # the real body header
+            *[f"Entry{i} (Parish). 1{i:03d} Pipe Alfor. O.E. Alfor's wic." for i in range(2000)],
+            "PART II. ELEMENTS",
+            "ending matter",
+        ]
+    )
+    lines = text.split("\n")
+    s, e = find_body_bounds(lines)
+    body = "\n".join(lines[s:e])
+    assert "Entry0" in body, "real body must be inside the bounds"
+    assert "Entry1999" in body, "real body must extend through to the end marker"
+    assert "TITLE PAGE" not in body
+    assert "ending matter" not in body
+
+
+def test_find_body_bounds_safety_net_for_tiny_body_on_big_doc() -> None:
+    """When the heuristic produces a tiny body span on a large document, the
+    safety net should return the whole doc rather than a misidentified
+    sliver. The downstream `_entry_body_is_real` filter handles the noise."""
+    # Synthesize a >1000-line doc with NO body markers anywhere — the
+    # fall-through "first headword in second half" logic could land on a
+    # near-end line and yield a 0-line body.
+    lines = ["preamble line"] * 1500
+    # Inject just one matchable headword near the very end so the fallback
+    # picks it but the resulting span is essentially zero.
+    lines[1499] = "Foobar (Place). 1086 Domesday Foobar."
+    s, e = find_body_bounds(lines)
+    # Safety net should kick in: body span < 5% of 1500 lines (= 75) means
+    # we return the whole doc rather than a 1-line slice.
+    assert (e - s) >= len(lines) // 20, (
+        f"safety net should expand tiny body, got {e - s} of {len(lines)} lines"
+    )
