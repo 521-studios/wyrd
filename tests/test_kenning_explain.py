@@ -2,8 +2,15 @@
 
 from __future__ import annotations
 
+import pytest
+
 from wyrd.app import create_app
 from wyrd.generators.kenning import KenningExplain
+
+
+@pytest.fixture
+def client():
+    return create_app().test_client()
 
 
 def test_known_compound_decomposes_cleanly():
@@ -32,8 +39,6 @@ def test_unrecognized_input_still_returns_results():
 
 
 def test_empty_name_raises():
-    import pytest
-
     with pytest.raises(ValueError):
         KenningExplain().generate_all({"name": ""}, 0)
 
@@ -42,7 +47,7 @@ def test_components_carry_structured_parts():
     r = KenningExplain().generate_all({"name": "Bridgewater"}, 0)[0]
     parts = r.components[0]["parts"]
     matched = [p for p in parts if p["type"] == "matched"]
-    assert any(p["fragment"] == "bridge" or p["fragment"] == "Bridge" for p in matched)
+    assert any(p["fragment"].lower() == "bridge" for p in matched)
     bridge = next(p for p in matched if p["fragment"].lower() == "bridge")
     assert "EN" in bridge["roots"]
 
@@ -61,10 +66,8 @@ def test_decompositions_are_sorted_best_first():
     assert first_unaccounted <= last_unaccounted
 
 
-def test_dispatcher_returns_all_decompositions():
+def test_dispatcher_returns_all_decompositions(client):
     """multi_result generators ignore count and return their natural N."""
-    app = create_app()
-    client = app.test_client()
     resp = client.post("/api/kenning-explain", json={"name": "Bridgewater"})
     assert resp.status_code == 200
     body = resp.get_json()
@@ -73,10 +76,8 @@ def test_dispatcher_returns_all_decompositions():
     assert all(r["result"] == "Bridgewater" for r in body["results"])
 
 
-def test_dispatcher_ignores_count_for_multi_result():
+def test_dispatcher_ignores_count_for_multi_result(client):
     """Even if a client passes count=10, multi_result generators decide."""
-    app = create_app()
-    client = app.test_client()
     resp = client.post("/api/kenning-explain", json={"name": "Bridgewater", "count": 10})
     assert resp.status_code == 200
     body = resp.get_json()
@@ -84,16 +85,12 @@ def test_dispatcher_ignores_count_for_multi_result():
     assert len(body["results"]) < 10
 
 
-def test_empty_name_returns_400():
-    app = create_app()
-    client = app.test_client()
+def test_empty_name_returns_400(client):
     resp = client.post("/api/kenning-explain", json={"name": ""})
     assert resp.status_code == 400
 
 
-def test_manifest_lists_explainer_with_multi_result():
-    app = create_app()
-    client = app.test_client()
+def test_manifest_lists_explainer_with_multi_result(client):
     body = client.get("/api/manifest").get_json()
     names = [g["name"] for g in body["generators"]]
     assert "kenning-explain" in names

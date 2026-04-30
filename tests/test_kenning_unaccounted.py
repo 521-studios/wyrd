@@ -68,7 +68,7 @@ def test_unaccounted_respects_min_length(tmp_path):
     assert all(len(entry["fragment"]) >= 5 for entry in data)
 
 
-def test_explain_cli_prints_each_reading(tmp_path):
+def test_explain_cli_prints_each_reading():
     runner = CliRunner()
     result = runner.invoke(cli, ["explain", "Bridgewater"])
     assert result.exit_code == 0

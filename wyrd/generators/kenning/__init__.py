@@ -11,6 +11,7 @@ from typing import Any
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.name import Name
 from wyrd.generators.kenning.proportions import load_proportions
+from wyrd.generators.kenning.word import Word
 from wyrd.registry import GenerationResult, Generator, register
 from wyrd.seed import rng_for
 
@@ -169,12 +170,7 @@ def _all_roots(meanings: list[Meaning]) -> list[str]:
 def _all_senses(meanings: list[Meaning]) -> list[str]:
     """Distinct sense strings across every Meaning sharing one usage,
     preserving first-seen order."""
-    out: list[str] = []
-    for m in meanings:
-        for sense in m.meanings:
-            if sense not in out:
-                out.append(sense)
-    return out
+    return list(dict.fromkeys(sense for m in meanings for sense in m.meanings))
 
 
 def _build_explanation_part(chunk, meaning_db: dict[str, list[Meaning]]) -> str:
@@ -191,11 +187,7 @@ def _build_explanation_part(chunk, meaning_db: dict[str, list[Meaning]]) -> str:
 def _build_component_part(chunk, meaning_db: dict[str, list[Meaning]]) -> dict[str, Any]:
     if isinstance(chunk, Meaning):
         siblings = meaning_db.get(chunk.usage, [chunk])
-        tags: list[str] = []
-        for m in siblings:
-            for tag in m.tags:
-                if tag not in tags:
-                    tags.append(tag)
+        tags = list(dict.fromkeys(tag for m in siblings for tag in m.tags))
         return {
             "type": "matched",
             "fragment": chunk.usage.replace("-", ""),
@@ -208,7 +200,7 @@ def _build_component_part(chunk, meaning_db: dict[str, list[Meaning]]) -> dict[s
     return {"type": "unaccounted", "fragment": chunk}
 
 
-def _decomposition_signature(words) -> tuple:
+def _decomposition_signature(words: tuple[Word, ...]) -> tuple:
     """Structural fingerprint: usages and unaccounted strings, in order. Used
     to dedupe decompositions that differ only by which Meaning instance was
     selected for a usage with multiple senses."""
@@ -295,7 +287,7 @@ class KenningExplain(Generator):
         # reduce=False keeps every alternative decomposition instead of
         # collapsing to the "best" one.
         name_obj.find_meaning(meaning_db, reduce=False)
-        per_word = [name_obj.words[word] for word in text.split(" ") if word]
+        per_word = [name_obj.words[word] for word in text.split()]
         if not per_word:
             return [GenerationResult(result=text, explanation="no morphemes recognized")]
 

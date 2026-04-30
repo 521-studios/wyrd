@@ -53,6 +53,17 @@ def _select_parser_and_run(text: str, parser: str) -> list:
     return parse_alphabetical_text(text)
 
 
+def _load_meanings_data(meanings: Path | None) -> dict:
+    """Load meanings.json from an optional override path or the bundled default."""
+    if meanings is None:
+        text = (
+            resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
+        )
+    else:
+        text = meanings.read_text()
+    return json.loads(text)
+
+
 # Default location for the authoring lexicon DB. Build artifact, gitignored.
 _DEFAULT_LEXICON_PATH = Path("wyrd/generators/kenning/data/lexicon.db")
 
@@ -131,13 +142,7 @@ def rebuild_proportions(culture: str, place_names: Path, meanings: Path | None) 
     the bundled `<culture>_place_names.json` files), deconstructs each name
     against the meaning DB, and emits a fresh proportions JSON to stdout.
     """
-    if meanings is None:
-        meanings_text = (
-            resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
-        )
-        meanings_data = json.loads(meanings_text)
-    else:
-        meanings_data = json.loads(meanings.read_text())
+    meanings_data = _load_meanings_data(meanings)
 
     names_data = json.loads(place_names.read_text())
     names = load_names(names_data)
@@ -303,13 +308,7 @@ def unaccounted(
     candidates for new entries in meanings.json — this is the mining tool that
     surfaces what the previous deconstruction silently dropped.
     """
-    if meanings is None:
-        meanings_text = (
-            resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
-        )
-        meanings_data = json.loads(meanings_text)
-    else:
-        meanings_data = json.loads(meanings.read_text())
+    meanings_data = _load_meanings_data(meanings)
 
     names_data = json.loads(place_names.read_text())
     names = load_names(names_data)
@@ -399,13 +398,7 @@ def lexicon_build(db_path: Path, meanings: Path | None) -> None:
     Wipes any existing DB at the path. The seed data is attributed to the
     synthetic 'rando-port' source.
     """
-    if meanings is None:
-        meanings_text = (
-            resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
-        )
-        meanings_data = json.loads(meanings_text)
-    else:
-        meanings_data = json.loads(meanings.read_text())
+    meanings_data = _load_meanings_data(meanings)
 
     init_schema(db_path)
     with LexiconDB(db_path) as db:
