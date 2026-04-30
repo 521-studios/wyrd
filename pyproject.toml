@@ -28,7 +28,7 @@ where = ["."]
 include = ["wyrd*"]
 
 [tool.setuptools.package-data]
-"wyrd.generators.kenning" = ["data/*.json"]
+"wyrd.generators.kenning" = ["data/*.json", "data/*.sql"]
 
 [tool.black]
 line-length = 100
