@@ -163,6 +163,32 @@ def test_entry_with_phonetic_bracket() -> None:
     assert "Akum" in acomb.body_text
 
 
+def test_dotted_signal_markers_match_when_followed_by_space() -> None:
+    """Regression: the body-signal regex must match dotted abbreviations
+    like O.E., M. Ir., A.S. when followed by a space or punctuation. Before
+    the (?!\\w) lookahead fix, the trailing `\\b` only matched if a word
+    character followed the literal period — meaning `O.E. ham` (the typical
+    body shape) silently failed the test, and the regex was qualifying
+    bodies via the year alternative alone."""
+    from wyrd.generators.kenning.dictionary_parser import _ENTRY_BODY_SIGNALS
+
+    cases = [
+        ("from O.E. ham, a homestead", True),
+        ("ends in O.E.", True),
+        ("from O.E., a hill", True),
+        ("from A.S. tun", True),
+        ("M. Ir. seann means old", True),
+        ("Mod. Gael. baile", True),
+        # Negative: a signal-shaped substring that has trailing word chars
+        # is a different word and must NOT match.
+        ("see O.Ex (not a marker)", False),
+        ("nothing relevant in this body", False),
+    ]
+    for body, expected in cases:
+        got = bool(_ENTRY_BODY_SIGNALS.search(body))
+        assert got == expected, f"{body!r}: got={got}, expected={expected}"
+
+
 def test_celtic_signal_words_qualify_as_real_entries() -> None:
     """wyrd-3qq regression: Celtic / Norse / Gaelic / Welsh / Manx markers
     must qualify a body as a real etymology entry. Before the broadening,

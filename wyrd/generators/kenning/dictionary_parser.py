@@ -275,6 +275,14 @@ _FALSE_HEADWORDS = {
 # upstream headword-shape check still gates the regex from firing on every
 # prose mention of "Manx" or "Norse"; this just lets the gated paragraphs
 # qualify as substantive etymology bodies.
+#
+# A note on regex anchoring: the closing assertion is `(?!\w)`, not `\b`.
+# After a literal `.` character (which most of these dotted markers end with —
+# `O.E.`, `M. Ir.`), `\b` only matches when the NEXT character is a word
+# character. In typical body text, abbreviations are followed by a space or
+# punctuation, so `\b` would silently fail. `(?!\w)` does the right thing
+# regardless of what comes after the period. The opening `\b` is safe because
+# every alternative starts with either a digit or a letter.
 _ENTRY_BODY_SIGNALS = re.compile(
     r"""
     \b(?:
@@ -304,7 +312,7 @@ _ENTRY_BODY_SIGNALS = re.compile(
         | Brit(?:tonic|ish)?\.?                    # Brittonic / British
         | Pictish                                  # Pictish substratum claims
         | Ir\.\s+gen\. | gen\.\s+sing\.            # Irish gen.sing. citations
-    )\b
+    )(?!\w)
     """,
     re.VERBOSE,
 )
