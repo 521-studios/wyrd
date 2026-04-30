@@ -294,18 +294,19 @@ _ENTRY_BODY_SIGNALS = re.compile(
         | Hatf | Pipe | F\.\s*A\.                  # other common attestation refs
         | Newm | Cl | Ipm
         # --- Celtic / Gaelic / Manx / Norse markers (wyrd-3qq) ----------
+        # The (?!\w) closing anchor handles trailing periods, so `Gael` matches
+        # both "Gael" and "Gael." — no need to enumerate dotted variants.
         | Gael(?:ic)? | Gaedh(?:ealg|elic)?         # Gaelic / Goidelic forms
         | Goidel(?:ic)? | Brython(?:ic)?            # Insular Celtic branch labels
-        | Old\s+Ir(?:ish)?                         # Old Irish (Sengoídelc)
-        | Mid\.?\s*Ir(?:ish)? | M\.\s*Ir\.         # Middle Irish
-        | Mod\.?\s*Ir(?:ish)? | Mod\.\s*Gael\.     # Modern Irish / Modern Gaelic
+        | (?:Old|Mid\.?|Mod\.?|M\.)\s*Ir(?:ish)?    # Old/Mid/Mod/M. Irish
+        | Ir\.                                     # standalone Irish abbreviation
         | Manx | Erse                              # Manx (Gaelg) / archaic name for Irish/Gaelic
-        | Norse | Old\s+Norse                      # explicit ON full forms
+        | (?:Old\s+)?Norse                         # Norse / Old Norse
         | Welsh | Cymr(?:ic|aeg)?                  # Welsh / Cymric
-        | Corn(?:ish)?\.? | Bret(?:on|onique)?\.?  # Cornish / Breton
-        | Brit(?:tonic|ish)?\.?                    # Brittonic / British
+        | Corn(?:ish)? | Bret(?:on|onique)?        # Cornish / Breton
+        | Brit(?:tonic|ish)?                       # Brittonic / British
         | Pictish                                  # Pictish substratum claims
-        | Ir\.\s+gen\. | gen\.\s+sing\.            # Irish gen.sing. citations
+        | gen\.\s*sing\.                           # gen.sing. citations
     )(?!\w)
     """,
     re.VERBOSE,
