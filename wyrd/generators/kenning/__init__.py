@@ -236,6 +236,13 @@ def _build_decomposition_result(
 
 
 class KenningExplain(Generator):
+    # Co-located in the `kenning` package rather than `wyrd/generators/kenning_explain/`
+    # because the explainer shares the meanings DB and decomposition machinery with
+    # the main Kenning generator. The SPA path / API name `kenning-explain` does not
+    # match a package directory, so `wyrd/cli.py:_mount_generator_clis()` cannot
+    # locate a matching `cli.py` for it. This is intentional: the `explain`
+    # subcommand on `wyrd kenning ...` is the CLI surface; the silent miss in the
+    # mounter is the documented trade-off for sharing data with `Kenning`.
     name = "kenning-explain"
     display_name = "Kenning — Explain a Name"
     description = (
@@ -265,11 +272,10 @@ class KenningExplain(Generator):
             "properties": {
                 "name": {
                     "type": "string",
-                    "default": "",
                     "description": "Town name to decompose, e.g. 'Bridgwater'.",
                 },
             },
-            "required": [],
+            "required": ["name"],
         }
 
     def generate(self, params: dict[str, Any], seed: int) -> GenerationResult:

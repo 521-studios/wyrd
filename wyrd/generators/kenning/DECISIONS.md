@@ -158,8 +158,8 @@ homebrew world gets the same treatment as Middle-earth).
 ## D12. Search-evidence lives in a parallel table, not in citations.
 
 `etymon_text_match` records body-text occurrences of an etymon's
-canonical form (or a fuzzy variant) inside a source. It is intentionally
-separate from `etymon_citation`, which records *extraction* witnesses
+canonical form (or a fuzzy variant) inside a source. Separate from
+`etymon_citation`, which records *extraction* witnesses
 (a scholar formally proposing this morpheme as part of a toponym's
 etymology). The `etymon_consensus` view does not include text matches.
 
@@ -253,9 +253,9 @@ collapsing to canonical forms loses generation flexibility.
 
 ## D19. Sonnet review doesn't lift over Gemini Flash for this task.
 
-Empirical finding: tested Sonnet 4.6 on Mawer disagreement cases and
-found it over-extrapolates (proposing `+tūn` for Angerton, `+lēah` for
-Ardley) where the body text doesn't support it. The form-in-body
+Tested Sonnet 4.6 on Mawer disagreement cases and found it
+over-extrapolates (proposing `+tūn` for Angerton, `+lēah` for Ardley)
+where the body text doesn't support it. The form-in-body
 validator catches the over-reach, but the net useful-extraction lift
 over Gemini Flash was ~zero. Reserve Anthropic API budget for runtime
 user features (explainer, register-conversion, MCP) rather than mining.

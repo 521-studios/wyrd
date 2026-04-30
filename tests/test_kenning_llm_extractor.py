@@ -9,7 +9,10 @@ garbage flows into the lexicon.
 
 from __future__ import annotations
 
+import re
+
 from wyrd.generators.kenning.llm_extractor import (
+    SYSTEM_PROMPT,
     _form_in_body,
     _normalize_for_match,
     validate_response,
@@ -185,10 +188,6 @@ def test_system_prompt_distinguishes_hedge_from_no_claim() -> None:
     Regression test: if the prompt is shortened/reworded and loses this
     distinction, future mining runs will silently drop hedged entries.
     """
-    import re
-
-    from wyrd.generators.kenning.llm_extractor import SYSTEM_PROMPT
-
     prompt = SYSTEM_PROMPT.lower()
 
     # Must explicitly mention low-confidence hedge handling.

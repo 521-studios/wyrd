@@ -7,6 +7,7 @@ this DB by `wyrd kenning lexicon export-meanings`.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from importlib import resources
 from pathlib import Path
@@ -647,8 +648,6 @@ def reverse_search_attestations(
         text = normalize_ocr_form(text)
         source_texts[f.stem] = text
 
-    import re
-
     # Build a quick lookup so the sample report can name the etymons.
     forms_by_id = {eid: form for eid, form, _ in candidates}
 
@@ -873,8 +872,6 @@ def fuzzy_search_attestations(
     # Build per-source vocabulary (unique alphabetic tokens, length-bucketed)
     # so we can fuzzy-match against the small set of plausibly-similar tokens
     # without scanning the entire text for every etymon.
-    import re
-
     token_re = re.compile(r"[a-z]{3,}")
     vocab_by_source: dict[str, list[str]] = {}
     for source_id, text in source_texts.items():

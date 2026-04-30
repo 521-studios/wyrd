@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import pytest
 
+from wyrd.generators.kenning import gemini_extractor as gm
 from wyrd.generators.kenning.gemini_extractor import (
     GEMINI_RESPONSE_SCHEMA,
     GeminiClient,
@@ -79,9 +80,6 @@ def test_default_model_picks_up_env_override(monkeypatch: pytest.MonkeyPatch) ->
     """The DEFAULT_GEMINI_MODEL is read at module load, so this test verifies
     the fallback path: if WYRD_GEMINI_MODEL was unset, default lands on
     gemini-2.5-flash."""
-    # Note: we don't reload the module here, just assert the default in code.
-    from wyrd.generators.kenning import gemini_extractor as gm
-
     # If no env override at module load, default model is 2.5-flash. We
     # can't easily reload the module, so just check the constant is sane.
     assert "gemini" in gm.DEFAULT_GEMINI_MODEL

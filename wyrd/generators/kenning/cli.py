@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import sys
+import time
 from collections import Counter
 from importlib import resources
 from pathlib import Path
@@ -14,7 +16,10 @@ import click
 from wyrd.generators.kenning import (
     CULTURES,
     Kenning,
+    anthropic_extractor,
     available_tags,
+    gemini_extractor,
+    llm_extractor,
 )
 from wyrd.generators.kenning.dictionary_parser import parse_alphabetical_text
 from wyrd.generators.kenning.lexicon import (
@@ -28,7 +33,7 @@ from wyrd.generators.kenning.lexicon import (
     reverse_search_attestations,
     seed_from_meanings,
 )
-from wyrd.generators.kenning.meaning import load_meanings
+from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.name import load_names
 from wyrd.generators.kenning.skeat_parser import parse_skeat_text
 from wyrd.seed import resolve_seed, rng_for
@@ -56,9 +61,7 @@ def _select_parser_and_run(text: str, parser: str) -> list:
 def _load_meanings_data(meanings: Path | None) -> dict:
     """Load meanings.json from an optional override path or the bundled default."""
     if meanings is None:
-        text = (
-            resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
-        )
+        text = resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
     else:
         text = meanings.read_text()
     return json.loads(text)
@@ -215,8 +218,6 @@ def _ordered_tag_pairs(name) -> list[tuple[list[str], list[str]]]:
         (Bridg-.tags, -water.tags)   # within word 1
         (-water.tags, Gate.tags)     # between words
     """
-    from wyrd.generators.kenning.meaning import Meaning
-
     flat_meanings: list[Meaning] = []
     for word_text in name.name.split(" "):
         word_options = name.words.get(word_text, [])
@@ -783,32 +784,25 @@ def lexicon_mine_llm(
         parsed = parsed[:limit]
 
     if provider == "ollama":
-        from wyrd.generators.kenning.llm_extractor import OllamaClient, extract_one
-
         client_kwargs: dict[str, Any] = {"timeout_s": timeout}
         if ollama_url:
             client_kwargs["base_url"] = ollama_url
         if model:
             client_kwargs["model"] = model
-        client = OllamaClient(**client_kwargs)
+        client = llm_extractor.OllamaClient(**client_kwargs)
+        extract_one = llm_extractor.extract_one
     elif provider == "gemini":
-        from wyrd.generators.kenning.gemini_extractor import GeminiClient
-        from wyrd.generators.kenning.gemini_extractor import extract_one as gemini_extract_one
-
         gemini_kwargs: dict[str, Any] = {"timeout_s": timeout}
         if model:
             gemini_kwargs["model"] = model
-        client = GeminiClient(**gemini_kwargs)
-        extract_one = gemini_extract_one
+        client = gemini_extractor.GeminiClient(**gemini_kwargs)
+        extract_one = gemini_extractor.extract_one
     elif provider == "anthropic":
-        from wyrd.generators.kenning.anthropic_extractor import AnthropicClient
-        from wyrd.generators.kenning.anthropic_extractor import extract_one as anthropic_extract_one
-
         anthropic_kwargs: dict[str, Any] = {"timeout_s": timeout}
         if model:
             anthropic_kwargs["model"] = model
-        client = AnthropicClient(**anthropic_kwargs)
-        extract_one = anthropic_extract_one
+        client = anthropic_extractor.AnthropicClient(**anthropic_kwargs)
+        extract_one = anthropic_extractor.extract_one
     else:
         raise click.ClickException(f"unknown provider: {provider}")
 
@@ -821,8 +815,6 @@ def lexicon_mine_llm(
     declined = 0
     rejected = 0
     by_failure: dict[str, int] = {}
-
-    import time
 
     start = time.time()
     for i, p in enumerate(parsed, 1):
@@ -956,22 +948,13 @@ def lexicon_review(
     Each tier is idempotent: skips toponyms that already have a row from
     the chosen provider.
     """
-    import sqlite3
-    import time
-
     if provider == "gemini":
-        from wyrd.generators.kenning.gemini_extractor import GeminiClient as Client
-        from wyrd.generators.kenning.gemini_extractor import (
-            extract_one as provider_extract_one,
-        )
-
+        Client = gemini_extractor.GeminiClient
+        provider_extract_one = gemini_extractor.extract_one
         provider_tag = "extracted_by:gemini:"
     elif provider == "anthropic":
-        from wyrd.generators.kenning.anthropic_extractor import AnthropicClient as Client
-        from wyrd.generators.kenning.anthropic_extractor import (
-            extract_one as provider_extract_one,
-        )
-
+        Client = anthropic_extractor.AnthropicClient
+        provider_extract_one = anthropic_extractor.extract_one
         provider_tag = "extracted_by:anthropic:"
     else:
         raise click.ClickException(f"unknown provider: {provider}")
@@ -1431,8 +1414,6 @@ def lexicon_normalize_ocr(db_path: Path, apply_changes: bool) -> None:
 )
 def lexicon_report(db_path: Path, top: int) -> None:
     """Read-only summary of the lexicon: who said what, where it agrees."""
-    import sqlite3
-
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
 

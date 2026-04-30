@@ -24,6 +24,10 @@ United States. Downloaded from the Internet Archive as plain-text OCR
 
 - `skeat_1901_cambridgeshire.txt` — W.W. Skeat, *The Place-Names of
   Cambridgeshire* (1901).
+- `skeat_1904_hertfordshire.txt` — W.W. Skeat, *The Place-Names of
+  Hertfordshire* (1904).
+- `skeat_1904_huntingdonshire.txt` — W.W. Skeat, *The Place-Names of
+  Huntingdonshire* (1904).
 - `skeat_1906_bedfordshire.txt` — W.W. Skeat, *The Place-Names of Bedfordshire*
   (1906).
 - `skeat_1911_berkshire.txt` — W.W. Skeat, *The Place-Names of Berkshire*
