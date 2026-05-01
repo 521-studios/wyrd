@@ -594,28 +594,24 @@ def link_lemmas(db: LexiconDB, *, apply: bool = False) -> dict:
 
     With apply=False (default) reports candidates without writing.
     """
-    # Index existing etymons by (form, language) → id, but EXCLUDE etymons
-    # that are themselves inflected — a candidate lemma must be unlinked
-    # OR a true root form. We also exclude OCR-merge tombstones
-    # (merged_into_id IS NOT NULL): linking an inflected variant to a
-    # tombstone would create a child → tombstone → canonical chain that
-    # the consensus rollup would split.
-    lemmas_by_key: dict[tuple[str, str], int] = {}
-    for row in db.conn.execute(
-        "SELECT id, canonical_form, language FROM etymon "
-        "WHERE lemma_id IS NULL AND merged_into_id IS NULL"
-    ):
-        lemmas_by_key[(row["canonical_form"].lower(), row["language"])] = row["id"]
-
-    # Inflected-row candidates also exclude merged tombstones — linking
-    # them is meaningless since they redirect via merged_into_id.
-    proposed: list[dict] = []
-    inflected_rows = list(
+    # Pull every unlinked, non-tombstoned etymon once. The same set is
+    # both the candidate-lemma source (potential link targets) and the
+    # candidate-inflected-row source (rows that might need a link). We
+    # exclude OCR-merge tombstones (merged_into_id IS NOT NULL) from
+    # both sides: linking an inflected variant to a tombstone would
+    # create a child → tombstone → canonical chain that the consensus
+    # rollup would split, and tombstones themselves don't need linking.
+    candidate_rows = list(
         db.conn.execute(
             "SELECT id, canonical_form, language FROM etymon "
             "WHERE lemma_id IS NULL AND merged_into_id IS NULL"
         )
     )
+    lemmas_by_key: dict[tuple[str, str], int] = {
+        (row["canonical_form"].lower(), row["language"]): row["id"] for row in candidate_rows
+    }
+    proposed: list[dict] = []
+    inflected_rows = candidate_rows
     for row in inflected_rows:
         match = derive_lemma_candidate(row["canonical_form"], row["language"])
         if match is None:
@@ -1115,17 +1111,19 @@ def cluster_ocr_variants(db: LexiconDB, *, apply: bool = False) -> dict:
         # an earlier pass (e.g., link-lemmas linked the winner to a row
         # that's since been merged), follow merged_into_id to the
         # ultimate canonical. Defends against stale lemma_id pointers
-        # that predate the link_lemmas merged-tombstone filter. Cap the
-        # walk at the current depth to avoid infinite loops on
-        # pathological data.
-        for _ in range(len(duplicate_groups) + 8):
+        # that predate the link_lemmas merged-tombstone filter. Tracks
+        # visited ids so a malformed cycle (canonical-of-canonical points
+        # back) breaks cleanly instead of looping forever.
+        visited = {canonical_id}
+        while True:
             next_id = db.conn.execute(
                 "SELECT merged_into_id FROM etymon WHERE id = ?",
                 (canonical_id,),
             ).fetchone()[0]
-            if next_id is None or next_id == canonical_id:
+            if next_id is None or next_id in visited:
                 break
             canonical_id = next_id
+            visited.add(canonical_id)
 
         for loser_id in loser_ids:
             # Re-parent any inflected children the loser was acting as a
