@@ -450,14 +450,10 @@ def test_cluster_ocr_variants_flattens_lemma_chain_when_winner_is_child(
         winner = db.upsert_etymon("Hædan", "old-english")
         loser = db.upsert_etymon("Hcsdan", "old-english")
         # link-lemmas has already linked the winner to the canonical.
-        db.conn.execute(
-            "UPDATE etymon SET lemma_id = ? WHERE id = ?", (canonical, winner)
-        )
+        db.conn.execute("UPDATE etymon SET lemma_id = ? WHERE id = ?", (canonical, winner))
         # The loser has its own inflected child.
         child = db.upsert_etymon("Hcsdanes", "old-english")
-        db.conn.execute(
-            "UPDATE etymon SET lemma_id = ? WHERE id = ?", (loser, child)
-        )
+        db.conn.execute("UPDATE etymon SET lemma_id = ? WHERE id = ?", (loser, child))
         db.commit()
 
         cluster_ocr_variants(db, apply=True)
