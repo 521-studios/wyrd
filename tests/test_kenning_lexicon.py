@@ -711,7 +711,7 @@ def test_clear_enrichment_all_derived_resets_three_stages(fresh_db: Path) -> Non
 
         result = clear_enrichment(db, stage="all-derived", apply=True)
         assert result["ocr_merges_to_clear"] == 1
-        assert result["lemma_links_to_clear"] >= 1
+        assert result["lemma_links_to_clear"] == 1
         assert result["text_match_rows_to_clear"] == 1
 
         leftover = db.conn.execute(
