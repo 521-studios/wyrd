@@ -1,8 +1,8 @@
 # Public-domain place-name etymology corpus
 
-All works below were published before 1929 and are in the public domain in the
-United States. Downloaded from the Internet Archive as plain-text OCR
-(`_djvu.txt`).
+All works below were published in 1930 or earlier and are in the public domain
+in the United States (95-year rule, so 1930 entered PD on 2026-01-01).
+Downloaded from the Internet Archive as plain-text OCR (`_djvu.txt`).
 
 ## England — general
 
@@ -17,6 +17,8 @@ United States. Downloaded from the Internet Archive as plain-text OCR
   History* (1922).
 - `mawer_stenton_1924_introduction_to_survey.txt` — A. Mawer & F.M. Stenton,
   *Introduction to the Survey of English Place-Names* (1924).
+- `ekwall_1928_river_names.txt` — Eilert Ekwall, *English River-Names* (1928).
+  Single-theme monograph; high morpheme density for water-related elements.
 - `mawer_1924_chief_elements.txt` — Allen Mawer, *The Chief Elements Used in
   English Place-Names* (1924).
 
@@ -35,6 +37,18 @@ United States. Downloaded from the Internet Archive as plain-text OCR
 - `skeat_1913_suffolk.txt` — W.W. Skeat, *The Place-Names of Suffolk* (1913).
 - `mawer_1920_northumberland_durham.txt` — Allen Mawer, *The Place-Names of
   Northumberland and Durham* (1920).
+- `mawer_stenton_1925_buckinghamshire.txt` — A. Mawer & F.M. Stenton,
+  *The Place-Names of Buckinghamshire* (1925). EPNS vol II.
+- `mawer_stenton_1927_worcestershire.txt` — A. Mawer & F.M. Stenton,
+  *The Place-Names of Worcestershire* (1927). EPNS vol IV.
+- `smith_1928_north_riding_yorkshire.txt` — A.H. Smith, *The Place-Names of
+  the North Riding of Yorkshire* (1928). EPNS vol V.
+- `roberts_1914_sussex.txt` — Richard G. Roberts, *The Place-Names of Sussex*
+  (Cambridge University Press, 1914). Earlier non-EPNS Sussex volume,
+  superseded by the 1930 EPNS edition but useful as an independent witness.
+- `mawer_stenton_1930_sussex.txt` — A. Mawer & F.M. Stenton, *The Place-Names
+  of Sussex* (1930). EPNS vols VI–VII (Sussex part 1 was 1929, part 2 1930;
+  this scan covers the combined work).
 - `ekwall_1922_lancashire.txt` — Eilert Ekwall, *The Place-Names of Lancashire*
   (1922).
 - `wyld_hirst_1911_lancashire.txt` — H.C. Wyld & T.O. Hirst, *The Place-Names
@@ -77,6 +91,8 @@ United States. Downloaded from the Internet Archive as plain-text OCR
 
 - `joyce_1875_irish_names_vol1.txt` — P.W. Joyce, *The Origin and History of
   Irish Names of Places*, vol. 1 (1875 ed.).
+- `joyce_1875_irish_names_vol2.txt` — P.W. Joyce, *The Origin and History of
+  Irish Names of Places*, vol. 2 (1875 ed., Dublin: McGlashan).
 - `joyce_1898_irish_names_vol3.txt` — P.W. Joyce, *The Origin and History of
   Irish Names of Places*, vol. 3 (1898).
 - `joyce_1913_irish_names_of_places.txt` — P.W. Joyce, *Irish Names of Places*

@@ -59,40 +59,62 @@ def find_body_bounds(lines: list[str]) -> tuple[int, int]:
 
     Returns (start, end) line indices.
 
-    Strategy: find ALL occurrences of body-start markers. The first is
-    typically the TOC entry, the second is the actual body header. We take
-    the last occurrence as the body start (works for Mawer's "PART I"
-    appearing in TOC then again as a body chapter heading).
-
-    If no explicit marker is found we fall back to the first headword-shaped
-    line in the latter half of the document.
+    Strategy:
+    1. Find all body-start markers ("PART I", "ALPHABETICAL LIST", etc.).
+       For each, find the next body-end marker. Pick the (start, end) span
+       that yields the LARGEST body — this beats "always take the last
+       Part I", which on books with nested subsection labels (Moore IoM has
+       five Part I headings, only the first is the real body) collapses to
+       a tiny region.
+    2. If no marker is found, fall back to the first headword-shaped line
+       in the latter half of the document.
+    3. **Tiny-body safety net**: if the resulting span is under ~5% of the
+       document, the heuristic almost certainly mis-identified the body
+       boundaries. Fall through to scanning the whole doc — the downstream
+       `_entry_body_is_real` filter will reject TOC/preface noise. Better
+       to scan too much than too little (Joyce 1875, Moore 1890 both
+       under-yielded by ~99% before this safety net).
     """
-    start = -1
+
+    def _find_end(from_line: int) -> int:
+        # Scan from `from_line` (not from_line+1) so an end-marker on the
+        # very next line — common in TOC lines like "PART II. ELEMENTS .... 100"
+        # — is recognized and collapses the candidate span to zero.
+        for j in range(from_line, len(lines)):
+            if any(p.match(lines[j]) for p in _BODY_END_PATTERNS):
+                return j
+        return len(lines)
+
     starts: list[int] = []
     for i, line in enumerate(lines):
         if any(p.match(line) for p in _BODY_START_PATTERNS):
             starts.append(i)
-    if starts:
-        # Last match is the body header; first is usually the TOC. Take the
-        # last so we skip the TOC entirely.
-        start = starts[-1] + 1
 
-    if start < 0:
+    candidates = [(s + 1, _find_end(s + 1)) for s in starts]
+
+    if candidates:
+        # Pick the candidate with the largest body span.
+        start, end = max(candidates, key=lambda se: se[1] - se[0])
+    else:
         # Fall back: first plausible headword in the second half.
+        start = -1
         midpoint = len(lines) // 2
         for i in range(midpoint, len(lines)):
             m = _ENTRY_HEADWORD.match(lines[i])
             if m and _is_real_headword(m.group("name")):
                 start = i
                 break
-    if start < 0:
-        return 0, len(lines)
+        if start < 0:
+            return 0, len(lines)
+        end = _find_end(start + 1)
 
-    end = len(lines)
-    for i in range(start + 1, len(lines)):
-        if any(p.match(lines[i]) for p in _BODY_END_PATTERNS):
-            end = i
-            break
+    # Safety net: tiny bodies on big documents almost always mean the
+    # heuristic mis-fired. 5% is conservative — the smallest legitimate
+    # dictionary section in the corpus (Mawer 1922's place-name index) is
+    # ~30%. Skip the safety net for small docs so unit-test fixtures don't
+    # trip it.
+    if len(lines) > 1000 and (end - start) < len(lines) // 20:
+        return 0, len(lines)
     return start, end
 
 
@@ -240,6 +262,21 @@ _FALSE_HEADWORDS = {
 # An entry body is real if it contains at least one of these signals.
 # Real Mawer/Skeat/Ekwall entries always have a date attestation, an
 # OE/ON/etc. marker, or a cross-reference. Sentence fragments don't.
+#
+# Celtic / Gaelic / Manx / Norse markers were added per wyrd-3qq because
+# the original English-only set was filtering out legitimate Celtic-corpus
+# entries (Joyce, Moore, Johnston Scotland 1892, Gillies Argyll). The
+# upstream headword-shape check still gates the regex from firing on every
+# prose mention of "Manx" or "Norse"; this just lets the gated paragraphs
+# qualify as substantive etymology bodies.
+#
+# A note on regex anchoring: the closing assertion is `(?!\w)`, not `\b`.
+# After a literal `.` character (which most of these dotted markers end with —
+# `O.E.`, `M. Ir.`), `\b` only matches when the NEXT character is a word
+# character. In typical body text, abbreviations are followed by a space or
+# punctuation, so `\b` would silently fail. `(?!\w)` does the right thing
+# regardless of what comes after the period. The opening `\b` is safe because
+# every alternative starts with either a digit or a letter.
 _ENTRY_BODY_SIGNALS = re.compile(
     r"""
     \b(?:
@@ -256,7 +293,21 @@ _ENTRY_BODY_SIGNALS = re.compile(
         | I\.\s*C\.\s*C\.                          # Inquisitio Comitatus Cantabrigiensis
         | Hatf | Pipe | F\.\s*A\.                  # other common attestation refs
         | Newm | Cl | Ipm
-    )\b
+        # --- Celtic / Gaelic / Manx / Norse markers (wyrd-3qq) ----------
+        # The (?!\w) closing anchor handles trailing periods, so `Gael` matches
+        # both "Gael" and "Gael." — no need to enumerate dotted variants.
+        | Gael(?:ic)? | Gaedh(?:ealg|elic)?         # Gaelic / Goidelic forms
+        | Goidel(?:ic)? | Brython(?:ic)?            # Insular Celtic branch labels
+        | (?:Old|Mid\.?|Mod\.?|M\.)\s*Ir(?:ish)?    # Old/Mid/Mod/M. Irish
+        | Irish | Ir\.                             # standalone Irish (full word + abbreviation)
+        | Manx | Erse                              # Manx (Gaelg) / archaic name for Irish/Gaelic
+        | (?:Old\s+)?Norse                         # Norse / Old Norse
+        | Welsh | Cymr(?:ic|aeg)?                  # Welsh / Cymric
+        | Corn(?:ish)? | Bret(?:on|onique)?        # Cornish / Breton
+        | Brit(?:tonic|ish)?                       # Brittonic / British
+        | Pictish                                  # Pictish substratum claims
+        | gen\.\s*sing\.                           # gen.sing. citations
+    )(?!\w)
     """,
     re.VERBOSE,
 )
