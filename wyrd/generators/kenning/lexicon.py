@@ -1111,6 +1111,22 @@ def cluster_ocr_variants(db: LexiconDB, *, apply: bool = False) -> dict:
             winner_id = promoted
             canonical_id = winner_id
 
+        # Chain-follow: if the canonical destination itself was merged in
+        # an earlier pass (e.g., link-lemmas linked the winner to a row
+        # that's since been merged), follow merged_into_id to the
+        # ultimate canonical. Defends against stale lemma_id pointers
+        # that predate the link_lemmas merged-tombstone filter. Cap the
+        # walk at the current depth to avoid infinite loops on
+        # pathological data.
+        for _ in range(len(duplicate_groups) + 8):
+            next_id = db.conn.execute(
+                "SELECT merged_into_id FROM etymon WHERE id = ?",
+                (canonical_id,),
+            ).fetchone()[0]
+            if next_id is None or next_id == canonical_id:
+                break
+            canonical_id = next_id
+
         for loser_id in loser_ids:
             # Re-parent any inflected children the loser was acting as a
             # lemma for, so consensus rolls them into the canonical group.
@@ -1157,6 +1173,12 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
     touched — that's the load-bearing data and rebuilding it costs hours
     of LLM time. Per D21, only enrichment inferences are reversible; the
     extraction layer is sacred.
+
+    Note: stage='ocr' is *partially* reversible. It un-marks
+    merged_into_id but does NOT restore the lemma_id re-parenting that
+    cluster_ocr_variants applies to inflected children at merge time.
+    For a fully clean revert, use stage='all-derived' (which also
+    clears lemma_id) and re-run link-lemmas.
 
     With apply=False the dry-run reports what would change. Pass
     apply=True to actually write.

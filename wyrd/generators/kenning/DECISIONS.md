@@ -334,6 +334,16 @@ After which `cluster_ocr_variants` can be re-run with new heuristics
 on the full canonical set. Re-runs filter `WHERE merged_into_id IS
 NULL` so previously-merged tombstones don't re-enter clustering.
 
+**`--stage=ocr` is partially reversible.** It reverts the
+`merged_into_id` redirects but does not restore the `lemma_id`
+re-parenting that happened at merge time (see flatten rules below).
+For a fully clean reset, use `--stage=all-derived`, which clears
+both the merged_into_id redirects AND the lemma_id /
+inflection / lemma_method linkage. Re-running `link-lemmas` after
+that produces a fresh lemma assignment from scratch. The mining
+evidence layer (citations, glosses, tags, text-match rows) is never
+touched by either stage.
+
 Two flatten-at-write-time rules keep the consensus rollup correct
 without recursive CTEs:
 

@@ -537,6 +537,45 @@ def test_cluster_ocr_variants_picks_lemma_as_winner_when_present(
         )
 
 
+def test_cluster_ocr_variants_follows_merged_chain_to_canonical(
+    fresh_db: Path,
+) -> None:
+    """If winner.lemma_id points at a row that was already merged in a
+    prior pass (e.g., from a stale link-lemmas pointer), cluster must
+    follow the merged_into_id chain to the ultimate canonical — not
+    plant losers' merged_into_id on a tombstone (which would create a
+    depth-2 chain that the rollup splits)."""
+    with LexiconDB(fresh_db) as db:
+        # L is the canonical lemma. L2 is its OCR-merge tombstone.
+        canonical = db.upsert_etymon("had", "old-english")
+        tombstone = db.upsert_etymon("hadx_ocr", "old-english")
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (canonical, tombstone),
+        )
+
+        # Winner W has a stale pointer at the tombstone (simulates a
+        # link-lemmas pass that ran before the tombstone-filter fix).
+        winner = db.upsert_etymon("Hædan", "old-english")
+        db.conn.execute("UPDATE etymon SET lemma_id = ? WHERE id = ?", (tombstone, winner))
+
+        # Loser X joins the cluster with W on OCR fingerprint.
+        loser = db.upsert_etymon("Hcsdan", "old-english")
+        db.commit()
+
+        cluster_ocr_variants(db, apply=True)
+
+    with LexiconDB(fresh_db) as db2:
+        # Loser must redirect to the ultimate canonical, not the tombstone.
+        loser_redirect = db2.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (loser,)
+        ).fetchone()[0]
+        assert loser_redirect == canonical, (
+            f"loser should chain-follow through tombstone to canonical; got "
+            f"merged_into_id={loser_redirect}"
+        )
+
+
 def test_link_lemmas_skips_merged_tombstone_as_lemma_candidate(
     fresh_db: Path,
 ) -> None:
