@@ -40,9 +40,21 @@ CREATE TABLE etymon (
   -- Lets generation compose <lemma>@<inflection> → look up or derive the
   -- surface form.
   inflection      TEXT,
+  -- Which version of link-lemmas produced lemma_id/inflection on this row.
+  -- Lets a future link-lemmas-v2 selectively clear and rebuild only its
+  -- predecessor's work.
+  lemma_method    TEXT,
+  -- Non-destructive OCR clustering (D22). When cluster_ocr_variants
+  -- merges this row into a canonical winner, this points at the winner
+  -- (and the row is otherwise left intact). The etymon_consensus view
+  -- rolls citations/glosses up via this column. Reset to NULL via
+  -- `wyrd kenning lexicon clear-enrichment --stage=ocr --apply` to
+  -- re-run clustering with new heuristics.
+  merged_into_id  INTEGER REFERENCES etymon(id) ON DELETE SET NULL,
   UNIQUE (canonical_form, language)
 );
-CREATE INDEX idx_etymon_lemma ON etymon(lemma_id);
+CREATE INDEX idx_etymon_lemma       ON etymon(lemma_id);
+CREATE INDEX idx_etymon_merged_into ON etymon(merged_into_id);
 
 CREATE TABLE etymon_gloss (
   etymon_id INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
@@ -87,6 +99,10 @@ CREATE TABLE etymon_text_match (
   match_count   INTEGER NOT NULL,
   edit_distance INTEGER NOT NULL DEFAULT 0,  -- 0 = exact, 1-2 = fuzzy
   snippet       TEXT,
+  -- Which heuristic produced this row: 'reverse-search-v1',
+  -- 'fuzzy-search-v1', 'llm-disambiguator-v1', etc. Lets a future rebuild
+  -- selectively clear-and-regenerate by method.
+  method        TEXT NOT NULL DEFAULT 'reverse-search-v1',
   UNIQUE (etymon_id, source_id, matched_form)
 );
 CREATE INDEX idx_etymon_text_match_etymon ON etymon_text_match(etymon_id);
@@ -152,12 +168,24 @@ CREATE TABLE toponym_etymology_element (
   PRIMARY KEY (toponym_etymology_id, ordinal)
 );
 
+-- The set of canonical etymons — i.e. the ones that aren't OCR-merge
+-- losers. Most queries that want "the real etymons" should read through
+-- this view instead of the raw `etymon` table. Tombstoned merge-losers
+-- still exist in `etymon` so their citations / glosses can roll up to
+-- canonical via etymon_consensus, and so clear-enrichment --stage=ocr
+-- can revive them.
+CREATE VIEW etymon_canonical AS
+  SELECT * FROM etymon WHERE merged_into_id IS NULL;
+
 -- Per-etymon consensus: how many independent sources cite this morpheme?
 -- Drives auto-promotion thresholds (≥3 witnesses → live inventory).
 --
--- Aggregates by lemma when lemma_id is set: an etymon and its inflected
--- variants count as one entry, with their citations unioned. Etymons
--- without a lemma_id stay as their own group.
+-- Aggregates by canonical group, with rollup priority:
+--   merged_into_id → lemma_id → self
+-- An OCR-cluster loser's citations roll up to the winner; an inflected
+-- variant's citations roll up to the lemma; everyone else is their own
+-- group. Per D22 this lets non-destructive OCR clustering work without
+-- moving citation data.
 CREATE VIEW etymon_consensus AS
   SELECT lemma_id,
          canonical_form,
@@ -165,12 +193,12 @@ CREATE VIEW etymon_consensus AS
          COUNT(DISTINCT source_id) AS witnesses
   FROM (
     SELECT
-      COALESCE(e.lemma_id, e.id)              AS lemma_id,
-      COALESCE(le.canonical_form, e.canonical_form) AS canonical_form,
+      COALESCE(e.merged_into_id, e.lemma_id, e.id) AS lemma_id,
+      COALESCE(target.canonical_form, e.canonical_form) AS canonical_form,
       e.language,
       c.source_id
     FROM etymon e
-    LEFT JOIN etymon le ON le.id = e.lemma_id
+    LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
     LEFT JOIN etymon_citation c ON c.etymon_id = e.id
   )
   GROUP BY lemma_id;

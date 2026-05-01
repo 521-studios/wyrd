@@ -311,3 +311,38 @@ should cost seconds. The design optimizes for "redo enrichment is
 free" so we can iterate on linkage/clustering/search heuristics
 without fear, and reserve the expensive operation for the one thing
 that genuinely needs it (extraction from new sources).
+
+## D22. OCR clustering is non-destructive via `merged_into_id`.
+
+`cluster_ocr_variants` does NOT delete loser etymons. Instead, the
+loser's `merged_into_id` self-FK column is set to the canonical
+winner. Citations, glosses, tags, text-match rows, and reflex links
+stay attached to the loser exactly where they were originally
+written. The `etymon_consensus` view rolls them up to the canonical
+group via the rollup chain `COALESCE(merged_into_id, lemma_id, id)`;
+the `etymon_canonical` view exposes the un-merged set.
+
+Reverting a clustering pass is a one-liner:
+
+```sql
+UPDATE etymon SET merged_into_id = NULL;
+-- or via CLI:
+wyrd kenning lexicon clear-enrichment --stage=ocr --apply
+```
+
+After which `cluster_ocr_variants` can be re-run with new heuristics
+on the full canonical set. Re-runs filter `WHERE merged_into_id IS
+NULL` so previously-merged tombstones don't re-enter clustering.
+
+Lemma children of a loser (`child.lemma_id = loser`) are still
+re-parented at merge time to the canonical destination, since the
+consensus rollup is single-level COALESCE — a chain of depth 2 would
+split witnesses across two buckets. This is cosmetic-but-necessary;
+the underlying mining evidence is still untouched.
+
+Why: this is the schema-level expression of D21. As long as the only
+mutation made to the etymon table is a redirect column, mining
+evidence cannot be lost by an enrichment pass — the worst case is
+"some merges are recorded that the user then wants to undo," and
+undoing is free. Supersedes the wyrd-go5 interim FK-repoint fix:
+once nothing is being deleted, there are no FK gaps to miss.

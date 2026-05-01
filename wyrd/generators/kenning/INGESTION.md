@@ -354,6 +354,31 @@ That script chains:
 The chain is **idempotent**. Re-running it after every mining batch
 is the right cadence.
 
+### Iterating on enrichment heuristics
+
+Per D22, the enrichment stages are reversible. To swap in a new
+heuristic without re-mining:
+
+```bash
+# Reset just the stage you're iterating on
+wyrd kenning lexicon clear-enrichment --stage=ocr --apply
+# (other choices: --stage=lemmas, --stage=text-match, --stage=all-derived)
+
+# Re-run that stage with the new logic
+wyrd kenning lexicon normalize-ocr --apply
+```
+
+`--stage=all-derived` is the "fully reset" path — clears OCR merges,
+lemma links (and `lemma_method` stamps), and every
+`etymon_text_match` row. Then re-running the post-mining chain
+rebuilds enrichment from scratch on the unchanged mining evidence.
+
+Each derived row carries a method/version stamp so a future v2
+heuristic can selectively rebuild only its predecessor's work:
+- `etymon.lemma_method` — which `link-lemmas` version produced this link
+- `etymon_text_match.method` — which search heuristic produced this row
+  (`reverse-search-v1`, `fuzzy-search-v1`, `llm-disambiguator-v1`, ...)
+
 ### Why these run after mining, not during
 
 Mining writes raw inflected forms as it sees them. Lemma linking

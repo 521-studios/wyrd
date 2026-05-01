@@ -14,6 +14,7 @@ from wyrd.generators.kenning.lexicon import (
     NON_LANGUAGE_FIELDS,
     LexiconDB,
     _position_from_usage,
+    clear_enrichment,
     cluster_ocr_variants,
     derive_lemma_candidate,
     ingest_parsed_entries,
@@ -286,9 +287,14 @@ def test_cluster_ocr_variants_dry_run_reports_without_writing(fresh_db: Path) ->
     assert haedan != hcsdan != haedan_ascii != ham
 
 
-def test_cluster_ocr_variants_apply_merges_and_repoints(fresh_db: Path) -> None:
-    """With apply=True, redundant etymons are merged into the lowest-id one
-    and citations/glosses/links repoint correctly."""
+def test_cluster_ocr_variants_apply_marks_losers_merged_non_destructively(
+    fresh_db: Path,
+) -> None:
+    """With apply=True, redundant etymons are MARKED merged into the
+    lowest-id row via merged_into_id. Losers stay in the etymon table
+    (per D22, mining evidence is non-destructive); their citations,
+    glosses, and tags remain attached to them. The etymon_canonical view
+    hides them; etymon_consensus rolls them up via merged_into_id."""
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="src-a", title="A")
         db.upsert_source(id="src-b", title="B")
@@ -301,7 +307,6 @@ def test_cluster_ocr_variants_apply_merges_and_repoints(fresh_db: Path) -> None:
         # Distinct etymon should be left alone.
         keeper = db.upsert_etymon("ham", "old-english")
 
-        # Add some citations and glosses to losers — must transfer.
         db.add_gloss(loser_a, "personal name")
         db.add_gloss(loser_b, "from heathland (per Mawer)")
         db.add_tag(loser_a, "male name")
@@ -312,72 +317,85 @@ def test_cluster_ocr_variants_apply_merges_and_repoints(fresh_db: Path) -> None:
 
         result = cluster_ocr_variants(db, apply=True)
 
-        # Verify the merge.
-        rows = db.conn.execute("SELECT id, canonical_form FROM etymon ORDER BY id").fetchall()
-        ids = {r["canonical_form"]: r["id"] for r in rows}
-
     assert result["groups"] == 1
     assert result["etymons_merged"] == 2
-    # The losers are gone.
-    assert "Hcsdan" not in ids
-    assert "Haedan" not in ids
-    # Winner and unrelated etymon survive.
-    assert ids["Hædan"] == winner
-    assert ids["ham"] == keeper
 
-    # Citations from losers are now on winner (winner's existing citation
-    # plus the two from losers; same source_id+page is dedup'd via INSERT
-    # OR IGNORE).
     with LexiconDB(fresh_db) as db2:
-        cit_count = db2.conn.execute(
-            "SELECT COUNT(*) FROM etymon_citation WHERE etymon_id = ?",
-            (winner,),
+        # Losers still exist in the raw table.
+        rows = db2.conn.execute(
+            "SELECT id, canonical_form, merged_into_id FROM etymon ORDER BY id"
+        ).fetchall()
+        by_form = {r["canonical_form"]: r for r in rows}
+        assert "Hcsdan" in by_form
+        assert "Haedan" in by_form
+        assert "Hædan" in by_form
+        assert "ham" in by_form
+
+        # Losers point at the winner; winner and keeper are not merged.
+        assert by_form["Hcsdan"]["merged_into_id"] == winner
+        assert by_form["Haedan"]["merged_into_id"] == winner
+        assert by_form["Hædan"]["merged_into_id"] is None
+        assert by_form["ham"]["merged_into_id"] is None
+
+        # etymon_canonical view excludes the merged losers.
+        canonical_forms = {
+            r["canonical_form"]
+            for r in db2.conn.execute("SELECT canonical_form FROM etymon_canonical")
+        }
+        assert canonical_forms == {"Hædan", "ham"}
+
+        # Citations / glosses / tags stay on losers — not moved (D22).
+        loser_a_cit_count = db2.conn.execute(
+            "SELECT COUNT(*) FROM etymon_citation WHERE etymon_id = ?", (loser_a,)
         ).fetchone()[0]
-        gloss_count = db2.conn.execute(
-            "SELECT COUNT(*) FROM etymon_gloss WHERE etymon_id = ?",
-            (winner,),
+        winner_cit_count = db2.conn.execute(
+            "SELECT COUNT(*) FROM etymon_citation WHERE etymon_id = ?", (winner,)
         ).fetchone()[0]
-        tag_count = db2.conn.execute(
-            "SELECT COUNT(*) FROM etymon_tag WHERE etymon_id = ?",
-            (winner,),
+        assert loser_a_cit_count == 1
+        assert winner_cit_count == 1
+
+        loser_a_gloss_count = db2.conn.execute(
+            "SELECT COUNT(*) FROM etymon_gloss WHERE etymon_id = ?", (loser_a,)
         ).fetchone()[0]
-    # 3 distinct (source, page) citations: src-a/47, src-b/23, src-a/10
-    assert cit_count == 3
-    # 2 distinct glosses migrated from losers
-    assert gloss_count == 2
-    # 1 tag migrated
-    assert tag_count == 1
+        assert loser_a_gloss_count == 1
+
+        # etymon_consensus rolls them up correctly: the Hædan canonical
+        # group sees all three sources (src-a from winner, src-a from
+        # loser_a's page=47, src-b from loser_b).
+        consensus = db2.conn.execute(
+            "SELECT witnesses FROM etymon_consensus WHERE canonical_form = ? AND language = ?",
+            ("Hædan", "old-english"),
+        ).fetchone()
+        # src-a (winner+loser_a counted once across rollup) and src-b → 2 distinct
+        assert consensus["witnesses"] == 2
+
+    # Unused name reference — keeper's id used for differentiation.
+    assert keeper != winner
 
 
-def test_cluster_ocr_variants_repoints_lemma_children_and_text_matches(
+def test_cluster_ocr_variants_keeps_lemma_children_consistent_via_redirect(
     fresh_db: Path,
 ) -> None:
     """When the loser is itself a lemma with inflected children, those
-    children's lemma_id must be re-parented to the winner before the loser
-    is deleted; otherwise the DELETE fails on the etymon.lemma_id self-FK.
-
-    Same for etymon_text_match: ON DELETE CASCADE would silently drop
-    rows that should follow the merge to the winner.
-    """
+    children's lemma_id must be re-parented to the canonical so the
+    single-level consensus rollup still works. Text-match rows stay
+    attached to the loser etymon (D22 — non-destructive) and are
+    rolled up via merged_into_id."""
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="src-a", title="A")
         db.commit()
 
-        # Two OCR variants of the same lemma. Lowest id wins.
         winner = db.upsert_etymon("Hædan", "old-english")
         loser = db.upsert_etymon("Hcsdan", "old-english")
 
-        # An inflected child points at the loser via lemma_id (this is the
-        # state link-lemmas leaves behind when it picks the loser as the
-        # canonical lemma for an inflected variant).
+        # Inflected child of the loser.
         child = db.upsert_etymon("Hædanes", "old-english")
         db.conn.execute(
             "UPDATE etymon SET lemma_id = ?, inflection = ? WHERE id = ?",
             (loser, "genitive_strong", child),
         )
 
-        # Text-match rows on both winner and loser, with one (matched_form,
-        # source) pair colliding so we exercise the UNIQUE constraint.
+        # Text-match rows on both winner and loser. Stay where they are.
         db.conn.execute(
             "INSERT INTO etymon_text_match "
             "(etymon_id, source_id, matched_form, match_count, edit_distance, snippet) "
@@ -388,71 +406,55 @@ def test_cluster_ocr_variants_repoints_lemma_children_and_text_matches(
             "INSERT INTO etymon_text_match "
             "(etymon_id, source_id, matched_form, match_count, edit_distance, snippet) "
             "VALUES (?, ?, ?, ?, ?, ?)",
-            (loser, "src-a", "haedan", 5, 0, "loser snippet"),
-        )
-        db.conn.execute(
-            "INSERT INTO etymon_text_match "
-            "(etymon_id, source_id, matched_form, match_count, edit_distance, snippet) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
             (loser, "src-a", "hcsdan", 7, 0, "loser-only form"),
         )
         db.commit()
 
-        # Without the FK repoints this raises sqlite3.IntegrityError.
         cluster_ocr_variants(db, apply=True)
 
     with LexiconDB(fresh_db) as db2:
-        # (a) Loser is gone, child now points at winner.
+        # Loser still exists, marked merged.
         loser_row = db2.conn.execute(
-            "SELECT id FROM etymon WHERE canonical_form = ?", ("Hcsdan",)
+            "SELECT id, merged_into_id FROM etymon WHERE canonical_form = ?",
+            ("Hcsdan",),
         ).fetchone()
-        assert loser_row is None
+        assert loser_row is not None
+        assert loser_row["merged_into_id"] == winner
+
+        # Child re-parented to winner so consensus rolls up cleanly.
         child_lemma = db2.conn.execute(
             "SELECT lemma_id FROM etymon WHERE canonical_form = ?", ("Hædanes",)
         ).fetchone()[0]
         assert child_lemma == winner
 
-        # (b) Text-match rows survive the merge attached to the winner.
-        rows = db2.conn.execute(
-            "SELECT matched_form, source_id FROM etymon_text_match "
-            "WHERE etymon_id = ? ORDER BY matched_form",
+        # Text-match rows stay on their original etymons. Loser's row is
+        # NOT moved to winner — the rollup happens via merged_into_id at
+        # query time, not by data movement.
+        rows_on_loser = db2.conn.execute(
+            "SELECT matched_form FROM etymon_text_match WHERE etymon_id = ?",
+            (loser,),
+        ).fetchall()
+        rows_on_winner = db2.conn.execute(
+            "SELECT matched_form FROM etymon_text_match WHERE etymon_id = ?",
             (winner,),
         ).fetchall()
-        assert [(r["matched_form"], r["source_id"]) for r in rows] == [
-            ("haedan", "src-a"),
-            ("hcsdan", "src-a"),
-        ]
-
-        # (c) UNIQUE (etymon_id, source_id, matched_form) is intact: only
-        # one ('haedan', 'src-a') row. On conflict the match_counts are
-        # summed (3 from winner + 5 from loser) — D21 says mining evidence
-        # must be preserved, not discarded.
-        haedan = db2.conn.execute(
-            "SELECT match_count FROM etymon_text_match "
-            "WHERE etymon_id = ? AND matched_form = 'haedan'",
-            (winner,),
-        ).fetchall()
-        assert len(haedan) == 1
-        assert haedan[0]["match_count"] == 8
+        assert [r["matched_form"] for r in rows_on_loser] == ["hcsdan"]
+        assert [r["matched_form"] for r in rows_on_winner] == ["haedan"]
 
 
 def test_cluster_ocr_variants_flattens_lemma_chain_when_winner_is_child(
     fresh_db: Path,
 ) -> None:
     """If the winner is itself an inflected variant of some canonical lemma,
-    the loser's children must be re-parented directly to that canonical
-    lemma — not to the winner. Otherwise etymon_consensus (single-level
-    COALESCE rollup) would split witnesses into two buckets.
+    the loser's merged_into_id and the loser's children's lemma_id must
+    both point directly at the canonical lemma — not at the winner.
+    Otherwise the single-level consensus rollup would split witnesses.
     """
     with LexiconDB(fresh_db) as db:
-        # Canonical lemma (no FK).
         canonical = db.upsert_etymon("had", "old-english")
-        # Two OCR variants. Lowest id wins.
         winner = db.upsert_etymon("Hædan", "old-english")
         loser = db.upsert_etymon("Hcsdan", "old-english")
-        # link-lemmas has already linked the winner to the canonical.
         db.conn.execute("UPDATE etymon SET lemma_id = ? WHERE id = ?", (canonical, winner))
-        # The loser has its own inflected child.
         child = db.upsert_etymon("Hcsdanes", "old-english")
         db.conn.execute("UPDATE etymon SET lemma_id = ? WHERE id = ?", (loser, child))
         db.commit()
@@ -460,17 +462,191 @@ def test_cluster_ocr_variants_flattens_lemma_chain_when_winner_is_child(
         cluster_ocr_variants(db, apply=True)
 
     with LexiconDB(fresh_db) as db2:
-        # The child must point at the canonical lemma, not the winner —
-        # the rollup is single-level, so a chain would split witnesses.
+        # The loser's redirect goes to canonical, not to winner.
+        loser_merged = db2.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE canonical_form = ?", ("Hcsdan",)
+        ).fetchone()[0]
+        assert loser_merged == canonical
+
+        # The child also points at canonical directly.
         child_lemma = db2.conn.execute(
             "SELECT lemma_id FROM etymon WHERE canonical_form = ?", ("Hcsdanes",)
         ).fetchone()[0]
         assert child_lemma == canonical
+
         # Winner's own pointer is unchanged.
         winner_lemma = db2.conn.execute(
             "SELECT lemma_id FROM etymon WHERE canonical_form = ?", ("Hædan",)
         ).fetchone()[0]
         assert winner_lemma == canonical
+
+
+def test_cluster_ocr_variants_skips_already_merged_on_rerun(fresh_db: Path) -> None:
+    """Re-running cluster_ocr_variants on a DB that already has merges
+    must NOT re-cluster the tombstoned losers. The candidate query
+    filters merged_into_id IS NULL."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_etymon("Hædan", "old-english")
+        db.upsert_etymon("Hcsdan", "old-english")
+        db.upsert_etymon("Haedan", "old-english")
+        db.commit()
+
+        first = cluster_ocr_variants(db, apply=True)
+        assert first["groups"] == 1
+        assert first["etymons_merged"] == 2
+
+        # Second run: nothing left to cluster.
+        second = cluster_ocr_variants(db, apply=True)
+        assert second["groups"] == 0
+        assert second["etymons_merged"] == 0
+
+
+def test_clear_enrichment_dry_run_reports_without_writing(fresh_db: Path) -> None:
+    """Dry-run reports counts but does not modify the DB."""
+    with LexiconDB(fresh_db) as db:
+        winner = db.upsert_etymon("Hædan", "old-english")
+        db.upsert_etymon("Hcsdan", "old-english")
+        db.commit()
+        cluster_ocr_variants(db, apply=True)
+
+        before = db.conn.execute(
+            "SELECT COUNT(*) FROM etymon WHERE merged_into_id IS NOT NULL"
+        ).fetchone()[0]
+        assert before == 1
+
+        result = clear_enrichment(db, stage="ocr", apply=False)
+        assert result["ocr_merges_to_clear"] == 1
+
+        after = db.conn.execute(
+            "SELECT COUNT(*) FROM etymon WHERE merged_into_id IS NOT NULL"
+        ).fetchone()[0]
+        assert after == 1
+    # Use winner reference for differentiation.
+    assert winner is not None
+
+
+def test_clear_enrichment_ocr_reverts_merges(fresh_db: Path) -> None:
+    """clear_enrichment(stage='ocr', apply=True) un-marks all merges,
+    restoring the etymon_canonical view to include the previously-tombstoned
+    rows. Citations/glosses/tags are intact since cluster_ocr_variants
+    didn't move them."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src-a", title="A")
+        db.commit()
+        winner = db.upsert_etymon("Hædan", "old-english")
+        loser = db.upsert_etymon("Hcsdan", "old-english")
+        db.add_citation(loser, "src-a", page="47")
+        db.commit()
+        cluster_ocr_variants(db, apply=True)
+
+        # Before clear: etymon_canonical excludes loser.
+        before = {
+            r["canonical_form"]
+            for r in db.conn.execute("SELECT canonical_form FROM etymon_canonical")
+        }
+        assert before == {"Hædan"}
+
+        result = clear_enrichment(db, stage="ocr", apply=True)
+        assert result["ocr_merges_to_clear"] == 1
+
+        # After clear: loser is canonical again, citation untouched.
+        after = {
+            r["canonical_form"]
+            for r in db.conn.execute("SELECT canonical_form FROM etymon_canonical")
+        }
+        assert after == {"Hædan", "Hcsdan"}
+        loser_cit = db.conn.execute(
+            "SELECT page FROM etymon_citation WHERE etymon_id = ?", (loser,)
+        ).fetchone()
+        assert loser_cit["page"] == "47"
+    assert winner is not None
+
+
+def test_clear_enrichment_lemmas_resets_lemma_id_inflection_method(
+    fresh_db: Path,
+) -> None:
+    """clear_enrichment(stage='lemmas') nulls out lemma_id, inflection,
+    and lemma_method on every row."""
+    with LexiconDB(fresh_db) as db:
+        lemma = db.upsert_etymon("cot", "old-english")
+        inflected = db.upsert_etymon("cotan", "old-english")
+        db.conn.execute(
+            "UPDATE etymon SET lemma_id = ?, inflection = 'weak_oblique', "
+            "lemma_method = 'link-lemmas-v1' WHERE id = ?",
+            (lemma, inflected),
+        )
+        db.commit()
+
+        result = clear_enrichment(db, stage="lemmas", apply=True)
+        assert result["lemma_links_to_clear"] == 1
+
+        row = db.conn.execute(
+            "SELECT lemma_id, inflection, lemma_method FROM etymon WHERE id = ?",
+            (inflected,),
+        ).fetchone()
+        assert row["lemma_id"] is None
+        assert row["inflection"] is None
+        assert row["lemma_method"] is None
+
+
+def test_clear_enrichment_text_match_drops_all_rows(fresh_db: Path) -> None:
+    """clear_enrichment(stage='text-match') deletes every text-match row
+    so a re-run of reverse-search/fuzzy-search starts fresh."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src-a", title="A")
+        eid = db.upsert_etymon("denu", "old-english")
+        db.commit()
+        db.conn.execute(
+            "INSERT INTO etymon_text_match (etymon_id, source_id, matched_form, "
+            "match_count, edit_distance, snippet) VALUES (?, ?, ?, ?, ?, ?)",
+            (eid, "src-a", "denu", 12, 0, "snippet"),
+        )
+        db.commit()
+
+        result = clear_enrichment(db, stage="text-match", apply=True)
+        assert result["text_match_rows_to_clear"] == 1
+
+        remaining = db.conn.execute("SELECT COUNT(*) FROM etymon_text_match").fetchone()[0]
+        assert remaining == 0
+
+
+def test_clear_enrichment_all_derived_resets_three_stages(fresh_db: Path) -> None:
+    """stage='all-derived' clears OCR merges, lemma links, AND text-match
+    rows in a single invocation."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src-a", title="A")
+        winner = db.upsert_etymon("Hædan", "old-english")
+        db.upsert_etymon("Hcsdan", "old-english")
+        lemma = db.upsert_etymon("cot", "old-english")
+        inflected = db.upsert_etymon("cotan", "old-english")
+        db.commit()
+        cluster_ocr_variants(db, apply=True)
+        db.conn.execute("UPDATE etymon SET lemma_id = ? WHERE id = ?", (lemma, inflected))
+        db.conn.execute(
+            "INSERT INTO etymon_text_match (etymon_id, source_id, matched_form, "
+            "match_count, edit_distance, snippet) VALUES (?, ?, ?, ?, ?, ?)",
+            (winner, "src-a", "haedan", 5, 0, "s"),
+        )
+        db.commit()
+
+        result = clear_enrichment(db, stage="all-derived", apply=True)
+        assert result["ocr_merges_to_clear"] == 1
+        assert result["lemma_links_to_clear"] >= 1
+        assert result["text_match_rows_to_clear"] == 1
+
+        leftover = db.conn.execute(
+            "SELECT "
+            "  (SELECT COUNT(*) FROM etymon WHERE merged_into_id IS NOT NULL),"
+            "  (SELECT COUNT(*) FROM etymon WHERE lemma_id IS NOT NULL),"
+            "  (SELECT COUNT(*) FROM etymon_text_match)"
+        ).fetchone()
+        assert tuple(leftover) == (0, 0, 0)
+
+
+def test_clear_enrichment_rejects_unknown_stage(fresh_db: Path) -> None:
+    """Defensive: unknown stage raises ValueError before touching the DB."""
+    with LexiconDB(fresh_db) as db, pytest.raises(ValueError, match="unknown stage"):
+        clear_enrichment(db, stage="bogus", apply=True)
 
 
 def test_derive_lemma_candidate_strips_oe_inflections() -> None:
