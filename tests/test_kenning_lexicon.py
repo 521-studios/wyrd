@@ -349,6 +349,92 @@ def test_cluster_ocr_variants_apply_merges_and_repoints(fresh_db: Path) -> None:
     assert tag_count == 1
 
 
+def test_cluster_ocr_variants_repoints_lemma_children_and_text_matches(
+    fresh_db: Path,
+) -> None:
+    """When the loser is itself a lemma with inflected children, those
+    children's lemma_id must be re-parented to the winner before the loser
+    is deleted; otherwise the DELETE fails on the etymon.lemma_id self-FK.
+
+    Same for etymon_text_match: ON DELETE CASCADE would silently drop
+    rows that should follow the merge to the winner.
+    """
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src-a", title="A")
+        db.commit()
+
+        # Two OCR variants of the same lemma. Lowest id wins.
+        winner = db.upsert_etymon("Hædan", "old-english")
+        loser = db.upsert_etymon("Hcsdan", "old-english")
+
+        # An inflected child points at the loser via lemma_id (this is the
+        # state link-lemmas leaves behind when it picks the loser as the
+        # canonical lemma for an inflected variant).
+        child = db.upsert_etymon("Hædanes", "old-english")
+        db.conn.execute(
+            "UPDATE etymon SET lemma_id = ?, inflection = ? WHERE id = ?",
+            (loser, "genitive_strong", child),
+        )
+
+        # Text-match rows on both winner and loser, with one (matched_form,
+        # source) pair colliding so we exercise the UNIQUE constraint.
+        db.conn.execute(
+            "INSERT INTO etymon_text_match "
+            "(etymon_id, source_id, matched_form, match_count, edit_distance, snippet) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (winner, "src-a", "haedan", 3, 0, "winner snippet"),
+        )
+        db.conn.execute(
+            "INSERT INTO etymon_text_match "
+            "(etymon_id, source_id, matched_form, match_count, edit_distance, snippet) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (loser, "src-a", "haedan", 5, 0, "loser snippet"),
+        )
+        db.conn.execute(
+            "INSERT INTO etymon_text_match "
+            "(etymon_id, source_id, matched_form, match_count, edit_distance, snippet) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (loser, "src-a", "hcsdan", 7, 0, "loser-only form"),
+        )
+        db.commit()
+
+        # Without the FK repoints this raises sqlite3.IntegrityError.
+        cluster_ocr_variants(db, apply=True)
+
+    with LexiconDB(fresh_db) as db2:
+        # (a) Loser is gone, child now points at winner.
+        loser_row = db2.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = ?", ("Hcsdan",)
+        ).fetchone()
+        assert loser_row is None
+        child_lemma = db2.conn.execute(
+            "SELECT lemma_id FROM etymon WHERE canonical_form = ?", ("Hædanes",)
+        ).fetchone()[0]
+        assert child_lemma == winner
+
+        # (b) Text-match rows survive the merge attached to the winner.
+        rows = db2.conn.execute(
+            "SELECT matched_form, source_id FROM etymon_text_match "
+            "WHERE etymon_id = ? ORDER BY matched_form",
+            (winner,),
+        ).fetchall()
+        assert [(r["matched_form"], r["source_id"]) for r in rows] == [
+            ("haedan", "src-a"),
+            ("hcsdan", "src-a"),
+        ]
+
+        # (c) UNIQUE (etymon_id, source_id, matched_form) is intact: only
+        # one ('haedan', 'src-a') row, with the winner's original count
+        # preserved (INSERT OR IGNORE drops the loser's collision).
+        haedan = db2.conn.execute(
+            "SELECT match_count FROM etymon_text_match "
+            "WHERE etymon_id = ? AND matched_form = 'haedan'",
+            (winner,),
+        ).fetchall()
+        assert len(haedan) == 1
+        assert haedan[0]["match_count"] == 3
+
+
 def test_derive_lemma_candidate_strips_oe_inflections() -> None:
     """Standard OE genitive/dative endings should suggest the stem."""
     # Weak oblique (-an): cotan → cot

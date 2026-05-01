@@ -1038,6 +1038,28 @@ def cluster_ocr_variants(db: LexiconDB, *, apply: bool = False) -> dict:
                 "UPDATE toponym_etymology_element SET etymon_id = ? WHERE etymon_id = ?",
                 (winner_id, loser_id),
             )
+            # Re-parent inflected children of the loser to the winner. Without
+            # this, the DELETE below fails on the etymon.lemma_id self-FK once
+            # link-lemmas has run.
+            db.conn.execute(
+                "UPDATE etymon SET lemma_id = ? WHERE lemma_id = ?",
+                (winner_id, loser_id),
+            )
+            # etymon_text_match has ON DELETE CASCADE, so without an explicit
+            # repoint the loser's text-match rows would silently disappear.
+            # UNIQUE (etymon_id, source_id, matched_form) means we INSERT OR
+            # IGNORE, then drop the originals.
+            db.conn.execute(
+                "INSERT OR IGNORE INTO etymon_text_match "
+                "  (etymon_id, source_id, matched_form, match_count, edit_distance, snippet) "
+                "SELECT ?, source_id, matched_form, match_count, edit_distance, snippet "
+                "FROM etymon_text_match WHERE etymon_id = ?",
+                (winner_id, loser_id),
+            )
+            db.conn.execute(
+                "DELETE FROM etymon_text_match WHERE etymon_id = ?",
+                (loser_id,),
+            )
             db.conn.execute("DELETE FROM etymon WHERE id = ?", (loser_id,))
 
     db.commit()
