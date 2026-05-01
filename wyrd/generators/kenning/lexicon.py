@@ -432,13 +432,17 @@ def _rebuild_etymon_views(db: LexiconDB, applied: dict[str, bool]) -> None:
                  COUNT(DISTINCT source_id) AS witnesses
           FROM (
             SELECT
-              -- Rollup priority: OCR-cluster winner first, then lemma, then self.
-              COALESCE(e.merged_into_id, e.lemma_id, e.id) AS lemma_id,
-              COALESCE(target.canonical_form, e.canonical_form) AS canonical_form,
+              -- Two-step rollup so merged_into_id → lemma_id chains
+              -- collapse correctly: target = e's redirect (merged or lemma);
+              -- le = target's lemma if target is itself inflected.
+              COALESCE(le.id, target.id, e.id) AS lemma_id,
+              COALESCE(le.canonical_form, target.canonical_form, e.canonical_form)
+                AS canonical_form,
               e.language,
               c.source_id
             FROM etymon e
             LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
+            LEFT JOIN etymon le ON le.id = target.lemma_id
             LEFT JOIN etymon_citation c ON c.etymon_id = e.id
           )
           GROUP BY lemma_id
@@ -1086,18 +1090,23 @@ def cluster_ocr_variants(db: LexiconDB, *, apply: bool = False) -> dict:
             # Re-parent any inflected children the loser was acting as a
             # lemma for, so consensus rolls them into the canonical group.
             # The redirect via merged_into_id alone wouldn't suffice
-            # because the rollup is single-level.
+            # because the rollup is single-level on lemma_id.
             db.conn.execute(
                 "UPDATE etymon SET lemma_id = ? WHERE lemma_id = ?",
                 (canonical_id, loser_id),
             )
-            # Mark merged. Citations / glosses / tags / text-match /
-            # reflex links stay on the loser; the consensus view rolls
-            # them up to canonical via the merged_into_id column. Mining
-            # evidence (D21) is preserved exactly as it was.
+            # Mark merged AND flatten any pre-existing redirects so
+            # merged_into_id chains can't form. Without the second clause,
+            # rows from a prior cluster pass that point at this loser
+            # would create a 2-deep chain X → loser → canonical, and the
+            # single-level COALESCE rollup would split witnesses.
+            # Citations / glosses / tags / text-match / reflex links stay
+            # attached to their original etymons; the consensus view
+            # rolls them up via merged_into_id. Mining evidence (D21) is
+            # preserved exactly as written.
             db.conn.execute(
-                "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
-                (canonical_id, loser_id),
+                "UPDATE etymon SET merged_into_id = ? WHERE id = ? OR merged_into_id = ?",
+                (canonical_id, loser_id, loser_id),
             )
 
     db.commit()

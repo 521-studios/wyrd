@@ -193,12 +193,19 @@ CREATE VIEW etymon_consensus AS
          COUNT(DISTINCT source_id) AS witnesses
   FROM (
     SELECT
-      COALESCE(e.merged_into_id, e.lemma_id, e.id) AS lemma_id,
-      COALESCE(target.canonical_form, e.canonical_form) AS canonical_form,
+      -- Two-step rollup so merged_into_id → lemma_id chains collapse
+      -- correctly. target = e's first-hop redirect; le = target's lemma
+      -- if target is itself inflected. Without the second JOIN, an OCR
+      -- variant of an inflected form would split witnesses across the
+      -- target group and the lemma group.
+      COALESCE(le.id, target.id, e.id) AS lemma_id,
+      COALESCE(le.canonical_form, target.canonical_form, e.canonical_form)
+        AS canonical_form,
       e.language,
       c.source_id
     FROM etymon e
     LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
+    LEFT JOIN etymon le ON le.id = target.lemma_id
     LEFT JOIN etymon_citation c ON c.etymon_id = e.id
   )
   GROUP BY lemma_id;

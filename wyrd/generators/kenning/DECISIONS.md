@@ -334,11 +334,26 @@ After which `cluster_ocr_variants` can be re-run with new heuristics
 on the full canonical set. Re-runs filter `WHERE merged_into_id IS
 NULL` so previously-merged tombstones don't re-enter clustering.
 
-Lemma children of a loser (`child.lemma_id = loser`) are still
-re-parented at merge time to the canonical destination, since the
-consensus rollup is single-level COALESCE — a chain of depth 2 would
-split witnesses across two buckets. This is cosmetic-but-necessary;
-the underlying mining evidence is still untouched.
+Two flatten-at-write-time rules keep the consensus rollup correct
+without recursive CTEs:
+
+- Lemma children of a loser (`child.lemma_id = loser`) are
+  re-parented to the canonical destination at merge time.
+- Existing redirects pointing at the loser
+  (`X.merged_into_id = loser`) are also re-routed to canonical, so
+  no `X → loser → canonical` chain forms.
+
+Both are mining-evidence-preserving (no citation/gloss data moves)
+but they are NOT cosmetic: a 2-deep chain through the consensus view
+would split witnesses across two GROUP BY buckets, undercounting the
+canonical morpheme's witness total and incorrectly gating the D4
+≥3-witness promotion threshold.
+
+The view itself also does a two-step rollup (`merged_into_id` →
+`lemma_id`) so the combination
+`OCR-loser-of-an-inflected-variant-of-a-lemma` rolls all the way to
+the lemma in a single GROUP BY pass, no matter what order the
+clustering and lemma-linking stages were run in.
 
 Why: this is the schema-level expression of D21. As long as the only
 mutation made to the etymon table is a redirect column, mining

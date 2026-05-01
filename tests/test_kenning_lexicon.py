@@ -501,6 +501,86 @@ def test_cluster_ocr_variants_skips_already_merged_on_rerun(fresh_db: Path) -> N
         assert second["etymons_merged"] == 0
 
 
+def test_cluster_ocr_variants_flattens_existing_redirects_to_loser(
+    fresh_db: Path,
+) -> None:
+    """If any row already has merged_into_id pointing at the current
+    loser (from a prior cluster pass, manual fixup, etc.), marking the
+    loser merged into a new canonical must re-route those rows too —
+    otherwise X → loser → canonical chains form and the rollup splits."""
+    with LexiconDB(fresh_db) as db:
+        a = db.upsert_etymon("Hædan", "old-english")
+        b = db.upsert_etymon("Hcsdan", "old-english")
+        # X has a separate OCR signature so the candidate query would
+        # group {a, b} alone. We set X.merged_into_id = b manually to
+        # simulate a residual pointer (e.g. from a manual fixup or a
+        # prior clustering pass that touched only some rows).
+        x = db.upsert_etymon("Hbcdan", "old-english")
+        db.conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (b, x))
+        db.commit()
+
+        cluster_ocr_variants(db, apply=True)
+
+    with LexiconDB(fresh_db) as db2:
+        # b's merge target is a (direct).
+        assert (
+            db2.conn.execute("SELECT merged_into_id FROM etymon WHERE id = ?", (b,)).fetchone()[0]
+            == a
+        )
+        # x's redirect was flattened from b to a so no chain forms.
+        assert (
+            db2.conn.execute("SELECT merged_into_id FROM etymon WHERE id = ?", (x,)).fetchone()[0]
+            == a
+        )
+
+
+def test_etymon_consensus_handles_depth_2_merged_into_lemma_chain(
+    fresh_db: Path,
+) -> None:
+    """The consensus view must handle merged_into_id → lemma_id chains
+    correctly: an OCR variant of an inflected form must roll up to the
+    lemma group, not stop at the inflected form. This can arise if
+    clustering runs before link-lemmas (against doc'd order) or if
+    link-lemmas runs after clustering."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src-a", title="A")
+        db.upsert_source(id="src-b", title="B")
+        db.commit()
+
+        # Lemma + inflected variant + OCR variant of the inflected form.
+        lemma = db.upsert_etymon("had", "old-english")
+        inflected = db.upsert_etymon("hædan", "old-english")
+        ocr_variant = db.upsert_etymon("hcsdan", "old-english")
+
+        # Set up the chain manually: ocr_variant.merged_into_id =
+        # inflected; inflected.lemma_id = lemma. (cluster_ocr_variants
+        # would normally flatten through the lemma at merge time, but
+        # this test exercises the case where link-lemmas runs AFTER
+        # clustering — which is reverse of the documented order — to
+        # prove the view is robust to it.)
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (inflected, ocr_variant),
+        )
+        db.conn.execute("UPDATE etymon SET lemma_id = ? WHERE id = ?", (lemma, inflected))
+
+        db.add_citation(ocr_variant, "src-a")
+        db.add_citation(inflected, "src-b")
+        db.commit()
+
+        # The lemma group must aggregate citations from all three rows
+        # (ocr_variant via merged_into_id → inflected → lemma; inflected
+        # via lemma_id → lemma; lemma itself).
+        consensus = db.conn.execute(
+            "SELECT lemma_id, witnesses FROM etymon_consensus WHERE language = 'old-english'"
+        ).fetchall()
+    assert len(consensus) == 1, (
+        f"Expected exactly one consensus group (the lemma); got {len(consensus)}"
+    )
+    assert consensus[0]["lemma_id"] == lemma
+    assert consensus[0]["witnesses"] == 2  # src-a + src-b
+
+
 def test_clear_enrichment_dry_run_reports_without_writing(fresh_db: Path) -> None:
     """Dry-run reports counts but does not modify the DB."""
     with LexiconDB(fresh_db) as db:
