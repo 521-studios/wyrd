@@ -299,7 +299,7 @@ _ENTRY_BODY_SIGNALS = re.compile(
         | Gael(?:ic)? | Gaedh(?:ealg|elic)?         # Gaelic / Goidelic forms
         | Goidel(?:ic)? | Brython(?:ic)?            # Insular Celtic branch labels
         | (?:Old|Mid\.?|Mod\.?|M\.)\s*Ir(?:ish)?    # Old/Mid/Mod/M. Irish
-        | Ir\.                                     # standalone Irish abbreviation
+        | Irish | Ir\.                             # standalone Irish (full word + abbreviation)
         | Manx | Erse                              # Manx (Gaelg) / archaic name for Irish/Gaelic
         | (?:Old\s+)?Norse                         # Norse / Old Norse
         | Welsh | Cymr(?:ic|aeg)?                  # Welsh / Cymric
