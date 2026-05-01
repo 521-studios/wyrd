@@ -274,3 +274,40 @@ Why: reverse-search assumes the etymon is a historical morpheme being
 hunted in scholarly text. Modern-English seed entries are real English
 words, and the assumption breaks. Filtering them out is the simplest
 correct fix.
+
+## D21. Enrichment must not destroy mining evidence.
+
+The lexicon distinguishes two kinds of data:
+
+- **Mining evidence** — expensive, irreplaceable. Each `etymon_citation`
+  row is a real LLM call against a real OCR'd book that passed
+  form-in-body validation. Each `etymon_text_match` row is a
+  regex/Levenshtein scan across the ~1.8GB source corpus. Each
+  `toponym_etymology` row is a structured extraction that passed the
+  same validation. This data takes hours of LLM time and thousands of
+  API calls to produce.
+- **Enrichment inferences** — cheap, rebuildable. `etymon.lemma_id`
+  linkage, OCR-cluster merges, reverse-search hits, fuzzy-search
+  attestations. All of this is derivable from the mining evidence by
+  re-running the post-mining chain in seconds.
+
+**Implication for any operation that mutates `etymon`:** mining
+evidence attached to a row being modified must be preserved (repointed
+to the survivor) — not silently dropped via `ON DELETE CASCADE`, not
+broken via a missed `lemma_id` self-FK. The FK gap fixed in `wyrd-go5`
+was exactly this class of bug: `cluster_ocr_variants` was repointing
+some child tables but missing two, so OCR clustering would have
+silently destroyed text-match rows and crashed on lemma children.
+
+**Better long-term shape (`wyrd-et0`):** stop deleting at all. Use a
+`merged_into_id` self-FK on `etymon` to mark losers as merged-into
+their canonical winners, and have downstream consumers read through an
+`etymon_canonical` view. This makes enrichment iteration cheap forever
+— there is no destructive step that can lose data, and re-running the
+chain after a tweak is a no-op rather than a partial-state hazard.
+
+Why: a re-mining pass costs hours and dollars; a re-enrichment pass
+should cost seconds. The design optimizes for "redo enrichment is
+free" so we can iterate on linkage/clustering/search heuristics
+without fear, and reserve the expensive operation for the one thing
+that genuinely needs it (extraction from new sources).
