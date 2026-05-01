@@ -1038,12 +1038,17 @@ def cluster_ocr_variants(db: LexiconDB, *, apply: bool = False) -> dict:
                 "UPDATE toponym_etymology_element SET etymon_id = ? WHERE etymon_id = ?",
                 (winner_id, loser_id),
             )
-            # Re-parent inflected children of the loser to the winner. Without
-            # this, the DELETE below fails on the etymon.lemma_id self-FK once
-            # link-lemmas has run.
+            # Re-parent inflected children of the loser. Without this, the
+            # DELETE below fails on the etymon.lemma_id self-FK once
+            # link-lemmas has run. Point children at the winner's lemma when
+            # the winner is itself an inflected variant — otherwise the
+            # rollup via etymon_consensus (single-level COALESCE) would
+            # split witnesses across two buckets.
             db.conn.execute(
-                "UPDATE etymon SET lemma_id = ? WHERE lemma_id = ?",
-                (winner_id, loser_id),
+                "UPDATE etymon "
+                "SET lemma_id = COALESCE((SELECT lemma_id FROM etymon WHERE id = ?), ?) "
+                "WHERE lemma_id = ?",
+                (winner_id, winner_id, loser_id),
             )
             # etymon_text_match has ON DELETE CASCADE, so without an explicit
             # repoint the loser's text-match rows would silently disappear.

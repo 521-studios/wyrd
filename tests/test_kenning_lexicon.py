@@ -435,6 +435,47 @@ def test_cluster_ocr_variants_repoints_lemma_children_and_text_matches(
         assert haedan[0]["match_count"] == 3
 
 
+def test_cluster_ocr_variants_flattens_lemma_chain_when_winner_is_child(
+    fresh_db: Path,
+) -> None:
+    """If the winner is itself an inflected variant of some canonical lemma,
+    the loser's children must be re-parented directly to that canonical
+    lemma — not to the winner. Otherwise etymon_consensus (single-level
+    COALESCE rollup) would split witnesses into two buckets.
+    """
+    with LexiconDB(fresh_db) as db:
+        # Canonical lemma (no FK).
+        canonical = db.upsert_etymon("had", "old-english")
+        # Two OCR variants. Lowest id wins.
+        winner = db.upsert_etymon("Hædan", "old-english")
+        loser = db.upsert_etymon("Hcsdan", "old-english")
+        # link-lemmas has already linked the winner to the canonical.
+        db.conn.execute(
+            "UPDATE etymon SET lemma_id = ? WHERE id = ?", (canonical, winner)
+        )
+        # The loser has its own inflected child.
+        child = db.upsert_etymon("Hcsdanes", "old-english")
+        db.conn.execute(
+            "UPDATE etymon SET lemma_id = ? WHERE id = ?", (loser, child)
+        )
+        db.commit()
+
+        cluster_ocr_variants(db, apply=True)
+
+    with LexiconDB(fresh_db) as db2:
+        # The child must point at the canonical lemma, not the winner —
+        # the rollup is single-level, so a chain would split witnesses.
+        child_lemma = db2.conn.execute(
+            "SELECT lemma_id FROM etymon WHERE canonical_form = ?", ("Hcsdanes",)
+        ).fetchone()[0]
+        assert child_lemma == canonical
+        # Winner's own pointer is unchanged.
+        winner_lemma = db2.conn.execute(
+            "SELECT lemma_id FROM etymon WHERE canonical_form = ?", ("Hædan",)
+        ).fetchone()[0]
+        assert winner_lemma == canonical
+
+
 def test_derive_lemma_candidate_strips_oe_inflections() -> None:
     """Standard OE genitive/dative endings should suggest the stem."""
     # Weak oblique (-an): cotan → cot
