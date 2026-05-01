@@ -25,6 +25,7 @@ from wyrd.generators.kenning import (
 from wyrd.generators.kenning.dictionary_parser import parse_alphabetical_text
 from wyrd.generators.kenning.lexicon import (
     LexiconDB,
+    clear_enrichment,
     cluster_ocr_variants,
     fuzzy_search_attestations,
     ingest_parsed_entries,
@@ -1390,6 +1391,58 @@ def lexicon_normalize_ocr(db_path: Path, apply_changes: bool) -> None:
                 f"  [{g['language']:12}] {g['normalized']:20} <- {members}",
                 err=True,
             )
+    if not apply_changes:
+        click.echo("(dry-run; pass --apply to commit)", err=True)
+
+
+@lexicon.command("clear-enrichment")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=True,
+)
+@click.option(
+    "--stage",
+    type=click.Choice(["ocr", "lemmas", "text-match", "all-derived"]),
+    required=True,
+    help=(
+        "Which enrichment stage to clear. 'ocr' un-marks merged_into_id, "
+        "'lemmas' resets lemma_id/inflection/lemma_method, 'text-match' "
+        "drops the etymon_text_match table, 'all-derived' does all three."
+    ),
+)
+@click.option(
+    "--apply",
+    "apply_changes",
+    is_flag=True,
+    default=False,
+    help="Actually perform the clear. Without this flag the command runs as a dry-run.",
+)
+def lexicon_clear_enrichment(db_path: Path, stage: str, apply_changes: bool) -> None:
+    """Reset one or more enrichment stages so they can be re-run.
+
+    Mining evidence (etymons, citations, glosses, tags, toponyms,
+    toponym_etymology rows) is never touched. Per D21, only enrichment
+    inferences are reversible.
+
+    Run before re-running the relevant stage with new heuristics:
+
+        wyrd kenning lexicon clear-enrichment --stage=ocr --apply
+        wyrd kenning lexicon normalize-ocr --apply
+    """
+    with LexiconDB(db_path) as db:
+        result = clear_enrichment(db, stage=stage, apply=apply_changes)
+
+    verb = "cleared" if apply_changes else "would clear"
+    click.echo(f"Stage: {result['stage']}", err=True)
+    if result["ocr_merges_to_clear"]:
+        click.echo(f"  {verb} {result['ocr_merges_to_clear']} merged_into_id rows", err=True)
+    if result["lemma_links_to_clear"]:
+        click.echo(f"  {verb} {result['lemma_links_to_clear']} lemma links", err=True)
+    if result["text_match_rows_to_clear"]:
+        click.echo(f"  {verb} {result['text_match_rows_to_clear']} text-match rows", err=True)
     if not apply_changes:
         click.echo("(dry-run; pass --apply to commit)", err=True)
 

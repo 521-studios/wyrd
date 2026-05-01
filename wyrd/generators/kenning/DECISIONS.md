@@ -311,3 +311,63 @@ should cost seconds. The design optimizes for "redo enrichment is
 free" so we can iterate on linkage/clustering/search heuristics
 without fear, and reserve the expensive operation for the one thing
 that genuinely needs it (extraction from new sources).
+
+## D22. OCR clustering is non-destructive via `merged_into_id`.
+
+`cluster_ocr_variants` does NOT delete loser etymons. Instead, the
+loser's `merged_into_id` self-FK column is set to the canonical
+winner. Citations, glosses, tags, text-match rows, and reflex links
+stay attached to the loser exactly where they were originally
+written. The `etymon_consensus` view rolls them up to the canonical
+group via the rollup chain `COALESCE(merged_into_id, lemma_id, id)`;
+the `etymon_canonical` view exposes the un-merged set.
+
+Reverting a clustering pass is a one-liner:
+
+```sql
+UPDATE etymon SET merged_into_id = NULL;
+-- or via CLI:
+wyrd kenning lexicon clear-enrichment --stage=ocr --apply
+```
+
+After which `cluster_ocr_variants` can be re-run with new heuristics
+on the full canonical set. Re-runs filter `WHERE merged_into_id IS
+NULL` so previously-merged tombstones don't re-enter clustering.
+
+**`--stage=ocr` is partially reversible.** It reverts the
+`merged_into_id` redirects but does not restore the `lemma_id`
+re-parenting that happened at merge time (see flatten rules below).
+For a fully clean reset, use `--stage=all-derived`, which clears
+both the merged_into_id redirects AND the lemma_id /
+inflection / lemma_method linkage. Re-running `link-lemmas` after
+that produces a fresh lemma assignment from scratch. The mining
+evidence layer (citations, glosses, tags, text-match rows) is never
+touched by either stage.
+
+Two flatten-at-write-time rules keep the consensus rollup correct
+without recursive CTEs:
+
+- Lemma children of a loser (`child.lemma_id = loser`) are
+  re-parented to the canonical destination at merge time.
+- Existing redirects pointing at the loser
+  (`X.merged_into_id = loser`) are also re-routed to canonical, so
+  no `X → loser → canonical` chain forms.
+
+Both are mining-evidence-preserving (no citation/gloss data moves)
+but they are NOT cosmetic: a 2-deep chain through the consensus view
+would split witnesses across two GROUP BY buckets, undercounting the
+canonical morpheme's witness total and incorrectly gating the D4
+≥3-witness promotion threshold.
+
+The view itself also does a two-step rollup (`merged_into_id` →
+`lemma_id`) so the combination
+`OCR-loser-of-an-inflected-variant-of-a-lemma` rolls all the way to
+the lemma in a single GROUP BY pass, no matter what order the
+clustering and lemma-linking stages were run in.
+
+Why: this is the schema-level expression of D21. As long as the only
+mutation made to the etymon table is a redirect column, mining
+evidence cannot be lost by an enrichment pass — the worst case is
+"some merges are recorded that the user then wants to undo," and
+undoing is free. Supersedes the wyrd-go5 interim FK-repoint fix:
+once nothing is being deleted, there are no FK gaps to miss.

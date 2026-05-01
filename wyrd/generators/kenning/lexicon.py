@@ -364,37 +364,70 @@ def seed_from_meanings(
 # --- schema migration ------------------------------------------------------
 
 
-def migrate_schema(db: LexiconDB) -> dict[str, bool]:
-    """Bring an existing lexicon DB up to the current schema.
-
-    Idempotent — running on an already-migrated DB is a no-op. Currently
-    handles only the lemma_id / inflection additions to `etymon`. Returns a
-    dict of {migration_name: applied?} so callers can report.
+def _add_etymon_columns(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Add lemma_id, inflection, merged_into_id, and lemma_method columns
+    if they don't yet exist. Each column is independent and idempotent.
     """
-    applied = {
-        "etymon.lemma_id": False,
-        "etymon.inflection": False,
-        "idx_etymon_lemma": False,
-        "etymon_consensus_view": False,
-        "etymon_text_match_table": False,
-    }
     cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon)")}
     if "lemma_id" not in cols:
-        db.conn.execute("ALTER TABLE etymon ADD COLUMN lemma_id INTEGER REFERENCES etymon(id)")
+        # ON DELETE SET NULL matches lexicon.sql's base schema and keeps
+        # the migration / fresh-install paths in sync. Without it, deleting
+        # a lemma row would FK-fail when foreign_keys=ON is enabled.
+        db.conn.execute(
+            "ALTER TABLE etymon ADD COLUMN lemma_id INTEGER "
+            "REFERENCES etymon(id) ON DELETE SET NULL"
+        )
         applied["etymon.lemma_id"] = True
     if "inflection" not in cols:
         db.conn.execute("ALTER TABLE etymon ADD COLUMN inflection TEXT")
         applied["etymon.inflection"] = True
-    # Idempotent index creation.
+    # merged_into_id: non-destructive OCR clustering. When two etymons are
+    # merged by cluster_ocr_variants, the loser gets merged_into_id pointing
+    # at the canonical winner instead of being DELETE'd. Per D22, this lets
+    # callers blow away clustering (UPDATE etymon SET merged_into_id = NULL)
+    # and re-run with new heuristics without re-mining.
+    if "merged_into_id" not in cols:
+        db.conn.execute(
+            "ALTER TABLE etymon ADD COLUMN merged_into_id INTEGER "
+            "REFERENCES etymon(id) ON DELETE SET NULL"
+        )
+        applied["etymon.merged_into_id"] = True
+    # lemma_method: which version of the lemma-linker produced the
+    # lemma_id/inflection attribution on this row. Lets future link-lemmas
+    # versions identify their predecessors' work for selective rebuild.
+    if "lemma_method" not in cols:
+        db.conn.execute("ALTER TABLE etymon ADD COLUMN lemma_method TEXT")
+        applied["etymon.lemma_method"] = True
+
+
+def _create_etymon_indexes(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Idempotent index creation for the etymon table's self-FK columns."""
     existing_indexes = {
         row["name"] for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type='index'")
     }
     if "idx_etymon_lemma" not in existing_indexes:
         db.conn.execute("CREATE INDEX idx_etymon_lemma ON etymon(lemma_id)")
         applied["idx_etymon_lemma"] = True
-    # Always rebuild the consensus view since its definition changes when
-    # lemma_id is introduced. SQLite doesn't have CREATE OR REPLACE VIEW;
-    # we DROP IF EXISTS and recreate. Cheap.
+    if "idx_etymon_merged_into" not in existing_indexes:
+        db.conn.execute("CREATE INDEX idx_etymon_merged_into ON etymon(merged_into_id)")
+        applied["idx_etymon_merged_into"] = True
+
+
+def _rebuild_etymon_views(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Recreate etymon_canonical and etymon_consensus.
+
+    Always rebuilt (DROP IF EXISTS + CREATE) because the definitions change
+    when new columns are introduced, and SQLite has no CREATE OR REPLACE
+    VIEW. Cheap.
+    """
+    db.conn.execute("DROP VIEW IF EXISTS etymon_canonical")
+    db.conn.execute(
+        """
+        CREATE VIEW etymon_canonical AS
+          SELECT * FROM etymon WHERE merged_into_id IS NULL
+        """
+    )
+    applied["etymon_canonical_view"] = True
     db.conn.execute("DROP VIEW IF EXISTS etymon_consensus")
     db.conn.execute(
         """
@@ -405,12 +438,17 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
                  COUNT(DISTINCT source_id) AS witnesses
           FROM (
             SELECT
-              COALESCE(e.lemma_id, e.id)              AS lemma_id,
-              COALESCE(le.canonical_form, e.canonical_form) AS canonical_form,
+              -- Two-step rollup so merged_into_id → lemma_id chains
+              -- collapse correctly: target = e's redirect (merged or lemma);
+              -- le = target's lemma if target is itself inflected.
+              COALESCE(le.id, target.id, e.id) AS lemma_id,
+              COALESCE(le.canonical_form, target.canonical_form, e.canonical_form)
+                AS canonical_form,
               e.language,
               c.source_id
             FROM etymon e
-            LEFT JOIN etymon le ON le.id = e.lemma_id
+            LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
+            LEFT JOIN etymon le ON le.id = target.lemma_id
             LEFT JOIN etymon_citation c ON c.etymon_id = e.id
           )
           GROUP BY lemma_id
@@ -418,9 +456,13 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     )
     applied["etymon_consensus_view"] = True
 
-    # Add the etymon_text_match table for parallel search-evidence storage.
-    # See lexicon.sql for the design rationale (extraction vs. search
-    # evidence kept separate so consensus counts stay pure).
+
+def _migrate_text_match_table(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Create etymon_text_match if missing; otherwise add the method column
+    if it doesn't exist. Tracks which heuristic produced each row
+    ('reverse-search-v1', 'fuzzy-search-v1', 'llm-disambiguator-v1', ...)
+    so a future rebuild can selectively clear-and-regenerate by method.
+    """
     existing_tables = {
         row["name"]
         for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
@@ -436,6 +478,7 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
               match_count   INTEGER NOT NULL,
               edit_distance INTEGER NOT NULL DEFAULT 0,
               snippet       TEXT,
+              method        TEXT NOT NULL DEFAULT 'reverse-search-v1',
               UNIQUE (etymon_id, source_id, matched_form)
             );
             CREATE INDEX idx_etymon_text_match_etymon ON etymon_text_match(etymon_id);
@@ -443,7 +486,43 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
             """
         )
         applied["etymon_text_match_table"] = True
+        return
+    text_match_cols = {
+        row["name"] for row in db.conn.execute("PRAGMA table_info(etymon_text_match)")
+    }
+    if "method" not in text_match_cols:
+        db.conn.execute(
+            "ALTER TABLE etymon_text_match ADD COLUMN method TEXT "
+            "NOT NULL DEFAULT 'reverse-search-v1'"
+        )
+        applied["etymon_text_match.method"] = True
 
+
+def migrate_schema(db: LexiconDB) -> dict[str, bool]:
+    """Bring an existing lexicon DB up to the current schema.
+
+    Idempotent — running on an already-migrated DB is a no-op. Returns a
+    dict of {migration_name: applied?} so callers can report.
+
+    Each helper is independent and operates on its own slice of the
+    schema; reading them in order shows the full migration surface.
+    """
+    applied = {
+        "etymon.lemma_id": False,
+        "etymon.inflection": False,
+        "etymon.merged_into_id": False,
+        "etymon.lemma_method": False,
+        "idx_etymon_lemma": False,
+        "idx_etymon_merged_into": False,
+        "etymon_text_match.method": False,
+        "etymon_consensus_view": False,
+        "etymon_canonical_view": False,
+        "etymon_text_match_table": False,
+    }
+    _add_etymon_columns(db, applied)
+    _create_etymon_indexes(db, applied)
+    _rebuild_etymon_views(db, applied)
+    _migrate_text_match_table(db, applied)
     db.commit()
     return applied
 
@@ -515,20 +594,24 @@ def link_lemmas(db: LexiconDB, *, apply: bool = False) -> dict:
 
     With apply=False (default) reports candidates without writing.
     """
-    # Index existing etymons by (form, language) → id, but EXCLUDE etymons
-    # that are themselves inflected — a candidate lemma must be unlinked
-    # OR a true root form. For simplicity here we say: any etymon with
-    # lemma_id IS NULL is a candidate lemma.
-    lemmas_by_key: dict[tuple[str, str], int] = {}
-    for row in db.conn.execute(
-        "SELECT id, canonical_form, language FROM etymon WHERE lemma_id IS NULL"
-    ):
-        lemmas_by_key[(row["canonical_form"].lower(), row["language"])] = row["id"]
-
-    proposed: list[dict] = []
-    inflected_rows = list(
-        db.conn.execute("SELECT id, canonical_form, language FROM etymon WHERE lemma_id IS NULL")
+    # Pull every unlinked, non-tombstoned etymon once. The same set is
+    # both the candidate-lemma source (potential link targets) and the
+    # candidate-inflected-row source (rows that might need a link). We
+    # exclude OCR-merge tombstones (merged_into_id IS NOT NULL) from
+    # both sides: linking an inflected variant to a tombstone would
+    # create a child → tombstone → canonical chain that the consensus
+    # rollup would split, and tombstones themselves don't need linking.
+    candidate_rows = list(
+        db.conn.execute(
+            "SELECT id, canonical_form, language FROM etymon "
+            "WHERE lemma_id IS NULL AND merged_into_id IS NULL"
+        )
     )
+    lemmas_by_key: dict[tuple[str, str], int] = {
+        (row["canonical_form"].lower(), row["language"]): row["id"] for row in candidate_rows
+    }
+    proposed: list[dict] = []
+    inflected_rows = candidate_rows
     for row in inflected_rows:
         match = derive_lemma_candidate(row["canonical_form"], row["language"])
         if match is None:
@@ -551,7 +634,8 @@ def link_lemmas(db: LexiconDB, *, apply: bool = False) -> dict:
     if apply:
         for p in proposed:
             db.conn.execute(
-                "UPDATE etymon SET lemma_id = ?, inflection = ? WHERE id = ?",
+                "UPDATE etymon SET lemma_id = ?, inflection = ?, "
+                "lemma_method = 'link-lemmas-v1' WHERE id = ?",
                 (p["lemma_id"], p["inflection"], p["inflected_id"]),
             )
         db.commit()
@@ -913,13 +997,14 @@ def fuzzy_search_attestations(
                     """
                     INSERT INTO etymon_text_match
                         (etymon_id, source_id, matched_form, match_count,
-                         edit_distance, snippet)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                         edit_distance, snippet, method)
+                    VALUES (?, ?, ?, ?, ?, ?, 'fuzzy-search-v1')
                     ON CONFLICT(etymon_id, source_id, matched_form)
                     DO UPDATE SET
                         match_count = excluded.match_count,
                         edit_distance = excluded.edit_distance,
-                        snippet = excluded.snippet
+                        snippet = excluded.snippet,
+                        method = excluded.method
                     """,
                     (etymon_id, source_id, matched_form, count, distance, snippet),
                 )
@@ -943,29 +1028,48 @@ def fuzzy_search_attestations(
 
 
 def cluster_ocr_variants(db: LexiconDB, *, apply: bool = False) -> dict:
-    """Find etymons that differ only in OCR ligature variation, merge them.
+    """Find etymons that differ only in OCR ligature variation, mark them
+    merged into a canonical winner.
 
-    Groups every etymon by (language, normalize_ocr_form(canonical_form)).
-    Within each group of >1 row, the row with the LOWEST id is taken as
-    canonical, and the others are merged in:
-      - etymon_citation, etymon_gloss, etymon_tag rows are repointed (or
-        deleted if they would duplicate)
-      - reflex_etymon, toponym_etymology_element rows are repointed
-      - the redundant etymon rows are deleted
+    Groups every NOT-yet-merged etymon by (language,
+    normalize_ocr_form(canonical_form)). Within each group of >1 row, the
+    row with the LOWEST id is taken as canonical, and the others get
+    `merged_into_id` pointing at the canonical row's lemma_id (if the
+    winner is itself an inflected variant) or the winner itself.
+
+    Per D22, the merge is non-destructive: citations, glosses, tags,
+    text-match evidence, and reflex links stay attached to the loser
+    etymon. The `etymon_consensus` view rolls citation witness counts
+    up to the canonical row via the `merged_into_id` column. Gloss,
+    tag, and text-match data stay attached to the original etymon ids;
+    consumers wanting "all evidence for this canonical group" should
+    JOIN through merged_into_id (or wait for wyrd-7lo's per-table
+    canonical-rollup views).
+
+    To revert, run `clear_enrichment(stage="ocr")` (or `UPDATE etymon
+    SET merged_into_id = NULL`); the underlying mining-evidence rows
+    are intact so a subsequent `cluster_ocr_variants` run with new
+    heuristics will see fresh state.
 
     With apply=False (default) we only report what would happen — no
-    writes. Pass apply=True to actually perform the merges.
+    writes. Pass apply=True to actually mark the merges.
 
     Returns a dict with keys:
       groups          - count of (lang, normalized) groups with >1 etymon
-      etymons_merged  - count of redundant etymons that would be removed
+      etymons_merged  - count of redundant etymons that would be marked merged
       sample_groups   - first 20 example groupings, for human review
     """
-    cur = db.conn.execute("SELECT id, canonical_form, language FROM etymon ORDER BY id")
-    groups: dict[tuple[str, str], list[tuple[int, str]]] = {}
+    # Skip already-merged rows on re-run — they're tombstones, not merge
+    # candidates. New heuristics should clear merged_into_id first
+    # (clear_enrichment stage='ocr') before re-clustering.
+    cur = db.conn.execute(
+        "SELECT id, canonical_form, language, lemma_id FROM etymon "
+        "WHERE merged_into_id IS NULL ORDER BY id"
+    )
+    groups: dict[tuple[str, str], list[tuple[int, str, int | None]]] = {}
     for row in cur:
         key = (row["language"], normalize_ocr_form(row["canonical_form"]))
-        groups.setdefault(key, []).append((row["id"], row["canonical_form"]))
+        groups.setdefault(key, []).append((row["id"], row["canonical_form"], row["lemma_id"]))
 
     duplicate_groups = {k: v for k, v in groups.items() if len(v) > 1}
     sample = []
@@ -986,93 +1090,136 @@ def cluster_ocr_variants(db: LexiconDB, *, apply: bool = False) -> dict:
     if not apply:
         return counts
 
-    # Apply the merges. For each group, the lowest id wins; others get
-    # repointed and deleted.
+    # Apply the merges. Lowest id wins; the rest are tombstoned via
+    # merged_into_id.
     for members in duplicate_groups.values():
-        winner_id = members[0][0]
+        winner_id, _, winner_lemma_id = members[0]
         loser_ids = [m[0] for m in members[1:]]
-        for loser_id in loser_ids:
-            # Repoint child rows that have unique constraints first by
-            # using INSERT OR IGNORE then DELETE on the loser.
-            db.conn.execute(
-                "INSERT OR IGNORE INTO etymon_citation "
-                "  (etymon_id, source_id, page, short_quote) "
-                "SELECT ?, source_id, page, short_quote "
-                "FROM etymon_citation WHERE etymon_id = ?",
-                (winner_id, loser_id),
-            )
-            db.conn.execute(
-                "DELETE FROM etymon_citation WHERE etymon_id = ?",
-                (loser_id,),
-            )
-            db.conn.execute(
-                "INSERT OR IGNORE INTO etymon_gloss (etymon_id, gloss) "
-                "SELECT ?, gloss FROM etymon_gloss WHERE etymon_id = ?",
-                (winner_id, loser_id),
-            )
-            db.conn.execute(
-                "DELETE FROM etymon_gloss WHERE etymon_id = ?",
-                (loser_id,),
-            )
-            db.conn.execute(
-                "INSERT OR IGNORE INTO etymon_tag (etymon_id, tag) "
-                "SELECT ?, tag FROM etymon_tag WHERE etymon_id = ?",
-                (winner_id, loser_id),
-            )
-            db.conn.execute(
-                "DELETE FROM etymon_tag WHERE etymon_id = ?",
-                (loser_id,),
-            )
-            db.conn.execute(
-                "INSERT OR IGNORE INTO reflex_etymon (reflex_id, etymon_id) "
-                "SELECT reflex_id, ? FROM reflex_etymon WHERE etymon_id = ?",
-                (winner_id, loser_id),
-            )
-            db.conn.execute(
-                "DELETE FROM reflex_etymon WHERE etymon_id = ?",
-                (loser_id,),
-            )
-            # toponym_etymology_element doesn't have a unique constraint on
-            # etymon_id so we can just UPDATE.
-            db.conn.execute(
-                "UPDATE toponym_etymology_element SET etymon_id = ? WHERE etymon_id = ?",
-                (winner_id, loser_id),
-            )
-            # Re-parent inflected children of the loser. Without this, the
-            # DELETE below fails on the etymon.lemma_id self-FK once
-            # link-lemmas has run. Point children at the winner's lemma when
-            # the winner is itself an inflected variant — otherwise the
-            # rollup via etymon_consensus (single-level COALESCE) would
-            # split witnesses across two buckets.
-            db.conn.execute(
-                "UPDATE etymon "
-                "SET lemma_id = COALESCE((SELECT lemma_id FROM etymon WHERE id = ?), ?) "
-                "WHERE lemma_id = ?",
-                (winner_id, winner_id, loser_id),
-            )
-            # etymon_text_match has ON DELETE CASCADE, so without an explicit
-            # repoint the loser's text-match rows would silently disappear.
-            # On UNIQUE (etymon_id, source_id, matched_form) collisions we
-            # SUM the match_counts — these are mining evidence (per D21) and
-            # must not be discarded. edit_distance is left as-is on conflict
-            # since the matched_form is identical and the winner's stored
-            # value is canonical.
-            db.conn.execute(
-                "INSERT INTO etymon_text_match "
-                "  (etymon_id, source_id, matched_form, match_count, edit_distance, snippet) "
-                "SELECT ?, source_id, matched_form, match_count, edit_distance, snippet "
-                "FROM etymon_text_match WHERE etymon_id = ? "
-                "ON CONFLICT(etymon_id, source_id, matched_form) DO UPDATE SET "
-                "  match_count = etymon_text_match.match_count + excluded.match_count, "
-                "  snippet = COALESCE(etymon_text_match.snippet, excluded.snippet)",
-                (winner_id, loser_id),
-            )
-            db.conn.execute(
-                "DELETE FROM etymon_text_match WHERE etymon_id = ?",
-                (loser_id,),
-            )
-            db.conn.execute("DELETE FROM etymon WHERE id = ?", (loser_id,))
+        # If the winner is itself an inflected variant of a lemma, point
+        # losers directly at the lemma so the rollup chain stays at depth
+        # 1 on the lemma_id axis.
+        canonical_id = winner_lemma_id if winner_lemma_id is not None else winner_id
 
+        # Self-reference safety: if the canonical destination is another
+        # member of this same cluster (i.e., the lemma row sits in the
+        # cluster too), that row must be the winner rather than a loser.
+        # Otherwise we'd write loser.merged_into_id = self_id. Promote
+        # the lemma; demote the previous winner.
+        if canonical_id in loser_ids:
+            promoted = canonical_id
+            loser_ids = [lid for lid in loser_ids if lid != promoted]
+            loser_ids.append(winner_id)
+            winner_id = promoted
+            canonical_id = winner_id
+
+        # Chain-follow: if the canonical destination itself was merged in
+        # an earlier pass (e.g., link-lemmas linked the winner to a row
+        # that's since been merged), follow merged_into_id to the
+        # ultimate canonical. Defends against stale lemma_id pointers
+        # that predate the link_lemmas merged-tombstone filter. Tracks
+        # visited ids so a malformed cycle (canonical-of-canonical points
+        # back) breaks cleanly instead of looping forever.
+        visited = {canonical_id}
+        while True:
+            next_id = db.conn.execute(
+                "SELECT merged_into_id FROM etymon WHERE id = ?",
+                (canonical_id,),
+            ).fetchone()[0]
+            if next_id is None or next_id in visited:
+                break
+            canonical_id = next_id
+            visited.add(canonical_id)
+
+        for loser_id in loser_ids:
+            # Re-parent any inflected children the loser was acting as a
+            # lemma for, so consensus rolls them into the canonical group.
+            # The redirect via merged_into_id alone wouldn't suffice
+            # because the rollup is single-level on lemma_id.
+            db.conn.execute(
+                "UPDATE etymon SET lemma_id = ? WHERE lemma_id = ?",
+                (canonical_id, loser_id),
+            )
+            # Mark merged AND flatten any pre-existing redirects so
+            # merged_into_id chains can't form. Without the second clause,
+            # rows from a prior cluster pass that point at this loser
+            # would create a 2-deep chain X → loser → canonical, and the
+            # single-level COALESCE rollup would split witnesses.
+            # Citations / glosses / tags / text-match / reflex links stay
+            # attached to their original etymons; the consensus view
+            # rolls them up via merged_into_id. Mining evidence (D21) is
+            # preserved exactly as written.
+            db.conn.execute(
+                "UPDATE etymon SET merged_into_id = ? WHERE id = ? OR merged_into_id = ?",
+                (canonical_id, loser_id, loser_id),
+            )
+
+    db.commit()
+    return counts
+
+
+def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
+    """Reset one or more enrichment stages so they can be re-run.
+
+    Stages:
+      ocr         - UPDATE etymon SET merged_into_id = NULL
+                    (un-marks all OCR-cluster merges)
+      lemmas      - UPDATE etymon SET lemma_id = NULL,
+                                       inflection = NULL,
+                                       lemma_method = NULL
+                    (un-links every inflected variant from its lemma)
+      text-match  - DELETE FROM etymon_text_match
+                    (drops every reverse-search / fuzzy-search row)
+      all-derived - all three of the above
+
+    Mining evidence (etymon, etymon_citation, etymon_gloss, etymon_tag,
+    toponym, toponym_etymology, toponym_etymology_element) is never
+    touched — that's the load-bearing data and rebuilding it costs hours
+    of LLM time. Per D21, only enrichment inferences are reversible; the
+    extraction layer is sacred.
+
+    Note: stage='ocr' is *partially* reversible. It un-marks
+    merged_into_id but does NOT restore the lemma_id re-parenting that
+    cluster_ocr_variants applies to inflected children at merge time.
+    For a fully clean revert, use stage='all-derived' (which also
+    clears lemma_id) and re-run link-lemmas.
+
+    With apply=False the dry-run reports what would change. Pass
+    apply=True to actually write.
+    """
+    valid = {"ocr", "lemmas", "text-match", "all-derived"}
+    if stage not in valid:
+        raise ValueError(f"unknown stage {stage!r}; must be one of {sorted(valid)}")
+
+    stages = {"ocr", "lemmas", "text-match"} if stage == "all-derived" else {stage}
+
+    counts = {
+        "stage": stage,
+        "ocr_merges_to_clear": 0,
+        "lemma_links_to_clear": 0,
+        "text_match_rows_to_clear": 0,
+    }
+    if "ocr" in stages:
+        counts["ocr_merges_to_clear"] = db.conn.execute(
+            "SELECT COUNT(*) FROM etymon WHERE merged_into_id IS NOT NULL"
+        ).fetchone()[0]
+    if "lemmas" in stages:
+        counts["lemma_links_to_clear"] = db.conn.execute(
+            "SELECT COUNT(*) FROM etymon WHERE lemma_id IS NOT NULL"
+        ).fetchone()[0]
+    if "text-match" in stages:
+        counts["text_match_rows_to_clear"] = db.conn.execute(
+            "SELECT COUNT(*) FROM etymon_text_match"
+        ).fetchone()[0]
+
+    if not apply:
+        return counts
+
+    if "ocr" in stages:
+        db.conn.execute("UPDATE etymon SET merged_into_id = NULL")
+    if "lemmas" in stages:
+        db.conn.execute("UPDATE etymon SET lemma_id = NULL, inflection = NULL, lemma_method = NULL")
+    if "text-match" in stages:
+        db.conn.execute("DELETE FROM etymon_text_match")
     db.commit()
     return counts
 
