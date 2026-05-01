@@ -501,6 +501,73 @@ def test_cluster_ocr_variants_skips_already_merged_on_rerun(fresh_db: Path) -> N
         assert second["etymons_merged"] == 0
 
 
+def test_cluster_ocr_variants_picks_lemma_as_winner_when_present(
+    fresh_db: Path,
+) -> None:
+    """If a cluster contains both a lemma and an inflected variant of it,
+    the lemma must win regardless of id ordering. Otherwise canonical_id
+    resolves to the lemma but the lemma is in loser_ids, creating a
+    self-referencing merged_into_id loop."""
+    with LexiconDB(fresh_db) as db:
+        # The inflected variant gets the LOWER id (would normally win
+        # under lowest-id-wins). The lemma comes second.
+        inflected = db.upsert_etymon("Hædan", "old-english")
+        lemma = db.upsert_etymon("Hædan_lemma_synthetic", "old-english")
+        # Manually fix canonical_form so they share an OCR fingerprint
+        # (the synthetic suffix above kept upsert_etymon's UNIQUE happy).
+        db.conn.execute("UPDATE etymon SET canonical_form = 'Haedan' WHERE id = ?", (lemma,))
+        db.conn.execute("UPDATE etymon SET lemma_id = ? WHERE id = ?", (lemma, inflected))
+        db.commit()
+
+        cluster_ocr_variants(db, apply=True)
+
+    with LexiconDB(fresh_db) as db2:
+        # Lemma wins. Inflected variant is the loser, redirected to the lemma.
+        assert (
+            db2.conn.execute("SELECT merged_into_id FROM etymon WHERE id = ?", (lemma,)).fetchone()[
+                0
+            ]
+            is None
+        )
+        assert (
+            db2.conn.execute(
+                "SELECT merged_into_id FROM etymon WHERE id = ?", (inflected,)
+            ).fetchone()[0]
+            == lemma
+        )
+
+
+def test_link_lemmas_skips_merged_tombstone_as_lemma_candidate(
+    fresh_db: Path,
+) -> None:
+    """An OCR-merge tombstone (merged_into_id IS NOT NULL) must not be
+    selected as a lemma by link_lemmas — pointing an inflected variant at
+    a tombstone would create a child → tombstone → canonical chain that
+    the rollup splits."""
+    with LexiconDB(fresh_db) as db:
+        # `cot` (canonical lemma) and `cotx` (its OCR-merged tombstone
+        # — synthetic but the principle generalizes). Set up the merge
+        # state directly so we don't depend on cluster_ocr_variants.
+        cot = db.upsert_etymon("cot", "old-english")
+        cotx = db.upsert_etymon("cotx", "old-english")
+        db.conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (cot, cotx))
+        # An inflected variant that the stripper might match against
+        # 'cotx' (e.g. 'cotxes' → 'cotx'). link_lemmas must skip cotx
+        # because it's merged, even though it has lemma_id IS NULL.
+        cotxes = db.upsert_etymon("cotxes", "old-english")
+        db.commit()
+
+        link_lemmas(db, apply=True)
+
+        cotxes_lemma = db.conn.execute(
+            "SELECT lemma_id FROM etymon WHERE id = ?", (cotxes,)
+        ).fetchone()[0]
+        # Either matched directly to canonical 'cot' (if the stripper
+        # reaches it) OR stayed unlinked (if no stripped form matches a
+        # non-merged candidate). Critically: NOT linked to cotx.
+        assert cotxes_lemma != cotx
+
+
 def test_cluster_ocr_variants_flattens_existing_redirects_to_loser(
     fresh_db: Path,
 ) -> None:

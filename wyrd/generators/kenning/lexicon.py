@@ -370,7 +370,13 @@ def _add_etymon_columns(db: LexiconDB, applied: dict[str, bool]) -> None:
     """
     cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon)")}
     if "lemma_id" not in cols:
-        db.conn.execute("ALTER TABLE etymon ADD COLUMN lemma_id INTEGER REFERENCES etymon(id)")
+        # ON DELETE SET NULL matches lexicon.sql's base schema and keeps
+        # the migration / fresh-install paths in sync. Without it, deleting
+        # a lemma row would FK-fail when foreign_keys=ON is enabled.
+        db.conn.execute(
+            "ALTER TABLE etymon ADD COLUMN lemma_id INTEGER "
+            "REFERENCES etymon(id) ON DELETE SET NULL"
+        )
         applied["etymon.lemma_id"] = True
     if "inflection" not in cols:
         db.conn.execute("ALTER TABLE etymon ADD COLUMN inflection TEXT")
@@ -590,17 +596,25 @@ def link_lemmas(db: LexiconDB, *, apply: bool = False) -> dict:
     """
     # Index existing etymons by (form, language) → id, but EXCLUDE etymons
     # that are themselves inflected — a candidate lemma must be unlinked
-    # OR a true root form. For simplicity here we say: any etymon with
-    # lemma_id IS NULL is a candidate lemma.
+    # OR a true root form. We also exclude OCR-merge tombstones
+    # (merged_into_id IS NOT NULL): linking an inflected variant to a
+    # tombstone would create a child → tombstone → canonical chain that
+    # the consensus rollup would split.
     lemmas_by_key: dict[tuple[str, str], int] = {}
     for row in db.conn.execute(
-        "SELECT id, canonical_form, language FROM etymon WHERE lemma_id IS NULL"
+        "SELECT id, canonical_form, language FROM etymon "
+        "WHERE lemma_id IS NULL AND merged_into_id IS NULL"
     ):
         lemmas_by_key[(row["canonical_form"].lower(), row["language"])] = row["id"]
 
+    # Inflected-row candidates also exclude merged tombstones — linking
+    # them is meaningless since they redirect via merged_into_id.
     proposed: list[dict] = []
     inflected_rows = list(
-        db.conn.execute("SELECT id, canonical_form, language FROM etymon WHERE lemma_id IS NULL")
+        db.conn.execute(
+            "SELECT id, canonical_form, language FROM etymon "
+            "WHERE lemma_id IS NULL AND merged_into_id IS NULL"
+        )
     )
     for row in inflected_rows:
         match = derive_lemma_candidate(row["canonical_form"], row["language"])
@@ -1048,12 +1062,13 @@ def cluster_ocr_variants(db: LexiconDB, *, apply: bool = False) -> dict:
     # candidates. New heuristics should clear merged_into_id first
     # (clear_enrichment stage='ocr') before re-clustering.
     cur = db.conn.execute(
-        "SELECT id, canonical_form, language FROM etymon WHERE merged_into_id IS NULL ORDER BY id"
+        "SELECT id, canonical_form, language, lemma_id FROM etymon "
+        "WHERE merged_into_id IS NULL ORDER BY id"
     )
-    groups: dict[tuple[str, str], list[tuple[int, str]]] = {}
+    groups: dict[tuple[str, str], list[tuple[int, str, int | None]]] = {}
     for row in cur:
         key = (row["language"], normalize_ocr_form(row["canonical_form"]))
-        groups.setdefault(key, []).append((row["id"], row["canonical_form"]))
+        groups.setdefault(key, []).append((row["id"], row["canonical_form"], row["lemma_id"]))
 
     duplicate_groups = {k: v for k, v in groups.items() if len(v) > 1}
     sample = []
@@ -1074,17 +1089,27 @@ def cluster_ocr_variants(db: LexiconDB, *, apply: bool = False) -> dict:
     if not apply:
         return counts
 
-    # Apply the merges. For each group, the lowest id wins; the others
-    # get merged_into_id pointing at the canonical destination.
+    # Apply the merges. Lowest id wins; the rest are tombstoned via
+    # merged_into_id.
     for members in duplicate_groups.values():
-        winner_id = members[0][0]
+        winner_id, _, winner_lemma_id = members[0]
         loser_ids = [m[0] for m in members[1:]]
-        # Compute the canonical destination once per group: if the winner
-        # is itself an inflected variant of a lemma, point losers directly
-        # at the lemma so etymon_consensus's single-level COALESCE rollup
-        # doesn't split witnesses across a 2-deep chain.
-        row = db.conn.execute("SELECT lemma_id FROM etymon WHERE id = ?", (winner_id,)).fetchone()
-        canonical_id = row["lemma_id"] if row["lemma_id"] is not None else winner_id
+        # If the winner is itself an inflected variant of a lemma, point
+        # losers directly at the lemma so the rollup chain stays at depth
+        # 1 on the lemma_id axis.
+        canonical_id = winner_lemma_id if winner_lemma_id is not None else winner_id
+
+        # Self-reference safety: if the canonical destination is another
+        # member of this same cluster (i.e., the lemma row sits in the
+        # cluster too), that row must be the winner rather than a loser.
+        # Otherwise we'd write loser.merged_into_id = self_id. Promote
+        # the lemma; demote the previous winner.
+        if canonical_id in loser_ids:
+            promoted = canonical_id
+            loser_ids = [lid for lid in loser_ids if lid != promoted]
+            loser_ids.append(winner_id)
+            winner_id = promoted
+            canonical_id = winner_id
 
         for loser_id in loser_ids:
             # Re-parent any inflected children the loser was acting as a
