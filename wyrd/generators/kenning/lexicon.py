@@ -364,25 +364,10 @@ def seed_from_meanings(
 # --- schema migration ------------------------------------------------------
 
 
-def migrate_schema(db: LexiconDB) -> dict[str, bool]:
-    """Bring an existing lexicon DB up to the current schema.
-
-    Idempotent — running on an already-migrated DB is a no-op. Currently
-    handles only the lemma_id / inflection additions to `etymon`. Returns a
-    dict of {migration_name: applied?} so callers can report.
+def _add_etymon_columns(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Add lemma_id, inflection, merged_into_id, and lemma_method columns
+    if they don't yet exist. Each column is independent and idempotent.
     """
-    applied = {
-        "etymon.lemma_id": False,
-        "etymon.inflection": False,
-        "etymon.merged_into_id": False,
-        "etymon.lemma_method": False,
-        "idx_etymon_lemma": False,
-        "idx_etymon_merged_into": False,
-        "etymon_text_match.method": False,
-        "etymon_consensus_view": False,
-        "etymon_canonical_view": False,
-        "etymon_text_match_table": False,
-    }
     cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon)")}
     if "lemma_id" not in cols:
         db.conn.execute("ALTER TABLE etymon ADD COLUMN lemma_id INTEGER REFERENCES etymon(id)")
@@ -407,7 +392,10 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     if "lemma_method" not in cols:
         db.conn.execute("ALTER TABLE etymon ADD COLUMN lemma_method TEXT")
         applied["etymon.lemma_method"] = True
-    # Idempotent index creation.
+
+
+def _create_etymon_indexes(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Idempotent index creation for the etymon table's self-FK columns."""
     existing_indexes = {
         row["name"] for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type='index'")
     }
@@ -417,9 +405,15 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     if "idx_etymon_merged_into" not in existing_indexes:
         db.conn.execute("CREATE INDEX idx_etymon_merged_into ON etymon(merged_into_id)")
         applied["idx_etymon_merged_into"] = True
-    # Always rebuild the views since their definitions change when
-    # merged_into_id is introduced. SQLite doesn't have CREATE OR REPLACE VIEW;
-    # we DROP IF EXISTS and recreate. Cheap.
+
+
+def _rebuild_etymon_views(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Recreate etymon_canonical and etymon_consensus.
+
+    Always rebuilt (DROP IF EXISTS + CREATE) because the definitions change
+    when new columns are introduced, and SQLite has no CREATE OR REPLACE
+    VIEW. Cheap.
+    """
     db.conn.execute("DROP VIEW IF EXISTS etymon_canonical")
     db.conn.execute(
         """
@@ -452,9 +446,13 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     )
     applied["etymon_consensus_view"] = True
 
-    # Add the etymon_text_match table for parallel search-evidence storage.
-    # See lexicon.sql for the design rationale (extraction vs. search
-    # evidence kept separate so consensus counts stay pure).
+
+def _migrate_text_match_table(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Create etymon_text_match if missing; otherwise add the method column
+    if it doesn't exist. Tracks which heuristic produced each row
+    ('reverse-search-v1', 'fuzzy-search-v1', 'llm-disambiguator-v1', ...)
+    so a future rebuild can selectively clear-and-regenerate by method.
+    """
     existing_tables = {
         row["name"]
         for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
@@ -478,20 +476,43 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
             """
         )
         applied["etymon_text_match_table"] = True
-    else:
-        # method tracks which heuristic produced each row ('reverse-search-v1',
-        # 'fuzzy-search-v1', 'llm-disambiguator-v1', etc.) so future rebuilds
-        # can selectively clear and regenerate by method.
-        text_match_cols = {
-            row["name"] for row in db.conn.execute("PRAGMA table_info(etymon_text_match)")
-        }
-        if "method" not in text_match_cols:
-            db.conn.execute(
-                "ALTER TABLE etymon_text_match ADD COLUMN method TEXT "
-                "NOT NULL DEFAULT 'reverse-search-v1'"
-            )
-            applied["etymon_text_match.method"] = True
+        return
+    text_match_cols = {
+        row["name"] for row in db.conn.execute("PRAGMA table_info(etymon_text_match)")
+    }
+    if "method" not in text_match_cols:
+        db.conn.execute(
+            "ALTER TABLE etymon_text_match ADD COLUMN method TEXT "
+            "NOT NULL DEFAULT 'reverse-search-v1'"
+        )
+        applied["etymon_text_match.method"] = True
 
+
+def migrate_schema(db: LexiconDB) -> dict[str, bool]:
+    """Bring an existing lexicon DB up to the current schema.
+
+    Idempotent — running on an already-migrated DB is a no-op. Returns a
+    dict of {migration_name: applied?} so callers can report.
+
+    Each helper is independent and operates on its own slice of the
+    schema; reading them in order shows the full migration surface.
+    """
+    applied = {
+        "etymon.lemma_id": False,
+        "etymon.inflection": False,
+        "etymon.merged_into_id": False,
+        "etymon.lemma_method": False,
+        "idx_etymon_lemma": False,
+        "idx_etymon_merged_into": False,
+        "etymon_text_match.method": False,
+        "etymon_consensus_view": False,
+        "etymon_canonical_view": False,
+        "etymon_text_match_table": False,
+    }
+    _add_etymon_columns(db, applied)
+    _create_etymon_indexes(db, applied)
+    _rebuild_etymon_views(db, applied)
+    _migrate_text_match_table(db, applied)
     db.commit()
     return applied
 

@@ -703,7 +703,7 @@ def test_link_lemmas_links_inflected_to_existing_lemma(fresh_db: Path) -> None:
 
         result = link_lemmas(db, apply=True)
         rows = db.conn.execute(
-            "SELECT id, canonical_form, lemma_id, inflection FROM etymon"
+            "SELECT id, canonical_form, lemma_id, inflection, lemma_method FROM etymon"
         ).fetchall()
 
     by_id = {r["id"]: r for r in rows}
@@ -711,10 +711,16 @@ def test_link_lemmas_links_inflected_to_existing_lemma(fresh_db: Path) -> None:
     assert by_id[cotan_id]["inflection"] == "weak_oblique"
     assert by_id[cotes_id]["lemma_id"] == cot_id
     assert by_id[cotes_id]["inflection"] == "genitive_strong"
-    # Lemma stays its own
+    # Method/version stamp is written on every linked row so a future
+    # link-lemmas-v2 can selectively rebuild only its predecessor's work.
+    assert by_id[cotan_id]["lemma_method"] == "link-lemmas-v1"
+    assert by_id[cotes_id]["lemma_method"] == "link-lemmas-v1"
+    # Lemma stays its own — no stamp written when not linked.
     assert by_id[cot_id]["lemma_id"] is None
-    # Unrelated etymon stays unlinked
+    assert by_id[cot_id]["lemma_method"] is None
+    # Unrelated etymon stays unlinked, no stamp.
     assert by_id[ham_id]["lemma_id"] is None
+    assert by_id[ham_id]["lemma_method"] is None
     assert result["candidates"] >= 2
 
 
