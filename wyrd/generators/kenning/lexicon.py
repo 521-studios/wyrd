@@ -1039,12 +1039,17 @@ def cluster_ocr_variants(db: LexiconDB, *, apply: bool = False) -> dict:
 
     Per D22, the merge is non-destructive: citations, glosses, tags,
     text-match evidence, and reflex links stay attached to the loser
-    etymon. The `etymon_consensus` view rolls them up to the canonical
-    row via the `merged_into_id` column. To revert, run
-    `clear_enrichment(stage="ocr")` (or `UPDATE etymon SET merged_into_id
-    = NULL`); citations / glosses are intact on the original rows so a
-    subsequent `cluster_ocr_variants` run with new heuristics will see
-    fresh state.
+    etymon. The `etymon_consensus` view rolls citation witness counts
+    up to the canonical row via the `merged_into_id` column. Gloss,
+    tag, and text-match data stay attached to the original etymon ids;
+    consumers wanting "all evidence for this canonical group" should
+    JOIN through merged_into_id (or wait for wyrd-7lo's per-table
+    canonical-rollup views).
+
+    To revert, run `clear_enrichment(stage="ocr")` (or `UPDATE etymon
+    SET merged_into_id = NULL`); the underlying mining-evidence rows
+    are intact so a subsequent `cluster_ocr_variants` run with new
+    heuristics will see fresh state.
 
     With apply=False (default) we only report what would happen — no
     writes. Pass apply=True to actually mark the merges.
