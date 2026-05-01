@@ -283,10 +283,9 @@ The lexicon distinguishes two kinds of data:
   row is a real LLM call against a real OCR'd book that passed
   form-in-body validation. Each `etymon_text_match` row is a
   regex/Levenshtein scan across the ~1.8GB source corpus. Each
-  `toponym_etymology` row represents a structured extraction the model
-  produced AND every claimed form was verified present in the source
-  paragraph. This data takes hours of LLM time and thousands of API
-  calls to produce.
+  `toponym_etymology` row is a structured extraction that passed the
+  same validation. This data takes hours of LLM time and thousands of
+  API calls to produce.
 - **Enrichment inferences** — cheap, rebuildable. `etymon.lemma_id`
   linkage, OCR-cluster merges, reverse-search hits, fuzzy-search
   attestations. All of this is derivable from the mining evidence by
