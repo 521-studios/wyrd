@@ -424,15 +424,16 @@ def test_cluster_ocr_variants_repoints_lemma_children_and_text_matches(
         ]
 
         # (c) UNIQUE (etymon_id, source_id, matched_form) is intact: only
-        # one ('haedan', 'src-a') row, with the winner's original count
-        # preserved (INSERT OR IGNORE drops the loser's collision).
+        # one ('haedan', 'src-a') row. On conflict the match_counts are
+        # summed (3 from winner + 5 from loser) — D21 says mining evidence
+        # must be preserved, not discarded.
         haedan = db2.conn.execute(
             "SELECT match_count FROM etymon_text_match "
             "WHERE etymon_id = ? AND matched_form = 'haedan'",
             (winner,),
         ).fetchall()
         assert len(haedan) == 1
-        assert haedan[0]["match_count"] == 3
+        assert haedan[0]["match_count"] == 8
 
 
 def test_cluster_ocr_variants_flattens_lemma_chain_when_winner_is_child(

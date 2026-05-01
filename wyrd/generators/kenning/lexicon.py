@@ -1052,13 +1052,19 @@ def cluster_ocr_variants(db: LexiconDB, *, apply: bool = False) -> dict:
             )
             # etymon_text_match has ON DELETE CASCADE, so without an explicit
             # repoint the loser's text-match rows would silently disappear.
-            # UNIQUE (etymon_id, source_id, matched_form) means we INSERT OR
-            # IGNORE, then drop the originals.
+            # On UNIQUE (etymon_id, source_id, matched_form) collisions we
+            # SUM the match_counts — these are mining evidence (per D21) and
+            # must not be discarded. edit_distance is left as-is on conflict
+            # since the matched_form is identical and the winner's stored
+            # value is canonical.
             db.conn.execute(
-                "INSERT OR IGNORE INTO etymon_text_match "
+                "INSERT INTO etymon_text_match "
                 "  (etymon_id, source_id, matched_form, match_count, edit_distance, snippet) "
                 "SELECT ?, source_id, matched_form, match_count, edit_distance, snippet "
-                "FROM etymon_text_match WHERE etymon_id = ?",
+                "FROM etymon_text_match WHERE etymon_id = ? "
+                "ON CONFLICT(etymon_id, source_id, matched_form) DO UPDATE SET "
+                "  match_count = etymon_text_match.match_count + excluded.match_count, "
+                "  snippet = COALESCE(etymon_text_match.snippet, excluded.snippet)",
                 (winner_id, loser_id),
             )
             db.conn.execute(
