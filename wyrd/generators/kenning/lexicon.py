@@ -1094,10 +1094,9 @@ def fuzzy_search_attestations(
                 d = _levenshtein(norm_form, tok, max_distance=max_distance)
                 if d > max_distance or d == 0:
                     continue
-                # If `tok` is itself a canonical etymon (and not just an
-                # OCR-equal of `form`), it's not a fuzzy variant — it's
-                # its own thing. See wyrd-c3x.
-                if tok in other_canonicals and tok != norm_form:
+                # If `tok` is itself a canonical etymon, it's not a fuzzy
+                # variant — it's its own thing. See wyrd-c3x.
+                if tok in other_canonicals:
                     continue
                 # Found a fuzzy candidate. Now verify meaning: does any gloss
                 # appear within ±gloss_window chars of this token's first
