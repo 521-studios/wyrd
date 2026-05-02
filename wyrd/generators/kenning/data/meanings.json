@@ -123,7 +123,6 @@
       "of, belonging to",
       "people",
       "people of",
-      "people of, descendants of",
       "place of the sons of",
       "place of, associated with",
       "son of",
@@ -445,12 +444,9 @@
       "bourne, stream",
       "brook",
       "burn",
-      "burn, stream",
       "small stream",
       "stream",
       "stream, bourn",
-      "stream, brook",
-      "stream, burn",
       "stream, spring"
     ],
     "modifier_tags": [],
@@ -527,7 +523,6 @@
       "Vale",
       "Valley",
       "dale",
-      "dale, valley",
       "valley"
     ],
     "modifier_tags": [
@@ -748,7 +743,6 @@
       "Weir (fishing enclosure)",
       "Yard",
       "enclosure",
-      "enclosure or yard",
       "enclosure, ness, promontory"
     ],
     "modifier_tags": [
@@ -1502,23 +1496,6 @@
   },
   {
     "meaning": [
-      "Weorth",
-      "farm",
-      "homestead"
-    ],
-    "modifier_tags": [],
-    "modifier_type": null,
-    "words": [
-      {
-        "modern_usage": "weorth",
-        "old_english": [
-          "weorth"
-        ]
-      }
-    ]
-  },
-  {
-    "meaning": [
       "West",
       "western"
     ],
@@ -1706,12 +1683,6 @@
         "modern_usage": "gardr",
         "old_scandinavian": [
           "gardr"
-        ],
-        "old_scandinavian_variants": [
-          {
-            "form": "gard",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -1883,12 +1854,6 @@
         "modern_usage": "griss",
         "old_scandinavian": [
           "griss"
-        ],
-        "old_scandinavian_variants": [
-          {
-            "form": "grtss",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -2367,8 +2332,7 @@
   },
   {
     "meaning": [
-      "bank",
-      "red"
+      "bank"
     ],
     "modifier_tags": [],
     "modifier_type": null,
@@ -2520,7 +2484,6 @@
       "beech",
       "book",
       "charter",
-      "charter; book",
       "genitive of Boc"
     ],
     "modifier_tags": [],
@@ -2656,10 +2619,8 @@
   {
     "meaning": [
       "black",
-      "black, dark",
       "blackish",
-      "dark",
-      "dark, black"
+      "dark"
     ],
     "modifier_tags": [],
     "modifier_type": null,
@@ -3392,7 +3353,6 @@
   {
     "meaning": [
       "clearing",
-      "clearing, meadow",
       "clearing, piece of land",
       "meadow",
       "thwaite"
@@ -3411,7 +3371,6 @@
   {
     "meaning": [
       "clearing",
-      "clearing, meadow",
       "field",
       "leak or clearing",
       "meadow",
@@ -3442,7 +3401,6 @@
       "island",
       "lea",
       "lea or meadow",
-      "lea, pasture",
       "pasture",
       "stream",
       "stream or watercourse"
@@ -4018,8 +3976,7 @@
   {
     "meaning": [
       "district",
-      "land",
-      "land, district"
+      "land"
     ],
     "modifier_tags": [],
     "modifier_type": null,
@@ -4085,8 +4042,7 @@
       "farm",
       "farmstead",
       "settlement",
-      "village",
-      "village or farm"
+      "village"
     ],
     "modifier_tags": [],
     "modifier_type": null,
@@ -4508,6 +4464,22 @@
             "form": "wyrthe",
             "inflection": "dative_or_pl"
           }
+        ]
+      }
+    ]
+  },
+  {
+    "meaning": [
+      "farm",
+      "homestead"
+    ],
+    "modifier_tags": [],
+    "modifier_type": null,
+    "words": [
+      {
+        "modern_usage": "weorth",
+        "old_english": [
+          "weorth"
         ]
       }
     ]
@@ -4994,12 +4966,6 @@
         "modern_usage": "grean",
         "celtic_mix": [
           "grean"
-        ],
-        "celtic_mix_variants": [
-          {
-            "form": "grenn",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -5078,12 +5044,6 @@
         "modern_usage": "skégr",
         "old_scandinavian": [
           "skégr"
-        ],
-        "old_scandinavian_variants": [
-          {
-            "form": "skdgr",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -6737,10 +6697,8 @@
     "meaning": [
       "place",
       "place, homestead",
-      "place, stead",
       "site, place, station",
-      "stead",
-      "stead, place"
+      "stead"
     ],
     "modifier_tags": [],
     "modifier_type": null,
@@ -7340,15 +7298,11 @@
     "meaning": [
       "scarecrow; thing set to keep out deer",
       "spring",
-      "spring or well",
       "spring, fount",
       "spring, stream",
       "spring, stream, well",
-      "spring, well",
       "well",
-      "well or brook",
-      "well or spring",
-      "well; spring"
+      "well or brook"
     ],
     "modifier_tags": [],
     "modifier_type": null,
@@ -8781,7 +8735,29 @@
       "Church",
       "Monastery",
       "Temple",
-      "chapel or church",
+      "church"
+    ],
+    "modifier_tags": [
+      "architecture",
+      "religious"
+    ],
+    "modifier_type": "Habitative",
+    "words": [
+      {
+        "modern_usage": "Kirk-",
+        "old_scandinavian": [
+          "kirkja"
+        ]
+      }
+    ]
+  },
+  {
+    "meaning": [
+      "Abbey",
+      "Chapel",
+      "Church",
+      "Monastery",
+      "Temple",
       "church",
       "enclosure",
       "religious enclosure / church"
@@ -8814,29 +8790,6 @@
         "modern_usage": "Llan-",
         "celtic_mix": [
           "llan"
-        ]
-      }
-    ]
-  },
-  {
-    "meaning": [
-      "Abbey",
-      "Chapel",
-      "Church",
-      "Monastery",
-      "Temple",
-      "church"
-    ],
-    "modifier_tags": [
-      "architecture",
-      "religious"
-    ],
-    "modifier_type": "Habitative",
-    "words": [
-      {
-        "modern_usage": "Kirk-",
-        "old_scandinavian": [
-          "kirkja"
         ]
       }
     ]
@@ -9812,8 +9765,7 @@
       "Tumulus",
       "burial-mound",
       "hill",
-      "homestead and hill",
-      "tumulus, hill"
+      "homestead and hill"
     ],
     "modifier_tags": [
       "architecture",
@@ -10206,10 +10158,6 @@
           {
             "form": "throe",
             "weight": 2
-          },
-          {
-            "form": "thoc",
-            "weight": 1
           }
         ]
       }
@@ -10230,6 +10178,18 @@
     ],
     "modifier_type": "Habitative",
     "words": [
+      {
+        "modern_usage": "Shaft-",
+        "old_english": [
+          "sceaft"
+        ]
+      },
+      {
+        "modern_usage": "She-",
+        "old_english": [
+          "sceaft"
+        ]
+      },
       {
         "modern_usage": "Sprey-",
         "old_english": [
@@ -10256,14 +10216,6 @@
           {
             "form": "staf",
             "weight": 4
-          },
-          {
-            "form": "steefer",
-            "weight": 1
-          },
-          {
-            "form": "stzefer",
-            "weight": 1
           }
         ]
       },
@@ -10281,14 +10233,6 @@
           {
             "form": "staf",
             "weight": 4
-          },
-          {
-            "form": "steefer",
-            "weight": 1
-          },
-          {
-            "form": "stzefer",
-            "weight": 1
           }
         ],
         "old_scandinavian": [
@@ -10302,10 +10246,6 @@
           {
             "form": "staf",
             "weight": 13
-          },
-          {
-            "form": "stafa",
-            "weight": 1
           }
         ]
       },
@@ -10351,36 +10291,6 @@
         "modern_usage": "Star-",
         "old_english": [
           "stapol"
-        ]
-      }
-    ]
-  },
-  {
-    "meaning": [
-      "Beam",
-      "Pole",
-      "Post",
-      "Shaft",
-      "Spar",
-      "Staff",
-      "Stave",
-      "shaft, pole"
-    ],
-    "modifier_tags": [
-      "material"
-    ],
-    "modifier_type": "Habitative",
-    "words": [
-      {
-        "modern_usage": "Shaft-",
-        "old_english": [
-          "sceaft"
-        ]
-      },
-      {
-        "modern_usage": "She-",
-        "old_english": [
-          "sceaft"
         ]
       }
     ]
@@ -10968,12 +10878,6 @@
         "modern_usage": "-gris-",
         "old_scandinavian": [
           "gríss"
-        ],
-        "old_scandinavian_variants": [
-          {
-            "form": "grtss",
-            "weight": 1
-          }
         ]
       },
       {
@@ -11010,10 +10914,6 @@
           {
             "form": "tuirc",
             "weight": 18
-          },
-          {
-            "form": "tnirc",
-            "weight": 1
           }
         ]
       },
@@ -11033,10 +10933,6 @@
           {
             "form": "tuirc",
             "weight": 18
-          },
-          {
-            "form": "tnirc",
-            "weight": 1
           }
         ]
       },
@@ -11056,12 +10952,6 @@
         "modern_usage": "Grist-",
         "old_scandinavian": [
           "gríss"
-        ],
-        "old_scandinavian_variants": [
-          {
-            "form": "grtss",
-            "weight": 1
-          }
         ]
       },
       {
@@ -11133,9 +11023,44 @@
       "Pig",
       "Pig sty",
       "pig",
-      "pig or boar",
-      "swine",
-      "swine, pig"
+      "pigs"
+    ],
+    "modifier_tags": [
+      "agriculture",
+      "animal",
+      "food",
+      "mammal"
+    ],
+    "modifier_type": "Habitative",
+    "words": [
+      {
+        "modern_usage": "-mock",
+        "celtic_mix": [
+          "muc"
+        ]
+      },
+      {
+        "modern_usage": "-muck",
+        "celtic_mix": [
+          "muc"
+        ]
+      },
+      {
+        "modern_usage": "Muck-",
+        "celtic_mix": [
+          "muc"
+        ]
+      }
+    ]
+  },
+  {
+    "meaning": [
+      "Boar",
+      "Hog",
+      "Pig",
+      "Pig sty",
+      "pig",
+      "swine"
     ],
     "modifier_tags": [
       "agriculture",
@@ -11233,43 +11158,6 @@
   },
   {
     "meaning": [
-      "Boar",
-      "Hog",
-      "Pig",
-      "Pig sty",
-      "pig",
-      "pigs"
-    ],
-    "modifier_tags": [
-      "agriculture",
-      "animal",
-      "food",
-      "mammal"
-    ],
-    "modifier_type": "Habitative",
-    "words": [
-      {
-        "modern_usage": "-mock",
-        "celtic_mix": [
-          "muc"
-        ]
-      },
-      {
-        "modern_usage": "-muck",
-        "celtic_mix": [
-          "muc"
-        ]
-      },
-      {
-        "modern_usage": "Muck-",
-        "celtic_mix": [
-          "muc"
-        ]
-      }
-    ]
-  },
-  {
-    "meaning": [
       "Boat",
       "Ship"
     ],
@@ -11289,12 +11177,6 @@
         "modern_usage": "-mark",
         "celtic_mix": [
           "mbarc"
-        ],
-        "celtic_mix_variants": [
-          {
-            "form": "barc",
-            "weight": 1
-          }
         ]
       },
       {
@@ -11707,10 +11589,6 @@
           {
             "form": "bricg",
             "weight": 6
-          },
-          {
-            "form": "bruch",
-            "weight": 1
           }
         ],
         "old_scandinavian": [
@@ -11876,10 +11754,6 @@
           {
             "form": "botyl",
             "weight": 2
-          },
-          {
-            "form": "botha",
-            "weight": 1
           }
         ]
       },
@@ -11900,10 +11774,6 @@
           {
             "form": "botyl",
             "weight": 2
-          },
-          {
-            "form": "botha",
-            "weight": 1
           }
         ]
       },
@@ -11924,10 +11794,6 @@
           {
             "form": "botyl",
             "weight": 2
-          },
-          {
-            "form": "botha",
-            "weight": 1
           }
         ]
       }
@@ -12612,12 +12478,6 @@
         "modern_usage": "Togher-",
         "celtic_mix": [
           "tóchar"
-        ],
-        "celtic_mix_variants": [
-          {
-            "form": "tachar",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -13635,12 +13495,6 @@
         ],
         "old_scandinavian": [
           "hrókr"
-        ],
-        "old_scandinavian_variants": [
-          {
-            "form": "hrokr",
-            "weight": 1
-          }
         ]
       },
       {
@@ -13702,12 +13556,6 @@
         ],
         "old_scandinavian": [
           "hrókr"
-        ],
-        "old_scandinavian_variants": [
-          {
-            "form": "hrokr",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -14056,7 +13904,6 @@
       "farm or house",
       "hope",
       "hope and clearing",
-      "hope, enclosed valley",
       "retreat",
       "valley"
     ],
@@ -15001,12 +14848,6 @@
         "modern_usage": "-goyne",
         "celtic_mix": [
           "gcadhan"
-        ],
-        "celtic_mix_variants": [
-          {
-            "form": "geadhan",
-            "weight": 1
-          }
         ]
       },
       {
@@ -15243,7 +15084,6 @@
       "Yard",
       "enclosure",
       "haw",
-      "haw or hedge",
       "haws",
       "hedge"
     ],
@@ -15417,6 +15257,30 @@
     "modifier_type": "Habitative",
     "words": [
       {
+        "modern_usage": "-gart",
+        "old_english": [
+          "geard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "guard",
+            "weight": 2
+          }
+        ]
+      },
+      {
+        "modern_usage": "-garth",
+        "old_english": [
+          "geard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "guard",
+            "weight": 2
+          }
+        ]
+      },
+      {
         "modern_usage": "-wardine",
         "old_english": [
           "worthig"
@@ -15432,6 +15296,54 @@
         "modern_usage": "-worthy",
         "old_english": [
           "worthig"
+        ]
+      },
+      {
+        "modern_usage": "`gar",
+        "old_english": [
+          "geard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "guard",
+            "weight": 2
+          }
+        ]
+      },
+      {
+        "modern_usage": "Gar-",
+        "old_english": [
+          "geard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "guard",
+            "weight": 2
+          }
+        ]
+      },
+      {
+        "modern_usage": "Gart-",
+        "old_english": [
+          "geard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "guard",
+            "weight": 2
+          }
+        ]
+      },
+      {
+        "modern_usage": "Garth-",
+        "old_english": [
+          "geard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "guard",
+            "weight": 2
+          }
         ]
       },
       {
@@ -15475,6 +15387,30 @@
         "old_english": [
           "worthig"
         ]
+      },
+      {
+        "modern_usage": "Yard-",
+        "old_english": [
+          "geard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "guard",
+            "weight": 2
+          }
+        ]
+      },
+      {
+        "modern_usage": "Yor-",
+        "old_english": [
+          "geard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "guard",
+            "weight": 2
+          }
+        ]
       }
     ]
   },
@@ -15489,7 +15425,6 @@
       "a place like an island",
       "dwelling-place",
       "enclosure",
-      "enclosure, homestead",
       "farm",
       "ford",
       "homestead"
@@ -15666,7 +15601,6 @@
       "Stall",
       "Yard",
       "fold",
-      "fold, enclosure",
       "fold, paddock, enclosure"
     ],
     "modifier_tags": [
@@ -15684,119 +15618,6 @@
         "modern_usage": "-phay",
         "old_english": [
           "fald"
-        ]
-      }
-    ]
-  },
-  {
-    "meaning": [
-      "Enclosure",
-      "Fold",
-      "Pound",
-      "Stable",
-      "Stall",
-      "Yard",
-      "yard, enclosure"
-    ],
-    "modifier_tags": [
-      "architecture"
-    ],
-    "modifier_type": "Habitative",
-    "words": [
-      {
-        "modern_usage": "-gart",
-        "old_english": [
-          "geard"
-        ],
-        "old_english_variants": [
-          {
-            "form": "guard",
-            "weight": 2
-          }
-        ]
-      },
-      {
-        "modern_usage": "-garth",
-        "old_english": [
-          "geard"
-        ],
-        "old_english_variants": [
-          {
-            "form": "guard",
-            "weight": 2
-          }
-        ]
-      },
-      {
-        "modern_usage": "`gar",
-        "old_english": [
-          "geard"
-        ],
-        "old_english_variants": [
-          {
-            "form": "guard",
-            "weight": 2
-          }
-        ]
-      },
-      {
-        "modern_usage": "Gar-",
-        "old_english": [
-          "geard"
-        ],
-        "old_english_variants": [
-          {
-            "form": "guard",
-            "weight": 2
-          }
-        ]
-      },
-      {
-        "modern_usage": "Gart-",
-        "old_english": [
-          "geard"
-        ],
-        "old_english_variants": [
-          {
-            "form": "guard",
-            "weight": 2
-          }
-        ]
-      },
-      {
-        "modern_usage": "Garth-",
-        "old_english": [
-          "geard"
-        ],
-        "old_english_variants": [
-          {
-            "form": "guard",
-            "weight": 2
-          }
-        ]
-      },
-      {
-        "modern_usage": "Yard-",
-        "old_english": [
-          "geard"
-        ],
-        "old_english_variants": [
-          {
-            "form": "guard",
-            "weight": 2
-          }
-        ]
-      },
-      {
-        "modern_usage": "Yor-",
-        "old_english": [
-          "geard"
-        ],
-        "old_english_variants": [
-          {
-            "form": "guard",
-            "weight": 2
-          }
         ]
       }
     ]
@@ -15833,36 +15654,16 @@
       "enclosed, fortified village",
       "enclosure",
       "enclosure of land",
-      "enclosure or farm",
-      "enclosure or farmstead",
-      "enclosure, farm",
-      "enclosure, farmstead",
-      "enclosure, farmstead, village",
-      "enclosure, homestead",
-      "enclosure, settlement",
       "enclosure/settlement",
-      "enclosure; settlement",
       "farm",
       "farm and dwelling",
-      "farm, enclosure",
-      "farm, homestead",
-      "farm, settlement",
       "farm-town",
       "farm/settlement",
       "farmstead",
-      "farmstead or enclosure",
-      "farmstead, enclosure",
-      "farmstead, settlement",
       "hill",
       "homestead",
-      "homestead, village",
       "settlement",
-      "settlement, farm",
       "town",
-      "town, enclosure",
-      "town, farm",
-      "town, settlement, farmstead",
-      "town, village",
       "town/settlement",
       "township/settlement",
       "tun",
@@ -16125,13 +15926,8 @@
       "high",
       "hill",
       "home",
-      "home, homestead",
       "home, house",
-      "home, village",
       "homestead",
-      "homestead, dwelling",
-      "homestead, settlement",
-      "homestead, village",
       "homestead/settlement",
       "meadow",
       "settlement",
@@ -16171,9 +15967,6 @@
       "farmstead",
       "homestead",
       "settlement",
-      "settlement, farmstead",
-      "settlement, village",
-      "settlement; village",
       "village"
     ],
     "modifier_tags": [
@@ -16409,10 +16202,6 @@
           {
             "form": "fealca",
             "weight": 2
-          },
-          {
-            "form": "falco",
-            "weight": 1
           }
         ]
       },
@@ -16425,10 +16214,6 @@
           {
             "form": "fealca",
             "weight": 2
-          },
-          {
-            "form": "falco",
-            "weight": 1
           }
         ]
       }
@@ -17143,7 +16928,6 @@
       "fort",
       "fortress",
       "hill",
-      "hill or fort",
       "hill or hill fort",
       "lull or hill-fort",
       "peel"
@@ -17245,7 +17029,6 @@
       "Fortress mound",
       "Stronghold",
       "borough",
-      "borough, fort",
       "castle, fortified place",
       "castle, fortress",
       "fort",
@@ -17255,8 +17038,6 @@
       "fortified dwelling-place",
       "fortified enclosure",
       "fortified place",
-      "fortified place, borough",
-      "fortified place, stronghold",
       "fortress",
       "fortress/settlement"
     ],
@@ -17719,24 +17500,12 @@
         "modern_usage": "Frost-",
         "old_english": [
           "frosc"
-        ],
-        "old_english_variants": [
-          {
-            "form": "froc",
-            "weight": 1
-          }
         ]
       },
       {
         "modern_usage": "Frox-",
         "old_english": [
           "frosc"
-        ],
-        "old_english_variants": [
-          {
-            "form": "froc",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -17913,12 +17682,6 @@
         "modern_usage": "Faver-",
         "old_english": [
           "faefer"
-        ],
-        "old_english_variants": [
-          {
-            "form": "fefer",
-            "weight": 1
-          }
         ]
       },
       {
@@ -17985,14 +17748,6 @@
           {
             "form": "galgi",
             "weight": 3
-          },
-          {
-            "form": "galge",
-            "weight": 1
-          },
-          {
-            "form": "gealga",
-            "weight": 1
           }
         ]
       },
@@ -18005,14 +17760,6 @@
           {
             "form": "galgi",
             "weight": 3
-          },
-          {
-            "form": "galge",
-            "weight": 1
-          },
-          {
-            "form": "gealga",
-            "weight": 1
           }
         ]
       },
@@ -18120,16 +17867,6 @@
           "gardin",
           "garten",
           "gartin"
-        ],
-        "old_english_variants": [
-          {
-            "form": "garden",
-            "weight": 1
-          },
-          {
-            "form": "gartan",
-            "weight": 1
-          }
         ]
       },
       {
@@ -18204,12 +17941,6 @@
         "modern_usage": "Prick-",
         "old_english": [
           "pricca"
-        ],
-        "old_english_variants": [
-          {
-            "form": "prica",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -18318,12 +18049,6 @@
         ],
         "old_english": [
           "haefer"
-        ],
-        "old_english_variants": [
-          {
-            "form": "hefer",
-            "weight": 1
-          }
         ]
       },
       {
@@ -18333,12 +18058,6 @@
         ],
         "old_english": [
           "haefer"
-        ],
-        "old_english_variants": [
-          {
-            "form": "hefer",
-            "weight": 1
-          }
         ]
       },
       {
@@ -18378,10 +18097,6 @@
           {
             "form": "ticaen",
             "weight": 15
-          },
-          {
-            "form": "hefer",
-            "weight": 1
           }
         ],
         "old_scandinavian": [
@@ -18762,10 +18477,6 @@
           {
             "form": "guarda",
             "weight": 2
-          },
-          {
-            "form": "guards",
-            "weight": 1
           }
         ],
         "old_english": [
@@ -19024,7 +18735,6 @@
     "meaning": [
       "Hamlet",
       "Outlying homestead",
-      "hamlet or village",
       "village",
       "village, farmstead"
     ],
@@ -19116,12 +18826,6 @@
         "modern_usage": "Coney-",
         "old_scandinavian": [
           "coiní"
-        ],
-        "old_scandinavian_variants": [
-          {
-            "form": "coinm",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -20152,12 +19856,6 @@
         "modern_usage": "Take-",
         "old_english": [
           "tacca"
-        ],
-        "old_english_variants": [
-          {
-            "form": "tacka",
-            "weight": 1
-          }
         ]
       },
       {
@@ -20416,16 +20114,6 @@
         "modern_usage": "Sway-",
         "old_english": [
           "swaeth"
-        ],
-        "old_english_variants": [
-          {
-            "form": "saeth",
-            "weight": 1
-          },
-          {
-            "form": "sweth",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -20464,8 +20152,7 @@
       "Way",
       "path",
       "road",
-      "way",
-      "way, road"
+      "way"
     ],
     "modifier_tags": [
       "architecture",
@@ -20490,7 +20177,6 @@
       "Track",
       "Way",
       "road",
-      "road, way",
       "street"
     ],
     "modifier_tags": [
@@ -20661,7 +20347,6 @@
       "Look-out",
       "Watch",
       "guard",
-      "guard, guardian",
       "guardian",
       "look-out",
       "warden"
@@ -20905,48 +20590,18 @@
         "modern_usage": "Mel-",
         "old_english": [
           "melce"
-        ],
-        "old_english_variants": [
-          {
-            "form": "mele",
-            "weight": 1
-          },
-          {
-            "form": "meolae",
-            "weight": 1
-          }
         ]
       },
       {
         "modern_usage": "Melch-",
         "old_english": [
           "melce"
-        ],
-        "old_english_variants": [
-          {
-            "form": "mele",
-            "weight": 1
-          },
-          {
-            "form": "meolae",
-            "weight": 1
-          }
         ]
       },
       {
         "modern_usage": "Melk-",
         "old_english": [
           "melce"
-        ],
-        "old_english_variants": [
-          {
-            "form": "mele",
-            "weight": 1
-          },
-          {
-            "form": "meolae",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -21455,14 +21110,6 @@
           {
             "form": "knut",
             "weight": 6
-          },
-          {
-            "form": "knuto",
-            "weight": 1
-          },
-          {
-            "form": "knutr",
-            "weight": 1
           }
         ]
       },
@@ -21475,14 +21122,6 @@
           {
             "form": "knut",
             "weight": 6
-          },
-          {
-            "form": "knuto",
-            "weight": 1
-          },
-          {
-            "form": "knutr",
-            "weight": 1
           }
         ]
       }
@@ -22199,12 +21838,6 @@
         "old_english": [
           "plaga",
           "pleget"
-        ],
-        "old_english_variants": [
-          {
-            "form": "plegen",
-            "weight": 1
-          }
         ]
       },
       {
@@ -22212,12 +21845,6 @@
         "old_english": [
           "plaga",
           "pleget"
-        ],
-        "old_english_variants": [
-          {
-            "form": "plegen",
-            "weight": 1
-          }
         ]
       },
       {
@@ -22225,12 +21852,6 @@
         "old_english": [
           "plaga",
           "pleget"
-        ],
-        "old_english_variants": [
-          {
-            "form": "plegen",
-            "weight": 1
-          }
         ]
       },
       {
@@ -22238,12 +21859,6 @@
         "old_english": [
           "plaga",
           "pleget"
-        ],
-        "old_english_variants": [
-          {
-            "form": "plegen",
-            "weight": 1
-          }
         ]
       },
       {
@@ -22251,12 +21866,6 @@
         "old_english": [
           "plaga",
           "pleget"
-        ],
-        "old_english_variants": [
-          {
-            "form": "plegen",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -22767,12 +22376,6 @@
         "old_english": [
           "sain",
           "seynte"
-        ],
-        "old_english_variants": [
-          {
-            "form": "saynte",
-            "weight": 1
-          }
         ]
       },
       {
@@ -22780,12 +22383,6 @@
         "old_english": [
           "sain",
           "seynte"
-        ],
-        "old_english_variants": [
-          {
-            "form": "saynte",
-            "weight": 1
-          }
         ]
       },
       {
@@ -22793,12 +22390,6 @@
         "old_english": [
           "sain",
           "seynte"
-        ],
-        "old_english_variants": [
-          {
-            "form": "saynte",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -22861,12 +22452,6 @@
         "modern_usage": "Scra-",
         "old_scandinavian": [
           "skári"
-        ],
-        "old_scandinavian_variants": [
-          {
-            "form": "skari",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -23114,12 +22699,6 @@
         "modern_usage": "Shol-",
         "old_english": [
           "scofl"
-        ],
-        "old_english_variants": [
-          {
-            "form": "scoff",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -23715,12 +23294,6 @@
           "tunaz",
           "zaun",
           "zun"
-        ],
-        "germanic_variants": [
-          {
-            "form": "tunas",
-            "weight": 2
-          }
         ]
       },
       {
@@ -23791,12 +23364,6 @@
         "modern_usage": "Shotte-",
         "old_english": [
           "sceota"
-        ],
-        "old_english_variants": [
-          {
-            "form": "saedta",
-            "weight": 1
-          }
         ]
       },
       {
@@ -23912,16 +23479,6 @@
         "modern_usage": "Wash-",
         "old_english": [
           "waesce"
-        ],
-        "old_english_variants": [
-          {
-            "form": "weesae",
-            "weight": 1
-          },
-          {
-            "form": "wsesae",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -24446,8 +24003,7 @@
     "meaning": [
       "Anne (Name)",
       "Lonely",
-      "single",
-      "single, lonely"
+      "single"
     ],
     "modifier_tags": [
       "descriptive",
@@ -24571,9 +24127,7 @@
       "Dilapidated",
       "Empty",
       "bald",
-      "bald or bare",
       "bare",
-      "bare, bald",
       "bare; round bare hill",
       "blunt, bare",
       "hornless cows",
@@ -25095,10 +24649,6 @@
           {
             "form": "breitr",
             "weight": 2
-          },
-          {
-            "form": "breitha",
-            "weight": 1
           }
         ]
       },
@@ -25111,10 +24661,6 @@
           {
             "form": "breitr",
             "weight": 2
-          },
-          {
-            "form": "breitha",
-            "weight": 1
           }
         ]
       },
@@ -25127,10 +24673,6 @@
           {
             "form": "breitr",
             "weight": 2
-          },
-          {
-            "form": "breitha",
-            "weight": 1
           }
         ]
       },
@@ -25150,7 +24692,6 @@
       "hill",
       "hill-side, slope",
       "side",
-      "side or hill",
       "wide, large"
     ],
     "modifier_tags": [
@@ -25347,8 +24888,7 @@
       "dun",
       "dun-coloured, greyish",
       "otter-coloured",
-      "pale-grey",
-      "pale-grey, dun, brown"
+      "pale-grey"
     ],
     "modifier_tags": [
       "color",
@@ -25779,10 +25319,6 @@
         ],
         "old_english_variants": [
           {
-            "form": "weta",
-            "weight": 2
-          },
-          {
             "form": "weten",
             "weight": 2
           },
@@ -25811,10 +25347,6 @@
           {
             "form": "weton",
             "weight": 2
-          },
-          {
-            "form": "weta",
-            "weight": 1
           }
         ],
         "old_english_inflections": [
@@ -26113,6 +25645,12 @@
         ]
       },
       {
+        "modern_usage": "Ful-",
+        "old_english": [
+          "fūl"
+        ]
+      },
+      {
         "modern_usage": "Har-",
         "old_english": [
           "horig",
@@ -26186,12 +25724,6 @@
         "modern_usage": "Slip-",
         "old_english": [
           "slipa"
-        ],
-        "old_english_variants": [
-          {
-            "form": "sliwa",
-            "weight": 1
-          }
         ]
       },
       {
@@ -26260,26 +25792,6 @@
         "modern_usage": "Shorn-",
         "old_english": [
           "scearn"
-        ]
-      }
-    ]
-  },
-  {
-    "meaning": [
-      "Dirty",
-      "Foul",
-      "Muddy",
-      "foul or dirty"
-    ],
-    "modifier_tags": [
-      "descriptive"
-    ],
-    "modifier_type": "Modifier",
-    "words": [
-      {
-        "modern_usage": "Ful-",
-        "old_english": [
-          "fūl"
         ]
       }
     ]
@@ -26631,11 +26143,8 @@
       "Tail end",
       "end",
       "head",
-      "head or end",
       "head, chief, end",
-      "head, end",
       "head, extremity, or upper part",
-      "head; end",
       "the highest part, the extreme end"
     ],
     "modifier_tags": [
@@ -27867,10 +27376,6 @@
           {
             "form": "bychan",
             "weight": 9
-          },
-          {
-            "form": "boghan",
-            "weight": 1
           }
         ]
       },
@@ -27901,10 +27406,6 @@
           {
             "form": "bychan",
             "weight": 7
-          },
-          {
-            "form": "boghan",
-            "weight": 1
           }
         ]
       }
@@ -28102,14 +27603,6 @@
           {
             "form": "hlud",
             "weight": 2
-          },
-          {
-            "form": "clude",
-            "weight": 1
-          },
-          {
-            "form": "hluda",
-            "weight": 1
           }
         ]
       },
@@ -28127,14 +27620,6 @@
           {
             "form": "hlud",
             "weight": 2
-          },
-          {
-            "form": "clude",
-            "weight": 1
-          },
-          {
-            "form": "hluda",
-            "weight": 1
           }
         ]
       },
@@ -29558,10 +29043,6 @@
           {
             "form": "suthra",
             "weight": 2
-          },
-          {
-            "form": "sutho",
-            "weight": 1
           }
         ]
       },
@@ -29578,10 +29059,6 @@
           {
             "form": "suthra",
             "weight": 2
-          },
-          {
-            "form": "sutho",
-            "weight": 1
           }
         ]
       },
@@ -29603,10 +29080,6 @@
           {
             "form": "suthra",
             "weight": 2
-          },
-          {
-            "form": "sutho",
-            "weight": 1
           }
         ]
       },
@@ -29628,10 +29101,6 @@
           {
             "form": "suthra",
             "weight": 2
-          },
-          {
-            "form": "sutho",
-            "weight": 1
           }
         ]
       }
@@ -29931,10 +29400,6 @@
           {
             "form": "twinne",
             "weight": 2
-          },
-          {
-            "form": "twins",
-            "weight": 1
           }
         ]
       }
@@ -30249,12 +29714,6 @@
         "modern_usage": "Wester-",
         "old_english": [
           "westerra"
-        ],
-        "old_english_variants": [
-          {
-            "form": "westerna",
-            "weight": 1
-          }
         ],
         "old_scandinavian": [
           "vestari"
@@ -30600,10 +30059,6 @@
           {
             "form": "wasse",
             "weight": 3
-          },
-          {
-            "form": "weesse",
-            "weight": 1
           }
         ]
       },
@@ -30616,10 +30071,6 @@
           {
             "form": "wasse",
             "weight": 3
-          },
-          {
-            "form": "weesse",
-            "weight": 1
           }
         ]
       }
@@ -30679,10 +30130,8 @@
       "Ward",
       "common-land",
       "estate",
-      "estate; land",
       "farm",
-      "land",
-      "land, estate"
+      "land"
     ],
     "modifier_tags": [
       "agriculture",
@@ -30743,16 +30192,6 @@
         ],
         "old_english": [
           "scearu"
-        ],
-        "old_english_variants": [
-          {
-            "form": "saearp",
-            "weight": 1
-          },
-          {
-            "form": "saeart",
-            "weight": 1
-          }
         ]
       },
       {
@@ -30763,16 +30202,6 @@
         ],
         "old_english": [
           "scearu"
-        ],
-        "old_english_variants": [
-          {
-            "form": "saearp",
-            "weight": 1
-          },
-          {
-            "form": "saeart",
-            "weight": 1
-          }
         ]
       },
       {
@@ -30997,8 +30426,7 @@
       "Shore",
       "Strand",
       "link, rising ground, ridge, bank",
-      "ridge",
-      "ridge, bank"
+      "ridge"
     ],
     "modifier_tags": [
       "topology",
@@ -31114,10 +30542,6 @@
           {
             "form": "fjordhr",
             "weight": 8
-          },
-          {
-            "form": "fiorthr",
-            "weight": 1
           }
         ]
       },
@@ -31130,10 +30554,6 @@
           {
             "form": "fjordhr",
             "weight": 8
-          },
-          {
-            "form": "fiorthr",
-            "weight": 1
           }
         ]
       },
@@ -31184,10 +30604,6 @@
           {
             "form": "fjordhr",
             "weight": 8
-          },
-          {
-            "form": "fiorthr",
-            "weight": 1
           }
         ]
       },
@@ -31334,10 +30750,6 @@
           {
             "form": "alainn",
             "weight": 7
-          },
-          {
-            "form": "dlainn",
-            "weight": 1
           }
         ]
       }
@@ -31348,8 +30760,7 @@
       "Beautiful",
       "Bright",
       "Shining",
-      "Sunny",
-      "beautiful, bright"
+      "Sunny"
     ],
     "modifier_tags": [
       "descriptive"
@@ -31514,7 +30925,6 @@
       "Head",
       "Start",
       "head",
-      "head, hill",
       "head-land",
       "headland",
       "hill",
@@ -32100,8 +31510,7 @@
       "marshy land",
       "moor",
       "moor, waste and damp land",
-      "swamp",
-      "swamp, marsh"
+      "swamp"
     ],
     "modifier_tags": [
       "topography",
@@ -32175,12 +31584,6 @@
         "modern_usage": "-loy",
         "celtic_mix": [
           "lathaí"
-        ],
-        "celtic_mix_variants": [
-          {
-            "form": "latham",
-            "weight": 1
-          }
         ]
       },
       {
@@ -32211,36 +31614,18 @@
         "modern_usage": "-nanny",
         "celtic_mix": [
           "lathaí"
-        ],
-        "celtic_mix_variants": [
-          {
-            "form": "latham",
-            "weight": 1
-          }
         ]
       },
       {
         "modern_usage": "-risk",
         "celtic_mix": [
           "riascadh"
-        ],
-        "celtic_mix_variants": [
-          {
-            "form": "riascach",
-            "weight": 1
-          }
         ]
       },
       {
         "modern_usage": "Anna-",
         "celtic_mix": [
           "lathaí"
-        ],
-        "celtic_mix_variants": [
-          {
-            "form": "latham",
-            "weight": 1
-          }
         ]
       },
       {
@@ -32331,14 +31716,6 @@
           {
             "form": "sege",
             "weight": 2
-          },
-          {
-            "form": "saene",
-            "weight": 1
-          },
-          {
-            "form": "siege",
-            "weight": 1
           }
         ]
       },
@@ -32443,7 +31820,6 @@
       "Swamp",
       "a marsh",
       "marsh",
-      "marsh, swamp",
       "marshy"
     ],
     "modifier_tags": [
@@ -33695,31 +33071,6 @@
       "River",
       "Stream",
       "brook",
-      "brook, valley",
-      "dingle or valley",
-      "glen, valley (equivalent to Gaelic gleann)",
-      "valley"
-    ],
-    "modifier_tags": [
-      "topography",
-      "water"
-    ],
-    "modifier_type": "Topographical",
-    "words": [
-      {
-        "modern_usage": "-nant",
-        "celtic_mix": [
-          "nant"
-        ]
-      }
-    ]
-  },
-  {
-    "meaning": [
-      "Brook",
-      "River",
-      "Stream",
-      "brook",
       "burn",
       "stream"
     ],
@@ -33757,6 +33108,30 @@
         "modern_usage": "Burn-",
         "old_english": [
           "burna"
+        ]
+      }
+    ]
+  },
+  {
+    "meaning": [
+      "Brook",
+      "River",
+      "Stream",
+      "brook",
+      "dingle or valley",
+      "glen, valley (equivalent to Gaelic gleann)",
+      "valley"
+    ],
+    "modifier_tags": [
+      "topography",
+      "water"
+    ],
+    "modifier_type": "Topographical",
+    "words": [
+      {
+        "modern_usage": "-nant",
+        "celtic_mix": [
+          "nant"
         ]
       }
     ]
@@ -33890,14 +33265,6 @@
           {
             "form": "drim",
             "weight": 2
-          },
-          {
-            "form": "driim",
-            "weight": 1
-          },
-          {
-            "form": "drnim",
-            "weight": 1
           }
         ]
       },
@@ -33918,14 +33285,6 @@
           {
             "form": "drim",
             "weight": 2
-          },
-          {
-            "form": "driim",
-            "weight": 1
-          },
-          {
-            "form": "drnim",
-            "weight": 1
           }
         ]
       },
@@ -33982,14 +33341,6 @@
           {
             "form": "drim",
             "weight": 2
-          },
-          {
-            "form": "driim",
-            "weight": 1
-          },
-          {
-            "form": "drnim",
-            "weight": 1
           }
         ]
       },
@@ -34010,14 +33361,6 @@
           {
             "form": "drim",
             "weight": 2
-          },
-          {
-            "form": "driim",
-            "weight": 1
-          },
-          {
-            "form": "drnim",
-            "weight": 1
           }
         ]
       },
@@ -34157,14 +33500,6 @@
           {
             "form": "drim",
             "weight": 2
-          },
-          {
-            "form": "driim",
-            "weight": 1
-          },
-          {
-            "form": "drnim",
-            "weight": 1
           }
         ]
       },
@@ -34181,14 +33516,6 @@
           {
             "form": "drim",
             "weight": 2
-          },
-          {
-            "form": "driim",
-            "weight": 1
-          },
-          {
-            "form": "drnim",
-            "weight": 1
           }
         ]
       },
@@ -34205,14 +33532,6 @@
           {
             "form": "drim",
             "weight": 2
-          },
-          {
-            "form": "driim",
-            "weight": 1
-          },
-          {
-            "form": "drnim",
-            "weight": 1
           }
         ]
       },
@@ -34229,14 +33548,6 @@
           {
             "form": "drim",
             "weight": 2
-          },
-          {
-            "form": "driim",
-            "weight": 1
-          },
-          {
-            "form": "drnim",
-            "weight": 1
           }
         ]
       }
@@ -34383,10 +33694,6 @@
           {
             "form": "cailc",
             "weight": 4
-          },
-          {
-            "form": "aelc",
-            "weight": 1
           }
         ]
       },
@@ -34401,10 +33708,6 @@
           {
             "form": "cailc",
             "weight": 4
-          },
-          {
-            "form": "aelc",
-            "weight": 1
           }
         ]
       },
@@ -34419,10 +33722,6 @@
           {
             "form": "cailc",
             "weight": 4
-          },
-          {
-            "form": "aelc",
-            "weight": 1
           }
         ]
       }
@@ -34579,12 +33878,6 @@
         "modern_usage": "Hel-",
         "old_scandinavian": [
           "hjalla"
-        ],
-        "old_scandinavian_variants": [
-          {
-            "form": "hjalli",
-            "weight": 1
-          }
         ]
       },
       {
@@ -34838,51 +34131,7 @@
       "Forest",
       "Grove",
       "Wood",
-      "copse or wood",
-      "hill and wood",
-      "small wood or copse",
-      "wood"
-    ],
-    "modifier_tags": [
-      "plant",
-      "topography"
-    ],
-    "modifier_type": "Topographical",
-    "words": [
-      {
-        "modern_usage": "-scough",
-        "old_english": [
-          "sceaga"
-        ]
-      },
-      {
-        "modern_usage": "-shaw",
-        "old_english": [
-          "sceaga"
-        ]
-      },
-      {
-        "modern_usage": "Shaugh-",
-        "old_english": [
-          "sceaga"
-        ]
-      },
-      {
-        "modern_usage": "Shaw-",
-        "old_english": [
-          "sceaga"
-        ]
-      }
-    ]
-  },
-  {
-    "meaning": [
-      "Copse",
-      "Forest",
-      "Grove",
-      "Wood",
-      "grove",
-      "grove or wood"
+      "grove"
     ],
     "modifier_tags": [
       "plant",
@@ -34923,6 +34172,48 @@
         "old_english": [
           "grāf",
           "graf"
+        ]
+      }
+    ]
+  },
+  {
+    "meaning": [
+      "Copse",
+      "Forest",
+      "Grove",
+      "Wood",
+      "hill and wood",
+      "small wood or copse",
+      "wood"
+    ],
+    "modifier_tags": [
+      "plant",
+      "topography"
+    ],
+    "modifier_type": "Topographical",
+    "words": [
+      {
+        "modern_usage": "-scough",
+        "old_english": [
+          "sceaga"
+        ]
+      },
+      {
+        "modern_usage": "-shaw",
+        "old_english": [
+          "sceaga"
+        ]
+      },
+      {
+        "modern_usage": "Shaugh-",
+        "old_english": [
+          "sceaga"
+        ]
+      },
+      {
+        "modern_usage": "Shaw-",
+        "old_english": [
+          "sceaga"
         ]
       }
     ]
@@ -35010,10 +34301,7 @@
       "a dwelling-place, village",
       "abode",
       "dwelling",
-      "dwelling, settlement",
       "dwelling-place",
-      "dwelling-place, settlement",
-      "dwelling-place, village",
       "farm and building",
       "farm and dwelling",
       "farm, village",
@@ -35023,7 +34311,6 @@
       "place (village) where fish is sold",
       "settlement",
       "village",
-      "village, homestead",
       "village/settlement"
     ],
     "modifier_tags": [
@@ -35474,38 +34761,6 @@
       "Hollow",
       "Vale",
       "Valley",
-      "dale, valley",
-      "valley"
-    ],
-    "modifier_tags": [
-      "topology"
-    ],
-    "modifier_type": "Topographical",
-    "words": [
-      {
-        "modern_usage": "-dale",
-        "old_english": [
-          "dael",
-          "dæl",
-          "dcel"
-        ]
-      },
-      {
-        "modern_usage": "Dal-",
-        "old_english": [
-          "dael",
-          "dæl",
-          "dcel"
-        ]
-      }
-    ]
-  },
-  {
-    "meaning": [
-      "Dale",
-      "Hollow",
-      "Vale",
-      "Valley",
       "dene",
       "valley"
     ],
@@ -35541,7 +34796,6 @@
       "Vale",
       "Valley",
       "glen",
-      "glen, valley",
       "valley"
     ],
     "modifier_tags": [
@@ -35605,6 +34859,37 @@
         "modern_usage": "Cwm-",
         "celtic_mix": [
           "cwm"
+        ]
+      }
+    ]
+  },
+  {
+    "meaning": [
+      "Dale",
+      "Hollow",
+      "Vale",
+      "Valley",
+      "valley"
+    ],
+    "modifier_tags": [
+      "topology"
+    ],
+    "modifier_type": "Topographical",
+    "words": [
+      {
+        "modern_usage": "-dale",
+        "old_english": [
+          "dael",
+          "dæl",
+          "dcel"
+        ]
+      },
+      {
+        "modern_usage": "Dal-",
+        "old_english": [
+          "dael",
+          "dæl",
+          "dcel"
         ]
       }
     ]
@@ -35898,7 +35183,6 @@
       "burn or brook",
       "ford",
       "ford, crossing of a stream",
-      "ford, river crossing",
       "river crossing",
       "the crossing of a stream"
     ],
@@ -36115,7 +35399,6 @@
       "Hill",
       "a hill",
       "down",
-      "down or hill",
       "dune",
       "hill"
     ],
@@ -36344,10 +35627,7 @@
       "mouth",
       "mouth (of a river)",
       "mouth of a river",
-      "mouth of river",
-      "mouth, confluence",
-      "river mouth, confluence",
-      "river mouth; confluence"
+      "mouth of river"
     ],
     "modifier_tags": [
       "topography",
@@ -36546,7 +35826,25 @@
   {
     "meaning": [
       "Fen",
-      "fen or marsh",
+      "fen, low wet land, low alluvial land on the banks of a river"
+    ],
+    "modifier_tags": [
+      "topography",
+      "water"
+    ],
+    "modifier_type": "Topographical",
+    "words": [
+      {
+        "modern_usage": "Cais-",
+        "old_english": [
+          "kers"
+        ]
+      }
+    ]
+  },
+  {
+    "meaning": [
+      "Fen",
       "marsh",
       "marsh land",
       "marshes"
@@ -36607,25 +35905,6 @@
             "form": "fennum",
             "inflection": "dative_pl"
           }
-        ]
-      }
-    ]
-  },
-  {
-    "meaning": [
-      "Fen",
-      "fen, low wet land, low alluvial land on the banks of a river"
-    ],
-    "modifier_tags": [
-      "topography",
-      "water"
-    ],
-    "modifier_type": "Topographical",
-    "words": [
-      {
-        "modern_usage": "Cais-",
-        "old_english": [
-          "kers"
         ]
       }
     ]
@@ -36744,8 +36023,6 @@
       "a place where trees had been felled",
       "field",
       "field covered with broom",
-      "field, open land",
-      "field; open land",
       "open land"
     ],
     "modifier_tags": [
@@ -36988,12 +36265,6 @@
         "old_french": [
           "fflynt"
         ],
-        "old_french_variants": [
-          {
-            "form": "fflint",
-            "weight": 1
-          }
-        ],
         "old_english": [
           "flint"
         ]
@@ -37159,10 +36430,6 @@
           {
             "form": "either",
             "weight": 31
-          },
-          {
-            "form": "wither",
-            "weight": 1
           }
         ]
       },
@@ -37175,10 +36442,6 @@
           {
             "form": "either",
             "weight": 31
-          },
-          {
-            "form": "wither",
-            "weight": 1
           }
         ]
       },
@@ -37191,10 +36454,6 @@
           {
             "form": "either",
             "weight": 31
-          },
-          {
-            "form": "wither",
-            "weight": 1
           }
         ]
       },
@@ -37213,10 +36472,6 @@
           {
             "form": "widig",
             "weight": 2
-          },
-          {
-            "form": "wudii",
-            "weight": 1
           }
         ]
       },
@@ -37377,10 +36632,6 @@
           {
             "form": "widig",
             "weight": 2
-          },
-          {
-            "form": "wudii",
-            "weight": 1
           }
         ]
       },
@@ -37393,10 +36644,6 @@
           {
             "form": "widig",
             "weight": 2
-          },
-          {
-            "form": "wudii",
-            "weight": 1
           }
         ]
       }
@@ -38016,12 +37263,6 @@
         "modern_usage": "Allan-",
         "celtic_mix": [
           "àilean"
-        ],
-        "celtic_mix_variants": [
-          {
-            "form": "ailean",
-            "weight": 1
-          }
         ]
       },
       {
@@ -38125,20 +37366,12 @@
       "Woodland clearing",
       "clearing",
       "clearing of land",
-      "clearing, meadow",
-      "clearing, wood",
       "field",
       "forest-clearing",
       "lea",
-      "lea or meadow",
-      "lea, clearing",
-      "lea, pasture",
       "meadow",
-      "meadow or clearing",
       "pasture",
       "wood",
-      "wood, clearing",
-      "wood, clearing, meadow",
       "woodland",
       "woodland clearing"
     ],
@@ -38321,10 +37554,6 @@
           {
             "form": "greot",
             "weight": 10
-          },
-          {
-            "form": "grenn",
-            "weight": 1
           }
         ],
         "old_scandinavian": [
@@ -38347,10 +37576,6 @@
           {
             "form": "greot",
             "weight": 10
-          },
-          {
-            "form": "grenn",
-            "weight": 1
           }
         ],
         "old_scandinavian": [
@@ -38373,10 +37598,6 @@
           {
             "form": "greot",
             "weight": 10
-          },
-          {
-            "form": "grenn",
-            "weight": 1
           }
         ],
         "old_scandinavian": [
@@ -38399,10 +37620,6 @@
           {
             "form": "greot",
             "weight": 10
-          },
-          {
-            "form": "grenn",
-            "weight": 1
           }
         ],
         "old_scandinavian": [
@@ -38431,10 +37648,6 @@
           {
             "form": "greot",
             "weight": 10
-          },
-          {
-            "form": "grenn",
-            "weight": 1
           }
         ],
         "old_scandinavian": [
@@ -38457,10 +37670,6 @@
           {
             "form": "greot",
             "weight": 10
-          },
-          {
-            "form": "grenn",
-            "weight": 1
           }
         ],
         "old_scandinavian": [
@@ -38716,10 +37925,8 @@
       "heath, or moor",
       "moor, heath",
       "point (of land)",
-      "point, wood",
       "promontory; wood; wood-covered promontory",
       "wood",
-      "wood or point",
       "wood, or point of land or headland",
       "wood, point of land, or headland"
     ],
@@ -38748,8 +37955,6 @@
       "Point",
       "Promontory",
       "cape",
-      "cape, point, promontory",
-      "headland, promontory",
       "ness",
       "nose; promontory"
     ],
@@ -38843,12 +38048,6 @@
         "modern_usage": "-rugog",
         "celtic_mix": [
           "grugog"
-        ],
-        "celtic_mix_variants": [
-          {
-            "form": "grugos",
-            "weight": 1
-          }
         ]
       },
       {
@@ -38956,12 +38155,6 @@
         "modern_usage": "Hemp-",
         "old_english": [
           "haenep"
-        ],
-        "old_english_variants": [
-          {
-            "form": "henep",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -39904,8 +39097,7 @@
       "hole",
       "pool",
       "pool, hollow place",
-      "stream",
-      "stream or pool"
+      "stream"
     ],
     "modifier_tags": [
       "descriptive",
@@ -40167,7 +39359,6 @@
       "Island",
       "Peninsula",
       "island",
-      "island, peninsula",
       "low-lying well-watered ground",
       "stream"
     ],
@@ -41032,12 +40223,6 @@
         "modern_usage": "-stone-",
         "old_english": [
           "stānig"
-        ],
-        "old_english_variants": [
-          {
-            "form": "stani",
-            "weight": 1
-          }
         ]
       },
       {
@@ -41074,12 +40259,6 @@
         "modern_usage": "-stone",
         "old_english": [
           "stānig"
-        ],
-        "old_english_variants": [
-          {
-            "form": "stani",
-            "weight": 1
-          }
         ]
       },
       {
@@ -41161,84 +40340,42 @@
         "modern_usage": "Sta-",
         "old_english": [
           "stānig"
-        ],
-        "old_english_variants": [
-          {
-            "form": "stani",
-            "weight": 1
-          }
         ]
       },
       {
         "modern_usage": "Stain-",
         "old_english": [
           "stānig"
-        ],
-        "old_english_variants": [
-          {
-            "form": "stani",
-            "weight": 1
-          }
         ]
       },
       {
         "modern_usage": "Stam-",
         "old_english": [
           "stānig"
-        ],
-        "old_english_variants": [
-          {
-            "form": "stani",
-            "weight": 1
-          }
         ]
       },
       {
         "modern_usage": "Stan-",
         "old_english": [
           "stānig"
-        ],
-        "old_english_variants": [
-          {
-            "form": "stani",
-            "weight": 1
-          }
         ]
       },
       {
         "modern_usage": "Staun-",
         "old_english": [
           "stānig"
-        ],
-        "old_english_variants": [
-          {
-            "form": "stani",
-            "weight": 1
-          }
         ]
       },
       {
         "modern_usage": "Steyn-",
         "old_english": [
           "stānig"
-        ],
-        "old_english_variants": [
-          {
-            "form": "stani",
-            "weight": 1
-          }
         ]
       },
       {
         "modern_usage": "Stonie-",
         "old_english": [
           "stānig"
-        ],
-        "old_english_variants": [
-          {
-            "form": "stani",
-            "weight": 1
-          }
         ]
       }
     ]
@@ -41273,10 +40410,7 @@
       "Rock",
       "Stone",
       "Stony",
-      "rock or stone",
       "stone",
-      "stone or rock",
-      "stone, rock",
       "stones"
     ],
     "modifier_tags": [
@@ -41520,10 +40654,6 @@
           {
             "form": "gnipa",
             "weight": 13
-          },
-          {
-            "form": "gntpa",
-            "weight": 1
           }
         ]
       },
@@ -41566,10 +40696,6 @@
           {
             "form": "gnipa",
             "weight": 13
-          },
-          {
-            "form": "gntpa",
-            "weight": 1
           }
         ]
       },
@@ -41969,7 +41095,6 @@
       "a corner",
       "corner",
       "corner or hiding-place",
-      "corner or nook of land",
       "corner-shaped piece of land",
       "haugh",
       "haugh, low-lying meadow",
@@ -43202,13 +42327,9 @@
       "boundary",
       "boundary, march",
       "lake",
-      "lake, pond",
-      "lake, pool",
       "lake, pool of water",
       "mere",
       "pool",
-      "pool or mere",
-      "pool, lake",
       "sea, lake, or pool",
       "sheet of standing water; a lake, pond, marsh, fen"
     ],
@@ -43483,10 +42604,6 @@
           {
             "form": "winael",
             "weight": 6
-          },
-          {
-            "form": "winae",
-            "weight": 1
           }
         ]
       }
@@ -43635,10 +42752,6 @@
           {
             "form": "staf",
             "weight": 9
-          },
-          {
-            "form": "stafa",
-            "weight": 1
           }
         ]
       }
@@ -44275,14 +43388,6 @@
           {
             "form": "snae",
             "weight": 2
-          },
-          {
-            "form": "snaes",
-            "weight": 1
-          },
-          {
-            "form": "sneer",
-            "weight": 1
           }
         ]
       }
@@ -44375,7 +43480,6 @@
       "Well",
       "a well or spring",
       "well",
-      "well or spring",
       "well, brook"
     ],
     "modifier_tags": [

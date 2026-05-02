@@ -1845,7 +1845,10 @@ def test_export_meanings_emits_variant_pool_per_language(fresh_db: Path) -> None
             "SELECT id FROM etymon WHERE canonical_form = 'brycg'"
         ).fetchone()["id"]
         _add_text_match(db, brycg_id, "src-a", "brigge", 5)
-        _add_text_match(db, brycg_id, "src-a", "brige", 1)
+        # Use reverse-search method on the singleton so it survives the
+        # low-confidence-singleton filter (which drops count=1 fuzzy /
+        # llm-disambiguated rows as the dominant OCR-noise class).
+        _add_text_match(db, brycg_id, "src-a", "brige", 1, method="reverse-search-v1")
         # Same matched_form from a different source: weights sum.
         _add_text_match(db, brycg_id, "rando-port", "brigge", 3)
         db.commit()
@@ -2048,6 +2051,123 @@ def test_emit_inflection_list_empty_input_returns_empty(fresh_db: Path) -> None:
     from wyrd.generators.kenning.lexicon import _emit_inflection_list
 
     assert _emit_inflection_list({}) == []
+
+
+# --- wyrd-8tp: gloss + variant data-quality filters -----------------------
+
+
+def test_filter_concatenation_glosses_drops_comma_concat():
+    """Glosses that are entirely a concatenation of already-present
+    singleton glosses should be filtered."""
+    from wyrd.generators.kenning.lexicon import _filter_concatenation_glosses
+
+    out = _filter_concatenation_glosses(["lake", "pond", "lake, pond"])
+    assert out == ["lake", "pond"]
+
+
+def test_filter_concatenation_glosses_keeps_partial_overlap():
+    """A multi-token gloss that contains a singleton plus extra info should
+    be kept — only the strict-subset case is considered redundant."""
+    from wyrd.generators.kenning.lexicon import _filter_concatenation_glosses
+
+    # 'shore' is not in the singleton set, so 'bank, shore' is informative.
+    out = _filter_concatenation_glosses(["bank", "bank, shore"])
+    assert out == ["bank", "bank, shore"]
+
+
+def test_filter_concatenation_glosses_recognizes_semicolon_and_or():
+    """Splitter accepts ',', ';' and ' or ' as connectors."""
+    from wyrd.generators.kenning.lexicon import _filter_concatenation_glosses
+
+    out = _filter_concatenation_glosses(["book", "charter", "charter; book", "book or charter"])
+    assert out == ["book", "charter"]
+
+
+def test_filter_concatenation_glosses_keeps_singletons_unconditionally():
+    """A single-token gloss is never dropped, even if its tokens overlap
+    other singletons (since by definition it has only one token)."""
+    from wyrd.generators.kenning.lexicon import _filter_concatenation_glosses
+
+    out = _filter_concatenation_glosses(["bank", "edge", "shore"])
+    assert out == ["bank", "edge", "shore"]
+
+
+def test_export_meanings_filters_low_confidence_singleton_variants(
+    fresh_db: Path,
+) -> None:
+    """A variant with match_count=1 from fuzzy-search-v1 alone should be
+    dropped (the dominant OCR-noise class). One with match_count>=2 OR
+    any high-confidence method survives."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        db.upsert_source(id="src-a", title="A")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["sharp"],
+            tags=[],
+            modifier_type=None,
+            words=[{"modern_usage": "-scearp", "old_english": ["scearu"]}],
+        )
+        scearu_id = db.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = 'scearu'"
+        ).fetchone()["id"]
+        # OCR-noise: count=1, fuzzy-search-v1. Should be dropped.
+        _add_text_match(db, scearu_id, "src-a", "saearp", 1, method="fuzzy-search-v1")
+        # Legitimate variant: count=2 from fuzzy-search-v1 — survives because
+        # ≥2 attestations gives more confidence.
+        _add_text_match(db, scearu_id, "src-a", "scerp", 2, method="fuzzy-search-v1")
+        # Legitimate variant: count=1 but reverse-search-v1 (canonical-form
+        # body scan) is high-confidence. Survives.
+        _add_text_match(
+            db, scearu_id, "src-a", "scearp-form", 1, method="reverse-search-v1"
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    forms = [v["form"] for v in word.get("old_english_variants", [])]
+    assert "saearp" not in forms
+    assert "scerp" in forms
+    assert "scearp-form" in forms
+
+
+def test_export_meanings_drops_concatenation_glosses_in_subjects(
+    fresh_db: Path,
+) -> None:
+    """A subject whose family carries 'lake', 'pond', AND the redundant
+    'lake, pond' should emit only the singletons in its `meaning` list."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        # Manually inject etymon + glosses for the test, since _seed_subject
+        # runs through the seed_from_meanings path which deduplicates.
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["lake", "pond"],
+            tags=[],
+            modifier_type=None,
+            words=[{"modern_usage": "-mere", "old_english": ["mere"]}],
+        )
+        mere_id = db.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = 'mere'"
+        ).fetchone()["id"]
+        # Add a redundant concatenation gloss directly.
+        db.conn.execute(
+            "INSERT OR IGNORE INTO etymon_gloss (etymon_id, gloss) VALUES (?, ?)",
+            (mere_id, "lake, pond"),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    # The mere subject's meaning list should have 'lake' and 'pond' but not
+    # 'lake, pond'.
+    found = next(s for s in subjects if any(w["modern_usage"] == "-mere" for w in s["words"]))
+    assert "lake" in found["meaning"]
+    assert "pond" in found["meaning"]
+    assert "lake, pond" not in found["meaning"]
 
 
 def test_export_meanings_omits_merge_loser_as_separate_subject(
