@@ -22,6 +22,7 @@ from wyrd.generators.kenning.lexicon import (
     link_lemmas,
     migrate_schema,
     normalize_ocr_form,
+    record_mining_run,
     seed_from_meanings,
 )
 from wyrd.generators.kenning.skeat_parser import ParsedElement, ParsedEntry
@@ -833,6 +834,356 @@ def test_clear_enrichment_rejects_unknown_stage(fresh_db: Path) -> None:
     """Defensive: unknown stage raises ValueError before touching the DB."""
     with LexiconDB(fresh_db) as db, pytest.raises(ValueError, match="unknown stage"):
         clear_enrichment(db, stage="bogus", apply=True)
+
+
+def test_record_mining_run_inserts_row_with_full_fields(fresh_db: Path) -> None:
+    """record_mining_run persists every field the writer cares about and
+    serializes by_failure as JSON."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="test-src", title="Test")
+        db.commit()
+
+        run_id = record_mining_run(
+            db,
+            source_id="test-src",
+            provider="ollama",
+            model="qwen3.5:9b",
+            mode="mine",
+            parsed_count=60,
+            accepted=39,
+            declined=16,
+            rejected=5,
+            by_failure={"form_not_in_body": 5},
+            started_at="2026-04-30T14:30:00Z",
+            completed_at="2026-04-30T14:47:00Z",
+            notes="round 1",
+        )
+        assert run_id > 0
+
+        row = db.conn.execute("SELECT * FROM mining_run WHERE id = ?", (run_id,)).fetchone()
+    assert row["source_id"] == "test-src"
+    assert row["provider"] == "ollama"
+    assert row["model"] == "qwen3.5:9b"
+    assert row["mode"] == "mine"
+    assert row["parsed_count"] == 60
+    assert row["accepted"] == 39
+    assert row["declined"] == 16
+    assert row["rejected"] == 5
+    assert row["by_failure"] == '{"form_not_in_body": 5}'
+    assert row["started_at"] == "2026-04-30T14:30:00Z"
+    assert row["completed_at"] == "2026-04-30T14:47:00Z"
+    assert row["notes"] == "round 1"
+
+
+def test_record_mining_run_idempotent_on_dedupe_key(fresh_db: Path) -> None:
+    """Same (source, provider, model, mode, completed_at) inserts once.
+
+    Lets back-fill scripts re-run safely without duplicating runs.
+    """
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="test-src", title="Test")
+        db.commit()
+
+        kwargs = {
+            "source_id": "test-src",
+            "provider": "ollama",
+            "model": "qwen3.5:9b",
+            "mode": "mine",
+            "parsed_count": 10,
+            "accepted": 8,
+            "declined": 1,
+            "rejected": 1,
+            "completed_at": "2026-04-30T14:47:00Z",
+        }
+        first = record_mining_run(db, **kwargs)
+        second = record_mining_run(db, **kwargs)
+        assert first > 0
+        # INSERT OR IGNORE returns lastrowid=0 on UNIQUE conflict
+        assert second == 0
+
+        n = db.conn.execute("SELECT COUNT(*) FROM mining_run").fetchone()[0]
+        assert n == 1
+
+
+def test_record_mining_run_rejects_invalid_mode(fresh_db: Path) -> None:
+    """The mode CHECK constraint rejects anything outside 'mine' / 'review'."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="test-src", title="Test")
+        db.commit()
+
+        with pytest.raises(sqlite3.IntegrityError):
+            record_mining_run(
+                db,
+                source_id="test-src",
+                provider="ollama",
+                model="qwen3.5:9b",
+                mode="bogus",
+                parsed_count=1,
+                accepted=1,
+                declined=0,
+                rejected=0,
+            )
+
+
+def test_import_mining_log_inserts_jsonl_records(fresh_db: Path, tmp_path: Path) -> None:
+    """The back-fill CLI parses JSONL mining-run records and inserts them
+    via record_mining_run, idempotently."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    # Seed two source rows so FK on mining_run.source_id passes.
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="skeat_1901_cambridgeshire", title="Skeat Cambridgeshire")
+        db.upsert_source(id="mawer_1920_northumberland_durham", title="Mawer Northumberland")
+        db.commit()
+
+    log_path = tmp_path / "runs.jsonl"
+    log_path.write_text(
+        "\n".join(
+            [
+                '{"source_id":"skeat_1901_cambridgeshire","provider":"ollama",'
+                '"model":"qwen3.5:9b","mode":"mine","accepted":39,"declined":16,'
+                '"rejected":5,"by_failure":{"form_not_in_body":5},'
+                '"completed_at":"2026-04-30T14:47:00Z","notes":"round 1"}',
+                '{"source_id":"mawer_1920_northumberland_durham","provider":"anthropic",'
+                '"model":"claude-haiku-4-5-20251001","mode":"mine","accepted":482,'
+                '"declined":210,"rejected":112,"completed_at":"2026-05-01T03:00:00Z"}',
+                "",
+                "# comment lines and blanks are skipped",
+            ]
+        )
+    )
+
+    runner = CliRunner()
+
+    # Dry-run reports counts without inserting.
+    result = runner.invoke(
+        cli, ["lexicon", "import-mining-log", str(log_path), "--db", str(fresh_db)]
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    with LexiconDB(fresh_db) as db:
+        assert db.conn.execute("SELECT COUNT(*) FROM mining_run").fetchone()[0] == 0
+
+    # Apply: rows land.
+    result = runner.invoke(
+        cli,
+        ["lexicon", "import-mining-log", str(log_path), "--db", str(fresh_db), "--apply"],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    with LexiconDB(fresh_db) as db:
+        assert db.conn.execute("SELECT COUNT(*) FROM mining_run").fetchone()[0] == 2
+
+    # Re-apply: dedupe — count stays at 2.
+    result = runner.invoke(
+        cli,
+        ["lexicon", "import-mining-log", str(log_path), "--db", str(fresh_db), "--apply"],
+    )
+    assert result.exit_code == 0
+    with LexiconDB(fresh_db) as db:
+        assert db.conn.execute("SELECT COUNT(*) FROM mining_run").fetchone()[0] == 2
+
+
+def test_import_mining_log_tolerates_malformed_records(fresh_db: Path, tmp_path: Path) -> None:
+    """A single bad row must not crash the whole import — every failure
+    mode (non-object JSON, non-numeric counts, by_failure not a dict,
+    invalid mode hitting the CHECK constraint) surfaces as an error and
+    the rest of the file proceeds."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="real-src", title="Real")
+        db.commit()
+
+    log_path = tmp_path / "mixed.jsonl"
+    log_path.write_text(
+        "\n".join(
+            [
+                # Good: should land
+                '{"source_id":"real-src","provider":"ollama","model":"qwen3.5:9b",'
+                '"mode":"mine","accepted":10,"declined":2,"rejected":1,'
+                '"completed_at":"2026-04-30T14:00:00Z"}',
+                # Bad: non-object JSON
+                "[1, 2, 3]",
+                # Bad: non-numeric count
+                '{"source_id":"real-src","provider":"ollama","model":"x",'
+                '"mode":"mine","accepted":"not-a-number","completed_at":"2026-04-30T15:00:00Z"}',
+                # Bad: by_failure is a string, not an object
+                '{"source_id":"real-src","provider":"ollama","model":"x",'
+                '"mode":"mine","accepted":1,"by_failure":"oops",'
+                '"completed_at":"2026-04-30T16:00:00Z"}',
+                # Bad: invalid mode (CHECK constraint)
+                '{"source_id":"real-src","provider":"ollama","model":"x",'
+                '"mode":"bogus","accepted":1,"completed_at":"2026-04-30T17:00:00Z"}',
+                # Good: another valid row
+                '{"source_id":"real-src","provider":"gemini","model":"gemini-2.5-flash",'
+                '"mode":"review","accepted":5,"completed_at":"2026-04-30T18:00:00Z"}',
+            ]
+        )
+    )
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "lexicon",
+            "import-mining-log",
+            str(log_path),
+            "--db",
+            str(fresh_db),
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, (result.output or "") + (result.stderr or "")
+
+    # The two good rows landed; the four bad rows didn't crash the import.
+    with LexiconDB(fresh_db) as db:
+        n = db.conn.execute("SELECT COUNT(*) FROM mining_run").fetchone()[0]
+    assert n == 2
+
+
+def test_import_mining_log_skips_unknown_sources(fresh_db: Path, tmp_path: Path) -> None:
+    """Records pointing at sources not in the source table get skipped with
+    an error count, not a hard FK failure."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    log_path = tmp_path / "runs.jsonl"
+    log_path.write_text(
+        '{"source_id":"never-existed","provider":"ollama","model":"x",'
+        '"mode":"mine","accepted":1,"declined":0,"rejected":0,'
+        '"completed_at":"2026-05-01T00:00:00Z"}\n'
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["lexicon", "import-mining-log", str(log_path), "--db", str(fresh_db), "--apply"],
+    )
+    assert result.exit_code == 0
+    with LexiconDB(fresh_db) as db:
+        assert db.conn.execute("SELECT COUNT(*) FROM mining_run").fetchone()[0] == 0
+
+
+def test_lexicon_mine_llm_records_mining_run_at_end_of_run(
+    fresh_db: Path, tmp_path: Path, monkeypatch
+) -> None:
+    """The CLI integration: running `lexicon mine-llm` end-to-end against
+    a stubbed extractor must persist a mining_run row. Without this test,
+    a regression that drops the record_mining_run call in lexicon_mine_llm
+    passes CI silently — only the helper's unit tests would notice."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+    from wyrd.generators.kenning import llm_extractor
+    from wyrd.generators.kenning.llm_extractor import LLMResult
+    from wyrd.generators.kenning.skeat_parser import ParsedElement, ParsedEntry
+
+    # Fake parsed entries — bypasses the regex parser.
+    fake_parsed = [
+        ParsedEntry(
+            toponym="Faketon",
+            section_suffix="-ton",
+            historical_form="fake-tun",
+            elements=[],
+            confidence="low",
+            source_quote="Faketon. fake body.",
+        ),
+        ParsedEntry(
+            toponym="Otherton",
+            section_suffix="-ton",
+            historical_form="other-tun",
+            elements=[],
+            confidence="low",
+            source_quote="Otherton. other body.",
+        ),
+    ]
+    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser: fake_parsed)
+
+    # Fake OllamaClient — only needs .model and .base_url for echoed output.
+    class FakeClient:
+        model = "fake-model:0b"
+        base_url = "http://localhost:0"
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(llm_extractor, "OllamaClient", FakeClient)
+
+    # Fake extract_one: first entry accepts with one element, second declines.
+    accept_result = LLMResult(
+        entry=ParsedEntry(
+            toponym="Faketon",
+            section_suffix="-ton",
+            historical_form="fake-tun",
+            elements=[
+                ParsedElement(
+                    form="fake", language="old-english", position="pre", gloss="fake gloss"
+                ),
+            ],
+            confidence="high",
+            source_quote="Faketon. fake body.",
+        ),
+        raw_response={},
+        failures=[],
+        accepted=True,
+    )
+    decline_result = LLMResult(
+        entry=ParsedEntry(
+            toponym="Otherton",
+            section_suffix="-ton",
+            historical_form=None,
+            elements=[],
+            confidence="low",
+            source_quote="Otherton. other body.",
+        ),
+        raw_response={},
+        failures=[],
+        accepted=True,
+    )
+    seq = iter([accept_result, decline_result])
+    monkeypatch.setattr(llm_extractor, "extract_one", lambda client, **kw: next(seq))
+
+    # Need a non-empty file for the click PathExists check.
+    src_path = tmp_path / "test_book.txt"
+    src_path.write_text("Faketon. fake body.\n\nOtherton. other body.\n")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        ["lexicon", "mine-llm", str(src_path), "--db", str(fresh_db), "--provider", "ollama"],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+
+    # The writer call landed exactly one mining_run row with the expected counts.
+    with LexiconDB(fresh_db) as db:
+        rows = db.conn.execute(
+            "SELECT source_id, provider, model, mode, parsed_count, accepted, declined, "
+            "rejected FROM mining_run"
+        ).fetchall()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["source_id"] == "test_book"
+    assert row["provider"] == "ollama"
+    assert row["model"] == "fake-model:0b"
+    assert row["mode"] == "mine"
+    assert row["parsed_count"] == 2
+    assert row["accepted"] == 1
+    assert row["declined"] == 1
+    assert row["rejected"] == 0
+
+
+def test_mining_run_table_present_after_init(fresh_db: Path) -> None:
+    """init_schema creates mining_run; migrate_schema is a no-op on a fresh DB."""
+    with LexiconDB(fresh_db) as db:
+        applied = migrate_schema(db)
+    assert applied["mining_run_table"] is False
+    with LexiconDB(fresh_db) as db:
+        tables = {
+            r["name"] for r in db.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+    assert "mining_run" in tables
 
 
 def test_derive_lemma_candidate_strips_oe_inflections() -> None:

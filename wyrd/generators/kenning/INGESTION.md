@@ -130,7 +130,12 @@ for e in entries[:3]:
 - **Joyce 1875 vol 1/vol 2** are thematic chapter books, not dictionaries.
   Parser yields ~1100 candidate entries each — most are chapter-section
   prose openings, not headwords. The LLM correctly declines them. The
-  legitimate index entries at the tail still extract cleanly.
+  legitimate index entries at the tail still extract cleanly. The
+  empirical signature for this book class is **~67% decline, ~14%
+  reject** (combined: 240 accepted / 754 declined / 155 rejected
+  across vol1+vol2). Match this shape early on a new candidate book
+  to flag "thematic chapters, not dictionary" before sinking serious
+  token budget.
 - **Mawer 1922 / Mawer 1924 / Mawer-Stenton 1924** are methodology
   works ("Place-Names and History", "Chief Elements", "Introduction
   to Survey") — dictionaries about toponymy, not place-name dictionaries.
@@ -160,6 +165,18 @@ Empirically:
 | Celtic, Irish, Welsh, Manx, Pictish (Joyce, Moore, Johnston Scotland, Gillies, Macbain, Watson, Morgan) | **Anthropic Haiku 4.5** | ~$0.60 per 200-entry book |
 | Old Norse content (Lindkvist) | Try Ollama first; if Qwen yield < 30% switch to Haiku | Variable |
 | Anything Sonnet-tier | **Don't.** Per `DECISIONS.md` D19, Sonnet doesn't lift over Gemini Flash for this task and reserve API budget for runtime user features (explainer, register-shift, MCP) | — |
+
+**Watson 1904 is a low-yield book regardless of provider** (~7% accept
+on Qwen, ~3% on Haiku, both around 380 parsed entries each). It looks
+like an English-prose book but the toponyms are Scottish-Gaelic
+substrate, and neither tier handles that well. The book is a
+philological essay, not a dictionary; mining costs more than it
+returns. By contrast, **Watson 1926 (Celtic Place-Names of Scotland)
+is the case where Haiku earns its keep**: 52% accept rate (200/387)
+on the same provider that scored 3% on Watson 1904. The shape of the
+book matters more than the shape of the toponym substrate. Smoke-test
+30 entries before committing to a full provider pass on any book whose
+content layout you don't recognize.
 
 **Tier 2 review (Gemini Flash) is the standard second pass on English
 mining**, not a contingency. After `mine-llm --provider ollama`
@@ -257,6 +274,22 @@ Low accept is not always a bug — it's often the right answer for the
 book type. Consult the table before assuming the pipeline is broken.
 
 ### Tier 2 review pass (English only — Gemini Flash)
+
+**Smoke-test the prompt first.** Before kicking off a full review run
+on a 200-entry book, point the same code at 5–10 candidate rows to
+catch prompt regressions or schema mismatches before you've burned
+API tokens at scale:
+
+```bash
+.venv/bin/wyrd kenning lexicon review sources/ --provider gemini \
+    --book mawer_1920_northumberland_durham --limit 10
+# (without --apply this is a dry run)
+```
+
+If the breakdowns and confidence flags look sane, drop `--limit` and
+add `--apply` for the real pass. Cheap insurance — the SYSTEM_PROMPT
+gets edited often enough that mass-rerunning a stale prompt across
+3000 entries is a real risk.
 
 After Tier 1 mining completes, run the layered review:
 
@@ -510,6 +543,54 @@ LEFT JOIN toponym_etymology_element tee ON tee.toponym_etymology_id = te.id
 GROUP BY s.id
 ORDER BY toponyms DESC;
 ```
+
+### Per-source × provider mining-run audit (D23)
+
+The `mining_run` table records every Tier 1 / Tier 2 run with
+accept / decline / reject counts (the numbers the mining flow used
+to lose to stdout). Per-source × per-provider summary:
+
+```sql
+SELECT
+  source_id,
+  provider || ' / ' || model AS tier,
+  mode,
+  SUM(parsed_count) AS parsed,
+  SUM(accepted) AS accepted,
+  SUM(declined) AS declined,
+  SUM(rejected) AS rejected,
+  COUNT(*) AS runs
+FROM mining_run
+GROUP BY source_id, provider, model, mode
+ORDER BY source_id, mode, provider;
+```
+
+For a quick "what's the worst-yield book on Qwen?" probe:
+
+```sql
+SELECT source_id,
+       SUM(accepted) * 1.0 / NULLIF(SUM(parsed_count), 0) AS accept_rate,
+       SUM(parsed_count) AS parsed
+FROM mining_run
+WHERE provider = 'ollama' AND mode = 'mine'
+GROUP BY source_id
+HAVING parsed >= 50
+ORDER BY accept_rate ASC
+LIMIT 10;
+```
+
+A row in this output below ~30% accept rate is a candidate for the
+Haiku Tier 1 swap (see Stage 4 — the Watson 1904 empirical exception).
+
+### Back-filling historical mining runs
+
+Mining runs that pre-date D23 (i.e. before the writer existed) can
+be folded in via `wyrd kenning lexicon import-mining-log <path>`,
+which takes a JSONL file with one record per run. Recovery typically
+comes from session transcripts (see the `wyrd-ej4` ticket and PR
+description for the agent prompt that extracts them). The CLI is
+idempotent on `(source_id, provider, model, mode, completed_at)` so
+re-running is safe.
 
 ---
 

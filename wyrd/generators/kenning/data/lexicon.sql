@@ -108,6 +108,37 @@ CREATE TABLE etymon_text_match (
 CREATE INDEX idx_etymon_text_match_etymon ON etymon_text_match(etymon_id);
 CREATE INDEX idx_etymon_text_match_source ON etymon_text_match(source_id);
 
+-- Per-(book, provider, model, run) audit log. The mine-llm and review CLI
+-- flows compute accept/decline/reject counts in-memory and used to print
+-- them only to stdout — once the process exits the numbers are gone. Per
+-- D23 this table closes that gap. Rows are written at end-of-run by the
+-- mining writers and via `wyrd kenning lexicon import-mining-log` for
+-- back-filling historical batches recovered from session transcripts.
+CREATE TABLE mining_run (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_id     TEXT NOT NULL REFERENCES source(id) ON DELETE CASCADE,
+  -- Provider tier identity. Free-text 'unknown' is allowed for back-fill
+  -- rows where the transcript context didn't pin it down.
+  provider      TEXT NOT NULL,
+  model         TEXT NOT NULL,
+  -- 'mine' = Tier-1 mine-llm; 'review' = Tier-2 lexicon review pass.
+  mode          TEXT NOT NULL CHECK (mode IN ('mine', 'review')),
+  started_at    TEXT,
+  completed_at  TEXT,
+  parsed_count  INTEGER NOT NULL DEFAULT 0,
+  accepted      INTEGER NOT NULL DEFAULT 0,
+  declined      INTEGER NOT NULL DEFAULT 0,
+  rejected      INTEGER NOT NULL DEFAULT 0,
+  -- JSON object: {form_not_in_body: 5, bad_language: 2, ...}
+  by_failure    TEXT,
+  notes         TEXT,
+  -- Idempotent on (book, provider, model, mode, completed_at) so the
+  -- same run can be back-filled twice without duplicating.
+  UNIQUE (source_id, provider, model, mode, completed_at)
+);
+CREATE INDEX idx_mining_run_source    ON mining_run(source_id);
+CREATE INDEX idx_mining_run_completed ON mining_run(completed_at);
+
 
 -- A modern surface fragment that descends from one or more etymons.
 -- (surface_form, position) is the natural key; multiple etymons may share

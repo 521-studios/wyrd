@@ -371,3 +371,28 @@ evidence cannot be lost by an enrichment pass — the worst case is
 "some merges are recorded that the user then wants to undo," and
 undoing is free. Supersedes the wyrd-go5 interim FK-repoint fix:
 once nothing is being deleted, there are no FK gaps to miss.
+
+## D23. Mining stats are persisted, not stdout-only.
+
+Every `mine-llm` run and every `lexicon review` run writes one row
+to the `mining_run` audit table at end-of-run, capturing
+`(source_id, provider, model, mode, started_at, completed_at,
+parsed_count, accepted, declined, rejected, by_failure_json,
+notes)`. Idempotent on
+`(source_id, provider, model, mode, completed_at)`.
+
+Why this exists: pre-D23 the mining pipeline computed
+accept/decline/reject counts in-memory and only printed them to
+stdout. Once the process exited, they were gone. Asking the DB
+"how many declines did Joyce 1875 produce?" would always answer
+zero — only accepts (extracted morpheme breakdowns) became
+`toponym_etymology` rows. This made it impossible to audit harvest
+quality, identify books worth re-mining with a different model, or
+reconstruct a per-book history without re-running the full LLM
+pipeline.
+
+The `wyrd kenning lexicon import-mining-log <path>` CLI back-fills
+the table from a JSONL file of historical runs (one record per
+run). It's how prior batches that pre-date the writer get folded
+in: agents can extract them from session transcripts, hand-curated
+logs, or wherever the stdout was captured.
