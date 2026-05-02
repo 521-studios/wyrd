@@ -2261,6 +2261,106 @@ def test_export_meanings_cli_rejects_malformed_lang_threshold(fresh_db: Path) ->
     assert "LANG=N" in result.output
 
 
+def test_export_meanings_cli_rejects_non_integer_threshold(fresh_db: Path) -> None:
+    """The N in --lang-threshold LANG=N must be an integer; non-int fails clearly."""
+    result = CliRunner().invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "export-meanings",
+            "--db",
+            str(fresh_db),
+            "--lang-threshold",
+            "old-norse=foo",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "must be an integer" in result.output
+
+
+def test_export_meanings_cli_no_preset_with_lang_threshold_overrides(
+    fresh_db: Path,
+) -> None:
+    """--no-preset --lang-threshold old-norse=2 → only ON gates at 2; everything
+    else uses --min-witnesses uniformly. Pins the dict-merge ordering so a
+    bug where the empty {} got the preset re-applied wouldn't slip through."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b"):
+            db.upsert_source(id=src, title=src)
+        # ON at 2 witnesses — should promote via the explicit override.
+        on = db.upsert_etymon("fell", "old-norse")
+        db.add_gloss(on, "mountain")
+        db.add_citation(on, "a")
+        db.add_citation(on, "b")
+        # Celtic at 2 witnesses — should NOT promote (preset would have said
+        # celtic=2, but --no-preset cleared that, so --min-witnesses=3 applies).
+        cel = db.upsert_etymon("bryn", "celtic")
+        db.add_gloss(cel, "hill")
+        db.add_citation(cel, "a")
+        db.add_citation(cel, "b")
+        db.commit()
+
+    result = CliRunner().invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "export-meanings",
+            "--db",
+            str(fresh_db),
+            "--no-include-rando",
+            "--no-preset",
+            "--min-witnesses",
+            "3",
+            "--lang-threshold",
+            "old-norse=2",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    glosses = {tuple(s["meaning"]) for s in payload}
+    assert ("mountain",) in glosses
+    assert ("hill",) not in glosses
+
+
+def test_build_witness_filter_empty_uses_uniform_threshold() -> None:
+    """Direct unit test: empty lang_thresholds returns the simple fragment."""
+    from wyrd.generators.kenning.lexicon import _build_witness_filter
+
+    sql, params = _build_witness_filter({}, 3)
+    assert sql == "witnesses >= ?"
+    assert params == [3]
+
+
+def test_build_witness_filter_emits_clauses_in_sorted_order() -> None:
+    """Direct unit test: with multiple lang_thresholds, params land in
+    sorted-by-lang order (so output is byte-stable regardless of dict
+    insertion order), and the trailing fallback NOT IN (...) clause carries
+    the global min_witnesses."""
+    from wyrd.generators.kenning.lexicon import _build_witness_filter
+
+    # Insertion order intentionally not sorted, to verify the helper sorts.
+    sql, params = _build_witness_filter({"old-norse": 2, "celtic": 2, "old-english": 3}, 4)
+    # SQL fragment uses ? placeholders; param order is what's deterministic.
+    # Per-language clauses interleave (lang, threshold) in sorted order,
+    # then the NOT IN list (sorted langs), then the fallback threshold.
+    assert params == [
+        "celtic",
+        2,
+        "old-english",
+        3,
+        "old-norse",
+        2,
+        "celtic",
+        "old-english",
+        "old-norse",
+        4,
+    ]
+    # Three per-language clauses + one NOT IN fallback clause.
+    assert sql.count("language = ?") == 3
+    assert "language NOT IN" in sql
+    assert sql.count("witnesses >= ?") == 4
+
+
 def test_export_meanings_output_is_byte_stable_across_runs(fresh_db: Path) -> None:
     """Same DB → same JSON bytes. AUTOINCREMENT root_ids and SQLite's
     iteration order can shuffle results between fresh seeds; the export must
