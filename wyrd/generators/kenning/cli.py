@@ -1167,41 +1167,60 @@ def _import_mining_log_record(
       "skipped"   — UNIQUE conflict, already in DB
       <error msg> — parse / validation failure (string for caller to log)
       None        — blank line or comment, no action needed
+
+    Tolerates malformed lines: invalid JSON, non-object JSON, missing
+    or unknown source_id, non-numeric counts, by_failure not an object,
+    invalid mode hitting the CHECK constraint — every failure mode
+    surfaces as an error string and the caller continues. The back-fill
+    runs once over noisy transcript-extracted data; one bad row should
+    not kill the whole import.
     """
     raw = raw_line.strip()
     if not raw or raw.startswith("#"):
         return None
     try:
         rec = json.loads(raw)
-    except json.JSONDecodeError as e:
-        return f"line {line_no}: invalid JSON: {e}"
-    src = rec.get("source_id")
-    if not src:
-        return f"line {line_no}: missing source_id"
-    if src not in known_sources:
-        return f"line {line_no}: unknown source_id {src!r}"
-    accepted = int(rec.get("accepted") or 0)
-    declined = int(rec.get("declined") or 0)
-    rejected = int(rec.get("rejected") or 0)
-    parsed = int(rec.get("parsed_count") or (accepted + declined + rejected))
-    if not apply_changes:
-        return "inserted"
-    row_id = record_mining_run(
-        db,
-        source_id=src,
-        provider=rec.get("provider") or "unknown",
-        model=rec.get("model") or "unknown",
-        mode=rec.get("mode") or "mine",
-        parsed_count=parsed,
-        accepted=accepted,
-        declined=declined,
-        rejected=rejected,
-        by_failure=rec.get("by_failure"),
-        started_at=rec.get("started_at"),
-        completed_at=rec.get("completed_at"),
-        notes=rec.get("notes"),
-    )
-    return "inserted" if row_id else "skipped"
+        if not isinstance(rec, dict):
+            raise ValueError(f"expected JSON object, got {type(rec).__name__}")
+        src = rec.get("source_id")
+        if not src:
+            raise ValueError("missing source_id")
+        if src not in known_sources:
+            raise ValueError(f"unknown source_id {src!r}")
+        by_failure = rec.get("by_failure")
+        if by_failure is not None and not isinstance(by_failure, dict):
+            raise ValueError("by_failure must be a JSON object")
+        accepted = int(rec.get("accepted") or 0)
+        declined = int(rec.get("declined") or 0)
+        rejected = int(rec.get("rejected") or 0)
+        parsed_val = rec.get("parsed_count")
+        parsed = int(parsed_val) if parsed_val is not None else accepted + declined + rejected
+        if not apply_changes:
+            return "inserted"
+        row_id = record_mining_run(
+            db,
+            source_id=src,
+            provider=rec.get("provider") or "unknown",
+            model=rec.get("model") or "unknown",
+            mode=rec.get("mode") or "mine",
+            parsed_count=parsed,
+            accepted=accepted,
+            declined=declined,
+            rejected=rejected,
+            by_failure=by_failure,
+            started_at=rec.get("started_at"),
+            completed_at=rec.get("completed_at"),
+            notes=rec.get("notes"),
+        )
+        return "inserted" if row_id else "skipped"
+    except (
+        json.JSONDecodeError,
+        ValueError,
+        TypeError,
+        AttributeError,
+        sqlite3.Error,
+    ) as e:
+        return f"line {line_no}: {e}"
 
 
 @lexicon.command("import-mining-log")

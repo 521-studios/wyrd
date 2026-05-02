@@ -984,6 +984,65 @@ def test_import_mining_log_inserts_jsonl_records(fresh_db: Path, tmp_path: Path)
         assert db.conn.execute("SELECT COUNT(*) FROM mining_run").fetchone()[0] == 2
 
 
+def test_import_mining_log_tolerates_malformed_records(fresh_db: Path, tmp_path: Path) -> None:
+    """A single bad row must not crash the whole import — every failure
+    mode (non-object JSON, non-numeric counts, by_failure not a dict,
+    invalid mode hitting the CHECK constraint) surfaces as an error and
+    the rest of the file proceeds."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="real-src", title="Real")
+        db.commit()
+
+    log_path = tmp_path / "mixed.jsonl"
+    log_path.write_text(
+        "\n".join(
+            [
+                # Good: should land
+                '{"source_id":"real-src","provider":"ollama","model":"qwen3.5:9b",'
+                '"mode":"mine","accepted":10,"declined":2,"rejected":1,'
+                '"completed_at":"2026-04-30T14:00:00Z"}',
+                # Bad: non-object JSON
+                "[1, 2, 3]",
+                # Bad: non-numeric count
+                '{"source_id":"real-src","provider":"ollama","model":"x",'
+                '"mode":"mine","accepted":"not-a-number","completed_at":"2026-04-30T15:00:00Z"}',
+                # Bad: by_failure is a string, not an object
+                '{"source_id":"real-src","provider":"ollama","model":"x",'
+                '"mode":"mine","accepted":1,"by_failure":"oops",'
+                '"completed_at":"2026-04-30T16:00:00Z"}',
+                # Bad: invalid mode (CHECK constraint)
+                '{"source_id":"real-src","provider":"ollama","model":"x",'
+                '"mode":"bogus","accepted":1,"completed_at":"2026-04-30T17:00:00Z"}',
+                # Good: another valid row
+                '{"source_id":"real-src","provider":"gemini","model":"gemini-2.5-flash",'
+                '"mode":"review","accepted":5,"completed_at":"2026-04-30T18:00:00Z"}',
+            ]
+        )
+    )
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "lexicon",
+            "import-mining-log",
+            str(log_path),
+            "--db",
+            str(fresh_db),
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, (result.output or "") + (result.stderr or "")
+
+    # The two good rows landed; the four bad rows didn't crash the import.
+    with LexiconDB(fresh_db) as db:
+        n = db.conn.execute("SELECT COUNT(*) FROM mining_run").fetchone()[0]
+    assert n == 2
+
+
 def test_import_mining_log_skips_unknown_sources(fresh_db: Path, tmp_path: Path) -> None:
     """Records pointing at sources not in the source table get skipped with
     an error count, not a hard FK failure."""
