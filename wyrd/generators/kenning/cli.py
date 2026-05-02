@@ -1108,6 +1108,21 @@ def lexicon_review(
                     )
                     continue
 
+                # ingest_parsed_entries drops confidence='low' entries
+                # (only the toponym row gets written, no etymology). Match
+                # that policy here so the summary and mining_run audit
+                # reflect what's actually persisted.
+                if result.entry.confidence == "low":
+                    counts["declined"] += 1
+                    book_declined += 1
+                    breakdown = "+".join(el.form for el in result.entry.elements)
+                    click.echo(
+                        f"  DROPPED {name:24} ({dt:.1f}s)  {breakdown:30}  "
+                        f"conf=low (writer skips)",
+                        err=True,
+                    )
+                    continue
+
                 breakdown = "+".join(el.form for el in result.entry.elements)
                 click.echo(
                     f"  REVIEW  {name:24} ({dt:.1f}s)  {breakdown:30}  "
