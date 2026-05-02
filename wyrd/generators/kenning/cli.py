@@ -721,6 +721,20 @@ _KNOWN_SKEAT_BOOKS = {
         "region": "England",
         "language_focus": "old-english",
     },
+    "bannister_1916_herefordshire": {
+        "title": "The Place-Names of Herefordshire",
+        "author": "A.T. Bannister",
+        "year": 1916,
+        "region": "Herefordshire",
+        "language_focus": "norman-french",
+    },
+    "quilgars_1906_loire_inferieure": {
+        "title": "Dictionnaire topographique du département de la Loire-Inférieure",
+        "author": "Henri Quilgars",
+        "year": 1906,
+        "region": "Loire-Inférieure (Brittany)",
+        "language_focus": "celtic",
+    },
 }
 
 

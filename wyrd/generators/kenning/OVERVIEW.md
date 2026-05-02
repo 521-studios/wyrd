@@ -224,18 +224,21 @@ GROUP BY source_id, provider, model, mode
 ORDER BY source_id;
 ```
 
-The shape today (project age: ~3 days) is roughly: ~40 sources mined,
-~5400 etymon rows, ~4500 etymology extractions, **389 morphemes
+The shape today (project age: ~3 days) is roughly: ~40+ sources mined,
+~5400+ etymon rows, ~4500+ etymology extractions, **389+ morphemes
 promotion-eligible at ≥3 witnesses** (more at the per-language preset).
 Several methodology / name-list books contribute few or zero rows by
-design.
+design (Quilgars 1906 was the latest such case — see INGESTION.md
+"low-yield book class" note for the topographical-vs-toponymic
+distinction).
 
 The bundled `meanings.json` is now exported from the lexicon (D1
 follow-through), so all the mining + per-reflex narrowing + per-language
-thresholds work reaches the runtime. Current bundle: **1605 subjects**,
-**2871 unique modern_usages**, with **416 morphemes carrying spelling
-variant pools (D18)** and **168 inflected etymons (D8)** across 9
-case labels.
+thresholds work reaches the runtime. Current bundle: **1616 subjects**,
+**~2900 unique modern_usages**, with **444 morphemes carrying spelling
+variant pools (D18)** and **301 inflected etymons (D8)** across 9
+case labels (Bannister 1916 Herefordshire mining surfaced ~130 new OE
+inflections).
 
 The runtime exposes five GM-facing generation knobs, all defaulting
 to off / 0 (bit-stable historical behavior):

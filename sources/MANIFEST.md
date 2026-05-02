@@ -66,6 +66,14 @@ Downloaded from the Internet Archive as plain-text OCR (`_djvu.txt`).
 - `zachrisson_1909_anglo_norman_influence.txt` — R.E. Zachrisson, *A
   Contribution to the Study of Anglo-Norman Influence on English Place-Names*
   (1909).
+- `bannister_1916_herefordshire.txt` — A.T. Bannister, *The Place-Names of
+  Herefordshire* (Cambridge: Clay, 1916). Welsh-Marches county; Bannister
+  explicitly characterizes Herefordshire as "the most thoroughly Normanized
+  of all the English counties" — Skeat-style alphabetical-headword body
+  with Norman lordship compounds (Acton Beauchamp, Allensmore <
+  *Alan de Plokenet*) plus Welsh-substrate Celtic strata (`allt`, `dwr`,
+  `ynys`). Targeted as the Norman-French corpus expansion via the
+  Welsh-Marches angle (wyrd-hub).
 
 ## Scotland
 
@@ -102,6 +110,17 @@ Downloaded from the Internet Archive as plain-text OCR (`_djvu.txt`).
 
 - `moore_1890_isle_of_man.txt` — A.W. Moore, *The Surnames and Place-Names of
   the Isle of Man* (1890).
+
+## Brittany / France
+
+- `quilgars_1906_loire_inferieure.txt` — Henri Quilgars, *Dictionnaire
+  topographique du département de la Loire-Inférieure* (Paris:
+  Imprimerie nationale, 1906). Brittany-adjacent toponymic dictionary with
+  ~1020 alphabetical headword entries dense in `Plou-`, `Ker-`, `Tré-`,
+  `Lan-`, `Pen-`, `Loc-`, `Pleu-` morphemes. Drives the Breton-register
+  morpheme corpus expansion (wyrd-fmg) so generation can produce real
+  French-Celtic place names rather than the existing English+Celtic+FR
+  fallback.
 
 ## Modern open data
 

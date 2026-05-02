@@ -184,6 +184,18 @@ book matters more than the shape of the toponym substrate. Smoke-test
 30 entries before committing to a full provider pass on any book whose
 content layout you don't recognize.
 
+**Quilgars 1906 (Loire-Inférieure) is the third instance of this
+class** — 30-entry Haiku smoke yielded 1 acceptance (3%). It's a
+*topographical* dictionary (alphabetical headwords + property records:
+"Kerorven, manoir en Guérande, 1476") rather than a *toponymic
+etymology* dictionary. The headwords are dense in Breton morphemes
+(Plou-/Ker-/Tre-/Lan- show up by the hundreds) but the bodies are
+deed citations, not glossed etymological breakdowns. Counting
+morphemes in raw OCR overstates yield — agents that probe via keyword
+counting will flag this kind of book as a strong candidate; verify by
+running a 5–30 entry mining smoke before committing API budget (see
+`bd memories trust-audit-table-over-agent-summaries`).
+
 **Tier 2 review (Gemini Flash) is the standard second pass on English
 mining**, not a contingency. After `mine-llm --provider ollama`
 completes, run `lexicon review --provider gemini --apply` — see
