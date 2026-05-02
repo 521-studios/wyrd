@@ -396,8 +396,3 @@ the table from a JSONL file of historical runs (one record per
 run). It's how prior batches that pre-date the writer get folded
 in: agents can extract them from session transcripts, hand-curated
 logs, or wherever the stdout was captured.
-
-Why this didn't ship earlier: oversight. The mining pipeline ran
-hundreds of batches before this gap surfaced; both the prior
-session's docs (DECISIONS.md D1–D20) and the wyrd-et0 PR session
-missed flagging it. Tracked in `wyrd-ej4`.

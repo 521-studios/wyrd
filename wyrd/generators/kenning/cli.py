@@ -1153,6 +1153,57 @@ def lexicon_review(
         click.echo("(dry-run; pass --apply to write)", err=True)
 
 
+def _import_mining_log_record(
+    db: LexiconDB,
+    raw_line: str,
+    line_no: int,
+    known_sources: set[str],
+    apply_changes: bool,
+) -> str | None:
+    """Parse and ingest one JSONL mining-log line.
+
+    Returns:
+      "inserted"  — record was inserted (or would be, in dry-run)
+      "skipped"   — UNIQUE conflict, already in DB
+      <error msg> — parse / validation failure (string for caller to log)
+      None        — blank line or comment, no action needed
+    """
+    raw = raw_line.strip()
+    if not raw or raw.startswith("#"):
+        return None
+    try:
+        rec = json.loads(raw)
+    except json.JSONDecodeError as e:
+        return f"line {line_no}: invalid JSON: {e}"
+    src = rec.get("source_id")
+    if not src:
+        return f"line {line_no}: missing source_id"
+    if src not in known_sources:
+        return f"line {line_no}: unknown source_id {src!r}"
+    accepted = int(rec.get("accepted") or 0)
+    declined = int(rec.get("declined") or 0)
+    rejected = int(rec.get("rejected") or 0)
+    parsed = int(rec.get("parsed_count") or (accepted + declined + rejected))
+    if not apply_changes:
+        return "inserted"
+    row_id = record_mining_run(
+        db,
+        source_id=src,
+        provider=rec.get("provider") or "unknown",
+        model=rec.get("model") or "unknown",
+        mode=rec.get("mode") or "mine",
+        parsed_count=parsed,
+        accepted=accepted,
+        declined=declined,
+        rejected=rejected,
+        by_failure=rec.get("by_failure"),
+        started_at=rec.get("started_at"),
+        completed_at=rec.get("completed_at"),
+        notes=rec.get("notes"),
+    )
+    return "inserted" if row_id else "skipped"
+
+
 @lexicon.command("import-mining-log")
 @click.argument("path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
 @click.option(
@@ -1207,47 +1258,13 @@ def lexicon_import_mining_log(path: Path, db_path: Path, apply_changes: bool) ->
 
         with path.open() as f:
             for ln, raw in enumerate(f, 1):
-                raw = raw.strip()
-                if not raw or raw.startswith("#"):
-                    continue
-                try:
-                    rec = json.loads(raw)
-                except json.JSONDecodeError as e:
-                    errors.append(f"line {ln}: invalid JSON: {e}")
-                    continue
-                src = rec.get("source_id")
-                if not src:
-                    errors.append(f"line {ln}: missing source_id")
-                    continue
-                if src not in known:
-                    errors.append(f"line {ln}: unknown source_id {src!r}")
-                    continue
-                accepted = int(rec.get("accepted") or 0)
-                declined = int(rec.get("declined") or 0)
-                rejected = int(rec.get("rejected") or 0)
-                parsed = int(rec.get("parsed_count") or (accepted + declined + rejected))
-                if not apply_changes:
+                outcome = _import_mining_log_record(db, raw, ln, known, apply_changes)
+                if outcome == "inserted":
                     inserted += 1
-                    continue
-                row_id = record_mining_run(
-                    db,
-                    source_id=src,
-                    provider=rec.get("provider") or "unknown",
-                    model=rec.get("model") or "unknown",
-                    mode=rec.get("mode") or "mine",
-                    parsed_count=parsed,
-                    accepted=accepted,
-                    declined=declined,
-                    rejected=rejected,
-                    by_failure=rec.get("by_failure"),
-                    started_at=rec.get("started_at"),
-                    completed_at=rec.get("completed_at"),
-                    notes=rec.get("notes"),
-                )
-                if row_id:
-                    inserted += 1
-                else:
-                    skipped += 1  # UNIQUE conflict — already imported
+                elif outcome == "skipped":
+                    skipped += 1
+                elif outcome is not None:
+                    errors.append(outcome)
 
     verb = "inserted" if apply_changes else "would insert"
     click.echo(f"{verb}: {inserted}", err=True)

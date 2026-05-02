@@ -7,6 +7,7 @@ this DB by `wyrd kenning lexicon export-meanings`.
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 from importlib import resources
@@ -571,9 +572,7 @@ def record_mining_run(
     the same completed_at gets ignored. completed_at IS NULL means
     "not yet finished" and won't dedupe (each call gets a new row).
     """
-    import json as _json
-
-    by_failure_json = _json.dumps(by_failure) if by_failure else None
+    by_failure_json = json.dumps(by_failure) if by_failure else None
     # ON CONFLICT(...) DO NOTHING (vs INSERT OR IGNORE) limits the silence
     # to UNIQUE conflicts on the dedupe key. CHECK / NOT NULL / FK
     # violations still raise — bad mode values must fail loudly rather

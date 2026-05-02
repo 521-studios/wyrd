@@ -1007,6 +1007,114 @@ def test_import_mining_log_skips_unknown_sources(fresh_db: Path, tmp_path: Path)
         assert db.conn.execute("SELECT COUNT(*) FROM mining_run").fetchone()[0] == 0
 
 
+def test_lexicon_mine_llm_records_mining_run_at_end_of_run(
+    fresh_db: Path, tmp_path: Path, monkeypatch
+) -> None:
+    """The CLI integration: running `lexicon mine-llm` end-to-end against
+    a stubbed extractor must persist a mining_run row. Without this test,
+    a regression that drops the record_mining_run call in lexicon_mine_llm
+    passes CI silently — only the helper's unit tests would notice."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+    from wyrd.generators.kenning import llm_extractor
+    from wyrd.generators.kenning.llm_extractor import LLMResult
+    from wyrd.generators.kenning.skeat_parser import ParsedElement, ParsedEntry
+
+    # Fake parsed entries — bypasses the regex parser.
+    fake_parsed = [
+        ParsedEntry(
+            toponym="Faketon",
+            section_suffix="-ton",
+            historical_form="fake-tun",
+            elements=[],
+            confidence="low",
+            source_quote="Faketon. fake body.",
+        ),
+        ParsedEntry(
+            toponym="Otherton",
+            section_suffix="-ton",
+            historical_form="other-tun",
+            elements=[],
+            confidence="low",
+            source_quote="Otherton. other body.",
+        ),
+    ]
+    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser: fake_parsed)
+
+    # Fake OllamaClient — only needs .model and .base_url for echoed output.
+    class FakeClient:
+        model = "fake-model:0b"
+        base_url = "http://localhost:0"
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(llm_extractor, "OllamaClient", FakeClient)
+
+    # Fake extract_one: first entry accepts with one element, second declines.
+    accept_result = LLMResult(
+        entry=ParsedEntry(
+            toponym="Faketon",
+            section_suffix="-ton",
+            historical_form="fake-tun",
+            elements=[
+                ParsedElement(
+                    form="fake", language="old-english", position="pre", gloss="fake gloss"
+                ),
+            ],
+            confidence="high",
+            source_quote="Faketon. fake body.",
+        ),
+        raw_response={},
+        failures=[],
+        accepted=True,
+    )
+    decline_result = LLMResult(
+        entry=ParsedEntry(
+            toponym="Otherton",
+            section_suffix="-ton",
+            historical_form=None,
+            elements=[],
+            confidence="low",
+            source_quote="Otherton. other body.",
+        ),
+        raw_response={},
+        failures=[],
+        accepted=True,
+    )
+    seq = iter([accept_result, decline_result])
+    monkeypatch.setattr(llm_extractor, "extract_one", lambda client, **kw: next(seq))
+
+    # Need a non-empty file for the click PathExists check.
+    src_path = tmp_path / "test_book.txt"
+    src_path.write_text("Faketon. fake body.\n\nOtherton. other body.\n")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        ["lexicon", "mine-llm", str(src_path), "--db", str(fresh_db), "--provider", "ollama"],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+
+    # The writer call landed exactly one mining_run row with the expected counts.
+    with LexiconDB(fresh_db) as db:
+        rows = db.conn.execute(
+            "SELECT source_id, provider, model, mode, parsed_count, accepted, declined, "
+            "rejected FROM mining_run"
+        ).fetchall()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["source_id"] == "test_book"
+    assert row["provider"] == "ollama"
+    assert row["model"] == "fake-model:0b"
+    assert row["mode"] == "mine"
+    assert row["parsed_count"] == 2
+    assert row["accepted"] == 1
+    assert row["declined"] == 1
+    assert row["rejected"] == 0
+
+
 def test_mining_run_table_present_after_init(fresh_db: Path) -> None:
     """init_schema creates mining_run; migrate_schema is a no-op on a fresh DB."""
     with LexiconDB(fresh_db) as db:
