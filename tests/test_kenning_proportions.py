@@ -145,7 +145,7 @@ def test_meaning_generator_select_threads_novelty():
     assert 800 < counts["-b"] < 1200
 
 
-# --- NameGenerator._render_variants + NewName.__str__ rendered branch ------
+# --- NameGenerator._render_substitutions + NewName.__str__ rendered branch ------
 
 
 def _build_minimal_name_generator(meaning_db):
@@ -162,18 +162,19 @@ def _build_minimal_name_generator(meaning_db):
     return NameGenerator(meaning_db, mg, structs)
 
 
-def test_render_variants_falls_back_to_canonical_when_no_pool():
-    """A meaning with no variant pool renders as the dash-stripped usage
-    even at spelling_variety=1.0."""
+def test_render_substitutions_falls_back_to_canonical_when_no_pool():
+    """A meaning with no variant or inflection pool renders as the
+    dash-stripped usage even at spelling_variety=1.0."""
     from wyrd.generators.kenning.meaning import Meaning
 
     m = Meaning("-cot", [], [], {"old_english": ["cot"]})
     name_gen = _build_minimal_name_generator({"-cot": [m]})
-    rendered = name_gen._render_variants(random.Random(0), [["-cot"]], 1.0)
+    rendered, labels = name_gen._render_substitutions(random.Random(0), [["-cot"]], 1.0, 0.0)
     assert rendered == [["cot"]]
+    assert labels == [[None]]
 
 
-def test_render_variants_substitutes_with_case_mimic():
+def test_render_substitutions_substitutes_variant_with_case_mimic():
     """At spelling_variety=1 with a non-empty pool, the rendered surface
     form is the case-mimicked variant rather than the canonical."""
     from wyrd.generators.kenning.meaning import Meaning
@@ -186,14 +187,52 @@ def test_render_variants_substitutes_with_case_mimic():
         variants={"old_english": [("brycg", 10)]},
     )
     name_gen = _build_minimal_name_generator({"Bridg-": [m]})
-    rendered = name_gen._render_variants(random.Random(0), [["Bridg-"]], 1.0)
+    rendered, labels = name_gen._render_substitutions(random.Random(0), [["Bridg-"]], 1.0, 0.0)
     # Title-case template projects onto the variant.
     assert rendered == [["Brycg"]]
+    assert labels == [[None]]
 
 
-def test_render_variants_handles_none_usage():
+def test_render_substitutions_substitutes_inflection_with_label():
+    """At inflection_density=1 with a non-empty inflection pool, the
+    rendered form is the inflected child and the label is preserved."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    m = Meaning(
+        "-cot",
+        [],
+        [],
+        {"old_english": ["cot", "cotum"]},
+        inflections={"old_english": [("cotum", "dative_or_pl")]},
+    )
+    name_gen = _build_minimal_name_generator({"-cot": [m]})
+    rendered, labels = name_gen._render_substitutions(random.Random(0), [["-cot"]], 0.0, 1.0)
+    assert rendered == [["cotum"]]
+    assert labels == [["dative_or_pl"]]
+
+
+def test_render_substitutions_inflection_wins_over_variant():
+    """When both knobs would fire on the same morpheme, inflection wins
+    (more specific morphological data)."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    m = Meaning(
+        "-cot",
+        [],
+        [],
+        {"old_english": ["cot"]},
+        variants={"old_english": [("cotte", 10)]},
+        inflections={"old_english": [("cotum", "dative_or_pl")]},
+    )
+    name_gen = _build_minimal_name_generator({"-cot": [m]})
+    rendered, labels = name_gen._render_substitutions(random.Random(0), [["-cot"]], 1.0, 1.0)
+    assert rendered == [["cotum"]]
+    assert labels == [["dative_or_pl"]]
+
+
+def test_render_substitutions_handles_none_usage():
     """Tag-filter passes can leave None entries when no candidate matched the
-    structure slot. _render_variants must propagate None."""
+    structure slot. _render_substitutions must propagate None on both lists."""
     name_gen = _build_minimal_name_generator(
         {
             "-x": [
@@ -203,8 +242,9 @@ def test_render_variants_handles_none_usage():
             ]
         }
     )
-    rendered = name_gen._render_variants(random.Random(0), [[None]], 1.0)
+    rendered, labels = name_gen._render_substitutions(random.Random(0), [[None]], 1.0, 1.0)
     assert rendered == [[None]]
+    assert labels == [[None]]
 
 
 def test_newname_str_uses_rendered_when_set():

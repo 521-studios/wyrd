@@ -1607,9 +1607,15 @@ def test_language_field_mapping_covers_known_codes() -> None:
             seen_fields.update(word.keys())
 
     handled = LANGUAGE_FIELDS.keys() | NON_LANGUAGE_FIELDS
-    # Also tolerate the per-language variant pool fields emitted by the
-    # D18 export step, which legitimately don't map to a LANGUAGE_FIELDS code.
-    missing = {f for f in seen_fields - handled if not f.endswith("_variants")}
+    # Also tolerate per-language metadata fields emitted by the export step:
+    # *_variants (D18 spelling variants) and *_inflections (D8 inflection
+    # labels). They legitimately don't map to a LANGUAGE_FIELDS code; the
+    # runtime's load_meanings handles them via separate Meaning attributes.
+    missing = {
+        f
+        for f in seen_fields - handled
+        if not (f.endswith("_variants") or f.endswith("_inflections"))
+    }
     assert not missing, f"Unhandled fields in meanings.json: {missing}"
 
 
@@ -1951,6 +1957,68 @@ def test_emit_variant_list_empty_input_returns_empty(fresh_db: Path) -> None:
     from wyrd.generators.kenning.lexicon import _emit_variant_list
 
     assert _emit_variant_list({}) == []
+
+
+def test_export_meanings_emits_inflection_pool_per_language(fresh_db: Path) -> None:
+    """An etymon family with inflected children gets a `<lang>_inflections`
+    field listing the (form, label) pairs for each inflected member.
+    The lemma form does NOT appear in the inflections list — it's the
+    unmarked headword."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["cottage"],
+            tags=["habitation"],
+            modifier_type="Habitative",
+            words=[{"modern_usage": "-cot", "old_english": ["cot"]}],
+        )
+        cot_id = db.conn.execute("SELECT id FROM etymon WHERE canonical_form = 'cot'").fetchone()[
+            "id"
+        ]
+        cotum_id = db.upsert_etymon("cotum", "old-english")
+        cotan_id = db.upsert_etymon("cotan", "old-english")
+        db.conn.execute(
+            "UPDATE etymon SET lemma_id = ?, inflection = ? WHERE id = ?",
+            (cot_id, "dative_or_pl", cotum_id),
+        )
+        db.conn.execute(
+            "UPDATE etymon SET lemma_id = ?, inflection = ? WHERE id = ?",
+            (cot_id, "weak_oblique", cotan_id),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert "old_english_inflections" in word
+    inflections = word["old_english_inflections"]
+    forms = {entry["form"]: entry["inflection"] for entry in inflections}
+    assert forms == {"cotum": "dative_or_pl", "cotan": "weak_oblique"}
+    # cot (the lemma) doesn't appear in the inflection pool.
+    assert "cot" not in {entry["form"] for entry in inflections}
+
+
+def test_emit_inflection_list_sorts_by_form_alphabetically(fresh_db: Path) -> None:
+    """`_emit_inflection_list` sorts entries by form so output is byte-stable
+    regardless of dict insertion order."""
+    from wyrd.generators.kenning.lexicon import _emit_inflection_list
+
+    out = _emit_inflection_list(
+        {"cotum": "dative_or_pl", "cotan": "weak_oblique", "cotes": "genitive_strong"}
+    )
+    assert out == [
+        {"form": "cotan", "inflection": "weak_oblique"},
+        {"form": "cotes", "inflection": "genitive_strong"},
+        {"form": "cotum", "inflection": "dative_or_pl"},
+    ]
+
+
+def test_emit_inflection_list_empty_input_returns_empty(fresh_db: Path) -> None:
+    from wyrd.generators.kenning.lexicon import _emit_inflection_list
+
+    assert _emit_inflection_list({}) == []
 
 
 def test_export_meanings_omits_merge_loser_as_separate_subject(

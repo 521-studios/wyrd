@@ -241,3 +241,111 @@ def test_mimic_case_preserves_internal_capitals_under_title_template():
 def test_mimic_case_handles_empty_template():
     """A template with no letters (just dashes) returns the variant verbatim."""
     assert _mimic_case("-", "x") == "x"
+
+
+# --- D8 inflection picker --------------------------------------------------
+
+
+def _meaning_with_inflections(inflections):
+    return Meaning(
+        usage="-cot",
+        tags=["habitation"],
+        meanings=["cottage"],
+        sources={"old_english": ["cot"]},
+        inflections=inflections,
+    )
+
+
+def test_pick_inflection_returns_none_when_pool_empty():
+    """No inflections → no substitution, regardless of density."""
+    m = make_meaning("-cot", sources={"old_english": ["cot"]})
+    assert m.pick_inflection(random.Random(0), 1.0) is None
+
+
+def test_pick_inflection_returns_none_when_density_zero():
+    """inflection_density=0 always preserves the lemma."""
+    m = _meaning_with_inflections({"old_english": [("cotum", "dative_or_pl")]})
+    assert m.pick_inflection(random.Random(0), 0.0) is None
+
+
+def test_pick_inflection_returns_form_and_label_when_density_one():
+    """At density=1, a non-empty pool always yields (form, label)."""
+    m = _meaning_with_inflections({"old_english": [("cotum", "dative_or_pl")]})
+    picked = m.pick_inflection(random.Random(0), 1.0)
+    assert picked == ("cotum", "dative_or_pl")
+
+
+def test_pick_inflection_uniformly_samples_among_pool():
+    """Without per-form weights (we don't track inflection frequency), the
+    picker is uniform across pool entries."""
+    m = _meaning_with_inflections(
+        {
+            "old_english": [
+                ("cotum", "dative_or_pl"),
+                ("cotan", "weak_oblique"),
+                ("cotes", "genitive_strong"),
+            ]
+        }
+    )
+    counts = Counter(m.pick_inflection(random.Random(i), 1.0) for i in range(900))
+    # Three entries, each should land roughly 300 times. Wide tolerance.
+    for inflected in (
+        ("cotum", "dative_or_pl"),
+        ("cotan", "weak_oblique"),
+        ("cotes", "genitive_strong"),
+    ):
+        assert 200 < counts[inflected] < 400
+
+
+def test_pick_inflection_pools_across_languages():
+    """If a meaning has inflections in multiple languages (rare but possible
+    when rando-port words attach forms across language families), the
+    picker draws from the union."""
+    m = _meaning_with_inflections(
+        {
+            "old_english": [("cotum", "dative_or_pl")],
+            "old_scandinavian": [("kotr", "nominative")],
+        }
+    )
+    counts = Counter(m.pick_inflection(random.Random(i), 1.0) for i in range(600))
+    assert counts[("cotum", "dative_or_pl")] > 0
+    assert counts[("kotr", "nominative")] > 0
+
+
+def test_load_meanings_extracts_inflections_from_inflection_field():
+    """`<lang>_inflections` keys are split out of `sources` into the
+    Meaning's inflections dict; canonical language form lists stay in
+    sources unchanged."""
+    data = [
+        {
+            "modifier_tags": ["habitation"],
+            "meaning": ["cottage"],
+            "words": [
+                {
+                    "modern_usage": "-cot",
+                    "old_english": ["cot", "cotum"],
+                    "old_english_inflections": [
+                        {"form": "cotum", "inflection": "dative_or_pl"},
+                    ],
+                }
+            ],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    m = meaning_db["-cot"][0]
+    assert m.inflections == {"old_english": [("cotum", "dative_or_pl")]}
+    # Canonical language array stays in sources, inflection field stripped.
+    assert m.sources == {"old_english": ["cot", "cotum"]}
+
+
+def test_load_meanings_omits_inflections_field_when_absent():
+    """Legacy data without inflection metadata still loads cleanly."""
+    data = [
+        {
+            "modifier_tags": [],
+            "meaning": ["x"],
+            "words": [{"modern_usage": "X-", "old_english": ["x"]}],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    assert meaning_db["X-"][0].inflections == {}

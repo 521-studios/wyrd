@@ -134,6 +134,16 @@ def cli() -> None:
         "values blend, allowing plausible-but-unattested combinations."
     ),
 )
+@click.option(
+    "--inflection-density",
+    type=click.FloatRange(0.0, 1.0),
+    default=0.0,
+    show_default=True,
+    help=(
+        "D8 inflection knob (0..1). Per-morpheme probability of substituting an "
+        "inflected form (cotum/cotan/cotes) for the lemma (cot)."
+    ),
+)
 def generate(
     culture: str,
     tags: tuple[str, ...],
@@ -142,6 +152,7 @@ def generate(
     describe: bool,
     spelling_variety: float,
     novelty: float,
+    inflection_density: float,
 ) -> None:
     """Generate town names. Replaces Rando's `bin/generator`."""
     known_tags = set(available_tags()) | {"male name", "female name", "saint"}
@@ -161,6 +172,7 @@ def generate(
         "tags": list(tags),
         "spelling_variety": spelling_variety,
         "novelty": novelty,
+        "inflection_density": inflection_density,
     }
     for _ in range(count):
         result = kenning.generate(params, seed_rng.randrange(2**63))
