@@ -193,9 +193,8 @@ etymology* dictionary. The headwords are dense in Breton morphemes
 deed citations, not glossed etymological breakdowns. Counting
 morphemes in raw OCR overstates yield — agents that probe via keyword
 counting will flag this kind of book as a strong candidate; verify by
-running a 5–30 entry mining smoke before committing API budget.
-Per `bd memories trust-audit-table-over-agent-summaries`, the audit
-table is the ground truth.
+running a 5–30 entry mining smoke before committing API budget (see
+`bd memories trust-audit-table-over-agent-summaries`).
 
 **Tier 2 review (Gemini Flash) is the standard second pass on English
 mining**, not a contingency. After `mine-llm --provider ollama`
