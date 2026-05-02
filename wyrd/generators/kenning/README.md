@@ -120,7 +120,7 @@ The generator currently supports five register cultures:
 
 ## Generation knobs
 
-The runtime exposes five orthogonal knobs alongside the existing
+The runtime exposes four orthogonal knobs alongside the existing
 `--culture` and `--tag` filters. All default to off / 0.0 — historical
 seed-stable behavior preserved bit-for-bit.
 
@@ -129,8 +129,7 @@ seed-stable behavior preserved bit-for-bit.
 | `--novelty` | D17 | Per-bucket mixture between empirical-frequency sampling and a uniform marginal. At 1.0, every in-bucket morpheme is equally likely — plausible-but-unattested combinations become possible without abandoning the corpus. v1 is the (empirical, uniform-marginal) two-term mixture; the third tag-class-prior term is a follow-up. |
 | `--spelling-variety` | D18 | Per-morpheme probability of substituting an attested archaic spelling variant for the canonical reflex. Pool comes from `etymon_text_match.matched_form` rows surviving the post-mining chain + LLM disambiguator. 416 morphemes have non-empty pools today. |
 | `--inflection-density` | D8 | Per-morpheme probability of substituting an inflected form (genitive/dative/plural) for the lemma. Bundle has 168 inflected etymons across 9 grammatical-case labels. When both this and `--spelling-variety` would fire on the same morpheme, inflection wins. |
-| `--harsh` | D6 | Phonological-harshness skew (0..1). At 1.0, soft-keyed morphemes are damped to 0 and stop-final / cluster-heavy morphemes get up to 2× their empirical weight. Heuristic score on the dash-stripped usage; orthogonal to language and to `--grim`. Composes with `--novelty` (harsh applies to empirical first, then novelty blends with uniform). |
-| `--grim` | D6 | Boolean tag-union sugar over the menacing tag set (death, military, monster, undead, magic). Composes with `--harsh` on the orthogonal phonological axis and with explicit `--tag`. See `DECISIONS.md` D6 for the spec-named-vs-extant-tags backstory. |
+| `--mood` | D6 | Stylistic-mood preset (repeatable). `grim` applies a menacing semantic-tag union (death, military, monster, undead, magic); `harsh` biases sampling toward stop-final / cluster-heavy morphemes; `harsh:0.5` graduates the phonological skew via colon-suffix. Multiple `--mood` flags compose by tag-union and max-harshness. The mood vocabulary lives in `__init__.MOODS` and grows as new presets land. See `DECISIONS.md` D6 for the spec-named-vs-extant-tags backstory. |
 
 ## Bundle schema (meanings.json)
 
@@ -181,7 +180,7 @@ wyrd kenning lexicon report
 
 # Generate names with the new knobs.
 wyrd kenning generate english --novelty 0.5 --spelling-variety 0.3 --inflection-density 0.2
-wyrd kenning generate english --harsh 0.8 --grim --seed 42  # menacing English-Saxon
+wyrd kenning generate english --mood grim --mood harsh --seed 42  # menacing English-Saxon
 wyrd kenning generate breton --seed 42
 ```
 
@@ -195,7 +194,7 @@ wyrd kenning generate breton --seed 42
 - **New culture register**: add the string to `CULTURES` in `__init__.py`,
   bundle a `<culture>_place_names.json` (real names list) and a
   `<culture>_proportions.json` built via `wyrd kenning rebuild-proportions`.
-- **New per-language bundle metadata** (e.g. for D6 `--harsh` phonological
+- **New per-language bundle metadata** (e.g. for D6 `--mood harsh` phonological
   scoring): follow the D26 sibling-field pattern (`<lang>_<feature>`)
   and route through `load_meanings` into a dedicated `Meaning` attribute.
 - **New LLM provider**: implement `chat_json(system, user, schema)` and

@@ -199,7 +199,7 @@ A few non-goals to keep in mind:
 - **No "ethnic = bad" / "ethnic = good" coding (D6).** Slavic isn't
   orcish. Norman-French isn't villainous. Old Norse isn't dwarven.
   Languages are morally-neutral palette options; the dark/menacing
-  effect comes from orthogonal `--harsh` (phonological) and `--grim`
+  effect comes from `--mood harsh` (phonological) and `--mood grim`
   (semantic-tag) filters that apply to *any* language.
 - **No Sonnet for mining (D19).** Tested empirically; lifts ~zero over
   Gemini Flash. Reserve Anthropic budget for runtime user features.
@@ -240,7 +240,7 @@ variant pools (D18)** and **301 inflected etymons (D8)** across 9
 case labels (Bannister 1916 Herefordshire mining surfaced ~130 new OE
 inflections).
 
-The runtime exposes five GM-facing generation knobs, all defaulting
+The runtime exposes four GM-facing generation knobs, all defaulting
 to off / 0 (bit-stable historical behavior):
 
 - `--novelty` (D17): blend empirical-frequency sampling with a uniform
@@ -250,11 +250,11 @@ to off / 0 (bit-stable historical behavior):
   an attested archaic spelling for the canonical reflex.
 - `--inflection-density` (D8): per-morpheme probability of substituting
   an inflected form (genitive/dative/plural) for the lemma.
-- `--harsh` (D6, 0..1): phonological-harshness skew; biases sampling
-  toward stop-final / cluster-heavy morphemes. Orthogonal to language.
-- `--grim` (D6, flag): semantic-tag union over the menacing tag set
-  (death, military, monster, undead, magic). Composes with `--harsh`
-  on the phonological axis.
+- `--mood` (D6, repeatable): stylistic-mood preset. `grim` applies a
+  menacing semantic-tag union (death, military, monster, undead,
+  magic); `harsh` biases sampling toward stop-final / cluster-heavy
+  morphemes; `harsh:0.5` graduates the skew via colon-suffix. Multiple
+  flags compose by tag-union and max-harshness.
 
 Five cultures: `english`, `scottish`, `welsh`, `irish`, **`breton`**.
 The breton register was added with a 1214-commune corpus pulled from
