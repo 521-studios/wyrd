@@ -396,3 +396,34 @@ the table from a JSONL file of historical runs (one record per
 run). It's how prior batches that pre-date the writer get folded
 in: agents can extract them from session transcripts, hand-curated
 logs, or wherever the stdout was captured.
+
+## D24. When you add data, add an observability path.
+
+Every persistent operation must be queryable from the DB. If the
+mining pipeline computes a number, that number must land somewhere
+queryable — a row, a column, a view — not just in stdout. If a CLI
+emits `accepted=X declined=Y rejected=Z`, the same numbers must
+also be in a `mining_run` row (or analogous audit row).
+
+Why: D23 was filed because the mining pipeline had been printing
+accept/decline/reject counts to stdout for two days without anyone
+noticing the data was unrecoverable. The user asked "what's the
+state of the harvest?" and the DB couldn't answer; we had to mine
+session transcripts to recover the numbers. The fix was small; the
+discovery was what cost us.
+
+How to apply: when designing or reviewing any feature that mutates
+the lexicon, ask three questions in order:
+
+1. **What does this write?** Lemma links, OCR clusters, text-match
+   rows, mining-batch results, future enrichment outputs.
+2. **What stage stamps it?** A `method` / `mode` / `provider` column
+   so future-you can ask "which version of this heuristic produced
+   this row?" (D22 lemma_method, D23 mining_run.mode, etc.)
+3. **What query answers 'how is X doing?'** If the answer is "grep
+   stdout" or "rerun the pipeline," there's a missing column or
+   row. Add it.
+
+Counter-example to watch for: a "results summary" that exists only in
+the closing log line of a CLI command. That's the wyrd-ej4 shape.
+Catch it at design time, not after two days of data loss.
