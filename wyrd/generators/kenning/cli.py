@@ -29,6 +29,7 @@ from wyrd.generators.kenning.lexicon import (
     LexiconDB,
     clear_enrichment,
     cluster_ocr_variants,
+    export_meanings,
     fuzzy_search_attestations,
     ingest_parsed_entries,
     init_schema,
@@ -637,6 +638,57 @@ _KNOWN_SKEAT_BOOKS = {
         "language_focus": "old-english",
     },
 }
+
+
+@lexicon.command("export-meanings")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=True,
+)
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Write to this path instead of stdout.",
+)
+@click.option(
+    "--min-witnesses",
+    type=int,
+    default=3,
+    show_default=True,
+    help="Promote etymons with this many distinct scholar witnesses (D4).",
+)
+@click.option(
+    "--include-rando/--no-include-rando",
+    default=True,
+    show_default=True,
+    help="Include rando-port-cited families regardless of witness count (D4 legacy).",
+)
+def lexicon_export_meanings(
+    db_path: Path,
+    output_path: Path | None,
+    min_witnesses: int,
+    include_rando: bool,
+) -> None:
+    """Export the lexicon DB as a meanings.json document for the runtime.
+
+    Inverse of ``lexicon build``: walks the authoring DB, applies the D4
+    promotion rule, and emits the JSON shape the kenning generator expects.
+    Inflected variants (D8) and OCR-cluster losers (D22) ride along in their
+    lemma's language form list rather than appearing as separate subjects.
+    """
+    with LexiconDB(db_path) as db:
+        subjects = export_meanings(db, min_witnesses=min_witnesses, include_rando=include_rando)
+    payload = json.dumps(subjects, ensure_ascii=False, indent=2)
+    if output_path is None:
+        click.echo(payload)
+    else:
+        output_path.write_text(payload + "\n")
+        click.echo(f"Wrote {len(subjects)} subjects to {output_path}", err=True)
 
 
 @lexicon.command("mine-skeat")

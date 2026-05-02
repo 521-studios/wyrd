@@ -1451,3 +1451,389 @@ def ingest_parsed_entries(
 
     db.commit()
     return counts
+
+
+# --- meanings.json export --------------------------------------------------
+#
+# Inverse of `seed_from_meanings`: walk the lexicon DB, apply the D4 promotion
+# rule, and emit a meanings.json document the runtime can load. The runtime
+# shape is unchanged (D1) — generation still consumes meanings.json — so the
+# export is the bridge that lets new mining reach users.
+#
+# Inflections (D8) and OCR-cluster losers (D22) ride along in the lemma's
+# language form list rather than getting their own subjects, so the consensus
+# rollup the runtime sees matches the rollup the lexicon enforces.
+
+# Reverse of LANGUAGE_FIELDS: lexicon language code → meanings.json field name.
+# Only the canonical key is emitted; the misspelled aliases ('old _english',
+# 'old_scandanavian') are accepted on ingestion but not regenerated on export.
+_LANG_CODE_TO_JSON_FIELD = {
+    "old-english": "old_english",
+    "old-norse": "old_scandinavian",
+    "norman-french": "old_french",
+    "celtic": "celtic_mix",
+    "latin": "latin",
+    "germanic": "germanic",
+    "greek": "greek",
+    "modern-english": "modern_english",
+    "biblical": "biblical",
+}
+
+
+def export_meanings(
+    db: LexiconDB,
+    *,
+    min_witnesses: int = 3,
+    include_rando: bool = True,
+) -> list[dict[str, Any]]:
+    """Walk the lexicon and emit a meanings.json structure.
+
+    Promotion rule (D4): a family root is included if either
+    (a) any etymon in the family is cited by 'rando-port' AND ``include_rando``
+        is true (legacy seed kept until corroborated), OR
+    (b) the family's witness count (``etymon_consensus.witnesses``) is at
+        least ``min_witnesses``.
+
+    Family roots are computed by the same two-step rollup the
+    ``etymon_consensus`` view uses (``merged_into_id`` then ``lemma_id``), so
+    OCR-cluster losers and inflected variants don't get their own subjects —
+    their canonical_forms ride along in the lemma's language form list (D8,
+    D18, D22).
+
+    Subjects are reconstructed by grouping family roots that share the same
+    (modifier_type, glosses, tags) signature — the natural inverse of how
+    seed_from_meanings shaped the original rando-port subjects. The
+    reconstruction is lossy where the original meanings.json had two distinct
+    subjects with identical signatures, but the runtime ``load_meanings``
+    keys by ``modern_usage`` regardless of subject boundary.
+    """
+    families = _collect_families(db, min_witnesses=min_witnesses, include_rando=include_rando)
+    subjects = _group_families_into_subjects(families)
+    if include_rando:
+        subjects.extend(_orphan_reflex_subjects(db))
+    return subjects
+
+
+def _collect_families(
+    db: LexiconDB,
+    *,
+    min_witnesses: int,
+    include_rando: bool,
+) -> list[dict[str, Any]]:
+    """Build per-family-root data: forms-by-language, glosses, tags, reflexes."""
+    cur = db.conn.execute(
+        """
+        WITH rollup AS (
+            SELECT
+                e.id AS etymon_id,
+                COALESCE(le.id, target.id, e.id) AS root_id
+            FROM etymon e
+            LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
+            LEFT JOIN etymon le ON le.id = target.lemma_id
+        ),
+        rando_roots AS (
+            SELECT DISTINCT r.root_id
+            FROM rollup r
+            JOIN etymon_citation c ON c.etymon_id = r.etymon_id
+            WHERE c.source_id = 'rando-port'
+        ),
+        promoted AS (
+            SELECT lemma_id AS root_id FROM etymon_consensus WHERE witnesses >= ?
+            UNION
+            SELECT root_id FROM rando_roots WHERE ? = 1
+        )
+        SELECT DISTINCT root_id FROM promoted
+        ORDER BY root_id
+        """,
+        (min_witnesses, 1 if include_rando else 0),
+    )
+    root_ids = [row["root_id"] for row in cur.fetchall()]
+
+    families: list[dict[str, Any]] = []
+    for root_id in root_ids:
+        family = _gather_family(db, root_id)
+        if family is not None and family["forms_by_lang"]:
+            families.append(family)
+    return families
+
+
+def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
+    """Collect forms / glosses / tags / reflexes for one family root.
+
+    Includes the root itself plus all etymons that roll up to it
+    (inflected children, OCR-cluster losers, and combinations thereof).
+    """
+    root_row = db.conn.execute(
+        "SELECT canonical_form, language, modifier_type, position_pref FROM etymon WHERE id = ?",
+        (root_id,),
+    ).fetchone()
+    if root_row is None:
+        return None
+
+    member_rows = db.conn.execute(
+        """
+        SELECT e.id, e.canonical_form, e.language, e.lemma_id, e.merged_into_id
+        FROM etymon e
+        LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
+        LEFT JOIN etymon le ON le.id = target.lemma_id
+        WHERE COALESCE(le.id, target.id, e.id) = ?
+        ORDER BY e.language, e.canonical_form
+        """,
+        (root_id,),
+    ).fetchall()
+    if not member_rows:
+        return None
+
+    member_ids = [r["id"] for r in member_rows]
+    placeholders = ",".join("?" * len(member_ids))
+
+    forms_by_lang: dict[str, list[str]] = {}
+    # Root form first per language so the lemma's own canonical_form leads
+    # the variant list (predictable order for snapshot tests).
+    root_lang = root_row["language"]
+    forms_by_lang.setdefault(root_lang, []).append(root_row["canonical_form"])
+    for r in member_rows:
+        bucket = forms_by_lang.setdefault(r["language"], [])
+        if r["canonical_form"] not in bucket:
+            bucket.append(r["canonical_form"])
+
+    glosses = [
+        row["gloss"]
+        for row in db.conn.execute(
+            f"SELECT DISTINCT gloss FROM etymon_gloss "
+            f"WHERE etymon_id IN ({placeholders}) ORDER BY gloss",
+            member_ids,
+        )
+    ]
+    tags = [
+        row["tag"]
+        for row in db.conn.execute(
+            f"SELECT DISTINCT tag FROM etymon_tag WHERE etymon_id IN ({placeholders}) ORDER BY tag",
+            member_ids,
+        )
+    ]
+    # Per-reflex linked etymon ids (within this family). Lets us narrow the
+    # exported language array per word at group-build time — without this, a
+    # subject grouping a Celtic family and an OE family would emit each
+    # reflex's word with both languages even when the reflex only links to
+    # one of them.
+    reflex_links: dict[int, list[int]] = {}
+    for row in db.conn.execute(
+        f"SELECT re.reflex_id, re.etymon_id "
+        f"FROM reflex_etymon re "
+        f"WHERE re.etymon_id IN ({placeholders}) "
+        f"ORDER BY re.reflex_id, re.etymon_id",
+        member_ids,
+    ):
+        reflex_links.setdefault(row["reflex_id"], []).append(row["etymon_id"])
+
+    reflexes = [
+        {
+            "id": row["id"],
+            "surface_form": row["surface_form"],
+            "position": row["position"],
+            "linked_member_ids": reflex_links.get(row["id"], []),
+        }
+        for row in db.conn.execute(
+            f"SELECT DISTINCT r.id, r.surface_form, r.position "
+            f"FROM reflex r "
+            f"JOIN reflex_etymon re ON re.reflex_id = r.id "
+            f"WHERE re.etymon_id IN ({placeholders}) "
+            f"ORDER BY r.position, r.surface_form",
+            member_ids,
+        )
+    ]
+
+    member_form_by_id = {r["id"]: (r["language"], r["canonical_form"]) for r in member_rows}
+
+    # Precompute per-member descendants (transitive) so a reflex linked to
+    # a lemma picks up the lemma's inflected children + OCR-cluster losers
+    # rather than just the directly-linked etymon. The graph is shallow
+    # (D22 flatten-at-merge-time keeps chains at depth ≤ 2), so a single
+    # inversion pass suffices.
+    children: dict[int, list[int]] = {}
+    for r in member_rows:
+        parent_id = r["lemma_id"] or r["merged_into_id"]
+        if parent_id is not None:
+            children.setdefault(parent_id, []).append(r["id"])
+    member_descendants: dict[int, list[int]] = {}
+    for member_id in member_form_by_id:
+        descendants = [member_id]
+        stack = list(children.get(member_id, []))
+        while stack:
+            d = stack.pop()
+            if d in descendants:
+                continue
+            descendants.append(d)
+            stack.extend(children.get(d, []))
+        member_descendants[member_id] = descendants
+
+    return {
+        "root_id": root_id,
+        "root_canonical_form": root_row["canonical_form"],
+        "root_language": root_row["language"],
+        "modifier_type": root_row["modifier_type"],
+        "position_pref": root_row["position_pref"],
+        "forms_by_lang": forms_by_lang,
+        "member_form_by_id": member_form_by_id,
+        "member_descendants": member_descendants,
+        "glosses": glosses,
+        "tags": tags,
+        "reflexes": reflexes,
+    }
+
+
+def _group_families_into_subjects(families: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Group families by (modifier_type, glosses, tags) into meanings.json subjects.
+
+    Each group becomes one subject. Reflexes linked to any family in the
+    group become "words"; families without any reflex contribute a synthesized
+    word using the family's canonical_form (for newly-mined etymons that
+    haven't been wired into a modern surface form yet).
+    """
+    groups: dict[tuple, list[dict[str, Any]]] = {}
+    for fam in families:
+        key = (
+            fam["modifier_type"] or "",
+            tuple(sorted(fam["glosses"])),
+            tuple(sorted(fam["tags"])),
+        )
+        groups.setdefault(key, []).append(fam)
+
+    subjects: list[dict[str, Any]] = []
+    for (mod_type, glosses_tuple, tags_tuple), fams in groups.items():
+        words = _build_words_for_group(fams)
+        if not words:
+            continue
+        subject: dict[str, Any] = {
+            "meaning": list(glosses_tuple),
+            "modifier_tags": list(tags_tuple),
+            "modifier_type": mod_type or None,
+            "words": words,
+        }
+        subjects.append(subject)
+
+    # Fully-discriminating sort key: every field that varies across subjects
+    # must be in the tuple. Otherwise ties fall back to dict insertion order,
+    # which traces back to AUTOINCREMENT root_ids and re-shuffles on rebuild.
+    subjects.sort(
+        key=lambda s: (
+            s.get("modifier_type") or "",
+            tuple(s["meaning"]),
+            tuple(s["modifier_tags"]),
+            tuple(w["modern_usage"] for w in s["words"]),
+        )
+    )
+    return subjects
+
+
+def _build_words_for_group(fams: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Assemble the `words` list for a subject grouping multiple families."""
+    # Sort families by canonical_form/language so the export output is
+    # deterministic — root_ids are AUTOINCREMENT and therefore unstable
+    # across DB rebuilds, which would otherwise churn the diff in version
+    # control even when no semantic content changed.
+    fams = sorted(fams, key=lambda f: (f["root_canonical_form"], f["root_language"]))
+
+    # Build reflex_id → list of (family, list[linked_member_id]) so each
+    # reflex's word entry only includes language forms from the etymons
+    # it's actually linked to, not from every family in the subject.
+    # Per the original meanings.json shape (e.g. "Alder tree"), reflexes
+    # are language-specific: '-farne' carries celtic_mix only, 'Alder-'
+    # carries old_english only. seed_from_meanings preserves this in
+    # reflex_etymon, and the export must too.
+    reflex_to_links: dict[int, list[tuple[dict[str, Any], list[int]]]] = {}
+    families_without_reflex: list[dict[str, Any]] = []
+    reflex_meta: dict[int, dict[str, Any]] = {}
+    for fam in fams:
+        if not fam["reflexes"]:
+            families_without_reflex.append(fam)
+            continue
+        for r in fam["reflexes"]:
+            reflex_meta[r["id"]] = r
+            reflex_to_links.setdefault(r["id"], []).append((fam, r["linked_member_ids"]))
+
+    words: list[dict[str, Any]] = []
+    for reflex_id in sorted(
+        reflex_to_links,
+        key=lambda rid: (reflex_meta[rid]["position"], reflex_meta[rid]["surface_form"]),
+    ):
+        meta = reflex_meta[reflex_id]
+        word: dict[str, Any] = {"modern_usage": meta["surface_form"]}
+        per_lang: dict[str, list[str]] = {}
+        for fam, linked_ids in reflex_to_links[reflex_id]:
+            # For each linked etymon, walk its descendants so the reflex
+            # picks up the lemma's inflected variants (D8) and OCR-cluster
+            # losers (D22) — not just the seeded etymon itself.
+            for member_id in linked_ids:
+                for descendant_id in fam["member_descendants"][member_id]:
+                    lang, form = fam["member_form_by_id"][descendant_id]
+                    bucket = per_lang.setdefault(lang, [])
+                    if form not in bucket:
+                        bucket.append(form)
+        for lang in sorted(per_lang):
+            json_field = _LANG_CODE_TO_JSON_FIELD.get(lang)
+            if json_field:
+                word[json_field] = per_lang[lang]
+        words.append(word)
+
+    for fam in families_without_reflex:
+        usage = _synthesize_modern_usage(fam)
+        word = {"modern_usage": usage}
+        for lang in sorted(fam["forms_by_lang"]):
+            json_field = _LANG_CODE_TO_JSON_FIELD.get(lang)
+            if json_field:
+                word[json_field] = list(fam["forms_by_lang"][lang])
+        words.append(word)
+
+    return words
+
+
+def _synthesize_modern_usage(family: dict[str, Any]) -> str:
+    """Derive a modern_usage for a family that has no linked reflex.
+
+    Uses ``position_pref`` to choose pre/post/inner dash markers; defaults
+    to no-dash (the runtime treats undecorated usage as a post-suffix
+    via Meaning._set_location).
+    """
+    form = family["root_canonical_form"]
+    position = family.get("position_pref")
+    if position == "pre":
+        return f"{form}-"
+    if position == "inner":
+        return f"-{form}-"
+    if position == "post":
+        return f"-{form}"
+    return form
+
+
+def _orphan_reflex_subjects(db: LexiconDB) -> list[dict[str, Any]]:
+    """Emit one subject per reflex that has no linked etymon.
+
+    These come from the rando-port seed where a `word` entry had only
+    `modern_usage` (e.g., 'Adam-' as a saint's name) or had a language slot
+    with an empty form list (e.g., {'celtic_mix': [], 'modern_usage': 'Bre-'}).
+    The runtime needs them in `meaning_db` because per-culture proportions
+    JSONs reference them by usage. Emit each as its own subject with empty
+    glosses/tags so the runtime can register the usage; promotion to a richer
+    subject can land later via the manual seed-source-aware revisit (D7).
+    """
+    rows = db.conn.execute(
+        """
+        SELECT r.surface_form
+        FROM reflex r
+        WHERE NOT EXISTS (
+            SELECT 1 FROM reflex_etymon re WHERE re.reflex_id = r.id
+        )
+        ORDER BY r.position, r.surface_form
+        """
+    ).fetchall()
+    return [
+        {
+            "meaning": [],
+            "modifier_tags": [],
+            "modifier_type": None,
+            "words": [{"modern_usage": row["surface_form"]}],
+        }
+        for row in rows
+    ]
