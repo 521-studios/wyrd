@@ -107,13 +107,16 @@ class GeminiClient:
             raise RuntimeError("GEMINI_API_KEY is not set. Configure it or pass api_key=.")
         return key
 
-    def chat_json(self, system: str, user: str, schema: dict | None = None) -> dict:
+    def chat_json(self, system: str, user: str, response_schema: dict | None = None) -> dict:
         """Send a single prompt with JSON-schema-constrained output. Returns
         the parsed JSON content.
 
-        `schema` is ignored if None or if it's the JSON-Schema-flavored
-        RESPONSE_SCHEMA from llm_extractor — we always send Gemini's
-        OpenAPI-flavored GEMINI_RESPONSE_SCHEMA.
+        `response_schema` defaults to the extraction schema
+        (`GEMINI_RESPONSE_SCHEMA`). Callers building a different output
+        shape (e.g. the disambiguator) pass their own Gemini-flavored
+        OpenAPI schema. The schema must follow Gemini's responseSchema
+        dialect (uppercase types, `nullable: true` instead of nullable
+        unions, no `additionalProperties`).
         """
         url = f"{self.base_url}:generateContent"
         payload = {
@@ -122,7 +125,9 @@ class GeminiClient:
             "generationConfig": {
                 "temperature": self.temperature,
                 "responseMimeType": "application/json",
-                "responseSchema": GEMINI_RESPONSE_SCHEMA,
+                "responseSchema": response_schema
+                if response_schema is not None
+                else GEMINI_RESPONSE_SCHEMA,
             },
         }
         data = json.dumps(payload).encode("utf-8")

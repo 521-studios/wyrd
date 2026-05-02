@@ -1741,7 +1741,16 @@ def lexicon_disambiguate_fuzzy(
             )
             if apply_changes and write_db is not None:
                 action = apply_disambiguator_result(write_db, case, result)
-                counts[action] += 1
+            else:
+                # Dry-run: mirror the same action-classification so the
+                # summary tells the operator what would have happened.
+                if result.chosen_etymon_id is None:
+                    action = "deleted"
+                elif result.chosen_etymon_id == case.current_etymon_id:
+                    action = "kept"
+                else:
+                    action = "reassigned"
+            counts[action] += 1
         if write_db is not None:
             write_db.commit()
     finally:

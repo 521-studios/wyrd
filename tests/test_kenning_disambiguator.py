@@ -20,7 +20,6 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from wyrd.generators.kenning import disambiguator as disambiguator_mod
 from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.disambiguator import (
     AmbiguityCase,
@@ -39,6 +38,12 @@ def fresh_db(tmp_path: Path) -> Path:
     db_path = tmp_path / "lexicon.db"
     init_schema(db_path)
     return db_path
+
+
+def _stub_chat_json(monkeypatch, response: dict) -> None:
+    """Replace `GeminiClient.chat_json` with a fixed-response stub. Tests
+    that exercise `disambiguate_one` use this to bypass the network."""
+    monkeypatch.setattr(GeminiClient, "chat_json", lambda self, *args, **kw: response)
 
 
 def _seed_minimum(db: LexiconDB) -> None:
@@ -166,10 +171,9 @@ def test_disambiguate_one_parses_choice_and_reason(monkeypatch) -> None:
         ),
     )
 
-    monkeypatch.setattr(
-        disambiguator_mod,
-        "_chat_json_with_schema",
-        lambda client, **kw: {
+    _stub_chat_json(
+        monkeypatch,
+        {
             "choice": "42",
             "confidence": "high",
             "reason": "The phrase 'untilled land' matches OE 'heath'.",
@@ -197,14 +201,9 @@ def test_disambiguate_one_handles_none_answer(monkeypatch) -> None:
             Candidate(etymon_id=2, canonical_form="bar", language="old-norse", glosses=(), tags=()),
         ),
     )
-    monkeypatch.setattr(
-        disambiguator_mod,
-        "_chat_json_with_schema",
-        lambda client, **kw: {
-            "choice": "none",
-            "confidence": "low",
-            "reason": "passage doesn't say",
-        },
+    _stub_chat_json(
+        monkeypatch,
+        {"choice": "none", "confidence": "low", "reason": "passage doesn't say"},
     )
     result = disambiguate_one(GeminiClient(api_key="fake"), case)
     assert result.chosen_etymon_id is None
@@ -225,10 +224,9 @@ def test_disambiguate_one_rejects_id_outside_candidates(monkeypatch) -> None:
             ),
         ),
     )
-    monkeypatch.setattr(
-        disambiguator_mod,
-        "_chat_json_with_schema",
-        lambda client, **kw: {"choice": "9999", "confidence": "low", "reason": "wat"},
+    _stub_chat_json(
+        monkeypatch,
+        {"choice": "9999", "confidence": "low", "reason": "wat"},
     )
     result = disambiguate_one(GeminiClient(api_key="fake"), case)
     assert result.chosen_etymon_id is None
@@ -251,10 +249,9 @@ def test_disambiguate_one_handles_non_numeric_choice(monkeypatch) -> None:
             ),
         ),
     )
-    monkeypatch.setattr(
-        disambiguator_mod,
-        "_chat_json_with_schema",
-        lambda client, **kw: {
+    _stub_chat_json(
+        monkeypatch,
+        {
             "choice": "heath",  # free-form string, not a numeric id
             "confidence": "high",
             "reason": "ignored",
@@ -434,10 +431,9 @@ def test_lexicon_disambiguate_fuzzy_cli_end_to_end(
         _seed_minimum(db)
         chosen_id = db._heath_id
 
-    monkeypatch.setattr(
-        disambiguator_mod,
-        "_chat_json_with_schema",
-        lambda client, **kw: {
+    _stub_chat_json(
+        monkeypatch,
+        {
             "choice": str(chosen_id),
             "confidence": "high",
             "reason": "untilled land matches OE heath",
@@ -480,10 +476,9 @@ def test_lexicon_disambiguate_fuzzy_cli_dry_run_does_not_persist(
         _seed_minimum(db)
         chosen_id = db._heath_id
 
-    monkeypatch.setattr(
-        disambiguator_mod,
-        "_chat_json_with_schema",
-        lambda client, **kw: {
+    _stub_chat_json(
+        monkeypatch,
+        {
             "choice": str(chosen_id),
             "confidence": "high",
             "reason": "would reassign on apply",

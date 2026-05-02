@@ -960,7 +960,7 @@ def reverse_search_attestations(
     }
 
 
-def _levenshtein(a: str, b: str, *, max_distance: int | None = None) -> int:
+def levenshtein(a: str, b: str, *, max_distance: int | None = None) -> int:
     """Compute Levenshtein edit distance between two strings.
 
     Pure-python DP implementation. If max_distance is given and the early-
@@ -1099,7 +1099,7 @@ def fuzzy_search_attestations(
                 # lookup gates the expensive Levenshtein call.
                 if tok in other_canonicals:
                     continue
-                d = _levenshtein(norm_form, tok, max_distance=max_distance)
+                d = levenshtein(norm_form, tok, max_distance=max_distance)
                 if d > max_distance or d == 0:
                     continue
                 # Found a fuzzy candidate. Now verify meaning: does any gloss

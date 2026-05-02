@@ -16,14 +16,11 @@ declines.
 
 from __future__ import annotations
 
-import json
-import urllib.error
-import urllib.request
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from wyrd.generators.kenning.gemini_extractor import GEMINI_API_BASE, GeminiClient
-from wyrd.generators.kenning.lexicon import _levenshtein, normalize_ocr_form
+from wyrd.generators.kenning.gemini_extractor import GeminiClient
+from wyrd.generators.kenning.lexicon import levenshtein, normalize_ocr_form
 
 if TYPE_CHECKING:
     from wyrd.generators.kenning.lexicon import LexiconDB
@@ -106,57 +103,6 @@ def _format_candidates(candidates: tuple[Candidate, ...]) -> str:
     return "\n".join(lines)
 
 
-def _chat_json_with_schema(client: GeminiClient, *, system: str, user: str, schema: dict) -> dict:
-    """Send a Gemini request with a custom response schema.
-
-    Mirrors `GeminiClient.chat_json` but uses the caller-supplied schema
-    instead of the extraction schema. Lives here rather than on the client
-    so the disambiguator owns its own response shape.
-    """
-    url = f"{client.base_url}:generateContent"
-    payload = {
-        "systemInstruction": {"parts": [{"text": system}]},
-        "contents": [{"role": "user", "parts": [{"text": user}]}],
-        "generationConfig": {
-            "temperature": client.temperature,
-            "responseMimeType": "application/json",
-            "responseSchema": schema,
-        },
-    }
-    data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        url,
-        data=data,
-        headers={
-            "Content-Type": "application/json",
-            "x-goog-api-key": client._resolve_key(),
-        },
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=client.timeout_s) as resp:
-            body = resp.read().decode("utf-8")
-    except urllib.error.HTTPError as e:
-        err_body = e.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"Gemini HTTP {e.code}: {err_body[:500]}") from e
-    except (TimeoutError, urllib.error.URLError) as e:
-        raise RuntimeError(f"Gemini unreachable at {url}: {e}") from e
-
-    envelope = json.loads(body)
-    try:
-        text = envelope["candidates"][0]["content"]["parts"][0]["text"]
-    except (KeyError, IndexError) as e:
-        raise RuntimeError(f"Gemini returned unexpected envelope: {body[:500]}") from e
-
-    if not text:
-        raise RuntimeError("Gemini produced empty content.")
-
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError as e:
-        raise RuntimeError(f"Gemini produced non-JSON content: {text[:500]}") from e
-
-
 def disambiguate_one(client: GeminiClient, case: AmbiguityCase) -> DisambiguatorResult:
     """Ask the LLM which of `case.candidates` fits the passage in `case.snippet`.
 
@@ -170,12 +116,7 @@ def disambiguate_one(client: GeminiClient, case: AmbiguityCase) -> Disambiguator
         f"Which of these candidate morphemes (if any) is being described or "
         f"used here?\n\nCANDIDATES:\n{_format_candidates(case.candidates)}\n"
     )
-    response = _chat_json_with_schema(
-        client,
-        system=_SYSTEM_PROMPT,
-        user=user,
-        schema=DISAMBIGUATOR_SCHEMA,
-    )
+    response = client.chat_json(_SYSTEM_PROMPT, user, response_schema=DISAMBIGUATOR_SCHEMA)
     choice_str = (response.get("choice") or "").strip()
     confidence = response.get("confidence", "low")
     reason = (response.get("reason") or "").strip()
@@ -267,7 +208,7 @@ def find_ambiguous_rows(
         for norm, etymons in by_norm.items():
             if abs(len(norm) - len(target)) > max_distance:
                 continue
-            d = _levenshtein(norm, target, max_distance=max_distance)
+            d = levenshtein(norm, target, max_distance=max_distance)
             if d > max_distance:
                 continue
             candidates.extend(etymons)
@@ -344,13 +285,11 @@ def apply_disambiguator_result(
     return "reassigned"
 
 
-# Re-export for callers that want the GEMINI_API_BASE for stubbing in tests.
 __all__ = [
     "AmbiguityCase",
     "Candidate",
     "DISAMBIGUATOR_SCHEMA",
     "DisambiguatorResult",
-    "GEMINI_API_BASE",
     "apply_disambiguator_result",
     "disambiguate_one",
     "find_ambiguous_rows",
