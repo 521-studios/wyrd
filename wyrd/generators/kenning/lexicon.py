@@ -572,7 +572,10 @@ def record_mining_run(
     the same completed_at gets ignored. completed_at IS NULL means
     "not yet finished" and won't dedupe (each call gets a new row).
     """
-    by_failure_json = json.dumps(by_failure) if by_failure else None
+    # sort_keys keeps the serialized form stable across runs so log-style
+    # diffs / human inspection of the audit table behave deterministically
+    # regardless of dict insertion order.
+    by_failure_json = json.dumps(by_failure, sort_keys=True) if by_failure else None
     # ON CONFLICT(...) DO NOTHING (vs INSERT OR IGNORE) limits the silence
     # to UNIQUE conflicts on the dedupe key. CHECK / NOT NULL / FK
     # violations still raise — bad mode values must fail loudly rather
