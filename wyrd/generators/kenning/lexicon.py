@@ -498,6 +498,115 @@ def _migrate_text_match_table(db: LexiconDB, applied: dict[str, bool]) -> None:
         applied["etymon_text_match.method"] = True
 
 
+def _create_mining_run_table(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Create mining_run if missing. Per D23, this audit table closes the
+    'stop losing accept/decline/reject counts to stdout' gap. One row per
+    (book, provider, model, started_at) tuple; the writer is invoked at
+    the end of every mine-llm and review run.
+
+    Schema:
+      id           - autoincrement
+      source_id    - FK to source.id (the book that was mined)
+      provider     - 'ollama' | 'gemini' | 'anthropic' | 'unknown'
+      model        - free-text model id (e.g. 'qwen3.5:9b', 'gemini-2.5-flash')
+      mode         - 'mine' | 'review' — distinguishes Tier 1 from Tier 2
+      started_at   - ISO timestamp; null if not recorded
+      completed_at - ISO timestamp; null if not recorded
+      parsed_count - how many entries were fed to the model
+      accepted     - extracted etymology with elements
+      declined     - model returned found:false
+      rejected     - extraction failed validation (form-in-body, etc.)
+      by_failure   - JSON object of {reason: count}; null if not recorded
+      notes        - free-text context, e.g. 're-run after parser fix'
+    """
+    existing = {
+        row["name"]
+        for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
+    if "mining_run" in existing:
+        return
+    db.conn.executescript(
+        """
+        CREATE TABLE mining_run (
+          id            INTEGER PRIMARY KEY AUTOINCREMENT,
+          source_id     TEXT NOT NULL REFERENCES source(id) ON DELETE CASCADE,
+          provider      TEXT NOT NULL,
+          model         TEXT NOT NULL,
+          mode          TEXT NOT NULL CHECK (mode IN ('mine', 'review')),
+          started_at    TEXT,
+          completed_at  TEXT,
+          parsed_count  INTEGER NOT NULL DEFAULT 0,
+          accepted      INTEGER NOT NULL DEFAULT 0,
+          declined      INTEGER NOT NULL DEFAULT 0,
+          rejected      INTEGER NOT NULL DEFAULT 0,
+          by_failure    TEXT,
+          notes         TEXT,
+          UNIQUE (source_id, provider, model, mode, completed_at)
+        );
+        CREATE INDEX idx_mining_run_source ON mining_run(source_id);
+        CREATE INDEX idx_mining_run_completed ON mining_run(completed_at);
+        """
+    )
+    applied["mining_run_table"] = True
+
+
+def record_mining_run(
+    db: LexiconDB,
+    *,
+    source_id: str,
+    provider: str,
+    model: str,
+    mode: str,
+    parsed_count: int,
+    accepted: int,
+    declined: int,
+    rejected: int,
+    by_failure: dict[str, int] | None = None,
+    started_at: str | None = None,
+    completed_at: str | None = None,
+    notes: str | None = None,
+) -> int:
+    """Persist one mining-run summary row. Idempotent on
+    (source_id, provider, model, mode, completed_at) — a re-run with
+    the same completed_at gets ignored. completed_at IS NULL means
+    "not yet finished" and won't dedupe (each call gets a new row).
+    """
+    import json as _json
+
+    by_failure_json = _json.dumps(by_failure) if by_failure else None
+    # ON CONFLICT(...) DO NOTHING (vs INSERT OR IGNORE) limits the silence
+    # to UNIQUE conflicts on the dedupe key. CHECK / NOT NULL / FK
+    # violations still raise — bad mode values must fail loudly rather
+    # than silently dropping the row.
+    cur = db.conn.execute(
+        """
+        INSERT INTO mining_run
+          (source_id, provider, model, mode, started_at, completed_at,
+           parsed_count, accepted, declined, rejected, by_failure, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(source_id, provider, model, mode, completed_at) DO NOTHING
+        """,
+        (
+            source_id,
+            provider,
+            model,
+            mode,
+            started_at,
+            completed_at,
+            parsed_count,
+            accepted,
+            declined,
+            rejected,
+            by_failure_json,
+            notes,
+        ),
+    )
+    db.commit()
+    # rowcount is 1 on insert, 0 on UNIQUE-conflict skip. Returning 0 lets
+    # callers (e.g. import-mining-log) distinguish "inserted" from "duplicate".
+    return cur.lastrowid if cur.rowcount else 0
+
+
 def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     """Bring an existing lexicon DB up to the current schema.
 
@@ -518,11 +627,13 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "etymon_consensus_view": False,
         "etymon_canonical_view": False,
         "etymon_text_match_table": False,
+        "mining_run_table": False,
     }
     _add_etymon_columns(db, applied)
     _create_etymon_indexes(db, applied)
     _rebuild_etymon_views(db, applied)
     _migrate_text_match_table(db, applied)
+    _create_mining_run_table(db, applied)
     db.commit()
     return applied
 

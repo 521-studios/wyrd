@@ -7,6 +7,7 @@ import sqlite3
 import sys
 import time
 from collections import Counter
+from datetime import UTC, datetime
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,7 @@ from wyrd.generators.kenning.lexicon import (
     init_schema,
     link_lemmas,
     migrate_schema,
+    record_mining_run,
     reverse_search_attestations,
     seed_from_meanings,
 )
@@ -814,6 +816,7 @@ def lexicon_mine_llm(
     rejected = 0
     by_failure: dict[str, int] = {}
 
+    started_at = datetime.now(UTC).isoformat()
     start = time.time()
     for i, p in enumerate(parsed, 1):
         result = extract_one(
@@ -837,6 +840,7 @@ def lexicon_mine_llm(
             )
 
     elapsed = time.time() - start
+    completed_at = datetime.now(UTC).isoformat()
     click.echo(
         f"Done in {elapsed:.0f}s ({elapsed / max(len(parsed), 1):.1f}s/entry). "
         f"accepted={len(accepted_entries)} declined={declined} rejected={rejected}",
@@ -850,6 +854,23 @@ def lexicon_mine_llm(
         db.commit()
         counts = ingest_parsed_entries(
             db, accepted_entries, derived_id, region=metadata.get("region")
+        )
+        # Persist the run summary (D23: stop losing accept/decline/reject
+        # counts to stdout). Idempotent on (book, provider, model, mode,
+        # completed_at) so re-running with --apply won't dupe.
+        record_mining_run(
+            db,
+            source_id=derived_id,
+            provider=provider,
+            model=client.model,
+            mode="mine",
+            parsed_count=len(parsed),
+            accepted=len(accepted_entries),
+            declined=declined,
+            rejected=rejected,
+            by_failure=by_failure or None,
+            started_at=started_at,
+            completed_at=completed_at,
         )
 
     click.echo(f"Ingested: {counts}", err=True)
@@ -1046,6 +1067,12 @@ def lexicon_review(
 
             click.echo(f"=== {source_id} ({len(rows)} candidates) ===", err=True)
 
+            book_started_at = datetime.now(UTC).isoformat()
+            book_accepted = 0
+            book_declined = 0
+            book_rejected = 0
+            book_by_failure: dict[str, int] = {}
+
             for row in rows:
                 name = row["modern_name"]
                 parsed_entry = entries_by_name.get(name)
@@ -1065,12 +1092,16 @@ def lexicon_review(
                 counts["reviewed"] += 1
                 if not result.accepted:
                     counts["rejected"] += 1
+                    book_rejected += 1
+                    for f in result.failures:
+                        book_by_failure[f.reason] = book_by_failure.get(f.reason, 0) + 1
                     failures = ", ".join(f.reason for f in result.failures)
                     click.echo(f"  REJECT  {name:24} ({dt:.1f}s)  {failures}", err=True)
                     continue
 
                 if result.entry is None or not result.entry.elements:
                     counts["declined"] += 1
+                    book_declined += 1
                     click.echo(
                         f"  DECLINE {name:24} ({dt:.1f}s)  conf={result.entry.confidence if result.entry else '?'}",
                         err=True,
@@ -1087,12 +1118,147 @@ def lexicon_review(
                 if apply_changes and write_db is not None:
                     ingest_parsed_entries(write_db, [result.entry], source_id, region=row["region"])
                     counts["written"] += 1
+                    book_accepted += 1
+
+            # Persist per-book run summary (D23). Only record when we
+            # actually reached entries in this book — skip if every row
+            # was missing_entry. Idempotent on
+            # (book, provider, model, mode, completed_at).
+            if (
+                apply_changes
+                and write_db is not None
+                and (book_accepted or book_declined or book_rejected)
+            ):
+                record_mining_run(
+                    write_db,
+                    source_id=source_id,
+                    provider=provider,
+                    model=client.model,
+                    mode="review",
+                    parsed_count=book_accepted + book_declined + book_rejected,
+                    accepted=book_accepted,
+                    declined=book_declined,
+                    rejected=book_rejected,
+                    by_failure=book_by_failure or None,
+                    started_at=book_started_at,
+                    completed_at=datetime.now(UTC).isoformat(),
+                )
     finally:
         if write_db is not None:
             write_db.close()
 
     click.echo("", err=True)
     click.echo(f"Review summary: {counts}", err=True)
+    if not apply_changes:
+        click.echo("(dry-run; pass --apply to write)", err=True)
+
+
+@lexicon.command("import-mining-log")
+@click.argument("path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=True,
+)
+@click.option(
+    "--apply",
+    "apply_changes",
+    is_flag=True,
+    default=False,
+    help="Actually insert mining_run rows. Without this flag the command runs as a dry-run.",
+)
+def lexicon_import_mining_log(path: Path, db_path: Path, apply_changes: bool) -> None:
+    """Back-fill the mining_run table from a JSONL log of historical runs.
+
+    The input file is line-delimited JSON; each line describes one
+    mining or review run with the fields written by record_mining_run.
+    Recovered from session transcripts, hand-curated logs, etc. Use this
+    once after wyrd-ej4 lands to seed the audit table with everything
+    that already happened pre-table.
+
+    Required fields per JSON line:
+      source_id, provider, model, mode, accepted, declined, rejected
+    Optional:
+      parsed_count (defaults to accepted+declined+rejected),
+      by_failure (object), started_at, completed_at, notes
+
+    Idempotent on (source_id, provider, model, mode, completed_at) so
+    re-running with the same JSONL is safe.
+    """
+    inserted = 0
+    skipped = 0
+    errors: list[str] = []
+
+    with LexiconDB(db_path) as db:
+        # Check that mining_run exists; if not, run migrate first.
+        tables = {
+            r["name"] for r in db.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+        if "mining_run" not in tables:
+            raise click.ClickException(
+                "mining_run table missing — run `wyrd kenning lexicon migrate` first."
+            )
+
+        # Pre-load known source ids so we can flag rows that reference a
+        # source that doesn't exist yet (rather than FK-failing on insert).
+        known = {r["id"] for r in db.conn.execute("SELECT id FROM source")}
+
+        with path.open() as f:
+            for ln, raw in enumerate(f, 1):
+                raw = raw.strip()
+                if not raw or raw.startswith("#"):
+                    continue
+                try:
+                    rec = json.loads(raw)
+                except json.JSONDecodeError as e:
+                    errors.append(f"line {ln}: invalid JSON: {e}")
+                    continue
+                src = rec.get("source_id")
+                if not src:
+                    errors.append(f"line {ln}: missing source_id")
+                    continue
+                if src not in known:
+                    errors.append(f"line {ln}: unknown source_id {src!r}")
+                    continue
+                accepted = int(rec.get("accepted") or 0)
+                declined = int(rec.get("declined") or 0)
+                rejected = int(rec.get("rejected") or 0)
+                parsed = int(rec.get("parsed_count") or (accepted + declined + rejected))
+                if not apply_changes:
+                    inserted += 1
+                    continue
+                row_id = record_mining_run(
+                    db,
+                    source_id=src,
+                    provider=rec.get("provider") or "unknown",
+                    model=rec.get("model") or "unknown",
+                    mode=rec.get("mode") or "mine",
+                    parsed_count=parsed,
+                    accepted=accepted,
+                    declined=declined,
+                    rejected=rejected,
+                    by_failure=rec.get("by_failure"),
+                    started_at=rec.get("started_at"),
+                    completed_at=rec.get("completed_at"),
+                    notes=rec.get("notes"),
+                )
+                if row_id:
+                    inserted += 1
+                else:
+                    skipped += 1  # UNIQUE conflict — already imported
+
+    verb = "inserted" if apply_changes else "would insert"
+    click.echo(f"{verb}: {inserted}", err=True)
+    if apply_changes:
+        click.echo(f"skipped (duplicate): {skipped}", err=True)
+    if errors:
+        click.echo(f"errors: {len(errors)}", err=True)
+        for e in errors[:20]:
+            click.echo(f"  {e}", err=True)
+        if len(errors) > 20:
+            click.echo(f"  ... +{len(errors) - 20} more", err=True)
     if not apply_changes:
         click.echo("(dry-run; pass --apply to write)", err=True)
 
