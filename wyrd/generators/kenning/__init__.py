@@ -130,6 +130,33 @@ class Kenning(Generator):
                     "type": "integer",
                     "description": "Optional 64-bit seed for reproducible output.",
                 },
+                "spelling_variety": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": (
+                        "Per-morpheme probability of substituting an attested archaic "
+                        "spelling variant for the canonical reflex (D18). 0 keeps the "
+                        "modern surface form; higher values mix in 19th-century "
+                        "scholarly spellings (e.g. 'Brycg' for 'Bridg-') for archaic "
+                        "feel. Variant pool is empty for most morphemes today, so the "
+                        "knob has limited reach until more mining lands."
+                    ),
+                },
+                "novelty": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": (
+                        "Mixture between empirical-frequency sampling and a uniform "
+                        "marginal (D17). 0 keeps today's bit-stable behavior, 1 makes "
+                        "every in-bucket morpheme equally likely — plausible-but-"
+                        "unattested combinations become possible without abandoning "
+                        "the corpus. Intermediate values softly blend."
+                    ),
+                },
             },
             "required": [],
         }
@@ -140,10 +167,17 @@ class Kenning(Generator):
         if isinstance(raw_tags, str):
             raw_tags = [raw_tags]
         tags = tuple(raw_tags)
+        spelling_variety = float(params.get("spelling_variety", 0.0) or 0.0)
+        novelty = float(params.get("novelty", 0.0) or 0.0)
 
         name_gen, _ = _load_culture(culture)
         rng = rng_for(seed)
-        new_name = name_gen.select(rng, *tags)
+        new_name = name_gen.select(
+            rng,
+            *tags,
+            spelling_variety=spelling_variety,
+            novelty=novelty,
+        )
         return GenerationResult(
             result=str(new_name),
             explanation=new_name.description(),

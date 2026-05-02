@@ -1593,7 +1593,11 @@ def test_consensus_view_rolls_up_to_lemma(fresh_db: Path) -> None:
 def test_language_field_mapping_covers_known_codes() -> None:
     """LANGUAGE_FIELDS must cover every source-language field used in
     meanings.json. Catches regressions if a new root is added in JSON but the
-    seeder is forgotten."""
+    seeder is forgotten.
+
+    D18 spelling variants ride on per-language ``<lang>_variants`` keys; those
+    are handled by the runtime's load_meanings (split out into Meaning.variants)
+    rather than by LANGUAGE_FIELDS, so they're treated as known-handled here."""
     text = resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
     data = json.loads(text)
 
@@ -1603,7 +1607,9 @@ def test_language_field_mapping_covers_known_codes() -> None:
             seen_fields.update(word.keys())
 
     handled = LANGUAGE_FIELDS.keys() | NON_LANGUAGE_FIELDS
-    missing = seen_fields - handled
+    # Also tolerate the per-language variant pool fields emitted by the
+    # D18 export step, which legitimately don't map to a LANGUAGE_FIELDS code.
+    missing = {f for f in seen_fields - handled if not f.endswith("_variants")}
     assert not missing, f"Unhandled fields in meanings.json: {missing}"
 
 

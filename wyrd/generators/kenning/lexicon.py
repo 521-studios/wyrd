@@ -1715,6 +1715,29 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
 
     member_form_by_id = {r["id"]: (r["language"], r["canonical_form"]) for r in member_rows}
 
+    # Spelling variant pool per (member_id, lang) → list of (form, weight).
+    # Pulls from etymon_text_match.matched_form: real attested 19th-c.
+    # spellings (denu/dene/denū/dená) and post-disambiguator winners. Per D18
+    # these are the surface-form randomization targets for archaic-feel
+    # generation. We dedupe against canonical_forms in the family so the
+    # pool only contains FORMS NEW TO THE GENERATOR — emitting "denu"
+    # when "denu" is also the canonical_form would be redundant.
+    canonical_forms_lower = {f.lower() for _lang, f in member_form_by_id.values()}
+    member_variants: dict[int, list[tuple[str, int]]] = {}
+    for row in db.conn.execute(
+        f"SELECT etymon_id, matched_form, SUM(match_count) AS total_count "
+        f"FROM etymon_text_match "
+        f"WHERE etymon_id IN ({placeholders}) "
+        f"GROUP BY etymon_id, LOWER(matched_form) "
+        f"ORDER BY etymon_id, total_count DESC, matched_form",
+        member_ids,
+    ):
+        if row["matched_form"].lower() in canonical_forms_lower:
+            continue
+        member_variants.setdefault(row["etymon_id"], []).append(
+            (row["matched_form"], row["total_count"])
+        )
+
     # Precompute per-member descendants (transitive) so a reflex linked to
     # a lemma picks up the lemma's inflected children + OCR-cluster losers
     # rather than just the directly-linked etymon. The graph is shallow
@@ -1746,6 +1769,7 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
         "forms_by_lang": forms_by_lang,
         "member_form_by_id": member_form_by_id,
         "member_descendants": member_descendants,
+        "member_variants": member_variants,
         "glosses": glosses,
         "tags": tags,
         "reflexes": reflexes,
@@ -1830,6 +1854,7 @@ def _build_words_for_group(fams: list[dict[str, Any]]) -> list[dict[str, Any]]:
         meta = reflex_meta[reflex_id]
         word: dict[str, Any] = {"modern_usage": meta["surface_form"]}
         per_lang: dict[str, list[str]] = {}
+        per_lang_variants: dict[str, dict[str, int]] = {}
         for fam, linked_ids in reflex_to_links[reflex_id]:
             # For each linked etymon, walk its descendants so the reflex
             # picks up the lemma's inflected variants (D8) and OCR-cluster
@@ -1840,10 +1865,21 @@ def _build_words_for_group(fams: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     bucket = per_lang.setdefault(lang, [])
                     if form not in bucket:
                         bucket.append(form)
+                    # Spelling variants riding along (D18): aggregate across
+                    # all etymons in the descendant set, summing weights when
+                    # the same matched_form appears for multiple etymons in
+                    # the same language.
+                    for variant_form, weight in fam.get("member_variants", {}).get(
+                        descendant_id, []
+                    ):
+                        lang_variants = per_lang_variants.setdefault(lang, {})
+                        lang_variants[variant_form] = lang_variants.get(variant_form, 0) + weight
         for lang in sorted(per_lang):
             json_field = _LANG_CODE_TO_JSON_FIELD.get(lang)
             if json_field:
                 word[json_field] = per_lang[lang]
+                if lang in per_lang_variants:
+                    word[f"{json_field}_variants"] = _emit_variant_list(per_lang_variants[lang])
         words.append(word)
 
     for fam in families_without_reflex:
@@ -1853,9 +1889,33 @@ def _build_words_for_group(fams: list[dict[str, Any]]) -> list[dict[str, Any]]:
             json_field = _LANG_CODE_TO_JSON_FIELD.get(lang)
             if json_field:
                 word[json_field] = list(fam["forms_by_lang"][lang])
+                # Synthesized words pull their family's variants en bloc
+                # (no per-reflex narrowing applies — there's no reflex).
+                fam_variants_in_lang: dict[str, int] = {}
+                for member_id in fam["member_form_by_id"]:
+                    member_lang = fam["member_form_by_id"][member_id][0]
+                    if member_lang != lang:
+                        continue
+                    for variant_form, weight in fam.get("member_variants", {}).get(member_id, []):
+                        fam_variants_in_lang[variant_form] = (
+                            fam_variants_in_lang.get(variant_form, 0) + weight
+                        )
+                if fam_variants_in_lang:
+                    word[f"{json_field}_variants"] = _emit_variant_list(fam_variants_in_lang)
         words.append(word)
 
     return words
+
+
+def _emit_variant_list(variants: dict[str, int]) -> list[dict[str, Any]]:
+    """Serialize {form: weight} into the meanings.json variant entry shape.
+    Output is sorted by descending weight (most-attested first), with the
+    form string as a stable secondary key — matters because two variants
+    can share a weight after aggregation across the family."""
+    return [
+        {"form": form, "weight": weight}
+        for form, weight in sorted(variants.items(), key=lambda kv: (-kv[1], kv[0]))
+    ]
 
 
 def _synthesize_modern_usage(family: dict[str, Any]) -> str:

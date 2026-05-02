@@ -22,6 +22,53 @@ def test_seed_is_reproducible():
     assert a.explanation == b.explanation
 
 
+def test_default_novelty_zero_matches_unspecified():
+    """A fresh Kenning() at default params (no novelty) and at explicit
+    novelty=0.0 produce the same output. Guards the 'novelty=0 is identity'
+    contract for D17."""
+    k = Kenning()
+    a = k.generate({"culture": "english"}, seed=42).result
+    b = k.generate({"culture": "english", "novelty": 0.0}, seed=42).result
+    assert a == b
+
+
+def test_high_novelty_shifts_distribution():
+    """At novelty=1, the same seed produces a different name than novelty=0.
+    Verifies the knob actually changes the distribution rather than being a
+    no-op. Seed-stable so the assertion isn't flaky."""
+    k = Kenning()
+    canonical = k.generate({"culture": "english"}, seed=42).result
+    novel = k.generate({"culture": "english", "novelty": 1.0}, seed=42).result
+    assert canonical != novel
+
+
+def test_novelty_is_seed_stable():
+    """Same (params, seed) tuple yields the same name even with novelty>0 —
+    the reproducibility contract holds across the new knob."""
+    k = Kenning()
+    a = k.generate({"culture": "english", "novelty": 0.7}, seed=42).result
+    b = k.generate({"culture": "english", "novelty": 0.7}, seed=42).result
+    assert a == b
+
+
+def test_default_spelling_variety_zero_matches_unspecified():
+    """A fresh Kenning() at default params and at explicit
+    spelling_variety=0.0 produce the same output."""
+    k = Kenning()
+    a = k.generate({"culture": "english"}, seed=42).result
+    b = k.generate({"culture": "english", "spelling_variety": 0.0}, seed=42).result
+    assert a == b
+
+
+def test_spelling_variety_is_seed_stable():
+    """Same (params, seed) tuple yields the same name even with
+    spelling_variety>0 — the reproducibility contract holds across D18."""
+    k = Kenning()
+    a = k.generate({"culture": "english", "spelling_variety": 0.7}, seed=42).result
+    b = k.generate({"culture": "english", "spelling_variety": 0.7}, seed=42).result
+    assert a == b
+
+
 def test_different_seeds_diverge():
     k = Kenning()
     seen = {k.generate({"culture": "english"}, seed=s).result for s in range(10)}

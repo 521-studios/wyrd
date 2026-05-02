@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from wyrd.generators.kenning.meaning import Meaning, load_meanings
+import random
+from collections import Counter
+
+from wyrd.generators.kenning.meaning import Meaning, _mimic_case, load_meanings
 
 
 def make_meaning(usage, tags=None, meanings=None, sources=None):
@@ -133,3 +136,100 @@ def test_load_meanings_does_not_pluralize_already_plural_names():
     meaning_db, _ = load_meanings(data)
     assert "Saxons" in meaning_db
     assert "Saxonss" not in meaning_db
+
+
+# --- D18 spelling variants -------------------------------------------------
+
+
+def _meaning_with_variants(variants):
+    return Meaning(
+        usage="Bridg-",
+        tags=["water"],
+        meanings=["Bridge"],
+        sources={"old_english": ["brycg"]},
+        variants=variants,
+    )
+
+
+def test_pick_variant_returns_none_when_pool_empty():
+    """No variants → no substitution, regardless of spelling_variety."""
+    m = make_meaning("Bridg-", sources={"old_english": ["brycg"]})
+    assert m.pick_variant(random.Random(0), 1.0) is None
+
+
+def test_pick_variant_returns_none_when_variety_zero():
+    """spelling_variety=0 always preserves the canonical surface form."""
+    m = _meaning_with_variants({"old_english": [("brycg", 5), ("brigge", 3)]})
+    assert m.pick_variant(random.Random(0), 0.0) is None
+
+
+def test_pick_variant_returns_a_variant_when_variety_one():
+    """At spelling_variety=1, a non-empty pool always yields a variant."""
+    m = _meaning_with_variants({"old_english": [("brycg", 5), ("brigge", 3)]})
+    picked = m.pick_variant(random.Random(0), 1.0)
+    assert picked in {"brycg", "brigge"}
+
+
+def test_pick_variant_weighted_distribution_favors_heavier_weight():
+    """Over many draws, variants are picked roughly in proportion to weight."""
+    m = _meaning_with_variants({"old_english": [("a", 90), ("b", 10)]})
+    counts = Counter(m.pick_variant(random.Random(i), 1.0) for i in range(2000))
+    # 'a' should dominate at roughly 9:1. Allow a wide band against RNG variance.
+    assert counts["a"] > counts["b"] * 5
+
+
+def test_load_meanings_extracts_variants_from_variant_field():
+    """``<lang>_variants`` keys are split out of ``sources`` into the
+    Meaning's variants dict; canonical language form lists stay in sources
+    unchanged."""
+    data = [
+        {
+            "modifier_tags": ["water"],
+            "meaning": ["Bridge"],
+            "words": [
+                {
+                    "modern_usage": "Bridg-",
+                    "old_english": ["brycg"],
+                    "old_english_variants": [
+                        {"form": "brigge", "weight": 3},
+                        {"form": "brige", "weight": 1},
+                    ],
+                }
+            ],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    m = meaning_db["Bridg-"][0]
+    assert m.variants == {"old_english": [("brigge", 3), ("brige", 1)]}
+    # Canonical language array stays in sources, variant field stripped.
+    assert m.sources == {"old_english": ["brycg"]}
+
+
+def test_load_meanings_omits_variants_field_when_absent():
+    """Legacy meanings.json data without the variant field still loads cleanly
+    — every Meaning gets an empty variants dict."""
+    data = [
+        {
+            "modifier_tags": [],
+            "meaning": ["x"],
+            "words": [{"modern_usage": "X-", "old_english": ["x"]}],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    assert meaning_db["X-"][0].variants == {}
+
+
+def test_mimic_case_capitalizes_at_word_start():
+    """A pre-position canonical 'Bridg-' should re-cap a variant."""
+    assert _mimic_case("Bridg-", "brycg") == "Brycg"
+
+
+def test_mimic_case_lowercases_at_word_end():
+    """A post-position canonical '-water' should keep the variant lowercase
+    even when the variant comes in upper-cased."""
+    assert _mimic_case("-water", "WATYR") == "watyr"
+
+
+def test_mimic_case_handles_empty_template():
+    """A template with no letters (just dashes) returns the variant verbatim."""
+    assert _mimic_case("-", "x") == "x"
