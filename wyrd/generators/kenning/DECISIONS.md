@@ -107,7 +107,7 @@ Why: avoids reinforcing the "Slavic = orc" / "Norman = villain" patterns
 that fantasy genre has often relied on without examining.
 
 **Runtime status (wyrd-9yf + wyrd-tbd, 2026-05-02): wired under a
-unified `--mood` surface.** Two axes ride under one GM-facing flag:
+single `--mood` flag.** Two axes ride under one GM-facing surface:
 
 - `--mood grim` applies a tag-union over the menacing tag set
   `(death, military, monster, undead, magic)` — the closest extant tags
@@ -131,9 +131,9 @@ changing the public surface.
 Power-user JSON API still exposes `harshness` (number, 0..1) for
 graduated control without the colon syntax; `harshness` and
 mood-derived harshness resolve via `max(...)`. The original `--grim`
-boolean / `--harsh` float flags from the wyrd-9yf landing were
-superseded by `--mood` in wyrd-tbd because two parallel flags muddled
-axes that conceptually belong under one preset.
+boolean / `--harsh` float flags were superseded by `--mood` because
+two parallel flags muddled axes that conceptually belong under one
+preset.
 
 Defaults to off (bit-stable historical behavior). The harshness score
 is a heuristic — meant for relative ranking, not phonotactic fidelity.
