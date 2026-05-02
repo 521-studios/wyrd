@@ -34,3 +34,6 @@ sources/*
 .dolt/
 *.db
 .beads-credential-key
+
+# Local Claude Code agent state — do not commit
+.claude/scheduled_tasks.lock
