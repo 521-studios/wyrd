@@ -442,3 +442,35 @@ the lexicon, ask three questions in order:
 Counter-example to watch for: a "results summary" that exists only in
 the closing log line of a CLI command. That's the wyrd-ej4 shape.
 Catch it at design time, not after two days of data loss.
+
+## D25. LLM disambiguator gates on candidate-set size, not gloss anchor.
+
+When fuzzy-search finds a body word X within edit distance ≤ 1 of more
+than one canonical etymon, the gloss anchor (D15) is too coarse to
+choose between them — generic glosses overlap, scholarly prose tends to
+gloss multiple morphemes near the same word. The disambiguator
+(`wyrd kenning lexicon disambiguate-fuzzy`) takes over here.
+
+Cost gate: only ambiguous rows reach the LLM. A fuzzy row with exactly
+one candidate etymon (after the within-distance scan) is left alone —
+the gloss-anchored heuristic was sufficient.
+
+Verdict storage: `etymon_text_match.method` becomes
+`'llm-disambiguated-v1'`, the model's one-sentence reason lands in a
+new `disambiguator_reason` column, and the row's `etymon_id` may be
+reassigned if the LLM picked a candidate other than the original.
+"None" answers delete the row.
+
+Why: doing this in code would require encoding the linguist's
+intuition about which morpheme fits a passage. The LLM already has
+that intuition. Spending ~$0.0001 per ambiguous row is cheaper than
+the cumulative wrong-attribution noise of leaving it heuristic. The
+audit trail (method + reason) lets future-us re-run with a stronger
+model when one exists.
+
+How to apply: any future "we found multiple plausible answers" code
+path should follow the same shape — find_ambiguous_X → cost-gate →
+disambiguate → record verdict + reason — rather than hand-coding
+disambiguation rules. wyrd-uct extends this with an agentic
+expand_context loop for cases where the initial snippet isn't
+sufficient.

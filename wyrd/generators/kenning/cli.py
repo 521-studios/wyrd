@@ -1646,6 +1646,124 @@ def lexicon_fuzzy_search(
         click.echo("(dry-run; pass --apply to write to etymon_text_match)", err=True)
 
 
+@lexicon.command("disambiguate-fuzzy")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=True,
+)
+@click.option(
+    "--apply",
+    "apply_changes",
+    is_flag=True,
+    default=False,
+    help="Apply the disambiguator's verdicts to etymon_text_match. Without this, dry-run.",
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=None,
+    help="Process at most N ambiguous rows (smoke testing).",
+)
+@click.option(
+    "--model",
+    type=str,
+    default=None,
+    help="Override the Gemini model. Default: $WYRD_GEMINI_MODEL or gemini-2.5-flash.",
+)
+@click.option(
+    "--timeout",
+    type=float,
+    default=120.0,
+    show_default=True,
+)
+def lexicon_disambiguate_fuzzy(
+    db_path: Path,
+    apply_changes: bool,
+    limit: int | None,
+    model: str | None,
+    timeout: float,
+) -> None:
+    """Re-resolve fuzzy text-matches that have multiple plausible etymons.
+
+    Per wyrd-6z7: when a body word X is within edit distance ≤ 1 of more
+    than one canonical etymon, gloss anchoring alone isn't reliable. This
+    command finds those ambiguous rows and asks Gemini to pick the right
+    etymon based on the surrounding passage. The chosen row's `method`
+    becomes 'llm-disambiguated-v1' and the model's reasoning is stored in
+    `disambiguator_reason`. Rows where the model says "none" are deleted.
+
+    Cost gate: rows with only one candidate etymon (no ambiguity) are
+    skipped entirely — no LLM call.
+    """
+    # Local imports keep the disambiguator deps off the cold-start path
+    # for unrelated CLI commands.
+    from wyrd.generators.kenning.disambiguator import (
+        apply_disambiguator_result,
+        disambiguate_one,
+        find_ambiguous_rows,
+    )
+    from wyrd.generators.kenning.gemini_extractor import GeminiClient
+
+    with LexiconDB(db_path) as db:
+        cases = find_ambiguous_rows(db, max_distance=1, limit=limit)
+
+    if not cases:
+        click.echo("No ambiguous fuzzy rows found.", err=True)
+        return
+
+    click.echo(
+        f"{len(cases)} ambiguous rows found. {'Applying' if apply_changes else 'Dry-run'}.",
+        err=True,
+    )
+
+    client = GeminiClient(timeout_s=timeout, **({"model": model} if model else {}))
+
+    counts = {"kept": 0, "reassigned": 0, "deleted": 0, "errors": 0}
+    write_db = LexiconDB(db_path) if apply_changes else None
+    try:
+        for case in cases:
+            try:
+                result = disambiguate_one(client, case)
+            except RuntimeError as e:
+                counts["errors"] += 1
+                click.echo(f"  ERROR  {case.matched_form:20} {e}", err=True)
+                continue
+            choice_str = (
+                f"id={result.chosen_etymon_id}" if result.chosen_etymon_id is not None else "none"
+            )
+            click.echo(
+                f"  {case.matched_form:20} → {choice_str} (conf={result.confidence}) "
+                f"— {result.reason[:80]}",
+                err=True,
+            )
+            if apply_changes and write_db is not None:
+                action = apply_disambiguator_result(write_db, case, result)
+                # Commit per-row so a crash mid-run doesn't lose previously
+                # disambiguated rows (the LLM calls have already been paid for).
+                write_db.commit()
+            else:
+                # Dry-run: mirror the same action-classification so the
+                # summary tells the operator what would have happened.
+                if result.chosen_etymon_id is None:
+                    action = "deleted"
+                elif result.chosen_etymon_id == case.current_etymon_id:
+                    action = "kept"
+                else:
+                    action = "reassigned"
+            counts[action] += 1
+    finally:
+        if write_db is not None:
+            write_db.close()
+
+    click.echo("", err=True)
+    click.echo(f"Disambiguator summary: {counts}", err=True)
+    if not apply_changes:
+        click.echo("(dry-run; pass --apply to update etymon_text_match)", err=True)
+
+
 @lexicon.command("normalize-ocr")
 @click.option(
     "--db",

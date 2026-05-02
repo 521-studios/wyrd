@@ -480,6 +480,7 @@ def _migrate_text_match_table(db: LexiconDB, applied: dict[str, bool]) -> None:
               edit_distance INTEGER NOT NULL DEFAULT 0,
               snippet       TEXT,
               method        TEXT NOT NULL DEFAULT 'reverse-search-v1',
+              disambiguator_reason TEXT,
               UNIQUE (etymon_id, source_id, matched_form)
             );
             CREATE INDEX idx_etymon_text_match_etymon ON etymon_text_match(etymon_id);
@@ -497,6 +498,9 @@ def _migrate_text_match_table(db: LexiconDB, applied: dict[str, bool]) -> None:
             "NOT NULL DEFAULT 'reverse-search-v1'"
         )
         applied["etymon_text_match.method"] = True
+    if "disambiguator_reason" not in text_match_cols:
+        db.conn.execute("ALTER TABLE etymon_text_match ADD COLUMN disambiguator_reason TEXT")
+        applied["etymon_text_match.disambiguator_reason"] = True
 
 
 def _create_mining_run_table(db: LexiconDB, applied: dict[str, bool]) -> None:
@@ -956,7 +960,7 @@ def reverse_search_attestations(
     }
 
 
-def _levenshtein(a: str, b: str, *, max_distance: int | None = None) -> int:
+def levenshtein(a: str, b: str, *, max_distance: int | None = None) -> int:
     """Compute Levenshtein edit distance between two strings.
 
     Pure-python DP implementation. If max_distance is given and the early-
@@ -1095,7 +1099,7 @@ def fuzzy_search_attestations(
                 # lookup gates the expensive Levenshtein call.
                 if tok in other_canonicals:
                     continue
-                d = _levenshtein(norm_form, tok, max_distance=max_distance)
+                d = levenshtein(norm_form, tok, max_distance=max_distance)
                 if d > max_distance or d == 0:
                     continue
                 # Found a fuzzy candidate. Now verify meaning: does any gloss
