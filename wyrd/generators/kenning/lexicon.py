@@ -1682,6 +1682,11 @@ def _group_families_into_subjects(families: list[dict[str, Any]]) -> list[dict[s
 
 def _build_words_for_group(fams: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Assemble the `words` list for a subject grouping multiple families."""
+    # Sort families by canonical_form/language so the export output is
+    # deterministic — root_ids are AUTOINCREMENT and therefore unstable
+    # across DB rebuilds, which would otherwise churn the diff in version
+    # control even when no semantic content changed.
+    fams = sorted(fams, key=lambda f: (f["root_canonical_form"], f["root_language"]))
     combined_forms: dict[str, list[str]] = {}
     for fam in fams:
         for lang, forms in fam["forms_by_lang"].items():
