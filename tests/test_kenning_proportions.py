@@ -5,7 +5,12 @@ from __future__ import annotations
 import random
 from collections import Counter
 
-from wyrd.generators.kenning.proportions import _blend_uniform, weighted_choice
+from wyrd.generators.kenning.proportions import (
+    _blend_harsh,
+    _blend_uniform,
+    _harshness_score,
+    weighted_choice,
+)
 
 
 def test_weighted_choice_all_zero_weights_returns_none():
@@ -335,3 +340,164 @@ def test_newname_str_falls_back_per_element_when_rendered_entry_is_none():
         rendered=[["Brycg", None]],
     )
     assert str(new_name) == "Brycgwater"
+
+
+# --- D6 --harsh: phonological harshness skew -----------------------------
+
+
+def test_harshness_score_stop_finals_score_higher_than_vowel_finals():
+    """A stop-final cluster-heavy morpheme scores strictly higher than a
+    vowel-final one — the load-bearing relative ordering for the knob."""
+    assert _harshness_score("shuck") > _harshness_score("baron")
+    assert _harshness_score("crag") > _harshness_score("ley")
+    assert _harshness_score("fork") > _harshness_score("borough")
+
+
+def test_harshness_score_dashes_stripped():
+    """Usage keys carry leading/trailing dashes (-ham, Bridg-, -y); the
+    scorer ignores them so the score reflects the morpheme itself."""
+    assert _harshness_score("-ham") == _harshness_score("ham")
+    assert _harshness_score("Bridg-") == _harshness_score("bridg")
+
+
+def test_harshness_score_in_unit_range():
+    """All scores fall within [0, 1]. Caller's reweight assumes this range."""
+    for usage in ["a", "i", "ham", "shuck", "crag", "Bridg-", "-water", "Saint", ""]:
+        score = _harshness_score(usage)
+        assert 0.0 <= score <= 1.0, f"{usage!r} → {score}"
+
+
+def test_blend_harsh_at_zero_returns_input_weights_unchanged():
+    """harshness=0 leaves every weight identical to the input. Bit-stable
+    fast-path contract for the --harsh knob."""
+    items = [("shuck", 10), ("ham", 5), ("baron", 3)]
+    blended = _blend_harsh(items, 0.0)
+    assert blended == items
+
+
+def test_blend_harsh_at_one_zeroes_pure_vowel_keys():
+    """harshness=1 with the multiplier 2*score sends pure-vowel ("a") to
+    weight 0 because its score is 0. A stop-final key keeps positive weight."""
+    items = [("a", 100), ("shuck", 10)]
+    blended = _blend_harsh(items, 1.0)
+    weights = dict(blended)
+    assert weights["a"] == 0.0
+    assert weights["shuck"] > 0.0
+
+
+def test_blend_harsh_empty_input_returns_input():
+    assert _blend_harsh([], 0.5) == []
+
+
+def test_blend_harsh_distribution_skews_toward_harsh_via_monte_carlo():
+    """At harshness=1 with empirical weights split between a soft key and a
+    harsh key, sampling lands the harsh key far more often than empirical
+    alone would predict. Wide tolerance against RNG variance."""
+    items = [("shuck", 1), ("baron", 9)]  # baron is 9x in empirical
+    rng = random.Random(0)
+    plain_counts = Counter(weighted_choice(rng, items) for _ in range(2000))
+    rng = random.Random(0)
+    harsh_counts = Counter(weighted_choice(rng, _blend_harsh(items, 1.0)) for _ in range(2000))
+    # Plain: baron dominates (~90%). Harsh: shuck's score is much higher,
+    # which counteracts baron's empirical lead — at harshness=1 shuck
+    # should appear noticeably more often than the plain ~10%.
+    assert plain_counts["baron"] > plain_counts["shuck"]
+    assert harsh_counts["shuck"] > plain_counts["shuck"]
+
+
+def test_generator_select_harshness_zero_takes_fast_path():
+    """At harshness=0, Generator.select hits weighted_choice directly with
+    unmodified empirical weights — bit-stable with the pre-D6 path."""
+    from wyrd.generators.kenning.proportions import Generator
+
+    rng_a = random.Random(42)
+    rng_b = random.Random(42)
+    g = Generator(tag_db={}, elements={"-ham": 90, "-shuck": 10})
+    pre_d6 = weighted_choice(rng_a, list(g.elements.items()))
+    via_select = g.select(rng_b, harshness=0.0)
+    assert pre_d6 == via_select
+
+
+def test_generator_select_harshness_one_skews_toward_harsh_keys():
+    """At harshness=1, monte-carlo over 2000 picks shifts the empirical
+    90:10 split (ham:shuck) toward shuck enough to detect."""
+    from wyrd.generators.kenning.proportions import Generator
+
+    g = Generator(tag_db={}, elements={"-ham": 90, "-shuck": 10})
+    counts = Counter(g.select(random.Random(i), harshness=1.0) for i in range(2000))
+    plain_counts = Counter(g.select(random.Random(i), harshness=0.0) for i in range(2000))
+    # Sanity: plain has -ham dominant.
+    assert plain_counts["-ham"] > 1500
+    # Harsh: -shuck (stop-final) gets a meaningful share.
+    assert counts["-shuck"] > plain_counts["-shuck"]
+
+
+def test_generator_select_composes_harsh_and_novelty():
+    """harshness=1 + novelty=1 → uniform over the bucket (novelty wipes
+    empirical, including the harsh-skew). Same monte-carlo shape as the
+    novelty-alone test."""
+    from wyrd.generators.kenning.proportions import Generator
+
+    g = Generator(tag_db={}, elements={"-ham": 99, "-shuck": 1})
+    counts = Counter(
+        g.select(random.Random(i), novelty=1.0, harshness=1.0) for i in range(2000)
+    )
+    assert 800 < counts["-ham"] < 1200
+    assert 800 < counts["-shuck"] < 1200
+
+
+# --- D8 explainer: <lemma>@<label> surfacing -----------------------------
+
+
+def test_description_no_inflection_labels_unchanged():
+    """At default (inflection_labels=None), description() emits the historic
+    `lemma (sources gloss)` form per element. Bit-stable with pre-D8."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import NewName
+
+    m = Meaning("-cot", [], ["cottage"], {"old_english": ["cot"]})
+    new_name = NewName(
+        struct=None,
+        meaning_db={"-cot": [m]},
+        name=[["-cot"]],
+    )
+    assert new_name.description() == "cot (EN cottage)"
+
+
+def test_description_emits_at_label_when_inflection_picked():
+    """When inflection_labels carries a non-None label for an element, the
+    explainer surfaces `lemma@label (sources gloss)`."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import NewName
+
+    m = Meaning("-cot", [], ["cottage"], {"old_english": ["cot", "cotum"]})
+    new_name = NewName(
+        struct=None,
+        meaning_db={"-cot": [m]},
+        name=[["-cot"]],
+        rendered=[["cotum"]],
+        inflection_labels=[["dative_or_pl"]],
+    )
+    assert new_name.description() == "cot@dative_or_pl (EN cottage)"
+
+
+def test_description_handles_mixed_labels_within_word():
+    """A multi-element word where only one position has an inflection label
+    surfaces @label only on that position. The other element stays bare."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import NewName
+
+    bridg = Meaning("Bridg-", [], ["bridge"], {"old_english": ["brycg"]})
+    water = Meaning("-water", [], ["water"], {"old_english": ["wæter"]})
+    new_name = NewName(
+        struct=None,
+        meaning_db={"Bridg-": [bridg], "-water": [water]},
+        name=[["Bridg-", "-water"]],
+        inflection_labels=[[None, "genitive_strong"]],
+    )
+    # Multi-element words keep dashes in the head per the existing
+    # description() shape.
+    assert (
+        new_name.description()
+        == "Bridg- (EN bridge) -water@genitive_strong (EN water)"
+    )

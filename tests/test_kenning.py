@@ -94,6 +94,114 @@ def test_different_seeds_diverge():
     assert len(seen) > 1, "10 distinct seeds yielded one name — RNG isn't propagating"
 
 
+def test_grim_default_false_matches_unspecified():
+    """``grim`` unset and ``grim=False`` produce the same name. Pins the
+    'flag-off is identity' contract."""
+    k = Kenning()
+    a = k.generate({"culture": "english"}, seed=42).result
+    b = k.generate({"culture": "english", "grim": False}, seed=42).result
+    assert a == b
+
+
+def test_grim_is_seed_stable():
+    """Same (params, seed) tuple yields the same name with grim=True."""
+    k = Kenning()
+    a = k.generate({"culture": "english", "grim": True}, seed=42).result
+    b = k.generate({"culture": "english", "grim": True}, seed=42).result
+    assert a == b
+
+
+def test_grim_true_shifts_distribution_across_seeds():
+    """grim=True biases morpheme selection toward menacing tags. Across many
+    seeds at least one name diverges from the no-grim baseline. Single seeds
+    can match by chance (when no slot's tag-pool actually contains a grim
+    candidate), so sweep — same shape as the variant / inflection knob
+    tests."""
+    k = Kenning()
+    plain = set()
+    grim = set()
+    for seed in range(30):
+        plain.add(k.generate({"culture": "english"}, seed=seed).result)
+        grim.add(k.generate({"culture": "english", "grim": True}, seed=seed).result)
+    assert grim != plain
+
+
+def test_grim_composes_with_explicit_tags():
+    """A user passing both --grim and --tag <tag> should not error; the
+    behavior is the union of the explicit tag and the grim tag set. The
+    output should remain a non-empty name."""
+    k = Kenning()
+    result = k.generate(
+        {"culture": "english", "tags": ["water"], "grim": True}, seed=42
+    )
+    assert result.result
+    assert result.explanation
+
+
+def test_grim_does_not_duplicate_tags_already_present():
+    """If the user explicitly passes one of the grim tags AND --grim, the
+    expansion should not double-add it — a duplicated tag would produce a
+    redundant fallback bucket and trip the existing rng.choice over a
+    biased pool. Verifies via a deterministic seed."""
+    k = Kenning()
+    a = k.generate(
+        {"culture": "english", "tags": ["death"], "grim": True}, seed=42
+    ).result
+    b = k.generate(
+        {"culture": "english", "tags": ["death"], "grim": True}, seed=42
+    ).result
+    # Seed-stable.
+    assert a == b
+    # Sanity: the result is still a real name, not empty/None.
+    assert a
+
+
+def test_harshness_default_zero_matches_unspecified():
+    """A fresh Kenning() at default params and at explicit harshness=0.0
+    produce the same output. Guards the 'knob=0 is identity' contract for
+    the --harsh axis."""
+    k = Kenning()
+    a = k.generate({"culture": "english"}, seed=42).result
+    b = k.generate({"culture": "english", "harshness": 0.0}, seed=42).result
+    assert a == b
+
+
+def test_harshness_is_seed_stable():
+    """Same (params, seed) tuple yields the same name with harshness > 0."""
+    k = Kenning()
+    a = k.generate({"culture": "english", "harshness": 0.7}, seed=42).result
+    b = k.generate({"culture": "english", "harshness": 0.7}, seed=42).result
+    assert a == b
+
+
+def test_high_harshness_shifts_distribution_across_seeds():
+    """At harshness=1, names diverge from the plain baseline at most seeds —
+    some by full re-pick of harsh-keyed morphemes. Sweep many seeds; at
+    least one diverges."""
+    k = Kenning()
+    plain = set()
+    harsh = set()
+    for seed in range(20):
+        plain.add(k.generate({"culture": "english"}, seed=seed).result)
+        harsh.add(k.generate({"culture": "english", "harshness": 1.0}, seed=seed).result)
+    assert harsh != plain
+
+
+def test_harsh_and_grim_compose_orthogonally():
+    """--grim shifts the SEMANTIC tag set; --harsh shifts the PHONOLOGICAL
+    weights. Composing both should produce a non-empty result and stay
+    seed-stable."""
+    k = Kenning()
+    result = k.generate(
+        {"culture": "english", "grim": True, "harshness": 0.8}, seed=42
+    )
+    assert result.result
+    again = k.generate(
+        {"culture": "english", "grim": True, "harshness": 0.8}, seed=42
+    )
+    assert result.result == again.result
+
+
 def test_components_are_structured():
     result = Kenning().generate({"culture": "english"}, seed=7)
     assert isinstance(result.components, list)

@@ -21,8 +21,9 @@ class Generator:
     def add_item(self, key, proportion):
         self.elements[key] = proportion
 
-    def select(self, rng, *tags, novelty: float = 0.0):
-        """Pick one element, optionally blending toward a uniform marginal.
+    def select(self, rng, *tags, novelty: float = 0.0, harshness: float = 0.0):
+        """Pick one element, optionally blending toward a uniform marginal
+        and/or biasing toward phonologically-harsh keys.
 
         Per D17, the runtime samples from a mixture
         ``(1-novelty)·empirical + novelty·uniform``: at ``novelty=0`` (default)
@@ -32,6 +33,17 @@ class Generator:
         without abandoning the corpus. The full D17 design layers a third
         tag-class-prior term, deferred to a follow-up since it requires
         threading neighbor-context through the structure walk.
+
+        Per D6, ``harshness`` re-weights each candidate by its phonological
+        harshness score (computed from the key string) — at ``harshness=0``
+        every key keeps its empirical weight; at ``harshness=1`` soft-keyed
+        items go to zero and harsh-keyed items keep 2× their original weight.
+        Composition order: harshness is applied first to the empirical
+        weights, then ``_blend_uniform`` blends the result with the uniform
+        marginal. So ``--harsh 1 --novelty 1`` yields uniform sampling over
+        the entire bucket (because ``_blend_uniform`` ignores the empirical
+        side at novelty=1), while ``--harsh 1 --novelty 0`` is pure
+        harsh-empirical.
         """
         items = self.elements.items()
         if len(tags) > 0:
@@ -39,9 +51,13 @@ class Generator:
         if len(items) == 0:
             return None
         items_list = list(items)
-        if novelty <= 0:
+        if harshness <= 0 and novelty <= 0:
             return weighted_choice(rng, items_list)
-        return weighted_choice(rng, _blend_uniform(items_list, novelty))
+        if harshness > 0:
+            items_list = _blend_harsh(items_list, harshness)
+        if novelty > 0:
+            items_list = _blend_uniform(items_list, novelty)
+        return weighted_choice(rng, items_list)
 
     def has_tag(self, *tags):
         return len(self.filter_for_tag(*tags)) > 0
@@ -71,8 +87,8 @@ class MeaningGenerator:
                 gen = self.generators.setdefault(key, Generator(self.tag_db, {}))
                 gen.add_item(usage, proportion)
 
-    def select(self, rng, key, *tags, novelty: float = 0.0):
-        return self.generators[key].select(rng, *tags, novelty=novelty)
+    def select(self, rng, key, *tags, novelty: float = 0.0, harshness: float = 0.0):
+        return self.generators[key].select(rng, *tags, novelty=novelty, harshness=harshness)
 
 
 class NameGenerator:
@@ -88,11 +104,12 @@ class NameGenerator:
         spelling_variety: float = 0.0,
         novelty: float = 0.0,
         inflection_density: float = 0.0,
+        harshness: float = 0.0,
     ):
         """Pick a structure, fill it with morpheme usages, optionally render
         each usage as an attested archaic spelling variant (D18) or an
         inflected form (D8), and blend sampling toward a uniform marginal
-        (D17).
+        (D17) or harsh-keyed empirical (D6).
 
         ``spelling_variety`` is the probability *per morpheme* that the
         rendered surface form is drawn from the etymon's variant pool
@@ -107,6 +124,12 @@ class NameGenerator:
         inflection's grammatical-case label is preserved in
         ``new_name.inflection_labels`` for the explainer.
 
+        ``harshness`` (D6) re-weights each morpheme-bucket toward
+        phonologically-harsh keys (stop-final, cluster-heavy). Composes
+        orthogonally with ``novelty``: the harsh skew applies to empirical
+        weights first, then ``novelty`` blends the result with the uniform
+        marginal.
+
         When both inflection_density and spelling_variety would fire on the
         same morpheme, inflection wins — it carries grammatical meaning
         that the variant axis doesn't.
@@ -114,9 +137,11 @@ class NameGenerator:
         items = list(self.structs.items())
         struct = weighted_choice(rng, items)
         if len(tags) == 0:
-            new_name = self._select_no_tag(rng, struct, novelty=novelty)
+            new_name = self._select_no_tag(rng, struct, novelty=novelty, harshness=harshness)
         else:
-            new_name = self._select_tags(rng, struct, *tags, novelty=novelty)
+            new_name = self._select_tags(
+                rng, struct, *tags, novelty=novelty, harshness=harshness
+            )
         if spelling_variety > 0 or inflection_density > 0:
             rendered, labels = self._render_substitutions(
                 rng, new_name.name, spelling_variety, inflection_density
@@ -186,19 +211,23 @@ class NameGenerator:
                 return _mimic_case(usage, variant), None
         return canonical, None
 
-    def _select_no_tag(self, rng, struct, *, novelty: float = 0.0):
+    def _select_no_tag(self, rng, struct, *, novelty: float = 0.0, harshness: float = 0.0):
         words = []
         for w in struct:
             keys = []
             for key in w:
-                keys.append(self.meaning_gen.select(rng, key, novelty=novelty))
+                keys.append(
+                    self.meaning_gen.select(rng, key, novelty=novelty, harshness=harshness)
+                )
             words.append(keys)
         return NewName(struct, self.meaning_db, words)
 
-    def _select_tags(self, rng, struct, *tags, novelty: float = 0.0):
-        name_pool = [self._select_no_tag(rng, struct, novelty=novelty)]
+    def _select_tags(self, rng, struct, *tags, novelty: float = 0.0, harshness: float = 0.0):
+        name_pool = [self._select_no_tag(rng, struct, novelty=novelty, harshness=harshness)]
         for tag in tags:
-            name_pool.append(self._select_tag(rng, struct, tag, novelty=novelty))
+            name_pool.append(
+                self._select_tag(rng, struct, tag, novelty=novelty, harshness=harshness)
+            )
         words = []
         for i in range(len(struct)):
             keys = []
@@ -215,12 +244,14 @@ class NameGenerator:
             words.append(keys)
         return NewName(struct, self.meaning_db, words)
 
-    def _select_tag(self, rng, struct, tag, *, novelty: float = 0.0):
+    def _select_tag(self, rng, struct, tag, *, novelty: float = 0.0, harshness: float = 0.0):
         words = []
         for w in struct:
             keys = []
             for key in w:
-                keys.append(self.meaning_gen.select(rng, key, tag, novelty=novelty))
+                keys.append(
+                    self.meaning_gen.select(rng, key, tag, novelty=novelty, harshness=harshness)
+                )
             words.append(keys)
         return NewName(struct, self.meaning_db, words)
 
@@ -266,17 +297,25 @@ class NewName:
 
     def description(self):
         results = []
-        for word in self.name:
+        for wi, word in enumerate(self.name):
             single = len(word) == 1
-            for e in word:
+            for ei, e in enumerate(word):
                 if e is None:
                     continue
-                part = [e.replace("-", "") if single else e, " ("]
+                lemma = e.replace("-", "") if single else e
+                label = self._inflection_label_for(wi, ei)
+                head = f"{lemma}@{label}" if label else lemma
                 meanings = [self._find_meaning(m) for m in self.meaning_db[e]]
-                part.append(" or ".join(meanings))
-                part.append(")")
-                results.append("".join(part))
+                results.append(f"{head} ({' or '.join(meanings)})")
         return " ".join(results)
+
+    def _inflection_label_for(self, wi: int, ei: int) -> str | None:
+        if self.inflection_labels is None:
+            return None
+        try:
+            return self.inflection_labels[wi][ei]
+        except IndexError:
+            return None
 
     def components(self):
         """Structured component breakdown for the API envelope."""
@@ -370,6 +409,80 @@ def _blend_uniform(items, novelty: float):
         # docstring promises.
         return [(k, 1 / n) for k, _ in items]
     return [(k, (1 - novelty) * (max(w, 0) / total) + novelty / n) for k, w in items]
+
+
+# D6 --harsh: phonological harshness scoring. Heuristic, not phonotactic.
+# Goal is order-of-magnitude separation between vowel-soft morphemes
+# ('ham', 'baron', 'borough') and stop-cluster-heavy ones ('shuck', 'crag',
+# 'fork'). The exact ranking isn't load-bearing — only relative ordering
+# matters for the per-item multiplier. Common OE/ON long-vowel diacritics
+# count as vowels so 'tūn' / 'lēah' don't get falsely classified.
+_VOWELS = frozenset("aeiouyæāēīōūȳáéíóúýǣǿǫâêîôûŵŷ")
+_VOICED_STOPS = frozenset("bdg")
+_VOICELESS_STOPS = frozenset("pktc")
+_NASALS = frozenset("nm")
+
+
+def _harshness_score(usage: str) -> float:
+    """Phonological harshness in [0, 1]. Higher = more menacing-feeling.
+
+    Combines three signals on the dash-stripped lowercased usage:
+
+    - Coda harshness: stops at the end (b/d/g, p/t/k, c) score 1.0; nasals
+      0.4; vowels 0.0; everything else (l/r/s/h/f/etc.) 0.5.
+    - Cluster density: fraction of adjacent-consonant positions.
+    - Consonant density: non-vowel chars / total chars.
+
+    Composition is a simple weighted sum (45/35/20) chosen so coda dominates
+    perception ('cot' > 'co'), with cluster + density as tiebreakers. This
+    is meant for a sampling reweight, not for serious phonological work.
+    """
+    s = "".join(c for c in usage.lower() if c.isalpha())
+    if not s:
+        return 0.5
+    n = len(s)
+
+    last = s[-1]
+    if last in _VOICED_STOPS or last in _VOICELESS_STOPS:
+        coda_score = 1.0
+    elif last in _NASALS:
+        coda_score = 0.4
+    elif last in _VOWELS:
+        coda_score = 0.0
+    else:
+        coda_score = 0.5
+
+    cluster_count = 0
+    consonant_count = 0
+    for i, c in enumerate(s):
+        if c not in _VOWELS:
+            consonant_count += 1
+            if i > 0 and s[i - 1] not in _VOWELS:
+                cluster_count += 1
+    cluster_score = cluster_count / max(1, n - 1)
+    consonant_density = consonant_count / n
+
+    return min(1.0, 0.45 * coda_score + 0.35 * cluster_score + 0.2 * consonant_density)
+
+
+def _blend_harsh(items, harshness: float):
+    """Re-weight items by phonological harshness score.
+
+    Each (key, weight) becomes (key, weight * (1 - harshness + harshness *
+    2 * score)) where score ∈ [0, 1] is computed from the key string. At
+    ``harshness=0`` every multiplier is 1.0 (bit-stable); at ``harshness=1``
+    soft-keyed items go to weight 0 and harsh-keyed items get 2× their
+    empirical weight.
+
+    The 2× scaling is deliberate: an absolute multiplier of 0..1 would
+    mean even harsh=1 only halves the mean weight, leaving soft items
+    competitive. 0..2 puts soft items at 0 at the harshness=1 limit.
+
+    Callers should fast-path ``harshness <= 0`` to avoid re-allocating.
+    """
+    if not items:
+        return items
+    return [(k, max(w, 0) * (1 - harshness + harshness * 2 * _harshness_score(k))) for k, w in items]
 
 
 def weighted_choice(rng: random.Random, choices):
