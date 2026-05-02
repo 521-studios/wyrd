@@ -1117,8 +1117,7 @@ def lexicon_review(
                     book_declined += 1
                     breakdown = "+".join(el.form for el in result.entry.elements)
                     click.echo(
-                        f"  DROPPED {name:24} ({dt:.1f}s)  {breakdown:30}  "
-                        f"conf=low (writer skips)",
+                        f"  DROPPED {name:24} ({dt:.1f}s)  {breakdown:30}  conf=low (writer skips)",
                         err=True,
                     )
                     continue
