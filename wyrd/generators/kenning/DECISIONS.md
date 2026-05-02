@@ -209,6 +209,21 @@ one edit apart and mean entirely different things. The gloss anchor
 filters coincidental near-matches without losing the legitimate
 spelling drift case (`denu` → `dene`, `denū`, `dená`).
 
+**Refinement (wyrd-c3x, 2026-05-02)**: gloss anchoring on its own is
+too permissive on generic gloss words. ON `herath` ("district",
+glossed "land/area/district") was claiming OE `heath` as a fuzzy
+variant 47 times across 5 sources because "land" co-occurs with
+"heath" routinely in scholarly toponym discussion. Two morphemes,
+unrelated etymologies, but the gloss anchor fired anyway.
+
+The fix is structural rather than statistical: if the matched body
+token is itself a canonical etymon in the lexicon, suppress the fuzzy
+claim entirely. The body word is its own thing — not a fuzzy variant
+of someone else. OCR variants between two etymons (`bōthl` ≈ `botl`)
+are `normalize-ocr`'s responsibility upstream, not fuzzy-search's.
+This refinement removed 131 false-positive rows from
+`etymon_text_match` and prevents the shape from reappearing.
+
 ## D16. Co-occurrence lives at the tag level, not the morpheme level.
 
 The corpus statistics emitted in `_proportions_from` track joint

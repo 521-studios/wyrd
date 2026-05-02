@@ -1064,6 +1064,19 @@ def fuzzy_search_attestations(
         tokens = set(token_re.findall(text))
         vocab_by_source[source_id] = sorted(tokens)
 
+    # Build the set of canonical forms (OCR-normalized + lowercased) so
+    # we can suppress fuzzy claims where the body word is itself a
+    # canonical etymon. Per wyrd-c3x: the gloss anchor too easily fires
+    # on generic glosses ("land", "area", "district") near body words
+    # that are independently attested as their own etymons (herath ↔ heath).
+    # OCR variants between two etymons should be merged by normalize-ocr
+    # upstream, not connected through fuzzy-search.
+    other_canonicals: set[str] = set()
+    for r in db.conn.execute(
+        "SELECT canonical_form FROM etymon WHERE merged_into_id IS NULL"
+    ):
+        other_canonicals.add(normalize_ocr_form(r["canonical_form"]).lower())
+
     matches: dict[int, list[tuple[str, str, int, int, str]]] = {}
     # value: (source_id, matched_form, distance, count, snippet)
     for etymon_id, form, glosses in candidates:
@@ -1080,6 +1093,11 @@ def fuzzy_search_attestations(
                     continue  # exact match — handled by reverse_search
                 d = _levenshtein(norm_form, tok, max_distance=max_distance)
                 if d > max_distance or d == 0:
+                    continue
+                # If `tok` is itself a canonical etymon (and not just an
+                # OCR-equal of `form`), it's not a fuzzy variant — it's
+                # its own thing. See wyrd-c3x.
+                if tok in other_canonicals and tok != norm_form:
                     continue
                 # Found a fuzzy candidate. Now verify meaning: does any gloss
                 # appear within ±gloss_window chars of this token's first
