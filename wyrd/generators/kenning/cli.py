@@ -17,6 +17,7 @@ import click
 
 from wyrd.generators.kenning import (
     CULTURES,
+    MOODS,
     Kenning,
     KenningExplain,
     anthropic_extractor,
@@ -145,25 +146,14 @@ def cli() -> None:
     ),
 )
 @click.option(
-    "--grim",
-    is_flag=True,
-    default=False,
+    "--mood",
+    "moods",
+    multiple=True,
     help=(
-        "D6 semantic-tag filter for menacing-feeling names. Composable union "
-        "of menacing tags (death, military, monster, undead, magic). Stacks "
-        "with --tag and is orthogonal to language choice."
-    ),
-)
-@click.option(
-    "--harsh",
-    "harshness",
-    type=click.FloatRange(0.0, 1.0),
-    default=0.0,
-    show_default=True,
-    help=(
-        "D6 phonological-harshness skew (0..1). At >0, sampling is biased "
-        "toward stop-final / cluster-heavy morphemes; soft-keyed morphemes "
-        "are damped. Orthogonal to --grim (semantic axis); composes with it."
+        "D6 stylistic-mood preset (repeatable). 'grim' applies a menacing "
+        "semantic-tag union; 'harsh' biases sampling toward stop-final / "
+        "cluster-heavy morphemes; 'harsh:VALUE' graduates the phonological "
+        "skew (e.g. 'harsh:0.5'). Multiple --mood flags compose."
     ),
 )
 def generate(
@@ -175,8 +165,7 @@ def generate(
     spelling_variety: float,
     novelty: float,
     inflection_density: float,
-    grim: bool,
-    harshness: float,
+    moods: tuple[str, ...],
 ) -> None:
     """Generate town names. Replaces Rando's `bin/generator`."""
     known_tags = set(available_tags()) | {"male name", "female name", "saint"}
@@ -186,6 +175,11 @@ def generate(
         click.echo("Available tags:", err=True)
         for t in sorted(known_tags - {"male name", "female name", "saint"}):
             click.echo(f"  {t}", err=True)
+        sys.exit(1)
+    bad_moods = [m for m in moods if m.split(":", 1)[0] not in MOODS]
+    if bad_moods:
+        click.echo(f"Unknown mood(s): {', '.join(bad_moods)}", err=True)
+        click.echo(f"Available moods: {', '.join(sorted(MOODS))}", err=True)
         sys.exit(1)
 
     resolved = resolve_seed(seed)
@@ -197,8 +191,7 @@ def generate(
         "spelling_variety": spelling_variety,
         "novelty": novelty,
         "inflection_density": inflection_density,
-        "grim": grim,
-        "harshness": harshness,
+        "mood": list(moods),
     }
     for _ in range(count):
         result = kenning.generate(params, seed_rng.randrange(2**63))

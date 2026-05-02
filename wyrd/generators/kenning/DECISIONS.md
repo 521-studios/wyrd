@@ -106,27 +106,38 @@ villages. The data doesn't decide.
 Why: avoids reinforcing the "Slavic = orc" / "Norman = villain" patterns
 that fantasy genre has often relied on without examining.
 
-**Runtime status (wyrd-9yf, 2026-05-02): wired.** Both axes are exposed
-as boolean / float CLI flags and JSON params:
+**Runtime status (wyrd-9yf + wyrd-tbd, 2026-05-02): wired under a
+single `--mood` flag.** Two axes ride under one GM-facing surface:
 
-- `--grim` (boolean) is a tag-union sugar over the menacing tag set
+- `--mood grim` applies a tag-union over the menacing tag set
   `(death, military, monster, undead, magic)` — the closest extant tags
   in the bundle (D6 originally specified
   `(grim, mortuary, monstrous, battle, wilderness)`, none of which exist
-  yet; the spec-named tags remain a future-mining target). The mapping
-  lives in `__init__.GRIM_TAGS` so it's adjustable in one place when new
-  tags land.
-- `--harsh` (0..1) is a per-bucket re-weight by phonological harshness
+  yet; the spec-named tags remain a future-mining target).
+- `--mood harsh` applies a per-bucket re-weight by phonological harshness
   score: stop-final / cluster-heavy keys get up to 2× their empirical
-  weight at `--harsh 1`, soft keys go to 0. The score combines coda
+  weight at full harshness, soft keys go to 0. The score combines coda
   harshness (45%), cluster density (35%), and consonant density (20%) on
   the dash-stripped lowercased usage. Composes orthogonally with
   `--novelty` (D17): harsh skew applies to empirical first, then novelty
   blends with uniform.
+- `--mood harsh:0.5` graduates the harshness skew via colon-suffix.
+- Multiple `--mood` flags compose by tag-union and max-harshness.
 
-Both default to off (bit-stable historical behavior). The harshness
-score is a heuristic — meant for relative ranking, not phonotactic
-fidelity. Per-language phonology integration (using the IPA tables in
+The mood vocabulary lives in `__init__.MOODS` as `{name: recipe}` so
+future presets (`pastoral`, `noble`, `mortuary`, etc.) drop in without
+changing the public surface.
+
+Power-user JSON API still exposes `harshness` (number, 0..1) for
+graduated control without the colon syntax; `harshness` and
+mood-derived harshness resolve via `max(...)`. The original `--grim`
+boolean / `--harsh` float flags were superseded by `--mood` because
+two parallel flags muddled axes that conceptually belong under one
+preset.
+
+Defaults to off (bit-stable historical behavior). The harshness score
+is a heuristic — meant for relative ranking, not phonotactic fidelity.
+Per-language phonology integration (using the IPA tables in
 `phonology.py` for a more principled score) is a future refinement.
 
 ## D7. Sensitivity heuristic for non-European corpora.

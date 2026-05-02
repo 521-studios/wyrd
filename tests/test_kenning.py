@@ -94,110 +94,148 @@ def test_different_seeds_diverge():
     assert len(seen) > 1, "10 distinct seeds yielded one name — RNG isn't propagating"
 
 
-def test_grim_default_false_matches_unspecified():
-    """``grim`` unset and ``grim=False`` produce the same name. Pins the
-    'flag-off is identity' contract."""
+def test_mood_empty_matches_unspecified():
+    """An empty mood list and an unset 'mood' param produce the same name.
+    Pins the 'no mood = identity' contract."""
     k = Kenning()
     a = k.generate({"culture": "english"}, seed=42).result
-    b = k.generate({"culture": "english", "grim": False}, seed=42).result
+    b = k.generate({"culture": "english", "mood": []}, seed=42).result
     assert a == b
 
 
-def test_grim_is_seed_stable():
-    """Same (params, seed) tuple yields the same name with grim=True."""
+def test_mood_is_seed_stable():
+    """Same (params, seed) tuple yields the same name with non-empty mood."""
     k = Kenning()
-    a = k.generate({"culture": "english", "grim": True}, seed=42).result
-    b = k.generate({"culture": "english", "grim": True}, seed=42).result
+    a = k.generate({"culture": "english", "mood": ["grim", "harsh"]}, seed=42).result
+    b = k.generate({"culture": "english", "mood": ["grim", "harsh"]}, seed=42).result
     assert a == b
 
 
-def test_grim_true_shifts_distribution_across_seeds():
-    """grim=True biases morpheme selection toward menacing tags. Across many
-    seeds at least one name diverges from the no-grim baseline. Single seeds
-    can match by chance (when no slot's tag-pool actually contains a grim
-    candidate), so sweep — same shape as the variant / inflection knob
-    tests."""
+def test_mood_grim_shifts_distribution_across_seeds():
+    """`mood: ['grim']` biases morpheme selection toward menacing tags.
+    Across many seeds at least one name diverges from the no-mood
+    baseline. Single seeds can match by chance (when no slot's tag-pool
+    actually contains a grim candidate), so sweep — same shape as the
+    variant / inflection knob tests."""
     k = Kenning()
     plain = set()
     grim = set()
     for seed in range(30):
         plain.add(k.generate({"culture": "english"}, seed=seed).result)
-        grim.add(k.generate({"culture": "english", "grim": True}, seed=seed).result)
+        grim.add(k.generate({"culture": "english", "mood": ["grim"]}, seed=seed).result)
     assert grim != plain
 
 
-def test_grim_composes_with_explicit_tags():
-    """A user passing both --grim and --tag <tag> should not error; the
-    behavior is the union of the explicit tag and the grim tag set. The
-    output should remain a non-empty name."""
+def test_mood_harsh_shifts_distribution_across_seeds():
+    """`mood: ['harsh']` biases sampling toward stop-final / cluster-heavy
+    morphemes. At least one seed in the sweep should diverge from the
+    no-mood baseline."""
     k = Kenning()
-    result = k.generate({"culture": "english", "tags": ["water"], "grim": True}, seed=42)
+    plain = set()
+    harsh = set()
+    for seed in range(20):
+        plain.add(k.generate({"culture": "english"}, seed=seed).result)
+        harsh.add(k.generate({"culture": "english", "mood": ["harsh"]}, seed=seed).result)
+    assert harsh != plain
+
+
+def test_mood_harsh_with_graduated_value_is_seed_stable():
+    """Colon-suffix syntax 'harsh:0.5' graduates the phonological skew.
+    Verifies the syntax parses and the result is reproducible."""
+    k = Kenning()
+    a = k.generate({"culture": "english", "mood": ["harsh:0.5"]}, seed=42).result
+    b = k.generate({"culture": "english", "mood": ["harsh:0.5"]}, seed=42).result
+    assert a == b
+
+
+def test_mood_harsh_graduated_differs_from_full():
+    """'harsh:0.5' produces a different distribution than full 'harsh'
+    (which defaults to 1.0). Sweep seeds — at least one should diverge."""
+    k = Kenning()
+    full = set()
+    half = set()
+    for seed in range(20):
+        full.add(k.generate({"culture": "english", "mood": ["harsh"]}, seed=seed).result)
+        half.add(k.generate({"culture": "english", "mood": ["harsh:0.5"]}, seed=seed).result)
+    assert full != half
+
+
+def test_mood_grim_and_harsh_compose():
+    """Two moods compose orthogonally: grim shifts the SEMANTIC tag set;
+    harsh shifts the PHONOLOGICAL weights. Combined output is non-empty
+    and seed-stable."""
+    k = Kenning()
+    result = k.generate({"culture": "english", "mood": ["grim", "harsh"]}, seed=42)
+    assert result.result
+    again = k.generate({"culture": "english", "mood": ["grim", "harsh"]}, seed=42)
+    assert result.result == again.result
+
+
+def test_mood_grim_composes_with_explicit_tags():
+    """Passing both `mood: ['grim']` and `tags: ['water']` should not error;
+    the behavior is the union of the explicit tag and the grim tag set."""
+    k = Kenning()
+    result = k.generate({"culture": "english", "tags": ["water"], "mood": ["grim"]}, seed=42)
     assert result.result
     assert result.explanation
 
 
-def test_grim_does_not_duplicate_tags_already_present():
-    """If the user explicitly passes one of the grim tags AND --grim, the
-    expansion should not double-add it — a duplicated tag would produce a
-    redundant fallback bucket and trip the existing rng.choice over a
-    biased pool. Verifies via a deterministic seed."""
+def test_mood_grim_does_not_duplicate_tags_already_present():
+    """If the user passes one of the grim tags AND mood:['grim'], the
+    expansion should not double-add it — a duplicated tag would produce
+    a redundant fallback bucket. Seed-stable across two calls."""
     k = Kenning()
-    a = k.generate({"culture": "english", "tags": ["death"], "grim": True}, seed=42).result
-    b = k.generate({"culture": "english", "tags": ["death"], "grim": True}, seed=42).result
-    # Seed-stable.
+    a = k.generate({"culture": "english", "tags": ["death"], "mood": ["grim"]}, seed=42).result
+    b = k.generate({"culture": "english", "tags": ["death"], "mood": ["grim"]}, seed=42).result
     assert a == b
-    # Sanity: the result is still a real name, not empty/None.
     assert a
 
 
-def test_harshness_default_zero_matches_unspecified():
-    """A fresh Kenning() at default params and at explicit harshness=0.0
-    produce the same output. Guards the 'knob=0 is identity' contract for
-    the --harsh axis."""
+def test_mood_unknown_name_raises():
+    """An unknown mood name surfaces a ValueError with the available set —
+    saves the caller a guessing game when they typo 'gri' or 'harsh-mode'."""
+    import pytest
+
     k = Kenning()
-    a = k.generate({"culture": "english"}, seed=42).result
-    b = k.generate({"culture": "english", "harshness": 0.0}, seed=42).result
-    assert a == b
+    with pytest.raises(ValueError, match="unknown mood"):
+        k.generate({"culture": "english", "mood": ["whimsical"]}, seed=42)
 
 
-def test_harshness_is_seed_stable():
-    """Same (params, seed) tuple yields the same name with harshness > 0."""
+def test_harshness_param_still_works_for_power_users():
+    """Direct `harshness: <float>` still works alongside (or in place of)
+    moods. The mood resolution uses max(harshness, mood-derived), so an
+    explicit harshness floors the result regardless of moods. Seed-stable."""
     k = Kenning()
     a = k.generate({"culture": "english", "harshness": 0.7}, seed=42).result
     b = k.generate({"culture": "english", "harshness": 0.7}, seed=42).result
     assert a == b
 
 
-def test_high_harshness_shifts_distribution_across_seeds():
-    """At harshness=1, names diverge from the plain baseline at most seeds —
-    some by full re-pick of harsh-keyed morphemes. Sweep many seeds; at
-    least one diverges."""
+def test_harshness_default_zero_matches_unspecified():
+    """`harshness=0.0` and unset produce the same name. Guards the
+    'knob=0 is identity' contract on the power-user surface."""
     k = Kenning()
-    plain = set()
-    harsh = set()
-    for seed in range(20):
-        plain.add(k.generate({"culture": "english"}, seed=seed).result)
-        harsh.add(k.generate({"culture": "english", "harshness": 1.0}, seed=seed).result)
-    assert harsh != plain
+    a = k.generate({"culture": "english"}, seed=42).result
+    b = k.generate({"culture": "english", "harshness": 0.0}, seed=42).result
+    assert a == b
 
 
-def test_harsh_and_grim_compose_orthogonally():
-    """--grim shifts the SEMANTIC tag set; --harsh shifts the PHONOLOGICAL
-    weights. Composing both should produce a non-empty result and stay
-    seed-stable."""
+def test_explicit_harshness_overrides_lower_mood_value():
+    """If the user passes both mood:['harsh:0.3'] and harshness:0.8,
+    max-wins resolution should keep 0.8 — the higher floor takes effect."""
     k = Kenning()
-    result = k.generate({"culture": "english", "grim": True, "harshness": 0.8}, seed=42)
-    assert result.result
-    again = k.generate({"culture": "english", "grim": True, "harshness": 0.8}, seed=42)
-    assert result.result == again.result
+    a = k.generate(
+        {"culture": "english", "mood": ["harsh:0.3"], "harshness": 0.8},
+        seed=42,
+    ).result
+    b = k.generate({"culture": "english", "harshness": 0.8}, seed=42).result
+    assert a == b
 
 
-def test_cli_grim_and_harsh_flags_wire_into_params():
-    """End-to-end CLI smoke: invoking `wyrd kenning generate english --grim
-    --harsh 1.0 --seed 42 -n 1 --no-describe` runs cleanly and produces a
-    non-empty name. Pins the click flag → params dict wiring so a future
-    rename (e.g. --harsh → --harshness) wouldn't silently break the CLI
-    surface."""
+def test_cli_mood_flag_wires_into_params():
+    """End-to-end CLI smoke: `wyrd kenning generate english --mood grim
+    --mood harsh --seed 42 -n 1 --no-describe` runs cleanly and produces
+    a non-empty name. Pins the click multi-flag → params dict wiring."""
     from click.testing import CliRunner
 
     from wyrd.generators.kenning.cli import cli
@@ -208,9 +246,10 @@ def test_cli_grim_and_harsh_flags_wire_into_params():
         [
             "generate",
             "english",
-            "--grim",
-            "--harsh",
-            "1.0",
+            "--mood",
+            "grim",
+            "--mood",
+            "harsh",
             "--seed",
             "42",
             "-n",
@@ -222,6 +261,24 @@ def test_cli_grim_and_harsh_flags_wire_into_params():
     name_lines = [ln for ln in result.output.splitlines() if ln.strip()]
     assert name_lines, f"no name produced; output was {result.output!r}"
     assert name_lines[0]
+
+
+def test_cli_mood_unknown_value_exits_nonzero():
+    """An unknown mood at the CLI surface exits 1 with a list of valid
+    choices on stderr. Catches typos before they reach the JSON path."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["generate", "english", "--mood", "whimsical", "--seed", "42", "-n", "1"],
+    )
+    assert result.exit_code != 0
+    assert "Unknown mood" in result.output
+    assert "grim" in result.output
+    assert "harsh" in result.output
 
 
 def test_components_are_structured():
