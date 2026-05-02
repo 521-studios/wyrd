@@ -1593,7 +1593,11 @@ def test_consensus_view_rolls_up_to_lemma(fresh_db: Path) -> None:
 def test_language_field_mapping_covers_known_codes() -> None:
     """LANGUAGE_FIELDS must cover every source-language field used in
     meanings.json. Catches regressions if a new root is added in JSON but the
-    seeder is forgotten."""
+    seeder is forgotten.
+
+    D18 spelling variants ride on per-language ``<lang>_variants`` keys; those
+    are handled by the runtime's load_meanings (split out into Meaning.variants)
+    rather than by LANGUAGE_FIELDS, so they're treated as known-handled here."""
     text = resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
     data = json.loads(text)
 
@@ -1603,7 +1607,9 @@ def test_language_field_mapping_covers_known_codes() -> None:
             seen_fields.update(word.keys())
 
     handled = LANGUAGE_FIELDS.keys() | NON_LANGUAGE_FIELDS
-    missing = seen_fields - handled
+    # Also tolerate the per-language variant pool fields emitted by the
+    # D18 export step, which legitimately don't map to a LANGUAGE_FIELDS code.
+    missing = {f for f in seen_fields - handled if not f.endswith("_variants")}
     assert not missing, f"Unhandled fields in meanings.json: {missing}"
 
 
@@ -1800,6 +1806,151 @@ def test_export_meanings_rolls_inflected_variants_into_lemma(fresh_db: Path) -> 
     # Lemma form leads; variants follow in the same language array.
     assert word["old_english"][0] == "cot"
     assert set(word["old_english"]) == {"cot", "cotan", "cotes"}
+
+
+def _add_text_match(db, etymon_id, source_id, matched_form, count, method="fuzzy-search-v1"):
+    """Helper: insert a row directly into etymon_text_match for D18 fixture
+    setup. The schema doesn't ship a write helper because the post-mining
+    pipeline owns this table."""
+    db.conn.execute(
+        "INSERT INTO etymon_text_match "
+        "(etymon_id, source_id, matched_form, match_count, method, edit_distance) "
+        "VALUES (?, ?, ?, ?, ?, 1)",
+        (etymon_id, source_id, matched_form, count, method),
+    )
+
+
+def test_export_meanings_emits_variant_pool_per_language(fresh_db: Path) -> None:
+    """An etymon with text-match rows whose matched_form differs from the
+    canonical_form gets a `<lang>_variants` field populated in its word
+    entry, ordered by descending weight (most-attested first)."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        db.upsert_source(id="src-a", title="A")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["bridge"],
+            tags=["water"],
+            modifier_type="Topographical",
+            words=[{"modern_usage": "Bridg-", "old_english": ["brycg"]}],
+        )
+        brycg_id = db.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = 'brycg'"
+        ).fetchone()["id"]
+        _add_text_match(db, brycg_id, "src-a", "brigge", 5)
+        _add_text_match(db, brycg_id, "src-a", "brige", 1)
+        # Same matched_form from a different source: weights sum.
+        _add_text_match(db, brycg_id, "rando-port", "brigge", 3)
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert "old_english_variants" in word
+    # Sorted by descending weight; brigge (5+3=8) leads brige (1).
+    assert word["old_english_variants"] == [
+        {"form": "brigge", "weight": 8},
+        {"form": "brige", "weight": 1},
+    ]
+
+
+def test_export_meanings_dedupes_variant_against_canonical_forms(
+    fresh_db: Path,
+) -> None:
+    """A matched_form that's already a canonical form of any family member
+    gets dropped from the variant pool — emitting it again would just
+    duplicate what's already in the language array."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        db.upsert_source(id="src-a", title="A")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["bridge"],
+            tags=["water"],
+            modifier_type="Topographical",
+            words=[{"modern_usage": "Bridg-", "old_english": ["brycg"]}],
+        )
+        brycg_id = db.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = 'brycg'"
+        ).fetchone()["id"]
+        # 'BRYCG' (case-insensitive match against canonical) should be dropped.
+        _add_text_match(db, brycg_id, "src-a", "BRYCG", 100)
+        # 'brigge' is genuinely different and should survive.
+        _add_text_match(db, brycg_id, "src-a", "brigge", 5)
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    forms = [v["form"] for v in word.get("old_english_variants", [])]
+    assert "brigge" in forms
+    assert "BRYCG" not in forms
+    assert "brycg" not in forms
+
+
+def test_export_meanings_aggregates_variants_across_descendants(
+    fresh_db: Path,
+) -> None:
+    """A reflex linked to a lemma surfaces variants from the lemma AND its
+    inflected descendants (D8 rollup composes with D18 variant pools).
+    Weights for the same matched_form across descendants sum together."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        db.upsert_source(id="src-a", title="A")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["cottage"],
+            tags=["habitation"],
+            modifier_type="Habitative",
+            words=[{"modern_usage": "-cot", "old_english": ["cot"]}],
+        )
+        cot_id = db.conn.execute("SELECT id FROM etymon WHERE canonical_form = 'cot'").fetchone()[
+            "id"
+        ]
+        cotan_id = db.upsert_etymon("cotan", "old-english")
+        cotes_id = db.upsert_etymon("cotes", "old-english")
+        db.conn.execute(
+            "UPDATE etymon SET lemma_id = ? WHERE id IN (?, ?)",
+            (cot_id, cotan_id, cotes_id),
+        )
+        # The lemma and its inflections each produce 'cotte' as a variant —
+        # weights should sum.
+        _add_text_match(db, cot_id, "src-a", "cotte", 4)
+        _add_text_match(db, cotan_id, "src-a", "cotte", 3)
+        _add_text_match(db, cotes_id, "rando-port", "cotte", 2)
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    variants = word["old_english_variants"]
+    assert variants == [{"form": "cotte", "weight": 9}]
+
+
+def test_emit_variant_list_sorts_by_descending_weight_then_form(
+    fresh_db: Path,
+) -> None:
+    """`_emit_variant_list` sorts (form, weight) pairs by descending weight,
+    breaking ties on form alphabetically — both axes matter for diff
+    stability across rebuilds."""
+    from wyrd.generators.kenning.lexicon import _emit_variant_list
+
+    out = _emit_variant_list({"alpha": 5, "beta": 5, "gamma": 7, "delta": 1})
+    assert out == [
+        {"form": "gamma", "weight": 7},
+        {"form": "alpha", "weight": 5},
+        {"form": "beta", "weight": 5},
+        {"form": "delta", "weight": 1},
+    ]
+
+
+def test_emit_variant_list_empty_input_returns_empty(fresh_db: Path) -> None:
+    from wyrd.generators.kenning.lexicon import _emit_variant_list
+
+    assert _emit_variant_list({}) == []
 
 
 def test_export_meanings_omits_merge_loser_as_separate_subject(

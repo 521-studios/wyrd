@@ -112,8 +112,36 @@ def cli() -> None:
     default=True,
     help="Print the morpheme breakdown after each name.",
 )
+@click.option(
+    "--spelling-variety",
+    type=click.FloatRange(0.0, 1.0),
+    default=0.0,
+    show_default=True,
+    help=(
+        "D18 spelling-variant substitution probability (0..1). At >0, each morpheme "
+        "is rolled for replacement with an attested archaic spelling drawn from "
+        "the etymon's variant pool."
+    ),
+)
+@click.option(
+    "--novelty",
+    type=click.FloatRange(0.0, 1.0),
+    default=0.0,
+    show_default=True,
+    help=(
+        "D17 mixture knob (0..1). 0 = pure empirical-frequency sampling (today's "
+        "behavior); 1 = uniform marginal over in-bucket morphemes; intermediate "
+        "values blend, allowing plausible-but-unattested combinations."
+    ),
+)
 def generate(
-    culture: str, tags: tuple[str, ...], count: int, seed: int | None, describe: bool
+    culture: str,
+    tags: tuple[str, ...],
+    count: int,
+    seed: int | None,
+    describe: bool,
+    spelling_variety: float,
+    novelty: float,
 ) -> None:
     """Generate town names. Replaces Rando's `bin/generator`."""
     known_tags = set(available_tags()) | {"male name", "female name", "saint"}
@@ -128,7 +156,12 @@ def generate(
     resolved = resolve_seed(seed)
     seed_rng = rng_for(resolved)
     kenning = Kenning()
-    params = {"culture": culture, "tags": list(tags)}
+    params = {
+        "culture": culture,
+        "tags": list(tags),
+        "spelling_variety": spelling_variety,
+        "novelty": novelty,
+    }
     for _ in range(count):
         result = kenning.generate(params, seed_rng.randrange(2**63))
         click.echo(result.result)

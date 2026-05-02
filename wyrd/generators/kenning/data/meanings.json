@@ -1320,6 +1320,12 @@
         "modern_usage": "gardr",
         "old_scandinavian": [
           "gardr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "gard",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -1485,6 +1491,12 @@
         "modern_usage": "griss",
         "old_scandinavian": [
           "griss"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "grtss",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -4332,6 +4344,12 @@
         "modern_usage": "glais",
         "celtic_mix": [
           "glais"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "glass",
+            "weight": 37
+          }
         ]
       }
     ]
@@ -4417,6 +4435,12 @@
         "modern_usage": "grean",
         "celtic_mix": [
           "grean"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "grenn",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -4495,6 +4519,12 @@
         "modern_usage": "skégr",
         "old_scandinavian": [
           "skégr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "skdgr",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -5404,6 +5434,12 @@
         "modern_usage": "sescenn",
         "celtic_mix": [
           "sescenn"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "sesaeann",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -7874,6 +7910,12 @@
         "modern_usage": "-gall",
         "celtic_mix": [
           "gceall"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "gaeall",
+            "weight": 1
+          }
         ]
       },
       {
@@ -7895,6 +7937,12 @@
         "modern_usage": "-minster",
         "celtic_mix": [
           "mainistir"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "mainister",
+            "weight": 11
+          }
         ]
       },
       {
@@ -7961,12 +8009,24 @@
         "modern_usage": "Minster-",
         "celtic_mix": [
           "mainistir"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "mainister",
+            "weight": 11
+          }
         ]
       },
       {
         "modern_usage": "Monaster-",
         "celtic_mix": [
           "mainistir"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "mainister",
+            "weight": 11
+          }
         ]
       },
       {
@@ -8386,6 +8446,12 @@
           "aecer",
           "ceceras",
           "cecer"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aeaer",
+            "weight": 26
+          }
         ]
       },
       {
@@ -8394,6 +8460,12 @@
           "aecer",
           "ceceras",
           "cecer"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aeaer",
+            "weight": 26
+          }
         ]
       }
     ]
@@ -8624,6 +8696,12 @@
         "modern_usage": "Spetch-",
         "old_english": [
           "spēc"
+        ],
+        "old_english_variants": [
+          {
+            "form": "spec",
+            "weight": 10
+          }
         ]
       },
       {
@@ -9361,6 +9439,16 @@
         "modern_usage": "Throck-",
         "old_english": [
           "throc"
+        ],
+        "old_english_variants": [
+          {
+            "form": "throck",
+            "weight": 2
+          },
+          {
+            "form": "throe",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -9384,6 +9472,12 @@
         "modern_usage": "Sprey-",
         "old_english": [
           "sprēot"
+        ],
+        "old_english_variants": [
+          {
+            "form": "sprot",
+            "weight": 3
+          }
         ]
       },
       {
@@ -9391,6 +9485,24 @@
         "old_english": [
           "staef",
           "staefer"
+        ],
+        "old_english_variants": [
+          {
+            "form": "staff",
+            "weight": 59
+          },
+          {
+            "form": "staf",
+            "weight": 4
+          },
+          {
+            "form": "steefer",
+            "weight": 1
+          },
+          {
+            "form": "stzefer",
+            "weight": 1
+          }
         ]
       },
       {
@@ -9399,8 +9511,32 @@
           "staef",
           "staefer"
         ],
+        "old_english_variants": [
+          {
+            "form": "staff",
+            "weight": 59
+          },
+          {
+            "form": "staf",
+            "weight": 4
+          },
+          {
+            "form": "steefer",
+            "weight": 1
+          },
+          {
+            "form": "stzefer",
+            "weight": 1
+          }
+        ],
         "old_scandinavian": [
           "stafn"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "staff",
+            "weight": 10
+          }
         ]
       },
       {
@@ -9648,6 +9784,12 @@
         "modern_usage": "Beet-",
         "old_english": [
           "bēte"
+        ],
+        "old_english_variants": [
+          {
+            "form": "bete",
+            "weight": 3
+          }
         ]
       }
     ]
@@ -9982,6 +10124,12 @@
         "modern_usage": "Ozle-",
         "old_english": [
           "ōsle"
+        ],
+        "old_english_variants": [
+          {
+            "form": "osle",
+            "weight": 6
+          }
         ]
       }
     ]
@@ -10081,6 +10229,16 @@
         "celtic_mix": [
           "toirc",
           "toric"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "tuirc",
+            "weight": 18
+          },
+          {
+            "form": "tnirc",
+            "weight": 1
+          }
         ]
       },
       {
@@ -10094,6 +10252,16 @@
         "celtic_mix": [
           "toirc",
           "toric"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "tuirc",
+            "weight": 18
+          },
+          {
+            "form": "tnirc",
+            "weight": 1
+          }
         ]
       },
       {
@@ -10118,18 +10286,36 @@
         "modern_usage": "Loos-",
         "old_english": [
           "hlōse"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hlose",
+            "weight": 12
+          }
         ]
       },
       {
         "modern_usage": "Loose-",
         "old_english": [
           "hlōse"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hlose",
+            "weight": 12
+          }
         ]
       },
       {
         "modern_usage": "Los-",
         "old_english": [
           "hlōse"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hlose",
+            "weight": 12
+          }
         ]
       },
       {
@@ -10285,6 +10471,12 @@
         "modern_usage": "-mark",
         "celtic_mix": [
           "mbarc"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "barc",
+            "weight": 1
+          }
         ]
       },
       {
@@ -10399,12 +10591,24 @@
         "modern_usage": "-mere",
         "old_english": [
           "mercels"
+        ],
+        "old_english_variants": [
+          {
+            "form": "meraels",
+            "weight": 4
+          }
         ]
       },
       {
         "modern_usage": "Mars-",
         "old_english": [
           "mercels"
+        ],
+        "old_english_variants": [
+          {
+            "form": "meraels",
+            "weight": 4
+          }
         ]
       },
       {
@@ -10689,6 +10893,12 @@
         "modern_usage": "-bridge",
         "old_english": [
           "brycg"
+        ],
+        "old_english_variants": [
+          {
+            "form": "bricg",
+            "weight": 6
+          }
         ]
       }
     ]
@@ -10795,18 +11005,36 @@
         "modern_usage": "-biggin",
         "old_english": [
           "bōthl"
+        ],
+        "old_english_variants": [
+          {
+            "form": "botel",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "-bottle",
         "old_english": [
           "bōthl"
+        ],
+        "old_english_variants": [
+          {
+            "form": "botel",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Bo-",
         "old_english": [
           "bōthl"
+        ],
+        "old_english_variants": [
+          {
+            "form": "botel",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -11526,6 +11754,12 @@
         "modern_usage": "Ches-",
         "old_english": [
           "cēse"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aese",
+            "weight": 6
+          }
         ]
       }
     ]
@@ -11762,6 +11996,12 @@
         "modern_usage": "-gorp",
         "celtic_mix": [
           "gcorp"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "corp",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -11812,6 +12052,12 @@
         "modern_usage": "Stam-",
         "celtic_mix": [
           "steach"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "stench",
+            "weight": 2
+          }
         ]
       },
       {
@@ -11820,6 +12066,12 @@
           "steach",
           "ti",
           "tŷ"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "stench",
+            "weight": 2
+          }
         ]
       },
       {
@@ -11828,6 +12080,12 @@
           "steach",
           "ti",
           "tŷ"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "stench",
+            "weight": 2
+          }
         ]
       },
       {
@@ -11836,6 +12094,12 @@
           "steach",
           "ti",
           "tŷ"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "stench",
+            "weight": 2
+          }
         ]
       },
       {
@@ -11844,6 +12108,12 @@
           "steach",
           "ti",
           "tŷ"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "stench",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -11999,12 +12269,24 @@
         "modern_usage": "-bottle",
         "celtic_mix": [
           "both"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "bothy",
+            "weight": 4
+          }
         ]
       },
       {
         "modern_usage": "Bo-",
         "celtic_mix": [
           "both"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "bothy",
+            "weight": 4
+          }
         ]
       },
       {
@@ -12087,6 +12369,12 @@
         "modern_usage": "-nagor",
         "old_scandinavian": [
           "hrāgra"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "hragra",
+            "weight": 1
+          }
         ]
       },
       {
@@ -12108,6 +12396,12 @@
         ],
         "old_scandinavian": [
           "hrāgra"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "hragra",
+            "weight": 1
+          }
         ]
       },
       {
@@ -12191,6 +12485,12 @@
         "modern_usage": "Shacker-",
         "old_english": [
           "scēacere"
+        ],
+        "old_english_variants": [
+          {
+            "form": "saeaaere",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -12344,6 +12644,12 @@
         ],
         "old_scandinavian": [
           "hrókr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "hrokr",
+            "weight": 1
+          }
         ]
       },
       {
@@ -12351,6 +12657,12 @@
         "old_english": [
           "crāwe",
           "crāwena"
+        ],
+        "old_english_variants": [
+          {
+            "form": "crawe",
+            "weight": 28
+          }
         ]
       },
       {
@@ -12358,6 +12670,12 @@
         "old_english": [
           "crāwe",
           "crāwena"
+        ],
+        "old_english_variants": [
+          {
+            "form": "crawe",
+            "weight": 28
+          }
         ]
       },
       {
@@ -12365,6 +12683,12 @@
         "old_english": [
           "crāwe",
           "crāwena"
+        ],
+        "old_english_variants": [
+          {
+            "form": "crawe",
+            "weight": 28
+          }
         ]
       },
       {
@@ -12372,6 +12696,12 @@
         "old_english": [
           "crāwe",
           "crāwena"
+        ],
+        "old_english_variants": [
+          {
+            "form": "crawe",
+            "weight": 28
+          }
         ]
       },
       {
@@ -12381,6 +12711,12 @@
         ],
         "old_scandinavian": [
           "hrókr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "hrokr",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -12432,6 +12768,12 @@
         "old_english": [
           "cucu",
           "gēac"
+        ],
+        "old_english_variants": [
+          {
+            "form": "geac",
+            "weight": 10
+          }
         ]
       },
       {
@@ -12443,6 +12785,12 @@
         "old_english": [
           "cucu",
           "gēac"
+        ],
+        "old_english_variants": [
+          {
+            "form": "geac",
+            "weight": 10
+          }
         ]
       },
       {
@@ -12454,6 +12802,12 @@
         "old_english": [
           "cucu",
           "gēac"
+        ],
+        "old_english_variants": [
+          {
+            "form": "geac",
+            "weight": 10
+          }
         ]
       },
       {
@@ -12465,6 +12819,12 @@
         "old_english": [
           "cucu",
           "gēac"
+        ],
+        "old_english_variants": [
+          {
+            "form": "geac",
+            "weight": 10
+          }
         ]
       }
     ]
@@ -12640,6 +13000,12 @@
         "modern_usage": "Cuthbert-",
         "old_english": [
           "cuþbeorht"
+        ],
+        "old_english_variants": [
+          {
+            "form": "cuthbeorht",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -13093,6 +13459,12 @@
         "modern_usage": "Grim-",
         "old_english": [
           "grīma"
+        ],
+        "old_english_variants": [
+          {
+            "form": "grima",
+            "weight": 11
+          }
         ]
       }
     ]
@@ -13119,6 +13491,12 @@
         "old_english": [
           "sceocca",
           "scucca"
+        ],
+        "old_english_variants": [
+          {
+            "form": "saeocca",
+            "weight": 3
+          }
         ]
       },
       {
@@ -13137,12 +13515,24 @@
         "modern_usage": "Shock-",
         "old_english": [
           "sceocca"
+        ],
+        "old_english_variants": [
+          {
+            "form": "saeocca",
+            "weight": 3
+          }
         ]
       },
       {
         "modern_usage": "Shuck-",
         "old_english": [
           "sceocca"
+        ],
+        "old_english_variants": [
+          {
+            "form": "saeocca",
+            "weight": 3
+          }
         ]
       },
       {
@@ -13470,6 +13860,12 @@
         "modern_usage": "-drish",
         "celtic_mix": [
           "dorais"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "doruis",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -13488,12 +13884,24 @@
         "modern_usage": "Dow-",
         "old_english": [
           "dūfe"
+        ],
+        "old_english_variants": [
+          {
+            "form": "dufe",
+            "weight": 5
+          }
         ]
       },
       {
         "modern_usage": "Duft-",
         "old_english": [
           "dūfe"
+        ],
+        "old_english_variants": [
+          {
+            "form": "dufe",
+            "weight": 5
+          }
         ]
       }
     ]
@@ -13531,6 +13939,12 @@
         "modern_usage": "-goyne",
         "celtic_mix": [
           "gcadhan"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "geadhan",
+            "weight": 1
+          }
         ]
       },
       {
@@ -13538,6 +13952,12 @@
         "old_english": [
           "dūce",
           "dūcena"
+        ],
+        "old_english_variants": [
+          {
+            "form": "duae",
+            "weight": 11
+          }
         ]
       },
       {
@@ -13962,6 +14382,24 @@
         "modern_usage": "Tey-",
         "old_english": [
           "tīege"
+        ],
+        "old_english_variants": [
+          {
+            "form": "tiege",
+            "weight": 3
+          },
+          {
+            "form": "hiege",
+            "weight": 1
+          },
+          {
+            "form": "tiee",
+            "weight": 1
+          },
+          {
+            "form": "tiegn",
+            "weight": 1
+          }
         ]
       },
       {
@@ -14081,6 +14519,12 @@
         "old_english": [
           "hamm",
           "hamme"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hammes",
+            "weight": 4
+          }
         ]
       }
     ]
@@ -14171,48 +14615,96 @@
         "modern_usage": "-gart",
         "old_english": [
           "geard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "guard",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "-garth",
         "old_english": [
           "geard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "guard",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "`gar",
         "old_english": [
           "geard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "guard",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "Gar-",
         "old_english": [
           "geard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "guard",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "Gart-",
         "old_english": [
           "geard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "guard",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "Garth-",
         "old_english": [
           "geard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "guard",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "Yard-",
         "old_english": [
           "geard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "guard",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "Yor-",
         "old_english": [
           "geard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "guard",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -14786,12 +15278,32 @@
         "modern_usage": "Faulk-",
         "old_english": [
           "falca"
+        ],
+        "old_english_variants": [
+          {
+            "form": "fealca",
+            "weight": 2
+          },
+          {
+            "form": "falco",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Faw-",
         "old_english": [
           "falca"
+        ],
+        "old_english_variants": [
+          {
+            "form": "fealca",
+            "weight": 2
+          },
+          {
+            "form": "falco",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -14867,6 +15379,12 @@
         "modern_usage": "High-",
         "old_english": [
           "hīwan"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hiwan",
+            "weight": 7
+          }
         ]
       }
     ]
@@ -15006,6 +15524,12 @@
         "modern_usage": "Fisker-",
         "old_english": [
           "fiscere"
+        ],
+        "old_english_variants": [
+          {
+            "form": "fisaere",
+            "weight": 3
+          }
         ],
         "old_scandinavian": [
           "fiskr"
@@ -15973,12 +16497,24 @@
         "modern_usage": "Frost-",
         "old_english": [
           "frosc"
+        ],
+        "old_english_variants": [
+          {
+            "form": "froc",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Frox-",
         "old_english": [
           "frosc"
+        ],
+        "old_english_variants": [
+          {
+            "form": "froc",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -16010,12 +16546,24 @@
         "modern_usage": "Tad-",
         "old_english": [
           "tāde"
+        ],
+        "old_english_variants": [
+          {
+            "form": "tade",
+            "weight": 3
+          }
         ]
       },
       {
         "modern_usage": "Tath-",
         "old_english": [
           "tāde"
+        ],
+        "old_english_variants": [
+          {
+            "form": "tade",
+            "weight": 3
+          }
         ]
       }
     ]
@@ -16034,6 +16582,12 @@
         "old_english": [
           "walc",
           "walcere"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wealaere",
+            "weight": 4
+          }
         ]
       }
     ]
@@ -16099,12 +16653,32 @@
         "modern_usage": "-gowan",
         "celtic_mix": [
           "gobhan"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "gobha",
+            "weight": 3
+          },
+          {
+            "form": "ghobhan",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "-gown",
         "celtic_mix": [
           "gobhan"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "gobha",
+            "weight": 3
+          },
+          {
+            "form": "ghobhan",
+            "weight": 2
+          }
         ]
       },
       {
@@ -16178,12 +16752,40 @@
         "modern_usage": "Gal-",
         "old_english": [
           "galga"
+        ],
+        "old_english_variants": [
+          {
+            "form": "galgi",
+            "weight": 2
+          },
+          {
+            "form": "galge",
+            "weight": 1
+          },
+          {
+            "form": "gealga",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Gaw-",
         "old_english": [
           "galga"
+        ],
+        "old_english_variants": [
+          {
+            "form": "galgi",
+            "weight": 2
+          },
+          {
+            "form": "galge",
+            "weight": 1
+          },
+          {
+            "form": "gealga",
+            "weight": 1
+          }
         ]
       },
       {
@@ -16232,6 +16834,12 @@
         "modern_usage": "-shot",
         "old_scandinavian": [
           "sceard"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "saeard",
+            "weight": 6
+          }
         ]
       },
       {
@@ -16247,6 +16855,12 @@
         "modern_usage": "Scar-",
         "old_scandinavian": [
           "sceard"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "saeard",
+            "weight": 6
+          }
         ]
       },
       {
@@ -16278,12 +16892,24 @@
           "gardin",
           "garten",
           "gartin"
+        ],
+        "old_english_variants": [
+          {
+            "form": "garden",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Garry-",
         "celtic_mix": [
           "garraí"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "garra",
+            "weight": 12
+          }
         ]
       }
     ]
@@ -16318,6 +16944,16 @@
         "modern_usage": "Glaze-",
         "old_english": [
           "glaes"
+        ],
+        "old_english_variants": [
+          {
+            "form": "glass",
+            "weight": 53
+          },
+          {
+            "form": "glses",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -16336,6 +16972,12 @@
         "modern_usage": "Prick-",
         "old_english": [
           "pricca"
+        ],
+        "old_english_variants": [
+          {
+            "form": "prica",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -16358,6 +17000,16 @@
           "gabhra",
           "ngabhar"
         ],
+        "celtic_mix_variants": [
+          {
+            "form": "gabhna",
+            "weight": 1
+          },
+          {
+            "form": "ghabhra",
+            "weight": 1
+          }
+        ],
         "old_french": [
           "chèvre"
         ]
@@ -16367,6 +17019,16 @@
         "celtic_mix": [
           "gabhra",
           "ngabhar"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "gabhna",
+            "weight": 1
+          },
+          {
+            "form": "ghabhra",
+            "weight": 1
+          }
         ],
         "old_french": [
           "chèvre"
@@ -16424,6 +17086,12 @@
         ],
         "old_english": [
           "haefer"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hefer",
+            "weight": 1
+          }
         ]
       },
       {
@@ -16433,6 +17101,12 @@
         ],
         "old_english": [
           "haefer"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hefer",
+            "weight": 1
+          }
         ]
       },
       {
@@ -16450,6 +17124,16 @@
           "gabhra",
           "ngabhar"
         ],
+        "celtic_mix_variants": [
+          {
+            "form": "gabhna",
+            "weight": 1
+          },
+          {
+            "form": "ghabhra",
+            "weight": 1
+          }
+        ],
         "old_french": [
           "chèvre"
         ],
@@ -16457,6 +17141,16 @@
           "gāt",
           "haefer",
           "ticcen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "ticaen",
+            "weight": 15
+          },
+          {
+            "form": "hefer",
+            "weight": 1
+          }
         ],
         "old_scandinavian": [
           "geit"
@@ -16466,36 +17160,72 @@
         "modern_usage": "Tice-",
         "old_english": [
           "ticcen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "ticaen",
+            "weight": 15
+          }
         ]
       },
       {
         "modern_usage": "Tich-",
         "old_english": [
           "ticcen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "ticaen",
+            "weight": 15
+          }
         ]
       },
       {
         "modern_usage": "Ticken-",
         "old_english": [
           "ticcen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "ticaen",
+            "weight": 15
+          }
         ]
       },
       {
         "modern_usage": "Tist-",
         "old_english": [
           "ticcen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "ticaen",
+            "weight": 15
+          }
         ]
       },
       {
         "modern_usage": "Titch-",
         "old_english": [
           "ticcen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "ticaen",
+            "weight": 15
+          }
         ]
       },
       {
         "modern_usage": "Tix-",
         "old_english": [
           "ticcen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "ticaen",
+            "weight": 15
+          }
         ]
       }
     ]
@@ -16609,12 +17339,24 @@
         "modern_usage": "Puck-",
         "old_english": [
           "pūca"
+        ],
+        "old_english_variants": [
+          {
+            "form": "puca",
+            "weight": 12
+          }
         ]
       },
       {
         "modern_usage": "Pur-",
         "old_english": [
           "pūca"
+        ],
+        "old_english_variants": [
+          {
+            "form": "puca",
+            "weight": 12
+          }
         ]
       }
     ]
@@ -16758,10 +17500,34 @@
           "garde",
           "guarde"
         ],
+        "old_french_variants": [
+          {
+            "form": "guard",
+            "weight": 54
+          },
+          {
+            "form": "guarded",
+            "weight": 8
+          },
+          {
+            "form": "guards",
+            "weight": 1
+          }
+        ],
         "old_english": [
           "garde",
           "garder",
           "guarder"
+        ],
+        "old_english_variants": [
+          {
+            "form": "guarded",
+            "weight": 8
+          },
+          {
+            "form": "garden",
+            "weight": 3
+          }
         ]
       }
     ]
@@ -17066,6 +17832,12 @@
         "modern_usage": "Coney-",
         "old_scandinavian": [
           "coiní"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "coinm",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -17209,12 +17981,24 @@
         "modern_usage": "Hat-",
         "old_english": [
           "hāth"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hath",
+            "weight": 43
+          }
         ]
       },
       {
         "modern_usage": "Hath-",
         "old_english": [
           "hāth"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hath",
+            "weight": 43
+          }
         ]
       }
     ]
@@ -17294,12 +18078,24 @@
         "modern_usage": "-net-",
         "old_english": [
           "swān"
+        ],
+        "old_english_variants": [
+          {
+            "form": "swan",
+            "weight": 72
+          }
         ]
       },
       {
         "modern_usage": "Swan-",
         "old_english": [
           "swān"
+        ],
+        "old_english_variants": [
+          {
+            "form": "swan",
+            "weight": 72
+          }
         ]
       }
     ]
@@ -17423,6 +18219,12 @@
         "modern_usage": "Spiddal-",
         "celtic_mix": [
           "spidéal"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "spideal",
+            "weight": 3
+          }
         ]
       }
     ]
@@ -17465,6 +18267,16 @@
         "old_english": [
           "hunta",
           "huntere"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hunter",
+            "weight": 47
+          },
+          {
+            "form": "hunters",
+            "weight": 9
+          }
         ]
       },
       {
@@ -17472,6 +18284,16 @@
         "old_english": [
           "hunta",
           "huntere"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hunter",
+            "weight": 47
+          },
+          {
+            "form": "hunters",
+            "weight": 9
+          }
         ]
       },
       {
@@ -17479,6 +18301,12 @@
         "old_english": [
           "waethe-mann",
           "wāth"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wath",
+            "weight": 93
+          }
         ]
       },
       {
@@ -17486,6 +18314,12 @@
         "old_english": [
           "waethe-mann",
           "wāth"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wath",
+            "weight": 93
+          }
         ]
       }
     ]
@@ -17581,6 +18415,12 @@
         "modern_usage": "-frask",
         "celtic_mix": [
           "phraisce"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "phraisae",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -17598,6 +18438,12 @@
         "modern_usage": "-haha",
         "celtic_mix": [
           "háithe"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "haithe",
+            "weight": 9
+          }
         ]
       },
       {
@@ -17654,6 +18500,16 @@
         "modern_usage": "-royal",
         "old_french": [
           "roial"
+        ],
+        "old_french_variants": [
+          {
+            "form": "royal",
+            "weight": 262
+          },
+          {
+            "form": "rial",
+            "weight": 2
+          }
         ]
       },
       {
@@ -17924,6 +18780,12 @@
         "modern_usage": "Take-",
         "old_english": [
           "tacca"
+        ],
+        "old_english_variants": [
+          {
+            "form": "tacka",
+            "weight": 1
+          }
         ]
       },
       {
@@ -18034,6 +18896,12 @@
         "modern_usage": "Westend-",
         "old_english": [
           "wēsten"
+        ],
+        "old_english_variants": [
+          {
+            "form": "westen",
+            "weight": 1
+          }
         ]
       },
       {
@@ -18057,6 +18925,12 @@
         "modern_usage": "-chase",
         "old_english": [
           "chace"
+        ],
+        "old_english_variants": [
+          {
+            "form": "chaae",
+            "weight": 11
+          }
         ]
       }
     ]
@@ -18098,6 +18972,12 @@
         "modern_usage": "Boher-",
         "celtic_mix": [
           "bhóthair"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "bhothair",
+            "weight": 6
+          }
         ]
       },
       {
@@ -18164,6 +19044,12 @@
         "modern_usage": "Sway-",
         "old_english": [
           "swaeth"
+        ],
+        "old_english_variants": [
+          {
+            "form": "sweth",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -18267,6 +19153,12 @@
         "old_english": [
           "lāwerce",
           "lawerce"
+        ],
+        "old_english_variants": [
+          {
+            "form": "lawerae",
+            "weight": 7
+          }
         ]
       }
     ]
@@ -18311,12 +19203,24 @@
         "modern_usage": "Les-",
         "old_english": [
           "laece"
+        ],
+        "old_english_variants": [
+          {
+            "form": "laeae",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "Lex-",
         "old_english": [
           "laece"
+        ],
+        "old_english_variants": [
+          {
+            "form": "laeae",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -18606,18 +19510,48 @@
         "modern_usage": "Mel-",
         "old_english": [
           "melce"
+        ],
+        "old_english_variants": [
+          {
+            "form": "mele",
+            "weight": 1
+          },
+          {
+            "form": "meolae",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Melch-",
         "old_english": [
           "melce"
+        ],
+        "old_english_variants": [
+          {
+            "form": "mele",
+            "weight": 1
+          },
+          {
+            "form": "meolae",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Melk-",
         "old_english": [
           "melce"
+        ],
+        "old_english_variants": [
+          {
+            "form": "mele",
+            "weight": 1
+          },
+          {
+            "form": "meolae",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -18711,12 +19645,24 @@
         "modern_usage": "Whil-",
         "old_english": [
           "hwēol"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hweol",
+            "weight": 11
+          }
         ]
       },
       {
         "modern_usage": "Whorl-",
         "old_english": [
           "hwēol"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hweol",
+            "weight": 11
+          }
         ]
       }
     ]
@@ -19073,12 +20019,32 @@
         "modern_usage": "Nettle-",
         "old_english": [
           "knutu"
+        ],
+        "old_english_variants": [
+          {
+            "form": "knut",
+            "weight": 6
+          },
+          {
+            "form": "knutr",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Nut-",
         "old_english": [
           "knutu"
+        ],
+        "old_english_variants": [
+          {
+            "form": "knut",
+            "weight": 6
+          },
+          {
+            "form": "knutr",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -19187,6 +20153,12 @@
         ],
         "old_english": [
           "orceard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "oraeard",
+            "weight": 6
+          }
         ]
       },
       {
@@ -19196,6 +20168,12 @@
         ],
         "old_english": [
           "orceard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "oraeard",
+            "weight": 6
+          }
         ]
       }
     ]
@@ -19338,6 +20316,16 @@
         "old_english": [
           "pise",
           "pisen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "pesen",
+            "weight": 3
+          },
+          {
+            "form": "pisedn",
+            "weight": 2
+          }
         ]
       },
       {
@@ -19345,6 +20333,16 @@
         "old_english": [
           "pise",
           "pisen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "pesen",
+            "weight": 3
+          },
+          {
+            "form": "pisedn",
+            "weight": 2
+          }
         ]
       },
       {
@@ -19352,6 +20350,16 @@
         "old_english": [
           "pise",
           "pisen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "pesen",
+            "weight": 3
+          },
+          {
+            "form": "pisedn",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -19370,6 +20378,12 @@
         "modern_usage": "Poun-",
         "old_english": [
           "pāwa"
+        ],
+        "old_english_variants": [
+          {
+            "form": "pawa",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -19389,12 +20403,24 @@
         "old_english": [
           "thorpere",
           "thēod"
+        ],
+        "old_english_variants": [
+          {
+            "form": "theod",
+            "weight": 6
+          }
         ]
       },
       {
         "modern_usage": "Tet-",
         "old_english": [
           "thēod"
+        ],
+        "old_english_variants": [
+          {
+            "form": "theod",
+            "weight": 6
+          }
         ]
       },
       {
@@ -19407,6 +20433,12 @@
         "modern_usage": "Tid-",
         "old_english": [
           "thēod"
+        ],
+        "old_english_variants": [
+          {
+            "form": "theod",
+            "weight": 6
+          }
         ]
       },
       {
@@ -19587,6 +20619,20 @@
         "modern_usage": "Peper-",
         "old_english": [
           "pīpere"
+        ],
+        "old_english_variants": [
+          {
+            "form": "piper",
+            "weight": 22
+          },
+          {
+            "form": "pipers",
+            "weight": 2
+          },
+          {
+            "form": "pipere",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -19604,6 +20650,12 @@
         "modern_usage": "Witching-",
         "old_english": [
           "wīcinga"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wicing",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -19702,6 +20754,12 @@
         "old_english": [
           "plaga",
           "pleget"
+        ],
+        "old_english_variants": [
+          {
+            "form": "plegen",
+            "weight": 1
+          }
         ]
       },
       {
@@ -19709,6 +20767,12 @@
         "old_english": [
           "plaga",
           "pleget"
+        ],
+        "old_english_variants": [
+          {
+            "form": "plegen",
+            "weight": 1
+          }
         ]
       },
       {
@@ -19716,6 +20780,12 @@
         "old_english": [
           "plaga",
           "pleget"
+        ],
+        "old_english_variants": [
+          {
+            "form": "plegen",
+            "weight": 1
+          }
         ]
       },
       {
@@ -19723,6 +20793,12 @@
         "old_english": [
           "plaga",
           "pleget"
+        ],
+        "old_english_variants": [
+          {
+            "form": "plegen",
+            "weight": 1
+          }
         ]
       },
       {
@@ -19730,6 +20806,12 @@
         "old_english": [
           "plaga",
           "pleget"
+        ],
+        "old_english_variants": [
+          {
+            "form": "plegen",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -19925,6 +21007,12 @@
         "modern_usage": "Retten-",
         "old_english": [
           "raetten"
+        ],
+        "old_english_variants": [
+          {
+            "form": "ratten",
+            "weight": 14
+          }
         ]
       }
     ]
@@ -19973,6 +21061,12 @@
         "modern_usage": "Reep-",
         "old_english": [
           "rēfa"
+        ],
+        "old_english_variants": [
+          {
+            "form": "refa",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -19993,6 +21087,16 @@
         "modern_usage": "Yeld-",
         "old_english": [
           "gield"
+        ],
+        "old_english_variants": [
+          {
+            "form": "field",
+            "weight": 70
+          },
+          {
+            "form": "ield",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -20104,6 +21208,12 @@
         "modern_usage": "Ru-",
         "old_english": [
           "rūde"
+        ],
+        "old_english_variants": [
+          {
+            "form": "rude",
+            "weight": 45
+          }
         ]
       }
     ]
@@ -20206,6 +21316,12 @@
         "old_english": [
           "sain",
           "seynte"
+        ],
+        "old_english_variants": [
+          {
+            "form": "saynte",
+            "weight": 1
+          }
         ]
       },
       {
@@ -20213,6 +21329,12 @@
         "old_english": [
           "sain",
           "seynte"
+        ],
+        "old_english_variants": [
+          {
+            "form": "saynte",
+            "weight": 1
+          }
         ]
       },
       {
@@ -20220,6 +21342,12 @@
         "old_english": [
           "sain",
           "seynte"
+        ],
+        "old_english_variants": [
+          {
+            "form": "saynte",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -20282,6 +21410,12 @@
         "modern_usage": "Scra-",
         "old_scandinavian": [
           "skári"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "skari",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -20306,6 +21440,12 @@
         "modern_usage": "Sel-",
         "old_english": [
           "seolh"
+        ],
+        "old_english_variants": [
+          {
+            "form": "sealh",
+            "weight": 16
+          }
         ]
       }
     ]
@@ -20335,6 +21475,12 @@
         "modern_usage": "Stoul-",
         "old_english": [
           "stōl"
+        ],
+        "old_english_variants": [
+          {
+            "form": "stol",
+            "weight": 4
+          }
         ]
       }
     ]
@@ -20395,8 +21541,20 @@
         "old_english": [
           "scēla"
         ],
+        "old_english_variants": [
+          {
+            "form": "saela",
+            "weight": 1
+          }
+        ],
         "old_scandinavian": [
           "skáli"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "skali",
+            "weight": 1
+          }
         ]
       },
       {
@@ -20404,8 +21562,20 @@
         "old_english": [
           "scēla"
         ],
+        "old_english_variants": [
+          {
+            "form": "saela",
+            "weight": 1
+          }
+        ],
         "old_scandinavian": [
           "skáli"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "skali",
+            "weight": 1
+          }
         ]
       },
       {
@@ -20413,8 +21583,20 @@
         "old_english": [
           "scēla"
         ],
+        "old_english_variants": [
+          {
+            "form": "saela",
+            "weight": 1
+          }
+        ],
         "old_scandinavian": [
           "skáli"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "skali",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -20438,12 +21620,32 @@
         "modern_usage": "Spaun-",
         "old_english": [
           "spánn"
+        ],
+        "old_english_variants": [
+          {
+            "form": "spann",
+            "weight": 3
+          },
+          {
+            "form": "sponn",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "Spon-",
         "old_english": [
           "spánn"
+        ],
+        "old_english_variants": [
+          {
+            "form": "spann",
+            "weight": 3
+          },
+          {
+            "form": "sponn",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -20461,6 +21663,12 @@
         "modern_usage": "Shol-",
         "old_english": [
           "scofl"
+        ],
+        "old_english_variants": [
+          {
+            "form": "scoff",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -20550,12 +21758,24 @@
         "modern_usage": "Snar-",
         "old_english": [
           "sneare"
+        ],
+        "old_english_variants": [
+          {
+            "form": "snare",
+            "weight": 10
+          }
         ]
       },
       {
         "modern_usage": "Snare-",
         "old_english": [
           "sneare"
+        ],
+        "old_english_variants": [
+          {
+            "form": "snare",
+            "weight": 10
+          }
         ]
       },
       {
@@ -20621,6 +21841,12 @@
         "modern_usage": "Spindle-",
         "old_english": [
           "spinele"
+        ],
+        "old_english_variants": [
+          {
+            "form": "spindle",
+            "weight": 19
+          }
         ]
       }
     ]
@@ -20780,6 +22006,12 @@
         "modern_usage": "Elve-",
         "old_english": [
           "elfitu"
+        ],
+        "old_english_variants": [
+          {
+            "form": "elfetu",
+            "weight": 3
+          }
         ]
       }
     ]
@@ -20797,6 +22029,12 @@
         "modern_usage": "-gesh",
         "celtic_mix": [
           "gheise"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "geise",
+            "weight": 4
+          }
         ]
       }
     ]
@@ -20814,6 +22052,12 @@
         "modern_usage": "-tooder",
         "celtic_mix": [
           "tsudáire"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "tsudaire",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -20849,6 +22093,12 @@
         "old_english": [
           "thaca",
           "thaecce"
+        ],
+        "old_english_variants": [
+          {
+            "form": "thack",
+            "weight": 3
+          }
         ]
       },
       {
@@ -20856,6 +22106,12 @@
         "old_english": [
           "thaca",
           "thaecce"
+        ],
+        "old_english_variants": [
+          {
+            "form": "thack",
+            "weight": 3
+          }
         ]
       },
       {
@@ -20863,6 +22119,12 @@
         "old_english": [
           "thaca",
           "thaecce"
+        ],
+        "old_english_variants": [
+          {
+            "form": "thack",
+            "weight": 3
+          }
         ]
       }
     ]
@@ -20899,6 +22161,12 @@
         "modern_usage": "Thresh-",
         "old_english": [
           "thresc"
+        ],
+        "old_english_variants": [
+          {
+            "form": "thresh",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -21066,6 +22334,12 @@
         "modern_usage": "Shotte-",
         "old_english": [
           "sceota"
+        ],
+        "old_english_variants": [
+          {
+            "form": "saedta",
+            "weight": 1
+          }
         ]
       },
       {
@@ -21108,6 +22382,12 @@
         "modern_usage": "-winter",
         "old_english": [
           "wīngeard"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wingeard",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -21175,6 +22455,16 @@
         "modern_usage": "Wash-",
         "old_english": [
           "waesce"
+        ],
+        "old_english_variants": [
+          {
+            "form": "weesae",
+            "weight": 1
+          },
+          {
+            "form": "wsesae",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -21396,6 +22686,12 @@
         "modern_usage": "Winch-",
         "old_english": [
           "wince"
+        ],
+        "old_english_variants": [
+          {
+            "form": "winae",
+            "weight": 4
+          }
         ]
       },
       {
@@ -21569,6 +22865,12 @@
         "modern_usage": "Speen-",
         "old_english": [
           "spēne"
+        ],
+        "old_english_variants": [
+          {
+            "form": "spene",
+            "weight": 14
+          }
         ]
       },
       {
@@ -21777,6 +23079,12 @@
         "modern_usage": "Idle-",
         "old_english": [
           "īdel"
+        ],
+        "old_english_variants": [
+          {
+            "form": "idel",
+            "weight": 4
+          }
         ]
       },
       {
@@ -21883,12 +23191,24 @@
         "modern_usage": "Ick-",
         "old_english": [
           "gēoc"
+        ],
+        "old_english_variants": [
+          {
+            "form": "geoc",
+            "weight": 15
+          }
         ]
       },
       {
         "modern_usage": "Yox-",
         "old_english": [
           "gēoc"
+        ],
+        "old_english_variants": [
+          {
+            "form": "geoc",
+            "weight": 15
+          }
         ]
       }
     ]
@@ -21928,12 +23248,24 @@
         "modern_usage": "Twine-",
         "old_english": [
           "betwēonan"
+        ],
+        "old_english_variants": [
+          {
+            "form": "betweonan",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Twyn-",
         "old_english": [
           "betwēonan"
+        ],
+        "old_english_variants": [
+          {
+            "form": "betweonan",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -22032,12 +23364,24 @@
         "modern_usage": "Mick-",
         "celtic_mix": [
           "micel"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "miael",
+            "weight": 25
+          }
         ]
       },
       {
         "modern_usage": "Mickle-",
         "celtic_mix": [
           "micel"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "miael",
+            "weight": 25
+          }
         ]
       }
     ]
@@ -22289,18 +23633,36 @@
         "modern_usage": "Bra-",
         "old_scandinavian": [
           "breithr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "breitha",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Brad-",
         "old_scandinavian": [
           "breithr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "breitha",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Braith-",
         "old_scandinavian": [
           "breithr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "breitha",
+            "weight": 1
+          }
         ]
       },
       {
@@ -22557,6 +23919,12 @@
         "modern_usage": "Fair-",
         "old_english": [
           "faegr"
+        ],
+        "old_english_variants": [
+          {
+            "form": "faeger",
+            "weight": 5
+          }
         ]
       }
     ]
@@ -22823,12 +24191,28 @@
         "old_english": [
           "wēt",
           "wētan"
+        ],
+        "old_english_variants": [
+          {
+            "form": "weton",
+            "weight": 2
+          },
+          {
+            "form": "weta",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Wetten-",
         "old_english": [
           "wētan"
+        ],
+        "old_english_variants": [
+          {
+            "form": "weton",
+            "weight": 2
+          }
         ]
       },
       {
@@ -23175,6 +24559,12 @@
         "modern_usage": "Slip-",
         "old_english": [
           "slipa"
+        ],
+        "old_english_variants": [
+          {
+            "form": "sliwa",
+            "weight": 1
+          }
         ]
       },
       {
@@ -23280,6 +24670,12 @@
         "modern_usage": "Threep-",
         "old_english": [
           "thrēap"
+        ],
+        "old_english_variants": [
+          {
+            "form": "threap",
+            "weight": 11
+          }
         ]
       }
     ]
@@ -23414,6 +24810,12 @@
           "ēast",
           "ēastan",
           "east"
+        ],
+        "old_english_variants": [
+          {
+            "form": "eastan",
+            "weight": 16
+          }
         ]
       },
       {
@@ -23422,6 +24824,12 @@
           "ēast",
           "ēastan",
           "east"
+        ],
+        "old_english_variants": [
+          {
+            "form": "eastan",
+            "weight": 16
+          }
         ]
       },
       {
@@ -23430,6 +24838,12 @@
           "ēast",
           "ēastan",
           "east"
+        ],
+        "old_english_variants": [
+          {
+            "form": "eastan",
+            "weight": 16
+          }
         ]
       },
       {
@@ -23438,6 +24852,12 @@
           "ēast",
           "ēastan",
           "east"
+        ],
+        "old_english_variants": [
+          {
+            "form": "eastan",
+            "weight": 16
+          }
         ]
       },
       {
@@ -23446,6 +24866,12 @@
           "ēast",
           "ēastan",
           "east"
+        ],
+        "old_english_variants": [
+          {
+            "form": "eastan",
+            "weight": 16
+          }
         ]
       },
       {
@@ -23454,6 +24880,12 @@
           "ēast",
           "ēastan",
           "east"
+        ],
+        "old_english_variants": [
+          {
+            "form": "eastan",
+            "weight": 16
+          }
         ]
       }
     ]
@@ -23607,12 +25039,24 @@
         "modern_usage": "Feather-",
         "old_english": [
           "fēower"
+        ],
+        "old_english_variants": [
+          {
+            "form": "fewer",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "Fore-",
         "old_english": [
           "fēower"
+        ],
+        "old_english_variants": [
+          {
+            "form": "fewer",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -24012,12 +25456,24 @@
         "modern_usage": "-glass",
         "celtic_mix": [
           "glas"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "glass",
+            "weight": 58
+          }
         ]
       },
       {
         "modern_usage": "-gleish",
         "celtic_mix": [
           "glas"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "glass",
+            "weight": 58
+          }
         ]
       }
     ]
@@ -24128,6 +25584,12 @@
         ],
         "old_english": [
           "wēoh"
+        ],
+        "old_english_variants": [
+          {
+            "form": "weoh",
+            "weight": 2
+          }
         ]
       },
       {
@@ -24137,6 +25599,12 @@
         ],
         "old_english": [
           "wēoh"
+        ],
+        "old_english_variants": [
+          {
+            "form": "weoh",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -24282,6 +25750,16 @@
           "bàine",
           "bàn",
           "bán"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "bdine",
+            "weight": 4
+          },
+          {
+            "form": "baine",
+            "weight": 2
+          }
         ]
       },
       {
@@ -24290,6 +25768,16 @@
           "bàine",
           "bàn",
           "bán"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "bdine",
+            "weight": 4
+          },
+          {
+            "form": "baine",
+            "weight": 2
+          }
         ]
       },
       {
@@ -24298,6 +25786,16 @@
           "bàine",
           "bàn",
           "bán"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "bdine",
+            "weight": 4
+          },
+          {
+            "form": "baine",
+            "weight": 2
+          }
         ]
       },
       {
@@ -24306,6 +25804,16 @@
           "bàine",
           "bàn",
           "bán"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "bdine",
+            "weight": 4
+          },
+          {
+            "form": "baine",
+            "weight": 2
+          }
         ]
       },
       {
@@ -24314,6 +25822,16 @@
           "bàine",
           "bàn",
           "bán"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "bdine",
+            "weight": 4
+          },
+          {
+            "form": "baine",
+            "weight": 2
+          }
         ]
       },
       {
@@ -24328,6 +25846,16 @@
           "bàine",
           "bàn",
           "bán"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "bdine",
+            "weight": 4
+          },
+          {
+            "form": "baine",
+            "weight": 2
+          }
         ]
       },
       {
@@ -24525,6 +26053,12 @@
         "old_english": [
           "hlīep"
         ],
+        "old_english_variants": [
+          {
+            "form": "hliep",
+            "weight": 1
+          }
+        ],
         "old_scandinavian": [
           "hlaup"
         ]
@@ -24536,6 +26070,12 @@
         ],
         "old_english": [
           "hlīep"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hliep",
+            "weight": 1
+          }
         ],
         "old_scandinavian": [
           "hlaup"
@@ -24583,6 +26123,12 @@
         "modern_usage": "Light-",
         "old_english": [
           "lēoht"
+        ],
+        "old_english_variants": [
+          {
+            "form": "leoht",
+            "weight": 4
+          }
         ]
       }
     ]
@@ -24604,6 +26150,16 @@
           "beaga",
           "bechan",
           "byghan"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "bychan",
+            "weight": 7
+          },
+          {
+            "form": "boghan",
+            "weight": 1
+          }
         ]
       },
       {
@@ -24616,12 +26172,28 @@
         "modern_usage": "-fechan",
         "celtic_mix": [
           "bechan"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "bychan",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "-zion",
         "celtic_mix": [
           "byghan"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "bychan",
+            "weight": 5
+          },
+          {
+            "form": "boghan",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -24661,6 +26233,12 @@
         "old_english": [
           "hlanc"
         ],
+        "old_english_variants": [
+          {
+            "form": "wlanc",
+            "weight": 2
+          }
+        ],
         "old_scandinavian": [
           "langr"
         ]
@@ -24670,6 +26248,12 @@
         "old_english": [
           "hlanc"
         ],
+        "old_english_variants": [
+          {
+            "form": "wlanc",
+            "weight": 2
+          }
+        ],
         "old_scandinavian": [
           "langr"
         ]
@@ -24678,6 +26262,12 @@
         "modern_usage": "Long-",
         "old_english": [
           "hlanc"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wlanc",
+            "weight": 2
+          }
         ],
         "old_scandinavian": [
           "langr"
@@ -24761,6 +26351,20 @@
         "old_english": [
           "hlyde",
           "hlūde"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hlide",
+            "weight": 3
+          },
+          {
+            "form": "hlud",
+            "weight": 2
+          },
+          {
+            "form": "clude",
+            "weight": 1
+          }
         ]
       },
       {
@@ -24768,6 +26372,20 @@
         "old_english": [
           "hlyde",
           "hlūde"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hlide",
+            "weight": 3
+          },
+          {
+            "form": "hlud",
+            "weight": 2
+          },
+          {
+            "form": "clude",
+            "weight": 1
+          }
         ]
       },
       {
@@ -25063,18 +26681,36 @@
         "modern_usage": "Naun-",
         "old_english": [
           "nīwan"
+        ],
+        "old_english_variants": [
+          {
+            "form": "niwan",
+            "weight": 10
+          }
         ]
       },
       {
         "modern_usage": "New-",
         "old_english": [
           "nīwan"
+        ],
+        "old_english_variants": [
+          {
+            "form": "niwan",
+            "weight": 10
+          }
         ]
       },
       {
         "modern_usage": "Nin-",
         "old_english": [
           "nīwan"
+        ],
+        "old_english_variants": [
+          {
+            "form": "niwan",
+            "weight": 10
+          }
         ]
       },
       {
@@ -25154,12 +26790,32 @@
         "modern_usage": "-tooey",
         "celtic_mix": [
           "tuaidh"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "tuaith",
+            "weight": 8
+          },
+          {
+            "form": "tuadh",
+            "weight": 1
+          },
+          {
+            "form": "tuaih",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "-tooskert",
         "celtic_mix": [
           "tuaisceart"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "tuaisaeart",
+            "weight": 3
+          }
         ]
       }
     ]
@@ -25631,6 +27287,12 @@
         "modern_usage": "Flam-",
         "old_english": [
           "flēam"
+        ],
+        "old_english_variants": [
+          {
+            "form": "fleam",
+            "weight": 21
+          }
         ]
       },
       {
@@ -25644,6 +27306,12 @@
         "old_english": [
           "hald",
           "hlēg"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hleg",
+            "weight": 1
+          }
         ]
       },
       {
@@ -25651,6 +27319,12 @@
         "old_english": [
           "hald",
           "hlēg"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hleg",
+            "weight": 1
+          }
         ]
       },
       {
@@ -25658,6 +27332,16 @@
         "old_english": [
           "hlēo",
           "scēo"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hleo",
+            "weight": 8
+          },
+          {
+            "form": "saeo",
+            "weight": 2
+          }
         ]
       },
       {
@@ -25665,6 +27349,16 @@
         "old_english": [
           "hlēo",
           "scēo"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hleo",
+            "weight": 8
+          },
+          {
+            "form": "saeo",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -25739,12 +27433,24 @@
         "modern_usage": "Ro-",
         "old_english": [
           "hrēof"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hreof",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "Rona-",
         "old_english": [
           "hrēof"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hreof",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -25946,6 +27652,12 @@
         "modern_usage": "-heather",
         "celtic_mix": [
           "leathoir"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "leathair",
+            "weight": 4
+          }
         ]
       }
     ]
@@ -26037,6 +27749,12 @@
         "old_scandinavian": [
           "sunn",
           "suthr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "suthra",
+            "weight": 2
+          }
         ]
       },
       {
@@ -26047,6 +27765,12 @@
         "old_scandinavian": [
           "sunn",
           "suthr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "suthra",
+            "weight": 2
+          }
         ]
       },
       {
@@ -26062,6 +27786,12 @@
         ],
         "old_scandinavian": [
           "suthr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "suthra",
+            "weight": 2
+          }
         ]
       },
       {
@@ -26077,6 +27807,12 @@
         ],
         "old_scandinavian": [
           "suthr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "suthra",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -26181,6 +27917,12 @@
         "modern_usage": "Steep-",
         "old_english": [
           "stīepe"
+        ],
+        "old_english_variants": [
+          {
+            "form": "stiepel",
+            "weight": 4
+          }
         ]
       },
       {
@@ -26332,6 +28074,12 @@
         "old_english": [
           "thriddda",
           "thrīe"
+        ],
+        "old_english_variants": [
+          {
+            "form": "thrie",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -26350,6 +28098,20 @@
         "modern_usage": "Twin-",
         "old_english": [
           "twinn"
+        ],
+        "old_english_variants": [
+          {
+            "form": "twin",
+            "weight": 10
+          },
+          {
+            "form": "twinne",
+            "weight": 2
+          },
+          {
+            "form": "twins",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -26413,6 +28175,12 @@
           "uppan",
           "yppe"
         ],
+        "old_english_variants": [
+          {
+            "form": "ufera",
+            "weight": 7
+          }
+        ],
         "old_scandinavian": [
           "efri"
         ]
@@ -26428,6 +28196,12 @@
           "upp",
           "uppan",
           "yppe"
+        ],
+        "old_english_variants": [
+          {
+            "form": "ufera",
+            "weight": 7
+          }
         ],
         "old_scandinavian": [
           "efri"
@@ -26445,6 +28219,12 @@
           "uppan",
           "yppe"
         ],
+        "old_english_variants": [
+          {
+            "form": "ufera",
+            "weight": 7
+          }
+        ],
         "old_scandinavian": [
           "efri"
         ]
@@ -26460,6 +28240,12 @@
           "upp",
           "uppan",
           "yppe"
+        ],
+        "old_english_variants": [
+          {
+            "form": "ufera",
+            "weight": 7
+          }
         ],
         "old_scandinavian": [
           "efri"
@@ -26477,6 +28263,12 @@
           "uppan",
           "yppe"
         ],
+        "old_english_variants": [
+          {
+            "form": "ufera",
+            "weight": 7
+          }
+        ],
         "old_scandinavian": [
           "efri"
         ]
@@ -26492,6 +28284,12 @@
           "upp",
           "uppan",
           "yppe"
+        ],
+        "old_english_variants": [
+          {
+            "form": "ufera",
+            "weight": 7
+          }
         ],
         "old_scandinavian": [
           "efri"
@@ -26509,6 +28307,12 @@
           "uppan",
           "yppe"
         ],
+        "old_english_variants": [
+          {
+            "form": "ufera",
+            "weight": 7
+          }
+        ],
         "old_scandinavian": [
           "efri"
         ]
@@ -26524,6 +28328,12 @@
           "upp",
           "uppan",
           "yppe"
+        ],
+        "old_english_variants": [
+          {
+            "form": "ufera",
+            "weight": 7
+          }
         ],
         "old_scandinavian": [
           "efri"
@@ -26567,6 +28377,12 @@
         "modern_usage": "Wester-",
         "old_english": [
           "westerra"
+        ],
+        "old_english_variants": [
+          {
+            "form": "westerna",
+            "weight": 1
+          }
         ],
         "old_scandinavian": [
           "vestari"
@@ -26690,24 +28506,48 @@
         "modern_usage": "-ock",
         "old_english": [
           "aecern"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aeaern",
+            "weight": 3
+          }
         ]
       },
       {
         "modern_usage": "Ac-",
         "old_english": [
           "aecern"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aeaern",
+            "weight": 3
+          }
         ]
       },
       {
         "modern_usage": "Acc-",
         "old_english": [
           "aecern"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aeaern",
+            "weight": 3
+          }
         ]
       },
       {
         "modern_usage": "Accring-",
         "old_english": [
           "aecern"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aeaern",
+            "weight": 3
+          }
         ]
       }
     ]
@@ -26883,12 +28723,32 @@
         "modern_usage": "-was",
         "old_english": [
           "waesse"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wasse",
+            "weight": 3
+          },
+          {
+            "form": "weesse",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Wash-",
         "old_english": [
           "waesse"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wasse",
+            "weight": 3
+          },
+          {
+            "form": "weesse",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -27026,6 +28886,12 @@
         "modern_usage": "Harris-",
         "old_scandinavian": [
           "herath"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "heradh",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -27085,6 +28951,12 @@
         "modern_usage": "-soken",
         "old_english": [
           "sōcn"
+        ],
+        "old_english_variants": [
+          {
+            "form": "socn",
+            "weight": 6
+          }
         ]
       },
       {
@@ -27343,12 +29215,32 @@
         ],
         "old_scandinavian": [
           "fjorthr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "fjordhr",
+            "weight": 8
+          },
+          {
+            "form": "fiorthr",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "-ford",
         "old_scandinavian": [
           "fjorthr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "fjordhr",
+            "weight": 8
+          },
+          {
+            "form": "fiorthr",
+            "weight": 1
+          }
         ]
       },
       {
@@ -27393,6 +29285,16 @@
         ],
         "old_scandinavian": [
           "fjorthr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "fjordhr",
+            "weight": 8
+          },
+          {
+            "form": "fiorthr",
+            "weight": 1
+          }
         ]
       },
       {
@@ -27533,6 +29435,16 @@
         "modern_usage": "-allen",
         "celtic_mix": [
           "álainn"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "alainn",
+            "weight": 7
+          },
+          {
+            "form": "dlainn",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -27555,6 +29467,12 @@
         "old_english": [
           "scēne",
           "scene"
+        ],
+        "old_english_variants": [
+          {
+            "form": "saene",
+            "weight": 138
+          }
         ]
       },
       {
@@ -27562,6 +29480,12 @@
         "old_english": [
           "scēne",
           "scene"
+        ],
+        "old_english_variants": [
+          {
+            "form": "saene",
+            "weight": 138
+          }
         ]
       }
     ]
@@ -27801,6 +29725,12 @@
         "modern_usage": "-gar",
         "celtic_mix": [
           "cearr"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "aearr",
+            "weight": 8
+          }
         ]
       },
       {
@@ -28136,12 +30066,24 @@
         "modern_usage": "Slaugh-",
         "old_english": [
           "slōh"
+        ],
+        "old_english_variants": [
+          {
+            "form": "sloh",
+            "weight": 19
+          }
         ]
       },
       {
         "modern_usage": "Slo-",
         "old_english": [
           "slōh"
+        ],
+        "old_english_variants": [
+          {
+            "form": "sloh",
+            "weight": 19
+          }
         ]
       }
     ]
@@ -28295,6 +30237,12 @@
         "modern_usage": "-loy",
         "celtic_mix": [
           "lathaí"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "latham",
+            "weight": 1
+          }
         ]
       },
       {
@@ -28325,18 +30273,36 @@
         "modern_usage": "-nanny",
         "celtic_mix": [
           "lathaí"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "latham",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "-risk",
         "celtic_mix": [
           "riascadh"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "riascach",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Anna-",
         "celtic_mix": [
           "lathaí"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "latham",
+            "weight": 1
+          }
         ]
       },
       {
@@ -28355,6 +30321,12 @@
         "modern_usage": "Leg-",
         "old_english": [
           "lece"
+        ],
+        "old_english_variants": [
+          {
+            "form": "leae",
+            "weight": 11
+          }
         ]
       },
       {
@@ -28410,6 +30382,16 @@
         "old_english": [
           "saege",
           "snaep"
+        ],
+        "old_english_variants": [
+          {
+            "form": "sege",
+            "weight": 2
+          },
+          {
+            "form": "saene",
+            "weight": 1
+          }
         ]
       },
       {
@@ -29050,6 +31032,12 @@
         ],
         "old_english": [
           "hrīs"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hris",
+            "weight": 41
+          }
         ]
       },
       {
@@ -29059,6 +31047,12 @@
         ],
         "old_english": [
           "hrīs"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hris",
+            "weight": 41
+          }
         ]
       },
       {
@@ -29089,6 +31083,12 @@
           "hrīs",
           "hwippe",
           "lael"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hris",
+            "weight": 41
+          }
         ]
       },
       {
@@ -29099,6 +31099,12 @@
         ],
         "old_english": [
           "hrīs"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hris",
+            "weight": 41
+          }
         ]
       },
       {
@@ -29111,6 +31117,12 @@
           "hrīs",
           "hwippe",
           "lael"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hris",
+            "weight": 41
+          }
         ]
       },
       {
@@ -29123,6 +31135,12 @@
           "hrīs",
           "hwippe",
           "lael"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hris",
+            "weight": 41
+          }
         ]
       },
       {
@@ -29282,12 +31300,24 @@
         "modern_usage": "Brear-",
         "old_english": [
           "brēr"
+        ],
+        "old_english_variants": [
+          {
+            "form": "brer",
+            "weight": 13
+          }
         ]
       },
       {
         "modern_usage": "Briar-",
         "old_english": [
           "brēr"
+        ],
+        "old_english_variants": [
+          {
+            "form": "brer",
+            "weight": 13
+          }
         ]
       }
     ]
@@ -29334,6 +31364,16 @@
         "modern_usage": "Green-",
         "celtic_mix": [
           "grianán"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "griandn",
+            "weight": 3
+          },
+          {
+            "form": "grianan",
+            "weight": 1
+          }
         ]
       },
       {
@@ -29491,6 +31531,12 @@
         "old_english": [
           "racu",
           "rīth"
+        ],
+        "old_english_variants": [
+          {
+            "form": "rith",
+            "weight": 40
+          }
         ]
       },
       {
@@ -29517,6 +31563,12 @@
         "modern_usage": "Hel-",
         "old_english": [
           "rīth"
+        ],
+        "old_english_variants": [
+          {
+            "form": "rith",
+            "weight": 40
+          }
         ]
       },
       {
@@ -29809,18 +31861,36 @@
         "modern_usage": "-draw",
         "celtic_mix": [
           "droim"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "droit",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "-drum",
         "celtic_mix": [
           "droim"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "droit",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "-nummery",
         "celtic_mix": [
           "málainn"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "malainn",
+            "weight": 6
+          }
         ]
       },
       {
@@ -29851,12 +31921,24 @@
         "modern_usage": "Drom-",
         "celtic_mix": [
           "droim"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "droit",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "Drum-",
         "celtic_mix": [
           "droim"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "droit",
+            "weight": 2
+          }
         ]
       },
       {
@@ -29870,6 +31952,12 @@
         "modern_usage": "Mal-",
         "celtic_mix": [
           "málainn"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "malainn",
+            "weight": 6
+          }
         ]
       },
       {
@@ -29979,24 +32067,96 @@
         "modern_usage": "-draw",
         "celtic_mix": [
           "druim"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "dreim",
+            "weight": 3
+          },
+          {
+            "form": "drim",
+            "weight": 2
+          },
+          {
+            "form": "driim",
+            "weight": 1
+          },
+          {
+            "form": "drnim",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "-drum",
         "celtic_mix": [
           "druim"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "dreim",
+            "weight": 3
+          },
+          {
+            "form": "drim",
+            "weight": 2
+          },
+          {
+            "form": "driim",
+            "weight": 1
+          },
+          {
+            "form": "drnim",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Drom-",
         "celtic_mix": [
           "druim"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "dreim",
+            "weight": 3
+          },
+          {
+            "form": "drim",
+            "weight": 2
+          },
+          {
+            "form": "driim",
+            "weight": 1
+          },
+          {
+            "form": "drnim",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Drum-",
         "celtic_mix": [
           "druim"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "dreim",
+            "weight": 3
+          },
+          {
+            "form": "drim",
+            "weight": 2
+          },
+          {
+            "form": "driim",
+            "weight": 1
+          },
+          {
+            "form": "drnim",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -30137,6 +32297,16 @@
           "caelc",
           "calc",
           "celce"
+        ],
+        "old_english_variants": [
+          {
+            "form": "cailc",
+            "weight": 2
+          },
+          {
+            "form": "aelc",
+            "weight": 1
+          }
         ]
       },
       {
@@ -30145,6 +32315,16 @@
           "caelc",
           "calc",
           "celce"
+        ],
+        "old_english_variants": [
+          {
+            "form": "cailc",
+            "weight": 2
+          },
+          {
+            "form": "aelc",
+            "weight": 1
+          }
         ]
       },
       {
@@ -30153,6 +32333,16 @@
           "caelc",
           "calc",
           "celce"
+        ],
+        "old_english_variants": [
+          {
+            "form": "cailc",
+            "weight": 2
+          },
+          {
+            "form": "aelc",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -30284,6 +32474,12 @@
         "modern_usage": "Hel-",
         "old_scandinavian": [
           "hjalla"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "hjalli",
+            "weight": 1
+          }
         ]
       },
       {
@@ -30729,6 +32925,12 @@
           "wīc",
           "wice",
           "wic"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wiae",
+            "weight": 27
+          }
         ]
       },
       {
@@ -30737,6 +32939,12 @@
           "wīc",
           "wice",
           "wic"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wiae",
+            "weight": 27
+          }
         ]
       },
       {
@@ -30745,6 +32953,12 @@
           "wīc",
           "wice",
           "wic"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wiae",
+            "weight": 27
+          }
         ]
       },
       {
@@ -30753,6 +32967,12 @@
           "wīc",
           "wice",
           "wic"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wiae",
+            "weight": 27
+          }
         ]
       },
       {
@@ -30761,6 +32981,12 @@
           "wīc",
           "wice",
           "wic"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wiae",
+            "weight": 27
+          }
         ]
       },
       {
@@ -30769,6 +32995,12 @@
           "wīc",
           "wice",
           "wic"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wiae",
+            "weight": 54
+          }
         ]
       },
       {
@@ -30777,6 +33009,12 @@
           "wīc",
           "wice",
           "wic"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wiae",
+            "weight": 27
+          }
         ]
       },
       {
@@ -30785,12 +33023,24 @@
           "wīc",
           "wice",
           "wic"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wiae",
+            "weight": 27
+          }
         ]
       },
       {
         "modern_usage": "Wish-",
         "old_english": [
           "wice"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wiae",
+            "weight": 27
+          }
         ]
       },
       {
@@ -30799,6 +33049,12 @@
           "wīc",
           "wice",
           "wic"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wiae",
+            "weight": 27
+          }
         ]
       },
       {
@@ -30807,6 +33063,12 @@
           "wīc",
           "wice",
           "wic"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wiae",
+            "weight": 27
+          }
         ]
       }
     ]
@@ -30942,6 +33204,12 @@
         "modern_usage": "Nap-",
         "old_english": [
           "knaepp"
+        ],
+        "old_english_variants": [
+          {
+            "form": "knapp",
+            "weight": 4
+          }
         ]
       },
       {
@@ -31174,6 +33442,16 @@
         "old_english": [
           "ceole",
           "cetel"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aetel",
+            "weight": 7
+          },
+          {
+            "form": "aeole",
+            "weight": 5
+          }
         ]
       },
       {
@@ -31181,6 +33459,16 @@
         "old_english": [
           "ceole",
           "cetel"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aetel",
+            "weight": 7
+          },
+          {
+            "form": "aeole",
+            "weight": 5
+          }
         ]
       },
       {
@@ -31869,6 +34157,12 @@
         "modern_usage": "-mouth",
         "old_english": [
           "mūtha"
+        ],
+        "old_english_variants": [
+          {
+            "form": "mutha",
+            "weight": 17
+          }
         ]
       },
       {
@@ -32279,6 +34573,12 @@
         "modern_usage": "Lick-",
         "celtic_mix": [
           "leacach"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "leagach",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -32406,6 +34706,12 @@
         "old_french": [
           "fflynt"
         ],
+        "old_french_variants": [
+          {
+            "form": "fflint",
+            "weight": 1
+          }
+        ],
         "old_english": [
           "flint"
         ]
@@ -32457,6 +34763,12 @@
         "modern_usage": "-chard",
         "celtic_mix": [
           "choilleadh"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "coilleadh",
+            "weight": 5
+          }
         ]
       },
       {
@@ -32530,12 +34842,24 @@
         "modern_usage": "-scough",
         "old_scandinavian": [
           "skógr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "skdgr",
+            "weight": 3
+          }
         ]
       },
       {
         "modern_usage": "-shaw",
         "old_scandinavian": [
           "skógr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "skdgr",
+            "weight": 3
+          }
         ]
       },
       {
@@ -32548,18 +34872,48 @@
         "modern_usage": "-wick",
         "old_scandinavian": [
           "vither"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "either",
+            "weight": 31
+          },
+          {
+            "form": "wither",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "-with",
         "old_scandinavian": [
           "vither"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "either",
+            "weight": 31
+          },
+          {
+            "form": "wither",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "-withiel",
         "old_scandinavian": [
           "vither"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "either",
+            "weight": 31
+          },
+          {
+            "form": "wither",
+            "weight": 1
+          }
         ]
       },
       {
@@ -32572,6 +34926,16 @@
         "modern_usage": "-wood",
         "old_english": [
           "wudig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "widig",
+            "weight": 2
+          },
+          {
+            "form": "wudii",
+            "weight": 1
+          }
         ]
       },
       {
@@ -32603,6 +34967,12 @@
         "celtic_mix": [
           "fforest",
           "fáoda"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "floda",
+            "weight": 4
+          }
         ]
       },
       {
@@ -32610,6 +34980,12 @@
         "celtic_mix": [
           "fforest",
           "fáoda"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "floda",
+            "weight": 4
+          }
         ]
       },
       {
@@ -32617,6 +34993,12 @@
         "celtic_mix": [
           "choilleadh",
           "kelli"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "coilleadh",
+            "weight": 5
+          }
         ]
       },
       {
@@ -32624,6 +35006,12 @@
         "celtic_mix": [
           "choilleadh",
           "kelli"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "coilleadh",
+            "weight": 5
+          }
         ]
       },
       {
@@ -32654,6 +35042,12 @@
         "modern_usage": "Shaw-",
         "old_scandinavian": [
           "skógr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "skdgr",
+            "weight": 3
+          }
         ]
       },
       {
@@ -32696,12 +35090,32 @@
         "modern_usage": "Wood-",
         "old_english": [
           "wudig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "widig",
+            "weight": 2
+          },
+          {
+            "form": "wudii",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Woot-",
         "old_english": [
           "wudig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "widig",
+            "weight": 2
+          },
+          {
+            "form": "wudii",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -33199,6 +35613,12 @@
           "launde",
           "lāch"
         ],
+        "old_french_variants": [
+          {
+            "form": "lach",
+            "weight": 53
+          }
+        ],
         "old_english": [
           "lēagum"
         ]
@@ -33221,6 +35641,12 @@
           "launde",
           "lāch"
         ],
+        "old_french_variants": [
+          {
+            "form": "lach",
+            "weight": 53
+          }
+        ],
         "old_english": [
           "lēagum"
         ]
@@ -33230,6 +35656,12 @@
         "old_french": [
           "launde",
           "lāch"
+        ],
+        "old_french_variants": [
+          {
+            "form": "lach",
+            "weight": 53
+          }
         ],
         "old_english": [
           "lēagum"
@@ -33246,6 +35678,12 @@
         "celtic_mix": [
           "māwe"
         ],
+        "celtic_mix_variants": [
+          {
+            "form": "mawe",
+            "weight": 1
+          }
+        ],
         "old_english": [
           "maed"
         ]
@@ -33254,6 +35692,12 @@
         "modern_usage": "-mow",
         "celtic_mix": [
           "māwe"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "mawe",
+            "weight": 1
+          }
         ]
       },
       {
@@ -33290,6 +35734,12 @@
         "modern_usage": "Allan-",
         "celtic_mix": [
           "àilean"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "ailean",
+            "weight": 1
+          }
         ]
       },
       {
@@ -33585,8 +36035,20 @@
           "grēon",
           "grēot"
         ],
+        "old_english_variants": [
+          {
+            "form": "greot",
+            "weight": 10
+          }
+        ],
         "old_scandinavian": [
           "grjót"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "grjot",
+            "weight": 4
+          }
         ]
       },
       {
@@ -33595,8 +36057,20 @@
           "grēon",
           "grēot"
         ],
+        "old_english_variants": [
+          {
+            "form": "greot",
+            "weight": 10
+          }
+        ],
         "old_scandinavian": [
           "grjót"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "grjot",
+            "weight": 4
+          }
         ]
       },
       {
@@ -33605,8 +36079,20 @@
           "grēon",
           "grēot"
         ],
+        "old_english_variants": [
+          {
+            "form": "greot",
+            "weight": 10
+          }
+        ],
         "old_scandinavian": [
           "grjót"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "grjot",
+            "weight": 4
+          }
         ]
       },
       {
@@ -33615,8 +36101,20 @@
           "grēon",
           "grēot"
         ],
+        "old_english_variants": [
+          {
+            "form": "greot",
+            "weight": 10
+          }
+        ],
         "old_scandinavian": [
           "grjót"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "grjot",
+            "weight": 4
+          }
         ]
       },
       {
@@ -33631,8 +36129,20 @@
           "grēon",
           "grēot"
         ],
+        "old_english_variants": [
+          {
+            "form": "greot",
+            "weight": 10
+          }
+        ],
         "old_scandinavian": [
           "grjót"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "grjot",
+            "weight": 4
+          }
         ]
       },
       {
@@ -33641,8 +36151,20 @@
           "grēon",
           "grēot"
         ],
+        "old_english_variants": [
+          {
+            "form": "greot",
+            "weight": 10
+          }
+        ],
         "old_scandinavian": [
           "grjót"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "grjot",
+            "weight": 4
+          }
         ]
       },
       {
@@ -34014,6 +36536,12 @@
         "modern_usage": "-rugog",
         "celtic_mix": [
           "grugog"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "grugos",
+            "weight": 1
+          }
         ]
       },
       {
@@ -34121,6 +36649,12 @@
         "modern_usage": "Hemp-",
         "old_english": [
           "haenep"
+        ],
+        "old_english_variants": [
+          {
+            "form": "henep",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -34217,6 +36751,12 @@
         "modern_usage": "Snor-",
         "old_english": [
           "snōr"
+        ],
+        "old_english_variants": [
+          {
+            "form": "snor",
+            "weight": 1
+          }
         ]
       },
       {
@@ -34646,6 +37186,12 @@
           "pīcel",
           "spura",
           "torr"
+        ],
+        "old_english_variants": [
+          {
+            "form": "piael",
+            "weight": 2
+          }
         ]
       },
       {
@@ -34658,6 +37204,12 @@
           "pīcel",
           "spura",
           "torr"
+        ],
+        "old_english_variants": [
+          {
+            "form": "piael",
+            "weight": 2
+          }
         ]
       },
       {
@@ -34694,18 +37246,36 @@
         "modern_usage": "Peak-",
         "old_english": [
           "pīcel"
+        ],
+        "old_english_variants": [
+          {
+            "form": "piael",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "Peck-",
         "old_english": [
           "pīcel"
+        ],
+        "old_english_variants": [
+          {
+            "form": "piael",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "Pet-",
         "old_english": [
           "pīcel"
+        ],
+        "old_english_variants": [
+          {
+            "form": "piael",
+            "weight": 2
+          }
         ]
       },
       {
@@ -34734,30 +37304,60 @@
         "modern_usage": "-loe",
         "old_english": [
           "pēac"
+        ],
+        "old_english_variants": [
+          {
+            "form": "peac",
+            "weight": 9
+          }
         ]
       },
       {
         "modern_usage": "-ow",
         "old_english": [
           "pēac"
+        ],
+        "old_english_variants": [
+          {
+            "form": "peac",
+            "weight": 9
+          }
         ]
       },
       {
         "modern_usage": "Peak-",
         "old_english": [
           "pēac"
+        ],
+        "old_english_variants": [
+          {
+            "form": "peac",
+            "weight": 9
+          }
         ]
       },
       {
         "modern_usage": "Peck-",
         "old_english": [
           "pēac"
+        ],
+        "old_english_variants": [
+          {
+            "form": "peac",
+            "weight": 9
+          }
         ]
       },
       {
         "modern_usage": "Pet-",
         "old_english": [
           "pēac"
+        ],
+        "old_english_variants": [
+          {
+            "form": "peac",
+            "weight": 9
+          }
         ]
       }
     ]
@@ -34923,12 +37523,24 @@
         "modern_usage": "Arun-",
         "old_english": [
           "hūne"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hune",
+            "weight": 7
+          }
         ]
       },
       {
         "modern_usage": "Hound-",
         "old_english": [
           "hūne"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hune",
+            "weight": 7
+          }
         ]
       }
     ]
@@ -35357,6 +37969,12 @@
         ],
         "old_english": [
           "īfig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "ifig",
+            "weight": 3
+          }
         ]
       },
       {
@@ -35366,6 +37984,12 @@
         ],
         "old_english": [
           "īfig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "ifig",
+            "weight": 3
+          }
         ]
       }
     ]
@@ -35942,6 +38566,12 @@
         "celtic_mix": [
           "marghas",
           "mharga"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "marga",
+            "weight": 5
+          }
         ]
       }
     ]
@@ -36010,6 +38640,12 @@
         "modern_usage": "-stone-",
         "old_english": [
           "stānig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "stani",
+            "weight": 1
+          }
         ]
       },
       {
@@ -36040,6 +38676,12 @@
         "modern_usage": "-stone",
         "old_english": [
           "stānig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "stani",
+            "weight": 1
+          }
         ]
       },
       {
@@ -36059,6 +38701,12 @@
         "celtic_mix": [
           "carraig",
           "chairthe"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "cairthe",
+            "weight": 4
+          }
         ]
       },
       {
@@ -36087,6 +38735,12 @@
         "old_english": [
           "rok",
           "rokke"
+        ],
+        "old_english_variants": [
+          {
+            "form": "rocke",
+            "weight": 2
+          }
         ]
       },
       {
@@ -36097,48 +38751,96 @@
         "old_english": [
           "rok",
           "rokke"
+        ],
+        "old_english_variants": [
+          {
+            "form": "rocke",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "Sta-",
         "old_english": [
           "stānig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "stani",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Stain-",
         "old_english": [
           "stānig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "stani",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Stam-",
         "old_english": [
           "stānig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "stani",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Stan-",
         "old_english": [
           "stānig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "stani",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Staun-",
         "old_english": [
           "stānig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "stani",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Steyn-",
         "old_english": [
           "stānig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "stani",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Stonie-",
         "old_english": [
           "stānig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "stani",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -36325,6 +39027,16 @@
         "modern_usage": "-gilly-",
         "old_scandinavian": [
           "gnípa"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "gnipa",
+            "weight": 13
+          },
+          {
+            "form": "gntpa",
+            "weight": 1
+          }
         ]
       },
       {
@@ -36355,6 +39067,16 @@
         "modern_usage": "Knip-",
         "old_scandinavian": [
           "gnípa"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "gnipa",
+            "weight": 13
+          },
+          {
+            "form": "gntpa",
+            "weight": 1
+          }
         ]
       },
       {
@@ -36830,6 +39552,12 @@
         "modern_usage": "-ack",
         "old_english": [
           "ācen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aaen",
+            "weight": 9
+          }
         ]
       },
       {
@@ -36856,30 +39584,60 @@
         "modern_usage": "Oak- ",
         "old_english": [
           "ācen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aaen",
+            "weight": 9
+          }
         ]
       },
       {
         "modern_usage": "Ack-",
         "old_english": [
           "ācen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aaen",
+            "weight": 9
+          }
         ]
       },
       {
         "modern_usage": "Act-",
         "old_english": [
           "ācen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aaen",
+            "weight": 9
+          }
         ]
       },
       {
         "modern_usage": "Ake-",
         "old_english": [
           "ācen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aaen",
+            "weight": 9
+          }
         ]
       },
       {
         "modern_usage": "Augh-",
         "old_english": [
           "ācen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aaen",
+            "weight": 9
+          }
         ]
       },
       {
@@ -36907,18 +39665,36 @@
         "modern_usage": "Edg-",
         "old_english": [
           "ācen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aaen",
+            "weight": 9
+          }
         ]
       },
       {
         "modern_usage": "Oaken-",
         "old_english": [
           "ācen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aaen",
+            "weight": 9
+          }
         ]
       },
       {
         "modern_usage": "Ocl-",
         "old_english": [
           "ācen"
+        ],
+        "old_english_variants": [
+          {
+            "form": "aaen",
+            "weight": 9
+          }
         ]
       }
     ]
@@ -37148,12 +39924,24 @@
         "modern_usage": "Wacker-",
         "old_english": [
           "wācor"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wacor",
+            "weight": 2
+          }
         ]
       },
       {
         "modern_usage": "Wake-",
         "old_english": [
           "wācor"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wacor",
+            "weight": 2
+          }
         ]
       },
       {
@@ -37164,6 +39952,12 @@
           "wiligen",
           "willig",
           "wīthig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "withig",
+            "weight": 12
+          }
         ]
       },
       {
@@ -37174,6 +39968,12 @@
           "wiligen",
           "willig",
           "wīthig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "withig",
+            "weight": 12
+          }
         ]
       },
       {
@@ -37184,6 +39984,12 @@
           "wiligen",
           "willig",
           "wīthig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "withig",
+            "weight": 12
+          }
         ]
       },
       {
@@ -37222,24 +40028,48 @@
         "modern_usage": "Wither-",
         "old_english": [
           "wīthig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "withig",
+            "weight": 12
+          }
         ]
       },
       {
         "modern_usage": "Withy-",
         "old_english": [
           "wīthig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "withig",
+            "weight": 12
+          }
         ]
       },
       {
         "modern_usage": "Wyd-",
         "old_english": [
           "wīthig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "withig",
+            "weight": 12
+          }
         ]
       },
       {
         "modern_usage": "Wyth-",
         "old_english": [
           "wīthig"
+        ],
+        "old_english_variants": [
+          {
+            "form": "withig",
+            "weight": 12
+          }
         ]
       }
     ]
@@ -38026,30 +40856,60 @@
         "modern_usage": "Rad-",
         "old_english": [
           "hrēod"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hreod",
+            "weight": 34
+          }
         ]
       },
       {
         "modern_usage": "Red-",
         "old_english": [
           "hrēod"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hreod",
+            "weight": 34
+          }
         ]
       },
       {
         "modern_usage": "Ridge-",
         "old_english": [
           "hrēod"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hreod",
+            "weight": 34
+          }
         ]
       },
       {
         "modern_usage": "Ring-",
         "old_english": [
           "hrēod"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hreod",
+            "weight": 34
+          }
         ]
       },
       {
         "modern_usage": "Rod-",
         "old_english": [
           "hrēod"
+        ],
+        "old_english_variants": [
+          {
+            "form": "hreod",
+            "weight": 34
+          }
         ]
       }
     ]
@@ -38123,6 +40983,16 @@
         "modern_usage": "-wincle",
         "old_english": [
           "wincel"
+        ],
+        "old_english_variants": [
+          {
+            "form": "winael",
+            "weight": 6
+          },
+          {
+            "form": "winae",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -38259,6 +41129,16 @@
         "modern_usage": "Staf-",
         "old_scandinavian": [
           "stafr"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "staf",
+            "weight": 9
+          },
+          {
+            "form": "stafa",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -38548,24 +41428,64 @@
         "modern_usage": "Sam-",
         "old_english": [
           "sende"
+        ],
+        "old_english_variants": [
+          {
+            "form": "send",
+            "weight": 2
+          },
+          {
+            "form": "sande",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "San-",
         "old_english": [
           "sende"
+        ],
+        "old_english_variants": [
+          {
+            "form": "send",
+            "weight": 2
+          },
+          {
+            "form": "sande",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Sand-",
         "old_english": [
           "sende"
+        ],
+        "old_english_variants": [
+          {
+            "form": "send",
+            "weight": 2
+          },
+          {
+            "form": "sande",
+            "weight": 1
+          }
         ]
       },
       {
         "modern_usage": "Stam-",
         "old_english": [
           "sende"
+        ],
+        "old_english_variants": [
+          {
+            "form": "send",
+            "weight": 2
+          },
+          {
+            "form": "sande",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -38829,8 +41749,28 @@
         "old_english": [
           "snāw"
         ],
+        "old_english_variants": [
+          {
+            "form": "snaw",
+            "weight": 2
+          }
+        ],
         "old_scandinavian": [
           "snaer"
+        ],
+        "old_scandinavian_variants": [
+          {
+            "form": "snae",
+            "weight": 2
+          },
+          {
+            "form": "snaes",
+            "weight": 1
+          },
+          {
+            "form": "sneer",
+            "weight": 1
+          }
         ]
       }
     ]
@@ -38848,6 +41788,12 @@
         "modern_usage": "-tawy",
         "celtic_mix": [
           "tsamhaid"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "tsamhaidh",
+            "weight": 3
+          }
         ]
       }
     ]
@@ -38884,6 +41830,16 @@
         "modern_usage": "Wan-",
         "old_english": [
           "wealm"
+        ],
+        "old_english_variants": [
+          {
+            "form": "welm",
+            "weight": 3
+          },
+          {
+            "form": "walm",
+            "weight": 2
+          }
         ]
       },
       {
@@ -38978,6 +41934,12 @@
         "celtic_mix": [
           "tobair",
           "tobar"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "thobair",
+            "weight": 2
+          }
         ]
       },
       {
@@ -38985,6 +41947,12 @@
         "celtic_mix": [
           "tobair",
           "tobar"
+        ],
+        "celtic_mix_variants": [
+          {
+            "form": "thobair",
+            "weight": 2
+          }
         ]
       }
     ]
@@ -39402,6 +42370,12 @@
         "modern_usage": "Bam-",
         "old_english": [
           "bēam-"
+        ],
+        "old_english_variants": [
+          {
+            "form": "beam",
+            "weight": 91
+          }
         ]
       },
       {
@@ -39604,6 +42578,12 @@
         "modern_usage": "Gar-",
         "old_english": [
           "gāra"
+        ],
+        "old_english_variants": [
+          {
+            "form": "gara",
+            "weight": 43
+          }
         ]
       }
     ]
@@ -39690,6 +42670,12 @@
         "modern_usage": "Shank-",
         "old_english": [
           "scenc"
+        ],
+        "old_english_variants": [
+          {
+            "form": "saenc",
+            "weight": 6
+          }
         ]
       }
     ]
@@ -39775,12 +42761,24 @@
         "modern_usage": "Waver-",
         "old_english": [
           "wēfer"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wefer",
+            "weight": 6
+          }
         ]
       },
       {
         "modern_usage": "Weaver-",
         "old_english": [
           "wēfer"
+        ],
+        "old_english_variants": [
+          {
+            "form": "wefer",
+            "weight": 6
+          }
         ]
       },
       {

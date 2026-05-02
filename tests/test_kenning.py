@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from wyrd.app import create_app
 from wyrd.generators.kenning import CULTURES, Kenning, available_tags
 
@@ -20,6 +22,55 @@ def test_seed_is_reproducible():
     b = k.generate({"culture": "english"}, seed=42)
     assert a.result == b.result
     assert a.explanation == b.explanation
+
+
+@pytest.mark.parametrize("knob", ["novelty", "spelling_variety"])
+def test_default_knob_zero_matches_unspecified(knob):
+    """A fresh Kenning() at default params and at explicit ``knob=0.0`` produce
+    the same output. Guards the 'knob=0 is identity' contract for D17/D18."""
+    k = Kenning()
+    a = k.generate({"culture": "english"}, seed=42).result
+    b = k.generate({"culture": "english", knob: 0.0}, seed=42).result
+    assert a == b
+
+
+@pytest.mark.parametrize("knob", ["novelty", "spelling_variety"])
+def test_knob_is_seed_stable(knob):
+    """Same (params, seed) tuple yields the same name even with knob>0 —
+    the reproducibility contract holds across both new knobs."""
+    k = Kenning()
+    a = k.generate({"culture": "english", knob: 0.7}, seed=42).result
+    b = k.generate({"culture": "english", knob: 0.7}, seed=42).result
+    assert a == b
+
+
+def test_high_novelty_shifts_distribution():
+    """At novelty=1, the same seed produces a different name than novelty=0.
+    Verifies the knob actually changes the distribution rather than being a
+    no-op. Seed-stable so the assertion isn't flaky."""
+    k = Kenning()
+    canonical = k.generate({"culture": "english"}, seed=42).result
+    novel = k.generate({"culture": "english", "novelty": 1.0}, seed=42).result
+    assert canonical != novel
+
+
+def test_high_spelling_variety_changes_output_when_pool_present():
+    """At spelling_variety=1, names whose morphemes have a non-empty variant
+    pool render with the variant rather than the canonical reflex. Search
+    across a few seeds to guarantee at least one hit lands a variant — most
+    morphemes have empty pools, so a single seed could miss."""
+    k = Kenning()
+    canonical_outputs = set()
+    variant_outputs = set()
+    for seed in range(20):
+        canonical_outputs.add(k.generate({"culture": "english"}, seed=seed).result)
+        variant_outputs.add(
+            k.generate({"culture": "english", "spelling_variety": 1.0}, seed=seed).result
+        )
+    # At least one of the 20 seeds should land a name with at least one
+    # morpheme that has a variant pool — the bundled corpus has 416 such
+    # words, so 20 seeds is plenty to surface a difference.
+    assert variant_outputs != canonical_outputs
 
 
 def test_different_seeds_diverge():
