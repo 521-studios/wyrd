@@ -159,6 +159,11 @@ def test_extract_one_not_found_returns_accepted_empty_entry() -> None:
     The mining CLI counts these as 'declined' rather than 'rejected'."""
 
     class NotFoundClient:
+        # `model` is referenced when assembling the notes_prefix even on the
+        # not-found path (the prefix lives on the entry's source_quote). Real
+        # clients always carry a model; minimal test stubs need to as well.
+        model = "claude-sonnet-4-6"
+
         def chat_json(self, system, user, schema=None):
             return {"found": False, "notes": "no etymology in body"}
 
