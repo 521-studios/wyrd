@@ -1694,10 +1694,22 @@ def _build_forms_by_lang(root_row: Any, member_rows: list[Any]) -> dict[str, lis
     return forms_by_lang
 
 
+_GLOSS_SPLIT_RE = re.compile(r"\s*[,;]\s*|\s+or\s+", re.IGNORECASE)
+
+
 def _fetch_member_glosses(db: LexiconDB, member_ids: list[int]) -> list[str]:
-    """Distinct sorted glosses across the family's members."""
+    """Distinct sorted glosses across the family's members.
+
+    Drops glosses that are concatenations of already-present sibling
+    glosses (mining noise where the LLM emitted a comma/semicolon list as
+    a single gloss when the source bullet split it). Concretely, if
+    'lake', 'pond' are present and 'lake, pond' also got extracted, drop
+    the latter — it adds no information and clutters the explainer.
+    Splitter recognizes ',', ';', and ' or '; case-insensitive on the
+    'or' connector. Single-token glosses are kept unconditionally.
+    """
     placeholders = ",".join("?" * len(member_ids))
-    return [
+    raw = [
         row["gloss"]
         for row in db.conn.execute(
             f"SELECT DISTINCT gloss FROM etymon_gloss "
@@ -1705,6 +1717,24 @@ def _fetch_member_glosses(db: LexiconDB, member_ids: list[int]) -> list[str]:
             member_ids,
         )
     ]
+    return _filter_concatenation_glosses(raw)
+
+
+def _filter_concatenation_glosses(glosses: list[str]) -> list[str]:
+    """Drop glosses whose tokens are entirely covered by other singleton
+    glosses already in the list. Pure (no DB), so the caller's order
+    is preserved for the survivors."""
+    singleton_set = {g.strip().lower() for g in glosses if not _GLOSS_SPLIT_RE.search(g)}
+    out: list[str] = []
+    for g in glosses:
+        if g.strip().lower() in singleton_set and not _GLOSS_SPLIT_RE.search(g):
+            out.append(g)
+            continue
+        tokens = [t.strip().lower() for t in _GLOSS_SPLIT_RE.split(g) if t.strip()]
+        if len(tokens) > 1 and all(t in singleton_set for t in tokens):
+            continue
+        out.append(g)
+    return out
 
 
 def _fetch_member_tags(db: LexiconDB, member_ids: list[int]) -> list[str]:
@@ -1763,6 +1793,9 @@ def _fetch_member_reflexes(
     ]
 
 
+_LOW_CONFIDENCE_METHODS = frozenset({"fuzzy-search-v1", "llm-disambiguated-v1"})
+
+
 def _fetch_member_variants(
     db: LexiconDB, member_ids: list[int], canonical_forms_lower: set[str]
 ) -> dict[int, list[tuple[str, int]]]:
@@ -1774,11 +1807,22 @@ def _fetch_member_variants(
     generation. Dedupes against canonical_forms_lower so the pool only
     contains FORMS NEW TO THE GENERATOR — emitting "denu" when "denu" is
     also the canonical_form would be redundant.
+
+    Drops "low-confidence singletons": variants whose total match_count
+    is 1 AND every contributing row was produced by fuzzy-search or
+    llm-disambiguator (vs reverse-search, which scans for canonical-form
+    occurrences and is high-precision). A 1-edit-distance fuzzy hit with
+    a single attestation in the corpus is the dominant OCR-noise class
+    (saearp, drnim, etc.); requiring either ≥2 attestations or any
+    high-confidence method removes them without throwing away legitimate
+    archaic spellings.
     """
     placeholders = ",".join("?" * len(member_ids))
     member_variants: dict[int, list[tuple[str, int]]] = {}
     for row in db.conn.execute(
-        f"SELECT etymon_id, matched_form, SUM(match_count) AS total_count "
+        f"SELECT etymon_id, matched_form, "
+        f"  SUM(match_count) AS total_count, "
+        f"  GROUP_CONCAT(DISTINCT method) AS methods "
         f"FROM etymon_text_match "
         f"WHERE etymon_id IN ({placeholders}) "
         f"GROUP BY etymon_id, LOWER(matched_form) "
@@ -1786,6 +1830,9 @@ def _fetch_member_variants(
         member_ids,
     ):
         if row["matched_form"].lower() in canonical_forms_lower:
+            continue
+        methods = set((row["methods"] or "").split(","))
+        if row["total_count"] <= 1 and methods.issubset(_LOW_CONFIDENCE_METHODS):
             continue
         member_variants.setdefault(row["etymon_id"], []).append(
             (row["matched_form"], row["total_count"])
