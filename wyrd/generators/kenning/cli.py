@@ -7,6 +7,7 @@ import sqlite3
 import sys
 import time
 from collections import Counter
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from importlib import resources
 from pathlib import Path
@@ -1099,6 +1100,77 @@ def _select_review_candidates(
         conn.close()
 
 
+@dataclass(frozen=True)
+class _ReviewOutcome:
+    """One row's classified review result, ready for the loop to act on."""
+
+    counter: str  # 'rejected' | 'declined' | 'written'
+    log_line: str
+    failures: tuple[str, ...] = ()  # rejection reasons (rejected only)
+    persist_entry: Any = None  # ParsedEntry to write (written only)
+
+
+def _classify_review_result(name: str, result: Any, dt: float) -> _ReviewOutcome:
+    """Take a provider's LLMResult and produce a structured outcome.
+
+    Mirrors the writer's drop-low gate (`lexicon.py:1394`) so dry-run and
+    apply-mode summaries both report what's actually persisted.
+    """
+    if not result.accepted:
+        failures = tuple(f.reason for f in result.failures)
+        return _ReviewOutcome(
+            counter="rejected",
+            log_line=f"  REJECT  {name:24} ({dt:.1f}s)  " + ", ".join(failures),
+            failures=failures,
+        )
+    if result.entry is None or not result.entry.elements:
+        conf = result.entry.confidence if result.entry else "?"
+        return _ReviewOutcome(
+            counter="declined",
+            log_line=f"  DECLINE {name:24} ({dt:.1f}s)  conf={conf}",
+        )
+    breakdown = "+".join(el.form for el in result.entry.elements)
+    if result.entry.confidence == "low":
+        return _ReviewOutcome(
+            counter="declined",
+            log_line=f"  DROPPED {name:24} ({dt:.1f}s)  {breakdown:30}  conf=low (writer skips)",
+        )
+    return _ReviewOutcome(
+        counter="written",
+        log_line=(
+            f"  REVIEW  {name:24} ({dt:.1f}s)  {breakdown:30}  conf={result.entry.confidence}"
+        ),
+        persist_entry=result.entry,
+    )
+
+
+def _record_review_run(
+    write_db: LexiconDB,
+    *,
+    source_id: str,
+    provider: str,
+    model: str,
+    counts: dict[str, int],
+    by_failure: dict[str, int],
+    started_at: str,
+) -> None:
+    """Persist a `mining_run` audit row for one book's review pass (D23)."""
+    record_mining_run(
+        write_db,
+        source_id=source_id,
+        provider=provider,
+        model=model,
+        mode="review",
+        parsed_count=counts["written"] + counts["declined"] + counts["rejected"],
+        accepted=counts["written"],
+        declined=counts["declined"],
+        rejected=counts["rejected"],
+        by_failure=by_failure or None,
+        started_at=started_at,
+        completed_at=datetime.now(UTC).isoformat(),
+    )
+
+
 def _review_one_book(
     *,
     source_id: str,
@@ -1110,18 +1182,7 @@ def _review_one_book(
     apply_changes: bool,
     write_db: LexiconDB | None,
 ) -> dict[str, int]:
-    """Run the per-book Tier-2 review loop.
-
-    Re-parses the source, calls the provider on each row's toponym, and
-    classifies the result as written / declined / rejected / missing_entry.
-    Persists a `mining_run` audit row at end-of-book. Returns per-book
-    counts for the outer command to aggregate.
-
-    The low-confidence-drop policy lives here: the writer in
-    `lexicon.py:1394` silently skips `confidence='low'` etymons (toponym
-    row gets written but no etymology row), so this loop classifies them
-    as declined. Encapsulating the mirror keeps the policy in one place.
-    """
+    """Run the per-book Tier-2 review loop and persist its audit row."""
     counts: dict[str, int] = {
         "reviewed": 0,
         "written": 0,
@@ -1136,7 +1197,6 @@ def _review_one_book(
     entries_by_name: dict[str, object] = {p.toponym: p for p in parsed}
 
     click.echo(f"=== {source_id} ({len(rows)} candidates) ===", err=True)
-
     started_at = datetime.now(UTC).isoformat()
 
     for row in rows:
@@ -1153,65 +1213,34 @@ def _review_one_book(
             body=parsed_entry.body_text,
             suffix_hint=parsed_entry.section_suffix,
         )
-        dt = time.time() - t0
-
+        outcome = _classify_review_result(name, result, time.time() - t0)
+        click.echo(outcome.log_line, err=True)
         counts["reviewed"] += 1
-        if not result.accepted:
-            counts["rejected"] += 1
-            for f in result.failures:
-                by_failure[f.reason] = by_failure.get(f.reason, 0) + 1
-            failures = ", ".join(f.reason for f in result.failures)
-            click.echo(f"  REJECT  {name:24} ({dt:.1f}s)  {failures}", err=True)
-            continue
+        for reason in outcome.failures:
+            by_failure[reason] = by_failure.get(reason, 0) + 1
 
-        if result.entry is None or not result.entry.elements:
-            counts["declined"] += 1
-            click.echo(
-                f"  DECLINE {name:24} ({dt:.1f}s)  "
-                f"conf={result.entry.confidence if result.entry else '?'}",
-                err=True,
+        if outcome.counter == "written" and apply_changes and write_db is not None:
+            ingest_parsed_entries(
+                write_db, [outcome.persist_entry], source_id, region=row["region"]
             )
-            continue
+            counts["written"] += 1
+        elif outcome.counter != "written":
+            counts[outcome.counter] += 1
+        # else: dry-run "would-write" — log line shown above but don't count
 
-        if result.entry.confidence == "low":
-            counts["declined"] += 1
-            breakdown = "+".join(el.form for el in result.entry.elements)
-            click.echo(
-                f"  DROPPED {name:24} ({dt:.1f}s)  {breakdown:30}  conf=low (writer skips)",
-                err=True,
-            )
-            continue
-
-        breakdown = "+".join(el.form for el in result.entry.elements)
-        click.echo(
-            f"  REVIEW  {name:24} ({dt:.1f}s)  {breakdown:30}  conf={result.entry.confidence}",
-            err=True,
-        )
-
-        if apply_changes and write_db is not None:
-            ingest_parsed_entries(write_db, [result.entry], source_id, region=row["region"])
-        counts["written"] += 1
-
-    # Persist mining_run audit row (D23). Only record when we actually
-    # reached entries in this book — skip if every row was missing_entry.
     if (
         apply_changes
         and write_db is not None
         and (counts["written"] or counts["declined"] or counts["rejected"])
     ):
-        record_mining_run(
+        _record_review_run(
             write_db,
             source_id=source_id,
             provider=provider,
             model=client.model,
-            mode="review",
-            parsed_count=counts["written"] + counts["declined"] + counts["rejected"],
-            accepted=counts["written"],
-            declined=counts["declined"],
-            rejected=counts["rejected"],
-            by_failure=by_failure or None,
+            counts=counts,
+            by_failure=by_failure,
             started_at=started_at,
-            completed_at=datetime.now(UTC).isoformat(),
         )
 
     return counts
