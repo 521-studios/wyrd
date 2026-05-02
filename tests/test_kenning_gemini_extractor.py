@@ -67,6 +67,21 @@ def test_response_schema_matches_internal_shape() -> None:
     assert "celtic" in langs
 
 
+def test_response_schema_includes_attested_forms() -> None:
+    """D5-1 / wyrd-3ux: the Gemini schema must include the attested_forms
+    array so Gemini-mined data carries the same year citations that the
+    Ollama-mined data does. Required field; OpenAPI integer type."""
+    s = GEMINI_RESPONSE_SCHEMA
+    assert "attested_forms" in s["properties"]
+    assert "attested_forms" in s["required"]
+    item_schema = s["properties"]["attested_forms"]["items"]
+    assert item_schema["type"] == "OBJECT"
+    assert set(item_schema["properties"]) == {"form", "year"}
+    assert item_schema["properties"]["form"]["type"] == "STRING"
+    assert item_schema["properties"]["year"]["type"] == "INTEGER"
+    assert set(item_schema["required"]) == {"form", "year"}
+
+
 def test_base_url_includes_model_name() -> None:
     """Logging in `mine-llm` reads `client.base_url` — make sure the
     Gemini implementation provides a useful one (incorporates the model

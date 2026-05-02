@@ -208,6 +208,131 @@ def test_validate_response_handles_non_object() -> None:
     assert any(f.reason == "not_object" for f in failures)
 
 
+# --- attested_forms (D5-1 / wyrd-3ux) -------------------------------------
+
+
+_DATED_BODY = (
+    "Aburwick. Cited as Aburwick, 1333 ; Abberwyke, 1346 ; Aburwick, 1428. "
+    "From OE Hædan + tun, with later spelling drift."
+)
+
+
+def test_validate_response_accepts_attested_forms() -> None:
+    """Model emits dated historical-form citations from the body."""
+    response = _ok_response()
+    response["historical_form"] = "Hædan-tun"
+    response["elements"][0]["form"] = "Hædan"
+    response["attested_forms"] = [
+        {"form": "Aburwick", "year": 1333},
+        {"form": "Abberwyke", "year": 1346},
+    ]
+    failures = validate_response(response, _DATED_BODY)
+    assert failures == []
+
+
+def test_validate_response_accepts_empty_attested_forms() -> None:
+    """When body has no year citations, attested_forms is the empty list."""
+    response = _ok_response()
+    response["attested_forms"] = []
+    failures = validate_response(response, _BARTON_BODY)
+    assert failures == []
+
+
+def test_validate_response_back_compat_when_attested_forms_absent() -> None:
+    """Legacy responses (and legacy test fixtures) won't have attested_forms.
+    Validation should treat absence as 'no extraction' rather than a failure."""
+    response = _ok_response()
+    # _ok_response() does NOT include attested_forms — legacy shape.
+    assert "attested_forms" not in response
+    failures = validate_response(response, _BARTON_BODY)
+    assert failures == []
+
+
+def test_validate_response_rejects_attested_year_below_range() -> None:
+    """Years before 800 are almost always folio numbers or page numbers
+    misread as years."""
+    response = _ok_response()
+    response["attested_forms"] = [{"form": "bere", "year": 79}]
+    failures = validate_response(response, _BARTON_BODY)
+    assert any(f.reason == "attested_year_out_of_range" for f in failures)
+
+
+def test_validate_response_rejects_attested_year_above_range() -> None:
+    """Years after 1700 are almost always publication-year noise (1880-1928)."""
+    response = _ok_response()
+    response["attested_forms"] = [{"form": "bere", "year": 1920}]
+    failures = validate_response(response, _BARTON_BODY)
+    assert any(f.reason == "attested_year_out_of_range" for f in failures)
+
+
+def test_validate_response_rejects_attested_form_not_in_body() -> None:
+    """Same form-in-body anti-hallucination guard applies to attested_forms.
+    A model can't invent a historical spelling that isn't in the source."""
+    response = _ok_response()
+    response["attested_forms"] = [{"form": "Xyzfake", "year": 1333}]
+    failures = validate_response(response, _DATED_BODY)
+    assert any(f.reason == "attested_form_not_in_body" for f in failures)
+
+
+def test_validate_response_rejects_attested_year_non_integer() -> None:
+    """Year must be an integer. Strings or floats are reject candidates."""
+    response = _ok_response()
+    response["attested_forms"] = [{"form": "Aburwick", "year": "1333"}]
+    failures = validate_response(response, _DATED_BODY)
+    assert any(f.reason == "attested_year_not_int" for f in failures)
+
+
+def test_validate_response_rejects_attested_year_bool() -> None:
+    """Python bool is a subclass of int; reject it explicitly so True doesn't
+    pass as year=1."""
+    response = _ok_response()
+    response["attested_forms"] = [{"form": "Aburwick", "year": True}]
+    failures = validate_response(response, _DATED_BODY)
+    assert any(f.reason == "attested_year_not_int" for f in failures)
+
+
+def test_validate_response_rejects_attested_forms_not_list() -> None:
+    """Schema enforces array type; defensive validation if it slips through."""
+    response = _ok_response()
+    response["attested_forms"] = "not a list"
+    failures = validate_response(response, _BARTON_BODY)
+    assert any(f.reason == "attested_forms_not_list" for f in failures)
+
+
+def test_system_prompt_documents_attested_forms_extraction() -> None:
+    """Regression guard: SYSTEM_PROMPT must explain how to extract dated
+    historical-form citations. If the prompt is later shortened and loses
+    this section, future mining will silently miss D5-1 data.
+    """
+    prompt = SYSTEM_PROMPT.lower()
+
+    # Field name appears.
+    assert "attested_forms" in prompt
+    # Year-range constraint is documented.
+    assert "800" in prompt and "1700" in prompt
+    # Examples include real Domesday/charter-style dated citations.
+    assert "1333" in prompt or "1226" in prompt or "1086" in prompt
+    # Skip-noise instruction is present (publication years vs attestations).
+    assert "publication" in prompt
+    # No-invention instruction is present.
+    assert "do not invent" in prompt or "do not invent dates" in prompt
+
+
+def test_response_schema_includes_attested_forms() -> None:
+    """The Ollama JSON schema must mark attested_forms as required, with
+    year integer constrained to 800-1700. If this constraint is removed
+    the model can emit publication-year noise unchecked."""
+    from wyrd.generators.kenning.llm_extractor import RESPONSE_SCHEMA
+
+    assert "attested_forms" in RESPONSE_SCHEMA["properties"]
+    assert "attested_forms" in RESPONSE_SCHEMA["required"]
+    item_schema = RESPONSE_SCHEMA["properties"]["attested_forms"]["items"]
+    year_schema = item_schema["properties"]["year"]
+    assert year_schema["type"] == "integer"
+    assert year_schema["minimum"] == 800
+    assert year_schema["maximum"] == 1700
+
+
 # --- wyrd-bjs: shared assemble_extraction_result + transport_error_result --
 
 

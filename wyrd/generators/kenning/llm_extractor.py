@@ -46,6 +46,16 @@ _ALLOWED_POSITIONS = {"pre", "inner", "post"}
 
 # Response schema (Ollama's `format` field accepts a JSON Schema dict).
 # The model must produce exactly this shape; Ollama enforces it via grammar.
+# Year-citation range for attested_forms (D5-1, wyrd-3ux). 800-1700 covers
+# the historically-relevant attestation window for British / Continental
+# place-names: Domesday Book is 1086, Pipe Rolls 1130-1216, Subsidy Rolls
+# 1290+, Tudor surveys to ~1600. Forms cited at years outside this range
+# are almost always (a) publication-year noise (1880-1928) or (b) folio
+# numbers / page numbers that the model misread as years.
+_ATTESTED_YEAR_MIN = 800
+_ATTESTED_YEAR_MAX = 1700
+
+
 RESPONSE_SCHEMA: dict = {
     "type": "object",
     "additionalProperties": False,
@@ -73,10 +83,38 @@ RESPONSE_SCHEMA: dict = {
                 "required": ["form", "language", "position", "gloss", "inflection"],
             },
         },
+        # Per-form attestation years from the body text (D5-1 / wyrd-3ux).
+        # When the scholar cites dated historical forms (e.g.
+        # "Aburwick, 1333 ; Abberwyke, 1346"), each (form, year) pair lands
+        # here. Empty list when the body has no year citations — the model
+        # should NOT invent dates, only extract ones it sees.
+        "attested_forms": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "form": {"type": "string", "minLength": 1},
+                    "year": {
+                        "type": "integer",
+                        "minimum": _ATTESTED_YEAR_MIN,
+                        "maximum": _ATTESTED_YEAR_MAX,
+                    },
+                },
+                "required": ["form", "year"],
+            },
+        },
         "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
         "notes": {"type": ["string", "null"]},
     },
-    "required": ["found", "historical_form", "elements", "confidence", "notes"],
+    "required": [
+        "found",
+        "historical_form",
+        "elements",
+        "attested_forms",
+        "confidence",
+        "notes",
+    ],
 }
 
 
@@ -99,6 +137,10 @@ Output a JSON object with EXACTLY these fields and no others:
         "gloss":      "<English meaning, e.g. 'barley' — or null>",
         "inflection": "<e.g. 'genitive', 'dative', 'plural' — or null>"
       },
+      ...
+    ],
+    "attested_forms": [
+      { "form": "<historical spelling cited in the body>", "year": <integer 800-1700> },
       ...
     ],
     "confidence": "<one of: high, medium, low>",
@@ -141,7 +183,50 @@ Content rules:
    Hedged data is still useful data. We want low-confidence rows; we don't
    want to lose proposed etymologies just because the scholar wasn't sure.
 
-6. Output ONLY the JSON. No markdown, no prose, no thinking.
+6. attested_forms — extract dated historical-form citations:
+
+   When the body cites a place-name in a specific historical form WITH a year
+   (e.g. "Aburwick, 1333 ; Abberwyke, 1346 ; Aburwick, 1428") emit one
+   {form, year} entry per dated citation. The scholar pairs forms with
+   years from charters, Domesday Book, Pipe Rolls, Subsidy Rolls,
+   inquisitions, and similar. These pairs are GOLD — they tell us when
+   the form was attested in the historical record.
+
+   Rules for attested_forms:
+     - Each "form" must appear in the body (same form-in-body rule as
+       elements).
+     - Each "year" must be an integer in 800-1700 (Anglo-Saxon to
+       Restoration window). Years outside that range are almost always
+       publication years, folio numbers, or page numbers — DO NOT include
+       them.
+     - Skip non-attestation year mentions: publication-year citations
+       ("Mawer 1920"), document-name dates ("Pipe Roll, 1199" if it's
+       referring to the document type rather than to a dated form of the
+       place-name), and abbreviation expansions ("DB" for Domesday Book).
+     - Multiple forms-and-years in one entry — emit one object per
+       {form, year} pair.
+     - Empty list when no dated forms are cited. DO NOT INVENT dates from
+       general phrases like "in the 12th century" — only extract explicit
+       4-digit year citations.
+
+   Examples:
+     Body: "Aburwick, 1333 ; Abberwyke, 1346 ; Aburwick, 1428"
+       → attested_forms: [
+           {"form": "Aburwick", "year": 1333},
+           {"form": "Abberwyke", "year": 1346},
+           {"form": "Aburwick", "year": 1428}
+         ]
+
+     Body: "Allendale, 1226. Earlier as Town, 1245."
+       → attested_forms: [
+           {"form": "Allendale", "year": 1226},
+           {"form": "Town", "year": 1245}
+         ]
+
+     Body: "From OE bere + tun. See Skeat (1901) for discussion."
+       → attested_forms: []  (1901 is publication year, not attestation)
+
+7. Output ONLY the JSON. No markdown, no prose, no thinking.
 """
 
 USER_TEMPLATE = """\
@@ -331,6 +416,51 @@ def validate_response(
         # tracking it strictly against the source produces too many false
         # rejections (the model commonly compresses Skeat's "an enclosure"
         # to "enclosure", which is fine).
+
+    # attested_forms (D5-1 / wyrd-3ux) — dated historical-form citations.
+    # Tolerate absence: legacy responses produced before the schema added
+    # this field will not include it, and existing test fixtures and
+    # response captures should keep validating clean.
+    if "attested_forms" in response:
+        attested = response.get("attested_forms") or []
+        if not isinstance(attested, list):
+            failures.append(
+                ValidationFailure("attested_forms_not_list", f"got {type(attested).__name__}")
+            )
+        else:
+            for j, entry in enumerate(attested):
+                if not isinstance(entry, dict):
+                    failures.append(
+                        ValidationFailure(
+                            "attested_form_not_object",
+                            f"attested_forms[{j}] is {type(entry).__name__}",
+                        )
+                    )
+                    continue
+                a_form = (entry.get("form") or "").strip()
+                if len(a_form) < 2 or _normalize_for_match(a_form) not in norm_body:
+                    failures.append(
+                        ValidationFailure(
+                            "attested_form_not_in_body",
+                            f"attested_forms[{j}].form={entry.get('form')!r}",
+                        )
+                    )
+                year = entry.get("year")
+                if not isinstance(year, int) or isinstance(year, bool):
+                    # bool is a subclass of int in Python; reject explicitly.
+                    failures.append(
+                        ValidationFailure(
+                            "attested_year_not_int",
+                            f"attested_forms[{j}].year={year!r}",
+                        )
+                    )
+                elif not (_ATTESTED_YEAR_MIN <= year <= _ATTESTED_YEAR_MAX):
+                    failures.append(
+                        ValidationFailure(
+                            "attested_year_out_of_range",
+                            f"attested_forms[{j}].year={year}",
+                        )
+                    )
 
     return failures
 
