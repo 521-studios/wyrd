@@ -713,6 +713,12 @@ def lexicon_export_meanings(
         if "=" not in spec:
             raise click.BadParameter(f"--lang-threshold expects LANG=N, got {spec!r}")
         lang, _, n_str = spec.partition("=")
+        lang = lang.strip()
+        n_str = n_str.strip()
+        if not lang or not n_str:
+            raise click.BadParameter(
+                f"--lang-threshold {spec!r}: both LANG and N must be non-empty"
+            )
         try:
             n = int(n_str)
         except ValueError as exc:
@@ -721,7 +727,6 @@ def lexicon_export_meanings(
         # the lexicon's canonical codes ('old-english', 'celtic'). Without this,
         # an override like --lang-threshold old_english=2 silently fails to match
         # any consensus row and the preset fallback applies instead.
-        lang = lang.strip()
         lang = LANGUAGE_FIELDS.get(lang, lang)
         lang_thresholds[lang] = n
     with LexiconDB(db_path) as db:

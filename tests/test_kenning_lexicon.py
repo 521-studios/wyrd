@@ -2278,6 +2278,26 @@ def test_export_meanings_cli_rejects_non_integer_threshold(fresh_db: Path) -> No
     assert "must be an integer" in result.output
 
 
+def test_export_meanings_cli_rejects_empty_lang_or_threshold(fresh_db: Path) -> None:
+    """--lang-threshold =3 or old-norse= give a clearer 'non-empty' error
+    rather than the misleading 'must be an integer' message you'd get from
+    int('') alone."""
+    for spec in ("=3", "old-norse=", " = "):
+        result = CliRunner().invoke(
+            kenning_cli,
+            [
+                "lexicon",
+                "export-meanings",
+                "--db",
+                str(fresh_db),
+                "--lang-threshold",
+                spec,
+            ],
+        )
+        assert result.exit_code != 0, f"spec={spec!r} should have failed"
+        assert "non-empty" in result.output, f"spec={spec!r}: {result.output}"
+
+
 def test_export_meanings_cli_no_preset_with_lang_threshold_overrides(
     fresh_db: Path,
 ) -> None:
