@@ -169,9 +169,7 @@ def test_meaning_generator_select_threads_harshness():
     proportions = {"-baron": 99, "-shuck": 1}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     plain = Counter(mg.select(random.Random(i), ("post",)) for i in range(2000))
-    harsh = Counter(
-        mg.select(random.Random(i), ("post",), harshness=1.0) for i in range(2000)
-    )
+    harsh = Counter(mg.select(random.Random(i), ("post",), harshness=1.0) for i in range(2000))
     # Sanity: plain has -baron almost always.
     assert plain["-baron"] > 1800
     # Harsh: -shuck (stop-final) gets a meaningful share even against the
