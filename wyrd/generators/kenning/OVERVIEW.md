@@ -250,11 +250,13 @@ to off / 0 (bit-stable historical behavior):
   an attested archaic spelling for the canonical reflex.
 - `--inflection-density` (D8): per-morpheme probability of substituting
   an inflected form (genitive/dative/plural) for the lemma.
-- `--mood` (D6, repeatable): stylistic-mood preset. `grim` applies a
-  menacing semantic-tag union (death, military, monster, undead,
-  magic); `harsh` biases sampling toward stop-final / cluster-heavy
-  morphemes; `harsh:0.5` graduates the skew via colon-suffix. Multiple
-  flags compose by tag-union and max-harshness.
+- `--mood` (D6, repeatable): stylistic-mood preset. Five entries today —
+  `grim` (death/military/monster/undead/magic), `harsh` (phonological
+  stop-final/cluster-heavy bias), `pastoral` (plant/animal/water/
+  agriculture/tree/bird), `devotional` (saint/religious), `mortuary`
+  (death/undead — narrower subset of grim). `harsh:0.5` graduates the
+  phonological skew via colon-suffix. Multiple flags compose by
+  tag-union and max-harshness. Lives in `__init__.MOODS`.
 
 Five cultures: `english`, `scottish`, `welsh`, `irish`, **`breton`**.
 The breton register was added with a 1214-commune corpus pulled from

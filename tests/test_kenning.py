@@ -126,6 +126,72 @@ def test_mood_grim_shifts_distribution_across_seeds():
     assert grim != plain
 
 
+@pytest.mark.parametrize("mood_name", ["pastoral", "devotional", "mortuary"])
+def test_mood_tag_presets_shift_distribution_across_seeds(mood_name):
+    """Each tag-only mood preset (pastoral, devotional, mortuary) biases
+    morpheme selection toward its tag union. Sweep many seeds — at least
+    one name should diverge from the no-mood baseline. Same shape as the
+    grim distribution test."""
+    k = Kenning()
+    plain = set()
+    moody = set()
+    for seed in range(30):
+        plain.add(k.generate({"culture": "english"}, seed=seed).result)
+        moody.add(k.generate({"culture": "english", "mood": [mood_name]}, seed=seed).result)
+    assert moody != plain, f"--mood {mood_name} produced no divergence across 30 seeds"
+
+
+@pytest.mark.parametrize("mood_name", ["pastoral", "devotional", "mortuary"])
+def test_mood_tag_presets_are_seed_stable(mood_name):
+    """Each new tag-only mood is reproducible: same (params, seed) tuple
+    yields the same name."""
+    k = Kenning()
+    a = k.generate({"culture": "english", "mood": [mood_name]}, seed=42).result
+    b = k.generate({"culture": "english", "mood": [mood_name]}, seed=42).result
+    assert a == b
+
+
+def test_mood_tag_presets_are_distinct_from_grim():
+    """The three new tag-only moods (pastoral, devotional, mortuary) each
+    shape the distribution differently from grim. Sweep enough seeds that
+    at least one name diverges between mood pairs — the moods would be
+    pointless if they collapsed onto grim's bucket selection."""
+    k = Kenning()
+    grim_outputs = set()
+    pastoral_outputs = set()
+    devotional_outputs = set()
+    mortuary_outputs = set()
+    for seed in range(30):
+        grim_outputs.add(k.generate({"culture": "english", "mood": ["grim"]}, seed=seed).result)
+        pastoral_outputs.add(
+            k.generate({"culture": "english", "mood": ["pastoral"]}, seed=seed).result
+        )
+        devotional_outputs.add(
+            k.generate({"culture": "english", "mood": ["devotional"]}, seed=seed).result
+        )
+        mortuary_outputs.add(
+            k.generate({"culture": "english", "mood": ["mortuary"]}, seed=seed).result
+        )
+    assert pastoral_outputs != grim_outputs
+    assert devotional_outputs != grim_outputs
+    # Mortuary is a strict subset of grim's tags, so MOST outputs may match
+    # grim — but the smaller pool should still produce at least one
+    # different pick across 30 seeds.
+    assert mortuary_outputs != grim_outputs
+
+
+def test_mood_pastoral_composes_with_harsh():
+    """A tag-only mood composes with the phonological-skew mood. Pastoral
+    morphemes biased through stop-final / cluster-heavy preference is a
+    plausible 'rough wilderness' GM ask — should run cleanly and stay
+    seed-stable."""
+    k = Kenning()
+    a = k.generate({"culture": "english", "mood": ["pastoral", "harsh"]}, seed=42).result
+    b = k.generate({"culture": "english", "mood": ["pastoral", "harsh"]}, seed=42).result
+    assert a == b
+    assert a
+
+
 def test_mood_harsh_shifts_distribution_across_seeds():
     """`mood: ['harsh']` biases sampling toward stop-final / cluster-heavy
     morphemes. At least one seed in the sweep should diverge from the

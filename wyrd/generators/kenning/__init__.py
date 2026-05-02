@@ -63,6 +63,13 @@ _INTERNAL_TAGS = {"male name", "female name", "saint"}
 MOODS: dict[str, dict[str, Any]] = {
     "grim": {"tags": ("death", "military", "monster", "undead", "magic")},
     "harsh": {"harshness": 1.0},
+    # Picked from the 2026-05-02 bundle audit (≥5 subjects per tag, distinct
+    # semantic identity, minimal overlap with existing moods). 'noble' was
+    # considered but no 'royalty' tag exists yet — defer until mining
+    # surfaces it. 'ominous' was too thin (magic=4 below threshold).
+    "pastoral": {"tags": ("plant", "animal", "water", "agriculture", "tree", "bird")},
+    "devotional": {"tags": ("saint", "religious")},
+    "mortuary": {"tags": ("death", "undead")},
 }
 
 
