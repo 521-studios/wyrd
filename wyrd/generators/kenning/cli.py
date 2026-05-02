@@ -26,6 +26,7 @@ from wyrd.generators.kenning import (
 )
 from wyrd.generators.kenning.dictionary_parser import parse_alphabetical_text
 from wyrd.generators.kenning.lexicon import (
+    LANGUAGE_FIELDS,
     RECOMMENDED_LANG_THRESHOLDS,
     LexiconDB,
     clear_enrichment,
@@ -716,7 +717,13 @@ def lexicon_export_meanings(
             n = int(n_str)
         except ValueError as exc:
             raise click.BadParameter(f"--lang-threshold {spec!r}: N must be an integer") from exc
-        lang_thresholds[lang.strip()] = n
+        # Accept JSON-field aliases ('old_english', 'celtic_mix') and map them to
+        # the lexicon's canonical codes ('old-english', 'celtic'). Without this,
+        # an override like --lang-threshold old_english=2 silently fails to match
+        # any consensus row and the preset fallback applies instead.
+        lang = lang.strip()
+        lang = LANGUAGE_FIELDS.get(lang, lang)
+        lang_thresholds[lang] = n
     with LexiconDB(db_path) as db:
         subjects = export_meanings(
             db,

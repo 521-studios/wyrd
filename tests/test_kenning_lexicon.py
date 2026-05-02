@@ -2181,6 +2181,40 @@ def test_export_meanings_cli_lang_threshold_flag(fresh_db: Path) -> None:
     assert not promoted
 
 
+def test_export_meanings_cli_lang_threshold_accepts_json_field_alias(
+    fresh_db: Path,
+) -> None:
+    """--lang-threshold accepts the JSON-field alias ('old_scandinavian') and
+    normalizes to the lexicon's canonical code ('old-norse'). Without
+    normalization, --lang-threshold old_scandinavian=3 would silently miss
+    every ON consensus row (since the column stores 'old-norse')."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b"):
+            db.upsert_source(id=src, title=src)
+        on = db.upsert_etymon("fell", "old-norse")
+        db.add_gloss(on, "mountain")
+        db.add_citation(on, "a")
+        db.add_citation(on, "b")
+        db.commit()
+
+    result = CliRunner().invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "export-meanings",
+            "--db",
+            str(fresh_db),
+            "--no-include-rando",
+            "--lang-threshold",
+            "old_scandinavian=3",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Threshold 3 with only 2 witnesses → not promoted.
+    promoted = any(s["meaning"] == ["mountain"] for s in json.loads(result.stdout))
+    assert not promoted
+
+
 def test_export_meanings_cli_no_preset_uses_uniform_min_witnesses(fresh_db: Path) -> None:
     """--no-preset clears the preset; the global --min-witnesses applies uniformly."""
     with LexiconDB(fresh_db) as db:
