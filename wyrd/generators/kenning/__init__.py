@@ -40,7 +40,7 @@ _ROOT_CODES = [
     ("greek", "GR"),
 ]
 
-CULTURES = ["english", "scottish", "welsh", "irish"]
+CULTURES = ["english", "scottish", "welsh", "irish", "breton"]
 
 # Tags that are filtering primitives, not meaningful selections to expose.
 _INTERNAL_TAGS = {"male name", "female name", "saint"}
