@@ -1657,9 +1657,7 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
 
     member_ids = [r["id"] for r in member_rows]
     member_form_by_id = {r["id"]: (r["language"], r["canonical_form"]) for r in member_rows}
-    member_inflection_by_id: dict[int, str | None] = {
-        r["id"]: r["inflection"] for r in member_rows
-    }
+    member_inflection_by_id: dict[int, str | None] = {r["id"]: r["inflection"] for r in member_rows}
     canonical_forms_lower = {f.lower() for _lang, f in member_form_by_id.values()}
 
     reflex_links = _fetch_member_reflex_links(db, member_ids)
@@ -1681,9 +1679,7 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
     }
 
 
-def _build_forms_by_lang(
-    root_row: Any, member_rows: list[Any]
-) -> dict[str, list[str]]:
+def _build_forms_by_lang(root_row: Any, member_rows: list[Any]) -> dict[str, list[str]]:
     """Group canonical forms by language, root-first.
 
     Root form first per language so the lemma's own canonical_form leads
@@ -1723,9 +1719,7 @@ def _fetch_member_tags(db: LexiconDB, member_ids: list[int]) -> list[str]:
     ]
 
 
-def _fetch_member_reflex_links(
-    db: LexiconDB, member_ids: list[int]
-) -> dict[int, list[int]]:
+def _fetch_member_reflex_links(db: LexiconDB, member_ids: list[int]) -> dict[int, list[int]]:
     """Per-reflex linked etymon ids (within this family).
 
     Lets us narrow the exported language array per word at group-build
@@ -1970,9 +1964,7 @@ def _synthesize_word_for_family(fam: dict[str, Any]) -> dict[str, Any]:
     per_lang_inflections: dict[str, dict[str, str]] = {}
     for member_id, (member_lang, member_form) in fam["member_form_by_id"].items():
         _absorb_member_variants(per_lang_variants, fam, member_id, member_lang)
-        _absorb_member_inflection(
-            per_lang_inflections, fam, member_id, member_lang, member_form
-        )
+        _absorb_member_inflection(per_lang_inflections, fam, member_id, member_lang, member_form)
     _emit_word_languages(word, per_lang, per_lang_variants, per_lang_inflections)
     return word
 
