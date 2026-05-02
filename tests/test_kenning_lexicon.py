@@ -1425,9 +1425,7 @@ def test_lexicon_review_dry_run_does_not_persist_or_count_writes(
     assert result.exit_code == 0, result.output + (result.stderr or "")
 
     combined = result.output + (result.stderr or "")
-    assert "'written': 0" in combined, (
-        "dry-run summary must report written: 0 — got:\n" + combined
-    )
+    assert "'written': 0" in combined, "dry-run summary must report written: 0 — got:\n" + combined
 
     with LexiconDB(fresh_db) as db:
         n_runs = db.conn.execute("SELECT COUNT(*) FROM mining_run").fetchone()[0]
