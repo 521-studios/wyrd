@@ -2114,23 +2114,38 @@ def test_export_meanings_filters_low_confidence_singleton_variants(
         ).fetchone()["id"]
         # OCR-noise: count=1, fuzzy-search-v1. Should be dropped.
         _add_text_match(db, scearu_id, "src-a", "saearp", 1, method="fuzzy-search-v1")
+        # OCR-noise: count=1, llm-disambiguated-v1. Same low-confidence class;
+        # locks in that the second member of _LOW_CONFIDENCE_METHODS is honored.
+        _add_text_match(db, scearu_id, "src-a", "scrarp", 1, method="llm-disambiguated-v1")
         # Legitimate variant: count=2 from fuzzy-search-v1 — survives because
         # ≥2 attestations gives more confidence.
         _add_text_match(db, scearu_id, "src-a", "scerp", 2, method="fuzzy-search-v1")
         # Legitimate variant: count=1 but reverse-search-v1 (canonical-form
         # body scan) is high-confidence. Survives.
-        _add_text_match(
-            db, scearu_id, "src-a", "scearp-form", 1, method="reverse-search-v1"
-        )
+        _add_text_match(db, scearu_id, "src-a", "scearp-form", 1, method="reverse-search-v1")
+        # Mixed-methods row: count=1 split between fuzzy-search-v1 AND
+        # reverse-search-v1 from different sources. methods set is NOT a
+        # subset of low-confidence (reverse-search is high-confidence), so
+        # the form survives. This pins the issubset check vs a simpler
+        # "all-fuzzy" equality test.
+        db.upsert_source(id="src-b", title="B")
+        _add_text_match(db, scearu_id, "src-a", "scearp-mix", 1, method="fuzzy-search-v1")
+        _add_text_match(db, scearu_id, "src-b", "scearp-mix", 1, method="reverse-search-v1")
         db.commit()
 
         subjects = export_meanings(db, include_rando=True)
 
     word = subjects[0]["words"][0]
     forms = [v["form"] for v in word.get("old_english_variants", [])]
+    # Low-confidence singletons dropped.
     assert "saearp" not in forms
+    assert "scrarp" not in forms
+    # ≥2-count fuzzy survives.
     assert "scerp" in forms
+    # Pure high-confidence singleton survives.
     assert "scearp-form" in forms
+    # Mixed-methods singleton survives because not all methods are low-confidence.
+    assert "scearp-mix" in forms
 
 
 def test_export_meanings_drops_concatenation_glosses_in_subjects(
@@ -2150,9 +2165,9 @@ def test_export_meanings_drops_concatenation_glosses_in_subjects(
             modifier_type=None,
             words=[{"modern_usage": "-mere", "old_english": ["mere"]}],
         )
-        mere_id = db.conn.execute(
-            "SELECT id FROM etymon WHERE canonical_form = 'mere'"
-        ).fetchone()["id"]
+        mere_id = db.conn.execute("SELECT id FROM etymon WHERE canonical_form = 'mere'").fetchone()[
+            "id"
+        ]
         # Add a redundant concatenation gloss directly.
         db.conn.execute(
             "INSERT OR IGNORE INTO etymon_gloss (etymon_id, gloss) VALUES (?, ?)",
