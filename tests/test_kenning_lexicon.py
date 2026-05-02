@@ -14,6 +14,7 @@ from wyrd.generators.kenning.cli import cli as kenning_cli
 from wyrd.generators.kenning.lexicon import (
     LANGUAGE_FIELDS,
     NON_LANGUAGE_FIELDS,
+    RECOMMENDED_LANG_THRESHOLDS,
     LexiconDB,
     _position_from_usage,
     clear_enrichment,
@@ -1688,6 +1689,85 @@ def test_export_meanings_promotes_at_three_witnesses(fresh_db: Path) -> None:
     assert subj["words"] == [{"modern_usage": "ham", "old_english": ["ham"]}]
 
 
+def test_export_meanings_per_language_thresholds_apply(fresh_db: Path) -> None:
+    """Old-Norse promotes at 2 witnesses while Old-English needs 3 — the
+    per-language map is honored and the global ``min_witnesses`` is the
+    fallback for languages not in the map."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b"):
+            db.upsert_source(id=src, title=src)
+        # OE etymon at 2 witnesses — should NOT promote at OE threshold 3.
+        oe = db.upsert_etymon("ham", "old-english")
+        db.add_gloss(oe, "homestead")
+        db.add_tag(oe, "habitation")
+        db.add_citation(oe, "a")
+        db.add_citation(oe, "b")
+        # ON etymon at 2 witnesses — should promote at ON threshold 2.
+        on = db.upsert_etymon("fell", "old-norse")
+        db.add_gloss(on, "mountain")
+        db.add_tag(on, "topography")
+        db.add_citation(on, "a")
+        db.add_citation(on, "b")
+        db.commit()
+
+        subjects = export_meanings(
+            db,
+            include_rando=False,
+            min_witnesses=3,
+            lang_thresholds={"old-english": 3, "old-norse": 2},
+        )
+
+    assert len(subjects) == 1
+    subj = subjects[0]
+    assert subj["meaning"] == ["mountain"]
+    # The OE 'ham' must NOT appear; only 'fell' (ON) made the cut.
+    forms_seen = {
+        form for w in subj["words"] for k, v in w.items() if isinstance(v, list) for form in v
+    }
+    assert "fell" in forms_seen
+    assert "ham" not in forms_seen
+
+
+def test_export_meanings_default_uses_recommended_preset(fresh_db: Path) -> None:
+    """Calling export_meanings() without ``lang_thresholds`` applies the
+    RECOMMENDED_LANG_THRESHOLDS preset, so OE gates at 3 and ON gates at 2."""
+    assert RECOMMENDED_LANG_THRESHOLDS["old-english"] == 3
+    assert RECOMMENDED_LANG_THRESHOLDS["old-norse"] == 2
+
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b"):
+            db.upsert_source(id=src, title=src)
+        on = db.upsert_etymon("fell", "old-norse")
+        db.add_gloss(on, "mountain")
+        db.add_citation(on, "a")
+        db.add_citation(on, "b")
+        db.commit()
+        # No lang_thresholds passed → preset applies → ON at 2 witnesses promotes.
+        subjects = export_meanings(db, include_rando=False)
+
+    assert len(subjects) == 1
+    assert subjects[0]["meaning"] == ["mountain"]
+
+
+def test_export_meanings_empty_lang_thresholds_falls_back_to_uniform(
+    fresh_db: Path,
+) -> None:
+    """Passing ``lang_thresholds={}`` disables the preset — every language
+    uses the global ``min_witnesses`` uniformly."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b"):
+            db.upsert_source(id=src, title=src)
+        on = db.upsert_etymon("fell", "old-norse")
+        db.add_gloss(on, "mountain")
+        db.add_citation(on, "a")
+        db.add_citation(on, "b")
+        db.commit()
+        # ON has 2 witnesses; preset would promote it but {} disables that
+        # and applies min_witnesses=3 uniformly → not promoted.
+        subjects = export_meanings(db, include_rando=False, min_witnesses=3, lang_thresholds={})
+    assert subjects == []
+
+
 def test_export_meanings_rolls_inflected_variants_into_lemma(fresh_db: Path) -> None:
     """`cot` + linked inflections export as one entry; the language form list
     contains the lemma followed by its variants (D8)."""
@@ -2059,6 +2139,248 @@ def test_export_meanings_cli_emits_to_stdout(fresh_db: Path) -> None:
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
     assert any(s["meaning"] == ["Hill"] for s in payload)
+
+
+def test_export_meanings_cli_lang_threshold_flag(fresh_db: Path) -> None:
+    """--lang-threshold LANG=N overrides the preset for a specific language."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b"):
+            db.upsert_source(id=src, title=src)
+        # Two ON sources for 'fell'; with --lang-threshold old-norse=3 it
+        # falls under the gate even though the preset would have promoted it.
+        on = db.upsert_etymon("fell", "old-norse")
+        db.add_gloss(on, "mountain")
+        db.add_citation(on, "a")
+        db.add_citation(on, "b")
+        db.commit()
+
+    # Without override (preset has ON at 2): promotes.
+    r1 = CliRunner().invoke(
+        kenning_cli,
+        ["lexicon", "export-meanings", "--db", str(fresh_db), "--no-include-rando"],
+    )
+    assert r1.exit_code == 0, r1.output
+    promoted = any(s["meaning"] == ["mountain"] for s in json.loads(r1.stdout))
+    assert promoted
+
+    # With --lang-threshold old-norse=3: doesn't promote.
+    r2 = CliRunner().invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "export-meanings",
+            "--db",
+            str(fresh_db),
+            "--no-include-rando",
+            "--lang-threshold",
+            "old-norse=3",
+        ],
+    )
+    assert r2.exit_code == 0, r2.output
+    promoted = any(s["meaning"] == ["mountain"] for s in json.loads(r2.stdout))
+    assert not promoted
+
+
+def test_export_meanings_cli_lang_threshold_accepts_json_field_alias(
+    fresh_db: Path,
+) -> None:
+    """--lang-threshold accepts the JSON-field alias ('old_scandinavian') and
+    normalizes to the lexicon's canonical code ('old-norse'). Without
+    normalization, --lang-threshold old_scandinavian=3 would silently miss
+    every ON consensus row (since the column stores 'old-norse')."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b"):
+            db.upsert_source(id=src, title=src)
+        on = db.upsert_etymon("fell", "old-norse")
+        db.add_gloss(on, "mountain")
+        db.add_citation(on, "a")
+        db.add_citation(on, "b")
+        db.commit()
+
+    result = CliRunner().invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "export-meanings",
+            "--db",
+            str(fresh_db),
+            "--no-include-rando",
+            "--lang-threshold",
+            "old_scandinavian=3",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Threshold 3 with only 2 witnesses → not promoted.
+    promoted = any(s["meaning"] == ["mountain"] for s in json.loads(result.stdout))
+    assert not promoted
+
+
+def test_export_meanings_cli_no_preset_uses_uniform_min_witnesses(fresh_db: Path) -> None:
+    """--no-preset clears the preset; the global --min-witnesses applies uniformly."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b"):
+            db.upsert_source(id=src, title=src)
+        on = db.upsert_etymon("fell", "old-norse")
+        db.add_gloss(on, "mountain")
+        db.add_citation(on, "a")
+        db.add_citation(on, "b")
+        db.commit()
+
+    result = CliRunner().invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "export-meanings",
+            "--db",
+            str(fresh_db),
+            "--no-include-rando",
+            "--no-preset",
+            "--min-witnesses",
+            "3",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    promoted = any(s["meaning"] == ["mountain"] for s in json.loads(result.stdout))
+    assert not promoted
+
+
+def test_export_meanings_cli_rejects_malformed_lang_threshold(fresh_db: Path) -> None:
+    """--lang-threshold must be LANG=N; bad input fails fast with a clear message."""
+    result = CliRunner().invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "export-meanings",
+            "--db",
+            str(fresh_db),
+            "--lang-threshold",
+            "old-norse-2",  # missing '='
+        ],
+    )
+    assert result.exit_code != 0
+    assert "LANG=N" in result.output
+
+
+def test_export_meanings_cli_rejects_non_integer_threshold(fresh_db: Path) -> None:
+    """The N in --lang-threshold LANG=N must be an integer; non-int fails clearly."""
+    result = CliRunner().invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "export-meanings",
+            "--db",
+            str(fresh_db),
+            "--lang-threshold",
+            "old-norse=foo",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "must be an integer" in result.output
+
+
+def test_export_meanings_cli_rejects_empty_lang_or_threshold(fresh_db: Path) -> None:
+    """--lang-threshold =3 or old-norse= give a clearer 'non-empty' error
+    rather than the misleading 'must be an integer' message you'd get from
+    int('') alone."""
+    for spec in ("=3", "old-norse=", " = "):
+        result = CliRunner().invoke(
+            kenning_cli,
+            [
+                "lexicon",
+                "export-meanings",
+                "--db",
+                str(fresh_db),
+                "--lang-threshold",
+                spec,
+            ],
+        )
+        assert result.exit_code != 0, f"spec={spec!r} should have failed"
+        assert "non-empty" in result.output, f"spec={spec!r}: {result.output}"
+
+
+def test_export_meanings_cli_no_preset_with_lang_threshold_overrides(
+    fresh_db: Path,
+) -> None:
+    """--no-preset --lang-threshold old-norse=2 → only ON gates at 2; everything
+    else uses --min-witnesses uniformly. Pins the dict-merge ordering so a
+    bug where the empty {} got the preset re-applied wouldn't slip through."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b"):
+            db.upsert_source(id=src, title=src)
+        # ON at 2 witnesses — should promote via the explicit override.
+        on = db.upsert_etymon("fell", "old-norse")
+        db.add_gloss(on, "mountain")
+        db.add_citation(on, "a")
+        db.add_citation(on, "b")
+        # Celtic at 2 witnesses — should NOT promote (preset would have said
+        # celtic=2, but --no-preset cleared that, so --min-witnesses=3 applies).
+        cel = db.upsert_etymon("bryn", "celtic")
+        db.add_gloss(cel, "hill")
+        db.add_citation(cel, "a")
+        db.add_citation(cel, "b")
+        db.commit()
+
+    result = CliRunner().invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "export-meanings",
+            "--db",
+            str(fresh_db),
+            "--no-include-rando",
+            "--no-preset",
+            "--min-witnesses",
+            "3",
+            "--lang-threshold",
+            "old-norse=2",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    glosses = {tuple(s["meaning"]) for s in payload}
+    assert ("mountain",) in glosses
+    assert ("hill",) not in glosses
+
+
+def test_build_witness_filter_empty_uses_uniform_threshold() -> None:
+    """Direct unit test: empty lang_thresholds returns the simple fragment.
+    Parenthesized to match the per-language path's contract so the helper
+    composes safely when dropped into a larger expression."""
+    from wyrd.generators.kenning.lexicon import _build_witness_filter
+
+    sql, params = _build_witness_filter({}, 3)
+    assert sql == "(witnesses >= ?)"
+    assert params == [3]
+
+
+def test_build_witness_filter_emits_clauses_in_sorted_order() -> None:
+    """Direct unit test: with multiple lang_thresholds, params land in
+    sorted-by-lang order (so output is byte-stable regardless of dict
+    insertion order), and the trailing fallback NOT IN (...) clause carries
+    the global min_witnesses."""
+    from wyrd.generators.kenning.lexicon import _build_witness_filter
+
+    # Insertion order intentionally not sorted, to verify the helper sorts.
+    sql, params = _build_witness_filter({"old-norse": 2, "celtic": 2, "old-english": 3}, 4)
+    # SQL fragment uses ? placeholders; param order is what's deterministic.
+    # Per-language clauses interleave (lang, threshold) in sorted order,
+    # then the NOT IN list (sorted langs), then the fallback threshold.
+    assert params == [
+        "celtic",
+        2,
+        "old-english",
+        3,
+        "old-norse",
+        2,
+        "celtic",
+        "old-english",
+        "old-norse",
+        4,
+    ]
+    # Three per-language clauses + one NOT IN fallback clause.
+    assert sql.count("language = ?") == 3
+    assert "language NOT IN" in sql
+    assert sql.count("witnesses >= ?") == 4
 
 
 def test_export_meanings_output_is_byte_stable_across_runs(fresh_db: Path) -> None:

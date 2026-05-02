@@ -1479,11 +1479,41 @@ _LANG_CODE_TO_JSON_FIELD = {
     "biblical": "biblical",
 }
 
+# Per-language witness thresholds calibrated against corpus availability and
+# spot-checked quality at w=2 (analysis 2026-05-02). Languages absent from
+# this map fall back to the global ``min_witnesses``. Rationale per language:
+#   old-english : 3 — well-mined (32 sources); strict gate keeps Tier-1
+#                     prose-extraction noise out (~20% noise at w=2).
+#   celtic      : 2 — Qwen weak on Celtic per D13; corpus structurally
+#                     thinner per yield. Quality at w=2 ~90% clean.
+#   old-norse   : 2 — only one ON-focused dictionary in the corpus; w=3
+#                     filters out 93% of ON purely on corpus thinness.
+#   modern-english,
+#   norman-french,
+#   latin,
+#   biblical    : 2 — small populations at w≥2 (≤20 each); spot-check 100%
+#                     clean. The cost of admitting them is negligible and
+#                     the gain (modern English placename elements like mill,
+#                     stone, head; NF castle, monte; Latin ecclesia,
+#                     ceaster) is meaningful for generation breadth.
+#   germanic, greek: nothing reaches w≥2 in the current corpus, so the
+#                     threshold is moot — they ride the rando-port path only.
+RECOMMENDED_LANG_THRESHOLDS: dict[str, int] = {
+    "old-english": 3,
+    "celtic": 2,
+    "old-norse": 2,
+    "modern-english": 2,
+    "norman-french": 2,
+    "latin": 2,
+    "biblical": 2,
+}
+
 
 def export_meanings(
     db: LexiconDB,
     *,
     min_witnesses: int = 3,
+    lang_thresholds: dict[str, int] | None = None,
     include_rando: bool = True,
 ) -> list[dict[str, Any]]:
     """Walk the lexicon and emit a meanings.json structure.
@@ -1492,7 +1522,12 @@ def export_meanings(
     (a) any etymon in the family is cited by 'rando-port' AND ``include_rando``
         is true (legacy seed kept until corroborated), OR
     (b) the family's witness count (``etymon_consensus.witnesses``) is at
-        least ``min_witnesses``.
+        least the threshold for that family's language.
+
+    The threshold per language is taken from ``lang_thresholds`` (defaults to
+    ``RECOMMENDED_LANG_THRESHOLDS``); languages absent from the map use
+    ``min_witnesses``. Pass ``lang_thresholds={}`` to apply a uniform
+    ``min_witnesses`` threshold across all languages.
 
     Family roots are computed by the same two-step rollup the
     ``etymon_consensus`` view uses (``merged_into_id`` then ``lemma_id``), so
@@ -1507,22 +1542,56 @@ def export_meanings(
     subjects with identical signatures, but the runtime ``load_meanings``
     keys by ``modern_usage`` regardless of subject boundary.
     """
-    families = _collect_families(db, min_witnesses=min_witnesses, include_rando=include_rando)
+    if lang_thresholds is None:
+        lang_thresholds = RECOMMENDED_LANG_THRESHOLDS
+    families = _collect_families(
+        db,
+        min_witnesses=min_witnesses,
+        lang_thresholds=lang_thresholds,
+        include_rando=include_rando,
+    )
     subjects = _group_families_into_subjects(families)
     if include_rando:
         subjects.extend(_orphan_reflex_subjects(db))
     return subjects
 
 
+def _build_witness_filter(
+    lang_thresholds: dict[str, int],
+    min_witnesses: int,
+) -> tuple[str, list[Any]]:
+    """Build a SQL WHERE fragment + bind params that gate etymon_consensus
+    rows by per-language thresholds with ``min_witnesses`` as the fallback.
+
+    Returns ``(sql_fragment, params)`` where the fragment is parenthesized
+    and references ``language`` / ``witnesses`` columns.
+    """
+    if not lang_thresholds:
+        return "(witnesses >= ?)", [min_witnesses]
+    clauses: list[str] = []
+    params: list[Any] = []
+    sorted_langs = sorted(lang_thresholds)
+    for lang in sorted_langs:
+        clauses.append("(language = ? AND witnesses >= ?)")
+        params.extend([lang, lang_thresholds[lang]])
+    placeholders = ",".join("?" * len(sorted_langs))
+    clauses.append(f"(language NOT IN ({placeholders}) AND witnesses >= ?)")
+    params.extend(sorted_langs)
+    params.append(min_witnesses)
+    return f"({' OR '.join(clauses)})", params
+
+
 def _collect_families(
     db: LexiconDB,
     *,
     min_witnesses: int,
+    lang_thresholds: dict[str, int],
     include_rando: bool,
 ) -> list[dict[str, Any]]:
     """Build per-family-root data: forms-by-language, glosses, tags, reflexes."""
+    witness_sql, witness_params = _build_witness_filter(lang_thresholds, min_witnesses)
     cur = db.conn.execute(
-        """
+        f"""
         WITH rollup AS (
             SELECT
                 e.id AS etymon_id,
@@ -1538,14 +1607,14 @@ def _collect_families(
             WHERE c.source_id = 'rando-port'
         ),
         promoted AS (
-            SELECT lemma_id AS root_id FROM etymon_consensus WHERE witnesses >= ?
+            SELECT lemma_id AS root_id FROM etymon_consensus WHERE {witness_sql}
             UNION
             SELECT root_id FROM rando_roots WHERE ? = 1
         )
         SELECT DISTINCT root_id FROM promoted
         ORDER BY root_id
         """,
-        (min_witnesses, 1 if include_rando else 0),
+        [*witness_params, 1 if include_rando else 0],
     )
     root_ids = [row["root_id"] for row in cur.fetchall()]
 
