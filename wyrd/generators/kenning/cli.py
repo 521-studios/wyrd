@@ -144,6 +144,28 @@ def cli() -> None:
         "inflected form (cotum/cotan/cotes) for the lemma (cot)."
     ),
 )
+@click.option(
+    "--grim",
+    is_flag=True,
+    default=False,
+    help=(
+        "D6 semantic-tag filter for menacing-feeling names. Composable union "
+        "of menacing tags (death, military, monster, undead, magic). Stacks "
+        "with --tag and is orthogonal to language choice."
+    ),
+)
+@click.option(
+    "--harsh",
+    "harshness",
+    type=click.FloatRange(0.0, 1.0),
+    default=0.0,
+    show_default=True,
+    help=(
+        "D6 phonological-harshness skew (0..1). At >0, sampling is biased "
+        "toward stop-final / cluster-heavy morphemes; soft-keyed morphemes "
+        "are damped. Orthogonal to --grim (semantic axis); composes with it."
+    ),
+)
 def generate(
     culture: str,
     tags: tuple[str, ...],
@@ -153,6 +175,8 @@ def generate(
     spelling_variety: float,
     novelty: float,
     inflection_density: float,
+    grim: bool,
+    harshness: float,
 ) -> None:
     """Generate town names. Replaces Rando's `bin/generator`."""
     known_tags = set(available_tags()) | {"male name", "female name", "saint"}
@@ -173,6 +197,8 @@ def generate(
         "spelling_variety": spelling_variety,
         "novelty": novelty,
         "inflection_density": inflection_density,
+        "grim": grim,
+        "harshness": harshness,
     }
     for _ in range(count):
         result = kenning.generate(params, seed_rng.randrange(2**63))

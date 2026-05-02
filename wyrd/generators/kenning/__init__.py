@@ -45,6 +45,14 @@ CULTURES = ["english", "scottish", "welsh", "irish", "breton"]
 # Tags that are filtering primitives, not meaningful selections to expose.
 _INTERNAL_TAGS = {"male name", "female name", "saint"}
 
+# D6 `--grim` tag union. The original D6 spec named ('grim', 'mortuary',
+# 'monstrous', 'battle', 'wilderness'); none of those exist in the corpus
+# yet. The mapping below uses the closest extant tags from the bundle audit
+# (death=18 subjects, military=27, monster=8, undead=9, magic=4). The
+# spec-named tags remain a future-mining target — adding any of them later
+# can be folded in here without breaking callers.
+GRIM_TAGS: tuple[str, ...] = ("death", "military", "monster", "undead", "magic")
+
 
 def _data_path(filename: str):
     return resources.files("wyrd.generators.kenning.data").joinpath(filename)
@@ -171,6 +179,31 @@ class Kenning(Generator):
                         "morpheme."
                     ),
                 },
+                "grim": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": (
+                        "D6 semantic-tag filter for menacing-feeling names. Equivalent "
+                        f"to passing tags={list(GRIM_TAGS)!r} (multi-tag union — any "
+                        "morpheme matching any of the listed tags can fill a slot). "
+                        "Composes with other --tag values and with --harsh on the "
+                        "phonological axis."
+                    ),
+                },
+                "harshness": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": (
+                        "D6 phonological-harshness skew (0..1). At 0, sampling is "
+                        "unchanged (today's bit-stable behavior). At 1, soft-keyed "
+                        "morphemes ('ham', 'borough') drop out and stop-final / "
+                        "cluster-heavy ones ('shuck', 'crag', 'fork') get 2× their "
+                        "empirical weight. Orthogonal to language and to --grim "
+                        "(semantic axis); composes with both."
+                    ),
+                },
             },
             "required": [],
         }
@@ -181,9 +214,15 @@ class Kenning(Generator):
         if isinstance(raw_tags, str):
             raw_tags = [raw_tags]
         tags = tuple(raw_tags)
+        if params.get("grim"):
+            # De-dup while preserving order — repeating a tag in the union
+            # would just add a redundant fallback bucket.
+            seen = set(tags)
+            tags = tags + tuple(t for t in GRIM_TAGS if t not in seen and not seen.add(t))
         spelling_variety = float(params.get("spelling_variety", 0.0) or 0.0)
         novelty = float(params.get("novelty", 0.0) or 0.0)
         inflection_density = float(params.get("inflection_density", 0.0) or 0.0)
+        harshness = float(params.get("harshness", 0.0) or 0.0)
 
         name_gen, _ = _load_culture(culture)
         rng = rng_for(seed)
@@ -193,6 +232,7 @@ class Kenning(Generator):
             spelling_variety=spelling_variety,
             novelty=novelty,
             inflection_density=inflection_density,
+            harshness=harshness,
         )
         return GenerationResult(
             result=str(new_name),

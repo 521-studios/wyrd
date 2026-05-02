@@ -240,8 +240,8 @@ variant pools (D18)** and **301 inflected etymons (D8)** across 9
 case labels (Bannister 1916 Herefordshire mining surfaced ~130 new OE
 inflections).
 
-The runtime exposes three GM-facing generation knobs, all defaulting
-to 0 (bit-stable historical behavior):
+The runtime exposes five GM-facing generation knobs, all defaulting
+to off / 0 (bit-stable historical behavior):
 
 - `--novelty` (D17): blend empirical-frequency sampling with a uniform
   marginal — high values let plausible-but-unattested combinations
@@ -250,6 +250,11 @@ to 0 (bit-stable historical behavior):
   an attested archaic spelling for the canonical reflex.
 - `--inflection-density` (D8): per-morpheme probability of substituting
   an inflected form (genitive/dative/plural) for the lemma.
+- `--harsh` (D6, 0..1): phonological-harshness skew; biases sampling
+  toward stop-final / cluster-heavy morphemes. Orthogonal to language.
+- `--grim` (D6, flag): semantic-tag union over the menacing tag set
+  (death, military, monster, undead, magic). Composes with `--harsh`
+  on the phonological axis.
 
 Five cultures: `english`, `scottish`, `welsh`, `irish`, **`breton`**.
 The breton register was added with a 1214-commune corpus pulled from
