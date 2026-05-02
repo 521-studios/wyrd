@@ -166,19 +166,16 @@ def find_ambiguous_rows(
     )
     fuzzy_rows = cur.fetchall()
 
-    # Pull every live etymon once; we'll index by normalized form. Use
-    # pipe-separated concat (glosses/tags can contain commas) and
-    # subquery-deduped lists since SQLite's GROUP_CONCAT can't combine
-    # DISTINCT with a custom separator.
+    # Pull every live etymon once; we'll index by normalized form. Use a
+    # pipe separator (glosses/tags can contain commas) — uniqueness is
+    # already guaranteed by the etymon_gloss / etymon_tag primary keys.
     etymon_rows = db.conn.execute(
         """
         SELECT e.id, e.canonical_form, e.language,
-               (SELECT GROUP_CONCAT(g, '|') FROM (
-                    SELECT DISTINCT gloss AS g FROM etymon_gloss WHERE etymon_id = e.id
-                )) AS glosses,
-               (SELECT GROUP_CONCAT(t, '|') FROM (
-                    SELECT DISTINCT tag AS t FROM etymon_tag WHERE etymon_id = e.id
-                )) AS tags
+               (SELECT GROUP_CONCAT(gloss, '|')
+                FROM etymon_gloss WHERE etymon_id = e.id) AS glosses,
+               (SELECT GROUP_CONCAT(tag, '|')
+                FROM etymon_tag WHERE etymon_id = e.id) AS tags
         FROM etymon e
         WHERE e.merged_into_id IS NULL
         """
