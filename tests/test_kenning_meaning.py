@@ -230,6 +230,14 @@ def test_mimic_case_lowercases_at_word_end():
     assert _mimic_case("-water", "WATYR") == "watyr"
 
 
+def test_mimic_case_preserves_internal_capitals_under_title_template():
+    """When the canonical template is title-case, the variant's first letter
+    is capitalized but internal capitals are preserved — a future variant
+    like 'McGregor' or 'O'Brien' shouldn't be flattened to lowercase."""
+    assert _mimic_case("Mac-", "McGregor") == "McGregor"
+    assert _mimic_case("Mc-", "MacKay") == "MacKay"
+
+
 def test_mimic_case_handles_empty_template():
     """A template with no letters (just dashes) returns the variant verbatim."""
     assert _mimic_case("-", "x") == "x"

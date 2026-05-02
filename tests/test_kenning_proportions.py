@@ -69,14 +69,14 @@ def test_blend_uniform_intermediate_novelty_softens_distribution():
 
 
 def test_blend_uniform_with_all_zero_weights_yields_uniform():
-    """If every empirical weight is zero, the blend defaults to pure uniform
-    so all keys still get a share rather than the bucket collapsing to None."""
+    """With no empirical mass to blend against, the novelty knob has no axis.
+    Return a normalized uniform distribution (sum to 1) so the result still
+    matches the docstring contract."""
     blended = _blend_uniform([("a", 0), ("b", 0)], 0.5)
     weights = dict(blended)
-    # Each key gets novelty / n = 0.5 / 2 = 0.25 (not normalized but
-    # weighted_choice handles fractional weights).
-    assert weights["a"] == 0.25
-    assert weights["b"] == 0.25
+    assert abs(weights["a"] - 0.5) < 1e-9
+    assert abs(weights["b"] - 0.5) < 1e-9
+    assert abs(sum(weights.values()) - 1.0) < 1e-9
 
 
 def test_blend_uniform_distribution_via_monte_carlo():
@@ -93,3 +93,155 @@ def test_blend_uniform_distribution_via_monte_carlo():
 
 def test_blend_uniform_empty_input_returns_input_unchanged():
     assert _blend_uniform([], 0.5) == []
+
+
+# --- Generator.select novelty plumbing ------------------------------------
+
+
+def test_generator_select_novelty_zero_takes_fast_path():
+    """At novelty=0, Generator.select hits weighted_choice directly with
+    the unmodified empirical weights — bit-stable with the pre-D17 path."""
+    from wyrd.generators.kenning.proportions import Generator
+
+    rng_a = random.Random(42)
+    rng_b = random.Random(42)
+    g = Generator(tag_db={}, elements={"a": 90, "b": 10})
+    pre_d17 = weighted_choice(rng_a, list(g.elements.items()))
+    via_select = g.select(rng_b, novelty=0.0)
+    assert pre_d17 == via_select
+
+
+def test_generator_select_novelty_one_picks_uniformly():
+    """At novelty=1, picks should distribute roughly uniformly across keys
+    regardless of their original empirical weight. Monte Carlo with a wide
+    tolerance band against RNG variance."""
+    from collections import Counter
+
+    from wyrd.generators.kenning.proportions import Generator
+
+    g = Generator(tag_db={}, elements={"a": 99, "b": 1})
+    counts = Counter(g.select(random.Random(i), novelty=1.0) for i in range(2000))
+    assert 800 < counts["a"] < 1200
+    assert 800 < counts["b"] < 1200
+
+
+def test_meaning_generator_select_threads_novelty():
+    """MeaningGenerator.select(key, *tags, novelty=...) forwards novelty
+    into Generator.select for the chosen bucket."""
+    from collections import Counter
+
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator
+
+    # Two usages keyed by the same Meaning.key() = ('post',). Empirical
+    # weights skewed 99:1; with novelty=1 the picks should split ~50:50.
+    m_a = Meaning("-a", [], [], {})
+    m_b = Meaning("-b", [], [], {})
+    meaning_db = {"-a": [m_a], "-b": [m_b]}
+    proportions = {"-a": 99, "-b": 1}
+    mg = MeaningGenerator(meaning_db, {}, proportions)
+    counts = Counter(mg.select(random.Random(i), ("post",), novelty=1.0) for i in range(2000))
+    assert 800 < counts["-a"] < 1200
+    assert 800 < counts["-b"] < 1200
+
+
+# --- NameGenerator._render_variants + NewName.__str__ rendered branch ------
+
+
+def _build_minimal_name_generator(meaning_db):
+    """Build a NameGenerator with a single trivial structure for tests.
+    Uses only one usage from meaning_db so the structure walk is deterministic."""
+    from wyrd.generators.kenning.proportions import (
+        MeaningGenerator,
+        NameGenerator,
+    )
+
+    proportions = dict.fromkeys(meaning_db, 1)
+    mg = MeaningGenerator(meaning_db, {}, proportions)
+    structs = {(((next(iter(meaning_db.values()))[0].location,),)): 1}
+    return NameGenerator(meaning_db, mg, structs)
+
+
+def test_render_variants_falls_back_to_canonical_when_no_pool():
+    """A meaning with no variant pool renders as the dash-stripped usage
+    even at spelling_variety=1.0."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    m = Meaning("-cot", [], [], {"old_english": ["cot"]})
+    name_gen = _build_minimal_name_generator({"-cot": [m]})
+    rendered = name_gen._render_variants(random.Random(0), [["-cot"]], 1.0)
+    assert rendered == [["cot"]]
+
+
+def test_render_variants_substitutes_with_case_mimic():
+    """At spelling_variety=1 with a non-empty pool, the rendered surface
+    form is the case-mimicked variant rather than the canonical."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    m = Meaning(
+        "Bridg-",
+        [],
+        [],
+        {"old_english": ["brycg"]},
+        variants={"old_english": [("brycg", 10)]},
+    )
+    name_gen = _build_minimal_name_generator({"Bridg-": [m]})
+    rendered = name_gen._render_variants(random.Random(0), [["Bridg-"]], 1.0)
+    # Title-case template projects onto the variant.
+    assert rendered == [["Brycg"]]
+
+
+def test_render_variants_handles_none_usage():
+    """Tag-filter passes can leave None entries when no candidate matched the
+    structure slot. _render_variants must propagate None."""
+    name_gen = _build_minimal_name_generator(
+        {
+            "-x": [
+                __import__("wyrd.generators.kenning.meaning", fromlist=["Meaning"]).Meaning(
+                    "-x", [], [], {}
+                )
+            ]
+        }
+    )
+    rendered = name_gen._render_variants(random.Random(0), [[None]], 1.0)
+    assert rendered == [[None]]
+
+
+def test_newname_str_uses_rendered_when_set():
+    """When NewName.rendered is populated, __str__ emits the pre-rendered
+    surface forms instead of stripping dashes from name."""
+    from wyrd.generators.kenning.proportions import NewName
+
+    new_name = NewName(
+        struct=None,
+        meaning_db={},
+        name=[["Bridg-", "-water"]],
+        rendered=[["Brycg", "wattyr"]],
+    )
+    assert str(new_name) == "Brycgwattyr"
+
+
+def test_newname_str_falls_back_to_dash_stripped_when_rendered_none():
+    """Without rendered set, __str__ keeps the historic dash-stripping path."""
+    from wyrd.generators.kenning.proportions import NewName
+
+    new_name = NewName(
+        struct=None,
+        meaning_db={},
+        name=[["Bridg-", "-water"]],
+    )
+    assert str(new_name) == "Bridgwater"
+
+
+def test_newname_str_falls_back_per_element_when_rendered_entry_is_none():
+    """rendered is per-element optional; a None entry in the rendered list
+    triggers per-element fallback to the dash-stripped usage."""
+    from wyrd.generators.kenning.proportions import NewName
+
+    new_name = NewName(
+        struct=None,
+        meaning_db={},
+        name=[["Bridg-", "-water"]],
+        rendered=[["Brycg", None]],
+    )
+    assert str(new_name) == "Brycgwater"

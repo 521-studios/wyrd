@@ -126,9 +126,16 @@ class NameGenerator:
                     word_rendered.append(None)
                     continue
                 meanings = self.meaning_db.get(usage) or []
-                # When a usage maps to multiple Meanings (different senses,
-                # e.g. -y "district" vs "island"), the variant pools are the
-                # same etymon-level data either way; pick the first.
+                # When a usage maps to multiple Meanings (different senses
+                # e.g. -y "district" vs "island"), each sense has its OWN
+                # variant pool because the underlying etymons are distinct.
+                # We pick meanings[0] as a deterministic fallback; the
+                # picked variant may not correspond to the sense the
+                # structure's tags would have selected. Acceptable
+                # trade-off: sampling at the usage level (not the sense
+                # level) keeps the runtime simple and seed-stable. A
+                # follow-up could thread the structure's tag context to
+                # narrow to the matching sense before drawing.
                 chosen = meanings[0] if meanings else None
                 variant = chosen.pick_variant(rng, spelling_variety) if chosen else None
                 if variant is None:
@@ -310,8 +317,11 @@ def _blend_uniform(items, novelty: float):
     n = len(items)
     total = sum(max(w, 0) for _, w in items)
     if total <= 0:
-        # Pure uniform if every empirical weight is zero.
-        return [(k, novelty / n) for k, _ in items]
+        # Pure uniform if every empirical weight is zero — there's nothing to
+        # blend against, so the novelty knob has no meaningful axis. Returning
+        # 1/n keeps the result a normalized probability distribution as the
+        # docstring promises.
+        return [(k, 1 / n) for k, _ in items]
     return [(k, (1 - novelty) * (max(w, 0) / total) + novelty / n) for k, w in items]
 
 

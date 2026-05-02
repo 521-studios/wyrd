@@ -127,16 +127,21 @@ class Meaning:
 def _mimic_case(template: str, variant: str) -> str:
     """Render ``variant`` using the casing convention of ``template``.
 
-    Place names always carry capital letters at meaningful positions: the
-    canonical 'Bridg-' is title-case at word-start, '-water' is lowercase
-    mid-name. Variants are stored raw (lowercase) in the lexicon, so the
-    caller has to project the original usage's casing onto the variant.
+    Place names carry capital letters at meaningful positions: the canonical
+    'Bridg-' is title-case at word-start, '-water' is lowercase mid-name.
+    Variants are stored raw (mostly lowercase) in the lexicon, so the caller
+    projects the original usage's casing onto the variant.
+
+    Conservative on internal casing: a template that starts with a capital
+    capitalizes only the variant's first character and leaves the rest
+    untouched, preserving any internal capitals (Mc-, O', multi-word).
+    A template that's all-lowercase forces the variant lowercase to match.
     """
     bare = template.replace("-", "")
     if not bare:
         return variant
     if bare[:1].isupper():
-        return variant[:1].upper() + variant[1:].lower()
+        return variant[:1].upper() + variant[1:]
     return variant.lower()
 
 
