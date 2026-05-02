@@ -139,9 +139,7 @@ class NameGenerator:
         if len(tags) == 0:
             new_name = self._select_no_tag(rng, struct, novelty=novelty, harshness=harshness)
         else:
-            new_name = self._select_tags(
-                rng, struct, *tags, novelty=novelty, harshness=harshness
-            )
+            new_name = self._select_tags(rng, struct, *tags, novelty=novelty, harshness=harshness)
         if spelling_variety > 0 or inflection_density > 0:
             rendered, labels = self._render_substitutions(
                 rng, new_name.name, spelling_variety, inflection_density
@@ -216,9 +214,7 @@ class NameGenerator:
         for w in struct:
             keys = []
             for key in w:
-                keys.append(
-                    self.meaning_gen.select(rng, key, novelty=novelty, harshness=harshness)
-                )
+                keys.append(self.meaning_gen.select(rng, key, novelty=novelty, harshness=harshness))
             words.append(keys)
         return NewName(struct, self.meaning_db, words)
 
@@ -482,7 +478,9 @@ def _blend_harsh(items, harshness: float):
     """
     if not items:
         return items
-    return [(k, max(w, 0) * (1 - harshness + harshness * 2 * _harshness_score(k))) for k, w in items]
+    return [
+        (k, max(w, 0) * (1 - harshness + harshness * 2 * _harshness_score(k))) for k, w in items
+    ]
 
 
 def weighted_choice(rng: random.Random, choices):

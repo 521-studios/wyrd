@@ -439,9 +439,7 @@ def test_generator_select_composes_harsh_and_novelty():
     from wyrd.generators.kenning.proportions import Generator
 
     g = Generator(tag_db={}, elements={"-ham": 99, "-shuck": 1})
-    counts = Counter(
-        g.select(random.Random(i), novelty=1.0, harshness=1.0) for i in range(2000)
-    )
+    counts = Counter(g.select(random.Random(i), novelty=1.0, harshness=1.0) for i in range(2000))
     assert 800 < counts["-ham"] < 1200
     assert 800 < counts["-shuck"] < 1200
 
@@ -497,7 +495,4 @@ def test_description_handles_mixed_labels_within_word():
     )
     # Multi-element words keep dashes in the head per the existing
     # description() shape.
-    assert (
-        new_name.description()
-        == "Bridg- (EN bridge) -water@genitive_strong (EN water)"
-    )
+    assert new_name.description() == "Bridg- (EN bridge) -water@genitive_strong (EN water)"

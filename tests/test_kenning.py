@@ -131,9 +131,7 @@ def test_grim_composes_with_explicit_tags():
     behavior is the union of the explicit tag and the grim tag set. The
     output should remain a non-empty name."""
     k = Kenning()
-    result = k.generate(
-        {"culture": "english", "tags": ["water"], "grim": True}, seed=42
-    )
+    result = k.generate({"culture": "english", "tags": ["water"], "grim": True}, seed=42)
     assert result.result
     assert result.explanation
 
@@ -144,12 +142,8 @@ def test_grim_does_not_duplicate_tags_already_present():
     redundant fallback bucket and trip the existing rng.choice over a
     biased pool. Verifies via a deterministic seed."""
     k = Kenning()
-    a = k.generate(
-        {"culture": "english", "tags": ["death"], "grim": True}, seed=42
-    ).result
-    b = k.generate(
-        {"culture": "english", "tags": ["death"], "grim": True}, seed=42
-    ).result
+    a = k.generate({"culture": "english", "tags": ["death"], "grim": True}, seed=42).result
+    b = k.generate({"culture": "english", "tags": ["death"], "grim": True}, seed=42).result
     # Seed-stable.
     assert a == b
     # Sanity: the result is still a real name, not empty/None.
@@ -192,13 +186,9 @@ def test_harsh_and_grim_compose_orthogonally():
     weights. Composing both should produce a non-empty result and stay
     seed-stable."""
     k = Kenning()
-    result = k.generate(
-        {"culture": "english", "grim": True, "harshness": 0.8}, seed=42
-    )
+    result = k.generate({"culture": "english", "grim": True, "harshness": 0.8}, seed=42)
     assert result.result
-    again = k.generate(
-        {"culture": "english", "grim": True, "harshness": 0.8}, seed=42
-    )
+    again = k.generate({"culture": "english", "grim": True, "harshness": 0.8}, seed=42)
     assert result.result == again.result
 
 
