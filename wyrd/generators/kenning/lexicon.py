@@ -1621,7 +1621,8 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
     for row in db.conn.execute(
         f"SELECT re.reflex_id, re.etymon_id "
         f"FROM reflex_etymon re "
-        f"WHERE re.etymon_id IN ({placeholders})",
+        f"WHERE re.etymon_id IN ({placeholders}) "
+        f"ORDER BY re.reflex_id, re.etymon_id",
         member_ids,
     ):
         reflex_links.setdefault(row["reflex_id"], []).append(row["etymon_id"])

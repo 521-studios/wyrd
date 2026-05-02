@@ -1906,6 +1906,50 @@ def test_export_meanings_groups_multiple_families_into_one_subject(
     assert usages == ["-cot", "-ham"]
 
 
+def test_export_meanings_reflex_linked_to_inflection_only_emits_that_inflection(
+    fresh_db: Path,
+) -> None:
+    """A reflex linked directly to an inflection (not the lemma) emits only
+    that inflection's form plus the inflection's own descendants — not the
+    lemma's form or sibling inflections. The descendant walk is downward,
+    not upward; if the seed wanted the reflex to cover the whole morpheme,
+    it should have linked to the lemma."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        # Seed with reflex linked to inflected form 'cotan' rather than lemma 'cot'.
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["cottage"],
+            tags=["habitation"],
+            modifier_type="Habitative",
+            words=[{"modern_usage": "-cotan", "old_english": ["cotan"]}],
+        )
+        # Add the lemma + sibling inflection as separate entities later.
+        cotan_id = db.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = 'cotan'"
+        ).fetchone()["id"]
+        cot_id = db.upsert_etymon("cot", "old-english", modifier_type="Habitative")
+        cotes_id = db.upsert_etymon("cotes", "old-english")
+        # Wire D8 lemma linkage: cotan and cotes both inflect from cot.
+        db.conn.execute(
+            "UPDATE etymon SET lemma_id = ? WHERE id IN (?, ?)",
+            (cot_id, cotan_id, cotes_id),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    # All three etymons roll up to cot (the lemma). The subject reconstruction
+    # groups by (modifier_type, glosses, tags); here the seed gave glosses
+    # only to cotan, so cot/cotes have no glosses → they form a separate
+    # subject (no overlap). Find the subject with the -cotan reflex.
+    word = next(w for s in subjects for w in s["words"] if w["modern_usage"] == "-cotan")
+    # Reflex linked only to cotan; descendants of cotan = {cotan} (no children
+    # below). Lemma 'cot' and sibling 'cotes' must NOT appear here.
+    assert word["old_english"] == ["cotan"]
+
+
 def test_export_meanings_narrows_word_language_to_linked_etymons(
     fresh_db: Path,
 ) -> None:
