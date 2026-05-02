@@ -130,7 +130,7 @@ seed-stable behavior preserved bit-for-bit.
 | `--spelling-variety` | D18 | Per-morpheme probability of substituting an attested archaic spelling variant for the canonical reflex. Pool comes from `etymon_text_match.matched_form` rows surviving the post-mining chain + LLM disambiguator. 416 morphemes have non-empty pools today. |
 | `--inflection-density` | D8 | Per-morpheme probability of substituting an inflected form (genitive/dative/plural) for the lemma. Bundle has 168 inflected etymons across 9 grammatical-case labels. When both this and `--spelling-variety` would fire on the same morpheme, inflection wins. |
 | `--harsh` | D6 | Phonological-harshness skew (0..1). At 1.0, soft-keyed morphemes are damped to 0 and stop-final / cluster-heavy morphemes get up to 2× their empirical weight. Heuristic score on the dash-stripped usage; orthogonal to language and to `--grim`. Composes with `--novelty` (harsh applies to empirical first, then novelty blends with uniform). |
-| `--grim` | D6 | Boolean tag-union sugar over the menacing tag set (death, military, monster, undead, magic). Composes with `--harsh` on the orthogonal phonological axis and with explicit `--tag`. Original D6 spec named (grim, mortuary, monstrous, battle, wilderness); none of those exist in the bundle yet, so the closest extant tags fill in until a future-mining pass surfaces the spec-named ones. |
+| `--grim` | D6 | Boolean tag-union sugar over the menacing tag set (death, military, monster, undead, magic). Composes with `--harsh` on the orthogonal phonological axis and with explicit `--tag`. See `DECISIONS.md` D6 for the spec-named-vs-extant-tags backstory. |
 
 ## Bundle schema (meanings.json)
 

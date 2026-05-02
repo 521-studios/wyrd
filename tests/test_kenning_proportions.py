@@ -150,6 +150,36 @@ def test_meaning_generator_select_threads_novelty():
     assert 800 < counts["-b"] < 1200
 
 
+def test_meaning_generator_select_threads_harshness():
+    """MeaningGenerator.select(key, *tags, harshness=...) forwards harshness
+    into Generator.select for the chosen bucket. At harshness=1, the empirical
+    99:1 weight gets re-weighted by the harsh phonology score, shifting picks
+    toward the stop-final key (-shuck) over the soft -baron bucket-mate."""
+    from collections import Counter
+
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator
+
+    # Two usages keyed by the same Meaning.key() = ('post',). Empirical
+    # weight 99 on the soft form, 1 on the harsh form; harshness=1 should
+    # claw back the gap because soft scores ~0 and harsh scores ~0.7+.
+    m_baron = Meaning("-baron", [], [], {})
+    m_shuck = Meaning("-shuck", [], [], {})
+    meaning_db = {"-baron": [m_baron], "-shuck": [m_shuck]}
+    proportions = {"-baron": 99, "-shuck": 1}
+    mg = MeaningGenerator(meaning_db, {}, proportions)
+    plain = Counter(mg.select(random.Random(i), ("post",)) for i in range(2000))
+    harsh = Counter(
+        mg.select(random.Random(i), ("post",), harshness=1.0) for i in range(2000)
+    )
+    # Sanity: plain has -baron almost always.
+    assert plain["-baron"] > 1800
+    # Harsh: -shuck (stop-final) gets a meaningful share even against the
+    # 99:1 empirical headwind. The exact amount depends on the score gap;
+    # any non-trivial shift confirms the kwarg threaded through.
+    assert harsh["-shuck"] > plain["-shuck"]
+
+
 # --- NameGenerator._render_substitutions + NewName.__str__ rendered branch ------
 
 
@@ -496,3 +526,24 @@ def test_description_handles_mixed_labels_within_word():
     # Multi-element words keep dashes in the head per the existing
     # description() shape.
     assert new_name.description() == "Bridg- (EN bridge) -water@genitive_strong (EN water)"
+
+
+def test_description_inflection_labels_shorter_than_name_does_not_crash():
+    """Defensive: if inflection_labels has a shorter inner list than its
+    matching name word — possible only via direct construction or a bug
+    elsewhere — description() must fall through to the unlabelled form
+    rather than raising IndexError. Pins the IndexError catch in
+    _inflection_label_for."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import NewName
+
+    m = Meaning("-cot", [], ["cottage"], {"old_english": ["cot"]})
+    new_name = NewName(
+        struct=None,
+        meaning_db={"-cot": [m]},
+        name=[["-cot"]],
+        # Outer list is correct length but inner is empty — element index 0
+        # raises IndexError, which the helper must swallow.
+        inflection_labels=[[]],
+    )
+    assert new_name.description() == "cot (EN cottage)"

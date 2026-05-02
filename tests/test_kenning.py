@@ -192,6 +192,38 @@ def test_harsh_and_grim_compose_orthogonally():
     assert result.result == again.result
 
 
+def test_cli_grim_and_harsh_flags_wire_into_params():
+    """End-to-end CLI smoke: invoking `wyrd kenning generate english --grim
+    --harsh 1.0 --seed 42 -n 1 --no-describe` runs cleanly and produces a
+    non-empty name. Pins the click flag → params dict wiring so a future
+    rename (e.g. --harsh → --harshness) wouldn't silently break the CLI
+    surface."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "generate",
+            "english",
+            "--grim",
+            "--harsh",
+            "1.0",
+            "--seed",
+            "42",
+            "-n",
+            "1",
+            "--no-describe",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    name_lines = [ln for ln in result.output.splitlines() if ln.strip()]
+    assert name_lines, f"no name produced; output was {result.output!r}"
+    assert name_lines[0]
+
+
 def test_components_are_structured():
     result = Kenning().generate({"culture": "english"}, seed=7)
     assert isinstance(result.components, list)
