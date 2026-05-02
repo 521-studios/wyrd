@@ -122,11 +122,19 @@ single `--mood` flag.** Two axes ride under one GM-facing surface:
   `--novelty` (D17): harsh skew applies to empirical first, then novelty
   blends with uniform.
 - `--mood harsh:0.5` graduates the harshness skew via colon-suffix.
+- `--mood pastoral` (plant / animal / water / agriculture / tree / bird
+  tag union) for rural / agricultural feel.
+- `--mood devotional` (saint / religious) for monastery / pilgrim feel.
+- `--mood mortuary` (death / undead) for funerary feel — a strict subset
+  of `grim` for cases where the GM wants death-themed without the
+  military / monster axes.
 - Multiple `--mood` flags compose by tag-union and max-harshness.
 
-The mood vocabulary lives in `__init__.MOODS` as `{name: recipe}` so
-future presets (`pastoral`, `noble`, `mortuary`, etc.) drop in without
-changing the public surface.
+The mood vocabulary lives in `__init__.MOODS` as `{name: recipe}`. New
+presets are picked from a tag-coverage audit (≥5 subjects per
+candidate tag, distinct semantic identity, minimal overlap with
+existing moods); `noble` was considered in wyrd-aky and deferred until
+mining surfaces a `royalty` tag.
 
 Power-user JSON API still exposes `harshness` (number, 0..1) for
 graduated control without the colon syntax; `harshness` and
