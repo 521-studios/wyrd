@@ -2323,11 +2323,13 @@ def test_export_meanings_cli_no_preset_with_lang_threshold_overrides(
 
 
 def test_build_witness_filter_empty_uses_uniform_threshold() -> None:
-    """Direct unit test: empty lang_thresholds returns the simple fragment."""
+    """Direct unit test: empty lang_thresholds returns the simple fragment.
+    Parenthesized to match the per-language path's contract so the helper
+    composes safely when dropped into a larger expression."""
     from wyrd.generators.kenning.lexicon import _build_witness_filter
 
     sql, params = _build_witness_filter({}, 3)
-    assert sql == "witnesses >= ?"
+    assert sql == "(witnesses >= ?)"
     assert params == [3]
 
 

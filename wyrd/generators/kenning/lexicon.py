@@ -1567,7 +1567,7 @@ def _build_witness_filter(
     and references ``language`` / ``witnesses`` columns.
     """
     if not lang_thresholds:
-        return "witnesses >= ?", [min_witnesses]
+        return "(witnesses >= ?)", [min_witnesses]
     clauses: list[str] = []
     params: list[Any] = []
     sorted_langs = sorted(lang_thresholds)
