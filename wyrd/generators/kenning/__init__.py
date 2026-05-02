@@ -157,6 +157,20 @@ class Kenning(Generator):
                         "the corpus. Intermediate values softly blend."
                     ),
                 },
+                "inflection_density": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": (
+                        "Per-morpheme probability of substituting an inflected form "
+                        "(genitive, dative, plural) for the lemma (D8). 0 always uses "
+                        "the unmarked headword; higher values surface morphological "
+                        "variety like 'Cotum-' instead of 'Cot-'. Inflection wins over "
+                        "spelling_variety when both knobs would fire on the same "
+                        "morpheme."
+                    ),
+                },
             },
             "required": [],
         }
@@ -169,6 +183,7 @@ class Kenning(Generator):
         tags = tuple(raw_tags)
         spelling_variety = float(params.get("spelling_variety", 0.0) or 0.0)
         novelty = float(params.get("novelty", 0.0) or 0.0)
+        inflection_density = float(params.get("inflection_density", 0.0) or 0.0)
 
         name_gen, _ = _load_culture(culture)
         rng = rng_for(seed)
@@ -177,6 +192,7 @@ class Kenning(Generator):
             *tags,
             spelling_variety=spelling_variety,
             novelty=novelty,
+            inflection_density=inflection_density,
         )
         return GenerationResult(
             result=str(new_name),

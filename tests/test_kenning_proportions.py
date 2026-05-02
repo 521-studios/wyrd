@@ -145,12 +145,19 @@ def test_meaning_generator_select_threads_novelty():
     assert 800 < counts["-b"] < 1200
 
 
-# --- NameGenerator._render_variants + NewName.__str__ rendered branch ------
+# --- NameGenerator._render_substitutions + NewName.__str__ rendered branch ------
 
 
 def _build_minimal_name_generator(meaning_db):
     """Build a NameGenerator with a single trivial structure for tests.
-    Uses only one usage from meaning_db so the structure walk is deterministic."""
+
+    Uses only one usage from meaning_db so the structure walk is
+    deterministic. Mirrors the production load_proportions() shape: every
+    usage is registered both with its bare location key (multi-element
+    words) and the (location, "single") key (single-element words). The
+    test fixture uses single-element structures so the runtime can resolve
+    the bucket via the "single"-suffixed key.
+    """
     from wyrd.generators.kenning.proportions import (
         MeaningGenerator,
         NameGenerator,
@@ -158,22 +165,25 @@ def _build_minimal_name_generator(meaning_db):
 
     proportions = dict.fromkeys(meaning_db, 1)
     mg = MeaningGenerator(meaning_db, {}, proportions)
-    structs = {(((next(iter(meaning_db.values()))[0].location,),)): 1}
+    mg.load_parts(proportions, "single")
+    location = next(iter(meaning_db.values()))[0].location
+    structs = {(((location, "single"),),): 1}
     return NameGenerator(meaning_db, mg, structs)
 
 
-def test_render_variants_falls_back_to_canonical_when_no_pool():
-    """A meaning with no variant pool renders as the dash-stripped usage
-    even at spelling_variety=1.0."""
+def test_render_substitutions_falls_back_to_canonical_when_no_pool():
+    """A meaning with no variant or inflection pool renders as the
+    dash-stripped usage even at spelling_variety=1.0."""
     from wyrd.generators.kenning.meaning import Meaning
 
     m = Meaning("-cot", [], [], {"old_english": ["cot"]})
     name_gen = _build_minimal_name_generator({"-cot": [m]})
-    rendered = name_gen._render_variants(random.Random(0), [["-cot"]], 1.0)
+    rendered, labels = name_gen._render_substitutions(random.Random(0), [["-cot"]], 1.0, 0.0)
     assert rendered == [["cot"]]
+    assert labels == [[None]]
 
 
-def test_render_variants_substitutes_with_case_mimic():
+def test_render_substitutions_substitutes_variant_with_case_mimic():
     """At spelling_variety=1 with a non-empty pool, the rendered surface
     form is the case-mimicked variant rather than the canonical."""
     from wyrd.generators.kenning.meaning import Meaning
@@ -186,14 +196,93 @@ def test_render_variants_substitutes_with_case_mimic():
         variants={"old_english": [("brycg", 10)]},
     )
     name_gen = _build_minimal_name_generator({"Bridg-": [m]})
-    rendered = name_gen._render_variants(random.Random(0), [["Bridg-"]], 1.0)
+    rendered, labels = name_gen._render_substitutions(random.Random(0), [["Bridg-"]], 1.0, 0.0)
     # Title-case template projects onto the variant.
     assert rendered == [["Brycg"]]
+    assert labels == [[None]]
 
 
-def test_render_variants_handles_none_usage():
+def test_render_substitutions_substitutes_inflection_with_label():
+    """At inflection_density=1 with a non-empty inflection pool, the
+    rendered form is the inflected child and the label is preserved."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    m = Meaning(
+        "-cot",
+        [],
+        [],
+        {"old_english": ["cot", "cotum"]},
+        inflections={"old_english": [("cotum", "dative_or_pl")]},
+    )
+    name_gen = _build_minimal_name_generator({"-cot": [m]})
+    rendered, labels = name_gen._render_substitutions(random.Random(0), [["-cot"]], 0.0, 1.0)
+    assert rendered == [["cotum"]]
+    assert labels == [["dative_or_pl"]]
+
+
+def test_render_substitutions_inflection_wins_over_variant():
+    """When both knobs would fire on the same morpheme, inflection wins
+    (more specific morphological data)."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    m = Meaning(
+        "-cot",
+        [],
+        [],
+        {"old_english": ["cot"]},
+        variants={"old_english": [("cotte", 10)]},
+        inflections={"old_english": [("cotum", "dative_or_pl")]},
+    )
+    name_gen = _build_minimal_name_generator({"-cot": [m]})
+    rendered, labels = name_gen._render_substitutions(random.Random(0), [["-cot"]], 1.0, 1.0)
+    assert rendered == [["cotum"]]
+    assert labels == [["dative_or_pl"]]
+
+
+def test_select_populates_inflection_labels_at_high_density():
+    """End-to-end: NameGenerator.select(inflection_density=1.0) on a
+    meaning_db with inflection metadata returns a NewName whose
+    inflection_labels carry the picked label per element. Pins the
+    integration boundary that _render_substitutions tests can't reach
+    on their own."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    m = Meaning(
+        "-cot",
+        [],
+        [],
+        {"old_english": ["cot", "cotum"]},
+        inflections={"old_english": [("cotum", "dative_or_pl")]},
+    )
+    name_gen = _build_minimal_name_generator({"-cot": [m]})
+    new_name = name_gen.select(random.Random(0), inflection_density=1.0)
+    assert new_name.inflection_labels == [["dative_or_pl"]]
+    assert new_name.rendered == [["cotum"]]
+
+
+def test_select_default_skips_render_pass_entirely():
+    """At default knobs (variety=0, density=0), select() doesn't populate
+    rendered or inflection_labels — they stay None. Cheap fast-path
+    confirmation that protects bit-stability."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    m = Meaning(
+        "-cot",
+        [],
+        [],
+        {"old_english": ["cot"]},
+        variants={"old_english": [("kotte", 5)]},
+        inflections={"old_english": [("cotum", "dative_or_pl")]},
+    )
+    name_gen = _build_minimal_name_generator({"-cot": [m]})
+    new_name = name_gen.select(random.Random(0))
+    assert new_name.rendered is None
+    assert new_name.inflection_labels is None
+
+
+def test_render_substitutions_handles_none_usage():
     """Tag-filter passes can leave None entries when no candidate matched the
-    structure slot. _render_variants must propagate None."""
+    structure slot. _render_substitutions must propagate None on both lists."""
     name_gen = _build_minimal_name_generator(
         {
             "-x": [
@@ -203,8 +292,9 @@ def test_render_variants_handles_none_usage():
             ]
         }
     )
-    rendered = name_gen._render_variants(random.Random(0), [[None]], 1.0)
+    rendered, labels = name_gen._render_substitutions(random.Random(0), [[None]], 1.0, 1.0)
     assert rendered == [[None]]
+    assert labels == [[None]]
 
 
 def test_newname_str_uses_rendered_when_set():

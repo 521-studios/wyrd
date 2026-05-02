@@ -146,24 +146,48 @@
         "modern_usage": "-en-",
         "old_english": [
           "ingas"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ingas",
+            "inflection": "plural_strong"
+          }
         ]
       },
       {
         "modern_usage": "-ing-",
         "old_english": [
           "ingas"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ingas",
+            "inflection": "plural_strong"
+          }
         ]
       },
       {
         "modern_usage": "-ing",
         "old_english": [
           "ingas"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ingas",
+            "inflection": "plural_strong"
+          }
         ]
       },
       {
         "modern_usage": "-ling",
         "old_english": [
           "ingas"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ingas",
+            "inflection": "plural_strong"
+          }
         ]
       }
     ]
@@ -205,6 +229,12 @@
         "modern_usage": "-ward",
         "old_english": [
           "warde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "warde",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -240,6 +270,12 @@
         "modern_usage": "Laytham-",
         "old_scandinavian": [
           "hlathum"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "hlathum",
+            "inflection": "dative_pl"
+          }
         ]
       }
     ]
@@ -260,6 +296,12 @@
         "modern_usage": "Bla-",
         "old_scandinavian": [
           "blár"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "blár",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -305,12 +347,28 @@
         "old_scandinavian": [
           "boli",
           "bolr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "boli",
+            "inflection": "dative_or_weak"
+          },
+          {
+            "form": "bolr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Boul-",
         "old_scandinavian": [
           "boli"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "boli",
+            "inflection": "dative_or_weak"
+          }
         ]
       }
     ]
@@ -335,24 +393,48 @@
         "modern_usage": "-all",
         "old_scandinavian": [
           "haugr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "haugr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "-low",
         "old_scandinavian": [
           "haugr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "haugr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Harro-",
         "old_scandinavian": [
           "haugr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "haugr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Howe-",
         "old_scandinavian": [
           "haugr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "haugr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -379,6 +461,12 @@
         "old_english": [
           "burn",
           "burne"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "burne",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -451,12 +539,24 @@
         "modern_usage": "-dale",
         "old_scandinavian": [
           "dalr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "dalr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Dal-",
         "old_scandinavian": [
           "dalr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "dalr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -474,6 +574,12 @@
         "old_scandinavian": [
           "dan",
           "danr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "danr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -511,12 +617,24 @@
         "modern_usage": "Ler-",
         "old_scandinavian": [
           "leirr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "leirr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Liver-",
         "old_scandinavian": [
           "leirr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "leirr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -550,36 +668,72 @@
         "modern_usage": "Aist-",
         "old_scandinavian": [
           "austr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "austr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Ast-",
         "old_scandinavian": [
           "austr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "austr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Aust-",
         "old_scandinavian": [
           "austr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "austr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "East-",
         "old_scandinavian": [
           "austr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "austr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Is-",
         "old_scandinavian": [
           "austr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "austr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Owst-",
         "old_scandinavian": [
           "austr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "austr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -607,42 +761,84 @@
         "modern_usage": "-gart",
         "old_scandinavian": [
           "garthr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "garthr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "-garth",
         "old_scandinavian": [
           "garthr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "garthr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "-guard",
         "old_scandinavian": [
           "garthr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "garthr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "`gar",
         "old_scandinavian": [
           "garthr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "garthr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Gar-",
         "old_scandinavian": [
           "garthr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "garthr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Gart-",
         "old_scandinavian": [
           "garthr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "garthr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Garth-",
         "old_scandinavian": [
           "garthr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "garthr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -684,12 +880,24 @@
         "modern_usage": "-shader-",
         "old_scandinavian": [
           "setr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "setr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "-setter",
         "old_scandinavian": [
           "setr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "setr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -760,6 +968,12 @@
         "modern_usage": "Hes-",
         "old_scandinavian": [
           "hestr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "hestr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -781,12 +995,24 @@
         "modern_usage": "-land",
         "old_scandinavian": [
           "lundr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "lundr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "-with",
         "old_scandinavian": [
           "lundr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "lundr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -804,6 +1030,12 @@
         "old_scandinavian": [
           "grim",
           "grimr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "grimr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -838,12 +1070,24 @@
         "modern_usage": "Clap-",
         "old_scandinavian": [
           "klakkr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "klakkr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Col-",
         "old_scandinavian": [
           "klakkr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "klakkr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -956,18 +1200,36 @@
         "modern_usage": "Gol-",
         "old_english": [
           "golde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "golde",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
         "modern_usage": "Gold-",
         "old_english": [
           "golde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "golde",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
         "modern_usage": "Gow-",
         "old_english": [
           "golde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "golde",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -1017,12 +1279,24 @@
         "modern_usage": "Min-",
         "old_english": [
           "minte"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "minte",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
         "modern_usage": "Mine-",
         "old_english": [
           "minte"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "minte",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -1125,6 +1399,12 @@
         "modern_usage": "Sower-",
         "old_scandinavian": [
           "saurr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "saurr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -1143,6 +1423,12 @@
         "modern_usage": "Gar-",
         "old_scandinavian": [
           "geirr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "geirr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -1160,6 +1446,12 @@
         "old_scandinavian": [
           "thor",
           "thorr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "thorr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -1194,6 +1486,16 @@
           "wal",
           "wale",
           "wales"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wale",
+            "inflection": "dative_or_pl"
+          },
+          {
+            "form": "wales",
+            "inflection": "genitive_strong"
+          }
         ]
       }
     ]
@@ -1212,18 +1514,36 @@
         "modern_usage": "Wes-",
         "old_scandinavian": [
           "vestr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "vestr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Wesh-",
         "old_scandinavian": [
           "vestr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "vestr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "West-",
         "old_scandinavian": [
           "vestr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "vestr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -1243,12 +1563,24 @@
         "modern_usage": "Ul-",
         "old_scandinavian": [
           "ulfr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "ulfr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Ulp-",
         "old_scandinavian": [
           "ulfr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "ulfr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -1268,6 +1600,12 @@
         "modern_usage": "Fin-",
         "old_english": [
           "fine"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "fine",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -1475,6 +1813,12 @@
         "old_scandinavian": [
           "krok",
           "krokr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "krokr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -1676,6 +2020,12 @@
         "old_english": [
           "thorp",
           "thorpe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "thorpe",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -1769,6 +2119,12 @@
         "old_scandinavian": [
           "maur",
           "maurr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "maurr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -1819,6 +2175,12 @@
         "old_english": [
           "hlid",
           "hlidum"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hlidum",
+            "inflection": "dative_pl"
+          }
         ]
       }
     ]
@@ -2086,6 +2448,12 @@
         "old_english": [
           "boc",
           "boces"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "boces",
+            "inflection": "genitive_strong"
+          }
         ]
       }
     ]
@@ -2156,6 +2524,12 @@
         "old_scandinavian": [
           "birk",
           "birki"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "birki",
+            "inflection": "dative_or_weak"
+          }
         ]
       }
     ]
@@ -2366,6 +2740,12 @@
         "old_english": [
           "burg",
           "burge"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "burge",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -2631,6 +3011,12 @@
         "old_english": [
           "low",
           "lowe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "lowe",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -2942,6 +3328,12 @@
         "old_english": [
           "ley",
           "leye"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "leye",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -3194,6 +3586,12 @@
         "old_english": [
           "hal",
           "hale"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hale",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -3358,6 +3756,12 @@
         "old_english": [
           "dal",
           "dale"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "dale",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -3661,6 +4065,12 @@
         "old_english": [
           "elm",
           "elme"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "elme",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -3761,6 +4171,12 @@
         "old_english": [
           "hall",
           "halle"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "halle",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -3794,6 +4210,12 @@
         "old_english": [
           "word",
           "worde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "worde",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -3949,6 +4371,12 @@
         "old_english": [
           "wyrth",
           "wyrthe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wyrthe",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -5017,6 +5445,12 @@
         "old_english": [
           "hus",
           "huse"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "huse",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -5257,6 +5691,12 @@
         "old_english": [
           "lech",
           "leche"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "leche",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -5542,6 +5982,12 @@
         "old_english": [
           "middel",
           "middelan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "middelan",
+            "inflection": "weak_oblique"
+          }
         ]
       }
     ]
@@ -5771,6 +6217,12 @@
         "old_english": [
           "new",
           "newe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "newe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -6723,6 +7175,12 @@
         "old_english": [
           "well",
           "welle"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "welle",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -7027,6 +7485,12 @@
         "old_english": [
           "horning",
           "horningas"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "horningas",
+            "inflection": "plural_strong"
+          }
         ]
       }
     ]
@@ -7423,6 +7887,12 @@
           "-dene",
           "dene",
           "dēn"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "dene",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -7824,12 +8294,24 @@
         "modern_usage": "-ford",
         "old_english": [
           "fyrde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "fyrde",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
         "modern_usage": "-forth",
         "old_english": [
           "fyrde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "fyrde",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -7837,6 +8319,12 @@
         "old_english": [
           "fyrd",
           "fyrde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "fyrde",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -7844,6 +8332,12 @@
         "old_english": [
           "fyrd",
           "fyrde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "fyrde",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -8452,6 +8946,12 @@
             "form": "aeaer",
             "weight": 26
           }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ceceras",
+            "inflection": "plural_strong"
+          }
         ]
       },
       {
@@ -8465,6 +8965,12 @@
           {
             "form": "aeaer",
             "weight": 26
+          }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ceceras",
+            "inflection": "plural_strong"
           }
         ]
       }
@@ -9118,6 +9624,12 @@
           "hlāw",
           "hlawe",
           "hlaw"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hlawe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -9126,6 +9638,12 @@
           "hlāw",
           "hlawe",
           "hlaw"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hlawe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -9134,6 +9652,12 @@
           "hlāw",
           "hlawe",
           "hlaw"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hlawe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -9142,6 +9666,12 @@
           "hlāw",
           "hlawe",
           "hlaw"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hlawe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -9150,6 +9680,12 @@
           "hlāw",
           "hlawe",
           "hlaw"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hlawe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -9158,6 +9694,12 @@
           "hlāw",
           "hlawe",
           "hlaw"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hlawe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -9166,6 +9708,12 @@
           "hlāw",
           "hlawe",
           "hlaw"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hlawe",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -10369,6 +10917,12 @@
           "swīn",
           "swine",
           "swin"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "swine",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -10377,6 +10931,12 @@
           "swīn",
           "swine",
           "swin"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "swine",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -10385,6 +10945,12 @@
           "swīn",
           "swine",
           "swin"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "swine",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -10393,6 +10959,12 @@
           "swīn",
           "swine",
           "swin"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "swine",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -10401,6 +10973,12 @@
           "swīn",
           "swine",
           "swin"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "swine",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -10409,6 +10987,12 @@
           "swīn",
           "swine",
           "swin"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "swine",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -10663,6 +11247,12 @@
         "old_english": [
           "mearc",
           "mearce"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "mearce",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -10670,6 +11260,12 @@
         "old_english": [
           "mearc",
           "mearce"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "mearce",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -10677,6 +11273,12 @@
         "old_english": [
           "mearc",
           "mearce"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "mearce",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -10684,6 +11286,12 @@
         "old_english": [
           "mearc",
           "mearce"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "mearce",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -11654,6 +12262,12 @@
         "old_english": [
           "catt",
           "cattes"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cattes",
+            "inflection": "genitive_strong"
+          }
         ]
       }
     ]
@@ -12149,6 +12763,24 @@
           "cotes",
           "cote",
           "cotan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cotan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "cote",
+            "inflection": "dative_or_pl"
+          },
+          {
+            "form": "cotes",
+            "inflection": "genitive_strong"
+          },
+          {
+            "form": "cotum",
+            "inflection": "dative_pl"
+          }
         ]
       },
       {
@@ -12159,6 +12791,24 @@
           "cotes",
           "cote",
           "cotan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cotan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "cote",
+            "inflection": "dative_or_pl"
+          },
+          {
+            "form": "cotes",
+            "inflection": "genitive_strong"
+          },
+          {
+            "form": "cotum",
+            "inflection": "dative_pl"
+          }
         ]
       },
       {
@@ -12169,6 +12819,24 @@
           "cotes",
           "cote",
           "cotan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cotan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "cote",
+            "inflection": "dative_or_pl"
+          },
+          {
+            "form": "cotes",
+            "inflection": "genitive_strong"
+          },
+          {
+            "form": "cotum",
+            "inflection": "dative_pl"
+          }
         ]
       },
       {
@@ -12179,6 +12847,24 @@
           "cotes",
           "cote",
           "cotan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cotan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "cote",
+            "inflection": "dative_or_pl"
+          },
+          {
+            "form": "cotes",
+            "inflection": "genitive_strong"
+          },
+          {
+            "form": "cotum",
+            "inflection": "dative_pl"
+          }
         ]
       }
     ]
@@ -12201,6 +12887,12 @@
         "old_english": [
           "haus",
           "hause"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hause",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -12208,6 +12900,12 @@
         "old_english": [
           "haus",
           "hause"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hause",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -12934,6 +13632,12 @@
         "old_english": [
           "eorth",
           "eorthe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "eorthe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -12941,6 +13645,12 @@
         "old_english": [
           "eorth",
           "eorthe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "eorthe",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -13067,6 +13777,12 @@
         "old_english": [
           "hop",
           "hope"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hope",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -13074,6 +13790,12 @@
         "old_english": [
           "hop",
           "hope"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hope",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -13081,6 +13803,12 @@
         "old_english": [
           "hop",
           "hope"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hope",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -13088,6 +13816,12 @@
         "old_english": [
           "hop",
           "hope"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hope",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -13095,6 +13829,12 @@
         "old_english": [
           "hop",
           "hope"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hope",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -13102,6 +13842,12 @@
         "old_english": [
           "hop",
           "hope"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hope",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -13109,6 +13855,12 @@
         "old_english": [
           "hop",
           "hope"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hope",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -13315,6 +14067,12 @@
         "old_english": [
           "hind",
           "hinde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hinde",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -13322,6 +14080,12 @@
         "old_english": [
           "hind",
           "hinde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hinde",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -14443,6 +15207,12 @@
           "worth",
           "worþe",
           "worþ"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "worþe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -14451,6 +15221,12 @@
           "worth",
           "worþe",
           "worþ"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "worþe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -14459,6 +15235,12 @@
           "worth",
           "worþe",
           "worþ"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "worþe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -14467,6 +15249,12 @@
           "worth",
           "worþe",
           "worþ"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "worþe",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -14524,6 +15312,12 @@
           {
             "form": "hammes",
             "weight": 4
+          }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hamme",
+            "inflection": "dative_or_pl"
           }
         ]
       }
@@ -14786,6 +15580,12 @@
           "tune",
           "tun",
           "-tun"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "tune",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -14795,6 +15595,12 @@
           "tune",
           "tun",
           "-tun"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "tune",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -14804,6 +15610,12 @@
           "tune",
           "tun",
           "-tun"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "tune",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -14813,6 +15625,12 @@
           "tune",
           "tun",
           "-tun"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "tune",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -14822,6 +15640,12 @@
           "tune",
           "tun",
           "-tun"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "tune",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -15498,6 +16322,12 @@
         "old_english": [
           "fisc",
           "fisces"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "fisces",
+            "inflection": "genitive_strong"
+          }
         ]
       }
     ]
@@ -15599,6 +16429,12 @@
         "old_english": [
           "hors",
           "horsan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "horsan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -15606,6 +16442,12 @@
         "old_english": [
           "hors",
           "horsan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "horsan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -15613,6 +16455,12 @@
         "old_english": [
           "hors",
           "horsan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "horsan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -15620,6 +16468,12 @@
         "old_english": [
           "hors",
           "horsan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "horsan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -15627,6 +16481,12 @@
         "old_english": [
           "hors",
           "horsan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "horsan",
+            "inflection": "weak_oblique"
+          }
         ]
       }
     ]
@@ -15807,6 +16667,12 @@
           "graef",
           "grcef",
           "graefe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "graefe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -15815,18 +16681,36 @@
           "graefe",
           "graef",
           "grcef"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "graefe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
         "modern_usage": "-grove",
         "old_english": [
           "graefe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "graefe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
         "modern_usage": "Graf-",
         "old_english": [
           "graefe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "graefe",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -16459,6 +17343,12 @@
         "old_english": [
           "ceorl",
           "ceorles"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ceorles",
+            "inflection": "genitive_strong"
+          }
         ]
       },
       {
@@ -16466,6 +17356,12 @@
         "old_english": [
           "ceorl",
           "ceorles"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ceorles",
+            "inflection": "genitive_strong"
+          }
         ]
       },
       {
@@ -16473,6 +17369,12 @@
         "old_english": [
           "ceorl",
           "ceorles"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ceorles",
+            "inflection": "genitive_strong"
+          }
         ]
       }
     ]
@@ -17251,6 +18153,12 @@
         "old_scandinavian": [
           "hafr",
           "hafri"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "hafri",
+            "inflection": "dative_or_weak"
+          }
         ]
       },
       {
@@ -17258,6 +18166,12 @@
         "old_scandinavian": [
           "hafr",
           "hafri"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "hafri",
+            "inflection": "dative_or_weak"
+          }
         ]
       },
       {
@@ -17265,6 +18179,12 @@
         "old_scandinavian": [
           "hafr",
           "hafri"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "hafri",
+            "inflection": "dative_or_weak"
+          }
         ]
       }
     ]
@@ -17704,6 +18624,12 @@
         "old_english": [
           "stoc",
           "stoce"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "stoce",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -17711,6 +18637,12 @@
         "old_english": [
           "stoc",
           "stoce"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "stoce",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -17718,6 +18650,12 @@
         "old_english": [
           "stoc",
           "stoce"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "stoce",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -17725,6 +18663,12 @@
         "old_english": [
           "stoc",
           "stoce"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "stoce",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -17732,6 +18676,12 @@
         "old_english": [
           "stoc",
           "stoce"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "stoce",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -17937,6 +18887,16 @@
           "heges",
           "hege",
           "heg"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hege",
+            "inflection": "dative_or_pl"
+          },
+          {
+            "form": "heges",
+            "inflection": "genitive_strong"
+          }
         ]
       },
       {
@@ -17946,6 +18906,16 @@
           "heges",
           "hege",
           "heg"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hege",
+            "inflection": "dative_or_pl"
+          },
+          {
+            "form": "heges",
+            "inflection": "genitive_strong"
+          }
         ]
       },
       {
@@ -17955,6 +18925,16 @@
           "heges",
           "hege",
           "heg"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hege",
+            "inflection": "dative_or_pl"
+          },
+          {
+            "form": "heges",
+            "inflection": "genitive_strong"
+          }
         ]
       },
       {
@@ -17964,6 +18944,16 @@
           "heges",
           "hege",
           "heg"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hege",
+            "inflection": "dative_or_pl"
+          },
+          {
+            "form": "heges",
+            "inflection": "genitive_strong"
+          }
         ]
       }
     ]
@@ -18469,6 +19459,12 @@
         "old_english": [
           "cyln",
           "cylnum"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cylnum",
+            "inflection": "dative_pl"
+          }
         ]
       },
       {
@@ -18476,6 +19472,12 @@
         "old_english": [
           "cyln",
           "cylnum"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cylnum",
+            "inflection": "dative_pl"
+          }
         ]
       }
     ]
@@ -18567,6 +19569,12 @@
         "old_english": [
           "cyning",
           "cyninges"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cyninges",
+            "inflection": "genitive_strong"
+          }
         ]
       },
       {
@@ -18574,6 +19582,12 @@
         "old_english": [
           "cyning",
           "cyninges"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cyninges",
+            "inflection": "genitive_strong"
+          }
         ]
       },
       {
@@ -18581,6 +19595,12 @@
         "old_english": [
           "cyning",
           "cyninges"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cyninges",
+            "inflection": "genitive_strong"
+          }
         ]
       },
       {
@@ -18588,6 +19608,12 @@
         "old_english": [
           "cyning",
           "cyninges"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cyninges",
+            "inflection": "genitive_strong"
+          }
         ]
       },
       {
@@ -18595,6 +19621,12 @@
         "old_english": [
           "cyning",
           "cyninges"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cyninges",
+            "inflection": "genitive_strong"
+          }
         ]
       },
       {
@@ -18602,6 +19634,12 @@
         "old_english": [
           "cyning",
           "cyninges"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cyninges",
+            "inflection": "genitive_strong"
+          }
         ]
       }
     ]
@@ -19465,6 +20503,12 @@
           "mūs",
           "muse",
           "mus"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "muse",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -19486,6 +20530,12 @@
         "old_english": [
           "mycg",
           "mycge"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "mycge",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -19493,6 +20543,12 @@
         "old_english": [
           "mycg",
           "mycge"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "mycge",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -19735,6 +20791,12 @@
         "old_english": [
           "pinc",
           "pincan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "pincan",
+            "inflection": "weak_oblique"
+          }
         ]
       }
     ]
@@ -19841,6 +20903,12 @@
           "mūl",
           "mules",
           "mul"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "mules",
+            "inflection": "genitive_strong"
+          }
         ]
       }
     ]
@@ -19951,6 +21019,12 @@
         "old_english": [
           "eorl",
           "eorlan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "eorlan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -19958,6 +21032,12 @@
         "old_english": [
           "eorl",
           "eorlan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "eorlan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -19965,6 +21045,12 @@
         "old_english": [
           "eorl",
           "eorlan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "eorlan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -19972,6 +21058,12 @@
         "old_english": [
           "eorl",
           "eorlan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "eorlan",
+            "inflection": "weak_oblique"
+          }
         ]
       }
     ]
@@ -21156,6 +22248,12 @@
         "old_english": [
           "cniht",
           "cnihtes"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cnihtes",
+            "inflection": "genitive_strong"
+          }
         ]
       }
     ]
@@ -23696,12 +24794,24 @@
         "modern_usage": "-sett",
         "old_english": [
           "sīde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "sīde",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
         "modern_usage": "-side",
         "old_english": [
           "sīde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "sīde",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -23711,12 +24821,28 @@
           "sīde",
           "side",
           "sid"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "side",
+            "inflection": "dative_or_pl"
+          },
+          {
+            "form": "sīde",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
         "modern_usage": "Syde-",
         "old_english": [
           "sīde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "sīde",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -23764,6 +24890,16 @@
           "brade",
           "bradan",
           "brad"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "bradan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "brade",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -23773,6 +24909,16 @@
           "brade",
           "bradan",
           "brad"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "bradan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "brade",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -23782,6 +24928,16 @@
           "brade",
           "bradan",
           "brad"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "bradan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "brade",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -24003,6 +25159,12 @@
         "old_english": [
           "cald",
           "caldan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "caldan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -24010,6 +25172,12 @@
         "old_english": [
           "cald",
           "caldan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "caldan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -24017,6 +25185,12 @@
         "old_english": [
           "cald",
           "caldan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "caldan",
+            "inflection": "weak_oblique"
+          }
         ]
       }
     ]
@@ -24094,6 +25268,16 @@
           "hol",
           "holum",
           "holan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "holan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "holum",
+            "inflection": "dative_pl"
+          }
         ]
       },
       {
@@ -24102,6 +25286,16 @@
           "hol",
           "holum",
           "holan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "holan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "holum",
+            "inflection": "dative_pl"
+          }
         ]
       },
       {
@@ -24110,6 +25304,16 @@
           "hol",
           "holum",
           "holan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "holan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "holum",
+            "inflection": "dative_pl"
+          }
         ]
       },
       {
@@ -24118,6 +25322,16 @@
           "hol",
           "holum",
           "holan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "holan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "holum",
+            "inflection": "dative_pl"
+          }
         ]
       }
     ]
@@ -24201,6 +25415,12 @@
             "form": "weta",
             "weight": 1
           }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wētan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -24212,6 +25432,12 @@
           {
             "form": "weton",
             "weight": 2
+          }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wētan",
+            "inflection": "weak_oblique"
           }
         ]
       },
@@ -24377,6 +25603,12 @@
           "dēop",
           "deopan",
           "deop"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "deopan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -24385,6 +25617,12 @@
           "dēop",
           "deopan",
           "deop"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "deopan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -24393,6 +25631,12 @@
           "dēop",
           "deopan",
           "deop"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "deopan",
+            "inflection": "weak_oblique"
+          }
         ]
       }
     ]
@@ -24733,6 +25977,12 @@
         "old_english": [
           "dryge",
           "drygean"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "drygean",
+            "inflection": "weak_oblique"
+          }
         ]
       }
     ]
@@ -24816,6 +26066,12 @@
             "form": "eastan",
             "weight": 16
           }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ēastan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -24829,6 +26085,12 @@
           {
             "form": "eastan",
             "weight": 16
+          }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ēastan",
+            "inflection": "weak_oblique"
           }
         ]
       },
@@ -24844,6 +26106,12 @@
             "form": "eastan",
             "weight": 16
           }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ēastan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -24857,6 +26125,12 @@
           {
             "form": "eastan",
             "weight": 16
+          }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ēastan",
+            "inflection": "weak_oblique"
           }
         ]
       },
@@ -24872,6 +26146,12 @@
             "form": "eastan",
             "weight": 16
           }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ēastan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -24885,6 +26165,12 @@
           {
             "form": "eastan",
             "weight": 16
+          }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ēastan",
+            "inflection": "weak_oblique"
           }
         ]
       }
@@ -25310,6 +26596,20 @@
           "hare",
           "haran",
           "har"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "haran",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "hare",
+            "inflection": "dative_or_pl"
+          },
+          {
+            "form": "hāran",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -25320,6 +26620,20 @@
           "hare",
           "haran",
           "har"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "haran",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "hare",
+            "inflection": "dative_or_pl"
+          },
+          {
+            "form": "hāran",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -25330,6 +26644,20 @@
           "hare",
           "haran",
           "har"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "haran",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "hare",
+            "inflection": "dative_or_pl"
+          },
+          {
+            "form": "hāran",
+            "inflection": "weak_oblique"
+          }
         ]
       }
     ]
@@ -26304,6 +27632,16 @@
           "lang",
           "lange",
           "langan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "langan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "lange",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -26312,6 +27650,16 @@
           "lang",
           "lange",
           "langan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "langan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "lange",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -26320,6 +27668,16 @@
           "lang",
           "lange",
           "langan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "langan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "lange",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -26838,6 +28196,16 @@
           "norþ",
           "northe",
           "northan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "northan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "northe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -26847,6 +28215,16 @@
           "norþ",
           "northe",
           "northan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "northan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "northe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -26856,6 +28234,16 @@
           "norþ",
           "northe",
           "northan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "northan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "northe",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -26910,6 +28298,12 @@
         "old_english": [
           "eald",
           "ealde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ealde",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -26917,6 +28311,12 @@
         "old_english": [
           "eald",
           "ealde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ealde",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -26924,6 +28324,12 @@
         "old_english": [
           "eald",
           "ealde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ealde",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -26931,6 +28337,12 @@
         "old_english": [
           "eald",
           "ealde"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ealde",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -28181,6 +29593,12 @@
             "weight": 7
           }
         ],
+        "old_english_inflections": [
+          {
+            "form": "uppan",
+            "inflection": "weak_oblique"
+          }
+        ],
         "old_scandinavian": [
           "efri"
         ]
@@ -28201,6 +29619,12 @@
           {
             "form": "ufera",
             "weight": 7
+          }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "uppan",
+            "inflection": "weak_oblique"
           }
         ],
         "old_scandinavian": [
@@ -28225,6 +29649,12 @@
             "weight": 7
           }
         ],
+        "old_english_inflections": [
+          {
+            "form": "uppan",
+            "inflection": "weak_oblique"
+          }
+        ],
         "old_scandinavian": [
           "efri"
         ]
@@ -28245,6 +29675,12 @@
           {
             "form": "ufera",
             "weight": 7
+          }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "uppan",
+            "inflection": "weak_oblique"
           }
         ],
         "old_scandinavian": [
@@ -28269,6 +29705,12 @@
             "weight": 7
           }
         ],
+        "old_english_inflections": [
+          {
+            "form": "uppan",
+            "inflection": "weak_oblique"
+          }
+        ],
         "old_scandinavian": [
           "efri"
         ]
@@ -28289,6 +29731,12 @@
           {
             "form": "ufera",
             "weight": 7
+          }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "uppan",
+            "inflection": "weak_oblique"
           }
         ],
         "old_scandinavian": [
@@ -28313,6 +29761,12 @@
             "weight": 7
           }
         ],
+        "old_english_inflections": [
+          {
+            "form": "uppan",
+            "inflection": "weak_oblique"
+          }
+        ],
         "old_scandinavian": [
           "efri"
         ]
@@ -28333,6 +29787,12 @@
           {
             "form": "ufera",
             "weight": 7
+          }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "uppan",
+            "inflection": "weak_oblique"
           }
         ],
         "old_scandinavian": [
@@ -29767,6 +31227,12 @@
         "modern_usage": "Off-",
         "old_scandinavian": [
           "hvarfi"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "hvarfi",
+            "inflection": "dative_or_weak"
+          }
         ]
       },
       {
@@ -29774,12 +31240,24 @@
         "old_scandinavian": [
           "hvarf",
           "hvarfi"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "hvarfi",
+            "inflection": "dative_or_weak"
+          }
         ]
       },
       {
         "modern_usage": "Wharfe-",
         "old_scandinavian": [
           "hvarfi"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "hvarfi",
+            "inflection": "dative_or_weak"
+          }
         ]
       }
     ]
@@ -30198,6 +31676,16 @@
           "mores",
           "more",
           "mor"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "more",
+            "inflection": "dative_or_pl"
+          },
+          {
+            "form": "mores",
+            "inflection": "genitive_strong"
+          }
         ]
       },
       {
@@ -30207,6 +31695,16 @@
           "mores",
           "more",
           "mor"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "more",
+            "inflection": "dative_or_pl"
+          },
+          {
+            "form": "mores",
+            "inflection": "genitive_strong"
+          }
         ]
       }
     ]
@@ -30753,6 +32251,12 @@
         "old_english": [
           "wisc",
           "wisce"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wisce",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -30922,6 +32426,12 @@
         "old_english": [
           "haeth",
           "haethe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "haethe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -30929,6 +32439,12 @@
         "old_english": [
           "haeth",
           "haethe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "haethe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -30936,6 +32452,12 @@
         "old_english": [
           "haeth",
           "haethe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "haethe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -30943,6 +32465,12 @@
         "old_english": [
           "haeth",
           "haethe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "haethe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -30950,6 +32478,12 @@
         "old_english": [
           "haeth",
           "haethe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "haethe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -30957,6 +32491,12 @@
         "old_english": [
           "haeth",
           "haethe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "haethe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -30964,6 +32504,12 @@
         "old_english": [
           "haeth",
           "haethe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "haethe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -30971,6 +32517,12 @@
         "old_english": [
           "haeth",
           "haethe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "haethe",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -31607,6 +33159,12 @@
           "brōc",
           "broces",
           "broc"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "broces",
+            "inflection": "genitive_strong"
+          }
         ]
       },
       {
@@ -31615,6 +33173,12 @@
           "brōc",
           "broces",
           "broc"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "broces",
+            "inflection": "genitive_strong"
+          }
         ]
       }
     ]
@@ -32392,6 +33956,12 @@
         "old_english": [
           "col",
           "cole"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cole",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -32399,6 +33969,12 @@
         "old_english": [
           "col",
           "cole"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cole",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -32406,6 +33982,12 @@
         "old_english": [
           "col",
           "cole"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cole",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -32413,6 +33995,12 @@
         "old_english": [
           "col",
           "cole"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "cole",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -32572,6 +34160,12 @@
         "old_english": [
           "ecg",
           "ecgan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ecgan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -32579,6 +34173,12 @@
         "old_english": [
           "ecg",
           "ecgan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "ecgan",
+            "inflection": "weak_oblique"
+          }
         ]
       }
     ]
@@ -32931,6 +34531,12 @@
             "form": "wiae",
             "weight": 27
           }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wice",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -32944,6 +34550,12 @@
           {
             "form": "wiae",
             "weight": 27
+          }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wice",
+            "inflection": "dative_or_pl"
           }
         ]
       },
@@ -32959,6 +34571,12 @@
             "form": "wiae",
             "weight": 27
           }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wice",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -32972,6 +34590,12 @@
           {
             "form": "wiae",
             "weight": 27
+          }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wice",
+            "inflection": "dative_or_pl"
           }
         ]
       },
@@ -32987,6 +34611,12 @@
             "form": "wiae",
             "weight": 27
           }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wice",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -33000,6 +34630,12 @@
           {
             "form": "wiae",
             "weight": 54
+          }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wice",
+            "inflection": "dative_or_pl"
           }
         ]
       },
@@ -33015,6 +34651,12 @@
             "form": "wiae",
             "weight": 27
           }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wice",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -33029,6 +34671,12 @@
             "form": "wiae",
             "weight": 27
           }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wice",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -33040,6 +34688,12 @@
           {
             "form": "wiae",
             "weight": 27
+          }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wice",
+            "inflection": "dative_or_pl"
           }
         ]
       },
@@ -33055,6 +34709,12 @@
             "form": "wiae",
             "weight": 27
           }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wice",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -33068,6 +34728,12 @@
           {
             "form": "wiae",
             "weight": 27
+          }
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wice",
+            "inflection": "dative_or_pl"
           }
         ]
       }
@@ -33786,24 +35452,48 @@
         "old_scandinavian": [
           "holm",
           "holmr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "holmr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Holm-",
         "old_scandinavian": [
           "holmr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "holmr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Holme-",
         "old_scandinavian": [
           "holmr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "holmr",
+            "inflection": "nominative"
+          }
         ]
       },
       {
         "modern_usage": "Hulme-",
         "old_scandinavian": [
           "holmr"
+        ],
+        "old_scandinavian_inflections": [
+          {
+            "form": "holmr",
+            "inflection": "nominative"
+          }
         ]
       }
     ]
@@ -33925,6 +35615,16 @@
           "dune",
           "dunan",
           "dun"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "dunan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "dune",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -33934,6 +35634,16 @@
           "dune",
           "dunan",
           "dun"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "dunan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "dune",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -33943,6 +35653,16 @@
           "dune",
           "dunan",
           "dun"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "dunan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "dune",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -33952,6 +35672,16 @@
           "dune",
           "dunan",
           "dun"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "dunan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "dune",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -33961,6 +35691,16 @@
           "dune",
           "dunan",
           "dun"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "dunan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "dune",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -34305,6 +36045,12 @@
         "old_english": [
           "fenn",
           "fennum"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "fennum",
+            "inflection": "dative_pl"
+          }
         ]
       },
       {
@@ -34312,6 +36058,12 @@
         "old_english": [
           "fenn",
           "fennum"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "fennum",
+            "inflection": "dative_pl"
+          }
         ]
       },
       {
@@ -34319,6 +36071,12 @@
         "old_english": [
           "fenn",
           "fennum"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "fennum",
+            "inflection": "dative_pl"
+          }
         ]
       },
       {
@@ -34326,6 +36084,12 @@
         "old_english": [
           "fenn",
           "fennum"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "fennum",
+            "inflection": "dative_pl"
+          }
         ]
       }
     ]
@@ -36881,6 +38645,12 @@
         "old_english": [
           "hyll",
           "hyllan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hyllan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -36888,6 +38658,12 @@
         "old_english": [
           "hyll",
           "hyllan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hyllan",
+            "inflection": "weak_oblique"
+          }
         ]
       },
       {
@@ -36895,6 +38671,12 @@
         "old_english": [
           "hyll",
           "hyllan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hyllan",
+            "inflection": "weak_oblique"
+          }
         ]
       }
     ]
@@ -38035,12 +39817,24 @@
         "old_english": [
           "mael",
           "maele"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "maele",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
         "modern_usage": "Mel-",
         "old_english": [
           "maele"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "maele",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -38048,6 +39842,12 @@
         "old_english": [
           "mael",
           "maele"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "maele",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -38248,6 +40048,12 @@
         "old_english": [
           "hyth",
           "hythe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hythe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -38255,6 +40061,12 @@
         "old_english": [
           "hyth",
           "hythe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hythe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -38262,6 +40074,12 @@
         "old_english": [
           "hyth",
           "hythe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hythe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -38269,6 +40087,12 @@
         "old_english": [
           "hyth",
           "hythe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hythe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -38276,6 +40100,12 @@
         "old_english": [
           "hyth",
           "hythe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hythe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -38283,6 +40113,12 @@
         "old_english": [
           "hyth",
           "hythe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hythe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -38290,6 +40126,12 @@
         "old_english": [
           "hyth",
           "hythe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hythe",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -38297,6 +40139,12 @@
         "old_english": [
           "hyth",
           "hythe"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "hythe",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -38895,6 +40743,16 @@
           "stane",
           "stanas",
           "stan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "stanas",
+            "inflection": "plural_strong"
+          },
+          {
+            "form": "stane",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -38904,6 +40762,16 @@
           "stane",
           "stanas",
           "stan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "stanas",
+            "inflection": "plural_strong"
+          },
+          {
+            "form": "stane",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -38913,6 +40781,16 @@
           "stane",
           "stanas",
           "stan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "stanas",
+            "inflection": "plural_strong"
+          },
+          {
+            "form": "stane",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -38922,6 +40800,16 @@
           "stane",
           "stanas",
           "stan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "stanas",
+            "inflection": "plural_strong"
+          },
+          {
+            "form": "stane",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -38931,6 +40819,16 @@
           "stane",
           "stanas",
           "stan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "stanas",
+            "inflection": "plural_strong"
+          },
+          {
+            "form": "stane",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -38940,6 +40838,16 @@
           "stane",
           "stanas",
           "stan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "stanas",
+            "inflection": "plural_strong"
+          },
+          {
+            "form": "stane",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -38949,6 +40857,16 @@
           "stane",
           "stanas",
           "stan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "stanas",
+            "inflection": "plural_strong"
+          },
+          {
+            "form": "stane",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -38958,6 +40876,16 @@
           "stane",
           "stanas",
           "stan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "stanas",
+            "inflection": "plural_strong"
+          },
+          {
+            "form": "stane",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -38967,6 +40895,16 @@
           "stane",
           "stanas",
           "stan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "stanas",
+            "inflection": "plural_strong"
+          },
+          {
+            "form": "stane",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -41015,6 +42953,12 @@
           "crōc",
           "croces",
           "croc"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "croces",
+            "inflection": "genitive_strong"
+          }
         ]
       }
     ]
@@ -41659,6 +43603,12 @@
         "old_english": [
           "secg",
           "secge"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "secge",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -41666,6 +43616,12 @@
         "old_english": [
           "secg",
           "secge"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "secge",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -41900,6 +43856,12 @@
         "old_english": [
           "wiell",
           "wielle"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wielle",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -41907,6 +43869,12 @@
         "old_english": [
           "wiell",
           "wielle"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wielle",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -41914,6 +43882,12 @@
         "old_english": [
           "wiell",
           "wielle"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "wielle",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -42638,6 +44612,12 @@
         "old_english": [
           "caers",
           "caerse"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "caerse",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -42645,6 +44625,12 @@
         "old_english": [
           "caers",
           "caerse"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "caerse",
+            "inflection": "dative_or_pl"
+          }
         ]
       },
       {
@@ -42652,6 +44638,12 @@
         "old_english": [
           "caers",
           "caerse"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "caerse",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]
@@ -42718,6 +44710,16 @@
           "wind",
           "winde",
           "windan"
+        ],
+        "old_english_inflections": [
+          {
+            "form": "windan",
+            "inflection": "weak_oblique"
+          },
+          {
+            "form": "winde",
+            "inflection": "dative_or_pl"
+          }
         ]
       }
     ]

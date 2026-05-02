@@ -1641,7 +1641,7 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
 
     member_rows = db.conn.execute(
         """
-        SELECT e.id, e.canonical_form, e.language, e.lemma_id, e.merged_into_id
+        SELECT e.id, e.canonical_form, e.language, e.lemma_id, e.merged_into_id, e.inflection
         FROM etymon e
         LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
         LEFT JOIN etymon le ON le.id = target.lemma_id
@@ -1715,6 +1715,14 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
 
     member_form_by_id = {r["id"]: (r["language"], r["canonical_form"]) for r in member_rows}
 
+    # Inflection metadata per member_id: the etymon's grammatical case label
+    # (e.g. "dative_or_pl", "genitive_strong"). Lemmas have None — they're
+    # the unmarked headword. Per D8 generation can compose <lemma>@<inflection>
+    # at render time so a name picks an inflected surface form. Only inflected
+    # children carry labels; the lemma's None entry is preserved so callers
+    # can distinguish "no inflection (lemma)" from "inflected but unknown".
+    member_inflection_by_id: dict[int, str | None] = {r["id"]: r["inflection"] for r in member_rows}
+
     # Spelling variant pool per (member_id, lang) → list of (form, weight).
     # Pulls from etymon_text_match.matched_form: real attested 19th-c.
     # spellings (denu/dene/denū/dená) and post-disambiguator winners. Per D18
@@ -1770,6 +1778,7 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
         "member_form_by_id": member_form_by_id,
         "member_descendants": member_descendants,
         "member_variants": member_variants,
+        "member_inflection_by_id": member_inflection_by_id,
         "glosses": glosses,
         "tags": tags,
         "reflexes": reflexes,
@@ -1855,6 +1864,7 @@ def _build_words_for_group(fams: list[dict[str, Any]]) -> list[dict[str, Any]]:
         word: dict[str, Any] = {"modern_usage": meta["surface_form"]}
         per_lang: dict[str, list[str]] = {}
         per_lang_variants: dict[str, dict[str, int]] = {}
+        per_lang_inflections: dict[str, dict[str, str]] = {}
         for fam, linked_ids in reflex_to_links[reflex_id]:
             # For each linked etymon, walk its descendants so the reflex
             # picks up the lemma's inflected variants (D8) and OCR-cluster
@@ -1874,12 +1884,22 @@ def _build_words_for_group(fams: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     ):
                         lang_variants = per_lang_variants.setdefault(lang, {})
                         lang_variants[variant_form] = lang_variants.get(variant_form, 0) + weight
+                    # Inflection metadata (D8): non-lemma members carry a
+                    # grammatical case label; surface them so the runtime
+                    # can compose <lemma>@<inflection> at render time.
+                    inflection = fam.get("member_inflection_by_id", {}).get(descendant_id)
+                    if inflection:
+                        per_lang_inflections.setdefault(lang, {})[form] = inflection
         for lang in sorted(per_lang):
             json_field = _LANG_CODE_TO_JSON_FIELD.get(lang)
             if json_field:
                 word[json_field] = per_lang[lang]
                 if lang in per_lang_variants:
                     word[f"{json_field}_variants"] = _emit_variant_list(per_lang_variants[lang])
+                if lang in per_lang_inflections:
+                    word[f"{json_field}_inflections"] = _emit_inflection_list(
+                        per_lang_inflections[lang]
+                    )
         words.append(word)
 
     for fam in families_without_reflex:
@@ -1889,19 +1909,27 @@ def _build_words_for_group(fams: list[dict[str, Any]]) -> list[dict[str, Any]]:
             json_field = _LANG_CODE_TO_JSON_FIELD.get(lang)
             if json_field:
                 word[json_field] = list(fam["forms_by_lang"][lang])
-                # Synthesized words pull their family's variants en bloc
-                # (no per-reflex narrowing applies — there's no reflex).
+                # Synthesized words pull their family's variants/inflections
+                # en bloc (no per-reflex narrowing applies — there's no reflex).
                 fam_variants_in_lang: dict[str, int] = {}
+                fam_inflections_in_lang: dict[str, str] = {}
                 for member_id in fam["member_form_by_id"]:
-                    member_lang = fam["member_form_by_id"][member_id][0]
+                    member_lang, member_form = fam["member_form_by_id"][member_id]
                     if member_lang != lang:
                         continue
                     for variant_form, weight in fam.get("member_variants", {}).get(member_id, []):
                         fam_variants_in_lang[variant_form] = (
                             fam_variants_in_lang.get(variant_form, 0) + weight
                         )
+                    inflection = fam.get("member_inflection_by_id", {}).get(member_id)
+                    if inflection:
+                        fam_inflections_in_lang[member_form] = inflection
                 if fam_variants_in_lang:
                     word[f"{json_field}_variants"] = _emit_variant_list(fam_variants_in_lang)
+                if fam_inflections_in_lang:
+                    word[f"{json_field}_inflections"] = _emit_inflection_list(
+                        fam_inflections_in_lang
+                    )
         words.append(word)
 
     return words
@@ -1916,6 +1944,13 @@ def _emit_variant_list(variants: dict[str, int]) -> list[dict[str, Any]]:
         {"form": form, "weight": weight}
         for form, weight in sorted(variants.items(), key=lambda kv: (-kv[1], kv[0]))
     ]
+
+
+def _emit_inflection_list(inflections: dict[str, str]) -> list[dict[str, Any]]:
+    """Serialize {form: inflection_label} into the meanings.json inflection
+    entry shape. Sorted by form so the output is deterministic regardless of
+    aggregation order."""
+    return [{"form": form, "inflection": label} for form, label in sorted(inflections.items())]
 
 
 def _synthesize_modern_usage(family: dict[str, Any]) -> str:

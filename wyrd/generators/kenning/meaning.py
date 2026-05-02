@@ -2,8 +2,9 @@
 
 Ported from Rando (rando/meaning.py) — Python 2 → 3.
 
-Variants (D18) ride along on the Meaning so generation can optionally
-emit an attested archaic spelling instead of the modern reflex.
+Variants (D18) and inflections (D8) ride along on the Meaning so
+generation can optionally emit an attested archaic spelling or an
+inflected morphological form instead of the modern reflex.
 """
 
 from __future__ import annotations
@@ -15,9 +16,15 @@ import random
 # Matches the export-meanings emit shape in lexicon.py:_emit_variant_list.
 _VARIANT_SUFFIX = "_variants"
 
+# Suffix used for per-language inflection metadata (D8). Each entry is
+# (form, inflection_label) where inflection_label is a grammatical case
+# string like "dative_or_pl", "genitive_strong". Lemmas don't appear here —
+# they're the unmarked headword.
+_INFLECTION_SUFFIX = "_inflections"
+
 
 class Meaning:
-    def __init__(self, usage, tags, meanings, sources, variants=None):
+    def __init__(self, usage, tags, meanings, sources, variants=None, inflections=None):
         self.usage = usage
         self.tags = tags
         self.meanings = meanings
@@ -26,6 +33,10 @@ class Meaning:
         # JSON field name (e.g. "old_english", "celtic_mix"). Optional —
         # legacy meanings.json data has no variants; the field is empty.
         self.variants = variants or {}
+        # inflections is a dict[lang_field, list[(form, inflection_label)]],
+        # carrying grammatical case data for inflected forms in the family.
+        # The lemma form does NOT appear here.
+        self.inflections = inflections or {}
         self._set_location()
 
     def _set_location(self):
@@ -123,6 +134,47 @@ class Meaning:
                 return form
         return pool[-1][0]
 
+    def pick_inflection(
+        self, rng: random.Random, inflection_density: float
+    ) -> tuple[str, str] | None:
+        """Optionally pick an inflected form (D8) for this meaning's surface.
+
+        With probability ``inflection_density``, draw a (form, label) pair
+        uniformly from this meaning's inflection pool across all languages.
+        Returns ``None`` if the pool is empty, the draw didn't trigger, or
+        density is 0.
+
+        Returned label is the grammatical case (e.g. "dative_or_pl") so the
+        caller can surface it in the explainer breakdown via "<lemma>@<label>".
+
+        Inflections are picked uniformly because mining doesn't track per-
+        inflection frequency — we have the labels, not the counts. A future
+        refinement could weight by attestation if the data lands.
+        """
+        if inflection_density <= 0 or not self.inflections:
+            return None
+        # Fast-path the substitution gate before flattening the pool: if the
+        # roll didn't trigger we can return immediately and skip the
+        # cross-language flatten. Saves work in the common case where
+        # inflection_density is set but most morphemes don't fire.
+        if rng.random() >= inflection_density:
+            return None
+        pool = self._flat_inflections()
+        if not pool:
+            return None
+        return rng.choice(pool)
+
+    def _flat_inflections(self) -> list[tuple[str, str]]:
+        """Flatten the per-language inflections dict into a single list,
+        cached after first call. The cache is populated lazily because most
+        Meanings never reach generation paths that need it (default
+        inflection_density=0 short-circuits before this is called)."""
+        cached = self.__dict__.get("_flat_inflections_cache")
+        if cached is None:
+            cached = [entry for entries in self.inflections.values() for entry in entries]
+            self._flat_inflections_cache = cached
+        return cached
+
 
 def _mimic_case(template: str, variant: str) -> str:
     """Render ``variant`` using the casing convention of ``template``.
@@ -154,25 +206,42 @@ def load_meanings(data):
         for word in subject["words"]:
             usage = word["modern_usage"]
             # Split the word's fields into (a) language form arrays the runtime
-            # already used, (b) variant pools added by D18. Variants come in
-            # under "<lang>_variants" keys and shouldn't bleed into `sources`.
+            # already used, (b) variant pools (D18) under "<lang>_variants",
+            # (c) inflection metadata (D8) under "<lang>_inflections".
             sources = {
                 k: v
                 for k, v in word.items()
-                if k != "modern_usage" and not k.endswith(_VARIANT_SUFFIX)
+                if k != "modern_usage"
+                and not k.endswith(_VARIANT_SUFFIX)
+                and not k.endswith(_INFLECTION_SUFFIX)
             }
             variants = {
                 k[: -len(_VARIANT_SUFFIX)]: [(entry["form"], entry["weight"]) for entry in v]
                 for k, v in word.items()
                 if k.endswith(_VARIANT_SUFFIX)
             }
-            meaning = Meaning(usage, tags, meanings, sources, variants=variants)
+            inflections = {
+                k[: -len(_INFLECTION_SUFFIX)]: [(entry["form"], entry["inflection"]) for entry in v]
+                for k, v in word.items()
+                if k.endswith(_INFLECTION_SUFFIX)
+            }
+            # Singular and plural Meanings share every constructor arg
+            # except `usage`. Bundle them so a future kwarg addition can't
+            # silently drop on one branch and not the other.
+            common_kwargs = {
+                "tags": tags,
+                "meanings": meanings,
+                "sources": sources,
+                "variants": variants,
+                "inflections": inflections,
+            }
+            meaning = Meaning(usage, **common_kwargs)
             for tag in tags:
                 tags_db.setdefault(tag, []).append(usage)
             meaning_db.setdefault(usage, []).append(meaning)
             if meaning.is_name() and not usage.endswith("s"):
                 plural = f"{usage}s"
-                plural_meaning = Meaning(plural, tags, meanings, sources, variants=variants)
+                plural_meaning = Meaning(plural, **common_kwargs)
                 for tag in tags:
                     tags_db.setdefault(tag, []).append(plural)
                 meaning_db.setdefault(plural, []).append(plural_meaning)
