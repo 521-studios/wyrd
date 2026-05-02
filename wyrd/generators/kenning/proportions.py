@@ -9,6 +9,7 @@ so generation is reproducible from the seed param.
 from __future__ import annotations
 
 import random
+from functools import lru_cache
 
 from wyrd.generators.kenning.meaning import _mimic_case
 
@@ -419,8 +420,14 @@ _VOICELESS_STOPS = frozenset("pktc")
 _NASALS = frozenset("nm")
 
 
+@lru_cache(maxsize=4096)
 def _harshness_score(usage: str) -> float:
     """Phonological harshness in [0, 1]. Higher = more menacing-feeling.
+
+    Cached: the bundle has ~1600 unique modern_usages and `_blend_harsh`
+    runs the score over every key on every bucket on every sample, so
+    the same string is hit thousands of times across one batch of name
+    generations. lru_cache pins the per-string cost at one pass.
 
     Combines three signals on the dash-stripped lowercased usage:
 
