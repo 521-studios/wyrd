@@ -224,16 +224,37 @@ GROUP BY source_id, provider, model, mode
 ORDER BY source_id;
 ```
 
-The shape today (project age: ~2 days) is roughly: ~40 sources mined,
-~5000 etymon rows, ~4000 etymology extractions, ~110 morphemes
-promotion-eligible. Two books not yet mined as of writing
-(`ekwall_1922_lancashire`, `lindkvist_1912_scandinavian_place_names`);
-several methodology / name-list books contribute few or zero rows by
+The shape today (project age: ~3 days) is roughly: ~40 sources mined,
+~5400 etymon rows, ~4500 etymology extractions, **389 morphemes
+promotion-eligible at ≥3 witnesses** (more at the per-language preset).
+Several methodology / name-list books contribute few or zero rows by
 design.
+
+The bundled `meanings.json` is now exported from the lexicon (D1
+follow-through), so all the mining + per-reflex narrowing + per-language
+thresholds work reaches the runtime. Current bundle: **1605 subjects**,
+**2871 unique modern_usages**, with **416 morphemes carrying spelling
+variant pools (D18)** and **168 inflected etymons (D8)** across 9
+case labels.
+
+The runtime exposes three GM-facing generation knobs, all defaulting
+to 0 (bit-stable historical behavior):
+
+- `--novelty` (D17): blend empirical-frequency sampling with a uniform
+  marginal — high values let plausible-but-unattested combinations
+  through.
+- `--spelling-variety` (D18): per-morpheme probability of substituting
+  an attested archaic spelling for the canonical reflex.
+- `--inflection-density` (D8): per-morpheme probability of substituting
+  an inflected form (genitive/dative/plural) for the lemma.
+
+Five cultures: `english`, `scottish`, `welsh`, `irish`, **`breton`**.
+The breton register was added with a 1214-commune corpus pulled from
+Wikidata (CC0); morpheme corpus expansion still pending — wyrd-fmg.
 
 ## Pointers to the other docs
 
-- **`DECISIONS.md`** — D1–D23, the architectural decisions and their
+- **`DECISIONS.md`** — D1–D26, the architectural decisions and their
   rationale. Read individual entries when you're about to change
   something they touch. Don't try to read all of it linearly.
 - **`INGESTION.md`** — the procedure manual: how to add a new source,

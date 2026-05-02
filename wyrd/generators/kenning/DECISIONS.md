@@ -52,6 +52,21 @@ Why: rando-port (the meanings.json seed, derived from Wikipedia) provides
 ≥3 independent scholars is unlikely to be wrong; anything still standing
 on rando-port alone is "trust the legacy data" until corroborated.
 
+**Refinement (wyrd-yz7, 2026-05-02): per-language thresholds.** A uniform
+≥3-witness gate filters out morphemes for corpus-thinness reasons rather
+than quality. Old-norse has effectively one focused dictionary
+(Lindkvist 1912) and 93% of its lemmas don't reach 3 witnesses; spot-
+checking the w=2 ON pool finds it ~95% clean. Old-english is the
+opposite — well-mined across 32 sources with measurable Tier-1 prose-
+extraction noise at w=2.
+
+`export-meanings` now ships `RECOMMENDED_LANG_THRESHOLDS`: OE at 3
+(strict, well-mined corpus), Celtic / ON / modern-English / norman-
+french / latin / biblical at 2 (corpus-thinness limited; quality
+holds). Languages absent from the map fall back to global
+`--min-witnesses`. Net effect on the bundle: ~+340 modern_usages over
+uniform w=3, mostly Celtic (+278) and ON (+46).
+
 ## D5. Two-axis register model.
 
 Generation registers come from two orthogonal axes:
@@ -121,6 +136,25 @@ Why: rando-port (Wikipedia-sourced) gives lemma forms; mined scholarly
 sources give inflected forms. Without this linkage, the same morpheme
 shows up as 3-5 separate etymon rows and consensus undercounts. With it,
 `cot` / `cotan` / `cotum` / `cotes` are one lemma with witnesses unioned.
+
+**Runtime status (wyrd-7fn, 2026-05-02): wired.** `export-meanings`
+emits per-language `<lang>_inflections` arrays carrying `(form, label)`
+tuples. `Meaning.pick_inflection(rng, density)` does a uniform draw
+(mining tracks labels not counts; inflections aren't weighted) with
+lazy-cached pool flatten. `NameGenerator.select(inflection_density=…)`
+threads through and pre-renders surface substitutions; `NewName` grows
+an `inflection_labels` parallel list for the explainer. CLI:
+`--inflection-density` (0..1). When both `--inflection-density` and
+`--spelling-variety` would fire on the same morpheme, inflection wins
+— it carries grammatical case while the variant axis is purely
+spelling. Bundle has 168 inflected etymons across 9 case labels (OE
+dominates: dative_or_pl 80, weak_oblique 23, genitive_strong 25,
+nominative 23). Per-position rules ('genitive-strong more common
+pre-, dative-or-pl more common post-') are NOT yet implemented —
+current picker is uniform across positions; deferred until corpus
+diversity supports the position bias. Explainer surfacing of
+`<lemma>@<label>` in `description()` is also deferred (the labels
+ride on NewName but description() still emits canonical meanings).
 
 ## D9. OCR ligature normalization is upstream of lemma linkage.
 
@@ -253,6 +287,20 @@ remix existing combinations. Pure marginal produces noise. The knob
 gives the GM a continuum, with "do not regress on Braitham Gate" as the
 fixed point on the novel side.
 
+**Runtime status (wyrd-gfa, 2026-05-02): partial — two-term mixture
+shipped.** `Generator.select(novelty)` blends each bucket's empirical-
+frequency distribution with a uniform marginal:
+`(1-novelty)·empirical + novelty·uniform`. New `_blend_uniform` helper
+handles the all-zero-empirical-weights edge case (returns 1/n so the
+result is a normalized probability distribution per the contract). CLI:
+`--novelty` (0..1). The `β·tag-class-prior` term is **not** yet wired —
+the D16 `tag_cooccurrence` + `tag_marginal` data is in the proportions
+JSONs but threading neighbor-context through the structure walk is a
+follow-up. Current implementation is the (empirical, uniform-marginal)
+two-term mixture; the third term would refine novel combinations toward
+attested *patterns* (descriptive+topography) even when the specific
+morpheme pair is novel.
+
 ## D18. Spelling variants are generative.
 
 `etymon_text_match.matched_form` stores the actual spelling found in
@@ -265,6 +313,20 @@ without inventing surface forms.
 Why: spelling wasn't standardized. The variant pool is essentially
 free archaic-spelling data we already collected; throwing it away by
 collapsing to canonical forms loses generation flexibility.
+
+**Runtime status (wyrd-q13, 2026-05-02): wired.** `export-meanings`
+emits per-language `<lang>_variants` arrays carrying `(form, weight)`
+tuples; weights are the per-attestation `match_count` totals from the
+lexicon, summed across the family during the descendant walk.
+`Meaning.pick_variant(rng, variety)` does a probability-gated weighted
+draw across all language pools. `NameGenerator.select(spelling_variety=…)`
+pre-renders surface substitutions at select time so `__str__` stays pure.
+Module helper `_mimic_case` projects the canonical's casing onto the
+picked variant (title-case template → first-letter cap with internal
+capitals preserved; lowercase template → forced lowercase). CLI:
+`--spelling-variety` (0..1). Bundle has 416 morphemes with non-empty
+variant pools (mostly Celtic + ON; macron-stripped reverse-search hits
++ fuzzy-search winners + post-disambiguator survivors).
 
 ## D19. Sonnet review doesn't lift over Gemini Flash for this task.
 
@@ -474,3 +536,37 @@ disambiguate → record verdict + reason — rather than hand-coding
 disambiguation rules. wyrd-uct extends this with an agentic
 expand_context loop for cases where the initial snippet isn't
 sufficient.
+
+## D26. Schema metadata adds via per-language sibling fields.
+
+When an export feature needs to carry per-form metadata that the
+existing language form arrays can't express, the bundle uses a parallel
+sibling field keyed by `<lang>_<feature>`. Examples currently in the
+bundle:
+
+- `<lang>_variants`: list of `{form, weight}` entries for D18 spelling-
+  variant sampling (`old_english_variants`, `celtic_mix_variants`, …).
+- `<lang>_inflections`: list of `{form, inflection}` entries for D8
+  inflection metadata.
+
+The runtime's `load_meanings` strips off these suffixes (using
+`_VARIANT_SUFFIX` and `_INFLECTION_SUFFIX` constants) before populating
+`Meaning.sources` so canonical language form arrays stay clean.
+
+Why this shape over alternatives:
+
+- **Backward-compatible by construction.** Old code that ignores
+  unknown fields keeps working; a generator that hasn't upgraded its
+  `load_meanings` still loads the bundle.
+- **Avoids replacing the language array** with a richer structured type.
+  The base shape `"old_english": ["aecern"]` stays a flat list of strings
+  the legacy proportions code understands.
+- **Easy to extend.** A new feature (e.g. `<lang>_phonology` for D6
+  `--harsh`) drops in alongside without disturbing existing fields.
+
+How to apply: any future bundle metadata that's per-form-per-language
+should follow this `<lang>_<feature>` pattern, with the runtime's
+loader stripping the suffix and routing into a dedicated `Meaning`
+attribute. Don't pile metadata into the language array as nested
+objects (would break the legacy load path); don't introduce a top-level
+metadata-only entry (would orphan the link to the canonical forms).
