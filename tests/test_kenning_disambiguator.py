@@ -18,7 +18,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from click.testing import CliRunner
 
+from wyrd.generators.kenning import disambiguator as disambiguator_mod
+from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.disambiguator import (
     AmbiguityCase,
     Candidate,
@@ -27,6 +30,7 @@ from wyrd.generators.kenning.disambiguator import (
     disambiguate_one,
     find_ambiguous_rows,
 )
+from wyrd.generators.kenning.gemini_extractor import GeminiClient
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 
 
@@ -138,9 +142,6 @@ def test_find_ambiguous_rows_skips_already_disambiguated(fresh_db: Path) -> None
 
 def test_disambiguate_one_parses_choice_and_reason(monkeypatch) -> None:
     """`disambiguate_one` calls Gemini and returns a structured result."""
-    from wyrd.generators.kenning import disambiguator
-    from wyrd.generators.kenning.gemini_extractor import GeminiClient
-
     case = AmbiguityCase(
         text_match_id=1,
         source_id="test_book",
@@ -166,7 +167,7 @@ def test_disambiguate_one_parses_choice_and_reason(monkeypatch) -> None:
     )
 
     monkeypatch.setattr(
-        disambiguator,
+        disambiguator_mod,
         "_chat_json_with_schema",
         lambda client, **kw: {
             "choice": "42",
@@ -183,9 +184,6 @@ def test_disambiguate_one_parses_choice_and_reason(monkeypatch) -> None:
 
 def test_disambiguate_one_handles_none_answer(monkeypatch) -> None:
     """If the model says 'none', the result has chosen_etymon_id=None."""
-    from wyrd.generators.kenning import disambiguator
-    from wyrd.generators.kenning.gemini_extractor import GeminiClient
-
     case = AmbiguityCase(
         text_match_id=1,
         source_id="test_book",
@@ -200,7 +198,7 @@ def test_disambiguate_one_handles_none_answer(monkeypatch) -> None:
         ),
     )
     monkeypatch.setattr(
-        disambiguator,
+        disambiguator_mod,
         "_chat_json_with_schema",
         lambda client, **kw: {
             "choice": "none",
@@ -215,9 +213,6 @@ def test_disambiguate_one_handles_none_answer(monkeypatch) -> None:
 def test_disambiguate_one_rejects_id_outside_candidates(monkeypatch) -> None:
     """If the model returns an etymon id that's not in the candidate set,
     it's treated as 'none' rather than mis-applied."""
-    from wyrd.generators.kenning import disambiguator
-    from wyrd.generators.kenning.gemini_extractor import GeminiClient
-
     case = AmbiguityCase(
         text_match_id=1,
         source_id="test_book",
@@ -231,13 +226,44 @@ def test_disambiguate_one_rejects_id_outside_candidates(monkeypatch) -> None:
         ),
     )
     monkeypatch.setattr(
-        disambiguator,
+        disambiguator_mod,
         "_chat_json_with_schema",
         lambda client, **kw: {"choice": "9999", "confidence": "low", "reason": "wat"},
     )
     result = disambiguate_one(GeminiClient(api_key="fake"), case)
     assert result.chosen_etymon_id is None
     assert "9999" in result.reason
+
+
+def test_disambiguate_one_handles_non_numeric_choice(monkeypatch) -> None:
+    """If the model returns a free-form string instead of an etymon id
+    (a `ValueError` on `int(...)`), treat as 'none' with confidence='low'
+    and a 'non-id choice' reason — never mis-apply."""
+    case = AmbiguityCase(
+        text_match_id=1,
+        source_id="test_book",
+        matched_form="foo",
+        snippet="...",
+        current_etymon_id=1,
+        candidates=(
+            Candidate(
+                etymon_id=1, canonical_form="foo", language="old-english", glosses=(), tags=()
+            ),
+        ),
+    )
+    monkeypatch.setattr(
+        disambiguator_mod,
+        "_chat_json_with_schema",
+        lambda client, **kw: {
+            "choice": "heath",  # free-form string, not a numeric id
+            "confidence": "high",
+            "reason": "ignored",
+        },
+    )
+    result = disambiguate_one(GeminiClient(api_key="fake"), case)
+    assert result.chosen_etymon_id is None
+    assert result.confidence == "low"  # the function downgrades on parse failure
+    assert "non-id choice" in result.reason
 
 
 def test_apply_disambiguator_result_kept(fresh_db: Path) -> None:
@@ -394,11 +420,6 @@ def test_lexicon_disambiguate_fuzzy_cli_end_to_end(
 ) -> None:
     """The CLI command finds an ambiguous row, calls the stubbed Gemini,
     applies the verdict, and reports a non-zero `kept` count."""
-    from click.testing import CliRunner
-
-    from wyrd.generators.kenning import disambiguator as disambiguator_mod
-    from wyrd.generators.kenning.cli import cli as cli_root
-
     with LexiconDB(fresh_db) as db:
         _seed_minimum(db)
         _insert_fuzzy_row(
@@ -440,3 +461,69 @@ def test_lexicon_disambiguate_fuzzy_cli_end_to_end(
     assert row["etymon_id"] == chosen_id
     assert row["method"] == "llm-disambiguated-v1"
     assert "heath" in (row["disambiguator_reason"] or "").lower()
+
+
+def test_lexicon_disambiguate_fuzzy_cli_dry_run_does_not_persist(
+    fresh_db: Path, monkeypatch
+) -> None:
+    """Without --apply, the CLI must call the LLM (so the operator can see
+    what would happen) but must NOT write the verdict back to the DB."""
+    with LexiconDB(fresh_db) as db:
+        _seed_minimum(db)
+        _insert_fuzzy_row(
+            db,
+            etymon_id=db._herath_id,
+            matched_form="heath",
+            snippet="...",
+        )
+    with LexiconDB(fresh_db) as db:
+        _seed_minimum(db)
+        chosen_id = db._heath_id
+
+    monkeypatch.setattr(
+        disambiguator_mod,
+        "_chat_json_with_schema",
+        lambda client, **kw: {
+            "choice": str(chosen_id),
+            "confidence": "high",
+            "reason": "would reassign on apply",
+        },
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        ["lexicon", "disambiguate-fuzzy", "--db", str(fresh_db)],  # no --apply
+    )
+    combined = result.output + (result.stderr or "")
+    assert result.exit_code == 0, combined
+    assert "dry-run" in combined.lower()
+
+    with LexiconDB(fresh_db) as db:
+        row = db.conn.execute(
+            "SELECT etymon_id, method, disambiguator_reason "
+            "FROM etymon_text_match WHERE matched_form = 'heath'"
+        ).fetchone()
+    # Row must be untouched: still the original herath etymon, still
+    # fuzzy-search-v1 method, no disambiguator_reason recorded.
+    assert row["etymon_id"] != chosen_id
+    assert row["method"] == "fuzzy-search-v1"
+    assert row["disambiguator_reason"] is None
+
+
+def test_lexicon_disambiguate_fuzzy_cli_no_ambiguous_rows(fresh_db: Path) -> None:
+    """When `find_ambiguous_rows` returns nothing, the CLI must short-circuit
+    with a 'No ambiguous fuzzy rows found' message and zero LLM calls."""
+    with LexiconDB(fresh_db) as db:
+        # Empty DB — no etymons, no rows. Definitely no ambiguous rows.
+        db.upsert_source(id="test_book", title="Test")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        ["lexicon", "disambiguate-fuzzy", "--db", str(fresh_db), "--apply"],
+    )
+    combined = result.output + (result.stderr or "")
+    assert result.exit_code == 0, combined
+    assert "No ambiguous fuzzy rows found" in combined

@@ -453,8 +453,7 @@ gloss multiple morphemes near the same word. The disambiguator
 
 Cost gate: only ambiguous rows reach the LLM. A fuzzy row with exactly
 one candidate etymon (after the within-distance scan) is left alone —
-the gloss-anchored heuristic was sufficient. The vast majority of
-fuzzy rows hit this gate; the LLM only sees the genuine collisions.
+the gloss-anchored heuristic was sufficient.
 
 Verdict storage: `etymon_text_match.method` becomes
 `'llm-disambiguated-v1'`, the model's one-sentence reason lands in a
