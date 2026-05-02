@@ -206,3 +206,111 @@ def test_validate_response_handles_non_object() -> None:
     this, but defense in depth is cheap)."""
     failures = validate_response("not a dict", _BARTON_BODY)
     assert any(f.reason == "not_object" for f in failures)
+
+
+# --- wyrd-bjs: shared assemble_extraction_result + transport_error_result --
+
+
+def test_transport_error_result_packs_failure_into_llmresult():
+    """transport_error_result returns a non-accepted LLMResult with a single
+    transport_error failure carrying the message — uniform shape across
+    Ollama/Gemini/Anthropic providers so the mining loop can count it as
+    a 'rejected' regardless of which client raised."""
+    from wyrd.generators.kenning.llm_extractor import transport_error_result
+
+    result = transport_error_result("HTTP 503 Service Unavailable")
+    assert result.accepted is False
+    assert result.entry is None
+    assert result.raw_response == {"error": "HTTP 503 Service Unavailable"}
+    assert len(result.failures) == 1
+    assert result.failures[0].reason == "transport_error"
+    assert "HTTP 503" in result.failures[0].detail
+
+
+def test_assemble_extraction_result_not_found_emits_low_confidence_entry():
+    """Per D14, when the response says found=False the result is an
+    accepted ParsedEntry with empty elements and confidence='low'. The
+    notes_prefix is ignored on this path (no source_quote tagging) since
+    the body itself is the source_quote."""
+    from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
+
+    body = "Foobar — origin unknown."
+    result = assemble_extraction_result(
+        {"found": False},
+        body=body,
+        toponym="Foobar",
+        suffix_hint=None,
+        notes_prefix="extracted_by:test:1",
+    )
+    assert result.accepted is True
+    assert result.entry is not None
+    assert result.entry.elements == []
+    assert result.entry.confidence == "low"
+    assert result.entry.source_quote == body[:200]
+
+
+def test_assemble_extraction_result_validation_failure_marks_rejected():
+    """Per D3, if validate_response returns failures (e.g. form_not_in_body),
+    the result is rejected — not an accepted-with-warnings entry. This is
+    the load-bearing safety guard; assemble_extraction_result must not
+    swallow it."""
+    from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
+
+    response = {
+        "found": True,
+        "historical_form": "Foobar",
+        "confidence": "medium",
+        "elements": [
+            {
+                "form": "fictitious-form-not-in-body",
+                "language": "old-english",
+                "position": "pre",
+                "gloss": "fake",
+                "inflection": None,
+            }
+        ],
+    }
+    result = assemble_extraction_result(
+        response,
+        body="Foobar — origin unknown.",
+        toponym="Foobar",
+        suffix_hint=None,
+        notes_prefix="extracted_by:test:1",
+    )
+    assert result.accepted is False
+    assert result.entry is None
+    assert any(f.reason == "form_not_in_body" for f in result.failures)
+
+
+def test_assemble_extraction_result_tags_source_quote_with_prefix():
+    """Successful extractions stamp source_quote with the provider's
+    notes_prefix — D12 search-evidence vs. citation-evidence separation
+    relies on this for per-provider attribution. Truncated to 200 chars."""
+    from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
+
+    body = "Foobar — said to be from Old English foo, a foo."
+    response = {
+        "found": True,
+        "historical_form": "Foobar",
+        "confidence": "medium",
+        "elements": [
+            {
+                "form": "foo",
+                "language": "old-english",
+                "position": "pre",
+                "gloss": "a foo",
+                "inflection": None,
+            }
+        ],
+    }
+    result = assemble_extraction_result(
+        response,
+        body=body,
+        toponym="Foobar",
+        suffix_hint=None,
+        notes_prefix="extracted_by:claude:opus-4-7",
+    )
+    assert result.accepted is True
+    assert result.entry is not None
+    assert result.entry.source_quote.startswith("extracted_by:claude:opus-4-7")
+    assert len(result.entry.source_quote) <= 200

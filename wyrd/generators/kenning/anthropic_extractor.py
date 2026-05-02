@@ -32,10 +32,9 @@ from wyrd.generators.kenning.llm_extractor import (
     SYSTEM_PROMPT,
     USER_TEMPLATE,
     LLMResult,
-    ValidationFailure,
-    validate_response,
+    assemble_extraction_result,
+    transport_error_result,
 )
-from wyrd.generators.kenning.skeat_parser import ParsedElement, ParsedEntry
 
 DEFAULT_ANTHROPIC_MODEL = os.environ.get("WYRD_ANTHROPIC_MODEL", "claude-sonnet-4-6")
 ANTHROPIC_API_BASE = "https://api.anthropic.com/v1"
@@ -146,66 +145,19 @@ def extract_one(
     body: str,
     suffix_hint: str | None,
 ) -> LLMResult:
-    """Run Anthropic against one entry body. Same return shape as the Ollama
-    and Gemini extractors."""
+    """Run Anthropic against one entry body. Thin wrapper over
+    ``assemble_extraction_result`` — same return shape and validation path
+    as the Ollama and Gemini extractors. Anthropic's chat_json takes only
+    (system, user) since prompt-only schema enforcement suffices here."""
     user = USER_TEMPLATE.format(toponym=toponym, suffix_hint=suffix_hint or "(none)", body=body)
     try:
         response = client.chat_json(SYSTEM_PROMPT, user)
     except RuntimeError as e:
-        return LLMResult(
-            entry=None,
-            raw_response={"error": str(e)},
-            failures=[ValidationFailure("transport_error", str(e))],
-            accepted=False,
-        )
-
-    failures = validate_response(response, body)
-
-    if not response.get("found", False):
-        return LLMResult(
-            entry=ParsedEntry(
-                toponym=toponym,
-                section_suffix=suffix_hint,
-                historical_form=None,
-                elements=[],
-                confidence="low",
-                source_quote=body[:200],
-            ),
-            raw_response=response,
-            failures=failures,
-            accepted=True,
-        )
-
-    if failures:
-        return LLMResult(entry=None, raw_response=response, failures=failures, accepted=False)
-
-    elements = []
-    for el in response.get("elements", []):
-        elements.append(
-            ParsedElement(
-                form=el["form"].strip().lower(),
-                language=el["language"],
-                position=el["position"],
-                gloss=(el.get("gloss") or "").strip() or None,
-                inflection=(el.get("inflection") or "").strip() or None,
-            )
-        )
-
-    confidence = response.get("confidence", "medium")
-    notes = response.get("notes")
-    notes_prefix = f"extracted_by:anthropic:{client.model}"
-    combined_notes = f"{notes_prefix}; {notes}" if notes else notes_prefix
-
-    return LLMResult(
-        entry=ParsedEntry(
-            toponym=toponym,
-            section_suffix=suffix_hint,
-            historical_form=response.get("historical_form"),
-            elements=elements,
-            confidence=confidence,
-            source_quote=(combined_notes + " | " + body[:160])[:200],
-        ),
-        raw_response=response,
-        failures=[],
-        accepted=True,
+        return transport_error_result(str(e))
+    return assemble_extraction_result(
+        response,
+        body=body,
+        toponym=toponym,
+        suffix_hint=suffix_hint,
+        notes_prefix=f"extracted_by:anthropic:{client.model}",
     )

@@ -348,26 +348,34 @@ class LLMResult:
     accepted: bool
 
 
-def extract_one(
-    client: OllamaClient,
-    *,
-    toponym: str,
-    body: str,
-    suffix_hint: str | None,
-) -> LLMResult:
-    """Run the LLM on one entry, validate, and return either a ParsedEntry
-    (accepted) or the raw response + failures (rejected)."""
-    user = USER_TEMPLATE.format(toponym=toponym, suffix_hint=suffix_hint or "(none)", body=body)
-    try:
-        response = client.chat_json(SYSTEM_PROMPT, user, RESPONSE_SCHEMA)
-    except RuntimeError as e:
-        return LLMResult(
-            entry=None,
-            raw_response={"error": str(e)},
-            failures=[ValidationFailure("transport_error", str(e))],
-            accepted=False,
-        )
+def transport_error_result(message: str) -> LLMResult:
+    """Wrap a transport-level failure (HTTP timeout, JSON-parse error, etc.)
+    in an LLMResult so the caller can treat all failures uniformly."""
+    return LLMResult(
+        entry=None,
+        raw_response={"error": message},
+        failures=[ValidationFailure("transport_error", message)],
+        accepted=False,
+    )
 
+
+def assemble_extraction_result(
+    response: dict,
+    *,
+    body: str,
+    toponym: str,
+    suffix_hint: str | None,
+    notes_prefix: str,
+) -> LLMResult:
+    """Convert a validated LLM response into an LLMResult.
+
+    Shared across Ollama / Gemini / Anthropic extractors — the only
+    per-provider input is ``notes_prefix`` (e.g. ``extracted_by:gemini:<model>``)
+    so D3 form-in-body validation and ParsedEntry assembly stay in one
+    place. Three copies of this code path was a known drift risk —
+    DECISIONS.md D3 calls validate_response load-bearing, so any divergence
+    between providers' assemble paths could silently weaken it.
+    """
     failures = validate_response(response, body)
 
     if not response.get("found", False):
@@ -403,7 +411,6 @@ def extract_one(
 
     confidence = response.get("confidence", "medium")
     notes = response.get("notes")
-    notes_prefix = f"extracted_by:llm:{client.model}"
     combined_notes = f"{notes_prefix}; {notes}" if notes else notes_prefix
 
     return LLMResult(
@@ -418,4 +425,29 @@ def extract_one(
         raw_response=response,
         failures=[],
         accepted=True,
+    )
+
+
+def extract_one(
+    client: OllamaClient,
+    *,
+    toponym: str,
+    body: str,
+    suffix_hint: str | None,
+) -> LLMResult:
+    """Run the Ollama LLM on one entry. Thin wrapper over
+    ``assemble_extraction_result`` — Ollama is the only client whose
+    chat_json takes the response schema explicitly (Gemini/Anthropic both
+    rely on prompt-only schema enforcement)."""
+    user = USER_TEMPLATE.format(toponym=toponym, suffix_hint=suffix_hint or "(none)", body=body)
+    try:
+        response = client.chat_json(SYSTEM_PROMPT, user, RESPONSE_SCHEMA)
+    except RuntimeError as e:
+        return transport_error_result(str(e))
+    return assemble_extraction_result(
+        response,
+        body=body,
+        toponym=toponym,
+        suffix_hint=suffix_hint,
+        notes_prefix=f"extracted_by:llm:{client.model}",
     )
