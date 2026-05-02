@@ -17,6 +17,7 @@ from wyrd.generators.kenning.lexicon import (
     clear_enrichment,
     cluster_ocr_variants,
     derive_lemma_candidate,
+    fuzzy_search_attestations,
     ingest_parsed_entries,
     init_schema,
     link_lemmas,
@@ -1172,6 +1173,53 @@ def test_lexicon_mine_llm_records_mining_run_at_end_of_run(
     assert row["accepted"] == 1
     assert row["declined"] == 1
     assert row["rejected"] == 0
+
+
+def test_fuzzy_search_skips_match_when_token_is_canonical_etymon(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """Per wyrd-c3x: fuzzy-search must not claim 'X is a fuzzy variant of
+    Y' when X is itself a canonical etymon in the lexicon. The herath ↔
+    heath case (ON herað 'district' vs OE hǣþ 'untilled land') passed
+    the gloss anchor because 'land' is a generic gloss, but the result
+    is structurally wrong: 'heath' has its own etymon row.
+
+    The cross-check fix: if the body token equals any canonical_form,
+    skip the fuzzy claim. OCR variants between two etymons are
+    normalize-ocr's job, not fuzzy-search's.
+    """
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "test_book.txt").write_text(
+        "The heath is bare untilled land where shepherds once grazed.\n"
+    )
+
+    with LexiconDB(fresh_db) as db:
+        # rando-port-only candidate with a generic gloss — the kind that
+        # would historically false-positive against 'heath'.
+        herath_id = db.upsert_etymon("herath", "old-norse")
+        db.add_gloss(herath_id, "land")  # generic — easy to anchor
+        db.upsert_source(id="rando-port", title="Rando port (seed)")
+        db.upsert_source(id="test_book", title="Test Book")
+        db.add_citation(herath_id, "rando-port", short_quote="seed")
+        # The body word 'heath' is itself a canonical etymon. Without
+        # the cross-check, fuzzy-search would claim herath ↔ heath.
+        db.upsert_etymon("heath", "old-english")
+        db.commit()
+
+        result = fuzzy_search_attestations(db, sources_dir, apply=True)
+
+        rows = db.conn.execute(
+            "SELECT etymon_id, matched_form FROM etymon_text_match "
+            "WHERE etymon_id = ? AND edit_distance > 0",
+            (herath_id,),
+        ).fetchall()
+
+    assert rows == [], (
+        "fuzzy-search must not claim herath as a variant of 'heath' when "
+        "'heath' is itself a canonical etymon"
+    )
+    assert result["written"] == 0
 
 
 def test_lexicon_review_low_conf_counts_as_declined_not_written(
