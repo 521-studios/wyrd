@@ -26,6 +26,7 @@ from wyrd.generators.kenning import (
 )
 from wyrd.generators.kenning.dictionary_parser import parse_alphabetical_text
 from wyrd.generators.kenning.lexicon import (
+    RECOMMENDED_LANG_THRESHOLDS,
     LexiconDB,
     clear_enrichment,
     cluster_ocr_variants,
@@ -660,7 +661,25 @@ _KNOWN_SKEAT_BOOKS = {
     type=int,
     default=3,
     show_default=True,
-    help="Promote etymons with this many distinct scholar witnesses (D4).",
+    help="Promote etymons with this many distinct scholar witnesses (D4). "
+    "Used as the fallback for languages not covered by --lang-threshold or the preset.",
+)
+@click.option(
+    "--lang-threshold",
+    "lang_threshold_specs",
+    multiple=True,
+    metavar="LANG=N",
+    help="Per-language witness threshold override (repeatable). Example: "
+    "--lang-threshold old-norse=2. Merges with the recommended preset; pass "
+    "--no-preset to start from an empty map (then --min-witnesses applies uniformly).",
+)
+@click.option(
+    "--preset/--no-preset",
+    "use_preset",
+    default=True,
+    show_default=True,
+    help="Start from RECOMMENDED_LANG_THRESHOLDS (calibrated against corpus availability). "
+    "--no-preset uses --min-witnesses uniformly across all languages.",
 )
 @click.option(
     "--include-rando/--no-include-rando",
@@ -672,6 +691,8 @@ def lexicon_export_meanings(
     db_path: Path,
     output_path: Path | None,
     min_witnesses: int,
+    lang_threshold_specs: tuple[str, ...],
+    use_preset: bool,
     include_rando: bool,
 ) -> None:
     """Export the lexicon DB as a meanings.json document for the runtime.
@@ -680,9 +701,29 @@ def lexicon_export_meanings(
     promotion rule, and emits the JSON shape the kenning generator expects.
     Inflected variants (D8) and OCR-cluster losers (D22) ride along in their
     lemma's language form list rather than appearing as separate subjects.
+
+    Per-language witness thresholds are calibrated against corpus availability:
+    well-mined languages (old-english) gate at 3 witnesses to keep Tier-1
+    extraction noise out, while corpus-thin languages (old-norse, latin) gate
+    at 2. See RECOMMENDED_LANG_THRESHOLDS in lexicon.py for rationale.
     """
+    lang_thresholds: dict[str, int] = dict(RECOMMENDED_LANG_THRESHOLDS) if use_preset else {}
+    for spec in lang_threshold_specs:
+        if "=" not in spec:
+            raise click.BadParameter(f"--lang-threshold expects LANG=N, got {spec!r}")
+        lang, _, n_str = spec.partition("=")
+        try:
+            n = int(n_str)
+        except ValueError as exc:
+            raise click.BadParameter(f"--lang-threshold {spec!r}: N must be an integer") from exc
+        lang_thresholds[lang.strip()] = n
     with LexiconDB(db_path) as db:
-        subjects = export_meanings(db, min_witnesses=min_witnesses, include_rando=include_rando)
+        subjects = export_meanings(
+            db,
+            min_witnesses=min_witnesses,
+            lang_thresholds=lang_thresholds,
+            include_rando=include_rando,
+        )
     payload = json.dumps(subjects, ensure_ascii=False, indent=2)
     if output_path is None:
         click.echo(payload)
