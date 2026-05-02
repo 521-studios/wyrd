@@ -1335,6 +1335,107 @@ def test_lexicon_review_low_conf_counts_as_declined_not_written(
     assert gemini_rows["n"] == 0, "writer must not have persisted a gemini row"
 
 
+def test_lexicon_review_dry_run_does_not_persist_or_count_writes(
+    fresh_db: Path, tmp_path: Path, monkeypatch
+) -> None:
+    """Dry-run (no --apply) must not write rows to the DB and must not count
+    'would-have-written' results as written. The summary log explicitly says
+    '(dry-run; pass --apply to write)' — counting writes anyway would lie.
+
+    Regression for an extraction bug caught on PR #12: an early version of
+    the refactor moved `counts['written'] += 1` outside the apply guard, so
+    dry-run reported nonzero writes that didn't exist in the DB."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+    from wyrd.generators.kenning import gemini_extractor
+    from wyrd.generators.kenning.llm_extractor import LLMResult
+    from wyrd.generators.kenning.skeat_parser import ParsedElement, ParsedEntry
+
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "test_book.txt").write_text("Faketon. fake body.\n")
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="test_book", title="Test")
+        toponym_id = db.conn.execute(
+            "INSERT INTO toponym (modern_name, region) VALUES (?, ?)",
+            ("Faketon", "Testshire"),
+        ).lastrowid
+        db.conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, confidence, notes) "
+            "VALUES (?, ?, ?, ?)",
+            (toponym_id, "test_book", "medium", "extracted_by:llm:qwen3.5:fake"),
+        )
+        db.commit()
+
+    fake_parsed = [
+        ParsedEntry(
+            toponym="Faketon",
+            section_suffix=None,
+            historical_form="fake-tun",
+            elements=[],
+            confidence="low",
+            source_quote="Faketon. fake body.",
+        ),
+    ]
+    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser: fake_parsed)
+
+    class FakeClient:
+        model = "fake-gemini-model"
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(gemini_extractor, "GeminiClient", FakeClient)
+    monkeypatch.setattr(
+        gemini_extractor,
+        "extract_one",
+        lambda client, **kw: LLMResult(
+            entry=ParsedEntry(
+                toponym="Faketon",
+                section_suffix=None,
+                historical_form="fake-tun",
+                elements=[
+                    ParsedElement(form="fake", language="old-english", position="pre"),
+                ],
+                confidence="high",
+                source_quote="extracted_by:gemini:fake | Faketon",
+            ),
+            raw_response={},
+            failures=[],
+            accepted=True,
+        ),
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        [
+            "lexicon",
+            "review",
+            str(sources_dir),
+            "--db",
+            str(fresh_db),
+            "--provider",
+            "gemini",
+            # NOTE: no --apply — this is the dry-run case under test.
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+
+    combined = result.output + (result.stderr or "")
+    assert "'written': 0" in combined, "dry-run summary must report written: 0 — got:\n" + combined
+
+    with LexiconDB(fresh_db) as db:
+        n_runs = db.conn.execute("SELECT COUNT(*) FROM mining_run").fetchone()[0]
+        n_gemini_rows = db.conn.execute(
+            "SELECT COUNT(*) FROM toponym_etymology WHERE notes LIKE '%gemini%'"
+        ).fetchone()[0]
+    assert n_runs == 0
+    assert n_gemini_rows == 0
+
+
 def test_mining_run_table_present_after_init(fresh_db: Path) -> None:
     """init_schema creates mining_run; migrate_schema is a no-op on a fresh DB."""
     with LexiconDB(fresh_db) as db:
