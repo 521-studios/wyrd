@@ -166,15 +166,17 @@ def find_ambiguous_rows(
     )
     fuzzy_rows = cur.fetchall()
 
-    # Pull every live etymon once; we'll index by normalized form. Use a
-    # pipe separator (glosses/tags can contain commas) — uniqueness is
-    # already guaranteed by the etymon_gloss / etymon_tag primary keys.
+    # Pull every live etymon once; we'll index by normalized form. Use the
+    # ASCII Unit Separator (\x1f) as the concat delimiter — commas and
+    # pipes both occur in scholarly gloss text. Uniqueness within each
+    # set is guaranteed by the etymon_gloss / etymon_tag primary keys.
+    sep = "\x1f"
     etymon_rows = db.conn.execute(
-        """
+        f"""
         SELECT e.id, e.canonical_form, e.language,
-               (SELECT GROUP_CONCAT(gloss, '|')
+               (SELECT GROUP_CONCAT(gloss, '{sep}')
                 FROM etymon_gloss WHERE etymon_id = e.id) AS glosses,
-               (SELECT GROUP_CONCAT(tag, '|')
+               (SELECT GROUP_CONCAT(tag, '{sep}')
                 FROM etymon_tag WHERE etymon_id = e.id) AS tags
         FROM etymon e
         WHERE e.merged_into_id IS NULL
@@ -186,8 +188,8 @@ def find_ambiguous_rows(
     by_norm: dict[str, list[Candidate]] = {}
     for r in etymon_rows:
         norm = normalize_ocr_form(r["canonical_form"])
-        glosses = tuple((r["glosses"] or "").split("|")) if r["glosses"] else ()
-        tags = tuple((r["tags"] or "").split("|")) if r["tags"] else ()
+        glosses = tuple((r["glosses"] or "").split(sep)) if r["glosses"] else ()
+        tags = tuple((r["tags"] or "").split(sep)) if r["tags"] else ()
         by_norm.setdefault(norm, []).append(
             Candidate(
                 etymon_id=r["id"],
