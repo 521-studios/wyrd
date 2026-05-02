@@ -40,7 +40,7 @@ _ROOT_CODES = [
     ("greek", "GR"),
 ]
 
-CULTURES = ["english", "scottish", "welsh", "irish"]
+CULTURES = ["english", "scottish", "welsh", "irish", "breton"]
 
 # Tags that are filtering primitives, not meaningful selections to expose.
 _INTERNAL_TAGS = {"male name", "female name", "saint"}
@@ -56,7 +56,7 @@ def _load_meanings():
         return load_meanings(json.load(f))
 
 
-@lru_cache(maxsize=4)
+@lru_cache(maxsize=len(CULTURES))
 def _load_culture(culture: str):
     if culture not in CULTURES:
         raise ValueError(f"unknown culture: {culture}; expected one of {CULTURES}")

@@ -225,14 +225,25 @@ def _ordered_tag_pairs(name) -> list[tuple[list[str], list[str]]]:
     For 'Bridgwater Gate' this yields:
         (Bridg-.tags, -water.tags)   # within word 1
         (-water.tags, Gate.tags)     # between words
+
+    When a word has multiple equivalent decompositions (e.g. mining surfaced
+    a bare-form synthesized usage that competes with the dashed reflex), prefer
+    the decomp with the most tag-bearing Meanings — that's the one that
+    actually feeds co-occurrence statistics rather than emitting empty
+    () pairs.
     """
+
+    def _tag_density(word_obj) -> int:
+        if not hasattr(word_obj, "word"):
+            return -1
+        return sum(1 for c in word_obj.word if isinstance(c, Meaning) and c.tags)
+
     flat_meanings: list[Meaning] = []
     for word_text in name.name.split(" "):
         word_options = name.words.get(word_text, [])
         if not word_options:
             continue
-        # Pick the FIRST (best, post-reduction) decomposition for the word.
-        chosen = word_options[0]
+        chosen = max(word_options, key=_tag_density)
         if not hasattr(chosen, "word"):
             continue
         for chunk in chosen.word:
