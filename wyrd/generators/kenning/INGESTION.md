@@ -1,5 +1,11 @@
 # Ingesting a new etymology source
 
+> **New here?** Start with [`OVERVIEW.md`](OVERVIEW.md) — it frames
+> what this whole sub-system is doing and why. This doc assumes you
+> already know the answers to "what's the authoring layer?", "why
+> are we mining?", and "what's the three-tier provider model?" If
+> any of those are unfamiliar, OVERVIEW first.
+
 This is the recipe for taking a previously-unknown public-domain (or
 otherwise authorized) etymology text and wiring its data into the
 authoring lexicon. The **architectural decisions** that motivate each
