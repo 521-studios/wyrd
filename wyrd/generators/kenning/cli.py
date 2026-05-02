@@ -978,47 +978,13 @@ def lexicon_review(
     else:
         raise click.ClickException(f"unknown provider: {provider}")
 
-    # Read-only candidate query first; only open the writable connection if
-    # we'll actually write.
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-    conn.row_factory = sqlite3.Row
-
-    # Candidates: rows extracted by an LLM provider tagged "llm:" (currently
-    # only Ollama writes that prefix; Gemini writes "gemini:") whose
-    # confidence is below the bar. Skip toponyms that already have a row
-    # whose source_quote indicates a Gemini origin.
-    placeholders = ",".join("?" * len(confidence))
-    sql = f"""
-        SELECT te.id, te.toponym_id, te.source_id, te.confidence,
-               t.modern_name, t.region
-        FROM toponym_etymology te
-        JOIN toponym t ON t.id = te.toponym_id
-        WHERE te.confidence IN ({placeholders})
-          AND te.source_id IN (SELECT id FROM source)
-          AND (te.notes LIKE '%extracted_by:llm:%'
-               OR te.notes LIKE '%qwen%'
-               OR te.notes LIKE '%llama%'
-               OR te.notes LIKE '%ollama%')
-          AND NOT EXISTS (
-              SELECT 1 FROM toponym_etymology te2
-              WHERE te2.toponym_id = te.toponym_id
-                AND te2.source_id  = te.source_id
-                AND te2.notes LIKE ?
-          )
-        """
-    # Build the LIKE pattern for the chosen provider's tag
-    provider_skip_pattern = f"%{provider_tag}%"
-    args: list[object] = list(confidence) + [provider_skip_pattern]
-    if book:
-        sql += " AND te.source_id = ?"
-        args.append(book)
-    sql += " ORDER BY te.source_id, t.modern_name"
-    if limit:
-        sql += " LIMIT ?"
-        args.append(limit)
-
-    candidates = conn.execute(sql, args).fetchall()
-    conn.close()
+    candidates = _select_review_candidates(
+        db_path=db_path,
+        provider_tag=provider_tag,
+        confidence=confidence,
+        book=book,
+        limit=limit,
+    )
 
     if not candidates:
         click.echo("No candidates to review.", err=True)
@@ -1061,102 +1027,18 @@ def lexicon_review(
                 counts["missing_source"] += len(rows)
                 continue
 
-            text = source_path.read_text()
-            parsed = _select_parser_and_run(text, "auto")
-            entries_by_name: dict[str, object] = {p.toponym: p for p in parsed}
-
-            click.echo(f"=== {source_id} ({len(rows)} candidates) ===", err=True)
-
-            book_started_at = datetime.now(UTC).isoformat()
-            book_accepted = 0
-            book_declined = 0
-            book_rejected = 0
-            book_by_failure: dict[str, int] = {}
-
-            for row in rows:
-                name = row["modern_name"]
-                parsed_entry = entries_by_name.get(name)
-                if parsed_entry is None:
-                    counts["missing_entry"] += 1
-                    continue
-
-                t0 = time.time()
-                result = provider_extract_one(
-                    client,
-                    toponym=name,
-                    body=parsed_entry.body_text,
-                    suffix_hint=parsed_entry.section_suffix,
-                )
-                dt = time.time() - t0
-
-                counts["reviewed"] += 1
-                if not result.accepted:
-                    counts["rejected"] += 1
-                    book_rejected += 1
-                    for f in result.failures:
-                        book_by_failure[f.reason] = book_by_failure.get(f.reason, 0) + 1
-                    failures = ", ".join(f.reason for f in result.failures)
-                    click.echo(f"  REJECT  {name:24} ({dt:.1f}s)  {failures}", err=True)
-                    continue
-
-                if result.entry is None or not result.entry.elements:
-                    counts["declined"] += 1
-                    book_declined += 1
-                    click.echo(
-                        f"  DECLINE {name:24} ({dt:.1f}s)  conf={result.entry.confidence if result.entry else '?'}",
-                        err=True,
-                    )
-                    continue
-
-                # ingest_parsed_entries drops confidence='low' entries
-                # (only the toponym row gets written, no etymology). Match
-                # that policy here so the summary and mining_run audit
-                # reflect what's actually persisted.
-                if result.entry.confidence == "low":
-                    counts["declined"] += 1
-                    book_declined += 1
-                    breakdown = "+".join(el.form for el in result.entry.elements)
-                    click.echo(
-                        f"  DROPPED {name:24} ({dt:.1f}s)  {breakdown:30}  conf=low (writer skips)",
-                        err=True,
-                    )
-                    continue
-
-                breakdown = "+".join(el.form for el in result.entry.elements)
-                click.echo(
-                    f"  REVIEW  {name:24} ({dt:.1f}s)  {breakdown:30}  "
-                    f"conf={result.entry.confidence}",
-                    err=True,
-                )
-
-                if apply_changes and write_db is not None:
-                    ingest_parsed_entries(write_db, [result.entry], source_id, region=row["region"])
-                    counts["written"] += 1
-                    book_accepted += 1
-
-            # Persist per-book run summary (D23). Only record when we
-            # actually reached entries in this book — skip if every row
-            # was missing_entry. Idempotent on
-            # (book, provider, model, mode, completed_at).
-            if (
-                apply_changes
-                and write_db is not None
-                and (book_accepted or book_declined or book_rejected)
-            ):
-                record_mining_run(
-                    write_db,
-                    source_id=source_id,
-                    provider=provider,
-                    model=client.model,
-                    mode="review",
-                    parsed_count=book_accepted + book_declined + book_rejected,
-                    accepted=book_accepted,
-                    declined=book_declined,
-                    rejected=book_rejected,
-                    by_failure=book_by_failure or None,
-                    started_at=book_started_at,
-                    completed_at=datetime.now(UTC).isoformat(),
-                )
+            book_counts = _review_one_book(
+                source_id=source_id,
+                rows=rows,
+                source_path=source_path,
+                client=client,
+                provider_extract_one=provider_extract_one,
+                provider=provider,
+                apply_changes=apply_changes,
+                write_db=write_db,
+            )
+            for k in ("reviewed", "written", "declined", "rejected", "missing_entry"):
+                counts[k] += book_counts[k]
     finally:
         if write_db is not None:
             write_db.close()
@@ -1165,6 +1047,174 @@ def lexicon_review(
     click.echo(f"Review summary: {counts}", err=True)
     if not apply_changes:
         click.echo("(dry-run; pass --apply to write)", err=True)
+
+
+def _select_review_candidates(
+    *,
+    db_path: Path,
+    provider_tag: str,
+    confidence: tuple[str, ...],
+    book: str | None,
+    limit: int | None,
+) -> list[sqlite3.Row]:
+    """Pick `toponym_etymology` rows eligible for Tier-2 re-extraction.
+
+    Eligibility: row was extracted by an LLM provider (notes contain
+    `extracted_by:llm:` or a tier-1 marker like `qwen` / `ollama`),
+    confidence is in the `confidence` set, and the same (toponym, source)
+    doesn't already have a row tagged with the chosen Tier-2 provider.
+    """
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        placeholders = ",".join("?" * len(confidence))
+        sql = f"""
+            SELECT te.id, te.toponym_id, te.source_id, te.confidence,
+                   t.modern_name, t.region
+            FROM toponym_etymology te
+            JOIN toponym t ON t.id = te.toponym_id
+            WHERE te.confidence IN ({placeholders})
+              AND te.source_id IN (SELECT id FROM source)
+              AND (te.notes LIKE '%extracted_by:llm:%'
+                   OR te.notes LIKE '%qwen%'
+                   OR te.notes LIKE '%llama%'
+                   OR te.notes LIKE '%ollama%')
+              AND NOT EXISTS (
+                  SELECT 1 FROM toponym_etymology te2
+                  WHERE te2.toponym_id = te.toponym_id
+                    AND te2.source_id  = te.source_id
+                    AND te2.notes LIKE ?
+              )
+            """
+        args: list[object] = list(confidence) + [f"%{provider_tag}%"]
+        if book:
+            sql += " AND te.source_id = ?"
+            args.append(book)
+        sql += " ORDER BY te.source_id, t.modern_name"
+        if limit:
+            sql += " LIMIT ?"
+            args.append(limit)
+        return conn.execute(sql, args).fetchall()
+    finally:
+        conn.close()
+
+
+def _review_one_book(
+    *,
+    source_id: str,
+    rows: list[sqlite3.Row],
+    source_path: Path,
+    client: Any,
+    provider_extract_one: Any,
+    provider: str,
+    apply_changes: bool,
+    write_db: LexiconDB | None,
+) -> dict[str, int]:
+    """Run the per-book Tier-2 review loop.
+
+    Re-parses the source, calls the provider on each row's toponym, and
+    classifies the result as written / declined / rejected / missing_entry.
+    Persists a `mining_run` audit row at end-of-book. Returns per-book
+    counts for the outer command to aggregate.
+
+    The low-confidence-drop policy lives here: the writer in
+    `lexicon.py:1394` silently skips `confidence='low'` etymons (toponym
+    row gets written but no etymology row), so this loop classifies them
+    as declined. Encapsulating the mirror keeps the policy in one place.
+    """
+    counts: dict[str, int] = {
+        "reviewed": 0,
+        "written": 0,
+        "declined": 0,
+        "rejected": 0,
+        "missing_entry": 0,
+    }
+    by_failure: dict[str, int] = {}
+
+    text = source_path.read_text()
+    parsed = _select_parser_and_run(text, "auto")
+    entries_by_name: dict[str, object] = {p.toponym: p for p in parsed}
+
+    click.echo(f"=== {source_id} ({len(rows)} candidates) ===", err=True)
+
+    started_at = datetime.now(UTC).isoformat()
+
+    for row in rows:
+        name = row["modern_name"]
+        parsed_entry = entries_by_name.get(name)
+        if parsed_entry is None:
+            counts["missing_entry"] += 1
+            continue
+
+        t0 = time.time()
+        result = provider_extract_one(
+            client,
+            toponym=name,
+            body=parsed_entry.body_text,
+            suffix_hint=parsed_entry.section_suffix,
+        )
+        dt = time.time() - t0
+
+        counts["reviewed"] += 1
+        if not result.accepted:
+            counts["rejected"] += 1
+            for f in result.failures:
+                by_failure[f.reason] = by_failure.get(f.reason, 0) + 1
+            failures = ", ".join(f.reason for f in result.failures)
+            click.echo(f"  REJECT  {name:24} ({dt:.1f}s)  {failures}", err=True)
+            continue
+
+        if result.entry is None or not result.entry.elements:
+            counts["declined"] += 1
+            click.echo(
+                f"  DECLINE {name:24} ({dt:.1f}s)  "
+                f"conf={result.entry.confidence if result.entry else '?'}",
+                err=True,
+            )
+            continue
+
+        if result.entry.confidence == "low":
+            counts["declined"] += 1
+            breakdown = "+".join(el.form for el in result.entry.elements)
+            click.echo(
+                f"  DROPPED {name:24} ({dt:.1f}s)  {breakdown:30}  conf=low (writer skips)",
+                err=True,
+            )
+            continue
+
+        breakdown = "+".join(el.form for el in result.entry.elements)
+        click.echo(
+            f"  REVIEW  {name:24} ({dt:.1f}s)  {breakdown:30}  conf={result.entry.confidence}",
+            err=True,
+        )
+
+        if apply_changes and write_db is not None:
+            ingest_parsed_entries(write_db, [result.entry], source_id, region=row["region"])
+        counts["written"] += 1
+
+    # Persist mining_run audit row (D23). Only record when we actually
+    # reached entries in this book — skip if every row was missing_entry.
+    if (
+        apply_changes
+        and write_db is not None
+        and (counts["written"] or counts["declined"] or counts["rejected"])
+    ):
+        record_mining_run(
+            write_db,
+            source_id=source_id,
+            provider=provider,
+            model=client.model,
+            mode="review",
+            parsed_count=counts["written"] + counts["declined"] + counts["rejected"],
+            accepted=counts["written"],
+            declined=counts["declined"],
+            rejected=counts["rejected"],
+            by_failure=by_failure or None,
+            started_at=started_at,
+            completed_at=datetime.now(UTC).isoformat(),
+        )
+
+    return counts
 
 
 def _import_mining_log_record(
