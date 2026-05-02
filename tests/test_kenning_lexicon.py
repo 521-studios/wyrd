@@ -17,6 +17,7 @@ from wyrd.generators.kenning.lexicon import (
     clear_enrichment,
     cluster_ocr_variants,
     derive_lemma_candidate,
+    export_meanings,
     fuzzy_search_attestations,
     ingest_parsed_entries,
     init_schema,
@@ -1600,3 +1601,217 @@ def test_language_field_mapping_covers_known_codes() -> None:
     handled = LANGUAGE_FIELDS.keys() | NON_LANGUAGE_FIELDS
     missing = seen_fields - handled
     assert not missing, f"Unhandled fields in meanings.json: {missing}"
+
+
+# --- export_meanings tests --------------------------------------------------
+
+
+def _seed_subject(
+    db: LexiconDB,
+    *,
+    source_id: str,
+    glosses: list[str],
+    tags: list[str],
+    modifier_type: str | None,
+    words: list[dict],
+) -> None:
+    """Helper: ingest one meanings.json subject via seed_from_meanings."""
+    seed_from_meanings(
+        db,
+        [
+            {
+                "meaning": glosses,
+                "modifier_tags": tags,
+                "modifier_type": modifier_type,
+                "words": words,
+            }
+        ],
+        source_id,
+    )
+
+
+def test_export_meanings_includes_rando_etymons_with_no_scholar_witnesses(
+    fresh_db: Path,
+) -> None:
+    """A rando-port-only family is exported when include_rando=True (D4 legacy
+    seed kept until corroborated)."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["Acorn"],
+            tags=["plant", "food"],
+            modifier_type="Topographical",
+            words=[{"modern_usage": "-ock", "old_english": ["aecern"]}],
+        )
+
+        with_rando = export_meanings(db, include_rando=True)
+        without_rando = export_meanings(db, include_rando=False)
+
+    assert len(with_rando) == 1
+    subj = with_rando[0]
+    assert subj["meaning"] == ["Acorn"]
+    assert subj["modifier_tags"] == ["food", "plant"]
+    assert subj["modifier_type"] == "Topographical"
+    assert subj["words"] == [{"modern_usage": "-ock", "old_english": ["aecern"]}]
+    assert without_rando == []
+
+
+def test_export_meanings_promotes_at_three_witnesses(fresh_db: Path) -> None:
+    """A family with no rando-port citation needs ≥ min_witnesses to export."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b", "c"):
+            db.upsert_source(id=src, title=src)
+        ham_id = db.upsert_etymon("ham", "old-english", modifier_type="Habitative")
+        db.add_gloss(ham_id, "homestead")
+        db.add_tag(ham_id, "habitation")
+        db.add_citation(ham_id, "a")
+        db.add_citation(ham_id, "b")
+        db.commit()
+
+        two_witnesses = export_meanings(db, include_rando=False, min_witnesses=3)
+
+        db.add_citation(ham_id, "c")
+        db.commit()
+        three_witnesses = export_meanings(db, include_rando=False, min_witnesses=3)
+
+    assert two_witnesses == []
+    assert len(three_witnesses) == 1
+    subj = three_witnesses[0]
+    assert subj["meaning"] == ["homestead"]
+    # No reflex links in this minimal scenario, so the word is synthesized
+    # from the canonical_form. position_pref defaults to no-dash → bare form.
+    assert subj["words"] == [{"modern_usage": "ham", "old_english": ["ham"]}]
+
+
+def test_export_meanings_rolls_inflected_variants_into_lemma(fresh_db: Path) -> None:
+    """`cot` + linked inflections export as one entry; the language form list
+    contains the lemma followed by its variants (D8)."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["cottage"],
+            tags=["habitation"],
+            modifier_type="Habitative",
+            words=[{"modern_usage": "-cot", "old_english": ["cot"]}],
+        )
+        # Add inflected children — these point at the lemma via lemma_id.
+        cot_id = db.conn.execute("SELECT id FROM etymon WHERE canonical_form = 'cot'").fetchone()[
+            "id"
+        ]
+        cotan_id = db.upsert_etymon("cotan", "old-english")
+        cotes_id = db.upsert_etymon("cotes", "old-english")
+        db.conn.execute(
+            "UPDATE etymon SET lemma_id = ? WHERE id IN (?, ?)", (cot_id, cotan_id, cotes_id)
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    assert len(subjects) == 1
+    word = subjects[0]["words"][0]
+    assert word["modern_usage"] == "-cot"
+    # Lemma form leads; variants follow in the same language array.
+    assert word["old_english"][0] == "cot"
+    assert set(word["old_english"]) == {"cot", "cotan", "cotes"}
+
+
+def test_export_meanings_omits_merge_loser_as_separate_subject(
+    fresh_db: Path,
+) -> None:
+    """An OCR-cluster loser doesn't become its own subject — its form rides
+    along in the canonical's language list (D22)."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["valley"],
+            tags=["topography"],
+            modifier_type="Topographical",
+            words=[{"modern_usage": "-den", "old_english": ["denu"]}],
+        )
+        denu_id = db.conn.execute("SELECT id FROM etymon WHERE canonical_form = 'denu'").fetchone()[
+            "id"
+        ]
+        # Loser: an OCR variant pointing into denu.
+        dene_id = db.upsert_etymon("dene", "old-english")
+        db.conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (denu_id, dene_id))
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    assert len(subjects) == 1
+    forms = subjects[0]["words"][0]["old_english"]
+    assert forms[0] == "denu"  # canonical leads
+    assert "dene" in forms  # loser rides along
+
+
+def test_export_meanings_synthesizes_word_for_mined_only_family(
+    fresh_db: Path,
+) -> None:
+    """A family with ≥3 witnesses but no linked reflex gets a synthesized
+    `words` entry from its canonical_form."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b", "c"):
+            db.upsert_source(id=src, title=src)
+        tune_id = db.upsert_etymon("tune", "old-english", modifier_type="Habitative")
+        db.add_gloss(tune_id, "settlement")
+        db.add_tag(tune_id, "habitation")
+        for src in ("a", "b", "c"):
+            db.add_citation(tune_id, src)
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=False, min_witnesses=3)
+
+    assert len(subjects) == 1
+    assert subjects[0]["words"] == [{"modern_usage": "tune", "old_english": ["tune"]}]
+
+
+def test_export_meanings_synthesizes_with_position_pref(fresh_db: Path) -> None:
+    """When position_pref is set, the synthesized usage carries the matching
+    dash markers (`pre`/`post`/`inner`)."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b", "c"):
+            db.upsert_source(id=src, title=src)
+        ham_id = db.upsert_etymon(
+            "ham", "old-english", modifier_type="Habitative", position_pref="post"
+        )
+        db.add_gloss(ham_id, "homestead")
+        for src in ("a", "b", "c"):
+            db.add_citation(ham_id, src)
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=False, min_witnesses=3)
+
+    assert subjects[0]["words"][0]["modern_usage"] == "-ham"
+
+
+def test_export_meanings_round_trips_through_load_meanings(fresh_db: Path) -> None:
+    """A seeded subject exports to a structure the runtime can re-load via
+    load_meanings — closes the authoring↔runtime loop end-to-end."""
+    from wyrd.generators.kenning.meaning import load_meanings
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["Hill"],
+            tags=["topography"],
+            modifier_type="Topographical",
+            words=[
+                {"modern_usage": "Bre-", "celtic_mix": ["bre", "bryn"]},
+                {"modern_usage": "-don", "old_english": ["dun"]},
+            ],
+        )
+        subjects = export_meanings(db, include_rando=True)
+
+    meaning_db, tag_db = load_meanings(subjects)
+    assert "Bre-" in meaning_db
+    assert "-don" in meaning_db
+    assert any("topography" in m.tags for m in meaning_db["Bre-"])
+    assert "topography" in tag_db
