@@ -101,10 +101,60 @@ Key invariants:
 | `cli.py` | All `wyrd kenning lexicon …` commands. |
 
 Generator runtime (`__init__.py`, `name.py`, `word.py`, `meaning.py`,
-`proportions.py`) is unchanged from the original Rando port. The lexicon
-is currently an authoring-side store — the generator still reads the
-denormalized `meanings.json`. Closing that loop (lexicon → meanings.json
-export) is filed as a future ticket.
+`proportions.py`) reads the bundled `meanings.json`, which is now exported
+from the lexicon DB by `wyrd kenning lexicon export-meanings` (closes
+the D1 loop). The runtime keeps the historical "load JSON, sample" shape
+— the lexicon DB is invisible to the runtime.
+
+## Cultures
+
+The generator currently supports five register cultures:
+
+| culture | corpus | notes |
+|---|---|---|
+| `english` | EPNS county dicts (Mawer, Ekwall, Skeat) | Densest morpheme set; well-mined. |
+| `scottish` | Watson, Macbain, Johnston | Celtic + Old Norse blend. |
+| `welsh` | Morgan, Johnston | Brythonic Celtic; dense Welsh morphology. |
+| `irish` | Joyce vols 1–3 | Goidelic Celtic; large place-name list. |
+| `breton` | Wikidata commune list (1214 names); morpheme corpus pending | Witcher 'remote cultured empire' register: French-Celtic with Norman-French overlay. Decomp rate currently 1.7% (lexicon doesn't yet have Plou-/Ker-/Tre- morphemes); see wyrd-fmg. |
+
+## Generation knobs
+
+The runtime exposes three orthogonal knobs alongside the existing
+`--culture` and `--tag` filters. All default to 0.0 — historical
+seed-stable behavior preserved bit-for-bit.
+
+| knob | spec | description |
+|---|---|---|
+| `--novelty` | D17 | Per-bucket mixture between empirical-frequency sampling and a uniform marginal. At 1.0, every in-bucket morpheme is equally likely — plausible-but-unattested combinations become possible without abandoning the corpus. v1 is the (empirical, uniform-marginal) two-term mixture; the third tag-class-prior term is a follow-up. |
+| `--spelling-variety` | D18 | Per-morpheme probability of substituting an attested archaic spelling variant for the canonical reflex. Pool comes from `etymon_text_match.matched_form` rows surviving the post-mining chain + LLM disambiguator. 416 morphemes have non-empty pools today. |
+| `--inflection-density` | D8 | Per-morpheme probability of substituting an inflected form (genitive/dative/plural) for the lemma. Bundle has 168 inflected etymons across 9 grammatical-case labels. When both this and `--spelling-variety` would fire on the same morpheme, inflection wins. |
+
+## Bundle schema (meanings.json)
+
+The runtime reads a JSON file whose top-level shape is a list of subjects:
+
+```json
+{
+  "meaning": ["Bridge"],
+  "modifier_tags": ["water", "architecture"],
+  "modifier_type": "Topographical",
+  "words": [
+    {
+      "modern_usage": "Bridg-",
+      "old_english": ["brycg"],
+      "old_english_variants": [{"form": "brigge", "weight": 8}],
+      "old_english_inflections": [{"form": "brycgan", "inflection": "weak_oblique"}]
+    }
+  ]
+}
+```
+
+Per D26, the per-language metadata fields (`<lang>_variants`,
+`<lang>_inflections`) are sibling to the canonical language array, so
+legacy code that ignores unknown fields keeps loading. The runtime's
+`load_meanings` strips the `_variants` / `_inflections` suffixes and
+routes them into `Meaning.variants` / `Meaning.inflections` attributes.
 
 ## CLI cheatsheet
 
@@ -121,8 +171,15 @@ wyrd kenning lexicon mine-llm sources/mawer_1920_northumberland_durham.txt --pro
 # Cluster OCR-variant etymons (Hædan / Hcsdan / Haedan → one row).
 wyrd kenning lexicon normalize-ocr --apply
 
+# Export the lexicon as a runtime-shaped meanings.json (D1 / D26).
+wyrd kenning lexicon export-meanings --output wyrd/generators/kenning/data/meanings.json
+
 # Read-only summary of what's in the lexicon.
 wyrd kenning lexicon report
+
+# Generate names with the new knobs.
+wyrd kenning generate english --novelty 0.5 --spelling-variety 0.3 --inflection-density 0.2
+wyrd kenning generate breton --seed 42
 ```
 
 ## Extending
@@ -132,6 +189,12 @@ wyrd kenning lexicon report
   patterns. If it's outline-shaped, write a third parser.
 - **New language family**: add to `LANGUAGE_FIELDS` in `lexicon.py` and the
   enum in both `RESPONSE_SCHEMA` and `GEMINI_RESPONSE_SCHEMA`.
+- **New culture register**: add the string to `CULTURES` in `__init__.py`,
+  bundle a `<culture>_place_names.json` (real names list) and a
+  `<culture>_proportions.json` built via `wyrd kenning rebuild-proportions`.
+- **New per-language bundle metadata** (e.g. for D6 `--harsh` phonological
+  scoring): follow the D26 sibling-field pattern (`<lang>_<feature>`)
+  and route through `load_meanings` into a dedicated `Meaning` attribute.
 - **New LLM provider**: implement `chat_json(system, user, schema)` and
   `extract_one(client, toponym, body, suffix_hint)`. Reuse
   `validate_response` from `llm_extractor.py`. Wire as a `--provider`
