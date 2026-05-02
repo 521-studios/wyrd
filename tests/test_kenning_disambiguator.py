@@ -303,6 +303,65 @@ def test_apply_disambiguator_result_reassigned(fresh_db: Path) -> None:
     assert row["method"] == "llm-disambiguated-v1"
 
 
+def test_apply_disambiguator_result_reassigned_preserves_existing_evidence(
+    fresh_db: Path,
+) -> None:
+    """When reassigning to an etymon that already has a row for the same
+    (source, matched_form) — typically an exact match from reverse-search —
+    we must not overwrite that row. Per D21, the existing evidence is
+    preserved; the verdict is recorded on the destination row and the
+    misattributed source row is deleted."""
+    with LexiconDB(fresh_db) as db:
+        _seed_minimum(db)
+        # The (correct) destination row, e.g. an exact match landed earlier.
+        existing_row_id = _insert_fuzzy_row(
+            db,
+            etymon_id=db._heath_id,
+            matched_form="heath",
+            snippet="exact match snippet",
+            edit_distance=0,
+        )
+        # The misattributed fuzzy row from the herath etymon.
+        wrong_row_id = db.conn.execute(
+            "INSERT INTO etymon_text_match "
+            "(etymon_id, source_id, matched_form, match_count, edit_distance, snippet, method) "
+            "VALUES (?, ?, ?, ?, ?, ?, 'fuzzy-search-v1')",
+            (db._herath_id, "test_book", "heath", 1, 1, "fuzzy snippet"),
+        ).lastrowid
+        db.commit()
+
+        case = AmbiguityCase(
+            text_match_id=wrong_row_id,
+            source_id="test_book",
+            matched_form="heath",
+            snippet="...",
+            current_etymon_id=db._herath_id,
+            candidates=(),
+        )
+        result = DisambiguatorResult(
+            chosen_etymon_id=db._heath_id,
+            confidence="high",
+            reason="OE heath, the exact-match row is correct",
+        )
+        action = apply_disambiguator_result(db, case, result)
+        db.commit()
+
+        rows = db.conn.execute(
+            "SELECT id, etymon_id, edit_distance, method, disambiguator_reason "
+            "FROM etymon_text_match WHERE source_id = 'test_book' "
+            "ORDER BY id"
+        ).fetchall()
+
+    assert action == "reassigned"
+    # Only the destination row remains; the misattributed source row was deleted.
+    assert len(rows) == 1
+    assert rows[0]["id"] == existing_row_id
+    assert rows[0]["etymon_id"] == db._heath_id
+    assert rows[0]["edit_distance"] == 0  # original exact-match evidence preserved
+    assert rows[0]["method"] == "llm-disambiguated-v1"
+    assert "exact-match" in rows[0]["disambiguator_reason"]
+
+
 def test_apply_disambiguator_result_deleted(fresh_db: Path) -> None:
     """When the LLM says 'none', the row is deleted entirely."""
     with LexiconDB(fresh_db) as db:

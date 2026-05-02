@@ -225,17 +225,21 @@ def find_ambiguous_rows(
     )
     fuzzy_rows = cur.fetchall()
 
-    # Pull every live etymon once; we'll index by normalized form.
+    # Pull every live etymon once; we'll index by normalized form. Use
+    # pipe-separated concat (glosses/tags can contain commas) and
+    # subquery-deduped lists since SQLite's GROUP_CONCAT can't combine
+    # DISTINCT with a custom separator.
     etymon_rows = db.conn.execute(
         """
         SELECT e.id, e.canonical_form, e.language,
-               GROUP_CONCAT(DISTINCT g.gloss) AS glosses,
-               GROUP_CONCAT(DISTINCT t.tag) AS tags
+               (SELECT GROUP_CONCAT(g, '|') FROM (
+                    SELECT DISTINCT gloss AS g FROM etymon_gloss WHERE etymon_id = e.id
+                )) AS glosses,
+               (SELECT GROUP_CONCAT(t, '|') FROM (
+                    SELECT DISTINCT tag AS t FROM etymon_tag WHERE etymon_id = e.id
+                )) AS tags
         FROM etymon e
-        LEFT JOIN etymon_gloss g ON g.etymon_id = e.id
-        LEFT JOIN etymon_tag t ON t.etymon_id = e.id
         WHERE e.merged_into_id IS NULL
-        GROUP BY e.id
         """
     ).fetchall()
 
@@ -244,8 +248,8 @@ def find_ambiguous_rows(
     by_norm: dict[str, list[Candidate]] = {}
     for r in etymon_rows:
         norm = normalize_ocr_form(r["canonical_form"])
-        glosses = tuple((r["glosses"] or "").split(",")) if r["glosses"] else ()
-        tags = tuple((r["tags"] or "").split(",")) if r["tags"] else ()
+        glosses = tuple((r["glosses"] or "").split("|")) if r["glosses"] else ()
+        tags = tuple((r["tags"] or "").split("|")) if r["tags"] else ()
         by_norm.setdefault(norm, []).append(
             Candidate(
                 etymon_id=r["id"],
@@ -310,19 +314,26 @@ def apply_disambiguator_result(
         return "kept"
 
     # Reassign to a different etymon. The UNIQUE (etymon_id, source_id,
-    # matched_form) constraint means we may collide with an existing row;
-    # delete-then-update is simplest. We DELETE any pre-existing row at
-    # the destination and update ours in-place.
-    db.conn.execute(
-        "DELETE FROM etymon_text_match "
-        "WHERE etymon_id = ? AND source_id = ? AND matched_form = ? AND id != ?",
-        (
-            result.chosen_etymon_id,
-            case.source_id,
-            case.matched_form,
-            case.text_match_id,
-        ),
-    )
+    # matched_form) constraint means a row may already exist at the
+    # destination — typically an exact match (edit_distance=0) discovered
+    # earlier by reverse-search. Per D21 (mining-evidence preservation),
+    # we don't overwrite that evidence: we record the verdict on the
+    # destination row and drop the now-misattributed source row.
+    existing = db.conn.execute(
+        "SELECT id, edit_distance FROM etymon_text_match "
+        "WHERE etymon_id = ? AND source_id = ? AND matched_form = ?",
+        (result.chosen_etymon_id, case.source_id, case.matched_form),
+    ).fetchone()
+    if existing is not None:
+        db.conn.execute(
+            "UPDATE etymon_text_match "
+            "SET method = 'llm-disambiguated-v1', disambiguator_reason = ? "
+            "WHERE id = ?",
+            (result.reason, existing["id"]),
+        )
+        db.conn.execute("DELETE FROM etymon_text_match WHERE id = ?", (case.text_match_id,))
+        return "reassigned"
+
     db.conn.execute(
         "UPDATE etymon_text_match "
         "SET etymon_id = ?, method = 'llm-disambiguated-v1', "
