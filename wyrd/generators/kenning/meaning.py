@@ -153,14 +153,27 @@ class Meaning:
         """
         if inflection_density <= 0 or not self.inflections:
             return None
-        pool: list[tuple[str, str]] = []
-        for entries in self.inflections.values():
-            pool.extend(entries)
-        if not pool:
-            return None
+        # Fast-path the substitution gate before flattening the pool: if the
+        # roll didn't trigger we can return immediately and skip the
+        # cross-language flatten. Saves work in the common case where
+        # inflection_density is set but most morphemes don't fire.
         if rng.random() >= inflection_density:
             return None
+        pool = self._flat_inflections()
+        if not pool:
+            return None
         return rng.choice(pool)
+
+    def _flat_inflections(self) -> list[tuple[str, str]]:
+        """Flatten the per-language inflections dict into a single list,
+        cached after first call. The cache is populated lazily because most
+        Meanings never reach generation paths that need it (default
+        inflection_density=0 short-circuits before this is called)."""
+        cached = self.__dict__.get("_flat_inflections_cache")
+        if cached is None:
+            cached = [entry for entries in self.inflections.values() for entry in entries]
+            self._flat_inflections_cache = cached
+        return cached
 
 
 def _mimic_case(template: str, variant: str) -> str:
@@ -212,27 +225,23 @@ def load_meanings(data):
                 for k, v in word.items()
                 if k.endswith(_INFLECTION_SUFFIX)
             }
-            meaning = Meaning(
-                usage,
-                tags,
-                meanings,
-                sources,
-                variants=variants,
-                inflections=inflections,
-            )
+            # Singular and plural Meanings share every constructor arg
+            # except `usage`. Bundle them so a future kwarg addition can't
+            # silently drop on one branch and not the other.
+            common_kwargs = {
+                "tags": tags,
+                "meanings": meanings,
+                "sources": sources,
+                "variants": variants,
+                "inflections": inflections,
+            }
+            meaning = Meaning(usage, **common_kwargs)
             for tag in tags:
                 tags_db.setdefault(tag, []).append(usage)
             meaning_db.setdefault(usage, []).append(meaning)
             if meaning.is_name() and not usage.endswith("s"):
                 plural = f"{usage}s"
-                plural_meaning = Meaning(
-                    plural,
-                    tags,
-                    meanings,
-                    sources,
-                    variants=variants,
-                    inflections=inflections,
-                )
+                plural_meaning = Meaning(plural, **common_kwargs)
                 for tag in tags:
                     tags_db.setdefault(tag, []).append(plural)
                 meaning_db.setdefault(plural, []).append(plural_meaning)

@@ -349,3 +349,41 @@ def test_load_meanings_omits_inflections_field_when_absent():
     ]
     meaning_db, _ = load_meanings(data)
     assert meaning_db["X-"][0].inflections == {}
+
+
+def test_load_meanings_propagates_inflections_to_plural_form():
+    """A name-tagged meaning auto-pluralizes (e.g. 'Alf-' → 'Alf-s'). The
+    pluralized Meaning must inherit the same inflections + variants pools
+    as the singular — a constructor refactor that drops kwargs on the
+    plural branch should be caught here."""
+    data = [
+        {
+            "modifier_tags": ["male name"],
+            "meaning": ["Alfred (Name)"],
+            "words": [
+                {
+                    "modern_usage": "Alf-",
+                    "old_english": ["alfred", "alfredan"],
+                    "old_english_inflections": [
+                        {"form": "alfredan", "inflection": "weak_oblique"},
+                    ],
+                    "old_english_variants": [
+                        {"form": "ælfred", "weight": 5},
+                    ],
+                }
+            ],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    plural = meaning_db["Alf-s"][0]
+    assert plural.inflections == {"old_english": [("alfredan", "weak_oblique")]}
+    assert plural.variants == {"old_english": [("ælfred", 5)]}
+
+
+def test_pick_inflection_partial_density_gates_per_call():
+    """At density=0.5 the substitution rate over many trials should be
+    roughly half — the gate is a per-call random draw, not a global toggle."""
+    m = _meaning_with_inflections({"old_english": [("cotum", "dative_or_pl")]})
+    hits = sum(1 for i in range(2000) if m.pick_inflection(random.Random(i), 0.5) is not None)
+    # Wide tolerance band against RNG variance — should land near 1000.
+    assert 800 < hits < 1200

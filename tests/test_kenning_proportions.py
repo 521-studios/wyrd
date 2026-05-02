@@ -150,7 +150,14 @@ def test_meaning_generator_select_threads_novelty():
 
 def _build_minimal_name_generator(meaning_db):
     """Build a NameGenerator with a single trivial structure for tests.
-    Uses only one usage from meaning_db so the structure walk is deterministic."""
+
+    Uses only one usage from meaning_db so the structure walk is
+    deterministic. Mirrors the production load_proportions() shape: every
+    usage is registered both with its bare location key (multi-element
+    words) and the (location, "single") key (single-element words). The
+    test fixture uses single-element structures so the runtime can resolve
+    the bucket via the "single"-suffixed key.
+    """
     from wyrd.generators.kenning.proportions import (
         MeaningGenerator,
         NameGenerator,
@@ -158,7 +165,9 @@ def _build_minimal_name_generator(meaning_db):
 
     proportions = dict.fromkeys(meaning_db, 1)
     mg = MeaningGenerator(meaning_db, {}, proportions)
-    structs = {(((next(iter(meaning_db.values()))[0].location,),)): 1}
+    mg.load_parts(proportions, "single")
+    location = next(iter(meaning_db.values()))[0].location
+    structs = {(((location, "single"),),): 1}
     return NameGenerator(meaning_db, mg, structs)
 
 
@@ -228,6 +237,47 @@ def test_render_substitutions_inflection_wins_over_variant():
     rendered, labels = name_gen._render_substitutions(random.Random(0), [["-cot"]], 1.0, 1.0)
     assert rendered == [["cotum"]]
     assert labels == [["dative_or_pl"]]
+
+
+def test_select_populates_inflection_labels_at_high_density():
+    """End-to-end: NameGenerator.select(inflection_density=1.0) on a
+    meaning_db with inflection metadata returns a NewName whose
+    inflection_labels carry the picked label per element. Pins the
+    integration boundary that _render_substitutions tests can't reach
+    on their own."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    m = Meaning(
+        "-cot",
+        [],
+        [],
+        {"old_english": ["cot", "cotum"]},
+        inflections={"old_english": [("cotum", "dative_or_pl")]},
+    )
+    name_gen = _build_minimal_name_generator({"-cot": [m]})
+    new_name = name_gen.select(random.Random(0), inflection_density=1.0)
+    assert new_name.inflection_labels == [["dative_or_pl"]]
+    assert new_name.rendered == [["cotum"]]
+
+
+def test_select_default_skips_render_pass_entirely():
+    """At default knobs (variety=0, density=0), select() doesn't populate
+    rendered or inflection_labels — they stay None. Cheap fast-path
+    confirmation that protects bit-stability."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    m = Meaning(
+        "-cot",
+        [],
+        [],
+        {"old_english": ["cot"]},
+        variants={"old_english": [("kotte", 5)]},
+        inflections={"old_english": [("cotum", "dative_or_pl")]},
+    )
+    name_gen = _build_minimal_name_generator({"-cot": [m]})
+    new_name = name_gen.select(random.Random(0))
+    assert new_name.rendered is None
+    assert new_name.inflection_labels is None
 
 
 def test_render_substitutions_handles_none_usage():

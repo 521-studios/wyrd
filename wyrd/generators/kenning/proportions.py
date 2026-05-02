@@ -148,6 +148,16 @@ class NameGenerator:
                     word_labels.append(None)
                     continue
                 meanings = self.meaning_db.get(usage) or []
+                # When a usage maps to multiple Meanings (different senses
+                # e.g. -y "district" vs "island"), each sense has its OWN
+                # variant + inflection pools because the underlying etymons
+                # are distinct. We pick meanings[0] as a deterministic
+                # fallback; the picked substitution may not correspond to
+                # the sense the structure's tags would have selected.
+                # Acceptable trade-off: sampling at the usage level (not
+                # the sense level) keeps the runtime simple and seed-stable.
+                # A follow-up could thread the structure's tag context to
+                # narrow to the matching sense before drawing.
                 chosen = meanings[0] if meanings else None
                 surface, label = self._pick_surface(
                     rng, usage, chosen, spelling_variety, inflection_density
@@ -162,8 +172,9 @@ class NameGenerator:
         """Decide one element's surface form and inflection label. Returns
         (surface_string, inflection_label_or_None) — the surface is always
         non-None given a non-None usage."""
+        canonical = usage.replace("-", "")
         if chosen is None:
-            return usage.replace("-", ""), None
+            return canonical, None
         if inflection_density > 0:
             picked = chosen.pick_inflection(rng, inflection_density)
             if picked is not None:
@@ -173,7 +184,7 @@ class NameGenerator:
             variant = chosen.pick_variant(rng, spelling_variety)
             if variant is not None:
                 return _mimic_case(usage, variant), None
-        return usage.replace("-", ""), None
+        return canonical, None
 
     def _select_no_tag(self, rng, struct, *, novelty: float = 0.0):
         words = []

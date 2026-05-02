@@ -2000,6 +2000,35 @@ def test_export_meanings_emits_inflection_pool_per_language(fresh_db: Path) -> N
     assert "cot" not in {entry["form"] for entry in inflections}
 
 
+def test_export_meanings_synthesized_family_emits_inflections(fresh_db: Path) -> None:
+    """A family without any linked reflex (synthesized-word path) emits
+    inflection metadata too. _build_words_for_group has separate aggregation
+    blocks for the reflex-linked and synthesized branches; this test pins
+    the synthesized side so a regression there can't slip past the
+    reflex-only test above."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b", "c"):
+            db.upsert_source(id=src, title=src)
+        # No rando-port reflex — hits the families_without_reflex branch.
+        cot_id = db.upsert_etymon("cot", "old-english", modifier_type="Habitative")
+        db.add_gloss(cot_id, "cottage")
+        db.add_tag(cot_id, "habitation")
+        for src in ("a", "b", "c"):
+            db.add_citation(cot_id, src)
+        cotum_id = db.upsert_etymon("cotum", "old-english")
+        db.conn.execute(
+            "UPDATE etymon SET lemma_id = ?, inflection = ? WHERE id = ?",
+            (cot_id, "dative_or_pl", cotum_id),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=False, min_witnesses=3)
+
+    word = subjects[0]["words"][0]
+    assert word["modern_usage"] == "cot"  # synthesized from canonical_form
+    assert word["old_english_inflections"] == [{"form": "cotum", "inflection": "dative_or_pl"}]
+
+
 def test_emit_inflection_list_sorts_by_form_alphabetically(fresh_db: Path) -> None:
     """`_emit_inflection_list` sorts entries by form so output is byte-stable
     regardless of dict insertion order."""
