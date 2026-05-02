@@ -1626,11 +1626,23 @@ def _collect_families(
     return families
 
 
+_FAMILY_MEMBER_SQL = """
+SELECT e.id, e.canonical_form, e.language, e.lemma_id, e.merged_into_id, e.inflection
+FROM etymon e
+LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
+LEFT JOIN etymon le ON le.id = target.lemma_id
+WHERE COALESCE(le.id, target.id, e.id) = ?
+ORDER BY e.language, e.canonical_form
+"""
+
+
 def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
     """Collect forms / glosses / tags / reflexes for one family root.
 
     Includes the root itself plus all etymons that roll up to it
     (inflected children, OCR-cluster losers, and combinations thereof).
+    Pure orchestrator — each per-aspect aggregation lives in a focused
+    helper below.
     """
     root_row = db.conn.execute(
         "SELECT canonical_form, language, modifier_type, position_pref FROM etymon WHERE id = ?",
@@ -1639,34 +1651,57 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
     if root_row is None:
         return None
 
-    member_rows = db.conn.execute(
-        """
-        SELECT e.id, e.canonical_form, e.language, e.lemma_id, e.merged_into_id, e.inflection
-        FROM etymon e
-        LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
-        LEFT JOIN etymon le ON le.id = target.lemma_id
-        WHERE COALESCE(le.id, target.id, e.id) = ?
-        ORDER BY e.language, e.canonical_form
-        """,
-        (root_id,),
-    ).fetchall()
+    member_rows = db.conn.execute(_FAMILY_MEMBER_SQL, (root_id,)).fetchall()
     if not member_rows:
         return None
 
     member_ids = [r["id"] for r in member_rows]
-    placeholders = ",".join("?" * len(member_ids))
+    member_form_by_id = {r["id"]: (r["language"], r["canonical_form"]) for r in member_rows}
+    member_inflection_by_id: dict[int, str | None] = {
+        r["id"]: r["inflection"] for r in member_rows
+    }
+    canonical_forms_lower = {f.lower() for _lang, f in member_form_by_id.values()}
 
+    reflex_links = _fetch_member_reflex_links(db, member_ids)
+
+    return {
+        "root_id": root_id,
+        "root_canonical_form": root_row["canonical_form"],
+        "root_language": root_row["language"],
+        "modifier_type": root_row["modifier_type"],
+        "position_pref": root_row["position_pref"],
+        "forms_by_lang": _build_forms_by_lang(root_row, member_rows),
+        "member_form_by_id": member_form_by_id,
+        "member_descendants": _compute_member_descendants(member_rows),
+        "member_variants": _fetch_member_variants(db, member_ids, canonical_forms_lower),
+        "member_inflection_by_id": member_inflection_by_id,
+        "glosses": _fetch_member_glosses(db, member_ids),
+        "tags": _fetch_member_tags(db, member_ids),
+        "reflexes": _fetch_member_reflexes(db, member_ids, reflex_links),
+    }
+
+
+def _build_forms_by_lang(
+    root_row: Any, member_rows: list[Any]
+) -> dict[str, list[str]]:
+    """Group canonical forms by language, root-first.
+
+    Root form first per language so the lemma's own canonical_form leads
+    the list (predictable order for snapshot tests).
+    """
     forms_by_lang: dict[str, list[str]] = {}
-    # Root form first per language so the lemma's own canonical_form leads
-    # the variant list (predictable order for snapshot tests).
-    root_lang = root_row["language"]
-    forms_by_lang.setdefault(root_lang, []).append(root_row["canonical_form"])
+    forms_by_lang.setdefault(root_row["language"], []).append(root_row["canonical_form"])
     for r in member_rows:
         bucket = forms_by_lang.setdefault(r["language"], [])
         if r["canonical_form"] not in bucket:
             bucket.append(r["canonical_form"])
+    return forms_by_lang
 
-    glosses = [
+
+def _fetch_member_glosses(db: LexiconDB, member_ids: list[int]) -> list[str]:
+    """Distinct sorted glosses across the family's members."""
+    placeholders = ",".join("?" * len(member_ids))
+    return [
         row["gloss"]
         for row in db.conn.execute(
             f"SELECT DISTINCT gloss FROM etymon_gloss "
@@ -1674,18 +1709,31 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
             member_ids,
         )
     ]
-    tags = [
+
+
+def _fetch_member_tags(db: LexiconDB, member_ids: list[int]) -> list[str]:
+    """Distinct sorted tags across the family's members."""
+    placeholders = ",".join("?" * len(member_ids))
+    return [
         row["tag"]
         for row in db.conn.execute(
             f"SELECT DISTINCT tag FROM etymon_tag WHERE etymon_id IN ({placeholders}) ORDER BY tag",
             member_ids,
         )
     ]
-    # Per-reflex linked etymon ids (within this family). Lets us narrow the
-    # exported language array per word at group-build time — without this, a
-    # subject grouping a Celtic family and an OE family would emit each
-    # reflex's word with both languages even when the reflex only links to
-    # one of them.
+
+
+def _fetch_member_reflex_links(
+    db: LexiconDB, member_ids: list[int]
+) -> dict[int, list[int]]:
+    """Per-reflex linked etymon ids (within this family).
+
+    Lets us narrow the exported language array per word at group-build
+    time — without this, a subject grouping a Celtic family and an OE
+    family would emit each reflex's word with both languages even when
+    the reflex only links to one of them.
+    """
+    placeholders = ",".join("?" * len(member_ids))
     reflex_links: dict[int, list[int]] = {}
     for row in db.conn.execute(
         f"SELECT re.reflex_id, re.etymon_id "
@@ -1695,8 +1743,15 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
         member_ids,
     ):
         reflex_links.setdefault(row["reflex_id"], []).append(row["etymon_id"])
+    return reflex_links
 
-    reflexes = [
+
+def _fetch_member_reflexes(
+    db: LexiconDB, member_ids: list[int], reflex_links: dict[int, list[int]]
+) -> list[dict[str, Any]]:
+    """Reflex rows (modern surface forms) linked to any family member."""
+    placeholders = ",".join("?" * len(member_ids))
+    return [
         {
             "id": row["id"],
             "surface_form": row["surface_form"],
@@ -1713,24 +1768,20 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
         )
     ]
 
-    member_form_by_id = {r["id"]: (r["language"], r["canonical_form"]) for r in member_rows}
 
-    # Inflection metadata per member_id: the etymon's grammatical case label
-    # (e.g. "dative_or_pl", "genitive_strong"). Lemmas have None — they're
-    # the unmarked headword. Per D8 generation can compose <lemma>@<inflection>
-    # at render time so a name picks an inflected surface form. Only inflected
-    # children carry labels; the lemma's None entry is preserved so callers
-    # can distinguish "no inflection (lemma)" from "inflected but unknown".
-    member_inflection_by_id: dict[int, str | None] = {r["id"]: r["inflection"] for r in member_rows}
+def _fetch_member_variants(
+    db: LexiconDB, member_ids: list[int], canonical_forms_lower: set[str]
+) -> dict[int, list[tuple[str, int]]]:
+    """Spelling variant pool per member_id (D18).
 
-    # Spelling variant pool per (member_id, lang) → list of (form, weight).
-    # Pulls from etymon_text_match.matched_form: real attested 19th-c.
-    # spellings (denu/dene/denū/dená) and post-disambiguator winners. Per D18
-    # these are the surface-form randomization targets for archaic-feel
-    # generation. We dedupe against canonical_forms in the family so the
-    # pool only contains FORMS NEW TO THE GENERATOR — emitting "denu"
-    # when "denu" is also the canonical_form would be redundant.
-    canonical_forms_lower = {f.lower() for _lang, f in member_form_by_id.values()}
+    Pulls from etymon_text_match.matched_form: real attested 19th-c.
+    spellings (denu/dene/denū/dená) and post-disambiguator winners. These
+    are the surface-form randomization targets for archaic-feel
+    generation. Dedupes against canonical_forms_lower so the pool only
+    contains FORMS NEW TO THE GENERATOR — emitting "denu" when "denu" is
+    also the canonical_form would be redundant.
+    """
+    placeholders = ",".join("?" * len(member_ids))
     member_variants: dict[int, list[tuple[str, int]]] = {}
     for row in db.conn.execute(
         f"SELECT etymon_id, matched_form, SUM(match_count) AS total_count "
@@ -1745,19 +1796,25 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
         member_variants.setdefault(row["etymon_id"], []).append(
             (row["matched_form"], row["total_count"])
         )
+    return member_variants
 
-    # Precompute per-member descendants (transitive) so a reflex linked to
-    # a lemma picks up the lemma's inflected children + OCR-cluster losers
-    # rather than just the directly-linked etymon. The graph is shallow
-    # (D22 flatten-at-merge-time keeps chains at depth ≤ 2), so a single
-    # inversion pass suffices.
+
+def _compute_member_descendants(member_rows: list[Any]) -> dict[int, list[int]]:
+    """Transitive descendants per member_id (DB-free DFS).
+
+    Lets a reflex linked to a lemma pick up the lemma's inflected children
+    + OCR-cluster losers rather than just the directly-linked etymon. The
+    graph is shallow (D22 flatten-at-merge-time keeps chains at depth ≤
+    2), so a single inversion pass suffices.
+    """
     children: dict[int, list[int]] = {}
     for r in member_rows:
         parent_id = r["lemma_id"] or r["merged_into_id"]
         if parent_id is not None:
             children.setdefault(parent_id, []).append(r["id"])
     member_descendants: dict[int, list[int]] = {}
-    for member_id in member_form_by_id:
+    for r in member_rows:
+        member_id = r["id"]
         descendants = [member_id]
         stack = list(children.get(member_id, []))
         while stack:
@@ -1767,22 +1824,7 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
             descendants.append(d)
             stack.extend(children.get(d, []))
         member_descendants[member_id] = descendants
-
-    return {
-        "root_id": root_id,
-        "root_canonical_form": root_row["canonical_form"],
-        "root_language": root_row["language"],
-        "modifier_type": root_row["modifier_type"],
-        "position_pref": root_row["position_pref"],
-        "forms_by_lang": forms_by_lang,
-        "member_form_by_id": member_form_by_id,
-        "member_descendants": member_descendants,
-        "member_variants": member_variants,
-        "member_inflection_by_id": member_inflection_by_id,
-        "glosses": glosses,
-        "tags": tags,
-        "reflexes": reflexes,
-    }
+    return member_descendants
 
 
 def _group_families_into_subjects(families: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1830,23 +1872,53 @@ def _group_families_into_subjects(families: list[dict[str, Any]]) -> list[dict[s
 
 
 def _build_words_for_group(fams: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Assemble the `words` list for a subject grouping multiple families."""
+    """Assemble the `words` list for a subject grouping multiple families.
+
+    Sort families deterministically, partition into reflex-linked vs.
+    reflex-less, then dispatch each group to a focused word-builder.
+    """
     # Sort families by canonical_form/language so the export output is
     # deterministic — root_ids are AUTOINCREMENT and therefore unstable
     # across DB rebuilds, which would otherwise churn the diff in version
     # control even when no semantic content changed.
     fams = sorted(fams, key=lambda f: (f["root_canonical_form"], f["root_language"]))
 
-    # Build reflex_id → list of (family, list[linked_member_id]) so each
-    # reflex's word entry only includes language forms from the etymons
-    # it's actually linked to, not from every family in the subject.
-    # Per the original meanings.json shape (e.g. "Alder tree"), reflexes
-    # are language-specific: '-farne' carries celtic_mix only, 'Alder-'
-    # carries old_english only. seed_from_meanings preserves this in
-    # reflex_etymon, and the export must too.
+    reflex_to_links, reflex_meta, families_without_reflex = _partition_families_by_reflex(fams)
+
+    words: list[dict[str, Any]] = []
+    for reflex_id in sorted(
+        reflex_to_links,
+        key=lambda rid: (reflex_meta[rid]["position"], reflex_meta[rid]["surface_form"]),
+    ):
+        words.append(_word_for_reflex(reflex_meta[reflex_id], reflex_to_links[reflex_id]))
+
+    for fam in families_without_reflex:
+        words.append(_synthesize_word_for_family(fam))
+
+    return words
+
+
+def _partition_families_by_reflex(
+    fams: list[dict[str, Any]],
+) -> tuple[
+    dict[int, list[tuple[dict[str, Any], list[int]]]],
+    dict[int, dict[str, Any]],
+    list[dict[str, Any]],
+]:
+    """Split families into reflex-linked and reflex-less groups.
+
+    Returns ``(reflex_to_links, reflex_meta, families_without_reflex)``.
+    ``reflex_to_links[reflex_id]`` is a list of ``(family, linked_member_ids)``
+    tuples so each reflex's word entry only includes language forms from
+    the etymons it's actually linked to, not from every family in the
+    subject. Per the original meanings.json shape (e.g. "Alder tree"),
+    reflexes are language-specific: '-farne' carries celtic_mix only,
+    'Alder-' carries old_english only. seed_from_meanings preserves this
+    in reflex_etymon, and the export must too.
+    """
     reflex_to_links: dict[int, list[tuple[dict[str, Any], list[int]]]] = {}
-    families_without_reflex: list[dict[str, Any]] = []
     reflex_meta: dict[int, dict[str, Any]] = {}
+    families_without_reflex: list[dict[str, Any]] = []
     for fam in fams:
         if not fam["reflexes"]:
             families_without_reflex.append(fam)
@@ -1854,85 +1926,106 @@ def _build_words_for_group(fams: list[dict[str, Any]]) -> list[dict[str, Any]]:
         for r in fam["reflexes"]:
             reflex_meta[r["id"]] = r
             reflex_to_links.setdefault(r["id"], []).append((fam, r["linked_member_ids"]))
+    return reflex_to_links, reflex_meta, families_without_reflex
 
-    words: list[dict[str, Any]] = []
-    for reflex_id in sorted(
-        reflex_to_links,
-        key=lambda rid: (reflex_meta[rid]["position"], reflex_meta[rid]["surface_form"]),
-    ):
-        meta = reflex_meta[reflex_id]
-        word: dict[str, Any] = {"modern_usage": meta["surface_form"]}
-        per_lang: dict[str, list[str]] = {}
-        per_lang_variants: dict[str, dict[str, int]] = {}
-        per_lang_inflections: dict[str, dict[str, str]] = {}
-        for fam, linked_ids in reflex_to_links[reflex_id]:
-            # For each linked etymon, walk its descendants so the reflex
-            # picks up the lemma's inflected variants (D8) and OCR-cluster
-            # losers (D22) — not just the seeded etymon itself.
-            for member_id in linked_ids:
-                for descendant_id in fam["member_descendants"][member_id]:
-                    lang, form = fam["member_form_by_id"][descendant_id]
-                    bucket = per_lang.setdefault(lang, [])
-                    if form not in bucket:
-                        bucket.append(form)
-                    # Spelling variants riding along (D18): aggregate across
-                    # all etymons in the descendant set, summing weights when
-                    # the same matched_form appears for multiple etymons in
-                    # the same language.
-                    for variant_form, weight in fam.get("member_variants", {}).get(
-                        descendant_id, []
-                    ):
-                        lang_variants = per_lang_variants.setdefault(lang, {})
-                        lang_variants[variant_form] = lang_variants.get(variant_form, 0) + weight
-                    # Inflection metadata (D8): non-lemma members carry a
-                    # grammatical case label; surface them so the runtime
-                    # can compose <lemma>@<inflection> at render time.
-                    inflection = fam.get("member_inflection_by_id", {}).get(descendant_id)
-                    if inflection:
-                        per_lang_inflections.setdefault(lang, {})[form] = inflection
-        for lang in sorted(per_lang):
-            json_field = _LANG_CODE_TO_JSON_FIELD.get(lang)
-            if json_field:
-                word[json_field] = per_lang[lang]
-                if lang in per_lang_variants:
-                    word[f"{json_field}_variants"] = _emit_variant_list(per_lang_variants[lang])
-                if lang in per_lang_inflections:
-                    word[f"{json_field}_inflections"] = _emit_inflection_list(
-                        per_lang_inflections[lang]
-                    )
-        words.append(word)
 
-    for fam in families_without_reflex:
-        usage = _synthesize_modern_usage(fam)
-        word = {"modern_usage": usage}
-        for lang in sorted(fam["forms_by_lang"]):
-            json_field = _LANG_CODE_TO_JSON_FIELD.get(lang)
-            if json_field:
-                word[json_field] = list(fam["forms_by_lang"][lang])
-                # Synthesized words pull their family's variants/inflections
-                # en bloc (no per-reflex narrowing applies — there's no reflex).
-                fam_variants_in_lang: dict[str, int] = {}
-                fam_inflections_in_lang: dict[str, str] = {}
-                for member_id in fam["member_form_by_id"]:
-                    member_lang, member_form = fam["member_form_by_id"][member_id]
-                    if member_lang != lang:
-                        continue
-                    for variant_form, weight in fam.get("member_variants", {}).get(member_id, []):
-                        fam_variants_in_lang[variant_form] = (
-                            fam_variants_in_lang.get(variant_form, 0) + weight
-                        )
-                    inflection = fam.get("member_inflection_by_id", {}).get(member_id)
-                    if inflection:
-                        fam_inflections_in_lang[member_form] = inflection
-                if fam_variants_in_lang:
-                    word[f"{json_field}_variants"] = _emit_variant_list(fam_variants_in_lang)
-                if fam_inflections_in_lang:
-                    word[f"{json_field}_inflections"] = _emit_inflection_list(
-                        fam_inflections_in_lang
-                    )
-        words.append(word)
+def _word_for_reflex(
+    meta: dict[str, Any], link_pairs: list[tuple[dict[str, Any], list[int]]]
+) -> dict[str, Any]:
+    """Assemble one word entry for a reflex linked to one or more families.
 
-    return words
+    Walks each linked etymon's descendants so the reflex picks up the
+    lemma's inflected children (D8) and OCR-cluster losers (D22) —
+    not just the seeded etymon itself.
+    """
+    per_lang: dict[str, list[str]] = {}
+    per_lang_variants: dict[str, dict[str, int]] = {}
+    per_lang_inflections: dict[str, dict[str, str]] = {}
+    for fam, linked_ids in link_pairs:
+        for member_id in linked_ids:
+            for descendant_id in fam["member_descendants"][member_id]:
+                lang, form = fam["member_form_by_id"][descendant_id]
+                bucket = per_lang.setdefault(lang, [])
+                if form not in bucket:
+                    bucket.append(form)
+                _absorb_member_variants(per_lang_variants, fam, descendant_id, lang)
+                _absorb_member_inflection(per_lang_inflections, fam, descendant_id, lang, form)
+    word: dict[str, Any] = {"modern_usage": meta["surface_form"]}
+    _emit_word_languages(word, per_lang, per_lang_variants, per_lang_inflections)
+    return word
+
+
+def _synthesize_word_for_family(fam: dict[str, Any]) -> dict[str, Any]:
+    """Assemble a synthesized word for a family that has no linked reflex.
+
+    Uses the family's canonical_forms en bloc (no per-reflex narrowing
+    applies). The whole family's variants and inflections fold in by
+    matching language.
+    """
+    word: dict[str, Any] = {"modern_usage": _synthesize_modern_usage(fam)}
+    per_lang: dict[str, list[str]] = {
+        lang: list(fam["forms_by_lang"][lang]) for lang in fam["forms_by_lang"]
+    }
+    per_lang_variants: dict[str, dict[str, int]] = {}
+    per_lang_inflections: dict[str, dict[str, str]] = {}
+    for member_id, (member_lang, member_form) in fam["member_form_by_id"].items():
+        _absorb_member_variants(per_lang_variants, fam, member_id, member_lang)
+        _absorb_member_inflection(
+            per_lang_inflections, fam, member_id, member_lang, member_form
+        )
+    _emit_word_languages(word, per_lang, per_lang_variants, per_lang_inflections)
+    return word
+
+
+def _absorb_member_variants(
+    per_lang_variants: dict[str, dict[str, int]],
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+) -> None:
+    """Aggregate D18 spelling variants for one (member, language) into the
+    per-language pool, summing weights on collision. Caller guarantees
+    `lang` matches the member's language so callers don't accidentally
+    cross-pollinate across languages."""
+    for variant_form, weight in fam.get("member_variants", {}).get(member_id, []):
+        lang_variants = per_lang_variants.setdefault(lang, {})
+        lang_variants[variant_form] = lang_variants.get(variant_form, 0) + weight
+
+
+def _absorb_member_inflection(
+    per_lang_inflections: dict[str, dict[str, str]],
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+    form: str,
+) -> None:
+    """Record a member's D8 inflection label (if any) keyed by its surface
+    form. Lemmas have inflection=None and are skipped — only inflected
+    children carry a grammatical-case label worth surfacing."""
+    inflection = fam.get("member_inflection_by_id", {}).get(member_id)
+    if inflection:
+        per_lang_inflections.setdefault(lang, {})[form] = inflection
+
+
+def _emit_word_languages(
+    word: dict[str, Any],
+    per_lang: dict[str, list[str]],
+    per_lang_variants: dict[str, dict[str, int]],
+    per_lang_inflections: dict[str, dict[str, str]],
+) -> None:
+    """Stamp per-language form arrays + sibling _variants / _inflections
+    metadata onto the word dict. Per D26, the metadata fields are sibling
+    keys (`<lang>_variants`, `<lang>_inflections`) so legacy loaders that
+    ignore unknown fields keep working."""
+    for lang in sorted(per_lang):
+        json_field = _LANG_CODE_TO_JSON_FIELD.get(lang)
+        if not json_field:
+            continue
+        word[json_field] = per_lang[lang]
+        if lang in per_lang_variants:
+            word[f"{json_field}_variants"] = _emit_variant_list(per_lang_variants[lang])
+        if lang in per_lang_inflections:
+            word[f"{json_field}_inflections"] = _emit_inflection_list(per_lang_inflections[lang])
 
 
 def _emit_variant_list(variants: dict[str, int]) -> list[dict[str, Any]]:
