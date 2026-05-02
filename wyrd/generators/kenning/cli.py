@@ -1741,6 +1741,9 @@ def lexicon_disambiguate_fuzzy(
             )
             if apply_changes and write_db is not None:
                 action = apply_disambiguator_result(write_db, case, result)
+                # Commit per-row so a crash mid-run doesn't lose previously
+                # disambiguated rows (the LLM calls have already been paid for).
+                write_db.commit()
             else:
                 # Dry-run: mirror the same action-classification so the
                 # summary tells the operator what would have happened.
@@ -1751,8 +1754,6 @@ def lexicon_disambiguate_fuzzy(
                 else:
                     action = "reassigned"
             counts[action] += 1
-        if write_db is not None:
-            write_db.commit()
     finally:
         if write_db is not None:
             write_db.close()
