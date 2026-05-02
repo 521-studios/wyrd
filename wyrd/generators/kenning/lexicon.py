@@ -1071,9 +1071,10 @@ def fuzzy_search_attestations(
     # that are independently attested as their own etymons (herath ↔ heath).
     # OCR variants between two etymons should be merged by normalize-ocr
     # upstream, not connected through fuzzy-search.
-    other_canonicals: set[str] = set()
-    for r in db.conn.execute("SELECT canonical_form FROM etymon WHERE merged_into_id IS NULL"):
-        other_canonicals.add(normalize_ocr_form(r["canonical_form"]))
+    other_canonicals: set[str] = {
+        normalize_ocr_form(r["canonical_form"])
+        for r in db.conn.execute("SELECT canonical_form FROM etymon WHERE merged_into_id IS NULL")
+    }
 
     matches: dict[int, list[tuple[str, str, int, int, str]]] = {}
     # value: (source_id, matched_form, distance, count, snippet)
