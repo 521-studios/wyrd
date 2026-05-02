@@ -1906,6 +1906,37 @@ def test_export_meanings_groups_multiple_families_into_one_subject(
     assert usages == ["-cot", "-ham"]
 
 
+def test_export_meanings_narrows_word_language_to_linked_etymons(
+    fresh_db: Path,
+) -> None:
+    """A subject grouping a Celtic family and an Old English family must NOT
+    bleed forms across reflexes: '-don' (linked to OE) carries old_english
+    only; 'Bre-' (linked to Celtic) carries celtic_mix only. Without per-
+    reflex narrowing the explainer would falsely attribute 'don' to Celtic
+    and vice versa (wyrd-mzl regression guard)."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["Hill"],
+            tags=["topography"],
+            modifier_type="Topographical",
+            words=[
+                {"modern_usage": "Bre-", "celtic_mix": ["bre"]},
+                {"modern_usage": "-don", "old_english": ["dun"]},
+            ],
+        )
+        subjects = export_meanings(db, include_rando=True)
+
+    assert len(subjects) == 1
+    by_usage = {w["modern_usage"]: w for w in subjects[0]["words"]}
+    assert "celtic_mix" in by_usage["Bre-"]
+    assert "old_english" not in by_usage["Bre-"]
+    assert "old_english" in by_usage["-don"]
+    assert "celtic_mix" not in by_usage["-don"]
+
+
 def test_export_meanings_round_trips_through_load_meanings(fresh_db: Path) -> None:
     """A seeded subject exports to a structure the runtime can re-load via
     load_meanings — closes the authoring↔runtime loop end-to-end."""
