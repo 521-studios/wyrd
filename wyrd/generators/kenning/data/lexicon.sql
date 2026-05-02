@@ -100,9 +100,12 @@ CREATE TABLE etymon_text_match (
   edit_distance INTEGER NOT NULL DEFAULT 0,  -- 0 = exact, 1-2 = fuzzy
   snippet       TEXT,
   -- Which heuristic produced this row: 'reverse-search-v1',
-  -- 'fuzzy-search-v1', 'llm-disambiguator-v1', etc. Lets a future rebuild
+  -- 'fuzzy-search-v1', 'llm-disambiguated-v1', etc. Lets a future rebuild
   -- selectively clear-and-regenerate by method.
   method        TEXT NOT NULL DEFAULT 'reverse-search-v1',
+  -- One-sentence reason from the LLM disambiguator (wyrd-6z7), set when
+  -- method='llm-disambiguated-v1'. Null for purely heuristic rows.
+  disambiguator_reason TEXT,
   UNIQUE (etymon_id, source_id, matched_form)
 );
 CREATE INDEX idx_etymon_text_match_etymon ON etymon_text_match(etymon_id);
