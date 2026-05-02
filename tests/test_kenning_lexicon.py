@@ -8,7 +8,9 @@ from importlib import resources
 from pathlib import Path
 
 import pytest
+from click.testing import CliRunner
 
+from wyrd.generators.kenning.cli import cli as kenning_cli
 from wyrd.generators.kenning.lexicon import (
     LANGUAGE_FIELDS,
     NON_LANGUAGE_FIELDS,
@@ -27,6 +29,7 @@ from wyrd.generators.kenning.lexicon import (
     record_mining_run,
     seed_from_meanings,
 )
+from wyrd.generators.kenning.meaning import load_meanings
 from wyrd.generators.kenning.skeat_parser import ParsedElement, ParsedEntry
 
 
@@ -1790,11 +1793,122 @@ def test_export_meanings_synthesizes_with_position_pref(fresh_db: Path) -> None:
     assert subjects[0]["words"][0]["modern_usage"] == "-ham"
 
 
+def test_export_meanings_synthesizes_pre_position_with_trailing_dash(
+    fresh_db: Path,
+) -> None:
+    """position_pref='pre' produces 'foo-' usage."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b", "c"):
+            db.upsert_source(id=src, title=src)
+        e_id = db.upsert_etymon("ada", "old-english", position_pref="pre")
+        db.add_gloss(e_id, "Ada (Name)")
+        for src in ("a", "b", "c"):
+            db.add_citation(e_id, src)
+        db.commit()
+        subjects = export_meanings(db, include_rando=False, min_witnesses=3)
+    assert subjects[0]["words"][0]["modern_usage"] == "ada-"
+
+
+def test_export_meanings_synthesizes_inner_position_with_dashes_both_sides(
+    fresh_db: Path,
+) -> None:
+    """position_pref='inner' produces '-foo-' usage."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b", "c"):
+            db.upsert_source(id=src, title=src)
+        e_id = db.upsert_etymon("ar", "old-english", position_pref="inner")
+        db.add_gloss(e_id, "of the")
+        for src in ("a", "b", "c"):
+            db.add_citation(e_id, src)
+        db.commit()
+        subjects = export_meanings(db, include_rando=False, min_witnesses=3)
+    assert subjects[0]["words"][0]["modern_usage"] == "-ar-"
+
+
+def test_export_meanings_includes_orphan_reflex_subjects(fresh_db: Path) -> None:
+    """A reflex with no linked etymon (rando seed of {'modern_usage': 'Adam-'}
+    or {'celtic_mix': [], 'modern_usage': 'Bre-'}) still gets exported as its
+    own subject so per-culture proportions can resolve the usage."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        # Subject with empty language slots — produces an orphan reflex.
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["Adam (Name)"],
+            tags=["male name"],
+            modifier_type="Habitative",
+            words=[{"modern_usage": "Adam-"}],
+        )
+        subjects = export_meanings(db, include_rando=True)
+
+    orphan_words = [
+        w["modern_usage"]
+        for s in subjects
+        for w in s["words"]
+        if not any(k != "modern_usage" for k in w)
+    ]
+    assert "Adam-" in orphan_words
+
+
+def test_export_meanings_orphan_reflexes_skipped_when_include_rando_false(
+    fresh_db: Path,
+) -> None:
+    """Orphan reflexes are rando-port-only data; --no-include-rando drops them."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=[],
+            tags=[],
+            modifier_type=None,
+            words=[{"modern_usage": "Adam-"}],
+        )
+        subjects = export_meanings(db, include_rando=False)
+    assert subjects == []
+
+
+def test_export_meanings_groups_multiple_families_into_one_subject(
+    fresh_db: Path,
+) -> None:
+    """Two distinct families with the same (modifier_type, glosses, tags)
+    signature collapse into one subject with multiple words. This exercises
+    the dict-based grouping in _group_families_into_subjects."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b", "c", "d", "e", "f"):
+            db.upsert_source(id=src, title=src)
+        # Two distinct lemmas, same gloss/tag/modifier_type signature.
+        # Each gets a separate reflex linked to it.
+        cot_id = db.upsert_etymon(
+            "cot", "old-english", modifier_type="Habitative", position_pref="post"
+        )
+        ham_id = db.upsert_etymon(
+            "ham", "old-english", modifier_type="Habitative", position_pref="post"
+        )
+        for e_id in (cot_id, ham_id):
+            db.add_gloss(e_id, "homestead")
+            db.add_tag(e_id, "habitation")
+        for src in ("a", "b", "c"):
+            db.add_citation(cot_id, src)
+        for src in ("d", "e", "f"):
+            db.add_citation(ham_id, src)
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=False, min_witnesses=3)
+
+    # Single subject because both families share the same signature.
+    assert len(subjects) == 1
+    subj = subjects[0]
+    assert subj["meaning"] == ["homestead"]
+    assert subj["modifier_tags"] == ["habitation"]
+    usages = sorted(w["modern_usage"] for w in subj["words"])
+    assert usages == ["-cot", "-ham"]
+
+
 def test_export_meanings_round_trips_through_load_meanings(fresh_db: Path) -> None:
     """A seeded subject exports to a structure the runtime can re-load via
     load_meanings — closes the authoring↔runtime loop end-to-end."""
-    from wyrd.generators.kenning.meaning import load_meanings
-
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="rando-port", title="rando")
         _seed_subject(
@@ -1815,3 +1929,81 @@ def test_export_meanings_round_trips_through_load_meanings(fresh_db: Path) -> No
     assert "-don" in meaning_db
     assert any("topography" in m.tags for m in meaning_db["Bre-"])
     assert "topography" in tag_db
+
+
+def test_export_meanings_cli_writes_file(fresh_db: Path, tmp_path: Path) -> None:
+    """CLI command writes JSON to --output path and reports the subject count."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["Hill"],
+            tags=["topography"],
+            modifier_type="Topographical",
+            words=[{"modern_usage": "-hill", "old_english": ["hyll"]}],
+        )
+
+    out_path = tmp_path / "meanings.json"
+    result = CliRunner().invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "export-meanings",
+            "--db",
+            str(fresh_db),
+            "--output",
+            str(out_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "Wrote 1 subjects" in result.stderr
+    payload = json.loads(out_path.read_text())
+    assert len(payload) == 1
+    assert payload[0]["meaning"] == ["Hill"]
+    assert payload[0]["words"][0]["modern_usage"] == "-hill"
+
+
+def test_export_meanings_cli_emits_to_stdout(fresh_db: Path) -> None:
+    """Without --output, the CLI emits the JSON payload to stdout."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["Hill"],
+            tags=["topography"],
+            modifier_type="Topographical",
+            words=[{"modern_usage": "-hill", "old_english": ["hyll"]}],
+        )
+
+    result = CliRunner().invoke(
+        kenning_cli,
+        ["lexicon", "export-meanings", "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.stdout)
+    assert any(s["meaning"] == ["Hill"] for s in payload)
+
+
+def test_export_meanings_output_is_byte_stable_across_runs(fresh_db: Path) -> None:
+    """Same DB → same JSON bytes. AUTOINCREMENT root_ids and SQLite's
+    iteration order can shuffle results between fresh seeds; the export must
+    sort comprehensively enough to defeat that."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b", "c"):
+            db.upsert_source(id=src, title=src)
+        # Two families with the same signature — exercises tie-breaking in
+        # _group_families_into_subjects' sort key.
+        for form in ("cot", "ham"):
+            e_id = db.upsert_etymon(
+                form, "old-english", modifier_type="Habitative", position_pref="post"
+            )
+            db.add_gloss(e_id, "homestead")
+            db.add_tag(e_id, "habitation")
+            for src in ("a", "b", "c"):
+                db.add_citation(e_id, src)
+        db.commit()
+        first = json.dumps(export_meanings(db, include_rando=False, min_witnesses=3))
+        second = json.dumps(export_meanings(db, include_rando=False, min_witnesses=3))
+    assert first == second

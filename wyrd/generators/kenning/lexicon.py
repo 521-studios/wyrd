@@ -1577,6 +1577,7 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
         LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
         LEFT JOIN etymon le ON le.id = target.lemma_id
         WHERE COALESCE(le.id, target.id, e.id) = ?
+        ORDER BY e.language, e.canonical_form
         """,
         (root_id,),
     ).fetchall()
@@ -1670,11 +1671,15 @@ def _group_families_into_subjects(families: list[dict[str, Any]]) -> list[dict[s
         }
         subjects.append(subject)
 
+    # Fully-discriminating sort key: every field that varies across subjects
+    # must be in the tuple. Otherwise ties fall back to dict insertion order,
+    # which traces back to AUTOINCREMENT root_ids and re-shuffles on rebuild.
     subjects.sort(
         key=lambda s: (
             s.get("modifier_type") or "",
-            s["meaning"][0] if s["meaning"] else "",
-            s["words"][0]["modern_usage"] if s["words"] else "",
+            tuple(s["meaning"]),
+            tuple(s["modifier_tags"]),
+            tuple(w["modern_usage"] for w in s["words"]),
         )
     )
     return subjects
