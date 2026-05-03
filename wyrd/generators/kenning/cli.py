@@ -27,6 +27,7 @@ from wyrd.generators.kenning import (
     llm_extractor,
 )
 from wyrd.generators.kenning.dictionary_parser import parse_alphabetical_text
+from wyrd.generators.kenning.era import era_cell, language_family
 from wyrd.generators.kenning.lexicon import (
     LANGUAGE_FIELDS,
     RECOMMENDED_LANG_THRESHOLDS,
@@ -50,7 +51,6 @@ from wyrd.generators.kenning.lexicon import (
     reverse_search_attestations,
     seed_from_meanings,
 )
-from wyrd.generators.kenning.era import era_cell, language_family
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.name import load_names
 from wyrd.generators.kenning.paths import (
