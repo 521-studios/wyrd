@@ -1180,6 +1180,47 @@ def test_lexicon_mine_llm_records_mining_run_at_end_of_run(
     assert row["rejected"] == 0
 
 
+def test_reverse_search_captures_wider_snippet_window(fresh_db: Path, tmp_path: Path) -> None:
+    """wyrd-9kh.4: reverse_search_attestations writes ±100 char snippets
+    (up from the prior ±60). Pins the wider window so the SPA citation
+    panel has enough surrounding scholarly prose to display."""
+    from wyrd.generators.kenning.lexicon import reverse_search_attestations
+
+    # Build a long body with the matched form near the middle so ±100
+    # chars on either side comfortably stay within the body.
+    pre = "a " * 80  # 160 chars
+    post = " b" * 80  # 160 chars
+    body = f"{pre}MARKER ham TRAIL{post}"
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "test_book.txt").write_text(body)
+
+    with LexiconDB(fresh_db) as db:
+        ham_id = db.upsert_etymon("ham", "old-english")
+        db.upsert_source(id="rando-port", title="Rando port (seed)")
+        db.upsert_source(id="test_book", title="Test Book")
+        db.add_citation(ham_id, "rando-port")
+        db.commit()
+
+        reverse_search_attestations(db, sources_dir, apply=True, min_form_length=3)
+
+        snippet = db.conn.execute(
+            "SELECT snippet FROM etymon_text_match WHERE etymon_id = ?",
+            (ham_id,),
+        ).fetchone()["snippet"]
+
+    # Both the leading MARKER and trailing TRAIL words should be
+    # captured: they sit ~6 chars from the «ham» match. A ±60 window
+    # would still catch them; the wider window also pulls in some of
+    # the surrounding 'a / b' filler. Verify by character count: the
+    # snippet should be at least 150 chars (well over the old ±60
+    # window's 126-char ceiling around the 5-char match).
+    assert "marker" in snippet.lower()
+    assert "trail" in snippet.lower()
+    assert "«ham»" in snippet
+    assert len(snippet) > 150, f"snippet only {len(snippet)} chars: {snippet!r}"
+
+
 def test_fuzzy_search_skips_match_when_token_is_canonical_etymon(
     fresh_db: Path, tmp_path: Path
 ) -> None:
