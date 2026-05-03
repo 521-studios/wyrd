@@ -1776,6 +1776,15 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     wins. Iteration order is sorted by root id so the assignment is
     bit-stable across runs.
 
+    Operates in CANONICAL space (per D22 / wyrd-223): edges'
+    parent_id and child_id are resolved through merged_into_id before
+    use, so a descent edge that points at an OCR-merge tombstone is
+    treated as if it pointed at the canonical winner. synset_id is
+    written on canonical etymons only; tombstones stay NULL (and are
+    rolled up at query time via merged_into_id chain). This bridges
+    cross-source canonical-form mismatches like wiktextract's
+    `tun` vs the place-name dictionaries' `tūn`.
+
     With apply=False (default) reports candidate counts without writing.
     With apply=True writes synset_id + synset_method='cluster-cognates-v1'
     only on rows whose current (synset_id, synset_method) doesn't already
@@ -1784,42 +1793,62 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     `clear-enrichment --stage=cognates --apply`.
 
     Returns a dict of:
-      - roots: number of root etymons walked
-      - candidates: total etymons that received (or would receive) a
-        synset_id assignment
+      - roots: number of canonical root etymons walked
+      - candidates: total canonical etymons that received (or would
+        receive) a synset_id assignment
       - applied: whether writes happened
       - rows_written: count of UPDATE statements that actually changed
         a row (always 0 in dry-run; ≤ candidates when applied)
-      - cycle_orphans: count of etymons that participate in bridging
-        edges but couldn't be assigned because they sit in a cycle with
-        no external root. Healthy data should report 0 here; non-zero
-        means the descent graph has at least one closed loop with no
-        anchor — worth flagging in operator output.
+      - cycle_orphans: count of canonical etymons that participate in
+        bridging edges but couldn't be assigned because they sit in a
+        cycle with no external root. Healthy data should report 0 here;
+        non-zero means the descent graph has at least one closed loop
+        with no anchor — worth flagging in operator output.
     """
     # f-string interpolation of `placeholders` is safe here:
     # _COGNATE_BRIDGING_EDGES is a module-level tuple of code-controlled
     # strings, never user input, so no SQL injection risk. Edge values
     # themselves are bound via parameters.
     placeholders = ", ".join(["?"] * len(_COGNATE_BRIDGING_EDGES))
-    roots = [
-        row["id"]
+
+    # Build the canonical edge set: every descent edge with both
+    # endpoints resolved through merged_into_id. Returns
+    # (parent_canon_id, child_canon_id) tuples. Self-loops introduced
+    # by the resolution (parent and child both merge into the same
+    # canonical) are filtered out — they'd waste a BFS node and offer
+    # zero clustering signal.
+    canonical_edges = [
+        (row["parent_canon"], row["child_canon"])
         for row in db.conn.execute(
             f"""
-            SELECT DISTINCT e.id
-            FROM etymon e
-            WHERE EXISTS (
-              SELECT 1 FROM etymon_descent d
-              WHERE d.parent_id = e.id AND d.edge_type IN ({placeholders})
-            )
-            AND NOT EXISTS (
-              SELECT 1 FROM etymon_descent d
-              WHERE d.child_id = e.id AND d.edge_type IN ({placeholders})
-            )
-            ORDER BY e.id
+            SELECT
+              COALESCE(p.merged_into_id, d.parent_id) AS parent_canon,
+              COALESCE(c.merged_into_id, d.child_id) AS child_canon
+            FROM etymon_descent d
+            JOIN etymon p ON p.id = d.parent_id
+            JOIN etymon c ON c.id = d.child_id
+            WHERE d.edge_type IN ({placeholders})
             """,
-            _COGNATE_BRIDGING_EDGES * 2,
+            _COGNATE_BRIDGING_EDGES,
         ).fetchall()
+        if row["parent_canon"] != row["child_canon"]
     ]
+
+    # Build child-of-parent index for the BFS. Parent → set of children.
+    children_by_parent: dict[int, set[int]] = {}
+    bridging_participants: set[int] = set()
+    parent_set: set[int] = set()
+    child_set: set[int] = set()
+    for parent_id, child_id in canonical_edges:
+        children_by_parent.setdefault(parent_id, set()).add(child_id)
+        bridging_participants.add(parent_id)
+        bridging_participants.add(child_id)
+        parent_set.add(parent_id)
+        child_set.add(child_id)
+
+    # Roots: canonical etymons that appear as parent but never as
+    # child in the canonical edge set.
+    roots = sorted(parent_set - child_set)
 
     assignments: dict[int, int] = {}
     for root_id in roots:
@@ -1831,38 +1860,14 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
         while frontier:
             next_frontier: list[int] = []
             for node_id in frontier:
-                children = db.conn.execute(
-                    f"SELECT child_id FROM etymon_descent "
-                    f"WHERE parent_id = ? AND edge_type IN ({placeholders})",
-                    (node_id, *_COGNATE_BRIDGING_EDGES),
-                ).fetchall()
-                for row in children:
-                    child_id = row["child_id"]
+                for child_id in children_by_parent.get(node_id, ()):
                     if child_id not in assignments:
                         assignments[child_id] = root_id
                         next_frontier.append(child_id)
             frontier = next_frontier
 
-    # Detect cycle-orphans: every etymon that participates in a bridging
-    # edge SHOULD be in `assignments` if a root reaches it. Anything left
-    # over sits in a closed loop with no external anchor and won't get
-    # a synset_id. Surface the count so operators notice — silent NULLs
-    # would be invisible.
-    bridging_participants = {
-        row["id"]
-        for row in db.conn.execute(
-            f"""
-            SELECT DISTINCT id FROM (
-              SELECT parent_id AS id FROM etymon_descent
-                WHERE edge_type IN ({placeholders})
-              UNION
-              SELECT child_id AS id FROM etymon_descent
-                WHERE edge_type IN ({placeholders})
-            )
-            """,
-            _COGNATE_BRIDGING_EDGES * 2,
-        ).fetchall()
-    }
+    # Cycle-orphans: canonical etymons that participate in bridging
+    # edges but never reached a root. A pure cycle has no anchor.
     cycle_orphans = bridging_participants - set(assignments.keys())
 
     rows_written = 0

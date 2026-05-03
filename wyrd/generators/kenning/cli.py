@@ -2344,12 +2344,6 @@ def lexicon_ingest_wiktionary(
             f"(operator may want to extend the maps in wiktextract_ingester.py)",
             err=True,
         )
-    if result["depth_jumps_recovered"]:
-        click.echo(
-            f"  depth_jumps_recovered = {result['depth_jumps_recovered']} "
-            f"(descendants entries with malformed depth markers)",
-            err=True,
-        )
     if not apply_changes:
         click.echo("(dry-run; pass --apply to commit)", err=True)
 
