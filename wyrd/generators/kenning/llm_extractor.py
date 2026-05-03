@@ -200,14 +200,14 @@ Content rules:
        publication years, folio numbers, or page numbers — DO NOT include
        them.
      - Skip non-attestation year mentions: publication-year citations
-       ("Mawer 1920"), document-name dates ("Pipe Roll, 1199" if it's
-       referring to the document type rather than to a dated form of the
-       place-name), and abbreviation expansions ("DB" for Domesday Book).
+       ("Mawer 1920"), document-name dates referring to the document
+       type rather than to a dated form of the place-name (see examples
+       below), and abbreviation expansions ("DB" for Domesday Book).
      - Multiple forms-and-years in one entry — emit one object per
        {form, year} pair.
      - Empty list when no dated forms are cited. DO NOT INVENT dates from
        general phrases like "in the 12th century" — only extract explicit
-       4-digit year citations.
+       year citations.
 
    Examples:
      Body: "Aburwick, 1333 ; Abberwyke, 1346 ; Aburwick, 1428"
@@ -217,14 +217,33 @@ Content rules:
            {"form": "Aburwick", "year": 1428}
          ]
 
-     Body: "Allendale, 1226. Earlier as Town, 1245."
+     Body: "Aldenwic, 1226 ; Aldwick, 1268"
        → attested_forms: [
-           {"form": "Allendale", "year": 1226},
-           {"form": "Town", "year": 1245}
+           {"form": "Aldenwic", "year": 1226},
+           {"form": "Aldwick", "year": 1268}
+         ]
+
+     Body: "Allendale appears as Alanedale (1265) and Aldenedall (1428)."
+       → attested_forms: [
+           {"form": "Alanedale", "year": 1265},
+           {"form": "Aldenedall", "year": 1428}
          ]
 
      Body: "From OE bere + tun. See Skeat (1901) for discussion."
        → attested_forms: []  (1901 is publication year, not attestation)
+
+     Body: "Recorded in the Pipe Roll, 1199."
+       → attested_forms: []
+       (The 1199 here dates the document, not a specific form of the
+       place-name. There's no spelling cited alongside the year.)
+
+     Body: "Bedeham (Pipe Roll 1199) ; Bedham (Subsidy Roll, 1296)."
+       → attested_forms: [
+           {"form": "Bedeham", "year": 1199},
+           {"form": "Bedham", "year": 1296}
+         ]
+       (Document names appear, but each is paired with a specific
+       attested spelling — capture those.)
 
 7. Output ONLY the JSON. No markdown, no prose, no thinking.
 """
@@ -367,6 +386,72 @@ def _form_in_body(form: str, body: str) -> bool:
     return _normalize_for_match(form) in _normalize_for_match(body)
 
 
+def _validate_attested_forms(response: dict, norm_body: str) -> list[ValidationFailure]:
+    """Validate the D5-1 attested_forms field. Empty / missing → no failures.
+
+    Run independently of the elements-side checks: the schema requires
+    attested_forms even when the model returned ``found=false``, because a
+    body can carry dated citations without an etymological claim
+    (a pure attestation list with year stamps and no analysis). So this
+    validator must run regardless of the found flag — see the call site in
+    validate_response.
+    """
+    failures: list[ValidationFailure] = []
+
+    # Tolerate absence: legacy stored fixtures and transport-error responses
+    # synthesized by ``transport_error_result`` don't carry the field. The
+    # live schema marks attested_forms required, so production responses
+    # always include it (possibly empty) — this branch is for historical /
+    # synthetic responses, not for live model output.
+    if "attested_forms" not in response:
+        return failures
+
+    attested = response.get("attested_forms") or []
+    if not isinstance(attested, list):
+        failures.append(
+            ValidationFailure("attested_forms_not_list", f"got {type(attested).__name__}")
+        )
+        return failures
+
+    for j, entry in enumerate(attested):
+        if not isinstance(entry, dict):
+            failures.append(
+                ValidationFailure(
+                    "attested_form_not_object",
+                    f"attested_forms[{j}] is {type(entry).__name__}",
+                )
+            )
+            continue
+        # Strip dashes the same way as element forms; otherwise the model
+        # could bypass the length floor with "-A-" or similar.
+        a_form = (entry.get("form") or "").strip().rstrip("-").lstrip("-")
+        if len(a_form) < 2 or _normalize_for_match(a_form) not in norm_body:
+            failures.append(
+                ValidationFailure(
+                    "attested_form_not_in_body",
+                    f"attested_forms[{j}].form={entry.get('form')!r}",
+                )
+            )
+        year = entry.get("year")
+        # bool is a subclass of int in Python; reject explicitly.
+        if not isinstance(year, int) or isinstance(year, bool):
+            failures.append(
+                ValidationFailure(
+                    "attested_year_not_int",
+                    f"attested_forms[{j}].year={year!r}",
+                )
+            )
+        elif not (_ATTESTED_YEAR_MIN <= year <= _ATTESTED_YEAR_MAX):
+            failures.append(
+                ValidationFailure(
+                    "attested_year_out_of_range",
+                    f"attested_forms[{j}].year={year}",
+                )
+            )
+
+    return failures
+
+
 def validate_response(
     response: dict, body: str, allowed_languages: set[str] = _ALLOWED_LANGUAGES
 ) -> list[ValidationFailure]:
@@ -375,10 +460,16 @@ def validate_response(
 
     Checks:
     - Schema-shaped (already enforced by Ollama, but defensive).
-    - Every element form appears in the body.
-    - Every gloss appears in the body (when present).
+    - Every element form appears in the body. Glosses are NOT validated
+      because they're allowed to paraphrase the source.
     - Languages and positions are from the allowed sets.
     - Element count is sane (1–4).
+    - attested_forms (D5-1) is well-shaped: each entry has a form that
+      appears in body, with a year integer in the 800-1700 range.
+
+    Element checks are skipped when ``found=false`` (a clean decline).
+    The attested_forms check runs even on declines — see
+    ``_validate_attested_forms`` for the rationale.
     """
     failures: list[ValidationFailure] = []
 
@@ -386,8 +477,14 @@ def validate_response(
         failures.append(ValidationFailure("not_object"))
         return failures
 
+    norm_body = _normalize_for_match(body)
+
+    # attested_forms must be validated regardless of found state — a model
+    # can emit dated citations on a "no etymology found" entry.
+    failures.extend(_validate_attested_forms(response, norm_body))
+
     if not response.get("found", False):
-        # Model declined; that's a clean "no extraction", not a failure.
+        # Model declined the etymology; element-side checks don't apply.
         return failures
 
     elements = response.get("elements") or []
@@ -396,9 +493,6 @@ def validate_response(
             ValidationFailure("element_count_out_of_range", f"got {len(elements)} elements")
         )
 
-    # Normalize the body once; the form-in-body check runs per element and the
-    # body is the larger of the two strings.
-    norm_body = _normalize_for_match(body)
     for i, el in enumerate(elements):
         form = (el.get("form") or "").strip().rstrip("-").lstrip("-")
         if len(form) < 2 or _normalize_for_match(form) not in norm_body:
@@ -416,51 +510,6 @@ def validate_response(
         # tracking it strictly against the source produces too many false
         # rejections (the model commonly compresses Skeat's "an enclosure"
         # to "enclosure", which is fine).
-
-    # attested_forms (D5-1 / wyrd-3ux) — dated historical-form citations.
-    # Tolerate absence: legacy responses produced before the schema added
-    # this field will not include it, and existing test fixtures and
-    # response captures should keep validating clean.
-    if "attested_forms" in response:
-        attested = response.get("attested_forms") or []
-        if not isinstance(attested, list):
-            failures.append(
-                ValidationFailure("attested_forms_not_list", f"got {type(attested).__name__}")
-            )
-        else:
-            for j, entry in enumerate(attested):
-                if not isinstance(entry, dict):
-                    failures.append(
-                        ValidationFailure(
-                            "attested_form_not_object",
-                            f"attested_forms[{j}] is {type(entry).__name__}",
-                        )
-                    )
-                    continue
-                a_form = (entry.get("form") or "").strip()
-                if len(a_form) < 2 or _normalize_for_match(a_form) not in norm_body:
-                    failures.append(
-                        ValidationFailure(
-                            "attested_form_not_in_body",
-                            f"attested_forms[{j}].form={entry.get('form')!r}",
-                        )
-                    )
-                year = entry.get("year")
-                if not isinstance(year, int) or isinstance(year, bool):
-                    # bool is a subclass of int in Python; reject explicitly.
-                    failures.append(
-                        ValidationFailure(
-                            "attested_year_not_int",
-                            f"attested_forms[{j}].year={year!r}",
-                        )
-                    )
-                elif not (_ATTESTED_YEAR_MIN <= year <= _ATTESTED_YEAR_MAX):
-                    failures.append(
-                        ValidationFailure(
-                            "attested_year_out_of_range",
-                            f"attested_forms[{j}].year={year}",
-                        )
-                    )
 
     return failures
 
