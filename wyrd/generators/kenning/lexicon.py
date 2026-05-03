@@ -518,9 +518,6 @@ def _migrate_text_match_table(db: LexiconDB, applied: dict[str, bool]) -> None:
 # first headword on the page; the rightmost integer is the page number.
 # Single-word forms require 3+ chars to filter OCR noise; multi-word
 # forms accept a 2+ char first word so 'ST PETER'S' / 'DR FOO' admit.
-#
-# Skeat-style §-section running headers ('§ 2. NAMES IN -TON. 9') need
-# their own parser — filed as a follow-up.
 _RUNNING_HEADER_RE = re.compile(
     r"^\s*("
     r"[A-Z][A-Z\-']*\s+[A-Z][A-Z\-']+(?:\s+[A-Z][A-Z\-']+)*"  # multi-word: 2+ char first word
@@ -531,21 +528,65 @@ _RUNNING_HEADER_RE = re.compile(
 )
 
 
+# wyrd-8st: pattern for Skeat-style §-section running headers
+# (e.g. '§ 2. NAMES ENDING IN -TON. 9' on Skeat 1901 Cambridgeshire).
+# Body of every printed page begins with one of these.
+#
+# Distinguished from non-running TOC + section openers ('§ 2. The suffix
+# -ton.' — title case, no trailing page number) by requiring an
+# ALL-CAPS title block (≥4 chars including allowed punctuation) AND a
+# trailing integer page.
+#
+# OCR variants tolerated:
+# - '§8.' (no space between § and number) and '§ 8.' (variable spacing)
+# - 'IX -BRIDGE' (OCR misread of 'IN -BRIDGE')
+# - Multi-suffix headers like 'NAMES ENDING IN -BRIDGE, -HITHE.'
+_SKEAT_SECTION_HEADER_RE = re.compile(
+    r"^\s*§\s*\d+\.\s+"  # § N.
+    r"([A-Z\-][A-Z\s,\-\.\']{4,}?)"  # ALL-CAPS title block
+    r"\s+(\d+)\s*$",  # trailing page
+    re.MULTILINE,
+)
+
+
 def parse_running_header_pages(text: str) -> list[tuple[int, int]]:
     """Extract (offset, page_number) pairs from running headers in OCR'd
     alphabetical-headword books (Mawer / Bannister / Ekwall style).
 
     Pattern: a line containing one or more all-caps words followed by an
     integer (e.g. 'BACKWORTH 9', 'ABBEY DORE 1'). Returns sorted-by-offset
-    pairs. The runtime (or a follow-up CLI) can binary-search this list to
-    find the page for any character offset in the body.
-
-    Skeat-style books use '§ N. NAMES IN -X. <page>' running headers and
-    are not covered by this function — those need a separate parser
-    (follow-up under wyrd-9kh.5 if/when Skeat books need page-anchored
-    citations). Returns an empty list when no headers match.
+    pairs. Skeat-style books use a different convention — see
+    `parse_skeat_section_header_pages`. Returns an empty list when no
+    headers match.
     """
     return [(m.start(), int(m.group(2))) for m in _RUNNING_HEADER_RE.finditer(text)]
+
+
+def parse_skeat_section_header_pages(text: str) -> list[tuple[int, int]]:
+    """Extract (offset, page_number) pairs from Skeat-style running
+    headers (`§ N. NAMES ENDING IN -X. <page>`).
+
+    Returns the same shape as `parse_running_header_pages` so
+    `page_for_offset` works on either parser's output. Returns an empty
+    list when no headers match — caller can then try the Mawer parser
+    or report `no_headers`.
+    """
+    return [(m.start(), int(m.group(2))) for m in _SKEAT_SECTION_HEADER_RE.finditer(text)]
+
+
+def detect_running_headers(text: str) -> tuple[list[tuple[int, int]], str]:
+    """Try both header conventions and return (headers, parser_name)
+    for whichever produced more matches. Per-source-book dispatch:
+    Mawer-style and Skeat-§ are mutually exclusive in practice, so
+    'highest yield wins' is unambiguous. Returns (`[]`, `"none"`) when
+    neither convention matches."""
+    mawer = parse_running_header_pages(text)
+    skeat = parse_skeat_section_header_pages(text)
+    if not mawer and not skeat:
+        return [], "none"
+    if len(skeat) > len(mawer):
+        return skeat, "skeat-§"
+    return mawer, "mawer"
 
 
 def page_for_offset(headers: list[tuple[int, int]], offset: int) -> int | None:
@@ -618,7 +659,7 @@ def backfill_citation_pages(
     apply: bool = False,
 ) -> dict[str, int]:
     """Backfill etymon_citation.page and toponym_etymology.page from
-    Mawer-style running headers in the source body (wyrd-azv).
+    running headers in the source body (wyrd-azv, wyrd-8st).
 
     For each row in ``source_id`` where page IS NULL, strip the provider-
     attribution prefix from the row's quoted excerpt (everything before
@@ -627,7 +668,8 @@ def backfill_citation_pages(
     single-spacing while the source has the original OCR runs), find
     the normalized excerpt in normalized source_text, translate the
     match offset back to original coordinates, and look up the page
-    from the running-header sequence.
+    from the header sequence. `detect_running_headers` chooses between
+    Mawer-style and Skeat-§ conventions per source.
 
     Returns counts:
       - citations_updated, etymologies_updated: rows whose page was
@@ -637,9 +679,9 @@ def backfill_citation_pages(
         both tables.
       - no_quote: rows with NULL/empty excerpt — nothing to anchor on.
       - before_first_page: offset preceded the first running header.
-      - no_headers: 1 if the source produced zero headers (Skeat-§ books
-        and books without Mawer-style headers); else 0. On no_headers,
-        the function returns immediately without touching any rows.
+      - no_headers: 1 if neither convention produced any headers; else
+        0. On no_headers, the function returns immediately without
+        touching any rows.
 
     Idempotent: only operates on rows where page IS NULL, so a re-run
     is a no-op for already-resolved rows.
@@ -653,7 +695,7 @@ def backfill_citation_pages(
         "before_first_page": 0,
         "no_headers": 0,
     }
-    headers = parse_running_header_pages(source_text)
+    headers, _parser = detect_running_headers(source_text)
     if not headers:
         counts["no_headers"] = 1
         return counts

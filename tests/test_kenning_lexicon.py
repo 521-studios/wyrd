@@ -23,6 +23,7 @@ from wyrd.generators.kenning.lexicon import (
     clear_enrichment,
     cluster_ocr_variants,
     derive_lemma_candidate,
+    detect_running_headers,
     export_meanings,
     fuzzy_search_attestations,
     ingest_parsed_entries,
@@ -30,6 +31,7 @@ from wyrd.generators.kenning.lexicon import (
     link_lemmas,
     migrate_schema,
     normalize_ocr_form,
+    parse_skeat_section_header_pages,
     record_mining_run,
     seed_from_meanings,
 )
@@ -1248,6 +1250,119 @@ def test_page_for_offset_empty_headers_returns_none():
     assert page_for_offset([], 12345) is None
 
 
+# --- wyrd-8st: parse_skeat_section_header_pages ----------------------
+
+
+def test_parse_skeat_section_header_pages_finds_canonical_header():
+    """Canonical Skeat-§ header `§ N. NAMES ENDING IN -X. <page>` parses
+    as (offset, page)."""
+    body = (
+        "front matter\n"
+        "§ 2. NAMES ENDING IN -TON. 5\n"
+        "body of page 5...\n"
+        "§ 4. NAMES ENDING IN -HAM. 21\n"
+        "body of page 21...\n"
+    )
+    headers = parse_skeat_section_header_pages(body)
+    pages = [page for _offset, page in headers]
+    assert pages == [5, 21]
+
+
+def test_parse_skeat_section_header_pages_handles_ocr_variants():
+    """OCR-tolerated variants: '§8.' (no space after §), 'IX' OCR misread
+    of 'IN', multi-suffix `-BRIDGE, -HITHE` titles."""
+    body = (
+        "§8.      NAMES    ENDING    IX    -BRIDGE,   -HITHE.  33\n"
+        "§   8.      NAMES    ENDING    IN    -WELL.  37\n"
+    )
+    headers = parse_skeat_section_header_pages(body)
+    pages = [page for _offset, page in headers]
+    assert pages == [33, 37]
+
+
+def test_parse_skeat_section_header_pages_rejects_title_case_section_openers():
+    """Section openers in the source (`§ 2. The suffix -ton.`) are
+    title-case with no trailing page — they must NOT be parsed as
+    running headers, even though they share the leading `§ N.`."""
+    body = "§ 2. The suffix -ton.\ndiscussion follows\n§ 4. The suffix -ham.\n"
+    assert parse_skeat_section_header_pages(body) == []
+
+
+def test_parse_skeat_section_header_pages_rejects_toc_entries():
+    """TOC entries (`§ 1. Prefatory Remarks 1`, `§ 5. The suffix -stead :
+    — Olmstead 25`) are title-case and don't share the body running-
+    header shape — they should not match."""
+    toc = (
+        "§ 1.     Prefatory Remarks 1\n"
+        "§ 5.     The suffix -stead : — Olmstead 25\n"
+        "§ 12.    List of Ancient Manors 74\n"
+    )
+    # Either no matches, or the page numbers should NOT overlap the
+    # canonical body header pages (which would corrupt offset lookups).
+    headers = parse_skeat_section_header_pages(toc)
+    assert headers == [], (
+        f"TOC entries leaked through Skeat parser as {headers}; the regex "
+        "should require an ALL-CAPS title block, not title-case."
+    )
+
+
+def test_parse_skeat_section_header_pages_returns_empty_when_no_match():
+    """A Mawer-style `BACKWORTH 9` body produces no Skeat-§ matches —
+    callers can fall back to the Mawer parser."""
+    mawer_body = "BACKWORTH 9\nbody\nBEDLINGTON 15\nbody\n"
+    assert parse_skeat_section_header_pages(mawer_body) == []
+
+
+def test_detect_running_headers_picks_skeat_when_higher_yield():
+    """Per-source dispatch: if Skeat-§ matches more than Mawer (e.g. a
+    Skeat county dictionary), the Skeat parser wins."""
+    body = "§ 2. NAMES ENDING IN -TON. 5\nbody\n§ 4. NAMES ENDING IN -HAM. 21\nbody\n"
+    headers, parser = detect_running_headers(body)
+    assert parser == "skeat-§"
+    assert [p for _o, p in headers] == [5, 21]
+
+
+def test_detect_running_headers_picks_mawer_when_higher_yield():
+    """A Mawer-style book wins dispatch when the Mawer parser produces
+    more matches than the Skeat parser."""
+    body = "BACKWORTH 9\nbody\nBEDLINGTON 15\nbody\nBISHOPWEARMOUTH 23\n"
+    headers, parser = detect_running_headers(body)
+    assert parser == "mawer"
+    assert [p for _o, p in headers] == [9, 15, 23]
+
+
+def test_detect_running_headers_returns_none_when_neither_matches():
+    """A source with no recognizable header convention returns ([], 'none')
+    so backfill_citation_pages can record no_headers and skip cleanly."""
+    body = "this is just prose with no running headers anywhere\n"
+    headers, parser = detect_running_headers(body)
+    assert headers == []
+    assert parser == "none"
+
+
+def test_backfill_citation_pages_resolves_skeat_section_headers(fresh_db: Path) -> None:
+    """End-to-end: a Skeat-style book whose body has §-section running
+    headers gets pages resolved via the new parser dispatch — would
+    have failed under the Mawer-only path with no_headers=1."""
+    quote = "discussion of -ton suffix in cot"
+    body = (
+        "§ 2. NAMES ENDING IN -TON. 5\n"
+        f"earlier text\n"
+        "§ 4. NAMES ENDING IN -HAM. 21\n"
+        f"{quote} continuing\n"
+    )
+    with LexiconDB(fresh_db) as db:
+        _, cit_id, _ = _seed_citation_for_backfill(db, "skeat_test", "cot", quote)
+        counts = backfill_citation_pages(db, "skeat_test", body, apply=True)
+        cit_page = db.conn.execute(
+            "SELECT page FROM etymon_citation WHERE id = ?", (cit_id,)
+        ).fetchone()["page"]
+
+    assert counts["citations_updated"] == 1
+    assert cit_page == "21"
+    assert counts["no_headers"] == 0
+
+
 # --- wyrd-azv: backfill_citation_pages ---------------------------------
 
 
@@ -1419,15 +1534,20 @@ def test_backfill_citation_pages_dry_run_does_not_write(fresh_db: Path) -> None:
 
 
 def test_backfill_citation_pages_no_headers_returns_zero(fresh_db: Path) -> None:
-    """A source whose body has no Mawer-style headers (Skeat-§ style or
-    no running headers at all) reports no_headers=1 and zero updates."""
+    """A source whose body matches NEITHER Mawer nor Skeat-§ convention
+    (e.g. a treatise / chapter prose book like Joyce's Irish Names)
+    reports no_headers=1 and zero updates without crashing."""
 
-    skeat_body = "§ 2. NAMES IN -TON. 9\nbody discussion here\n"
+    treatise_body = (
+        "This chapter discusses the topographical naming conventions "
+        "of the western counties without using running headers anywhere "
+        "in the body discussion here.\n"
+    )
     with LexiconDB(fresh_db) as db:
         _, cit_id, _ = _seed_citation_for_backfill(
-            db, "skeat_1901_test", "ton", "body discussion here"
+            db, "treatise_book", "ton", "body discussion here"
         )
-        counts = backfill_citation_pages(db, "skeat_1901_test", skeat_body, apply=True)
+        counts = backfill_citation_pages(db, "treatise_book", treatise_body, apply=True)
         cit_page = db.conn.execute(
             "SELECT page FROM etymon_citation WHERE id = ?", (cit_id,)
         ).fetchone()["page"]
