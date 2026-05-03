@@ -303,7 +303,13 @@ class NewName:
                 label = self._inflection_label_for(wi, ei)
                 head = f"{lemma}@{label}" if label else lemma
                 meanings = [self._find_meaning(m) for m in self.meaning_db[e]]
-                results.append(f"{head} ({' or '.join(meanings)})")
+                citations = _collect_citations(self.meaning_db[e])
+                gloss_block = " or ".join(meanings)
+                if citations:
+                    cite_block = f"; cited by {_format_citations_for_description(citations)}"
+                else:
+                    cite_block = ""
+                results.append(f"{head} ({gloss_block}{cite_block})")
         return " ".join(results)
 
     def _inflection_label_for(self, wi: int, ei: int) -> str | None:
@@ -330,6 +336,7 @@ class NewName:
                         "meanings": list(first.meanings),
                         "tags": list(first.tags),
                         "roots": self._roots(first),
+                        "citations": _collect_citations(meanings),
                     }
                 )
         return out
@@ -352,6 +359,38 @@ class NewName:
 
     def _roots_str(self, meaning) -> str:
         return "/".join(self._roots(meaning))
+
+
+def _collect_citations(meanings):
+    """Distinct sorted source_ids across every Meaning sharing one usage and
+    every language they cover (wyrd-9kh.1). The runtime explainer surfaces
+    this so a GM can see which scholars attest the morpheme. Empty list
+    when no Meaning carries citations (rando-port-only legacy entries with
+    no scholarly witnesses yet)."""
+    seen: set[str] = set()
+    for m in meanings:
+        for citations in m.citations.values():
+            seen.update(citations)
+    return sorted(seen)
+
+
+# Compact display max for description()'s citation block. Above this, the
+# explainer renders 'first, second, third (+N more)' rather than a wall of
+# 18 source_ids. components() keeps the full list so the SPA can render
+# its own disclosure UI.
+_DESCRIPTION_CITATION_LIMIT = 3
+
+
+def _format_citations_for_description(citations: list[str]) -> str:
+    """Render a short scholar-ID list for the explainer breakdown line.
+    Long lists collapse to 'first, second, third (+N more)'; lists at or
+    under the limit display in full. source_ids stay as-is — the SPA
+    layer (wyrd-9kh.6) substitutes prettier titles via the source table."""
+    if len(citations) <= _DESCRIPTION_CITATION_LIMIT:
+        return ", ".join(citations)
+    head = ", ".join(citations[:_DESCRIPTION_CITATION_LIMIT])
+    extra = len(citations) - _DESCRIPTION_CITATION_LIMIT
+    return f"{head} (+{extra} more)"
 
 
 def word_to_key(word):

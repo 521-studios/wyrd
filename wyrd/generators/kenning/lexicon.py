@@ -1673,6 +1673,7 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
         "member_descendants": _compute_member_descendants(member_rows),
         "member_variants": _fetch_member_variants(db, member_ids, canonical_forms_lower),
         "member_inflection_by_id": member_inflection_by_id,
+        "member_citations": _fetch_member_citations(db, member_ids),
         "glosses": _fetch_member_glosses(db, member_ids),
         "tags": _fetch_member_tags(db, member_ids),
         "reflexes": _fetch_member_reflexes(db, member_ids, reflex_links),
@@ -1840,6 +1841,37 @@ def _fetch_member_variants(
     return member_variants
 
 
+_NON_SCHOLAR_SOURCES = frozenset({"rando-port"})
+
+
+def _fetch_member_citations(db: LexiconDB, member_ids: list[int]) -> dict[int, list[str]]:
+    """Distinct sorted scholarly source_ids per member_id from
+    etymon_citation. The runtime explainer surfaces this so a GM holding
+    a generated name can see which scholars attest each morpheme.
+    Sorted alphabetically for deterministic bundle output.
+
+    Filters out non-scholarly seeds (rando-port — the Wikipedia-derived
+    legacy bootstrap that ships every legacy etymon but isn't a real
+    citation a GM would recognize). Members with no scholarly citations
+    drop out of the result entirely so the emitter omits the
+    `<lang>_citations` field on rando-only words.
+    """
+    placeholders = ",".join("?" * len(member_ids))
+    member_citations: dict[int, list[str]] = {}
+    for row in db.conn.execute(
+        f"SELECT etymon_id, source_id "
+        f"FROM etymon_citation "
+        f"WHERE etymon_id IN ({placeholders}) "
+        f"GROUP BY etymon_id, source_id "
+        f"ORDER BY etymon_id, source_id",
+        member_ids,
+    ):
+        if row["source_id"] in _NON_SCHOLAR_SOURCES:
+            continue
+        member_citations.setdefault(row["etymon_id"], []).append(row["source_id"])
+    return member_citations
+
+
 def _compute_member_descendants(member_rows: list[Any]) -> dict[int, list[int]]:
     """Transitive descendants per member_id (DB-free DFS).
 
@@ -1982,6 +2014,7 @@ def _word_for_reflex(
     per_lang: dict[str, list[str]] = {}
     per_lang_variants: dict[str, dict[str, int]] = {}
     per_lang_inflections: dict[str, dict[str, str]] = {}
+    per_lang_citations: dict[str, set[str]] = {}
     for fam, linked_ids in link_pairs:
         for member_id in linked_ids:
             for descendant_id in fam["member_descendants"][member_id]:
@@ -1991,8 +2024,11 @@ def _word_for_reflex(
                     bucket.append(form)
                 _absorb_member_variants(per_lang_variants, fam, descendant_id, lang)
                 _absorb_member_inflection(per_lang_inflections, fam, descendant_id, lang, form)
+                _absorb_member_citations(per_lang_citations, fam, descendant_id, lang)
     word: dict[str, Any] = {"modern_usage": meta["surface_form"]}
-    _emit_word_languages(word, per_lang, per_lang_variants, per_lang_inflections)
+    _emit_word_languages(
+        word, per_lang, per_lang_variants, per_lang_inflections, per_lang_citations
+    )
     return word
 
 
@@ -2009,10 +2045,14 @@ def _synthesize_word_for_family(fam: dict[str, Any]) -> dict[str, Any]:
     }
     per_lang_variants: dict[str, dict[str, int]] = {}
     per_lang_inflections: dict[str, dict[str, str]] = {}
+    per_lang_citations: dict[str, set[str]] = {}
     for member_id, (member_lang, member_form) in fam["member_form_by_id"].items():
         _absorb_member_variants(per_lang_variants, fam, member_id, member_lang)
         _absorb_member_inflection(per_lang_inflections, fam, member_id, member_lang, member_form)
-    _emit_word_languages(word, per_lang, per_lang_variants, per_lang_inflections)
+        _absorb_member_citations(per_lang_citations, fam, member_id, member_lang)
+    _emit_word_languages(
+        word, per_lang, per_lang_variants, per_lang_inflections, per_lang_citations
+    )
     return word
 
 
@@ -2046,16 +2086,33 @@ def _absorb_member_inflection(
         per_lang_inflections.setdefault(lang, {})[form] = inflection
 
 
+def _absorb_member_citations(
+    per_lang_citations: dict[str, set[str]],
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+) -> None:
+    """Aggregate scholarly source_ids for one member into the per-language
+    citation set (wyrd-9kh.1). Set semantics dedupe across the descendant
+    walk; emit-time sorts deterministically. Caller guarantees `lang`
+    matches the member's language."""
+    citations = fam.get("member_citations", {}).get(member_id, [])
+    if citations:
+        per_lang_citations.setdefault(lang, set()).update(citations)
+
+
 def _emit_word_languages(
     word: dict[str, Any],
     per_lang: dict[str, list[str]],
     per_lang_variants: dict[str, dict[str, int]],
     per_lang_inflections: dict[str, dict[str, str]],
+    per_lang_citations: dict[str, set[str]],
 ) -> None:
-    """Stamp per-language form arrays + sibling _variants / _inflections
-    metadata onto the word dict. Per D26, the metadata fields are sibling
-    keys (`<lang>_variants`, `<lang>_inflections`) so legacy loaders that
-    ignore unknown fields keep working."""
+    """Stamp per-language form arrays + sibling _variants / _inflections /
+    _citations metadata onto the word dict. Per D26, the metadata fields
+    are sibling keys (`<lang>_variants`, `<lang>_inflections`,
+    `<lang>_citations`) so legacy loaders that ignore unknown fields keep
+    working."""
     for lang in sorted(per_lang):
         json_field = _LANG_CODE_TO_JSON_FIELD.get(lang)
         if not json_field:
@@ -2065,6 +2122,8 @@ def _emit_word_languages(
             word[f"{json_field}_variants"] = _emit_variant_list(per_lang_variants[lang])
         if lang in per_lang_inflections:
             word[f"{json_field}_inflections"] = _emit_inflection_list(per_lang_inflections[lang])
+        if lang in per_lang_citations:
+            word[f"{json_field}_citations"] = sorted(per_lang_citations[lang])
 
 
 def _emit_variant_list(variants: dict[str, int]) -> list[dict[str, Any]]:

@@ -22,9 +22,24 @@ _VARIANT_SUFFIX = "_variants"
 # they're the unmarked headword.
 _INFLECTION_SUFFIX = "_inflections"
 
+# Suffix used for per-language scholarly attribution (wyrd-9kh.1). Each
+# entry is a list of source_id strings (e.g., 'mawer_1920_northumberland_durham')
+# sorted alphabetically. Surfaces in the runtime explainer so a GM can see
+# which scholars attest each morpheme.
+_CITATIONS_SUFFIX = "_citations"
+
 
 class Meaning:
-    def __init__(self, usage, tags, meanings, sources, variants=None, inflections=None):
+    def __init__(
+        self,
+        usage,
+        tags,
+        meanings,
+        sources,
+        variants=None,
+        inflections=None,
+        citations=None,
+    ):
         self.usage = usage
         self.tags = tags
         self.meanings = meanings
@@ -37,6 +52,11 @@ class Meaning:
         # carrying grammatical case data for inflected forms in the family.
         # The lemma form does NOT appear here.
         self.inflections = inflections or {}
+        # citations is a dict[lang_field, list[source_id]] — distinct sorted
+        # source_ids per language attesting the morpheme. The runtime
+        # explainer surfaces these so a GM can see which scholars cite each
+        # morpheme. Empty for rando-port-only legacy entries.
+        self.citations = citations or {}
         self._set_location()
 
     def _set_location(self):
@@ -214,6 +234,7 @@ def load_meanings(data):
                 if k != "modern_usage"
                 and not k.endswith(_VARIANT_SUFFIX)
                 and not k.endswith(_INFLECTION_SUFFIX)
+                and not k.endswith(_CITATIONS_SUFFIX)
             }
             variants = {
                 k[: -len(_VARIANT_SUFFIX)]: [(entry["form"], entry["weight"]) for entry in v]
@@ -225,6 +246,11 @@ def load_meanings(data):
                 for k, v in word.items()
                 if k.endswith(_INFLECTION_SUFFIX)
             }
+            citations = {
+                k[: -len(_CITATIONS_SUFFIX)]: list(v)
+                for k, v in word.items()
+                if k.endswith(_CITATIONS_SUFFIX)
+            }
             # Singular and plural Meanings share every constructor arg
             # except `usage`. Bundle them so a future kwarg addition can't
             # silently drop on one branch and not the other.
@@ -234,6 +260,7 @@ def load_meanings(data):
                 "sources": sources,
                 "variants": variants,
                 "inflections": inflections,
+                "citations": citations,
             }
             meaning = Meaning(usage, **common_kwargs)
             for tag in tags:
