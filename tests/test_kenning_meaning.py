@@ -351,6 +351,45 @@ def test_load_meanings_omits_inflections_field_when_absent():
     assert meaning_db["X-"][0].inflections == {}
 
 
+def test_load_meanings_extracts_citations_from_citation_field():
+    """`<lang>_citations` keys are split out of `sources` into the
+    Meaning's citations dict; canonical language form lists stay in
+    sources unchanged. Mirrors the regression pattern for variants /
+    inflections."""
+    data = [
+        {
+            "modifier_tags": ["habitation"],
+            "meaning": ["homestead"],
+            "words": [
+                {
+                    "modern_usage": "-ham",
+                    "old_english": ["ham"],
+                    "old_english_citations": ["mawer_1920", "skeat_1901"],
+                }
+            ],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    m = meaning_db["-ham"][0]
+    assert m.citations == {"old_english": ["mawer_1920", "skeat_1901"]}
+    # Canonical language array stays in sources, citations field stripped.
+    assert m.sources == {"old_english": ["ham"]}
+
+
+def test_load_meanings_omits_citations_field_when_absent():
+    """Legacy data without citation metadata still loads cleanly with an
+    empty citations dict."""
+    data = [
+        {
+            "modifier_tags": [],
+            "meaning": ["x"],
+            "words": [{"modern_usage": "X-", "old_english": ["x"]}],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    assert meaning_db["X-"][0].citations == {}
+
+
 def test_load_meanings_propagates_inflections_to_plural_form():
     """A name-tagged meaning auto-pluralizes (e.g. 'Alf-' → 'Alf-s'). The
     pluralized Meaning must inherit the same inflections + variants pools
