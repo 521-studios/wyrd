@@ -816,3 +816,172 @@ def test_available_tags_hides_fiction_from_dropdown():
 
     assert "fiction" in _INTERNAL_TAGS
     assert "fiction" not in available_tags()
+
+
+# --- D5-2 / wyrd-lyp era filter plumbing ----------------------------------
+
+
+def test_generator_select_keep_keys_drops_excluded_usages():
+    """Generator.select with keep_keys={'a'} should never return 'b' even
+    though 'b' has positive empirical weight. Pins the bucket-level filter
+    that MeaningGenerator uses to apply the era keep-set."""
+    from wyrd.generators.kenning.proportions import Generator
+
+    g = Generator(tag_db={}, elements={"a": 50, "b": 50})
+    for i in range(50):
+        assert g.select(random.Random(i), keep_keys=frozenset({"a"})) == "a"
+
+
+def test_generator_select_keep_keys_none_disables_filter():
+    """keep_keys=None is the bit-stable 'no filter' signal — both keys
+    remain reachable. Pin so a future refactor can't accidentally
+    treat None as an empty set."""
+    from collections import Counter
+
+    from wyrd.generators.kenning.proportions import Generator
+
+    g = Generator(tag_db={}, elements={"a": 50, "b": 50})
+    counts = Counter(g.select(random.Random(i), keep_keys=None) for i in range(200))
+    assert counts["a"] > 0 and counts["b"] > 0
+
+
+def test_generator_select_keep_keys_empty_set_returns_none():
+    """An empty keep_keys is the legitimate 'no usage matches the era'
+    signal — Generator.select should return None rather than crash on
+    an empty items_list."""
+    from wyrd.generators.kenning.proportions import Generator
+
+    g = Generator(tag_db={}, elements={"a": 50, "b": 50})
+    assert g.select(random.Random(0), keep_keys=frozenset()) is None
+
+
+def test_meaning_generator_keep_keys_for_era_returns_none_for_none_range():
+    """MeaningGenerator.keep_keys_for_era(None) returns None (the
+    'no filter' signal) — the runtime threads this straight through to
+    Generator.select."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator
+
+    m = Meaning("-cot", [], [], {})
+    mg = MeaningGenerator({"-cot": [m]}, {}, {"-cot": 1})
+    assert mg.keep_keys_for_era(None) is None
+
+
+def test_meaning_generator_keep_keys_for_era_filters_by_attestation():
+    """A morpheme with year evidence outside the window is excluded;
+    one with evidence inside the window is admitted; one with NO
+    evidence passes through (the documented 'pass-through' rule)."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator
+
+    in_window = Meaning("-in", [], [], {}, attested_years={"old_english": [("in", 950)]})
+    out_window = Meaning("-out", [], [], {}, attested_years={"old_english": [("out", 1500)]})
+    no_data = Meaning("-none", [], [], {})
+    meaning_db = {"-in": [in_window], "-out": [out_window], "-none": [no_data]}
+    mg = MeaningGenerator(meaning_db, {}, dict.fromkeys(meaning_db, 1))
+    keep = mg.keep_keys_for_era((800, 1100))
+    assert keep == frozenset({"-in", "-none"})
+
+
+def test_meaning_generator_keep_keys_for_era_caches_per_range():
+    """Two calls with the same era_range share the precomputed set so
+    the meaning_db isn't re-walked per bucket. Pin via identity (the
+    cache returns the same frozenset object) so a perf regression
+    that recomputes per call is caught."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator
+
+    m = Meaning("-cot", [], [], {}, attested_years={"old_english": [("cot", 950)]})
+    mg = MeaningGenerator({"-cot": [m]}, {}, {"-cot": 1})
+    a = mg.keep_keys_for_era((800, 1100))
+    b = mg.keep_keys_for_era((800, 1100))
+    assert a is b
+
+
+def test_meaning_generator_select_threads_keep_keys():
+    """MeaningGenerator.select forwards keep_keys into Generator.select
+    so an out-of-era usage never wins, even when its empirical weight
+    dominates."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator
+
+    m_ok = Meaning("-ok", [], [], {}, attested_years={"old_english": [("ok", 950)]})
+    m_too_late = Meaning("-too-late", [], [], {}, attested_years={"old_english": [("late", 1500)]})
+    meaning_db = {"-ok": [m_ok], "-too-late": [m_too_late]}
+    proportions = {"-ok": 1, "-too-late": 99}
+    mg = MeaningGenerator(meaning_db, {}, proportions)
+    keep = mg.keep_keys_for_era((800, 1100))
+    for i in range(100):
+        assert mg.select(random.Random(i), ("post",), keep_keys=keep) == "-ok"
+
+
+def test_name_generator_select_drops_out_of_era_morphemes_at_pick_time():
+    """End-to-end: NameGenerator.select(era_range=...) constrains the
+    sampled morpheme to the era's keep-set. The single-element bucket
+    has both an in-era and an out-of-era usage; with empirical weights
+    that favor the out-of-era one, the era_range argument should still
+    force every pick onto the in-era usage."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import (
+        MeaningGenerator,
+        NameGenerator,
+    )
+
+    m_in = Meaning("-in", [], [], {}, attested_years={"old_english": [("in", 950)]})
+    m_out = Meaning("-out", [], [], {}, attested_years={"old_english": [("out", 1500)]})
+    meaning_db = {"-in": [m_in], "-out": [m_out]}
+    proportions = {"-in": 1, "-out": 99}
+    mg = MeaningGenerator(meaning_db, {}, proportions)
+    mg.load_parts(proportions, "single")
+    structs = {(((m_in.location, "single"),),): 1}
+    name_gen = NameGenerator(meaning_db, mg, structs)
+    for i in range(50):
+        new_name = name_gen.select(random.Random(i), era_range=(800, 1100))
+        assert new_name.name == [["-in"]]
+
+
+def test_name_generator_select_era_range_none_is_bit_stable():
+    """era_range=None is the runtime's 'no --era passed' signal — the
+    keep-set is None and Generator.select takes its bit-stable fast
+    path. Pin by comparing seeded picks with vs without era_range=None
+    to the historic no-kwarg call."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import (
+        MeaningGenerator,
+        NameGenerator,
+    )
+
+    m_a = Meaning("-a", [], [], {})
+    m_b = Meaning("-b", [], [], {})
+    meaning_db = {"-a": [m_a], "-b": [m_b]}
+    proportions = {"-a": 50, "-b": 50}
+    mg = MeaningGenerator(meaning_db, {}, proportions)
+    mg.load_parts(proportions, "single")
+    structs = {((("post", "single"),),): 1}
+    name_gen = NameGenerator(meaning_db, mg, structs)
+    seq_default = [name_gen.select(random.Random(i)).name for i in range(20)]
+    seq_explicit_none = [name_gen.select(random.Random(i), era_range=None).name for i in range(20)]
+    assert seq_default == seq_explicit_none
+
+
+def test_kenning_generate_accepts_era_param():
+    """Smoke test: Kenning.generate({'era': 'me'}) doesn't raise and
+    produces a name. Bundled meanings.json has no attested_years data
+    today, so the filter is a documented no-op — but the wiring
+    needs to be in place for the next bundle re-emit."""
+    from wyrd.generators.kenning import Kenning
+
+    result = Kenning().generate({"culture": "english", "era": "me"}, seed=42)
+    assert result.result
+    assert result.explanation
+
+
+def test_kenning_input_schema_exposes_era():
+    """The era param surfaces in input_schema so the SPA renders an
+    input control for it. Default-less: the absence of an era key
+    means 'no filter', which the runtime maps to era_range=None."""
+    from wyrd.generators.kenning import Kenning
+
+    schema = Kenning().input_schema()
+    assert "era" in schema["properties"]
+    assert schema["properties"]["era"]["type"] == "string"

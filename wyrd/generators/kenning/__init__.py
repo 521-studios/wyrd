@@ -8,6 +8,7 @@ from functools import lru_cache
 from importlib import resources
 from typing import Any
 
+from wyrd.generators.kenning.era import resolve_era_input
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.name import Name
 from wyrd.generators.kenning.proportions import load_proportions
@@ -41,6 +42,19 @@ _ROOT_CODES = [
 ]
 
 CULTURES = ["english", "scottish", "welsh", "irish", "breton"]
+
+# D5-2 / wyrd-lyp: which era family the bare-label form of ``--era`` resolves
+# against per culture. A request like ``--era me`` against an English culture
+# means Middle English; the same request against an Irish culture would
+# (correctly) fail since 'me' is an English-family label. Callers can always
+# disambiguate with the ``family/label`` form (e.g. ``english/me``).
+_CULTURE_TO_ERA_FAMILY: dict[str, str] = {
+    "english": "english",
+    "scottish": "english",
+    "welsh": "brythonic",
+    "irish": "goidelic",
+    "breton": "brythonic",
+}
 
 # wyrd-yan: 'fiction' marks etymons whose etymology is constructed (post-hoc
 # applied to bestiary / NPC / homebrew content) rather than drawn from the
@@ -289,6 +303,20 @@ class Kenning(Generator):
                         "effect when it exceeds the mood preset."
                     ),
                 },
+                "era": {
+                    "type": "string",
+                    "description": (
+                        "D5-2 era filter (wyrd-lyp). Restricts the morpheme inventory "
+                        "to forms attested in a particular period. Accepts a bare year "
+                        "(e.g. '1086' → the cell containing 1086 in the culture's era "
+                        "family), a cell label (e.g. 'oe-late', 'me', 'middle-irish'), "
+                        "or an explicit 'family/label' pair (e.g. 'english/oe-late') to "
+                        "disambiguate when a label is shared across families. "
+                        "Morphemes with no attested-year evidence pass through "
+                        "unconditionally — only ~32% of bundle morphemes carry year "
+                        "data today, so the filter narrows the pool rather than gutting it."
+                    ),
+                },
             },
             "required": [],
         }
@@ -313,6 +341,10 @@ class Kenning(Generator):
         tags = tuple(tags)
         exclude_tags: tuple[str, ...] = () if include_fiction else (_FICTION_TAG,)
 
+        era = params.get("era")
+        era_family = _CULTURE_TO_ERA_FAMILY.get(culture, "english")
+        era_range = resolve_era_input(era, default_family=era_family) if era else None
+
         name_gen, _ = _load_culture(culture)
         rng = rng_for(seed)
         new_name = name_gen.select(
@@ -323,6 +355,7 @@ class Kenning(Generator):
             inflection_density=inflection_density,
             harshness=harshness,
             exclude_tags=exclude_tags,
+            era_range=era_range,
         )
         return GenerationResult(
             result=str(new_name),

@@ -120,6 +120,33 @@ class Meaning:
     def is_saint(self):
         return "saint" in self.tags
 
+    def attested_in_era_range(self, era_range: tuple[int | None, int | None] | None) -> bool:
+        """D5-2 era filter: True if this morpheme is admissible under the
+        ``[start, end)`` half-open year range, or has no attestation data
+        at all (treated as 'always include' — see DECISIONS.md D5-2).
+
+        ``era_range`` of ``None`` means 'no filter' → always True.
+
+        The 'no attestation data → pass' rule is deliberate: only ~32% of
+        bundle morphemes carry attested-year data today, so excluding the
+        un-dated 68% would gut the inventory. As mining coverage rises
+        the rule can tighten; for now, missing data is not evidence of
+        absence.
+        """
+        if era_range is None:
+            return True
+        if not self.attested_years:
+            return True
+        start, end = era_range
+        for forms in self.attested_years.values():
+            for _form, year in forms:
+                if start is not None and year < start:
+                    continue
+                if end is not None and year >= end:
+                    continue
+                return True
+        return False
+
     def key(self):
         key = [self.location]
         if self.is_name():

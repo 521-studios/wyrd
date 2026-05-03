@@ -477,3 +477,90 @@ def test_pick_inflection_partial_density_gates_per_call():
     hits = sum(1 for i in range(2000) if m.pick_inflection(random.Random(i), 0.5) is not None)
     # Wide tolerance band against RNG variance — should land near 1000.
     assert 800 < hits < 1200
+
+
+# --- attested_in_era_range (D5-2 / wyrd-lyp) -------------------------------
+
+
+def _meaning_with_attested_years(years_by_lang):
+    return Meaning("cot-", [], [], {}, attested_years=years_by_lang)
+
+
+def test_attested_in_era_range_none_means_no_filter():
+    """era_range=None is the runtime's 'no --era passed' signal — every
+    meaning passes."""
+    m = _meaning_with_attested_years({"old_english": [("cot", 950)]})
+    assert m.attested_in_era_range(None) is True
+
+
+def test_attested_in_era_range_empty_data_passes_through():
+    """Morphemes with no year evidence pass any filter — the bundle's
+    coverage is incomplete and excluding the un-dated majority would
+    gut the inventory. Documented in DECISIONS.md D5-2."""
+    m = _meaning_with_attested_years({})
+    assert m.attested_in_era_range((800, 1100)) is True
+    assert m.attested_in_era_range((1100, 1500)) is True
+
+
+def test_attested_in_era_range_year_inside_window_passes():
+    """A morpheme with a year inside [start, end) is admissible."""
+    m = _meaning_with_attested_years({"old_english": [("cot", 950)]})
+    assert m.attested_in_era_range((800, 1100)) is True
+
+
+def test_attested_in_era_range_year_outside_window_excluded():
+    """A morpheme whose only attestation falls outside the window is
+    dropped — the filter is doing its job."""
+    m = _meaning_with_attested_years({"old_english": [("cot", 950)]})
+    assert m.attested_in_era_range((1100, 1500)) is False
+
+
+def test_attested_in_era_range_half_open_boundary_year_excluded_at_end():
+    """Half-open [start, end): a year exactly on ``end`` is NOT included.
+    Matches era.era_cell's boundary semantics — a 1100 attestation lands
+    in 'me', not 'oe-late'."""
+    m = _meaning_with_attested_years({"old_english": [("cot", 1100)]})
+    assert m.attested_in_era_range((800, 1100)) is False
+    assert m.attested_in_era_range((1100, 1500)) is True
+
+
+def test_attested_in_era_range_open_low_endpoint():
+    """start=None means 'open on low side' — any year below ``end``
+    matches. A 700 attestation passes the oe-early window (None, 800)."""
+    m = _meaning_with_attested_years({"old_english": [("haedan", 700)]})
+    assert m.attested_in_era_range((None, 800)) is True
+    assert m.attested_in_era_range((None, 700)) is False
+
+
+def test_attested_in_era_range_open_high_endpoint():
+    """end=None means 'open on high side' — any year >= start matches."""
+    m = _meaning_with_attested_years({"old_english": [("modern", 1900)]})
+    assert m.attested_in_era_range((1700, None)) is True
+    assert m.attested_in_era_range((None, 1700)) is False
+
+
+def test_attested_in_era_range_short_circuits_on_first_match():
+    """One in-range year is enough — additional out-of-range entries
+    don't override. Pre-shipped data sorts by year ascending; this
+    exercise pins the OR-across-attestations contract regardless of
+    sort order."""
+    m = _meaning_with_attested_years({"old_english": [("early", 700), ("late", 1500)]})
+    # 700 falls outside oe-late, but 1500 also falls outside (> end).
+    assert m.attested_in_era_range((800, 1100)) is False
+    # 1500 lands at the open-end of early-modern (1500, 1700).
+    assert m.attested_in_era_range((1500, 1700)) is True
+
+
+def test_attested_in_era_range_searches_across_languages():
+    """The OR check spans every language entry — a morpheme with
+    Old English late attestation AND Old Norse classical attestation
+    passes either of those windows."""
+    m = _meaning_with_attested_years(
+        {
+            "old_english": [("brycg", 950)],
+            "old_norse": [("bryggja", 1000)],
+        }
+    )
+    assert m.attested_in_era_range((800, 1100)) is True
+    # No language has a year >= 1500.
+    assert m.attested_in_era_range((1500, 1700)) is False

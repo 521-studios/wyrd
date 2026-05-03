@@ -225,3 +225,66 @@ def all_families() -> tuple[str, ...]:
     """Return the tuple of all defined era families. Stable order
     (sorted alphabetically) so CLI output is deterministic."""
     return tuple(sorted(ERA_CELLS))
+
+
+def resolve_era_input(
+    era: str | int | None,
+    *,
+    default_family: str = "english",
+) -> tuple[int | None, int | None] | None:
+    """Convert a CLI/API ``--era`` value to a half-open ``(start, end)``
+    year range, or None to mean 'no filter applies'.
+
+    Accepted shapes:
+
+    * ``None`` → no filter. Caller leaves the inventory untouched.
+    * ``int`` (or numeric str like ``"1086"``) → year-based. Resolves to
+      the cell containing that year in ``default_family`` and returns
+      that cell's range. ValueError if the year falls outside any
+      defined cell for the family.
+    * ``str`` cell label (``"oe-late"``) → looks up the label in
+      ``default_family`` first, then falls back to any other family
+      defining the label (several share label names like ``"modern"``).
+      Returns the matching cell's range.
+    * ``str`` ``family/label`` form (``"english/oe-late"``) → explicit
+      family choice; returns the cell's range from the named family.
+      Useful when a label is ambiguous across families.
+
+    The runtime D5-2 filter (``Meaning.attested_in_era_range``) uses
+    the returned range as a half-open interval — a year exactly on
+    ``start`` is included, a year exactly on ``end`` is not.
+    """
+    if era is None:
+        return None
+    if isinstance(era, int):
+        cell = era_cell_for_family(default_family, era)
+        if cell is None:
+            raise ValueError(
+                f"year {era} is outside the defined cells for family {default_family!r}"
+            )
+        return era_year_range(default_family, cell)
+    try:
+        year = int(era)
+    except ValueError:
+        year = None
+    if year is not None:
+        return resolve_era_input(year, default_family=default_family)
+    if "/" in era:
+        family, _, label = era.partition("/")
+        return era_year_range(family, label)
+    # Bare label — try default_family first, then any other family that
+    # defines the same label.
+    try:
+        return era_year_range(default_family, era)
+    except KeyError:
+        for family in sorted(ERA_CELLS):
+            if family == default_family:
+                continue
+            try:
+                return era_year_range(family, era)
+            except KeyError:
+                continue
+    raise ValueError(
+        f"unknown era input {era!r}; pass a year (e.g. 1086), a cell "
+        f"label (e.g. 'oe-late'), or a 'family/label' pair"
+    )

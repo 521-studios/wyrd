@@ -292,3 +292,87 @@ def test_era_cell_for_family_raises_for_unknown_family() -> None:
     'every year is out-of-range'."""
     with pytest.raises(KeyError, match="unknown era family"):
         era.era_cell_for_family("klingon", 1000)
+
+
+# --- resolve_era_input (D5-3 CLI/API entry point) --------------------------
+
+
+def test_resolve_era_input_none_passthrough() -> None:
+    """None input means 'no filter' — caller gets None back, matching
+    the runtime ``Meaning.attested_in_era_range(None) is True`` contract."""
+    assert era.resolve_era_input(None) is None
+
+
+@pytest.mark.parametrize(
+    "year,expected_range",
+    [
+        (1086, (800, 1100)),  # Domesday — oe-late
+        (700, (None, 800)),  # below all internal boundaries → oe-early
+        (1500, (1500, 1700)),  # boundary year lands in early-modern
+        (1700, (1700, None)),  # modern open-on-high
+    ],
+)
+def test_resolve_era_input_year_resolves_to_cell_range(
+    year: int, expected_range: tuple[int | None, int | None]
+) -> None:
+    """An int year resolves to the half-open range of the cell
+    containing it in default_family='english'."""
+    assert era.resolve_era_input(year) == expected_range
+
+
+def test_resolve_era_input_numeric_string_treated_as_year() -> None:
+    """CLI passes args as strings; a numeric string takes the year
+    branch rather than the label branch."""
+    assert era.resolve_era_input("1086") == (800, 1100)
+
+
+def test_resolve_era_input_year_out_of_range_raises_value_error() -> None:
+    """A year outside the family's defined cells should fail loudly,
+    not silently return None — that would let a bad --era 9999 sneak
+    through as 'no filter'."""
+    with pytest.raises(ValueError, match="outside the defined cells"):
+        era.resolve_era_input(9999, default_family="latin")
+
+
+def test_resolve_era_input_bare_label_uses_default_family() -> None:
+    """A bare label tries default_family first."""
+    assert era.resolve_era_input("oe-late") == (800, 1100)
+    assert era.resolve_era_input("me") == (1100, 1500)
+
+
+def test_resolve_era_input_bare_label_falls_back_to_other_family() -> None:
+    """If default_family doesn't define the label, search the other
+    families. 'middle-irish' isn't in english, but is in goidelic."""
+    assert era.resolve_era_input("middle-irish") == (900, 1200)
+
+
+def test_resolve_era_input_family_label_form_disambiguates() -> None:
+    """Several families share the label 'modern' — the family/label
+    form pins the family explicitly."""
+    assert era.resolve_era_input("english/modern") == (1700, None)
+    assert era.resolve_era_input("latin/renaissance") == (1500, 1800)
+    assert era.resolve_era_input("norman-french/anglo-norman") == (1066, 1500)
+
+
+def test_resolve_era_input_family_label_form_raises_on_unknown() -> None:
+    """A typo in the family/label form surfaces as a KeyError so the
+    user sees 'unknown era family' rather than a silent miss."""
+    with pytest.raises(KeyError, match="unknown era family"):
+        era.resolve_era_input("klingon/old")
+
+
+def test_resolve_era_input_unknown_label_raises_value_error() -> None:
+    """A bare label that no family defines should fail with a
+    ValueError pointing the user at the accepted shapes."""
+    with pytest.raises(ValueError, match="unknown era input"):
+        era.resolve_era_input("victorian")
+
+
+def test_resolve_era_input_default_family_overrides_search() -> None:
+    """A label shared across families resolves to the default_family's
+    range, not the alphabetically-first family's. 'modern' exists in
+    every family — passing default_family='goidelic' returns goidelic's
+    'modern' (1700, None) which happens to match english's, so use a
+    range that diverges between brythonic (1500, None) and english."""
+    assert era.resolve_era_input("modern", default_family="brythonic") == (1500, None)
+    assert era.resolve_era_input("modern", default_family="english") == (1700, None)
