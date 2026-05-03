@@ -1777,11 +1777,29 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     bit-stable across runs.
 
     With apply=False (default) reports candidate counts without writing.
-    With apply=True writes synset_id + synset_method='cluster-cognates-v1'.
-    Reverse with `clear-enrichment --stage=cognates --apply`.
+    With apply=True writes synset_id + synset_method='cluster-cognates-v1'
+    only on rows whose current (synset_id, synset_method) doesn't already
+    match the target — re-runs against unchanged data become real no-ops
+    instead of redundant UPDATEs. Reverse with
+    `clear-enrichment --stage=cognates --apply`.
 
-    Returns a dict of {roots, candidates, applied}.
+    Returns a dict of:
+      - roots: number of root etymons walked
+      - candidates: total etymons that received (or would receive) a
+        synset_id assignment
+      - applied: whether writes happened
+      - rows_written: count of UPDATE statements that actually changed
+        a row (always 0 in dry-run; ≤ candidates when applied)
+      - cycle_orphans: count of etymons that participate in bridging
+        edges but couldn't be assigned because they sit in a cycle with
+        no external root. Healthy data should report 0 here; non-zero
+        means the descent graph has at least one closed loop with no
+        anchor — worth flagging in operator output.
     """
+    # f-string interpolation of `placeholders` is safe here:
+    # _COGNATE_BRIDGING_EDGES is a module-level tuple of code-controlled
+    # strings, never user input, so no SQL injection risk. Edge values
+    # themselves are bound via parameters.
     placeholders = ", ".join(["?"] * len(_COGNATE_BRIDGING_EDGES))
     roots = [
         row["id"]
@@ -1825,18 +1843,52 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
                         next_frontier.append(child_id)
             frontier = next_frontier
 
+    # Detect cycle-orphans: every etymon that participates in a bridging
+    # edge SHOULD be in `assignments` if a root reaches it. Anything left
+    # over sits in a closed loop with no external anchor and won't get
+    # a synset_id. Surface the count so operators notice — silent NULLs
+    # would be invisible.
+    bridging_participants = {
+        row["id"]
+        for row in db.conn.execute(
+            f"""
+            SELECT DISTINCT id FROM (
+              SELECT parent_id AS id FROM etymon_descent
+                WHERE edge_type IN ({placeholders})
+              UNION
+              SELECT child_id AS id FROM etymon_descent
+                WHERE edge_type IN ({placeholders})
+            )
+            """,
+            _COGNATE_BRIDGING_EDGES * 2,
+        ).fetchall()
+    }
+    cycle_orphans = bridging_participants - set(assignments.keys())
+
+    rows_written = 0
     if apply:
         for etymon_id, synset_id in assignments.items():
-            db.conn.execute(
-                "UPDATE etymon SET synset_id = ?, synset_method = ? WHERE id = ?",
-                (synset_id, _CLUSTER_COGNATES_METHOD, etymon_id),
+            cur = db.conn.execute(
+                "UPDATE etymon SET synset_id = ?, synset_method = ? "
+                "WHERE id = ? "
+                "  AND (synset_id IS NOT ? OR synset_method IS NOT ?)",
+                (
+                    synset_id,
+                    _CLUSTER_COGNATES_METHOD,
+                    etymon_id,
+                    synset_id,
+                    _CLUSTER_COGNATES_METHOD,
+                ),
             )
+            rows_written += cur.rowcount
         db.commit()
 
     return {
         "roots": len(roots),
         "candidates": len(assignments),
         "applied": apply,
+        "rows_written": rows_written,
+        "cycle_orphans": len(cycle_orphans),
     }
 
 

@@ -2253,6 +2253,14 @@ def lexicon_cluster_cognates(db_path: Path, apply_changes: bool) -> None:
         f"{verb} synset_id on {result['candidates']} etymon(s)",
         err=True,
     )
+    if apply_changes:
+        click.echo(f"  rows_written = {result['rows_written']}", err=True)
+    if result["cycle_orphans"]:
+        click.echo(
+            f"  warn: {result['cycle_orphans']} etymon(s) sit in a bridging-edge "
+            f"cycle with no external root and were left unassigned",
+            err=True,
+        )
     if not apply_changes:
         click.echo("(dry-run; pass --apply to commit)", err=True)
 
