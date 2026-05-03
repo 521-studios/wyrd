@@ -495,6 +495,117 @@ committing the regenerated bundle.
 
 ---
 
+## Wiktionary ingestion (wyrd-4rt)
+
+Wiktionary mining is a separate sub-pipeline from the LLM-driven
+place-name dictionary mining above. There's no Tier 1 / 2 / 3 model
+dispatch and no form-in-body validation — wiktextract has already
+parsed the wikitext into structured JSON, so the "extraction" was
+done by human Wiktionary editors. Our job is to load the graph.
+
+### Acquire the dump
+
+[Kaikki.org](https://kaikki.org/dictionary/rawdata.html) publishes
+wiktextract output as JSONL, in either the full corpus or per-language
+splits. The full corpus is multi-GB; per-language slices are 100s of
+MB. URLs of the form:
+
+```
+https://kaikki.org/dictionary/raw-wiktextract-data.jsonl.gz       # full
+https://kaikki.org/dictionary/<Language>/kaikki.org-dictionary-<Language>.jsonl
+```
+
+For place-name etymology coverage, the most valuable slices are
+**Old English**, **Old Norse**, **Proto-Germanic**, **Proto-Celtic**,
+**Latin**, and **Proto-Indo-European** — each gives a rich Etymology +
+Descendants tree connecting modern reflexes back to common roots.
+
+Save under `sources/` as `wiktextract_<slice>.jsonl[.gz]` (the file
+isn't checked in — `sources/` is gitignored).
+
+### Ingest
+
+```bash
+.venv/bin/wyrd kenning lexicon ingest-wiktionary sources/wiktextract_proto_germanic.jsonl.gz --apply
+```
+
+Flags:
+- `--limit N` — stop after N entries (smoke test before a full run)
+- `--since-line N` — skip the first N lines (resume after interruption)
+- `--db PATH` — alternate DB path
+
+The ingester reads one JSON record per line, walks each entry's
+Etymology + Descendants sections, upserts the referenced etymons,
+and inserts `etymon_descent` edges with `edge_type` per the D27
+taxonomy:
+
+| Wiktextract template | Direction | edge_type |
+|---|---|---|
+| `{{inh}}` / `{{inherited}}` | UP from this entry | `inheritance` |
+| `{{bor}}` / `{{borrowed}}` | UP | `borrowing` |
+| `{{der}}` / `{{derived}}` | UP | `derivation` |
+| `{{cal}}` / `{{calque}}` | UP | `calque` |
+| `{{desc}}` / `{{descendant}}` | DOWN to listed children | `inheritance` |
+| `{{cog}}` / `{{cognate}}` | n/a | skipped (peer relation) |
+| `{{m}}` / `{{mention}}` | n/a | skipped (mention only) |
+| anything else | n/a | counted as unsupported_template |
+
+Source attribution is the synthetic `'wiktionary'` source row (per
+D27 — per-edit attribution lives in wiki history; per-language
+slicing is overkill for v1).
+
+### Cluster cognates afterward
+
+The ingest only writes descent edges. To populate `etymon.synset_id`
+so cross-language cognate queries become a single JOIN, run the
+cluster pass next:
+
+```bash
+.venv/bin/wyrd kenning lexicon cluster-cognates --apply
+```
+
+This walks the descent graph from each root and assigns `synset_id`
+to every reachable etymon. Reversible via
+`clear-enrichment --stage=cognates --apply`.
+
+### Idempotency + resumability
+
+The ingest is idempotent on `(canonical_form, language)` for
+etymons and on `(parent_id, child_id, edge_type, source_id)` for
+descent edges (UNIQUE constraints from data/lexicon.sql). Re-running
+the same JSONL is safe — duplicate inserts are silently skipped.
+
+For multi-hour ingestion sessions where the process gets interrupted,
+note the last `lines_read` count in the CLI output and resume with
+`--since-line N`.
+
+### What if a template kind isn't recognized?
+
+The CLI reports `unsupported_templates = N` when wiktextract entries
+contain templates we haven't mapped. For v1 the supported set covers
+inh / bor / der / cal / desc plus their long-name variants. If real
+data surfaces a meaningful kind we missed, extend the
+`_UPWARD_TEMPLATE_TO_EDGE`, `_DOWNWARD_TEMPLATE_NAMES`, or
+`_SKIPPED_TEMPLATE_NAMES` maps in
+`wyrd/generators/kenning/wiktextract_ingester.py`. The pure-data
+nature of the ingester makes adding kinds cheap.
+
+### Anti-patterns
+
+- **Don't run mine-llm against wiktextract dumps**. The LLM extractor
+  is for unstructured OCR text (place-name dictionaries). Wiktextract
+  is already structured; running an LLM over it would burn tokens
+  for zero benefit.
+- **Don't add wiktextract entries to `sources/MANIFEST.md`**. The
+  manifest is for OCR'd scholarly books that drive the place-name
+  pipeline. Wiktextract is a single synthetic source.
+- **Don't run `link-lemmas` against wiktextract data**. That stage
+  links inflected forms to lemmas; wiktextract entries are already
+  lemma-form (or marked as such), and linkage rules tuned for OE
+  / ON inflection on toponym morphemes don't apply.
+
+---
+
 ## Useful queries
 
 ### How is rando-port faring overall?
