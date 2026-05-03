@@ -2355,49 +2355,27 @@ _OE_PHONOLOGICAL_BRIDGES: dict[str, str] = {
 }
 
 
-def bridge_phonological_oe(db: LexiconDB, *, apply: bool = False) -> dict:
-    """Bridge OE place-name etymons to their Wiktionary canonical
-    equivalents via a hand-curated mapping table.
+def _bridge_same_language_phonological(
+    db: LexiconDB, *, language: str, table: dict[str, str], apply: bool
+) -> dict:
+    """Shared engine for same-language phonological bridges.
 
-    Place-name dictionaries write modernized OE forms (`ton`, `lea`,
-    `burgh`, `dale`); Wiktionary uses scholarly orthography (`tūn`,
-    `lēah`, `burh`, `dæl`). normalize-ocr handles macron-strip OCR
-    variants but not vowel-weakening / silent-e / gh-spelling shifts.
-    This pass uses `_OE_PHONOLOGICAL_BRIDGES` to merge known pairs
-    via merged_into_id (D22 non-destructive shape) so the redirect-aware
-    cluster-cognates pass rolls the place-name etymons up into the
-    Wiktionary cognate clusters.
+    OE and ON place-name etymologies both suffer from the same structural
+    mismatch against Wiktionary: scholar place-name dictionaries write
+    modernized / Anglicized spellings (ton, lea, by, holm) while
+    Wiktionary uses scholarly orthography with macrons, æ, þ/ð, etc.
+    (tūn, lēah, býr, hólmr). Each language gets its own hand-curated
+    bridge table; this function applies one against the canonical rows
+    of `language`, walking merged_into_id chains so a bridge value that
+    names a tombstone still resolves to the live canonical.
 
-    Algorithm:
-      1. For each canonical OE etymon, lowercase its canonical_form.
-      2. Look up the form in `_OE_PHONOLOGICAL_BRIDGES`.
-      3. If a target form is named, find the canonical OE etymon with
-         that form (case-insensitive), and merge the place-name entry
-         into it.
-
-    With apply=False (default) reports candidate counts without writing.
-    Returns:
-      - examined: total canonical OE etymons examined
-      - bridged: count that found a phonological-bridge target
-      - unmatched: count with no entry in the phonological table
-      - missing_target: count where the table named a target but no
-        OE etymon exists with that canonical form (operator should
-        add the target via mining or extend the table)
-      - rows_written: actual UPDATE row count when apply=True
+    Returns the same shape as the public bridge_phonological_* wrappers.
     """
-    # Build target_index from ALL OE rows (canonical + tombstones), with
-    # each form key resolving to its LIVE canonical id by following the
-    # merged_into_id chain. Without redirect-following, the bridge map
-    # cannot name a target like 'dæl' or 'pōl' that has been merged into
-    # a macron-stripped canonical (dael, pol) by an earlier OCR pass —
-    # the lookup would silently miss. Walking the chain in Python here
-    # keeps the bridge robust against the current and future state of
-    # OCR-clustering / normalize-ocr results.
-    all_oe_rows = db.conn.execute(
-        "SELECT id, canonical_form, merged_into_id FROM etymon "
-        "WHERE language = 'old-english' ORDER BY id"
+    all_rows = db.conn.execute(
+        "SELECT id, canonical_form, merged_into_id FROM etymon WHERE language = ? ORDER BY id",
+        (language,),
     ).fetchall()
-    chain: dict[int, int | None] = {r["id"]: r["merged_into_id"] for r in all_oe_rows}
+    chain: dict[int, int | None] = {r["id"]: r["merged_into_id"] for r in all_rows}
 
     def _resolve_canonical(start_id: int) -> int:
         cid = start_id
@@ -2408,21 +2386,18 @@ def bridge_phonological_oe(db: LexiconDB, *, apply: bool = False) -> dict:
         return cid
 
     target_index: dict[str, int] = {}
-    for row in all_oe_rows:
+    for row in all_rows:
         key = row["canonical_form"].lower()
         if key not in target_index:
             target_index[key] = _resolve_canonical(row["id"])
 
-    # Iteration set: only the canonical (un-merged) rows are bridge
-    # candidates. A row that is itself a tombstone is already redirected
-    # and bridging from it would be a no-op against the COALESCE rollup.
-    examined_rows = [r for r in all_oe_rows if r["merged_into_id"] is None]
+    examined_rows = [r for r in all_rows if r["merged_into_id"] is None]
 
     bridges: list[tuple[int, int]] = []
     missing_target = 0
     for row in examined_rows:
         form = row["canonical_form"].lower()
-        wiktionary_form = _OE_PHONOLOGICAL_BRIDGES.get(form)
+        wiktionary_form = table.get(form)
         if wiktionary_form is None:
             continue
         target_id = target_index.get(wiktionary_form.lower())
@@ -2462,6 +2437,148 @@ def bridge_phonological_oe(db: LexiconDB, *, apply: bool = False) -> dict:
         "rows_written": rows_written,
         "applied": apply,
     }
+
+
+def bridge_phonological_oe(db: LexiconDB, *, apply: bool = False) -> dict:
+    """Bridge OE place-name etymons to their Wiktionary canonical
+    equivalents via a hand-curated mapping table.
+
+    Place-name dictionaries write modernized OE forms (`ton`, `lea`,
+    `burgh`, `dale`); Wiktionary uses scholarly orthography (`tūn`,
+    `lēah`, `burh`, `dæl`). normalize-ocr handles macron-strip OCR
+    variants but not vowel-weakening / silent-e / gh-spelling shifts.
+    This pass uses `_OE_PHONOLOGICAL_BRIDGES` to merge known pairs
+    via merged_into_id (D22 non-destructive shape) so the redirect-aware
+    cluster-cognates pass rolls the place-name etymons up into the
+    Wiktionary cognate clusters.
+
+    Returns:
+      - examined: total canonical OE etymons examined
+      - bridged: count that found a phonological-bridge target
+      - unmatched: count with no entry in the phonological table
+      - missing_target: count where the table named a target but no
+        OE etymon exists with that canonical form (operator should
+        add the target via mining or extend the table)
+      - rows_written: actual UPDATE row count when apply=True
+    """
+    return _bridge_same_language_phonological(
+        db, language="old-english", table=_OE_PHONOLOGICAL_BRIDGES, apply=apply
+    )
+
+
+# --- phonological bridging for ON place-name forms ------------------------
+
+
+# Hand-curated mapping from "scholarly ON form as place-name dictionaries
+# write it" → "Wiktionary canonical ON form". Wiktionary uses formal
+# scholarly orthography (acutes, þ/ð, -r endings, ǫ); place-name
+# dictionaries write Anglicized / modernized spellings inherited from
+# medieval English / Norse-influenced scribal practice. The mapping
+# captures the most common pairs that surface in the high-witness end
+# of our place-name corpus.
+# Extend the table when new high-witness mismatches surface.
+#
+# Convention: keys are lowercase scholarly forms; values are the
+# Wiktionary canonical (with acutes, þ/ð, ǫ, -r endings, etc.).
+# The bridge uses merged_into_id (D22 non-destructive) — no mining
+# evidence is destroyed.
+_ON_PHONOLOGICAL_BRIDGES: dict[str, str] = {
+    # -býr / settlement, farm
+    "by": "býr",
+    "byr": "býr",
+    # -hólmr / island, holm — bridge value is the macron-stripped 'holmr'
+    # since hólmr itself is not in the corpus as a canonical form.
+    "holm": "holmr",
+    # -kirkja / church (Norse loanword underlying kirk)
+    "kirk": "kirkja",
+    # -dalr / valley
+    "dal": "dalr",
+    "dale": "dalr",
+    # -garðr / yard, enclosure
+    "gardr": "garðr",
+    "garth": "garðr",
+    # -gríss / pig
+    "griss": "gríss",
+    # -skógr / wood, forest
+    "skogr": "skógr",
+    "skégr": "skógr",  # OCR variant
+    # -þorp / village (relies on redirect-follow: þorp tombstoned to thorp)
+    "thorpe": "þorp",
+    "torp": "þorp",
+    # -þveit / clearing (relies on redirect-follow: þveit tombstoned to thveit)
+    "thwaite": "þveit",
+    "thwait": "þveit",
+    # -tún / enclosure (Norse cognate of OE tūn)
+    "tun": "tún",
+    # -vík / bay, inlet
+    "vik": "vík",
+    # -dýr / animal, deer
+    "dyr": "dýr",
+    # -hestr / horse
+    "hest": "hestr",
+    # -kjarr / brushwood, copse
+    "kiarr": "kjarr",
+    # -krókr / hook, bend
+    "krokr": "krókr",
+    # -mór / moor
+    "mor": "mór",
+    # -mýrr / bog
+    "myrr": "mýrr",
+    # -norðr / north
+    "nord": "norðr",
+    # -rauðr / red
+    "rauthr": "rauðr",
+    "raudr": "rauðr",
+    # -sauðr / sheep
+    "saudr": "sauðr",
+    # -vágr / wave, sea-creek
+    "vagr": "vágr",
+    # -vagn / wagon
+    "vogn": "vagn",
+    # -vǫllr / field
+    "vollr": "vǫllr",
+    # -blár / blue
+    "bla": "blár",
+    # -hǫgg / cut, blow
+    "hogg": "hǫgg",
+    # -buskr / bush
+    "buski": "buskr",
+    # -veiðr / hunting (also -veiði)
+    "veidi": "veiðr",
+    # -flatr / flat
+    "flad": "flatr",
+    # -hagi / pasture, enclosed grazing
+    "hain": "hagi",
+}
+
+
+def bridge_phonological_on(db: LexiconDB, *, apply: bool = False) -> dict:
+    """Bridge ON place-name etymons to their Wiktionary canonical
+    equivalents via a hand-curated mapping table.
+
+    Place-name dictionaries write Anglicized / modernized ON forms
+    (`by`, `holm`, `dale`, `thwaite`, `kirk`, `gardr`); Wiktionary
+    uses scholarly orthography with acutes, þ/ð, -r endings, ǫ
+    (`býr`, `hólmr`, `dalr`, `þveit`, `kirkja`, `garðr`). normalize-ocr
+    handles macron-strip OCR variants but not the Anglicization of
+    -r endings, þ → th, ð → d, ǫ → o, etc. This pass uses
+    `_ON_PHONOLOGICAL_BRIDGES` to merge known pairs via merged_into_id
+    (D22 non-destructive shape) so the redirect-aware cluster-cognates
+    pass rolls the place-name etymons up into the Wiktionary cognate
+    clusters.
+
+    Returns:
+      - examined: total canonical ON etymons examined
+      - bridged: count that found a phonological-bridge target
+      - unmatched: count with no entry in the phonological table
+      - missing_target: count where the table named a target but no
+        ON etymon exists with that canonical form (operator should
+        add the target via mining or extend the table)
+      - rows_written: actual UPDATE row count when apply=True
+    """
+    return _bridge_same_language_phonological(
+        db, language="old-norse", table=_ON_PHONOLOGICAL_BRIDGES, apply=apply
+    )
 
 
 # --- ingest from parsed corpus entries -------------------------------------

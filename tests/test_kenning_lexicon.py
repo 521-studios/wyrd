@@ -6068,3 +6068,304 @@ def test_bridge_phonological_oe_ey_bridges_to_macron_stripped_ieg(
         ).fetchone()["merged_into_id"]
 
     assert merged_target == ieg_id
+
+
+# --- wyrd-fkg: bridge_phonological_on ----------------------------------
+
+
+def test_bridge_phonological_on_merges_known_pair(fresh_db: Path) -> None:
+    """Smoke test: a known place-name → wiktionary ON pair (`by` → `býr`)
+    gets merged when --apply is on."""
+    from wyrd.generators.kenning.lexicon import bridge_phonological_on
+
+    with LexiconDB(fresh_db) as db:
+        target_id = db.upsert_etymon("býr", "old-norse")
+        place_id = db.upsert_etymon("by", "old-norse")
+        db.commit()
+        result = bridge_phonological_on(db, apply=True)
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (place_id,)
+        ).fetchone()["merged_into_id"]
+
+    assert merged == target_id
+    assert result["bridged"] == 1
+    assert result["missing_target"] == 0
+    assert result["rows_written"] == 1
+
+
+@pytest.mark.parametrize(
+    "place_form,wiktionary_form",
+    [
+        ("by", "býr"),
+        ("byr", "býr"),
+        ("holm", "holmr"),
+        ("kirk", "kirkja"),
+        ("dal", "dalr"),
+        ("dale", "dalr"),
+        ("gardr", "garðr"),
+        ("garth", "garðr"),
+        ("griss", "gríss"),
+        ("skogr", "skógr"),
+        ("tun", "tún"),
+        ("vik", "vík"),
+        ("dyr", "dýr"),
+        ("hest", "hestr"),
+        ("krokr", "krókr"),
+        ("nord", "norðr"),
+        ("rauthr", "rauðr"),
+        ("vollr", "vǫllr"),
+        ("hogg", "hǫgg"),
+        ("buski", "buskr"),
+        ("flad", "flatr"),
+        ("hain", "hagi"),
+    ],
+)
+def test_bridge_phonological_on_table_entries_resolve(
+    fresh_db: Path, place_form: str, wiktionary_form: str
+) -> None:
+    """Each high-witness ON bridge-table entry pinned individually so a
+    typo or table edit surfaces against the specific pair it broke."""
+    from wyrd.generators.kenning.lexicon import bridge_phonological_on
+
+    with LexiconDB(fresh_db) as db:
+        place_id = db.upsert_etymon(place_form, "old-norse")
+        target_id = db.upsert_etymon(wiktionary_form, "old-norse")
+        db.commit()
+        bridge_phonological_on(db, apply=True)
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (place_id,)
+        ).fetchone()["merged_into_id"]
+    assert merged == target_id, f"{place_form!r} did not bridge to {wiktionary_form!r}"
+
+
+def test_bridge_phonological_on_no_target_increments_missing_target(
+    fresh_db: Path,
+) -> None:
+    """If the table names a target form that doesn't exist as a canonical
+    ON etymon (because it hasn't been ingested), missing_target ticks."""
+    from wyrd.generators.kenning.lexicon import bridge_phonological_on
+
+    with LexiconDB(fresh_db) as db:
+        place_id = db.upsert_etymon("by", "old-norse")  # 'by' → 'býr'
+        db.commit()  # No 'býr' etymon present.
+        result = bridge_phonological_on(db, apply=True)
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (place_id,)
+        ).fetchone()["merged_into_id"]
+
+    assert merged is None
+    assert result["bridged"] == 0
+    assert result["missing_target"] == 1
+
+
+def test_bridge_phonological_on_unmatched_form_left_alone(fresh_db: Path) -> None:
+    """An ON etymon whose canonical_form isn't in the bridge table is
+    counted as unmatched (silent — no missing_target signal)."""
+    from wyrd.generators.kenning.lexicon import bridge_phonological_on
+
+    with LexiconDB(fresh_db) as db:
+        unknown_id = db.upsert_etymon("xyzzy_unmapped_on", "old-norse")
+        db.commit()
+        result = bridge_phonological_on(db, apply=True)
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (unknown_id,)
+        ).fetchone()["merged_into_id"]
+
+    assert merged is None
+    assert result["bridged"] == 0
+    assert result["unmatched"] >= 1
+    assert result["missing_target"] == 0
+
+
+def test_bridge_phonological_on_ignores_other_languages(fresh_db: Path) -> None:
+    """Bridge only touches old-norse rows; OE / Modern English / etc.
+    are untouched even if their canonical_form happens to match a key."""
+    from wyrd.generators.kenning.lexicon import bridge_phonological_on
+
+    with LexiconDB(fresh_db) as db:
+        oe_by = db.upsert_etymon("by", "old-english")  # accidental form match
+        on_target = db.upsert_etymon("býr", "old-norse")
+        on_by = db.upsert_etymon("by", "old-norse")
+        db.commit()
+        bridge_phonological_on(db, apply=True)
+        oe_state = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (oe_by,)
+        ).fetchone()["merged_into_id"]
+        on_state = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (on_by,)
+        ).fetchone()["merged_into_id"]
+
+    assert oe_state is None  # OE 'by' untouched
+    assert on_state == on_target  # ON 'by' bridged
+
+
+def test_bridge_phonological_on_dry_run_does_not_write(fresh_db: Path) -> None:
+    """apply=False reports counts without writing merged_into_id."""
+    from wyrd.generators.kenning.lexicon import bridge_phonological_on
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_etymon("býr", "old-norse")
+        place_id = db.upsert_etymon("by", "old-norse")
+        db.commit()
+        result = bridge_phonological_on(db, apply=False)
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (place_id,)
+        ).fetchone()["merged_into_id"]
+
+    assert merged is None
+    assert result["bridged"] == 1  # would-bridge count
+    assert result["rows_written"] == 0
+    assert result["applied"] is False
+
+
+def test_bridge_phonological_on_idempotent_apply_skips_unchanged(
+    fresh_db: Path,
+) -> None:
+    """Re-running apply on an already-bridged corpus writes 0 new rows."""
+    from wyrd.generators.kenning.lexicon import bridge_phonological_on
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_etymon("býr", "old-norse")
+        db.upsert_etymon("by", "old-norse")
+        db.commit()
+        first = bridge_phonological_on(db, apply=True)
+        second = bridge_phonological_on(db, apply=True)
+    assert first["rows_written"] >= 1
+    assert second["rows_written"] == 0
+
+
+def test_bridge_phonological_on_resolves_through_tombstone_target(
+    fresh_db: Path,
+) -> None:
+    """Same redirect-follow guarantee as the OE bridge: when the table
+    value names a tombstone (e.g. þorp merged into thorp), the lookup
+    must walk the chain and route to the live canonical."""
+    from wyrd.generators.kenning.lexicon import bridge_phonological_on
+
+    with LexiconDB(fresh_db) as db:
+        live_id = db.upsert_etymon("thorp", "old-norse")  # the live canonical
+        tombstone_id = db.upsert_etymon("þorp", "old-norse")
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (live_id, tombstone_id),
+        )
+        place_id = db.upsert_etymon("thorpe", "old-norse")
+        db.commit()
+        result = bridge_phonological_on(db, apply=True)
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (place_id,)
+        ).fetchone()["merged_into_id"]
+
+    assert merged == live_id
+    assert result["bridged"] == 1
+
+
+def test_bridge_phonological_on_flattens_existing_redirect_chain(
+    fresh_db: Path,
+) -> None:
+    """Chain-flatten: if a row already redirects AT the place-name etymon
+    being bridged, the bridge re-routes that redirect onto the canonical
+    target so no 2-deep chain forms (which would split witnesses in the
+    single-level COALESCE rollup)."""
+    from wyrd.generators.kenning.lexicon import bridge_phonological_on
+
+    with LexiconDB(fresh_db) as db:
+        target_id = db.upsert_etymon("býr", "old-norse")
+        place_id = db.upsert_etymon("by", "old-norse")
+        upstream_id = db.upsert_etymon("by-variant", "old-norse")
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (place_id, upstream_id),
+        )
+        db.commit()
+        bridge_phonological_on(db, apply=True)
+        upstream_after = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (upstream_id,)
+        ).fetchone()["merged_into_id"]
+    assert upstream_after == target_id
+
+
+def test_bridge_phonological_on_reparents_lemma_children(fresh_db: Path) -> None:
+    """Same lemma_id re-parent for the ON phonological bridge."""
+    from wyrd.generators.kenning.lexicon import bridge_phonological_on
+
+    with LexiconDB(fresh_db) as db:
+        wiktionary_id = db.upsert_etymon("býr", "old-norse")
+        place_id = db.upsert_etymon("by", "old-norse")
+        inflected_id = db.upsert_etymon("byjar", "old-norse")  # arbitrary inflection
+        db.conn.execute(
+            "UPDATE etymon SET lemma_id = ? WHERE id = ?",
+            (place_id, inflected_id),
+        )
+        db.commit()
+        bridge_phonological_on(db, apply=True)
+        new_lemma = db.conn.execute(
+            "SELECT lemma_id FROM etymon WHERE id = ?", (inflected_id,)
+        ).fetchone()["lemma_id"]
+    assert new_lemma == wiktionary_id
+
+
+# --- CLI smoke tests for bridge-phonological-on -----------------------
+
+
+def test_cli_bridge_phonological_on_dry_run(fresh_db: Path) -> None:
+    """`lexicon bridge-phonological-on` (no --apply) reports counts
+    without writing merged_into_id."""
+    with LexiconDB(fresh_db) as db:
+        place_id = db.upsert_etymon("by", "old-norse")
+        db.upsert_etymon("býr", "old-norse")
+        db.commit()
+
+    result = CliRunner().invoke(
+        kenning_cli,
+        ["lexicon", "bridge-phonological-on", "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "would bridge 1" in result.stderr
+    assert "(dry-run; pass --apply to commit)" in result.stderr
+
+    with LexiconDB(fresh_db) as db:
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (place_id,)
+        ).fetchone()["merged_into_id"]
+    assert merged is None
+
+
+def test_cli_bridge_phonological_on_apply_writes_merge(fresh_db: Path) -> None:
+    """`--apply` commits the bridge for known place-name → wiktionary
+    pairs and reports rows_written."""
+    with LexiconDB(fresh_db) as db:
+        place_id = db.upsert_etymon("by", "old-norse")
+        target_id = db.upsert_etymon("býr", "old-norse")
+        db.commit()
+
+    result = CliRunner().invoke(
+        kenning_cli,
+        ["lexicon", "bridge-phonological-on", "--db", str(fresh_db), "--apply"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "bridged 1" in result.stderr
+    assert "rows_written" in result.stderr
+
+    with LexiconDB(fresh_db) as db:
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (place_id,)
+        ).fetchone()["merged_into_id"]
+    assert merged == target_id
+
+
+def test_cli_bridge_phonological_on_warns_on_missing_target(fresh_db: Path) -> None:
+    """When the table names a wiktionary target that hasn't been ingested,
+    the CLI emits the missing_target warning."""
+    with LexiconDB(fresh_db) as db:
+        # Place-name form present, wiktionary target absent.
+        db.upsert_etymon("by", "old-norse")
+        db.commit()
+
+    result = CliRunner().invoke(
+        kenning_cli,
+        ["lexicon", "bridge-phonological-on", "--db", str(fresh_db), "--apply"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "warn:" in result.stderr
+    assert "target that doesn't exist" in result.stderr
