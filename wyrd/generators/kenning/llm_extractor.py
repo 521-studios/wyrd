@@ -579,6 +579,12 @@ def assemble_extraction_result(
 
     if not response.get("found", False):
         # Clean "no etymology in this entry" — record toponym as low-conf.
+        # Per wyrd-6hd: prefix with the provider attribution so a later
+        # query can distinguish 'Gemini declined this' from 'Qwen declined'
+        # from 'baseline regex produced no body'. The body shrinks by the
+        # prefix's width but the outer SOURCE_QUOTE_BUDGET cap is unchanged
+        # — same shape as the accepted-path source_quote composition.
+        decline_quote = f"{notes_prefix} | {body}"[:SOURCE_QUOTE_BUDGET]
         return LLMResult(
             entry=ParsedEntry(
                 toponym=toponym,
@@ -586,7 +592,7 @@ def assemble_extraction_result(
                 historical_form=None,
                 elements=[],
                 confidence="low",
-                source_quote=body[:SOURCE_QUOTE_BUDGET],
+                source_quote=decline_quote,
             ),
             raw_response=response,
             failures=failures,
