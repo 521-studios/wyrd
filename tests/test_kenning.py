@@ -347,6 +347,73 @@ def test_cli_mood_unknown_value_exits_nonzero():
     assert "harsh" in result.output
 
 
+def test_coerce_bool_handles_spa_string_path():
+    """The SPA renders boolean params as form fields whose value crosses
+    the wire as a string. Plain bool('false') == True silently inverts a
+    default-False gate. _coerce_bool treats common false-tokens as False
+    so the wire-string path matches the JSON-bool path. Pinned because
+    the SPA's old text-input fallback for booleans (since fixed) was
+    exactly the regression that motivated this helper (wyrd-yan)."""
+    from wyrd.generators.kenning import _coerce_bool
+
+    # Real bools pass through.
+    assert _coerce_bool(True) is True
+    assert _coerce_bool(False) is False
+
+    # SPA / form-encoded strings — false-tokens become False.
+    assert _coerce_bool("false") is False
+    assert _coerce_bool("False") is False
+    assert _coerce_bool("FALSE") is False
+    assert _coerce_bool("0") is False
+    assert _coerce_bool("") is False
+    assert _coerce_bool("no") is False
+
+    # True-tokens become True.
+    assert _coerce_bool("true") is True
+    assert _coerce_bool("True") is True
+    assert _coerce_bool("1") is True
+    assert _coerce_bool("yes") is True
+    assert _coerce_bool("on") is True
+
+
+def test_kenning_generate_string_false_does_not_invert_gate():
+    """Defense in depth: even if a future client sends include_fiction
+    as the string 'false' (the SPA's pre-fix shape), Kenning.generate
+    must NOT silently flip into include-fiction mode. Pin so a refactor
+    of params parsing can't reintroduce the bool('false') == True trap."""
+    from wyrd.generators.kenning import Kenning
+
+    k = Kenning()
+    plain = k.generate({"culture": "english", "seed": 42}, seed=42).result
+    string_false = k.generate({"culture": "english", "include_fiction": "false"}, seed=42).result
+    assert plain == string_false
+
+
+def test_cli_include_fiction_flag_runs_cleanly_and_is_seed_stable():
+    """End-to-end CLI smoke: --include-fiction runs to completion and
+    produces a non-empty name; with no fiction-tagged data in the
+    bundle today, the same seed produces the same names with and
+    without the flag (bit-stable historical behavior — wyrd-yan)."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    runner = CliRunner()
+    base_args = ["generate", "english", "--seed", "42", "-n", "3", "--no-describe"]
+    without = runner.invoke(cli, base_args)
+    with_flag = runner.invoke(cli, [*base_args, "--include-fiction"])
+
+    assert without.exit_code == 0, without.output
+    assert with_flag.exit_code == 0, with_flag.output
+    # Strip stderr-only lines (e.g. the seed echo).
+    names_without = [ln for ln in without.output.splitlines() if ln and "(seed:" not in ln]
+    names_with = [ln for ln in with_flag.output.splitlines() if ln and "(seed:" not in ln]
+    assert names_without == names_with, (
+        "fiction-flag default behavior should be bit-stable today (no fiction "
+        f"data in bundle); without={names_without!r} with={names_with!r}"
+    )
+
+
 def test_components_are_structured():
     result = Kenning().generate({"culture": "english"}, seed=7)
     assert isinstance(result.components, list)

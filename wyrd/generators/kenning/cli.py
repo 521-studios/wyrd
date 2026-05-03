@@ -16,6 +16,7 @@ from typing import Any
 import click
 
 from wyrd.generators.kenning import (
+    _INTERNAL_TAGS,
     CULTURES,
     MOODS,
     Kenning,
@@ -182,12 +183,17 @@ def generate(
     include_fiction: bool,
 ) -> None:
     """Generate town names. Replaces Rando's `bin/generator`."""
-    known_tags = set(available_tags()) | {"male name", "female name", "saint"}
+    # `available_tags()` already strips _INTERNAL_TAGS for the SPA dropdown,
+    # but the CLI needs to ACCEPT internal tags (some scripts pass them
+    # explicitly) — so widen the validation set with _INTERNAL_TAGS rather
+    # than the literal subset, which would silently desync as new internal
+    # markers (e.g. wyrd-yan's 'fiction') get added.
+    known_tags = set(available_tags()) | _INTERNAL_TAGS
     bad = [t for t in tags if t not in known_tags]
     if bad:
         click.echo(f"Unknown tag(s): {', '.join(bad)}", err=True)
         click.echo("Available tags:", err=True)
-        for t in sorted(known_tags - {"male name", "female name", "saint"}):
+        for t in sorted(known_tags - _INTERNAL_TAGS):
             click.echo(f"  {t}", err=True)
         sys.exit(1)
     bad_moods = [m for m in moods if m.split(":", 1)[0] not in MOODS]

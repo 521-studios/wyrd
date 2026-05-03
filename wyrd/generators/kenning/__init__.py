@@ -109,6 +109,24 @@ def available_tags() -> list[str]:
     return sorted(t for t in tag_db if t not in _INTERNAL_TAGS)
 
 
+def _coerce_bool(value: Any) -> bool:
+    """Coerce a request-side value to bool, treating common false-tokens as
+    False rather than truthy.
+
+    The SPA renders boolean params via a text input today (no checkbox
+    branch), so a default of False ships across the wire as the literal
+    string ``"false"``. Plain ``bool("false")`` is True, which would
+    silently invert the gate. This coercion handles the JSON-bool path
+    (passed through unchanged), the SPA string path, and the empty-form
+    path uniformly.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "1", "yes", "on"}
+    return bool(value)
+
+
 def _apply_mood(spec: str, tags: list[str], harshness: float) -> tuple[list[str], float]:
     """Resolve one mood spec ('grim' or 'harsh:0.5') into tag and harshness
     contributions, returning the updated tuple. Multiple moods compose by
@@ -285,7 +303,7 @@ class Kenning(Generator):
         novelty = float(params.get("novelty", 0.0) or 0.0)
         inflection_density = float(params.get("inflection_density", 0.0) or 0.0)
         harshness = float(params.get("harshness", 0.0) or 0.0)
-        include_fiction = bool(params.get("include_fiction", False))
+        include_fiction = _coerce_bool(params.get("include_fiction", False))
 
         moods = params.get("mood", []) or []
         if isinstance(moods, str):

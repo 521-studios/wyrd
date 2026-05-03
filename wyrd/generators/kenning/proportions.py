@@ -87,10 +87,17 @@ class Generator:
 
     def _apply_excludes(self, items, exclude_tags: tuple[str, ...]):
         """Drop keys whose usage appears in tag_db under any exclude tag.
-        Returns a dict to keep the .items() call site consistent."""
+        Returns a dict to keep the .items() call site consistent.
+
+        Hot-path short-circuit: if no exclude tag is present in this
+        bucket's tag_db, nothing can be filtered — return ``dict(items)``
+        directly without the per-key membership check. Today's bundle has
+        no fiction-tagged morphemes so this is the steady-state path."""
         excluded: set[str] = set()
         for tag in exclude_tags:
             excluded.update(self.tag_db.get(tag, ()))
+        if not excluded:
+            return dict(items)
         return {k: v for k, v in items if k not in excluded}
 
 
