@@ -4667,6 +4667,66 @@ def test_clear_enrichment_all_derived_includes_cognates(fresh_db: Path) -> None:
     assert synset_count == 0
 
 
+def test_lexicon_path_cli_prints_resolved_db_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`wyrd kenning lexicon path` prints whatever default_lexicon_path
+    resolves to. Pin via env override (the simplest way to control it
+    from a test). Confirms the new wyrd-366 CLI surface is wired."""
+    target = tmp_path / "scratch" / "lex.db"
+    monkeypatch.setenv("WYRD_LEXICON_DB", str(target))
+    runner = CliRunner()
+    result = runner.invoke(kenning_cli, ["lexicon", "path"])
+    assert result.exit_code == 0, result.output
+    assert str(target) in result.output
+
+
+def test_lexicon_help_does_not_trigger_default_path_resolution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Critical regression guard: `wyrd kenning lexicon migrate --help`
+    must NOT call default_lexicon_path() (and therefore must NOT
+    trigger the legacy-DB migration as a side effect of viewing help).
+    Click invokes a `default=` callable when `show_default=True` in
+    order to display the resolved value; this PR uses the static
+    LEXICON_DB_DEFAULT_DISPLAY string instead so the callable stays
+    quiet on --help.
+
+    A future regression that flips one option back to
+    `show_default=True` would re-introduce the surprise side-effect.
+    """
+    from wyrd.generators.kenning import paths
+
+    call_count = [0]
+
+    def counting_resolver() -> Path:
+        call_count[0] += 1
+        return Path("/sentinel/should-never-be-called")
+
+    monkeypatch.setattr(paths, "default_lexicon_path", counting_resolver)
+    # Also patch the alias re-bound at cli import time.
+    from wyrd.generators.kenning import cli as cli_mod
+
+    monkeypatch.setattr(cli_mod, "_DEFAULT_LEXICON_PATH", counting_resolver)
+
+    runner = CliRunner()
+    # Hit --help on a command whose --db option uses the default
+    # callable; if any of them silently resolve, the count jumps.
+    for cmd_path in (
+        ["lexicon", "migrate", "--help"],
+        ["lexicon", "cluster-cognates", "--help"],
+        ["lexicon", "lookup-attested-years", "--help"],
+        ["lexicon", "clear-enrichment", "--help"],
+    ):
+        result = runner.invoke(kenning_cli, cmd_path)
+        assert result.exit_code == 0, f"{cmd_path}: {result.output}"
+    assert call_count[0] == 0, (
+        f"--help should not invoke default_lexicon_path "
+        f"(got {call_count[0]} calls). Some --db option likely uses "
+        f"show_default=True instead of LEXICON_DB_DEFAULT_DISPLAY."
+    )
+
+
 def test_cluster_cognates_cli_dry_run_reports_without_writing(
     fresh_db: Path,
 ) -> None:

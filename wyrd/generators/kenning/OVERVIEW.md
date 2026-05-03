@@ -50,7 +50,7 @@ Kenning has two strict layers, and they're easy to confuse.
 │            mining + post-processing      │
 │                    │                     │
 │                    ▼                     │
-│            data/lexicon.db (SQLite)      │
+│            ~/.wyrd/lexicon.db (SQLite)   │
 │                    │                     │
 └────────────────────┼─────────────────────┘
                      │
@@ -70,10 +70,11 @@ Kenning has two strict layers, and they're easy to confuse.
 
 **Authoring layer** is where this project's day-to-day work lives:
 mining etymology dictionaries, tracking citations, recording scholarly
-disagreement, normalizing OCR. The SQLite DB at
-`wyrd/generators/kenning/data/lexicon.db` is the source of truth for
-authoring. The CLI commands under `wyrd kenning lexicon ...` operate on
-it. The DB is gitignored — it's a build artifact regenerable from
+disagreement, normalizing OCR. The SQLite DB at `~/.wyrd/lexicon.db`
+(override with `WYRD_LEXICON_DB`) is the source of truth for authoring
+— one per user, repo-/worktree-independent. The CLI commands under
+`wyrd kenning lexicon ...` operate on it; `wyrd kenning lexicon path`
+prints the resolved location. Never committed; regenerable from
 sources + mining.
 
 **Runtime layer** is what users hit. The Lambda generator imports a

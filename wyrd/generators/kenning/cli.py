@@ -51,6 +51,10 @@ from wyrd.generators.kenning.lexicon import (
 )
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.name import load_names
+from wyrd.generators.kenning.paths import (
+    LEXICON_DB_DEFAULT_DISPLAY,
+    default_lexicon_path,
+)
 from wyrd.generators.kenning.skeat_parser import parse_skeat_text
 from wyrd.generators.kenning.wiktextract_ingester import ingest_wiktextract_path
 from wyrd.seed import resolve_seed, rng_for
@@ -84,8 +88,11 @@ def _load_meanings_data(meanings: Path | None) -> dict:
     return json.loads(text)
 
 
-# Default location for the authoring lexicon DB. Build artifact, gitignored.
-_DEFAULT_LEXICON_PATH = Path("wyrd/generators/kenning/data/lexicon.db")
+# Default location for the authoring lexicon DB. The callable is
+# resolved per CLI invocation so the WYRD_LEXICON_DB env override and
+# the one-time legacy → ~/.wyrd migration both fire at call time, not
+# at module-import time. See wyrd/generators/kenning/paths.py.
+_DEFAULT_LEXICON_PATH = default_lexicon_path
 
 # Synthetic source row representing the meanings.json data inherited from the
 # Rando port. Authority unverified per-entry; entries flagged for review as
@@ -489,7 +496,7 @@ def lexicon() -> None:
     "db_path",
     type=click.Path(dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
     help="Where to write the SQLite DB.",
 )
 @click.option(
@@ -763,7 +770,7 @@ _KNOWN_SKEAT_BOOKS = {
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--output",
@@ -866,7 +873,7 @@ def lexicon_export_meanings(
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--source-id",
@@ -919,7 +926,7 @@ def lexicon_mine_skeat(path: Path, db_path: Path, source_id: str | None) -> None
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--source-id",
@@ -1104,7 +1111,7 @@ def lexicon_mine_llm(
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--book",
@@ -1543,7 +1550,7 @@ def _import_mining_log_record(
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--apply",
@@ -1612,13 +1619,30 @@ def lexicon_import_mining_log(path: Path, db_path: Path, apply_changes: bool) ->
         click.echo("(dry-run; pass --apply to write)", err=True)
 
 
+@lexicon.command("path")
+def lexicon_path() -> None:
+    """Print the resolved lexicon DB path and exit.
+
+    Resolution order:
+
+    \b
+    1. WYRD_LEXICON_DB env var
+    2. ~/.wyrd/lexicon.db (default)
+
+    Triggers the one-time legacy → ~/.wyrd migration if a pre-wyrd-366
+    DB still lives in the repo's data/ dir. Useful for confirming what
+    DB a CLI run would hit.
+    """
+    click.echo(default_lexicon_path())
+
+
 @lexicon.command("migrate")
 @click.option(
     "--db",
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 def lexicon_migrate(db_path: Path) -> None:
     """Apply pending schema migrations to an existing lexicon DB.
@@ -1679,7 +1703,7 @@ def lexicon_parse_pages(source_path: Path, limit: int) -> None:
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--apply",
@@ -1773,7 +1797,7 @@ def _print_backfill_totals(totals: dict[str, int], apply_changes: bool) -> None:
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--apply",
@@ -1821,7 +1845,7 @@ def lexicon_link_lemmas(db_path: Path, apply_changes: bool) -> None:
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--apply",
@@ -1925,7 +1949,7 @@ def lexicon_reverse_search(
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--apply",
@@ -1980,7 +2004,7 @@ def lexicon_lookup_attested_years(
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--apply",
@@ -2061,7 +2085,7 @@ def lexicon_fuzzy_search(
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--apply",
@@ -2179,7 +2203,7 @@ def lexicon_disambiguate_fuzzy(
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--apply",
@@ -2223,7 +2247,7 @@ def lexicon_normalize_ocr(db_path: Path, apply_changes: bool) -> None:
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--stage",
@@ -2284,7 +2308,7 @@ def lexicon_clear_enrichment(db_path: Path, stage: str, apply_changes: bool) -> 
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--apply",
@@ -2356,7 +2380,7 @@ _CELTIC_CANDIDATES_DEFAULT = (
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--generic",
@@ -2455,7 +2479,7 @@ def lexicon_bridge_language(
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--apply",
@@ -2512,7 +2536,7 @@ def lexicon_bridge_phonological_oe(db_path: Path, apply_changes: bool) -> None:
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--apply",
@@ -2590,7 +2614,7 @@ def lexicon_ingest_wiktionary(
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
     "--top",
@@ -2715,7 +2739,7 @@ def lexicon_report(db_path: Path, top: int) -> None:
     "db_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=_DEFAULT_LEXICON_PATH,
-    show_default=True,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 def lexicon_stats(db_path: Path) -> None:
     """Show row counts per table in the lexicon DB."""
