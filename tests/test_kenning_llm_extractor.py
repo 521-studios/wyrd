@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 
 from wyrd.generators.kenning.llm_extractor import (
+    _SOURCE_QUOTE_BUDGET,
     RESPONSE_SCHEMA,
     SYSTEM_PROMPT,
     _form_in_body,
@@ -556,7 +557,7 @@ def test_assemble_extraction_result_not_found_emits_low_confidence_entry():
     assert result.entry is not None
     assert result.entry.elements == []
     assert result.entry.confidence == "low"
-    assert result.entry.source_quote == body[:500]
+    assert result.entry.source_quote == body[:_SOURCE_QUOTE_BUDGET]
 
 
 def test_assemble_extraction_result_validation_failure_marks_rejected():
@@ -625,7 +626,7 @@ def test_assemble_extraction_result_tags_source_quote_with_prefix():
     assert result.accepted is True
     assert result.entry is not None
     assert result.entry.source_quote.startswith("extracted_by:claude:opus-4-7")
-    assert len(result.entry.source_quote) <= 500
+    assert len(result.entry.source_quote) <= _SOURCE_QUOTE_BUDGET
 
 
 def test_assemble_extraction_result_truncates_long_body_at_budget():
@@ -642,7 +643,7 @@ def test_assemble_extraction_result_truncates_long_body_at_budget():
     body = ("Foobar — from Old English foo, " + ("a " * 600))[:1200]
     assert len(body) == 1200
 
-    # Decline path: body-only, full 500-char budget for body.
+    # Decline path: body-only.
     declined = assemble_extraction_result(
         {"found": False},
         body=body,
@@ -652,10 +653,10 @@ def test_assemble_extraction_result_truncates_long_body_at_budget():
     )
     assert declined.accepted is True
     assert declined.entry is not None
-    assert len(declined.entry.source_quote) == 500
-    assert declined.entry.source_quote == body[:500]
+    assert len(declined.entry.source_quote) == _SOURCE_QUOTE_BUDGET
+    assert declined.entry.source_quote == body[:_SOURCE_QUOTE_BUDGET]
 
-    # Accepted path: combined_notes prefix + ' | ' + body[:440] capped at 500.
+    # Accepted path: combined_notes + ' | ' + body capped at the budget.
     response = {
         "found": True,
         "historical_form": "Foobar",
@@ -680,29 +681,25 @@ def test_assemble_extraction_result_truncates_long_body_at_budget():
     assert accepted.accepted is True
     assert accepted.entry is not None
     sq = accepted.entry.source_quote
-    assert len(sq) <= 500
-    # Body share is bounded; the prefix + separator + body[:440] together
-    # are well under 500 for a normal-length notes_prefix, so no outer
-    # truncation kicks in for this test case (it would for an unusually
-    # long notes string, which the outer [:500] cap catches as the safety
-    # net).
+    assert len(sq) == _SOURCE_QUOTE_BUDGET
+    # Attribution prefix preserved at the front; body share fills the rest.
     assert sq.startswith("extracted_by:test:1")
     assert " | " in sq
 
 
 def test_assemble_extraction_result_outer_cap_truncates_long_notes_prefix():
-    """wyrd-9kh.2 (review-round-1): the outer ``[:500]`` cap on the
-    accepted path must clamp the result even when ``combined_notes +
-    " | " + body[:440]`` overflows because the notes string is unusually
-    long. Without an explicit test, a future refactor that drops the
-    outer cap (relying only on the inner body slice) would silently let
-    the source_quote grow unbounded for verbose notes_prefixes.
+    """wyrd-9kh.2 (review-round-1): the outer ``[:_SOURCE_QUOTE_BUDGET]``
+    cap on the accepted path must clamp the result even when
+    ``combined_notes + " | " + body`` overflows because the notes string
+    is unusually long. Without an explicit test, a future refactor that
+    drops the outer cap would silently let the source_quote grow
+    unbounded for verbose notes_prefixes.
     """
     from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
 
-    body = "Foobar — from Old English foo, a foo. " + ("x " * 220)
-    assert len(body) > 440  # ensure inner-slice path engages
-    long_prefix = "extracted_by:test:" + ("a" * 200)  # ~220 chars
+    body = "Foobar — from Old English foo, a foo. " + ("x " * 250)
+    long_prefix = "extracted_by:test:" + ("a" * 300)  # ~318 chars
+    assert len(long_prefix) + len(" | ") + len(body) > _SOURCE_QUOTE_BUDGET
     response = {
         "found": True,
         "historical_form": "Foobar",
@@ -726,26 +723,24 @@ def test_assemble_extraction_result_outer_cap_truncates_long_notes_prefix():
     )
     assert result.accepted is True
     assert result.entry is not None
-    # Inner body slice would put the raw composition at ~660 chars
-    # (220 prefix + 3 separator + 440 body); the outer cap drops it to 500.
-    assert len(result.entry.source_quote) == 500
+    assert len(result.entry.source_quote) == _SOURCE_QUOTE_BUDGET
     assert result.entry.source_quote.startswith("extracted_by:test:")
 
 
-def test_assemble_extraction_result_body_budget_boundary():
-    """wyrd-9kh.2 (review-round-1): pin the exact boundary between
-    ``_SOURCE_QUOTE_BODY_BUDGET`` (440) and ``_SOURCE_QUOTE_BUDGET`` (500)
-    on the accepted path. A future change that diverges the two
-    constants (e.g. raises body to 460 by mistake) would slip past the
-    1200-char truncation test but fail this one.
-
-    With a short notes_prefix and a 441-char body, the body share gets
-    truncated at exactly 440 — one char short of the body. With a
-    440-char body, the full body is preserved.
+def test_assemble_extraction_result_short_total_preserves_full_body():
+    """wyrd-9kh.2 (review-round-2): when the assembled
+    ``combined_notes + " | " + body`` is shorter than the budget, the
+    whole body is preserved (no truncation). Pins the post-simplification
+    behavior: body share is bounded only by the outer cap, not by an
+    artificial inner slice — so a short notes_prefix gives the body the
+    maximum available context.
     """
     from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
 
-    response_template = {
+    short_prefix = "p"
+    body = "Foobar — from Old English foo, a foo." + ("y" * 100)
+    assert len(short_prefix) + len(" | ") + len(body) < _SOURCE_QUOTE_BUDGET
+    response = {
         "found": True,
         "historical_form": "Foobar",
         "confidence": "medium",
@@ -759,35 +754,15 @@ def test_assemble_extraction_result_body_budget_boundary():
             }
         ],
     }
-    short_prefix = "p"  # keeps the outer [:500] cap from interfering
-
-    # body of exactly 440 chars: full body retained on the accepted path
-    body_440 = "foo " + ("x" * 436)
-    assert len(body_440) == 440
-    result_440 = assemble_extraction_result(
-        response_template,
-        body=body_440,
+    result = assemble_extraction_result(
+        response,
+        body=body,
         toponym="Foobar",
         suffix_hint=None,
         notes_prefix=short_prefix,
     )
-    assert result_440.accepted is True
-    sq_440 = result_440.entry.source_quote
-    # All 440 chars of the body are present after the separator.
-    assert sq_440.endswith(body_440)
-
-    # body of 441 chars: body share is truncated at 440 (one char dropped)
-    body_441 = "foo " + ("x" * 437)
-    assert len(body_441) == 441
-    result_441 = assemble_extraction_result(
-        response_template,
-        body=body_441,
-        toponym="Foobar",
-        suffix_hint=None,
-        notes_prefix=short_prefix,
-    )
-    assert result_441.accepted is True
-    sq_441 = result_441.entry.source_quote
-    # Exactly the first 440 chars of body land in source_quote — last char dropped.
-    assert sq_441.endswith(body_441[:440])
-    assert not sq_441.endswith(body_441)
+    assert result.accepted is True
+    assert result.entry is not None
+    # Full body is present; no truncation kicked in.
+    assert result.entry.source_quote.endswith(body)
+    assert result.entry.source_quote == short_prefix + " | " + body
