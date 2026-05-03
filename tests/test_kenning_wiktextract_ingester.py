@@ -729,3 +729,148 @@ def test_ingest_wiktionary_cli_surfaces_malformed_skip_count(
     )
     assert result.exit_code == 0, result.output
     assert "skipped 1 malformed line(s)" in result.output
+
+
+# --- wyrd-prv: extended template kind support --------------------------
+
+
+def test_root_template_emits_inheritance_edge_to_pie_root(fresh_db: Path) -> None:
+    """{{root|<this>|<ancestor_lang>|<root_word>}} produces an
+    inheritance edge from the named PIE root down to this entry."""
+    line = _wiktextract_entry(
+        word="word",
+        lang_code="ang",
+        etymology_templates=[
+            {
+                "name": "root",
+                "args": {"1": "ang", "2": "ine-pro", "3": "*werh₁-"},
+            }
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edges = _all_descent_edges(db)
+    assert ("*werh₁-", "word", "inheritance", "wiktionary") in edges
+
+
+def test_root_template_with_multiple_parallel_roots_emits_one_edge_each(
+    fresh_db: Path,
+) -> None:
+    """Wiktionary editors sometimes cite parallel PIE roots when the
+    chain is contested ({{root|ang|ine-pro|*werh₁-|*dʰeh₁-}}). Each
+    root word gets its own edge, so the descent graph carries both
+    candidate ancestries."""
+    line = _wiktextract_entry(
+        word="word",
+        lang_code="ang",
+        etymology_templates=[
+            {
+                "name": "root",
+                "args": {"1": "ang", "2": "ine-pro", "3": "*werh₁-", "4": "*dʰeh₁-"},
+            }
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edges = _all_descent_edges(db)
+    assert ("*werh₁-", "word", "inheritance", "wiktionary") in edges
+    assert ("*dʰeh₁-", "word", "inheritance", "wiktionary") in edges
+
+
+@pytest.mark.parametrize(
+    "compound_template",
+    ["compound", "com", "prefix", "pre", "suffix", "suf", "af", "affix"],
+)
+def test_compound_template_emits_one_edge_per_constituent(
+    fresh_db: Path, compound_template: str
+) -> None:
+    """{{compound|ang|Sċott|land}} produces TWO edges: each constituent
+    becomes a 'compound' parent of the resulting entry. Pin each of the
+    8 known compound-template aliases so a name drop in
+    _COMPOUND_TEMPLATE_NAMES surfaces here."""
+    line = _wiktextract_entry(
+        word="Scotland",
+        lang_code="ang",
+        etymology_templates=[
+            {
+                "name": compound_template,
+                "args": {"1": "ang", "2": "Sċott", "3": "land"},
+            }
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edges = _all_descent_edges(db)
+    assert result["upward_edges"] == 2
+    assert ("Sċott", "Scotland", "compound", "wiktionary") in edges
+    assert ("land", "Scotland", "compound", "wiktionary") in edges
+
+
+def test_compound_template_with_three_constituents_emits_three_edges(
+    fresh_db: Path,
+) -> None:
+    """Three-part compounds (rare but real) produce one edge per part."""
+    line = _wiktextract_entry(
+        word="threepart",
+        lang_code="ang",
+        etymology_templates=[
+            {
+                "name": "compound",
+                "args": {"1": "ang", "2": "alpha", "3": "beta", "4": "gamma"},
+            }
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edges = _all_descent_edges(db)
+    assert result["upward_edges"] == 3
+    for part in ("alpha", "beta", "gamma"):
+        assert (part, "threepart", "compound", "wiktionary") in edges
+
+
+def test_compound_edge_does_not_bridge_synsets(fresh_db: Path) -> None:
+    """Compound is correctly classified outside the bridging set
+    (per D27 + wyrd-81n: only inheritance and borrowing bridge
+    synset_id). Pin so re-running cluster-cognates after a compound-
+    only ingest produces zero clusters from those edges alone."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    line = _wiktextract_entry(
+        word="Scotland",
+        lang_code="ang",
+        etymology_templates=[
+            {
+                "name": "compound",
+                "args": {"1": "ang", "2": "Sċott", "3": "land"},
+            }
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        ingest_wiktextract_stream(db, _stream(line), apply=True)
+        result = cluster_cognates(db, apply=True)
+    # 0 roots because compound edges aren't bridging; no canonical-edge
+    # set exists from the compound-only ingest.
+    assert result["roots"] == 0
+    assert result["candidates"] == 0
+
+
+@pytest.mark.parametrize(
+    "skipped_template",
+    ["dercat", "etymon", "surf", "unk", "m+", "noncog", "glossary"],
+)
+def test_each_new_skipped_template_does_not_count_unsupported(
+    fresh_db: Path, skipped_template: str
+) -> None:
+    """The wyrd-prv expansion added several template kinds to
+    _SKIPPED_TEMPLATE_NAMES (kinds that are real but un-extractable
+    or peer-not-edge). Pin each so a refactor that moves one out of
+    the skipped set surfaces it as unsupported_templates instead."""
+    line = _wiktextract_entry(
+        word="x",
+        lang_code="ang",
+        etymology_templates=[{"name": skipped_template, "args": {}}],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+    assert result["skipped_templates"] == 1
+    assert result["unsupported_templates"] == 0

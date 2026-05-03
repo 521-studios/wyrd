@@ -87,8 +87,11 @@ _WIKTIONARY_LANG_CODE_MAP: dict[str, str] = {
     "ine-pro": "proto-indo-european",
 }
 
-# Etymology-section templates that produce an UPWARD edge (this entry
-# descends from the parent the template names).
+# Etymology-section templates that produce a SINGLE UPWARD edge (this
+# entry descends from the parent the template names). Args follow:
+#   args[1] = this entry's lang_code (redundant with entry.lang_code)
+#   args[2] = parent's lang_code
+#   args[3] = parent's word
 _UPWARD_TEMPLATE_TO_EDGE: dict[str, str] = {
     "inh": "inheritance",
     "inherited": "inheritance",
@@ -100,22 +103,64 @@ _UPWARD_TEMPLATE_TO_EDGE: dict[str, str] = {
     "calque": "calque",
 }
 
+# wyrd-prv: PIE-root templates have args
+#   args[1] = this entry's lang_code
+#   args[2] = ancestor lang_code (typically 'ine-pro')
+#   args[3..N] = root word(s) — sometimes multiple parallel roots are cited
+# Each root word becomes its own inheritance edge to this entry.
+_ROOT_TEMPLATE_NAMES: frozenset[str] = frozenset({"root"})
+
+# wyrd-prv: compound / affix templates have args
+#   args[1] = this entry's lang_code (all parts are in THIS language)
+#   args[2..N] = constituent parts
+# Each constituent becomes its own compound edge to this entry. The
+# 'compound' edge_type lives on D27's CHECK constraint but is NOT in
+# _COGNATE_BRIDGING_EDGES — these don't bridge synsets (compositional
+# derivations cross lexical-semantic boundaries that cognate clustering
+# shouldn't unify).
+_COMPOUND_TEMPLATE_NAMES: frozenset[str] = frozenset(
+    {
+        "compound",
+        "com",
+        "prefix",
+        "pre",
+        "suffix",
+        "suf",
+        "af",
+        "affix",
+    }
+)
+
 # Templates we explicitly skip because they're either peer relations
-# (cognate, mention) or non-etymological (formatting, qualifiers).
+# (cognate, mention) or non-etymological (formatting, qualifiers, or
+# un-extractable structure like dercat / etymon's nested syntax).
 _SKIPPED_TEMPLATE_NAMES: frozenset[str] = frozenset(
     {
         "cog",
         "cognate",
         "m",
         "mention",
+        "m+",
         "l",
         "link",
         "qualifier",
         "qual",
         "gloss",
+        "glossary",
         "noncog",
         "etyl",
         "lb",
+        "unk",
+        # wyrd-prv: dercat names a chain of ancestor LANGUAGES without a
+        # specific parent word — no edge can be extracted. The category
+        # is useful elsewhere (e.g. for the etymology_text rendering)
+        # but not for descent edges.
+        "dercat",
+        # wyrd-prv: etymon uses an inline nested syntax we don't parse
+        # (e.g. "ar-<ety:inh<gmw-pro:*uʀ->>") — skip rather than try.
+        "etymon",
+        # wyrd-prv: surf is a "surface analysis" caveat — no edge.
+        "surf",
     }
 )
 
@@ -137,27 +182,66 @@ def _extract_template_args(tmpl: dict[str, Any]) -> dict[str, str]:
     return {}
 
 
-def _upward_edge_from_template(
+def _upward_edges_from_template(
     tmpl: dict[str, Any],
-) -> tuple[str, str, str] | None:
-    """Pull (parent_lang_code, parent_word, edge_type) out of a wiktextract
-    etymology template. Returns None if the template isn't one of our
-    upward-edge kinds or its args are incomplete.
+) -> list[tuple[str, str, str]]:
+    """Pull a list of (parent_lang_code, parent_word, edge_type) tuples
+    out of a wiktextract etymology template. Returns an empty list if
+    the template isn't one of our edge-producing kinds or its args
+    don't supply enough information.
 
-    Convention: {{inh|<this_lang>|<parent_lang>|<parent_word>}} —
-    args["1"] is THIS entry's lang_code (which we already know from
-    entry.lang_code), args["2"] is parent lang, args["3"] is parent word.
+    Single-parent templates (inh/bor/der/cal): args[2]=parent_lang,
+    args[3]=parent_word. One edge.
+
+    Root templates (root): args[2]=ancestor_lang, args[3..]=root_word(s).
+    Each root word emits its own inheritance edge — Wiktionary editors
+    sometimes cite parallel PIE roots when the chain is contested.
+
+    Compound / affix templates (compound/com/prefix/pre/suffix/suf/af/
+    affix): args[1]=this_lang (all parts are in THIS language),
+    args[2..]=constituent parts. Each constituent emits its own
+    'compound' edge to this entry — a derivational composition.
     """
     name = tmpl.get("name", "")
-    edge_type = _UPWARD_TEMPLATE_TO_EDGE.get(name)
-    if edge_type is None:
-        return None
     args = _extract_template_args(tmpl)
-    parent_lang_code = args.get("2")
-    parent_word = args.get("3")
-    if not parent_lang_code or not parent_word:
-        return None
-    return parent_lang_code, parent_word, edge_type
+    if name in _UPWARD_TEMPLATE_TO_EDGE:
+        edge_type = _UPWARD_TEMPLATE_TO_EDGE[name]
+        parent_lang_code = args.get("2")
+        parent_word = args.get("3")
+        if parent_lang_code and parent_word:
+            return [(parent_lang_code, parent_word, edge_type)]
+        return []
+    if name in _ROOT_TEMPLATE_NAMES:
+        ancestor_lang = args.get("2")
+        if not ancestor_lang:
+            return []
+        # PIE-root templates can cite up to a handful of parallel roots
+        # at args[3], args[4], args[5]. Iterating up to a small fixed
+        # bound is enough — never seen >3 in real data.
+        edges: list[tuple[str, str, str]] = []
+        for i in (3, 4, 5):
+            word = args.get(str(i))
+            if word:
+                edges.append((ancestor_lang, word, "inheritance"))
+        return edges
+    if name in _COMPOUND_TEMPLATE_NAMES:
+        this_lang = args.get("1")
+        if not this_lang:
+            return []
+        # Compound parts are at args[2], args[3], ... up to args[N]. Real
+        # OE compounds rarely exceed 3 parts; tolerate up to args[6].
+        edges = []
+        for i in (2, 3, 4, 5, 6):
+            part = args.get(str(i))
+            if part:
+                edges.append((this_lang, part, "compound"))
+        return edges
+    return []
+
+
+_KNOWN_TEMPLATE_NAMES: frozenset[str] = frozenset(
+    set(_UPWARD_TEMPLATE_TO_EDGE) | _ROOT_TEMPLATE_NAMES | _COMPOUND_TEMPLATE_NAMES
+)
 
 
 # wyrd-c9t (2026-05-03): real wiktextract descendants are a NESTED TREE,
@@ -309,26 +393,29 @@ def _process_entry(
     this_lang = _canonical_language(entry["lang_code"])
     this_id = db.upsert_etymon(this_word, this_lang) if apply else _DRY_RUN_PLACEHOLDER_ID
 
-    # Etymology templates — each is an UPWARD edge from this entry to
-    # the named parent.
+    # Etymology templates — each may produce one or more UPWARD edges
+    # from this entry to its named parent(s). Single-parent templates
+    # (inh/bor/der/cal) yield exactly one edge. Multi-parent templates
+    # (compound/affix, root with parallel roots) yield N edges.
     for tmpl in entry.get("etymology_templates") or []:
         name = tmpl.get("name", "")
-        edge = _upward_edge_from_template(tmpl)
-        if edge is None:
+        edges = _upward_edges_from_template(tmpl)
+        if not edges:
             if name in _SKIPPED_TEMPLATE_NAMES:
                 counts["skipped_templates"] += 1
-            elif name not in _UPWARD_TEMPLATE_TO_EDGE:
+            elif name not in _KNOWN_TEMPLATE_NAMES:
                 counts["unsupported_templates"] += 1
             continue
-        parent_lang_code, parent_word, edge_type = edge
-        parent_lang = _canonical_language(parent_lang_code)
-        parent_id = db.upsert_etymon(parent_word, parent_lang) if apply else _DRY_RUN_PLACEHOLDER_ID
-        _emit_descent_edge(db, parent_id, this_id, edge_type, apply=apply)
-        counts["upward_edges"] += 1
+        for parent_lang_code, parent_word, edge_type in edges:
+            parent_lang = _canonical_language(parent_lang_code)
+            parent_id = (
+                db.upsert_etymon(parent_word, parent_lang) if apply else _DRY_RUN_PLACEHOLDER_ID
+            )
+            _emit_descent_edge(db, parent_id, this_id, edge_type, apply=apply)
+            counts["upward_edges"] += 1
 
-    # Descendants section — flat list with depth markers. parent_stack
-    # tracks the most recent entry at each depth; the parent of a
-    # depth=N entry is the most recent depth=(N-1) entry.
+    # Descendants section — a NESTED TREE. Each node has lang_code +
+    # word directly, with optional `descendants` for sub-trees.
     descendants = entry.get("descendants") or []
     if descendants:
         _walk_descendants(db, this_id, descendants, apply=apply, counts=counts)

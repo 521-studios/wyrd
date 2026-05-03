@@ -4440,10 +4440,12 @@ def test_cluster_cognates_non_bridging_edge_types_do_not_cluster(
     assert rows["b"] is None, f"{non_bridging_edge} edge unexpectedly bridged"
 
 
-def test_cluster_cognates_self_loop_terminates_and_orphans(fresh_db: Path) -> None:
-    """A self-loop (X→X) shouldn't happen via Wiktionary, but defensive
-    coding: BFS must terminate (no infinite loop) and the etymon must
-    be flagged as a cycle orphan since it has no external root."""
+def test_cluster_cognates_self_loop_silently_filtered(fresh_db: Path) -> None:
+    """Self-loops (X→X) are meaningless data — they assert an etymon is
+    its own ancestor. Per wyrd-223, the canonical_edges builder filters
+    self-loops upstream of the BFS, so they don't generate cycle_orphans
+    or otherwise pollute the cluster pass. BFS must terminate (no
+    infinite loop) and the etymon stays NULL — silently."""
     from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
@@ -4462,8 +4464,10 @@ def test_cluster_cognates_self_loop_terminates_and_orphans(fresh_db: Path) -> No
             "synset_id"
         ]
 
-    assert result["roots"] == 0  # x is BOTH parent and child; no root.
-    assert result["cycle_orphans"] == 1
+    assert result["roots"] == 0
+    # cycle_orphans=0 because the self-loop edge was filtered upstream;
+    # the etymon doesn't participate in any canonical edge.
+    assert result["cycle_orphans"] == 0
     assert synset is None
 
 
@@ -4601,3 +4605,129 @@ def test_cluster_cognates_cli_warns_on_cycle_orphans(fresh_db: Path) -> None:
     # rows_written = 0 here: there are 0 candidates because no roots,
     # so the apply branch echoes 'rows_written = 0'.
     assert "rows_written = 0" in result.output
+
+
+# --- wyrd-223: cluster-cognates resolves through merged_into_id -------
+
+
+def test_cluster_cognates_resolves_descent_edges_through_merged_into_id(
+    fresh_db: Path,
+) -> None:
+    """Bug discovered during PR #41 live ingest 2026-05-03: a descent
+    edge pointing at an OCR-merge tombstone was being walked literally,
+    so synset_id landed on the tombstone (loser) rather than the
+    canonical winner. Cluster-cognates now resolves both endpoints
+    through merged_into_id before BFS walking.
+
+    Setup mirrors the real wiktextract+place-name case:
+      - canonical 'tūn' (with macron) — the winner from a prior OCR merge
+      - tombstone 'tun' (no macron) — merged_into_id → tūn
+      - descent edge: gmw-pro:*tūn → ang:tun (points at TOMBSTONE)
+    Expected: synset_id lands on the canonical 'tūn', not on 'tun'.
+    """
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="wiktionary", title="Wiktionary")
+        proto_id = db.upsert_etymon("*tūn", "gmw-pro")
+        canonical_id = db.upsert_etymon("tūn", "old-english")
+        tombstone_id = db.upsert_etymon("tun", "old-english")
+        # Tombstone the ASCII variant.
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (canonical_id, tombstone_id),
+        )
+        # Edge points at the TOMBSTONE id (the wiktextract upsert path).
+        db.conn.execute(
+            "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+            "VALUES (?, ?, 'inheritance', 'wiktionary')",
+            (proto_id, tombstone_id),
+        )
+        db.commit()
+
+        result = cluster_cognates(db, apply=True)
+        canonical_synset = db.conn.execute(
+            "SELECT synset_id FROM etymon WHERE id = ?", (canonical_id,)
+        ).fetchone()["synset_id"]
+        tombstone_synset = db.conn.execute(
+            "SELECT synset_id FROM etymon WHERE id = ?", (tombstone_id,)
+        ).fetchone()["synset_id"]
+
+    # Critical: the canonical 'tūn' got the synset assignment, NOT the tombstone.
+    assert canonical_synset == proto_id
+    assert tombstone_synset is None
+    # Sanity: the cluster has 2 canonical members (proto root + canonical tūn).
+    assert result["candidates"] == 2
+
+
+def test_cluster_cognates_canonical_root_wins_when_root_was_merged(
+    fresh_db: Path,
+) -> None:
+    """If a tombstone is itself a parent in some descent edge, the
+    canonical winner becomes the parent in the canonical edge set.
+    Pin so a refactor that drops the parent-side resolution doesn't
+    silently regress."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="wiktionary", title="Wiktionary")
+        canonical_root_id = db.upsert_etymon("*canonical_root", "gmw-pro")
+        tombstone_root_id = db.upsert_etymon("*tombstone_root", "gmw-pro")
+        child_id = db.upsert_etymon("child", "old-english")
+        # Tombstone one root variant.
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (canonical_root_id, tombstone_root_id),
+        )
+        # Edge points FROM the tombstone root.
+        db.conn.execute(
+            "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+            "VALUES (?, ?, 'inheritance', 'wiktionary')",
+            (tombstone_root_id, child_id),
+        )
+        db.commit()
+
+        cluster_cognates(db, apply=True)
+        rows = {
+            row["canonical_form"]: row["synset_id"]
+            for row in db.conn.execute("SELECT canonical_form, synset_id FROM etymon")
+        }
+
+    assert rows["*canonical_root"] == canonical_root_id
+    assert rows["child"] == canonical_root_id
+    # Tombstone stays NULL.
+    assert rows["*tombstone_root"] is None
+
+
+def test_cluster_cognates_self_loop_via_merge_does_not_crash(fresh_db: Path) -> None:
+    """If both endpoints of an edge merge into the same canonical (the
+    merge itself created a self-loop in canonical space), the edge is
+    filtered out — no infinite loop, no spurious cluster of a single
+    etymon under itself."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="wiktionary", title="Wiktionary")
+        canonical_id = db.upsert_etymon("canonical", "old-english")
+        tomb_a_id = db.upsert_etymon("tomb_a", "old-english")
+        tomb_b_id = db.upsert_etymon("tomb_b", "old-english")
+        # Both tombstones merge into the same canonical.
+        for tomb in (tomb_a_id, tomb_b_id):
+            db.conn.execute(
+                "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+                (canonical_id, tomb),
+            )
+        # Edge between two tombstones that resolve to the same canonical.
+        db.conn.execute(
+            "INSERT INTO etymon_descent (parent_id, child_id, edge_type, source_id) "
+            "VALUES (?, ?, 'inheritance', 'wiktionary')",
+            (tomb_a_id, tomb_b_id),
+        )
+        db.commit()
+
+        result = cluster_cognates(db, apply=True)
+    # No roots (no canonical edges left after self-loop filter);
+    # no cluster either. Just a clean no-op, no infinite walk.
+    assert result["roots"] == 0
+    assert result["candidates"] == 0
+    assert result["cycle_orphans"] == 0
