@@ -41,6 +41,7 @@ from wyrd.generators.kenning.lexicon import (
     ingest_parsed_entries,
     init_schema,
     link_lemmas,
+    lookup_attested_years,
     migrate_schema,
     record_mining_run,
     reverse_search_attestations,
@@ -1912,6 +1913,61 @@ def lexicon_reverse_search(
         click.echo("(dry-run; pass --apply to write search-attested citations)", err=True)
 
 
+@lexicon.command("lookup-attested-years")
+@click.argument(
+    "sources_dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+)
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=True,
+)
+@click.option(
+    "--apply",
+    "apply_changes",
+    is_flag=True,
+    default=False,
+    help="Populate etymon_text_match.attested_year. Without this, dry-run only.",
+)
+def lexicon_lookup_attested_years(
+    sources_dir: Path,
+    db_path: Path,
+    apply_changes: bool,
+) -> None:
+    """Post-mining stage: scan source bodies for date citations near
+    matched forms and populate etymon_text_match.attested_year (D5-1 /
+    wyrd-3ux). Foundation for D5-2 era-cell sampling.
+
+    LLM-free, idempotent, reversible. Per D21/D22 enrichment-only — no
+    mining evidence is touched. Re-runs against unchanged data are
+    no-ops; only rows where attested_year IS NULL are scanned.
+
+    Reverse via:
+
+        wyrd kenning lexicon clear-enrichment --stage=attested-years --apply
+    """
+    with LexiconDB(db_path) as db:
+        result = lookup_attested_years(db, sources_dir, apply=apply_changes)
+
+    click.echo(
+        f"lookup-attested-years: scanned {result['rows_scanned']} text-match row(s)",
+        err=True,
+    )
+    click.echo(f"  candidates    = {result['candidates']}", err=True)
+    click.echo(f"  rows_written  = {result['rows_written']}", err=True)
+    if result["sources_missing"]:
+        click.echo(
+            f"  warn: {result['sources_missing']} source_id(s) referenced in text-match "
+            "rows have no .txt file under sources_dir; their rows were skipped.",
+            err=True,
+        )
+    if not apply_changes:
+        click.echo("(dry-run; pass --apply to write attested_year values)", err=True)
+
+
 @lexicon.command("fuzzy-search")
 @click.argument(
     "sources_dir",
@@ -2169,13 +2225,17 @@ def lexicon_normalize_ocr(db_path: Path, apply_changes: bool) -> None:
 )
 @click.option(
     "--stage",
-    type=click.Choice(["ocr", "lemmas", "text-match", "cognates", "all-derived"]),
+    type=click.Choice(
+        ["ocr", "lemmas", "text-match", "cognates", "attested-years", "all-derived"]
+    ),
     required=True,
     help=(
         "Which enrichment stage to clear. 'ocr' un-marks merged_into_id, "
         "'lemmas' resets lemma_id/inflection/lemma_method, 'text-match' "
         "drops the etymon_text_match table, 'cognates' resets "
-        "synset_id/synset_method (D27/wyrd-81n), 'all-derived' does all four."
+        "synset_id/synset_method (D27/wyrd-81n), 'attested-years' resets "
+        "etymon_text_match.attested_year (D5-1/wyrd-3ux), 'all-derived' "
+        "does all five."
     ),
 )
 @click.option(
@@ -2211,6 +2271,10 @@ def lexicon_clear_enrichment(db_path: Path, stage: str, apply_changes: bool) -> 
     if result["synset_assignments_to_clear"]:
         click.echo(
             f"  {verb} {result['synset_assignments_to_clear']} synset_id assignments", err=True
+        )
+    if result.get("attested_years_to_clear"):
+        click.echo(
+            f"  {verb} {result['attested_years_to_clear']} attested_year values", err=True
         )
     if not apply_changes:
         click.echo("(dry-run; pass --apply to commit)", err=True)
