@@ -6,18 +6,17 @@ template→edge_type mapping, anti-patterns, and the cluster-cognates
 follow-up. This module docstring captures only the load-bearing
 implementation invariants:
 
-Template kind mapping is defined by `_UPWARD_TEMPLATE_TO_EDGE` (etymology
-section) and `_DOWNWARD_TEMPLATE_NAMES` + `_DESC_FLAG_TO_EDGE`
-(descendants section). `_SKIPPED_TEMPLATE_NAMES` lists explicitly
-non-edge-producing templates (cognate, mention, link, qualifier);
-anything else increments `unsupported_templates` so operators can
-extend the maps.
+Etymology section: walked via `etymology_templates`. Template kind
+mapping defined by `_UPWARD_TEMPLATE_TO_EDGE`; `_SKIPPED_TEMPLATE_NAMES`
+lists explicitly non-edge-producing templates (cognate, mention, link,
+qualifier); anything else increments `unsupported_templates` so
+operators can extend the maps.
 
-Descendants nesting: wiktextract flattens the Descendants tree into a
-list of dicts with a `depth` field. depth=1 entries are direct children
-of the head entry; depth=N+1 entries are children of the most recent
-preceding entry at depth=N. We track this with a parent_stack indexed
-by depth (see `_walk_descendants`).
+Descendants section: a NESTED TREE of dicts with `lang_code` + `word`
+fields directly (NOT flat-with-depth + templates as v1 misread).
+`_walk_descendants` recurses into each node's `descendants` array.
+Edge_type defaults to 'inheritance' and is overridden via the `tags`
+array per `_DESCENDANT_TAG_TO_EDGE` (e.g. `tags=['calque']`).
 """
 
 from __future__ import annotations
@@ -101,9 +100,6 @@ _UPWARD_TEMPLATE_TO_EDGE: dict[str, str] = {
     "calque": "calque",
 }
 
-# Descendants-section templates that produce a DOWNWARD edge.
-_DOWNWARD_TEMPLATE_NAMES: frozenset[str] = frozenset({"desc", "descendant"})
-
 # Templates we explicitly skip because they're either peer relations
 # (cognate, mention) or non-etymological (formatting, qualifiers).
 _SKIPPED_TEMPLATE_NAMES: frozenset[str] = frozenset(
@@ -164,49 +160,36 @@ def _upward_edge_from_template(
     return parent_lang_code, parent_word, edge_type
 
 
-# Wiktextract's {{desc}} template carries a relationship-modifier flag
-# (bor=1 / der=1 / cal=1) when the descendant is borrowed / derived /
-# calqued from the parent rather than directly inherited. Without this
-# the column would lie ('inheritance' for what's actually a borrowing).
-# Cluster-cognates still bridges both inheritance and borrowing, so the
-# synset rollup is unaffected — but downstream queries that filter on
-# edge_type would mis-classify rows. Order matters: bor takes precedence
-# over der, der over cal, so a {{desc|...|bor=1|der=1}} (theoretical)
-# resolves the same way Wiktionary editors would read it.
-_DESC_FLAG_TO_EDGE: tuple[tuple[str, str], ...] = (
-    ("bor", "borrowing"),
-    ("der", "derivation"),
-    ("cal", "calque"),
-)
+# wyrd-c9t (2026-05-03): real wiktextract descendants are a NESTED TREE,
+# not a flat list with depth markers. Each entry has lang_code + word
+# directly (no `templates` field, no `depth` field), with an optional
+# `descendants` array of children for recursion. Borrow/derivation/
+# calque flagging happens via the `tags` array, not via {{desc|...|bor=1}}
+# template flags (which don't exist in real data — that was a v1
+# misreading).
+#
+# Tags that override the default 'inheritance' edge_type. Real OE slice
+# uses 'calque' (99 occurrences). 'borrowed' / 'derived' aren't observed
+# but mapped defensively in case other slices use them.
+_DESCENDANT_TAG_TO_EDGE: dict[str, str] = {
+    "calque": "calque",
+    "borrowed": "borrowing",
+    "borrowing": "borrowing",
+    "derived": "derivation",
+    "derivation": "derivation",
+}
 
 
-def _downward_edge_from_template(
-    tmpl: dict[str, Any],
-) -> tuple[str, str, str] | None:
-    """Pull (child_lang_code, child_word, edge_type) out of a wiktextract
-    descendants template. Returns None if the template isn't a desc kind
-    or args are incomplete.
-
-    Convention:
-      {{desc|<child_lang>|<child_word>}}              → 'inheritance'
-      {{desc|<child_lang>|<child_word>|bor=1}}        → 'borrowing'
-      {{desc|<child_lang>|<child_word>|der=1}}        → 'derivation'
-      {{desc|<child_lang>|<child_word>|cal=1}}        → 'calque'
-    """
-    name = tmpl.get("name", "")
-    if name not in _DOWNWARD_TEMPLATE_NAMES:
-        return None
-    args = _extract_template_args(tmpl)
-    child_lang_code = args.get("1")
-    child_word = args.get("2")
-    if not child_lang_code or not child_word:
-        return None
-    edge_type = "inheritance"
-    for flag, mapped in _DESC_FLAG_TO_EDGE:
-        if args.get(flag):  # truthy: '1', 'yes', 'true', any non-empty string
-            edge_type = mapped
-            break
-    return child_lang_code, child_word, edge_type
+def _descendant_edge_type(node: dict[str, Any]) -> str:
+    """Resolve the edge_type for a descendants-tree node from its `tags`
+    array. Defaults to 'inheritance' (the implied relationship of any
+    Descendants section entry). The first matching tag wins; multiple
+    matches are theoretically possible but not observed in real data."""
+    for tag in node.get("tags") or []:
+        mapped = _DESCENDANT_TAG_TO_EDGE.get(tag)
+        if mapped is not None:
+            return mapped
+    return "inheritance"
 
 
 def ingest_wiktextract_stream(
@@ -240,9 +223,6 @@ def ingest_wiktextract_stream(
         non-edge-producing (cognate, mention, link, qualifier, etc.)
       - unsupported_templates: count of unfamiliar template names
         (operator may want to extend the maps)
-      - depth_jumps_recovered: count of descendants entries whose depth
-        skipped one or more levels (treated as direct children of the
-        current frontier)
       - applied: whether writes happened
     """
     counts = {
@@ -253,7 +233,6 @@ def ingest_wiktextract_stream(
         "downward_edges": 0,
         "skipped_templates": 0,
         "unsupported_templates": 0,
-        "depth_jumps_recovered": 0,
         "applied": int(apply),
     }
     if apply:
@@ -357,86 +336,53 @@ def _process_entry(
 
 def _walk_descendants(
     db: LexiconDB,
-    head_id: int,
+    parent_id: int,
     descendants: list[dict[str, Any]],
     *,
     apply: bool,
     counts: dict[str, int],
 ) -> None:
-    """Walk a flat descendants list with depth markers and emit one
-    etymon_descent edge per {{desc}} template. Index 0 of parent_stack
-    is the head entry (the etymon whose Descendants section we're in);
-    deeper levels grow as we encounter them.
+    """Walk one level of the wiktextract descendants tree, emitting one
+    etymon_descent edge per node, then recursing into each node's own
+    `descendants` array.
 
-    Defensive against malformed depth jumps — if a depth=N+2 entry
-    appears with no preceding depth=N+1, we recover by attaching to
-    the deepest available parent and incrementing depth_jumps_recovered.
+    Real wiktextract entries have the shape
+        {"lang_code": "...", "word": "...", "tags": [...], "descendants": [...]}
+    where `descendants` (when present) is the next layer of the tree.
+    Some nodes lack `word` (lang-only header rows for sub-trees that
+    didn't get specific forms attested) — those are skipped without
+    breaking the chain into their children, since there's no etymon
+    to anchor sub-descendants to.
 
-    When a single descendants entry has multiple {{desc}} templates
-    (e.g. orthographic variants of the same descendant: '{{desc|en|town}}
-    {{desc|en|toune|alt=1}}'), each template emits its own edge but
-    only the LAST one becomes the parent for subsequent depth+1 entries.
-    This is a deliberate simplification — Wiktionary editors generally
-    list the canonical form last when they include variants, so it's
-    the right anchor for sub-descendants in practice. Pinned by
-    test_walk_descendants_multiple_templates_per_entry_uses_last_as_parent.
+    Edge_type per node defaults to 'inheritance' (the implied
+    relationship of any Descendants section entry); 'calque' /
+    'borrowing' / etc. on the `tags` array override per
+    `_DESCENDANT_TAG_TO_EDGE`.
     """
-    parent_stack: list[int] = [head_id]
-    for desc in descendants:
-        if not isinstance(desc, dict):
+    for node in descendants:
+        if not isinstance(node, dict):
             continue
-        depth = desc.get("depth", 1)
-        if not isinstance(depth, int) or depth < 1:
-            depth = 1
-        # Save the stack so we can restore it if the entry produces no
-        # edges (qualifier-only / mention-only descendants entries
-        # shouldn't displace the previous depth-N anchor).
-        saved_stack = parent_stack[:]
-        # Trim or extend the stack so parent_stack[depth-1] is the parent.
-        if depth <= len(parent_stack):
-            parent_stack = parent_stack[:depth]
-            depth_jumped = False
-        else:
-            depth_jumped = True
-            # Pad with the deepest known parent so the chain doesn't snap.
-            while len(parent_stack) < depth:
-                parent_stack.append(parent_stack[-1])
-        parent_id = parent_stack[-1]
-
-        # Each desc entry can carry multiple templates (e.g. one for the
-        # word, one for a gloss). Emit edges only for desc-kind templates.
-        last_child_id: int | None = None
-        for tmpl in desc.get("templates") or []:
-            name = tmpl.get("name", "")
-            edge = _downward_edge_from_template(tmpl)
-            if edge is None:
-                if name in _SKIPPED_TEMPLATE_NAMES:
-                    counts["skipped_templates"] += 1
-                elif name not in _DOWNWARD_TEMPLATE_NAMES:
-                    counts["unsupported_templates"] += 1
-                continue
-            child_lang_code, child_word, edge_type = edge
-            child_lang = _canonical_language(child_lang_code)
-            child_id = (
-                db.upsert_etymon(child_word, child_lang) if apply else _DRY_RUN_PLACEHOLDER_ID
-            )
-            _emit_descent_edge(db, parent_id, child_id, edge_type, apply=apply)
-            last_child_id = child_id
-            counts["downward_edges"] += 1
-
-        # If the entry produced zero edges, don't credit the depth-jump
-        # bookkeeping (it never anchored anything) and restore the
-        # pre-trim stack so the next entry can chain off the previous
-        # valid anchor at this depth.
-        if last_child_id is None:
-            parent_stack = saved_stack
+        child_lang_code = node.get("lang_code")
+        child_word = node.get("word")
+        if not child_lang_code or not child_word:
+            # Lang-only header row. Don't emit an edge, but DO recurse —
+            # sub-descendants of such a row attach to the same parent
+            # as the header would have (the most recent anchored
+            # ancestor up the recursion stack, which is `parent_id`).
+            sub = node.get("descendants") or []
+            if sub:
+                _walk_descendants(db, parent_id, sub, apply=apply, counts=counts)
             continue
-        if depth_jumped:
-            counts["depth_jumps_recovered"] += 1
-        # The last child becomes the parent for any deeper entries that
-        # follow at depth+1. Push it onto the stack at index = depth.
-        if last_child_id is not None:
-            parent_stack.append(last_child_id)
+        child_lang = _canonical_language(child_lang_code)
+        child_id = db.upsert_etymon(child_word, child_lang) if apply else _DRY_RUN_PLACEHOLDER_ID
+        edge_type = _descendant_edge_type(node)
+        _emit_descent_edge(db, parent_id, child_id, edge_type, apply=apply)
+        counts["downward_edges"] += 1
+        # Recurse into this node's own descendants — they hang off
+        # this node's child_id, not the head.
+        sub = node.get("descendants") or []
+        if sub:
+            _walk_descendants(db, child_id, sub, apply=apply, counts=counts)
 
 
 def ingest_wiktextract_path(
