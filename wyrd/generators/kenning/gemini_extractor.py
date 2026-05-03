@@ -73,13 +73,37 @@ GEMINI_RESPONSE_SCHEMA: dict = {
                 "required": ["form", "language", "position", "gloss", "inflection"],
             },
         },
+        # D5-1 / wyrd-3ux. Year-range constraint lives in the prompt and
+        # in validate_response, not in the schema — Gemini's responseSchema
+        # dialect's enforcement of integer minimum / maximum has been
+        # unreliable across model versions in our testing, so we don't
+        # rely on it. The prompt asks for 800-1700 and validate_response
+        # (in llm_extractor) is the load-bearing range gate.
+        "attested_forms": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "form": {"type": "STRING"},
+                    "year": {"type": "INTEGER"},
+                },
+                "required": ["form", "year"],
+            },
+        },
         "confidence": {
             "type": "STRING",
             "enum": ["high", "medium", "low"],
         },
         "notes": {"type": "STRING", "nullable": True},
     },
-    "required": ["found", "historical_form", "elements", "confidence", "notes"],
+    "required": [
+        "found",
+        "historical_form",
+        "elements",
+        "attested_forms",
+        "confidence",
+        "notes",
+    ],
 }
 
 

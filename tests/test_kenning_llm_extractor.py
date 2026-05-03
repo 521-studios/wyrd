@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 
 from wyrd.generators.kenning.llm_extractor import (
+    RESPONSE_SCHEMA,
     SYSTEM_PROMPT,
     _form_in_body,
     _normalize_for_match,
@@ -206,6 +207,315 @@ def test_validate_response_handles_non_object() -> None:
     this, but defense in depth is cheap)."""
     failures = validate_response("not a dict", _BARTON_BODY)
     assert any(f.reason == "not_object" for f in failures)
+
+
+# --- attested_forms (D5-1 / wyrd-3ux) -------------------------------------
+
+
+_DATED_BODY = (
+    "Aburwick. Cited as Aburwick, 1333 ; Abberwyke, 1346 ; Aburwick, 1428. "
+    "From OE Hædan + tun, with later spelling drift."
+)
+
+
+def test_validate_response_accepts_attested_forms() -> None:
+    """Model emits dated historical-form citations from the body."""
+    response = _ok_response()
+    response["historical_form"] = "Hædan-tun"
+    response["elements"][0]["form"] = "Hædan"
+    response["attested_forms"] = [
+        {"form": "Aburwick", "year": 1333},
+        {"form": "Abberwyke", "year": 1346},
+    ]
+    failures = validate_response(response, _DATED_BODY)
+    assert failures == []
+
+
+def test_validate_response_accepts_empty_attested_forms() -> None:
+    """When body has no year citations, attested_forms is the empty list."""
+    response = _ok_response()
+    response["attested_forms"] = []
+    failures = validate_response(response, _BARTON_BODY)
+    assert failures == []
+
+
+def test_validate_response_back_compat_when_attested_forms_absent() -> None:
+    """Legacy responses (and legacy test fixtures) won't have attested_forms.
+    Validation should treat absence as 'no extraction' rather than a failure."""
+    response = _ok_response()
+    # _ok_response() does NOT include attested_forms — legacy shape.
+    assert "attested_forms" not in response
+    failures = validate_response(response, _BARTON_BODY)
+    assert failures == []
+
+
+def test_validate_response_rejects_attested_year_below_range() -> None:
+    """Years before 800 are almost always folio numbers or page numbers
+    misread as years."""
+    response = _ok_response()
+    response["attested_forms"] = [{"form": "bere", "year": 79}]
+    failures = validate_response(response, _BARTON_BODY)
+    assert any(f.reason == "attested_year_out_of_range" for f in failures)
+
+
+def test_validate_response_rejects_attested_year_above_range() -> None:
+    """Years after 1700 are almost always publication-year noise (1880-1928)."""
+    response = _ok_response()
+    response["attested_forms"] = [{"form": "bere", "year": 1920}]
+    failures = validate_response(response, _BARTON_BODY)
+    assert any(f.reason == "attested_year_out_of_range" for f in failures)
+
+
+def test_validate_response_rejects_attested_form_not_in_body() -> None:
+    """Same form-in-body anti-hallucination guard applies to attested_forms.
+    A model can't invent a historical spelling that isn't in the source."""
+    response = _ok_response()
+    response["attested_forms"] = [{"form": "Xyzfake", "year": 1333}]
+    failures = validate_response(response, _DATED_BODY)
+    assert any(f.reason == "attested_form_not_in_body" for f in failures)
+
+
+def test_validate_response_rejects_attested_year_non_integer() -> None:
+    """Year must be an integer. Strings or floats are reject candidates."""
+    response = _ok_response()
+    response["attested_forms"] = [{"form": "Aburwick", "year": "1333"}]
+    failures = validate_response(response, _DATED_BODY)
+    assert any(f.reason == "attested_year_not_int" for f in failures)
+
+
+def test_validate_response_rejects_attested_year_bool() -> None:
+    """Python bool is a subclass of int; reject it explicitly so True doesn't
+    pass as year=1."""
+    response = _ok_response()
+    response["attested_forms"] = [{"form": "Aburwick", "year": True}]
+    failures = validate_response(response, _DATED_BODY)
+    assert any(f.reason == "attested_year_not_int" for f in failures)
+
+
+def test_validate_response_rejects_attested_forms_not_list() -> None:
+    """Schema enforces array type; defensive validation if it slips through."""
+    response = _ok_response()
+    response["attested_forms"] = "not a list"
+    failures = validate_response(response, _BARTON_BODY)
+    assert any(f.reason == "attested_forms_not_list" for f in failures)
+
+
+def test_system_prompt_documents_attested_forms_extraction() -> None:
+    """Regression guard: SYSTEM_PROMPT must explain how to extract dated
+    historical-form citations. If the prompt is later shortened and loses
+    this section, future mining will silently miss D5-1 data.
+    """
+    prompt = SYSTEM_PROMPT.lower()
+
+    # Field name appears.
+    assert "attested_forms" in prompt
+    # Year-range constraint is documented.
+    assert "800" in prompt and "1700" in prompt
+    # Examples include real Domesday/charter-style dated citations.
+    assert "1333" in prompt or "1226" in prompt or "1086" in prompt
+    # Skip-noise instruction is present (publication years vs attestations).
+    assert "publication" in prompt
+    # No-invention instruction is present.
+    assert "do not invent" in prompt or "do not invent dates" in prompt
+
+
+def test_response_schema_includes_attested_forms() -> None:
+    """The Ollama JSON schema must mark attested_forms as required, with
+    year integer constrained to 800-1700. If this constraint is removed
+    the model can emit publication-year noise unchecked."""
+    assert "attested_forms" in RESPONSE_SCHEMA["properties"]
+    assert "attested_forms" in RESPONSE_SCHEMA["required"]
+    item_schema = RESPONSE_SCHEMA["properties"]["attested_forms"]["items"]
+    year_schema = item_schema["properties"]["year"]
+    assert year_schema["type"] == "integer"
+    assert year_schema["minimum"] == 800
+    assert year_schema["maximum"] == 1700
+
+
+def test_validate_response_validates_attested_forms_on_decline() -> None:
+    """Even when the model declines (found=false), attested_forms must be
+    validated. A body can carry dated citations without an etymological
+    claim ('first attested 1086 but no etymology'), so we can't bypass
+    the anti-hallucination guard just because elements are empty.
+
+    Regression guard: if found=false short-circuits before
+    attested_forms validation, an in-body-uncited form would slip
+    through to raw_response unchecked."""
+    response = {
+        "found": False,
+        "historical_form": None,
+        "elements": [],
+        "attested_forms": [{"form": "Xyzfake", "year": 1333}],
+        "confidence": "low",
+        "notes": None,
+    }
+    failures = validate_response(response, _DATED_BODY)
+    assert any(f.reason == "attested_form_not_in_body" for f in failures)
+
+
+def test_validate_response_rejects_attested_form_not_object() -> None:
+    """An attested_forms entry that's a string / list / number — not a
+    {form, year} dict — should be flagged."""
+    response = _ok_response()
+    response["attested_forms"] = ["Aburwick, 1333"]  # string instead of dict
+    failures = validate_response(response, _DATED_BODY)
+    assert any(f.reason == "attested_form_not_object" for f in failures)
+
+
+def test_validate_response_strips_dashes_before_attested_form_check() -> None:
+    """Trailing dashes on a real form are stripped before the body match
+    so the legitimate case (e.g. ``Aburwick-`` from a citation context)
+    passes the form-in-body check.
+
+    Also pins the length-floor bypass guard: ``-A-`` strips to ``A``
+    (length 1), which fails the ``len(a_form) < 2`` check and lands as
+    attested_form_not_in_body. Without the dash strip, ``-A-`` would be
+    length 3 and could slip past the floor.
+    """
+    response = _ok_response()
+    response["attested_forms"] = [{"form": "Aburwick-", "year": 1333}]
+    failures = validate_response(response, _DATED_BODY)
+    assert not any(f.reason == "attested_form_not_in_body" for f in failures)
+
+    # Bypass-attempt path: '-A-' strips to 'A' which fails the length floor.
+    bypass = _ok_response()
+    bypass["attested_forms"] = [{"form": "-A-", "year": 1333}]
+    bypass_failures = validate_response(bypass, _DATED_BODY)
+    assert any(f.reason == "attested_form_not_in_body" for f in bypass_failures)
+
+
+def test_validate_response_handles_non_string_element_form() -> None:
+    """Same defensive pattern as the attested_forms-side test:
+    a non-string element form (bool, int, list) shouldn't crash the
+    validator with AttributeError. Symmetric with
+    ``test_validate_response_handles_non_string_attested_form``."""
+    response = _ok_response()
+    response["elements"][0]["form"] = True
+    failures = validate_response(response, _BARTON_BODY)
+    # Should NOT AttributeError. str(True) → "True" doesn't appear in body.
+    assert any(f.reason == "form_not_in_body" for f in failures)
+
+
+def test_validate_response_handles_non_string_attested_form() -> None:
+    """Defensive against non-string form values (bool, int, list, etc.)
+    slipping past schema enforcement. Gemini's responseSchema enforcement
+    is unreliable across versions and Anthropic uses prompt-only schema
+    enforcement, so a model emitting ``form: true`` shouldn't crash the
+    validator with an AttributeError. The ``str()`` coercion converts
+    truthy non-strings to their string representation, which then fails
+    the form-in-body check (the safe outcome)."""
+    response = _ok_response()
+    response["attested_forms"] = [{"form": True, "year": 1333}]
+    failures = validate_response(response, _DATED_BODY)
+    # Should NOT AttributeError. Should land as form-not-in-body since
+    # str(True) → "True" doesn't appear in _DATED_BODY.
+    assert any(f.reason == "attested_form_not_in_body" for f in failures)
+
+
+def test_validate_response_accepts_decline_with_valid_attested_forms() -> None:
+    """D5-1 production case: body carries dated citations but the model
+    declines to extract an etymology. Validation must pass cleanly — that's
+    the positive-path counterpart to
+    ``test_validate_response_validates_attested_forms_on_decline``.
+
+    Without this test, a future refactor that re-adds an
+    elements-required check on the decline path would still pass all the
+    negative-path tests (which expect failures regardless), silently
+    breaking the production scenario the bypass exists to enable.
+    """
+    response = {
+        "found": False,
+        "historical_form": None,
+        "elements": [],
+        "attested_forms": [{"form": "Aburwick", "year": 1333}],
+        "confidence": "low",
+        "notes": None,
+    }
+    failures = validate_response(response, _DATED_BODY)
+    assert failures == []
+
+
+def test_validate_response_attested_year_at_lower_boundary() -> None:
+    """Inclusive lower bound: year=800 is the floor for the attested-year
+    range (per _ATTESTED_YEAR_MIN). Off-by-one regression guard."""
+    body = _DATED_BODY + " Aburwick is also recorded in 800."
+    response = _ok_response()
+    response["attested_forms"] = [{"form": "Aburwick", "year": 800}]
+    failures = validate_response(response, body)
+    assert not any(f.reason.startswith("attested_year") for f in failures)
+
+
+def test_validate_response_attested_year_below_lower_boundary() -> None:
+    """Year=799 is below the 800 floor and should be rejected."""
+    response = _ok_response()
+    response["attested_forms"] = [{"form": "bere", "year": 799}]
+    failures = validate_response(response, _BARTON_BODY)
+    assert any(f.reason == "attested_year_out_of_range" for f in failures)
+
+
+def test_validate_response_attested_year_at_upper_boundary() -> None:
+    """Inclusive upper bound: year=1700 is the ceiling. Off-by-one regression
+    guard."""
+    body = _DATED_BODY + " Aburwick is also recorded in 1700."
+    response = _ok_response()
+    response["attested_forms"] = [{"form": "Aburwick", "year": 1700}]
+    failures = validate_response(response, body)
+    assert not any(f.reason.startswith("attested_year") for f in failures)
+
+
+def test_validate_response_attested_year_above_upper_boundary() -> None:
+    """Year=1701 is above the 1700 ceiling and should be rejected."""
+    response = _ok_response()
+    response["attested_forms"] = [{"form": "bere", "year": 1701}]
+    failures = validate_response(response, _BARTON_BODY)
+    assert any(f.reason == "attested_year_out_of_range" for f in failures)
+
+
+def test_validate_response_rejects_attested_year_float() -> None:
+    """Year 1333.0 (a float, possibly from a JSON decoder that promoted
+    integers) is not an int and must be flagged. Realistic edge case
+    when responses transit JSON layers that lose int/float distinction."""
+    response = _ok_response()
+    response["attested_forms"] = [{"form": "Aburwick", "year": 1333.0}]
+    failures = validate_response(response, _DATED_BODY)
+    assert any(f.reason == "attested_year_not_int" for f in failures)
+
+
+def test_validate_response_attested_form_missing_year_key() -> None:
+    """If the model omits the year key entirely, .get('year') yields None;
+    None is not int, so flag it as attested_year_not_int."""
+    response = _ok_response()
+    response["attested_forms"] = [{"form": "Aburwick"}]  # year key missing
+    failures = validate_response(response, _DATED_BODY)
+    assert any(f.reason == "attested_year_not_int" for f in failures)
+
+
+def test_validate_response_attested_form_missing_form_key() -> None:
+    """If the model omits the form key entirely, .get('form') yields None;
+    the .strip()/dash-strip chain coerces None→'', which fails the
+    length-floor → form-not-in-body."""
+    response = _ok_response()
+    response["attested_forms"] = [{"year": 1333}]  # form key missing
+    failures = validate_response(response, _DATED_BODY)
+    assert any(f.reason == "attested_form_not_in_body" for f in failures)
+
+
+def test_validate_response_reports_index_for_each_invalid_entry() -> None:
+    """Mixed valid + invalid entries: validation should NOT short-circuit
+    on the first failure. Every invalid entry must produce a failure
+    tagged with its index (so callers can pinpoint which entries to
+    drop)."""
+    response = _ok_response()
+    response["attested_forms"] = [
+        {"form": "Aburwick", "year": 1333},  # valid
+        {"form": "Xyzfake", "year": 1346},  # invalid: form not in body
+        {"form": "Abberwyke", "year": 1346},  # valid
+        {"form": "Aburwick", "year": 79},  # invalid: year out of range
+    ]
+    failures = validate_response(response, _DATED_BODY)
+    detail_indices = [f.detail for f in failures]
+    assert any("attested_forms[1]" in d for d in detail_indices)
+    assert any("attested_forms[3]" in d for d in detail_indices)
 
 
 # --- wyrd-bjs: shared assemble_extraction_result + transport_error_result --
