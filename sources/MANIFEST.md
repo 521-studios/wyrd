@@ -121,6 +121,31 @@ Downloaded from the Internet Archive as plain-text OCR (`_djvu.txt`).
   morpheme corpus expansion (wyrd-fmg) so generation can produce real
   French-Celtic place names rather than the existing English+Celtic+FR
   fallback.
+- `longnon_1920_noms_de_lieu_france_v1.txt` — Auguste Longnon, *Les noms
+  de lieu de la France: leur origine, leur signification, leurs
+  transformations*, vol 1 (Paris: Champion, 1920). Treatise on Greek /
+  Phoenician / Ligure / Iberian / Celtic substrate origins of French
+  place-names; chapters subdivided by suffix (`-dunum`, `-duros`,
+  `-briga`, `-asca`). Mined via Haiku 4.5: 67 parsed → 16 accepted, 27
+  etymons touched (wyrd-efx).
+- `longnon_1920_noms_de_lieu_france_v2.txt` — Same series, vol 2.
+  Saint-name (`Saint-X` ← Latin saint name) and feudal-castle entries
+  organized as numbered list. Parser yields 2,775 candidates but most
+  are front-matter / OCR fragments; bulk-list segmentation needs
+  wyrd-5af treatise-aware extractor before full mining (wyrd-ech).
+- `loth_1890_chrestomathie_bretonne.txt` — Joseph Loth, *Chrestomathie
+  bretonne (armoricain, gallois, cornique)* (Paris: E. Bouillon, 1890).
+  Anthology of Middle Breton texts (mystery plays, manuscript prose)
+  with embedded etymology commentary in dedicated 'Noms de Lieux et de
+  Peuples' sections. Bulk-text shape blocks the alphabetical parser;
+  needs wyrd-5af before mining (wyrd-mlu).
+- `arbois_1890_recherches_propriete_fonciere.txt` — Henri d'Arbois de
+  Jubainville, *Recherches sur l'origine de la propriété foncière et
+  des noms de lieux habités en France (période celtique et période
+  romaine)* (Paris: Thorin, 1890). Foundational Celtic-and-Roman-period
+  French toponymy by the era's leading Celticist. Treatise shape with
+  per-toponym sections (Aria, Artia, Rennius, etc.); 960 parser entries,
+  40% accept on smoke; full mining in flight (wyrd-cmz).
 
 ## Modern open data
 
