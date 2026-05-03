@@ -225,13 +225,22 @@ class LexiconDB:
         *,
         page: str | None = None,
         short_quote: str | None = None,
+        context_snippet: str | None = None,
     ) -> None:
+        """Insert an etymon_citation row.
+
+        ``context_snippet`` (wyrd-9kh.3) is the surrounding scholarly-prose
+        context window for in-app citation display. Populated by siblings
+        (.4 reverse-search snippet capture, .5 page-number parser); leave
+        None for callers that haven't been updated to capture it yet.
+        """
         self.conn.execute(
             """
-            INSERT OR IGNORE INTO etymon_citation (etymon_id, source_id, page, short_quote)
-            VALUES (?, ?, ?, ?)
+            INSERT OR IGNORE INTO etymon_citation
+                (etymon_id, source_id, page, short_quote, context_snippet)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (etymon_id, source_id, page, short_quote),
+            (etymon_id, source_id, page, short_quote, context_snippet),
         )
 
     def upsert_reflex(self, surface_form: str, position: str) -> int:
@@ -503,6 +512,19 @@ def _migrate_text_match_table(db: LexiconDB, applied: dict[str, bool]) -> None:
         applied["etymon_text_match.disambiguator_reason"] = True
 
 
+def _migrate_citation_context_snippet(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Add etymon_citation.context_snippet to existing DBs (wyrd-9kh.3).
+
+    Idempotent: PRAGMA-checks the column before adding. Fresh installs
+    pick the column up from data/lexicon.sql so this is a migration-only
+    path.
+    """
+    cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon_citation)")}
+    if "context_snippet" not in cols:
+        db.conn.execute("ALTER TABLE etymon_citation ADD COLUMN context_snippet TEXT")
+        applied["etymon_citation.context_snippet"] = True
+
+
 def _create_mining_run_table(db: LexiconDB, applied: dict[str, bool]) -> None:
     """Create mining_run if missing. Per D23, this audit table closes the
     'stop losing accept/decline/reject counts to stdout' gap. One row per
@@ -634,12 +656,14 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "etymon_canonical_view": False,
         "etymon_text_match_table": False,
         "mining_run_table": False,
+        "etymon_citation.context_snippet": False,
     }
     _add_etymon_columns(db, applied)
     _create_etymon_indexes(db, applied)
     _rebuild_etymon_views(db, applied)
     _migrate_text_match_table(db, applied)
     _create_mining_run_table(db, applied)
+    _migrate_citation_context_snippet(db, applied)
     db.commit()
     return applied
 
