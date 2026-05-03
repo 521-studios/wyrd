@@ -549,10 +549,12 @@ def _migrate_text_match_table(db: LexiconDB, applied: dict[str, bool]) -> None:
               snippet       TEXT,
               method        TEXT NOT NULL DEFAULT 'reverse-search-v1',
               disambiguator_reason TEXT,
+              attested_year INTEGER,
               UNIQUE (etymon_id, source_id, matched_form)
             );
             CREATE INDEX idx_etymon_text_match_etymon ON etymon_text_match(etymon_id);
             CREATE INDEX idx_etymon_text_match_source ON etymon_text_match(source_id);
+            CREATE INDEX idx_etymon_text_match_year   ON etymon_text_match(attested_year);
             """
         )
         applied["etymon_text_match_table"] = True
@@ -569,6 +571,14 @@ def _migrate_text_match_table(db: LexiconDB, applied: dict[str, bool]) -> None:
     if "disambiguator_reason" not in text_match_cols:
         db.conn.execute("ALTER TABLE etymon_text_match ADD COLUMN disambiguator_reason TEXT")
         applied["etymon_text_match.disambiguator_reason"] = True
+    if "attested_year" not in text_match_cols:
+        db.conn.execute("ALTER TABLE etymon_text_match ADD COLUMN attested_year INTEGER")
+        # The index is only valuable once the column exists; create alongside.
+        db.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_etymon_text_match_year "
+            "ON etymon_text_match(attested_year)"
+        )
+        applied["etymon_text_match.attested_year"] = True
 
 
 # wyrd-9kh.5: pattern for Mawer-style alphabetical-headword running headers
@@ -988,6 +998,7 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "idx_etymon_merged_into": False,
         "idx_etymon_synset": False,
         "etymon_text_match.method": False,
+        "etymon_text_match.attested_year": False,
         "etymon_consensus_view": False,
         "etymon_canonical_view": False,
         "etymon_text_match_table": False,
@@ -1663,23 +1674,217 @@ def cluster_ocr_variants(db: LexiconDB, *, apply: bool = False) -> dict:
     return counts
 
 
+# --- D5-1 / wyrd-3ux: attested-year lookup --------------------------------
+#
+# Post-mining stage that scans source bodies for date-citation patterns
+# near each `etymon_text_match.matched_form` and records the EARLIEST
+# plausible year into `etymon_text_match.attested_year`. LLM-free,
+# idempotent, reversible (clear-enrichment --stage=attested-years).
+#
+# Year range = [_ATTESTED_YEAR_MIN, _ATTESTED_YEAR_MAX] = [100, 1700]
+# (matches llm_extractor's prompt-side capture). Roman-era through pre-
+# modern. Filters out scholarly publication years (most are 1800s+),
+# page numbers (small integers), and most modern stray digits.
+#
+# Foundation for D5-2 era-cell sampling.
+
+_ATTESTED_YEAR_MIN_LOOKUP = 100
+_ATTESTED_YEAR_MAX_LOOKUP = 1700
+
+
+# Form-attached year-citation pattern. Three accepted shapes, all
+# requiring the year to follow the matched form within a small window of
+# punctuation / whitespace:
+#
+#   1. "c." prefix — explicit "circa" marker (any year in range):
+#         Tune c. 950        Tunna, c. 1066        Tune (c. 950)
+#
+#   2. Parenthesized year — distinctive citation form:
+#         Tune (1086)        Tunes (1242)
+#
+#   3. Bare year ≥ 700 — post-Roman British/OE attestations begin
+#      around then, so a 3-4 digit number ≥700 is far more likely to be
+#      a real date than a page reference (page numbers in toponym
+#      dictionaries cluster in the low hundreds):
+#         Tune, 1086 (DB)    Tunes; 1242    Tunna 800
+#
+# Years <700 only qualify under (1) or (2). This filters the dominant
+# false-positive class — common-word reverse-search forms (`with`,
+# `wind`, `port`) followed by page references like "form, 134" — while
+# admitting bona-fide Roman-era citations when they're explicitly marked
+# with "c." or parens.
+#
+# Built fresh per matched_form because re.escape() makes it form-specific.
+def _build_form_year_pattern(form: str) -> re.Pattern[str]:
+    return re.compile(
+        r"\b" + re.escape(form) + r"\b"
+        r"(?:"
+        # c./circa prefix — accept any 3-4 digit year (Roman era OK)
+        r"[\s,;:.()\[\]]{0,4}c\.?\s*(\d{3,4})\b"
+        r"|"
+        # parenthesized year — strong citation marker
+        r"[\s,;:.]*\((\d{3,4})\b"
+        r"|"
+        # bare year ≥ 700 — post-Roman / OE attestations. Three-digit
+        # range (700-999) plus four-digit range (1000-1700) explicitly
+        # listed so a 4-digit 8xxx/9xxx publication ID, ISBN fragment,
+        # or page reference can't slip in. The trailing |1700 admits the
+        # year-range upper bound that 1[0-6]\d{2} cuts off at 1699.
+        r"[\s,;:.]{0,4}(7\d{2}|[89]\d{2}|1[0-6]\d{2}|1700)\b"
+        r")"
+    )
+
+
+def _extract_attested_year_from_body(text: str, form: str) -> int | None:
+    """Return the EARLIEST plausibly-attested year cited DIRECTLY against
+    ``form`` in ``text``, or None if no qualifying citation is found.
+
+    ``text`` is expected lowercased + OCR-normalized (the same shape the
+    reverse-search snippets are stored in). ``form`` should match.
+
+    A candidate year qualifies when:
+      * The matched_form is followed (within a few chars of intervening
+        punctuation / space, and optionally a "c." prefix) by a 3-4
+        digit year — see _build_form_year_pattern. This is the dominant
+        scholarly toponym citation shape.
+      * The year parses to an integer in [_ATTESTED_YEAR_MIN_LOOKUP,
+        _ATTESTED_YEAR_MAX_LOOKUP].
+
+    "Earliest" is a deliberate v1 choice: scholarly toponym citations
+    often run ascending ("Tune, 1086; Tunes, 1242; Tunne, 1340"), and the
+    earliest reflects the earliest known attestation of the form. Future
+    work (D5-2) may want all years, not just the earliest.
+    """
+    if not form:
+        return None
+    # ``text`` is lowercased + OCR-normalized before reaching this fn
+    # (see lookup_attested_years). Lowercase the form so case-mismatched
+    # matched_form values still produce hits.
+    pattern = _build_form_year_pattern(form.lower())
+    earliest: int | None = None
+    for m in pattern.finditer(text):
+        # Three capture groups in the alternation; exactly one will be
+        # populated per match.
+        captured = m.group(1) or m.group(2) or m.group(3)
+        if captured is None:
+            continue
+        year = int(captured)
+        if year < _ATTESTED_YEAR_MIN_LOOKUP or year > _ATTESTED_YEAR_MAX_LOOKUP:
+            continue
+        if earliest is None or year < earliest:
+            earliest = year
+    return earliest
+
+
+def lookup_attested_years(
+    db: LexiconDB,
+    sources_dir: Path | str,
+    *,
+    apply: bool = False,
+) -> dict:
+    """Scan each source body for date-citation patterns near every
+    ``etymon_text_match.matched_form`` and write the earliest plausible
+    year into ``etymon_text_match.attested_year`` (D5-1 / wyrd-3ux).
+
+    LLM-free, idempotent, reversible. Per D21/D22 this is enrichment
+    layer — operates entirely on already-mined data without touching the
+    underlying mining evidence (no ``etymon``, ``etymon_citation``,
+    ``etymon_descent`` writes). Re-runs against unchanged data are no-ops:
+    only rows where ``attested_year IS NULL`` are scanned, and the UPDATE
+    sets ``attested_year`` once.
+
+    Reverse via ``clear-enrichment --stage=attested-years --apply``.
+
+    With ``apply=False`` reports candidate counts without writing.
+    With ``apply=True`` populates ``attested_year`` on rows where a
+    qualifying citation is found in the source body.
+    """
+    sources_path = Path(sources_dir)
+    if not sources_path.is_dir():
+        raise ValueError(f"sources_dir not found: {sources_path}")
+
+    available_sources = {f.stem: f for f in sources_path.glob("*.txt")}
+
+    # Stream rows ordered by source_id so we can process them in
+    # source-grouped runs without ever materialising the full row set
+    # OR all source bodies in memory. ORDER BY source_id makes the
+    # transition predictable: when source_id changes vs the prior row,
+    # drop the old body and load the new one. Net peak memory: ONE
+    # source body + ONE row's metadata. Scales to multi-million-row
+    # text-match tables without growing.
+    cur = db.conn.execute(
+        "SELECT id, source_id, matched_form FROM etymon_text_match "
+        "WHERE attested_year IS NULL ORDER BY source_id"
+    )
+
+    candidate_updates: list[tuple[int, int]] = []  # (year, row_id)
+    sources_missing: set[str] = set()
+    rows_scanned = 0
+    current_source_id: str | None = None
+    text: str | None = None
+    for row in cur:
+        rows_scanned += 1
+        if row["source_id"] != current_source_id:
+            current_source_id = row["source_id"]
+            source_file = available_sources.get(current_source_id)
+            if source_file is None:
+                sources_missing.add(current_source_id)
+                text = None
+                continue
+            # Load + normalize this one source body. Normalization mirrors
+            # reverse_search_attestations so canonical-form regexes line
+            # up with the matched_form values stored at search time. The
+            # prior body (if any) goes out of scope and Python frees it.
+            text = source_file.read_text(errors="replace").lower()
+            text = normalize_ocr_form(text)
+        if text is None:
+            continue
+        year = _extract_attested_year_from_body(text, row["matched_form"])
+        if year is not None:
+            candidate_updates.append((year, row["id"]))
+
+    counts = {
+        "rows_scanned": rows_scanned,
+        "candidates": len(candidate_updates),
+        "sources_missing": len(sources_missing),
+        "applied": apply,
+        "rows_written": 0,
+    }
+    if apply and candidate_updates:
+        # executemany is one round-trip plus a single rowcount aggregation
+        # — substantially cheaper than the per-row execute() loop on a
+        # batch of thousands. The WHERE attested_year IS NULL guard keeps
+        # the UPDATE idempotent if a parallel run somehow set the column
+        # between candidate collection and apply.
+        cur = db.conn.executemany(
+            "UPDATE etymon_text_match SET attested_year = ? WHERE id = ? AND attested_year IS NULL",
+            candidate_updates,
+        )
+        counts["rows_written"] = cur.rowcount
+        db.commit()
+    return counts
+
+
 def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
     """Reset one or more enrichment stages so they can be re-run.
 
     Stages:
-      ocr         - UPDATE etymon SET merged_into_id = NULL
-                    (un-marks all OCR-cluster merges)
-      lemmas      - UPDATE etymon SET lemma_id = NULL,
-                                       inflection = NULL,
-                                       lemma_method = NULL
-                    (un-links every inflected variant from its lemma)
-      text-match  - DELETE FROM etymon_text_match
-                    (drops every reverse-search / fuzzy-search row)
-      cognates    - UPDATE etymon SET synset_id = NULL,
-                                       synset_method = NULL
-                    (un-clusters every cognate-set assignment from
-                    cluster-cognates; D27 / wyrd-81n)
-      all-derived - all four of the above
+      ocr             - UPDATE etymon SET merged_into_id = NULL
+                        (un-marks all OCR-cluster merges)
+      lemmas          - UPDATE etymon SET lemma_id = NULL,
+                                           inflection = NULL,
+                                           lemma_method = NULL
+                        (un-links every inflected variant from its lemma)
+      text-match      - DELETE FROM etymon_text_match
+                        (drops every reverse-search / fuzzy-search row)
+      cognates        - UPDATE etymon SET synset_id = NULL,
+                                           synset_method = NULL
+                        (un-clusters every cognate-set assignment from
+                        cluster-cognates; D27 / wyrd-81n)
+      attested-years  - UPDATE etymon_text_match SET attested_year = NULL
+                        (drops every lookup-attested-years assignment;
+                        D5-1 / wyrd-3ux)
+      all-derived     - all five of the above
 
     Mining evidence (etymon, etymon_citation, etymon_gloss, etymon_tag,
     etymon_descent, toponym, toponym_etymology, toponym_etymology_element)
@@ -1696,11 +1901,15 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
     With apply=False the dry-run reports what would change. Pass
     apply=True to actually write.
     """
-    valid = {"ocr", "lemmas", "text-match", "cognates", "all-derived"}
+    valid = {"ocr", "lemmas", "text-match", "cognates", "attested-years", "all-derived"}
     if stage not in valid:
         raise ValueError(f"unknown stage {stage!r}; must be one of {sorted(valid)}")
 
-    stages = {"ocr", "lemmas", "text-match", "cognates"} if stage == "all-derived" else {stage}
+    stages = (
+        {"ocr", "lemmas", "text-match", "cognates", "attested-years"}
+        if stage == "all-derived"
+        else {stage}
+    )
 
     counts = {
         "stage": stage,
@@ -1708,6 +1917,7 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
         "lemma_links_to_clear": 0,
         "text_match_rows_to_clear": 0,
         "synset_assignments_to_clear": 0,
+        "attested_years_to_clear": 0,
     }
     if "ocr" in stages:
         counts["ocr_merges_to_clear"] = db.conn.execute(
@@ -1725,6 +1935,10 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
         counts["synset_assignments_to_clear"] = db.conn.execute(
             "SELECT COUNT(*) FROM etymon WHERE synset_id IS NOT NULL"
         ).fetchone()[0]
+    if "attested-years" in stages:
+        counts["attested_years_to_clear"] = db.conn.execute(
+            "SELECT COUNT(*) FROM etymon_text_match WHERE attested_year IS NOT NULL"
+        ).fetchone()[0]
 
     if not apply:
         return counts
@@ -1737,6 +1951,11 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
         db.conn.execute("DELETE FROM etymon_text_match")
     if "cognates" in stages:
         db.conn.execute("UPDATE etymon SET synset_id = NULL, synset_method = NULL")
+    if "attested-years" in stages and "text-match" not in stages:
+        # When 'text-match' also runs (notably under stage='all-derived'),
+        # it has already DELETED every row, so the attested_year UPDATE
+        # would scan an empty table — skip the redundant write.
+        db.conn.execute("UPDATE etymon_text_match SET attested_year = NULL")
     db.commit()
     return counts
 

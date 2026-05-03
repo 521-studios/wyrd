@@ -29,6 +29,7 @@ from wyrd.generators.kenning.lexicon import (
     ingest_parsed_entries,
     init_schema,
     link_lemmas,
+    lookup_attested_years,
     migrate_schema,
     normalize_ocr_form,
     parse_skeat_section_header_pages,
@@ -810,7 +811,9 @@ def test_clear_enrichment_text_match_drops_all_rows(fresh_db: Path) -> None:
 
 def test_clear_enrichment_all_derived_resets_three_stages(fresh_db: Path) -> None:
     """stage='all-derived' clears OCR merges, lemma links, AND text-match
-    rows in a single invocation."""
+    rows in a single invocation. (Cognate + attested-year stages are
+    exercised in their own tests; the three-stage shape is the legacy
+    one and stays pinned here.)"""
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="src-a", title="A")
         winner = db.upsert_etymon("Hædan", "old-english")
@@ -845,6 +848,315 @@ def test_clear_enrichment_rejects_unknown_stage(fresh_db: Path) -> None:
     """Defensive: unknown stage raises ValueError before touching the DB."""
     with LexiconDB(fresh_db) as db, pytest.raises(ValueError, match="unknown stage"):
         clear_enrichment(db, stage="bogus", apply=True)
+
+
+# --- D5-1 / wyrd-3ux: lookup_attested_years --------------------------------
+
+
+def _seed_text_match(
+    db: LexiconDB,
+    *,
+    source_id: str,
+    canonical_form: str,
+    matched_form: str | None = None,
+    language: str = "old-english",
+) -> int:
+    """Insert one etymon + one text-match row pointing at it; return the
+    text-match row id. Used as a fixture builder for the lookup-attested-
+    years tests."""
+    eid = db.upsert_etymon(canonical_form, language)
+    matched = matched_form or canonical_form
+    cur = db.conn.execute(
+        "INSERT INTO etymon_text_match (etymon_id, source_id, matched_form, "
+        "match_count, edit_distance, snippet) VALUES (?, ?, ?, ?, ?, ?)",
+        (eid, source_id, matched, 1, 0, ""),
+    )
+    db.commit()
+    return cur.lastrowid
+
+
+def test_lookup_attested_years_finds_year_after_form_with_comma(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """The dominant scholarly toponym citation pattern: 'Tune, 1086' —
+    matched form, comma, year. Year falls within the [100, 1700] range
+    and the preceding context contains ', ' (a recognised marker), so
+    it qualifies."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "mawer_1920.txt").write_text(
+        "BACKWORTH. Backworth, 1240; Bakworth, 1242. From OE bæc and worð.\n"
+        "TUNE. Tune, 1086 (DB); Tunes, 1242."
+    )
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="mawer_1920", title="Mawer")
+        rid = _seed_text_match(db, source_id="mawer_1920", canonical_form="tune")
+        result = lookup_attested_years(db, sources, apply=True)
+
+        year = db.conn.execute(
+            "SELECT attested_year FROM etymon_text_match WHERE id = ?", (rid,)
+        ).fetchone()["attested_year"]
+
+    assert result["candidates"] == 1
+    assert result["rows_written"] == 1
+    assert year == 1086
+
+
+def test_lookup_attested_years_picks_earliest_when_multiple_qualify(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """When a form is cited at multiple years (typical for well-attested
+    toponyms), the earliest qualifying year wins. Matches the v1 design
+    documented on lookup_attested_years."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "ekwall_1922.txt").write_text("TUNE. Tune, 1086 (DB); Tunes, 1242; Tunna, 1340.")
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="ekwall_1922", title="Ekwall")
+        rid = _seed_text_match(db, source_id="ekwall_1922", canonical_form="tune")
+        lookup_attested_years(db, sources, apply=True)
+        year = db.conn.execute(
+            "SELECT attested_year FROM etymon_text_match WHERE id = ?", (rid,)
+        ).fetchone()["attested_year"]
+    assert year == 1086
+
+
+def test_lookup_attested_years_rejects_publication_year(fresh_db: Path, tmp_path: Path) -> None:
+    """1920 is a publication year, not an attestation. _ATTESTED_YEAR_MAX_LOOKUP
+    = 1700 cuts off well before publication years for the corpus, so
+    nothing should be written."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "src.txt").write_text("denu (Mawer, 1920) appears throughout.")
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        rid = _seed_text_match(db, source_id="src", canonical_form="denu")
+        lookup_attested_years(db, sources, apply=True)
+        year = db.conn.execute(
+            "SELECT attested_year FROM etymon_text_match WHERE id = ?", (rid,)
+        ).fetchone()["attested_year"]
+    assert year is None
+
+
+def test_lookup_attested_years_handles_complex_citation_list(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """Real EPNS pattern: 'speldredge (c. 1290 sac 6, 134, 1320 ch)'
+    has THREE digit runs, only one of which is a real year-citation.
+    The form-attached pattern with the 'c.' marker correctly extracts
+    1290 (year) and rejects 134 (section reference — preceded by ', '
+    after a digit, not after alpha). 1320 is also a real year, but
+    1290 wins on 'earliest'.
+
+    Pin so a future loosening of the form-attached pattern doesn't
+    reintroduce the digit-list FP class."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "src.txt").write_text("speldredge (c. 1290 sac 6, 134, 1320 ch).")
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        rid = _seed_text_match(db, source_id="src", canonical_form="speldredge")
+        lookup_attested_years(db, sources, apply=True)
+        year = db.conn.execute(
+            "SELECT attested_year FROM etymon_text_match WHERE id = ?", (rid,)
+        ).fetchone()["attested_year"]
+    assert year == 1290
+
+
+def test_lookup_attested_years_rejects_year_without_date_marker(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """A digit run not preceded by a recognised date-context marker is
+    not a date citation. Filters page numbers, statute counts, etc."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    # 'See note 1240 below' has '1240' but no preceding marker — it's a
+    # cross-reference number, not a date citation.
+    (sources / "src.txt").write_text("hamtun see note 1240 below for the discussion.")
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        rid = _seed_text_match(db, source_id="src", canonical_form="hamtun")
+        lookup_attested_years(db, sources, apply=True)
+        year = db.conn.execute(
+            "SELECT attested_year FROM etymon_text_match WHERE id = ?", (rid,)
+        ).fetchone()["attested_year"]
+    assert year is None
+
+
+def test_lookup_attested_years_dry_run_does_not_write(fresh_db: Path, tmp_path: Path) -> None:
+    """apply=False reports candidates but writes nothing — same shape as
+    every other enrichment stage."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "src.txt").write_text("Tune, 1086 (DB).")
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        rid = _seed_text_match(db, source_id="src", canonical_form="tune")
+        result = lookup_attested_years(db, sources, apply=False)
+
+        year = db.conn.execute(
+            "SELECT attested_year FROM etymon_text_match WHERE id = ?", (rid,)
+        ).fetchone()["attested_year"]
+
+    assert result["candidates"] == 1
+    assert result["rows_written"] == 0
+    assert result["applied"] is False
+    assert year is None
+
+
+def test_lookup_attested_years_idempotent_on_rerun(fresh_db: Path, tmp_path: Path) -> None:
+    """Re-running on a DB that already has attested_year set is a no-op:
+    only rows where attested_year IS NULL are scanned. Lets a future run
+    pick up newly-added text-match rows without re-clobbering existing
+    values."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "src.txt").write_text("Tune, 1086 (DB).")
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        _seed_text_match(db, source_id="src", canonical_form="tune")
+
+        first = lookup_attested_years(db, sources, apply=True)
+        assert first["rows_written"] == 1
+        # Second run sees zero unscored rows.
+        second = lookup_attested_years(db, sources, apply=True)
+
+    assert second["rows_scanned"] == 0
+    assert second["candidates"] == 0
+    assert second["rows_written"] == 0
+
+
+def test_lookup_attested_years_groups_rows_by_source_id(fresh_db: Path, tmp_path: Path) -> None:
+    """The streaming restructure (7681838) groups text-match rows by
+    source_id so each source body is loaded only once. Pin that the
+    grouping is correct: rows from source A get scanned against A's
+    body, NOT B's body, even when both have year-citations against
+    the same matched_form value. A regression that flattens the
+    grouping back to a single shared body would silently swap years
+    between sources."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "src_a.txt").write_text("Tune, 1086 (DB).")
+    (sources / "src_b.txt").write_text("Tune, 1242 (DB).")
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src_a", title="A")
+        db.upsert_source(id="src_b", title="B")
+        rid_a = _seed_text_match(db, source_id="src_a", canonical_form="tune")
+        rid_b = _seed_text_match(db, source_id="src_b", canonical_form="tune")
+        lookup_attested_years(db, sources, apply=True)
+        years = dict(db.conn.execute("SELECT id, attested_year FROM etymon_text_match").fetchall())
+    assert years[rid_a] == 1086
+    assert years[rid_b] == 1242
+
+
+def test_lookup_attested_years_warns_on_missing_source_file(fresh_db: Path, tmp_path: Path) -> None:
+    """A text-match row pointing at a source_id whose .txt isn't in
+    sources_dir is counted in sources_missing and skipped without
+    raising. Common in real corpora where some books have been mined
+    but the OCR text is gitignored / absent locally."""
+    sources = tmp_path / "sources"
+    sources.mkdir()  # Empty — no .txt files.
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="missing_src", title="M")
+        _seed_text_match(db, source_id="missing_src", canonical_form="tune")
+        result = lookup_attested_years(db, sources, apply=True)
+
+    assert result["sources_missing"] == 1
+    assert result["candidates"] == 0
+    assert result["rows_written"] == 0
+
+
+def test_lookup_attested_years_accepts_year_at_upper_bound_1700(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """Regression for PR #47 Gemini-medium: the bare-year regex
+    `1[0-6]\\d{2}` cuts off at 1699 but `_ATTESTED_YEAR_MAX_LOOKUP` is
+    1700. Pin that 1700 itself qualifies as a bare year via the
+    explicit |1700 alternation."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "src.txt").write_text("Tune, 1700.")
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        rid = _seed_text_match(db, source_id="src", canonical_form="tune")
+        lookup_attested_years(db, sources, apply=True)
+        year = db.conn.execute(
+            "SELECT attested_year FROM etymon_text_match WHERE id = ?", (rid,)
+        ).fetchone()["attested_year"]
+    assert year == 1700
+
+
+def test_lookup_attested_years_lowercases_form_before_matching(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """Regression for PR #47 Gemini-medium: source body text is
+    lowercased before scanning, so a matched_form like 'TUNE' or 'Tune'
+    must lowercase before being interpolated into the regex pattern.
+    Without the form.lower() guard this row would silently miss its
+    citation."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "src.txt").write_text("TUNE, 1086 (DB).")
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        # Stored matched_form is mixed-case, body is upper. Lowercasing
+        # both at scan time makes them line up.
+        rid = _seed_text_match(db, source_id="src", canonical_form="Tune")
+        lookup_attested_years(db, sources, apply=True)
+        year = db.conn.execute(
+            "SELECT attested_year FROM etymon_text_match WHERE id = ?", (rid,)
+        ).fetchone()["attested_year"]
+    assert year == 1086
+
+
+def test_clear_enrichment_attested_years_resets_only_year_column(
+    fresh_db: Path,
+) -> None:
+    """clear_enrichment(stage='attested-years') nulls out attested_year
+    on every etymon_text_match row but leaves the row itself intact —
+    matched_form, snippet, method, and the etymon link all survive."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        rid = _seed_text_match(db, source_id="src", canonical_form="tune")
+        db.conn.execute(
+            "UPDATE etymon_text_match SET attested_year = ? WHERE id = ?",
+            (1086, rid),
+        )
+        db.commit()
+
+        result = clear_enrichment(db, stage="attested-years", apply=True)
+        row = db.conn.execute(
+            "SELECT matched_form, attested_year FROM etymon_text_match WHERE id = ?",
+            (rid,),
+        ).fetchone()
+
+    assert result["attested_years_to_clear"] == 1
+    assert row["matched_form"] == "tune"  # row not deleted
+    assert row["attested_year"] is None
+
+
+def test_clear_enrichment_all_derived_includes_attested_years(
+    fresh_db: Path,
+) -> None:
+    """stage='all-derived' covers attested-years too — verifies the
+    rollup includes the new stage so a fully clean reset really is."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        rid = _seed_text_match(db, source_id="src", canonical_form="tune")
+        db.conn.execute(
+            "UPDATE etymon_text_match SET attested_year = ? WHERE id = ?",
+            (1086, rid),
+        )
+        db.commit()
+
+        result = clear_enrichment(db, stage="all-derived", apply=True)
+        # text-match also clears the row entirely, so attested_year
+        # naturally goes to None — but the COUNT before the clear should
+        # have been 1, recorded in the dry-run-style counts.
+        assert result["attested_years_to_clear"] == 1
+        # text-match clear runs alongside, so the row is gone.
+        remaining = db.conn.execute("SELECT COUNT(*) FROM etymon_text_match").fetchone()[0]
+    assert remaining == 0
 
 
 def test_record_mining_run_inserts_row_with_full_fields(fresh_db: Path) -> None:
@@ -4582,6 +4894,125 @@ def test_clear_enrichment_cli_cognates_stage_round_trips(fresh_db: Path) -> None
             "SELECT COUNT(*) AS n FROM etymon WHERE synset_id IS NOT NULL"
         ).fetchone()["n"]
     assert remaining == 0
+
+
+def test_clear_enrichment_cli_attested_years_stage_round_trips(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """End-to-end CLI smoke for clear-enrichment --stage=attested-years
+    (D5-1 / wyrd-3ux). Pin via CliRunner so a typo in the new Click
+    Choice or the new echo branch surfaces immediately — the lib-level
+    test (test_clear_enrichment_attested_years_resets_only_year_column)
+    can't catch CLI wiring bugs."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "src.txt").write_text("Tune, 1086 (DB).")
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        rid = _seed_text_match(db, source_id="src", canonical_form="tune")
+        db.conn.execute(
+            "UPDATE etymon_text_match SET attested_year = ? WHERE id = ?",
+            (1086, rid),
+        )
+        db.commit()
+
+    runner = CliRunner()
+    dry = runner.invoke(
+        kenning_cli,
+        ["lexicon", "clear-enrichment", "--db", str(fresh_db), "--stage", "attested-years"],
+    )
+    assert dry.exit_code == 0, dry.output
+    assert "Stage: attested-years" in dry.output
+    assert "would clear 1 attested_year values" in dry.output
+    assert "dry-run" in dry.output
+
+    apply = runner.invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "clear-enrichment",
+            "--db",
+            str(fresh_db),
+            "--stage",
+            "attested-years",
+            "--apply",
+        ],
+    )
+    assert apply.exit_code == 0, apply.output
+    assert "cleared 1 attested_year values" in apply.output
+
+    with LexiconDB(fresh_db) as db:
+        remaining = db.conn.execute(
+            "SELECT COUNT(*) AS n FROM etymon_text_match WHERE attested_year IS NOT NULL"
+        ).fetchone()["n"]
+    assert remaining == 0
+
+
+def test_lookup_attested_years_cli_dry_run_reports_without_writing(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """End-to-end CLI smoke: dry-run reports row + candidate counts and
+    leaves attested_year NULL. Pins the Click wiring (--db, --apply
+    flag, sources_dir argument) so a typo surfaces immediately."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "src.txt").write_text("Tune, 1086 (DB).")
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        _seed_text_match(db, source_id="src", canonical_form="tune")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "lookup-attested-years", str(sources), "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "scanned 1 text-match row(s)" in result.output
+    assert "candidates    = 1" in result.output
+    assert "rows_written  = 0" in result.output
+    assert "dry-run" in result.output
+
+    with LexiconDB(fresh_db) as db:
+        years = [
+            row["attested_year"]
+            for row in db.conn.execute("SELECT attested_year FROM etymon_text_match")
+        ]
+    assert all(y is None for y in years)
+
+
+def test_lookup_attested_years_cli_apply_writes_years(fresh_db: Path, tmp_path: Path) -> None:
+    """--apply persists attested_year on each qualifying row. Pins the
+    rows_written echo branch — without this assertion a typo in the
+    format string would slip through despite the lib-level dict field
+    having coverage."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "src.txt").write_text("Tune, 1086 (DB).")
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        rid = _seed_text_match(db, source_id="src", canonical_form="tune")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "lookup-attested-years",
+            str(sources),
+            "--db",
+            str(fresh_db),
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "rows_written  = 1" in result.output
+    assert "dry-run" not in result.output
+
+    with LexiconDB(fresh_db) as db:
+        year = db.conn.execute(
+            "SELECT attested_year FROM etymon_text_match WHERE id = ?", (rid,)
+        ).fetchone()["attested_year"]
+    assert year == 1086
 
 
 def test_cluster_cognates_cli_warns_on_cycle_orphans(fresh_db: Path) -> None:
