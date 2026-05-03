@@ -579,7 +579,13 @@ def detect_running_headers(text: str) -> tuple[list[tuple[int, int]], str]:
     for whichever produced more matches. Per-source-book dispatch:
     Mawer-style and Skeat-§ are mutually exclusive in practice, so
     'highest yield wins' is unambiguous. Returns (`[]`, `"none"`) when
-    neither convention matches."""
+    neither convention matches.
+
+    Tie-break: when both parsers return the SAME non-zero count
+    (theoretically possible with crafted OCR; not seen in the live
+    corpus), Mawer wins. Mawer is the older / more permissive
+    pattern; defaulting to it on ties keeps page-resolution behavior
+    bit-stable for any source already routed through it."""
     mawer = parse_running_header_pages(text)
     skeat = parse_skeat_section_header_pages(text)
     if not mawer and not skeat:

@@ -1340,10 +1340,24 @@ def test_detect_running_headers_returns_none_when_neither_matches():
     assert parser == "none"
 
 
+def test_detect_running_headers_breaks_tie_to_mawer():
+    """Tie-break: when both parsers return the same nonzero count,
+    Mawer wins (documented in detect_running_headers). Pinned here so
+    a refactor can't silently flip it — Mawer is the older / more
+    permissive pattern; defaulting to it on ties keeps page-resolution
+    behavior bit-stable for sources already routed through it."""
+    body = "BACKWORTH 9\nbody content\n§ 2. NAMES ENDING IN -TON. 5\nmore body content\n"
+    headers, parser = detect_running_headers(body)
+    assert parser == "mawer"
+    assert [p for _o, p in headers] == [9]
+
+
 def test_backfill_citation_pages_resolves_skeat_section_headers(fresh_db: Path) -> None:
     """End-to-end: a Skeat-style book whose body has §-section running
     headers gets pages resolved via the new parser dispatch — would
-    have failed under the Mawer-only path with no_headers=1."""
+    have failed under the Mawer-only path with no_headers=1.
+    Both etymon_citation and toponym_etymology pages get written in
+    the same pass."""
     quote = "discussion of -ton suffix in cot"
     body = (
         "§ 2. NAMES ENDING IN -TON. 5\n"
@@ -1352,15 +1366,56 @@ def test_backfill_citation_pages_resolves_skeat_section_headers(fresh_db: Path) 
         f"{quote} continuing\n"
     )
     with LexiconDB(fresh_db) as db:
-        _, cit_id, _ = _seed_citation_for_backfill(db, "skeat_test", "cot", quote)
+        _, cit_id, ety_id = _seed_citation_for_backfill(db, "skeat_test", "cot", quote)
         counts = backfill_citation_pages(db, "skeat_test", body, apply=True)
         cit_page = db.conn.execute(
             "SELECT page FROM etymon_citation WHERE id = ?", (cit_id,)
         ).fetchone()["page"]
+        ety_page = db.conn.execute(
+            "SELECT page FROM toponym_etymology WHERE id = ?", (ety_id,)
+        ).fetchone()["page"]
 
     assert counts["citations_updated"] == 1
+    assert counts["etymologies_updated"] == 1
     assert cit_page == "21"
+    assert ety_page == "21"
     assert counts["no_headers"] == 0
+
+
+def test_parse_pages_cli_reports_skeat_parser_for_skeat_source(tmp_path: Path) -> None:
+    """The parse-pages CLI audit must report which parser matched so a
+    user inspecting a source knows whether it's Mawer-style or
+    Skeat-§. Pin the 'parser: skeat-§' line in the output."""
+    body = "§ 2. NAMES ENDING IN -TON. 5\nbody content\n§ 4. NAMES ENDING IN -HAM. 21\n"
+    source = tmp_path / "skeat_test.txt"
+    source.write_text(body)
+
+    runner = CliRunner()
+    result = runner.invoke(kenning_cli, ["lexicon", "parse-pages", str(source)])
+
+    assert result.exit_code == 0, result.output
+    assert "2 running header(s) detected" in result.output
+    assert "parser: skeat-§" in result.output
+    assert "Page range: 5 → 21" in result.output
+
+
+def test_parse_pages_cli_reports_no_match_when_neither_convention_fires(
+    tmp_path: Path,
+) -> None:
+    """A header-less source body produces 'parser: none' and a stderr
+    note explaining both conventions were tried — pin so the wording
+    can't silently revert to the old Mawer-only language."""
+    body = "this is just prose with no headers anywhere\n"
+    source = tmp_path / "treatise.txt"
+    source.write_text(body)
+
+    runner = CliRunner()
+    result = runner.invoke(kenning_cli, ["lexicon", "parse-pages", str(source)])
+
+    assert result.exit_code == 0, result.output
+    assert "0 running header(s) detected" in result.output
+    assert "parser: none" in result.output
+    assert "either Mawer-style or Skeat-§ patterns" in result.output
 
 
 # --- wyrd-azv: backfill_citation_pages ---------------------------------
