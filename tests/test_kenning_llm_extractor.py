@@ -384,6 +384,22 @@ def test_validate_response_strips_dashes_before_attested_form_check() -> None:
     assert any(f.reason == "attested_form_not_in_body" for f in bypass_failures)
 
 
+def test_validate_response_handles_non_string_attested_form() -> None:
+    """Defensive against non-string form values (bool, int, list, etc.)
+    slipping past schema enforcement. Gemini's responseSchema enforcement
+    is unreliable across versions and Anthropic uses prompt-only schema
+    enforcement, so a model emitting ``form: true`` shouldn't crash the
+    validator with an AttributeError. The ``str()`` coercion converts
+    truthy non-strings to their string representation, which then fails
+    the form-in-body check (the safe outcome)."""
+    response = _ok_response()
+    response["attested_forms"] = [{"form": True, "year": 1333}]
+    failures = validate_response(response, _DATED_BODY)
+    # Should NOT AttributeError. Should land as form-not-in-body since
+    # str(True) → "True" doesn't appear in _DATED_BODY.
+    assert any(f.reason == "attested_form_not_in_body" for f in failures)
+
+
 def test_validate_response_accepts_decline_with_valid_attested_forms() -> None:
     """D5-1 production case: body carries dated citations but the model
     declines to extract an etymology. Validation must pass cleanly — that's

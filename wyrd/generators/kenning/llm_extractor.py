@@ -422,8 +422,12 @@ def _validate_attested_forms(response: dict, norm_body: str) -> list[ValidationF
             )
             continue
         # Strip dashes the same way as element forms; otherwise the model
-        # could bypass the length floor with "-A-" or similar.
-        a_form = (entry.get("form") or "").strip().rstrip("-").lstrip("-")
+        # could bypass the length floor with "-A-" or similar. ``str()``
+        # wrap defends against truthy non-strings — the schema requires
+        # ``form`` to be a string but Gemini's schema enforcement has been
+        # unreliable across versions and Anthropic uses prompt-only
+        # enforcement, so it's worth not crashing on a stray bool / number.
+        a_form = str(entry.get("form") or "").strip().strip("-")
         if len(a_form) < 2 or _normalize_for_match(a_form) not in norm_body:
             failures.append(
                 ValidationFailure(
