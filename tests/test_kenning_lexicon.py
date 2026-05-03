@@ -3014,13 +3014,13 @@ def test_language_field_mapping_covers_known_codes() -> None:
     handled = LANGUAGE_FIELDS.keys() | NON_LANGUAGE_FIELDS
     # Also tolerate per-language metadata fields emitted by the export step:
     # *_variants (D18 spelling variants), *_inflections (D8 inflection
-    # labels), *_citations (wyrd-9kh.1 scholarly attribution). They
-    # legitimately don't map to a LANGUAGE_FIELDS code; the runtime's
-    # load_meanings handles them via separate Meaning attributes.
+    # labels), *_citations (scholarly attribution), *_attested_years
+    # (D5-2 era cells). They legitimately don't map to a LANGUAGE_FIELDS
+    # code; the runtime's load_meanings handles them via separate Meaning
+    # attributes.
+    metadata_suffixes = ("_variants", "_inflections", "_citations", "_attested_years")
     missing = {
-        f
-        for f in seen_fields - handled
-        if not (f.endswith("_variants") or f.endswith("_inflections") or f.endswith("_citations"))
+        f for f in seen_fields - handled if not any(f.endswith(s) for s in metadata_suffixes)
     }
     assert not missing, f"Unhandled fields in meanings.json: {missing}"
 
