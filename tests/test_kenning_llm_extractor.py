@@ -556,7 +556,7 @@ def test_assemble_extraction_result_not_found_emits_low_confidence_entry():
     assert result.entry is not None
     assert result.entry.elements == []
     assert result.entry.confidence == "low"
-    assert result.entry.source_quote == body[:200]
+    assert result.entry.source_quote == body[:500]
 
 
 def test_assemble_extraction_result_validation_failure_marks_rejected():
@@ -595,7 +595,9 @@ def test_assemble_extraction_result_validation_failure_marks_rejected():
 def test_assemble_extraction_result_tags_source_quote_with_prefix():
     """Successful extractions stamp source_quote with the provider's
     notes_prefix — D12 search-evidence vs. citation-evidence separation
-    relies on this for per-provider attribution. Truncated to 200 chars."""
+    relies on this for per-provider attribution. Truncated to 500 chars
+    (wyrd-9kh.2 raised the budget from 200 to give the SPA citation view
+    enough context)."""
     from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
 
     body = "Foobar — said to be from Old English foo, a foo."
@@ -623,4 +625,66 @@ def test_assemble_extraction_result_tags_source_quote_with_prefix():
     assert result.accepted is True
     assert result.entry is not None
     assert result.entry.source_quote.startswith("extracted_by:claude:opus-4-7")
-    assert len(result.entry.source_quote) <= 200
+    assert len(result.entry.source_quote) <= 500
+
+
+def test_assemble_extraction_result_truncates_long_body_at_budget():
+    """wyrd-9kh.2: source_quote budget is 500 chars total. A long body
+    must truncate at the budget on both the decline path (body-only) and
+    the accepted path (combined_notes + ' | ' + body). Pins the budget
+    so a future change that drops the truncation gets caught before the
+    SPA citation view starts emitting megabyte-sized rows.
+    """
+    from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
+
+    # 1200-char body — well over the 500 budget. The form 'foo' must
+    # appear in body to pass the form-in-body check.
+    body = ("Foobar — from Old English foo, " + ("a " * 600))[:1200]
+    assert len(body) == 1200
+
+    # Decline path: body-only, full 500-char budget for body.
+    declined = assemble_extraction_result(
+        {"found": False},
+        body=body,
+        toponym="Foobar",
+        suffix_hint=None,
+        notes_prefix="extracted_by:test:1",
+    )
+    assert declined.accepted is True
+    assert declined.entry is not None
+    assert len(declined.entry.source_quote) == 500
+    assert declined.entry.source_quote == body[:500]
+
+    # Accepted path: combined_notes prefix + ' | ' + body[:440] capped at 500.
+    response = {
+        "found": True,
+        "historical_form": "Foobar",
+        "confidence": "medium",
+        "elements": [
+            {
+                "form": "foo",
+                "language": "old-english",
+                "position": "pre",
+                "gloss": "a foo",
+                "inflection": None,
+            }
+        ],
+    }
+    accepted = assemble_extraction_result(
+        response,
+        body=body,
+        toponym="Foobar",
+        suffix_hint=None,
+        notes_prefix="extracted_by:test:1",
+    )
+    assert accepted.accepted is True
+    assert accepted.entry is not None
+    sq = accepted.entry.source_quote
+    assert len(sq) <= 500
+    # Body share is bounded; the prefix + separator + body[:440] together
+    # are well under 500 for a normal-length notes_prefix, so no outer
+    # truncation kicks in for this test case (it would for an unusually
+    # long notes string, which the outer [:500] cap catches as the safety
+    # net).
+    assert sq.startswith("extracted_by:test:1")
+    assert " | " in sq
