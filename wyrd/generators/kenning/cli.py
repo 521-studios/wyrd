@@ -1642,7 +1642,7 @@ def lexicon_parse_pages(source_path: Path, limit: int) -> None:
         )
         return
     click.echo(f"  Page range: {headers[0][1]} → {headers[-1][1]}")
-    click.echo("  Sample (first {}):".format(min(limit, len(headers))))
+    click.echo(f"  Sample (first {min(limit, len(headers))}):")
     for offset, page in headers[:limit]:
         # Snippet of the matched line for visual inspection.
         line_end = text.find("\n", offset)
