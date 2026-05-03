@@ -348,68 +348,87 @@ def _extract_template_args(tmpl: dict[str, Any]) -> dict[str, str]:
 def _upward_edges_from_template(
     tmpl: dict[str, Any],
 ) -> list[tuple[str, str, str]]:
-    """Pull a list of (parent_lang_code, parent_word, edge_type) tuples
-    out of a wiktextract etymology template. Returns an empty list if
-    the template isn't one of our edge-producing kinds or its args
-    don't supply enough information.
+    """Dispatch a wiktextract etymology template to the right arg-shape
+    handler and return the (parent_lang_code, parent_word, edge_type)
+    tuples it produces. Empty list when the template isn't edge-
+    producing or its args don't supply enough information.
 
-    Single-parent templates (inh/bor/der/cal): args[2]=parent_lang,
-    args[3]=parent_word. One edge.
+    The template-set membership tells us the arg shape; each helper
+    encapsulates one shape:
 
-    Root templates (root): args[2]=ancestor_lang, args[3..]=root_word(s).
-    Each root word emits its own inheritance edge — Wiktionary editors
-    sometimes cite parallel PIE roots when the chain is contested.
-
-    Compound / affix templates (compound/com/prefix/pre/suffix/suf/af/
-    affix): args[1]=this_lang (all parts are in THIS language),
-    args[2..]=constituent parts. Each constituent emits its own
-    'compound' edge to this entry — a derivational composition.
+      * `_cross_lang_single_parent_edges` — inh/bor/der/cal/sl/lbor/...:
+        args[2]=parent_lang, args[3]=parent_word. One edge.
+      * `_root_template_edges` — {{root}}: args[2]=ancestor_lang,
+        args[3..5]=root_word(s). One edge per root.
+      * `_compound_template_edges` — compound/affix/blend/...:
+        args[1]=this_lang, args[2..6]=constituent parts. One edge each.
+      * `_same_lang_derivation_edges` — clipping/bf/back-formation/...:
+        args[1]=this_lang (also parent_lang), args[2]=parent_word. One.
     """
     name = tmpl.get("name", "")
     args = _extract_template_args(tmpl)
     if name in _UPWARD_TEMPLATE_TO_EDGE:
-        edge_type = _UPWARD_TEMPLATE_TO_EDGE[name]
-        parent_lang_code = args.get("2")
-        parent_word = args.get("3")
-        if parent_lang_code and parent_word:
-            return [(parent_lang_code, parent_word, edge_type)]
-        return []
+        return _cross_lang_single_parent_edges(name, args)
     if name in _ROOT_TEMPLATE_NAMES:
-        ancestor_lang = args.get("2")
-        if not ancestor_lang:
-            return []
-        # PIE-root templates can cite up to a handful of parallel roots
-        # at args[3], args[4], args[5]. Iterating up to a small fixed
-        # bound is enough — never seen >3 in real data.
-        edges: list[tuple[str, str, str]] = []
-        for i in (3, 4, 5):
-            word = args.get(str(i))
-            if word:
-                edges.append((ancestor_lang, word, "inheritance"))
-        return edges
+        return _root_template_edges(args)
     if name in _COMPOUND_TEMPLATE_NAMES:
-        this_lang = args.get("1")
-        if not this_lang:
-            return []
-        # Compound parts are at args[2], args[3], ... up to args[N]. Real
-        # OE compounds rarely exceed 3 parts; tolerate up to args[6].
-        edges = []
-        for i in (2, 3, 4, 5, 6):
-            part = args.get(str(i))
-            if part:
-                edges.append((this_lang, part, "compound"))
-        return edges
+        return _compound_template_edges(args)
     if name in _SAME_LANG_DERIVATION_TEMPLATE_NAMES:
-        # Same-language single-parent derivation. Parent lang = this_lang
-        # (args[1]); parent word is at args[2]. Real samples:
-        #   {{clipping|ang|elpend}}        → ang elpend → ang elp
-        #   {{back-formation|ang|sċeadu}}  → ang sċeadu → ang scead
-        #   {{bf|non|trǫf}}                → non trǫf → non traf
-        this_lang = args.get("1")
-        parent_word = args.get("2")
-        if this_lang and parent_word:
-            return [(this_lang, parent_word, "derivation")]
+        return _same_lang_derivation_edges(args)
+    return []
+
+
+def _cross_lang_single_parent_edges(name: str, args: dict[str, str]) -> list[tuple[str, str, str]]:
+    """{{inh|en|ang|tūn}} → [(ang, tūn, inheritance)]. Same shape covers
+    bor/der/cal and their +/lite variants and semantic loan / sl."""
+    parent_lang_code = args.get("2")
+    parent_word = args.get("3")
+    if parent_lang_code and parent_word:
+        return [(parent_lang_code, parent_word, _UPWARD_TEMPLATE_TO_EDGE[name])]
+    return []
+
+
+def _root_template_edges(args: dict[str, str]) -> list[tuple[str, str, str]]:
+    """{{root|en|ine-pro|*r1|*r2}} → one inheritance edge per root word.
+    Wiktionary editors sometimes cite parallel PIE roots when the chain
+    is contested; iterating args[3..5] handles up to 3 parallel roots
+    (never seen more in real data)."""
+    ancestor_lang = args.get("2")
+    if not ancestor_lang:
         return []
+    edges: list[tuple[str, str, str]] = []
+    for i in (3, 4, 5):
+        word = args.get(str(i))
+        if word:
+            edges.append((ancestor_lang, word, "inheritance"))
+    return edges
+
+
+def _compound_template_edges(args: dict[str, str]) -> list[tuple[str, str, str]]:
+    """{{compound|ang|Sċott|land}} → one 'compound' edge per constituent.
+    Real OE compounds rarely exceed 3 parts; iterating args[2..6] is
+    enough for the long-tail."""
+    this_lang = args.get("1")
+    if not this_lang:
+        return []
+    edges: list[tuple[str, str, str]] = []
+    for i in (2, 3, 4, 5, 6):
+        part = args.get(str(i))
+        if part:
+            edges.append((this_lang, part, "compound"))
+    return edges
+
+
+def _same_lang_derivation_edges(
+    args: dict[str, str],
+) -> list[tuple[str, str, str]]:
+    """{{clipping|ang|elpend}} → [(ang, elpend, derivation)]. Parent lang
+    is the SAME as this_lang (args[1]) — back-formation, contraction,
+    syncope, etc. all stay within one language."""
+    this_lang = args.get("1")
+    parent_word = args.get("2")
+    if this_lang and parent_word:
+        return [(this_lang, parent_word, "derivation")]
     return []
 
 
