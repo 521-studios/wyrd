@@ -1897,7 +1897,7 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     }
 
 
-# --- D27 / wyrd-083: generic-language bridging ----------------------------
+# --- generic-language bridging --------------------------------------------
 
 
 def bridge_generic_language(
@@ -1928,10 +1928,10 @@ def bridge_generic_language(
       - Set the generic-language etymon's `merged_into_id` to the picked
         canonical winner.
 
-    The cluster-cognates pass (wyrd-81n + wyrd-223) is already
-    redirect-aware, so any descent edges that previously pointed at the
-    specific-language etymon now also cluster the merged generic etymon
-    via the merged_into_id rollup chain.
+    The cluster-cognates pass is already redirect-aware, so any descent
+    edges that previously pointed at the specific-language etymon now
+    also cluster the merged generic etymon via the merged_into_id rollup
+    chain.
 
     With apply=False (default) reports candidate counts without writing.
     Returns:
@@ -2017,7 +2017,7 @@ def bridge_generic_language(
     }
 
 
-# --- D27 / wyrd-ft3: phonological bridging for OE place-name forms --------
+# --- phonological bridging for OE place-name forms ------------------------
 
 
 # Hand-curated mapping from "scholarly OE form as place-name dictionaries
@@ -2026,9 +2026,6 @@ def bridge_generic_language(
 # dictionaries write modernized / Norman-Anglicized spellings inherited
 # from medieval scribal practice. The mapping captures the most common
 # pairs that surface in the high-witness end of our place-name corpus.
-#
-# Sourced from manual audit of the top ~50 unbridged OE place-name
-# etymons (≥3 scholar citations) post-wiktextract ingest, 2026-05-03.
 # Extend the table when new high-witness mismatches surface.
 #
 # Convention: keys are lowercase scholarly forms; values are the
@@ -2109,16 +2106,16 @@ _OE_PHONOLOGICAL_BRIDGES: dict[str, str] = {
 
 def bridge_phonological_oe(db: LexiconDB, *, apply: bool = False) -> dict:
     """Bridge OE place-name etymons to their Wiktionary canonical
-    equivalents via a hand-curated mapping table (wyrd-ft3).
+    equivalents via a hand-curated mapping table.
 
     Place-name dictionaries write modernized OE forms (`ton`, `lea`,
     `burgh`, `dale`); Wiktionary uses scholarly orthography (`tūn`,
     `lēah`, `burh`, `dæl`). normalize-ocr handles macron-strip OCR
     variants but not vowel-weakening / silent-e / gh-spelling shifts.
     This pass uses `_OE_PHONOLOGICAL_BRIDGES` to merge known pairs
-    via merged_into_id (D22 non-destructive shape) so cluster-cognates
-    (redirect-aware per wyrd-223) rolls the place-name etymons up
-    into the Wiktionary cognate clusters.
+    via merged_into_id (D22 non-destructive shape) so the redirect-aware
+    cluster-cognates pass rolls the place-name etymons up into the
+    Wiktionary cognate clusters.
 
     Algorithm:
       1. For each canonical OE etymon, lowercase its canonical_form.

@@ -2268,11 +2268,11 @@ def lexicon_cluster_cognates(db_path: Path, apply_changes: bool) -> None:
         click.echo("(dry-run; pass --apply to commit)", err=True)
 
 
-# wyrd-083: place-name dictionaries write 'celtic' as a generic catch-all
-# for morphemes whose specific Celtic-family origin isn't pinned.
-# Wiktextract uses specific codes. The default --candidates resolves
-# 'celtic' onto Proto-Celtic (most ancestral) first, then Old-* and
-# Middle-* forms, then modern reflexes.
+# Place-name dictionaries write 'celtic' as a generic catch-all for
+# morphemes whose specific Celtic-family origin isn't pinned. Wiktextract
+# uses specific codes. The default --candidates resolves 'celtic' onto
+# Proto-Celtic (most ancestral) first, then Old-* and Middle-* forms,
+# then modern reflexes.
 _CELTIC_CANDIDATES_DEFAULT = (
     "proto-celtic",
     "old-irish",
@@ -2334,7 +2334,7 @@ def lexicon_bridge_language(
     apply_changes: bool,
 ) -> None:
     """Bridge a generic-language etymon family onto specific-language
-    canonicals via merged_into_id (wyrd-083).
+    canonicals via merged_into_id.
 
     Place-name dictionaries write generic tags like 'celtic' for
     morphemes whose specific Celtic-family origin isn't pinned.
@@ -2398,7 +2398,7 @@ def lexicon_bridge_language(
     help="Actually write merged_into_id. Without this, dry-run reporting only.",
 )
 def lexicon_bridge_phonological_oe(db_path: Path, apply_changes: bool) -> None:
-    """Bridge OE place-name forms to Wiktionary canonicals (wyrd-ft3).
+    """Bridge OE place-name forms to Wiktionary canonicals.
 
     Place-name dictionaries write modernized OE forms (`ton`, `lea`,
     `burgh`, `dale`); Wiktionary uses scholarly orthography (`tūn`,
