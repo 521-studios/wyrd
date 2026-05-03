@@ -74,8 +74,8 @@ disagreement, normalizing OCR. The SQLite DB at `~/.wyrd/lexicon.db`
 (override with `WYRD_LEXICON_DB`) is the source of truth for authoring
 — one per user, repo-/worktree-independent. The CLI commands under
 `wyrd kenning lexicon ...` operate on it; `wyrd kenning lexicon path`
-prints the resolved location. The DB is a build artifact regenerable
-from sources + mining and never committed.
+prints the resolved location. Never committed; regenerable from
+sources + mining.
 
 **Runtime layer** is what users hit. The Lambda generator imports a
 bundled `meanings.json` (and per-culture proportions) via

@@ -83,10 +83,13 @@ def _find_legacy_lexicon_db() -> Path | None:
     in a git repo or the legacy DB isn't present in either location.
     """
     current_root = _git_path("--show-toplevel")
-    if current_root is not None:
-        candidate = current_root / _LEGACY_RELATIVE_PATH
-        if candidate.is_file():
-            return candidate
+    if current_root is None:
+        # Not in a git repo at all → no second lookup will succeed
+        # either; skip the wasted subprocess spawn.
+        return None
+    candidate = current_root / _LEGACY_RELATIVE_PATH
+    if candidate.is_file():
+        return candidate
 
     # Fall back to the MAIN worktree. ``--git-common-dir`` returns the
     # shared .git/ for the repo (same across all linked worktrees);

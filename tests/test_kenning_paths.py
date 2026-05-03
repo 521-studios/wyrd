@@ -60,13 +60,32 @@ def test_env_override_expands_user_tilde(
     assert result == Path("~/scratch/lex.db").expanduser()
 
 
+def test_wyrd_data_dir_resolves_against_real_home(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The fixture monkeypatches `_wyrd_data_dir` away in every other
+    test, so the production path-construction code (`Path.home() /
+    _WYRD_DATA_DIR_NAME`) never executes there. Pin it here directly
+    so a typo in `_WYRD_DATA_DIR_NAME` or the wrong concatenation
+    surfaces.
+
+    Uses HOME env override to avoid host-dependent assertions."""
+    monkeypatch.setenv("HOME", "/fake/home")
+    assert paths._wyrd_data_dir() == Path("/fake/home") / paths._WYRD_DATA_DIR_NAME
+
+
 def test_legacy_db_is_migrated_to_home_on_first_call(
-    isolated_home: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    isolated_home: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """When ~/.wyrd/lexicon.db doesn't exist yet but a legacy in-repo
-    DB does, the file is moved (mv, not copy) and the new path is
-    returned. Pin this behavior so a future regression to copy + leave
-    or to wrong-target-path surfaces immediately."""
+    DB does, the file is moved (mv, not copy), the new path is
+    returned, AND a stderr notice is printed identifying source +
+    destination. Pin both — the move semantics AND the user notice —
+    so a future regression to copy-and-leave or silent-migration
+    surfaces immediately."""
     legacy = tmp_path / "repo" / "wyrd" / "generators" / "kenning" / "data" / "lexicon.db"
     legacy.parent.mkdir(parents=True)
     legacy.write_bytes(b"sentinel-lexicon-data")
@@ -80,6 +99,11 @@ def test_legacy_db_is_migrated_to_home_on_first_call(
     assert new_path.is_file(), "new home path should exist after migration"
     assert new_path.read_bytes() == b"sentinel-lexicon-data"
     assert not legacy.exists(), "legacy DB should be moved (not copied)"
+
+    captured = capsys.readouterr()
+    assert str(legacy) in captured.err
+    assert str(new_path) in captured.err
+    assert "wyrd-366" in captured.err  # so 'why am I seeing this?' is searchable
 
 
 def test_no_migration_when_home_db_already_exists(

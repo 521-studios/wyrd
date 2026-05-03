@@ -22,9 +22,8 @@ terraform/*.tfstate.backup
 terraform/*.tfvars.local
 
 # Kenning lexicon DB now lives at ~/.wyrd/lexicon.db (wyrd-366); the
-# in-repo path is a legacy migration target only and is auto-moved on
-# first CLI invocation. Kept here so any straggler DB in old checkouts
-# stays untracked.
+# in-repo path is a legacy migration target, auto-moved on first CLI
+# invocation.
 wyrd/generators/kenning/data/lexicon.db
 
 # Public-domain etymology corpus — fetch instructions in sources/MANIFEST.md.

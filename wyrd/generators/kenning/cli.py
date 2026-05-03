@@ -51,6 +51,10 @@ from wyrd.generators.kenning.lexicon import (
 )
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.name import load_names
+from wyrd.generators.kenning.paths import (
+    LEXICON_DB_DEFAULT_DISPLAY,
+    default_lexicon_path,
+)
 from wyrd.generators.kenning.skeat_parser import parse_skeat_text
 from wyrd.generators.kenning.wiktextract_ingester import ingest_wiktextract_path
 from wyrd.seed import resolve_seed, rng_for
@@ -88,11 +92,6 @@ def _load_meanings_data(meanings: Path | None) -> dict:
 # resolved per CLI invocation so the WYRD_LEXICON_DB env override and
 # the one-time legacy → ~/.wyrd migration both fire at call time, not
 # at module-import time. See wyrd/generators/kenning/paths.py.
-from wyrd.generators.kenning.paths import (  # noqa: E402
-    LEXICON_DB_DEFAULT_DISPLAY,
-    default_lexicon_path,
-)
-
 _DEFAULT_LEXICON_PATH = default_lexicon_path
 
 # Synthetic source row representing the meanings.json data inherited from the

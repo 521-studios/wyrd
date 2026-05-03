@@ -825,10 +825,9 @@ Edge types and their semantics:
 
 - **Don't commit `sources/`** — it's 1.8G+. Gitignored except for
   MANIFEST.md.
-- **Don't put a lexicon DB inside the repo.** As of wyrd-366 the
-  default lives at `~/.wyrd/lexicon.db`; the legacy in-repo path is
-  auto-migrated on first CLI invocation. Use `WYRD_LEXICON_DB` for
-  ad-hoc per-run overrides instead.
+- **Don't put a lexicon DB inside the repo.** The default lives at
+  `~/.wyrd/lexicon.db`; the legacy in-repo path is auto-migrated on
+  first CLI invocation. Use `WYRD_LEXICON_DB` for per-run overrides.
 - **Don't write `SESSION_HANDOFF.md` style transient docs into the
   repo** — use `bd remember` or `/tmp` for session continuity.
   Long-term architectural rationale goes in `DECISIONS.md`.
