@@ -791,6 +791,15 @@ def link_lemmas(db: LexiconDB, *, apply: bool = False) -> dict:
 # --- OCR variant clustering ------------------------------------------------
 
 
+# wyrd-9kh.4: snippet window around each match position. ±100 chars gives
+# the SPA citation panel enough scholarly prose to surround the matched
+# form without bloating etymon_text_match rows. Used by both reverse-
+# search (exact form match) and fuzzy-search (Levenshtein-1 with gloss
+# anchor); the gloss-anchor window is a separate concern owned by
+# fuzzy_search_attestations' `gloss_window` parameter.
+_TEXT_MATCH_SNIPPET_RADIUS = 100
+
+
 def reverse_search_attestations(
     db: LexiconDB,
     sources_dir: Path | str,
@@ -866,8 +875,9 @@ def reverse_search_attestations(
     forms_by_id = {eid: form for eid, form, _ in candidates}
 
     # matches[etymon_id] = [(source_id, count, sample_snippet), ...]
-    # Snippet is ±60 chars around the FIRST match in that source — gives
-    # the app something to show without storing every occurrence.
+    # Snippet is ±_TEXT_MATCH_SNIPPET_RADIUS chars around the FIRST match
+    # in that source — gives the SPA citation panel enough scholarly prose
+    # to display without storing every occurrence.
     matches: dict[int, list[tuple[str, int, str]]] = {}
     for etymon_id, form, _language in candidates:
         norm = normalize_ocr_form(form)
@@ -879,8 +889,8 @@ def reverse_search_attestations(
             if not hits:
                 continue
             first = hits[0]
-            start = max(0, first.start() - 60)
-            end = min(len(text), first.end() + 60)
+            start = max(0, first.start() - _TEXT_MATCH_SNIPPET_RADIUS)
+            end = min(len(text), first.end() + _TEXT_MATCH_SNIPPET_RADIUS)
             snippet = text[start:end].strip()
             # Mark the matched form within the snippet for app display.
             snippet = snippet.replace(norm, f"«{norm}»", 1)
@@ -1139,8 +1149,8 @@ def fuzzy_search_attestations(
                 if not any(g in window_text for g in glosses):
                     continue  # meaning didn't anchor — skip
                 # Record. snippet shows the matched form with marker.
-                snip_start = max(0, m.start() - 60)
-                snip_end = min(len(text), m.end() + 60)
+                snip_start = max(0, m.start() - _TEXT_MATCH_SNIPPET_RADIUS)
+                snip_end = min(len(text), m.end() + _TEXT_MATCH_SNIPPET_RADIUS)
                 snippet = text[snip_start:snip_end].strip().replace(tok, f"«{tok}»", 1)
                 count = len(pattern.findall(text))
                 matches.setdefault(etymon_id, []).append((source_id, tok, d, count, snippet))
