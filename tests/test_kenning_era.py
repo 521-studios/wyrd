@@ -18,8 +18,9 @@ from wyrd.generators.kenning import era
 @pytest.mark.parametrize(
     "language,year,expected",
     [
-        # English family — boundary year lands in the LATER cell
-        # (half-open intervals).
+        # English family — every internal boundary pinned (year just
+        # below + year on boundary). Half-open: boundary year lands
+        # in the LATER cell.
         ("old-english", 700, "oe-early"),
         ("old-english", 799, "oe-early"),
         ("old-english", 800, "oe-late"),
@@ -31,30 +32,49 @@ from wyrd.generators.kenning import era
         ("modern-english", 1699, "early-modern"),
         ("modern-english", 1700, "modern"),
         ("modern-english", 2025, "modern"),
-        # Norse family
+        # Norse — every internal boundary pinned
         ("old-norse", 1000, "on-classical"),
         ("old-norse", 1099, "on-classical"),
         ("old-norse", 1100, "on-late"),
+        ("old-norse", 1299, "on-late"),
+        ("icelandic", 1300, "middle-scandinavian"),
         ("icelandic", 1400, "middle-scandinavian"),
+        ("icelandic", 1499, "middle-scandinavian"),
+        ("icelandic", 1500, "modern"),
         ("danish", 1700, "modern"),
-        # Brythonic
+        # Brythonic — every internal boundary pinned
         ("welsh", 800, "old"),
+        ("welsh", 1099, "old"),
+        ("welsh", 1100, "middle"),
         ("middle-welsh", 1300, "middle"),
+        ("middle-welsh", 1499, "middle"),
+        ("middle-welsh", 1500, "modern"),
         ("breton", 1800, "modern"),
-        # Goidelic
+        # Goidelic — every internal boundary pinned (highest
+        # regression risk per agent finding).
         ("old-irish", 800, "old-irish"),
+        ("old-irish", 899, "old-irish"),
+        ("old-irish", 900, "middle-irish"),
         ("middle-irish", 1000, "middle-irish"),
+        ("middle-irish", 1199, "middle-irish"),
+        ("middle-irish", 1200, "early-modern"),
         ("irish", 1500, "early-modern"),
+        ("irish", 1699, "early-modern"),
+        ("irish", 1700, "modern"),
         ("scottish-gaelic", 2000, "modern"),
-        # Latin
+        # Latin — every internal boundary pinned
         ("latin", 100, "classical"),
         ("latin", 199, "classical"),
         ("latin", 200, "late-vulgar"),
+        ("latin", 699, "late-vulgar"),
         ("latin", 700, "medieval"),
         ("vulgar-latin", 800, "medieval"),
+        ("latin", 1499, "medieval"),
+        ("latin", 1500, "renaissance"),
         ("latin", 1600, "renaissance"),
-        # Norman-French
+        # Norman-French — every internal boundary pinned
         ("norman-french", 1000, "old-norman"),
+        ("norman-french", 1065, "old-norman"),
         ("norman-french", 1066, "anglo-norman"),
         ("norman-french", 1499, "anglo-norman"),
         ("norman-french", 1500, "modern"),
@@ -64,8 +84,9 @@ from wyrd.generators.kenning import era
 def test_era_cell_resolves_known_language_year_pairs(
     language: str, year: int, expected: str
 ) -> None:
-    """Spot-check the cell boundary for each family. Half-open
-    intervals: a year exactly on a boundary lands in the LATER cell."""
+    """Cell-boundary smoke for every family, both INTERNAL boundaries
+    (year-on-boundary + year-just-below). Half-open intervals: the
+    boundary year lands in the LATER cell."""
     assert era.era_cell(language, year) == expected
 
 
@@ -141,36 +162,100 @@ def test_era_year_range_raises_for_unknown_label_in_known_family() -> None:
 # --- era_cells_for_family / all_families -----------------------------------
 
 
-def test_era_cells_for_family_returns_ordered_labels() -> None:
+@pytest.mark.parametrize(
+    "family,expected",
+    [
+        ("english", ("oe-early", "oe-late", "me", "early-modern", "modern")),
+        ("norse", ("on-classical", "on-late", "middle-scandinavian", "modern")),
+        ("brythonic", ("old", "middle", "modern")),
+        ("goidelic", ("old-irish", "middle-irish", "early-modern", "modern")),
+        ("latin", ("classical", "late-vulgar", "medieval", "renaissance")),
+        ("norman-french", ("old-norman", "anglo-norman", "modern")),
+    ],
+)
+def test_era_cells_for_family_returns_ordered_labels(
+    family: str, expected: tuple[str, ...]
+) -> None:
     """Order in the returned tuple matches the chronological order
     of the cells (oldest first), matching ERA_CELLS declaration order.
-    Tests that depend on ordered iteration can rely on this."""
-    cells = era.era_cells_for_family("english")
-    assert cells == ("oe-early", "oe-late", "me", "early-modern", "modern")
+    Tests that depend on ordered iteration can rely on this. Pins
+    every family so a labels-renamed regression surfaces immediately."""
+    assert era.era_cells_for_family(family) == expected
 
 
-def test_all_families_returns_alphabetically_sorted_tuple() -> None:
-    """Sorted output makes CLI listings deterministic across hosts."""
-    families = era.all_families()
-    assert families == tuple(sorted(families))
-    assert "english" in families
-    assert "norse" in families
+def test_era_cells_for_family_raises_for_unknown_family() -> None:
+    """Defensive: a typo in CLI input (e.g. 'klingon') surfaces as a
+    KeyError naming the unknown family. Pin the error path so a
+    silent-default regression is caught."""
+    with pytest.raises(KeyError, match="unknown era family"):
+        era.era_cells_for_family("klingon")
+
+
+def test_all_families_returns_full_set_alphabetically_sorted() -> None:
+    """Sorted output makes CLI listings deterministic across hosts.
+    Equality (rather than 'in') so accidentally dropping a family
+    from ERA_CELLS surfaces here."""
+    assert era.all_families() == (
+        "brythonic",
+        "english",
+        "goidelic",
+        "latin",
+        "norman-french",
+        "norse",
+    )
 
 
 # --- language_family -------------------------------------------------------
 
 
-def test_language_family_returns_correct_family_for_descendants() -> None:
-    """A language's family follows the LANGUAGE_TO_FAMILY map. Pin
-    the dominant cases so a refactor doesn't accidentally drop one."""
-    assert era.language_family("old-english") == "english"
-    assert era.language_family("modern-english") == "english"
-    assert era.language_family("old-norse") == "norse"
-    assert era.language_family("icelandic") == "norse"
-    assert era.language_family("welsh") == "brythonic"
-    assert era.language_family("scottish-gaelic") == "goidelic"
-    assert era.language_family("latin") == "latin"
-    assert era.language_family("old-french") == "norman-french"
+@pytest.mark.parametrize(
+    "language,expected_family",
+    [
+        # English family
+        ("old-english", "english"),
+        ("middle-english", "english"),
+        ("modern-english", "english"),
+        ("english", "english"),
+        # Norse family — every member of LANGUAGE_TO_FAMILY exercised
+        ("old-norse", "norse"),
+        ("icelandic", "norse"),
+        ("faroese", "norse"),
+        ("norwegian", "norse"),
+        ("norwegian-bokmal", "norse"),
+        ("norwegian-nynorsk", "norse"),
+        ("danish", "norse"),
+        ("swedish", "norse"),
+        # Brythonic family
+        ("welsh", "brythonic"),
+        ("old-welsh", "brythonic"),
+        ("middle-welsh", "brythonic"),
+        ("cornish", "brythonic"),
+        ("breton", "brythonic"),
+        ("old-breton", "brythonic"),
+        ("middle-breton", "brythonic"),
+        # Goidelic family
+        ("irish", "goidelic"),
+        ("old-irish", "goidelic"),
+        ("middle-irish", "goidelic"),
+        ("scottish-gaelic", "goidelic"),
+        ("manx", "goidelic"),
+        # Latin family
+        ("latin", "latin"),
+        ("vulgar-latin", "latin"),
+        # Norman-French
+        ("norman-french", "norman-french"),
+        ("old-french", "norman-french"),
+        ("middle-french", "norman-french"),
+        ("french", "norman-french"),
+        # Pseudo-language used in runtime bundle
+        ("celtic", "brythonic"),
+        ("celtic_mix", "brythonic"),
+    ],
+)
+def test_language_family_covers_every_entry_in_map(language: str, expected_family: str) -> None:
+    """Exercise every key in LANGUAGE_TO_FAMILY so a typo or accidental
+    drop surfaces here. Parametrised across all 31 mapped languages."""
+    assert era.language_family(language) == expected_family
 
 
 def test_language_family_returns_none_for_unknown_or_proto_languages() -> None:
@@ -180,3 +265,30 @@ def test_language_family_returns_none_for_unknown_or_proto_languages() -> None:
     assert era.language_family("proto-indo-european") is None
     assert era.language_family("ancient-greek") is None
     assert era.language_family("klingon") is None
+
+
+# --- era_cell_for_family (disambiguates None reasons) ----------------------
+
+
+def test_era_cell_for_family_resolves_when_year_in_range() -> None:
+    """Direct family→cell dispatch works the same as era_cell when
+    the year is in range — same boundary semantics."""
+    assert era.era_cell_for_family("english", 950) == "oe-late"
+    assert era.era_cell_for_family("latin", 200) == "late-vulgar"
+
+
+def test_era_cell_for_family_returns_none_only_for_year_out_of_range() -> None:
+    """Critical contract for the runtime generator: when the family is
+    given directly, None unambiguously means 'year falls outside the
+    family's defined cells' — NOT 'no family for this language'.
+    Caller can EXCLUDE these from the inventory under --era."""
+    # Latin's renaissance ends at 1800; year 2025 is out-of-range.
+    assert era.era_cell_for_family("latin", 2025) is None
+
+
+def test_era_cell_for_family_raises_for_unknown_family() -> None:
+    """Defensive: unknown family bubbles up as KeyError, not silent
+    None. Otherwise a typo in the family name would look like
+    'every year is out-of-range'."""
+    with pytest.raises(KeyError, match="unknown era family"):
+        era.era_cell_for_family("klingon", 1000)

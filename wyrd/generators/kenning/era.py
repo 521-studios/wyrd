@@ -140,13 +140,23 @@ def language_family(language: str) -> str | None:
 def era_cell(language: str, year: int | None) -> str | None:
     """Resolve a ``(language, year)`` pair to an era-cell label.
 
-    Returns None when:
+    Returns None for THREE distinct reasons that callers may want to
+    distinguish:
 
     * ``language`` has no defined era family (proto-languages, untracked
-      classical languages).
-    * ``year`` is None (no attestation found yet).
+      classical languages). The runtime generator interprets this as
+      "always include regardless of --era filter".
+    * ``year`` is None (no attestation found yet). Same generator
+      interpretation: pass through.
     * ``year`` falls outside the defined range for the family (e.g. a
-      Latin year of 2000 — outside renaissance's 1500-1800).
+      Latin year of 2000 — outside renaissance's 1500-1800). Generator
+      should EXCLUDE these — the era filter found a valid family but
+      the year doesn't match any cell.
+
+    Callers that need to distinguish "no-family pass-through" from
+    "year-out-of-range exclude" should call ``language_family`` first
+    and then ``era_cell_for_family`` — see the lexicon ``era-cell``
+    CLI command for the canonical pattern.
 
     The half-open ``[start, end)`` convention means a year exactly on
     a boundary lands in the later cell.
@@ -156,7 +166,29 @@ def era_cell(language: str, year: int | None) -> str | None:
     family = LANGUAGE_TO_FAMILY.get(language)
     if family is None:
         return None
-    for label, start, end in ERA_CELLS[family]:
+    return era_cell_for_family(family, year)
+
+
+def era_cell_for_family(family: str, year: int) -> str | None:
+    """Resolve a ``(family, year)`` pair to a cell label, or None when
+    the year is outside the family's defined range.
+
+    Distinct from ``era_cell`` in that the family is given directly —
+    so a None return here unambiguously means 'year out of range', not
+    'no family for this language'. Lets the runtime generator treat
+    the two cases differently:
+
+    * "no family" (resolved before calling this) → include in inventory
+      regardless of --era.
+    * "out of range" (this returns None) → exclude.
+
+    Raises KeyError on an unknown family — fail loudly rather than
+    silently treating an out-of-range year as in-range.
+    """
+    cells = ERA_CELLS.get(family)
+    if cells is None:
+        raise KeyError(f"unknown era family: {family!r}")
+    for label, start, end in cells:
         if start is not None and year < start:
             continue
         if end is not None and year >= end:

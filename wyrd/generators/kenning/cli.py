@@ -50,6 +50,7 @@ from wyrd.generators.kenning.lexicon import (
     reverse_search_attestations,
     seed_from_meanings,
 )
+from wyrd.generators.kenning.era import era_cell, language_family
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.name import load_names
 from wyrd.generators.kenning.paths import (
@@ -1649,8 +1650,6 @@ def lexicon_era_cell(language: str, year: int) -> None:
     falls outside any defined cell. Useful for ad-hoc cell lookup
     when sanity-checking attestation data.
     """
-    from wyrd.generators.kenning.era import era_cell, language_family
-
     family = language_family(language)
     if family is None:
         click.echo(
