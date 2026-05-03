@@ -389,12 +389,11 @@ def _form_in_body(form: str, body: str) -> bool:
 def _validate_attested_forms(response: dict, norm_body: str) -> list[ValidationFailure]:
     """Validate the D5-1 attested_forms field. Empty / missing → no failures.
 
-    Run independently of the elements-side checks: the schema requires
-    attested_forms even when the model returned ``found=false``, because a
-    body can carry dated citations without an etymological claim
-    (a pure attestation list with year stamps and no analysis). So this
-    validator must run regardless of the found flag — see the call site in
-    validate_response.
+    Run regardless of the ``found`` flag — a body can carry dated citations
+    without an etymological claim (a pure attestation list with year stamps
+    and no analysis), so the anti-hallucination guard on cited forms must
+    apply even when the model declines the etymology. See the call site in
+    ``validate_response``.
     """
     failures: list[ValidationFailure] = []
 

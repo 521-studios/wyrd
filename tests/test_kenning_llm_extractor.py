@@ -363,13 +363,48 @@ def test_validate_response_rejects_attested_form_not_object() -> None:
 
 
 def test_validate_response_strips_dashes_before_attested_form_check() -> None:
-    """Same dash-stripping the elements check applies — model can't bypass
-    the length floor by wrapping a single character in dashes."""
+    """Trailing dashes on a real form are stripped before the body match
+    so the legitimate case (e.g. ``Aburwick-`` from a citation context)
+    passes the form-in-body check.
+
+    Also pins the length-floor bypass guard: ``-A-`` strips to ``A``
+    (length 1), which fails the ``len(a_form) < 2`` check and lands as
+    attested_form_not_in_body. Without the dash strip, ``-A-`` would be
+    length 3 and could slip past the floor.
+    """
     response = _ok_response()
     response["attested_forms"] = [{"form": "Aburwick-", "year": 1333}]
     failures = validate_response(response, _DATED_BODY)
-    # Should pass — "Aburwick" (without dash) is in _DATED_BODY.
     assert not any(f.reason == "attested_form_not_in_body" for f in failures)
+
+    # Bypass-attempt path: '-A-' strips to 'A' which fails the length floor.
+    bypass = _ok_response()
+    bypass["attested_forms"] = [{"form": "-A-", "year": 1333}]
+    bypass_failures = validate_response(bypass, _DATED_BODY)
+    assert any(f.reason == "attested_form_not_in_body" for f in bypass_failures)
+
+
+def test_validate_response_accepts_decline_with_valid_attested_forms() -> None:
+    """D5-1 production case: body carries dated citations but the model
+    declines to extract an etymology. Validation must pass cleanly — that's
+    the positive-path counterpart to
+    ``test_validate_response_validates_attested_forms_on_decline``.
+
+    Without this test, a future refactor that re-adds an
+    elements-required check on the decline path would still pass all the
+    negative-path tests (which expect failures regardless), silently
+    breaking the production scenario the bypass exists to enable.
+    """
+    response = {
+        "found": False,
+        "historical_form": None,
+        "elements": [],
+        "attested_forms": [{"form": "Aburwick", "year": 1333}],
+        "confidence": "low",
+        "notes": None,
+    }
+    failures = validate_response(response, _DATED_BODY)
+    assert failures == []
 
 
 def test_validate_response_attested_year_at_lower_boundary() -> None:
