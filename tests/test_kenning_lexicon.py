@@ -4667,6 +4667,20 @@ def test_clear_enrichment_all_derived_includes_cognates(fresh_db: Path) -> None:
     assert synset_count == 0
 
 
+def test_lexicon_path_cli_prints_resolved_db_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`wyrd kenning lexicon path` prints whatever default_lexicon_path
+    resolves to. Pin via env override (the simplest way to control it
+    from a test). Confirms the new wyrd-366 CLI surface is wired."""
+    target = tmp_path / "scratch" / "lex.db"
+    monkeypatch.setenv("WYRD_LEXICON_DB", str(target))
+    runner = CliRunner()
+    result = runner.invoke(kenning_cli, ["lexicon", "path"])
+    assert result.exit_code == 0, result.output
+    assert str(target) in result.output
+
+
 def test_cluster_cognates_cli_dry_run_reports_without_writing(
     fresh_db: Path,
 ) -> None:

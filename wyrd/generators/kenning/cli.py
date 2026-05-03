@@ -84,8 +84,13 @@ def _load_meanings_data(meanings: Path | None) -> dict:
     return json.loads(text)
 
 
-# Default location for the authoring lexicon DB. Build artifact, gitignored.
-_DEFAULT_LEXICON_PATH = Path("wyrd/generators/kenning/data/lexicon.db")
+# Default location for the authoring lexicon DB. The callable is
+# resolved per CLI invocation so the WYRD_LEXICON_DB env override and
+# the one-time legacy → ~/.wyrd migration both fire at call time, not
+# at module-import time. See wyrd/generators/kenning/paths.py.
+from wyrd.generators.kenning.paths import default_lexicon_path  # noqa: E402
+
+_DEFAULT_LEXICON_PATH = default_lexicon_path
 
 # Synthetic source row representing the meanings.json data inherited from the
 # Rando port. Authority unverified per-entry; entries flagged for review as
@@ -1610,6 +1615,23 @@ def lexicon_import_mining_log(path: Path, db_path: Path, apply_changes: bool) ->
             click.echo(f"  ... +{len(errors) - 20} more", err=True)
     if not apply_changes:
         click.echo("(dry-run; pass --apply to write)", err=True)
+
+
+@lexicon.command("path")
+def lexicon_path() -> None:
+    """Print the resolved lexicon DB path and exit.
+
+    Resolution order:
+
+    \b
+    1. WYRD_LEXICON_DB env var
+    2. ~/.wyrd/lexicon.db (default)
+
+    Triggers the one-time legacy → ~/.wyrd migration if a pre-wyrd-366
+    DB still lives in the repo's data/ dir. Useful for confirming what
+    DB a CLI run would hit.
+    """
+    click.echo(default_lexicon_path())
 
 
 @lexicon.command("migrate")

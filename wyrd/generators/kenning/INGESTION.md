@@ -13,7 +13,8 @@ step live in `DECISIONS.md`; this doc is procedural — what to do, in
 what order, and what to look at when something goes wrong.
 
 The pipeline produces rows in the SQLite lexicon at
-`data/lexicon.db`. The runtime generator still reads
+`~/.wyrd/lexicon.db` (override with `WYRD_LEXICON_DB`; run `wyrd
+kenning lexicon path` to confirm). The runtime generator still reads
 `data/meanings.json`, which is exported from the lexicon by a separate
 `export-meanings` step that you only run when you're ready to ship a
 new bundle.
@@ -824,8 +825,10 @@ Edge types and their semantics:
 
 - **Don't commit `sources/`** — it's 1.8G+. Gitignored except for
   MANIFEST.md.
-- **Don't commit `data/lexicon.db`** — build artifact, regenerable
-  via `wyrd kenning lexicon build`.
+- **Don't put a lexicon DB inside the repo.** As of wyrd-366 the
+  default lives at `~/.wyrd/lexicon.db`; the legacy in-repo path is
+  auto-migrated on first CLI invocation. Use `WYRD_LEXICON_DB` for
+  ad-hoc per-run overrides instead.
 - **Don't write `SESSION_HANDOFF.md` style transient docs into the
   repo** — use `bd remember` or `/tmp` for session continuity.
   Long-term architectural rationale goes in `DECISIONS.md`.
