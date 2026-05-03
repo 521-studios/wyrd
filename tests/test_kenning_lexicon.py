@@ -3979,6 +3979,10 @@ def test_etymon_descent_cascades_when_child_deleted(fresh_db: Path) -> None:
 
 def test_migrate_schema_adds_etymon_descent_to_legacy_db(fresh_db: Path) -> None:
     """A pre-D27 DB without etymon_descent picks it up on migrate_schema.
+    Verifies (1) the table is created, (2) ON DELETE CASCADE survives
+    the migration DDL — not just the data/lexicon.sql DDL the fresh-
+    install cascade tests cover. Catches a drift between the two
+    parallel CREATE TABLE statements in lexicon.py vs lexicon.sql.
     Idempotent on re-run."""
     with LexiconDB(fresh_db) as db:
         # Simulate a pre-D27 schema by dropping the descent table.
@@ -3998,6 +4002,19 @@ def test_migrate_schema_adds_etymon_descent_to_legacy_db(fresh_db: Path) -> None
             for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
         assert "etymon_descent" in tables
+
+        # Cascade behavior must survive the migration-path DDL. PRAGMA
+        # foreign_key_list reports each FK's on_delete action, so we can
+        # assert both parent_id and child_id report 'CASCADE' without
+        # having to seed-and-delete (cheaper, more direct).
+        fks = list(db.conn.execute("PRAGMA foreign_key_list(etymon_descent)"))
+        on_delete = {fk["from"]: fk["on_delete"] for fk in fks}
+        assert on_delete.get("parent_id") == "CASCADE", (
+            f"migration-path DDL dropped ON DELETE CASCADE on parent_id; got {on_delete!r}"
+        )
+        assert on_delete.get("child_id") == "CASCADE", (
+            f"migration-path DDL dropped ON DELETE CASCADE on child_id; got {on_delete!r}"
+        )
 
         # Idempotent re-run.
         applied2 = migrate_schema(db)
