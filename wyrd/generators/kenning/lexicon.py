@@ -2054,9 +2054,11 @@ _OE_PHONOLOGICAL_BRIDGES: dict[str, str] = {
     "dale": "dæl",
     # -heall / hall
     "hall": "heall",
-    # -īeg / island
-    "ey": "īeg",
-    "eg": "īeg",
+    # -ieg / island. Wiktionary's headword is `īeg` but the macron-stripped
+    # `ieg` is what the OCR-normalize pass treats as canonical; `īeg`
+    # itself is not in the corpus. Snap value to the live form.
+    "ey": "ieg",
+    "eg": "ieg",
     # -burna / stream
     "burn": "burna",
     "burne": "burna",
@@ -2084,8 +2086,9 @@ _OE_PHONOLOGICAL_BRIDGES: dict[str, str] = {
     "low": "hlāw",
     # -mos / moss/marsh
     "moss": "mos",
-    # -pōl / pool
-    "pool": "pōl",
+    # -pōl / pool — bridge value snapped to 'pol' (the live canonical;
+    # 'pōl' is itself a tombstone merged into 'pol' by normalize-ocr).
+    "pool": "pol",
     # -sealh / willow
     "salh": "sealh",
     # -stede / place
@@ -2101,6 +2104,35 @@ _OE_PHONOLOGICAL_BRIDGES: dict[str, str] = {
     "ash": "æsc",
     # -hām / homestead
     "ham": "hām",
+    # -wella / spring (additional inflected/spelling variants beyond 'well')
+    "wella": "welle",
+    # -ing-family additions: scholar-spelled variants of the people-of suffix
+    "inga": "ing",
+    # -cipp / log
+    "cippa": "cipp",
+    # -hār / grey, hoary
+    "hāran": "hār",
+    # -clopp / lump, hill
+    "cloppa": "clopp",
+    # -ticcen / kid (young goat)
+    "ticce": "ticcen",
+    # -cirice / church (kirk is the Northumbrian / Norse-influenced form)
+    "kirk": "cirice",
+    # -healh / nook (hala is a common scholarly variant)
+    "hala": "healh",
+    # -scylfe / shelf, ledge
+    "scelf": "scylfe",
+    # -ieg / island (alternative scholarly spelling)
+    "ēg": "ieg",
+    # -hara / hare
+    "hare": "hara",
+    # -hæsel / hazel (relies on redirect-follow to canonical haesel)
+    "hasel": "hæsel",
+    # -hlīep / leap (Hartlepool's "harts-leap" element)
+    "hlyp": "hlīep",
+    # -lacu / stream (lech is also occasionally read as 'lece' = bog;
+    # the place-name reading is dominantly the water sense, hence lacu)
+    "lech": "lacu",
 }
 
 
@@ -2134,18 +2166,38 @@ def bridge_phonological_oe(db: LexiconDB, *, apply: bool = False) -> dict:
         add the target via mining or extend the table)
       - rows_written: actual UPDATE row count when apply=True
     """
-    # One scan over canonical OE etymons builds both the target lookup
-    # index and the iteration set — same WHERE clause, same ORDER BY,
-    # no need to query twice.
-    examined_rows = db.conn.execute(
-        "SELECT id, canonical_form FROM etymon "
-        "WHERE language = 'old-english' AND merged_into_id IS NULL ORDER BY id"
+    # Build target_index from ALL OE rows (canonical + tombstones), with
+    # each form key resolving to its LIVE canonical id by following the
+    # merged_into_id chain. Without redirect-following, the bridge map
+    # cannot name a target like 'dæl' or 'pōl' that has been merged into
+    # a macron-stripped canonical (dael, pol) by an earlier OCR pass —
+    # the lookup would silently miss. Walking the chain in Python here
+    # keeps the bridge robust against the current and future state of
+    # OCR-clustering / normalize-ocr results.
+    all_oe_rows = db.conn.execute(
+        "SELECT id, canonical_form, merged_into_id FROM etymon "
+        "WHERE language = 'old-english' ORDER BY id"
     ).fetchall()
+    chain: dict[int, int | None] = {r["id"]: r["merged_into_id"] for r in all_oe_rows}
+
+    def _resolve_canonical(start_id: int) -> int:
+        cid = start_id
+        visited: set[int] = set()
+        while (next_id := chain.get(cid)) is not None and cid not in visited:
+            visited.add(cid)
+            cid = next_id
+        return cid
+
     target_index: dict[str, int] = {}
-    for row in examined_rows:
+    for row in all_oe_rows:
         key = row["canonical_form"].lower()
         if key not in target_index:
-            target_index[key] = row["id"]
+            target_index[key] = _resolve_canonical(row["id"])
+
+    # Iteration set: only the canonical (un-merged) rows are bridge
+    # candidates. A row that is itself a tombstone is already redirected
+    # and bridging from it would be a no-op against the COALESCE rollup.
+    examined_rows = [r for r in all_oe_rows if r["merged_into_id"] is None]
 
     bridges: list[tuple[int, int]] = []
     missing_target = 0
