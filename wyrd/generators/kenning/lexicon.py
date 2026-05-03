@@ -564,6 +564,153 @@ def page_for_offset(headers: list[tuple[int, int]], offset: int) -> int | None:
     return page
 
 
+def _normalize_for_quote_match(text: str) -> tuple[str, list[int]]:
+    """Collapse whitespace runs to a single space. Returns
+    (normalized_text, norm_to_orig) where norm_to_orig[i] is the
+    original-text offset of normalized character i — so a substring
+    found in normalized space can be translated back to an original
+    offset (which is the coordinate system parse_running_header_pages
+    returns)."""
+    out: list[str] = []
+    norm_to_orig: list[int] = []
+    in_ws = False
+    for i, ch in enumerate(text):
+        if ch.isspace():
+            if not in_ws:
+                out.append(" ")
+                norm_to_orig.append(i)
+                in_ws = True
+        else:
+            out.append(ch)
+            norm_to_orig.append(i)
+            in_ws = False
+    return "".join(out), norm_to_orig
+
+
+def _quote_body_excerpt(quote: str) -> str:
+    """Strip the provider-attribution prefix the mining writer prepends.
+
+    Format produced by `assemble_extraction_result`:
+      `extracted_by:<provider>:<model>; <LLM commentary> | <body excerpt>`
+
+    Body excerpt is what the parser pulled from the source and is the
+    only part that exists in source_text. Returns the substring after
+    the last ` | ` separator; if absent (legacy citations or
+    commentary-only rows), returns the whole quote so the caller can
+    still try a literal match."""
+    sep = " | "
+    idx = quote.rfind(sep)
+    if idx < 0:
+        return quote
+    return quote[idx + len(sep) :]
+
+
+def backfill_citation_pages(
+    db: LexiconDB,
+    source_id: str,
+    source_text: str,
+    *,
+    apply: bool = False,
+) -> dict[str, int]:
+    """Backfill etymon_citation.page and toponym_etymology.page from
+    Mawer-style running headers in the source body (wyrd-azv).
+
+    For each row in ``source_id`` where page IS NULL, strip the provider-
+    attribution prefix from the row's quoted excerpt (everything before
+    the last ` | `), normalize whitespace (the parser collapses OCR
+    multi-spaces before sending to the LLM, so the stored quote uses
+    single-spacing while the source has the original OCR runs), find
+    the normalized excerpt in normalized source_text, translate the
+    match offset back to original coordinates, and look up the page
+    from the running-header sequence.
+
+    Returns counts:
+      - citations_updated, etymologies_updated: rows whose page was
+        successfully resolved (or would be, in dry-run).
+      - quote_not_in_text: rows whose excerpt did not appear in
+        source_text (OCR drift, commentary-only quotes). Summed across
+        both tables.
+      - no_quote: rows with NULL/empty excerpt — nothing to anchor on.
+      - before_first_page: offset preceded the first running header.
+      - no_headers: 1 if the source produced zero headers (Skeat-§ books
+        and books without Mawer-style headers); else 0. On no_headers,
+        the function returns immediately without touching any rows.
+
+    Idempotent: only operates on rows where page IS NULL, so a re-run
+    is a no-op for already-resolved rows.
+    """
+
+    counts = {
+        "citations_updated": 0,
+        "etymologies_updated": 0,
+        "quote_not_in_text": 0,
+        "no_quote": 0,
+        "before_first_page": 0,
+        "no_headers": 0,
+    }
+    headers = parse_running_header_pages(source_text)
+    if not headers:
+        counts["no_headers"] = 1
+        return counts
+
+    norm_text, norm_to_orig = _normalize_for_quote_match(source_text)
+
+    def _resolve_page(quote: str | None) -> tuple[int | None, str]:
+        if not quote:
+            return None, "no_quote"
+        body = _quote_body_excerpt(quote).strip()
+        if not body:
+            return None, "no_quote"
+        norm_quote, _ = _normalize_for_quote_match(body)
+        norm_quote = norm_quote.strip()
+        if not norm_quote:
+            return None, "no_quote"
+        norm_offset = norm_text.find(norm_quote)
+        if norm_offset < 0:
+            return None, "quote_not_in_text"
+        orig_offset = norm_to_orig[norm_offset]
+        page = page_for_offset(headers, orig_offset)
+        if page is None:
+            return None, "before_first_page"
+        return page, "ok"
+
+    cit_rows = db.conn.execute(
+        "SELECT id, short_quote FROM etymon_citation WHERE source_id = ? AND page IS NULL",
+        (source_id,),
+    ).fetchall()
+    for row in cit_rows:
+        page, status = _resolve_page(row["short_quote"])
+        if status != "ok":
+            counts[status] += 1
+            continue
+        if apply:
+            db.conn.execute(
+                "UPDATE etymon_citation SET page = ? WHERE id = ?",
+                (str(page), row["id"]),
+            )
+        counts["citations_updated"] += 1
+
+    ety_rows = db.conn.execute(
+        "SELECT id, notes FROM toponym_etymology WHERE source_id = ? AND page IS NULL",
+        (source_id,),
+    ).fetchall()
+    for row in ety_rows:
+        page, status = _resolve_page(row["notes"])
+        if status != "ok":
+            counts[status] += 1
+            continue
+        if apply:
+            db.conn.execute(
+                "UPDATE toponym_etymology SET page = ? WHERE id = ?",
+                (str(page), row["id"]),
+            )
+        counts["etymologies_updated"] += 1
+
+    if apply:
+        db.commit()
+    return counts
+
+
 def _migrate_citation_context_snippet(db: LexiconDB, applied: dict[str, bool]) -> None:
     """Add etymon_citation.context_snippet to existing DBs (wyrd-9kh.3).
 
