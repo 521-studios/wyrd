@@ -1836,10 +1836,13 @@ def _earliest_year_in_notes(notes: str | None) -> int | None:
     earliest: int | None = None
     for m in _TOPONYM_NOTE_YEAR_PATTERN.finditer(notes):
         ystart = m.start()
-        # 8-char window is enough for the longest marker ("vols. ")
-        # plus a leading word-boundary character.
-        preceding = notes[max(0, ystart - 8) : ystart]
-        if _TOPONYM_NOTE_PAGE_MARKER_RE.search(preceding):
+        # Pass the full prefix and rely on the regex's $ anchor to
+        # match only when the marker IMMEDIATELY precedes the year.
+        # A fixed-size window would miss "p.   1086" with extra spaces;
+        # the linear search cost is trivial since notes is already in
+        # memory and finditer call frequency is bounded by year-hit
+        # count (a few per row in the worst case).
+        if _TOPONYM_NOTE_PAGE_MARKER_RE.search(notes, 0, ystart):
             continue
         year = int(m.group(1))
         if earliest is None or year < earliest:

@@ -1212,6 +1212,11 @@ def test_earliest_year_in_notes_does_not_false_skip_p_inside_word(
     # 'p' without a trailing dot is NOT a page marker — it's just the
     # letter p ending some prior word. Year should be picked.
     assert _earliest_year_in_notes("group 1086") == 1086
+    # Multiple spaces between marker and year: PR #53 round-3 Gemini
+    # flagged that an 8-char window would miss "p.   755". Full-prefix
+    # regex with $ anchor must still catch it.
+    assert _earliest_year_in_notes("p.   755") is None
+    assert _earliest_year_in_notes("vol.        1244") is None
 
 
 def test_lookup_attested_years_skips_page_marker_false_positive(
