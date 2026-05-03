@@ -13,6 +13,7 @@ import re
 
 from wyrd.generators.kenning.llm_extractor import (
     RESPONSE_SCHEMA,
+    SOURCE_QUOTE_BUDGET,
     SYSTEM_PROMPT,
     _form_in_body,
     _normalize_for_match,
@@ -556,7 +557,7 @@ def test_assemble_extraction_result_not_found_emits_low_confidence_entry():
     assert result.entry is not None
     assert result.entry.elements == []
     assert result.entry.confidence == "low"
-    assert result.entry.source_quote == body[:200]
+    assert result.entry.source_quote == body[:SOURCE_QUOTE_BUDGET]
 
 
 def test_assemble_extraction_result_validation_failure_marks_rejected():
@@ -595,7 +596,9 @@ def test_assemble_extraction_result_validation_failure_marks_rejected():
 def test_assemble_extraction_result_tags_source_quote_with_prefix():
     """Successful extractions stamp source_quote with the provider's
     notes_prefix — D12 search-evidence vs. citation-evidence separation
-    relies on this for per-provider attribution. Truncated to 200 chars."""
+    relies on this for per-provider attribution. Truncated to 500 chars
+    (wyrd-9kh.2 raised the budget from 200 to give the SPA citation view
+    enough context)."""
     from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
 
     body = "Foobar — said to be from Old English foo, a foo."
@@ -623,4 +626,143 @@ def test_assemble_extraction_result_tags_source_quote_with_prefix():
     assert result.accepted is True
     assert result.entry is not None
     assert result.entry.source_quote.startswith("extracted_by:claude:opus-4-7")
-    assert len(result.entry.source_quote) <= 200
+    assert len(result.entry.source_quote) <= SOURCE_QUOTE_BUDGET
+
+
+def test_assemble_extraction_result_truncates_long_body_at_budget():
+    """wyrd-9kh.2: source_quote budget is 500 chars total. A long body
+    must truncate at the budget on both the decline path (body-only) and
+    the accepted path (combined_notes + ' | ' + body). Pins the budget
+    so a future change that drops the truncation gets caught before the
+    SPA citation view starts emitting megabyte-sized rows.
+    """
+    from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
+
+    # 1200-char body — well over the 500 budget. The form 'foo' must
+    # appear in body to pass the form-in-body check.
+    body = ("Foobar — from Old English foo, " + ("a " * 600))[:1200]
+    assert len(body) == 1200
+
+    # Decline path: body-only.
+    declined = assemble_extraction_result(
+        {"found": False},
+        body=body,
+        toponym="Foobar",
+        suffix_hint=None,
+        notes_prefix="extracted_by:test:1",
+    )
+    assert declined.accepted is True
+    assert declined.entry is not None
+    assert len(declined.entry.source_quote) == SOURCE_QUOTE_BUDGET
+    assert declined.entry.source_quote == body[:SOURCE_QUOTE_BUDGET]
+
+    # Accepted path: combined_notes + ' | ' + body capped at the budget.
+    response = {
+        "found": True,
+        "historical_form": "Foobar",
+        "confidence": "medium",
+        "elements": [
+            {
+                "form": "foo",
+                "language": "old-english",
+                "position": "pre",
+                "gloss": "a foo",
+                "inflection": None,
+            }
+        ],
+    }
+    accepted = assemble_extraction_result(
+        response,
+        body=body,
+        toponym="Foobar",
+        suffix_hint=None,
+        notes_prefix="extracted_by:test:1",
+    )
+    assert accepted.accepted is True
+    assert accepted.entry is not None
+    sq = accepted.entry.source_quote
+    assert len(sq) == SOURCE_QUOTE_BUDGET
+    # Attribution prefix preserved at the front; body share fills the rest.
+    assert sq.startswith("extracted_by:test:1")
+    assert " | " in sq
+
+
+def test_assemble_extraction_result_outer_cap_truncates_long_notes_prefix():
+    """wyrd-9kh.2 (review-round-1): the outer ``[:SOURCE_QUOTE_BUDGET]``
+    cap on the accepted path must clamp the result even when
+    ``combined_notes + " | " + body`` overflows because the notes string
+    is unusually long. Without an explicit test, a future refactor that
+    drops the outer cap would silently let the source_quote grow
+    unbounded for verbose notes_prefixes.
+    """
+    from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
+
+    body = "Foobar — from Old English foo, a foo. " + ("x " * 250)
+    long_prefix = "extracted_by:test:" + ("a" * 300)  # ~318 chars
+    assert len(long_prefix) + len(" | ") + len(body) > SOURCE_QUOTE_BUDGET
+    response = {
+        "found": True,
+        "historical_form": "Foobar",
+        "confidence": "medium",
+        "elements": [
+            {
+                "form": "foo",
+                "language": "old-english",
+                "position": "pre",
+                "gloss": "a foo",
+                "inflection": None,
+            }
+        ],
+    }
+    result = assemble_extraction_result(
+        response,
+        body=body,
+        toponym="Foobar",
+        suffix_hint=None,
+        notes_prefix=long_prefix,
+    )
+    assert result.accepted is True
+    assert result.entry is not None
+    assert len(result.entry.source_quote) == SOURCE_QUOTE_BUDGET
+    assert result.entry.source_quote.startswith("extracted_by:test:")
+
+
+def test_assemble_extraction_result_short_total_preserves_full_body():
+    """wyrd-9kh.2 (review-round-2): when the assembled
+    ``combined_notes + " | " + body`` is shorter than the budget, the
+    whole body is preserved (no truncation). Pins the post-simplification
+    behavior: body share is bounded only by the outer cap, not by an
+    artificial inner slice — so a short notes_prefix gives the body the
+    maximum available context.
+    """
+    from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
+
+    short_prefix = "p"
+    body = "Foobar — from Old English foo, a foo." + ("y" * 100)
+    assert len(short_prefix) + len(" | ") + len(body) < SOURCE_QUOTE_BUDGET
+    response = {
+        "found": True,
+        "historical_form": "Foobar",
+        "confidence": "medium",
+        "elements": [
+            {
+                "form": "foo",
+                "language": "old-english",
+                "position": "pre",
+                "gloss": "a foo",
+                "inflection": None,
+            }
+        ],
+    }
+    result = assemble_extraction_result(
+        response,
+        body=body,
+        toponym="Foobar",
+        suffix_hint=None,
+        notes_prefix=short_prefix,
+    )
+    assert result.accepted is True
+    assert result.entry is not None
+    # Full body is present; no truncation kicked in.
+    assert result.entry.source_quote.endswith(body)
+    assert result.entry.source_quote == short_prefix + " | " + body

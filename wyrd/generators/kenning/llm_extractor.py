@@ -44,6 +44,18 @@ _ALLOWED_LANGUAGES = {
 _ALLOWED_POSITIONS = {"pre", "inner", "post"}
 
 
+# Budget for the source_quote text on a ParsedEntry — i.e. how much
+# surrounding source-prose we keep alongside the structured extraction so
+# the SPA's citation view (wyrd-9kh) can render meaningful context.
+# 500 chars covers a typical Skeat/Mawer entry's analytical clause + a
+# few of its variant attestations. The budget is shared between the
+# attribution prefix (notes_prefix; takes priority and appears first)
+# and the body excerpt: a normal-length prefix gives the body ~460
+# chars; an unusually long prefix proportionally crowds the body share
+# but the outer cap still bounds the total at 500.
+SOURCE_QUOTE_BUDGET = 500
+
+
 # Response schema (Ollama's `format` field accepts a JSON Schema dict).
 # The model must produce exactly this shape; Ollama enforces it via grammar.
 # Year-citation range for attested_forms (D5-1, wyrd-3ux). 800-1700 covers
@@ -574,7 +586,7 @@ def assemble_extraction_result(
                 historical_form=None,
                 elements=[],
                 confidence="low",
-                source_quote=body[:200],
+                source_quote=body[:SOURCE_QUOTE_BUDGET],
             ),
             raw_response=response,
             failures=failures,
@@ -607,7 +619,7 @@ def assemble_extraction_result(
             historical_form=response.get("historical_form"),
             elements=elements,
             confidence=confidence,
-            source_quote=(combined_notes + " | " + body[:160])[:200],
+            source_quote=(combined_notes + " | " + body)[:SOURCE_QUOTE_BUDGET],
         ),
         raw_response=response,
         failures=[],
