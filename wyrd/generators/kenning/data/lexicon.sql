@@ -69,11 +69,16 @@ CREATE TABLE etymon_tag (
 );
 
 CREATE TABLE etymon_citation (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  etymon_id   INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
-  source_id   TEXT NOT NULL REFERENCES source(id) ON DELETE CASCADE,
-  page        TEXT,
-  short_quote TEXT
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  etymon_id       INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
+  source_id       TEXT NOT NULL REFERENCES source(id) ON DELETE CASCADE,
+  page            TEXT,
+  short_quote     TEXT,
+  -- wyrd-9kh.3: scholarly-prose context window per citation. Populated by
+  -- siblings (.4 reverse-search snippet capture, .5 page-number parser);
+  -- the runtime SPA (.6) renders it in a citation disclosure UI. NULL for
+  -- legacy citations and the rando-port seed (no source body to quote).
+  context_snippet TEXT
 );
 -- SQLite forbids expressions in inline UNIQUE constraints, so the
 -- "treat NULL page as ''" uniqueness goes here as a partial index instead.

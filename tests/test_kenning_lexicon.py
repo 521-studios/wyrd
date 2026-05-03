@@ -1495,6 +1495,89 @@ def test_migrate_schema_idempotent_on_fresh_db(fresh_db: Path) -> None:
     assert not second["etymon.lemma_id"]
 
 
+def test_migrate_schema_adds_citation_context_snippet_to_legacy_db(
+    fresh_db: Path,
+) -> None:
+    """A legacy DB whose etymon_citation predates wyrd-9kh.3 picks up the
+    new context_snippet column on migrate_schema. Existing rows survive
+    with NULL in the new column. Idempotent on a re-run."""
+    with LexiconDB(fresh_db) as db:
+        # Simulate a pre-9kh.3 schema by dropping the etymon_consensus view
+        # (it references etymon_citation, blocking the table swap), recreating
+        # etymon_citation without context_snippet, and seeding one legacy row.
+        # The migration's _rebuild_etymon_views step will reinstate the view.
+        db.conn.execute("DROP VIEW IF EXISTS etymon_consensus")
+        db.conn.execute("DROP VIEW IF EXISTS etymon_canonical")
+        db.conn.execute("DROP TABLE etymon_citation")
+        db.conn.execute(
+            """
+            CREATE TABLE etymon_citation (
+              id          INTEGER PRIMARY KEY AUTOINCREMENT,
+              etymon_id   INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
+              source_id   TEXT NOT NULL REFERENCES source(id) ON DELETE CASCADE,
+              page        TEXT,
+              short_quote TEXT
+            )
+            """
+        )
+        db.upsert_source(id="src-a", title="A")
+        legacy_etymon_id = db.upsert_etymon("ham", "old-english")
+        db.conn.execute(
+            "INSERT INTO etymon_citation (etymon_id, source_id) VALUES (?, ?)",
+            (legacy_etymon_id, "src-a"),
+        )
+        db.commit()
+
+        # Pre-migration: column is missing.
+        cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon_citation)")}
+        assert "context_snippet" not in cols
+
+        applied = migrate_schema(db)
+        assert applied["etymon_citation.context_snippet"] is True
+
+        # Post-migration: column present, existing row preserved with NULL.
+        cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon_citation)")}
+        assert "context_snippet" in cols
+        row = db.conn.execute(
+            "SELECT etymon_id, source_id, context_snippet FROM etymon_citation"
+        ).fetchone()
+        assert row["etymon_id"] == legacy_etymon_id
+        assert row["context_snippet"] is None
+
+        # Idempotent re-run.
+        applied2 = migrate_schema(db)
+        assert applied2["etymon_citation.context_snippet"] is False
+
+
+def test_add_citation_persists_context_snippet(fresh_db: Path) -> None:
+    """LexiconDB.add_citation accepts context_snippet and writes it; a
+    NULL-snippet caller stays compatible (existing callers haven't been
+    updated yet)."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="mawer_1920", title="Mawer")
+        etymon_id = db.upsert_etymon("ham", "old-english")
+        db.add_citation(
+            etymon_id,
+            "mawer_1920",
+            context_snippet="Acklington... O.E. Æcceling(a)tun = farm of Æccel.",
+        )
+        db.add_citation(etymon_id, "mawer_1920", page="42")  # legacy shape, no snippet
+        db.commit()
+
+        rows = db.conn.execute(
+            "SELECT page, context_snippet FROM etymon_citation WHERE etymon_id = ? ORDER BY id",
+            (etymon_id,),
+        ).fetchall()
+
+    assert len(rows) == 2
+    # First row: snippet captured, no page.
+    assert rows[0]["page"] is None
+    assert "Acklington" in rows[0]["context_snippet"]
+    # Second row: legacy shape with page only — context_snippet is NULL.
+    assert rows[1]["page"] == "42"
+    assert rows[1]["context_snippet"] is None
+
+
 def test_link_lemmas_links_inflected_to_existing_lemma(fresh_db: Path) -> None:
     """An inflected etymon with a matching lemma in the DB gets linked."""
     with LexiconDB(fresh_db) as db:
