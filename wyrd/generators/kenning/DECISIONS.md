@@ -590,10 +590,14 @@ bundle:
   variant sampling (`old_english_variants`, `celtic_mix_variants`, …).
 - `<lang>_inflections`: list of `{form, inflection}` entries for D8
   inflection metadata.
+- `<lang>_citations`: list of source_id strings for wyrd-9kh.1
+  scholarly attribution (rando-port filtered out so only real scholars
+  surface).
 
 The runtime's `load_meanings` strips off these suffixes (using
-`_VARIANT_SUFFIX` and `_INFLECTION_SUFFIX` constants) before populating
-`Meaning.sources` so canonical language form arrays stay clean.
+`_VARIANT_SUFFIX`, `_INFLECTION_SUFFIX`, and `_CITATIONS_SUFFIX`
+constants) before populating `Meaning.sources` so canonical language
+form arrays stay clean.
 
 Why this shape over alternatives:
 

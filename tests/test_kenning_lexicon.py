@@ -1608,13 +1608,14 @@ def test_language_field_mapping_covers_known_codes() -> None:
 
     handled = LANGUAGE_FIELDS.keys() | NON_LANGUAGE_FIELDS
     # Also tolerate per-language metadata fields emitted by the export step:
-    # *_variants (D18 spelling variants) and *_inflections (D8 inflection
-    # labels). They legitimately don't map to a LANGUAGE_FIELDS code; the
-    # runtime's load_meanings handles them via separate Meaning attributes.
+    # *_variants (D18 spelling variants), *_inflections (D8 inflection
+    # labels), *_citations (wyrd-9kh.1 scholarly attribution). They
+    # legitimately don't map to a LANGUAGE_FIELDS code; the runtime's
+    # load_meanings handles them via separate Meaning attributes.
     missing = {
         f
         for f in seen_fields - handled
-        if not (f.endswith("_variants") or f.endswith("_inflections"))
+        if not (f.endswith("_variants") or f.endswith("_inflections") or f.endswith("_citations"))
     }
     assert not missing, f"Unhandled fields in meanings.json: {missing}"
 
@@ -1698,7 +1699,16 @@ def test_export_meanings_promotes_at_three_witnesses(fresh_db: Path) -> None:
     assert subj["meaning"] == ["homestead"]
     # No reflex links in this minimal scenario, so the word is synthesized
     # from the canonical_form. position_pref defaults to no-dash → bare form.
-    assert subj["words"] == [{"modern_usage": "ham", "old_english": ["ham"]}]
+    # All three scholarly sources (a, b, c) ride along as the wyrd-9kh.1
+    # `<lang>_citations` sibling field — a GM holding this name in chat
+    # sees who attests it.
+    assert subj["words"] == [
+        {
+            "modern_usage": "ham",
+            "old_english": ["ham"],
+            "old_english_citations": ["a", "b", "c"],
+        }
+    ]
 
 
 def test_export_meanings_per_language_thresholds_apply(fresh_db: Path) -> None:
@@ -2234,7 +2244,104 @@ def test_export_meanings_synthesizes_word_for_mined_only_family(
         subjects = export_meanings(db, include_rando=False, min_witnesses=3)
 
     assert len(subjects) == 1
-    assert subjects[0]["words"] == [{"modern_usage": "tune", "old_english": ["tune"]}]
+    assert subjects[0]["words"] == [
+        {
+            "modern_usage": "tune",
+            "old_english": ["tune"],
+            "old_english_citations": ["a", "b", "c"],
+        }
+    ]
+
+
+# --- wyrd-9kh.1: per-language citation attribution -----------------------
+
+
+def test_export_meanings_filters_rando_port_from_citations(fresh_db: Path) -> None:
+    """The rando-port seed isn't a real scholarly attribution — it's the
+    Wikipedia-derived legacy bootstrap. Filter it from `<lang>_citations`
+    so a rando-only word emits no citations field at all (rather than a
+    confusing 'cited by rando-port')."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["acorn"],
+            tags=["plant"],
+            modifier_type=None,
+            words=[{"modern_usage": "-ock", "old_english": ["aecern"]}],
+        )
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert "old_english" in word
+    assert "old_english_citations" not in word
+
+
+def test_export_meanings_emits_citations_for_scholarly_witnesses(fresh_db: Path) -> None:
+    """Mixed scholarly + rando-port citations: only the scholars surface in
+    `<lang>_citations`, sorted alphabetically. Set semantics dedupe across
+    the descendant walk."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        for src in ("mawer_1920", "skeat_1901"):
+            db.upsert_source(id=src, title=src)
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["bridge"],
+            tags=["water"],
+            modifier_type="Topographical",
+            words=[{"modern_usage": "Bridg-", "old_english": ["brycg"]}],
+        )
+        brycg_id = db.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = 'brycg'"
+        ).fetchone()["id"]
+        # Two scholars + a duplicate of mawer (ON CONFLICT DO NOTHING dedupes).
+        db.add_citation(brycg_id, "mawer_1920")
+        db.add_citation(brycg_id, "skeat_1901")
+        db.add_citation(brycg_id, "mawer_1920")
+        db.commit()
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert word["old_english_citations"] == ["mawer_1920", "skeat_1901"]
+
+
+def test_export_meanings_citations_dedupe_across_descendants(fresh_db: Path) -> None:
+    """A reflex linked to a lemma surfaces citations from the lemma AND its
+    OCR-cluster losers / inflected children — the same scholar cited on a
+    descendant shouldn't double in the bundle output."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        for src in ("mawer_1920", "skeat_1901"):
+            db.upsert_source(id=src, title=src)
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["valley"],
+            tags=["topography"],
+            modifier_type="Topographical",
+            words=[{"modern_usage": "-den", "old_english": ["denu"]}],
+        )
+        denu_id = db.conn.execute("SELECT id FROM etymon WHERE canonical_form = 'denu'").fetchone()[
+            "id"
+        ]
+        # OCR-cluster loser: another spelling of the same etymon merged into denu.
+        loser_id = db.upsert_etymon("denū", "old-english")
+        db.conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (denu_id, loser_id))
+        # mawer cites both the canonical and the OCR-loser (because it
+        # extracted from a body where the OCR garbled the form). skeat
+        # cites only the canonical.
+        db.add_citation(denu_id, "mawer_1920")
+        db.add_citation(denu_id, "skeat_1901")
+        db.add_citation(loser_id, "mawer_1920")
+        db.commit()
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    # mawer appears once despite citing two etymons in the family.
+    assert word["old_english_citations"] == ["mawer_1920", "skeat_1901"]
 
 
 def test_export_meanings_synthesizes_with_position_pref(fresh_db: Path) -> None:

@@ -545,3 +545,139 @@ def test_description_inflection_labels_shorter_than_name_does_not_crash():
         inflection_labels=[[]],
     )
     assert new_name.description() == "cot (EN cottage)"
+
+
+# --- wyrd-9kh.1: citation surfacing in description() / components() ----
+
+
+def test_description_surfaces_citations_when_present():
+    """When a Meaning carries scholarly citations, description() appends
+    'cited by <list>' to the breakdown line."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import NewName
+
+    m = Meaning(
+        "-cot",
+        [],
+        ["cottage"],
+        {"old_english": ["cot"]},
+        citations={"old_english": ["mawer_1920", "skeat_1901"]},
+    )
+    new_name = NewName(
+        struct=None,
+        meaning_db={"-cot": [m]},
+        name=[["-cot"]],
+    )
+    assert new_name.description() == "cot (EN cottage; cited by mawer_1920, skeat_1901)"
+
+
+def test_description_omits_citation_block_when_absent():
+    """A Meaning with no citations gets the historic shape — no trailing
+    'cited by' clutters the explainer for legacy rando-only morphemes."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import NewName
+
+    m = Meaning("-cot", [], ["cottage"], {"old_english": ["cot"]})
+    new_name = NewName(
+        struct=None,
+        meaning_db={"-cot": [m]},
+        name=[["-cot"]],
+    )
+    assert new_name.description() == "cot (EN cottage)"
+
+
+def test_description_dedupes_citations_across_languages():
+    """A Meaning with citations under multiple languages (rare but possible
+    when the family spans both — e.g., a Welsh-Marches morpheme cited for
+    both its OE and Welsh attestations) emits each source once, sorted."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import NewName
+
+    m = Meaning(
+        "-allt",
+        [],
+        ["wood"],
+        {"old_english": ["allt"], "celtic_mix": ["allt"]},
+        citations={
+            "old_english": ["bannister_1916", "morgan_1912"],
+            "celtic_mix": ["morgan_1912", "watson_1926"],
+        },
+    )
+    new_name = NewName(
+        struct=None,
+        meaning_db={"-allt": [m]},
+        name=[["-allt"]],
+    )
+    # bannister_1916, morgan_1912 (deduped), watson_1926 — sorted alpha,
+    # at the 3-citation limit so all three render without truncation.
+    assert new_name.description() == (
+        "allt (EN/CL wood; cited by bannister_1916, morgan_1912, watson_1926)"
+    )
+
+
+def test_description_truncates_long_citation_lists_with_count():
+    """Words like '-ham' carry 18+ citations from the well-mined OE corpus.
+    The explainer surfaces the first three with '(+N more)' so the
+    breakdown stays readable; components() keeps the full list for SPA
+    rendering."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import NewName
+
+    sources = [f"src_{i:02}" for i in range(7)]
+    m = Meaning(
+        "-ham",
+        [],
+        ["home"],
+        {"old_english": ["ham"]},
+        citations={"old_english": sources},
+    )
+    new_name = NewName(
+        struct=None,
+        meaning_db={"-ham": [m]},
+        name=[["-ham"]],
+    )
+    # 7 citations → top 3 + '(+4 more)'.
+    assert new_name.description() == "ham (EN home; cited by src_00, src_01, src_02 (+4 more))"
+    # components() carries the full list — the truncation is display-only.
+    components = new_name.components()
+    assert components[0]["citations"] == sources
+
+
+def test_components_includes_citation_list():
+    """The API envelope's components carry the same citation list so the
+    SPA can render attribution per element."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import NewName
+
+    m = Meaning(
+        "-cot",
+        [],
+        ["cottage"],
+        {"old_english": ["cot"]},
+        citations={"old_english": ["mawer_1920"]},
+    )
+    new_name = NewName(
+        struct=None,
+        meaning_db={"-cot": [m]},
+        name=[["-cot"]],
+    )
+    components = new_name.components()
+    assert len(components) == 1
+    assert components[0]["citations"] == ["mawer_1920"]
+
+
+def test_components_citation_is_empty_list_when_no_citations():
+    """Components always carry a 'citations' key so consumers don't have to
+    branch on its presence — empty list signals 'no scholarly attestation
+    yet' (the legacy rando-only case)."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import NewName
+
+    m = Meaning("-cot", [], ["cottage"], {"old_english": ["cot"]})
+    new_name = NewName(
+        struct=None,
+        meaning_db={"-cot": [m]},
+        name=[["-cot"]],
+    )
+    components = new_name.components()
+    assert components[0]["citations"] == []
