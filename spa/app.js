@@ -151,6 +151,20 @@ function _buildTextField(key, prop, urlVal) {
     return input;
 }
 
+function _buildBooleanField(key, prop, urlVal) {
+    // Render boolean params as a checkbox so the form value type matches
+    // the schema. Without this the field falls through to a text input
+    // and a stringified default ("false") gets shipped to the server,
+    // where bool("false") is True — silent gate inversion (wyrd-yan).
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.id = `field-${key}`;
+    input.name = key;
+    if (urlVal !== null) input.checked = urlVal === "true" || urlVal === "1";
+    else input.checked = prop.default === true;
+    return input;
+}
+
 function _buildField(key, prop, url) {
     const urlVal = url.searchParams.get(key);
     if (prop.type === "string" && Array.isArray(prop.enum)) {
@@ -161,6 +175,9 @@ function _buildField(key, prop, url) {
     }
     if (prop.type === "integer" || prop.type === "number") {
         return _buildNumberField(key, prop, urlVal);
+    }
+    if (prop.type === "boolean") {
+        return _buildBooleanField(key, prop, urlVal);
     }
     return _buildTextField(key, prop, urlVal);
 }
@@ -202,6 +219,12 @@ function readForm() {
             const grid = document.querySelector(`[data-field="${key}"]`);
             const values = [...grid.querySelectorAll("input:checked")].map((cb) => cb.value);
             if (values.length) params[key] = values;
+        } else if (prop.type === "boolean") {
+            // Read the checkbox's checked state, NOT its value (which is
+            // always the literal string "on"). Sends a real JSON boolean
+            // so the server doesn't have to guess from string tokens.
+            const el = document.getElementById(`field-${key}`);
+            if (el) params[key] = el.checked;
         } else {
             const el = document.getElementById(`field-${key}`);
             if (el && el.value !== "") {

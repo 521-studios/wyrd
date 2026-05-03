@@ -681,3 +681,138 @@ def test_components_citation_is_empty_list_when_no_citations():
     )
     components = new_name.components()
     assert components[0]["citations"] == []
+
+
+# --- wyrd-yan: fiction-tag exclusion gate -------------------------------
+
+
+def test_generator_select_exclude_tags_drops_matching_keys():
+    """Generator.select with exclude_tags=('fiction',) removes any usage
+    that the tag_db lists under 'fiction'. Picks must come from the
+    remaining keys only — pin via Monte Carlo with a tag_db that marks
+    one key as fiction."""
+    from wyrd.generators.kenning.proportions import Generator
+
+    # tag_db reverse-index: key 'fake-' is fiction, 'real-' is not.
+    g = Generator(
+        tag_db={"fiction": ["fake-"]},
+        elements={"real-": 50, "fake-": 50},
+    )
+    picks = {g.select(random.Random(i), exclude_tags=("fiction",)) for i in range(50)}
+    assert picks == {"real-"}
+
+
+def test_generator_select_default_exclude_tags_is_noop():
+    """Default exclude_tags=() must not change behavior — bit-stable with
+    the pre-wyrd-yan path. A fiction-tagged key still draws when no
+    exclusion is requested."""
+    from wyrd.generators.kenning.proportions import Generator
+
+    g = Generator(
+        tag_db={"fiction": ["fake-"]},
+        elements={"real-": 1, "fake-": 99},
+    )
+    counts = Counter(g.select(random.Random(i)) for i in range(500))
+    # 99:1 weight → fake- should dominate. The exact ratio doesn't
+    # matter; we just need to confirm fake- WAS picked, proving exclude
+    # didn't fire by default.
+    assert counts["fake-"] > counts["real-"]
+
+
+def test_generator_select_exclude_composes_with_positive_tag_filter():
+    """exclude_tags applies AFTER the positive tag include-filter, so a
+    usage tagged BOTH 'tree' and 'fiction' is dropped from a --tag tree
+    selection. Pin so a refactor can't silently invert the order."""
+    from wyrd.generators.kenning.proportions import Generator
+
+    g = Generator(
+        tag_db={
+            "tree": ["oak-", "fake-tree-"],
+            "fiction": ["fake-tree-"],
+        },
+        elements={"oak-": 50, "fake-tree-": 50, "irrelevant-": 100},
+    )
+    picks = {g.select(random.Random(i), "tree", exclude_tags=("fiction",)) for i in range(50)}
+    # 'tree' filter narrows to {oak-, fake-tree-}; fiction exclude drops
+    # fake-tree-; only oak- remains.
+    assert picks == {"oak-"}
+
+
+def test_generator_select_exclude_returns_none_when_pool_empties():
+    """If the exclude set covers every available key, Generator.select
+    returns None — no infinite loop, no IndexError, just a clean
+    'nothing to pick'."""
+    from wyrd.generators.kenning.proportions import Generator
+
+    g = Generator(
+        tag_db={"fiction": ["only-key-"]},
+        elements={"only-key-": 1},
+    )
+    assert g.select(random.Random(0), exclude_tags=("fiction",)) is None
+
+
+def test_meaning_generator_select_threads_exclude_tags():
+    """MeaningGenerator.select forwards exclude_tags into Generator.select
+    so the gate works end-to-end through the bucket dispatch."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator
+
+    m_real = Meaning("-real", [], [], {})
+    m_fake = Meaning("-fake", [], [], {})
+    meaning_db = {"-real": [m_real], "-fake": [m_fake]}
+    proportions = {"-real": 1, "-fake": 99}
+    tag_db = {"fiction": ["-fake"]}
+    mg = MeaningGenerator(meaning_db, tag_db, proportions)
+    picks = {mg.select(random.Random(i), ("post",), exclude_tags=("fiction",)) for i in range(50)}
+    assert picks == {"-real"}
+
+
+def test_name_generator_select_excludes_fiction_end_to_end():
+    """End-to-end through NameGenerator: a synthetic single-morpheme
+    culture where the only available usage is fiction-tagged returns
+    no morpheme under exclude_tags=('fiction',) and the morpheme under
+    exclude_tags=()."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator, NameGenerator
+
+    m = Meaning("-mythron", [], ["constructed"], {"old_english": ["mythron"]})
+    meaning_db = {"-mythron": [m]}
+    tag_db = {"fiction": ["-mythron"]}
+    proportions = {"-mythron": 1}
+    mg = MeaningGenerator(meaning_db, tag_db, proportions)
+    # Same shape as production load_proportions: single-element words
+    # register usages under (location, "single").
+    mg.load_parts(proportions, "single")
+    structs = {(((m.location, "single"),),): 1}
+    name_gen = NameGenerator(meaning_db, mg, structs)
+
+    # Default mode: fiction excluded → no morpheme in the slot.
+    new_name = name_gen.select(random.Random(0), exclude_tags=("fiction",))
+    assert new_name.name == [[None]]
+
+    # Include-fiction mode: morpheme draws cleanly.
+    new_name = name_gen.select(random.Random(0), exclude_tags=())
+    assert new_name.name == [["-mythron"]]
+
+
+def test_kenning_input_schema_exposes_include_fiction():
+    """The wyrd-yan flag must be visible in input_schema so the SPA and
+    API consumers can render it. Default=False keeps realistic mode the
+    out-of-box behavior."""
+    from wyrd.generators.kenning import Kenning
+
+    schema = Kenning().input_schema()
+    assert "include_fiction" in schema["properties"]
+    assert schema["properties"]["include_fiction"]["type"] == "boolean"
+    assert schema["properties"]["include_fiction"]["default"] is False
+
+
+def test_available_tags_hides_fiction_from_dropdown():
+    """'fiction' is a metadata marker (opted into via include_fiction),
+    NOT a positive selection — it must not surface in the SPA tag
+    dropdown via available_tags(). Pin so a refactor of _INTERNAL_TAGS
+    can't accidentally re-expose it."""
+    from wyrd.generators.kenning import _INTERNAL_TAGS, available_tags
+
+    assert "fiction" in _INTERNAL_TAGS
+    assert "fiction" not in available_tags()

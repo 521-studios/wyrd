@@ -16,6 +16,7 @@ from typing import Any
 import click
 
 from wyrd.generators.kenning import (
+    _INTERNAL_TAGS,
     CULTURES,
     MOODS,
     Kenning,
@@ -158,6 +159,17 @@ def cli() -> None:
         "skew (e.g. 'harsh:0.5'). Multiple --mood flags compose."
     ),
 )
+@click.option(
+    "--include-fiction",
+    "include_fiction",
+    is_flag=True,
+    default=False,
+    help=(
+        "wyrd-yan: allow morphemes tagged 'fiction' (constructed etymologies "
+        "for bestiary / NPC / homebrew content) to appear. Off by default — "
+        "realistic mode draws only from scholarly-attested morphemes."
+    ),
+)
 def generate(
     culture: str,
     tags: tuple[str, ...],
@@ -168,14 +180,20 @@ def generate(
     novelty: float,
     inflection_density: float,
     moods: tuple[str, ...],
+    include_fiction: bool,
 ) -> None:
     """Generate town names. Replaces Rando's `bin/generator`."""
-    known_tags = set(available_tags()) | {"male name", "female name", "saint"}
+    # `available_tags()` already strips _INTERNAL_TAGS for the SPA dropdown,
+    # but the CLI needs to ACCEPT internal tags (some scripts pass them
+    # explicitly) — so widen the validation set with _INTERNAL_TAGS rather
+    # than the literal subset, which would silently desync as new internal
+    # markers (e.g. wyrd-yan's 'fiction') get added.
+    known_tags = set(available_tags()) | _INTERNAL_TAGS
     bad = [t for t in tags if t not in known_tags]
     if bad:
         click.echo(f"Unknown tag(s): {', '.join(bad)}", err=True)
         click.echo("Available tags:", err=True)
-        for t in sorted(known_tags - {"male name", "female name", "saint"}):
+        for t in sorted(known_tags - _INTERNAL_TAGS):
             click.echo(f"  {t}", err=True)
         sys.exit(1)
     bad_moods = [m for m in moods if m.split(":", 1)[0] not in MOODS]
@@ -194,6 +212,7 @@ def generate(
         "novelty": novelty,
         "inflection_density": inflection_density,
         "mood": list(moods),
+        "include_fiction": include_fiction,
     }
     for _ in range(count):
         result = kenning.generate(params, seed_rng.randrange(2**63))
