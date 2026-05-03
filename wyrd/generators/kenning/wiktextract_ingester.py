@@ -317,12 +317,11 @@ _SKIPPED_TEMPLATE_NAMES: frozenset[str] = frozenset(
         # pw dbt = proto-word doublet; peer relation, like doublet.
         "pw dbt",
         # wyrd-wse: long-tail single-occurrence kinds across the OE/ON/PG/PC
-        # slices. Mostly formatting (smallcaps, angbr, PIE root box, etydate)
-        # or specialised derivational hints with un-confirmed arg shapes
-        # (past participle of, alt form, alter, displaced). Skipping to
-        # silence the audit noise; if the larger language slices surface
-        # them at scale, file a follow-up to extend
-        # _SAME_LANG_DERIVATION_TEMPLATE_NAMES.
+        # slices. Mostly formatting (smallcaps, angbr, PIE root box,
+        # etydate) plus 'alter' and 'displaced', which have arg shapes
+        # that don't fit the same-lang or cross-lang single-parent
+        # patterns (alter takes two parallel parents at args[2,3];
+        # displaced's args[1] is the displacing language, not this_lang).
         "senseno",
         "C.E.",
         "smallcaps",
