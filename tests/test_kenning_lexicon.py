@@ -5271,3 +5271,160 @@ def test_bridge_phonological_oe_reparents_lemma_children(fresh_db: Path) -> None
             "SELECT lemma_id FROM etymon WHERE id = ?", (inflected_id,)
         ).fetchone()["lemma_id"]
     assert new_lemma == wiktionary_id
+
+
+# --- CLI smoke tests for bridge-language / bridge-phonological-oe -----
+
+
+def test_cli_bridge_language_dry_run(fresh_db: Path) -> None:
+    """`lexicon bridge-language --generic celtic` (no --apply) reports
+    counts without writing merged_into_id. Pinned so the dry-run path
+    stays the default for operator safety."""
+    with LexiconDB(fresh_db) as db:
+        generic_id = db.upsert_etymon("bun", "celtic")
+        db.upsert_etymon("bun", "irish")
+        db.commit()
+
+    result = CliRunner().invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "bridge-language",
+            "--db",
+            str(fresh_db),
+            "--generic",
+            "celtic",
+            "--candidates",
+            "irish",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "would bridge 1" in result.stderr
+    assert "(dry-run; pass --apply to commit)" in result.stderr
+
+    with LexiconDB(fresh_db) as db:
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (generic_id,)
+        ).fetchone()["merged_into_id"]
+    assert merged is None
+
+
+def test_cli_bridge_language_apply_uses_celtic_default_candidates(
+    fresh_db: Path,
+) -> None:
+    """`--generic celtic` with no --candidates resolves through the
+    built-in _CELTIC_CANDIDATES_DEFAULT priority list and writes the
+    merge when --apply is set."""
+    with LexiconDB(fresh_db) as db:
+        generic_id = db.upsert_etymon("bun", "celtic")
+        # Proto-Celtic has higher priority than Irish in the default list.
+        proto_id = db.upsert_etymon("bun", "proto-celtic")
+        db.upsert_etymon("bun", "irish")
+        db.commit()
+
+    result = CliRunner().invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "bridge-language",
+            "--db",
+            str(fresh_db),
+            "--generic",
+            "celtic",
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "bridged 1" in result.stderr
+    assert "rows_written" in result.stderr
+
+    with LexiconDB(fresh_db) as db:
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (generic_id,)
+        ).fetchone()["merged_into_id"]
+    assert merged == proto_id
+
+
+def test_cli_bridge_language_requires_candidates_for_unknown_generic(
+    fresh_db: Path,
+) -> None:
+    """No built-in candidate list exists for arbitrary generic tags;
+    the CLI must fail loudly with --candidates missing rather than
+    silently no-op."""
+    result = CliRunner().invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "bridge-language",
+            "--db",
+            str(fresh_db),
+            "--generic",
+            "germanic",
+        ],
+    )
+    assert result.exit_code == 1
+    assert "no built-in default for 'germanic'" in result.stderr
+
+
+def test_cli_bridge_phonological_oe_dry_run(fresh_db: Path) -> None:
+    """`lexicon bridge-phonological-oe` (no --apply) reports counts
+    from the hand-curated table without writing merged_into_id."""
+    with LexiconDB(fresh_db) as db:
+        place_id = db.upsert_etymon("ton", "old-english")
+        db.upsert_etymon("tūn", "old-english")
+        db.commit()
+
+    result = CliRunner().invoke(
+        kenning_cli,
+        ["lexicon", "bridge-phonological-oe", "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "would bridge 1" in result.stderr
+    assert "(dry-run; pass --apply to commit)" in result.stderr
+
+    with LexiconDB(fresh_db) as db:
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (place_id,)
+        ).fetchone()["merged_into_id"]
+    assert merged is None
+
+
+def test_cli_bridge_phonological_oe_apply_writes_merge(fresh_db: Path) -> None:
+    """`--apply` commits the bridge for known place-name → wiktionary
+    pairs and reports rows_written."""
+    with LexiconDB(fresh_db) as db:
+        place_id = db.upsert_etymon("ton", "old-english")
+        target_id = db.upsert_etymon("tūn", "old-english")
+        db.commit()
+
+    result = CliRunner().invoke(
+        kenning_cli,
+        ["lexicon", "bridge-phonological-oe", "--db", str(fresh_db), "--apply"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "bridged 1" in result.stderr
+    assert "rows_written" in result.stderr
+
+    with LexiconDB(fresh_db) as db:
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (place_id,)
+        ).fetchone()["merged_into_id"]
+    assert merged == target_id
+
+
+def test_cli_bridge_phonological_oe_warns_on_missing_target(fresh_db: Path) -> None:
+    """When a table entry names a wiktionary target that hasn't been
+    ingested, the CLI emits the missing_target warning so operators
+    know to ingest more or extend the table."""
+    with LexiconDB(fresh_db) as db:
+        # Place-name form present, wiktionary target absent.
+        db.upsert_etymon("ton", "old-english")
+        db.commit()
+
+    result = CliRunner().invoke(
+        kenning_cli,
+        ["lexicon", "bridge-phonological-oe", "--db", str(fresh_db), "--apply"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "warn:" in result.stderr
+    assert "target that doesn't exist" in result.stderr
