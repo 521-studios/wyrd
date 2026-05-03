@@ -33,13 +33,13 @@ from wyrd.generators.kenning.lexicon import (
     backfill_citation_pages,
     clear_enrichment,
     cluster_ocr_variants,
+    detect_running_headers,
     export_meanings,
     fuzzy_search_attestations,
     ingest_parsed_entries,
     init_schema,
     link_lemmas,
     migrate_schema,
-    parse_running_header_pages,
     record_mining_run,
     reverse_search_attestations,
     seed_from_meanings,
@@ -1619,26 +1619,20 @@ def lexicon_migrate(db_path: Path) -> None:
     help="Number of detected (page, headword-fragment) pairs to print.",
 )
 def lexicon_parse_pages(source_path: Path, limit: int) -> None:
-    """Audit running-header coverage on a source book (wyrd-9kh.5).
+    """Audit running-header coverage on a source book (wyrd-9kh.5, wyrd-8st).
 
-    Detects Mawer-style running headers (`<HEADWORD> <number>`) in the
-    source text and reports how many pages the parser found, along with
-    a sample. Use this to decide whether a book is amenable to page-
-    anchored citations before wiring it into the etymon_citation.page
-    write path (follow-up).
-
-    Skeat-style books use a `§ N. NAMES IN -X. <page>` header convention
-    not handled by this command — coverage of 0 means either no headers
-    or a non-Mawer convention; eyeball the source to tell which.
+    Tries both header conventions — Mawer-style `<HEADWORD> <number>`
+    and Skeat-§ `§ N. NAMES IN -X. <page>` — and reports which matched
+    along with a sample. Use this to decide whether a book is amenable
+    to page-anchored citations.
     """
     text = source_path.read_text(errors="replace")
-    headers = parse_running_header_pages(text)
-    click.echo(f"{source_path.name}: {len(headers)} running header(s) detected")
+    headers, parser = detect_running_headers(text)
+    click.echo(f"{source_path.name}: {len(headers)} running header(s) detected (parser: {parser})")
     if not headers:
         click.echo(
-            "  No headers matched the Mawer-style pattern. The book may use "
-            "Skeat-style §-section headers (not yet supported) or a different "
-            "convention entirely.",
+            "  No headers matched either Mawer-style or Skeat-§ patterns. The "
+            "book may use a third convention entirely.",
             err=True,
         )
         return
@@ -1685,10 +1679,11 @@ def lexicon_backfill_pages(
 ) -> None:
     """Backfill etymon_citation.page + toponym_etymology.page (wyrd-azv).
 
-    Walks each .txt in <sources_dir>, parses Mawer-style running headers,
-    and for rows where page IS NULL locates the row's quoted excerpt in
-    body text to resolve a page number. Skeat-§ headers and books with
-    no Mawer-style headers are skipped (reported as no_headers).
+    Walks each .txt in <sources_dir>, tries both Mawer-style and
+    Skeat-§ running header conventions, and for rows where page IS
+    NULL locates the row's quoted excerpt in body text to resolve a
+    page number. Books matching neither convention are skipped
+    (reported as no_headers).
 
     Idempotent: re-runs only touch rows where page is still NULL.
     """
@@ -1704,7 +1699,7 @@ def lexicon_backfill_pages(
             totals["sources_processed"] += 1
             if counts["no_headers"]:
                 totals["sources_no_headers"] += 1
-                click.echo(f"  [{source_id:50}]  no Mawer-style headers; skipped", err=True)
+                click.echo(f"  [{source_id:50}]  no recognized headers; skipped", err=True)
                 continue
             click.echo(
                 f"  [{source_id:50}]  cit={counts['citations_updated']:>4}  "
