@@ -122,12 +122,16 @@ def test_inh_template_emits_inheritance_upward_edge(fresh_db: Path) -> None:
     [
         ("inh", "inheritance"),
         ("inherited", "inheritance"),
+        ("inh+", "inheritance"),
         ("bor", "borrowing"),
         ("borrowed", "borrowing"),
+        ("bor+", "borrowing"),
         ("der", "derivation"),
         ("derived", "derivation"),
+        ("der+", "derivation"),
         ("cal", "calque"),
         ("calque", "calque"),
+        ("clq", "calque"),
     ],
 )
 def test_each_upward_template_kind_maps_to_correct_edge_type(
@@ -779,15 +783,27 @@ def test_root_template_with_multiple_parallel_roots_emits_one_edge_each(
 
 @pytest.mark.parametrize(
     "compound_template",
-    ["compound", "com", "prefix", "pre", "suffix", "suf", "af", "affix"],
+    [
+        "compound",
+        "compound+",
+        "com",
+        "com+",
+        "prefix",
+        "pre",
+        "suffix",
+        "suf",
+        "af",
+        "affix",
+        "confix",
+    ],
 )
 def test_compound_template_emits_one_edge_per_constituent(
     fresh_db: Path, compound_template: str
 ) -> None:
     """{{compound|ang|Sċott|land}} produces TWO edges: each constituent
     becomes a 'compound' parent of the resulting entry. Pin each of the
-    8 known compound-template aliases so a name drop in
-    _COMPOUND_TEMPLATE_NAMES surfaces here."""
+    compound-template aliases so a name drop in _COMPOUND_TEMPLATE_NAMES
+    surfaces here."""
     line = _wiktextract_entry(
         word="Scotland",
         lang_code="ang",
@@ -856,7 +872,55 @@ def test_compound_edge_does_not_bridge_synsets(fresh_db: Path) -> None:
 
 @pytest.mark.parametrize(
     "skipped_template",
-    ["dercat", "etymon", "surf", "unk", "m+", "noncog", "glossary"],
+    [
+        "dercat",
+        "etymon",
+        "surf",
+        "unk",
+        "unc",
+        "unknown",
+        "m+",
+        "m-g",
+        "noncog",
+        "ncog",
+        "glossary",
+        "gl",
+        "yesno",
+        "etymid",
+        "nonlemma",
+        "col-top",
+        "doublet",
+        "dbt",
+        "piecewise doublet",
+        "PIE word",
+        "onomatopoeic",
+        "sound-symbolic",
+        "wp",
+        "normalized",
+        "surface analysis",
+        "str left",
+        "str_index-lite",
+        "str index-lite/logic",
+        "str len-lite",
+        "str len-lite/core",
+        "str sub-lite",
+        "str sub-lite/2",
+        "ety",
+        "vrd",
+        "lit",
+        "langname",
+        "word",
+        "lg",
+        "q",
+        "nl",
+        "ref",
+        "sup",
+        "smallsup",
+        "cat",
+        "or else",
+        "desc",
+        ",",
+    ],
 )
 def test_each_new_skipped_template_does_not_count_unsupported(
     fresh_db: Path, skipped_template: str

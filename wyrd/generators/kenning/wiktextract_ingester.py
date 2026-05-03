@@ -95,12 +95,16 @@ _WIKTIONARY_LANG_CODE_MAP: dict[str, str] = {
 _UPWARD_TEMPLATE_TO_EDGE: dict[str, str] = {
     "inh": "inheritance",
     "inherited": "inheritance",
+    "inh+": "inheritance",
     "bor": "borrowing",
     "borrowed": "borrowing",
+    "bor+": "borrowing",
     "der": "derivation",
     "derived": "derivation",
+    "der+": "derivation",
     "cal": "calque",
     "calque": "calque",
+    "clq": "calque",
 }
 
 # wyrd-prv: PIE-root templates have args
@@ -121,13 +125,19 @@ _ROOT_TEMPLATE_NAMES: frozenset[str] = frozenset({"root"})
 _COMPOUND_TEMPLATE_NAMES: frozenset[str] = frozenset(
     {
         "compound",
+        "compound+",
         "com",
+        "com+",
         "prefix",
         "pre",
         "suffix",
         "suf",
         "af",
         "affix",
+        # confix is a circumfix derivation (matched prefix+suffix wrapping
+        # a stem). Same arg shape as compound; treating each constituent
+        # as a 'compound' edge is the right call.
+        "confix",
     }
 )
 
@@ -141,16 +151,21 @@ _SKIPPED_TEMPLATE_NAMES: frozenset[str] = frozenset(
         "m",
         "mention",
         "m+",
+        "m-g",
         "l",
         "link",
         "qualifier",
         "qual",
         "gloss",
         "glossary",
+        "gl",
         "noncog",
+        "ncog",
         "etyl",
         "lb",
         "unk",
+        "unc",
+        "unknown",
         # wyrd-prv: dercat names a chain of ancestor LANGUAGES without a
         # specific parent word — no edge can be extracted. The category
         # is useful elsewhere (e.g. for the etymology_text rendering)
@@ -161,6 +176,49 @@ _SKIPPED_TEMPLATE_NAMES: frozenset[str] = frozenset(
         "etymon",
         # wyrd-prv: surf is a "surface analysis" caveat — no edge.
         "surf",
+        # Pure formatting / meta templates discovered during the live
+        # OE + Proto-Celtic ingest. None carry an etymon link; they're
+        # citation, layout, or category-tag wrappers.
+        "yesno",
+        "etymid",
+        "nonlemma",
+        "col-top",
+        "lit",
+        "langname",
+        "word",
+        "lg",
+        "q",
+        "nl",
+        "ref",
+        "sup",
+        "smallsup",
+        "ety",
+        "vrd",
+        "PIE word",
+        "cat",
+        "or else",
+        "onomatopoeic",
+        "sound-symbolic",
+        "desc",
+        # str* templates are layout-only (column / index helpers used
+        # in big descendants tables) and don't name a parent word.
+        "str left",
+        "str_index-lite",
+        "str index-lite/logic",
+        "str len-lite",
+        "str len-lite/core",
+        "str sub-lite",
+        "str sub-lite/2",
+        # doublet / dbt name a peer reflex from the same root via a
+        # different path — like {{cog}}, peer not chain. No bridging.
+        "doublet",
+        "dbt",
+        "piecewise doublet",
+        # Other meta-only templates surfaced by full-slice ingest.
+        "wp",
+        "normalized",
+        "surface analysis",
+        ",",
     }
 )
 
