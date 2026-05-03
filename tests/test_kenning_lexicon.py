@@ -29,6 +29,7 @@ from wyrd.generators.kenning.lexicon import (
     ingest_parsed_entries,
     init_schema,
     link_lemmas,
+    lookup_attested_years,
     migrate_schema,
     normalize_ocr_form,
     parse_skeat_section_header_pages,
@@ -888,8 +889,6 @@ def test_lookup_attested_years_finds_year_after_form_with_comma(
         "TUNE. Tune, 1086 (DB); Tunes, 1242."
     )
     with LexiconDB(fresh_db) as db:
-        from wyrd.generators.kenning.lexicon import lookup_attested_years
-
         db.upsert_source(id="mawer_1920", title="Mawer")
         rid = _seed_text_match(db, source_id="mawer_1920", canonical_form="tune")
         result = lookup_attested_years(db, sources, apply=True)
@@ -913,8 +912,6 @@ def test_lookup_attested_years_picks_earliest_when_multiple_qualify(
     sources.mkdir()
     (sources / "ekwall_1922.txt").write_text("TUNE. Tune, 1086 (DB); Tunes, 1242; Tunna, 1340.")
     with LexiconDB(fresh_db) as db:
-        from wyrd.generators.kenning.lexicon import lookup_attested_years
-
         db.upsert_source(id="ekwall_1922", title="Ekwall")
         rid = _seed_text_match(db, source_id="ekwall_1922", canonical_form="tune")
         lookup_attested_years(db, sources, apply=True)
@@ -932,8 +929,6 @@ def test_lookup_attested_years_rejects_publication_year(fresh_db: Path, tmp_path
     sources.mkdir()
     (sources / "src.txt").write_text("denu (Mawer, 1920) appears throughout.")
     with LexiconDB(fresh_db) as db:
-        from wyrd.generators.kenning.lexicon import lookup_attested_years
-
         db.upsert_source(id="src", title="S")
         rid = _seed_text_match(db, source_id="src", canonical_form="denu")
         lookup_attested_years(db, sources, apply=True)
@@ -956,8 +951,6 @@ def test_lookup_attested_years_rejects_digit_in_citation_number_list(
     sources.mkdir()
     (sources / "src.txt").write_text("speldredge (c. 1290 sac 6, 134, 1320 ch).")
     with LexiconDB(fresh_db) as db:
-        from wyrd.generators.kenning.lexicon import lookup_attested_years
-
         db.upsert_source(id="src", title="S")
         rid = _seed_text_match(db, source_id="src", canonical_form="speldredge")
         lookup_attested_years(db, sources, apply=True)
@@ -982,8 +975,6 @@ def test_lookup_attested_years_rejects_year_without_date_marker(
     # cross-reference number, not a date citation.
     (sources / "src.txt").write_text("hamtun see note 1240 below for the discussion.")
     with LexiconDB(fresh_db) as db:
-        from wyrd.generators.kenning.lexicon import lookup_attested_years
-
         db.upsert_source(id="src", title="S")
         rid = _seed_text_match(db, source_id="src", canonical_form="hamtun")
         lookup_attested_years(db, sources, apply=True)
@@ -1000,8 +991,6 @@ def test_lookup_attested_years_dry_run_does_not_write(fresh_db: Path, tmp_path: 
     sources.mkdir()
     (sources / "src.txt").write_text("Tune, 1086 (DB).")
     with LexiconDB(fresh_db) as db:
-        from wyrd.generators.kenning.lexicon import lookup_attested_years
-
         db.upsert_source(id="src", title="S")
         rid = _seed_text_match(db, source_id="src", canonical_form="tune")
         result = lookup_attested_years(db, sources, apply=False)
@@ -1025,8 +1014,6 @@ def test_lookup_attested_years_idempotent_on_rerun(fresh_db: Path, tmp_path: Pat
     sources.mkdir()
     (sources / "src.txt").write_text("Tune, 1086 (DB).")
     with LexiconDB(fresh_db) as db:
-        from wyrd.generators.kenning.lexicon import lookup_attested_years
-
         db.upsert_source(id="src", title="S")
         _seed_text_match(db, source_id="src", canonical_form="tune")
 
@@ -1048,8 +1035,6 @@ def test_lookup_attested_years_warns_on_missing_source_file(fresh_db: Path, tmp_
     sources = tmp_path / "sources"
     sources.mkdir()  # Empty — no .txt files.
     with LexiconDB(fresh_db) as db:
-        from wyrd.generators.kenning.lexicon import lookup_attested_years
-
         db.upsert_source(id="missing_src", title="M")
         _seed_text_match(db, source_id="missing_src", canonical_form="tune")
         result = lookup_attested_years(db, sources, apply=True)
@@ -1070,8 +1055,6 @@ def test_lookup_attested_years_accepts_year_at_upper_bound_1700(
     sources.mkdir()
     (sources / "src.txt").write_text("Tune, 1700.")
     with LexiconDB(fresh_db) as db:
-        from wyrd.generators.kenning.lexicon import lookup_attested_years
-
         db.upsert_source(id="src", title="S")
         rid = _seed_text_match(db, source_id="src", canonical_form="tune")
         lookup_attested_years(db, sources, apply=True)
@@ -1093,8 +1076,6 @@ def test_lookup_attested_years_lowercases_form_before_matching(
     sources.mkdir()
     (sources / "src.txt").write_text("TUNE, 1086 (DB).")
     with LexiconDB(fresh_db) as db:
-        from wyrd.generators.kenning.lexicon import lookup_attested_years
-
         db.upsert_source(id="src", title="S")
         # Stored matched_form is mixed-case, body is upper. Lowercasing
         # both at scan time makes them line up.
@@ -4891,6 +4872,125 @@ def test_clear_enrichment_cli_cognates_stage_round_trips(fresh_db: Path) -> None
             "SELECT COUNT(*) AS n FROM etymon WHERE synset_id IS NOT NULL"
         ).fetchone()["n"]
     assert remaining == 0
+
+
+def test_clear_enrichment_cli_attested_years_stage_round_trips(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """End-to-end CLI smoke for clear-enrichment --stage=attested-years
+    (D5-1 / wyrd-3ux). Pin via CliRunner so a typo in the new Click
+    Choice or the new echo branch surfaces immediately — the lib-level
+    test (test_clear_enrichment_attested_years_resets_only_year_column)
+    can't catch CLI wiring bugs."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "src.txt").write_text("Tune, 1086 (DB).")
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        rid = _seed_text_match(db, source_id="src", canonical_form="tune")
+        db.conn.execute(
+            "UPDATE etymon_text_match SET attested_year = ? WHERE id = ?",
+            (1086, rid),
+        )
+        db.commit()
+
+    runner = CliRunner()
+    dry = runner.invoke(
+        kenning_cli,
+        ["lexicon", "clear-enrichment", "--db", str(fresh_db), "--stage", "attested-years"],
+    )
+    assert dry.exit_code == 0, dry.output
+    assert "Stage: attested-years" in dry.output
+    assert "would clear 1 attested_year values" in dry.output
+    assert "dry-run" in dry.output
+
+    apply = runner.invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "clear-enrichment",
+            "--db",
+            str(fresh_db),
+            "--stage",
+            "attested-years",
+            "--apply",
+        ],
+    )
+    assert apply.exit_code == 0, apply.output
+    assert "cleared 1 attested_year values" in apply.output
+
+    with LexiconDB(fresh_db) as db:
+        remaining = db.conn.execute(
+            "SELECT COUNT(*) AS n FROM etymon_text_match WHERE attested_year IS NOT NULL"
+        ).fetchone()["n"]
+    assert remaining == 0
+
+
+def test_lookup_attested_years_cli_dry_run_reports_without_writing(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """End-to-end CLI smoke: dry-run reports row + candidate counts and
+    leaves attested_year NULL. Pins the Click wiring (--db, --apply
+    flag, sources_dir argument) so a typo surfaces immediately."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "src.txt").write_text("Tune, 1086 (DB).")
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        _seed_text_match(db, source_id="src", canonical_form="tune")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "lookup-attested-years", str(sources), "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "scanned 1 text-match row(s)" in result.output
+    assert "candidates    = 1" in result.output
+    assert "rows_written  = 0" in result.output
+    assert "dry-run" in result.output
+
+    with LexiconDB(fresh_db) as db:
+        years = [
+            row["attested_year"]
+            for row in db.conn.execute("SELECT attested_year FROM etymon_text_match")
+        ]
+    assert all(y is None for y in years)
+
+
+def test_lookup_attested_years_cli_apply_writes_years(fresh_db: Path, tmp_path: Path) -> None:
+    """--apply persists attested_year on each qualifying row. Pins the
+    rows_written echo branch — without this assertion a typo in the
+    format string would slip through despite the lib-level dict field
+    having coverage."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "src.txt").write_text("Tune, 1086 (DB).")
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        rid = _seed_text_match(db, source_id="src", canonical_form="tune")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "lookup-attested-years",
+            str(sources),
+            "--db",
+            str(fresh_db),
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "rows_written  = 1" in result.output
+    assert "dry-run" not in result.output
+
+    with LexiconDB(fresh_db) as db:
+        year = db.conn.execute(
+            "SELECT attested_year FROM etymon_text_match WHERE id = ?", (rid,)
+        ).fetchone()["attested_year"]
+    assert year == 1086
 
 
 def test_cluster_cognates_cli_warns_on_cycle_orphans(fresh_db: Path) -> None:
