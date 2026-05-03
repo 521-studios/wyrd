@@ -2427,7 +2427,7 @@ def bridge_generic_language(
 #   3. Anglicized spellings (drum from druim 'ridge'; lough from loch;
 #      kin from cinn — gen of ceann 'head'; cashel from caiseal).
 #
-# wyrd-083 (bridge_generic_language) only handles same-form lookups, so it
+# bridge_generic_language only handles same-form lookups, so it
 # misses all three. This table maps each high-witness inflected/Anglicized
 # form to the dictionary lemma that Wiktionary keys on. The lookup is then
 # searched across the celtic candidate languages, preferring the candidate
@@ -2436,7 +2436,7 @@ def bridge_generic_language(
 # Convention: keys are lowercase celtic place-name forms; values are the
 # lemma form (typically Modern Irish / Welsh / Scottish-Gaelic — the modern
 # Wiktionary headword orthography).
-_CELTIC_INFLECTION_BRIDGES: dict[str, str] = {
+_CELTIC_FORM_BRIDGES: dict[str, str] = {
     # Goidelic genitive of common landscape nouns
     "choill": "coill",  # gen of coill 'wood'
     "coille": "coill",
@@ -2510,7 +2510,7 @@ _CELTIC_INFLECTION_BRIDGES: dict[str, str] = {
 }
 
 
-def bridge_inflected_celtic(
+def bridge_celtic_forms(
     db: LexiconDB,
     *,
     apply: bool = False,
@@ -2539,7 +2539,7 @@ def bridge_inflected_celtic(
          eclipsis/lenition, and Anglicized spellings can be mapped to
          their Wiktionary headwords).
       2. Iterates ALL celtic rows (including pre-existing tombstones)
-         so the chain-flatten can re-route a stub-bridge from wyrd-083
+         so the chain-flatten can re-route an existing stub-bridge
          (celtic→old-irish that has no synset) to a clustered alternative
          (celtic→irish with a synset).
       3. Among multiple matching candidate languages, prefers the one
@@ -2559,7 +2559,7 @@ def bridge_inflected_celtic(
         exist as a canonical etymon in any candidate language
       - rows_written: actual UPDATE row count when apply=True
     """
-    table = _CELTIC_INFLECTION_BRIDGES if table is None else table
+    table = _CELTIC_FORM_BRIDGES if table is None else table
 
     # Build (lower(canonical_form), language) → (live_canonical_id, synset_id)
     # over canonical candidate-language etymons. We resolve through any
@@ -2640,7 +2640,7 @@ def bridge_inflected_celtic(
     if apply and bridges:
         # Chain-flatten + lemma-reparent in batch. The OR-clause re-routes
         # any pre-existing redirect that pointed AT this celtic etymon
-        # (e.g. an older wyrd-083 stub-bridge) onto the freshly-picked
+        # (e.g. an existing stub-bridge) onto the freshly-picked
         # clustered target, preventing a 2-deep chain that would split
         # witnesses in the single-level COALESCE rollup.
         cur = db.conn.executemany(

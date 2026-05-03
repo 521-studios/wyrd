@@ -32,8 +32,8 @@ from wyrd.generators.kenning.lexicon import (
     RECOMMENDED_LANG_THRESHOLDS,
     LexiconDB,
     backfill_citation_pages,
+    bridge_celtic_forms,
     bridge_generic_language,
-    bridge_inflected_celtic,
     bridge_phonological_oe,
     bridge_phonological_on,
     clear_enrichment,
@@ -2482,7 +2482,7 @@ def lexicon_bridge_language(
         click.echo("(dry-run; pass --apply to commit)", err=True)
 
 
-@lexicon.command("bridge-inflected-celtic")
+@lexicon.command("bridge-celtic-forms")
 @click.option(
     "--db",
     "db_path",
@@ -2497,7 +2497,7 @@ def lexicon_bridge_language(
     default=False,
     help="Actually write merged_into_id. Without this, dry-run reporting only.",
 )
-def lexicon_bridge_inflected_celtic(db_path: Path, apply_changes: bool) -> None:
+def lexicon_bridge_celtic_forms(db_path: Path, apply_changes: bool) -> None:
     """Bridge celtic place-name etymons to Wiktionary lemmas via a
     hand-curated form→lemma table.
 
@@ -2512,7 +2512,7 @@ def lexicon_bridge_inflected_celtic(db_path: Path, apply_changes: bool) -> None:
     can be re-routed to a clustered modern Irish / Welsh / Scottish-Gaelic
     counterpart in the same pass.
 
-    Run AFTER bridge-language (wyrd-083) and AFTER wiktextract ingest.
+    Run AFTER bridge-language and AFTER wiktextract ingest.
     Re-run cluster-cognates afterward to refresh synset_id assignments
     via the merged_into_id rollup.
 
@@ -2520,11 +2520,11 @@ def lexicon_bridge_inflected_celtic(db_path: Path, apply_changes: bool) -> None:
     the same merged_into_id mechanism).
     """
     with LexiconDB(db_path) as db:
-        result = bridge_inflected_celtic(db, apply=apply_changes)
+        result = bridge_celtic_forms(db, apply=apply_changes)
 
     verb = "bridged" if apply_changes else "would bridge"
     click.echo(
-        f"bridge-inflected-celtic: {result['examined']} celtic etymon(s) examined; "
+        f"bridge-celtic-forms: {result['examined']} celtic etymon(s) examined; "
         f"{verb} {result['bridged']}, {result['unmatched']} unmatched, "
         f"{result['missing_target']} missing-target.",
         err=True,
