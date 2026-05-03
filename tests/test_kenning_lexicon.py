@@ -6749,3 +6749,373 @@ def test_cli_bridge_phonological_on_warns_on_missing_target(fresh_db: Path) -> N
     assert result.exit_code == 0, result.output
     assert "warn:" in result.stderr
     assert "target that doesn't exist" in result.stderr
+
+
+# --- wyrd-7k4: bridge_celtic_forms --------------------------------
+
+
+def test_bridge_celtic_forms_genitive_to_lemma(fresh_db: Path) -> None:
+    """Smoke test: a known Goidelic genitive (`choill` = gen of coill
+    'wood') bridges to the Irish lemma."""
+    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
+
+    with LexiconDB(fresh_db) as db:
+        irish_id = db.upsert_etymon("coill", "irish")
+        # Pretend the Irish entry is clustered (has a synset).
+        db.conn.execute("UPDATE etymon SET synset_id = id WHERE id = ?", (irish_id,))
+        choill_id = db.upsert_etymon("choill", "celtic")
+        db.commit()
+        result = bridge_celtic_forms(db, apply=True)
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (choill_id,)
+        ).fetchone()["merged_into_id"]
+
+    assert merged == irish_id
+    assert result["bridged"] == 1
+    assert result["missing_target"] == 0
+
+
+def test_bridge_celtic_forms_prefers_clustered_target(fresh_db: Path) -> None:
+    """When the lemma exists in multiple candidate languages, the bridge
+    must pick the one with a non-NULL synset_id (clustered) over an
+    unclustered alternative — even if priority order would name the
+    unclustered one first.
+
+    This is the wyrd-083 stub-target bug: the original celtic bridge
+    picked old-irish/mac (no synset, isolated stub) over irish/mac
+    (synset 87349, clustered) because old-irish came first in the
+    priority list. The new bridge prefers clustered."""
+    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
+
+    with LexiconDB(fresh_db) as db:
+        # Higher-priority candidate (per default order: irish first), but
+        # we'll un-cluster it and cluster the lower-priority one to
+        # exercise the prefer-clustered branch.
+        db.upsert_etymon("mac", "irish")  # higher-priority but unclustered
+        old_irish_clustered = db.upsert_etymon("mac", "old-irish")
+        # Cluster only the old-irish entry.
+        db.conn.execute(
+            "UPDATE etymon SET synset_id = id WHERE id = ?",
+            (old_irish_clustered,),
+        )
+        # Add a celtic form whose lemma is 'mac' via the Anglicized
+        # 'mhic' (lenited gen of mac) entry in _CELTIC_FORM_BRIDGES.
+        celtic_mhic = db.upsert_etymon("mhic", "celtic")
+        db.commit()
+        bridge_celtic_forms(db, apply=True)
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (celtic_mhic,)
+        ).fetchone()["merged_into_id"]
+
+    # Despite irish/mac being higher-priority, the clustered old-irish/mac
+    # is chosen because the prefer-clustered logic kicks in.
+    assert merged == old_irish_clustered
+
+
+def test_bridge_celtic_forms_falls_back_to_unclustered(
+    fresh_db: Path,
+) -> None:
+    """If no candidate has a synset, the bridge falls back to the
+    first-found by priority order (unclustered target). Prevents
+    silently dropping bridges when the entire Wiktionary chain is stub."""
+    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
+
+    with LexiconDB(fresh_db) as db:
+        # Both candidates unclustered.
+        irish_id = db.upsert_etymon("coill", "irish")
+        db.upsert_etymon("coill", "scottish-gaelic")
+        choill_id = db.upsert_etymon("choill", "celtic")
+        db.commit()
+        bridge_celtic_forms(db, apply=True)
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (choill_id,)
+        ).fetchone()["merged_into_id"]
+
+    # Falls back to irish (priority-order first).
+    assert merged == irish_id
+
+
+def test_bridge_celtic_forms_reroutes_existing_stub_bridge(
+    fresh_db: Path,
+) -> None:
+    """The killer feature: if a celtic etymon was previously bridged to
+    an unclustered stub (e.g. by an earlier wyrd-083 run), this pass
+    re-routes it via chain-flatten to the clustered alternative.
+
+    The chain-flatten OR-clause `WHERE id = ? OR merged_into_id = ?`
+    catches the celtic etymon AND any rows that were already redirected
+    onto it (which would now form a 2-deep chain otherwise)."""
+    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
+
+    with LexiconDB(fresh_db) as db:
+        # The pre-existing wyrd-083 stub-bridge target (unclustered).
+        stub_id = db.upsert_etymon("mac", "old-irish")
+        # The clustered alternative we want to land on.
+        clustered_id = db.upsert_etymon("mac", "irish")
+        db.conn.execute("UPDATE etymon SET synset_id = id WHERE id = ?", (clustered_id,))
+        # Celtic etymon already pointed at the stub (simulating wyrd-083).
+        celtic_mhic = db.upsert_etymon("mhic", "celtic")
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (stub_id, celtic_mhic),
+        )
+        db.commit()
+        bridge_celtic_forms(db, apply=True)
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (celtic_mhic,)
+        ).fetchone()["merged_into_id"]
+
+    assert merged == clustered_id
+
+
+def test_bridge_celtic_forms_dry_run_does_not_write(fresh_db: Path) -> None:
+    """apply=False reports counts without writing merged_into_id."""
+    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_etymon("coill", "irish")
+        choill_id = db.upsert_etymon("choill", "celtic")
+        db.commit()
+        result = bridge_celtic_forms(db, apply=False)
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (choill_id,)
+        ).fetchone()["merged_into_id"]
+
+    assert merged is None
+    assert result["bridged"] == 1
+    assert result["rows_written"] == 0
+    assert result["applied"] is False
+
+
+def test_bridge_celtic_forms_idempotent_apply_skips_unchanged(
+    fresh_db: Path,
+) -> None:
+    """Re-running apply on an already-bridged corpus writes 0 new rows."""
+    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_etymon("coill", "irish")
+        db.upsert_etymon("choill", "celtic")
+        db.commit()
+        first = bridge_celtic_forms(db, apply=True)
+        second = bridge_celtic_forms(db, apply=True)
+    assert first["rows_written"] >= 1
+    assert second["rows_written"] == 0
+
+
+def test_bridge_celtic_forms_unmatched_celtic_form_left_alone(
+    fresh_db: Path,
+) -> None:
+    """A celtic etymon whose canonical_form isn't in the inflection table
+    is counted as `unmatched` (silent — table makes no claim)."""
+    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
+
+    with LexiconDB(fresh_db) as db:
+        unknown_id = db.upsert_etymon("xyzzy_unknown_celtic", "celtic")
+        db.commit()
+        result = bridge_celtic_forms(db, apply=True)
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (unknown_id,)
+        ).fetchone()["merged_into_id"]
+    assert merged is None
+    assert result["unmatched"] >= 1
+    assert result["missing_target"] == 0
+
+
+def test_bridge_celtic_forms_missing_target_increments_counter(
+    fresh_db: Path,
+) -> None:
+    """When the table names a lemma but no candidate-language etymon
+    exists with that form, missing_target ticks (operator signal)."""
+    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
+
+    with LexiconDB(fresh_db) as db:
+        # 'choill' is in the table → 'coill', but no Irish/SG/Welsh
+        # entry for 'coill' exists.
+        db.upsert_etymon("choill", "celtic")
+        db.commit()
+        result = bridge_celtic_forms(db, apply=True)
+
+    assert result["bridged"] == 0
+    assert result["missing_target"] == 1
+
+
+def test_bridge_celtic_forms_resolves_through_tombstone_lemma(
+    fresh_db: Path,
+) -> None:
+    """Candidate-index regression: when the lemma named in the bridge
+    table exists in a candidate language as a TOMBSTONE (already
+    OCR-merged into a canonical), the resolve step must walk the
+    merged_into_id chain so the bridge routes to the LIVE canonical,
+    not to the tombstone (which would create a 2-deep chain that the
+    single-level COALESCE rollup would split).
+
+    This pins the redirect-resolve loop in the candidate_index build."""
+    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
+
+    with LexiconDB(fresh_db) as db:
+        # The live canonical Irish lemma (clustered).
+        live_id = db.upsert_etymon("coill-canonical", "irish")
+        db.conn.execute("UPDATE etymon SET synset_id = id WHERE id = ?", (live_id,))
+        # The tombstone Irish entry that the bridge table value 'coill'
+        # actually names — already OCR-merged onto the live canonical.
+        tombstone_id = db.upsert_etymon("coill", "irish")
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (live_id, tombstone_id),
+        )
+        celtic_choill = db.upsert_etymon("choill", "celtic")
+        db.commit()
+        bridge_celtic_forms(db, apply=True)
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?",
+            (celtic_choill,),
+        ).fetchone()["merged_into_id"]
+
+    # The bridge resolved through tombstone → live canonical.
+    assert merged == live_id
+
+
+def test_bridge_celtic_forms_self_bridge_is_noop(fresh_db: Path) -> None:
+    """If the celtic etymon and the resolved target happen to be the
+    SAME etymon row (same id), the bridge is a no-op — bridges count
+    excludes it. Pin the `target_id == row['id']` guard."""
+    with LexiconDB(fresh_db) as db:
+        # One celtic row whose canonical_form matches a table key, AND
+        # the lemma the table names ALSO equals that same canonical_form,
+        # AND there's no separate candidate-language entry — but we make
+        # a celtic entry for the lemma itself. In practice the function
+        # iterates ALL celtic rows; we exercise the self-bridge guard by
+        # using a candidate-language match that happens to be the same id.
+        # Concretely: 'cu' (celtic) → 'cú' lemma. If we add 'cú' as the
+        # lemma in irish AND the celtic 'cu' is identified, no self-bridge
+        # because they're different rows. The self-bridge guard only fires
+        # if `target_id == row['id']`, which requires both to be the SAME
+        # etymon — only possible if a celtic row's lemma resolves back to
+        # itself. We construct that: 'cu' as both celtic and the only
+        # candidate by overriding the candidate_langs to include 'celtic'.
+        celtic_cu = db.upsert_etymon("cu", "celtic")
+        db.upsert_etymon("cú", "irish")
+        db.commit()
+        # Override candidate_langs to include 'celtic' so the celtic
+        # entry itself becomes a candidate. With only 'cu' (celtic)
+        # mapping to 'cú', and the 'cú' (irish) being a different row,
+        # the bridge would fire. To exercise the self-guard we need the
+        # candidate to BE the celtic row. Use a custom table where the
+        # form maps to its own canonical_form.
+        from wyrd.generators.kenning.lexicon import bridge_celtic_forms as bic
+
+        result = bic(
+            db,
+            apply=True,
+            table={"cu": "cu"},  # self-mapping
+            candidate_langs=("celtic",),
+        )
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (celtic_cu,)
+        ).fetchone()["merged_into_id"]
+
+    # Self-bridge guard kept the row untouched.
+    assert merged is None
+    assert result["bridged"] == 0
+
+
+def test_bridge_celtic_forms_iterates_tombstones(fresh_db: Path) -> None:
+    """Unlike same-language phonological bridges, this bridge iterates
+    ALL celtic rows (canonical + tombstones). A tombstone celtic row
+    whose stub target is unclustered must still be considered for re-route
+    via the chain-flatten OR-clause.
+
+    This pins that the bridge does NOT filter out tombstones up-front."""
+    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
+
+    with LexiconDB(fresh_db) as db:
+        clustered = db.upsert_etymon("mac", "irish")
+        db.conn.execute("UPDATE etymon SET synset_id = id WHERE id = ?", (clustered,))
+        # 'mhic' celtic → 'mac' lemma. Tombstone it onto a totally
+        # unrelated etymon to simulate corrupt prior bridge.
+        bystander = db.upsert_etymon("zzz_bystander", "celtic")
+        celtic_mhic = db.upsert_etymon("mhic", "celtic")
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (bystander, celtic_mhic),
+        )
+        db.commit()
+        result = bridge_celtic_forms(db, apply=True)
+
+    # Examined count includes BOTH the canonical bystander and the
+    # tombstone celtic_mhic (irish/mac is non-celtic, doesn't count).
+    assert result["examined"] == 2
+    # Tombstone re-routed to clustered target (chain-flatten OR-clause).
+    with LexiconDB(fresh_db) as db2:
+        actual = db2.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (celtic_mhic,)
+        ).fetchone()["merged_into_id"]
+    assert actual == clustered
+
+
+# --- CLI smoke for bridge-celtic-forms ----------------------------
+
+
+def test_cli_bridge_celtic_forms_dry_run(fresh_db: Path) -> None:
+    """`lexicon bridge-celtic-forms` (no --apply) reports counts
+    without writing merged_into_id."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_etymon("coill", "irish")
+        place_id = db.upsert_etymon("choill", "celtic")
+        db.commit()
+
+    result = CliRunner().invoke(
+        kenning_cli,
+        ["lexicon", "bridge-celtic-forms", "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "would bridge 1" in result.stderr
+    assert "(dry-run; pass --apply to commit)" in result.stderr
+
+    with LexiconDB(fresh_db) as db:
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (place_id,)
+        ).fetchone()["merged_into_id"]
+    assert merged is None
+
+
+def test_cli_bridge_celtic_forms_apply_writes_merge(fresh_db: Path) -> None:
+    """`--apply` commits the bridge and reports rows_written."""
+    with LexiconDB(fresh_db) as db:
+        target_id = db.upsert_etymon("coill", "irish")
+        place_id = db.upsert_etymon("choill", "celtic")
+        db.commit()
+
+    result = CliRunner().invoke(
+        kenning_cli,
+        ["lexicon", "bridge-celtic-forms", "--db", str(fresh_db), "--apply"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "bridged 1" in result.stderr
+    assert "rows_written" in result.stderr
+
+    with LexiconDB(fresh_db) as db:
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (place_id,)
+        ).fetchone()["merged_into_id"]
+    assert merged == target_id
+
+
+def test_cli_bridge_celtic_forms_warns_on_missing_target(
+    fresh_db: Path,
+) -> None:
+    """When a table entry names a lemma that doesn't exist in any
+    candidate language, the CLI emits the missing_target warning."""
+    with LexiconDB(fresh_db) as db:
+        # 'choill' → 'coill', but no 'coill' lemma anywhere.
+        db.upsert_etymon("choill", "celtic")
+        db.commit()
+
+    result = CliRunner().invoke(
+        kenning_cli,
+        ["lexicon", "bridge-celtic-forms", "--db", str(fresh_db), "--apply"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "warn:" in result.stderr
+    assert "doesn't exist" in result.stderr
