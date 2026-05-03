@@ -123,15 +123,22 @@ def test_inh_template_emits_inheritance_upward_edge(fresh_db: Path) -> None:
         ("inh", "inheritance"),
         ("inherited", "inheritance"),
         ("inh+", "inheritance"),
+        ("inh-lite", "inheritance"),
         ("bor", "borrowing"),
         ("borrowed", "borrowing"),
         ("bor+", "borrowing"),
+        ("lbor", "borrowing"),
+        ("ubor", "borrowing"),
         ("der", "derivation"),
         ("derived", "derivation"),
         ("der+", "derivation"),
+        ("der-lite/lang", "derivation"),
+        ("uder", "derivation"),
         ("cal", "calque"),
         ("calque", "calque"),
         ("clq", "calque"),
+        ("semantic loan", "calque"),
+        ("sl", "calque"),
     ],
 )
 def test_each_upward_template_kind_maps_to_correct_edge_type(
@@ -795,6 +802,8 @@ def test_root_template_with_multiple_parallel_roots_emits_one_edge_each(
         "af",
         "affix",
         "confix",
+        "blend",
+        "univerbation",
     ],
 )
 def test_compound_template_emits_one_edge_per_constituent(
@@ -842,6 +851,142 @@ def test_compound_template_with_three_constituents_emits_three_edges(
     assert result["upward_edges"] == 3
     for part in ("alpha", "beta", "gamma"):
         assert (part, "threepart", "compound", "wiktionary") in edges
+
+
+def test_compound_template_walrus_loop_terminates_on_arg_gap(fresh_db: Path) -> None:
+    """The walrus while-loop in _compound_template_edges advertises
+    'walks args[2..N] until a positional arg is missing'. Pin that a
+    sparse args dict ({2: 'a', 4: 'c'}) yields exactly one edge for
+    args[2] and stops there — args[4] is not reached because args[3]
+    is absent. Without this pin a regression to a fixed-range loop
+    (or an iterator that skipped gaps) wouldn't surface."""
+    line = _wiktextract_entry(
+        word="sparse",
+        lang_code="ang",
+        etymology_templates=[
+            {
+                "name": "compound",
+                "args": {"1": "ang", "2": "a", "4": "c"},
+            }
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edges = _all_descent_edges(db)
+    assert result["upward_edges"] == 1
+    assert ("a", "sparse", "compound", "wiktionary") in edges
+    assert ("c", "sparse", "compound", "wiktionary") not in edges
+
+
+def test_compound_template_with_no_constituent_args_emits_no_edges(
+    fresh_db: Path,
+) -> None:
+    """{{univerbation|gem-pro}} occurs in PG slice as a bare category
+    marker with no args[2..]. _compound_template_edges defensively
+    returns [] when no parts are found — pin that this case neither
+    raises nor produces edges."""
+    line = _wiktextract_entry(
+        word="bare",
+        lang_code="gem-pro",
+        etymology_templates=[{"name": "univerbation", "args": {"1": "gem-pro"}}],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+    assert result["upward_edges"] == 0
+    assert result["unsupported_templates"] == 0  # univerbation is in known set
+
+
+def test_root_template_walrus_loop_terminates_on_arg_gap(fresh_db: Path) -> None:
+    """Same walrus-loop gap-termination contract as
+    _compound_template_edges, but for _root_template_edges walking
+    args[3..N]. Pin that a sparse args dict ({3: 'r1', 5: 'r3'})
+    yields exactly one edge for args[3] and stops there."""
+    line = _wiktextract_entry(
+        word="rooted",
+        lang_code="en",
+        etymology_templates=[
+            {
+                "name": "root",
+                "args": {"1": "en", "2": "ine-pro", "3": "*r1", "5": "*r3"},
+            }
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edges = _all_descent_edges(db)
+    assert result["upward_edges"] == 1
+    assert ("*r1", "rooted", "inheritance", "wiktionary") in edges
+    assert ("*r3", "rooted", "inheritance", "wiktionary") not in edges
+
+
+@pytest.mark.parametrize(
+    "same_lang_derivation_template",
+    [
+        "clipping",
+        "bf",
+        "back-formation",
+        "back-form",
+        "contraction",
+        "deverbal",
+        "nom",
+        "reduplication",
+        "contr",
+        "sync",
+        "apocopic form",
+        "metathesis",
+        "past participle of",
+        "alt form",
+        "abbrev",
+        "vrd",
+        "nominalization",
+        "syncope",
+        "alternative form of",
+        "abbreviation",
+    ],
+)
+def test_same_lang_derivation_template_emits_one_derivation_edge(
+    fresh_db: Path, same_lang_derivation_template: str
+) -> None:
+    """wyrd-wse: the back-formation/clipping family of templates has a
+    different arg shape from inh/bor/der/cal — args[1] = this_lang AND
+    parent's lang, args[2] = parent_word (NOT args[3]). Each emits one
+    'derivation' edge with parent and child sharing the language. Pin
+    each alias so a refactor of _SAME_LANG_DERIVATION_TEMPLATE_NAMES
+    surfaces immediately."""
+    line = _wiktextract_entry(
+        word="elp",
+        lang_code="ang",
+        etymology_templates=[
+            {
+                "name": same_lang_derivation_template,
+                "args": {"1": "ang", "2": "elpend"},
+            }
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edges = _all_descent_edges(db)
+    assert result["upward_edges"] == 1
+    assert ("elpend", "elp", "derivation", "wiktionary") in edges
+
+
+def test_same_lang_derivation_with_missing_parent_word_is_skipped(
+    fresh_db: Path,
+) -> None:
+    """A clipping/bf template missing args[2] (the parent word) is not
+    edge-producing — the parent isn't named. Skipped without exception
+    so the rest of the entry's templates still process."""
+    line = _wiktextract_entry(
+        word="elp",
+        lang_code="ang",
+        etymology_templates=[
+            {"name": "clipping", "args": {"1": "ang"}},  # missing args[2]
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+
+    assert result["upward_edges"] == 0
 
 
 def test_compound_edge_does_not_bridge_synsets(fresh_db: Path) -> None:
@@ -906,7 +1051,6 @@ def test_compound_edge_does_not_bridge_synsets(fresh_db: Path) -> None:
         "str sub-lite",
         "str sub-lite/2",
         "ety",
-        "vrd",
         "lit",
         "langname",
         "word",
@@ -920,6 +1064,41 @@ def test_compound_edge_does_not_bridge_synsets(fresh_db: Path) -> None:
         "or else",
         "desc",
         ",",
+        # wyrd-wse: long-name + abbreviation variants of already-skipped
+        "nonlemmas",
+        "mention-gloss",
+        "noncognate",
+        "onomatopoeia",
+        "onom",
+        "m-lite",
+        # wyrd-wse: no-arg category-only markers
+        "pre-Germanic",
+        "vrddhi",
+        # wyrd-wse: small formatting / unknown-context templates
+        "g",
+        "?",
+        "s",
+        "IPAfont",
+        "uncertain",
+        "anchor",
+        "number box",
+        "sno",
+        "qinfl",
+        "coin",
+        "lang",
+        "ISSN",
+        "tea",
+        "pw dbt",
+        # wyrd-wse: long-tail single-occurrence kinds
+        "senseno",
+        "C.E.",
+        "smallcaps",
+        "angbr",
+        "PIE root box",
+        "non-gloss",
+        "displaced",
+        "alter",
+        "etydate",
     ],
 )
 def test_each_new_skipped_template_does_not_count_unsupported(

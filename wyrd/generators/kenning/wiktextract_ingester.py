@@ -96,15 +96,30 @@ _UPWARD_TEMPLATE_TO_EDGE: dict[str, str] = {
     "inh": "inheritance",
     "inherited": "inheritance",
     "inh+": "inheritance",
+    # wyrd-wse: lite version surfaced in OE slice — same arg shape as inh.
+    "inh-lite": "inheritance",
     "bor": "borrowing",
     "borrowed": "borrowing",
     "bor+": "borrowing",
+    # wyrd-wse: learned + unattested borrowing variants. Same shape as bor.
+    "lbor": "borrowing",
+    "ubor": "borrowing",
     "der": "derivation",
     "derived": "derivation",
     "der+": "derivation",
+    # wyrd-wse: lite version surfaced in OE slice. Same arg shape as der.
+    "der-lite/lang": "derivation",
+    # wyrd-wse: 'unknown derivation' / 'user-friendly derived' — verified
+    # cross-language 3-arg shape against real OE entries:
+    #   {{uder|ang|la|Tigris}} → ang Tigris ← la Tigris
+    "uder": "derivation",
     "cal": "calque",
     "calque": "calque",
     "clq": "calque",
+    # wyrd-wse: semantic loan is structurally a calque (form-meaning shape
+    # carried across language boundary). Same args[2]/args[3] shape.
+    "semantic loan": "calque",
+    "sl": "calque",
 }
 
 # wyrd-prv: PIE-root templates have args
@@ -113,6 +128,67 @@ _UPWARD_TEMPLATE_TO_EDGE: dict[str, str] = {
 #   args[3..N] = root word(s) — sometimes multiple parallel roots are cited
 # Each root word becomes its own inheritance edge to this entry.
 _ROOT_TEMPLATE_NAMES: frozenset[str] = frozenset({"root"})
+
+# wyrd-wse: same-language single-parent derivation templates. These have
+# a different arg shape from inh/bor/der/cal — the parent word lives at
+# args[2] and the parent lang IS this_lang (args[1]). The derivational
+# relationship stays within one language:
+#
+#   {{clipping|ang|elpend}}      → elpend → elp (OE clipping)
+#   {{back-formation|ang|sċeadu}} → sċeadu → scead (OE back-formation)
+#   {{bf|non|trǫf}}              → trǫf → traf (ON back-formation)
+#
+# All map to 'derivation' edges (D27 doesn't have separate kinds for
+# these morphological relationships, and they all express
+# derivational lineage within a single language).
+_SAME_LANG_DERIVATION_TEMPLATE_NAMES: frozenset[str] = frozenset(
+    {
+        "clipping",
+        "bf",
+        "back-formation",
+        "back-form",
+        "contraction",
+        "deverbal",
+        "nom",
+        # Defensive-add: full-name variants of already-verified abbreviations.
+        # They don't appear in the four ingested slices (OE/ON/PG/PC) but
+        # almost certainly share their abbreviation's arg shape, and the
+        # dispatcher returns [] when args are insufficient.
+        "nominalization",
+        "syncope",
+        "alternative form of",
+        "abbreviation",
+        "reduplication",
+        # Verified from real wiktextract entries 2026-05-03:
+        #   {{contr|ang|æghwæþer}} → ang ægþer (contraction abbreviation)
+        #   {{sync|ang|isern}}     → ang iren  (syncope)
+        #   {{apocopic form|ang|æþele}} → ang æþel
+        # metathesis sometimes lacks args[2] (just a category marker),
+        # but the dispatcher returns [] defensively when args[2] is
+        # missing — including it costs nothing and admits the cases
+        # where args[2] IS present.
+        "contr",
+        "sync",
+        "apocopic form",
+        "metathesis",
+        # Verified from real OE entries 2026-05-03:
+        #   {{past participle of|ang|sāmwyrċan}} → ang samworht ← sāmwyrċan
+        #   {{alt form|ang|ġefulwian}}           → ang gefullian ← ġefulwian
+        #   {{abbrev|ang|onġemang}}              → ang amang ← onġemang
+        # Same single-parent same-language shape as clipping/contr/etc.
+        "past participle of",
+        "alt form",
+        "abbrev",
+        # vrd = vṛddhi gerundive abbreviation. 62 occurrences in PG/ON
+        # slices; verified args[2] holds the parent word
+        # ({{vrd|gem-pro|*drepaną}} → gem-pro hældræpr ← *drepaną).
+        # NOTE: the long-form 'vrddhi' template stores the parent in
+        # the 'alt' keyword arg instead of args[2], so it stays in the
+        # skip list — handling that variant would need the dispatcher
+        # to inspect named kwargs.
+        "vrd",
+    }
+)
 
 # wyrd-prv: compound / affix templates have args
 #   args[1] = this entry's lang_code (all parts are in THIS language)
@@ -138,6 +214,16 @@ _COMPOUND_TEMPLATE_NAMES: frozenset[str] = frozenset(
         # a stem). Same arg shape as compound; treating each constituent
         # as a 'compound' edge is the right call.
         "confix",
+        # wyrd-wse: blend is a portmanteau of two source words; arg shape
+        # matches compound (args[1]=this_lang, args[2..]=parts). Treating
+        # each part as a compound edge captures the same shape.
+        "blend",
+        # Univerbation = compound formed from a free word sequence.
+        # The OE-slice samples I checked omit args[2..] (use it as a
+        # bare category marker), but documentation of {{univerbation}}
+        # says args[2..] carry the constituent parts. Compound handler
+        # safely returns [] when args[2..] are missing.
+        "univerbation",
     }
 )
 
@@ -193,7 +279,6 @@ _SKIPPED_TEMPLATE_NAMES: frozenset[str] = frozenset(
         "sup",
         "smallsup",
         "ety",
-        "vrd",
         "PIE word",
         "cat",
         "or else",
@@ -219,6 +304,48 @@ _SKIPPED_TEMPLATE_NAMES: frozenset[str] = frozenset(
         "normalized",
         "surface analysis",
         ",",
+        # wyrd-wse: more skip-only kinds discovered in PG/ON live ingest.
+        # Long-name variants of already-skipped templates:
+        "nonlemmas",  # plural of nonlemma
+        "mention-gloss",  # long name of m+
+        "noncognate",  # long name of noncog
+        "onomatopoeia",  # long name of onomatopoeic
+        "onom",  # abbrev of onomatopoeic
+        "m-lite",  # lite of m
+        # No-arg category-only markers (no parent etymon to extract):
+        "pre-Germanic",
+        "vrddhi",  # marker only — args[1] is this_lang; no parent_word
+        # Small formatting / unknown-context templates:
+        "g",
+        "?",
+        "s",
+        "IPAfont",
+        "uncertain",
+        "anchor",
+        "number box",
+        "sno",
+        "qinfl",
+        "coin",
+        "lang",
+        "ISSN",
+        "tea",
+        # pw dbt = proto-word doublet; peer relation, like doublet.
+        "pw dbt",
+        # wyrd-wse: long-tail single-occurrence kinds across the OE/ON/PG/PC
+        # slices. Mostly formatting (smallcaps, angbr, PIE root box,
+        # etydate) plus 'alter' and 'displaced', which have arg shapes
+        # that don't fit the same-lang or cross-lang single-parent
+        # patterns (alter takes two parallel parents at args[2,3];
+        # displaced's args[1] is the displacing language, not this_lang).
+        "senseno",
+        "C.E.",
+        "smallcaps",
+        "angbr",
+        "PIE root box",
+        "non-gloss",
+        "displaced",  # args[1] is displacing-language, not this_lang — different shape
+        "alter",  # 3-arg with two alt forms — different shape from same-lang derivation
+        "etydate",
     }
 )
 
@@ -243,62 +370,99 @@ def _extract_template_args(tmpl: dict[str, Any]) -> dict[str, str]:
 def _upward_edges_from_template(
     tmpl: dict[str, Any],
 ) -> list[tuple[str, str, str]]:
-    """Pull a list of (parent_lang_code, parent_word, edge_type) tuples
-    out of a wiktextract etymology template. Returns an empty list if
-    the template isn't one of our edge-producing kinds or its args
-    don't supply enough information.
+    """Dispatch a wiktextract etymology template to the right arg-shape
+    handler and return the (parent_lang_code, parent_word, edge_type)
+    tuples it produces. Empty list when the template isn't edge-
+    producing or its args don't supply enough information.
 
-    Single-parent templates (inh/bor/der/cal): args[2]=parent_lang,
-    args[3]=parent_word. One edge.
+    The template-set membership tells us the arg shape; each helper
+    encapsulates one shape:
 
-    Root templates (root): args[2]=ancestor_lang, args[3..]=root_word(s).
-    Each root word emits its own inheritance edge — Wiktionary editors
-    sometimes cite parallel PIE roots when the chain is contested.
-
-    Compound / affix templates (compound/com/prefix/pre/suffix/suf/af/
-    affix): args[1]=this_lang (all parts are in THIS language),
-    args[2..]=constituent parts. Each constituent emits its own
-    'compound' edge to this entry — a derivational composition.
+      * `_cross_lang_single_parent_edges` — inh/bor/der/cal/sl/lbor/...:
+        args[2]=parent_lang, args[3]=parent_word. One edge.
+      * `_root_template_edges` — {{root}}: args[2]=ancestor_lang,
+        args[3..N]=root_word(s). One edge per root.
+      * `_compound_template_edges` — compound/affix/blend/...:
+        args[1]=this_lang, args[2..N]=constituent parts. One edge each.
+      * `_same_lang_derivation_edges` — clipping/bf/back-formation/...:
+        args[1]=this_lang (also parent_lang), args[2]=parent_word. One.
     """
     name = tmpl.get("name", "")
     args = _extract_template_args(tmpl)
     if name in _UPWARD_TEMPLATE_TO_EDGE:
-        edge_type = _UPWARD_TEMPLATE_TO_EDGE[name]
-        parent_lang_code = args.get("2")
-        parent_word = args.get("3")
-        if parent_lang_code and parent_word:
-            return [(parent_lang_code, parent_word, edge_type)]
-        return []
+        return _cross_lang_single_parent_edges(name, args)
     if name in _ROOT_TEMPLATE_NAMES:
-        ancestor_lang = args.get("2")
-        if not ancestor_lang:
-            return []
-        # PIE-root templates can cite up to a handful of parallel roots
-        # at args[3], args[4], args[5]. Iterating up to a small fixed
-        # bound is enough — never seen >3 in real data.
-        edges: list[tuple[str, str, str]] = []
-        for i in (3, 4, 5):
-            word = args.get(str(i))
-            if word:
-                edges.append((ancestor_lang, word, "inheritance"))
-        return edges
+        return _root_template_edges(args)
     if name in _COMPOUND_TEMPLATE_NAMES:
-        this_lang = args.get("1")
-        if not this_lang:
-            return []
-        # Compound parts are at args[2], args[3], ... up to args[N]. Real
-        # OE compounds rarely exceed 3 parts; tolerate up to args[6].
-        edges = []
-        for i in (2, 3, 4, 5, 6):
-            part = args.get(str(i))
-            if part:
-                edges.append((this_lang, part, "compound"))
-        return edges
+        return _compound_template_edges(args)
+    if name in _SAME_LANG_DERIVATION_TEMPLATE_NAMES:
+        return _same_lang_derivation_edges(args)
+    return []
+
+
+def _cross_lang_single_parent_edges(name: str, args: dict[str, str]) -> list[tuple[str, str, str]]:
+    """{{inh|en|ang|tūn}} → [(ang, tūn, inheritance)]. Same shape covers
+    bor/der/cal and their +/lite variants and semantic loan / sl."""
+    parent_lang_code = args.get("2")
+    parent_word = args.get("3")
+    if parent_lang_code and parent_word:
+        return [(parent_lang_code, parent_word, _UPWARD_TEMPLATE_TO_EDGE[name])]
+    return []
+
+
+def _root_template_edges(args: dict[str, str]) -> list[tuple[str, str, str]]:
+    """{{root|en|ine-pro|*r1|*r2}} → one inheritance edge per root word.
+    Wiktionary editors sometimes cite parallel PIE roots when the chain
+    is contested. Walks args[3], args[4], ... while consecutive
+    positional args are present, so unusually-long root lists don't
+    silently truncate."""
+    ancestor_lang = args.get("2")
+    if not ancestor_lang:
+        return []
+    edges: list[tuple[str, str, str]] = []
+    i = 3
+    while (word := args.get(str(i))) is not None:
+        if word:
+            edges.append((ancestor_lang, word, "inheritance"))
+        i += 1
+    return edges
+
+
+def _compound_template_edges(args: dict[str, str]) -> list[tuple[str, str, str]]:
+    """{{compound|ang|Sċott|land}} → one 'compound' edge per constituent.
+    Walks args[2], args[3], ... while consecutive positional args are
+    present, so multi-part compounds don't silently truncate at a
+    fixed bound."""
+    this_lang = args.get("1")
+    if not this_lang:
+        return []
+    edges: list[tuple[str, str, str]] = []
+    i = 2
+    while (part := args.get(str(i))) is not None:
+        if part:
+            edges.append((this_lang, part, "compound"))
+        i += 1
+    return edges
+
+
+def _same_lang_derivation_edges(
+    args: dict[str, str],
+) -> list[tuple[str, str, str]]:
+    """{{clipping|ang|elpend}} → [(ang, elpend, derivation)]. Parent lang
+    is the SAME as this_lang (args[1]) — back-formation, contraction,
+    syncope, etc. all stay within one language."""
+    this_lang = args.get("1")
+    parent_word = args.get("2")
+    if this_lang and parent_word:
+        return [(this_lang, parent_word, "derivation")]
     return []
 
 
 _KNOWN_TEMPLATE_NAMES: frozenset[str] = frozenset(
-    set(_UPWARD_TEMPLATE_TO_EDGE) | _ROOT_TEMPLATE_NAMES | _COMPOUND_TEMPLATE_NAMES
+    set(_UPWARD_TEMPLATE_TO_EDGE)
+    | _ROOT_TEMPLATE_NAMES
+    | _COMPOUND_TEMPLATE_NAMES
+    | _SAME_LANG_DERIVATION_TEMPLATE_NAMES
 )
 
 
