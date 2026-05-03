@@ -540,9 +540,11 @@ def test_transport_error_result_packs_failure_into_llmresult():
 
 def test_assemble_extraction_result_not_found_emits_low_confidence_entry():
     """Per D14, when the response says found=False the result is an
-    accepted ParsedEntry with empty elements and confidence='low'. The
-    notes_prefix is ignored on this path (no source_quote tagging) since
-    the body itself is the source_quote."""
+    accepted ParsedEntry with empty elements and confidence='low'. Per
+    wyrd-6hd, the source_quote on the decline path now carries the
+    provider notes_prefix so a later query can distinguish 'Gemini
+    declined this' from 'Qwen declined' — matches the accepted-path
+    composition."""
     from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
 
     body = "Foobar — origin unknown."
@@ -557,7 +559,36 @@ def test_assemble_extraction_result_not_found_emits_low_confidence_entry():
     assert result.entry is not None
     assert result.entry.elements == []
     assert result.entry.confidence == "low"
-    assert result.entry.source_quote == body[:SOURCE_QUOTE_BUDGET]
+    # Provider attribution rides on the decline-path source_quote.
+    assert result.entry.source_quote.startswith("extracted_by:test:1 | ")
+    assert "Foobar — origin unknown." in result.entry.source_quote
+    assert len(result.entry.source_quote) <= SOURCE_QUOTE_BUDGET
+
+
+def test_assemble_extraction_result_decline_path_distinguishes_providers():
+    """wyrd-6hd: two providers declining the same body land different
+    source_quote prefixes — pins the audit-query shape that motivated
+    the change ('show me Gemini's declines' vs 'show me Qwen's')."""
+    from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
+
+    body = "Foobar — origin unknown."
+    gemini = assemble_extraction_result(
+        {"found": False},
+        body=body,
+        toponym="Foobar",
+        suffix_hint=None,
+        notes_prefix="extracted_by:gemini:gemini-2.5-flash",
+    )
+    qwen = assemble_extraction_result(
+        {"found": False},
+        body=body,
+        toponym="Foobar",
+        suffix_hint=None,
+        notes_prefix="extracted_by:llm:qwen3.5:35b-a3b",
+    )
+    assert gemini.entry.source_quote.startswith("extracted_by:gemini:gemini-2.5-flash | ")
+    assert qwen.entry.source_quote.startswith("extracted_by:llm:qwen3.5:35b-a3b | ")
+    assert gemini.entry.source_quote != qwen.entry.source_quote
 
 
 def test_assemble_extraction_result_validation_failure_marks_rejected():
@@ -631,10 +662,11 @@ def test_assemble_extraction_result_tags_source_quote_with_prefix():
 
 def test_assemble_extraction_result_truncates_long_body_at_budget():
     """wyrd-9kh.2: source_quote budget is 500 chars total. A long body
-    must truncate at the budget on both the decline path (body-only) and
-    the accepted path (combined_notes + ' | ' + body). Pins the budget
-    so a future change that drops the truncation gets caught before the
-    SPA citation view starts emitting megabyte-sized rows.
+    must truncate at the budget on both the decline path (per wyrd-6hd
+    now also prefixed: 'notes_prefix | body') and the accepted path
+    ('combined_notes | body'). Pins the budget so a future change that
+    drops the truncation gets caught before the SPA citation view
+    starts emitting megabyte-sized rows.
     """
     from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
 
@@ -643,7 +675,7 @@ def test_assemble_extraction_result_truncates_long_body_at_budget():
     body = ("Foobar — from Old English foo, " + ("a " * 600))[:1200]
     assert len(body) == 1200
 
-    # Decline path: body-only.
+    # Decline path: prefix + ' | ' + body, capped at the budget (wyrd-6hd).
     declined = assemble_extraction_result(
         {"found": False},
         body=body,
@@ -654,7 +686,8 @@ def test_assemble_extraction_result_truncates_long_body_at_budget():
     assert declined.accepted is True
     assert declined.entry is not None
     assert len(declined.entry.source_quote) == SOURCE_QUOTE_BUDGET
-    assert declined.entry.source_quote == body[:SOURCE_QUOTE_BUDGET]
+    expected_decline = f"extracted_by:test:1 | {body}"[:SOURCE_QUOTE_BUDGET]
+    assert declined.entry.source_quote == expected_decline
 
     # Accepted path: combined_notes + ' | ' + body capped at the budget.
     response = {
