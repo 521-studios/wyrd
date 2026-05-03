@@ -980,3 +980,45 @@ def test_walk_descendants_all_skipped_templates_does_not_advance_parent_stack(
     # naive implementation that pushed None onto parent_stack).
     assert ("variant", "child", "inheritance", "wiktionary") in edges
     assert ("*root", "variant", "inheritance", "wiktionary") in edges
+
+
+def test_walk_descendants_depth_jump_with_all_skipped_does_not_credit_counter(
+    fresh_db: Path,
+) -> None:
+    """Round-3 test-coverage gap: the bug fix moved the
+    depth_jumps_recovered increment to AFTER the all-skipped
+    early-out. Pin the combined branch — a depth-jump entry whose
+    templates ALL skip should NOT credit the counter (because no
+    edge actually anchored). A regression that hoisted the counter
+    back above the early-out would silently re-credit failed
+    depth-jump entries here.
+
+    Tree: a depth=3 qualifier-only entry following a depth=1 valid
+    entry. The depth=3 jumps over depth=2 — a depth-jump shape — but
+    its templates produce no edges. depth_jumps_recovered should
+    stay 0.
+    """
+    line = _wiktextract_entry(
+        word="*root",
+        lang_code="gem-pro",
+        descendants=[
+            {
+                "depth": 1,
+                "templates": [{"name": "desc", "args": {"1": "ang", "2": "child1"}}],
+            },
+            {
+                # Skipping depth=2 directly to depth=3 — would normally
+                # credit depth_jumps_recovered — but the templates are
+                # all qualifier, so no edge anchors and the counter
+                # must NOT increment.
+                "depth": 3,
+                "templates": [{"name": "qualifier", "args": {"1": "rare"}}],
+            },
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+
+    assert result["depth_jumps_recovered"] == 0
+    assert result["downward_edges"] == 1  # only child1 from the valid entry
+    assert result["skipped_templates"] == 1
