@@ -196,6 +196,30 @@ counting will flag this kind of book as a strong candidate; verify by
 running a 5–30 entry mining smoke before committing API budget (see
 `bd memories trust-audit-table-over-agent-summaries`).
 
+**Joret 1881 (patois Normand du Bessin) is a fourth class** — title's
+*"suivi d'un dictionnaire étymologique"* suggests toponymic etymology
+but the dictionary section is **Norman dialect WORDS + Latin etymons**
+(`Etande` ← *extendere*, `Foche` ← *focacia*, `FoRTEUNE` ← *fortuna*),
+not place-name etymology. Pipeline-mismatched with the existing
+toponym mine-llm path; same shape as Troude 1876 / Le Gonidec /
+Châlons-Loth Vannetais — language dictionaries that fit the
+wyrd-4rt Wiktionary-style ingestion path, not the toponym extractor.
+Probe before mining: read 6-10 sample entries to confirm shape
+("Foochat, s. m.: focal" vs. "Foochat, ... from O.E. focal-tūn").
+
+**Mawer 1920 Northumberland-Durham via Gemini Flash 2.5 as Tier-1**
+(2026-05-03, wyrd-m70) — successful "different model on already-mined
+book" pattern. Gemini Tier-1 hit 62% accept on a book that Qwen had
+done at 47% and Haiku at 60%; the Gemini-tagged 501 acceptances added
+an independent 3rd-model witness layer + 121 new unique lemmas at
+1+ witness. Cost ~\$2.50 over ~95 minutes. Free-tier daily quota was
+sufficient for one such pass; concurrent Gemini Tier-1 work hits
+the rate limit fast. Note: works cleanly when the prior mining used
+Qwen (Tier-2 review path filters Ollama-tagged rows and slips to
+Tier-1 cleanly), but Haiku-mined books have a unique-(toponym_id,
+source_id) collision that blocks 3rd-model attribution unless the
+review query is extended (filed as wyrd-eca).
+
 **Tier 2 review (Gemini Flash) is the standard second pass on English
 mining**, not a contingency. After `mine-llm --provider ollama`
 completes, run `lexicon review --provider gemini --apply` — see
@@ -290,6 +314,22 @@ Acceptance rate by book type:
 
 Low accept is not always a bug — it's often the right answer for the
 book type. Consult the table before assuming the pipeline is broken.
+
+**Smoke-yield bias caveat (2026-05-03):** the first N entries are not
+representative of full-pass yield on treatise-class books. d'Arbois
+1890 hit 40% accept on smoke-30 but 10% on the full 960 pass — the
+early Roman/Gaulish discussion chapters were dense; later ones got
+abstract. **Treat the smoke rate as an upper bound for treatise /
+chrestomathy / methodology books** (the alphabetical-county-dict class
+is more uniform). For yield projections, sample two slices: the
+default first-30 plus an explicit `--limit` skip-then-take that
+samples deeper into the body.
+
+**Rejection-reason diagnostic:** a single rejection reason >30% of
+total rejections is a signal that the validator's design context may
+not fit the source class — investigate before assuming the book is
+low-yield. See `DECISIONS.md` D5 (wyrd-z56) for the canonical
+worked example (d'Arbois 1890 / 800-year floor / PR #42 fix).
 
 ### Tier 2 review pass (English only — Gemini Flash)
 
