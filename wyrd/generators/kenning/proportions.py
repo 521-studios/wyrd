@@ -22,7 +22,14 @@ class Generator:
     def add_item(self, key, proportion):
         self.elements[key] = proportion
 
-    def select(self, rng, *tags, novelty: float = 0.0, harshness: float = 0.0):
+    def select(
+        self,
+        rng,
+        *tags,
+        novelty: float = 0.0,
+        harshness: float = 0.0,
+        exclude_tags: tuple[str, ...] = (),
+    ):
         """Pick one element, optionally blending toward a uniform marginal
         and/or biasing toward phonologically-harsh keys.
 
@@ -45,10 +52,18 @@ class Generator:
         the entire bucket (because ``_blend_uniform`` ignores the empirical
         side at novelty=1), while ``--harsh 1 --novelty 0`` is pure
         harsh-empirical.
+
+        ``exclude_tags`` (wyrd-yan) drops keys whose usage carries any of
+        the named tags. Applied AFTER the positive ``tags`` include-filter,
+        so a fiction-tagged usage is removed even if the caller asked for
+        a tag the usage also carries. The default ``()`` is a no-op for
+        bit-stable historical behavior.
         """
         items = self.elements.items()
         if len(tags) > 0:
             items = self.filter_for_tag(*tags).items()
+        if exclude_tags:
+            items = self._apply_excludes(items, exclude_tags).items()
         if len(items) == 0:
             return None
         items_list = list(items)
@@ -70,6 +85,14 @@ class Generator:
         keys_set = set(keys)
         return {key: self.elements[key] for key in keys_set if key in self.elements}
 
+    def _apply_excludes(self, items, exclude_tags: tuple[str, ...]):
+        """Drop keys whose usage appears in tag_db under any exclude tag.
+        Returns a dict to keep the .items() call site consistent."""
+        excluded: set[str] = set()
+        for tag in exclude_tags:
+            excluded.update(self.tag_db.get(tag, ()))
+        return {k: v for k, v in items if k not in excluded}
+
 
 class MeaningGenerator:
     def __init__(self, meaning_db, tag_db, proportions):
@@ -88,8 +111,18 @@ class MeaningGenerator:
                 gen = self.generators.setdefault(key, Generator(self.tag_db, {}))
                 gen.add_item(usage, proportion)
 
-    def select(self, rng, key, *tags, novelty: float = 0.0, harshness: float = 0.0):
-        return self.generators[key].select(rng, *tags, novelty=novelty, harshness=harshness)
+    def select(
+        self,
+        rng,
+        key,
+        *tags,
+        novelty: float = 0.0,
+        harshness: float = 0.0,
+        exclude_tags: tuple[str, ...] = (),
+    ):
+        return self.generators[key].select(
+            rng, *tags, novelty=novelty, harshness=harshness, exclude_tags=exclude_tags
+        )
 
 
 class NameGenerator:
@@ -106,6 +139,7 @@ class NameGenerator:
         novelty: float = 0.0,
         inflection_density: float = 0.0,
         harshness: float = 0.0,
+        exclude_tags: tuple[str, ...] = (),
     ):
         """Pick a structure, fill it with morpheme usages, optionally render
         each usage as an attested archaic spelling variant (D18) or an
@@ -131,6 +165,13 @@ class NameGenerator:
         weights first, then ``novelty`` blends the result with the uniform
         marginal.
 
+        ``exclude_tags`` (wyrd-yan) drops morpheme usages tagged with any
+        of the named tags. Threaded down to ``Generator.select`` and
+        applied per-bucket. Used by the runtime's fiction gate: 'fiction'
+        is excluded by default so realistic-mode generation never draws
+        from constructed-etymology entries; the GM opts in via
+        ``include_fiction``.
+
         When both inflection_density and spelling_variety would fire on the
         same morpheme, inflection wins — it carries grammatical meaning
         that the variant axis doesn't.
@@ -138,9 +179,18 @@ class NameGenerator:
         items = list(self.structs.items())
         struct = weighted_choice(rng, items)
         if len(tags) == 0:
-            new_name = self._select_no_tag(rng, struct, novelty=novelty, harshness=harshness)
+            new_name = self._select_no_tag(
+                rng, struct, novelty=novelty, harshness=harshness, exclude_tags=exclude_tags
+            )
         else:
-            new_name = self._select_tags(rng, struct, *tags, novelty=novelty, harshness=harshness)
+            new_name = self._select_tags(
+                rng,
+                struct,
+                *tags,
+                novelty=novelty,
+                harshness=harshness,
+                exclude_tags=exclude_tags,
+            )
         if spelling_variety > 0 or inflection_density > 0:
             rendered, labels = self._render_substitutions(
                 rng, new_name.name, spelling_variety, inflection_density
@@ -210,20 +260,55 @@ class NameGenerator:
                 return _mimic_case(usage, variant), None
         return canonical, None
 
-    def _select_no_tag(self, rng, struct, *, novelty: float = 0.0, harshness: float = 0.0):
+    def _select_no_tag(
+        self,
+        rng,
+        struct,
+        *,
+        novelty: float = 0.0,
+        harshness: float = 0.0,
+        exclude_tags: tuple[str, ...] = (),
+    ):
         words = []
         for w in struct:
             keys = []
             for key in w:
-                keys.append(self.meaning_gen.select(rng, key, novelty=novelty, harshness=harshness))
+                keys.append(
+                    self.meaning_gen.select(
+                        rng,
+                        key,
+                        novelty=novelty,
+                        harshness=harshness,
+                        exclude_tags=exclude_tags,
+                    )
+                )
             words.append(keys)
         return NewName(struct, self.meaning_db, words)
 
-    def _select_tags(self, rng, struct, *tags, novelty: float = 0.0, harshness: float = 0.0):
-        name_pool = [self._select_no_tag(rng, struct, novelty=novelty, harshness=harshness)]
+    def _select_tags(
+        self,
+        rng,
+        struct,
+        *tags,
+        novelty: float = 0.0,
+        harshness: float = 0.0,
+        exclude_tags: tuple[str, ...] = (),
+    ):
+        name_pool = [
+            self._select_no_tag(
+                rng, struct, novelty=novelty, harshness=harshness, exclude_tags=exclude_tags
+            )
+        ]
         for tag in tags:
             name_pool.append(
-                self._select_tag(rng, struct, tag, novelty=novelty, harshness=harshness)
+                self._select_tag(
+                    rng,
+                    struct,
+                    tag,
+                    novelty=novelty,
+                    harshness=harshness,
+                    exclude_tags=exclude_tags,
+                )
             )
         words = []
         for i in range(len(struct)):
@@ -241,13 +326,29 @@ class NameGenerator:
             words.append(keys)
         return NewName(struct, self.meaning_db, words)
 
-    def _select_tag(self, rng, struct, tag, *, novelty: float = 0.0, harshness: float = 0.0):
+    def _select_tag(
+        self,
+        rng,
+        struct,
+        tag,
+        *,
+        novelty: float = 0.0,
+        harshness: float = 0.0,
+        exclude_tags: tuple[str, ...] = (),
+    ):
         words = []
         for w in struct:
             keys = []
             for key in w:
                 keys.append(
-                    self.meaning_gen.select(rng, key, tag, novelty=novelty, harshness=harshness)
+                    self.meaning_gen.select(
+                        rng,
+                        key,
+                        tag,
+                        novelty=novelty,
+                        harshness=harshness,
+                        exclude_tags=exclude_tags,
+                    )
                 )
             words.append(keys)
         return NewName(struct, self.meaning_db, words)

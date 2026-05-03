@@ -42,8 +42,18 @@ _ROOT_CODES = [
 
 CULTURES = ["english", "scottish", "welsh", "irish", "breton"]
 
-# Tags that are filtering primitives, not meaningful selections to expose.
-_INTERNAL_TAGS = {"male name", "female name", "saint"}
+# wyrd-yan: 'fiction' marks etymons whose etymology is constructed (post-hoc
+# applied to bestiary / NPC / homebrew content) rather than drawn from the
+# scholarly historical record. Realistic-mode generation excludes these by
+# default; the GM opts in via `include_fiction=True` (CLI: --include-fiction).
+# The bundle today carries no fiction-tagged morphemes — the gate is in
+# place for upcoming wyrd-0ab / wyrd-kjc constructed-etymology pipelines.
+_FICTION_TAG = "fiction"
+
+# Tags that are filtering primitives, not meaningful selections to expose
+# in the SPA tag dropdown. 'fiction' is a metadata marker, opted into via
+# `include_fiction` rather than picked from the dropdown.
+_INTERNAL_TAGS = {"male name", "female name", "saint", _FICTION_TAG}
 
 # D6 mood presets. A "mood" bundles one or more effects (semantic tag union,
 # phonological harshness skew, future axes) under a single GM-facing label so
@@ -234,6 +244,19 @@ class Kenning(Generator):
                         "compose: tags union, harshness takes the max."
                     ),
                 },
+                "include_fiction": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": (
+                        "wyrd-yan: when True, allow morphemes tagged 'fiction' "
+                        "(constructed etymologies for bestiary / NPC / homebrew "
+                        "content) to appear in generated names. Default False keeps "
+                        "realistic-mode generation drawing only from scholarly-attested "
+                        "morphemes. The bundle today carries no fiction-tagged data — "
+                        "the gate is in place for upcoming constructed-etymology "
+                        "pipelines (wyrd-0ab, wyrd-kjc)."
+                    ),
+                },
                 "harshness": {
                     "type": "number",
                     "default": 0.0,
@@ -262,6 +285,7 @@ class Kenning(Generator):
         novelty = float(params.get("novelty", 0.0) or 0.0)
         inflection_density = float(params.get("inflection_density", 0.0) or 0.0)
         harshness = float(params.get("harshness", 0.0) or 0.0)
+        include_fiction = bool(params.get("include_fiction", False))
 
         moods = params.get("mood", []) or []
         if isinstance(moods, str):
@@ -269,6 +293,7 @@ class Kenning(Generator):
         for spec in moods:
             tags, harshness = _apply_mood(spec, tags, harshness)
         tags = tuple(tags)
+        exclude_tags: tuple[str, ...] = () if include_fiction else (_FICTION_TAG,)
 
         name_gen, _ = _load_culture(culture)
         rng = rng_for(seed)
@@ -279,6 +304,7 @@ class Kenning(Generator):
             novelty=novelty,
             inflection_density=inflection_density,
             harshness=harshness,
+            exclude_tags=exclude_tags,
         )
         return GenerationResult(
             result=str(new_name),

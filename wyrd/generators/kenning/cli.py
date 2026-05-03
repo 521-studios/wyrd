@@ -158,6 +158,17 @@ def cli() -> None:
         "skew (e.g. 'harsh:0.5'). Multiple --mood flags compose."
     ),
 )
+@click.option(
+    "--include-fiction",
+    "include_fiction",
+    is_flag=True,
+    default=False,
+    help=(
+        "wyrd-yan: allow morphemes tagged 'fiction' (constructed etymologies "
+        "for bestiary / NPC / homebrew content) to appear. Off by default — "
+        "realistic mode draws only from scholarly-attested morphemes."
+    ),
+)
 def generate(
     culture: str,
     tags: tuple[str, ...],
@@ -168,6 +179,7 @@ def generate(
     novelty: float,
     inflection_density: float,
     moods: tuple[str, ...],
+    include_fiction: bool,
 ) -> None:
     """Generate town names. Replaces Rando's `bin/generator`."""
     known_tags = set(available_tags()) | {"male name", "female name", "saint"}
@@ -194,6 +206,7 @@ def generate(
         "novelty": novelty,
         "inflection_density": inflection_density,
         "mood": list(moods),
+        "include_fiction": include_fiction,
     }
     for _ in range(count):
         result = kenning.generate(params, seed_rng.randrange(2**63))
