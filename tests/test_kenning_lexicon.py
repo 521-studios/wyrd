@@ -5028,6 +5028,35 @@ def test_lexicon_path_cli_prints_resolved_db_path(
     assert str(target) in result.output
 
 
+def test_lexicon_era_cell_cli_resolves_known_pair() -> None:
+    """`wyrd kenning lexicon era-cell <language> <year>` prints the
+    family/label pair for a valid (language, year) input. Confirms
+    the wyrd-38d CLI surface is wired through the era module."""
+    runner = CliRunner()
+    result = runner.invoke(kenning_cli, ["lexicon", "era-cell", "old-english", "950"])
+    assert result.exit_code == 0, result.output
+    assert "english/oe-late" in result.output
+
+
+def test_lexicon_era_cell_cli_exits_nonzero_for_proto_language() -> None:
+    """Proto-Germanic doesn't have an era family. The CLI surfaces
+    that as a non-zero exit so a script piping to xargs etc. fails
+    loudly rather than silently producing no output."""
+    runner = CliRunner()
+    result = runner.invoke(kenning_cli, ["lexicon", "era-cell", "proto-germanic", "500"])
+    assert result.exit_code == 1
+    assert "no era family" in result.output
+
+
+def test_lexicon_era_cell_cli_exits_nonzero_for_year_out_of_range() -> None:
+    """Latin's renaissance ends at 1800; year 2025 has no defined
+    cell. CLI exits non-zero with a descriptive stderr message."""
+    runner = CliRunner()
+    result = runner.invoke(kenning_cli, ["lexicon", "era-cell", "latin", "2025"])
+    assert result.exit_code == 1
+    assert "outside the defined cells" in result.output
+
+
 def test_lexicon_help_does_not_trigger_default_path_resolution(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
