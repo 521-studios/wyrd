@@ -1811,18 +1811,17 @@ _TOPONYM_NOTE_YEAR_PATTERN = re.compile(r"\b(7\d{2}|[89]\d{2}|1[0-6]\d{2}|1700)\
 # A digit run preceded by one of these abbreviations is a page or
 # volume reference, not a date. Page numbers in long EPNS volumes
 # occasionally exceed 700, so filtering on year-range alone leaks
-# them through. Lowercased substring match against the ~6 chars
-# immediately preceding the year.
-_TOPONYM_NOTE_PAGE_MARKERS: tuple[str, ...] = (
-    "p. ",
-    "p.",
-    "pp.",
-    "vol.",
-    "vols.",
-    "ch.",
-    "chap.",
-    "no.",
-    "nr.",
+# them through.
+#
+# Matched as whole words at the END of the preceding slice — `\b`
+# prevents false-skips on words that happen to end in "p." (e.g.
+# "Bp." for Bishop) by requiring a word boundary before the marker.
+# Substring match would also incorrectly fire "p." inside "chap.",
+# but that's a no-op (chap is itself a marker); the real FP class
+# was words like "Hp." or stray "p" letters at the end of the slice.
+_TOPONYM_NOTE_PAGE_MARKER_RE = re.compile(
+    r"\b(?:p|pp|vol|vols|ch|chap|no|nr)\.\s*$",
+    re.IGNORECASE,
 )
 
 
@@ -1837,8 +1836,10 @@ def _earliest_year_in_notes(notes: str | None) -> int | None:
     earliest: int | None = None
     for m in _TOPONYM_NOTE_YEAR_PATTERN.finditer(notes):
         ystart = m.start()
-        preceding = notes[max(0, ystart - 6) : ystart].lower()
-        if any(marker in preceding for marker in _TOPONYM_NOTE_PAGE_MARKERS):
+        # 8-char window is enough for the longest marker ("vols. ")
+        # plus a leading word-boundary character.
+        preceding = notes[max(0, ystart - 8) : ystart]
+        if _TOPONYM_NOTE_PAGE_MARKER_RE.search(preceding):
             continue
         year = int(m.group(1))
         if earliest is None or year < earliest:

@@ -1169,6 +1169,32 @@ def test_lookup_attested_years_rejects_pre_700_years_in_notes(
     assert year == 1086
 
 
+def test_earliest_year_in_notes_does_not_false_skip_p_inside_word(
+    fresh_db: Path,
+) -> None:
+    """Regression for PR #53 Gemini-medium: the page-marker filter
+    must require a word boundary before 'p.' / 'ch.' / etc. so a
+    real word ending in 'p.' (or any short letter sequence + dot)
+    doesn't false-skip a real year-citation. The substring shape
+    'p.' appears inside 'chap.', 'pp.', etc. — those are themselves
+    markers, so the FP risk is words like 'Bp.' (Bishop abbreviation)
+    or stray letter+dot sequences.
+
+    Pin: 'Bp 1086' must yield 1086, not None."""
+    from wyrd.generators.kenning.lexicon import _earliest_year_in_notes
+
+    # 'Bp.' (Bishop) — not a page marker. Year 1086 should be picked.
+    assert _earliest_year_in_notes("Bp. 1086 DB.") == 1086
+    # 'pp.' IS a page marker. Year 1086 should be skipped (no other
+    # year present → None).
+    assert _earliest_year_in_notes("pp. 1086 (book index)") is None
+    # 'p.' alone IS a page marker. Year 755 should be skipped.
+    assert _earliest_year_in_notes("p. 755") is None
+    # 'p' without a trailing dot is NOT a page marker — it's just the
+    # letter p ending some prior word. Year should be picked.
+    assert _earliest_year_in_notes("group 1086") == 1086
+
+
 def test_lookup_attested_years_skips_page_marker_false_positive(
     fresh_db: Path, tmp_path: Path
 ) -> None:
