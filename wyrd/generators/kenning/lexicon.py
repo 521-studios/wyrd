@@ -137,6 +137,16 @@ class LexiconDB:
         self.path = Path(path)
         self.conn = sqlite3.connect(self.path)
         self.conn.execute("PRAGMA foreign_keys = ON")
+        # WAL mode lets readers and a single writer proceed in parallel
+        # without blocking each other — important for the multi-session
+        # workflow where one Claude is mining (writer) while another is
+        # querying corpus state (reader). journal_mode is persistent: set
+        # once on the file, applies to all subsequent opens.
+        # synchronous=NORMAL is the recommended pairing under WAL; full
+        # crash safety is preserved (WAL replays on next open) without
+        # the per-transaction fsync cost of synchronous=FULL.
+        self.conn.execute("PRAGMA journal_mode = WAL")
+        self.conn.execute("PRAGMA synchronous = NORMAL")
         self.conn.row_factory = sqlite3.Row
 
     def __enter__(self) -> LexiconDB:

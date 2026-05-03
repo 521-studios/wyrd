@@ -77,6 +77,33 @@ def test_init_schema_creates_tables(fresh_db: Path) -> None:
     assert expected.issubset(tables)
 
 
+def test_lexicon_db_opens_in_wal_mode(fresh_db: Path) -> None:
+    """LexiconDB.__init__ sets journal_mode=WAL so readers and a single
+    writer don't block each other. journal_mode is persistent on the
+    file — pin via PRAGMA query so a regression that drops the setting
+    surfaces immediately.
+
+    Multi-session workflow context: one Claude can be mining (writer)
+    while another queries corpus state (reader). Without WAL, the
+    reader either blocks or sees a stale snapshot. With WAL, the reader
+    sees the last committed snapshot and proceeds without contending."""
+    with LexiconDB(fresh_db) as db:
+        mode = db.conn.execute("PRAGMA journal_mode").fetchone()[0]
+    assert mode.lower() == "wal"
+
+
+def test_lexicon_db_uses_synchronous_normal(fresh_db: Path) -> None:
+    """Pairs with WAL: synchronous=NORMAL is the recommended setting
+    under WAL — preserves crash safety (WAL replays on next open) while
+    skipping the per-transaction fsync that synchronous=FULL imposes.
+    Pin so a regression flipping it back to FULL (the SQLite default)
+    surfaces in the slowdown rather than going silent."""
+    with LexiconDB(fresh_db) as db:
+        # PRAGMA returns 0=OFF, 1=NORMAL, 2=FULL, 3=EXTRA.
+        sync = db.conn.execute("PRAGMA synchronous").fetchone()[0]
+    assert sync == 1, f"expected synchronous=NORMAL (1), got {sync}"
+
+
 def test_upsert_etymon_returns_same_id_on_duplicate(fresh_db: Path) -> None:
     with LexiconDB(fresh_db) as db:
         first = db.upsert_etymon("ham", "old-english", modifier_type="Habitative")
