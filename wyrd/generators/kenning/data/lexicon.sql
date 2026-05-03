@@ -51,10 +51,25 @@ CREATE TABLE etymon (
   -- `wyrd kenning lexicon clear-enrichment --stage=ocr --apply` to
   -- re-run clustering with new heuristics.
   merged_into_id  INTEGER REFERENCES etymon(id) ON DELETE SET NULL,
+  -- D27 / wyrd-0ug cognate clustering. Populated by cluster-cognates
+  -- enrichment (wyrd-81n), points at the most-ancestral known etymon in
+  -- this cognate set (the Proto-* root, or the earliest surfaceable form).
+  -- All etymons reachable from that root via etymon_descent inheritance
+  -- edges share the same synset_id. Cross-language by design: OE tūn,
+  -- ON tún, modern Icelandic tún, modern English town would all carry
+  -- the same synset_id pointing at Proto-Germanic *tūnaz. Distinct from
+  -- merged_into_id (within-language OCR cluster) and lemma_id (within-
+  -- language inflection family).
+  synset_id       INTEGER REFERENCES etymon(id) ON DELETE SET NULL,
+  -- Which version of cluster-cognates assigned synset_id. Lets a future
+  -- cluster-cognates-v2 selectively clear and rebuild only its
+  -- predecessor's work, mirroring the lemma_method shape.
+  synset_method   TEXT,
   UNIQUE (canonical_form, language)
 );
 CREATE INDEX idx_etymon_lemma       ON etymon(lemma_id);
 CREATE INDEX idx_etymon_merged_into ON etymon(merged_into_id);
+CREATE INDEX idx_etymon_synset      ON etymon(synset_id);
 
 CREATE TABLE etymon_gloss (
   etymon_id INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
@@ -115,6 +130,63 @@ CREATE TABLE etymon_text_match (
 );
 CREATE INDEX idx_etymon_text_match_etymon ON etymon_text_match(etymon_id);
 CREATE INDEX idx_etymon_text_match_source ON etymon_text_match(source_id);
+
+-- D27 / wyrd-0ug: directed etymological descent graph. A row asserts that
+-- `parent` is an ancestor of `child` under one of the documented edge
+-- types. Wiktionary's Etymology + Descendants sections are the bulk
+-- populator (wyrd-4rt); existing dictionary mining can also write rows
+-- when the LLM identifies an explicit chain ("from OE tūn"). The cognate
+-- cluster column etymon.synset_id is derived from this graph by walking
+-- inheritance edges (wyrd-81n).
+--
+-- Edge types (mapped from Wiktextract template kinds):
+--   inheritance — {{inh}}: child is the direct descendant of parent in
+--                 the same lineage. High confidence; bridges synset_id.
+--   borrowing   — {{bor}}: child borrowed from parent across language
+--                 lines. High confidence; also bridges synset_id (a
+--                 borrowed word is part of the borrowing language's
+--                 cognate set).
+--   calque      — {{cal}}: structural translation; child has parent's
+--                 form-meaning shape but distinct lexical material.
+--   compound    — {{compound}} / {{affix}}: child is a derivational
+--                 product of parent + other elements.
+--   derivation  — {{der}}: parent influenced child but the direct
+--                 chain is unproven. Medium confidence.
+--   cognate     — {{cog}}: peer relationship — both descend from a
+--                 common ancestor without specifying which is parent.
+--                 Does NOT bridge synset_id (clustering would over-
+--                 unify; Wiktionary cognate links cross probable
+--                 boundaries that aren't always real).
+--   unknown     — fallback for free-text "compare with X" assertions.
+--
+-- Source attribution: the source_id points at the bibliographic record
+-- that asserted this edge. For Wiktionary, a single 'wiktionary' source
+-- row is sufficient for v1 (per-edit attribution lives in wiki history).
+-- Same shape as etymon_citation — one piece of evidence per row, dedupe
+-- via the UNIQUE constraint.
+--
+-- Why descent does NOT contribute to etymon_consensus:
+-- The witnesses count in etymon_consensus measures EXTRACTION witnesses
+-- (D4: "N scholars formally identify this morpheme as part of a toponym
+-- breakdown"). Descent is a different axis — it relates morphemes
+-- across language and era. Counting descent edges as extraction witnesses
+-- would inflate consensus and break the ≥3-witness promotion threshold.
+-- Synset clustering is the correct rollup for descent.
+CREATE TABLE etymon_descent (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  parent_id   INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
+  child_id    INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
+  edge_type   TEXT NOT NULL CHECK (edge_type IN (
+                'inheritance', 'borrowing', 'calque',
+                'compound', 'derivation', 'cognate', 'unknown'
+              )),
+  source_id   TEXT NOT NULL REFERENCES source(id) ON DELETE CASCADE,
+  confidence  TEXT CHECK (confidence IN ('high', 'medium', 'low')),
+  notes       TEXT,
+  UNIQUE (parent_id, child_id, edge_type, source_id)
+);
+CREATE INDEX idx_etymon_descent_parent ON etymon_descent(parent_id);
+CREATE INDEX idx_etymon_descent_child  ON etymon_descent(child_id);
 
 -- Per-(book, provider, model, run) audit log. The mine-llm and review CLI
 -- flows compute accept/decline/reject counts in-memory and used to print
