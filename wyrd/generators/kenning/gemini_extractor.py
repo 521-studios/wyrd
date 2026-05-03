@@ -77,7 +77,7 @@ GEMINI_RESPONSE_SCHEMA: dict = {
         # in validate_response, not in the schema — Gemini's responseSchema
         # dialect's enforcement of integer minimum / maximum has been
         # unreliable across model versions in our testing, so we don't
-        # rely on it. The prompt asks for 800-1700 and validate_response
+        # rely on it. The prompt asks for 100-1700 and validate_response
         # (in llm_extractor) is the load-bearing range gate.
         "attested_forms": {
             "type": "ARRAY",

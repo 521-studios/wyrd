@@ -58,13 +58,16 @@ _ALLOWED_POSITIONS = {"pre", "inner", "post"}
 
 # Response schema (Ollama's `format` field accepts a JSON Schema dict).
 # The model must produce exactly this shape; Ollama enforces it via grammar.
-# Year-citation range for attested_forms (D5-1, wyrd-3ux). 800-1700 covers
-# the historically-relevant attestation window for British / Continental
-# place-names: Domesday Book is 1086, Pipe Rolls 1130-1216, Subsidy Rolls
-# 1290+, Tudor surveys to ~1600. Forms cited at years outside this range
-# are almost always (a) publication-year noise (1880-1928) or (b) folio
-# numbers / page numbers that the model misread as years.
-_ATTESTED_YEAR_MIN = 800
+# Year-citation range for attested_forms (D5-1, wyrd-3ux). 100-1700 covers
+# Roman empire (Caesar's invasions ~55BC excluded; first-century AD
+# Gallo-Roman onward) through Restoration. The original 800 floor (set
+# in PR #27) was sized for British/Norman-period sources where Domesday
+# 1086 is the typical earliest dated attestation, but it cut legitimate
+# Roman-era charters and Gaulish gentilice formations on Romance/Celtic-
+# substrate sources like d'Arbois 1890 — wyrd-z56 widened the floor to
+# 100. Years outside this range are almost always (a) publication-year
+# noise (1880-1928) or (b) folio / page numbers misread as years.
+_ATTESTED_YEAR_MIN = 100
 _ATTESTED_YEAR_MAX = 1700
 
 
@@ -152,7 +155,7 @@ Output a JSON object with EXACTLY these fields and no others:
       ...
     ],
     "attested_forms": [
-      { "form": "<historical spelling cited in the body>", "year": <integer 800-1700> },
+      { "form": "<historical spelling cited in the body>", "year": <integer 100-1700> },
       ...
     ],
     "confidence": "<one of: high, medium, low>",
@@ -207,10 +210,18 @@ Content rules:
    Rules for attested_forms:
      - Each "form" must appear in the body (same form-in-body rule as
        elements).
-     - Each "year" must be an integer in 800-1700 (Anglo-Saxon to
-       Restoration window). Years outside that range are almost always
-       publication years, folio numbers, or page numbers — DO NOT include
-       them.
+     - Each "year" must be a JSON INTEGER (NOT a string, NOT a float)
+       in the range 100-1700 — Roman empire through Restoration.
+       Years outside that range are almost always publication years,
+       folio numbers, or page numbers. DO NOT include them.
+       Right: {"form": "Aburwick", "year": 1333}
+       Right: {"form": "Lugudunum", "year": 580}
+       Wrong: {"form": "Aburwick", "year": "1333"}      ← string, not int
+       Wrong: {"form": "Aburwick", "year": "1333 (?)"}  ← string with hedge
+       Wrong: {"form": "Aburwick", "year": 1333.0}      ← float, not int
+       If the body's year is uncertain ("ca. 1333", "1333?"), still emit
+       the bare integer 1333 — the uncertainty stays in the entry's
+       confidence/notes fields.
      - Skip non-attestation year mentions: publication-year citations
        ("Mawer 1920"), document-name dates referring to the document
        type rather than to a dated form of the place-name (see examples
@@ -480,7 +491,7 @@ def validate_response(
     - Languages and positions are from the allowed sets.
     - Element count is sane (1–4).
     - attested_forms (D5-1) is well-shaped: each entry has a form that
-      appears in body, with a year integer in the 800-1700 range.
+      appears in body, with a year integer in the 100-1700 range.
 
     Element checks are skipped when ``found=false`` (a clean decline).
     The attested_forms check runs even on declines — see
