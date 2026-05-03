@@ -408,6 +408,23 @@ def _add_etymon_columns(db: LexiconDB, applied: dict[str, bool]) -> None:
     if "lemma_method" not in cols:
         db.conn.execute("ALTER TABLE etymon ADD COLUMN lemma_method TEXT")
         applied["etymon.lemma_method"] = True
+    # synset_id (D27 / wyrd-0ug): cognate-cluster rollup. Points at the
+    # most-ancestral known etymon in this cognate set; populated by the
+    # cluster-cognates pass (wyrd-81n) walking etymon_descent inheritance
+    # edges. Cross-language by design — distinct from merged_into_id
+    # (within-language OCR cluster) and lemma_id (within-language
+    # inflection family).
+    if "synset_id" not in cols:
+        db.conn.execute(
+            "ALTER TABLE etymon ADD COLUMN synset_id INTEGER "
+            "REFERENCES etymon(id) ON DELETE SET NULL"
+        )
+        applied["etymon.synset_id"] = True
+    # synset_method: which version of cluster-cognates produced this
+    # synset_id assignment. Mirrors lemma_method.
+    if "synset_method" not in cols:
+        db.conn.execute("ALTER TABLE etymon ADD COLUMN synset_method TEXT")
+        applied["etymon.synset_method"] = True
 
 
 def _create_etymon_indexes(db: LexiconDB, applied: dict[str, bool]) -> None:
@@ -421,6 +438,9 @@ def _create_etymon_indexes(db: LexiconDB, applied: dict[str, bool]) -> None:
     if "idx_etymon_merged_into" not in existing_indexes:
         db.conn.execute("CREATE INDEX idx_etymon_merged_into ON etymon(merged_into_id)")
         applied["idx_etymon_merged_into"] = True
+    if "idx_etymon_synset" not in existing_indexes:
+        db.conn.execute("CREATE INDEX idx_etymon_synset ON etymon(synset_id)")
+        applied["idx_etymon_synset"] = True
 
 
 def _rebuild_etymon_views(db: LexiconDB, applied: dict[str, bool]) -> None:
@@ -465,6 +485,45 @@ def _rebuild_etymon_views(db: LexiconDB, applied: dict[str, bool]) -> None:
         """
     )
     applied["etymon_consensus_view"] = True
+
+
+def _create_etymon_descent_table(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Create etymon_descent if missing (D27 / wyrd-0ug).
+
+    Holds directed edges of the etymological descent graph populated by
+    Wiktionary mining (wyrd-4rt) and any future scholar-cited chain
+    assertions. The cognate cluster column etymon.synset_id is derived
+    from this graph by the cluster-cognates pass (wyrd-81n).
+
+    Schema mirrors data/lexicon.sql so fresh-install and migration paths
+    stay in lockstep. Idempotent — checks for the table before creating.
+    """
+    existing = {
+        row["name"]
+        for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
+    if "etymon_descent" in existing:
+        return
+    db.conn.executescript(
+        """
+        CREATE TABLE etymon_descent (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          parent_id   INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
+          child_id    INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
+          edge_type   TEXT NOT NULL CHECK (edge_type IN (
+                        'inheritance', 'borrowing', 'calque',
+                        'compound', 'derivation', 'cognate', 'unknown'
+                      )),
+          source_id   TEXT NOT NULL REFERENCES source(id) ON DELETE CASCADE,
+          confidence  TEXT CHECK (confidence IN ('high', 'medium', 'low')),
+          notes       TEXT,
+          UNIQUE (parent_id, child_id, edge_type, source_id)
+        );
+        CREATE INDEX idx_etymon_descent_parent ON etymon_descent(parent_id);
+        CREATE INDEX idx_etymon_descent_child  ON etymon_descent(child_id);
+        """
+    )
+    applied["etymon_descent_table"] = True
 
 
 def _migrate_text_match_table(db: LexiconDB, applied: dict[str, bool]) -> None:
@@ -923,12 +982,16 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "etymon.inflection": False,
         "etymon.merged_into_id": False,
         "etymon.lemma_method": False,
+        "etymon.synset_id": False,
+        "etymon.synset_method": False,
         "idx_etymon_lemma": False,
         "idx_etymon_merged_into": False,
+        "idx_etymon_synset": False,
         "etymon_text_match.method": False,
         "etymon_consensus_view": False,
         "etymon_canonical_view": False,
         "etymon_text_match_table": False,
+        "etymon_descent_table": False,
         "mining_run_table": False,
         "etymon_citation.context_snippet": False,
     }
@@ -936,6 +999,7 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     _create_etymon_indexes(db, applied)
     _rebuild_etymon_views(db, applied)
     _migrate_text_match_table(db, applied)
+    _create_etymon_descent_table(db, applied)
     _create_mining_run_table(db, applied)
     _migrate_citation_context_snippet(db, applied)
     db.commit()

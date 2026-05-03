@@ -610,6 +610,56 @@ description for the agent prompt that extracts them). The CLI is
 idempotent on `(source_id, provider, model, mode, completed_at)` so
 re-running is safe.
 
+### Etymological descent graph (D27)
+
+Once Wiktionary mining (wyrd-4rt) populates `etymon_descent`, these
+queries answer the cross-language reflex / cognate questions:
+
+```sql
+-- Modern descendants of a Proto-Germanic root (walks DOWN)
+WITH RECURSIVE descendants(id) AS (
+  SELECT child_id FROM etymon_descent
+    WHERE parent_id = (
+      SELECT id FROM etymon WHERE canonical_form = '*tūnaz' AND language = 'proto-germanic'
+    )
+    AND edge_type IN ('inheritance', 'borrowing')
+  UNION
+  SELECT d.child_id FROM etymon_descent d
+    JOIN descendants ON d.parent_id = descendants.id
+    WHERE d.edge_type IN ('inheritance', 'borrowing')
+)
+SELECT e.canonical_form, e.language
+FROM descendants
+JOIN etymon e ON e.id = descendants.id
+ORDER BY e.language, e.canonical_form;
+```
+
+```sql
+-- Cross-language cognates of a modern word (after wyrd-81n
+-- cluster-cognates populates synset_id)
+SELECT e.canonical_form, e.language
+FROM etymon e
+WHERE e.synset_id = (
+        SELECT synset_id FROM etymon WHERE canonical_form = 'town' AND language = 'modern-english'
+      )
+  AND e.synset_id IS NOT NULL;
+```
+
+```sql
+-- All etymons known to descend from at least one chain (have parents)
+SELECT DISTINCT e.canonical_form, e.language
+FROM etymon e
+JOIN etymon_descent d ON d.child_id = e.id
+ORDER BY e.language, e.canonical_form;
+```
+
+Edge types and their semantics:
+- `inheritance` (`{{inh}}`) — direct lineage, bridges synset clustering.
+- `borrowing` (`{{bor}}`) — borrowed across languages, also bridges.
+- `cognate` (`{{cog}}`) — peer relation; does NOT bridge (would over-unify).
+- `derivation` (`{{der}}`), `calque` (`{{cal}}`), `compound` (`{{compound}}` / `{{affix}}`) — context-specific.
+- `unknown` — fallback for free-text "compare with X" assertions.
+
 ---
 
 ## Anti-patterns

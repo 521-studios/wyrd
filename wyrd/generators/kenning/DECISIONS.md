@@ -616,3 +616,135 @@ loader stripping the suffix and routing into a dedicated `Meaning`
 attribute. Don't pile metadata into the language array as nested
 objects (would break the legacy load path); don't introduce a top-level
 metadata-only entry (would orphan the link to the canonical forms).
+
+## D27. Etymological descent is a separate graph, not a citation axis.
+
+Wiktionary etymology + Descendants sections produce a directed graph
+that doesn't fit the toponym-decomposition shape:
+
+- **Decomposition** (existing pipeline): `toponym → [etymon, etymon, ...]`.
+  Mawer / Skeat / Joyce dictionaries break a place name into morphemes.
+  Each etymon row collects extraction citations from multiple scholars.
+- **Descent** (new — this entry): `etymon → parent_etymon → grandparent`.
+  Wiktionary asserts that OE *tūn* descends from Proto-Germanic *\*tūnaz*,
+  which has Descendants in OE, ON, modern English, modern Icelandic,
+  modern German, etc.
+
+The shape is fundamentally different and lives in a new `etymon_descent`
+table:
+
+```sql
+CREATE TABLE etymon_descent (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  parent_id   INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
+  child_id    INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
+  edge_type   TEXT NOT NULL CHECK (edge_type IN (
+                'inheritance', 'borrowing', 'calque',
+                'compound', 'derivation', 'cognate', 'unknown'
+              )),
+  source_id   TEXT NOT NULL REFERENCES source(id) ON DELETE CASCADE,
+  confidence  TEXT CHECK (confidence IN ('high', 'medium', 'low')),
+  notes       TEXT,
+  UNIQUE (parent_id, child_id, edge_type, source_id)
+);
+```
+
+Edge types map to Wiktextract template kinds: `{{inh}}` →
+`inheritance` (high conf), `{{bor}}` → `borrowing` (high), `{{cog}}` →
+`cognate` (medium, peer not chain), `{{der}}` → `derivation`
+(medium), `{{cal}}` → `calque`, `{{compound}}` / `{{affix}}` →
+`compound`, free-text "compare with X" → `unknown`. Documented in
+`INGESTION.md` once wyrd-4rt actually populates them.
+
+**Source attribution** is per-edge (not per-node). Wiktionary fits as
+a single `'wiktionary'` source row for v1 — per-edit attribution lives
+in the wiki history and per-language-section slicing is overkill until
+needed.
+
+### Why descent does NOT contribute to `etymon_consensus`
+
+The `witnesses` count measures *extraction* witnesses (D4: "N
+scholars formally identify this morpheme as part of a toponym
+breakdown"). Descent is a different axis — it relates morphemes
+across language and era. Counting descent edges as extraction
+witnesses would inflate the count and break the ≥3-witnesses
+promotion threshold; a morpheme with one real scholar citation but
+ten Wiktionary descent edges would auto-promote despite being
+under-attested for actual place-name use. Synset clustering is the
+correct rollup for descent.
+
+### Synset clustering: materialized via `etymon.synset_id`
+
+The cognate set = transitive closure of inheritance + borrowing
+edges from a common root. A separate `cluster-cognates` enrichment
+pass (filed as wyrd-81n) walks the graph and writes
+`etymon.synset_id` pointing at the most-ancestral known etymon.
+All etymons reachable from that root via inheritance/borrowing
+share the same `synset_id`.
+
+Materialized (column) rather than derived (recursive CTE view)
+because cross-language synset queries would walk unbounded depth on
+every call; materialization makes the query a single JOIN.
+
+The `cognate` edge type does NOT bridge synsets — it's a peer
+relationship Wiktionary uses when two languages have lexically
+similar forms but the chain isn't pinned. Bridging on cognate would
+over-unify; we want synset assignments to require an explicit
+ancestor.
+
+### Reference queries
+
+```sql
+-- Modern descendants of an etymon (walks inheritance + borrowing)
+WITH RECURSIVE descendants(id) AS (
+  SELECT child_id FROM etymon_descent
+    WHERE parent_id = ? AND edge_type IN ('inheritance', 'borrowing')
+  UNION
+  SELECT d.child_id FROM etymon_descent d
+    JOIN descendants ON d.parent_id = descendants.id
+    WHERE d.edge_type IN ('inheritance', 'borrowing')
+)
+SELECT e.canonical_form, e.language
+FROM descendants
+JOIN etymon e ON e.id = descendants.id;
+
+-- Ancestors of an etymon (walks UP)
+WITH RECURSIVE ancestors(id) AS (
+  SELECT parent_id FROM etymon_descent
+    WHERE child_id = ? AND edge_type IN ('inheritance', 'borrowing')
+  UNION
+  SELECT d.parent_id FROM etymon_descent d
+    JOIN ancestors ON d.child_id = ancestors.id
+    WHERE d.edge_type IN ('inheritance', 'borrowing')
+)
+SELECT e.canonical_form, e.language
+FROM ancestors
+JOIN etymon e ON e.id = ancestors.id;
+
+-- Cross-language cognates (after cluster-cognates wyrd-81n populates synset_id)
+SELECT e.canonical_form, e.language
+FROM etymon e
+WHERE e.synset_id = (SELECT synset_id FROM etymon WHERE id = ?)
+  AND e.id != ?;
+```
+
+### Why this matters beyond Wiktionary mining
+
+Three downstream consumers blocked on this schema:
+
+- **wyrd-4rt** — Wiktionary mining via wiktextract. Without
+  `etymon_descent`, ingestion has nowhere to put the chain data.
+- **wyrd-7tz** — synset / cross-language equivalence layer. The
+  Descendants tree IS the synset; once descent edges land,
+  cluster-cognates produces the synset assignments.
+- **Cross-cultural rendering** (no ticket yet) — "render this English
+  place name in Welsh-coded form" needs the equivalence graph to swap
+  each English morpheme for its Welsh cognate.
+
+### Generality
+
+The schema accepts descent edges from ANY source, not just
+Wiktionary. Existing dictionary mining that says "from OE tūn" could
+populate `etymon_descent` rows too — Mawer / Skeat / Ekwall already
+make these chain assertions in passing. Extracting them is a
+follow-on; the schema is general enough.
