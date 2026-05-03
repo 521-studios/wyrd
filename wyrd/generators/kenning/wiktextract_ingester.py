@@ -349,8 +349,10 @@ def ingest_wiktextract_stream(
     return counts
 
 
-# Sentinel id used during dry-run so _walk_descendants can still exercise
-# the parent_stack logic without hitting the DB. Not a real row id.
+# Sentinel id used during dry-run so _process_entry / _walk_descendants
+# can still recurse and count edges without hitting the DB. Not a real
+# row id; never reaches an INSERT because _emit_descent_edge no-ops on
+# apply=False.
 _DRY_RUN_PLACEHOLDER_ID = -1
 
 # Single source-id literal so the SQL doesn't drift between callers and
