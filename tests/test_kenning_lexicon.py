@@ -1026,6 +1026,29 @@ def test_lookup_attested_years_idempotent_on_rerun(fresh_db: Path, tmp_path: Pat
     assert second["rows_written"] == 0
 
 
+def test_lookup_attested_years_groups_rows_by_source_id(fresh_db: Path, tmp_path: Path) -> None:
+    """The streaming restructure (7681838) groups text-match rows by
+    source_id so each source body is loaded only once. Pin that the
+    grouping is correct: rows from source A get scanned against A's
+    body, NOT B's body, even when both have year-citations against
+    the same matched_form value. A regression that flattens the
+    grouping back to a single shared body would silently swap years
+    between sources."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "src_a.txt").write_text("Tune, 1086 (DB).")
+    (sources / "src_b.txt").write_text("Tune, 1242 (DB).")
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src_a", title="A")
+        db.upsert_source(id="src_b", title="B")
+        rid_a = _seed_text_match(db, source_id="src_a", canonical_form="tune")
+        rid_b = _seed_text_match(db, source_id="src_b", canonical_form="tune")
+        lookup_attested_years(db, sources, apply=True)
+        years = dict(db.conn.execute("SELECT id, attested_year FROM etymon_text_match").fetchall())
+    assert years[rid_a] == 1086
+    assert years[rid_b] == 1242
+
+
 def test_lookup_attested_years_warns_on_missing_source_file(fresh_db: Path, tmp_path: Path) -> None:
     """A text-match row pointing at a source_id whose .txt isn't in
     sources_dir is counted in sources_missing and skipped without
