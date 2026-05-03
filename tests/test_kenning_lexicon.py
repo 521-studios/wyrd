@@ -1059,6 +1059,53 @@ def test_lookup_attested_years_warns_on_missing_source_file(fresh_db: Path, tmp_
     assert result["rows_written"] == 0
 
 
+def test_lookup_attested_years_accepts_year_at_upper_bound_1700(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """Regression for PR #47 Gemini-medium: the bare-year regex
+    `1[0-6]\\d{2}` cuts off at 1699 but `_ATTESTED_YEAR_MAX_LOOKUP` is
+    1700. Pin that 1700 itself qualifies as a bare year via the
+    explicit |1700 alternation."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "src.txt").write_text("Tune, 1700.")
+    with LexiconDB(fresh_db) as db:
+        from wyrd.generators.kenning.lexicon import lookup_attested_years
+
+        db.upsert_source(id="src", title="S")
+        rid = _seed_text_match(db, source_id="src", canonical_form="tune")
+        lookup_attested_years(db, sources, apply=True)
+        year = db.conn.execute(
+            "SELECT attested_year FROM etymon_text_match WHERE id = ?", (rid,)
+        ).fetchone()["attested_year"]
+    assert year == 1700
+
+
+def test_lookup_attested_years_lowercases_form_before_matching(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """Regression for PR #47 Gemini-medium: source body text is
+    lowercased before scanning, so a matched_form like 'TUNE' or 'Tune'
+    must lowercase before being interpolated into the regex pattern.
+    Without the form.lower() guard this row would silently miss its
+    citation."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "src.txt").write_text("TUNE, 1086 (DB).")
+    with LexiconDB(fresh_db) as db:
+        from wyrd.generators.kenning.lexicon import lookup_attested_years
+
+        db.upsert_source(id="src", title="S")
+        # Stored matched_form is mixed-case, body is upper. Lowercasing
+        # both at scan time makes them line up.
+        rid = _seed_text_match(db, source_id="src", canonical_form="Tune")
+        lookup_attested_years(db, sources, apply=True)
+        year = db.conn.execute(
+            "SELECT attested_year FROM etymon_text_match WHERE id = ?", (rid,)
+        ).fetchone()["attested_year"]
+    assert year == 1086
+
+
 def test_clear_enrichment_attested_years_resets_only_year_column(
     fresh_db: Path,
 ) -> None:

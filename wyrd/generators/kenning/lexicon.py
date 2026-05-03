@@ -1727,10 +1727,11 @@ def _build_form_year_pattern(form: str) -> re.Pattern[str]:
         r"[\s,;:.]*\((\d{3,4})\b"
         r"|"
         # bare year ≥ 700 — post-Roman / OE attestations. Three-digit
-        # range (700-999) plus four-digit range (1000-1699) explicitly
+        # range (700-999) plus four-digit range (1000-1700) explicitly
         # listed so a 4-digit 8xxx/9xxx publication ID, ISBN fragment,
-        # or page reference can't slip in.
-        r"[\s,;:.]{0,4}(7\d{2}|[89]\d{2}|1[0-6]\d{2})\b"
+        # or page reference can't slip in. The trailing |1700 admits the
+        # year-range upper bound that 1[0-6]\d{2} cuts off at 1699.
+        r"[\s,;:.]{0,4}(7\d{2}|[89]\d{2}|1[0-6]\d{2}|1700)\b"
         r")"
     )
 
@@ -1757,7 +1758,10 @@ def _extract_attested_year_from_body(text: str, form: str) -> int | None:
     """
     if not form:
         return None
-    pattern = _build_form_year_pattern(form)
+    # ``text`` is lowercased + OCR-normalized before reaching this fn
+    # (see lookup_attested_years). Lowercase the form so case-mismatched
+    # matched_form values still produce hits.
+    pattern = _build_form_year_pattern(form.lower())
     earliest: int | None = None
     for m in pattern.finditer(text):
         # Three capture groups in the alternation; exactly one will be
@@ -1800,30 +1804,40 @@ def lookup_attested_years(
     if not sources_path.is_dir():
         raise ValueError(f"sources_dir not found: {sources_path}")
 
-    # Load + normalize each source text once. Normalization mirrors what
-    # reverse_search_attestations does so canonical-form regexes (and
-    # therefore the matched_form values stored in the DB) line up.
-    source_texts: dict[str, str] = {}
-    for f in sources_path.glob("*.txt"):
-        text = f.read_text(errors="replace").lower()
-        text = normalize_ocr_form(text)
-        source_texts[f.stem] = text
-
+    # Group target rows by source_id so we can stream through one source
+    # file at a time. The naive shape (load every source body into a dict)
+    # is multi-GB on the production corpus and risks OOM. Row metadata is
+    # cheap; only the source body text is heavy.
     cur = db.conn.execute(
-        "SELECT id, source_id, matched_form FROM etymon_text_match WHERE attested_year IS NULL"
+        "SELECT id, source_id, matched_form FROM etymon_text_match "
+        "WHERE attested_year IS NULL ORDER BY source_id"
     )
     rows_unscored = cur.fetchall()
 
+    rows_by_source: dict[str, list] = {}
+    for row in rows_unscored:
+        rows_by_source.setdefault(row["source_id"], []).append(row)
+
+    available_sources = {f.stem: f for f in sources_path.glob("*.txt")}
+
     candidate_updates: list[tuple[int, int]] = []  # (year, row_id)
     sources_missing: set[str] = set()
-    for row in rows_unscored:
-        text = source_texts.get(row["source_id"])
-        if text is None:
-            sources_missing.add(row["source_id"])
+    for source_id, rows in rows_by_source.items():
+        source_file = available_sources.get(source_id)
+        if source_file is None:
+            sources_missing.add(source_id)
             continue
-        year = _extract_attested_year_from_body(text, row["matched_form"])
-        if year is not None:
-            candidate_updates.append((year, row["id"]))
+        # Load this one source body, normalize, scan its rows, then drop
+        # it. Normalization mirrors reverse_search_attestations so
+        # canonical-form regexes line up with the matched_form values
+        # stored at search time.
+        text = source_file.read_text(errors="replace").lower()
+        text = normalize_ocr_form(text)
+        for row in rows:
+            year = _extract_attested_year_from_body(text, row["matched_form"])
+            if year is not None:
+                candidate_updates.append((year, row["id"]))
+        # text goes out of scope at next iteration; Python frees the body.
 
     counts = {
         "rows_scanned": len(rows_unscored),
@@ -1832,14 +1846,17 @@ def lookup_attested_years(
         "applied": apply,
         "rows_written": 0,
     }
-    if apply:
-        for year, mid in candidate_updates:
-            cur = db.conn.execute(
-                "UPDATE etymon_text_match SET attested_year = ? "
-                "WHERE id = ? AND attested_year IS NULL",
-                (year, mid),
-            )
-            counts["rows_written"] += cur.rowcount
+    if apply and candidate_updates:
+        # executemany is one round-trip plus a single rowcount aggregation
+        # — substantially cheaper than the per-row execute() loop on a
+        # batch of thousands. The WHERE attested_year IS NULL guard keeps
+        # the UPDATE idempotent if a parallel run somehow set the column
+        # between candidate collection and apply.
+        cur = db.conn.executemany(
+            "UPDATE etymon_text_match SET attested_year = ? WHERE id = ? AND attested_year IS NULL",
+            candidate_updates,
+        )
+        counts["rows_written"] = cur.rowcount
         db.commit()
     return counts
 
