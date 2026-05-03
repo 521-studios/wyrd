@@ -153,6 +153,31 @@ button.link {
 
 #results .explanation { margin: 0.25rem 0 0.5rem; color: var(--fg); }
 
+/* wyrd-9kh.6: per-element scholarly citations panel. */
+.citations {
+    margin: 0.4rem 0 0.5rem;
+    padding-left: 1.2rem;
+    list-style: disc;
+    line-height: 1.55;
+    font-size: 0.9rem;
+}
+
+.citations li { margin-bottom: 0.2rem; }
+
+.citations strong {
+    color: var(--accent);
+    font-weight: 600;
+    margin-right: 0.15rem;
+}
+
+.citation {
+    background: var(--bg);
+    padding: 0.05rem 0.4rem;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.85em;
+}
+
 .muted { color: var(--muted); font-size: 0.9rem; }
 
 .small { font-size: 0.8rem; }
