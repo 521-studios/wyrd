@@ -868,6 +868,9 @@ def test_compound_template_with_three_constituents_emits_three_edges(
         "sync",
         "apocopic form",
         "metathesis",
+        "past participle of",
+        "alt form",
+        "abbrev",
     ],
 )
 def test_same_lang_derivation_template_emits_one_derivation_edge(
@@ -1022,11 +1025,8 @@ def test_compound_edge_does_not_bridge_synsets(fresh_db: Path) -> None:
         "smallcaps",
         "angbr",
         "PIE root box",
-        "abbrev",
         "non-gloss",
         "displaced",
-        "past participle of",
-        "alt form",
         "alter",
         "etydate",
     ],

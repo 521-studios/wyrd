@@ -163,6 +163,14 @@ _SAME_LANG_DERIVATION_TEMPLATE_NAMES: frozenset[str] = frozenset(
         "sync",
         "apocopic form",
         "metathesis",
+        # Verified from real OE entries 2026-05-03:
+        #   {{past participle of|ang|sāmwyrċan}} → ang samworht ← sāmwyrċan
+        #   {{alt form|ang|ġefulwian}}           → ang gefullian ← ġefulwian
+        #   {{abbrev|ang|onġemang}}              → ang amang ← onġemang
+        # Same single-parent same-language shape as clipping/contr/etc.
+        "past participle of",
+        "alt form",
+        "abbrev",
     }
 )
 
@@ -320,12 +328,9 @@ _SKIPPED_TEMPLATE_NAMES: frozenset[str] = frozenset(
         "smallcaps",
         "angbr",
         "PIE root box",
-        "abbrev",
         "non-gloss",
-        "displaced",
-        "past participle of",
-        "alt form",
-        "alter",
+        "displaced",  # args[1] is displacing-language, not this_lang — different shape
+        "alter",  # 3-arg with two alt forms — different shape from same-lang derivation
         "etydate",
     }
 )
