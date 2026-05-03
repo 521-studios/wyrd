@@ -4400,6 +4400,10 @@ def test_cluster_cognates_cli_apply_writes_assignments(fresh_db: Path) -> None:
 
     assert result.exit_code == 0, result.output
     assert "assigned synset_id on 2 etymon(s)" in result.output
+    # Pin the rows_written echo branch (added round-2 fix) — without
+    # this assertion a typo in the format string would slip through
+    # despite the lib-level dict field having coverage.
+    assert "rows_written = 2" in result.output
     assert "dry-run" not in result.output
 
     with LexiconDB(fresh_db) as db:
@@ -4594,3 +4598,6 @@ def test_cluster_cognates_cli_warns_on_cycle_orphans(fresh_db: Path) -> None:
     assert result.exit_code == 0, result.output
     assert "warn:" in result.output
     assert "2 etymon(s) sit in a bridging-edge cycle" in result.output
+    # rows_written = 0 here: there are 0 candidates because no roots,
+    # so the apply branch echoes 'rows_written = 0'.
+    assert "rows_written = 0" in result.output
