@@ -512,6 +512,58 @@ def _migrate_text_match_table(db: LexiconDB, applied: dict[str, bool]) -> None:
         applied["etymon_text_match.disambiguator_reason"] = True
 
 
+# wyrd-9kh.5: pattern for Mawer-style alphabetical-headword running headers
+# (e.g. 'BACKWORTH 9' on Mawer 1920, 'ABBEY DORE 1' on Bannister 1916,
+# 'ST PETER'S 47' for saint-prefixed places). The leftmost word is the
+# first headword on the page; the rightmost integer is the page number.
+# Single-word forms require 3+ chars to filter OCR noise; multi-word
+# forms accept a 2+ char first word so 'ST PETER'S' / 'DR FOO' admit.
+#
+# Skeat-style §-section running headers ('§ 2. NAMES IN -TON. 9') need
+# their own parser — filed as a follow-up.
+_RUNNING_HEADER_RE = re.compile(
+    r"^\s*("
+    r"[A-Z][A-Z\-']*\s+[A-Z][A-Z\-']+(?:\s+[A-Z][A-Z\-']+)*"  # multi-word: 2+ char first word
+    r"|"
+    r"[A-Z][A-Z\-']{2,}"  # single-word: 3+ chars total
+    r")\s+(\d+)\s*$",
+    re.MULTILINE,
+)
+
+
+def parse_running_header_pages(text: str) -> list[tuple[int, int]]:
+    """Extract (offset, page_number) pairs from running headers in OCR'd
+    alphabetical-headword books (Mawer / Bannister / Ekwall style).
+
+    Pattern: a line containing one or more all-caps words followed by an
+    integer (e.g. 'BACKWORTH 9', 'ABBEY DORE 1'). Returns sorted-by-offset
+    pairs. The runtime (or a follow-up CLI) can binary-search this list to
+    find the page for any character offset in the body.
+
+    Skeat-style books use '§ N. NAMES IN -X. <page>' running headers and
+    are not covered by this function — those need a separate parser
+    (follow-up under wyrd-9kh.5 if/when Skeat books need page-anchored
+    citations). Returns an empty list when no headers match.
+    """
+    return [(m.start(), int(m.group(2))) for m in _RUNNING_HEADER_RE.finditer(text)]
+
+
+def page_for_offset(headers: list[tuple[int, int]], offset: int) -> int | None:
+    """Find the page number for a body character at `offset`. Returns the
+    page from the closest preceding running header, or None if no header
+    precedes the offset (e.g. the entry sits in the front matter before
+    the first numbered page). `headers` must be sorted by offset, which
+    is the natural output of `parse_running_header_pages`."""
+    if not headers:
+        return None
+    page = None
+    for hdr_offset, hdr_page in headers:
+        if hdr_offset > offset:
+            break
+        page = hdr_page
+    return page
+
+
 def _migrate_citation_context_snippet(db: LexiconDB, applied: dict[str, bool]) -> None:
     """Add etymon_citation.context_snippet to existing DBs (wyrd-9kh.3).
 

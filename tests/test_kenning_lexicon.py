@@ -1180,6 +1180,71 @@ def test_lexicon_mine_llm_records_mining_run_at_end_of_run(
     assert row["rejected"] == 0
 
 
+# --- wyrd-9kh.5: running-header page parser ----------------------------
+
+
+def test_parse_running_header_pages_finds_mawer_style_headers():
+    """Mawer-style running headers like 'BACKWORTH 9' get parsed into
+    (offset, page) pairs sorted by offset."""
+    from wyrd.generators.kenning.lexicon import parse_running_header_pages
+
+    body = (
+        "front matter\n"
+        "BACKWORTH 9\n"
+        "  body of page 9...\n"
+        "BEDLINGTON 15\n"
+        "  body of page 15...\n"
+        "BISHOPWEARMOUTH 23\n"
+    )
+    headers = parse_running_header_pages(body)
+    pages = [page for _offset, page in headers]
+    assert pages == [9, 15, 23]
+    offsets = [offset for offset, _page in headers]
+    assert offsets == sorted(offsets)
+
+
+def test_parse_running_header_pages_handles_multi_word_headwords():
+    """Multi-word ALL CAPS headwords (e.g. 'ABBEY DORE 1') are detected."""
+    from wyrd.generators.kenning.lexicon import parse_running_header_pages
+
+    body = "ABBEY DORE 1\n  body...\nST PETER'S 47\n"
+    headers = parse_running_header_pages(body)
+    pages = [page for _offset, page in headers]
+    assert 1 in pages
+    assert 47 in pages
+
+
+def test_parse_running_header_pages_returns_empty_when_no_match():
+    """Skeat-style §-section headers don't match the Mawer pattern;
+    return an empty list rather than raising."""
+    from wyrd.generators.kenning.lexicon import parse_running_header_pages
+
+    skeat_style = "§   2.      NAMES   ENDING   IN   -TON.  9\n  body of section\n"
+    assert parse_running_header_pages(skeat_style) == []
+
+
+def test_page_for_offset_returns_closest_preceding_header():
+    """A character offset between two headers gets the page of the earlier
+    header — that's the page the body text physically sits on."""
+    from wyrd.generators.kenning.lexicon import page_for_offset
+
+    headers = [(100, 1), (200, 2), (300, 3)]
+    assert page_for_offset(headers, 50) is None  # before any header
+    assert page_for_offset(headers, 100) == 1  # at the first header
+    assert page_for_offset(headers, 150) == 1  # between 1st and 2nd
+    assert page_for_offset(headers, 200) == 2  # at the second header
+    assert page_for_offset(headers, 999) == 3  # after the last header
+
+
+def test_page_for_offset_empty_headers_returns_none():
+    """A book with no detectable running headers returns None for any
+    offset — caller can fall back to NULL page."""
+    from wyrd.generators.kenning.lexicon import page_for_offset
+
+    assert page_for_offset([], 0) is None
+    assert page_for_offset([], 12345) is None
+
+
 def test_reverse_search_captures_wider_snippet_window(fresh_db: Path, tmp_path: Path) -> None:
     """wyrd-9kh.4: reverse_search_attestations writes ±100 char snippets
     (up from the prior ±60). Pins the wider window so the SPA citation
