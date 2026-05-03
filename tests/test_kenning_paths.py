@@ -15,9 +15,8 @@ from wyrd.generators.kenning import paths
 def isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Redirect the resolver's "~/.wyrd" target into a tmpdir so tests
     can't touch the real user-home DB. Returns the tmp data dir."""
-    fake_home = tmp_path / "home"
-    fake_data_dir = fake_home / ".wyrd"
-    monkeypatch.setattr(paths, "_WYRD_DATA_DIR", fake_data_dir)
+    fake_data_dir = tmp_path / "home" / ".wyrd"
+    monkeypatch.setattr(paths, "_wyrd_data_dir", lambda: fake_data_dir)
     # Clear any env override leaking from the host shell.
     monkeypatch.delenv(paths._ENV_VAR, raising=False)
     return fake_data_dir
