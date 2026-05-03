@@ -4080,3 +4080,524 @@ def test_migrate_schema_adds_etymon_synset_columns_to_legacy_db(
         applied2 = migrate_schema(db)
         assert applied2["etymon.synset_id"] is False
         assert applied2["etymon.synset_method"] is False
+
+
+# --- D27 / wyrd-81n: cluster-cognates enrichment pass ------------------
+
+
+def _seed_descent_chain(db: LexiconDB, *edges: tuple[str, str, str]) -> dict[str, int]:
+    """Helper: insert a list of (parent_form, child_form, edge_type)
+    descent edges, upserting the etymon rows as needed. Returns a
+    {form: id} map for the test to reference. All etymons are written
+    with language='proto-germanic' for fixture simplicity — the cluster
+    pass walks edges, not languages."""
+    db.upsert_source(id="wiktionary", title="Wiktionary")
+    forms: dict[str, int] = {}
+    for parent_form, child_form, _edge in edges:
+        for form in (parent_form, child_form):
+            if form not in forms:
+                forms[form] = db.upsert_etymon(form, "proto-germanic")
+    for parent_form, child_form, edge_type in edges:
+        db.conn.execute(
+            "INSERT INTO etymon_descent "
+            "(parent_id, child_id, edge_type, source_id) VALUES (?, ?, ?, ?)",
+            (forms[parent_form], forms[child_form], edge_type, "wiktionary"),
+        )
+    db.commit()
+    return forms
+
+
+def test_cluster_cognates_assigns_root_id_to_inheritance_chain(fresh_db: Path) -> None:
+    """Happy path: a → b → c inheritance chain. All three rows get
+    synset_id = a.id, synset_method = 'cluster-cognates-v1'."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        forms = _seed_descent_chain(
+            db,
+            ("a", "b", "inheritance"),
+            ("b", "c", "inheritance"),
+        )
+        result = cluster_cognates(db, apply=True)
+        rows = {
+            row["canonical_form"]: row
+            for row in db.conn.execute(
+                "SELECT canonical_form, synset_id, synset_method FROM etymon"
+            )
+        }
+
+    assert result["roots"] == 1
+    assert result["candidates"] == 3
+    assert result["applied"] is True
+    for form in ("a", "b", "c"):
+        assert rows[form]["synset_id"] == forms["a"]
+        assert rows[form]["synset_method"] == "cluster-cognates-v1"
+
+
+def test_cluster_cognates_dry_run_does_not_write(fresh_db: Path) -> None:
+    """apply=False reports counts but leaves synset_id NULL on every
+    candidate row."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        _seed_descent_chain(
+            db,
+            ("a", "b", "inheritance"),
+            ("b", "c", "inheritance"),
+        )
+        result = cluster_cognates(db, apply=False)
+        synset_ids = [row["synset_id"] for row in db.conn.execute("SELECT synset_id FROM etymon")]
+
+    assert result["candidates"] == 3
+    assert result["applied"] is False
+    assert all(sid is None for sid in synset_ids)
+
+
+def test_cluster_cognates_separate_roots_get_separate_synsets(fresh_db: Path) -> None:
+    """Two unrelated roots produce two distinct synset_id values; rows
+    in each cluster point at their own root."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        forms = _seed_descent_chain(
+            db,
+            ("a", "b", "inheritance"),
+            ("x", "y", "inheritance"),
+        )
+        result = cluster_cognates(db, apply=True)
+        rows = {
+            row["canonical_form"]: row["synset_id"]
+            for row in db.conn.execute("SELECT canonical_form, synset_id FROM etymon")
+        }
+
+    assert result["roots"] == 2
+    assert rows["a"] == forms["a"]
+    assert rows["b"] == forms["a"]
+    assert rows["x"] == forms["x"]
+    assert rows["y"] == forms["x"]
+    assert rows["a"] != rows["x"]
+
+
+def test_cluster_cognates_cognate_edge_does_not_bridge_synsets(fresh_db: Path) -> None:
+    """The 'cognate' edge_type is a peer relation, NOT a chain — it must
+    not bridge synset assignments. Pin the contract: a {{cog}}-only
+    relation between two etymons leaves both with NULL synset_id (no
+    inheritance/borrowing chain to walk)."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        # Only a cognate edge — no inheritance.
+        forms = _seed_descent_chain(
+            db,
+            ("a", "b", "cognate"),
+        )
+        cluster_cognates(db, apply=True)
+        rows = {
+            row["canonical_form"]: row["synset_id"]
+            for row in db.conn.execute("SELECT canonical_form, synset_id FROM etymon")
+        }
+
+    assert rows["a"] is None
+    assert rows["b"] is None
+    # The forms map should still have both etymons, just with no
+    # synset_id assignment because no bridging edge exists.
+    assert "a" in forms and "b" in forms
+
+
+def test_cluster_cognates_borrowing_edges_bridge_synsets(fresh_db: Path) -> None:
+    """Borrowing edges DO bridge — a borrowed word is part of the
+    borrowing language's cognate set in practice (D27 / wyrd-81n
+    documents this choice)."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        forms = _seed_descent_chain(
+            db,
+            ("source-form", "borrowed-form", "borrowing"),
+        )
+        cluster_cognates(db, apply=True)
+        rows = {
+            row["canonical_form"]: row["synset_id"]
+            for row in db.conn.execute("SELECT canonical_form, synset_id FROM etymon")
+        }
+
+    assert rows["source-form"] == forms["source-form"]
+    assert rows["borrowed-form"] == forms["source-form"]
+
+
+def test_cluster_cognates_diamond_graph_picks_smallest_root(
+    fresh_db: Path,
+) -> None:
+    """When a descendant is reachable from multiple roots (rare; happens
+    when scholars disagree on the chain), the smallest root id wins.
+    Pin the determinism so re-runs are bit-stable."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        # Diamond: root1 → mid; root2 → mid. mid is reachable from both.
+        forms = _seed_descent_chain(
+            db,
+            ("root1", "mid", "inheritance"),
+            ("root2", "mid", "inheritance"),
+        )
+        cluster_cognates(db, apply=True)
+        mid_synset = db.conn.execute(
+            "SELECT synset_id FROM etymon WHERE canonical_form = 'mid'"
+        ).fetchone()["synset_id"]
+
+    # root1 was inserted first (lower id), so it wins.
+    assert mid_synset == forms["root1"]
+
+
+def test_cluster_cognates_idempotent_on_rerun(fresh_db: Path) -> None:
+    """A second --apply run with no schema changes is a content no-op:
+    the same rows get the same assignments. 'candidates' count stays
+    constant because the implementation doesn't track 'already-assigned'
+    vs 'newly-assigned' — it overwrites with the same values."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        _seed_descent_chain(
+            db,
+            ("a", "b", "inheritance"),
+            ("b", "c", "inheritance"),
+        )
+        first = cluster_cognates(db, apply=True)
+        first_ids = {
+            row["canonical_form"]: row["synset_id"]
+            for row in db.conn.execute("SELECT canonical_form, synset_id FROM etymon")
+        }
+        second = cluster_cognates(db, apply=True)
+        second_ids = {
+            row["canonical_form"]: row["synset_id"]
+            for row in db.conn.execute("SELECT canonical_form, synset_id FROM etymon")
+        }
+
+    assert first["candidates"] == second["candidates"]
+    assert first_ids == second_ids
+
+
+def test_cluster_cognates_skips_etymons_without_descent_edges(fresh_db: Path) -> None:
+    """Singleton etymons (rando-port seed entries with no Wiktionary
+    chain) get NULL synset_id. They're not in any cognate set."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        # One chain, plus a singleton that has no descent edges.
+        _seed_descent_chain(
+            db,
+            ("a", "b", "inheritance"),
+        )
+        singleton_id = db.upsert_etymon("singleton", "old-english")
+        db.commit()
+
+        cluster_cognates(db, apply=True)
+
+        singleton_synset = db.conn.execute(
+            "SELECT synset_id FROM etymon WHERE id = ?",
+            (singleton_id,),
+        ).fetchone()["synset_id"]
+
+    assert singleton_synset is None
+
+
+def test_clear_enrichment_cognates_stage_resets_synset_assignments(
+    fresh_db: Path,
+) -> None:
+    """clear-enrichment --stage=cognates undoes a cluster-cognates run:
+    synset_id and synset_method go back to NULL on every row. Mining
+    evidence (etymon_descent rows themselves) is untouched."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        _seed_descent_chain(
+            db,
+            ("a", "b", "inheritance"),
+        )
+        cluster_cognates(db, apply=True)
+        # Pre-clear: assignments exist.
+        before = db.conn.execute(
+            "SELECT COUNT(*) AS n FROM etymon WHERE synset_id IS NOT NULL"
+        ).fetchone()["n"]
+        assert before == 2
+
+        result = clear_enrichment(db, stage="cognates", apply=True)
+        after = db.conn.execute(
+            "SELECT COUNT(*) AS n FROM etymon WHERE synset_id IS NOT NULL"
+        ).fetchone()["n"]
+        # etymon_descent rows must survive — they're mining evidence (D21).
+        descent_after = db.conn.execute("SELECT COUNT(*) AS n FROM etymon_descent").fetchone()["n"]
+
+    assert result["synset_assignments_to_clear"] == 2
+    assert after == 0
+    assert descent_after == 1
+
+
+def test_clear_enrichment_all_derived_includes_cognates(fresh_db: Path) -> None:
+    """all-derived sweeps the cognate stage too — verifies the new stage
+    was wired into the all-derived alias. Without this, callers using
+    the --stage=all-derived shortcut would silently leave synset
+    assignments behind."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        _seed_descent_chain(
+            db,
+            ("a", "b", "inheritance"),
+        )
+        cluster_cognates(db, apply=True)
+        result = clear_enrichment(db, stage="all-derived", apply=True)
+        synset_count = db.conn.execute(
+            "SELECT COUNT(*) AS n FROM etymon WHERE synset_id IS NOT NULL"
+        ).fetchone()["n"]
+
+    assert result["synset_assignments_to_clear"] == 2
+    assert synset_count == 0
+
+
+def test_cluster_cognates_cli_dry_run_reports_without_writing(
+    fresh_db: Path,
+) -> None:
+    """End-to-end CLI smoke: dry-run reports root + candidate counts
+    and leaves the DB untouched."""
+    with LexiconDB(fresh_db) as db:
+        _seed_descent_chain(
+            db,
+            ("a", "b", "inheritance"),
+            ("b", "c", "inheritance"),
+        )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "cluster-cognates", "--db", str(fresh_db)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "1 root(s) walked" in result.output
+    assert "would assign synset_id on 3 etymon(s)" in result.output
+    assert "dry-run" in result.output
+
+    with LexiconDB(fresh_db) as db:
+        synset_ids = [row["synset_id"] for row in db.conn.execute("SELECT synset_id FROM etymon")]
+    assert all(sid is None for sid in synset_ids)
+
+
+def test_cluster_cognates_cli_apply_writes_assignments(fresh_db: Path) -> None:
+    """--apply persists the cluster pass; subsequent SELECT shows the
+    canonical synset_id pointer."""
+    with LexiconDB(fresh_db) as db:
+        forms = _seed_descent_chain(
+            db,
+            ("a", "b", "inheritance"),
+        )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "cluster-cognates", "--db", str(fresh_db), "--apply"],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "assigned synset_id on 2 etymon(s)" in result.output
+    # Pin the rows_written echo branch (added round-2 fix) — without
+    # this assertion a typo in the format string would slip through
+    # despite the lib-level dict field having coverage.
+    assert "rows_written = 2" in result.output
+    assert "dry-run" not in result.output
+
+    with LexiconDB(fresh_db) as db:
+        synset_ids = {
+            row["canonical_form"]: row["synset_id"]
+            for row in db.conn.execute("SELECT canonical_form, synset_id FROM etymon")
+        }
+    assert synset_ids["a"] == forms["a"]
+    assert synset_ids["b"] == forms["a"]
+
+
+# --- wyrd-81n round-1 review follow-ups -------------------------------
+
+
+@pytest.mark.parametrize("non_bridging_edge", ["derivation", "calque", "compound", "unknown"])
+def test_cluster_cognates_non_bridging_edge_types_do_not_cluster(
+    fresh_db: Path, non_bridging_edge: str
+) -> None:
+    """D27 lists derivation, calque, compound, unknown as non-bridging
+    (alongside cognate). Pin each so a refactor that widens
+    _COGNATE_BRIDGING_EDGES to include any of them surfaces here.
+    Without these tests, only 'cognate' was pinned and the others
+    could silently start bridging."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        _seed_descent_chain(db, ("a", "b", non_bridging_edge))
+        cluster_cognates(db, apply=True)
+        rows = {
+            row["canonical_form"]: row["synset_id"]
+            for row in db.conn.execute("SELECT canonical_form, synset_id FROM etymon")
+        }
+    assert rows["a"] is None, f"{non_bridging_edge} edge unexpectedly bridged"
+    assert rows["b"] is None, f"{non_bridging_edge} edge unexpectedly bridged"
+
+
+def test_cluster_cognates_self_loop_terminates_and_orphans(fresh_db: Path) -> None:
+    """A self-loop (X→X) shouldn't happen via Wiktionary, but defensive
+    coding: BFS must terminate (no infinite loop) and the etymon must
+    be flagged as a cycle orphan since it has no external root."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="wiktionary", title="Wiktionary")
+        x_id = db.upsert_etymon("x", "proto-germanic")
+        db.conn.execute(
+            "INSERT INTO etymon_descent "
+            "(parent_id, child_id, edge_type, source_id) VALUES (?, ?, ?, ?)",
+            (x_id, x_id, "inheritance", "wiktionary"),
+        )
+        db.commit()
+
+        result = cluster_cognates(db, apply=True)
+
+        synset = db.conn.execute("SELECT synset_id FROM etymon WHERE id = ?", (x_id,)).fetchone()[
+            "synset_id"
+        ]
+
+    assert result["roots"] == 0  # x is BOTH parent and child; no root.
+    assert result["cycle_orphans"] == 1
+    assert synset is None
+
+
+def test_cluster_cognates_mutual_cycle_terminates_and_orphans(fresh_db: Path) -> None:
+    """A two-node cycle (A→B, B→A) with no external root: BFS must
+    terminate and both etymons flagged as cycle orphans."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        forms = _seed_descent_chain(
+            db,
+            ("a", "b", "inheritance"),
+            ("b", "a", "inheritance"),
+        )
+        result = cluster_cognates(db, apply=True)
+        rows = {
+            row["canonical_form"]: row["synset_id"]
+            for row in db.conn.execute("SELECT canonical_form, synset_id FROM etymon")
+        }
+
+    assert result["roots"] == 0
+    assert result["cycle_orphans"] == 2
+    assert rows["a"] is None
+    assert rows["b"] is None
+    assert "a" in forms and "b" in forms
+
+
+def test_cluster_cognates_anchored_cycle_assigns_via_root(fresh_db: Path) -> None:
+    """root → a → b → a (cycle reachable from a real root): the cycle
+    members get root's synset_id, and BFS terminates because the
+    not-in-assignments check doubles as a visited-set."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        forms = _seed_descent_chain(
+            db,
+            ("root", "a", "inheritance"),
+            ("a", "b", "inheritance"),
+            ("b", "a", "inheritance"),
+        )
+        result = cluster_cognates(db, apply=True)
+        rows = {
+            row["canonical_form"]: row["synset_id"]
+            for row in db.conn.execute("SELECT canonical_form, synset_id FROM etymon")
+        }
+
+    assert result["cycle_orphans"] == 0
+    assert rows["root"] == forms["root"]
+    assert rows["a"] == forms["root"]
+    assert rows["b"] == forms["root"]
+
+
+def test_cluster_cognates_idempotent_apply_skips_unchanged_rows(fresh_db: Path) -> None:
+    """The second apply against unchanged data must produce
+    rows_written = 0 — the WHERE-clause guard short-circuits no-op
+    UPDATEs. Without the guard, every re-run would touch every row
+    and inflate write counters."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        _seed_descent_chain(
+            db,
+            ("a", "b", "inheritance"),
+            ("b", "c", "inheritance"),
+        )
+        first = cluster_cognates(db, apply=True)
+        second = cluster_cognates(db, apply=True)
+
+    assert first["rows_written"] == 3
+    assert second["rows_written"] == 0
+    assert first["candidates"] == second["candidates"]
+
+
+def test_clear_enrichment_cli_cognates_stage_round_trips(fresh_db: Path) -> None:
+    """End-to-end CLI smoke for clear-enrichment --stage=cognates: the
+    new Click choice + new echo branch had no test (only the lib
+    function did). Pin via CliRunner so a typo in the choice list
+    surfaces immediately."""
+    from wyrd.generators.kenning.lexicon import cluster_cognates
+
+    with LexiconDB(fresh_db) as db:
+        _seed_descent_chain(db, ("a", "b", "inheritance"))
+        cluster_cognates(db, apply=True)
+
+    runner = CliRunner()
+    dry = runner.invoke(
+        kenning_cli,
+        ["lexicon", "clear-enrichment", "--db", str(fresh_db), "--stage", "cognates"],
+    )
+    assert dry.exit_code == 0, dry.output
+    assert "Stage: cognates" in dry.output
+    assert "would clear 2 synset_id assignments" in dry.output
+    assert "dry-run" in dry.output
+
+    apply = runner.invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "clear-enrichment",
+            "--db",
+            str(fresh_db),
+            "--stage",
+            "cognates",
+            "--apply",
+        ],
+    )
+    assert apply.exit_code == 0, apply.output
+    assert "cleared 2 synset_id assignments" in apply.output
+
+    with LexiconDB(fresh_db) as db:
+        remaining = db.conn.execute(
+            "SELECT COUNT(*) AS n FROM etymon WHERE synset_id IS NOT NULL"
+        ).fetchone()["n"]
+    assert remaining == 0
+
+
+def test_cluster_cognates_cli_warns_on_cycle_orphans(fresh_db: Path) -> None:
+    """A descent graph with a closed cycle and no external root produces
+    a warn line on stderr so operators notice the missed cluster."""
+    with LexiconDB(fresh_db) as db:
+        _seed_descent_chain(
+            db,
+            ("a", "b", "inheritance"),
+            ("b", "a", "inheritance"),
+        )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "cluster-cognates", "--db", str(fresh_db), "--apply"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "warn:" in result.output
+    assert "2 etymon(s) sit in a bridging-edge cycle" in result.output
+    # rows_written = 0 here: there are 0 candidates because no roots,
+    # so the apply branch echoes 'rows_written = 0'.
+    assert "rows_written = 0" in result.output
