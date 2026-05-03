@@ -937,6 +937,11 @@ def test_root_template_walrus_loop_terminates_on_arg_gap(fresh_db: Path) -> None
         "past participle of",
         "alt form",
         "abbrev",
+        "vrd",
+        "nominalization",
+        "syncope",
+        "alternative form of",
+        "abbreviation",
     ],
 )
 def test_same_lang_derivation_template_emits_one_derivation_edge(
@@ -1046,7 +1051,6 @@ def test_compound_edge_does_not_bridge_synsets(fresh_db: Path) -> None:
         "str sub-lite",
         "str sub-lite/2",
         "ety",
-        "vrd",
         "lit",
         "langname",
         "word",

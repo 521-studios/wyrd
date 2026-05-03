@@ -150,6 +150,14 @@ _SAME_LANG_DERIVATION_TEMPLATE_NAMES: frozenset[str] = frozenset(
         "contraction",
         "deverbal",
         "nom",
+        # Defensive-add: full-name variants of already-verified abbreviations.
+        # They don't appear in the four ingested slices (OE/ON/PG/PC) but
+        # almost certainly share their abbreviation's arg shape, and the
+        # dispatcher returns [] when args are insufficient.
+        "nominalization",
+        "syncope",
+        "alternative form of",
+        "abbreviation",
         "reduplication",
         # Verified from real wiktextract entries 2026-05-03:
         #   {{contr|ang|æghwæþer}} → ang ægþer (contraction abbreviation)
@@ -171,6 +179,14 @@ _SAME_LANG_DERIVATION_TEMPLATE_NAMES: frozenset[str] = frozenset(
         "past participle of",
         "alt form",
         "abbrev",
+        # vrd = vṛddhi gerundive abbreviation. 62 occurrences in PG/ON
+        # slices; verified args[2] holds the parent word
+        # ({{vrd|gem-pro|*drepaną}} → gem-pro hældræpr ← *drepaną).
+        # NOTE: the long-form 'vrddhi' template stores the parent in
+        # the 'alt' keyword arg instead of args[2], so it stays in the
+        # skip list — handling that variant would need the dispatcher
+        # to inspect named kwargs.
+        "vrd",
     }
 )
 
@@ -263,7 +279,6 @@ _SKIPPED_TEMPLATE_NAMES: frozenset[str] = frozenset(
         "sup",
         "smallsup",
         "ety",
-        "vrd",
         "PIE word",
         "cat",
         "or else",
