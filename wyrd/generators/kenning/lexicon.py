@@ -3327,6 +3327,7 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
         "member_variants": _fetch_member_variants(db, member_ids, canonical_forms_lower),
         "member_inflection_by_id": member_inflection_by_id,
         "member_citations": _fetch_member_citations(db, member_ids),
+        "member_attested_years": _fetch_member_attested_years(db, member_ids),
         "glosses": _fetch_member_glosses(db, member_ids),
         "tags": _fetch_member_tags(db, member_ids),
         "reflexes": _fetch_member_reflexes(db, member_ids, reflex_links),
@@ -3525,6 +3526,54 @@ def _fetch_member_citations(db: LexiconDB, member_ids: list[int]) -> dict[int, l
     return member_citations
 
 
+def _fetch_member_attested_years(db: LexiconDB, member_ids: list[int]) -> dict[int, int]:
+    """Earliest attested year per member_id, drawn from BOTH row sources
+    that carry year evidence (D5-1):
+
+    * ``etymon_text_match.attested_year`` (PR #47 / wyrd-3ux) —
+      reverse-search rows where the etymon's canonical form was found
+      in a source body, paired with a form-attached year citation.
+    * ``toponym_etymology.attested_year`` (PR #53 / wyrd-bag) — joined
+      via toponym_etymology_element so a year cited against a toponym
+      lands on each of its breakdown's element etymons.
+
+    Returns ``{member_id: earliest_year}``; members with no attested
+    year on either side are absent (caller emits no ``_attested_years``
+    sibling for them — D5-2 generator interprets None as 'no era
+    filter applies'). Sorted output is incidental — the dict is built
+    by iterating SQL results, then the consumer re-sorts when emitting.
+    """
+    # Use a CTE to bind member_ids exactly once. A naive UNION ALL with
+    # two `IN (?,?,?)` branches would require duplicating the bind list,
+    # which is fragile if a third year-source is added in future. The
+    # CTE makes the contract explicit: 'these are the etymons we care
+    # about; gather years from any source that mentions them'.
+    targets_values = ",".join("(?)" for _ in member_ids)
+    member_years: dict[int, int] = {}
+    cur = db.conn.execute(
+        f"""
+        WITH targets(etymon_id) AS (VALUES {targets_values})
+        SELECT etymon_id, MIN(year) AS earliest_year FROM (
+            SELECT etm.etymon_id, etm.attested_year AS year
+            FROM etymon_text_match etm
+            JOIN targets t ON t.etymon_id = etm.etymon_id
+            WHERE etm.attested_year IS NOT NULL
+            UNION ALL
+            SELECT tee.etymon_id, te.attested_year AS year
+            FROM toponym_etymology_element tee
+            JOIN targets t ON t.etymon_id = tee.etymon_id
+            JOIN toponym_etymology te ON te.id = tee.toponym_etymology_id
+            WHERE te.attested_year IS NOT NULL
+        )
+        GROUP BY etymon_id
+        """,
+        member_ids,
+    )
+    for row in cur:
+        member_years[row["etymon_id"]] = row["earliest_year"]
+    return member_years
+
+
 def _compute_member_descendants(member_rows: list[Any]) -> dict[int, list[int]]:
     """Transitive descendants per member_id (DB-free DFS).
 
@@ -3668,6 +3717,7 @@ def _word_for_reflex(
     per_lang_variants: dict[str, dict[str, int]] = {}
     per_lang_inflections: dict[str, dict[str, str]] = {}
     per_lang_citations: dict[str, set[str]] = {}
+    per_lang_attested_years: dict[str, dict[str, int]] = {}
     for fam, linked_ids in link_pairs:
         for member_id in linked_ids:
             for descendant_id in fam["member_descendants"][member_id]:
@@ -3678,9 +3728,17 @@ def _word_for_reflex(
                 _absorb_member_variants(per_lang_variants, fam, descendant_id, lang)
                 _absorb_member_inflection(per_lang_inflections, fam, descendant_id, lang, form)
                 _absorb_member_citations(per_lang_citations, fam, descendant_id, lang)
+                _absorb_member_attested_years(
+                    per_lang_attested_years, fam, descendant_id, lang, form
+                )
     word: dict[str, Any] = {"modern_usage": meta["surface_form"]}
     _emit_word_languages(
-        word, per_lang, per_lang_variants, per_lang_inflections, per_lang_citations
+        word,
+        per_lang,
+        per_lang_variants,
+        per_lang_inflections,
+        per_lang_citations,
+        per_lang_attested_years,
     )
     return word
 
@@ -3699,12 +3757,21 @@ def _synthesize_word_for_family(fam: dict[str, Any]) -> dict[str, Any]:
     per_lang_variants: dict[str, dict[str, int]] = {}
     per_lang_inflections: dict[str, dict[str, str]] = {}
     per_lang_citations: dict[str, set[str]] = {}
+    per_lang_attested_years: dict[str, dict[str, int]] = {}
     for member_id, (member_lang, member_form) in fam["member_form_by_id"].items():
         _absorb_member_variants(per_lang_variants, fam, member_id, member_lang)
         _absorb_member_inflection(per_lang_inflections, fam, member_id, member_lang, member_form)
         _absorb_member_citations(per_lang_citations, fam, member_id, member_lang)
+        _absorb_member_attested_years(
+            per_lang_attested_years, fam, member_id, member_lang, member_form
+        )
     _emit_word_languages(
-        word, per_lang, per_lang_variants, per_lang_inflections, per_lang_citations
+        word,
+        per_lang,
+        per_lang_variants,
+        per_lang_inflections,
+        per_lang_citations,
+        per_lang_attested_years,
     )
     return word
 
@@ -3739,6 +3806,22 @@ def _absorb_member_inflection(
         per_lang_inflections.setdefault(lang, {})[form] = inflection
 
 
+def _absorb_member_attested_years(
+    per_lang_attested_years: dict[str, dict[str, int]],
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+    form: str,
+) -> None:
+    """Record a member's earliest attested year (D5-1, wyrd-bag) keyed
+    by its surface form. Members with no attested year are skipped —
+    the runtime generator interprets the absence as 'no era constraint
+    applies' (treat the form as always-includable under any --era)."""
+    year = fam.get("member_attested_years", {}).get(member_id)
+    if year is not None:
+        per_lang_attested_years.setdefault(lang, {})[form] = year
+
+
 def _absorb_member_citations(
     per_lang_citations: dict[str, set[str]],
     fam: dict[str, Any],
@@ -3760,12 +3843,14 @@ def _emit_word_languages(
     per_lang_variants: dict[str, dict[str, int]],
     per_lang_inflections: dict[str, dict[str, str]],
     per_lang_citations: dict[str, set[str]],
+    per_lang_attested_years: dict[str, dict[str, int]],
 ) -> None:
-    """Stamp per-language form arrays + sibling _variants / _inflections /
-    _citations metadata onto the word dict. Per D26, the metadata fields
-    are sibling keys (`<lang>_variants`, `<lang>_inflections`,
-    `<lang>_citations`) so legacy loaders that ignore unknown fields keep
-    working."""
+    """Stamp per-language form arrays + sibling _variants /
+    _inflections / _citations / _attested_years metadata onto the word
+    dict. Per D26, the metadata fields are sibling keys
+    (``<lang>_variants``, ``<lang>_inflections``, ``<lang>_citations``,
+    ``<lang>_attested_years``) so legacy loaders that ignore unknown
+    fields keep working."""
     for lang in sorted(per_lang):
         json_field = _LANG_CODE_TO_JSON_FIELD.get(lang)
         if not json_field:
@@ -3777,6 +3862,21 @@ def _emit_word_languages(
             word[f"{json_field}_inflections"] = _emit_inflection_list(per_lang_inflections[lang])
         if lang in per_lang_citations:
             word[f"{json_field}_citations"] = sorted(per_lang_citations[lang])
+        if lang in per_lang_attested_years:
+            word[f"{json_field}_attested_years"] = _emit_attested_years_list(
+                per_lang_attested_years[lang]
+            )
+
+
+def _emit_attested_years_list(years: dict[str, int]) -> list[dict[str, Any]]:
+    """Serialize ``{form: year}`` into the meanings.json attested-year
+    entry shape. Sorted by ``(year, form)`` so output is deterministic
+    and the chronologically-earliest entries lead — useful when the
+    runtime --era filter walks the list looking for the first match."""
+    return [
+        {"form": form, "year": year}
+        for form, year in sorted(years.items(), key=lambda kv: (kv[1], kv[0]))
+    ]
 
 
 def _emit_variant_list(variants: dict[str, int]) -> list[dict[str, Any]]:

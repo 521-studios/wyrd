@@ -3658,6 +3658,40 @@ def test_export_meanings_synthesizes_word_for_mined_only_family(
     ]
 
 
+def test_export_meanings_synthesize_path_emits_attested_years(
+    fresh_db: Path,
+) -> None:
+    """The synth-without-linked-reflex code path (mined-only families,
+    no rando-port reflex) needs its own attested-year coverage. The
+    structure differs from the linked-reflex path (flat
+    member_form_by_id walk vs descendant walk), so a regression here
+    wouldn't be caught by the reflex-path tests in the wyrd-bag set.
+
+    Pin: a tune-id mined etymon with three citations + an ETM row
+    carrying attested_year=1086 surfaces the year in the synthesized
+    word's `<lang>_attested_years` field."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b", "c"):
+            db.upsert_source(id=src, title=src)
+        tune_id = db.upsert_etymon("tune", "old-english", modifier_type="Habitative")
+        db.add_gloss(tune_id, "settlement")
+        db.add_tag(tune_id, "habitation")
+        for src in ("a", "b", "c"):
+            db.add_citation(tune_id, src)
+        db.conn.execute(
+            "INSERT INTO etymon_text_match (etymon_id, source_id, matched_form, "
+            "match_count, edit_distance, attested_year) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (tune_id, "a", "tune", 1, 0, 1086),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=False, min_witnesses=3)
+
+    word = subjects[0]["words"][0]
+    assert word["old_english_attested_years"] == [{"form": "tune", "year": 1086}]
+
+
 # --- wyrd-9kh.1: per-language citation attribution -----------------------
 
 
@@ -3711,6 +3745,207 @@ def test_export_meanings_emits_citations_for_scholarly_witnesses(fresh_db: Path)
 
     word = subjects[0]["words"][0]
     assert word["old_english_citations"] == ["mawer_1920", "skeat_1901"]
+
+
+def test_export_meanings_emits_attested_years_from_etymon_text_match(
+    fresh_db: Path,
+) -> None:
+    """wyrd-bag: ``<lang>_attested_years`` is sourced from the rollup
+    of ``etymon_text_match.attested_year`` (PR #47) and
+    ``toponym_etymology.attested_year`` (PR #53). This test exercises
+    the ETM path: a scholar-cited etymon with one text-match row
+    carrying year 1086 → bundle entry ``[{form: brycg, year: 1086}]``."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        db.upsert_source(id="mawer_1920", title="Mawer")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["bridge"],
+            tags=["water"],
+            modifier_type="Topographical",
+            words=[{"modern_usage": "Bridg-", "old_english": ["brycg"]}],
+        )
+        brycg_id = db.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = 'brycg'"
+        ).fetchone()["id"]
+        db.add_citation(brycg_id, "mawer_1920")
+        db.conn.execute(
+            "INSERT INTO etymon_text_match (etymon_id, source_id, matched_form, "
+            "match_count, edit_distance, attested_year) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (brycg_id, "mawer_1920", "brycg", 1, 0, 1086),
+        )
+        db.commit()
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert word["old_english_attested_years"] == [{"form": "brycg", "year": 1086}]
+
+
+def test_export_meanings_emits_attested_years_from_toponym_etymology(
+    fresh_db: Path,
+) -> None:
+    """wyrd-bag: the toponym_etymology path. A toponym whose etymology
+    cites this etymon as one element, and whose row has attested_year
+    populated, surfaces the year in the bundle."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        db.upsert_source(id="mawer_1920", title="Mawer")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["enclosure"],
+            tags=["habitation"],
+            modifier_type="Habitative",
+            words=[{"modern_usage": "-tun", "old_english": ["tun"]}],
+        )
+        tun_id = db.conn.execute("SELECT id FROM etymon WHERE canonical_form = 'tun'").fetchone()[
+            "id"
+        ]
+        db.add_citation(tun_id, "mawer_1920")
+        # Set up a toponym + etymology + element pointing at tun, with
+        # attested_year on the etymology row.
+        cur = db.conn.execute("INSERT INTO toponym (modern_name) VALUES (?)", ("Town",))
+        toponym_id = cur.lastrowid
+        cur = db.conn.execute(
+            "INSERT INTO toponym_etymology "
+            "(toponym_id, source_id, historical_form, confidence, notes, attested_year) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (toponym_id, "mawer_1920", "tūn", "high", "Tune 1086 DB", 1086),
+        )
+        te_id = cur.lastrowid
+        db.conn.execute(
+            "INSERT INTO toponym_etymology_element "
+            "(toponym_etymology_id, ordinal, etymon_id) VALUES (?, ?, ?)",
+            (te_id, 0, tun_id),
+        )
+        db.commit()
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert word["old_english_attested_years"] == [{"form": "tun", "year": 1086}]
+
+
+def test_export_meanings_attested_years_picks_earliest_across_sources(
+    fresh_db: Path,
+) -> None:
+    """An etymon attested via BOTH etymon_text_match and toponym_etymology
+    surfaces the EARLIEST year — pin via SQL MIN(year) so a future
+    refactor that drops the rollup surfaces immediately."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        db.upsert_source(id="mawer_1920", title="Mawer")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["enclosure"],
+            tags=["habitation"],
+            modifier_type="Habitative",
+            words=[{"modern_usage": "-tun", "old_english": ["tun"]}],
+        )
+        tun_id = db.conn.execute("SELECT id FROM etymon WHERE canonical_form = 'tun'").fetchone()[
+            "id"
+        ]
+        db.add_citation(tun_id, "mawer_1920")
+        # ETM row attests year 1242. Toponym_etymology attests 1086.
+        # MIN should win.
+        db.conn.execute(
+            "INSERT INTO etymon_text_match (etymon_id, source_id, matched_form, "
+            "match_count, edit_distance, attested_year) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (tun_id, "mawer_1920", "tun", 1, 0, 1242),
+        )
+        cur = db.conn.execute("INSERT INTO toponym (modern_name) VALUES (?)", ("Town",))
+        toponym_id = cur.lastrowid
+        cur = db.conn.execute(
+            "INSERT INTO toponym_etymology "
+            "(toponym_id, source_id, confidence, notes, attested_year) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (toponym_id, "mawer_1920", "high", "1086 DB", 1086),
+        )
+        te_id = cur.lastrowid
+        db.conn.execute(
+            "INSERT INTO toponym_etymology_element "
+            "(toponym_etymology_id, ordinal, etymon_id) VALUES (?, ?, ?)",
+            (te_id, 0, tun_id),
+        )
+        db.commit()
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    # 1086 wins over 1242.
+    assert word["old_english_attested_years"] == [{"form": "tun", "year": 1086}]
+
+
+def test_export_meanings_omits_attested_years_field_when_no_year_evidence(
+    fresh_db: Path,
+) -> None:
+    """A morpheme with no attested year on either row source has no
+    ``<lang>_attested_years`` field in its emitted word — keeps the
+    bundle clean and lets the runtime --era filter pass it through."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["wood"],
+            tags=["topography"],
+            modifier_type="Topographical",
+            words=[{"modern_usage": "-wood", "old_english": ["wudu"]}],
+        )
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert "old_english_attested_years" not in word
+
+
+def test_export_meanings_attested_years_sorted_by_year_ascending(
+    fresh_db: Path,
+) -> None:
+    """The emit list is sorted by year ascending so the runtime --era
+    filter (D5-2) can short-circuit on the first match. Ties broken
+    alphabetically by form."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        db.upsert_source(id="mawer_1920", title="Mawer")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["enclosure"],
+            tags=["habitation"],
+            modifier_type="Habitative",
+            words=[{"modern_usage": "-tun", "old_english": ["tun"]}],
+        )
+        tun_id = db.conn.execute("SELECT id FROM etymon WHERE canonical_form = 'tun'").fetchone()[
+            "id"
+        ]
+        db.add_citation(tun_id, "mawer_1920")
+        # Three inflected variants, intentionally inserted in non-
+        # chronological order. Each has its own etymon row + ETM row
+        # with attested_year. The lemma_id chains them under tun.
+        for form, year in [("tunna", 1340), ("tun", 1086), ("tunes", 1242)]:
+            child_id = db.upsert_etymon(form, "old-english")
+            db.conn.execute(
+                "UPDATE etymon SET lemma_id = ? WHERE id = ?",
+                (tun_id, child_id),
+            )
+            db.conn.execute(
+                "INSERT INTO etymon_text_match (etymon_id, source_id, matched_form, "
+                "match_count, edit_distance, attested_year) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (child_id, "mawer_1920", form, 1, 0, year),
+            )
+        db.commit()
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    # Sorted by year ascending; tun(1086) beats tunes(1242) beats tunna(1340).
+    assert word["old_english_attested_years"] == [
+        {"form": "tun", "year": 1086},
+        {"form": "tunes", "year": 1242},
+        {"form": "tunna", "year": 1340},
+    ]
 
 
 def test_export_meanings_citations_dedupe_across_descendants(fresh_db: Path) -> None:

@@ -28,6 +28,13 @@ _INFLECTION_SUFFIX = "_inflections"
 # which scholars attest each morpheme.
 _CITATIONS_SUFFIX = "_citations"
 
+# Suffix used for per-language attested-year metadata (D5-1 / wyrd-bag).
+# Each entry is (form, year) where year is the earliest plausibly-
+# attested year for the form on the production corpus. Sorted by year
+# ascending so the runtime --era filter (D5-2) can short-circuit on
+# the first match. Empty / absent for morphemes with no year evidence.
+_ATTESTED_YEARS_SUFFIX = "_attested_years"
+
 
 class Meaning:
     def __init__(
@@ -39,6 +46,7 @@ class Meaning:
         variants=None,
         inflections=None,
         citations=None,
+        attested_years=None,
     ):
         self.usage = usage
         self.tags = tags
@@ -57,6 +65,12 @@ class Meaning:
         # explainer surfaces these so a GM can see which scholars cite each
         # morpheme. Empty for rando-port-only legacy entries.
         self.citations = citations or {}
+        # attested_years is a dict[lang_field, list[(form, year)]] sorted
+        # by ascending year — D5-1 / wyrd-bag. The D5-2 generator filter
+        # uses this to constrain morpheme inventory by attestation period
+        # under --era. Empty for morphemes with no year evidence; those
+        # morphemes pass any --era filter unconditionally.
+        self.attested_years = attested_years or {}
         self._set_location()
 
     def _set_location(self):
@@ -235,6 +249,7 @@ def load_meanings(data):
                 and not k.endswith(_VARIANT_SUFFIX)
                 and not k.endswith(_INFLECTION_SUFFIX)
                 and not k.endswith(_CITATIONS_SUFFIX)
+                and not k.endswith(_ATTESTED_YEARS_SUFFIX)
             }
             variants = {
                 k[: -len(_VARIANT_SUFFIX)]: [(entry["form"], entry["weight"]) for entry in v]
@@ -251,6 +266,11 @@ def load_meanings(data):
                 for k, v in word.items()
                 if k.endswith(_CITATIONS_SUFFIX)
             }
+            attested_years = {
+                k[: -len(_ATTESTED_YEARS_SUFFIX)]: [(entry["form"], entry["year"]) for entry in v]
+                for k, v in word.items()
+                if k.endswith(_ATTESTED_YEARS_SUFFIX)
+            }
             # Singular and plural Meanings share every constructor arg
             # except `usage`. Bundle them so a future kwarg addition can't
             # silently drop on one branch and not the other.
@@ -261,6 +281,7 @@ def load_meanings(data):
                 "variants": variants,
                 "inflections": inflections,
                 "citations": citations,
+                "attested_years": attested_years,
             }
             meaning = Meaning(usage, **common_kwargs)
             for tag in tags:
