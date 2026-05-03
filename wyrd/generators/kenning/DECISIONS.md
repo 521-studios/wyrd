@@ -84,6 +84,35 @@ produces `Hædan-tūn`; "Old English modernized" produces `Hadenham`;
 
 Why: keeps the model honest about what's data vs. what's stylistic.
 
+**Refinement (wyrd-z56, 2026-05-03): attested_year validator range
+widened.** The D5-1 prompt-side capture (PR #27, wyrd-3ux foundation)
+shipped with `_ATTESTED_YEAR_MIN=800` to filter publication-year noise
+(1880-1928 in the scholarly-source pool) and folio/page numbers. That
+floor was sized for British/Norman-period sources where Domesday Book
+(1086) is the typical earliest dated attestation. On Romance/Celtic-
+substrate sources like d'Arbois 1890 *Recherches sur l'origine de la
+propriété foncière (période celtique et période romaine)*, the 800
+floor cut legitimate Roman-empire and early-Merovingian charter dates
+— concretely, 39 entries on the d'Arbois full pass (wyrd-cmz) were
+rejected as `attested_year_out_of_range` for years like 580 (Aria
+monasterio) and 200 (Lugudunum) that are valid Roman/Gallo-Roman
+attestations.
+
+PR #42 widened the floor to 100 (Roman 1st-c. AD onward through
+Restoration) and tightened the SYSTEM_PROMPT with explicit
+RIGHT/WRONG examples for JSON-integer-not-string year format
+(addressing 32 `attested_year_not_int` rejections from models
+emitting `"1333 (?)"` strings instead of bare integers). Re-mining
+d'Arbois recovered 27 toponym etymology rows (100 → 127 accepted)
+and 51 etymon citations (168 → 219 etymons touched).
+
+**Pattern**: validator default ranges should be reviewed when a
+new source class enters the corpus. A guard tuned for one
+substrate's attestation period may exclude legitimate rows on a
+different substrate. When a single rejection_reason dominates the
+breakdown (>30% of rejections), check it against the source's
+content-period before re-mining.
+
 ## D6. Languages are morally-neutral palette options.
 
 No language is pre-coded as the "good" or "bad" register. Slavic isn't

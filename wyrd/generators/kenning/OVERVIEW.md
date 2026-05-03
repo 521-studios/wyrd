@@ -224,13 +224,22 @@ GROUP BY source_id, provider, model, mode
 ORDER BY source_id;
 ```
 
-The shape today (project age: ~3 days) is roughly: ~40+ sources mined,
-~5400+ etymon rows, ~4500+ etymology extractions, **389+ morphemes
-promotion-eligible at ≥3 witnesses** (more at the per-language preset).
-Several methodology / name-list books contribute few or zero rows by
-design (Quilgars 1906 was the latest such case — see INGESTION.md
-"low-yield book class" note for the topographical-vs-toponymic
-distinction).
+The shape today (project age: ~4 days) is roughly: **46+ sources mined,
+~77K etymon rows, ~5,200 toponym etymology extractions, ~7,800 citations,
+403 morphemes promotion-eligible at ≥3 witnesses** (more at the per-
+language preset). Several methodology / name-list books contribute few
+or zero rows by design (Quilgars 1906 and Joret 1881 were the latest
+such cases — see INGESTION.md "low-yield book class" note for the
+topographical-vs-toponymic and dialectical-vs-toponymic distinctions).
+
+**Recent corpus expansion (2026-05-03)**: three new Romance / French-
+substrate sources added — Longnon 1920 vol 1 (16 acc, 27 etymons),
+d'Arbois de Jubainville 1890 'Recherches sur l'origine de la propriété
+foncière (période celtique et période romaine)' (127 acc, 219 etymons
+post-wyrd-z56-remine), and Mawer 1920 Northumberland-Durham re-mined
+via Gemini Flash 2.5 as Tier-1 (501 acc, 714 etymons, independent 3rd-
+model witness layer). Net: +644 acc rows / +960 etymons touched / +3
+new lemmas crossing the D4 ≥3-witness promotion threshold.
 
 The bundled `meanings.json` is now exported from the lexicon (D1
 follow-through), so all the mining + per-reflex narrowing + per-language
