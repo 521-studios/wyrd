@@ -802,6 +802,7 @@ def test_root_template_with_multiple_parallel_roots_emits_one_edge_each(
         "affix",
         "confix",
         "blend",
+        "univerbation",
     ],
 )
 def test_compound_template_emits_one_edge_per_constituent(
@@ -863,6 +864,10 @@ def test_compound_template_with_three_constituents_emits_three_edges(
         "uder",
         "nom",
         "reduplication",
+        "contr",
+        "sync",
+        "apocopic form",
+        "metathesis",
     ],
 )
 def test_same_lang_derivation_template_emits_one_derivation_edge(
@@ -995,7 +1000,6 @@ def test_compound_edge_does_not_bridge_synsets(fresh_db: Path) -> None:
         "m-lite",
         # wyrd-wse: no-arg category-only markers
         "pre-Germanic",
-        "univerbation",
         "vrddhi",
         # wyrd-wse: small formatting / unknown-context templates
         "g",
@@ -1008,7 +1012,6 @@ def test_compound_edge_does_not_bridge_synsets(fresh_db: Path) -> None:
         "sno",
         "qinfl",
         "coin",
-        "sync",
         "lang",
         "ISSN",
         "tea",
@@ -1018,14 +1021,11 @@ def test_compound_edge_does_not_bridge_synsets(fresh_db: Path) -> None:
         "C.E.",
         "smallcaps",
         "angbr",
-        "apocopic form",
         "PIE root box",
         "abbrev",
         "non-gloss",
         "displaced",
         "past participle of",
-        "contr",
-        "metathesis",
         "alt form",
         "alter",
         "etydate",

@@ -148,6 +148,18 @@ _SAME_LANG_DERIVATION_TEMPLATE_NAMES: frozenset[str] = frozenset(
         "uder",
         "nom",
         "reduplication",
+        # Verified from real wiktextract entries 2026-05-03:
+        #   {{contr|ang|æghwæþer}} → ang ægþer (contraction abbreviation)
+        #   {{sync|ang|isern}}     → ang iren  (syncope)
+        #   {{apocopic form|ang|æþele}} → ang æþel
+        # metathesis sometimes lacks args[2] (just a category marker),
+        # but the dispatcher returns [] defensively when args[2] is
+        # missing — including it costs nothing and admits the cases
+        # where args[2] IS present.
+        "contr",
+        "sync",
+        "apocopic form",
+        "metathesis",
     }
 )
 
@@ -179,6 +191,12 @@ _COMPOUND_TEMPLATE_NAMES: frozenset[str] = frozenset(
         # matches compound (args[1]=this_lang, args[2..]=parts). Treating
         # each part as a compound edge captures the same shape.
         "blend",
+        # Univerbation = compound formed from a free word sequence.
+        # The OE-slice samples I checked omit args[2..] (use it as a
+        # bare category marker), but documentation of {{univerbation}}
+        # says args[2..] carry the constituent parts. Compound handler
+        # safely returns [] when args[2..] are missing.
+        "univerbation",
     }
 )
 
@@ -270,7 +288,6 @@ _SKIPPED_TEMPLATE_NAMES: frozenset[str] = frozenset(
         "m-lite",  # lite of m
         # No-arg category-only markers (no parent etymon to extract):
         "pre-Germanic",
-        "univerbation",
         "vrddhi",  # marker only — args[1] is this_lang; no parent_word
         # Small formatting / unknown-context templates:
         "g",
@@ -283,7 +300,6 @@ _SKIPPED_TEMPLATE_NAMES: frozenset[str] = frozenset(
         "sno",
         "qinfl",
         "coin",
-        "sync",
         "lang",
         "ISSN",
         "tea",
@@ -292,22 +308,19 @@ _SKIPPED_TEMPLATE_NAMES: frozenset[str] = frozenset(
         # wyrd-wse: long-tail single-occurrence kinds across the OE/ON/PG/PC
         # slices. Mostly formatting (smallcaps, angbr, PIE root box, etydate)
         # or specialised derivational hints with un-confirmed arg shapes
-        # (apocopic form, past participle of, alt form, alter, contr,
-        # metathesis, displaced). Skipping to silence the audit noise; if
-        # the larger language slices surface them at scale, file a follow-up
-        # to extend _SAME_LANG_DERIVATION_TEMPLATE_NAMES.
+        # (past participle of, alt form, alter, displaced). Skipping to
+        # silence the audit noise; if the larger language slices surface
+        # them at scale, file a follow-up to extend
+        # _SAME_LANG_DERIVATION_TEMPLATE_NAMES.
         "senseno",
         "C.E.",
         "smallcaps",
         "angbr",
-        "apocopic form",
         "PIE root box",
         "abbrev",
         "non-gloss",
         "displaced",
         "past participle of",
-        "contr",
-        "metathesis",
         "alt form",
         "alter",
         "etydate",
