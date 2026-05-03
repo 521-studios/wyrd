@@ -1690,7 +1690,6 @@ def cluster_ocr_variants(db: LexiconDB, *, apply: bool = False) -> dict:
 
 _ATTESTED_YEAR_MIN_LOOKUP = 100
 _ATTESTED_YEAR_MAX_LOOKUP = 1700
-_LOOKUP_ATTESTED_YEAR_METHOD = "lookup-attested-years-v1"
 
 
 # Form-attached year-citation pattern. Three accepted shapes, all

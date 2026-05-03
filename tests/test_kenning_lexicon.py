@@ -938,15 +938,18 @@ def test_lookup_attested_years_rejects_publication_year(fresh_db: Path, tmp_path
     assert year is None
 
 
-def test_lookup_attested_years_rejects_digit_in_citation_number_list(
+def test_lookup_attested_years_handles_complex_citation_list(
     fresh_db: Path, tmp_path: Path
 ) -> None:
-    """Real EPNS pattern: '(c. 1290 sac 6, 134, 1320 ch)' has 134 as a
-    section reference, not a year. The form-comma-year filter requires
-    the comma/semicolon to follow ALPHABETIC characters, not another
-    digit, so 134 doesn't qualify (1290 and 1320 are publication-year
-    range / out-of-corpus, so they're rejected by the year-range too).
-    Pin so a future loosening doesn't reintroduce this FP class."""
+    """Real EPNS pattern: 'speldredge (c. 1290 sac 6, 134, 1320 ch)'
+    has THREE digit runs, only one of which is a real year-citation.
+    The form-attached pattern with the 'c.' marker correctly extracts
+    1290 (year) and rejects 134 (section reference — preceded by ', '
+    after a digit, not after alpha). 1320 is also a real year, but
+    1290 wins on 'earliest'.
+
+    Pin so a future loosening of the form-attached pattern doesn't
+    reintroduce the digit-list FP class."""
     sources = tmp_path / "sources"
     sources.mkdir()
     (sources / "src.txt").write_text("speldredge (c. 1290 sac 6, 134, 1320 ch).")
@@ -957,10 +960,6 @@ def test_lookup_attested_years_rejects_digit_in_citation_number_list(
         year = db.conn.execute(
             "SELECT attested_year FROM etymon_text_match WHERE id = ?", (rid,)
         ).fetchone()["attested_year"]
-    # 1290 is post-corpus-floor (1290 > 1700? no, 1290 < 1700) — wait:
-    # 1290 IS in the [100, 1700] range. And it's preceded by 'c. '. So
-    # 1290 SHOULD qualify and be picked. 134 must not. Earliest valid is
-    # 1290.
     assert year == 1290
 
 
