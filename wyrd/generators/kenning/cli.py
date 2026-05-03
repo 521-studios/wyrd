@@ -2225,9 +2225,7 @@ def lexicon_normalize_ocr(db_path: Path, apply_changes: bool) -> None:
 )
 @click.option(
     "--stage",
-    type=click.Choice(
-        ["ocr", "lemmas", "text-match", "cognates", "attested-years", "all-derived"]
-    ),
+    type=click.Choice(["ocr", "lemmas", "text-match", "cognates", "attested-years", "all-derived"]),
     required=True,
     help=(
         "Which enrichment stage to clear. 'ocr' un-marks merged_into_id, "
@@ -2273,9 +2271,7 @@ def lexicon_clear_enrichment(db_path: Path, stage: str, apply_changes: bool) -> 
             f"  {verb} {result['synset_assignments_to_clear']} synset_id assignments", err=True
         )
     if result.get("attested_years_to_clear"):
-        click.echo(
-            f"  {verb} {result['attested_years_to_clear']} attested_year values", err=True
-        )
+        click.echo(f"  {verb} {result['attested_years_to_clear']} attested_year values", err=True)
     if not apply_changes:
         click.echo("(dry-run; pass --apply to commit)", err=True)
 

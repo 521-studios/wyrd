@@ -911,9 +911,7 @@ def test_lookup_attested_years_picks_earliest_when_multiple_qualify(
     documented on lookup_attested_years."""
     sources = tmp_path / "sources"
     sources.mkdir()
-    (sources / "ekwall_1922.txt").write_text(
-        "TUNE. Tune, 1086 (DB); Tunes, 1242; Tunna, 1340."
-    )
+    (sources / "ekwall_1922.txt").write_text("TUNE. Tune, 1086 (DB); Tunes, 1242; Tunna, 1340.")
     with LexiconDB(fresh_db) as db:
         from wyrd.generators.kenning.lexicon import lookup_attested_years
 
@@ -926,9 +924,7 @@ def test_lookup_attested_years_picks_earliest_when_multiple_qualify(
     assert year == 1086
 
 
-def test_lookup_attested_years_rejects_publication_year(
-    fresh_db: Path, tmp_path: Path
-) -> None:
+def test_lookup_attested_years_rejects_publication_year(fresh_db: Path, tmp_path: Path) -> None:
     """1920 is a publication year, not an attestation. _ATTESTED_YEAR_MAX_LOOKUP
     = 1700 cuts off well before publication years for the corpus, so
     nothing should be written."""
@@ -997,9 +993,7 @@ def test_lookup_attested_years_rejects_year_without_date_marker(
     assert year is None
 
 
-def test_lookup_attested_years_dry_run_does_not_write(
-    fresh_db: Path, tmp_path: Path
-) -> None:
+def test_lookup_attested_years_dry_run_does_not_write(fresh_db: Path, tmp_path: Path) -> None:
     """apply=False reports candidates but writes nothing — same shape as
     every other enrichment stage."""
     sources = tmp_path / "sources"
@@ -1022,9 +1016,7 @@ def test_lookup_attested_years_dry_run_does_not_write(
     assert year is None
 
 
-def test_lookup_attested_years_idempotent_on_rerun(
-    fresh_db: Path, tmp_path: Path
-) -> None:
+def test_lookup_attested_years_idempotent_on_rerun(fresh_db: Path, tmp_path: Path) -> None:
     """Re-running on a DB that already has attested_year set is a no-op:
     only rows where attested_year IS NULL are scanned. Lets a future run
     pick up newly-added text-match rows without re-clobbering existing
@@ -1048,9 +1040,7 @@ def test_lookup_attested_years_idempotent_on_rerun(
     assert second["rows_written"] == 0
 
 
-def test_lookup_attested_years_warns_on_missing_source_file(
-    fresh_db: Path, tmp_path: Path
-) -> None:
+def test_lookup_attested_years_warns_on_missing_source_file(fresh_db: Path, tmp_path: Path) -> None:
     """A text-match row pointing at a source_id whose .txt isn't in
     sources_dir is counted in sources_missing and skipped without
     raising. Common in real corpora where some books have been mined
@@ -1115,9 +1105,7 @@ def test_clear_enrichment_all_derived_includes_attested_years(
         # have been 1, recorded in the dry-run-style counts.
         assert result["attested_years_to_clear"] == 1
         # text-match clear runs alongside, so the row is gone.
-        remaining = db.conn.execute(
-            "SELECT COUNT(*) FROM etymon_text_match"
-        ).fetchone()[0]
+        remaining = db.conn.execute("SELECT COUNT(*) FROM etymon_text_match").fetchone()[0]
     assert remaining == 0
 
 

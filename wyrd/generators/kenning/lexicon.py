@@ -1692,6 +1692,7 @@ _ATTESTED_YEAR_MIN_LOOKUP = 100
 _ATTESTED_YEAR_MAX_LOOKUP = 1700
 _LOOKUP_ATTESTED_YEAR_METHOD = "lookup-attested-years-v1"
 
+
 # Form-attached year-citation pattern. Three accepted shapes, all
 # requiring the year to follow the matched form within a small window of
 # punctuation / whitespace:
@@ -1809,8 +1810,7 @@ def lookup_attested_years(
         source_texts[f.stem] = text
 
     cur = db.conn.execute(
-        "SELECT id, source_id, matched_form FROM etymon_text_match "
-        "WHERE attested_year IS NULL"
+        "SELECT id, source_id, matched_form FROM etymon_text_match WHERE attested_year IS NULL"
     )
     rows_unscored = cur.fetchall()
 
