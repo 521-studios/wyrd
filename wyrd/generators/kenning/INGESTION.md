@@ -325,15 +325,11 @@ is more uniform). For yield projections, sample two slices: the
 default first-30 plus an explicit `--limit` skip-then-take that
 samples deeper into the body.
 
-**Rejection-reason diagnostic (D5-1 + wyrd-z56 lesson):** when a single
-rejection reason dominates the breakdown (>30% of rejections), check
-whether the validator's design context fits the source class. Concrete
-case: the d'Arbois first pass had `attested_year_out_of_range=39` of
-64 rejections — 61% — because the 800 floor cut Roman-era citations
-that are legitimate on Romance-substrate sources. PR #42 widened the
-floor to 100 and recovered 27 rows on re-mine. Pattern: a single
-rejection reason at >30% is a signal to investigate the validator
-range or prompt before assuming the book is low-yield.
+**Rejection-reason diagnostic:** a single rejection reason >30% of
+total rejections is a signal that the validator's design context may
+not fit the source class — investigate before assuming the book is
+low-yield. See `DECISIONS.md` D5 (wyrd-z56) for the canonical
+worked example (d'Arbois 1890 / 800-year floor / PR #42 fix).
 
 ### Tier 2 review pass (English only — Gemini Flash)
 
