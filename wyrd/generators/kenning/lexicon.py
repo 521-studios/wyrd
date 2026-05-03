@@ -1803,43 +1803,48 @@ def lookup_attested_years(
     if not sources_path.is_dir():
         raise ValueError(f"sources_dir not found: {sources_path}")
 
-    # Group target rows by source_id so we can stream through one source
-    # file at a time. The naive shape (load every source body into a dict)
-    # is multi-GB on the production corpus and risks OOM. Row metadata is
-    # cheap; only the source body text is heavy.
+    available_sources = {f.stem: f for f in sources_path.glob("*.txt")}
+
+    # Stream rows ordered by source_id so we can process them in
+    # source-grouped runs without ever materialising the full row set
+    # OR all source bodies in memory. ORDER BY source_id makes the
+    # transition predictable: when source_id changes vs the prior row,
+    # drop the old body and load the new one. Net peak memory: ONE
+    # source body + ONE row's metadata. Scales to multi-million-row
+    # text-match tables without growing.
     cur = db.conn.execute(
         "SELECT id, source_id, matched_form FROM etymon_text_match "
         "WHERE attested_year IS NULL ORDER BY source_id"
     )
-    rows_unscored = cur.fetchall()
-
-    rows_by_source: dict[str, list] = {}
-    for row in rows_unscored:
-        rows_by_source.setdefault(row["source_id"], []).append(row)
-
-    available_sources = {f.stem: f for f in sources_path.glob("*.txt")}
 
     candidate_updates: list[tuple[int, int]] = []  # (year, row_id)
     sources_missing: set[str] = set()
-    for source_id, rows in rows_by_source.items():
-        source_file = available_sources.get(source_id)
-        if source_file is None:
-            sources_missing.add(source_id)
+    rows_scanned = 0
+    current_source_id: str | None = None
+    text: str | None = None
+    for row in cur:
+        rows_scanned += 1
+        if row["source_id"] != current_source_id:
+            current_source_id = row["source_id"]
+            source_file = available_sources.get(current_source_id)
+            if source_file is None:
+                sources_missing.add(current_source_id)
+                text = None
+                continue
+            # Load + normalize this one source body. Normalization mirrors
+            # reverse_search_attestations so canonical-form regexes line
+            # up with the matched_form values stored at search time. The
+            # prior body (if any) goes out of scope and Python frees it.
+            text = source_file.read_text(errors="replace").lower()
+            text = normalize_ocr_form(text)
+        if text is None:
             continue
-        # Load this one source body, normalize, scan its rows, then drop
-        # it. Normalization mirrors reverse_search_attestations so
-        # canonical-form regexes line up with the matched_form values
-        # stored at search time.
-        text = source_file.read_text(errors="replace").lower()
-        text = normalize_ocr_form(text)
-        for row in rows:
-            year = _extract_attested_year_from_body(text, row["matched_form"])
-            if year is not None:
-                candidate_updates.append((year, row["id"]))
-        # text goes out of scope at next iteration; Python frees the body.
+        year = _extract_attested_year_from_body(text, row["matched_form"])
+        if year is not None:
+            candidate_updates.append((year, row["id"]))
 
     counts = {
-        "rows_scanned": len(rows_unscored),
+        "rows_scanned": rows_scanned,
         "candidates": len(candidate_updates),
         "sources_missing": len(sources_missing),
         "applied": apply,
