@@ -2183,9 +2183,9 @@ def bridge_phonological_oe(db: LexiconDB, *, apply: bool = False) -> dict:
     def _resolve_canonical(start_id: int) -> int:
         cid = start_id
         visited: set[int] = set()
-        while chain.get(cid) is not None and cid not in visited:
+        while (next_id := chain.get(cid)) is not None and cid not in visited:
             visited.add(cid)
-            cid = chain[cid]  # type: ignore[assignment]
+            cid = next_id
         return cid
 
     target_index: dict[str, int] = {}
