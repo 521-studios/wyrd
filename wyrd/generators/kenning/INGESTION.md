@@ -536,12 +536,11 @@ Flags:
 
 The ingester reads one JSON record per line, walks each entry's
 Etymology + Descendants sections, upserts the referenced etymons,
-and inserts `etymon_descent` edges with `edge_type` per the D27
-taxonomy:
-
-The general edge_type taxonomy + bridging semantics live in the
-"Etymological descent graph (D27)" subsection below — the wiktextract-
-specific behavior is just the template-name → edge_type mapping:
+and inserts `etymon_descent` edges per the D27 taxonomy. Edge_type
+semantics + bridging rules are in the [Etymological descent graph
+(D27)](#etymological-descent-graph-d27) subsection below; the
+wiktextract-specific bit is just the template-name → edge_type
+mapping:
 
 | Wiktextract template | Direction | edge_type |
 |---|---|---|

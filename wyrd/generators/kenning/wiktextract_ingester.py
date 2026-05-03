@@ -388,11 +388,16 @@ def _walk_descendants(
         depth = desc.get("depth", 1)
         if not isinstance(depth, int) or depth < 1:
             depth = 1
+        # Save the stack so we can restore it if the entry produces no
+        # edges (qualifier-only / mention-only descendants entries
+        # shouldn't displace the previous depth-N anchor).
+        saved_stack = parent_stack[:]
         # Trim or extend the stack so parent_stack[depth-1] is the parent.
         if depth <= len(parent_stack):
             parent_stack = parent_stack[:depth]
+            depth_jumped = False
         else:
-            counts["depth_jumps_recovered"] += 1
+            depth_jumped = True
             # Pad with the deepest known parent so the chain doesn't snap.
             while len(parent_stack) < depth:
                 parent_stack.append(parent_stack[-1])
@@ -419,6 +424,15 @@ def _walk_descendants(
             last_child_id = child_id
             counts["downward_edges"] += 1
 
+        # If the entry produced zero edges, don't credit the depth-jump
+        # bookkeeping (it never anchored anything) and restore the
+        # pre-trim stack so the next entry can chain off the previous
+        # valid anchor at this depth.
+        if last_child_id is None:
+            parent_stack = saved_stack
+            continue
+        if depth_jumped:
+            counts["depth_jumps_recovered"] += 1
         # The last child becomes the parent for any deeper entries that
         # follow at depth+1. Push it onto the stack at index = depth.
         if last_child_id is not None:

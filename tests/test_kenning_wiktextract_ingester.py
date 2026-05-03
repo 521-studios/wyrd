@@ -903,3 +903,80 @@ def test_ingest_wiktionary_cli_surfaces_malformed_skip_count(
     )
     assert result.exit_code == 0, result.output
     assert "skipped 1 malformed line(s)" in result.output
+
+
+def test_desc_flag_precedence_der_wins_over_cal(fresh_db: Path) -> None:
+    """Round-2 test-coverage gap: precedence chain bor > der > cal is
+    documented but only bor>der was pinned. Adding der>cal so a swap
+    of cal ahead of der would surface here."""
+    line = _wiktextract_entry(
+        word="*tūnaz",
+        lang_code="gem-pro",
+        descendants=[
+            {
+                "depth": 1,
+                "templates": [
+                    {
+                        "name": "desc",
+                        "args": {"1": "ang", "2": "tūn", "der": "1", "cal": "1"},
+                    }
+                ],
+            }
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edge_type = db.conn.execute("SELECT edge_type FROM etymon_descent").fetchone()["edge_type"]
+    assert edge_type == "derivation"
+
+
+def test_walk_descendants_all_skipped_templates_does_not_advance_parent_stack(
+    fresh_db: Path,
+) -> None:
+    """Round-2 test-coverage gap: the LAST-wins logic only updates
+    last_child_id inside the valid-edge branch, so a descendants entry
+    whose templates are ALL skipped (e.g. only a {{qualifier}} or
+    {{m}}) must NOT push None onto the parent_stack and must NOT
+    overwrite the previous depth-N anchor.
+
+    Tree (the load-bearing case):
+      *root → variant   (depth=1, valid desc → becomes parent for depth=2)
+            → [qualifier-only entry]   (depth=1, no edge — must NOT
+                                         displace 'variant' as the parent
+                                         for the next depth=2 entry)
+            → child   (depth=2 → must attach to 'variant', NOT crash on
+                                  a None parent from the qualifier-only row)
+    """
+    line = _wiktextract_entry(
+        word="*root",
+        lang_code="gem-pro",
+        descendants=[
+            {
+                "depth": 1,
+                "templates": [{"name": "desc", "args": {"1": "ang", "2": "variant"}}],
+            },
+            {
+                "depth": 1,
+                "templates": [
+                    {"name": "qualifier", "args": {"1": "rare"}},
+                ],
+            },
+            {
+                "depth": 2,
+                "templates": [{"name": "desc", "args": {"1": "en", "2": "child"}}],
+            },
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edges = _all_descent_edges(db)
+
+    # 2 valid downward edges (variant + child); the qualifier row
+    # contributed 0 edges and bumped skipped_templates instead.
+    assert result["downward_edges"] == 2
+    assert result["skipped_templates"] == 1
+    # Critical: depth=2 'child' attached to 'variant', NOT to the
+    # qualifier-only entry (which has no etymon and would crash a
+    # naive implementation that pushed None onto parent_stack).
+    assert ("variant", "child", "inheritance", "wiktionary") in edges
+    assert ("*root", "variant", "inheritance", "wiktionary") in edges
