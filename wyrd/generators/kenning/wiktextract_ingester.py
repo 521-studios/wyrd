@@ -109,6 +109,10 @@ _UPWARD_TEMPLATE_TO_EDGE: dict[str, str] = {
     "der+": "derivation",
     # wyrd-wse: lite version surfaced in OE slice. Same arg shape as der.
     "der-lite/lang": "derivation",
+    # wyrd-wse: 'unknown derivation' / 'user-friendly derived' — verified
+    # cross-language 3-arg shape against real OE entries:
+    #   {{uder|ang|la|Tigris}} → ang Tigris ← la Tigris
+    "uder": "derivation",
     "cal": "calque",
     "calque": "calque",
     "clq": "calque",
@@ -145,7 +149,6 @@ _SAME_LANG_DERIVATION_TEMPLATE_NAMES: frozenset[str] = frozenset(
         "back-form",
         "contraction",
         "deverbal",
-        "uder",
         "nom",
         "reduplication",
         # Verified from real wiktextract entries 2026-05-03:
