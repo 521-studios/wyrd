@@ -96,15 +96,26 @@ _UPWARD_TEMPLATE_TO_EDGE: dict[str, str] = {
     "inh": "inheritance",
     "inherited": "inheritance",
     "inh+": "inheritance",
+    # wyrd-wse: lite version surfaced in OE slice — same arg shape as inh.
+    "inh-lite": "inheritance",
     "bor": "borrowing",
     "borrowed": "borrowing",
     "bor+": "borrowing",
+    # wyrd-wse: learned + unattested borrowing variants. Same shape as bor.
+    "lbor": "borrowing",
+    "ubor": "borrowing",
     "der": "derivation",
     "derived": "derivation",
     "der+": "derivation",
+    # wyrd-wse: lite version surfaced in OE slice. Same arg shape as der.
+    "der-lite/lang": "derivation",
     "cal": "calque",
     "calque": "calque",
     "clq": "calque",
+    # wyrd-wse: semantic loan is structurally a calque (form-meaning shape
+    # carried across language boundary). Same args[2]/args[3] shape.
+    "semantic loan": "calque",
+    "sl": "calque",
 }
 
 # wyrd-prv: PIE-root templates have args
@@ -113,6 +124,32 @@ _UPWARD_TEMPLATE_TO_EDGE: dict[str, str] = {
 #   args[3..N] = root word(s) — sometimes multiple parallel roots are cited
 # Each root word becomes its own inheritance edge to this entry.
 _ROOT_TEMPLATE_NAMES: frozenset[str] = frozenset({"root"})
+
+# wyrd-wse: same-language single-parent derivation templates. These have
+# a different arg shape from inh/bor/der/cal — the parent word lives at
+# args[2] and the parent lang IS this_lang (args[1]). The derivational
+# relationship stays within one language:
+#
+#   {{clipping|ang|elpend}}      → elpend → elp (OE clipping)
+#   {{back-formation|ang|sċeadu}} → sċeadu → scead (OE back-formation)
+#   {{bf|non|trǫf}}              → trǫf → traf (ON back-formation)
+#
+# All map to 'derivation' edges (D27 doesn't have separate kinds for
+# these morphological relationships, and they all express
+# derivational lineage within a single language).
+_SAME_LANG_DERIVATION_TEMPLATE_NAMES: frozenset[str] = frozenset(
+    {
+        "clipping",
+        "bf",
+        "back-formation",
+        "back-form",
+        "contraction",
+        "deverbal",
+        "uder",
+        "nom",
+        "reduplication",
+    }
+)
 
 # wyrd-prv: compound / affix templates have args
 #   args[1] = this entry's lang_code (all parts are in THIS language)
@@ -138,6 +175,10 @@ _COMPOUND_TEMPLATE_NAMES: frozenset[str] = frozenset(
         # a stem). Same arg shape as compound; treating each constituent
         # as a 'compound' edge is the right call.
         "confix",
+        # wyrd-wse: blend is a portmanteau of two source words; arg shape
+        # matches compound (args[1]=this_lang, args[2..]=parts). Treating
+        # each part as a compound edge captures the same shape.
+        "blend",
     }
 )
 
@@ -219,6 +260,57 @@ _SKIPPED_TEMPLATE_NAMES: frozenset[str] = frozenset(
         "normalized",
         "surface analysis",
         ",",
+        # wyrd-wse: more skip-only kinds discovered in PG/ON live ingest.
+        # Long-name variants of already-skipped templates:
+        "nonlemmas",  # plural of nonlemma
+        "mention-gloss",  # long name of m+
+        "noncognate",  # long name of noncog
+        "onomatopoeia",  # long name of onomatopoeic
+        "onom",  # abbrev of onomatopoeic
+        "m-lite",  # lite of m
+        # No-arg category-only markers (no parent etymon to extract):
+        "pre-Germanic",
+        "univerbation",
+        "vrddhi",  # marker only — args[1] is this_lang; no parent_word
+        # Small formatting / unknown-context templates:
+        "g",
+        "?",
+        "s",
+        "IPAfont",
+        "uncertain",
+        "anchor",
+        "number box",
+        "sno",
+        "qinfl",
+        "coin",
+        "sync",
+        "lang",
+        "ISSN",
+        "tea",
+        # pw dbt = proto-word doublet; peer relation, like doublet.
+        "pw dbt",
+        # wyrd-wse: long-tail single-occurrence kinds across the OE/ON/PG/PC
+        # slices. Mostly formatting (smallcaps, angbr, PIE root box, etydate)
+        # or specialised derivational hints with un-confirmed arg shapes
+        # (apocopic form, past participle of, alt form, alter, contr,
+        # metathesis, displaced). Skipping to silence the audit noise; if
+        # the larger language slices surface them at scale, file a follow-up
+        # to extend _SAME_LANG_DERIVATION_TEMPLATE_NAMES.
+        "senseno",
+        "C.E.",
+        "smallcaps",
+        "angbr",
+        "apocopic form",
+        "PIE root box",
+        "abbrev",
+        "non-gloss",
+        "displaced",
+        "past participle of",
+        "contr",
+        "metathesis",
+        "alt form",
+        "alter",
+        "etydate",
     }
 )
 
@@ -294,11 +386,25 @@ def _upward_edges_from_template(
             if part:
                 edges.append((this_lang, part, "compound"))
         return edges
+    if name in _SAME_LANG_DERIVATION_TEMPLATE_NAMES:
+        # Same-language single-parent derivation. Parent lang = this_lang
+        # (args[1]); parent word is at args[2]. Real samples:
+        #   {{clipping|ang|elpend}}        → ang elpend → ang elp
+        #   {{back-formation|ang|sċeadu}}  → ang sċeadu → ang scead
+        #   {{bf|non|trǫf}}                → non trǫf → non traf
+        this_lang = args.get("1")
+        parent_word = args.get("2")
+        if this_lang and parent_word:
+            return [(this_lang, parent_word, "derivation")]
+        return []
     return []
 
 
 _KNOWN_TEMPLATE_NAMES: frozenset[str] = frozenset(
-    set(_UPWARD_TEMPLATE_TO_EDGE) | _ROOT_TEMPLATE_NAMES | _COMPOUND_TEMPLATE_NAMES
+    set(_UPWARD_TEMPLATE_TO_EDGE)
+    | _ROOT_TEMPLATE_NAMES
+    | _COMPOUND_TEMPLATE_NAMES
+    | _SAME_LANG_DERIVATION_TEMPLATE_NAMES
 )
 
 

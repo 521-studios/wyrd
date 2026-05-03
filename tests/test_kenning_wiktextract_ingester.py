@@ -123,15 +123,21 @@ def test_inh_template_emits_inheritance_upward_edge(fresh_db: Path) -> None:
         ("inh", "inheritance"),
         ("inherited", "inheritance"),
         ("inh+", "inheritance"),
+        ("inh-lite", "inheritance"),
         ("bor", "borrowing"),
         ("borrowed", "borrowing"),
         ("bor+", "borrowing"),
+        ("lbor", "borrowing"),
+        ("ubor", "borrowing"),
         ("der", "derivation"),
         ("derived", "derivation"),
         ("der+", "derivation"),
+        ("der-lite/lang", "derivation"),
         ("cal", "calque"),
         ("calque", "calque"),
         ("clq", "calque"),
+        ("semantic loan", "calque"),
+        ("sl", "calque"),
     ],
 )
 def test_each_upward_template_kind_maps_to_correct_edge_type(
@@ -795,6 +801,7 @@ def test_root_template_with_multiple_parallel_roots_emits_one_edge_each(
         "af",
         "affix",
         "confix",
+        "blend",
     ],
 )
 def test_compound_template_emits_one_edge_per_constituent(
@@ -842,6 +849,65 @@ def test_compound_template_with_three_constituents_emits_three_edges(
     assert result["upward_edges"] == 3
     for part in ("alpha", "beta", "gamma"):
         assert (part, "threepart", "compound", "wiktionary") in edges
+
+
+@pytest.mark.parametrize(
+    "same_lang_derivation_template",
+    [
+        "clipping",
+        "bf",
+        "back-formation",
+        "back-form",
+        "contraction",
+        "deverbal",
+        "uder",
+        "nom",
+        "reduplication",
+    ],
+)
+def test_same_lang_derivation_template_emits_one_derivation_edge(
+    fresh_db: Path, same_lang_derivation_template: str
+) -> None:
+    """wyrd-wse: the back-formation/clipping family of templates has a
+    different arg shape from inh/bor/der/cal — args[1] = this_lang AND
+    parent's lang, args[2] = parent_word (NOT args[3]). Each emits one
+    'derivation' edge with parent and child sharing the language. Pin
+    each alias so a refactor of _SAME_LANG_DERIVATION_TEMPLATE_NAMES
+    surfaces immediately."""
+    line = _wiktextract_entry(
+        word="elp",
+        lang_code="ang",
+        etymology_templates=[
+            {
+                "name": same_lang_derivation_template,
+                "args": {"1": "ang", "2": "elpend"},
+            }
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edges = _all_descent_edges(db)
+    assert result["upward_edges"] == 1
+    assert ("elpend", "elp", "derivation", "wiktionary") in edges
+
+
+def test_same_lang_derivation_with_missing_parent_word_is_skipped(
+    fresh_db: Path,
+) -> None:
+    """A clipping/bf template missing args[2] (the parent word) is not
+    edge-producing — the parent isn't named. Skipped without exception
+    so the rest of the entry's templates still process."""
+    line = _wiktextract_entry(
+        word="elp",
+        lang_code="ang",
+        etymology_templates=[
+            {"name": "clipping", "args": {"1": "ang"}},  # missing args[2]
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+
+    assert result["upward_edges"] == 0
 
 
 def test_compound_edge_does_not_bridge_synsets(fresh_db: Path) -> None:
@@ -920,6 +986,49 @@ def test_compound_edge_does_not_bridge_synsets(fresh_db: Path) -> None:
         "or else",
         "desc",
         ",",
+        # wyrd-wse: long-name + abbreviation variants of already-skipped
+        "nonlemmas",
+        "mention-gloss",
+        "noncognate",
+        "onomatopoeia",
+        "onom",
+        "m-lite",
+        # wyrd-wse: no-arg category-only markers
+        "pre-Germanic",
+        "univerbation",
+        "vrddhi",
+        # wyrd-wse: small formatting / unknown-context templates
+        "g",
+        "?",
+        "s",
+        "IPAfont",
+        "uncertain",
+        "anchor",
+        "number box",
+        "sno",
+        "qinfl",
+        "coin",
+        "sync",
+        "lang",
+        "ISSN",
+        "tea",
+        "pw dbt",
+        # wyrd-wse: long-tail single-occurrence kinds
+        "senseno",
+        "C.E.",
+        "smallcaps",
+        "angbr",
+        "apocopic form",
+        "PIE root box",
+        "abbrev",
+        "non-gloss",
+        "displaced",
+        "past participle of",
+        "contr",
+        "metathesis",
+        "alt form",
+        "alter",
+        "etydate",
     ],
 )
 def test_each_new_skipped_template_does_not_count_unsupported(
