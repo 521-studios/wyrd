@@ -384,6 +384,18 @@ def test_validate_response_strips_dashes_before_attested_form_check() -> None:
     assert any(f.reason == "attested_form_not_in_body" for f in bypass_failures)
 
 
+def test_validate_response_handles_non_string_element_form() -> None:
+    """Same defensive pattern as the attested_forms-side test:
+    a non-string element form (bool, int, list) shouldn't crash the
+    validator with AttributeError. Symmetric with
+    ``test_validate_response_handles_non_string_attested_form``."""
+    response = _ok_response()
+    response["elements"][0]["form"] = True
+    failures = validate_response(response, _BARTON_BODY)
+    # Should NOT AttributeError. str(True) → "True" doesn't appear in body.
+    assert any(f.reason == "form_not_in_body" for f in failures)
+
+
 def test_validate_response_handles_non_string_attested_form() -> None:
     """Defensive against non-string form values (bool, int, list, etc.)
     slipping past schema enforcement. Gemini's responseSchema enforcement

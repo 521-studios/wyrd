@@ -497,7 +497,12 @@ def validate_response(
         )
 
     for i, el in enumerate(elements):
-        form = (el.get("form") or "").strip().rstrip("-").lstrip("-")
+        # ``str()`` coercion + ``.strip("-")`` matches the attested_forms
+        # extraction (see ``_validate_attested_forms``) — same defensive
+        # rationale (Gemini schema enforcement is unreliable across
+        # versions; Anthropic uses prompt-only enforcement; better to
+        # land as form-not-in-body than crash on a stray non-string).
+        form = str(el.get("form") or "").strip().strip("-")
         if len(form) < 2 or _normalize_for_match(form) not in norm_body:
             failures.append(
                 ValidationFailure("form_not_in_body", f"element[{i}].form={el.get('form')!r}")
