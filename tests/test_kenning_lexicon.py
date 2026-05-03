@@ -1217,6 +1217,13 @@ def test_earliest_year_in_notes_does_not_false_skip_p_inside_word(
     # regex with $ anchor must still catch it.
     assert _earliest_year_in_notes("p.   755") is None
     assert _earliest_year_in_notes("vol.        1244") is None
+    # Marker-preceded page-ref ≥700 BEFORE a real year in the same
+    # note: the $ anchor confines marker matching to the immediate
+    # predecessor of each year candidate, so a distant page ref
+    # doesn't suppress the real date that follows. Symmetry pin
+    # (the test_lookup_attested_years_skips_page_marker_false_positive
+    # test covers the reverse ordering — real year, then page ref).
+    assert _earliest_year_in_notes("p. 755 ; Tune 1086") == 1086
 
 
 def test_lookup_attested_years_skips_page_marker_false_positive(
