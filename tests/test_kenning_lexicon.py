@@ -5366,6 +5366,30 @@ def test_cli_bridge_language_requires_candidates_for_unknown_generic(
     assert "no built-in default for 'germanic'" in result.stderr
 
 
+def test_cli_bridge_language_empty_candidates_string_exits_cleanly(
+    fresh_db: Path,
+) -> None:
+    """`--candidates ""` resolves to an empty tuple and would raise
+    ValueError from bridge_generic_language. The CLI must catch this
+    case before the call and exit 1 with a readable message rather
+    than dumping a stack trace."""
+    result = CliRunner().invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "bridge-language",
+            "--db",
+            str(fresh_db),
+            "--generic",
+            "celtic",
+            "--candidates",
+            "",
+        ],
+    )
+    assert result.exit_code == 1
+    assert "empty list" in result.stderr
+
+
 def test_cli_bridge_phonological_oe_dry_run(fresh_db: Path) -> None:
     """`lexicon bridge-phonological-oe` (no --apply) reports counts
     from the hand-curated table without writing merged_into_id."""

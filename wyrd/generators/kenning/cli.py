@@ -2352,6 +2352,13 @@ def lexicon_bridge_language(
     """
     if candidates_csv is not None:
         candidates = tuple(s.strip() for s in candidates_csv.split(",") if s.strip())
+        if not candidates:
+            click.echo(
+                "error: --candidates resolved to an empty list (need at least "
+                "one specific-language code)",
+                err=True,
+            )
+            sys.exit(1)
     elif generic_lang == "celtic":
         candidates = _CELTIC_CANDIDATES_DEFAULT
     else:
