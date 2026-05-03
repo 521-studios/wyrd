@@ -92,6 +92,25 @@ def test_lexicon_db_opens_in_wal_mode(fresh_db: Path) -> None:
     assert mode.lower() == "wal"
 
 
+def test_lexicon_db_wal_mode_persists_across_reopen(fresh_db: Path) -> None:
+    """SQLite stores journal_mode in the file header, so once WAL is
+    set, every subsequent open inherits it — even one that doesn't
+    re-run the PRAGMA. Pin this so the docstring's persistence claim
+    is load-bearing in tests, not implied empirically.
+
+    Open #1 sets WAL via LexiconDB.__init__. Open #2 uses raw
+    sqlite3.connect (no PRAGMAs) and confirms the mode survived."""
+    with LexiconDB(fresh_db) as db:
+        assert db.conn.execute("PRAGMA journal_mode").fetchone()[0].lower() == "wal"
+
+    raw = sqlite3.connect(fresh_db)
+    try:
+        mode = raw.execute("PRAGMA journal_mode").fetchone()[0]
+    finally:
+        raw.close()
+    assert mode.lower() == "wal"
+
+
 def test_lexicon_db_uses_synchronous_normal(fresh_db: Path) -> None:
     """Pairs with WAL: synchronous=NORMAL is the recommended setting
     under WAL — preserves crash safety (WAL replays on next open) while
@@ -2779,6 +2798,65 @@ def test_migrate_schema_adds_citation_context_snippet_to_legacy_db(
         # Idempotent re-run.
         applied2 = migrate_schema(db)
         assert applied2["etymon_citation.context_snippet"] is False
+
+
+def test_migrate_schema_adds_toponym_etymology_attested_year_to_legacy_db(
+    fresh_db: Path,
+) -> None:
+    """A legacy DB whose toponym_etymology predates wyrd-bag picks up
+    the new attested_year column on migrate_schema. Existing rows
+    survive with NULL in the new column. Idempotent on a re-run.
+    Pins the migration path that fresh_db tests don't exercise (since
+    init_schema already includes the column from lexicon.sql)."""
+    with LexiconDB(fresh_db) as db:
+        # Simulate a pre-wyrd-bag toponym_etymology by re-creating it
+        # without attested_year. Drop dependent rows / FKs first to
+        # avoid constraint failures, then re-seed one legacy row.
+        db.conn.execute("DELETE FROM toponym_etymology_element")
+        db.conn.execute("DROP TABLE toponym_etymology")
+        db.conn.execute(
+            """
+            CREATE TABLE toponym_etymology (
+              id              INTEGER PRIMARY KEY AUTOINCREMENT,
+              toponym_id      INTEGER NOT NULL REFERENCES toponym(id) ON DELETE CASCADE,
+              source_id       TEXT NOT NULL REFERENCES source(id) ON DELETE CASCADE,
+              page            TEXT,
+              historical_form TEXT,
+              confidence      TEXT CHECK (confidence IN ('high', 'medium', 'low')),
+              notes           TEXT
+            )
+            """
+        )
+        db.upsert_source(id="legacy-src", title="Legacy")
+        cur = db.conn.execute("INSERT INTO toponym (modern_name) VALUES (?)", ("Tune",))
+        toponym_id = cur.lastrowid
+        cur = db.conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, notes) VALUES (?, ?, ?)",
+            (toponym_id, "legacy-src", "1086 DB"),
+        )
+        legacy_te_id = cur.lastrowid
+        db.commit()
+
+        # Pre-migration: column is missing.
+        cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(toponym_etymology)")}
+        assert "attested_year" not in cols
+
+        applied = migrate_schema(db)
+        assert applied["toponym_etymology.attested_year"] is True
+
+        # Post-migration: column present, existing row preserved with NULL.
+        cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(toponym_etymology)")}
+        assert "attested_year" in cols
+        row = db.conn.execute(
+            "SELECT id, notes, attested_year FROM toponym_etymology WHERE id = ?",
+            (legacy_te_id,),
+        ).fetchone()
+        assert row["notes"] == "1086 DB"
+        assert row["attested_year"] is None
+
+        # Idempotent re-run: migration helper reports False.
+        applied2 = migrate_schema(db)
+        assert applied2["toponym_etymology.attested_year"] is False
 
 
 def test_add_citation_persists_context_snippet(fresh_db: Path) -> None:

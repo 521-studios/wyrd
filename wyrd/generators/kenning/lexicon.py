@@ -1850,8 +1850,17 @@ def _earliest_year_in_notes(notes: str | None) -> int | None:
 def _scan_etymon_text_match_for_years(db: LexiconDB, sources_path: Path, *, apply: bool) -> dict:
     """Stream ``etymon_text_match`` rows ordered by source_id; for each
     row, scan the matching source body for a form-attached year
-    citation (PR #47 / wyrd-3ux pattern). Memory bound: ONE source body
-    + ONE row's metadata at a time."""
+    citation (PR #47 / wyrd-3ux pattern).
+
+    Memory characteristics:
+    * ONE source body in memory at a time (the heavy thing — 100s of MB
+      for big OCR'd corpora).
+    * ONE row's metadata at a time during iteration.
+    * candidate_updates accumulates (year, row_id) tuples for every hit
+      and flushes via executemany at the end. At ~3% hit rate even a
+      million-row text-match table yields ~30k tuples (~1 MB), which
+      is fine; chunking the writes would be premature optimisation.
+    """
     available_sources = {f.stem: f for f in sources_path.glob("*.txt")}
 
     cur = db.conn.execute(
@@ -1903,9 +1912,15 @@ def _scan_toponym_etymology_for_years(db: LexiconDB, *, apply: bool) -> dict:
     plausible year. Unlike the ``etymon_text_match`` scan, this doesn't
     need source-body files — the LLM-extracted notes are stored inline
     in the DB and are densely populated with scholarly citations
-    (``"Tune, 1086 (DB); Tunes, 1242"``). Empirically ~80% of
-    toponym_etymology rows on the production corpus contain at least
-    one year ≥700 in the notes.
+    (``"Tune, 1086 (DB); Tunes, 1242"``).
+
+    Memory characteristics:
+    * Full match list (candidate_updates) is held in memory before the
+      executemany write. At ~80% density on the production corpus
+      (~5,200 rows × 0.8 = ~4,200 tuples = ~130 KB) this is fine.
+    * If a future corpus pushes this past tens of millions of rows,
+      switching to chunked writes (yield + flush per N hits) would
+      cap peak memory; not worth the complexity at current scale.
     """
     cur = db.conn.execute(
         "SELECT id, notes FROM toponym_etymology WHERE attested_year IS NULL AND notes IS NOT NULL"
