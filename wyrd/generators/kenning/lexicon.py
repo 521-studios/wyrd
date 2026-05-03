@@ -1675,13 +1675,17 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
                     (un-links every inflected variant from its lemma)
       text-match  - DELETE FROM etymon_text_match
                     (drops every reverse-search / fuzzy-search row)
-      all-derived - all three of the above
+      cognates    - UPDATE etymon SET synset_id = NULL,
+                                       synset_method = NULL
+                    (un-clusters every cognate-set assignment from
+                    cluster-cognates; D27 / wyrd-81n)
+      all-derived - all four of the above
 
     Mining evidence (etymon, etymon_citation, etymon_gloss, etymon_tag,
-    toponym, toponym_etymology, toponym_etymology_element) is never
-    touched — that's the load-bearing data and rebuilding it costs hours
-    of LLM time. Per D21, only enrichment inferences are reversible; the
-    extraction layer is sacred.
+    etymon_descent, toponym, toponym_etymology, toponym_etymology_element)
+    is never touched — that's the load-bearing data and rebuilding it
+    costs hours of LLM time. Per D21, only enrichment inferences are
+    reversible; the extraction layer is sacred.
 
     Note: stage='ocr' is *partially* reversible. It un-marks
     merged_into_id but does NOT restore the lemma_id re-parenting that
@@ -1692,17 +1696,18 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
     With apply=False the dry-run reports what would change. Pass
     apply=True to actually write.
     """
-    valid = {"ocr", "lemmas", "text-match", "all-derived"}
+    valid = {"ocr", "lemmas", "text-match", "cognates", "all-derived"}
     if stage not in valid:
         raise ValueError(f"unknown stage {stage!r}; must be one of {sorted(valid)}")
 
-    stages = {"ocr", "lemmas", "text-match"} if stage == "all-derived" else {stage}
+    stages = {"ocr", "lemmas", "text-match", "cognates"} if stage == "all-derived" else {stage}
 
     counts = {
         "stage": stage,
         "ocr_merges_to_clear": 0,
         "lemma_links_to_clear": 0,
         "text_match_rows_to_clear": 0,
+        "synset_assignments_to_clear": 0,
     }
     if "ocr" in stages:
         counts["ocr_merges_to_clear"] = db.conn.execute(
@@ -1716,6 +1721,10 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
         counts["text_match_rows_to_clear"] = db.conn.execute(
             "SELECT COUNT(*) FROM etymon_text_match"
         ).fetchone()[0]
+    if "cognates" in stages:
+        counts["synset_assignments_to_clear"] = db.conn.execute(
+            "SELECT COUNT(*) FROM etymon WHERE synset_id IS NOT NULL"
+        ).fetchone()[0]
 
     if not apply:
         return counts
@@ -1726,8 +1735,109 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
         db.conn.execute("UPDATE etymon SET lemma_id = NULL, inflection = NULL, lemma_method = NULL")
     if "text-match" in stages:
         db.conn.execute("DELETE FROM etymon_text_match")
+    if "cognates" in stages:
+        db.conn.execute("UPDATE etymon SET synset_id = NULL, synset_method = NULL")
     db.commit()
     return counts
+
+
+# --- D27 / wyrd-81n: cognate clustering ------------------------------------
+
+
+_COGNATE_BRIDGING_EDGES = ("inheritance", "borrowing")
+_CLUSTER_COGNATES_METHOD = "cluster-cognates-v1"
+
+
+def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
+    """Walk etymon_descent inheritance + borrowing edges from each root
+    and assign synset_id to every reachable descendant (D27 / wyrd-81n).
+
+    A "root" is an etymon that participates in inheritance/borrowing
+    descent edges as a parent but never as a child — i.e. the most-
+    ancestral known form in its cognate chain (typically a Proto-* form).
+    Every descendant reachable via inheritance or borrowing edges from
+    that root gets synset_id = root.id, so cross-language cognates
+    cluster behind a single canonical pointer.
+
+    Edge type semantics (D27):
+      inheritance — direct lineage. Bridges synset.
+      borrowing   — borrowed across language lines. Bridges synset (a
+                    borrowed word IS part of the borrowing language's
+                    cognate set in practice).
+      cognate     — peer relation, NOT a chain. Does not bridge — would
+                    over-unify, since Wiktionary's cognate sections
+                    sometimes cross probable-but-unproven boundaries.
+      derivation, calque, compound, unknown — context-specific; treat
+                    as non-bridging for v1, refine if mining surfaces
+                    a clear case.
+
+    Determinism: when an etymon is reachable from multiple roots (rare;
+    happens when scholars disagree on the chain), the smallest root id
+    wins. Iteration order is sorted by root id so the assignment is
+    bit-stable across runs.
+
+    With apply=False (default) reports candidate counts without writing.
+    With apply=True writes synset_id + synset_method='cluster-cognates-v1'.
+    Reverse with `clear-enrichment --stage=cognates --apply`.
+
+    Returns a dict of {roots, candidates, applied}.
+    """
+    placeholders = ", ".join(["?"] * len(_COGNATE_BRIDGING_EDGES))
+    roots = [
+        row["id"]
+        for row in db.conn.execute(
+            f"""
+            SELECT DISTINCT e.id
+            FROM etymon e
+            WHERE EXISTS (
+              SELECT 1 FROM etymon_descent d
+              WHERE d.parent_id = e.id AND d.edge_type IN ({placeholders})
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM etymon_descent d
+              WHERE d.child_id = e.id AND d.edge_type IN ({placeholders})
+            )
+            ORDER BY e.id
+            """,
+            _COGNATE_BRIDGING_EDGES * 2,
+        ).fetchall()
+    ]
+
+    assignments: dict[int, int] = {}
+    for root_id in roots:
+        if root_id in assignments:
+            # Already claimed by an earlier (smaller-id) root via cross-edges.
+            continue
+        assignments[root_id] = root_id
+        frontier: list[int] = [root_id]
+        while frontier:
+            next_frontier: list[int] = []
+            for node_id in frontier:
+                children = db.conn.execute(
+                    f"SELECT child_id FROM etymon_descent "
+                    f"WHERE parent_id = ? AND edge_type IN ({placeholders})",
+                    (node_id, *_COGNATE_BRIDGING_EDGES),
+                ).fetchall()
+                for row in children:
+                    child_id = row["child_id"]
+                    if child_id not in assignments:
+                        assignments[child_id] = root_id
+                        next_frontier.append(child_id)
+            frontier = next_frontier
+
+    if apply:
+        for etymon_id, synset_id in assignments.items():
+            db.conn.execute(
+                "UPDATE etymon SET synset_id = ?, synset_method = ? WHERE id = ?",
+                (synset_id, _CLUSTER_COGNATES_METHOD, etymon_id),
+            )
+        db.commit()
+
+    return {
+        "roots": len(roots),
+        "candidates": len(assignments),
+        "applied": apply,
+    }
 
 
 # --- ingest from parsed corpus entries -------------------------------------
