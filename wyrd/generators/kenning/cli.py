@@ -32,6 +32,8 @@ from wyrd.generators.kenning.lexicon import (
     RECOMMENDED_LANG_THRESHOLDS,
     LexiconDB,
     backfill_citation_pages,
+    bridge_generic_language,
+    bridge_phonological_oe,
     clear_enrichment,
     cluster_cognates,
     cluster_ocr_variants,
@@ -2262,6 +2264,180 @@ def lexicon_cluster_cognates(db_path: Path, apply_changes: bool) -> None:
             f"cycle with no external root and were left unassigned",
             err=True,
         )
+    if not apply_changes:
+        click.echo("(dry-run; pass --apply to commit)", err=True)
+
+
+# Place-name dictionaries write 'celtic' as a generic catch-all for
+# morphemes whose specific Celtic-family origin isn't pinned. Wiktextract
+# uses specific codes. The default --candidates resolves 'celtic' onto
+# Proto-Celtic (most ancestral) first, then Old-* and Middle-* forms,
+# then modern reflexes.
+_CELTIC_CANDIDATES_DEFAULT = (
+    "proto-celtic",
+    "old-irish",
+    "old-welsh",
+    "old-breton",
+    "middle-irish",
+    "middle-welsh",
+    "middle-breton",
+    "irish",
+    "welsh",
+    "scottish-gaelic",
+    "manx",
+    "breton",
+    "cornish",
+)
+
+
+@lexicon.command("bridge-language")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=True,
+)
+@click.option(
+    "--generic",
+    "generic_lang",
+    type=str,
+    required=True,
+    help=(
+        "Generic language tag to bridge (e.g. 'celtic'). Each etymon with "
+        "this language gets merged_into_id set to the highest-priority "
+        "specific-language match with the same canonical_form."
+    ),
+)
+@click.option(
+    "--candidates",
+    "candidates_csv",
+    type=str,
+    default=None,
+    help=(
+        "Comma-separated specific languages to consider, in priority order. "
+        "If omitted and --generic is 'celtic', uses the built-in Celtic "
+        "candidate list (Proto-Celtic > Old-* > Middle-* > modern reflexes)."
+    ),
+)
+@click.option(
+    "--apply",
+    "apply_changes",
+    is_flag=True,
+    default=False,
+    help="Actually write merged_into_id. Without this, dry-run reporting only.",
+)
+def lexicon_bridge_language(
+    db_path: Path,
+    generic_lang: str,
+    candidates_csv: str | None,
+    apply_changes: bool,
+) -> None:
+    """Bridge a generic-language etymon family onto specific-language
+    canonicals via merged_into_id.
+
+    Place-name dictionaries write generic tags like 'celtic' for
+    morphemes whose specific Celtic-family origin isn't pinned.
+    Wiktextract entries are language-specific. This pass canonicalizes
+    each generic-language etymon onto a specific-language match with
+    the same canonical_form, so cluster-cognates' redirect-aware walk
+    will fold the generic etymons into the cross-source cognate clusters.
+
+    Run AFTER wiktextract ingest + AFTER normalize-ocr. Re-running
+    cluster-cognates after this pass is recommended to refresh
+    synset_id assignments.
+
+    Reverse via `clear-enrichment --stage=ocr --apply` (the bridge uses
+    the same merged_into_id mechanism).
+    """
+    if candidates_csv is not None:
+        candidates = tuple(s.strip() for s in candidates_csv.split(",") if s.strip())
+        if not candidates:
+            click.echo(
+                "error: --candidates resolved to an empty list (need at least "
+                "one specific-language code)",
+                err=True,
+            )
+            sys.exit(1)
+    elif generic_lang == "celtic":
+        candidates = _CELTIC_CANDIDATES_DEFAULT
+    else:
+        click.echo(
+            f"error: --candidates required when --generic is not 'celtic' "
+            f"(no built-in default for {generic_lang!r})",
+            err=True,
+        )
+        sys.exit(1)
+
+    with LexiconDB(db_path) as db:
+        result = bridge_generic_language(
+            db,
+            generic_lang=generic_lang,
+            candidate_langs=candidates,
+            apply=apply_changes,
+        )
+
+    verb = "bridged" if apply_changes else "would bridge"
+    click.echo(
+        f"bridge-language: {result['generic_etymons']} generic '{generic_lang}' etymon(s) examined; "
+        f"{verb} {result['bridged']}, {result['unmatched']} unmatched.",
+        err=True,
+    )
+    if apply_changes:
+        click.echo(f"  rows_written = {result['rows_written']}", err=True)
+    if not apply_changes:
+        click.echo("(dry-run; pass --apply to commit)", err=True)
+
+
+@lexicon.command("bridge-phonological-oe")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=True,
+)
+@click.option(
+    "--apply",
+    "apply_changes",
+    is_flag=True,
+    default=False,
+    help="Actually write merged_into_id. Without this, dry-run reporting only.",
+)
+def lexicon_bridge_phonological_oe(db_path: Path, apply_changes: bool) -> None:
+    """Bridge OE place-name forms to Wiktionary canonicals.
+
+    Place-name dictionaries write modernized OE forms (`ton`, `lea`,
+    `burgh`, `dale`); Wiktionary uses scholarly orthography (`tūn`,
+    `lēah`, `burh`, `dæl`). normalize-ocr handles macron-strip OCR
+    variants but NOT vowel-weakening / silent-e / gh-spelling shifts.
+    This pass uses a hand-curated mapping table to merge known pairs
+    via merged_into_id (D22 non-destructive).
+
+    Run AFTER wiktextract ingest. Re-run cluster-cognates afterward
+    to refresh synset_id assignments via the merged_into_id rollup.
+
+    Reverse via `clear-enrichment --stage=ocr --apply` (the bridge
+    uses the same merged_into_id mechanism).
+    """
+    with LexiconDB(db_path) as db:
+        result = bridge_phonological_oe(db, apply=apply_changes)
+
+    verb = "bridged" if apply_changes else "would bridge"
+    click.echo(
+        f"bridge-phonological-oe: {result['examined']} canonical OE etymon(s) examined; "
+        f"{verb} {result['bridged']}, {result['unmatched']} unmatched.",
+        err=True,
+    )
+    if result["missing_target"]:
+        click.echo(
+            f"  warn: {result['missing_target']} table entry/entries name a "
+            f"target that doesn't exist as a canonical OE etymon "
+            f"(operator may need to ingest more or extend the bridge table)",
+            err=True,
+        )
+    if apply_changes:
+        click.echo(f"  rows_written = {result['rows_written']}", err=True)
     if not apply_changes:
         click.echo("(dry-run; pass --apply to commit)", err=True)
 

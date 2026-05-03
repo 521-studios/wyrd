@@ -1897,6 +1897,302 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     }
 
 
+# --- generic-language bridging --------------------------------------------
+
+
+def bridge_generic_language(
+    db: LexiconDB,
+    *,
+    generic_lang: str,
+    candidate_langs: tuple[str, ...],
+    apply: bool = False,
+) -> dict:
+    """Bridge a generic-language etymon (e.g. 'celtic') to the matching
+    specific-language entry (e.g. 'irish' / 'welsh' / 'old-irish') by
+    setting merged_into_id (D22 OCR-cluster style — non-destructive).
+
+    Place-name dictionaries often write generic language tags like
+    'celtic' for morphemes whose specific Celtic-family origin isn't
+    pinned (or doesn't matter to the place-name analysis). Wiktextract
+    entries are language-specific. This pass bridges the lookup
+    mismatch by canonicalizing each generic-language etymon onto a
+    specific-language match with the same canonical_form.
+
+    For each generic-language etymon (canonical, not already merged):
+      - Look up specific-language etymons matching `LOWER(canonical_form)`
+        across `candidate_langs`.
+      - If matches exist, pick the highest-priority one per
+        `candidate_langs` order (typically Proto-* > Old-* > Middle-* >
+        modern). Within a language, pick the smallest etymon id for
+        determinism.
+      - Set the generic-language etymon's `merged_into_id` to the picked
+        canonical winner.
+
+    The cluster-cognates pass is already redirect-aware, so any descent
+    edges that previously pointed at the specific-language etymon now
+    also cluster the merged generic etymon via the merged_into_id rollup
+    chain.
+
+    With apply=False (default) reports candidate counts without writing.
+    Returns:
+      - generic_etymons: total canonical generic-language etymons examined
+      - bridged: count that found a specific-language match (would
+        merge / did merge)
+      - unmatched: count with no specific-language candidate (will
+        remain as standalone canonical entries)
+      - rows_written: actual UPDATE row count when apply=True (always 0
+        in dry-run)
+    """
+    if not candidate_langs:
+        raise ValueError("candidate_langs must be non-empty")
+
+    # Build a (lower(canonical_form), language) → smallest_id lookup over
+    # canonical specific-language etymons. One pass over the candidate
+    # set keeps the bridging O(N) on the generic-language list.
+    placeholders = ", ".join(["?"] * len(candidate_langs))
+    candidate_index: dict[tuple[str, str], int] = {}
+    for row in db.conn.execute(
+        f"""
+        SELECT id, canonical_form, language
+        FROM etymon
+        WHERE merged_into_id IS NULL
+          AND language IN ({placeholders})
+        ORDER BY id
+        """,
+        candidate_langs,
+    ).fetchall():
+        key = (row["canonical_form"].lower(), row["language"])
+        # First-seen wins (smallest id) per (form, lang) — within a
+        # language the lower id is the older entry, deterministic.
+        if key not in candidate_index:
+            candidate_index[key] = row["id"]
+
+    # Walk generic-language canonical etymons; pick the first matching
+    # candidate language per the priority order in `candidate_langs`.
+    generic_rows = db.conn.execute(
+        "SELECT id, canonical_form FROM etymon "
+        "WHERE language = ? AND merged_into_id IS NULL ORDER BY id",
+        (generic_lang,),
+    ).fetchall()
+
+    bridges: list[tuple[int, int]] = []  # (generic_id, target_id)
+    for gen_row in generic_rows:
+        form_lower = gen_row["canonical_form"].lower()
+        for cand_lang in candidate_langs:
+            target_id = candidate_index.get((form_lower, cand_lang))
+            if target_id is not None:
+                bridges.append((gen_row["id"], target_id))
+                break
+
+    rows_written = 0
+    if apply and bridges:
+        # Mirror cluster_ocr_variants's chain-flatten (D22): set
+        # merged_into_id on the generic row AND re-route any
+        # pre-existing redirect that pointed AT the generic row.
+        # Without the OR-clause a 2-deep chain X → generic → target
+        # would form, and the single-level COALESCE rollup in
+        # etymon_consensus / etymon_canonical would split witnesses
+        # across two GROUP BY buckets.
+        cur = db.conn.executemany(
+            "UPDATE etymon SET merged_into_id = ? "
+            "WHERE (id = ? OR merged_into_id = ?) "
+            "  AND merged_into_id IS NOT ?",
+            [(tid, gid, gid, tid) for gid, tid in bridges],
+        )
+        rows_written = cur.rowcount
+        # Re-parent any inflected children the generic row was acting
+        # as a lemma for. Mining evidence stays on the original etymon.
+        db.conn.executemany(
+            "UPDATE etymon SET lemma_id = ? WHERE lemma_id = ?",
+            [(tid, gid) for gid, tid in bridges],
+        )
+        db.commit()
+
+    return {
+        "generic_etymons": len(generic_rows),
+        "bridged": len(bridges),
+        "unmatched": len(generic_rows) - len(bridges),
+        "rows_written": rows_written,
+        "applied": apply,
+    }
+
+
+# --- phonological bridging for OE place-name forms ------------------------
+
+
+# Hand-curated mapping from "scholarly OE form as place-name dictionaries
+# write it" → "Wiktionary canonical OE form". Wiktionary uses formal
+# scholarly orthography (macrons, æ, weak-final consonants); place-name
+# dictionaries write modernized / Norman-Anglicized spellings inherited
+# from medieval scribal practice. The mapping captures the most common
+# pairs that surface in the high-witness end of our place-name corpus.
+# Extend the table when new high-witness mismatches surface.
+#
+# Convention: keys are lowercase scholarly forms; values are the
+# Wiktionary canonical (with macrons, æ, etc.). The bridge uses
+# merged_into_id (D22 non-destructive) — no mining evidence is
+# destroyed.
+_OE_PHONOLOGICAL_BRIDGES: dict[str, str] = {
+    # -tūn / settlement family
+    "ton": "tūn",
+    "tun": "tūn",
+    "tone": "tūn",
+    # -lēah / clearing family
+    "lea": "lēah",
+    "leah": "lēah",
+    "leak": "lēah",  # OCR / spelling variant
+    "ley": "lēah",
+    "ly": "lēah",
+    # -cot / -cote (cottage)
+    "cote": "cot",
+    "cotum": "cot",  # dative-pl
+    # -burh / fortified-place family
+    "burgh": "burh",
+    "bury": "burh",
+    "byrig": "burh",  # dative-sg of burh
+    # -dæl / valley
+    "dale": "dæl",
+    # -heall / hall
+    "hall": "heall",
+    # -īeg / island
+    "ey": "īeg",
+    "eg": "īeg",
+    # -burna / stream
+    "burn": "burna",
+    "burne": "burna",
+    # -healh / nook
+    "hale": "healh",
+    "halh": "healh",
+    # -nīwe / new
+    "new": "nīwe",
+    # -ōra / shore, edge
+    "ore": "ōra",
+    # -wudu / wood
+    "wood": "wudu",
+    "wode": "wudu",
+    # -brād / broad
+    "brade": "brād",
+    # -brycg / bridge
+    "bridge": "brycg",
+    # -stān / stone
+    "stone": "stān",
+    # -hyll / hill
+    "hill": "hyll",
+    # -hyrst / wooded hill
+    "hurst": "hyrst",
+    # -hlāw / mound
+    "low": "hlāw",
+    # -mos / moss/marsh
+    "moss": "mos",
+    # -pōl / pool
+    "pool": "pōl",
+    # -sealh / willow
+    "salh": "sealh",
+    # -stede / place
+    "stead": "stede",
+    # -wella / spring
+    "well": "wella",
+    # -ing / -ingas (people-of suffix; place-name dicts often drop hyphen)
+    "ing": "-ing",
+    "ingas": "-ingas",
+    # æcer / acre
+    "acre": "æcer",
+    # æsc / ash
+    "ash": "æsc",
+    # -hām / homestead
+    "ham": "hām",
+}
+
+
+def bridge_phonological_oe(db: LexiconDB, *, apply: bool = False) -> dict:
+    """Bridge OE place-name etymons to their Wiktionary canonical
+    equivalents via a hand-curated mapping table.
+
+    Place-name dictionaries write modernized OE forms (`ton`, `lea`,
+    `burgh`, `dale`); Wiktionary uses scholarly orthography (`tūn`,
+    `lēah`, `burh`, `dæl`). normalize-ocr handles macron-strip OCR
+    variants but not vowel-weakening / silent-e / gh-spelling shifts.
+    This pass uses `_OE_PHONOLOGICAL_BRIDGES` to merge known pairs
+    via merged_into_id (D22 non-destructive shape) so the redirect-aware
+    cluster-cognates pass rolls the place-name etymons up into the
+    Wiktionary cognate clusters.
+
+    Algorithm:
+      1. For each canonical OE etymon, lowercase its canonical_form.
+      2. Look up the form in `_OE_PHONOLOGICAL_BRIDGES`.
+      3. If a target form is named, find the canonical OE etymon with
+         that form (case-insensitive), and merge the place-name entry
+         into it.
+
+    With apply=False (default) reports candidate counts without writing.
+    Returns:
+      - examined: total canonical OE etymons examined
+      - bridged: count that found a phonological-bridge target
+      - unmatched: count with no entry in the phonological table
+      - missing_target: count where the table named a target but no
+        OE etymon exists with that canonical form (operator should
+        add the target via mining or extend the table)
+      - rows_written: actual UPDATE row count when apply=True
+    """
+    # One scan over canonical OE etymons builds both the target lookup
+    # index and the iteration set — same WHERE clause, same ORDER BY,
+    # no need to query twice.
+    examined_rows = db.conn.execute(
+        "SELECT id, canonical_form FROM etymon "
+        "WHERE language = 'old-english' AND merged_into_id IS NULL ORDER BY id"
+    ).fetchall()
+    target_index: dict[str, int] = {}
+    for row in examined_rows:
+        key = row["canonical_form"].lower()
+        if key not in target_index:
+            target_index[key] = row["id"]
+
+    bridges: list[tuple[int, int]] = []
+    missing_target = 0
+    for row in examined_rows:
+        form = row["canonical_form"].lower()
+        wiktionary_form = _OE_PHONOLOGICAL_BRIDGES.get(form)
+        if wiktionary_form is None:
+            continue
+        target_id = target_index.get(wiktionary_form.lower())
+        if target_id is None:
+            missing_target += 1
+            continue
+        if target_id == row["id"]:
+            continue
+        bridges.append((row["id"], target_id))
+
+    rows_written = 0
+    if apply and bridges:
+        # Chain-flatten + lemma-reparent in batch (mirrors
+        # cluster_ocr_variants's D22 pattern). The OR-clause re-routes
+        # any pre-existing redirect that pointed AT this place-name
+        # etymon onto the canonical target, preventing a 2-deep chain
+        # that would split witnesses in the single-level COALESCE
+        # rollup used by etymon_consensus / etymon_canonical.
+        cur = db.conn.executemany(
+            "UPDATE etymon SET merged_into_id = ? "
+            "WHERE (id = ? OR merged_into_id = ?) "
+            "  AND merged_into_id IS NOT ?",
+            [(tid, sid, sid, tid) for sid, tid in bridges],
+        )
+        rows_written = cur.rowcount
+        db.conn.executemany(
+            "UPDATE etymon SET lemma_id = ? WHERE lemma_id = ?",
+            [(tid, sid) for sid, tid in bridges],
+        )
+        db.commit()
+
+    return {
+        "examined": len(examined_rows),
+        "bridged": len(bridges),
+        "unmatched": len(examined_rows) - len(bridges) - missing_target,
+        "missing_target": missing_target,
+        "rows_written": rows_written,
+        "applied": apply,
+    }
+
+
 # --- ingest from parsed corpus entries -------------------------------------
 
 
