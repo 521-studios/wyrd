@@ -549,10 +549,12 @@ def _migrate_text_match_table(db: LexiconDB, applied: dict[str, bool]) -> None:
               snippet       TEXT,
               method        TEXT NOT NULL DEFAULT 'reverse-search-v1',
               disambiguator_reason TEXT,
+              attested_year INTEGER,
               UNIQUE (etymon_id, source_id, matched_form)
             );
             CREATE INDEX idx_etymon_text_match_etymon ON etymon_text_match(etymon_id);
             CREATE INDEX idx_etymon_text_match_source ON etymon_text_match(source_id);
+            CREATE INDEX idx_etymon_text_match_year   ON etymon_text_match(attested_year);
             """
         )
         applied["etymon_text_match_table"] = True
@@ -569,6 +571,14 @@ def _migrate_text_match_table(db: LexiconDB, applied: dict[str, bool]) -> None:
     if "disambiguator_reason" not in text_match_cols:
         db.conn.execute("ALTER TABLE etymon_text_match ADD COLUMN disambiguator_reason TEXT")
         applied["etymon_text_match.disambiguator_reason"] = True
+    if "attested_year" not in text_match_cols:
+        db.conn.execute("ALTER TABLE etymon_text_match ADD COLUMN attested_year INTEGER")
+        # The index is only valuable once the column exists; create alongside.
+        db.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_etymon_text_match_year "
+            "ON etymon_text_match(attested_year)"
+        )
+        applied["etymon_text_match.attested_year"] = True
 
 
 # wyrd-9kh.5: pattern for Mawer-style alphabetical-headword running headers
@@ -988,6 +998,7 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "idx_etymon_merged_into": False,
         "idx_etymon_synset": False,
         "etymon_text_match.method": False,
+        "etymon_text_match.attested_year": False,
         "etymon_consensus_view": False,
         "etymon_canonical_view": False,
         "etymon_text_match_table": False,

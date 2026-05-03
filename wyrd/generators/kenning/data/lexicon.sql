@@ -126,10 +126,18 @@ CREATE TABLE etymon_text_match (
   -- One-sentence reason from the LLM disambiguator (wyrd-6z7), set when
   -- method='llm-disambiguated-v1'. Null for purely heuristic rows.
   disambiguator_reason TEXT,
+  -- D5-1 / wyrd-3ux: earliest plausibly-attested year for the matched form
+  -- in this source's body, populated by the lookup-attested-years post-
+  -- mining stage. Pattern: a year-citation (3-4 digits, 100-1700) within a
+  -- short window of the matched form, with date-context filters. Idempotent
+  -- + reversible via clear-enrichment --stage=attested-years. Foundation
+  -- for D5-2 era-cell sampling.
+  attested_year INTEGER,
   UNIQUE (etymon_id, source_id, matched_form)
 );
 CREATE INDEX idx_etymon_text_match_etymon ON etymon_text_match(etymon_id);
 CREATE INDEX idx_etymon_text_match_source ON etymon_text_match(source_id);
+CREATE INDEX idx_etymon_text_match_year ON etymon_text_match(attested_year);
 
 -- D27 / wyrd-0ug: directed etymological descent graph. A row asserts that
 -- `parent` is an ancestor of `child` under one of the documented edge
