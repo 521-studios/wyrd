@@ -30,6 +30,7 @@ from wyrd.generators.kenning.lexicon import (
     LANGUAGE_FIELDS,
     RECOMMENDED_LANG_THRESHOLDS,
     LexiconDB,
+    backfill_citation_pages,
     clear_enrichment,
     cluster_ocr_variants,
     export_meanings,
@@ -1648,6 +1649,103 @@ def lexicon_parse_pages(source_path: Path, limit: int) -> None:
         line_end = text.find("\n", offset)
         line = text[offset : line_end if line_end > 0 else offset + 80].strip()
         click.echo(f"    p.{page:>4}  @offset={offset:>7}  {line}")
+
+
+@lexicon.command("backfill-pages")
+@click.argument(
+    "sources_dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+)
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=True,
+)
+@click.option(
+    "--apply",
+    "apply_changes",
+    is_flag=True,
+    default=False,
+    help="Actually write page numbers. Without this, dry-run reporting only.",
+)
+@click.option(
+    "--source",
+    "source_filter",
+    type=str,
+    default=None,
+    help="Process only the source matching this id (filename stem). Default: every .txt in sources_dir.",
+)
+def lexicon_backfill_pages(
+    sources_dir: Path,
+    db_path: Path,
+    apply_changes: bool,
+    source_filter: str | None,
+) -> None:
+    """Backfill etymon_citation.page + toponym_etymology.page (wyrd-azv).
+
+    Walks each .txt in <sources_dir>, parses Mawer-style running headers,
+    and for rows where page IS NULL locates the row's quoted excerpt in
+    body text to resolve a page number. Skeat-§ headers and books with
+    no Mawer-style headers are skipped (reported as no_headers).
+
+    Idempotent: re-runs only touch rows where page is still NULL.
+    """
+    totals = dict.fromkeys(_BACKFILL_TOTALS_KEYS, 0)
+
+    with LexiconDB(db_path) as db:
+        for path in sorted(sources_dir.glob("*.txt")):
+            source_id = path.stem
+            if source_filter and source_id != source_filter:
+                continue
+            text = path.read_text(errors="replace")
+            counts = backfill_citation_pages(db, source_id, text, apply=apply_changes)
+            totals["sources_processed"] += 1
+            if counts["no_headers"]:
+                totals["sources_no_headers"] += 1
+                click.echo(f"  [{source_id:50}]  no Mawer-style headers; skipped", err=True)
+                continue
+            click.echo(
+                f"  [{source_id:50}]  cit={counts['citations_updated']:>4}  "
+                f"ety={counts['etymologies_updated']:>4}  "
+                f"miss={counts['quote_not_in_text']:>3}",
+                err=True,
+            )
+            for key in _BACKFILL_PER_SOURCE_KEYS:
+                totals[key] += counts[key]
+
+    if source_filter and totals["sources_processed"] == 0:
+        click.echo(
+            f"warn: --source {source_filter!r} matched no .txt file in {sources_dir}",
+            err=True,
+        )
+    _print_backfill_totals(totals, apply_changes)
+
+
+_BACKFILL_PER_SOURCE_KEYS = (
+    "citations_updated",
+    "etymologies_updated",
+    "quote_not_in_text",
+    "no_quote",
+    "before_first_page",
+)
+_BACKFILL_TOTALS_KEYS = (*_BACKFILL_PER_SOURCE_KEYS, "sources_processed", "sources_no_headers")
+
+
+def _print_backfill_totals(totals: dict[str, int], apply_changes: bool) -> None:
+    """Render the backfill summary. Header counts come from sources_*
+    keys; per-source counters listed below come from _BACKFILL_PER_SOURCE_KEYS
+    in display order."""
+    click.echo(
+        f"\nTotals: {totals['sources_processed']} sources processed, "
+        f"{totals['sources_no_headers']} skipped (no headers).",
+        err=True,
+    )
+    for key in _BACKFILL_PER_SOURCE_KEYS:
+        click.echo(f"  {key:<22}= {totals[key]}", err=True)
+    if not apply_changes:
+        click.echo("\n(dry-run; pass --apply to write)", err=True)
 
 
 @lexicon.command("link-lemmas")
