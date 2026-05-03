@@ -251,8 +251,9 @@ def test_validate_response_back_compat_when_attested_forms_absent() -> None:
 
 
 def test_validate_response_rejects_attested_year_below_range() -> None:
-    """Years before 800 are almost always folio numbers or page numbers
-    misread as years."""
+    """Years before 100 are almost always folio numbers or page numbers
+    misread as years (wyrd-z56 widened the floor from 800 to 100 to keep
+    Roman-empire and Gallo-Roman attestations; 99 is still excluded)."""
     response = _ok_response()
     response["attested_forms"] = [{"form": "bere", "year": 79}]
     failures = validate_response(response, _BARTON_BODY)
@@ -310,26 +311,30 @@ def test_system_prompt_documents_attested_forms_extraction() -> None:
 
     # Field name appears.
     assert "attested_forms" in prompt
-    # Year-range constraint is documented.
-    assert "800" in prompt and "1700" in prompt
+    # Year-range constraint is documented (wyrd-z56 widened to 100-1700).
+    assert "100" in prompt and "1700" in prompt
     # Examples include real Domesday/charter-style dated citations.
     assert "1333" in prompt or "1226" in prompt or "1086" in prompt
     # Skip-noise instruction is present (publication years vs attestations).
     assert "publication" in prompt
     # No-invention instruction is present.
     assert "do not invent" in prompt or "do not invent dates" in prompt
+    # wyrd-z56: tightened integer-vs-string guidance with explicit examples.
+    # The model was emitting strings like "1333 (?)" — prompt now flags the
+    # right/wrong patterns explicitly.
+    assert "json integer" in prompt or "(not a string" in prompt
 
 
 def test_response_schema_includes_attested_forms() -> None:
     """The Ollama JSON schema must mark attested_forms as required, with
-    year integer constrained to 800-1700. If this constraint is removed
-    the model can emit publication-year noise unchecked."""
+    year integer constrained to the 100-1700 range. If this constraint is
+    removed the model can emit publication-year noise unchecked."""
     assert "attested_forms" in RESPONSE_SCHEMA["properties"]
     assert "attested_forms" in RESPONSE_SCHEMA["required"]
     item_schema = RESPONSE_SCHEMA["properties"]["attested_forms"]["items"]
     year_schema = item_schema["properties"]["year"]
     assert year_schema["type"] == "integer"
-    assert year_schema["minimum"] == 800
+    assert year_schema["minimum"] == 100
     assert year_schema["maximum"] == 1700
 
 
@@ -437,21 +442,50 @@ def test_validate_response_accepts_decline_with_valid_attested_forms() -> None:
 
 
 def test_validate_response_attested_year_at_lower_boundary() -> None:
-    """Inclusive lower bound: year=800 is the floor for the attested-year
-    range (per _ATTESTED_YEAR_MIN). Off-by-one regression guard."""
-    body = _DATED_BODY + " Aburwick is also recorded in 800."
+    """Inclusive lower bound: year=100 is the floor for the attested-year
+    range (per _ATTESTED_YEAR_MIN, widened from 800 in wyrd-z56). Off-by-
+    one regression guard."""
+    body = _DATED_BODY + " Aburwick is also recorded in 100."
     response = _ok_response()
-    response["attested_forms"] = [{"form": "Aburwick", "year": 800}]
+    response["attested_forms"] = [{"form": "Aburwick", "year": 100}]
     failures = validate_response(response, body)
     assert not any(f.reason.startswith("attested_year") for f in failures)
 
 
 def test_validate_response_attested_year_below_lower_boundary() -> None:
-    """Year=799 is below the 800 floor and should be rejected."""
+    """Year=99 is below the 100 floor and should be rejected (folio /
+    page-number territory)."""
     response = _ok_response()
-    response["attested_forms"] = [{"form": "bere", "year": 799}]
+    response["attested_forms"] = [{"form": "bere", "year": 99}]
     failures = validate_response(response, _BARTON_BODY)
     assert any(f.reason == "attested_year_out_of_range" for f in failures)
+
+
+def test_validate_response_accepts_roman_era_attested_year() -> None:
+    """wyrd-z56: Roman-era and pre-Carolingian dated attestations now
+    pass. Concrete case d'Arbois 1890 cites: 'une charte de l'année
+    856' / 'Actum Aria monasterio'-style charters, plus earlier
+    Gallo-Roman material dating to the 5th-7th centuries (e.g. the
+    Geographer of Ravenna, ~700 AD).
+
+    Sample acceptable years across the widened range: 200 (Roman
+    Gaul), 580 (Merovingian), 856 (Carolingian, was previously above
+    floor anyway). The 800 floor lost legitimate Roman + early-
+    Merovingian rows on Romance/Celtic-substrate sources.
+    """
+    body = (
+        _DATED_BODY + " Earlier still: Lugudunum (200), Aria monasterio (580),"
+        " and a Carolingian charter dated 856."
+    )
+    response = _ok_response()
+    response["attested_forms"] = [
+        {"form": "Lugudunum", "year": 200},
+        {"form": "Aria", "year": 580},
+        {"form": "monasterio", "year": 856},
+    ]
+    failures = validate_response(response, body)
+    assert not any(f.reason.startswith("attested_year") for f in failures)
+    assert not any(f.reason == "attested_form_not_in_body" for f in failures)
 
 
 def test_validate_response_attested_year_at_upper_boundary() -> None:
