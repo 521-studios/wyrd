@@ -38,6 +38,7 @@ from wyrd.generators.kenning.lexicon import (
     init_schema,
     link_lemmas,
     migrate_schema,
+    parse_running_header_pages,
     record_mining_run,
     reverse_search_attestations,
     seed_from_meanings,
@@ -1605,6 +1606,48 @@ def lexicon_migrate(db_path: Path) -> None:
     click.echo("Migrations:", err=True)
     for name, did in applied.items():
         click.echo(f"  {name:32} {'applied' if did else 'no-op'}", err=True)
+
+
+@lexicon.command("parse-pages")
+@click.argument("source_path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option(
+    "--limit",
+    type=int,
+    default=10,
+    show_default=True,
+    help="Number of detected (page, headword-fragment) pairs to print.",
+)
+def lexicon_parse_pages(source_path: Path, limit: int) -> None:
+    """Audit running-header coverage on a source book (wyrd-9kh.5).
+
+    Detects Mawer-style running headers (`<HEADWORD> <number>`) in the
+    source text and reports how many pages the parser found, along with
+    a sample. Use this to decide whether a book is amenable to page-
+    anchored citations before wiring it into the etymon_citation.page
+    write path (follow-up).
+
+    Skeat-style books use a `§ N. NAMES IN -X. <page>` header convention
+    not handled by this command — coverage of 0 means either no headers
+    or a non-Mawer convention; eyeball the source to tell which.
+    """
+    text = source_path.read_text(errors="replace")
+    headers = parse_running_header_pages(text)
+    click.echo(f"{source_path.name}: {len(headers)} running header(s) detected")
+    if not headers:
+        click.echo(
+            "  No headers matched the Mawer-style pattern. The book may use "
+            "Skeat-style §-section headers (not yet supported) or a different "
+            "convention entirely.",
+            err=True,
+        )
+        return
+    click.echo(f"  Page range: {headers[0][1]} → {headers[-1][1]}")
+    click.echo("  Sample (first {}):".format(min(limit, len(headers))))
+    for offset, page in headers[:limit]:
+        # Snippet of the matched line for visual inspection.
+        line_end = text.find("\n", offset)
+        line = text[offset : line_end if line_end > 0 else offset + 80].strip()
+        click.echo(f"    p.{page:>4}  @offset={offset:>7}  {line}")
 
 
 @lexicon.command("link-lemmas")
