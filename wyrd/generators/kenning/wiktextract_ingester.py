@@ -394,31 +394,35 @@ def _cross_lang_single_parent_edges(name: str, args: dict[str, str]) -> list[tup
 def _root_template_edges(args: dict[str, str]) -> list[tuple[str, str, str]]:
     """{{root|en|ine-pro|*r1|*r2}} → one inheritance edge per root word.
     Wiktionary editors sometimes cite parallel PIE roots when the chain
-    is contested; iterating args[3..5] handles up to 3 parallel roots
-    (never seen more in real data)."""
+    is contested. Walks args[3], args[4], ... while consecutive
+    positional args are present, so unusually-long root lists don't
+    silently truncate."""
     ancestor_lang = args.get("2")
     if not ancestor_lang:
         return []
     edges: list[tuple[str, str, str]] = []
-    for i in (3, 4, 5):
-        word = args.get(str(i))
+    i = 3
+    while (word := args.get(str(i))) is not None:
         if word:
             edges.append((ancestor_lang, word, "inheritance"))
+        i += 1
     return edges
 
 
 def _compound_template_edges(args: dict[str, str]) -> list[tuple[str, str, str]]:
     """{{compound|ang|Sċott|land}} → one 'compound' edge per constituent.
-    Real OE compounds rarely exceed 3 parts; iterating args[2..6] is
-    enough for the long-tail."""
+    Walks args[2], args[3], ... while consecutive positional args are
+    present, so multi-part compounds don't silently truncate at a
+    fixed bound."""
     this_lang = args.get("1")
     if not this_lang:
         return []
     edges: list[tuple[str, str, str]] = []
-    for i in (2, 3, 4, 5, 6):
-        part = args.get(str(i))
+    i = 2
+    while (part := args.get(str(i))) is not None:
         if part:
             edges.append((this_lang, part, "compound"))
+        i += 1
     return edges
 
 
