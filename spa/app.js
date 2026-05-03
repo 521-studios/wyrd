@@ -228,17 +228,67 @@ function _renderResultItem(r) {
     const explanation = document.createElement("p");
     explanation.className = "explanation";
     explanation.textContent = r.explanation || "";
+    li.appendChild(name);
+    li.appendChild(explanation);
+
+    // wyrd-9kh.6: structured per-element citation list. The explainer
+    // text already shows "cited by ..." inline (truncated to 3 + count),
+    // but the full list per element lives in components and deserves its
+    // own disclosure so a curious GM can see who attests each morpheme.
+    const citations = _renderCitationsDetail(r.components || []);
+    if (citations) li.appendChild(citations);
+
     const details = document.createElement("details");
     const summary = document.createElement("summary");
-    summary.textContent = "Components";
+    summary.textContent = "Components (raw)";
     const pre = document.createElement("pre");
     pre.textContent = JSON.stringify(r.components, null, 2);
     details.appendChild(summary);
     details.appendChild(pre);
-    li.appendChild(name);
-    li.appendChild(explanation);
     li.appendChild(details);
     return li;
+}
+
+function _renderCitationsDetail(components) {
+    // Returns null if no component carries any scholarly citations —
+    // skip the disclosure rather than render an empty 'no citations'
+    // affordance that adds noise to a name with all-rando-port morphemes.
+    const anyCitations = components.some((c) => Array.isArray(c.citations) && c.citations.length);
+    if (!anyCitations) return null;
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    summary.textContent = "Citations";
+    details.appendChild(summary);
+    const list = document.createElement("ul");
+    list.className = "citations";
+    for (const c of components) {
+        const li = document.createElement("li");
+        const usage = document.createElement("strong");
+        usage.textContent = c.usage;
+        li.appendChild(usage);
+        li.appendChild(document.createTextNode(" — "));
+        const cites = Array.isArray(c.citations) ? c.citations : [];
+        if (cites.length) {
+            const wrap = document.createElement("span");
+            wrap.className = "citation-list";
+            for (let i = 0; i < cites.length; i++) {
+                if (i > 0) wrap.appendChild(document.createTextNode(", "));
+                const span = document.createElement("span");
+                span.className = "citation";
+                span.textContent = cites[i];
+                wrap.appendChild(span);
+            }
+            li.appendChild(wrap);
+        } else {
+            const muted = document.createElement("span");
+            muted.className = "muted";
+            muted.textContent = "no scholarly citations yet";
+            li.appendChild(muted);
+        }
+        list.appendChild(li);
+    }
+    details.appendChild(list);
+    return details;
 }
 
 function _renderResults(body) {
