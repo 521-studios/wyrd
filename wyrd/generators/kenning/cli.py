@@ -1692,15 +1692,7 @@ def lexicon_backfill_pages(
 
     Idempotent: re-runs only touch rows where page is still NULL.
     """
-    totals = {
-        "citations_updated": 0,
-        "etymologies_updated": 0,
-        "quote_not_in_text": 0,
-        "no_quote": 0,
-        "before_first_page": 0,
-        "sources_processed": 0,
-        "sources_no_headers": 0,
-    }
+    totals = dict.fromkeys(_BACKFILL_TOTALS_KEYS, 0)
 
     with LexiconDB(db_path) as db:
         for path in sorted(sources_dir.glob("*.txt")):
@@ -1720,28 +1712,38 @@ def lexicon_backfill_pages(
                 f"miss={counts['quote_not_in_text']:>3}",
                 err=True,
             )
-            for key in (
-                "citations_updated",
-                "etymologies_updated",
-                "quote_not_in_text",
-                "no_quote",
-                "before_first_page",
-            ):
+            for key in _BACKFILL_PER_SOURCE_KEYS:
                 totals[key] += counts[key]
 
+    if source_filter and totals["sources_processed"] == 0:
+        click.echo(
+            f"warn: --source {source_filter!r} matched no .txt file in {sources_dir}",
+            err=True,
+        )
+    _print_backfill_totals(totals, apply_changes)
+
+
+_BACKFILL_PER_SOURCE_KEYS = (
+    "citations_updated",
+    "etymologies_updated",
+    "quote_not_in_text",
+    "no_quote",
+    "before_first_page",
+)
+_BACKFILL_TOTALS_KEYS = (*_BACKFILL_PER_SOURCE_KEYS, "sources_processed", "sources_no_headers")
+
+
+def _print_backfill_totals(totals: dict[str, int], apply_changes: bool) -> None:
+    """Render the backfill summary. Header counts come from sources_*
+    keys; per-source counters listed below come from _BACKFILL_PER_SOURCE_KEYS
+    in display order."""
     click.echo(
         f"\nTotals: {totals['sources_processed']} sources processed, "
         f"{totals['sources_no_headers']} skipped (no headers).",
         err=True,
     )
-    click.echo(
-        f"  citations_updated     = {totals['citations_updated']}\n"
-        f"  etymologies_updated   = {totals['etymologies_updated']}\n"
-        f"  quote_not_in_text     = {totals['quote_not_in_text']}\n"
-        f"  no_quote              = {totals['no_quote']}\n"
-        f"  before_first_page     = {totals['before_first_page']}",
-        err=True,
-    )
+    for key in _BACKFILL_PER_SOURCE_KEYS:
+        click.echo(f"  {key:<22}= {totals[key]}", err=True)
     if not apply_changes:
         click.echo("\n(dry-run; pass --apply to write)", err=True)
 

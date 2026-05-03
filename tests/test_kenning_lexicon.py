@@ -16,7 +16,10 @@ from wyrd.generators.kenning.lexicon import (
     NON_LANGUAGE_FIELDS,
     RECOMMENDED_LANG_THRESHOLDS,
     LexiconDB,
+    _normalize_for_quote_match,
     _position_from_usage,
+    _quote_body_excerpt,
+    backfill_citation_pages,
     clear_enrichment,
     cluster_ocr_variants,
     derive_lemma_candidate,
@@ -1248,6 +1251,99 @@ def test_page_for_offset_empty_headers_returns_none():
 # --- wyrd-azv: backfill_citation_pages ---------------------------------
 
 
+def test_quote_body_excerpt_strips_provider_attribution_prefix() -> None:
+    """`assemble_extraction_result` writes quotes shaped as
+    `extracted_by:<provider>:<model>; <commentary> | <body excerpt>`.
+    `_quote_body_excerpt` must return only the body part, since that's
+    the only substring that exists in source_text."""
+    quote = "extracted_by:llm:qwen3.5:9b; Scholar identifies foo | Abberwick (Eglingham). 1169 P"
+    assert _quote_body_excerpt(quote) == "Abberwick (Eglingham). 1169 P"
+
+
+def test_quote_body_excerpt_uses_first_separator_not_last() -> None:
+    """Pin the leftmost-find behavior: if an OCR body picks up a
+    spurious ` | ` (table rule, page artefact), the prefix splitter
+    must still terminate at the FIRST ` | ` because the
+    extracted_by:... prefix never contains the separator. Using rfind
+    instead would return only the trailing artefact."""
+    quote = "extracted_by:gemini:flash; commentary | body | with | rules"
+    assert _quote_body_excerpt(quote) == "body | with | rules"
+
+
+def test_quote_body_excerpt_returns_whole_quote_when_no_separator() -> None:
+    """Legacy citations and commentary-only rows have no ` | ` —
+    fall back to the literal quote so caller's str.find still has
+    something to try."""
+    assert _quote_body_excerpt("plain body excerpt") == "plain body excerpt"
+
+
+def test_backfill_normalizes_ocr_multispace_against_single_space_quote(
+    fresh_db: Path,
+) -> None:
+    """The parser collapses OCR multi-space runs before sending text to
+    the LLM, so the stored quote ends up single-spaced while the source
+    has the original `Abberwick  (Eglingham)` double-space runs.
+    `_normalize_for_quote_match` exists to bridge that — pin it here so
+    a regression in the normalization or the norm_to_orig offset
+    translation surfaces immediately."""
+    quote = "the body discussion of cot here"
+    body = (
+        "BACKWORTH 9\n"
+        "earlier text\n"
+        "BEDLINGTON 15\n"
+        "the  body   discussion  of cot here  continuing\n"  # multi-space OCR
+    )
+    with LexiconDB(fresh_db) as db:
+        _, cit_id, _ = _seed_citation_for_backfill(db, "ocr_book", "cot", quote)
+        counts = backfill_citation_pages(db, "ocr_book", body, apply=True)
+        cit_page = db.conn.execute(
+            "SELECT page FROM etymon_citation WHERE id = ?", (cit_id,)
+        ).fetchone()["page"]
+
+    assert counts["citations_updated"] == 1
+    assert cit_page == "15"
+
+
+def test_backfill_resolves_page_with_provider_attribution_prefix(fresh_db: Path) -> None:
+    """End-to-end check that the prefix-stripping + body matching
+    works on the real `extracted_by:<provider>:<model>; <commentary> |
+    <body>` shape produced by `assemble_extraction_result`. Pins the
+    contract so a regression in either `_quote_body_excerpt` or the
+    matching path surfaces here."""
+    body_excerpt = "the body discussion of cot here"
+    full_quote = (
+        "extracted_by:llm:qwen3.5:9b; Scholar identifies cot as the suffix; "
+        "notes contextual usage | " + body_excerpt
+    )
+    body = f"BACKWORTH 9\n{body_excerpt} continuing\n"
+    with LexiconDB(fresh_db) as db:
+        _, cit_id, _ = _seed_citation_for_backfill(db, "real_book", "cot", full_quote)
+        counts = backfill_citation_pages(db, "real_book", body, apply=True)
+        cit_page = db.conn.execute(
+            "SELECT page FROM etymon_citation WHERE id = ?", (cit_id,)
+        ).fetchone()["page"]
+
+    assert counts["citations_updated"] == 1
+    assert cit_page == "9"
+
+
+def test_normalize_for_quote_match_collapses_multispace_and_tracks_offsets() -> None:
+    """Direct unit test on the helper: collapsed text is single-spaced;
+    norm_to_orig maps each normalized character back to its original
+    offset so the page lookup uses the source coordinate system."""
+    text = "AB  CD\n  EF"
+    norm, mapping = _normalize_for_quote_match(text)
+    assert norm == "AB CD EF"
+    # 'A' is at original 0; 'B' at original 1; ' ' (collapsed) at original 2;
+    # 'C' at original 4; 'D' at original 5; ' ' (collapsed from \n+spaces) at 6;
+    # 'E' at 9; 'F' at 10
+    assert mapping == [0, 1, 2, 4, 5, 6, 9, 10]
+    # Round-trip: substring search returns a normalized offset that
+    # translates back to the correct original-text position.
+    norm_offset = norm.find("EF")
+    assert text[mapping[norm_offset] : mapping[norm_offset] + 2] == "EF"
+
+
 def _seed_citation_for_backfill(
     db: LexiconDB, source_id: str, etymon_form: str, quote: str
 ) -> tuple[int, int, int]:
@@ -1276,7 +1372,6 @@ def _seed_citation_for_backfill(
 def test_backfill_citation_pages_writes_pages_when_quote_in_text(fresh_db: Path) -> None:
     """Happy path: an etymon_citation whose short_quote appears in the
     source body after a running header gets that header's page written."""
-    from wyrd.generators.kenning.lexicon import backfill_citation_pages
 
     quote = "the body discussion of cot here"
     body = (
@@ -1304,7 +1399,6 @@ def test_backfill_citation_pages_writes_pages_when_quote_in_text(fresh_db: Path)
 
 def test_backfill_citation_pages_dry_run_does_not_write(fresh_db: Path) -> None:
     """apply=False reports counts but leaves page columns NULL."""
-    from wyrd.generators.kenning.lexicon import backfill_citation_pages
 
     quote = "discussion of ham morpheme"
     body = f"HAMSTEAD 22\n{quote}\n"
@@ -1327,7 +1421,6 @@ def test_backfill_citation_pages_dry_run_does_not_write(fresh_db: Path) -> None:
 def test_backfill_citation_pages_no_headers_returns_zero(fresh_db: Path) -> None:
     """A source whose body has no Mawer-style headers (Skeat-§ style or
     no running headers at all) reports no_headers=1 and zero updates."""
-    from wyrd.generators.kenning.lexicon import backfill_citation_pages
 
     skeat_body = "§ 2. NAMES IN -TON. 9\nbody discussion here\n"
     with LexiconDB(fresh_db) as db:
@@ -1349,7 +1442,6 @@ def test_backfill_citation_pages_quote_not_in_text_increments_miss(fresh_db: Pat
     """A citation whose short_quote isn't present in the source body
     (parser drift, OCR mangle) is skipped and counted under
     quote_not_in_text rather than failing the run."""
-    from wyrd.generators.kenning.lexicon import backfill_citation_pages
 
     body = "BACKWORTH 9\nactual body content here\n"
     quote_not_in_body = "this exact phrase is nowhere"
@@ -1369,7 +1461,6 @@ def test_backfill_citation_pages_quote_not_in_text_increments_miss(fresh_db: Pat
 def test_backfill_citation_pages_idempotent(fresh_db: Path) -> None:
     """A second --apply run is a no-op: rows where page IS NOT NULL are
     excluded from the candidate query."""
-    from wyrd.generators.kenning.lexicon import backfill_citation_pages
 
     quote = "body of the entry"
     body = f"ABBEY DORE 7\n{quote}\n"
@@ -1389,7 +1480,6 @@ def test_backfill_citation_pages_idempotent(fresh_db: Path) -> None:
 def test_backfill_citation_pages_skips_offset_before_first_header(fresh_db: Path) -> None:
     """An entry that sits before the first running header (e.g. front-
     matter) gets counted under before_first_page, not silently dropped."""
-    from wyrd.generators.kenning.lexicon import backfill_citation_pages
 
     quote = "preface discussing the methodology"
     body = f"{quote}\nBACKWORTH 9\nbody content\n"
@@ -1409,7 +1499,6 @@ def test_backfill_citation_pages_skips_offset_before_first_header(fresh_db: Path
 def test_backfill_citation_pages_skips_no_quote_rows(fresh_db: Path) -> None:
     """Rows with NULL short_quote (legacy citations or rando-port seed
     rows) are counted under no_quote rather than crashing on str.find."""
-    from wyrd.generators.kenning.lexicon import backfill_citation_pages
 
     body = "BACKWORTH 9\nbody content\n"
     with LexiconDB(fresh_db) as db:
@@ -1431,7 +1520,6 @@ def test_backfill_citation_pages_skips_no_quote_rows(fresh_db: Path) -> None:
 def test_backfill_pages_cli_dry_run_reports_without_writing(fresh_db: Path, tmp_path: Path) -> None:
     """End-to-end CLI test: dry-run reports counts to stderr and leaves
     the DB untouched. --apply is required to write."""
-    from wyrd.generators.kenning.lexicon import backfill_citation_pages  # noqa: F401
 
     quote = "discussion of cot in the entry"
     body = f"BACKWORTH 9\n{quote}\n"

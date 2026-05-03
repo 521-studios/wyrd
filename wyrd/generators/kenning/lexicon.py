@@ -595,11 +595,16 @@ def _quote_body_excerpt(quote: str) -> str:
 
     Body excerpt is what the parser pulled from the source and is the
     only part that exists in source_text. Returns the substring after
-    the last ` | ` separator; if absent (legacy citations or
+    the FIRST ` | ` separator; if absent (legacy citations or
     commentary-only rows), returns the whole quote so the caller can
-    still try a literal match."""
+    still try a literal match.
+
+    First-` | ` (not last) because the prefix `extracted_by:...; <commentary>`
+    never contains the separator, while OCR body excerpts can pick up
+    spurious ` | ` from table rules / page-number artefacts. A leftmost
+    split is unambiguous about where the body actually starts."""
     sep = " | "
-    idx = quote.rfind(sep)
+    idx = quote.find(sep)
     if idx < 0:
         return quote
     return quote[idx + len(sep) :]
@@ -674,41 +679,63 @@ def backfill_citation_pages(
             return None, "before_first_page"
         return page, "ok"
 
-    cit_rows = db.conn.execute(
-        "SELECT id, short_quote FROM etymon_citation WHERE source_id = ? AND page IS NULL",
-        (source_id,),
-    ).fetchall()
-    for row in cit_rows:
-        page, status = _resolve_page(row["short_quote"])
-        if status != "ok":
-            counts[status] += 1
-            continue
-        if apply:
-            db.conn.execute(
-                "UPDATE etymon_citation SET page = ? WHERE id = ?",
-                (str(page), row["id"]),
-            )
-        counts["citations_updated"] += 1
-
-    ety_rows = db.conn.execute(
-        "SELECT id, notes FROM toponym_etymology WHERE source_id = ? AND page IS NULL",
-        (source_id,),
-    ).fetchall()
-    for row in ety_rows:
-        page, status = _resolve_page(row["notes"])
-        if status != "ok":
-            counts[status] += 1
-            continue
-        if apply:
-            db.conn.execute(
-                "UPDATE toponym_etymology SET page = ? WHERE id = ?",
-                (str(page), row["id"]),
-            )
-        counts["etymologies_updated"] += 1
+    _backfill_table_pages(
+        db,
+        "etymon_citation",
+        "short_quote",
+        source_id,
+        _resolve_page,
+        apply,
+        counts,
+        "citations_updated",
+    )
+    _backfill_table_pages(
+        db,
+        "toponym_etymology",
+        "notes",
+        source_id,
+        _resolve_page,
+        apply,
+        counts,
+        "etymologies_updated",
+    )
 
     if apply:
         db.commit()
     return counts
+
+
+def _backfill_table_pages(
+    db: LexiconDB,
+    table: str,
+    quote_col: str,
+    source_id: str,
+    resolve_fn,
+    apply: bool,
+    counts: dict[str, int],
+    updated_key: str,
+) -> None:
+    """Iterate page-NULL rows of `table` for `source_id`, resolve each
+    via `resolve_fn(quote)`, and update `table.page` if apply is set.
+    Mutates `counts` in place: bumps `updated_key` on resolution, or the
+    status key returned by resolve_fn on skip. Table identifiers are
+    code-controlled (callers in this module only), so f-string SQL is
+    safe here."""
+    rows = db.conn.execute(
+        f"SELECT id, {quote_col} AS quote FROM {table} WHERE source_id = ? AND page IS NULL",
+        (source_id,),
+    ).fetchall()
+    for row in rows:
+        page, status = resolve_fn(row["quote"])
+        if status != "ok":
+            counts[status] += 1
+            continue
+        if apply:
+            db.conn.execute(
+                f"UPDATE {table} SET page = ? WHERE id = ?",
+                (str(page), row["id"]),
+            )
+        counts[updated_key] += 1
 
 
 def _migrate_citation_context_snippet(db: LexiconDB, applied: dict[str, bool]) -> None:
