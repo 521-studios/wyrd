@@ -390,6 +390,50 @@ def test_load_meanings_omits_citations_field_when_absent():
     assert meaning_db["X-"][0].citations == {}
 
 
+def test_load_meanings_extracts_attested_years_from_attested_year_field():
+    """`<lang>_attested_years` keys (D5-1 / wyrd-bag) are split out of
+    `sources` into the Meaning's attested_years dict; canonical language
+    form lists stay in sources unchanged. Mirrors the regression pattern
+    for variants / inflections / citations."""
+    data = [
+        {
+            "modifier_tags": ["habitation"],
+            "meaning": ["enclosure"],
+            "words": [
+                {
+                    "modern_usage": "-tun",
+                    "old_english": ["tun"],
+                    "old_english_attested_years": [
+                        {"form": "tun", "year": 1086},
+                        {"form": "tunes", "year": 1242},
+                    ],
+                }
+            ],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    m = meaning_db["-tun"][0]
+    assert m.attested_years == {
+        "old_english": [("tun", 1086), ("tunes", 1242)],
+    }
+    # Canonical language array stays in sources, attested-years field stripped.
+    assert m.sources == {"old_english": ["tun"]}
+
+
+def test_load_meanings_omits_attested_years_field_when_absent():
+    """Legacy data without attested-year metadata still loads cleanly
+    with an empty attested_years dict."""
+    data = [
+        {
+            "modifier_tags": [],
+            "meaning": ["x"],
+            "words": [{"modern_usage": "X-", "old_english": ["x"]}],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    assert meaning_db["X-"][0].attested_years == {}
+
+
 def test_load_meanings_propagates_inflections_to_plural_form():
     """A name-tagged meaning auto-pluralizes (e.g. 'Alf-' → 'Alf-s'). The
     pluralized Meaning must inherit the same inflections + variants pools
