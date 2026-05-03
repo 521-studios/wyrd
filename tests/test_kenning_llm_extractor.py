@@ -688,3 +688,106 @@ def test_assemble_extraction_result_truncates_long_body_at_budget():
     # net).
     assert sq.startswith("extracted_by:test:1")
     assert " | " in sq
+
+
+def test_assemble_extraction_result_outer_cap_truncates_long_notes_prefix():
+    """wyrd-9kh.2 (review-round-1): the outer ``[:500]`` cap on the
+    accepted path must clamp the result even when ``combined_notes +
+    " | " + body[:440]`` overflows because the notes string is unusually
+    long. Without an explicit test, a future refactor that drops the
+    outer cap (relying only on the inner body slice) would silently let
+    the source_quote grow unbounded for verbose notes_prefixes.
+    """
+    from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
+
+    body = "Foobar — from Old English foo, a foo. " + ("x " * 220)
+    assert len(body) > 440  # ensure inner-slice path engages
+    long_prefix = "extracted_by:test:" + ("a" * 200)  # ~220 chars
+    response = {
+        "found": True,
+        "historical_form": "Foobar",
+        "confidence": "medium",
+        "elements": [
+            {
+                "form": "foo",
+                "language": "old-english",
+                "position": "pre",
+                "gloss": "a foo",
+                "inflection": None,
+            }
+        ],
+    }
+    result = assemble_extraction_result(
+        response,
+        body=body,
+        toponym="Foobar",
+        suffix_hint=None,
+        notes_prefix=long_prefix,
+    )
+    assert result.accepted is True
+    assert result.entry is not None
+    # Inner body slice would put the raw composition at ~660 chars
+    # (220 prefix + 3 separator + 440 body); the outer cap drops it to 500.
+    assert len(result.entry.source_quote) == 500
+    assert result.entry.source_quote.startswith("extracted_by:test:")
+
+
+def test_assemble_extraction_result_body_budget_boundary():
+    """wyrd-9kh.2 (review-round-1): pin the exact boundary between
+    ``_SOURCE_QUOTE_BODY_BUDGET`` (440) and ``_SOURCE_QUOTE_BUDGET`` (500)
+    on the accepted path. A future change that diverges the two
+    constants (e.g. raises body to 460 by mistake) would slip past the
+    1200-char truncation test but fail this one.
+
+    With a short notes_prefix and a 441-char body, the body share gets
+    truncated at exactly 440 — one char short of the body. With a
+    440-char body, the full body is preserved.
+    """
+    from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
+
+    response_template = {
+        "found": True,
+        "historical_form": "Foobar",
+        "confidence": "medium",
+        "elements": [
+            {
+                "form": "foo",
+                "language": "old-english",
+                "position": "pre",
+                "gloss": "a foo",
+                "inflection": None,
+            }
+        ],
+    }
+    short_prefix = "p"  # keeps the outer [:500] cap from interfering
+
+    # body of exactly 440 chars: full body retained on the accepted path
+    body_440 = "foo " + ("x" * 436)
+    assert len(body_440) == 440
+    result_440 = assemble_extraction_result(
+        response_template,
+        body=body_440,
+        toponym="Foobar",
+        suffix_hint=None,
+        notes_prefix=short_prefix,
+    )
+    assert result_440.accepted is True
+    sq_440 = result_440.entry.source_quote
+    # All 440 chars of the body are present after the separator.
+    assert sq_440.endswith(body_440)
+
+    # body of 441 chars: body share is truncated at 440 (one char dropped)
+    body_441 = "foo " + ("x" * 437)
+    assert len(body_441) == 441
+    result_441 = assemble_extraction_result(
+        response_template,
+        body=body_441,
+        toponym="Foobar",
+        suffix_hint=None,
+        notes_prefix=short_prefix,
+    )
+    assert result_441.accepted is True
+    sq_441 = result_441.entry.source_quote
+    # Exactly the first 440 chars of body land in source_quote — last char dropped.
+    assert sq_441.endswith(body_441[:440])
+    assert not sq_441.endswith(body_441)
