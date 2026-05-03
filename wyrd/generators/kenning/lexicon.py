@@ -48,7 +48,9 @@ def _schema_sql() -> str:
 def init_schema(db_path: Path | str) -> None:
     """Create a fresh lexicon DB at db_path with the schema applied.
 
-    Wipes any existing file at the path.
+    Wipes any existing file at the path. Sets file-persistent
+    journal_mode=WAL and synchronous=NORMAL so the resulting DB
+    supports concurrent readers + one writer out of the box.
     """
     path = Path(db_path)
     if path.exists():
@@ -56,10 +58,27 @@ def init_schema(db_path: Path | str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
     try:
+        _apply_persistent_pragmas(conn)
         conn.executescript(_schema_sql())
         conn.commit()
     finally:
         conn.close()
+
+
+def _apply_persistent_pragmas(conn: sqlite3.Connection) -> None:
+    """Set journal_mode=WAL on a writable connection. journal_mode is
+    file-persistent (stored in the SQLite header), so this only needs
+    to run once at init_schema (fresh DB) or migrate_schema (legacy DB)
+    — every subsequent open inherits the mode automatically.
+
+    WAL gives concurrent readers + one writer without blocking —
+    critical for the multi-session workflow where one Claude is
+    mining (writer) while another queries corpus state (reader).
+
+    synchronous=NORMAL is per-connection (not file-persistent), so it
+    lives in LexiconDB.__init__ and runs on every open.
+    """
+    conn.execute("PRAGMA journal_mode = WAL")
 
 
 # --- OCR ligature normalization ------------------------------------------
@@ -137,15 +156,12 @@ class LexiconDB:
         self.path = Path(path)
         self.conn = sqlite3.connect(self.path)
         self.conn.execute("PRAGMA foreign_keys = ON")
-        # WAL mode lets readers and a single writer proceed in parallel
-        # without blocking each other — important for the multi-session
-        # workflow where one Claude is mining (writer) while another is
-        # querying corpus state (reader). journal_mode is persistent: set
-        # once on the file, applies to all subsequent opens.
-        # synchronous=NORMAL is the recommended pairing under WAL; full
-        # crash safety is preserved (WAL replays on next open) without
-        # the per-transaction fsync cost of synchronous=FULL.
-        self.conn.execute("PRAGMA journal_mode = WAL")
+        # synchronous is per-connection (NOT file-persistent like
+        # journal_mode), so it has to be set on every open. NORMAL is
+        # the recommended pairing under WAL — preserves crash safety
+        # via the WAL replay path without the per-transaction fsync of
+        # synchronous=FULL. Harmless on a read-only connection (the
+        # setting just declares how synchronous writes WOULD be).
         self.conn.execute("PRAGMA synchronous = NORMAL")
         self.conn.row_factory = sqlite3.Row
 
@@ -1034,6 +1050,7 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "mining_run_table": False,
         "etymon_citation.context_snippet": False,
         "toponym_etymology.attested_year": False,
+        "wal_mode": False,
     }
     _add_etymon_columns(db, applied)
     _create_etymon_indexes(db, applied)
@@ -1043,8 +1060,22 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     _create_mining_run_table(db, applied)
     _migrate_citation_context_snippet(db, applied)
     _migrate_toponym_etymology_attested_year(db, applied)
+    _migrate_wal_mode(db, applied)
     db.commit()
     return applied
+
+
+def _migrate_wal_mode(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Idempotently bring legacy DBs (created before WAL was the
+    default) onto journal_mode=WAL + synchronous=NORMAL. Both are
+    file-persistent: once set on a file, every subsequent open
+    inherits them — so this is a one-shot migration, not a
+    per-connection setup. Reports applied=True only when the actual
+    on-disk mode changed."""
+    current_mode = db.conn.execute("PRAGMA journal_mode").fetchone()[0]
+    if current_mode.lower() != "wal":
+        _apply_persistent_pragmas(db.conn)
+        applied["wal_mode"] = True
 
 
 # --- lemma linkage ---------------------------------------------------------
