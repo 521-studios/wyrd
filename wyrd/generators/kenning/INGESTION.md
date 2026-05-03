@@ -586,18 +586,23 @@ semantics + bridging rules are in the [Etymological descent graph
 wiktextract-specific bit is just the template-name → edge_type
 mapping:
 
-| Wiktextract template | Direction | edge_type |
+| Source | Direction | edge_type |
 |---|---|---|
-| `{{inh}}` / `{{inherited}}` | UP | `inheritance` |
-| `{{bor}}` / `{{borrowed}}` | UP | `borrowing` |
-| `{{der}}` / `{{derived}}` | UP | `derivation` |
-| `{{cal}}` / `{{calque}}` | UP | `calque` |
-| `{{desc}}` (default) | DOWN | `inheritance` |
-| `{{desc\|...\|bor=1}}` | DOWN | `borrowing` |
-| `{{desc\|...\|der=1}}` | DOWN | `derivation` |
-| `{{desc\|...\|cal=1}}` | DOWN | `calque` |
-| `{{cog}}` / `{{m}}` / `{{l}}` / qualifiers | n/a | skipped |
+| `{{inh}}` / `{{inherited}}` template | UP | `inheritance` |
+| `{{bor}}` / `{{borrowed}}` template | UP | `borrowing` |
+| `{{der}}` / `{{derived}}` template | UP | `derivation` |
+| `{{cal}}` / `{{calque}}` template | UP | `calque` |
+| descendants tree node (default) | DOWN | `inheritance` |
+| descendants node with `tags=['calque']` | DOWN | `calque` |
+| descendants node with `tags=['borrowed']` | DOWN | `borrowing` |
+| descendants node with `tags=['derived']` | DOWN | `derivation` |
+| `{{cog}}` / `{{m}}` / `{{l}}` / qualifier templates | n/a | skipped |
 | anything else | n/a | counted as `unsupported_template` |
+
+Etymology section uses `{{template}}` markers; descendants section is
+a recursive nested tree of `{lang_code, word, tags?, descendants?}`
+nodes (NOT a flat list with `depth` markers — that was a v1 misread,
+fixed in wyrd-c9t).
 
 Source attribution is the synthetic `'wiktionary'` source row (per
 D27).
@@ -629,11 +634,12 @@ resume with `--since-line N`.
 ### What if a template kind isn't recognized?
 
 The CLI reports `unsupported_templates = N` when wiktextract entries
-contain templates we haven't mapped. The v1 supported set covers
-inh / bor / der / cal / desc plus their long-name variants. Extend
-`_UPWARD_TEMPLATE_TO_EDGE`, `_DOWNWARD_TEMPLATE_NAMES`, or
-`_SKIPPED_TEMPLATE_NAMES` in `wyrd/generators/kenning/wiktextract_ingester.py`
-to add new kinds.
+contain etymology templates we haven't mapped. Supported set covers
+inh / bor / der / cal plus long-name variants. Extend
+`_UPWARD_TEMPLATE_TO_EDGE` or `_SKIPPED_TEMPLATE_NAMES` in
+`wyrd/generators/kenning/wiktextract_ingester.py` to add new kinds.
+Descendants nodes never produce unsupported_templates (they're read
+as data, not via templates).
 
 ### Anti-patterns
 
