@@ -53,7 +53,7 @@ _ALLOWED_POSITIONS = {"pre", "inner", "post"}
 # and the body excerpt: a normal-length prefix gives the body ~460
 # chars; an unusually long prefix proportionally crowds the body share
 # but the outer cap still bounds the total at 500.
-_SOURCE_QUOTE_BUDGET = 500
+SOURCE_QUOTE_BUDGET = 500
 
 
 # Response schema (Ollama's `format` field accepts a JSON Schema dict).
@@ -586,7 +586,7 @@ def assemble_extraction_result(
                 historical_form=None,
                 elements=[],
                 confidence="low",
-                source_quote=body[:_SOURCE_QUOTE_BUDGET],
+                source_quote=body[:SOURCE_QUOTE_BUDGET],
             ),
             raw_response=response,
             failures=failures,
@@ -619,7 +619,7 @@ def assemble_extraction_result(
             historical_form=response.get("historical_form"),
             elements=elements,
             confidence=confidence,
-            source_quote=(combined_notes + " | " + body)[:_SOURCE_QUOTE_BUDGET],
+            source_quote=(combined_notes + " | " + body)[:SOURCE_QUOTE_BUDGET],
         ),
         raw_response=response,
         failures=[],

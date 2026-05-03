@@ -12,8 +12,8 @@ from __future__ import annotations
 import re
 
 from wyrd.generators.kenning.llm_extractor import (
-    _SOURCE_QUOTE_BUDGET,
     RESPONSE_SCHEMA,
+    SOURCE_QUOTE_BUDGET,
     SYSTEM_PROMPT,
     _form_in_body,
     _normalize_for_match,
@@ -557,7 +557,7 @@ def test_assemble_extraction_result_not_found_emits_low_confidence_entry():
     assert result.entry is not None
     assert result.entry.elements == []
     assert result.entry.confidence == "low"
-    assert result.entry.source_quote == body[:_SOURCE_QUOTE_BUDGET]
+    assert result.entry.source_quote == body[:SOURCE_QUOTE_BUDGET]
 
 
 def test_assemble_extraction_result_validation_failure_marks_rejected():
@@ -626,7 +626,7 @@ def test_assemble_extraction_result_tags_source_quote_with_prefix():
     assert result.accepted is True
     assert result.entry is not None
     assert result.entry.source_quote.startswith("extracted_by:claude:opus-4-7")
-    assert len(result.entry.source_quote) <= _SOURCE_QUOTE_BUDGET
+    assert len(result.entry.source_quote) <= SOURCE_QUOTE_BUDGET
 
 
 def test_assemble_extraction_result_truncates_long_body_at_budget():
@@ -653,8 +653,8 @@ def test_assemble_extraction_result_truncates_long_body_at_budget():
     )
     assert declined.accepted is True
     assert declined.entry is not None
-    assert len(declined.entry.source_quote) == _SOURCE_QUOTE_BUDGET
-    assert declined.entry.source_quote == body[:_SOURCE_QUOTE_BUDGET]
+    assert len(declined.entry.source_quote) == SOURCE_QUOTE_BUDGET
+    assert declined.entry.source_quote == body[:SOURCE_QUOTE_BUDGET]
 
     # Accepted path: combined_notes + ' | ' + body capped at the budget.
     response = {
@@ -681,14 +681,14 @@ def test_assemble_extraction_result_truncates_long_body_at_budget():
     assert accepted.accepted is True
     assert accepted.entry is not None
     sq = accepted.entry.source_quote
-    assert len(sq) == _SOURCE_QUOTE_BUDGET
+    assert len(sq) == SOURCE_QUOTE_BUDGET
     # Attribution prefix preserved at the front; body share fills the rest.
     assert sq.startswith("extracted_by:test:1")
     assert " | " in sq
 
 
 def test_assemble_extraction_result_outer_cap_truncates_long_notes_prefix():
-    """wyrd-9kh.2 (review-round-1): the outer ``[:_SOURCE_QUOTE_BUDGET]``
+    """wyrd-9kh.2 (review-round-1): the outer ``[:SOURCE_QUOTE_BUDGET]``
     cap on the accepted path must clamp the result even when
     ``combined_notes + " | " + body`` overflows because the notes string
     is unusually long. Without an explicit test, a future refactor that
@@ -699,7 +699,7 @@ def test_assemble_extraction_result_outer_cap_truncates_long_notes_prefix():
 
     body = "Foobar — from Old English foo, a foo. " + ("x " * 250)
     long_prefix = "extracted_by:test:" + ("a" * 300)  # ~318 chars
-    assert len(long_prefix) + len(" | ") + len(body) > _SOURCE_QUOTE_BUDGET
+    assert len(long_prefix) + len(" | ") + len(body) > SOURCE_QUOTE_BUDGET
     response = {
         "found": True,
         "historical_form": "Foobar",
@@ -723,7 +723,7 @@ def test_assemble_extraction_result_outer_cap_truncates_long_notes_prefix():
     )
     assert result.accepted is True
     assert result.entry is not None
-    assert len(result.entry.source_quote) == _SOURCE_QUOTE_BUDGET
+    assert len(result.entry.source_quote) == SOURCE_QUOTE_BUDGET
     assert result.entry.source_quote.startswith("extracted_by:test:")
 
 
@@ -739,7 +739,7 @@ def test_assemble_extraction_result_short_total_preserves_full_body():
 
     short_prefix = "p"
     body = "Foobar — from Old English foo, a foo." + ("y" * 100)
-    assert len(short_prefix) + len(" | ") + len(body) < _SOURCE_QUOTE_BUDGET
+    assert len(short_prefix) + len(" | ") + len(body) < SOURCE_QUOTE_BUDGET
     response = {
         "found": True,
         "historical_form": "Foobar",
