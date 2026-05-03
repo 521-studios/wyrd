@@ -1978,12 +1978,19 @@ def lexicon_lookup_attested_years(
     with LexiconDB(db_path) as db:
         result = lookup_attested_years(db, sources_dir, apply=apply_changes)
 
+    etm = result["etymon_text_match"]
+    te = result["toponym_etymology"]
+    click.echo("lookup-attested-years:", err=True)
     click.echo(
-        f"lookup-attested-years: scanned {result['rows_scanned']} text-match row(s)",
+        f"  etymon_text_match  scanned={etm['rows_scanned']:>5}  "
+        f"candidates={etm['candidates']:>5}  rows_written={etm['rows_written']:>5}",
         err=True,
     )
-    click.echo(f"  candidates    = {result['candidates']}", err=True)
-    click.echo(f"  rows_written  = {result['rows_written']}", err=True)
+    click.echo(
+        f"  toponym_etymology  scanned={te['rows_scanned']:>5}  "
+        f"candidates={te['candidates']:>5}  rows_written={te['rows_written']:>5}",
+        err=True,
+    )
     if result["sources_missing"]:
         click.echo(
             f"  warn: {result['sources_missing']} source_id(s) referenced in text-match "

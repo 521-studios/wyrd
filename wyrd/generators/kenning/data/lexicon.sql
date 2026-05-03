@@ -275,8 +275,18 @@ CREATE TABLE toponym_etymology (
   page            TEXT,
   historical_form TEXT,
   confidence      TEXT CHECK (confidence IN ('high', 'medium', 'low')),
-  notes           TEXT
+  notes           TEXT,
+  -- D5-1 / wyrd-bag: earliest plausibly-attested year for this
+  -- toponym's historical form, populated by the lookup-attested-years
+  -- post-mining stage. Pattern: a year-citation (3-4 digits, 700-1700)
+  -- in the LLM-extracted notes, which typically carry dense scholarly
+  -- date citations like "Tune, 1086 (DB); Tunes, 1242". Scoped to
+  -- post-Roman attestations (≥700) to filter page / volume / footnote
+  -- numbers that cluster in the low hundreds. Idempotent + reversible
+  -- via clear-enrichment --stage=attested-years.
+  attested_year   INTEGER
 );
+CREATE INDEX idx_toponym_etymology_year ON toponym_etymology(attested_year);
 
 CREATE TABLE toponym_etymology_element (
   toponym_etymology_id INTEGER NOT NULL REFERENCES toponym_etymology(id) ON DELETE CASCADE,

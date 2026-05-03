@@ -1066,6 +1066,210 @@ def test_lookup_attested_years_warns_on_missing_source_file(fresh_db: Path, tmp_
     assert result["rows_written"] == 0
 
 
+# --- D5-1 / wyrd-bag: toponym_etymology.notes scan -------------------------
+
+
+def _seed_toponym_etymology(
+    db: LexiconDB,
+    *,
+    notes: str,
+    modern_name: str = "Tune",
+    source_id: str = "src",
+    historical_form: str = "Tūn",
+) -> int:
+    """Insert a toponym + toponym_etymology row carrying ``notes``.
+    Returns the toponym_etymology row id. Used as a fixture builder
+    for the wyrd-bag tests."""
+    cur = db.conn.execute("INSERT INTO toponym (modern_name) VALUES (?)", (modern_name,))
+    toponym_id = cur.lastrowid
+    cur = db.conn.execute(
+        "INSERT INTO toponym_etymology "
+        "(toponym_id, source_id, historical_form, confidence, notes) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (toponym_id, source_id, historical_form, "high", notes),
+    )
+    db.commit()
+    return cur.lastrowid
+
+
+def test_lookup_attested_years_populates_toponym_etymology_from_notes(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """wyrd-bag: notes column carries dense scholarly date strings
+    ('1086 DB; 1242 IPM'). The post-mining stage picks the earliest
+    plausibly-attested year (>=700) and writes it to attested_year.
+    Pin the dominant case — multiple year citations, earliest wins."""
+    sources = tmp_path / "sources"
+    sources.mkdir()  # required by lookup_attested_years even when empty
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        rid = _seed_toponym_etymology(
+            db,
+            notes="extracted_by:llm:qwen | Tune (DB). 1086 DB; 1242 IPM; 1340 Cl",
+        )
+        result = lookup_attested_years(db, sources, apply=True)
+
+        year = db.conn.execute(
+            "SELECT attested_year FROM toponym_etymology WHERE id = ?", (rid,)
+        ).fetchone()["attested_year"]
+
+    assert result["toponym_etymology"]["candidates"] == 1
+    assert result["toponym_etymology"]["rows_written"] == 1
+    assert year == 1086
+
+
+def test_lookup_attested_years_rejects_pre_700_years_in_notes(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """The simple year-range filter (>=700) rules out the dominant
+    false-positive class: page numbers, volume numbers, footnote refs.
+    Pin that '233' (volume) and '47' (page) don't get picked even when
+    they precede the form. Earliest qualifying year is 1086."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        rid = _seed_toponym_etymology(
+            db,
+            notes=("VI. 233 (close) — Tune. p. 47. Buketon c. 1086 DB; Tunes 1242 ; 1340 Cl"),
+        )
+        lookup_attested_years(db, sources, apply=True)
+
+        year = db.conn.execute(
+            "SELECT attested_year FROM toponym_etymology WHERE id = ?", (rid,)
+        ).fetchone()["attested_year"]
+
+    assert year == 1086
+
+
+def test_lookup_attested_years_skips_page_marker_false_positive(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """Real EPNS-style note: 'Plac. de quo War. p. 755.' has 755
+    preceded by 'p. ', a PAGE reference, not a year. Pin that the
+    page-marker filter rejects it. Earliest qualifying year is the
+    actual citation '1086'."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        rid = _seed_toponym_etymology(
+            db,
+            notes="Westhamconett 1086 DB ; Plac. de quo War. p. 755.",
+        )
+        lookup_attested_years(db, sources, apply=True)
+        year = db.conn.execute(
+            "SELECT attested_year FROM toponym_etymology WHERE id = ?", (rid,)
+        ).fetchone()["attested_year"]
+    assert year == 1086
+
+
+def test_lookup_attested_years_skips_toponym_etymology_with_null_notes(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """Defensive: a toponym_etymology row with notes=NULL (legacy or
+    very-low-confidence row) doesn't crash the scan."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        cur = db.conn.execute("INSERT INTO toponym (modern_name) VALUES (?)", ("X",))
+        toponym_id = cur.lastrowid
+        db.conn.execute(
+            "INSERT INTO toponym_etymology "
+            "(toponym_id, source_id, confidence, notes) "
+            "VALUES (?, ?, ?, ?)",
+            (toponym_id, "src", "low", None),
+        )
+        db.commit()
+        result = lookup_attested_years(db, sources, apply=True)
+
+    # null-notes rows are excluded by the WHERE clause, so they don't
+    # even surface as scanned.
+    assert result["toponym_etymology"]["rows_scanned"] == 0
+    assert result["toponym_etymology"]["candidates"] == 0
+
+
+def test_lookup_attested_years_idempotent_on_toponym_etymology(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """Re-running lookup-attested-years against the same DB doesn't
+    re-process toponym_etymology rows whose attested_year is already
+    populated. Mirror of the etymon_text_match idempotency guarantee
+    so cron-style scheduled runs are cheap no-ops."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        _seed_toponym_etymology(db, notes="X 1086 DB")
+
+        first = lookup_attested_years(db, sources, apply=True)
+        assert first["toponym_etymology"]["rows_written"] == 1
+
+        second = lookup_attested_years(db, sources, apply=True)
+    assert second["toponym_etymology"]["rows_scanned"] == 0
+    assert second["toponym_etymology"]["candidates"] == 0
+    assert second["toponym_etymology"]["rows_written"] == 0
+
+
+def test_lookup_attested_years_aggregates_both_row_sources(fresh_db: Path, tmp_path: Path) -> None:
+    """The aggregate keys (rows_scanned/candidates/rows_written) sum
+    across etymon_text_match AND toponym_etymology. Pin so a future
+    refactor that drops one source from the aggregate surfaces."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "src.txt").write_text("Tune, 1086 (DB).")
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        _seed_text_match(db, source_id="src", canonical_form="tune")
+        _seed_toponym_etymology(db, notes="Tune 1086 DB")
+        result = lookup_attested_years(db, sources, apply=True)
+
+    # Each source contributes one row; aggregate is 2.
+    assert result["etymon_text_match"]["rows_written"] == 1
+    assert result["toponym_etymology"]["rows_written"] == 1
+    assert result["rows_written"] == 2
+    assert result["candidates"] == 2
+
+
+def test_clear_enrichment_attested_years_clears_both_tables(
+    fresh_db: Path,
+) -> None:
+    """wyrd-bag: clear_enrichment(stage='attested-years') must NULL
+    the column on BOTH etymon_text_match AND toponym_etymology.
+    Otherwise a re-run would only re-process half the corpus and
+    leave stale years on the other half."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        # Seed a populated etymon_text_match row.
+        rid_etm = _seed_text_match(db, source_id="src", canonical_form="tune")
+        db.conn.execute(
+            "UPDATE etymon_text_match SET attested_year = ? WHERE id = ?",
+            (1086, rid_etm),
+        )
+        # Seed a populated toponym_etymology row.
+        rid_te = _seed_toponym_etymology(db, notes="Tune 1086")
+        db.conn.execute(
+            "UPDATE toponym_etymology SET attested_year = ? WHERE id = ?",
+            (1086, rid_te),
+        )
+        db.commit()
+
+        result = clear_enrichment(db, stage="attested-years", apply=True)
+        # The combined count covers both tables.
+        assert result["attested_years_to_clear"] == 2
+
+        etm_year = db.conn.execute(
+            "SELECT attested_year FROM etymon_text_match WHERE id = ?", (rid_etm,)
+        ).fetchone()["attested_year"]
+        te_year = db.conn.execute(
+            "SELECT attested_year FROM toponym_etymology WHERE id = ?", (rid_te,)
+        ).fetchone()["attested_year"]
+
+    assert etm_year is None
+    assert te_year is None
+
+
 def test_lookup_attested_years_accepts_year_at_upper_bound_1700(
     fresh_db: Path, tmp_path: Path
 ) -> None:
@@ -5027,9 +5231,10 @@ def test_lookup_attested_years_cli_dry_run_reports_without_writing(
         ["lexicon", "lookup-attested-years", str(sources), "--db", str(fresh_db)],
     )
     assert result.exit_code == 0, result.output
-    assert "scanned 1 text-match row(s)" in result.output
-    assert "candidates    = 1" in result.output
-    assert "rows_written  = 0" in result.output
+    assert "etymon_text_match" in result.output
+    assert "scanned=    1" in result.output
+    assert "candidates=    1" in result.output
+    assert "rows_written=    0" in result.output
     assert "dry-run" in result.output
 
     with LexiconDB(fresh_db) as db:
@@ -5065,7 +5270,10 @@ def test_lookup_attested_years_cli_apply_writes_years(fresh_db: Path, tmp_path: 
         ],
     )
     assert result.exit_code == 0, result.output
-    assert "rows_written  = 1" in result.output
+    # etymon_text_match line shows the actual write; toponym_etymology
+    # line is zero (no rows seeded for that table).
+    assert "etymon_text_match" in result.output
+    assert "rows_written=    1" in result.output
     assert "dry-run" not in result.output
 
     with LexiconDB(fresh_db) as db:
