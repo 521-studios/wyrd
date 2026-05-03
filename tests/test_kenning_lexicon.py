@@ -4996,7 +4996,7 @@ def test_bridge_phonological_oe_merges_known_pair(fresh_db: Path) -> None:
         ("burgh", "burh"),
         ("dale", "dæl"),
         ("hall", "heall"),
-        ("ey", "īeg"),
+        ("ey", "ieg"),
         ("burn", "burna"),
         ("hale", "healh"),
         ("new", "nīwe"),
@@ -5004,6 +5004,21 @@ def test_bridge_phonological_oe_merges_known_pair(fresh_db: Path) -> None:
         ("bridge", "brycg"),
         ("stone", "stān"),
         ("hill", "hyll"),
+        # wyrd-9ig additions:
+        ("wella", "welle"),
+        ("inga", "ing"),
+        ("cippa", "cipp"),
+        ("hāran", "hār"),
+        ("cloppa", "clopp"),
+        ("ticce", "ticcen"),
+        ("kirk", "cirice"),
+        ("hala", "healh"),
+        ("pool", "pol"),
+        ("scelf", "scylfe"),
+        ("ēg", "ieg"),
+        ("hare", "hara"),
+        ("hlyp", "hlīep"),
+        ("lech", "lacu"),
     ],
 )
 def test_bridge_phonological_oe_table_entries_resolve(
@@ -5452,3 +5467,113 @@ def test_cli_bridge_phonological_oe_warns_on_missing_target(fresh_db: Path) -> N
     assert result.exit_code == 0, result.output
     assert "warn:" in result.stderr
     assert "target that doesn't exist" in result.stderr
+
+
+# --- wyrd-9ig: bridge_phonological_oe target_index redirect-following ---
+
+
+def test_bridge_phonological_oe_resolves_through_tombstone_target(
+    fresh_db: Path,
+) -> None:
+    """When the bridge-table value names a form that exists only as a
+    tombstone (merged_into another canonical), the target_index must
+    follow the merged_into_id chain and resolve to the live canonical.
+    Without this fix, _OE_PHONOLOGICAL_BRIDGES entries like 'dale → dæl'
+    silently miss when a prior OCR-cluster pass has merged dæl into a
+    macron-stripped 'dael' canonical.
+
+    Reproduces the production bug where 5+ source citations of 'dale'
+    stayed unbridged because dæl was merged into dael by normalize-ocr."""
+    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
+
+    with LexiconDB(fresh_db) as db:
+        # Live canonical that the macroned form has been OCR-merged into.
+        live_id = db.upsert_etymon("dael", "old-english")
+        # The macroned form named in the bridge table, but it's a tombstone.
+        tombstone_id = db.upsert_etymon("dæl", "old-english")
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (live_id, tombstone_id),
+        )
+        # The place-name form the bridge wants to route.
+        place_id = db.upsert_etymon("dale", "old-english")
+        db.commit()
+        result = bridge_phonological_oe(db, apply=True)
+        merged_target = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (place_id,)
+        ).fetchone()["merged_into_id"]
+
+    # Place-name 'dale' must end up pointing at the LIVE canonical, not
+    # the tombstone (which would create a 2-deep chain) and not None
+    # (which is the pre-fix bug behavior).
+    assert merged_target == live_id
+    assert result["bridged"] == 1
+    assert result["missing_target"] == 0
+
+
+def test_bridge_phonological_oe_target_index_handles_multi_step_chain(
+    fresh_db: Path,
+) -> None:
+    """Multi-step merged_into_id chains (A → B → C) must resolve all the
+    way to the live canonical C, not stop at intermediate B. Pin so the
+    target_index walk doesn't regress to single-step lookup."""
+    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
+
+    with LexiconDB(fresh_db) as db:
+        c_live = db.upsert_etymon("dael", "old-english")
+        b_mid = db.upsert_etymon("daell", "old-english")  # arbitrary intermediate
+        a_top = db.upsert_etymon("dæl", "old-english")
+        db.conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (c_live, b_mid))
+        db.conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (b_mid, a_top))
+        place_id = db.upsert_etymon("dale", "old-english")
+        db.commit()
+        bridge_phonological_oe(db, apply=True)
+        merged_target = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (place_id,)
+        ).fetchone()["merged_into_id"]
+
+    assert merged_target == c_live
+
+
+def test_bridge_phonological_oe_target_index_skips_self_loop(fresh_db: Path) -> None:
+    """A merged_into_id self-loop (data corruption) must not infinite-loop
+    the target_index resolution. The walk should bail and treat the row
+    as its own canonical."""
+    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
+
+    with LexiconDB(fresh_db) as db:
+        weird_id = db.upsert_etymon("ton", "old-english")  # bridge-table key
+        target_id = db.upsert_etymon("tūn", "old-english")
+        # Synthetic self-loop on the target.
+        db.conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (target_id, target_id))
+        db.commit()
+        # Should not hang.
+        bridge_phonological_oe(db, apply=True)
+        # And ton should still successfully bridge to tūn.
+        merged_target = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (weird_id,)
+        ).fetchone()["merged_into_id"]
+
+    assert merged_target == target_id
+
+
+def test_bridge_phonological_oe_ey_bridges_to_macron_stripped_ieg(
+    fresh_db: Path,
+) -> None:
+    """The bridge value for 'ey' was changed from 'īeg' (which never
+    exists in the corpus — Wiktionary's macroned headword wasn't
+    ingested in that form) to 'ieg' (the OCR-stripped form that IS
+    canonical in the DB). Pin the corrected mapping so a regression
+    can't accidentally re-introduce 'īeg' as the bridge value."""
+    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
+
+    with LexiconDB(fresh_db) as db:
+        ieg_id = db.upsert_etymon("ieg", "old-english")
+        ey_id = db.upsert_etymon("ey", "old-english")
+        db.commit()
+        bridge_phonological_oe(db, apply=True)
+        merged_target = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (ey_id,)
+        ).fetchone()["merged_into_id"]
+
+    assert merged_target == ieg_id
