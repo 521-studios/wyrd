@@ -20,7 +20,11 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 
-from wyrd.generators.kenning.skeat_parser import ParsedElement, ParsedEntry
+from wyrd.generators.kenning.skeat_parser import (
+    SOURCE_QUOTE_BUDGET,
+    ParsedElement,
+    ParsedEntry,
+)
 
 # --- config ---------------------------------------------------------------
 
@@ -44,16 +48,12 @@ _ALLOWED_LANGUAGES = {
 _ALLOWED_POSITIONS = {"pre", "inner", "post"}
 
 
-# Budget for the source_quote text on a ParsedEntry — i.e. how much
-# surrounding source-prose we keep alongside the structured extraction so
-# the SPA's citation view (wyrd-9kh) can render meaningful context.
-# 500 chars covers a typical Skeat/Mawer entry's analytical clause + a
-# few of its variant attestations. The budget is shared between the
-# attribution prefix (notes_prefix; takes priority and appears first)
-# and the body excerpt: a normal-length prefix gives the body ~460
-# chars; an unusually long prefix proportionally crowds the body share
-# but the outer cap still bounds the total at 500.
-SOURCE_QUOTE_BUDGET = 500
+# SOURCE_QUOTE_BUDGET (the source_quote cap for ParsedEntry rows the SPA
+# citation view consumes) lives in skeat_parser alongside ParsedEntry —
+# the regex parser (skeat_parser._shorten) and this LLM extractor share
+# one constant. The reverse import direction would be a cycle.
+# Imported above; kept aliased here so existing readers see the symbol
+# without chasing the hop. wyrd-9v1.
 
 
 # Response schema (Ollama's `format` field accepts a JSON Schema dict).

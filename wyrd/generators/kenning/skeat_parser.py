@@ -341,6 +341,14 @@ class ParsedElement:
     inflection: str | None = None
 
 
+# Budget for the source_quote text on a ParsedEntry — kept on this side of
+# the parser/extractor boundary so the regex parser (here) and the LLM
+# extractor (which imports ParsedEntry from this module) share one cap.
+# Lives here rather than in llm_extractor because the inverse import
+# direction would be a cycle. wyrd-9v1.
+SOURCE_QUOTE_BUDGET = 500
+
+
 @dataclass
 class ParsedEntry:
     toponym: str
@@ -348,7 +356,8 @@ class ParsedEntry:
     historical_form: str | None  # 'bere-tun' if found
     elements: list[ParsedElement] = field(default_factory=list)
     confidence: str = "low"  # 'high' | 'medium' | 'low'
-    source_quote: str = ""  # ≤200 char verbatim, for the citation table
+    # ≤SOURCE_QUOTE_BUDGET char verbatim, for the citation table.
+    source_quote: str = ""
     body_text: str = ""  # full untruncated entry body, for re-extraction
 
 
@@ -357,7 +366,7 @@ def _split_hyphenated(form: str) -> list[str]:
     return [p for p in form.split("-") if p]
 
 
-def _shorten(text: str, limit: int = 200) -> str:
+def _shorten(text: str, limit: int = SOURCE_QUOTE_BUDGET) -> str:
     text = text.strip()
     if len(text) <= limit:
         return text

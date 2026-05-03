@@ -116,3 +116,42 @@ def test_parse_entry_low_confidence_when_no_etymology() -> None:
     assert entry.confidence == "low"
     assert entry.elements == []
     assert entry.section_suffix == "-ton"
+
+
+def test_skeat_parser_source_quote_budget_matches_llm_extractor() -> None:
+    """wyrd-9v1: the regex parser and the LLM extractor must share one
+    source_quote budget so the SPA citation view sees consistent snippet
+    sizes regardless of which parser produced the row.
+
+    Lives in skeat_parser (where ParsedEntry lives); llm_extractor
+    re-exports it. This test pins the symbol-equality so a future
+    divergence (someone redefines SOURCE_QUOTE_BUDGET in either module)
+    gets caught."""
+    from wyrd.generators.kenning.llm_extractor import (
+        SOURCE_QUOTE_BUDGET as EXTRACTOR_BUDGET,
+    )
+    from wyrd.generators.kenning.skeat_parser import SOURCE_QUOTE_BUDGET
+
+    assert SOURCE_QUOTE_BUDGET == EXTRACTOR_BUDGET
+    assert SOURCE_QUOTE_BUDGET == 500
+
+
+def test_skeat_parser_shorten_truncates_at_budget() -> None:
+    """wyrd-9v1: _shorten's default cap is the shared SOURCE_QUOTE_BUDGET.
+    A body longer than the budget gets truncated with an ellipsis; the
+    truncation point sits at a word boundary, never mid-word."""
+    from wyrd.generators.kenning.skeat_parser import (
+        SOURCE_QUOTE_BUDGET,
+        _shorten,
+    )
+
+    long_body = "alpha " * 200  # 1200 chars, plenty over the 500 budget
+    out = _shorten(long_body)
+    # Truncated to ≤ budget, ends with ellipsis (the trailing-space-then-
+    # rsplit(' ', 1)[0] ensures a word-boundary cut).
+    assert len(out) <= SOURCE_QUOTE_BUDGET + 1  # +1 for the ellipsis char
+    assert out.endswith("…")
+    assert "alpha" in out
+    # Short body passes through unchanged (under the cap).
+    short = "tiny body"
+    assert _shorten(short) == short
