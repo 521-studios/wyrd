@@ -694,39 +694,10 @@ ancestor.
 
 ### Reference queries
 
-```sql
--- Modern descendants of an etymon (walks inheritance + borrowing)
-WITH RECURSIVE descendants(id) AS (
-  SELECT child_id FROM etymon_descent
-    WHERE parent_id = ? AND edge_type IN ('inheritance', 'borrowing')
-  UNION
-  SELECT d.child_id FROM etymon_descent d
-    JOIN descendants ON d.parent_id = descendants.id
-    WHERE d.edge_type IN ('inheritance', 'borrowing')
-)
-SELECT e.canonical_form, e.language
-FROM descendants
-JOIN etymon e ON e.id = descendants.id;
-
--- Ancestors of an etymon (walks UP)
-WITH RECURSIVE ancestors(id) AS (
-  SELECT parent_id FROM etymon_descent
-    WHERE child_id = ? AND edge_type IN ('inheritance', 'borrowing')
-  UNION
-  SELECT d.parent_id FROM etymon_descent d
-    JOIN ancestors ON d.child_id = ancestors.id
-    WHERE d.edge_type IN ('inheritance', 'borrowing')
-)
-SELECT e.canonical_form, e.language
-FROM ancestors
-JOIN etymon e ON e.id = ancestors.id;
-
--- Cross-language cognates (after cluster-cognates wyrd-81n populates synset_id)
-SELECT e.canonical_form, e.language
-FROM etymon e
-WHERE e.synset_id = (SELECT synset_id FROM etymon WHERE id = ?)
-  AND e.id != ?;
-```
+The descendants / ancestors recursive CTEs and the post-wyrd-81n
+cognate-by-synset query live in `INGESTION.md` under "Etymological
+descent graph (D27)" — that's the operational manual; this entry
+holds rationale.
 
 ### Why this matters beyond Wiktionary mining
 

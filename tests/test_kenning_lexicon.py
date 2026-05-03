@@ -3849,6 +3849,134 @@ def test_etymon_descent_descendants_query_walks_inheritance_chain(
     assert ("*tūnaz", "proto-germanic") not in forms
 
 
+def test_etymon_descent_ancestors_query_walks_inheritance_chain_upward(
+    fresh_db: Path,
+) -> None:
+    """Symmetric pin for the 'ancestors of X' recursive CTE (documented
+    in DECISIONS.md D27 and INGESTION.md). Without this, a regression
+    that drops idx_etymon_descent_child or breaks the upward walk would
+    only surface in production. Same graph as the descendants test:
+
+        *tūnaz → tūn (OE) → town (modern English)
+               → tún (ON) → tún (modern Icelandic)
+
+    Walking UP from modern Icelandic 'tún' should reach ON 'tún' and
+    Proto-Germanic '*tūnaz' (but NOT modern English 'town' — that's
+    a sibling-via-different-branch, not an ancestor)."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="wiktionary", title="Wiktionary")
+        proto_id = db.upsert_etymon("*tūnaz", "proto-germanic")
+        oe_id = db.upsert_etymon("tūn", "old-english")
+        on_id = db.upsert_etymon("tún", "old-norse")
+        me_id = db.upsert_etymon("town", "modern-english")
+        is_id = db.upsert_etymon("tún", "icelandic")
+        for parent, child in (
+            (proto_id, oe_id),
+            (proto_id, on_id),
+            (oe_id, me_id),
+            (on_id, is_id),
+        ):
+            db.conn.execute(
+                "INSERT INTO etymon_descent "
+                "(parent_id, child_id, edge_type, source_id) "
+                "VALUES (?, ?, 'inheritance', 'wiktionary')",
+                (parent, child),
+            )
+        db.commit()
+
+        # Recursive CTE — reference query for INGESTION.md / DECISIONS.md.
+        rows = db.conn.execute(
+            """
+            WITH RECURSIVE ancestors(id) AS (
+              SELECT parent_id FROM etymon_descent
+                WHERE child_id = ? AND edge_type IN ('inheritance', 'borrowing')
+              UNION
+              SELECT d.parent_id FROM etymon_descent d
+                JOIN ancestors ON d.child_id = ancestors.id
+                WHERE d.edge_type IN ('inheritance', 'borrowing')
+            )
+            SELECT e.canonical_form, e.language
+            FROM ancestors
+            JOIN etymon e ON e.id = ancestors.id
+            ORDER BY e.language, e.canonical_form
+            """,
+            (is_id,),
+        ).fetchall()
+
+    forms = [(row["canonical_form"], row["language"]) for row in rows]
+    assert ("tún", "old-norse") in forms
+    assert ("*tūnaz", "proto-germanic") in forms
+    # Sibling branch — must NOT appear in ancestors of Icelandic tún.
+    assert ("town", "modern-english") not in forms
+    assert ("tūn", "old-english") not in forms
+    # Self should not appear either.
+    assert ("tún", "icelandic") not in forms
+
+
+def test_etymon_descent_cascades_when_parent_deleted(fresh_db: Path) -> None:
+    """ON DELETE CASCADE on etymon_descent.parent_id — when an etymon row
+    is deleted, every descent edge pointing at it as parent goes away
+    too. Without this guard, deleting a Proto-* root would leave dangling
+    edges with broken parent_id references. Pin so a regression to
+    SET NULL or constraint removal surfaces here."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="wiktionary", title="Wiktionary")
+        proto_id = db.upsert_etymon("*tūnaz", "proto-germanic")
+        oe_id = db.upsert_etymon("tūn", "old-english")
+        on_id = db.upsert_etymon("tún", "old-norse")
+        for child in (oe_id, on_id):
+            db.conn.execute(
+                "INSERT INTO etymon_descent "
+                "(parent_id, child_id, edge_type, source_id) "
+                "VALUES (?, ?, 'inheritance', 'wiktionary')",
+                (proto_id, child),
+            )
+        db.commit()
+        before = db.conn.execute("SELECT COUNT(*) AS n FROM etymon_descent").fetchone()["n"]
+        assert before == 2
+
+        # Delete the parent etymon — both descent edges should vanish.
+        db.conn.execute("DELETE FROM etymon WHERE id = ?", (proto_id,))
+        db.commit()
+
+        after = db.conn.execute("SELECT COUNT(*) AS n FROM etymon_descent").fetchone()["n"]
+    assert after == 0, (
+        "ON DELETE CASCADE on parent_id failed; got dangling descent edges. "
+        "Check the FK declaration in data/lexicon.sql + the migration helper."
+    )
+
+
+def test_etymon_descent_cascades_when_child_deleted(fresh_db: Path) -> None:
+    """ON DELETE CASCADE on etymon_descent.child_id — symmetric pin to
+    the parent variant. Required so deleting a misclassified etymon
+    doesn't leave orphan edges pointing at a non-existent child_id."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="wiktionary", title="Wiktionary")
+        proto_id = db.upsert_etymon("*tūnaz", "proto-germanic")
+        oe_id = db.upsert_etymon("tūn", "old-english")
+        on_id = db.upsert_etymon("tún", "old-norse")
+        for child in (oe_id, on_id):
+            db.conn.execute(
+                "INSERT INTO etymon_descent "
+                "(parent_id, child_id, edge_type, source_id) "
+                "VALUES (?, ?, 'inheritance', 'wiktionary')",
+                (proto_id, child),
+            )
+        db.commit()
+
+        # Delete the OE child — only the proto→oe edge should vanish;
+        # proto→on must survive.
+        db.conn.execute("DELETE FROM etymon WHERE id = ?", (oe_id,))
+        db.commit()
+
+        rows = db.conn.execute(
+            "SELECT child_id FROM etymon_descent WHERE parent_id = ?",
+            (proto_id,),
+        ).fetchall()
+    remaining = [row["child_id"] for row in rows]
+    assert remaining == [on_id]
+
+
 def test_migrate_schema_adds_etymon_descent_to_legacy_db(fresh_db: Path) -> None:
     """A pre-D27 DB without etymon_descent picks it up on migrate_schema.
     Idempotent on re-run."""
@@ -3892,6 +4020,13 @@ def test_migrate_schema_adds_etymon_synset_columns_to_legacy_db(
 
         # Pre-migration check: post-init the columns ARE there (fresh
         # install). Drop them to simulate a legacy DB.
+        # Note: `CREATE TABLE etymon_legacy AS SELECT ...` silently drops
+        # the original PK / UNIQUE / FK / NOT NULL constraints — the
+        # resulting table is a content snapshot only. That's enough for
+        # this test (which only checks that the synset_* columns are
+        # ADDED on migration), but it's not a faithful simulation of a
+        # production pre-D27 schema. A FK-cascade test or constraint
+        # check on this fixture would silently pass.
         db.conn.execute("DROP VIEW IF EXISTS etymon_consensus")
         db.conn.execute("DROP VIEW IF EXISTS etymon_canonical")
         db.conn.execute(
