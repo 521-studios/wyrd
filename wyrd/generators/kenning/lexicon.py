@@ -1946,7 +1946,10 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
         db.conn.execute("DELETE FROM etymon_text_match")
     if "cognates" in stages:
         db.conn.execute("UPDATE etymon SET synset_id = NULL, synset_method = NULL")
-    if "attested-years" in stages:
+    if "attested-years" in stages and "text-match" not in stages:
+        # When 'text-match' also runs (notably under stage='all-derived'),
+        # it has already DELETED every row, so the attested_year UPDATE
+        # would scan an empty table — skip the redundant write.
         db.conn.execute("UPDATE etymon_text_match SET attested_year = NULL")
     db.commit()
     return counts
