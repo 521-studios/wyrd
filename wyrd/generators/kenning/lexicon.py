@@ -1985,13 +1985,27 @@ def bridge_generic_language(
                 break
 
     rows_written = 0
-    if apply:
-        for generic_id, target_id in bridges:
-            cur = db.conn.execute(
-                "UPDATE etymon SET merged_into_id = ? WHERE id = ? AND merged_into_id IS NOT ?",
-                (target_id, generic_id, target_id),
-            )
-            rows_written += cur.rowcount
+    if apply and bridges:
+        # Mirror cluster_ocr_variants's chain-flatten (D22): set
+        # merged_into_id on the generic row AND re-route any
+        # pre-existing redirect that pointed AT the generic row.
+        # Without the OR-clause a 2-deep chain X → generic → target
+        # would form, and the single-level COALESCE rollup in
+        # etymon_consensus / etymon_canonical would split witnesses
+        # across two GROUP BY buckets.
+        cur = db.conn.executemany(
+            "UPDATE etymon SET merged_into_id = ? "
+            "WHERE (id = ? OR merged_into_id = ?) "
+            "  AND merged_into_id IS NOT ?",
+            [(tid, gid, gid, tid) for gid, tid in bridges],
+        )
+        rows_written = cur.rowcount
+        # Re-parent any inflected children the generic row was acting
+        # as a lemma for. Mining evidence stays on the original etymon.
+        db.conn.executemany(
+            "UPDATE etymon SET lemma_id = ? WHERE lemma_id = ?",
+            [(tid, gid) for gid, tid in bridges],
+        )
         db.commit()
 
     return {
@@ -2123,19 +2137,19 @@ def bridge_phonological_oe(db: LexiconDB, *, apply: bool = False) -> dict:
         add the target via mining or extend the table)
       - rows_written: actual UPDATE row count when apply=True
     """
-    target_index: dict[str, int] = {}
-    for row in db.conn.execute(
+    # One scan over canonical OE etymons builds both the target lookup
+    # index and the iteration set — same WHERE clause, same ORDER BY,
+    # no need to query twice.
+    examined_rows = db.conn.execute(
         "SELECT id, canonical_form FROM etymon "
         "WHERE language = 'old-english' AND merged_into_id IS NULL ORDER BY id"
-    ).fetchall():
+    ).fetchall()
+    target_index: dict[str, int] = {}
+    for row in examined_rows:
         key = row["canonical_form"].lower()
         if key not in target_index:
             target_index[key] = row["id"]
 
-    examined_rows = db.conn.execute(
-        "SELECT id, canonical_form FROM etymon "
-        "WHERE language = 'old-english' AND merged_into_id IS NULL"
-    ).fetchall()
     bridges: list[tuple[int, int]] = []
     missing_target = 0
     for row in examined_rows:
@@ -2152,13 +2166,24 @@ def bridge_phonological_oe(db: LexiconDB, *, apply: bool = False) -> dict:
         bridges.append((row["id"], target_id))
 
     rows_written = 0
-    if apply:
-        for src_id, target_id in bridges:
-            cur = db.conn.execute(
-                "UPDATE etymon SET merged_into_id = ? WHERE id = ? AND merged_into_id IS NOT ?",
-                (target_id, src_id, target_id),
-            )
-            rows_written += cur.rowcount
+    if apply and bridges:
+        # Chain-flatten + lemma-reparent in batch (mirrors
+        # cluster_ocr_variants's D22 pattern). The OR-clause re-routes
+        # any pre-existing redirect that pointed AT this place-name
+        # etymon onto the canonical target, preventing a 2-deep chain
+        # that would split witnesses in the single-level COALESCE
+        # rollup used by etymon_consensus / etymon_canonical.
+        cur = db.conn.executemany(
+            "UPDATE etymon SET merged_into_id = ? "
+            "WHERE (id = ? OR merged_into_id = ?) "
+            "  AND merged_into_id IS NOT ?",
+            [(tid, sid, sid, tid) for sid, tid in bridges],
+        )
+        rows_written = cur.rowcount
+        db.conn.executemany(
+            "UPDATE etymon SET lemma_id = ? WHERE lemma_id = ?",
+            [(tid, sid) for sid, tid in bridges],
+        )
         db.commit()
 
     return {

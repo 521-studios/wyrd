@@ -4858,32 +4858,43 @@ def test_bridge_generic_language_idempotent_apply_skips_unchanged(
     assert second["rows_written"] == 0
 
 
-def test_bridge_generic_language_skips_already_merged_etymons(
+def test_bridge_generic_language_already_merged_tombstones_get_chain_flattened(
     fresh_db: Path,
 ) -> None:
     """Generic etymons that are already OCR-merged (merged_into_id IS
-    NOT NULL) are skipped — the bridge doesn't re-merge tombstones."""
+    NOT NULL) aren't directly examined by the bridge candidate scan
+    (the SELECT filters on merged_into_id IS NULL). BUT when the
+    canonical they point at gets bridged, the chain-flatten clause
+    re-routes them onto the new target so the consensus rollup chain
+    stays at depth 1 (round-1 fix for wyrd-083 / wyrd-ft3).
+
+    Pre: tomb_celtic → target_celtic
+    Bridge: target_celtic → irish
+    Post: BOTH tomb_celtic AND target_celtic point at irish
+    """
     from wyrd.generators.kenning.lexicon import bridge_generic_language
 
     with LexiconDB(fresh_db) as db:
-        # Pre-create a celtic tombstone (already merged elsewhere via OCR).
         target_celtic_id = db.upsert_etymon("bun", "celtic")
         tomb_celtic_id = db.upsert_etymon("BUN", "celtic")
         db.conn.execute(
             "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
             (target_celtic_id, tomb_celtic_id),
         )
-        db.upsert_etymon("bun", "irish")
+        irish_id = db.upsert_etymon("bun", "irish")
         db.commit()
         result = bridge_generic_language(
             db, generic_lang="celtic", candidate_langs=("irish",), apply=True
         )
-        # Tombstone's merged_into_id stays at the original target.
-        tomb_target = db.conn.execute(
-            "SELECT merged_into_id FROM etymon WHERE id = ?", (tomb_celtic_id,)
-        ).fetchone()["merged_into_id"]
-    assert tomb_target == target_celtic_id  # untouched
-    # Only the canonical celtic etymon was examined.
+        rows = {
+            r["id"]: r["merged_into_id"]
+            for r in db.conn.execute("SELECT id, merged_into_id FROM etymon")
+        }
+
+    # Both rows now point at irish — chain stays at depth 1.
+    assert rows[target_celtic_id] == irish_id
+    assert rows[tomb_celtic_id] == irish_id
+    # Only the canonical celtic etymon was examined as a bridge source.
     assert result["generic_etymons"] == 1
 
 
@@ -5144,3 +5155,119 @@ def test_bridge_phonological_oe_then_cluster_cognates_includes_place_form(
 
     assert place_target == oe_canonical_id
     assert canonical_synset == proto_id
+
+
+# --- wyrd-083 + wyrd-ft3 round-1 fix: chain-flatten -------------------
+
+
+def test_bridge_generic_language_flattens_existing_redirect_chain(
+    fresh_db: Path,
+) -> None:
+    """Regression for the round-1 critical finding: when bridging
+    generic→target, any pre-existing OCR-tombstone that points AT the
+    generic etymon must be re-routed to the target too. Without this
+    flatten, a 2-deep chain X → generic → target forms, and the
+    single-level COALESCE rollup in etymon_consensus / etymon_canonical
+    splits witnesses."""
+    from wyrd.generators.kenning.lexicon import bridge_generic_language
+
+    with LexiconDB(fresh_db) as db:
+        # Order matters: target_id < generic_id, so the bridge picks target.
+        target_id = db.upsert_etymon("bun", "irish")
+        generic_id = db.upsert_etymon("bun", "celtic")
+        # Pre-existing OCR tombstone pointing at the generic celtic row
+        # (e.g. an earlier normalize-ocr pass that merged 'BUN' → 'bun').
+        old_ocr_loser_id = db.upsert_etymon("BUN", "celtic")
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (generic_id, old_ocr_loser_id),
+        )
+        db.commit()
+
+        bridge_generic_language(db, generic_lang="celtic", candidate_langs=("irish",), apply=True)
+        # After bridge: BOTH the generic celtic AND the old OCR loser
+        # must point at the target_id (the irish entry), so the rollup
+        # chain stays at depth 1.
+        rows = {
+            r["id"]: r["merged_into_id"]
+            for r in db.conn.execute("SELECT id, merged_into_id FROM etymon")
+        }
+    assert rows[generic_id] == target_id
+    assert rows[old_ocr_loser_id] == target_id, (
+        "OCR-tombstone wasn't re-routed; 2-deep chain remains."
+    )
+
+
+def test_bridge_phonological_oe_flattens_existing_redirect_chain(
+    fresh_db: Path,
+) -> None:
+    """Same regression as bridge_generic_language: a pre-existing OCR
+    tombstone pointing AT a place-name OE etymon must re-route to the
+    Wiktionary canonical when the bridge fires."""
+    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
+
+    with LexiconDB(fresh_db) as db:
+        wiktionary_id = db.upsert_etymon("tūn", "old-english")
+        place_id = db.upsert_etymon("ton", "old-english")
+        # Pre-existing OCR tombstone (e.g. 'TON' → 'ton' from a prior pass).
+        old_ocr_loser_id = db.upsert_etymon("TON", "old-english")
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (place_id, old_ocr_loser_id),
+        )
+        db.commit()
+
+        bridge_phonological_oe(db, apply=True)
+        rows = {
+            r["id"]: r["merged_into_id"]
+            for r in db.conn.execute("SELECT id, merged_into_id FROM etymon")
+        }
+    assert rows[place_id] == wiktionary_id
+    assert rows[old_ocr_loser_id] == wiktionary_id, (
+        "OCR-tombstone wasn't re-routed; 2-deep chain remains."
+    )
+
+
+def test_bridge_generic_language_reparents_lemma_children(fresh_db: Path) -> None:
+    """If an inflected etymon has lemma_id pointing at the generic
+    etymon being bridged, the lemma_id is re-routed to the canonical
+    target so etymon_consensus's single-level lemma_id rollup keeps
+    inflected variants in the same group as the canonical."""
+    from wyrd.generators.kenning.lexicon import bridge_generic_language
+
+    with LexiconDB(fresh_db) as db:
+        target_id = db.upsert_etymon("bun", "irish")
+        generic_id = db.upsert_etymon("bun", "celtic")
+        inflected_id = db.upsert_etymon("buin", "celtic")  # hypothetical inflection
+        db.conn.execute(
+            "UPDATE etymon SET lemma_id = ? WHERE id = ?",
+            (generic_id, inflected_id),
+        )
+        db.commit()
+
+        bridge_generic_language(db, generic_lang="celtic", candidate_langs=("irish",), apply=True)
+        new_lemma = db.conn.execute(
+            "SELECT lemma_id FROM etymon WHERE id = ?", (inflected_id,)
+        ).fetchone()["lemma_id"]
+    assert new_lemma == target_id
+
+
+def test_bridge_phonological_oe_reparents_lemma_children(fresh_db: Path) -> None:
+    """Same lemma_id re-parent for the OE phonological bridge."""
+    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
+
+    with LexiconDB(fresh_db) as db:
+        wiktionary_id = db.upsert_etymon("tūn", "old-english")
+        place_id = db.upsert_etymon("ton", "old-english")
+        inflected_id = db.upsert_etymon("tones", "old-english")
+        db.conn.execute(
+            "UPDATE etymon SET lemma_id = ? WHERE id = ?",
+            (place_id, inflected_id),
+        )
+        db.commit()
+
+        bridge_phonological_oe(db, apply=True)
+        new_lemma = db.conn.execute(
+            "SELECT lemma_id FROM etymon WHERE id = ?", (inflected_id,)
+        ).fetchone()["lemma_id"]
+    assert new_lemma == wiktionary_id
