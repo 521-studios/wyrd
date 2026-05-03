@@ -6927,9 +6927,7 @@ def test_bridge_inflected_celtic_resolves_through_tombstone_lemma(
     with LexiconDB(fresh_db) as db:
         # The live canonical Irish lemma (clustered).
         live_id = db.upsert_etymon("coill-canonical", "irish")
-        db.conn.execute(
-            "UPDATE etymon SET synset_id = id WHERE id = ?", (live_id,)
-        )
+        db.conn.execute("UPDATE etymon SET synset_id = id WHERE id = ?", (live_id,))
         # The tombstone Irish entry that the bridge table value 'coill'
         # actually names — already OCR-merged onto the live canonical.
         tombstone_id = db.upsert_etymon("coill", "irish")
