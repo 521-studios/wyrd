@@ -48,7 +48,9 @@ def _schema_sql() -> str:
 def init_schema(db_path: Path | str) -> None:
     """Create a fresh lexicon DB at db_path with the schema applied.
 
-    Wipes any existing file at the path.
+    Wipes any existing file at the path. Sets file-persistent
+    journal_mode=WAL and synchronous=NORMAL so the resulting DB
+    supports concurrent readers + one writer out of the box.
     """
     path = Path(db_path)
     if path.exists():
@@ -56,10 +58,27 @@ def init_schema(db_path: Path | str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
     try:
+        _apply_persistent_pragmas(conn)
         conn.executescript(_schema_sql())
         conn.commit()
     finally:
         conn.close()
+
+
+def _apply_persistent_pragmas(conn: sqlite3.Connection) -> None:
+    """Set journal_mode=WAL on a writable connection. journal_mode is
+    file-persistent (stored in the SQLite header), so this only needs
+    to run once at init_schema (fresh DB) or migrate_schema (legacy DB)
+    — every subsequent open inherits the mode automatically.
+
+    WAL gives concurrent readers + one writer without blocking —
+    critical for the multi-session workflow where one Claude is
+    mining (writer) while another queries corpus state (reader).
+
+    synchronous=NORMAL is per-connection (not file-persistent), so it
+    lives in LexiconDB.__init__ and runs on every open.
+    """
+    conn.execute("PRAGMA journal_mode = WAL")
 
 
 # --- OCR ligature normalization ------------------------------------------
@@ -137,6 +156,13 @@ class LexiconDB:
         self.path = Path(path)
         self.conn = sqlite3.connect(self.path)
         self.conn.execute("PRAGMA foreign_keys = ON")
+        # synchronous is per-connection (NOT file-persistent like
+        # journal_mode), so it has to be set on every open. NORMAL is
+        # the recommended pairing under WAL — preserves crash safety
+        # via the WAL replay path without the per-transaction fsync of
+        # synchronous=FULL. Harmless on a read-only connection (the
+        # setting just declares how synchronous writes WOULD be).
+        self.conn.execute("PRAGMA synchronous = NORMAL")
         self.conn.row_factory = sqlite3.Row
 
     def __enter__(self) -> LexiconDB:
@@ -868,6 +894,24 @@ def _migrate_citation_context_snippet(db: LexiconDB, applied: dict[str, bool]) -
         applied["etymon_citation.context_snippet"] = True
 
 
+def _migrate_toponym_etymology_attested_year(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Add toponym_etymology.attested_year + index to existing DBs
+    (wyrd-bag — D5-1 expansion).
+
+    Idempotent: PRAGMA-checks the column before adding. Fresh installs
+    pick the column up from data/lexicon.sql so this is a migration-only
+    path.
+    """
+    cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(toponym_etymology)")}
+    if "attested_year" not in cols:
+        db.conn.execute("ALTER TABLE toponym_etymology ADD COLUMN attested_year INTEGER")
+        db.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_toponym_etymology_year "
+            "ON toponym_etymology(attested_year)"
+        )
+        applied["toponym_etymology.attested_year"] = True
+
+
 def _create_mining_run_table(db: LexiconDB, applied: dict[str, bool]) -> None:
     """Create mining_run if missing. Per D23, this audit table closes the
     'stop losing accept/decline/reject counts to stdout' gap. One row per
@@ -1005,6 +1049,8 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "etymon_descent_table": False,
         "mining_run_table": False,
         "etymon_citation.context_snippet": False,
+        "toponym_etymology.attested_year": False,
+        "wal_mode": False,
     }
     _add_etymon_columns(db, applied)
     _create_etymon_indexes(db, applied)
@@ -1013,8 +1059,23 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     _create_etymon_descent_table(db, applied)
     _create_mining_run_table(db, applied)
     _migrate_citation_context_snippet(db, applied)
+    _migrate_toponym_etymology_attested_year(db, applied)
+    _migrate_wal_mode(db, applied)
     db.commit()
     return applied
+
+
+def _migrate_wal_mode(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Idempotently bring legacy DBs (created before WAL was the
+    default) onto journal_mode=WAL + synchronous=NORMAL. Both are
+    file-persistent: once set on a file, every subsequent open
+    inherits them — so this is a one-shot migration, not a
+    per-connection setup. Reports applied=True only when the actual
+    on-disk mode changed."""
+    current_mode = db.conn.execute("PRAGMA journal_mode").fetchone()[0]
+    if current_mode.lower() != "wal":
+        _apply_persistent_pragmas(db.conn)
+        applied["wal_mode"] = True
 
 
 # --- lemma linkage ---------------------------------------------------------
@@ -1776,42 +1837,66 @@ def _extract_attested_year_from_body(text: str, form: str) -> int | None:
     return earliest
 
 
-def lookup_attested_years(
-    db: LexiconDB,
-    sources_dir: Path | str,
-    *,
-    apply: bool = False,
-) -> dict:
-    """Scan each source body for date-citation patterns near every
-    ``etymon_text_match.matched_form`` and write the earliest plausible
-    year into ``etymon_text_match.attested_year`` (D5-1 / wyrd-3ux).
+_TOPONYM_NOTE_YEAR_PATTERN = re.compile(r"\b(7\d{2}|[89]\d{2}|1[0-6]\d{2}|1700)\b")
 
-    LLM-free, idempotent, reversible. Per D21/D22 this is enrichment
-    layer — operates entirely on already-mined data without touching the
-    underlying mining evidence (no ``etymon``, ``etymon_citation``,
-    ``etymon_descent`` writes). Re-runs against unchanged data are no-ops:
-    only rows where ``attested_year IS NULL`` are scanned, and the UPDATE
-    sets ``attested_year`` once.
+# A digit run preceded by one of these abbreviations is a page or
+# volume reference, not a date. Page numbers in long EPNS volumes
+# occasionally exceed 700, so filtering on year-range alone leaks
+# them through.
+#
+# Matched as whole words at the END of the preceding slice — `\b`
+# prevents false-skips on words that happen to end in "p." (e.g.
+# "Bp." for Bishop) by requiring a word boundary before the marker.
+# Substring match would also incorrectly fire "p." inside "chap.",
+# but that's a no-op (chap is itself a marker); the real FP class
+# was words like "Hp." or stray "p" letters at the end of the slice.
+_TOPONYM_NOTE_PAGE_MARKER_RE = re.compile(
+    r"\b(?:p|pp|vol|vols|ch|chap|no|nr)\.\s*$",
+    re.IGNORECASE,
+)
 
-    Reverse via ``clear-enrichment --stage=attested-years --apply``.
 
-    With ``apply=False`` reports candidate counts without writing.
-    With ``apply=True`` populates ``attested_year`` on rows where a
-    qualifying citation is found in the source body.
+def _earliest_year_in_notes(notes: str | None) -> int | None:
+    """Find the earliest plausible year (700-1700) in a
+    ``toponym_etymology.notes`` value. Skips digit runs preceded by
+    page / volume markers (``"p. 755"``, ``"vol. 1244"``) — those are
+    bibliographic references, not dates. Returns None when no
+    qualifying year appears."""
+    if not notes:
+        return None
+    earliest: int | None = None
+    for m in _TOPONYM_NOTE_YEAR_PATTERN.finditer(notes):
+        ystart = m.start()
+        # Pass the full prefix and rely on the regex's $ anchor to
+        # match only when the marker IMMEDIATELY precedes the year.
+        # A fixed-size window would miss "p.   1086" with extra spaces;
+        # the linear search cost is trivial since notes is already in
+        # memory and finditer call frequency is bounded by year-hit
+        # count (a few per row in the worst case).
+        if _TOPONYM_NOTE_PAGE_MARKER_RE.search(notes, 0, ystart):
+            continue
+        year = int(m.group(1))
+        if earliest is None or year < earliest:
+            earliest = year
+    return earliest
+
+
+def _scan_etymon_text_match_for_years(db: LexiconDB, sources_path: Path, *, apply: bool) -> dict:
+    """Stream ``etymon_text_match`` rows ordered by source_id; for each
+    row, scan the matching source body for a form-attached year
+    citation (PR #47 / wyrd-3ux pattern).
+
+    Memory characteristics:
+    * ONE source body in memory at a time (the heavy thing — 100s of MB
+      for big OCR'd corpora).
+    * ONE row's metadata at a time during iteration.
+    * candidate_updates accumulates (year, row_id) tuples for every hit
+      and flushes via executemany at the end. At ~3% hit rate even a
+      million-row text-match table yields ~30k tuples (~1 MB), which
+      is fine; chunking the writes would be premature optimisation.
     """
-    sources_path = Path(sources_dir)
-    if not sources_path.is_dir():
-        raise ValueError(f"sources_dir not found: {sources_path}")
-
     available_sources = {f.stem: f for f in sources_path.glob("*.txt")}
 
-    # Stream rows ordered by source_id so we can process them in
-    # source-grouped runs without ever materialising the full row set
-    # OR all source bodies in memory. ORDER BY source_id makes the
-    # transition predictable: when source_id changes vs the prior row,
-    # drop the old body and load the new one. Net peak memory: ONE
-    # source body + ONE row's metadata. Scales to multi-million-row
-    # text-match tables without growing.
     cur = db.conn.execute(
         "SELECT id, source_id, matched_form FROM etymon_text_match "
         "WHERE attested_year IS NULL ORDER BY source_id"
@@ -1831,10 +1916,6 @@ def lookup_attested_years(
                 sources_missing.add(current_source_id)
                 text = None
                 continue
-            # Load + normalize this one source body. Normalization mirrors
-            # reverse_search_attestations so canonical-form regexes line
-            # up with the matched_form values stored at search time. The
-            # prior body (if any) goes out of scope and Python frees it.
             text = source_file.read_text(errors="replace").lower()
             text = normalize_ocr_form(text)
         if text is None:
@@ -1843,26 +1924,110 @@ def lookup_attested_years(
         if year is not None:
             candidate_updates.append((year, row["id"]))
 
-    counts = {
-        "rows_scanned": rows_scanned,
-        "candidates": len(candidate_updates),
-        "sources_missing": len(sources_missing),
-        "applied": apply,
-        "rows_written": 0,
-    }
+    rows_written = 0
     if apply and candidate_updates:
-        # executemany is one round-trip plus a single rowcount aggregation
-        # — substantially cheaper than the per-row execute() loop on a
-        # batch of thousands. The WHERE attested_year IS NULL guard keeps
-        # the UPDATE idempotent if a parallel run somehow set the column
-        # between candidate collection and apply.
-        cur = db.conn.executemany(
+        result = db.conn.executemany(
             "UPDATE etymon_text_match SET attested_year = ? WHERE id = ? AND attested_year IS NULL",
             candidate_updates,
         )
-        counts["rows_written"] = cur.rowcount
+        rows_written = result.rowcount
         db.commit()
-    return counts
+
+    return {
+        "rows_scanned": rows_scanned,
+        "candidates": len(candidate_updates),
+        "rows_written": rows_written,
+        "sources_missing": len(sources_missing),
+    }
+
+
+def _scan_toponym_etymology_for_years(db: LexiconDB, *, apply: bool) -> dict:
+    """wyrd-bag: scan ``toponym_etymology.notes`` for the earliest
+    plausible year. Unlike the ``etymon_text_match`` scan, this doesn't
+    need source-body files — the LLM-extracted notes are stored inline
+    in the DB and are densely populated with scholarly citations
+    (``"Tune, 1086 (DB); Tunes, 1242"``).
+
+    Memory characteristics:
+    * Full match list (candidate_updates) is held in memory before the
+      executemany write. At ~80% density on the production corpus
+      (~5,200 rows × 0.8 = ~4,200 tuples = ~130 KB) this is fine.
+    * If a future corpus pushes this past tens of millions of rows,
+      switching to chunked writes (yield + flush per N hits) would
+      cap peak memory; not worth the complexity at current scale.
+    """
+    cur = db.conn.execute(
+        "SELECT id, notes FROM toponym_etymology WHERE attested_year IS NULL AND notes IS NOT NULL"
+    )
+
+    candidate_updates: list[tuple[int, int]] = []
+    rows_scanned = 0
+    for row in cur:
+        rows_scanned += 1
+        year = _earliest_year_in_notes(row["notes"])
+        if year is not None:
+            candidate_updates.append((year, row["id"]))
+
+    rows_written = 0
+    if apply and candidate_updates:
+        result = db.conn.executemany(
+            "UPDATE toponym_etymology SET attested_year = ? WHERE id = ? AND attested_year IS NULL",
+            candidate_updates,
+        )
+        rows_written = result.rowcount
+        db.commit()
+
+    return {
+        "rows_scanned": rows_scanned,
+        "candidates": len(candidate_updates),
+        "rows_written": rows_written,
+    }
+
+
+def lookup_attested_years(
+    db: LexiconDB,
+    sources_dir: Path | str,
+    *,
+    apply: bool = False,
+) -> dict:
+    """Populate ``attested_year`` on the two row sources that carry
+    date-citation evidence (D5-1):
+
+    * ``etymon_text_match.attested_year`` (PR #47 / wyrd-3ux) — scans
+      source bodies via the form-attached pattern. Lower density (~3%)
+      because reverse-search rows are mentions, not citations.
+    * ``toponym_etymology.attested_year`` (PR #5x / wyrd-bag) — scans
+      LLM-extracted notes for the earliest year ≥700. Higher density
+      (~80%) because the notes are scholarly date strings.
+
+    LLM-free, idempotent, reversible. Per D21/D22 this is enrichment —
+    operates on already-mined data without touching mining evidence.
+    Re-runs are no-ops on rows where ``attested_year`` is already set.
+    Reverse via ``clear-enrichment --stage=attested-years --apply``.
+
+    Returns a dict with both per-source breakdowns and aggregate keys
+    so existing callers (PR #47's CLI output, tests, etc.) continue
+    to read ``rows_scanned`` / ``candidates`` / ``rows_written``
+    unchanged while new callers can read the per-source detail.
+    """
+    sources_path = Path(sources_dir)
+    if not sources_path.is_dir():
+        raise ValueError(f"sources_dir not found: {sources_path}")
+
+    etm = _scan_etymon_text_match_for_years(db, sources_path, apply=apply)
+    te = _scan_toponym_etymology_for_years(db, apply=apply)
+
+    return {
+        # Aggregate keys (PR #47 back-compat).
+        "rows_scanned": etm["rows_scanned"] + te["rows_scanned"],
+        "candidates": etm["candidates"] + te["candidates"],
+        "rows_written": etm["rows_written"] + te["rows_written"],
+        "sources_missing": etm["sources_missing"],
+        "applied": apply,
+        # Per-source breakdown for richer CLI output + new tests.
+        "etymon_text_match": etm,
+        "toponym_etymology": te,
+    }
 
 
 def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
@@ -1882,8 +2047,10 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
                         (un-clusters every cognate-set assignment from
                         cluster-cognates; D27 / wyrd-81n)
       attested-years  - UPDATE etymon_text_match SET attested_year = NULL
-                        (drops every lookup-attested-years assignment;
-                        D5-1 / wyrd-3ux)
+                        AND UPDATE toponym_etymology SET
+                                                       attested_year = NULL
+                        (drops every lookup-attested-years assignment
+                        on both row sources; D5-1 / wyrd-3ux + wyrd-bag)
       all-derived     - all five of the above
 
     Mining evidence (etymon, etymon_citation, etymon_gloss, etymon_tag,
@@ -1936,9 +2103,14 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
             "SELECT COUNT(*) FROM etymon WHERE synset_id IS NOT NULL"
         ).fetchone()[0]
     if "attested-years" in stages:
-        counts["attested_years_to_clear"] = db.conn.execute(
-            "SELECT COUNT(*) FROM etymon_text_match WHERE attested_year IS NOT NULL"
-        ).fetchone()[0]
+        counts["attested_years_to_clear"] = (
+            db.conn.execute(
+                "SELECT COUNT(*) FROM etymon_text_match WHERE attested_year IS NOT NULL"
+            ).fetchone()[0]
+            + db.conn.execute(
+                "SELECT COUNT(*) FROM toponym_etymology WHERE attested_year IS NOT NULL"
+            ).fetchone()[0]
+        )
 
     if not apply:
         return counts
@@ -1951,11 +2123,14 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
         db.conn.execute("DELETE FROM etymon_text_match")
     if "cognates" in stages:
         db.conn.execute("UPDATE etymon SET synset_id = NULL, synset_method = NULL")
-    if "attested-years" in stages and "text-match" not in stages:
-        # When 'text-match' also runs (notably under stage='all-derived'),
-        # it has already DELETED every row, so the attested_year UPDATE
-        # would scan an empty table — skip the redundant write.
-        db.conn.execute("UPDATE etymon_text_match SET attested_year = NULL")
+    if "attested-years" in stages:
+        # 'text-match' DELETEs etymon_text_match if it's also in stages
+        # (notably under 'all-derived'), so guard that UPDATE — the
+        # toponym_etymology UPDATE always runs since text-match doesn't
+        # touch that table.
+        if "text-match" not in stages:
+            db.conn.execute("UPDATE etymon_text_match SET attested_year = NULL")
+        db.conn.execute("UPDATE toponym_etymology SET attested_year = NULL")
     db.commit()
     return counts
 
