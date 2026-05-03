@@ -362,9 +362,9 @@ def _upward_edges_from_template(
       * `_cross_lang_single_parent_edges` — inh/bor/der/cal/sl/lbor/...:
         args[2]=parent_lang, args[3]=parent_word. One edge.
       * `_root_template_edges` — {{root}}: args[2]=ancestor_lang,
-        args[3..5]=root_word(s). One edge per root.
+        args[3..N]=root_word(s). One edge per root.
       * `_compound_template_edges` — compound/affix/blend/...:
-        args[1]=this_lang, args[2..6]=constituent parts. One edge each.
+        args[1]=this_lang, args[2..N]=constituent parts. One edge each.
       * `_same_lang_derivation_edges` — clipping/bf/back-formation/...:
         args[1]=this_lang (also parent_lang), args[2]=parent_word. One.
     """
