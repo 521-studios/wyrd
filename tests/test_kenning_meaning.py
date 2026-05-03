@@ -436,9 +436,10 @@ def test_load_meanings_omits_attested_years_field_when_absent():
 
 def test_load_meanings_propagates_inflections_to_plural_form():
     """A name-tagged meaning auto-pluralizes (e.g. 'Alf-' → 'Alf-s'). The
-    pluralized Meaning must inherit the same inflections + variants pools
-    as the singular — a constructor refactor that drops kwargs on the
-    plural branch should be caught here."""
+    pluralized Meaning must inherit EVERY constructor kwarg of the
+    singular — a refactor that drops one on the plural branch should
+    be caught here. This test extends as new kwargs are added to
+    Meaning so the regression net stays complete."""
     data = [
         {
             "modifier_tags": ["male name"],
@@ -453,6 +454,10 @@ def test_load_meanings_propagates_inflections_to_plural_form():
                     "old_english_variants": [
                         {"form": "ælfred", "weight": 5},
                     ],
+                    "old_english_citations": ["mawer_1920"],
+                    "old_english_attested_years": [
+                        {"form": "alfred", "year": 893},
+                    ],
                 }
             ],
         }
@@ -461,6 +466,8 @@ def test_load_meanings_propagates_inflections_to_plural_form():
     plural = meaning_db["Alf-s"][0]
     assert plural.inflections == {"old_english": [("alfredan", "weak_oblique")]}
     assert plural.variants == {"old_english": [("ælfred", 5)]}
+    assert plural.citations == {"old_english": ["mawer_1920"]}
+    assert plural.attested_years == {"old_english": [("alfred", 893)]}
 
 
 def test_pick_inflection_partial_density_gates_per_call():

@@ -3658,6 +3658,40 @@ def test_export_meanings_synthesizes_word_for_mined_only_family(
     ]
 
 
+def test_export_meanings_synthesize_path_emits_attested_years(
+    fresh_db: Path,
+) -> None:
+    """The synth-without-linked-reflex code path (mined-only families,
+    no rando-port reflex) needs its own attested-year coverage. The
+    structure differs from the linked-reflex path (flat
+    member_form_by_id walk vs descendant walk), so a regression here
+    wouldn't be caught by the reflex-path tests in the wyrd-bag set.
+
+    Pin: a tune-id mined etymon with three citations + an ETM row
+    carrying attested_year=1086 surfaces the year in the synthesized
+    word's `<lang>_attested_years` field."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b", "c"):
+            db.upsert_source(id=src, title=src)
+        tune_id = db.upsert_etymon("tune", "old-english", modifier_type="Habitative")
+        db.add_gloss(tune_id, "settlement")
+        db.add_tag(tune_id, "habitation")
+        for src in ("a", "b", "c"):
+            db.add_citation(tune_id, src)
+        db.conn.execute(
+            "INSERT INTO etymon_text_match (etymon_id, source_id, matched_form, "
+            "match_count, edit_distance, attested_year) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (tune_id, "a", "tune", 1, 0, 1086),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=False, min_witnesses=3)
+
+    word = subjects[0]["words"][0]
+    assert word["old_english_attested_years"] == [{"form": "tune", "year": 1086}]
+
+
 # --- wyrd-9kh.1: per-language citation attribution -----------------------
 
 

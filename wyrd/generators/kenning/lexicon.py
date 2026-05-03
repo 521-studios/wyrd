@@ -3288,23 +3288,31 @@ def _fetch_member_attested_years(db: LexiconDB, member_ids: list[int]) -> dict[i
     filter applies'). Sorted output is incidental — the dict is built
     by iterating SQL results, then the consumer re-sorts when emitting.
     """
-    placeholders = ",".join("?" * len(member_ids))
+    # Use a CTE to bind member_ids exactly once. A naive UNION ALL with
+    # two `IN (?,?,?)` branches would require duplicating the bind list,
+    # which is fragile if a third year-source is added in future. The
+    # CTE makes the contract explicit: 'these are the etymons we care
+    # about; gather years from any source that mentions them'.
+    targets_values = ",".join("(?)" for _ in member_ids)
     member_years: dict[int, int] = {}
     cur = db.conn.execute(
         f"""
+        WITH targets(etymon_id) AS (VALUES {targets_values})
         SELECT etymon_id, MIN(year) AS earliest_year FROM (
-            SELECT etymon_id, attested_year AS year
-            FROM etymon_text_match
-            WHERE etymon_id IN ({placeholders}) AND attested_year IS NOT NULL
+            SELECT etm.etymon_id, etm.attested_year AS year
+            FROM etymon_text_match etm
+            JOIN targets t ON t.etymon_id = etm.etymon_id
+            WHERE etm.attested_year IS NOT NULL
             UNION ALL
             SELECT tee.etymon_id, te.attested_year AS year
             FROM toponym_etymology_element tee
+            JOIN targets t ON t.etymon_id = tee.etymon_id
             JOIN toponym_etymology te ON te.id = tee.toponym_etymology_id
-            WHERE tee.etymon_id IN ({placeholders}) AND te.attested_year IS NOT NULL
+            WHERE te.attested_year IS NOT NULL
         )
         GROUP BY etymon_id
         """,
-        [*member_ids, *member_ids],
+        member_ids,
     )
     for row in cur:
         member_years[row["etymon_id"]] = row["earliest_year"]
