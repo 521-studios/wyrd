@@ -6911,21 +6911,86 @@ def test_bridge_inflected_celtic_missing_target_increments_counter(
     assert result["missing_target"] == 1
 
 
-def test_bridge_inflected_celtic_skips_self_bridge(fresh_db: Path) -> None:
-    """If the celtic etymon's id matches the resolved target id (e.g.
-    a celtic etymon whose canonical_form happens to equal its own lemma
-    AND there's no separate candidate entry), the bridge is a no-op."""
+def test_bridge_inflected_celtic_resolves_through_tombstone_lemma(
+    fresh_db: Path,
+) -> None:
+    """Candidate-index regression: when the lemma named in the bridge
+    table exists in a candidate language as a TOMBSTONE (already
+    OCR-merged into a canonical), the resolve step must walk the
+    merged_into_id chain so the bridge routes to the LIVE canonical,
+    not to the tombstone (which would create a 2-deep chain that the
+    single-level COALESCE rollup would split).
+
+    This pins the redirect-resolve loop in the candidate_index build."""
     from wyrd.generators.kenning.lexicon import bridge_inflected_celtic
 
     with LexiconDB(fresh_db) as db:
-        # 'cu' → 'cú' table mapping. Only the celtic entry exists; if no
-        # 'cú' lemma exists in any candidate lang → missing_target.
-        db.upsert_etymon("cu", "celtic")
+        # The live canonical Irish lemma (clustered).
+        live_id = db.upsert_etymon("coill-canonical", "irish")
+        db.conn.execute(
+            "UPDATE etymon SET synset_id = id WHERE id = ?", (live_id,)
+        )
+        # The tombstone Irish entry that the bridge table value 'coill'
+        # actually names — already OCR-merged onto the live canonical.
+        tombstone_id = db.upsert_etymon("coill", "irish")
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (live_id, tombstone_id),
+        )
+        celtic_choill = db.upsert_etymon("choill", "celtic")
         db.commit()
-        result = bridge_inflected_celtic(db, apply=True)
+        bridge_inflected_celtic(db, apply=True)
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?",
+            (celtic_choill,),
+        ).fetchone()["merged_into_id"]
+
+    # The bridge resolved through tombstone → live canonical.
+    assert merged == live_id
+
+
+def test_bridge_inflected_celtic_self_bridge_is_noop(fresh_db: Path) -> None:
+    """If the celtic etymon and the resolved target happen to be the
+    SAME etymon row (same id), the bridge is a no-op — bridges count
+    excludes it. Pin the `target_id == row['id']` guard."""
+    with LexiconDB(fresh_db) as db:
+        # One celtic row whose canonical_form matches a table key, AND
+        # the lemma the table names ALSO equals that same canonical_form,
+        # AND there's no separate candidate-language entry — but we make
+        # a celtic entry for the lemma itself. In practice the function
+        # iterates ALL celtic rows; we exercise the self-bridge guard by
+        # using a candidate-language match that happens to be the same id.
+        # Concretely: 'cu' (celtic) → 'cú' lemma. If we add 'cú' as the
+        # lemma in irish AND the celtic 'cu' is identified, no self-bridge
+        # because they're different rows. The self-bridge guard only fires
+        # if `target_id == row['id']`, which requires both to be the SAME
+        # etymon — only possible if a celtic row's lemma resolves back to
+        # itself. We construct that: 'cu' as both celtic and the only
+        # candidate by overriding the candidate_langs to include 'celtic'.
+        celtic_cu = db.upsert_etymon("cu", "celtic")
+        db.upsert_etymon("cú", "irish")
+        db.commit()
+        # Override candidate_langs to include 'celtic' so the celtic
+        # entry itself becomes a candidate. With only 'cu' (celtic)
+        # mapping to 'cú', and the 'cú' (irish) being a different row,
+        # the bridge would fire. To exercise the self-guard we need the
+        # candidate to BE the celtic row. Use a custom table where the
+        # form maps to its own canonical_form.
+        from wyrd.generators.kenning.lexicon import bridge_inflected_celtic as bic
+
+        result = bic(
+            db,
+            apply=True,
+            table={"cu": "cu"},  # self-mapping
+            candidate_langs=("celtic",),
+        )
+        merged = db.conn.execute(
+            "SELECT merged_into_id FROM etymon WHERE id = ?", (celtic_cu,)
+        ).fetchone()["merged_into_id"]
+
+    # Self-bridge guard kept the row untouched.
+    assert merged is None
     assert result["bridged"] == 0
-    # Exercises the missing_target path, not the self-bridge guard.
-    assert result["missing_target"] == 1
 
 
 def test_bridge_inflected_celtic_iterates_tombstones(fresh_db: Path) -> None:
