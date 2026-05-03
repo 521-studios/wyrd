@@ -539,20 +539,25 @@ Etymology + Descendants sections, upserts the referenced etymons,
 and inserts `etymon_descent` edges with `edge_type` per the D27
 taxonomy:
 
+The general edge_type taxonomy + bridging semantics live in the
+"Etymological descent graph (D27)" subsection below — the wiktextract-
+specific behavior is just the template-name → edge_type mapping:
+
 | Wiktextract template | Direction | edge_type |
 |---|---|---|
-| `{{inh}}` / `{{inherited}}` | UP from this entry | `inheritance` |
+| `{{inh}}` / `{{inherited}}` | UP | `inheritance` |
 | `{{bor}}` / `{{borrowed}}` | UP | `borrowing` |
 | `{{der}}` / `{{derived}}` | UP | `derivation` |
 | `{{cal}}` / `{{calque}}` | UP | `calque` |
-| `{{desc}}` / `{{descendant}}` | DOWN to listed children | `inheritance` |
-| `{{cog}}` / `{{cognate}}` | n/a | skipped (peer relation) |
-| `{{m}}` / `{{mention}}` | n/a | skipped (mention only) |
-| anything else | n/a | counted as unsupported_template |
+| `{{desc}}` (default) | DOWN | `inheritance` |
+| `{{desc\|...\|bor=1}}` | DOWN | `borrowing` |
+| `{{desc\|...\|der=1}}` | DOWN | `derivation` |
+| `{{desc\|...\|cal=1}}` | DOWN | `calque` |
+| `{{cog}}` / `{{m}}` / `{{l}}` / qualifiers | n/a | skipped |
+| anything else | n/a | counted as `unsupported_template` |
 
 Source attribution is the synthetic `'wiktionary'` source row (per
-D27 — per-edit attribution lives in wiki history; per-language
-slicing is overkill for v1).
+D27).
 
 ### Cluster cognates afterward
 
@@ -575,20 +580,17 @@ etymons and on `(parent_id, child_id, edge_type, source_id)` for
 descent edges (UNIQUE constraints from data/lexicon.sql). Re-running
 the same JSONL is safe — duplicate inserts are silently skipped.
 
-For multi-hour ingestion sessions where the process gets interrupted,
-note the last `lines_read` count in the CLI output and resume with
-`--since-line N`.
+If interrupted, note the last `lines_read` from the CLI output and
+resume with `--since-line N`.
 
 ### What if a template kind isn't recognized?
 
 The CLI reports `unsupported_templates = N` when wiktextract entries
-contain templates we haven't mapped. For v1 the supported set covers
-inh / bor / der / cal / desc plus their long-name variants. If real
-data surfaces a meaningful kind we missed, extend the
+contain templates we haven't mapped. The v1 supported set covers
+inh / bor / der / cal / desc plus their long-name variants. Extend
 `_UPWARD_TEMPLATE_TO_EDGE`, `_DOWNWARD_TEMPLATE_NAMES`, or
-`_SKIPPED_TEMPLATE_NAMES` maps in
-`wyrd/generators/kenning/wiktextract_ingester.py`. The pure-data
-nature of the ingester makes adding kinds cheap.
+`_SKIPPED_TEMPLATE_NAMES` in `wyrd/generators/kenning/wiktextract_ingester.py`
+to add new kinds.
 
 ### Anti-patterns
 

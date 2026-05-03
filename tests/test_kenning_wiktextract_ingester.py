@@ -596,3 +596,310 @@ def test_ingest_wiktionary_cli_apply_writes_to_db(fresh_db: Path, tmp_path: Path
         edges = _all_descent_edges(db)
     assert "wiktionary" in sources
     assert ("*tūnaz", "tūn", "inheritance", "wiktionary") in edges
+
+
+# --- wyrd-hun round-1 review follow-ups ---------------------------------
+
+
+@pytest.mark.parametrize(
+    "flag,expected_edge_type",
+    [
+        ("bor", "borrowing"),
+        ("der", "derivation"),
+        ("cal", "calque"),
+    ],
+)
+def test_desc_template_with_relationship_flag_emits_correct_edge_type(
+    fresh_db: Path, flag: str, expected_edge_type: str
+) -> None:
+    """Wiktionary editors flag descendants that were borrowed (or
+    derived/calqued) from the parent rather than directly inherited
+    via a `bor=1`/`der=1`/`cal=1` arg on the {{desc}} template. Without
+    this, the edge_type column lies for those rows. Pin each flag so a
+    refactor of _DESC_FLAG_TO_EDGE surfaces here."""
+    line = _wiktextract_entry(
+        word="*tūnaz",
+        lang_code="gem-pro",
+        descendants=[
+            {
+                "depth": 1,
+                "templates": [
+                    {
+                        "name": "desc",
+                        "args": {"1": "ang", "2": "tūn", flag: "1"},
+                    }
+                ],
+            }
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edge_type = db.conn.execute("SELECT edge_type FROM etymon_descent").fetchone()["edge_type"]
+    assert edge_type == expected_edge_type
+
+
+def test_desc_template_without_flag_defaults_to_inheritance(
+    fresh_db: Path,
+) -> None:
+    """Pin the default behavior: a {{desc}} template with no flag is
+    inheritance. This was the only behavior tested before round 1; now
+    asserted alongside the flagged variants so the default-vs-flag
+    branching is explicit."""
+    line = _wiktextract_entry(
+        word="*tūnaz",
+        lang_code="gem-pro",
+        descendants=[
+            {
+                "depth": 1,
+                "templates": [{"name": "desc", "args": {"1": "ang", "2": "tūn"}}],
+            }
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edge_type = db.conn.execute("SELECT edge_type FROM etymon_descent").fetchone()["edge_type"]
+    assert edge_type == "inheritance"
+
+
+def test_desc_flag_precedence_bor_wins_over_der(fresh_db: Path) -> None:
+    """When multiple flags are present (theoretical but defensible
+    against malformed templates), bor wins per the documented order
+    in _DESC_FLAG_TO_EDGE. Pin the precedence so a tuple-reorder
+    surfaces here."""
+    line = _wiktextract_entry(
+        word="*tūnaz",
+        lang_code="gem-pro",
+        descendants=[
+            {
+                "depth": 1,
+                "templates": [
+                    {
+                        "name": "desc",
+                        "args": {"1": "ang", "2": "tūn", "bor": "1", "der": "1"},
+                    }
+                ],
+            }
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edge_type = db.conn.execute("SELECT edge_type FROM etymon_descent").fetchone()["edge_type"]
+    assert edge_type == "borrowing"
+
+
+def test_walk_descendants_multiple_templates_per_entry_uses_last_as_parent(
+    fresh_db: Path,
+) -> None:
+    """A descendants entry with multiple {{desc}} templates emits one
+    edge per template, but only the LAST upserted child becomes the
+    parent for subsequent depth+1 entries. Pin this LAST-wins choice
+    so a refactor of _walk_descendants surfaces if it changes.
+
+    Tree:
+      *root → [variant_a, variant_canonical]   (both depth=1, same entry)
+        → child  (depth=2 → must attach to variant_canonical, NOT variant_a)
+    """
+    line = _wiktextract_entry(
+        word="*root",
+        lang_code="gem-pro",
+        descendants=[
+            {
+                "depth": 1,
+                "templates": [
+                    {"name": "desc", "args": {"1": "ang", "2": "variant_a"}},
+                    {"name": "desc", "args": {"1": "ang", "2": "variant_canonical"}},
+                ],
+            },
+            {
+                "depth": 2,
+                "templates": [{"name": "desc", "args": {"1": "en", "2": "child"}}],
+            },
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edges = _all_descent_edges(db)
+
+    assert result["downward_edges"] == 3
+    # Both variants attach to the head as direct children.
+    assert ("*root", "variant_a", "inheritance", "wiktionary") in edges
+    assert ("*root", "variant_canonical", "inheritance", "wiktionary") in edges
+    # depth=2 child attaches to the LAST template's child (variant_canonical),
+    # NOT the first (variant_a). Pin the LAST-wins behavior.
+    assert ("variant_canonical", "child", "inheritance", "wiktionary") in edges
+    assert ("variant_a", "child", "inheritance", "wiktionary") not in edges
+
+
+def test_entry_combines_etymology_and_descendants_emits_both(
+    fresh_db: Path,
+) -> None:
+    """Real Wiktionary entries almost always have BOTH etymology_templates
+    AND descendants populated. Round 1 had no test pinning the cross-
+    section interaction in _process_entry — fix here. Tree:
+
+      *PIE-root  ← UPWARD edge from etymology (this entry inherits from root)
+         ↓
+        this_word  (the entry being ingested)
+         ↓
+        descendant  ← DOWNWARD edge from descendants
+    """
+    line = _wiktextract_entry(
+        word="*tūnaz",
+        lang_code="gem-pro",
+        etymology_templates=[
+            {
+                "name": "inh",
+                "args": {"1": "gem-pro", "2": "ine-pro", "3": "*dewh₂-"},
+            }
+        ],
+        descendants=[
+            {
+                "depth": 1,
+                "templates": [{"name": "desc", "args": {"1": "ang", "2": "tūn"}}],
+            }
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edges = _all_descent_edges(db)
+
+    assert result["upward_edges"] == 1
+    assert result["downward_edges"] == 1
+    # Upward edge: PIE root → this entry.
+    assert ("*dewh₂-", "*tūnaz", "inheritance", "wiktionary") in edges
+    # Downward edge: this entry → its OE descendant.
+    assert ("*tūnaz", "tūn", "inheritance", "wiktionary") in edges
+
+
+def test_walk_descendants_skips_non_dict_entries(fresh_db: Path) -> None:
+    """Defensive: a malformed descendants list with a non-dict entry
+    (string, None, integer) skips that entry without crashing. Pinned
+    to keep the defensive branch from being dead-on-paper code."""
+    # Build the JSON manually since _wiktextract_entry expects clean dicts.
+    record = {
+        "word": "*tūnaz",
+        "lang_code": "gem-pro",
+        "pos": "noun",
+        "descendants": [
+            "this is a malformed string entry",  # non-dict
+            None,  # also non-dict
+            {
+                "depth": 1,
+                "templates": [{"name": "desc", "args": {"1": "ang", "2": "tūn"}}],
+            },
+        ],
+    }
+    line = json.dumps(record) + "\n"
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edges = _all_descent_edges(db)
+
+    # Non-dict entries silently skipped; the well-formed entry processes.
+    assert result["downward_edges"] == 1
+    assert ("*tūnaz", "tūn", "inheritance", "wiktionary") in edges
+
+
+def test_walk_descendants_normalizes_invalid_depth_to_one(fresh_db: Path) -> None:
+    """Defensive: a descendants entry with depth=0 or a non-int depth
+    falls back to depth=1 (direct child of head). Pin so the
+    `if not isinstance(depth, int) or depth < 1: depth = 1` guard
+    isn't dead code."""
+    record = {
+        "word": "*root",
+        "lang_code": "gem-pro",
+        "pos": "noun",
+        "descendants": [
+            {
+                "depth": 0,  # invalid — should normalize to 1
+                "templates": [{"name": "desc", "args": {"1": "ang", "2": "child0"}}],
+            },
+            {
+                "depth": "not-a-number",  # non-int — should normalize to 1
+                "templates": [{"name": "desc", "args": {"1": "ang", "2": "child_str"}}],
+            },
+        ],
+    }
+    line = json.dumps(record) + "\n"
+    with LexiconDB(fresh_db) as db:
+        ingest_wiktextract_stream(db, _stream(line), apply=True)
+        edges = _all_descent_edges(db)
+
+    # Both descendants attach to the head as if depth=1.
+    assert ("*root", "child0", "inheritance", "wiktionary") in edges
+    assert ("*root", "child_str", "inheritance", "wiktionary") in edges
+
+
+def test_ingest_wiktionary_cli_surfaces_unsupported_templates(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """The CLI's conditional 'unsupported_templates = N' echo branch
+    fires only when the counter > 0 — round 1 had no test pinning the
+    format string. A typo in cli.py would slip through silently."""
+    line = _wiktextract_entry(
+        word="tūn",
+        lang_code="ang",
+        etymology_templates=[{"name": "totally-made-up-template", "args": {}}],
+    )
+    path = tmp_path / "wiktextract.jsonl"
+    path.write_text(line)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "ingest-wiktionary", str(path), "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "unsupported_templates = 1" in result.output
+
+
+def test_ingest_wiktionary_cli_surfaces_depth_jumps(fresh_db: Path, tmp_path: Path) -> None:
+    """The CLI's conditional 'depth_jumps_recovered = N' echo branch
+    fires only when the counter > 0. Pin the format string so a typo
+    doesn't slip past."""
+    line = _wiktextract_entry(
+        word="*root",
+        lang_code="gem-pro",
+        descendants=[
+            {
+                "depth": 1,
+                "templates": [{"name": "desc", "args": {"1": "ang", "2": "child1"}}],
+            },
+            {
+                # Skipping depth=2 directly to depth=3 — malformed.
+                "depth": 3,
+                "templates": [{"name": "desc", "args": {"1": "en", "2": "child3"}}],
+            },
+        ],
+    )
+    path = tmp_path / "wiktextract.jsonl"
+    path.write_text(line)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "ingest-wiktionary", str(path), "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "depth_jumps_recovered = 1" in result.output
+
+
+def test_ingest_wiktionary_cli_surfaces_malformed_skip_count(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """The CLI's 'skipped N malformed line(s)' branch fires when
+    entries_skipped_malformed > 0. Pin the format string."""
+    valid = _wiktextract_entry(
+        word="tūn",
+        lang_code="ang",
+        etymology_templates=[{"name": "inh", "args": {"1": "ang", "2": "gem-pro", "3": "*tūnaz"}}],
+    )
+    path = tmp_path / "wiktextract.jsonl"
+    path.write_text("not json at all\n" + valid)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "ingest-wiktionary", str(path), "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "skipped 1 malformed line(s)" in result.output
