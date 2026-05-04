@@ -101,11 +101,16 @@ class Generator:
         return len(self.filter_for_tag(*tags)) > 0
 
     def filter_for_tag(self, *tags):
+        # Dedupe via set, then sort: the resulting dict's iteration order
+        # feeds weighted_choice's cumulative-threshold construction, which
+        # is order-dependent. Set iteration is hash-randomized across
+        # PYTHONHASHSEED, so without sort() the same (tags, seed) tuple
+        # could produce different picks across processes. Same fix shape
+        # as wyrd-mj2's _raw_class_score sort. wyrd-8ga.
         keys: list[str] = []
         for tag in tags:
             keys.extend(self.tag_db.get(tag, []))
-        keys_set = set(keys)
-        return {key: self.elements[key] for key in keys_set if key in self.elements}
+        return {key: self.elements[key] for key in sorted(set(keys)) if key in self.elements}
 
     def _apply_excludes(self, items, exclude_tags: tuple[str, ...]):
         """Drop keys whose usage appears in tag_db under any exclude tag.

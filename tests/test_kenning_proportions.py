@@ -1507,6 +1507,56 @@ def test_raw_class_score_is_bit_stable_across_python_hash_seed():
     assert len(scores) == 1, f"non-deterministic score across PYTHONHASHSEED: {scores}"
 
 
+def test_filter_for_tag_is_bit_stable_across_python_hash_seed():
+    """seed-reproducibility hazard (wyrd-8ga): Generator.filter_for_tag
+    builds a dict by iterating a set of tag-matched usages. The dict's
+    iteration order then feeds weighted_choice's cumulative-threshold
+    construction, where order changes the boundary on which a given
+    rng draw lands. Without sorted iteration, the same (tags, seed)
+    tuple can produce different weighted_choice picks across processes
+    with different PYTHONHASHSEED.
+
+    Same approach as test_raw_class_score_is_bit_stable_across_python_hash_seed:
+    spawn subprocesses with varied PYTHONHASHSEED env vars and assert
+    the picked key is bit-identical across them. Without the sort in
+    filter_for_tag, this test fails — empirically by producing 6
+    distinct keys across the 8 hash seeds below.
+    """
+    import subprocess
+    import sys
+
+    script = textwrap.dedent("""
+        import random
+        from wyrd.generators.kenning.proportions import Generator, weighted_choice
+
+        # 20 keys on the same tag — enough distinct strings to exercise
+        # several hash-bucket orderings. Skewed weights so the cumulative
+        # threshold lands at a position where order matters: the rng draw
+        # falls between adjacent items, and which item is "before" the
+        # boundary depends on iteration order.
+        keys = [f"-key{i:02d}" for i in range(20)]
+        elements = {k: i + 1 for i, k in enumerate(keys)}
+        tag_db = {"t": keys}
+        g = Generator(tag_db=tag_db, elements=elements)
+        # Fixed rng seed pins the cumulative-threshold draw to one
+        # specific position; a different iteration order routes that
+        # draw to a different key.
+        picked = g.select(random.Random(42), "t")
+        print(picked)
+    """)
+    picks = set()
+    for seed_value in ("1", "2", "3", "5", "7", "11", "13", "17"):
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            env={"PYTHONHASHSEED": seed_value, "PATH": os.environ.get("PATH", "")},
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        picks.add(result.stdout.strip())
+    assert len(picks) == 1, f"non-deterministic pick across PYTHONHASHSEED: {picks}"
+
+
 def test_generator_select_key_boost_multiplies_weights():
     """test-coverage P3: direct unit pin of Generator.select(key_boost=...).
     Strongly skewed boost should flip the empirical winner."""
