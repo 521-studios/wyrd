@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "notes": [
+    "Seed catalog for the wyrd-7tz meaning_synset table.",
+    "Each entry is one canonical_label string under 'category/subcategory'",
+    "convention. 'hypernym' is optional and points at another canonical_label",
+    "in this file (resolved at seed time to a foreign-key id).",
+    "",
+    "Coverage focus: the high-frequency place-name semantic classes that",
+    "appear in the bundled English/Scottish/Welsh/Irish/Breton corpora.",
+    "Tree species and creature names are split into their own synsets",
+    "rather than collapsed under generic 'tree'/'creature' categories so",
+    "that meaning-preserving substitutions stay specific (oak→oak, not",
+    "oak→ash). Phase 2 of wyrd-7tz will populate etymon memberships via",
+    "an LLM-assisted classification pass against the lexicon DB."
+  ],
+  "synsets": [
+    {"label": "water", "notes": "All water — body, flowing, weather. Hypernym for the water/* tree."},
+    {"label": "water/flowing", "hypernym": "water", "notes": "Streams, rivers, brooks. OE wæter, strēam, ēa, burna; ON bekkr; Welsh nant."},
+    {"label": "water/body", "hypernym": "water", "notes": "Lakes, meres, pools, seas. OE mere, sǣ, pōl; ON sær."},
+    {"label": "water/crossable", "hypernym": "water", "notes": "Fords, bridges, crossings. OE ford, brycg; ON bryggja."},
+    {"label": "water/spring", "hypernym": "water", "notes": "Springs, wells. OE wella, spryng."},
+    {"label": "water/marsh", "hypernym": "water", "notes": "Marsh, fen, mire, wetland. OE mersc, fenn; ON kjarr."},
+
+    {"label": "hill", "notes": "All hills — generic + subtypes. Hypernym for hill/*."},
+    {"label": "hill/rounded", "hypernym": "hill", "notes": "Rounded hills, knolls, hillocks. OE hyll, hōh, dūn."},
+    {"label": "hill/steep", "hypernym": "hill", "notes": "Steep slopes, scarps. OE clif, hangra."},
+    {"label": "hill/ridge", "hypernym": "hill", "notes": "Ridges, escarpments. OE hrycg; ON hryggr; Welsh trum."},
+    {"label": "hill/pass", "hypernym": "hill", "notes": "Passes, gaps, cols. OE skarð; Welsh bwlch."},
+    {"label": "hill/peak", "hypernym": "hill", "notes": "Peaks, summits. OE pīc; Welsh penn."},
+    {"label": "hill/valley", "notes": "Valleys, dales, denes. OE denu, dæl; ON dalr."},
+
+    {"label": "enclosure", "notes": "Bounded settlement / agricultural unit. Hypernym for enclosure/*."},
+    {"label": "enclosure/farmstead", "hypernym": "enclosure", "notes": "OE tūn, hām; ON býr; the bedrock English place-name suffix."},
+    {"label": "enclosure/fortified", "hypernym": "enclosure", "notes": "Forts, burhs, castles. OE burh, ceaster; Welsh caer."},
+    {"label": "enclosure/manor", "hypernym": "enclosure", "notes": "Manors, halls, estates. OE worth, hām; ON garðr."},
+    {"label": "enclosure/yard", "hypernym": "enclosure", "notes": "Yards, garths, paddocks. OE geard; ON garðr."},
+
+    {"label": "dwelling", "notes": "Habitations. Hypernym for dwelling/*."},
+    {"label": "dwelling/cottage", "hypernym": "dwelling", "notes": "Small dwellings. OE cot."},
+    {"label": "dwelling/hall", "hypernym": "dwelling", "notes": "Halls, large dwellings. OE heall, sele."},
+    {"label": "dwelling/temple", "hypernym": "dwelling", "notes": "Religious buildings. OE cirice, mynster, hearg."},
+
+    {"label": "landscape/wood", "notes": "Woods, forests. OE wudu, holt; Welsh coed."},
+    {"label": "landscape/clearing", "notes": "Clearings, glades. OE lēah."},
+    {"label": "landscape/grove", "notes": "Groves, copses. OE bearu, holt."},
+    {"label": "landscape/heath", "notes": "Heaths, moorland. OE hǣth, mōr."},
+    {"label": "landscape/island", "notes": "Islands, eyots. OE īeg, ēg; ON ey."},
+    {"label": "landscape/promontory", "notes": "Promontories, headlands, points. OE næss; ON nes."},
+
+    {"label": "direction", "notes": "Cardinal directions. Hypernym for direction/*."},
+    {"label": "direction/north", "hypernym": "direction", "notes": "OE norþ; ON norðr."},
+    {"label": "direction/south", "hypernym": "direction", "notes": "OE sūþ; ON suðr."},
+    {"label": "direction/east", "hypernym": "direction", "notes": "OE ēast; ON austr."},
+    {"label": "direction/west", "hypernym": "direction", "notes": "OE west; ON vestr."},
+
+    {"label": "colour", "notes": "Colour-modifier descriptors. Hypernym for colour/*."},
+    {"label": "colour/white", "hypernym": "colour", "notes": "OE hwīt; ON hvítr; Welsh gwyn."},
+    {"label": "colour/black", "hypernym": "colour", "notes": "OE blæc, sweart; ON svartr; Welsh du."},
+    {"label": "colour/red", "hypernym": "colour", "notes": "OE rēad; Welsh coch."},
+    {"label": "colour/green", "hypernym": "colour", "notes": "OE grēne; Welsh gwyrdd, glas."},
+    {"label": "colour/grey", "hypernym": "colour", "notes": "OE grǣg, hār; Welsh llwyd."},
+
+    {"label": "tree/oak", "notes": "Oak. OE āc; Welsh derw."},
+    {"label": "tree/ash", "notes": "Ash. OE æsc."},
+    {"label": "tree/elm", "notes": "Elm. OE elm."},
+    {"label": "tree/birch", "notes": "Birch. OE beorc; Welsh bedw."},
+    {"label": "tree/willow", "notes": "Willow. OE welig; Welsh helyg."},
+    {"label": "tree/thorn", "notes": "Thorn. OE þorn."},
+    {"label": "tree/yew", "notes": "Yew. OE īw; Welsh ywen."},
+
+    {"label": "animal/wild", "notes": "Wild animals — wolf, deer, bear, boar."},
+    {"label": "animal/domestic", "notes": "Domestic animals — sheep, cattle, swine, horse."},
+    {"label": "animal/bird", "notes": "Birds — raven, eagle, crane."},
+
+    {"label": "creature/dragon", "notes": "Dragons, wyrms. OE draca, wyrm; ON dreki."},
+    {"label": "creature/giant", "notes": "Giants, jǫtnar. OE eoten, þyrs; ON jǫtunn."},
+    {"label": "creature/troll", "notes": "Trolls. ON trǫll."},
+    {"label": "creature/elf", "notes": "Elves. OE ælf; ON álfr."},
+
+    {"label": "agriculture/field", "notes": "Cultivated open ground. OE feld, æcer; ON akr; Welsh maes."},
+    {"label": "agriculture/meadow", "notes": "Hay-meadows, water-meadows. OE mǣd, mōr; ON eng."},
+    {"label": "agriculture/pasture", "notes": "Grazing land. OE læs; Welsh dōl."},
+
+    {"label": "infrastructure/way", "notes": "Roads, paths, tracks. OE weg, pæþ, stræt; ON gata."},
+    {"label": "infrastructure/boundary", "notes": "Boundaries, marks, dykes. OE mearc, dīc; ON garðr."},
+    {"label": "infrastructure/stone", "notes": "Stones (boundary or settlement landmarks). OE stān; Welsh maen."},
+
+    {"label": "religion/saint", "notes": "Saints + saint dedications. The 'Saint X' name pattern."},
+    {"label": "religion/sacred", "notes": "Sacred sites, temples, holy places. OE hālig, hearg, wīh."}
+  ]
+}

@@ -354,6 +354,52 @@ CREATE VIEW toponym_breakdown_signature AS
     ON tee.toponym_etymology_id = te.id
   GROUP BY te.id;
 
+-- D? / wyrd-7tz: meaning-synset layer. A meaning_synset is a fine-grained
+-- semantic equivalence class — 'water/flowing' (members: OE wæter,
+-- OE strēam, ON bekkr, ...) versus 'water/body' (members: OE mere,
+-- OE sǣ, ON sær, ...). Distinct from etymon.synset_id, which is a
+-- COGNATE-cluster ID populated by cluster-cognates enrichment from the
+-- etymon_descent graph (etymology-based: OE tūn / ON tún / modern English
+-- town all share one cognate cluster pointing at PGmc *tūnaz). The
+-- naming collision between cognate-cluster 'synset_id' and meaning-
+-- synset is unfortunate but the existing column has a long-standing
+-- callsite footprint. Renaming etymon.synset_id → etymon.cognate_id
+-- is a separate cleanup; for now we disambiguate via the
+-- 'meaning_synset' table name.
+--
+-- Used by upcoming generator transforms (Lab replace-root, calque,
+-- anglicize/foreignize, drift-toward-X) that need same-meaning
+-- candidate lookups across languages and registers.
+--
+-- canonical_label: a human-curated string under 'category/subcategory'
+-- convention ('water/flowing', 'hill/rounded'). Free-text but the
+-- seed catalog uses the convention; future LLM-assisted assignment
+-- (Phase 2 of wyrd-7tz) will validate against it.
+--
+-- hypernym_id: optional self-FK for hierarchy walks. 'water/flowing'
+-- can have hypernym 'water'. Lets a query 'find candidates broadly
+-- meaning water' walk the hierarchy without exhaustively enumerating
+-- subcategories.
+CREATE TABLE meaning_synset (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  canonical_label TEXT NOT NULL UNIQUE,
+  hypernym_id     INTEGER REFERENCES meaning_synset(id) ON DELETE SET NULL,
+  notes           TEXT
+);
+CREATE INDEX idx_meaning_synset_hypernym ON meaning_synset(hypernym_id);
+
+-- Many-to-many: an etymon can be in multiple synsets ('OE bourne' may
+-- be both water/flowing and water/crossable). 'fit' marks whether the
+-- synset is the etymon's primary sense ('core') or a secondary one
+-- ('peripheral') so candidate queries can rank.
+CREATE TABLE etymon_meaning_synset (
+  etymon_id         INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
+  meaning_synset_id INTEGER NOT NULL REFERENCES meaning_synset(id) ON DELETE CASCADE,
+  fit               TEXT NOT NULL CHECK (fit IN ('core', 'peripheral')),
+  PRIMARY KEY (etymon_id, meaning_synset_id)
+);
+CREATE INDEX idx_etymon_meaning_synset_synset ON etymon_meaning_synset(meaning_synset_id);
+
 CREATE INDEX idx_etymon_lang        ON etymon(language);
 CREATE INDEX idx_reflex_position    ON reflex(position);
 CREATE INDEX idx_toponym_name       ON toponym(modern_name);
