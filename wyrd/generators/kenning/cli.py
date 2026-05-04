@@ -7,6 +7,7 @@ import sqlite3
 import sys
 import time
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from importlib import resources
@@ -999,6 +1000,9 @@ def _mine_entries(
                 by_failure[f.reason] = by_failure.get(f.reason, 0) + 1
 
     def _emit_progress(completed: int) -> None:
+        # Caller must increment `completed` BEFORE calling so it's >= 1
+        # — both branches below uphold this. The elapsed/completed
+        # division would otherwise ZeroDivisionError on the first call.
         if completed % log_every:
             return
         elapsed = time.time() - progress_start
@@ -1027,7 +1031,6 @@ def _mine_entries(
         # thread because as_completed yields results back here serially,
         # so no per-counter lock is needed. Worker threads only call
         # extract_one (which is HTTP I/O, GIL-friendly).
-        from concurrent.futures import ThreadPoolExecutor, as_completed
 
         def _task(i: int):
             p = parsed[i]
@@ -1041,11 +1044,22 @@ def _mine_entries(
         completed_count = 0
         with ThreadPoolExecutor(max_workers=concurrency) as executor:
             futures = [executor.submit(_task, i) for i in range(len(parsed))]
-            for fut in as_completed(futures):
-                i, result = fut.result()
-                _process(i, result)
-                completed_count += 1
-                _emit_progress(completed_count)
+            try:
+                for fut in as_completed(futures):
+                    i, result = fut.result()
+                    _process(i, result)
+                    completed_count += 1
+                    _emit_progress(completed_count)
+            except BaseException:
+                # ThreadPoolExecutor.__exit__ would otherwise drain every
+                # remaining submitted future before the exception surfaces
+                # (shutdown(wait=True, cancel_futures=False) is the default).
+                # On a real 5xx burst that means ~N-1 extra paid-API calls
+                # fire after the first failure — meaningful cost asymmetry on
+                # Anthropic / Gemini. Cancel pending futures eagerly so we
+                # abort at the first failure rather than after the full batch.
+                executor.shutdown(wait=False, cancel_futures=True)
+                raise
 
     accepted_entries = [e for e in accepted_slot if e is not None]
     return accepted_entries, declined, rejected, by_failure

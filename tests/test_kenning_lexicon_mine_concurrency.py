@@ -255,3 +255,134 @@ def test_mine_entries_empty_parsed_returns_empty_results():
     assert declined == 0
     assert rejected == 0
     assert failures == {}
+
+
+def test_cli_concurrency_flag_flows_through_to_mine_entries(tmp_path, monkeypatch):
+    """End-to-end CLI wiring: `wyrd kenning lexicon mine-llm --concurrency 4`
+    must thread the integer 4 down to `_mine_entries`. A regression that
+    hardcoded concurrency=1 (or renamed the option) would slip past the
+    six unit tests above because they invoke `_mine_entries` directly.
+    Mirror of test_lexicon_mine_llm_records_mining_run_at_end_of_run's
+    monkeypatched-extractor pattern (test_kenning_lexicon.py)."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+    from wyrd.generators.kenning import llm_extractor
+    from wyrd.generators.kenning.skeat_parser import ParsedEntry
+
+    fake_parsed = [
+        ParsedEntry(
+            toponym="Faketon",
+            section_suffix="-ton",
+            historical_form="fake-tun",
+            elements=[],
+            confidence="low",
+            source_quote="Faketon. fake body.",
+        ),
+    ]
+    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser: fake_parsed)
+
+    class FakeClient:
+        model = "fake-model:0b"
+        base_url = "http://localhost:0"
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(llm_extractor, "OllamaClient", FakeClient)
+
+    captured: dict[str, int] = {}
+
+    def stub_mine_entries(*, parsed, client, extract_one, concurrency, progress_start):  # noqa: ARG001
+        captured["concurrency"] = concurrency
+        return [], 0, 0, {}
+
+    monkeypatch.setattr(cli_mod, "_mine_entries", stub_mine_entries)
+
+    src_path = tmp_path / "test_book.txt"
+    src_path.write_text("Faketon. fake body.\n")
+    db_path = tmp_path / "test.db"
+    from wyrd.generators.kenning.lexicon import init_schema
+
+    init_schema(db_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        [
+            "lexicon",
+            "mine-llm",
+            str(src_path),
+            "--db",
+            str(db_path),
+            "--provider",
+            "ollama",
+            "--concurrency",
+            "4",
+        ],
+    )
+    assert result.exit_code == 0, (result.output or "") + (result.stderr or "")
+    assert captured.get("concurrency") == 4
+
+
+def test_cli_concurrency_flag_default_is_one(tmp_path, monkeypatch):
+    """Default --concurrency is 1, preserving the bit-stable serial path
+    when the user doesn't pass the flag. Pin so a future default change
+    doesn't silently parallelize Ollama mining (which serializes at the
+    GPU anyway and gains nothing from concurrency)."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+    from wyrd.generators.kenning import llm_extractor
+    from wyrd.generators.kenning.lexicon import init_schema
+    from wyrd.generators.kenning.skeat_parser import ParsedEntry
+
+    fake_parsed = [
+        ParsedEntry(
+            toponym="Faketon",
+            section_suffix="-ton",
+            historical_form="fake-tun",
+            elements=[],
+            confidence="low",
+            source_quote="Faketon. fake body.",
+        ),
+    ]
+    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser: fake_parsed)
+
+    class FakeClient:
+        model = "fake-model:0b"
+        base_url = "http://localhost:0"
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(llm_extractor, "OllamaClient", FakeClient)
+
+    captured: dict[str, int] = {}
+
+    def stub_mine_entries(*, parsed, client, extract_one, concurrency, progress_start):  # noqa: ARG001
+        captured["concurrency"] = concurrency
+        return [], 0, 0, {}
+
+    monkeypatch.setattr(cli_mod, "_mine_entries", stub_mine_entries)
+
+    src_path = tmp_path / "test_book.txt"
+    src_path.write_text("Faketon. fake body.\n")
+    db_path = tmp_path / "test.db"
+    init_schema(db_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        [
+            "lexicon",
+            "mine-llm",
+            str(src_path),
+            "--db",
+            str(db_path),
+            "--provider",
+            "ollama",
+        ],
+    )
+    assert result.exit_code == 0, (result.output or "") + (result.stderr or "")
+    assert captured.get("concurrency") == 1
