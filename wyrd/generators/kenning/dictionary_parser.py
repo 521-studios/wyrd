@@ -491,3 +491,119 @@ def _split_packed_paragraph(flat: str) -> list[str]:
         last = pos
     out.append(flat[last:].strip())
     return [c for c in out if c]
+
+
+# --- numbered-list parser (wyrd-5af) ---------------------------------------
+
+# Some sources organize their etymology bodies as a numbered list rather
+# than an alphabetical-headword sequence. Longnon's "Les Noms de lieu de
+# la France" vol 2 saint-names section is the canonical example: each
+# entry begins with a 3- or 4-digit ordinal followed by a period, the
+# Latin source name, and the derived French Saint-X form(s):
+#
+#     1659.  Caradocus ;  Saint-Caradu  (Côtes-du-Nord, Morbihan),
+#     Saint-Cadreuc  (Côtes-du-Nord), Saint-Carreuc  (Côtes-du-Nord).
+#
+#     1660.  Garaunus, martyr (...) :  Saint-Chéron  (Eure, ...).
+#
+# The alphabetical parser misses these because the headword shape is the
+# Latin name (lowercase or capitalized) embedded after the ordinal —
+# capital-letter-anchored detection segments by the wrong token. A
+# numbered-list-aware parser splits at ordinal boundaries and lets the
+# LLM extractor work on each entry's body independently.
+
+# An entry boundary: line begins with one or more digits, a period, then
+# whitespace. Optional leading whitespace tolerates OCR'd indentation.
+_NUMBERED_ENTRY_START = re.compile(r"^\s*(\d{1,5})\.\s+(?P<rest>\S.*)$")
+
+# The first place-name in an entry body — used to populate `toponym` so
+# the existing form-in-body validator (D3) has something concrete to
+# match. Matches "Saint-X" / "Sainte-X" / "St-X" / "St. X" with the
+# trailing French diacritic / hyphen / apostrophe characters that show
+# up in the corpus. The optional period after "St" handles "St. Marie"
+# vs "St-Marie" / "Saint-Marie" — all three shapes appear in real OCR.
+_FIRST_TOPONYM = re.compile(
+    r"\b(?P<name>(?:Saint|Sainte|St\.?)[-\s][A-ZÉÈÀÂÎÔÛÇ][A-Za-zÉÈÀÂÎÔÛÇéèàâîôûç'-]+)"
+)
+
+
+def parse_numbered_list_text(
+    text: str,
+    *,
+    min_entry_number: int = 1,
+    max_entry_number: int | None = None,
+    max_entries: int | None = None,
+) -> list[ParsedEntry]:
+    """Segment ``text`` by numbered-list ordinals into ParsedEntry rows.
+
+    Each entry's `toponym` is the first place-name detected in its body
+    (Saint-X / Sainte-X for the Longnon-vol-2 saint-names case); the
+    full entry body becomes `body_text`. Multi-line entries are joined
+    with continuation whitespace until the next ordinal boundary.
+
+    ``min_entry_number`` lets the caller skip ordinals below a threshold
+    — useful when the numbered section starts mid-document (Longnon vol 2's
+    saint-names section opens at entry 1659; earlier numbered text is
+    front-matter / TOC noise that doesn't match this format). Default 1
+    accepts everything for general use.
+
+    ``max_entry_number`` caps at the upper bound of the saint-names
+    section — anything past 2138 in Longnon vol 2 is index-appendix
+    cross-references, not etymology entries, and feeding those to the
+    LLM costs API spend for guaranteed declines. Default None accepts
+    everything above ``min_entry_number``.
+
+    Entries whose body has no detectable toponym are still emitted (with
+    `toponym=""`) so the caller can decide whether to skip them or pass
+    them through; the LLM validator will reject empty-toponym entries
+    anyway, so emitting them is a no-op on accept rate but useful for
+    parser diagnostics.
+    """
+    entries: list[ParsedEntry] = []
+    current_number: int | None = None
+    current_lines: list[str] = []
+
+    def _flush() -> None:
+        if current_number is None:
+            return
+        if current_number < min_entry_number:
+            return
+        if max_entry_number is not None and current_number > max_entry_number:
+            return
+        body = " ".join(line.strip() for line in current_lines if line.strip())
+        if not body:
+            return
+        match = _FIRST_TOPONYM.search(body)
+        toponym = match.group("name").strip() if match else ""
+        entries.append(
+            ParsedEntry(
+                toponym=toponym,
+                section_suffix=None,
+                historical_form=None,
+                elements=[],
+                confidence="low",
+                source_quote=_shorten(body),
+                body_text=body,
+            )
+        )
+
+    for line in text.splitlines():
+        m = _NUMBERED_ENTRY_START.match(line)
+        if m:
+            _flush()
+            if max_entries is not None and len(entries) >= max_entries:
+                # Already at the cap — stop accumulating new entries.
+                # The cap is checked AFTER _flush so the in-progress
+                # entry is committed before we exit.
+                current_number = None
+                current_lines = []
+                break
+            current_number = int(m.group(1))
+            current_lines = [m.group("rest")]
+        elif current_number is not None:
+            current_lines.append(line)
+    _flush()
+
+    if max_entries is not None:
+        entries = entries[:max_entries]
+    return entries

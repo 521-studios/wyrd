@@ -27,7 +27,10 @@ from wyrd.generators.kenning import (
     gemini_extractor,
     llm_extractor,
 )
-from wyrd.generators.kenning.dictionary_parser import parse_alphabetical_text
+from wyrd.generators.kenning.dictionary_parser import (
+    parse_alphabetical_text,
+    parse_numbered_list_text,
+)
 from wyrd.generators.kenning.era import era_cell, language_family
 from wyrd.generators.kenning.lexicon import (
     LANGUAGE_FIELDS,
@@ -73,15 +76,28 @@ def _select_parser_and_run(text: str, parser: str) -> list:
     """Pick the right parser for a book.
 
     Modes:
-      skeat        - force Skeat-format parser
-      alphabetical - force alphabetical-dictionary parser
-      auto         - try Skeat first; if it returns ≥5 entries, use it.
-                     Otherwise use alphabetical.
+      skeat         - force Skeat-format parser
+      alphabetical  - force alphabetical-dictionary parser
+      numbered-list - force numbered-list parser (wyrd-5af). Right tool
+                      for chrestomathy / treatise sources whose etymology
+                      bodies are organized as ordinal-prefixed lists
+                      (Longnon vol 2 saint-names: '1659. Caradocus :
+                      Saint-Caradu (...)'). Skip on dictionary-shaped
+                      sources — alphabetical is the right tool there.
+      auto          - try Skeat first; if it returns ≥5 entries, use it.
+                      Otherwise use alphabetical. ``auto`` does NOT pick
+                      numbered-list — opt in explicitly because the
+                      numbered-list shape co-exists with body prose in
+                      treatise sources, and we don't want a few stray
+                      ordinals to flip a Mawer-shaped book onto the
+                      wrong parser.
     """
     if parser == "skeat":
         return parse_skeat_text(text)
     if parser == "alphabetical":
         return parse_alphabetical_text(text)
+    if parser == "numbered-list":
+        return parse_numbered_list_text(text)
     skeat_result = parse_skeat_text(text)
     if len(skeat_result) >= 5:
         return skeat_result
@@ -1116,10 +1132,14 @@ def _mine_entries(
 )
 @click.option(
     "--parser",
-    type=click.Choice(["auto", "skeat", "alphabetical"]),
+    type=click.Choice(["auto", "skeat", "alphabetical", "numbered-list"]),
     default="auto",
     show_default=True,
-    help="Which parser to use; 'auto' picks based on first-pass yield.",
+    help=(
+        "Which parser to use. 'auto' picks based on first-pass yield. "
+        "'numbered-list' (wyrd-5af) is opt-in only — for ordinal-prefixed "
+        "treatise content (Longnon vol 2 saint-names section, etc.)."
+    ),
 )
 @click.option(
     "--concurrency",
