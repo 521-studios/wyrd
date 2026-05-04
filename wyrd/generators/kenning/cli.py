@@ -185,6 +185,16 @@ def cli() -> None:
         "realistic mode draws only from scholarly-attested morphemes."
     ),
 )
+@click.option(
+    "--era",
+    type=str,
+    default=None,
+    help=(
+        "D5-2 era filter (wyrd-lyp). Pass a year (e.g. 1086), a cell label "
+        "('oe-late', 'me', 'middle-irish'), or 'family/label' to "
+        "disambiguate. Morphemes with no attested-year data pass through."
+    ),
+)
 def generate(
     culture: str,
     tags: tuple[str, ...],
@@ -196,6 +206,7 @@ def generate(
     inflection_density: float,
     moods: tuple[str, ...],
     include_fiction: bool,
+    era: str | None,
 ) -> None:
     """Generate town names. Replaces Rando's `bin/generator`."""
     # `available_tags()` already strips _INTERNAL_TAGS for the SPA dropdown,
@@ -228,9 +239,18 @@ def generate(
         "inflection_density": inflection_density,
         "mood": list(moods),
         "include_fiction": include_fiction,
+        "era": era,
     }
     for _ in range(count):
-        result = kenning.generate(params, seed_rng.randrange(2**63))
+        try:
+            result = kenning.generate(params, seed_rng.randrange(2**63))
+        except ValueError as exc:
+            # Surface user-input errors (bad --era, etc.) as friendly
+            # CLI messages on stderr + exit non-zero, matching the
+            # tags/moods pre-validation pattern above. Other unexpected
+            # exceptions still propagate so a real bug isn't silenced.
+            click.echo(f"Error: {exc}", err=True)
+            sys.exit(1)
         click.echo(result.result)
         if describe:
             click.echo(result.explanation)

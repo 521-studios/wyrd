@@ -8,6 +8,7 @@ from functools import lru_cache
 from importlib import resources
 from typing import Any
 
+from wyrd.generators.kenning.era import resolve_era_input
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.name import Name
 from wyrd.generators.kenning.proportions import load_proportions
@@ -41,6 +42,32 @@ _ROOT_CODES = [
 ]
 
 CULTURES = ["english", "scottish", "welsh", "irish", "breton"]
+
+# D5-2 / wyrd-lyp: which era family the bare-label form of ``--era`` resolves
+# against per culture. A request like ``--era me`` against an English culture
+# means Middle English; the same request against an Irish culture would
+# (correctly) fail since 'me' is an English-family label. Callers can always
+# disambiguate with the ``family/label`` form (e.g. ``english/me``).
+#
+# scottish → english: the Scottish proportions bundle today is
+# overwhelmingly Old/Middle English-derived (1752 OE-tagged words vs ~0
+# Goidelic-tagged) — Scottish town names mix English and Gaelic morphemes,
+# but the empirical inventory skews English. The English era cells line
+# up with the bulk of the morphemes; users who want goidelic ranges can
+# use the ``goidelic/<label>`` form. Revisit once mining surfaces a
+# meaningful Scottish-Gaelic morpheme bucket.
+#
+# This map is distinct from era.LANGUAGE_TO_FAMILY: that one keys per
+# etymon-language code (e.g. 'old-english' → 'english'); this one keys
+# per culture-bundle name (e.g. 'english' culture → 'english' family).
+# Same destination, different source axes.
+_CULTURE_TO_ERA_FAMILY: dict[str, str] = {
+    "english": "english",
+    "scottish": "english",
+    "welsh": "brythonic",
+    "irish": "goidelic",
+    "breton": "brythonic",
+}
 
 # wyrd-yan: 'fiction' marks etymons whose etymology is constructed (post-hoc
 # applied to bestiary / NPC / homebrew content) rather than drawn from the
@@ -125,6 +152,33 @@ def _coerce_bool(value: Any) -> bool:
     if isinstance(value, str):
         return value.strip().lower() in {"true", "1", "yes", "on"}
     return bool(value)
+
+
+def _resolve_era_param(era: Any, culture: str) -> tuple[int | None, int | None] | None:
+    """Resolve the request-side ``era`` value to a half-open year range,
+    or None when no era filter applies.
+
+    Treats both None and ``""`` (the SPA's empty form-field) as 'no
+    filter' explicitly, matching the rest of this generator's input
+    handling (each knob has its own ``or 0.0`` / ``_coerce_bool`` /
+    ``or []`` normalization). Wraps the underlying
+    ``resolve_era_input`` errors in a single ValueError naming the bad
+    input + the resolved era family — so a ``--era victorian`` typo
+    surfaces as a clean 4xx through the API rather than a raw KeyError
+    propagating from inside the resolver.
+    """
+    if era is None or era == "":
+        return None
+    era_family = _CULTURE_TO_ERA_FAMILY.get(culture, "english")
+    try:
+        return resolve_era_input(era, default_family=era_family)
+    except (KeyError, ValueError) as exc:
+        raise ValueError(
+            f"invalid 'era' value {era!r} for culture {culture!r} "
+            f"(era family {era_family!r}): {exc}. Pass a year (e.g. "
+            f"1086), a cell label defined in the culture's era family, "
+            f"or an explicit 'family/label' pair."
+        ) from None
 
 
 def _apply_mood(spec: str, tags: list[str], harshness: float) -> tuple[list[str], float]:
@@ -289,6 +343,20 @@ class Kenning(Generator):
                         "effect when it exceeds the mood preset."
                     ),
                 },
+                "era": {
+                    "type": "string",
+                    "description": (
+                        "D5-2 era filter (wyrd-lyp). Restricts the morpheme inventory "
+                        "to forms attested in a particular period. Accepts a bare year "
+                        "(e.g. '1086' → the cell containing 1086 in the culture's era "
+                        "family), a cell label (e.g. 'oe-late', 'me', 'middle-irish'), "
+                        "or an explicit 'family/label' pair (e.g. 'english/oe-late') to "
+                        "disambiguate when a label is shared across families. "
+                        "Morphemes with no attested-year evidence pass through "
+                        "unconditionally — only ~32% of bundle morphemes carry year "
+                        "data today, so the filter narrows the pool rather than gutting it."
+                    ),
+                },
             },
             "required": [],
         }
@@ -313,6 +381,8 @@ class Kenning(Generator):
         tags = tuple(tags)
         exclude_tags: tuple[str, ...] = () if include_fiction else (_FICTION_TAG,)
 
+        era_range = _resolve_era_param(params.get("era"), culture)
+
         name_gen, _ = _load_culture(culture)
         rng = rng_for(seed)
         new_name = name_gen.select(
@@ -323,6 +393,7 @@ class Kenning(Generator):
             inflection_density=inflection_density,
             harshness=harshness,
             exclude_tags=exclude_tags,
+            era_range=era_range,
         )
         return GenerationResult(
             result=str(new_name),

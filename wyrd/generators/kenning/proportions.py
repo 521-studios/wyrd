@@ -29,6 +29,7 @@ class Generator:
         novelty: float = 0.0,
         harshness: float = 0.0,
         exclude_tags: tuple[str, ...] = (),
+        keep_keys: frozenset[str] | None = None,
     ):
         """Pick one element, optionally blending toward a uniform marginal
         and/or biasing toward phonologically-harsh keys.
@@ -58,12 +59,21 @@ class Generator:
         so a fiction-tagged usage is removed even if the caller asked for
         a tag the usage also carries. The default ``()`` is a no-op for
         bit-stable historical behavior.
+
+        ``keep_keys`` (D5-2 era filter, wyrd-lyp) restricts the bucket to
+        only the named usages. None means 'no filter' (bit-stable). The
+        caller (typically MeaningGenerator) precomputes the allowed-usage
+        set from the meaning_db once per ``--era`` value and passes the
+        same frozenset for every subsequent select call, so the per-bucket
+        intersection here is a fast O(bucket-size) walk.
         """
         items = self.elements.items()
         if len(tags) > 0:
             items = self.filter_for_tag(*tags).items()
         if exclude_tags:
             items = self._apply_excludes(items, exclude_tags).items()
+        if keep_keys is not None:
+            items = [(k, v) for k, v in items if k in keep_keys]
         if len(items) == 0:
             return None
         items_list = list(items)
@@ -106,6 +116,14 @@ class MeaningGenerator:
         self.meaning_db = meaning_db
         self.tag_db = tag_db
         self.generators: dict[tuple, Generator] = {}
+        # D5-2 era-filter cache: era_range tuple → frozenset of allowed
+        # usages, OR None when the era covers every usage (the
+        # bit-stable fast-path signal — see keep_keys_for_era). Keyed by
+        # (start, end) so two callers passing the same range share the
+        # precomputed value. Computed lazily on first lookup; the
+        # meaning_db is immutable post-load so the cache is safe to
+        # reuse for the process lifetime.
+        self._era_keep_cache: dict[tuple[int | None, int | None], frozenset[str] | None] = {}
         self.load_parts(proportions)
 
     def load_parts(self, proportions, *addkeys):
@@ -118,6 +136,49 @@ class MeaningGenerator:
                 gen = self.generators.setdefault(key, Generator(self.tag_db, {}))
                 gen.add_item(usage, proportion)
 
+    def keep_keys_for_era(
+        self, era_range: tuple[int | None, int | None] | None
+    ) -> frozenset[str] | None:
+        """Resolve an ``era_range`` to the set of usages that have at least
+        one Meaning admissible under the half-open ``[start, end)`` window.
+
+        Returns ``None`` when ``era_range`` is None — the caller's
+        bit-stable 'no filter' signal. Also returns ``None`` when the
+        computed keep-set covers EVERY usage in ``meaning_db`` — there's
+        nothing to filter, so ``Generator.select`` should take its
+        bit-stable fast path rather than walk every bucket through a
+        membership check that admits everything. The full-coverage case
+        is the steady state today (zero attested_years data → every
+        morpheme passes the filter); collapsing it to None preserves
+        bit-stability with the no-filter call until the bundle re-emit
+        actually populates attestation data for some morphemes.
+
+        The result is cached so a single ``--era`` value across many
+        ``select`` calls only walks the meaning_db once.
+
+        Granularity caveat: filtering happens at the USAGE level, not
+        the SENSE level. A usage with two senses (one in-era, one out-
+        of-era) stays in the pool; the downstream pick at
+        ``NameGenerator._pick_surface`` falls back to ``meanings[0]`` for
+        variant/inflection rendering, which may surface the wrong-era
+        sense. See the existing comment block at ``_render_substitutions``
+        for the deterministic-fallback rationale; tightening the filter
+        to sense level would need that same call site reworked.
+        """
+        if era_range is None:
+            return None
+        if era_range in self._era_keep_cache:
+            return self._era_keep_cache[era_range]
+        allowed: frozenset[str] | None = frozenset(
+            usage
+            for usage, meanings in self.meaning_db.items()
+            if any(m.attested_in_era_range(era_range) for m in meanings)
+        )
+        if len(allowed) == len(self.meaning_db):
+            allowed = None
+        self._era_keep_cache[era_range] = allowed
+        return allowed
+
     def select(
         self,
         rng,
@@ -126,9 +187,15 @@ class MeaningGenerator:
         novelty: float = 0.0,
         harshness: float = 0.0,
         exclude_tags: tuple[str, ...] = (),
+        keep_keys: frozenset[str] | None = None,
     ):
         return self.generators[key].select(
-            rng, *tags, novelty=novelty, harshness=harshness, exclude_tags=exclude_tags
+            rng,
+            *tags,
+            novelty=novelty,
+            harshness=harshness,
+            exclude_tags=exclude_tags,
+            keep_keys=keep_keys,
         )
 
 
@@ -147,6 +214,7 @@ class NameGenerator:
         inflection_density: float = 0.0,
         harshness: float = 0.0,
         exclude_tags: tuple[str, ...] = (),
+        era_range: tuple[int | None, int | None] | None = None,
     ):
         """Pick a structure, fill it with morpheme usages, optionally render
         each usage as an attested archaic spelling variant (D18) or an
@@ -179,15 +247,29 @@ class NameGenerator:
         from constructed-etymology entries; the GM opts in via
         ``include_fiction``.
 
+        ``era_range`` (D5-2 / wyrd-lyp) is a half-open ``[start, end)`` year
+        window. Morphemes whose attested-year evidence falls outside the
+        window are dropped from every bucket; morphemes with no evidence
+        pass through (see ``Meaning.attested_in_era_range``). ``None``
+        disables the filter — bit-stable behavior. The keep-set is computed
+        once per call from ``meaning_gen.keep_keys_for_era`` and reused
+        across every per-bucket pick within this name.
+
         When both inflection_density and spelling_variety would fire on the
         same morpheme, inflection wins — it carries grammatical meaning
         that the variant axis doesn't.
         """
+        keep_keys = self.meaning_gen.keep_keys_for_era(era_range)
         items = list(self.structs.items())
         struct = weighted_choice(rng, items)
         if len(tags) == 0:
             new_name = self._select_no_tag(
-                rng, struct, novelty=novelty, harshness=harshness, exclude_tags=exclude_tags
+                rng,
+                struct,
+                novelty=novelty,
+                harshness=harshness,
+                exclude_tags=exclude_tags,
+                keep_keys=keep_keys,
             )
         else:
             new_name = self._select_tags(
@@ -197,6 +279,7 @@ class NameGenerator:
                 novelty=novelty,
                 harshness=harshness,
                 exclude_tags=exclude_tags,
+                keep_keys=keep_keys,
             )
         if spelling_variety > 0 or inflection_density > 0:
             rendered, labels = self._render_substitutions(
@@ -275,6 +358,7 @@ class NameGenerator:
         novelty: float = 0.0,
         harshness: float = 0.0,
         exclude_tags: tuple[str, ...] = (),
+        keep_keys: frozenset[str] | None = None,
     ):
         words = []
         for w in struct:
@@ -287,6 +371,7 @@ class NameGenerator:
                         novelty=novelty,
                         harshness=harshness,
                         exclude_tags=exclude_tags,
+                        keep_keys=keep_keys,
                     )
                 )
             words.append(keys)
@@ -300,10 +385,16 @@ class NameGenerator:
         novelty: float = 0.0,
         harshness: float = 0.0,
         exclude_tags: tuple[str, ...] = (),
+        keep_keys: frozenset[str] | None = None,
     ):
         name_pool = [
             self._select_no_tag(
-                rng, struct, novelty=novelty, harshness=harshness, exclude_tags=exclude_tags
+                rng,
+                struct,
+                novelty=novelty,
+                harshness=harshness,
+                exclude_tags=exclude_tags,
+                keep_keys=keep_keys,
             )
         ]
         for tag in tags:
@@ -315,6 +406,7 @@ class NameGenerator:
                     novelty=novelty,
                     harshness=harshness,
                     exclude_tags=exclude_tags,
+                    keep_keys=keep_keys,
                 )
             )
         words = []
@@ -342,6 +434,7 @@ class NameGenerator:
         novelty: float = 0.0,
         harshness: float = 0.0,
         exclude_tags: tuple[str, ...] = (),
+        keep_keys: frozenset[str] | None = None,
     ):
         words = []
         for w in struct:
@@ -355,6 +448,7 @@ class NameGenerator:
                         novelty=novelty,
                         harshness=harshness,
                         exclude_tags=exclude_tags,
+                        keep_keys=keep_keys,
                     )
                 )
             words.append(keys)

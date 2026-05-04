@@ -225,3 +225,78 @@ def all_families() -> tuple[str, ...]:
     """Return the tuple of all defined era families. Stable order
     (sorted alphabetically) so CLI output is deterministic."""
     return tuple(sorted(ERA_CELLS))
+
+
+def resolve_era_input(
+    era: str | int | None,
+    *,
+    default_family: str = "english",
+) -> tuple[int | None, int | None] | None:
+    """Convert a CLI/API ``--era`` value to a half-open ``(start, end)``
+    year range, or None to mean 'no filter applies'.
+
+    Empty-string ``era`` is NOT silently treated as None — that's an
+    upstream concern (``Kenning.generate`` guards before calling). A
+    direct caller passing ``""`` will hit the 'unknown era input' error
+    path; if you mean 'no filter', pass ``None``.
+
+    Accepted shapes:
+
+    * ``None`` → no filter. Caller leaves the inventory untouched.
+    * ``int`` (or numeric str like ``"1086"``) → year-based. Resolves to
+      the cell containing that year in ``default_family`` and returns
+      that cell's range. ValueError if the year falls outside any
+      defined cell for the family.
+    * ``str`` cell label (``"oe-late"``) → resolves against
+      ``default_family`` only. A label not defined in ``default_family``
+      raises ValueError, even if another family defines the same label
+      (e.g. ``"middle-irish"`` only exists in ``goidelic`` — passing it
+      with ``default_family="english"`` is a typo or wrong-culture
+      request, and silently using the goidelic range would surprise the
+      caller). The error message names the families where the label IS
+      defined so the user can switch to the explicit ``family/label``
+      form.
+    * ``str`` ``family/label`` form (``"english/oe-late"``) → explicit
+      family choice; returns the cell's range from the named family.
+      Use this when ``default_family`` doesn't define the label.
+
+    The runtime D5-2 filter (``Meaning.attested_in_era_range``) uses
+    the returned range as a half-open interval — a year exactly on
+    ``start`` is included, a year exactly on ``end`` is not.
+    """
+    if era is None:
+        return None
+    if isinstance(era, int):
+        cell = era_cell_for_family(default_family, era)
+        if cell is None:
+            raise ValueError(
+                f"year {era} is outside the defined cells for family {default_family!r}"
+            )
+        return era_year_range(default_family, cell)
+    try:
+        year = int(era)
+    except ValueError:
+        year = None
+    if year is not None:
+        return resolve_era_input(year, default_family=default_family)
+    if "/" in era:
+        family, _, label = era.partition("/")
+        return era_year_range(family, label)
+    # Bare label — must exist in default_family. Cross-family fallback
+    # would silently route a typo or wrong-culture label into the wrong
+    # range; instead, point the user at the families that DO define the
+    # label so they can switch to the explicit ``family/label`` form.
+    try:
+        return era_year_range(default_family, era)
+    except KeyError:
+        defined_in = [f for f in sorted(ERA_CELLS) if era in era_cells_for_family(f)]
+        if defined_in:
+            choices = ", ".join(f"{f}/{era}" for f in defined_in)
+            raise ValueError(
+                f"era cell {era!r} is not defined in family "
+                f"{default_family!r}; use one of: {choices}"
+            ) from None
+        raise ValueError(
+            f"unknown era input {era!r}; pass a year (e.g. 1086), a cell "
+            f"label (e.g. 'oe-late'), or a 'family/label' pair"
+        ) from None

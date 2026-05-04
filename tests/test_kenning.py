@@ -389,6 +389,137 @@ def test_kenning_generate_string_false_does_not_invert_gate():
     assert plain == string_false
 
 
+def test_cli_era_flag_year_runs_cleanly():
+    """CLI smoke: `wyrd kenning generate english --era 1086` runs cleanly.
+    Pins the click `--era` flag → params dict → resolve_era_input wiring
+    for the year-input branch."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "generate",
+            "english",
+            "--era",
+            "1086",
+            "--seed",
+            "42",
+            "-n",
+            "1",
+            "--no-describe",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    name_lines = [ln for ln in result.output.splitlines() if ln.strip()]
+    assert name_lines and name_lines[0]
+
+
+def test_cli_era_flag_family_label_form_runs_cleanly():
+    """CLI smoke: explicit family/label form. Pins the disambiguation
+    surface that lets a user pick across-family era cells from the CLI."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "generate",
+            "english",
+            "--era",
+            "english/oe-late",
+            "--seed",
+            "42",
+            "-n",
+            "1",
+            "--no-describe",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+
+def test_cli_era_flag_unknown_label_exits_nonzero():
+    """An unknown era label at the CLI surface exits non-zero with a
+    friendly error message rather than spilling a raw ValueError or
+    KeyError. Catches typos before they reach the API path."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["generate", "english", "--era", "victorian", "--seed", "42", "-n", "1"],
+    )
+    assert result.exit_code != 0
+    # Friendly "Error: ..." line on stderr names the bad input + the
+    # culture's era family. Pre-PR a raw ValueError traceback escaped.
+    # Click 8.2+ separates stderr by default; .output is stdout only.
+    assert "victorian" in result.stderr
+    assert "Error:" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "culture,era_label",
+    [
+        # Each pair uses a label that ONLY resolves under the culture's
+        # mapped era family — a regression that hardcoded
+        # default_family='english' (or dropped the _CULTURE_TO_ERA_FAMILY
+        # lookup entirely) would fail loudly here. Scottish maps to
+        # english by design (see comment on _CULTURE_TO_ERA_FAMILY).
+        ("english", "oe-late"),
+        ("scottish", "oe-late"),
+        ("welsh", "old"),
+        ("irish", "middle-irish"),
+        ("breton", "middle"),
+    ],
+)
+def test_kenning_generate_era_label_routed_through_culture_map(
+    culture: str, era_label: str
+) -> None:
+    """End-to-end coverage of `_CULTURE_TO_ERA_FAMILY`: each culture
+    paired with a label that only resolves under its mapped era family.
+    A future refactor that drops the per-culture default_family lookup
+    would break here because (e.g.) 'middle-irish' isn't an English-
+    family label and would raise."""
+    from wyrd.generators.kenning import Kenning
+
+    k = Kenning()
+    result = k.generate({"culture": culture, "era": era_label}, seed=42)
+    assert result.result
+
+
+def test_kenning_generate_invalid_era_raises_friendly_value_error():
+    """Bad era input must surface as a ValueError (not KeyError, not raw
+    propagation from inside resolve_era_input). The message names the
+    bad input and the resolved era family so a 4xx response carries
+    enough context for the user."""
+    from wyrd.generators.kenning import Kenning
+
+    k = Kenning()
+    with pytest.raises(ValueError, match=r"victorian.*english"):
+        k.generate({"culture": "english", "era": "victorian"}, seed=42)
+    with pytest.raises(ValueError, match=r"klingon/old"):
+        k.generate({"culture": "english", "era": "klingon/old"}, seed=42)
+
+
+def test_kenning_generate_empty_era_string_treated_as_no_filter():
+    """The SPA renders absent form fields as empty strings. An era of
+    '' must mean 'no filter' (matching the rest of this generator's
+    input handling), not surface as an invalid-era error. Bit-stable
+    with the no-era path."""
+    from wyrd.generators.kenning import Kenning
+
+    k = Kenning()
+    no_era = k.generate({"culture": "english"}, seed=42).result
+    empty_era = k.generate({"culture": "english", "era": ""}, seed=42).result
+    assert no_era == empty_era
+
+
 def test_cli_include_fiction_flag_runs_cleanly_and_is_seed_stable():
     """End-to-end CLI smoke: --include-fiction runs to completion and
     produces a non-empty name; with no fiction-tagged data in the

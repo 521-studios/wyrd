@@ -31,8 +31,10 @@ _CITATIONS_SUFFIX = "_citations"
 # Suffix used for per-language attested-year metadata (D5-1 / wyrd-bag).
 # Each entry is (form, year) where year is the earliest plausibly-
 # attested year for the form on the production corpus. Sorted by year
-# ascending so the runtime --era filter (D5-2) can short-circuit on
-# the first match. Empty / absent for morphemes with no year evidence.
+# ascending as a stable display convention for the explainer; the
+# runtime --era filter (D5-2) walks the list and short-circuits on the
+# first IN-WINDOW match regardless of sort order. Empty / absent for
+# morphemes with no year evidence.
 _ATTESTED_YEARS_SUFFIX = "_attested_years"
 
 
@@ -119,6 +121,33 @@ class Meaning:
 
     def is_saint(self):
         return "saint" in self.tags
+
+    def attested_in_era_range(self, era_range: tuple[int | None, int | None] | None) -> bool:
+        """D5-2 era filter: True if this morpheme is admissible under the
+        ``[start, end)`` half-open year range, or has no attestation data
+        at all (treated as 'always include' — see DECISIONS.md D5-2).
+
+        ``era_range`` of ``None`` means 'no filter' → always True.
+
+        The 'no attestation data → pass' rule is deliberate: only ~32% of
+        bundle morphemes carry attested-year data today, so excluding the
+        un-dated 68% would gut the inventory. As mining coverage rises
+        the rule can tighten; for now, missing data is not evidence of
+        absence.
+        """
+        if era_range is None:
+            return True
+        if not self.attested_years:
+            return True
+        start, end = era_range
+        for forms in self.attested_years.values():
+            for _form, year in forms:
+                if start is not None and year < start:
+                    continue
+                if end is not None and year >= end:
+                    continue
+                return True
+        return False
 
     def key(self):
         key = [self.location]
