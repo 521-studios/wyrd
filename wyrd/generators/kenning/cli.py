@@ -195,6 +195,18 @@ def cli() -> None:
         "disambiguate. Morphemes with no attested-year data pass through."
     ),
 )
+@click.option(
+    "--cohesion",
+    type=click.FloatRange(0.0, 1.0),
+    default=0.0,
+    show_default=True,
+    help=(
+        "wyrd-mj2 tag co-occurrence bias (0..1). 0 keeps independent slot "
+        "sampling (today's behavior); higher values bias each slot toward "
+        "usages whose tags co-occur with previously-picked slots in the "
+        "empirical corpus. Composes orthogonally with --novelty."
+    ),
+)
 def generate(
     culture: str,
     tags: tuple[str, ...],
@@ -207,6 +219,7 @@ def generate(
     moods: tuple[str, ...],
     include_fiction: bool,
     era: str | None,
+    cohesion: float,
 ) -> None:
     """Generate town names. Replaces Rando's `bin/generator`."""
     # `available_tags()` already strips _INTERNAL_TAGS for the SPA dropdown,
@@ -240,6 +253,7 @@ def generate(
         "mood": list(moods),
         "include_fiction": include_fiction,
         "era": era,
+        "cohesion": cohesion,
     }
     for _ in range(count):
         try:

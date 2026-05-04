@@ -357,6 +357,22 @@ class Kenning(Generator):
                         "data today, so the filter narrows the pool rather than gutting it."
                     ),
                 },
+                "cohesion": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": (
+                        "wyrd-mj2 tag co-occurrence bias (0..1). 0 leaves each slot "
+                        "sampling independently from its marginal (today's behavior). "
+                        "Higher values bias each slot's pick toward usages whose tags "
+                        "co-occur with previously-picked slots' tags in the empirical "
+                        "corpus — so 'topography + plant' and 'water + plant' (both "
+                        "common) are preferred over 'religion + plant' (rare). Composes "
+                        "orthogonally with novelty: cohesion pulls toward attested "
+                        "tag-class pairings, novelty blends toward the uniform marginal."
+                    ),
+                },
             },
             "required": [],
         }
@@ -371,6 +387,7 @@ class Kenning(Generator):
         novelty = float(params.get("novelty", 0.0) or 0.0)
         inflection_density = float(params.get("inflection_density", 0.0) or 0.0)
         harshness = float(params.get("harshness", 0.0) or 0.0)
+        cohesion = float(params.get("cohesion", 0.0) or 0.0)
         include_fiction = _coerce_bool(params.get("include_fiction", False))
 
         moods = params.get("mood", []) or []
@@ -394,6 +411,7 @@ class Kenning(Generator):
             harshness=harshness,
             exclude_tags=exclude_tags,
             era_range=era_range,
+            cohesion=cohesion,
         )
         return GenerationResult(
             result=str(new_name),

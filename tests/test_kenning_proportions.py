@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import random
+import textwrap
 from collections import Counter
 
 from wyrd.generators.kenning.proportions import (
@@ -1081,3 +1083,499 @@ def test_kenning_input_schema_exposes_era():
     schema = Kenning().input_schema()
     assert "era" in schema["properties"]
     assert schema["properties"]["era"]["type"] == "string"
+
+
+# --- wyrd-mj2 cohesion (tag co-occurrence bias) ---------------------------
+
+
+def _build_cohesion_test_generator(meaning_db, proportions, structs, cooc, marg):
+    """Construct a NameGenerator pre-loaded with a synthetic tag-cooccurrence
+    bundle. Used by the cohesion tests to drive the bias deterministically
+    rather than relying on whatever the bundled corpora happen to encode."""
+    from wyrd.generators.kenning.proportions import MeaningGenerator, NameGenerator
+
+    mg = MeaningGenerator(meaning_db, {}, proportions)
+    mg.load_parts(proportions, "single")
+    return NameGenerator(meaning_db, mg, structs, tag_cooccurrence=cooc, tag_marginal=marg)
+
+
+def test_name_generator_cohesion_zero_is_bit_stable_with_no_cooccurrence():
+    """cohesion=0 must bypass the boost computation entirely. Pin via
+    sequence equality across 30 seeds against the no-kwarg call."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    m_a = Meaning("-a", ["water"], [], {})
+    m_b = Meaning("-b", ["plant"], [], {})
+    meaning_db = {"-a": [m_a], "-b": [m_b]}
+    proportions = {"-a": 50, "-b": 50}
+    structs = {((("post", "single"),),): 1}
+    name_gen = _build_cohesion_test_generator(
+        meaning_db,
+        proportions,
+        structs,
+        cooc={"water|plant": 100, "plant|water": 100},
+        marg={"water": 100, "plant": 100},
+    )
+    seq_default = [name_gen.select(random.Random(i)).name for i in range(30)]
+    seq_zero = [name_gen.select(random.Random(i), cohesion=0.0).name for i in range(30)]
+    assert seq_default == seq_zero
+
+
+def test_name_generator_cohesion_one_biases_second_slot_toward_cooccurring_tag():
+    """At cohesion=1 with a strong asymmetric cooccurrence signal, the
+    second slot must skew toward the candidate whose tags co-occur with
+    the first slot's tags. Two-slot structure: prefix carries ['water'],
+    two post candidates compete: -in tagged 'plant' (strongly co-occurs
+    with water in our synthetic stats), -out tagged 'religion' (zero
+    co-occurrence). Equal empirical weights so any skew comes from the
+    cohesion bias alone."""
+    from collections import Counter
+
+    from wyrd.generators.kenning.meaning import Meaning
+
+    river = Meaning("River-", ["water"], [], {})
+    in_word = Meaning("-in", ["plant"], [], {})
+    out_word = Meaning("-out", ["religion"], [], {})
+    meaning_db = {"River-": [river], "-in": [in_word], "-out": [out_word]}
+    proportions = {"River-": 1, "-in": 50, "-out": 50}
+    # Two-slot structure: pre + post, no 'single' marker.
+    structs = {((("pre",), ("post",)),): 1}
+    cooc = {
+        "water|plant": 500,  # Strong co-occurrence.
+        "water|religion": 0,  # Never seen together.
+    }
+    marg = {"water": 500, "plant": 500, "religion": 1}
+    name_gen = _build_cohesion_test_generator(meaning_db, proportions, structs, cooc, marg)
+    counts_default = Counter()
+    counts_cohesion = Counter()
+    for i in range(200):
+        n_default = name_gen.select(random.Random(i)).name
+        n_cohesion = name_gen.select(random.Random(i), cohesion=1.0).name
+        counts_default[n_default[0][1]] += 1
+        counts_cohesion[n_cohesion[0][1]] += 1
+    # At cohesion=0 (default), the post slot is ~50/50 between -in and -out.
+    assert 70 < counts_default["-in"] < 130
+    # At cohesion=1, the post slot strongly favors -in (the co-occurring
+    # tag); -out gets pushed below the equal-weight baseline.
+    assert counts_cohesion["-in"] > counts_default["-in"]
+    assert counts_cohesion["-in"] > 150
+
+
+def test_name_generator_cohesion_no_cooccurrence_data_is_no_op():
+    """When the bundle carries no tag-cooccurrence data, even cohesion=1
+    must be a no-op — no zero-divide, no crash, just bit-stable with
+    cohesion=0. Legacy bundles (no co-occurrence keys) ride this path."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    m_a = Meaning("-a", ["water"], [], {})
+    m_b = Meaning("-b", ["plant"], [], {})
+    meaning_db = {"-a": [m_a], "-b": [m_b]}
+    proportions = {"-a": 50, "-b": 50}
+    structs = {((("post", "single"),),): 1}
+    name_gen = _build_cohesion_test_generator(meaning_db, proportions, structs, cooc={}, marg={})
+    seq_zero = [name_gen.select(random.Random(i), cohesion=0.0).name for i in range(20)]
+    seq_one = [name_gen.select(random.Random(i), cohesion=1.0).name for i in range(20)]
+    assert seq_zero == seq_one
+
+
+def test_name_generator_cohesion_no_prior_tags_first_slot_unaffected():
+    """The first slot has no prior context, so cohesion can't bias it.
+    Pin: with cohesion=1 but only one slot, the output sequence is
+    identical to cohesion=0. Catches a regression that would try to
+    apply the boost to the first pick (zero-divide on mean_raw)."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    m_a = Meaning("-a", ["water"], [], {})
+    m_b = Meaning("-b", ["plant"], [], {})
+    meaning_db = {"-a": [m_a], "-b": [m_b]}
+    proportions = {"-a": 50, "-b": 50}
+    structs = {((("post", "single"),),): 1}
+    name_gen = _build_cohesion_test_generator(
+        meaning_db,
+        proportions,
+        structs,
+        cooc={"water|plant": 100},
+        marg={"water": 100, "plant": 100},
+    )
+    seq_zero = [name_gen.select(random.Random(i), cohesion=0.0).name for i in range(20)]
+    seq_one = [name_gen.select(random.Random(i), cohesion=1.0).name for i in range(20)]
+    assert seq_zero == seq_one
+
+
+def test_name_generator_cohesion_no_signal_returns_none_boost():
+    """Internal: when no candidate tag has any co-occurrence with the
+    prior context tags, _cohesion_boost returns None so the bucket
+    sampling skips the multiplication entirely. Pinned via direct call
+    to the private helper because the no-signal path is hard to spot
+    in end-to-end output."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    m_a = Meaning("-a", ["plant"], [], {})
+    m_b = Meaning("-b", ["religion"], [], {})
+    meaning_db = {"-a": [m_a], "-b": [m_b]}
+    proportions = {"-a": 1, "-b": 1}
+    structs = {((("post", "single"),),): 1}
+    # marg has 'water' but no co-occurrence between water and any
+    # candidate tag → raw scores are all zero → boost is None.
+    name_gen = _build_cohesion_test_generator(
+        meaning_db,
+        proportions,
+        structs,
+        cooc={},
+        marg={"water": 100},
+    )
+    boost = name_gen._cohesion_boost(("post", "single"), {"water"}, cohesion=1.0)
+    assert boost is None
+
+
+def test_name_generator_cohesion_unknown_bucket_returns_none_boost():
+    """A key referenced by a structure but absent from MeaningGenerator's
+    bucket map returns None — the caller hits the bit-stable path
+    rather than crashing on an empty candidates iteration."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    m = Meaning("-a", ["water"], [], {})
+    meaning_db = {"-a": [m]}
+    proportions = {"-a": 1}
+    structs = {((("post", "single"),),): 1}
+    name_gen = _build_cohesion_test_generator(
+        meaning_db,
+        proportions,
+        structs,
+        cooc={"water|plant": 1},
+        marg={"water": 1, "plant": 1},
+    )
+    boost = name_gen._cohesion_boost(("post", "nonexistent"), {"water"}, cohesion=1.0)
+    assert boost is None
+
+
+def test_kenning_input_schema_exposes_cohesion():
+    """The cohesion knob surfaces in input_schema so the SPA renders a
+    slider. Default 0.0, range [0,1], number type."""
+    from wyrd.generators.kenning import Kenning
+
+    schema = Kenning().input_schema()
+    assert "cohesion" in schema["properties"]
+    prop = schema["properties"]["cohesion"]
+    assert prop["type"] == "number"
+    assert prop["default"] == 0.0
+    assert prop["minimum"] == 0.0
+    assert prop["maximum"] == 1.0
+
+
+def test_kenning_generate_cohesion_zero_bit_stable_against_default():
+    """End-to-end: Kenning.generate with cohesion=0 produces identical
+    output to default (no cohesion key) for the same seed across the
+    bundled English culture."""
+    from wyrd.generators.kenning import Kenning
+
+    k = Kenning()
+    seq_default = [k.generate({"culture": "english"}, seed=s).result for s in range(20)]
+    seq_zero = [
+        k.generate({"culture": "english", "cohesion": 0.0}, seed=s).result for s in range(20)
+    ]
+    assert seq_default == seq_zero
+
+
+def test_name_generator_cohesion_threads_through_single_positive_tag_path():
+    """test-coverage P2: the `_select_tag` branch (single positive tag
+    passed to NameGenerator.select) was not exercised by the original
+    cohesion tests. Mirror the asymmetric-cooccurrence test but invoke
+    via `name_gen.select(rng, 'tree', cohesion=1.0)` so the
+    `_select_tag` cohesion plumbing gets pinned."""
+    from collections import Counter
+
+    from wyrd.generators.kenning.meaning import Meaning
+
+    river = Meaning("River-", ["water", "tree"], [], {})
+    in_word = Meaning("-in", ["plant", "tree"], [], {})
+    out_word = Meaning("-out", ["religion", "tree"], [], {})
+    meaning_db = {"River-": [river], "-in": [in_word], "-out": [out_word]}
+    proportions = {"River-": 1, "-in": 50, "-out": 50}
+    structs = {((("pre",), ("post",)),): 1}
+    cooc = {"water|plant": 500, "water|religion": 0}
+    marg = {"water": 500, "plant": 500, "religion": 1, "tree": 100}
+    name_gen = _build_cohesion_test_generator(meaning_db, proportions, structs, cooc, marg)
+    counts_default = Counter()
+    counts_cohesion = Counter()
+    for i in range(200):
+        n_default = name_gen.select(random.Random(i), "tree").name
+        n_cohesion = name_gen.select(random.Random(i), "tree", cohesion=1.0).name
+        counts_default[n_default[0][1]] += 1
+        counts_cohesion[n_cohesion[0][1]] += 1
+    # Sanity: the no-cohesion baseline is roughly even.
+    assert 70 < counts_default["-in"] < 130
+    # With cohesion=1, -in (co-occurring with water) wins much more often.
+    assert counts_cohesion["-in"] > counts_default["-in"]
+    assert counts_cohesion["-in"] > 150
+
+
+def test_name_generator_cohesion_threads_through_multi_tag_pool_path():
+    """test-coverage P2: `_select_tags` (multi-tag pool) threads cohesion
+    through both `_select_no_tag` AND `_select_tag` branches, then
+    rng-merges the per-pool picks. Pin the multi-tag-pool path with two
+    positional tags + cohesion=1, and confirm sequence determinism by
+    checking two same-seed calls produce identical names."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    river = Meaning("River-", ["water", "tree", "plant"], [], {})
+    in_word = Meaning("-in", ["plant", "tree"], [], {})
+    out_word = Meaning("-out", ["religion", "tree", "plant"], [], {})
+    meaning_db = {"River-": [river], "-in": [in_word], "-out": [out_word]}
+    proportions = {"River-": 1, "-in": 50, "-out": 50}
+    structs = {((("pre",), ("post",)),): 1}
+    cooc = {"water|plant": 500, "tree|plant": 500}
+    marg = {"water": 500, "plant": 500, "religion": 1, "tree": 500}
+    name_gen = _build_cohesion_test_generator(meaning_db, proportions, structs, cooc, marg)
+    a = name_gen.select(random.Random(7), "tree", "plant", cohesion=1.0).name
+    b = name_gen.select(random.Random(7), "tree", "plant", cohesion=1.0).name
+    assert a == b  # determinism
+    # And the multi-tag path must not crash with cohesion=0 either.
+    c = name_gen.select(random.Random(7), "tree", "plant", cohesion=0.0).name
+    assert c is not None
+
+
+def test_name_generator_cohesion_composes_with_novelty():
+    """test-coverage P3: cohesion=0 + novelty=X must still match a
+    pre-PR novelty=X sample (proves the new key_boost is None branch in
+    Generator.select doesn't disturb the existing novelty path)."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    m_a = Meaning("-a", ["water"], [], {})
+    m_b = Meaning("-b", ["plant"], [], {})
+    meaning_db = {"-a": [m_a], "-b": [m_b]}
+    proportions = {"-a": 70, "-b": 30}
+    structs = {((("post", "single"),),): 1}
+    name_gen = _build_cohesion_test_generator(
+        meaning_db,
+        proportions,
+        structs,
+        cooc={"water|plant": 100},
+        marg={"water": 100, "plant": 100},
+    )
+    seq_pure_novelty = [name_gen.select(random.Random(i), novelty=0.5).name for i in range(20)]
+    seq_with_zero_cohesion = [
+        name_gen.select(random.Random(i), novelty=0.5, cohesion=0.0).name for i in range(20)
+    ]
+    assert seq_pure_novelty == seq_with_zero_cohesion
+
+
+def test_name_generator_cohesion_one_normalization_respects_keep_keys():
+    """The cohesion mean-normalization must be computed over the surviving
+    keep_keys subset, not the full bucket — otherwise the era-filtered
+    pool's effective mean drifts from 1.0 and the boost is over-
+    weighted toward leftover candidates. Pinned at the helper level by
+    passing keep_keys directly."""
+    from wyrd.generators.kenning.meaning import Meaning
+
+    # Three candidates: -in (in-era, scores 1.0), -out (in-era, scores
+    # 0.0), -filtered (era-filtered out, would have scored 9.0 → without
+    # keep_keys-aware normalization, mean would drag toward 3.33).
+    river = Meaning("River-", ["water"], [], {})
+    in_word = Meaning("-in", ["plant"], [], {})
+    out_word = Meaning("-out", ["religion"], [], {})
+    # -filtered carries the same 'plant' tag as -in, so it scores the
+    # same raw 1.0. Without keep_keys, having it in the denominator
+    # drags the bucket mean up to (1 + 0 + 1)/3 = 0.667; with keep_keys,
+    # the mean is (1 + 0)/2 = 0.5. The shift in mean directly affects
+    # -in's multiplier: 1.5 (without) vs 2.0 (with).
+    filtered = Meaning("-filtered", ["plant"], [], {})
+    meaning_db = {
+        "River-": [river],
+        "-in": [in_word],
+        "-out": [out_word],
+        "-filtered": [filtered],
+    }
+    proportions = {"River-": 1, "-in": 1, "-out": 1, "-filtered": 1}
+    structs = {((("pre",), ("post",)),): 1}
+    cooc = {"water|plant": 100, "water|religion": 0}
+    marg = {"water": 100, "plant": 100, "religion": 1}
+    name_gen = _build_cohesion_test_generator(meaning_db, proportions, structs, cooc, marg)
+    keep = frozenset({"-in", "-out"})
+    # With keep_keys, the mean is computed only over -in and -out (the
+    # surviving subset). -in scores 1.0, -out scores 0.0 → mean=0.5 →
+    # multipliers ×2 and ×0 at cohesion=1.
+    boost_filtered = name_gen._cohesion_boost(("post",), {"water"}, 1.0, keep_keys=keep)
+    assert boost_filtered is not None
+    assert "-filtered" not in boost_filtered  # excluded from normalization
+    assert boost_filtered["-in"] > boost_filtered["-out"]
+    # Without keep_keys, -filtered is in the denominator → mean is higher
+    # → -in's boost is correspondingly smaller. Pin the relationship.
+    boost_full = name_gen._cohesion_boost(("post",), {"water"}, 1.0)
+    assert boost_full is not None
+    assert "-filtered" in boost_full
+    assert boost_filtered["-in"] > boost_full["-in"]
+
+
+def test_meaning_generator_bucket_keys_returns_registered_usages():
+    """test-coverage P3: pin the new MeaningGenerator.bucket_keys helper
+    directly. Returns the tuple of usages registered under a key, or ()
+    for an unknown key."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator
+
+    m_a = Meaning("-a", [], [], {})
+    m_b = Meaning("-b", [], [], {})
+    mg = MeaningGenerator({"-a": [m_a], "-b": [m_b]}, {}, {"-a": 1, "-b": 1})
+    keys = mg.bucket_keys(("post",))
+    assert set(keys) == {"-a", "-b"}
+    # Unknown bucket → empty tuple, not a crash.
+    assert mg.bucket_keys(("nonexistent",)) == ()
+
+
+def test_raw_class_score_empty_inputs_return_zero():
+    """test-coverage P3: pin the early-return branches in _raw_class_score."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator, NameGenerator
+
+    mg = MeaningGenerator({"-a": [Meaning("-a", [], [], {})]}, {}, {"-a": 1})
+    name_gen = NameGenerator(
+        {}, mg, {}, tag_cooccurrence={"water|plant": 100}, tag_marginal={"water": 100}
+    )
+    assert name_gen._raw_class_score(set(), {"plant"}) == 0.0
+    assert name_gen._raw_class_score({"water"}, set()) == 0.0
+    # Prior tag with marginal=0 is skipped.
+    assert name_gen._raw_class_score({"unknown_tag"}, {"plant"}) == 0.0
+
+
+def test_raw_class_score_sums_across_tag_cartesian():
+    """test-coverage P3: pin the sum-vs-mean intent — two prior × two
+    candidate tags additively contribute (sum, not max, not mean)."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator, NameGenerator
+
+    mg = MeaningGenerator({"-a": [Meaning("-a", [], [], {})]}, {}, {"-a": 1})
+    cooc = {
+        "water|plant": 50,
+        "water|tree": 30,
+        "fire|plant": 20,
+        "fire|tree": 10,
+    }
+    marg = {"water": 100, "fire": 100}
+    name_gen = NameGenerator({}, mg, {}, tag_cooccurrence=cooc, tag_marginal=marg)
+    # Sum over all 4 (prior, candidate) pairs:
+    #   50/100 + 30/100 + 20/100 + 10/100 = 1.10
+    score = name_gen._raw_class_score({"water", "fire"}, {"plant", "tree"})
+    assert abs(score - 1.10) < 1e-9
+
+
+def test_raw_class_score_is_bit_stable_across_python_hash_seed():
+    """seed-reproducibility hazard fix: PYTHONHASHSEED randomizes set
+    iteration order, and float += is non-associative. Without sorted
+    iteration in _raw_class_score, the same input data produces ULP-
+    level different scores across processes (verified empirically:
+    41.97856592189611 vs 41.978565921896106 vs 41.97856592189612).
+
+    Within ONE process, PYTHONHASHSEED is fixed at startup so
+    set-iteration order is stable across calls — a same-process loop
+    can't catch the hazard. Spawn subprocesses with varied
+    PYTHONHASHSEED env vars and assert the score is bit-identical
+    across them. Without sorted iteration, this test fails.
+    """
+    import subprocess
+    import sys
+
+    script = textwrap.dedent("""
+        from wyrd.generators.kenning.meaning import Meaning
+        from wyrd.generators.kenning.proportions import MeaningGenerator, NameGenerator
+
+        mg = MeaningGenerator({"-a": [Meaning("-a", [], [], {})]}, {}, {"-a": 1})
+        # Dense 20x20 cooccurrence so the sum has many addends — more
+        # terms = more chances for non-associative drift to surface.
+        tags = [f"t{i}" for i in range(20)]
+        cooc = {f"{a}|{b}": (i + j + 1) * 7
+                for i, a in enumerate(tags) for j, b in enumerate(tags)}
+        marg = dict.fromkeys(tags, 100)
+        name_gen = NameGenerator({}, mg, {}, tag_cooccurrence=cooc, tag_marginal=marg)
+        score = name_gen._raw_class_score(set(tags), set(tags))
+        # repr to lock the full float precision across the subprocess boundary.
+        print(repr(score))
+    """)
+    scores = set()
+    # PYTHONHASHSEED=0 disables randomization; positive ints select a
+    # fixed hash seed. A spread of values ensures we hit several distinct
+    # set-iteration orders.
+    for seed_value in ("1", "2", "3", "5", "7", "11", "13", "17"):
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            env={"PYTHONHASHSEED": seed_value, "PATH": os.environ.get("PATH", "")},
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        scores.add(result.stdout.strip())
+    assert len(scores) == 1, f"non-deterministic score across PYTHONHASHSEED: {scores}"
+
+
+def test_generator_select_key_boost_multiplies_weights():
+    """test-coverage P3: direct unit pin of Generator.select(key_boost=...).
+    Strongly skewed boost should flip the empirical winner."""
+    from collections import Counter
+
+    from wyrd.generators.kenning.proportions import Generator
+
+    g = Generator(tag_db={}, elements={"a": 70, "b": 30})
+    # Without boost, 'a' should dominate ~70/30.
+    plain = Counter(g.select(random.Random(i)) for i in range(2000))
+    assert plain["a"] > 1200
+    # With a 10x boost on 'b', 'b' should now dominate ~30*10 vs 70.
+    boost = {"a": 1.0, "b": 10.0}
+    boosted = Counter(g.select(random.Random(i), key_boost=boost) for i in range(2000))
+    assert boosted["b"] > boosted["a"]
+
+
+def test_load_proportions_handles_missing_cooccurrence_keys():
+    """test-coverage P3: legacy bundles without the new tag_cooccurrence
+    / tag_marginal keys must load cleanly — load_proportions defaults
+    both to empty dicts and the resulting NameGenerator has the no-op
+    cohesion path. Pinned at the loader to catch silent rename drift
+    between bundle keys and the loader's `.get(...)` lookup."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import load_proportions
+
+    meaning_db = {"-a": [Meaning("-a", [], [], {})]}
+    tag_db = {}
+    legacy_data = {
+        "usages": {"-a": 1},
+        "single_usages": {"-a": 1},
+        "structures": [{"proportion": 1, "words": [[{"location": "post"}]]}],
+        # No tag_cooccurrence, no tag_marginal — legacy shape.
+    }
+    name_gen = load_proportions(legacy_data, meaning_db, tag_db)
+    assert name_gen.tag_cooccurrence == {}
+    assert name_gen.tag_marginal == {}
+
+
+def test_load_proportions_passes_cooccurrence_keys_through():
+    """test-coverage P3: present-keys path. Confirms the loader actually
+    reads from the bundle dict and threads to NameGenerator."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import load_proportions
+
+    meaning_db = {"-a": [Meaning("-a", [], [], {})]}
+    tag_db = {}
+    data = {
+        "usages": {"-a": 1},
+        "single_usages": {"-a": 1},
+        "structures": [{"proportion": 1, "words": [[{"location": "post"}]]}],
+        "tag_cooccurrence": {"water|plant": 7},
+        "tag_marginal": {"water": 7, "plant": 7},
+    }
+    name_gen = load_proportions(data, meaning_db, tag_db)
+    assert name_gen.tag_cooccurrence == {"water|plant": 7}
+    assert name_gen.tag_marginal == {"water": 7, "plant": 7}
+
+
+def test_kenning_generate_cohesion_one_shifts_distribution_against_seeds():
+    """End-to-end: cohesion=1 shifts the empirical distribution against
+    the no-cohesion baseline. Across 30 seeds at least some names
+    diverge — the bias is real, not a no-op."""
+    from wyrd.generators.kenning import Kenning
+
+    k = Kenning()
+    plain = set()
+    cohered = set()
+    for seed in range(30):
+        plain.add(k.generate({"culture": "english"}, seed=seed).result)
+        cohered.add(k.generate({"culture": "english", "cohesion": 1.0}, seed=seed).result)
+    assert plain != cohered

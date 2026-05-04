@@ -30,6 +30,7 @@ class Generator:
         harshness: float = 0.0,
         exclude_tags: tuple[str, ...] = (),
         keep_keys: frozenset[str] | None = None,
+        key_boost: dict[str, float] | None = None,
     ):
         """Pick one element, optionally blending toward a uniform marginal
         and/or biasing toward phonologically-harsh keys.
@@ -66,6 +67,15 @@ class Generator:
         set from the meaning_db once per ``--era`` value and passes the
         same frozenset for every subsequent select call, so the per-bucket
         intersection here is a fast O(bucket-size) walk.
+
+        ``key_boost`` (wyrd-mj2 cohesion) is a per-key multiplier applied
+        to empirical weights before harshness/novelty composition. The
+        caller (typically NameGenerator) precomputes it per slot from the
+        tag co-occurrence model conditioned on previously-picked usages.
+        Missing keys default to 1.0 (no boost). None means 'no boost'
+        (bit-stable). Composes multiplicatively with harshness; novelty
+        still blends with the uniform marginal LAST so the high-novelty
+        path remains a clean tunable.
         """
         items = self.elements.items()
         if len(tags) > 0:
@@ -77,7 +87,9 @@ class Generator:
         if len(items) == 0:
             return None
         items_list = list(items)
-        if harshness <= 0 and novelty <= 0:
+        if key_boost is not None:
+            items_list = [(k, v * key_boost.get(k, 1.0)) for k, v in items_list]
+        if harshness <= 0 and novelty <= 0 and key_boost is None:
             return weighted_choice(rng, items_list)
         if harshness > 0:
             items_list = _blend_harsh(items_list, harshness)
@@ -188,6 +200,7 @@ class MeaningGenerator:
         harshness: float = 0.0,
         exclude_tags: tuple[str, ...] = (),
         keep_keys: frozenset[str] | None = None,
+        key_boost: dict[str, float] | None = None,
     ):
         return self.generators[key].select(
             rng,
@@ -196,14 +209,42 @@ class MeaningGenerator:
             harshness=harshness,
             exclude_tags=exclude_tags,
             keep_keys=keep_keys,
+            key_boost=key_boost,
         )
+
+    def bucket_keys(self, key) -> tuple[str, ...]:
+        """Return the tuple of usages registered under bucket ``key``.
+        Used by NameGenerator to enumerate candidates when computing the
+        per-slot cohesion boost. Empty tuple if the bucket doesn't exist
+        — caller falls back to the no-boost path."""
+        bucket = self.generators.get(key)
+        if bucket is None:
+            return ()
+        return tuple(bucket.elements)
 
 
 class NameGenerator:
-    def __init__(self, meaning_db, meaning_gen, structs):
+    def __init__(
+        self,
+        meaning_db,
+        meaning_gen,
+        structs,
+        tag_cooccurrence: dict[str, int] | None = None,
+        tag_marginal: dict[str, int] | None = None,
+    ):
         self.meaning_db = meaning_db
         self.meaning_gen = meaning_gen
         self.structs = structs
+        # wyrd-mj2 (D17 β-term per the ticket reframe): tag-level
+        # bigram statistics from each culture's place-name corpus.
+        # ``tag_cooccurrence`` keys are "left|right" tag pairs; values
+        # are co-occurrence counts. ``tag_marginal`` keys are tags;
+        # values are how often each tag appeared as either side of any
+        # pair. Both are optional — legacy bundles without them produce
+        # a no-op cohesion knob (cohesion=0 takes the bit-stable path
+        # regardless).
+        self.tag_cooccurrence = tag_cooccurrence or {}
+        self.tag_marginal = tag_marginal or {}
 
     def select(
         self,
@@ -215,6 +256,7 @@ class NameGenerator:
         harshness: float = 0.0,
         exclude_tags: tuple[str, ...] = (),
         era_range: tuple[int | None, int | None] | None = None,
+        cohesion: float = 0.0,
     ):
         """Pick a structure, fill it with morpheme usages, optionally render
         each usage as an attested archaic spelling variant (D18) or an
@@ -255,6 +297,33 @@ class NameGenerator:
         once per call from ``meaning_gen.keep_keys_for_era`` and reused
         across every per-bucket pick within this name.
 
+        ``cohesion`` (wyrd-mj2) biases each slot's pick toward usages whose
+        tags co-occur with previously-picked slots' tags in the empirical
+        corpus. At ``cohesion=0`` (default) every slot samples
+        independently from its marginal — bit-stable with the pre-D17 path.
+        At ``cohesion=1`` slot-N's empirical weights are scaled by the
+        normalized class-conditional likelihood given the union of prior
+        slots' tags. Intermediate values blend. Composes orthogonally with
+        novelty (which still blends with the uniform marginal LAST) so a
+        GM can dial 'attested-pair fidelity' (cohesion) and 'novelty'
+        independently. No-op when the bundle carries no tag-cooccurrence
+        data (legacy bundles or empty corpora) — ``_cohesion_boost``
+        short-circuits to None and ``Generator.select`` takes its
+        bit-stable fast path. Cohesion gating happens inside
+        ``_cohesion_boost`` (not pre-filtered here) so a single source
+        of truth for the no-op decision lives next to the boost
+        computation.
+
+        Dilution caveat (multi-tag selection): when ``tags`` carries more
+        than one entry, ``_select_tags`` runs an independent pool walk per
+        tag and merges via ``rng.choice``. Each pool maintains its own
+        ``prior_tags`` accumulator, so cohesion biases within each pool
+        but the cross-pool merge undoes some of that bias. Same dynamic
+        applies to harshness and novelty — pre-existing pattern, not a
+        new regression. A future refactor could share prior_tags across
+        pool members, at the cost of breaking the existing per-tag
+        independence invariant.
+
         When both inflection_density and spelling_variety would fire on the
         same morpheme, inflection wins — it carries grammatical meaning
         that the variant axis doesn't.
@@ -270,6 +339,7 @@ class NameGenerator:
                 harshness=harshness,
                 exclude_tags=exclude_tags,
                 keep_keys=keep_keys,
+                cohesion=cohesion,
             )
         else:
             new_name = self._select_tags(
@@ -280,6 +350,7 @@ class NameGenerator:
                 harshness=harshness,
                 exclude_tags=exclude_tags,
                 keep_keys=keep_keys,
+                cohesion=cohesion,
             )
         if spelling_variety > 0 or inflection_density > 0:
             rendered, labels = self._render_substitutions(
@@ -359,21 +430,26 @@ class NameGenerator:
         harshness: float = 0.0,
         exclude_tags: tuple[str, ...] = (),
         keep_keys: frozenset[str] | None = None,
+        cohesion: float = 0.0,
     ):
         words = []
+        prior_tags: set[str] = set()
         for w in struct:
             keys = []
             for key in w:
-                keys.append(
-                    self.meaning_gen.select(
-                        rng,
-                        key,
-                        novelty=novelty,
-                        harshness=harshness,
-                        exclude_tags=exclude_tags,
-                        keep_keys=keep_keys,
-                    )
+                key_boost = self._cohesion_boost(key, prior_tags, cohesion, keep_keys=keep_keys)
+                picked = self.meaning_gen.select(
+                    rng,
+                    key,
+                    novelty=novelty,
+                    harshness=harshness,
+                    exclude_tags=exclude_tags,
+                    keep_keys=keep_keys,
+                    key_boost=key_boost,
                 )
+                keys.append(picked)
+                if picked is not None:
+                    prior_tags.update(self._tags_for_usage(picked))
             words.append(keys)
         return NewName(struct, self.meaning_db, words)
 
@@ -386,6 +462,7 @@ class NameGenerator:
         harshness: float = 0.0,
         exclude_tags: tuple[str, ...] = (),
         keep_keys: frozenset[str] | None = None,
+        cohesion: float = 0.0,
     ):
         name_pool = [
             self._select_no_tag(
@@ -395,6 +472,7 @@ class NameGenerator:
                 harshness=harshness,
                 exclude_tags=exclude_tags,
                 keep_keys=keep_keys,
+                cohesion=cohesion,
             )
         ]
         for tag in tags:
@@ -407,6 +485,7 @@ class NameGenerator:
                     harshness=harshness,
                     exclude_tags=exclude_tags,
                     keep_keys=keep_keys,
+                    cohesion=cohesion,
                 )
             )
         words = []
@@ -435,24 +514,120 @@ class NameGenerator:
         harshness: float = 0.0,
         exclude_tags: tuple[str, ...] = (),
         keep_keys: frozenset[str] | None = None,
+        cohesion: float = 0.0,
     ):
         words = []
+        prior_tags: set[str] = set()
         for w in struct:
             keys = []
             for key in w:
-                keys.append(
-                    self.meaning_gen.select(
-                        rng,
-                        key,
-                        tag,
-                        novelty=novelty,
-                        harshness=harshness,
-                        exclude_tags=exclude_tags,
-                        keep_keys=keep_keys,
-                    )
+                key_boost = self._cohesion_boost(key, prior_tags, cohesion, keep_keys=keep_keys)
+                picked = self.meaning_gen.select(
+                    rng,
+                    key,
+                    tag,
+                    novelty=novelty,
+                    harshness=harshness,
+                    exclude_tags=exclude_tags,
+                    keep_keys=keep_keys,
+                    key_boost=key_boost,
                 )
+                keys.append(picked)
+                if picked is not None:
+                    prior_tags.update(self._tags_for_usage(picked))
             words.append(keys)
         return NewName(struct, self.meaning_db, words)
+
+    def _tags_for_usage(self, usage: str) -> set[str]:
+        """Union of tags across every Meaning sharing one usage. Used to
+        accumulate the prior-context tag set as the cohesion walk fills
+        in slots."""
+        out: set[str] = set()
+        for m in self.meaning_db.get(usage, ()):
+            out.update(m.tags)
+        return out
+
+    def _cohesion_boost(
+        self,
+        bucket_key,
+        prior_tags: set[str],
+        cohesion: float,
+        keep_keys: frozenset[str] | None = None,
+    ) -> dict[str, float] | None:
+        """Per-key multiplier for the bucket given the prior-context tag
+        set. None means 'no boost' — taken on the bit-stable fast path
+        (cohesion=0, no prior tags yet, no co-occurrence data, or no
+        candidate carries any tag).
+
+        ``keep_keys`` (D5-2 era filter) restricts the normalization
+        denominator to the surviving subset of the bucket — without it,
+        the mean would be computed over candidates that ``Generator.select``
+        is about to drop, and the surviving subset's effective mean
+        would drift from 1.0. None means 'no era filter applied' (use
+        the full bucket).
+
+        The boost is normalized so the surviving subset's mean
+        multiplier at cohesion=1 is ~1.0 (preserves total mass): a
+        candidate with average class-conditional likelihood gets ~1×,
+        the strongest gets >1×, the weakest <1×. Composes orthogonally
+        with novelty (uniform-marginal blend) and harshness
+        (phonological re-weight) — both apply downstream in
+        Generator.select.
+        """
+        if cohesion <= 0 or not prior_tags or not self.tag_cooccurrence:
+            return None
+        candidates = self.meaning_gen.bucket_keys(bucket_key)
+        if keep_keys is not None:
+            candidates = tuple(c for c in candidates if c in keep_keys)
+        if not candidates:
+            return None
+        raw_scores: dict[str, float] = {}
+        for usage in candidates:
+            cand_tags = self._tags_for_usage(usage)
+            raw_scores[usage] = self._raw_class_score(prior_tags, cand_tags)
+        nonzero_count = sum(1 for s in raw_scores.values() if s > 0)
+        if nonzero_count == 0:
+            return None
+        total_raw = sum(raw_scores.values())
+        mean_raw = total_raw / len(raw_scores)
+        # Multiplier composition: at cohesion=1, candidates with average
+        # class likelihood get ×1; above-average get >1, below-average
+        # get <1. At cohesion=0 we'd return None (handled above) so the
+        # downstream path is bit-stable.
+        return {
+            usage: (1 - cohesion) + cohesion * (raw / mean_raw) for usage, raw in raw_scores.items()
+        }
+
+    def _raw_class_score(self, prior_tags: set[str], candidate_tags: set[str]) -> float:
+        """Sum of P(tb | ta) over (ta in prior, tb in candidate) using
+        the empirical bigram statistics. Zero when no candidate tag was
+        ever observed following any prior tag in the corpus.
+
+        Sum (rather than mean) is intentional: a candidate carrying many
+        tags that each separately co-occur with the prior context is a
+        stronger match than one carrying a single moderately-cooccurring
+        tag. This biases toward semantically rich morphemes when prior
+        slots have set strong context.
+
+        Iteration is sorted on both axes — set iteration order is
+        hash-randomized across PYTHONHASHSEED, and float += is
+        non-associative. Without sorting, the same input data produces
+        ULP-level different scores across processes, which can flip
+        weighted_choice outcomes at boundaries. Locking iteration order
+        keeps the cohesion path bit-stable across runs.
+        """
+        if not prior_tags or not candidate_tags:
+            return 0.0
+        score = 0.0
+        for ta in sorted(prior_tags):
+            ma = self.tag_marginal.get(ta, 0)
+            if ma == 0:
+                continue
+            for tb in sorted(candidate_tags):
+                count = self.tag_cooccurrence.get(f"{ta}|{tb}", 0)
+                if count:
+                    score += count / ma
+        return score
 
 
 class NewName:
@@ -620,7 +795,13 @@ def load_proportions(data, meaning_db, tag_db):
         proportion = element["proportion"]
         words = tuple(word_to_key(w) for w in element["words"])
         struct[words] = proportion
-    return NameGenerator(meaning_db, mg, struct)
+    # wyrd-mj2: tag-level co-occurrence + marginal — empirical bigram
+    # statistics over the (left.tags × right.tags) cartesian product
+    # learned from each culture's place-name corpus. Optional: legacy
+    # bundles without these keys produce a no-op cohesion knob.
+    cooccurrence = data.get("tag_cooccurrence", {})
+    marginal = data.get("tag_marginal", {})
+    return NameGenerator(meaning_db, mg, struct, cooccurrence, marginal)
 
 
 def _blend_uniform(items, novelty: float):
