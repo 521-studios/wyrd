@@ -1519,7 +1519,8 @@ def test_filter_for_tag_is_bit_stable_across_python_hash_seed():
     Same approach as test_raw_class_score_is_bit_stable_across_python_hash_seed:
     spawn subprocesses with varied PYTHONHASHSEED env vars and assert
     the picked key is bit-identical across them. Without the sort in
-    filter_for_tag, this test fails by producing two distinct keys.
+    filter_for_tag, this test fails — empirically by producing 6
+    distinct keys across the 8 hash seeds below.
     """
     import subprocess
     import sys
