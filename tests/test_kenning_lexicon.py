@@ -19,6 +19,7 @@ from wyrd.generators.kenning.lexicon import (
     _normalize_for_quote_match,
     _position_from_usage,
     _quote_body_excerpt,
+    assign_etymon_to_meaning_synset,
     backfill_citation_pages,
     clear_enrichment,
     cluster_ocr_variants,
@@ -26,15 +27,19 @@ from wyrd.generators.kenning.lexicon import (
     detect_running_headers,
     export_meanings,
     fuzzy_search_attestations,
+    get_meaning_preserving_candidates,
+    get_meaning_synsets_for_etymon,
     ingest_parsed_entries,
     init_schema,
     link_lemmas,
+    list_meaning_synsets,
     lookup_attested_years,
     migrate_schema,
     normalize_ocr_form,
     parse_skeat_section_header_pages,
     record_mining_run,
     seed_from_meanings,
+    seed_meaning_synsets,
 )
 from wyrd.generators.kenning.meaning import load_meanings
 from wyrd.generators.kenning.skeat_parser import ParsedElement, ParsedEntry
@@ -7354,3 +7359,455 @@ def test_cli_bridge_celtic_forms_warns_on_missing_target(
     assert result.exit_code == 0, result.output
     assert "warn:" in result.stderr
     assert "doesn't exist" in result.stderr
+
+
+# --- meaning_synset (wyrd-7tz Phase 1) -------------------------------------
+
+
+def test_init_schema_creates_meaning_synset_tables(fresh_db: Path) -> None:
+    """Fresh DB must have both meaning_synset + etymon_meaning_synset tables.
+    Pin so a regression that drops either table from lexicon.sql surfaces
+    immediately."""
+    conn = sqlite3.connect(fresh_db)
+    try:
+        cur = conn.execute("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
+        tables = {row[0] for row in cur.fetchall()}
+    finally:
+        conn.close()
+    assert "meaning_synset" in tables
+    assert "etymon_meaning_synset" in tables
+
+
+def test_init_schema_meaning_synset_has_unique_canonical_label(fresh_db: Path) -> None:
+    """canonical_label is the natural key — duplicate inserts must fail."""
+    with LexiconDB(fresh_db) as db:
+        db.conn.execute(
+            "INSERT INTO meaning_synset (canonical_label) VALUES (?)", ("water/flowing",)
+        )
+        with pytest.raises(sqlite3.IntegrityError):
+            db.conn.execute(
+                "INSERT INTO meaning_synset (canonical_label) VALUES (?)", ("water/flowing",)
+            )
+
+
+def test_init_schema_etymon_meaning_synset_fit_check_constraint(fresh_db: Path) -> None:
+    """fit must be 'core' or 'peripheral' — bad values must fail at the
+    DB layer so a buggy caller can't silently insert garbage."""
+    with LexiconDB(fresh_db) as db:
+        db.conn.execute(
+            "INSERT INTO meaning_synset (canonical_label) VALUES (?)", ("water/flowing",)
+        )
+        synset_id = db.conn.execute(
+            "SELECT id FROM meaning_synset WHERE canonical_label = ?", ("water/flowing",)
+        ).fetchone()["id"]
+        etymon_id = db.upsert_etymon("wæter", "old-english")
+        with pytest.raises(sqlite3.IntegrityError):
+            db.conn.execute(
+                """
+                INSERT INTO etymon_meaning_synset (etymon_id, meaning_synset_id, fit)
+                VALUES (?, ?, ?)
+                """,
+                (etymon_id, synset_id, "fuzzy"),
+            )
+
+
+def test_seed_meaning_synsets_inserts_full_catalog(fresh_db: Path) -> None:
+    """Seed loader must populate the meaning_synset table from the bundled
+    JSON catalog. The bundled catalog has 50+ entries — check for a known
+    one to confirm the read+insert path works end-to-end."""
+    with LexiconDB(fresh_db) as db:
+        result = seed_meaning_synsets(db)
+    assert result["inserted"] >= 50
+    assert result["updated"] == 0
+    assert result["unchanged"] == 0
+    with LexiconDB(fresh_db) as db:
+        labels = {
+            row["canonical_label"]
+            for row in db.conn.execute("SELECT canonical_label FROM meaning_synset")
+        }
+    # Spot-check spec'd labels.
+    assert "water/flowing" in labels
+    assert "water/body" in labels
+    assert "hill/rounded" in labels
+    assert "enclosure/farmstead" in labels
+
+
+def test_seed_meaning_synsets_resolves_hypernyms(fresh_db: Path) -> None:
+    """The two-pass seed walks the catalog so 'water/flowing' (declared
+    with hypernym='water') gets its hypernym_id resolved against the
+    'water' row inserted in pass 1. Pin via FK lookup."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        water_id = db.conn.execute(
+            "SELECT id FROM meaning_synset WHERE canonical_label = ?", ("water",)
+        ).fetchone()["id"]
+        flowing_hypernym = db.conn.execute(
+            "SELECT hypernym_id FROM meaning_synset WHERE canonical_label = ?",
+            ("water/flowing",),
+        ).fetchone()["hypernym_id"]
+    assert flowing_hypernym == water_id
+
+
+def test_seed_meaning_synsets_idempotent(fresh_db: Path) -> None:
+    """Running the seed twice on the same DB is a no-op — the second run
+    reports 0 inserted, 0 updated, all unchanged."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        result_second = seed_meaning_synsets(db)
+    assert result_second["inserted"] == 0
+    assert result_second["updated"] == 0
+    assert result_second["unchanged"] >= 50
+
+
+def test_seed_meaning_synsets_updates_drifted_notes(fresh_db: Path) -> None:
+    """If a row's notes have drifted from the catalog (e.g. someone
+    edited the JSON to clarify a definition), the next seed run brings
+    them into sync — counted as 'updated', not 'unchanged'."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        db.conn.execute(
+            "UPDATE meaning_synset SET notes = ? WHERE canonical_label = ?",
+            ("STALE", "water/flowing"),
+        )
+        db.commit()
+        result = seed_meaning_synsets(db)
+    assert result["updated"] == 1
+    with LexiconDB(fresh_db) as db:
+        notes = db.conn.execute(
+            "SELECT notes FROM meaning_synset WHERE canonical_label = ?", ("water/flowing",)
+        ).fetchone()["notes"]
+    assert notes != "STALE"
+    assert "OE wæter" in notes
+
+
+def test_assign_etymon_to_meaning_synset_inserts_first_time(fresh_db: Path) -> None:
+    """First-time assignment returns True (inserted)."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        etymon_id = db.upsert_etymon("wæter", "old-english")
+        db.commit()
+        inserted = assign_etymon_to_meaning_synset(db, etymon_id, "water/flowing")
+    assert inserted is True
+
+
+def test_assign_etymon_to_meaning_synset_idempotent(fresh_db: Path) -> None:
+    """Re-assigning the same (etymon, synset, fit) triple is a no-op
+    returning False (not inserted, not changed)."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        etymon_id = db.upsert_etymon("wæter", "old-english")
+        db.commit()
+        assign_etymon_to_meaning_synset(db, etymon_id, "water/flowing")
+        again = assign_etymon_to_meaning_synset(db, etymon_id, "water/flowing")
+    assert again is False
+
+
+def test_assign_etymon_to_meaning_synset_updates_fit(fresh_db: Path) -> None:
+    """Re-assigning with a different fit updates the existing row in
+    place, returns False (not a fresh insert)."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        etymon_id = db.upsert_etymon("wæter", "old-english")
+        db.commit()
+        assign_etymon_to_meaning_synset(db, etymon_id, "water/flowing", fit="peripheral")
+        result = assign_etymon_to_meaning_synset(db, etymon_id, "water/flowing", fit="core")
+    assert result is False
+    with LexiconDB(fresh_db) as db:
+        synsets = get_meaning_synsets_for_etymon(db, etymon_id)
+    assert synsets[0]["fit"] == "core"
+
+
+def test_assign_etymon_to_meaning_synset_raises_on_unknown_etymon(fresh_db: Path) -> None:
+    """Bad etymon_id must surface as a ValueError so a typo at the CLI
+    surface doesn't silently insert nothing."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        with pytest.raises(ValueError, match="unknown etymon_id"):
+            assign_etymon_to_meaning_synset(db, 9999, "water/flowing")
+
+
+def test_assign_etymon_to_meaning_synset_raises_on_unknown_synset(fresh_db: Path) -> None:
+    """Bad synset_label must surface as a ValueError naming the bad
+    label so the user sees what they typo'd."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        etymon_id = db.upsert_etymon("wæter", "old-english")
+        db.commit()
+        with pytest.raises(ValueError, match="unknown meaning_synset label"):
+            assign_etymon_to_meaning_synset(db, etymon_id, "water/imaginary")
+
+
+def test_assign_etymon_to_meaning_synset_raises_on_bad_fit(fresh_db: Path) -> None:
+    """Validation runs in Python before SQLite is touched — bad fit
+    raises ValueError, not IntegrityError."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        etymon_id = db.upsert_etymon("wæter", "old-english")
+        db.commit()
+        with pytest.raises(ValueError, match="fit must be"):
+            assign_etymon_to_meaning_synset(db, etymon_id, "water/flowing", fit="fuzzy")
+
+
+def test_get_meaning_synsets_for_etymon_orders_core_first(fresh_db: Path) -> None:
+    """Multi-synset membership must surface 'core' before 'peripheral'
+    so callers can pick the primary sense without sorting again."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        etymon_id = db.upsert_etymon("wæter", "old-english")
+        db.commit()
+        # water/body is alphabetically before water/flowing, but assigned
+        # peripheral; water/flowing is core.
+        assign_etymon_to_meaning_synset(db, etymon_id, "water/body", fit="peripheral")
+        assign_etymon_to_meaning_synset(db, etymon_id, "water/flowing", fit="core")
+        synsets = get_meaning_synsets_for_etymon(db, etymon_id)
+    assert [s["canonical_label"] for s in synsets] == ["water/flowing", "water/body"]
+
+
+def test_get_meaning_preserving_candidates_returns_cross_language(fresh_db: Path) -> None:
+    """Spec'd regression test: OE wæter + ON bekkr both in water/flowing
+    AND OE mere in water/body. Candidates for wæter include bekkr but
+    NOT mere."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        waeter = db.upsert_etymon("wæter", "old-english")
+        stream = db.upsert_etymon("strēam", "old-english")
+        mere = db.upsert_etymon("mere", "old-english")
+        bekkr = db.upsert_etymon("bekkr", "old-norse")
+        db.commit()
+        assign_etymon_to_meaning_synset(db, waeter, "water/flowing")
+        assign_etymon_to_meaning_synset(db, stream, "water/flowing")
+        assign_etymon_to_meaning_synset(db, mere, "water/body")
+        assign_etymon_to_meaning_synset(db, bekkr, "water/flowing")
+        rows = get_meaning_preserving_candidates(db, waeter)
+    forms = {r["canonical_form"] for r in rows}
+    assert "strēam" in forms
+    assert "bekkr" in forms
+    assert "mere" not in forms
+    assert "wæter" not in forms  # default excludes self
+
+
+def test_get_meaning_preserving_candidates_target_language_filter(fresh_db: Path) -> None:
+    """target_language filter restricts candidates to one language —
+    the anglicize/foreignize transform's primary use case."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        waeter = db.upsert_etymon("wæter", "old-english")
+        stream = db.upsert_etymon("strēam", "old-english")
+        bekkr = db.upsert_etymon("bekkr", "old-norse")
+        db.commit()
+        for eid in (waeter, stream, bekkr):
+            assign_etymon_to_meaning_synset(db, eid, "water/flowing")
+        rows = get_meaning_preserving_candidates(db, waeter, target_language="old-norse")
+    assert {r["canonical_form"] for r in rows} == {"bekkr"}
+
+
+def test_get_meaning_preserving_candidates_fit_filter(fresh_db: Path) -> None:
+    """fit='core' restricts BOTH ends of the join — only candidates
+    where the source AND the candidate are in the synset as 'core'."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        waeter = db.upsert_etymon("wæter", "old-english")
+        stream = db.upsert_etymon("strēam", "old-english")
+        burna = db.upsert_etymon("burna", "old-english")
+        db.commit()
+        assign_etymon_to_meaning_synset(db, waeter, "water/flowing", fit="core")
+        assign_etymon_to_meaning_synset(db, stream, "water/flowing", fit="core")
+        assign_etymon_to_meaning_synset(db, burna, "water/flowing", fit="peripheral")
+        rows = get_meaning_preserving_candidates(db, waeter, fit="core")
+    assert {r["canonical_form"] for r in rows} == {"strēam"}
+
+
+def test_get_meaning_preserving_candidates_include_self(fresh_db: Path) -> None:
+    """include_self=True keeps the source etymon in the result — useful
+    for dedup-aware callers."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        waeter = db.upsert_etymon("wæter", "old-english")
+        stream = db.upsert_etymon("strēam", "old-english")
+        db.commit()
+        assign_etymon_to_meaning_synset(db, waeter, "water/flowing")
+        assign_etymon_to_meaning_synset(db, stream, "water/flowing")
+        rows = get_meaning_preserving_candidates(db, waeter, include_self=True)
+    assert {r["canonical_form"] for r in rows} == {"wæter", "strēam"}
+
+
+def test_get_meaning_preserving_candidates_empty_when_no_membership(fresh_db: Path) -> None:
+    """An etymon with no synset memberships has no meaning-preserving
+    candidates — empty list, no crash."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        etymon_id = db.upsert_etymon("wæter", "old-english")
+        db.commit()
+        rows = get_meaning_preserving_candidates(db, etymon_id)
+    assert rows == []
+
+
+def test_list_meaning_synsets_with_member_counts(fresh_db: Path) -> None:
+    """member_count column reports per-synset membership tally so a CLI
+    user can spot empty/under-populated synsets."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        waeter = db.upsert_etymon("wæter", "old-english")
+        stream = db.upsert_etymon("strēam", "old-english")
+        db.commit()
+        assign_etymon_to_meaning_synset(db, waeter, "water/flowing")
+        assign_etymon_to_meaning_synset(db, stream, "water/flowing")
+        synsets = list_meaning_synsets(db, with_member_counts=True)
+    flowing = [s for s in synsets if s["canonical_label"] == "water/flowing"][0]
+    body = [s for s in synsets if s["canonical_label"] == "water/body"][0]
+    assert flowing["member_count"] == 2
+    assert body["member_count"] == 0
+
+
+def test_migrate_schema_creates_meaning_synset_tables_on_legacy_db(tmp_path: Path) -> None:
+    """A pre-wyrd-7tz DB without the meaning_synset tables should get
+    them via migrate_schema — both tables created, both reported as
+    applied=True."""
+    # Build a DB with the WAL-pragma schema but DROP the new tables to
+    # simulate a legacy state.
+    db_path = tmp_path / "legacy.db"
+    init_schema(db_path)
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("DROP TABLE etymon_meaning_synset")
+        conn.execute("DROP TABLE meaning_synset")
+        conn.commit()
+    finally:
+        conn.close()
+    with LexiconDB(db_path) as db:
+        applied = migrate_schema(db)
+    assert applied["meaning_synset_table"] is True
+    assert applied["etymon_meaning_synset_table"] is True
+    # And re-running is a no-op.
+    with LexiconDB(db_path) as db:
+        applied_second = migrate_schema(db)
+    assert applied_second["meaning_synset_table"] is False
+    assert applied_second["etymon_meaning_synset_table"] is False
+
+
+# --- CLI: lexicon synsets ---------------------------------------------------
+
+
+def test_cli_lexicon_synsets_seed(fresh_db: Path) -> None:
+    """`lexicon synsets seed` populates the catalog from bundled JSON."""
+    result = CliRunner().invoke(kenning_cli, ["lexicon", "synsets", "seed", "--db", str(fresh_db)])
+    assert result.exit_code == 0, result.output
+    assert "inserted=" in result.output
+    with LexiconDB(fresh_db) as db:
+        n = db.conn.execute("SELECT COUNT(*) AS c FROM meaning_synset").fetchone()["c"]
+    assert n >= 50
+
+
+def test_cli_lexicon_synsets_list_with_counts(fresh_db: Path) -> None:
+    """`synsets list --with-counts` shows per-synset membership tallies."""
+    runner = CliRunner()
+    runner.invoke(kenning_cli, ["lexicon", "synsets", "seed", "--db", str(fresh_db)])
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("wæter", "old-english")
+        db.commit()
+        assign_etymon_to_meaning_synset(db, eid, "water/flowing")
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "synsets", "list", "--db", str(fresh_db), "--with-counts"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "water/flowing" in result.output
+    # The water/flowing line should show 1 member.
+    flowing_line = next(ln for ln in result.output.splitlines() if "water/flowing" in ln)
+    assert "1 members" in flowing_line
+
+
+def test_cli_lexicon_synsets_assign_and_show(fresh_db: Path) -> None:
+    """`synsets assign` writes a membership; `synsets show` reads it back."""
+    runner = CliRunner()
+    runner.invoke(kenning_cli, ["lexicon", "synsets", "seed", "--db", str(fresh_db)])
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("wæter", "old-english")
+        db.commit()
+    assign_result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "synsets", "assign", str(eid), "water/flowing", "--db", str(fresh_db)],
+    )
+    assert assign_result.exit_code == 0, assign_result.output
+    assert "Added" in assign_result.output
+
+    show_result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "synsets", "show", str(eid), "--db", str(fresh_db)],
+    )
+    assert show_result.exit_code == 0, show_result.output
+    assert "water/flowing" in show_result.output
+    assert "core" in show_result.output
+
+
+def test_cli_lexicon_synsets_assign_unknown_synset_exits_nonzero(fresh_db: Path) -> None:
+    """A bad synset label at the CLI surface exits non-zero with a
+    friendly error rather than spilling a Python traceback."""
+    runner = CliRunner()
+    runner.invoke(kenning_cli, ["lexicon", "synsets", "seed", "--db", str(fresh_db)])
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("wæter", "old-english")
+        db.commit()
+    result = runner.invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "synsets",
+            "assign",
+            str(eid),
+            "water/imaginary",
+            "--db",
+            str(fresh_db),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "unknown meaning_synset label" in result.output
+
+
+def test_cli_lexicon_synsets_candidates_cross_language(fresh_db: Path) -> None:
+    """End-to-end: assign two etymons to the same synset, then ask for
+    candidates of one — the other should appear."""
+    runner = CliRunner()
+    runner.invoke(kenning_cli, ["lexicon", "synsets", "seed", "--db", str(fresh_db)])
+    with LexiconDB(fresh_db) as db:
+        waeter = db.upsert_etymon("wæter", "old-english")
+        bekkr = db.upsert_etymon("bekkr", "old-norse")
+        db.commit()
+        assign_etymon_to_meaning_synset(db, waeter, "water/flowing")
+        assign_etymon_to_meaning_synset(db, bekkr, "water/flowing")
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "synsets", "candidates", str(waeter), "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "bekkr" in result.output
+    assert "water/flowing" in result.output
+
+
+def test_cli_lexicon_synsets_candidates_target_language(fresh_db: Path) -> None:
+    """--target-language restricts the candidate pool to one language."""
+    runner = CliRunner()
+    runner.invoke(kenning_cli, ["lexicon", "synsets", "seed", "--db", str(fresh_db)])
+    with LexiconDB(fresh_db) as db:
+        waeter = db.upsert_etymon("wæter", "old-english")
+        stream = db.upsert_etymon("strēam", "old-english")
+        bekkr = db.upsert_etymon("bekkr", "old-norse")
+        db.commit()
+        for eid in (waeter, stream, bekkr):
+            assign_etymon_to_meaning_synset(db, eid, "water/flowing")
+    result = runner.invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "synsets",
+            "candidates",
+            str(waeter),
+            "--target-language",
+            "old-norse",
+            "--db",
+            str(fresh_db),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "bekkr" in result.output
+    assert "strēam" not in result.output

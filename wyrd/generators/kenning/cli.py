@@ -32,6 +32,7 @@ from wyrd.generators.kenning.lexicon import (
     LANGUAGE_FIELDS,
     RECOMMENDED_LANG_THRESHOLDS,
     LexiconDB,
+    assign_etymon_to_meaning_synset,
     backfill_citation_pages,
     bridge_celtic_forms,
     bridge_generic_language,
@@ -43,14 +44,18 @@ from wyrd.generators.kenning.lexicon import (
     detect_running_headers,
     export_meanings,
     fuzzy_search_attestations,
+    get_meaning_preserving_candidates,
+    get_meaning_synsets_for_etymon,
     ingest_parsed_entries,
     init_schema,
     link_lemmas,
+    list_meaning_synsets,
     lookup_attested_years,
     migrate_schema,
     record_mining_run,
     reverse_search_attestations,
     seed_from_meanings,
+    seed_meaning_synsets,
 )
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.name import load_names
@@ -2935,6 +2940,162 @@ def lexicon_stats(db_path: Path) -> None:
         stats = db.stats()
     for table, n in stats.items():
         click.echo(f"{table:<30} {n:>8}")
+
+
+@lexicon.group("synsets")
+def lexicon_synsets() -> None:
+    """Meaning-synset commands (wyrd-7tz Phase 1).
+
+    Manage the meaning_synset / etymon_meaning_synset tables — fine-
+    grained semantic equivalence classes used by upcoming generator
+    transforms (calque, anglicize, drift-toward-X). Distinct from the
+    cognate-cluster etymon.synset_id populated by cluster-cognates.
+    """
+
+
+@lexicon_synsets.command("seed")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+def lexicon_synsets_seed(db_path: Path) -> None:
+    """Idempotently populate meaning_synset from the bundled catalog
+    (data/meaning_synsets.json). Reports inserts / updates / unchanged."""
+    with LexiconDB(db_path) as db:
+        result = seed_meaning_synsets(db)
+    click.echo(
+        f"meaning_synset seed: inserted={result['inserted']} "
+        f"updated={result['updated']} unchanged={result['unchanged']}"
+    )
+
+
+@lexicon_synsets.command("list")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+@click.option(
+    "--with-counts",
+    "with_counts",
+    is_flag=True,
+    default=False,
+    help="Include member-count column (etymons assigned per synset).",
+)
+def lexicon_synsets_list(db_path: Path, with_counts: bool) -> None:
+    """List all meaning_synset rows, sorted by canonical_label."""
+    with LexiconDB(db_path) as db:
+        synsets = list_meaning_synsets(db, with_member_counts=with_counts)
+    if not synsets:
+        click.echo("(no meaning_synset rows — run `wyrd kenning lexicon synsets seed`)")
+        return
+    for s in synsets:
+        if with_counts:
+            click.echo(f"  {s['canonical_label']:<32} ({s['member_count']:>4} members)")
+        else:
+            click.echo(f"  {s['canonical_label']}")
+
+
+@lexicon_synsets.command("assign")
+@click.argument("etymon_id", type=int)
+@click.argument("synset_label", type=str)
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+@click.option(
+    "--fit",
+    type=click.Choice(["core", "peripheral"]),
+    default="core",
+    show_default=True,
+    help="'core' = primary sense; 'peripheral' = secondary sense.",
+)
+def lexicon_synsets_assign(etymon_id: int, synset_label: str, db_path: Path, fit: str) -> None:
+    """Add an etymon as a member of a meaning_synset. Idempotent: re-running
+    with the same args is a no-op; re-running with a different --fit
+    updates the existing row."""
+    with LexiconDB(db_path) as db:
+        try:
+            inserted = assign_etymon_to_meaning_synset(db, etymon_id, synset_label, fit=fit)
+        except ValueError as exc:
+            click.echo(f"Error: {exc}", err=True)
+            sys.exit(1)
+    click.echo(f"{'Added' if inserted else 'Updated'} etymon {etymon_id} → {synset_label} ({fit})")
+
+
+@lexicon_synsets.command("show")
+@click.argument("etymon_id", type=int)
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+def lexicon_synsets_show(etymon_id: int, db_path: Path) -> None:
+    """Show the meaning_synsets an etymon belongs to."""
+    with LexiconDB(db_path) as db:
+        synsets = get_meaning_synsets_for_etymon(db, etymon_id)
+    if not synsets:
+        click.echo(f"(etymon {etymon_id} has no meaning_synset memberships)")
+        return
+    for s in synsets:
+        click.echo(f"  {s['canonical_label']:<32} ({s['fit']})")
+
+
+@lexicon_synsets.command("candidates")
+@click.argument("etymon_id", type=int)
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+@click.option(
+    "--target-language",
+    type=str,
+    default=None,
+    help="Restrict candidates to one language (e.g. 'old-english').",
+)
+@click.option(
+    "--fit",
+    type=click.Choice(["core", "peripheral"]),
+    default=None,
+    help="Restrict to high-confidence ('core') or peripheral memberships only.",
+)
+def lexicon_synsets_candidates(
+    etymon_id: int,
+    db_path: Path,
+    target_language: str | None,
+    fit: str | None,
+) -> None:
+    """Show meaning-preserving substitution candidates for an etymon —
+    other etymons that share at least one meaning_synset.
+
+    Used by upcoming Lab transforms (replace-root, calque, anglicize)
+    to look up same-meaning morphemes across languages and registers.
+    """
+    with LexiconDB(db_path) as db:
+        rows = get_meaning_preserving_candidates(
+            db, etymon_id, target_language=target_language, fit=fit
+        )
+    if not rows:
+        click.echo(f"(no meaning-preserving candidates for etymon {etymon_id})")
+        return
+    for r in rows:
+        click.echo(
+            f"  {r['canonical_form']:<24} {r['language']:<14} "
+            f"{r['synset_label']:<28} (fit: {r['candidate_fit']})"
+        )
 
 
 @cli.command("validate-meanings")
