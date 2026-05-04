@@ -883,6 +883,25 @@ def test_meaning_generator_keep_keys_for_era_filters_by_attestation():
     assert keep == frozenset({"-in", "-none"})
 
 
+def test_meaning_generator_keep_keys_for_era_full_coverage_returns_none():
+    """When the computed keep-set covers EVERY usage in meaning_db,
+    keep_keys_for_era collapses to None — the bit-stable no-filter
+    signal for Generator.select. Steady-state today: zero usages
+    carry attested_years data, so every era_range is full-coverage
+    and the runtime takes the fast path. Pinned because two reviewers
+    converged on the un-pinned-branch concern. wyrd-lyp."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator
+
+    # Mix: one in-era morpheme with attestation, one with NO data.
+    # Both pass the (800, 1100) window — the no-data one passes by the
+    # 'no attestation → pass through' rule. So coverage is total → None.
+    m_in = Meaning("-in", [], [], {}, attested_years={"old_english": [("in", 950)]})
+    m_no_data = Meaning("-no-data", [], [], {})
+    mg = MeaningGenerator({"-in": [m_in], "-no-data": [m_no_data]}, {}, {"-in": 1, "-no-data": 1})
+    assert mg.keep_keys_for_era((800, 1100)) is None
+
+
 def test_meaning_generator_keep_keys_for_era_caches_per_range():
     """Two calls with the same era_range share the precomputed set so
     the meaning_db isn't re-walked per bucket. Pin via identity (the
