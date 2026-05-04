@@ -2337,7 +2337,7 @@ def lexicon_normalize_ocr(db_path: Path, apply_changes: bool) -> None:
         "Which enrichment stage to clear. 'ocr' un-marks merged_into_id, "
         "'lemmas' resets lemma_id/inflection/lemma_method, 'text-match' "
         "drops the etymon_text_match table, 'cognates' resets "
-        "synset_id/synset_method (D27/wyrd-81n), 'attested-years' resets "
+        "cognate_id/cognate_method (D27/wyrd-81n), 'attested-years' resets "
         "etymon_text_match.attested_year (D5-1/wyrd-3ux), 'all-derived' "
         "does all five."
     ),
@@ -2372,9 +2372,9 @@ def lexicon_clear_enrichment(db_path: Path, stage: str, apply_changes: bool) -> 
         click.echo(f"  {verb} {result['lemma_links_to_clear']} lemma links", err=True)
     if result["text_match_rows_to_clear"]:
         click.echo(f"  {verb} {result['text_match_rows_to_clear']} text-match rows", err=True)
-    if result["synset_assignments_to_clear"]:
+    if result["cognate_assignments_to_clear"]:
         click.echo(
-            f"  {verb} {result['synset_assignments_to_clear']} synset_id assignments", err=True
+            f"  {verb} {result['cognate_assignments_to_clear']} cognate_id assignments", err=True
         )
     if result.get("attested_years_to_clear"):
         click.echo(f"  {verb} {result['attested_years_to_clear']} attested_year values", err=True)
@@ -2395,15 +2395,15 @@ def lexicon_clear_enrichment(db_path: Path, stage: str, apply_changes: bool) -> 
     "apply_changes",
     is_flag=True,
     default=False,
-    help="Actually write synset_id assignments. Without this flag the command runs as a dry-run.",
+    help="Actually write cognate_id assignments. Without this flag the command runs as a dry-run.",
 )
 def lexicon_cluster_cognates(db_path: Path, apply_changes: bool) -> None:
-    """Walk the etymon_descent graph from each root and assign synset_id
+    """Walk the etymon_descent graph from each root and assign cognate_id
     to every reachable descendant (D27 / wyrd-81n).
 
     Roots are etymons that participate in inheritance/borrowing edges as
     parent but never as child — typically Proto-* forms. Every descendant
-    reachable via inheritance + borrowing edges gets synset_id =
+    reachable via inheritance + borrowing edges gets cognate_id =
     root.id, so cross-language cognates cluster behind a single canonical
     pointer. The 'cognate' edge type is a peer relation, NOT a chain,
     and does NOT bridge synsets.
@@ -2417,7 +2417,7 @@ def lexicon_cluster_cognates(db_path: Path, apply_changes: bool) -> None:
     verb = "assigned" if apply_changes else "would assign"
     click.echo(
         f"cluster-cognates: {result['roots']} root(s) walked, "
-        f"{verb} synset_id on {result['candidates']} etymon(s)",
+        f"{verb} cognate_id on {result['candidates']} etymon(s)",
         err=True,
     )
     if apply_changes:
@@ -2509,7 +2509,7 @@ def lexicon_bridge_language(
 
     Run AFTER wiktextract ingest + AFTER normalize-ocr. Re-running
     cluster-cognates after this pass is recommended to refresh
-    synset_id assignments.
+    cognate_id assignments.
 
     Reverse via `clear-enrichment --stage=ocr --apply` (the bridge uses
     the same merged_into_id mechanism).
@@ -2584,7 +2584,7 @@ def lexicon_bridge_celtic_forms(db_path: Path, apply_changes: bool) -> None:
     counterpart in the same pass.
 
     Run AFTER bridge-language and AFTER wiktextract ingest.
-    Re-run cluster-cognates afterward to refresh synset_id assignments
+    Re-run cluster-cognates afterward to refresh cognate_id assignments
     via the merged_into_id rollup.
 
     Reverse via `clear-enrichment --stage=ocr --apply` (the bridge uses
@@ -2639,7 +2639,7 @@ def lexicon_bridge_phonological_oe(db_path: Path, apply_changes: bool) -> None:
     via merged_into_id (D22 non-destructive).
 
     Run AFTER wiktextract ingest. Re-run cluster-cognates afterward
-    to refresh synset_id assignments via the merged_into_id rollup.
+    to refresh cognate_id assignments via the merged_into_id rollup.
 
     Reverse via `clear-enrichment --stage=ocr --apply` (the bridge
     uses the same merged_into_id mechanism).
@@ -2692,7 +2692,7 @@ def lexicon_bridge_phonological_on(db_path: Path, apply_changes: bool) -> None:
     merged_into_id (D22 non-destructive).
 
     Run AFTER wiktextract ingest. Re-run cluster-cognates afterward
-    to refresh synset_id assignments via the merged_into_id rollup.
+    to refresh cognate_id assignments via the merged_into_id rollup.
 
     Reverse via `clear-enrichment --stage=ocr --apply` (the bridge
     uses the same merged_into_id mechanism).
@@ -2769,7 +2769,7 @@ def lexicon_ingest_wiktionary(
     Source attribution is the synthetic 'wiktionary' source row.
 
     Run `wyrd kenning lexicon cluster-cognates --apply` afterward to
-    populate synset_id from the new descent edges.
+    populate cognate_id from the new descent edges.
 
     Both .jsonl and .jsonl.gz are accepted; the suffix selects the
     open mode.
@@ -2949,7 +2949,7 @@ def lexicon_synsets() -> None:
     Manage the meaning_synset / etymon_meaning_synset tables — fine-
     grained semantic equivalence classes used by upcoming generator
     transforms (calque, anglicize, drift-toward-X). Distinct from the
-    cognate-cluster etymon.synset_id populated by cluster-cognates.
+    cognate-cluster etymon.cognate_id populated by cluster-cognates.
     """
 
 

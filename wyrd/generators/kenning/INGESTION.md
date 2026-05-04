@@ -606,7 +606,7 @@ D27).
 
 ### Cluster cognates afterward
 
-The ingest only writes descent edges. To populate `etymon.synset_id`
+The ingest only writes descent edges. To populate `etymon.cognate_id`
 so cross-language cognate queries become a single JOIN, run the
 cluster pass next:
 
@@ -614,7 +614,7 @@ cluster pass next:
 .venv/bin/wyrd kenning lexicon cluster-cognates --apply
 ```
 
-This walks the descent graph from each root and assigns `synset_id`
+This walks the descent graph from each root and assigns `cognate_id`
 to every reachable etymon. Reversible via
 `clear-enrichment --stage=cognates --apply`.
 
@@ -795,13 +795,13 @@ ORDER BY e.language, e.canonical_form;
 
 ```sql
 -- Cross-language cognates of a modern word (after wyrd-81n
--- cluster-cognates populates synset_id)
+-- cluster-cognates populates cognate_id)
 SELECT e.canonical_form, e.language
 FROM etymon e
-WHERE e.synset_id = (
-        SELECT synset_id FROM etymon WHERE canonical_form = 'town' AND language = 'modern-english'
+WHERE e.cognate_id = (
+        SELECT cognate_id FROM etymon WHERE canonical_form = 'town' AND language = 'modern-english'
       )
-  AND e.synset_id IS NOT NULL;
+  AND e.cognate_id IS NOT NULL;
 ```
 
 ```sql
@@ -813,7 +813,7 @@ ORDER BY e.language, e.canonical_form;
 ```
 
 Edge types and their semantics:
-- `inheritance` (`{{inh}}`) — direct lineage, bridges synset clustering.
+- `inheritance` (`{{inh}}`) — direct lineage, bridges cognate clustering.
 - `borrowing` (`{{bor}}`) — borrowed across languages, also bridges.
 - `cognate` (`{{cog}}`) — peer relation; does NOT bridge (would over-unify).
 - `derivation` (`{{der}}`), `calque` (`{{cal}}`), `compound` (`{{compound}}` / `{{affix}}`) — context-specific.

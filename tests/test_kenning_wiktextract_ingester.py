@@ -557,7 +557,7 @@ def test_ingest_then_cluster_cognates_assigns_synsets_across_languages(
 ) -> None:
     """The full chain: ingest a Proto-Germanic entry's Etymology +
     Descendants → run cluster_cognates → every reachable etymon
-    carries the same synset_id pointing at the proto root.
+    carries the same cognate_id pointing at the proto root.
 
     This is the load-bearing integration test — it proves the full
     Wiktionary→cluster pipeline works end-to-end on realistic data."""
@@ -583,8 +583,8 @@ def test_ingest_then_cluster_cognates_assigns_synsets_across_languages(
         ingest_wiktextract_stream(db, _stream(line), apply=True)
         cluster_result = cluster_cognates(db, apply=True)
         rows = {
-            row["canonical_form"]: row["synset_id"]
-            for row in db.conn.execute("SELECT canonical_form, synset_id FROM etymon")
+            row["canonical_form"]: row["cognate_id"]
+            for row in db.conn.execute("SELECT canonical_form, cognate_id FROM etymon")
         }
         proto_id = db.conn.execute(
             "SELECT id FROM etymon WHERE canonical_form = '*tūnaz'"
@@ -992,7 +992,7 @@ def test_same_lang_derivation_with_missing_parent_word_is_skipped(
 def test_compound_edge_does_not_bridge_synsets(fresh_db: Path) -> None:
     """Compound is correctly classified outside the bridging set
     (per D27 + wyrd-81n: only inheritance and borrowing bridge
-    synset_id). Pin so re-running cluster-cognates after a compound-
+    cognate_id). Pin so re-running cluster-cognates after a compound-
     only ingest produces zero clusters from those edges alone."""
     from wyrd.generators.kenning.lexicon import cluster_cognates
 
