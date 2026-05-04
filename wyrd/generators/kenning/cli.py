@@ -3002,7 +3002,7 @@ def lexicon_synsets_list(db_path: Path, with_counts: bool) -> None:
 
 
 @lexicon_synsets.command("assign")
-@click.argument("etymon_id", type=int)
+@click.argument("etymon_ident", type=str)
 @click.argument("synset_label", type=str)
 @click.option(
     "--db",
@@ -3012,23 +3012,72 @@ def lexicon_synsets_list(db_path: Path, with_counts: bool) -> None:
     show_default=LEXICON_DB_DEFAULT_DISPLAY,
 )
 @click.option(
+    "--language",
+    type=str,
+    default=None,
+    help=(
+        "When set, ETYMON_IDENT is treated as a canonical_form looked up "
+        "via (form, language) — more ergonomic for human curators than "
+        "looking up the integer id first. Without --language, "
+        "ETYMON_IDENT must be a numeric etymon.id."
+    ),
+)
+@click.option(
     "--fit",
     type=click.Choice(["core", "peripheral"]),
     default="core",
     show_default=True,
     help="'core' = primary sense; 'peripheral' = secondary sense.",
 )
-def lexicon_synsets_assign(etymon_id: int, synset_label: str, db_path: Path, fit: str) -> None:
+def lexicon_synsets_assign(
+    etymon_ident: str,
+    synset_label: str,
+    db_path: Path,
+    language: str | None,
+    fit: str,
+) -> None:
     """Add an etymon as a member of a meaning_synset. Idempotent: re-running
     with the same args is a no-op; re-running with a different --fit
-    updates the existing row."""
+    updates the existing row.
+
+    ETYMON_IDENT is either a numeric etymon.id (default) or a
+    canonical_form when --language is given (e.g. ``assign wæter
+    water/flowing --language old-english``).
+    """
     with LexiconDB(db_path) as db:
         try:
+            etymon_id = _resolve_etymon_ident(db, etymon_ident, language)
             inserted = assign_etymon_to_meaning_synset(db, etymon_id, synset_label, fit=fit)
         except ValueError as exc:
             click.echo(f"Error: {exc}", err=True)
             sys.exit(1)
     click.echo(f"{'Added' if inserted else 'Updated'} etymon {etymon_id} → {synset_label} ({fit})")
+
+
+def _resolve_etymon_ident(db: LexiconDB, ident: str, language: str | None) -> int:
+    """Resolve an etymon-identifying CLI arg to an etymon.id.
+
+    Without ``--language``, ident must be a numeric id. With
+    ``--language``, ident is treated as a canonical_form and looked up
+    via (form, language). Raises ValueError with a friendly message on
+    every failure mode (non-numeric without --language; missing form;
+    ambiguous form). The caller surfaces the message on stderr +
+    exits non-zero, matching the rest of this CLI's error pattern."""
+    if language is None:
+        try:
+            return int(ident)
+        except ValueError:
+            raise ValueError(
+                f"etymon ident {ident!r} is not numeric; pass --language to "
+                f"look up by canonical_form, or use an integer etymon.id"
+            ) from None
+    row = db.conn.execute(
+        "SELECT id FROM etymon WHERE canonical_form = ? AND language = ?",
+        (ident, language),
+    ).fetchone()
+    if row is None:
+        raise ValueError(f"no etymon with canonical_form={ident!r} language={language!r}")
+    return row["id"]
 
 
 @lexicon_synsets.command("show")

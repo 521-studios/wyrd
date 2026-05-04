@@ -7811,3 +7811,263 @@ def test_cli_lexicon_synsets_candidates_target_language(fresh_db: Path) -> None:
     assert result.exit_code == 0, result.output
     assert "bekkr" in result.output
     assert "strēam" not in result.output
+
+
+# --- wyrd-7tz Phase 1 round-2 follow-ups -----------------------------------
+
+
+def test_get_meaning_preserving_candidates_dedupe_collapses_multi_synset_pairs(
+    fresh_db: Path,
+) -> None:
+    """A (target, candidate) pair sharing N synsets produces N rows
+    raw, but ONE row with dedupe=True (default). Phase 3 transforms
+    want one row per candidate; the raw cartesian is for audit only."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        waeter = db.upsert_etymon("wæter", "old-english")
+        bekkr = db.upsert_etymon("bekkr", "old-norse")
+        db.commit()
+        # Both etymons in TWO shared synsets — the cartesian would
+        # produce 2 rows per candidate without dedupe.
+        assign_etymon_to_meaning_synset(db, waeter, "water/flowing", fit="core")
+        assign_etymon_to_meaning_synset(db, waeter, "water/body", fit="peripheral")
+        assign_etymon_to_meaning_synset(db, bekkr, "water/flowing", fit="core")
+        assign_etymon_to_meaning_synset(db, bekkr, "water/body", fit="peripheral")
+        raw = get_meaning_preserving_candidates(db, waeter, dedupe=False)
+        deduped = get_meaning_preserving_candidates(db, waeter)  # default dedupe=True
+    assert len(raw) == 2
+    assert len(deduped) == 1
+    # Dedupe picks the strongest fit pair — core/core beats peripheral/peripheral.
+    assert deduped[0]["target_fit"] == "core"
+    assert deduped[0]["candidate_fit"] == "core"
+
+
+def test_get_meaning_preserving_candidates_dedupe_picks_strongest_fit(
+    fresh_db: Path,
+) -> None:
+    """When a pair shares two synsets, one core/core and one
+    core/peripheral, dedupe picks the core/core row."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        waeter = db.upsert_etymon("wæter", "old-english")
+        bekkr = db.upsert_etymon("bekkr", "old-norse")
+        db.commit()
+        assign_etymon_to_meaning_synset(db, waeter, "water/flowing", fit="core")
+        assign_etymon_to_meaning_synset(db, waeter, "water/body", fit="core")
+        assign_etymon_to_meaning_synset(db, bekkr, "water/flowing", fit="core")
+        assign_etymon_to_meaning_synset(db, bekkr, "water/body", fit="peripheral")
+        rows = get_meaning_preserving_candidates(db, waeter)
+    assert len(rows) == 1
+    # core/core wins over core/peripheral.
+    assert rows[0]["synset_label"] == "water/flowing"
+    assert rows[0]["candidate_fit"] == "core"
+
+
+def test_get_meaning_preserving_candidates_raises_on_bad_fit(fresh_db: Path) -> None:
+    """A bad --fit value raises ValueError before the SQL is executed."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        eid = db.upsert_etymon("wæter", "old-english")
+        db.commit()
+        with pytest.raises(ValueError, match="fit filter must be"):
+            get_meaning_preserving_candidates(db, eid, fit="garbage")
+
+
+def test_get_meaning_preserving_candidates_target_language_and_fit_combined(
+    fresh_db: Path,
+) -> None:
+    """Both filters applied together — only candidates in the target
+    language AND with matching fit on both ends survive."""
+    with LexiconDB(fresh_db) as db:
+        seed_meaning_synsets(db)
+        waeter = db.upsert_etymon("wæter", "old-english")
+        stream = db.upsert_etymon("strēam", "old-english")  # OE, core
+        burna = db.upsert_etymon("burna", "old-english")  # OE, peripheral
+        bekkr = db.upsert_etymon("bekkr", "old-norse")  # ON, core
+        db.commit()
+        assign_etymon_to_meaning_synset(db, waeter, "water/flowing", fit="core")
+        assign_etymon_to_meaning_synset(db, stream, "water/flowing", fit="core")
+        assign_etymon_to_meaning_synset(db, burna, "water/flowing", fit="peripheral")
+        assign_etymon_to_meaning_synset(db, bekkr, "water/flowing", fit="core")
+        # OE + core: only strēam (burna excluded by fit, bekkr by language).
+        rows = get_meaning_preserving_candidates(
+            db, waeter, target_language="old-english", fit="core"
+        )
+    assert {r["canonical_form"] for r in rows} == {"strēam"}
+
+
+def test_seed_meaning_synsets_warns_on_unknown_hypernym(tmp_path: Path) -> None:
+    """A seed entry pointing at a hypernym the catalog doesn't define
+    (typo or out-of-catalog) emits a warning rather than silently
+    dropping the link."""
+    db_path = tmp_path / "hypernym_warn.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        # Inject a synthetic catalog with a bad hypernym pointer by
+        # patching _meaning_synsets_seed at module level — easier than
+        # writing a temp JSON file.
+        import warnings
+
+        from wyrd.generators.kenning import lexicon as lex
+
+        original = lex._meaning_synsets_seed
+        try:
+            lex._meaning_synsets_seed = lambda: {
+                "synsets": [
+                    {"label": "water"},
+                    {"label": "water/flowing", "hypernym": "ocean"},  # 'ocean' undefined
+                ]
+            }
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                lex.seed_meaning_synsets(db)
+        finally:
+            lex._meaning_synsets_seed = original
+    assert any("unknown hypernym 'ocean'" in str(w.message) for w in caught)
+
+
+def test_seed_meaning_synsets_clears_removed_hypernym_link(tmp_path: Path) -> None:
+    """If a hypernym is removed from the JSON between seed runs, the FK
+    on the existing row gets NULL'd out — drift-aware like notes."""
+    db_path = tmp_path / "hypernym_clear.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        from wyrd.generators.kenning import lexicon as lex
+
+        original = lex._meaning_synsets_seed
+        try:
+            # First run: water/flowing → water hypernym
+            lex._meaning_synsets_seed = lambda: {
+                "synsets": [
+                    {"label": "water"},
+                    {"label": "water/flowing", "hypernym": "water"},
+                ]
+            }
+            lex.seed_meaning_synsets(db)
+            row = db.conn.execute(
+                "SELECT hypernym_id FROM meaning_synset WHERE canonical_label = ?",
+                ("water/flowing",),
+            ).fetchone()
+            assert row["hypernym_id"] is not None
+            # Second run: hypernym removed from the catalog
+            lex._meaning_synsets_seed = lambda: {
+                "synsets": [
+                    {"label": "water"},
+                    {"label": "water/flowing"},  # no hypernym key
+                ]
+            }
+            lex.seed_meaning_synsets(db)
+        finally:
+            lex._meaning_synsets_seed = original
+        row = db.conn.execute(
+            "SELECT hypernym_id FROM meaning_synset WHERE canonical_label = ?",
+            ("water/flowing",),
+        ).fetchone()
+    assert row["hypernym_id"] is None
+
+
+def test_cli_lexicon_synsets_assign_by_form_and_language(fresh_db: Path) -> None:
+    """The --language flag lets a curator assign by canonical_form
+    rather than looking up the integer id first."""
+    runner = CliRunner()
+    runner.invoke(kenning_cli, ["lexicon", "synsets", "seed", "--db", str(fresh_db)])
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("wæter", "old-english")
+        db.commit()
+    result = runner.invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "synsets",
+            "assign",
+            "wæter",
+            "water/flowing",
+            "--language",
+            "old-english",
+            "--db",
+            str(fresh_db),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Resolved to the right id and assigned.
+    with LexiconDB(fresh_db) as db:
+        synsets = get_meaning_synsets_for_etymon(db, eid)
+    assert {s["canonical_label"] for s in synsets} == {"water/flowing"}
+
+
+def test_cli_lexicon_synsets_assign_by_form_unknown_exits_nonzero(fresh_db: Path) -> None:
+    """A canonical_form that doesn't exist in the named language fails
+    fast with a friendly message naming both."""
+    runner = CliRunner()
+    runner.invoke(kenning_cli, ["lexicon", "synsets", "seed", "--db", str(fresh_db)])
+    result = runner.invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "synsets",
+            "assign",
+            "ghostform",
+            "water/flowing",
+            "--language",
+            "old-english",
+            "--db",
+            str(fresh_db),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "no etymon with canonical_form='ghostform'" in result.output
+
+
+def test_cli_lexicon_synsets_assign_non_numeric_without_language_exits_nonzero(
+    fresh_db: Path,
+) -> None:
+    """Without --language, the positional must be numeric — passing a
+    word fails with a friendly message rather than a Python traceback."""
+    runner = CliRunner()
+    runner.invoke(kenning_cli, ["lexicon", "synsets", "seed", "--db", str(fresh_db)])
+    result = runner.invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "synsets",
+            "assign",
+            "wæter",
+            "water/flowing",
+            "--db",
+            str(fresh_db),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "not numeric" in result.output
+
+
+def test_cli_lexicon_synsets_show_empty_membership(fresh_db: Path) -> None:
+    """An etymon with no synset memberships gets a friendly message
+    (not an empty stdout)."""
+    runner = CliRunner()
+    runner.invoke(kenning_cli, ["lexicon", "synsets", "seed", "--db", str(fresh_db)])
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("wæter", "old-english")
+        db.commit()
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "synsets", "show", str(eid), "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "no meaning_synset memberships" in result.output
+
+
+def test_cli_lexicon_synsets_candidates_empty(fresh_db: Path) -> None:
+    """An etymon with no candidates gets a friendly message."""
+    runner = CliRunner()
+    runner.invoke(kenning_cli, ["lexicon", "synsets", "seed", "--db", str(fresh_db)])
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("wæter", "old-english")
+        db.commit()
+        assign_etymon_to_meaning_synset(db, eid, "water/flowing")
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "synsets", "candidates", str(eid), "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "no meaning-preserving candidates" in result.output

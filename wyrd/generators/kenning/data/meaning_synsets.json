@@ -76,6 +76,17 @@
     {"label": "creature/dragon", "notes": "Dragons, wyrms. OE draca, wyrm; ON dreki."},
     {"label": "creature/giant", "notes": "Giants, jǫtnar. OE eoten, þyrs; ON jǫtunn."},
     {"label": "creature/troll", "notes": "Trolls. ON trǫll."},
-    {"label": "creature/elf", "notes": "Elves. OE ælf; ON álfr."}
+    {"label": "creature/elf", "notes": "Elves. OE ælf; ON álfr."},
+
+    {"label": "agriculture/field", "notes": "Cultivated open ground. OE feld, æcer; ON akr; Welsh maes."},
+    {"label": "agriculture/meadow", "notes": "Hay-meadows, water-meadows. OE mǣd, mōr; ON eng."},
+    {"label": "agriculture/pasture", "notes": "Grazing land. OE læs; Welsh dōl."},
+
+    {"label": "infrastructure/way", "notes": "Roads, paths, tracks. OE weg, pæþ, stræt; ON gata."},
+    {"label": "infrastructure/boundary", "notes": "Boundaries, marks, dykes. OE mearc, dīc; ON garðr."},
+    {"label": "infrastructure/stone", "notes": "Stones (boundary or settlement landmarks). OE stān; Welsh maen."},
+
+    {"label": "religion/saint", "notes": "Saints + saint dedications. The 'Saint X' name pattern."},
+    {"label": "religion/sacred", "notes": "Sacred sites, temples, holy places. OE hālig, hearg, wīh."}
   ]
 }
