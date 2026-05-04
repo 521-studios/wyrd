@@ -335,15 +335,29 @@ def test_resolve_era_input_year_out_of_range_raises_value_error() -> None:
 
 
 def test_resolve_era_input_bare_label_uses_default_family() -> None:
-    """A bare label tries default_family first."""
+    """A bare label resolves against default_family."""
     assert era.resolve_era_input("oe-late") == (800, 1100)
     assert era.resolve_era_input("me") == (1100, 1500)
 
 
-def test_resolve_era_input_bare_label_falls_back_to_other_family() -> None:
-    """If default_family doesn't define the label, search the other
-    families. 'middle-irish' isn't in english, but is in goidelic."""
-    assert era.resolve_era_input("middle-irish") == (900, 1200)
+def test_resolve_era_input_bare_label_outside_default_family_raises_with_pointer() -> None:
+    """A bare label not defined in default_family raises ValueError —
+    NOT a silent cross-family fallback. The message names the families
+    that DO define the label so the user can switch to family/label.
+    Prevents 'wrong culture' typos from silently routing to a different
+    family's range."""
+    with pytest.raises(ValueError, match=r"is not defined in family 'english'"):
+        era.resolve_era_input("middle-irish")
+    # Error mentions the family that does define it.
+    with pytest.raises(ValueError, match=r"goidelic/middle-irish"):
+        era.resolve_era_input("middle-irish")
+
+
+def test_resolve_era_input_explicit_family_label_works_for_cross_family() -> None:
+    """The explicit family/label form is the way to use a label outside
+    default_family. Pinned alongside the strict bare-label test so the
+    user-facing migration path is obvious."""
+    assert era.resolve_era_input("goidelic/middle-irish") == (900, 1200)
 
 
 def test_resolve_era_input_family_label_form_disambiguates() -> None:
@@ -368,11 +382,11 @@ def test_resolve_era_input_unknown_label_raises_value_error() -> None:
         era.resolve_era_input("victorian")
 
 
-def test_resolve_era_input_default_family_overrides_search() -> None:
+def test_resolve_era_input_default_family_picks_correct_range_for_shared_label() -> None:
     """A label shared across families resolves to the default_family's
-    range, not the alphabetically-first family's. 'modern' exists in
-    every family — passing default_family='goidelic' returns goidelic's
-    'modern' (1700, None) which happens to match english's, so use a
-    range that diverges between brythonic (1500, None) and english."""
+    range. 'modern' exists in every family — passing
+    default_family='brythonic' returns brythonic's 'modern' (1500, None);
+    with 'english' it returns (1700, None). No fallback; the label is
+    defined in default_family so resolution is unambiguous."""
     assert era.resolve_era_input("modern", default_family="brythonic") == (1500, None)
     assert era.resolve_era_input("modern", default_family="english") == (1700, None)

@@ -389,6 +389,119 @@ def test_kenning_generate_string_false_does_not_invert_gate():
     assert plain == string_false
 
 
+def test_cli_era_flag_year_form_runs_cleanly():
+    """End-to-end CLI smoke for `--era 1086`. Pins the click flag →
+    params dict → resolve_era_input wiring on the year branch. wyrd-lyp."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "generate",
+            "english",
+            "--era",
+            "1086",
+            "--seed",
+            "42",
+            "-n",
+            "1",
+            "--no-describe",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    name_lines = [ln for ln in result.output.splitlines() if ln.strip()]
+    assert name_lines
+
+
+def test_cli_era_flag_family_label_form_runs_cleanly():
+    """End-to-end CLI smoke for `--era english/oe-late`. Pins the
+    family/label branch of resolve_era_input through the CLI surface."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "generate",
+            "english",
+            "--era",
+            "english/oe-late",
+            "--seed",
+            "42",
+            "-n",
+            "1",
+            "--no-describe",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+
+def test_cli_era_flag_unknown_label_exits_nonzero():
+    """An unknown era label exits non-zero rather than silently sampling
+    the unfiltered inventory. Catches typos at the CLI surface so a
+    future try/except wrapper can't swallow the resolve_era_input
+    ValueError. wyrd-lyp."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "generate",
+            "english",
+            "--era",
+            "victorian",
+            "--seed",
+            "42",
+            "-n",
+            "1",
+        ],
+    )
+    assert result.exit_code != 0
+
+
+def test_kenning_generate_invalid_era_raises():
+    """Programmatic invocation: an invalid era string raises (rather
+    than silently dropping the filter or returning a 500). Pinned at
+    the Kenning.generate boundary so a future try/except wrapper can't
+    swallow the resolve_era_input error. wyrd-lyp."""
+    k = Kenning()
+    with pytest.raises(ValueError):
+        k.generate({"culture": "english", "era": "victorian"}, seed=42)
+
+
+@pytest.mark.parametrize(
+    "culture,era_label",
+    [
+        # Each label is family-specific to the culture's era family — so
+        # this exercise the _CULTURE_TO_ERA_FAMILY mapping end-to-end. A
+        # regression that hardcoded default_family='english' would fail
+        # on every row but the first.
+        ("english", "oe-late"),
+        ("scottish", "oe-late"),  # scottish maps to english family
+        ("welsh", "old"),  # 'old' is brythonic-only
+        ("irish", "middle-irish"),  # 'middle-irish' is goidelic-only
+        ("breton", "middle"),  # 'middle' is brythonic-only
+    ],
+)
+def test_kenning_generate_era_family_per_culture(culture, era_label):
+    """The _CULTURE_TO_ERA_FAMILY mapping bridges culture → era family
+    so a bare era label resolves correctly per culture. Pin every row
+    of the mapping so a refactor that drops one would surface here.
+    wyrd-lyp."""
+    from wyrd.generators.kenning import Kenning
+
+    result = Kenning().generate({"culture": culture, "era": era_label}, seed=42)
+    assert result.result
+
+
 def test_cli_include_fiction_flag_runs_cleanly_and_is_seed_stable():
     """End-to-end CLI smoke: --include-fiction runs to completion and
     produces a non-empty name; with no fiction-tagged data in the

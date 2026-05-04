@@ -940,6 +940,35 @@ def test_name_generator_select_drops_out_of_era_morphemes_at_pick_time():
         assert new_name.name == [["-in"]]
 
 
+def test_name_generator_select_era_range_threads_through_positive_tag_path():
+    """`_select_tag` and `_select_tags` (positive-tag branches) must
+    forward keep_keys into MeaningGenerator.select the same way
+    `_select_no_tag` does. Two usages both tagged 'tree', one in-era and
+    one out-of-era with the out-of-era usage carrying 99x the empirical
+    weight: with `tags=('tree',)` AND era_range set, every pick must
+    still land on the in-era usage. Pins the `_select_tag`/`_select_tags`
+    branches that `test_..._drops_out_of_era_morphemes_at_pick_time`
+    above doesn't reach. wyrd-lyp."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import (
+        MeaningGenerator,
+        NameGenerator,
+    )
+
+    m_in = Meaning("-in", ["tree"], [], {}, attested_years={"old_english": [("in", 950)]})
+    m_out = Meaning("-out", ["tree"], [], {}, attested_years={"old_english": [("out", 1500)]})
+    meaning_db = {"-in": [m_in], "-out": [m_out]}
+    proportions = {"-in": 1, "-out": 99}
+    tag_db = {"tree": ["-in", "-out"]}
+    mg = MeaningGenerator(meaning_db, tag_db, proportions)
+    mg.load_parts(proportions, "single")
+    structs = {(((m_in.location, "single"),),): 1}
+    name_gen = NameGenerator(meaning_db, mg, structs)
+    for i in range(50):
+        new_name = name_gen.select(random.Random(i), "tree", era_range=(800, 1100))
+        assert new_name.name == [["-in"]]
+
+
 def test_name_generator_select_era_range_none_is_bit_stable():
     """era_range=None is the runtime's 'no --era passed' signal — the
     keep-set is None and Generator.select takes its bit-stable fast

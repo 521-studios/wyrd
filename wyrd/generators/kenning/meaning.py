@@ -31,8 +31,10 @@ _CITATIONS_SUFFIX = "_citations"
 # Suffix used for per-language attested-year metadata (D5-1 / wyrd-bag).
 # Each entry is (form, year) where year is the earliest plausibly-
 # attested year for the form on the production corpus. Sorted by year
-# ascending so the runtime --era filter (D5-2) can short-circuit on
-# the first match. Empty / absent for morphemes with no year evidence.
+# ascending as a stable display convention for the explainer; the
+# runtime --era filter (D5-2) walks the list and short-circuits on the
+# first IN-WINDOW match regardless of sort order. Empty / absent for
+# morphemes with no year evidence.
 _ATTESTED_YEARS_SUFFIX = "_attested_years"
 
 

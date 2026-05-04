@@ -116,12 +116,16 @@ class MeaningGenerator:
         self.meaning_db = meaning_db
         self.tag_db = tag_db
         self.generators: dict[tuple, Generator] = {}
-        # D5-2 era-filter cache: era_range tuple → frozenset of allowed usages.
-        # Keyed by (start, end) so two callers passing the same range share
-        # the precomputed set. Computed lazily on first lookup; the meaning_db
-        # is immutable post-load so the cache is safe to reuse for the
-        # process lifetime.
-        self._era_keep_cache: dict[tuple[int | None, int | None], frozenset[str]] = {}
+        # D5-2 era-filter cache: era_range tuple → frozenset of allowed
+        # usages, OR None when the era covers every usage (the
+        # bit-stable fast-path signal — see keep_keys_for_era). Keyed by
+        # (start, end) so two callers passing the same range share the
+        # precomputed value. Computed lazily on first lookup; the
+        # meaning_db is immutable post-load so the cache is safe to
+        # reuse for the process lifetime.
+        self._era_keep_cache: dict[
+            tuple[int | None, int | None], frozenset[str] | None
+        ] = {}
         self.load_parts(proportions)
 
     def load_parts(self, proportions, *addkeys):
@@ -141,20 +145,39 @@ class MeaningGenerator:
         one Meaning admissible under the half-open ``[start, end)`` window.
 
         Returns ``None`` when ``era_range`` is None — the caller's
-        bit-stable 'no filter' signal. The result is cached so a single
-        ``--era`` value across many ``select`` calls only walks the
-        meaning_db once.
+        bit-stable 'no filter' signal. Also returns ``None`` when the
+        computed keep-set covers EVERY usage in ``meaning_db`` — there's
+        nothing to filter, so ``Generator.select`` should take its
+        bit-stable fast path rather than walk every bucket through a
+        membership check that admits everything. The full-coverage case
+        is the steady state today (zero attested_years data → every
+        morpheme passes the filter); collapsing it to None preserves
+        bit-stability with the no-filter call until the bundle re-emit
+        actually populates attestation data for some morphemes.
+
+        The result is cached so a single ``--era`` value across many
+        ``select`` calls only walks the meaning_db once.
+
+        Granularity caveat: filtering happens at the USAGE level, not
+        the SENSE level. A usage with two senses (one in-era, one out-
+        of-era) stays in the pool; the downstream pick at
+        ``NameGenerator._pick_surface`` falls back to ``meanings[0]`` for
+        variant/inflection rendering, which may surface the wrong-era
+        sense. See the existing comment block at ``_render_substitutions``
+        for the deterministic-fallback rationale; tightening the filter
+        to sense level would need that same call site reworked.
         """
         if era_range is None:
             return None
-        cached = self._era_keep_cache.get(era_range)
-        if cached is not None:
-            return cached
-        allowed = frozenset(
+        if era_range in self._era_keep_cache:
+            return self._era_keep_cache[era_range]
+        allowed: frozenset[str] | None = frozenset(
             usage
             for usage, meanings in self.meaning_db.items()
             if any(m.attested_in_era_range(era_range) for m in meanings)
         )
+        if len(allowed) == len(self.meaning_db):
+            allowed = None
         self._era_keep_cache[era_range] = allowed
         return allowed
 
