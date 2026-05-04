@@ -520,6 +520,64 @@ def test_kenning_generate_empty_era_string_treated_as_no_filter():
     assert no_era == empty_era
 
 
+def test_cli_cohesion_flag_runs_cleanly():
+    """CLI smoke: `wyrd kenning generate english --cohesion 1.0` runs
+    cleanly. Pins the click `--cohesion` flag → params dict wiring."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "generate",
+            "english",
+            "--cohesion",
+            "1.0",
+            "--seed",
+            "42",
+            "-n",
+            "1",
+            "--no-describe",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    name_lines = [ln for ln in result.output.splitlines() if ln.strip()]
+    assert name_lines and name_lines[0]
+
+
+def test_cli_cohesion_zero_matches_default():
+    """CLI bit-stability: --cohesion 0.0 must produce the same names as
+    the no-flag invocation for the same seed."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    runner = CliRunner()
+    base = ["generate", "english", "--seed", "42", "-n", "5", "--no-describe"]
+    no_flag = runner.invoke(cli, base)
+    explicit_zero = runner.invoke(cli, [*base, "--cohesion", "0.0"])
+    assert no_flag.exit_code == 0 and explicit_zero.exit_code == 0
+    assert no_flag.output == explicit_zero.output
+
+
+def test_cli_cohesion_out_of_range_exits_nonzero():
+    """Click FloatRange(0, 1) clamps invalid values at the CLI surface
+    so a typo like --cohesion 5 fails fast rather than reaching the
+    generator with a nonsense value."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["generate", "english", "--cohesion", "5.0", "--seed", "42", "-n", "1"],
+    )
+    assert result.exit_code != 0
+
+
 def test_cli_include_fiction_flag_runs_cleanly_and_is_seed_stable():
     """End-to-end CLI smoke: --include-fiction runs to completion and
     produces a non-empty name; with no fiction-tagged data in the
