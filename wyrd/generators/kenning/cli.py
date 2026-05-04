@@ -961,6 +961,96 @@ def lexicon_mine_skeat(path: Path, db_path: Path, source_id: str | None) -> None
     click.echo(f"Ingested: {counts}", err=True)
 
 
+def _mine_entries(
+    *,
+    parsed: list,
+    client: Any,
+    extract_one: Any,
+    concurrency: int,
+    progress_start: float,
+    log_every: int = 10,
+) -> tuple[list, int, int, dict[str, int]]:
+    """Run ``extract_one`` over every parsed entry, optionally in parallel.
+
+    wyrd-l0r: serial loop (concurrency=1) is bit-stable with the pre-PR
+    flow. concurrency>1 fans out via ThreadPoolExecutor so paid-provider
+    network latency stops dominating mining wall-clock time. Per-entry
+    validation (D3) runs inside extract_one and is preserved unchanged
+    on both paths — there's no batched validation here.
+
+    Accepted entries come back in INPUT (parsed) order on both paths so
+    downstream ingestion order is deterministic with respect to the
+    source document, regardless of completion order.
+    """
+    accepted_slot: list = [None] * len(parsed)
+    declined = 0
+    rejected = 0
+    by_failure: dict[str, int] = {}
+
+    def _process(i: int, result) -> None:
+        nonlocal declined, rejected
+        if result.accepted and result.entry and result.entry.elements:
+            accepted_slot[i] = result.entry
+        elif result.accepted:
+            declined += 1
+        else:
+            rejected += 1
+            for f in result.failures:
+                by_failure[f.reason] = by_failure.get(f.reason, 0) + 1
+
+    def _emit_progress(completed: int) -> None:
+        if completed % log_every:
+            return
+        elapsed = time.time() - progress_start
+        accepted_count = sum(1 for x in accepted_slot if x is not None)
+        click.echo(
+            f"  [{completed}/{len(parsed)}]  "
+            f"accepted={accepted_count} declined={declined} rejected={rejected} "
+            f"({elapsed / completed:.1f}s/entry)",
+            err=True,
+        )
+
+    if concurrency <= 1:
+        # Serial path — bit-stable with the pre-wyrd-l0r mining loop.
+        for i, p in enumerate(parsed):
+            result = extract_one(
+                client,
+                toponym=p.toponym,
+                body=p.body_text,
+                suffix_hint=p.section_suffix,
+            )
+            _process(i, result)
+            _emit_progress(i + 1)
+    else:
+        # Parallel path — fan out via ThreadPoolExecutor. The state
+        # mutation in _process / _emit_progress runs only on the main
+        # thread because as_completed yields results back here serially,
+        # so no per-counter lock is needed. Worker threads only call
+        # extract_one (which is HTTP I/O, GIL-friendly).
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        def _task(i: int):
+            p = parsed[i]
+            return i, extract_one(
+                client,
+                toponym=p.toponym,
+                body=p.body_text,
+                suffix_hint=p.section_suffix,
+            )
+
+        completed_count = 0
+        with ThreadPoolExecutor(max_workers=concurrency) as executor:
+            futures = [executor.submit(_task, i) for i in range(len(parsed))]
+            for fut in as_completed(futures):
+                i, result = fut.result()
+                _process(i, result)
+                completed_count += 1
+                _emit_progress(completed_count)
+
+    accepted_entries = [e for e in accepted_slot if e is not None]
+    return accepted_entries, declined, rejected, by_failure
+
+
 @lexicon.command("mine-llm")
 @click.argument("path", type=click.Path(exists=True, dir_okay=False, path_type=Path))
 @click.option(
@@ -1017,6 +1107,20 @@ def lexicon_mine_skeat(path: Path, db_path: Path, source_id: str | None) -> None
     show_default=True,
     help="Which parser to use; 'auto' picks based on first-pass yield.",
 )
+@click.option(
+    "--concurrency",
+    type=click.IntRange(1, 64),
+    default=1,
+    show_default=True,
+    help=(
+        "Number of parallel extract_one calls (wyrd-l0r). 1 = serial "
+        "(bit-stable with the pre-PR mining loop). For paid providers "
+        "(Anthropic, Gemini), bump to 4-8 to amortize network latency; "
+        "watch your provider's RPM cap. Ollama on a single-GPU host "
+        "serializes at the model layer, so concurrency >1 buys nothing "
+        "there."
+    ),
+)
 def lexicon_mine_llm(
     path: Path,
     db_path: Path,
@@ -1027,6 +1131,7 @@ def lexicon_mine_llm(
     limit: int | None,
     timeout: float,
     parser: str,
+    concurrency: int,
 ) -> None:
     """Mine an etymology text via LLM (Ollama or Gemini).
 
@@ -1081,34 +1186,15 @@ def lexicon_mine_llm(
         err=True,
     )
 
-    accepted_entries = []
-    declined = 0
-    rejected = 0
-    by_failure: dict[str, int] = {}
-
     started_at = datetime.now(UTC).isoformat()
     start = time.time()
-    for i, p in enumerate(parsed, 1):
-        result = extract_one(
-            client, toponym=p.toponym, body=p.body_text, suffix_hint=p.section_suffix
-        )
-        if result.accepted and result.entry and result.entry.elements:
-            accepted_entries.append(result.entry)
-        elif result.accepted:
-            declined += 1
-        else:
-            rejected += 1
-            for f in result.failures:
-                by_failure[f.reason] = by_failure.get(f.reason, 0) + 1
-        if i % 10 == 0:
-            elapsed = time.time() - start
-            click.echo(
-                f"  [{i}/{len(parsed)}]  "
-                f"accepted={len(accepted_entries)} declined={declined} rejected={rejected} "
-                f"({elapsed / i:.1f}s/entry)",
-                err=True,
-            )
-
+    accepted_entries, declined, rejected, by_failure = _mine_entries(
+        parsed=parsed,
+        client=client,
+        extract_one=extract_one,
+        concurrency=concurrency,
+        progress_start=start,
+    )
     elapsed = time.time() - start
     completed_at = datetime.now(UTC).isoformat()
     click.echo(
