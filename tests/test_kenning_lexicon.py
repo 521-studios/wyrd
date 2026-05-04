@@ -4541,7 +4541,7 @@ def test_export_meanings_output_is_byte_stable_across_runs(fresh_db: Path) -> No
     assert first == second
 
 
-# --- D27 / wyrd-0ug: etymon_descent + synset schema --------------------
+# --- D27 / wyrd-0ug: etymon_descent + cognate-cluster schema --------------------
 
 
 def test_init_schema_creates_etymon_descent_table(fresh_db: Path) -> None:
@@ -4555,7 +4555,7 @@ def test_init_schema_creates_etymon_descent_table(fresh_db: Path) -> None:
     assert "etymon_descent" in tables
 
 
-def test_init_schema_etymon_has_synset_columns(fresh_db: Path) -> None:
+def test_init_schema_etymon_has_cognate_columns(fresh_db: Path) -> None:
     """Fresh install carries cognate_id + cognate_method on etymon."""
     with LexiconDB(fresh_db) as db:
         cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon)")}
@@ -4920,7 +4920,7 @@ def test_migrate_schema_adds_etymon_descent_to_legacy_db(fresh_db: Path) -> None
         assert applied2["etymon_descent_table"] is False
 
 
-def test_migrate_schema_adds_etymon_synset_columns_to_legacy_db(
+def test_migrate_schema_adds_etymon_cognate_columns_to_legacy_db(
     fresh_db: Path,
 ) -> None:
     """A pre-D27 etymon table without cognate_id / cognate_method picks
@@ -5054,7 +5054,7 @@ def test_cluster_cognates_dry_run_does_not_write(fresh_db: Path) -> None:
     assert all(sid is None for sid in cognate_ids)
 
 
-def test_cluster_cognates_separate_roots_get_separate_synsets(fresh_db: Path) -> None:
+def test_cluster_cognates_separate_roots_get_separate_cognate_clusters(fresh_db: Path) -> None:
     """Two unrelated roots produce two distinct cognate_id values; rows
     in each cluster point at their own root."""
     from wyrd.generators.kenning.lexicon import cluster_cognates
@@ -5079,9 +5079,9 @@ def test_cluster_cognates_separate_roots_get_separate_synsets(fresh_db: Path) ->
     assert rows["a"] != rows["x"]
 
 
-def test_cluster_cognates_cognate_edge_does_not_bridge_synsets(fresh_db: Path) -> None:
+def test_cluster_cognates_cognate_edge_does_not_bridge_cognate_clusters(fresh_db: Path) -> None:
     """The 'cognate' edge_type is a peer relation, NOT a chain — it must
-    not bridge synset assignments. Pin the contract: a {{cog}}-only
+    not bridge cognate-cluster assignments. Pin the contract: a {{cog}}-only
     relation between two etymons leaves both with NULL cognate_id (no
     inheritance/borrowing chain to walk)."""
     from wyrd.generators.kenning.lexicon import cluster_cognates
@@ -5105,7 +5105,7 @@ def test_cluster_cognates_cognate_edge_does_not_bridge_synsets(fresh_db: Path) -
     assert "a" in forms and "b" in forms
 
 
-def test_cluster_cognates_borrowing_edges_bridge_synsets(fresh_db: Path) -> None:
+def test_cluster_cognates_borrowing_edges_bridge_cognate_clusters(fresh_db: Path) -> None:
     """Borrowing edges DO bridge — a borrowed word is part of the
     borrowing language's cognate set in practice (D27 / wyrd-81n
     documents this choice)."""
@@ -5202,7 +5202,7 @@ def test_cluster_cognates_skips_etymons_without_descent_edges(fresh_db: Path) ->
     assert singleton_synset is None
 
 
-def test_clear_enrichment_cognates_stage_resets_synset_assignments(
+def test_clear_enrichment_cognates_stage_resets_cognate_assignments(
     fresh_db: Path,
 ) -> None:
     """clear-enrichment --stage=cognates undoes a cluster-cognates run:
@@ -5229,7 +5229,7 @@ def test_clear_enrichment_cognates_stage_resets_synset_assignments(
         # etymon_descent rows must survive — they're mining evidence (D21).
         descent_after = db.conn.execute("SELECT COUNT(*) AS n FROM etymon_descent").fetchone()["n"]
 
-    assert result["synset_assignments_to_clear"] == 2
+    assert result["cognate_assignments_to_clear"] == 2
     assert after == 0
     assert descent_after == 1
 
@@ -5252,7 +5252,7 @@ def test_clear_enrichment_all_derived_includes_cognates(fresh_db: Path) -> None:
             "SELECT COUNT(*) AS n FROM etymon WHERE cognate_id IS NOT NULL"
         ).fetchone()["n"]
 
-    assert result["synset_assignments_to_clear"] == 2
+    assert result["cognate_assignments_to_clear"] == 2
     assert synset_count == 0
 
 
@@ -5452,7 +5452,7 @@ def test_cluster_cognates_self_loop_silently_filtered(fresh_db: Path) -> None:
 
         result = cluster_cognates(db, apply=True)
 
-        synset = db.conn.execute("SELECT cognate_id FROM etymon WHERE id = ?", (x_id,)).fetchone()[
+        cognate = db.conn.execute("SELECT cognate_id FROM etymon WHERE id = ?", (x_id,)).fetchone()[
             "cognate_id"
         ]
 
@@ -5460,7 +5460,7 @@ def test_cluster_cognates_self_loop_silently_filtered(fresh_db: Path) -> None:
     # cycle_orphans=0 because the self-loop edge was filtered upstream;
     # the etymon doesn't participate in any canonical edge.
     assert result["cycle_orphans"] == 0
-    assert synset is None
+    assert cognate is None
 
 
 def test_cluster_cognates_mutual_cycle_terminates_and_orphans(fresh_db: Path) -> None:

@@ -723,13 +723,13 @@ depth on every call; materialization makes the query a single JOIN.
 The `cognate` edge type does NOT bridge cognate clusters — it's a
 peer relationship Wiktionary uses when two languages have lexically
 similar forms but the chain isn't pinned. Bridging on cognate would
-over-unify; we want synset assignments to require an explicit
+over-unify; we want cognate-cluster assignments to require an explicit
 ancestor.
 
 ### Reference queries
 
 The descendants / ancestors recursive CTEs and the post-wyrd-81n
-cognate-by-synset query live in `INGESTION.md` under "Etymological
+cognate-cluster query live in `INGESTION.md` under "Etymological
 descent graph (D27)" — that's the operational manual; this entry
 holds rationale.
 
@@ -740,8 +740,8 @@ Three downstream consumers blocked on this schema:
 - **wyrd-4rt** — Wiktionary mining via wiktextract. Without
   `etymon_descent`, ingestion has nowhere to put the chain data.
 - **wyrd-7tz** — synset / cross-language equivalence layer. The
-  Descendants tree IS the synset; once descent edges land,
-  cluster-cognates produces the synset assignments.
+  Descendants tree IS the cognate cluster; once descent edges land,
+  cluster-cognates produces the cognate-cluster assignments.
 - **Cross-cultural rendering** (no ticket yet) — "render this English
   place name in Welsh-coded form" needs the equivalence graph to swap
   each English morpheme for its Welsh cognate.

@@ -2372,9 +2372,9 @@ def lexicon_clear_enrichment(db_path: Path, stage: str, apply_changes: bool) -> 
         click.echo(f"  {verb} {result['lemma_links_to_clear']} lemma links", err=True)
     if result["text_match_rows_to_clear"]:
         click.echo(f"  {verb} {result['text_match_rows_to_clear']} text-match rows", err=True)
-    if result["synset_assignments_to_clear"]:
+    if result["cognate_assignments_to_clear"]:
         click.echo(
-            f"  {verb} {result['synset_assignments_to_clear']} cognate_id assignments", err=True
+            f"  {verb} {result['cognate_assignments_to_clear']} cognate_id assignments", err=True
         )
     if result.get("attested_years_to_clear"):
         click.echo(f"  {verb} {result['attested_years_to_clear']} attested_year values", err=True)

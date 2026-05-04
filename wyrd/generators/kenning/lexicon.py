@@ -2459,7 +2459,7 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
         "ocr_merges_to_clear": 0,
         "lemma_links_to_clear": 0,
         "text_match_rows_to_clear": 0,
-        "synset_assignments_to_clear": 0,
+        "cognate_assignments_to_clear": 0,
         "attested_years_to_clear": 0,
     }
     if "ocr" in stages:
@@ -2475,7 +2475,7 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
             "SELECT COUNT(*) FROM etymon_text_match"
         ).fetchone()[0]
     if "cognates" in stages:
-        counts["synset_assignments_to_clear"] = db.conn.execute(
+        counts["cognate_assignments_to_clear"] = db.conn.execute(
             "SELECT COUNT(*) FROM etymon WHERE cognate_id IS NOT NULL"
         ).fetchone()[0]
     if "attested-years" in stages:
@@ -2530,8 +2530,8 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     cluster behind a single canonical pointer.
 
     Edge type semantics (D27):
-      inheritance — direct lineage. Bridges synset.
-      borrowing   — borrowed across language lines. Bridges synset (a
+      inheritance — direct lineage. Bridges cognate cluster.
+      borrowing   — borrowed across language lines. Bridges cognate cluster (a
                     borrowed word IS part of the borrowing language's
                     cognate set in practice).
       cognate     — peer relation, NOT a chain. Does not bridge — would
@@ -2916,8 +2916,8 @@ def bridge_celtic_forms(
          their Wiktionary headwords).
       2. Iterates ALL celtic rows (including pre-existing tombstones)
          so the chain-flatten can re-route an existing stub-bridge
-         (celtic→old-irish that has no synset) to a clustered alternative
-         (celtic→irish with a synset).
+         (celtic→old-irish that has no cognate cluster) to a clustered alternative
+         (celtic→irish with a cognate cluster).
       3. Among multiple matching candidate languages, prefers the one
          whose target is in a cognate cluster (cognate_id IS NOT NULL),
          falling back to the priority order in `candidate_langs`.

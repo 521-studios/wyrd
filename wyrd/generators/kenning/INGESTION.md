@@ -813,7 +813,7 @@ ORDER BY e.language, e.canonical_form;
 ```
 
 Edge types and their semantics:
-- `inheritance` (`{{inh}}`) — direct lineage, bridges synset clustering.
+- `inheritance` (`{{inh}}`) — direct lineage, bridges cognate clustering.
 - `borrowing` (`{{bor}}`) — borrowed across languages, also bridges.
 - `cognate` (`{{cog}}`) — peer relation; does NOT bridge (would over-unify).
 - `derivation` (`{{der}}`), `calque` (`{{cal}}`), `compound` (`{{compound}}` / `{{affix}}`) — context-specific.
