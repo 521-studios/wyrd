@@ -211,6 +211,69 @@ def test_mine_entries_concurrency_one_is_bit_stable_with_serial_loop():
     assert failures == {"form_not_in_body": 1}
 
 
+def test_mine_entries_parallel_cancel_pending_futures_on_first_failure():
+    """When extract_one raises, pending (not-yet-started) futures must
+    be CANCELLED rather than allowed to drain to completion.
+
+    ThreadPoolExecutor's __exit__ defaults to shutdown(wait=True,
+    cancel_futures=False), which would let every submitted future
+    finish before the exception surfaces. On a paid provider that's
+    real $ wasted on calls fired after we already know the run failed.
+    The fix wraps as_completed in try/except and calls
+    shutdown(wait=False, cancel_futures=True) before re-raising.
+
+    Pin the cost-asymmetry guarantee: with N=50 entries, concurrency=4,
+    and the first call raising, total extract_one invocations should
+    be far below N (at most ~workers, since only the in-flight ones
+    can complete after the first failure). A regression that flipped
+    back to default cancel_futures=False would surface here as
+    call_count near 50."""
+    import pytest
+
+    parsed = [_FakeParsed(f"t{i:02d}") for i in range(50)]
+    call_count = 0
+    lock = threading.Lock()
+    failed = threading.Event()
+
+    def extract_one(client, toponym, body, suffix_hint):  # noqa: ARG001
+        nonlocal call_count
+        with lock:
+            call_count += 1
+        # First call raises; subsequent ones sleep briefly to give the
+        # executor time to schedule them BEFORE the cancel fires (so
+        # the test would observe many calls under the broken cancel
+        # behavior).
+        if not failed.is_set():
+            failed.set()
+            raise RuntimeError("first-failure abort")
+        time.sleep(0.05)
+        return LLMResult(
+            entry=_FakeEntry(toponym),
+            raw_response={},
+            failures=[],
+            accepted=True,
+        )
+
+    with pytest.raises(RuntimeError, match="first-failure abort"):
+        _mine_entries(
+            parsed=parsed,
+            client=None,
+            extract_one=extract_one,
+            concurrency=4,
+            progress_start=time.time(),
+        )
+
+    # Generous upper bound: cancel_futures=True should leave at most a
+    # small handful of in-flight calls running. Without cancel, all 50
+    # would complete. The wide gap (< 25 vs == 50) makes the assertion
+    # robust to scheduler timing without false-positive risk.
+    assert call_count < 25, (
+        f"expected pending futures to be cancelled after first failure; "
+        f"got {call_count}/{len(parsed)} extract_one calls — "
+        f"cancel_futures=True may have regressed"
+    )
+
+
 def test_mine_entries_parallel_propagates_extract_one_exceptions():
     """If extract_one raises (e.g. an unhandled HTTP error), the
     exception should propagate up rather than being silently dropped.
