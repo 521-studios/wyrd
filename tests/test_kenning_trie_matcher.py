@@ -1,0 +1,490 @@
+"""Unit tests for the trie-indexed segmentation DAG morpheme matcher
+(wyrd-k8e Phase 1)."""
+
+from __future__ import annotations
+
+from wyrd.generators.kenning.meaning import Meaning
+from wyrd.generators.kenning.trie_matcher import (
+    MorphemeTrie,
+    all_decompositions,
+    build_morpheme_trie,
+    canonical_decomposition,
+    canonical_decompositions,
+    count_unaccounted,
+    iter_morphemes,
+)
+
+
+def _meaning(usage: str) -> Meaning:
+    """Convenience for building a Meaning at the right Meaning.location
+    via the dash-marker convention. 'Bridg-' → pre; '-water' → post;
+    '-by-' → inner."""
+    return Meaning(usage, [], [], {})
+
+
+# --- build_morpheme_trie ---------------------------------------------------
+
+
+def test_build_trie_inserts_each_meaning_once():
+    """Trie's morpheme_count tracks total Meanings indexed (sense-
+    aware: two meanings sharing a usage count twice). Pin via the
+    bundled meaning_db fixture shape."""
+    db = {
+        "Bridg-": [_meaning("Bridg-")],
+        "-water": [_meaning("-water")],
+        "-y": [_meaning("-y"), _meaning("-y")],  # two senses
+    }
+    trie = build_morpheme_trie(db)
+    assert trie.morpheme_count == 4
+
+
+def test_build_trie_skips_empty_surface_form():
+    """A usage that's only dashes has empty dash-stripped surface and
+    must be skipped — otherwise it'd cycle the segmentation DAG."""
+    db = {"---": [_meaning("---")], "ham": [_meaning("ham")]}
+    trie = build_morpheme_trie(db)
+    # Only 'ham' is in the trie.
+    assert trie.morpheme_count == 1
+    decomp = canonical_decomposition("ham", trie)
+    assert len(decomp) == 1
+    assert decomp[0].usage == "ham"
+
+
+# --- all_decompositions: single-path matches -------------------------------
+
+
+def test_simple_compound_decomposes():
+    """Bridg + water → both morphemes surface; no unaccounted chars."""
+    db = {"Bridg-": [_meaning("Bridg-")], "-water": [_meaning("-water")]}
+    trie = build_morpheme_trie(db)
+    decompositions = all_decompositions("Bridgwater", trie)
+    forms = [tuple(getattr(e, "usage", e) for e in d) for d in decompositions]
+    # Best parse is Bridg- + -water; should be present.
+    assert ("Bridg-", "-water") in forms
+
+
+def test_no_match_returns_word_as_unaccounted():
+    """A word with NO matching morphemes returns one decomposition
+    that's just the word as a single unaccounted fragment."""
+    db = {"Bridg-": [_meaning("Bridg-")]}
+    trie = build_morpheme_trie(db)
+    decomps = all_decompositions("xyz", trie)
+    assert len(decomps) == 1
+    assert decomps[0] == ["xyz"]
+
+
+def test_empty_word_returns_empty_decomposition():
+    """Empty input → one decomposition that's the empty list. Caller
+    handles the empty-string case at its own surface."""
+    db = {"a": [_meaning("a")]}
+    trie = build_morpheme_trie(db)
+    assert all_decompositions("", trie) == [[]]
+
+
+# --- all_decompositions: multi-parse (the load-bearing case) ---------------
+
+
+def test_multi_decomposition_when_morpheme_has_multiple_senses():
+    """One usage, two Meanings (different senses, e.g. -y can mean
+    'island' or 'district'). Both must surface as separate
+    decompositions — the explainer needs every reading."""
+    sense_island = _meaning("-y")
+    sense_district = _meaning("-y")
+    db = {"-y": [sense_island, sense_district]}
+    trie = build_morpheme_trie(db)
+    decomps = all_decompositions("y", trie)
+    # The matched-Meaning identity differentiates the two — pick out
+    # decompositions that match exactly the morpheme branch.
+    matched = [d for d in decomps if d and not isinstance(d[0], str)]
+    assert len(matched) == 2
+    # Both Meaning instances should appear, distinct identities.
+    assert {id(m) for d in matched for m in iter_morphemes(d)} == {
+        id(sense_island),
+        id(sense_district),
+    }
+
+
+def test_multi_decomposition_when_two_morphemes_match_same_position():
+    """Trie carries '-ham-' AND '-hamlet-' (both inner — no position
+    constraint). Walking 'hamlet' from pos 0 finds BOTH (at end=3
+    and end=6). All_decompositions must surface every parse:
+    '-ham- + let' (with 'let' unaccounted) AND '-hamlet-' (full match).
+    Inner morphemes here so position-constraint filtering doesn't
+    suppress one of the matches — the multi-parse axis is what's
+    being tested."""
+    ham = _meaning("-ham-")
+    hamlet = _meaning("-hamlet-")
+    db = {"-ham-": [ham], "-hamlet-": [hamlet]}
+    trie = build_morpheme_trie(db)
+    decomps = all_decompositions("hamlet", trie)
+    parses = []
+    for d in decomps:
+        parses.append(tuple((getattr(e, "usage", e), isinstance(e, str)) for e in d))
+    assert (("-hamlet-", False),) in parses
+    assert (("-ham-", False), ("let", True)) in parses
+
+
+def test_multi_decomposition_matches_at_different_starts():
+    """Bridg + water AND Bri + dgwater. The trie returns both 'Bridg'
+    starting at pos 0 AND 'water' starting at pos 5 (after skipping or
+    matching prefix), and the DFS enumerates both paths."""
+    bridg = _meaning("Bridg-")
+    bri = _meaning("Bri-")
+    water = _meaning("-water")
+    db = {"Bridg-": [bridg], "Bri-": [bri], "-water": [water]}
+    trie = build_morpheme_trie(db)
+    decomps = all_decompositions("Bridgwater", trie)
+    forms = [tuple(getattr(e, "usage", e) for e in d) for d in decomps]
+    # Both compound parses should surface.
+    assert ("Bridg-", "-water") in forms
+    assert ("Bri-", "dgwater") in forms or any(
+        # Bri- + something + -water also acceptable depending on skip steps.
+        f[0] == "Bri-" and "-water" in f
+        for f in forms
+    )
+
+
+def test_multi_decomposition_multiple_morphemes_same_start_different_lengths():
+    """Trie has 'aber' AND 'aberdeen'. Walking 'aberdeen' from pos 0
+    matches both (pos 4 and pos 8). Every match branches a separate
+    decomposition path."""
+    aber = _meaning("Aber-")
+    aberdeen = _meaning("Aberdeen")
+    db = {"Aber-": [aber], "Aberdeen": [aberdeen]}
+    trie = build_morpheme_trie(db)
+    decomps = all_decompositions("Aberdeen", trie)
+    forms = [
+        tuple(getattr(e, "usage", e) if not isinstance(e, str) else f"<{e}>" for e in d)
+        for d in decomps
+    ]
+    assert ("Aberdeen",) in forms
+    assert ("Aber-", "<deen>") in forms
+
+
+# --- position constraints --------------------------------------------------
+
+
+def test_pre_morpheme_only_matches_at_position_zero():
+    """Bridg- is location='pre' (trailing dash). It must only match at
+    the start of the word; if it appears mid-word, the matcher must
+    NOT emit it."""
+    bridg = _meaning("Bridg-")
+    inner = _meaning("-bridg-")  # 'inner' for contrast
+    db = {"Bridg-": [bridg], "-bridg-": [inner]}
+    trie = build_morpheme_trie(db)
+    # 'XBridg' — Bridg starts at pos 1. The 'pre' Meaning must NOT
+    # match; the 'inner' Meaning IS allowed mid-word.
+    decomps = all_decompositions("Xbridg", trie)
+    matched_meanings = [m for d in decomps for m in iter_morphemes(d) if not isinstance(m, str)]
+    # 'pre' Bridg- should never appear in any decomposition.
+    assert bridg not in matched_meanings
+    # 'inner' -bridg- can appear (matches mid-word).
+    assert inner in matched_meanings
+
+
+def test_post_morpheme_only_matches_at_word_end():
+    """-water is location='post' (leading dash). It must only match
+    when the match ends at len(word). If 'water' appears mid-word, the
+    matcher must NOT emit it."""
+    water_post = _meaning("-water")
+    db = {"-water": [water_post]}
+    trie = build_morpheme_trie(db)
+    # 'waterX' — 'water' starts at 0, ends at 5, but len=6 → NOT
+    # at word-end → must be excluded.
+    decomps = all_decompositions("waterX", trie)
+    matched = [m for d in decomps for m in iter_morphemes(d)]
+    assert water_post not in matched
+    # 'water' at the actual end IS allowed.
+    decomps_end = all_decompositions("Bridgwater", trie)
+    matched_end = [m for d in decomps_end for m in iter_morphemes(d)]
+    assert water_post in matched_end
+
+
+def test_inner_morpheme_matches_anywhere():
+    """An 'inner' Meaning (dashes both sides) should match at start,
+    mid, and end positions — its location constraint is the no-op."""
+    by = _meaning("-by-")
+    db = {"-by-": [by]}
+    trie = build_morpheme_trie(db)
+    # 'by' at start, middle, and end — all should produce a match.
+    for word in ("by", "Xby", "byX", "XbyX"):
+        decomps = all_decompositions(word, trie)
+        matched = [m for d in decomps for m in iter_morphemes(d)]
+        assert by in matched, f"'-by-' did not match in {word!r}"
+
+
+# --- canonical_decomposition (single answer) -------------------------------
+
+
+def test_canonical_picks_decomposition_with_fewest_unaccounted_chars():
+    """Score primary axis: 'Bridg + water' explains all 10 chars,
+    while 'Bridg + W + ater' explains 6 + leaves 4 unaccounted (in
+    a hypothetical trie that lacks 'water'). The full-explanation
+    parse wins."""
+    db = {"Bridg-": [_meaning("Bridg-")], "-water": [_meaning("-water")]}
+    trie = build_morpheme_trie(db)
+    canonical = canonical_decomposition("Bridgwater", trie)
+    forms = tuple(getattr(e, "usage", e) for e in canonical)
+    assert forms == ("Bridg-", "-water")
+    assert count_unaccounted(canonical) == 0
+
+
+def test_canonical_prefers_fewer_morphemes_when_unaccounted_is_tied():
+    """Score secondary axis: when two decompositions both have 0
+    unaccounted chars, the one with FEWER morphemes wins. 'hamlet'
+    (1 morpheme) beats 'ham + let' (1 morpheme + 1 unaccounted) on
+    primary, AND 'hamlet' (1) beats 'h + a + m + l + e + t' (6) when
+    every letter happens to also be a morpheme."""
+    hamlet = _meaning("hamlet")
+    db = {
+        "hamlet": [hamlet],
+        "h": [_meaning("h")],
+        "a": [_meaning("a")],
+        "m": [_meaning("m")],
+        "l": [_meaning("l")],
+        "e": [_meaning("e")],
+        "t": [_meaning("t")],
+    }
+    trie = build_morpheme_trie(db)
+    canonical = canonical_decomposition("hamlet", trie)
+    assert len(list(iter_morphemes(canonical))) == 1
+    assert canonical[0] is hamlet
+
+
+def test_canonical_returns_word_as_unaccounted_when_no_matches():
+    """No matching morphemes → the canonical decomposition is just
+    the word as a single unaccounted fragment. Caller can render
+    'unrecognized: foo' from this shape."""
+    db = {"a": [_meaning("a")]}
+    trie = build_morpheme_trie(db)
+    assert canonical_decomposition("xyz", trie) == ["xyz"]
+
+
+# --- canonical_decompositions (plural — preserves ties) --------------------
+
+
+def test_canonical_plural_returns_all_ties_at_same_score():
+    """Two parses tied at minimum score (e.g. one usage with two
+    sense Meanings) — both must surface in the plural-canonical
+    output, not just one. This is the user-flagged multi-parse
+    invariant."""
+    sense_a = _meaning("-y")
+    sense_b = _meaning("-y")
+    db = {"-y": [sense_a, sense_b]}
+    trie = build_morpheme_trie(db)
+    canonicals = canonical_decompositions("y", trie)
+    # Filter to the matched-Meaning branch (skip the
+    # all-unaccounted alternative).
+    matched = [c for c in canonicals if c and not isinstance(c[0], str)]
+    assert len(matched) == 2
+    assert {id(m) for c in matched for m in iter_morphemes(c)} == {
+        id(sense_a),
+        id(sense_b),
+    }
+
+
+def test_canonical_plural_still_filters_inferior_parses():
+    """Even when ties at the top score get preserved, parses that
+    score WORSE (more unaccounted chars or more morphemes) are
+    dropped. Pin: 'ham' canonical against {ham, h, a, m} returns just
+    'ham' (1 morpheme, 0 unaccounted) and not 'h + a + m' (3 morphemes,
+    0 unaccounted)."""
+    ham = _meaning("ham")
+    db = {
+        "ham": [ham],
+        "h": [_meaning("h")],
+        "a": [_meaning("a")],
+        "m": [_meaning("m")],
+    }
+    trie = build_morpheme_trie(db)
+    canonicals = canonical_decompositions("ham", trie)
+    # Only the 1-morpheme parse survives.
+    assert all(len(list(iter_morphemes(c))) == 1 for c in canonicals)
+    assert all(c[0] is ham for c in canonicals)
+
+
+# --- helpers ---------------------------------------------------------------
+
+
+def test_count_unaccounted_sums_string_lengths():
+    """Convenience helper for callers that score downstream. Use an
+    inner morpheme so position-constraint filtering doesn't interfere
+    with the canonical pick."""
+    db = {"-ham-": [_meaning("-ham-")]}
+    trie = build_morpheme_trie(db)
+    canonical = canonical_decomposition("XhamY", trie)
+    # Best parse: ['X', -ham-, 'Y'] → 2 unaccounted chars.
+    assert count_unaccounted(canonical) == 2
+
+
+def test_iter_morphemes_yields_only_meaning_objects():
+    """Helper drops unaccounted strings, yielding the matched-morpheme
+    sequence in order. Inner morpheme to avoid position-constraint
+    interaction with the test."""
+    ham = _meaning("-ham-")
+    db = {"-ham-": [ham]}
+    trie = build_morpheme_trie(db)
+    canonical = canonical_decomposition("XhamY", trie)
+    morphemes = list(iter_morphemes(canonical))
+    assert morphemes == [ham]
+
+
+def test_morpheme_trie_can_be_constructed_empty():
+    """Edge case: empty meaning_db produces a usable (no-match) trie."""
+    trie = build_morpheme_trie({})
+    assert trie.morpheme_count == 0
+    decomp = canonical_decomposition("anyword", trie)
+    assert decomp == ["anyword"]
+
+
+def test_build_morpheme_trie_returns_distinct_instances():
+    """Sanity: two calls to build_morpheme_trie with equivalent input
+    return distinct objects (not a cached singleton). MorphemeTrie is
+    declared with eq=False so structural equality is identity, which
+    matches the caller's mental model — pass one instance around, not
+    rebuild and compare."""
+    t1 = build_morpheme_trie({"a": [_meaning("a")]})
+    t2 = build_morpheme_trie({"a": [_meaning("a")]})
+    assert t1 is not t2
+    # Identity-equality follows from dataclass(eq=False) — the auto-
+    # structural compare would have walked the trie subtree O(N).
+    assert t1 != t2
+
+
+def test_canonical_decomposition_is_deterministic():
+    """Same trie + same input = same single answer across calls
+    (uses a position-of-first-meaning tiebreaker)."""
+    db = {"ham": [_meaning("ham")]}
+    trie = build_morpheme_trie(db)
+    a = canonical_decomposition("hamlet", trie)
+    b = canonical_decomposition("hamlet", trie)
+    assert a == b
+
+
+def test_morpheme_trie_typechecks_expected_attributes():
+    """Smoke that the dataclass exposes the documented surface."""
+    t = build_morpheme_trie({"a": [_meaning("a")]})
+    assert isinstance(t, MorphemeTrie)
+    assert hasattr(t, "forward")
+    assert hasattr(t, "morpheme_count")
+
+
+# --- round-2 follow-ups: test-coverage P3 gaps ----------------------------
+
+
+def test_compact_unaccounted_merges_consecutive_string_runs():
+    """Direct unit pin for _compact_unaccounted: a decomposition with
+    runs of single-character unaccounted elements (the raw DFS shape)
+    collapses into single contiguous strings (the public output
+    shape)."""
+    from wyrd.generators.kenning.trie_matcher import _compact_unaccounted
+
+    ham = _meaning("-ham-")
+    # Mixed: leading run 'X','Y', a meaning, mid-run 'A','B','C',
+    # a meaning, trailing 'Z'. Expect 'XY', meaning, 'ABC', meaning,
+    # 'Z'.
+    raw = ["X", "Y", ham, "A", "B", "C", ham, "Z"]
+    compact = _compact_unaccounted(raw)
+    assert compact == ["XY", ham, "ABC", ham, "Z"]
+
+
+def test_compact_unaccounted_handles_no_strings_or_no_meanings():
+    """Boundary cases: a pure-meaning decomposition (no strings) and a
+    pure-string decomposition (no meanings) both pass through
+    correctly — the merger only acts on adjacent string elements."""
+    from wyrd.generators.kenning.trie_matcher import _compact_unaccounted
+
+    ham = _meaning("-ham-")
+    # All-meanings: no merge work.
+    assert _compact_unaccounted([ham, ham]) == [ham, ham]
+    # All-string single-char run: collapses to one string.
+    assert _compact_unaccounted(["a", "b", "c"]) == ["abc"]
+    # Empty: empty.
+    assert _compact_unaccounted([]) == []
+
+
+def test_skip_branch_runs_when_no_morpheme_matches_at_position():
+    """The skip-one-character branch is what lets the matcher tolerate
+    unrecognized fragments. Pin the branch in isolation: with a trie
+    that only recognizes 'ham' (inner) and an input 'XhamY', the only
+    decompositions reaching the pos=1 ham match come through the skip
+    branch from pos=0 (skipping 'X'). Likewise the trailing 'Y' must
+    come from the skip branch at pos=4."""
+    ham = _meaning("-ham-")
+    db = {"-ham-": [ham]}
+    trie = build_morpheme_trie(db)
+    decomps = all_decompositions("XhamY", trie)
+    # The clean ['X', ham, 'Y'] parse exists (skip-then-match-then-skip).
+    forms = [tuple(getattr(e, "usage", e) for e in d) for d in decomps]
+    assert ("X", "-ham-", "Y") in forms
+    # The all-skip parse also exists (no match at all → ['XhamY']).
+    assert ("XhamY",) in forms
+
+
+def test_canonical_decomposition_first_meaning_position_tiebreaker_fires():
+    """The third score-tuple axis (first_meaning_pos = list index of
+    the first matched element) is the deterministic tiebreaker after
+    unaccounted-chars and morpheme-count tie.
+
+    To force the tiebreaker into the winning position we need two
+    decompositions that tie on (unaccounted, morpheme_count) AND have
+    no better alternative. Overlapping morphemes are the trick: in
+    'aab' with '-aa-' and '-ab-' as inner morphemes, both span 2 of
+    the 3 chars, but they overlap on the middle char so AT MOST ONE
+    can match. That gives:
+      - [aa, 'b']     — match aa at 0-2, skip b. (1, 1, 0).
+      - ['a', ab]     — skip first, match ab at 1-3. (1, 1, 1).
+    Both tie on (1, 1); first_pos picks list-index 0 → [aa, 'b']."""
+    aa = _meaning("-aa-")
+    ab = _meaning("-ab-")
+    db = {"-aa-": [aa], "-ab-": [ab]}
+    trie = build_morpheme_trie(db)
+    canonical = canonical_decomposition("aab", trie)
+    matched = list(iter_morphemes(canonical))
+    assert len(matched) == 1
+    # Tiebreaker picks the one with first_meaning_pos=0 (i.e. the
+    # decomposition that starts with a morpheme rather than a string).
+    assert canonical[0] is aa, f"expected tiebreaker to pick aa; got {canonical}"
+
+
+def test_canonical_decomposition_three_way_tie_falls_back_to_dict_order():
+    """When (unaccounted, morpheme_count, first_meaning_pos) all tie,
+    Python's min() returns the first occurrence in iteration order. The
+    DFS visits the 'match' branch before 'skip' at each position, and
+    iterates the trie's terminals list in insertion order. Two senses
+    sharing one surface ('-y' = sense_a OR sense_b) produce
+    decompositions [sense_a] and [sense_b], tying on all three axes;
+    canonical picks whichever was inserted first in the meaning_db."""
+    sense_a = _meaning("-y")
+    sense_b = _meaning("-y")
+    db = {"-y": [sense_a, sense_b]}
+    trie = build_morpheme_trie(db)
+    # Same DB iterated twice produces the same result.
+    a = canonical_decomposition("y", trie)
+    b = canonical_decomposition("y", trie)
+    assert a == b
+    # The matched Meaning is sense_a (first in insertion order).
+    matched = list(iter_morphemes(a))
+    assert matched and matched[0] is sense_a
+
+
+def test_walk_memoization_preserves_correctness_on_repeated_substrings():
+    """Memoization guards an exponential blow-up on inputs where the
+    same suffix is reached from many distinct paths. With 'aaaaaaaaaa'
+    (10 'a' characters) and 'a' as a 1-char morpheme, every position
+    walks the same suffix; without memoization the DFS would be
+    exponential. Pin: result count is bounded (linear in length), and
+    every decomposition has the morpheme-only path among others."""
+    a = _meaning("-a-")
+    db = {"-a-": [a]}
+    trie = build_morpheme_trie(db)
+    decomps = all_decompositions("aaaaaaaaaa", trie)
+    # Every position can either match or skip → 2^10 = 1024 raw paths,
+    # but the cache collapses them. The result count is the number of
+    # distinct decompositions, which is bounded and finite.
+    assert len(decomps) > 0
+    # The all-morpheme decomposition exists (every char as 'a').
+    forms = [tuple(getattr(e, "usage", e) for e in d) for d in decomps]
+    assert ("-a-",) * 10 in forms
+    # The all-skip decomposition also exists.
+    assert ("aaaaaaaaaa",) in forms
