@@ -15,9 +15,10 @@ segmentation DAG with multi-path enumeration**:
 * The DFS over that DAG enumerates EVERY full path from 0 to
   len(word) — i.e. every valid decomposition. Multi-parse is the
   whole point: a word with two senses for one surface (-y =
-  'island' OR 'district') OR two competing breakdowns (Bridg+water vs
-  Bridge+water vs Bridg+w+ater if the trie has the right entries)
-  surfaces ALL of them.
+  'island' OR 'district') OR two competing breakdowns (the trie has
+  both ``-ham-`` and ``-hamlet-`` → walking 'hamlet' surfaces both
+  ``ham + let`` and ``hamlet`` as separate decompositions) surfaces
+  ALL of them. See the unit tests for the canonical multi-parse axes.
 
 Foundation for wyrd-08m (decomposition multiplicity) and wyrd-cv3
 (corpus DB ingest). Replaces the morpheme-iteration matcher
@@ -65,27 +66,40 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
-@dataclass
+@dataclass(eq=False)
 class _TrieNode:
     """One node in the character-keyed morpheme trie. ``terminals`` is
     the list of Meanings that finish at this node (empty for non-
-    accepting states). ``children`` is the next-character map."""
+    accepting states). ``children`` is the next-character map.
+
+    eq=False because the auto-generated structural equality recurses
+    into the children dict — comparing two trie nodes would walk the
+    full subtree, O(trie size). Identity equality is the right default
+    for an internal index node. Callers that need structural
+    equivalence should compare the morpheme inventories instead.
+    """
 
     terminals: list[Any] = field(default_factory=list)
     children: dict[str, _TrieNode] = field(default_factory=dict)
 
 
-@dataclass
+@dataclass(eq=False)
 class MorphemeTrie:
-    """Two character-tries (forward + reverse). The forward trie indexes
-    morphemes by their first character; the reverse trie does the same
-    but inserted in reverse so 'post' morphemes can be matched by walking
-    backward from a position. For Phase 1 we only need the forward trie
-    — the segmentation DAG enumeration handles position constraints by
-    filtering match locations after the trie returns hits.
+    """Top-level wrapper around the character-keyed morpheme trie. Phase
+    1 ships a single forward trie (indexes morphemes by their first
+    character; walking from any position surfaces every morpheme that
+    starts there). Position constraints (pre / post / inner) are
+    applied by filtering the match list after the trie returns hits —
+    no separate reverse trie is needed.
 
     Stored separately from MeaningDB so the same trie can be reused
-    across many ``all_decompositions`` calls without rebuild."""
+    across many ``all_decompositions`` calls without rebuild.
+
+    eq=False to match _TrieNode — comparing two MorphemeTrie instances
+    structurally would walk the full subtree, surprising O(N) cost.
+    Identity equality (``is``) is the right semantics for an immutable
+    index built once at startup.
+    """
 
     forward: _TrieNode = field(default_factory=_TrieNode)
     # Total morphemes ingested — informational; lets a CLI report
@@ -101,7 +115,15 @@ def build_morpheme_trie(meaning_db: dict[str, list[Any]]) -> MorphemeTrie:
     'district') all attach to the same accepting state.
 
     Empty surface forms are skipped (would otherwise cause empty-edge
-    cycles in the segmentation DAG)."""
+    cycles in the segmentation DAG).
+
+    Determinism: iteration order of ``meaning_db.items()`` is
+    preserved through to the order of terminals at each accepting
+    state, which in turn determines the order of decompositions
+    returned by ``all_decompositions`` and the order ties surface in
+    ``canonical_decompositions``. Python 3.7+ dicts preserve insertion
+    order, so a deterministically-built meaning_db gives
+    deterministic matcher output across runs."""
     trie = MorphemeTrie()
     for usage, meanings in meaning_db.items():
         if not meanings:
@@ -171,26 +193,32 @@ def _location_allows(meaning: Any, start: int, end: int, word_length: int) -> bo
 def all_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
     """Enumerate every valid decomposition of ``word`` against the
     trie. Each result is a list whose elements alternate between
-    matched Meaning objects and unaccounted string fragments (in
-    original casing). Empty fragments are not emitted.
+    matched Meaning objects and unaccounted string fragments — that
+    invariant is load-bearing for downstream callers (``iter_morphemes``,
+    ``count_unaccounted``, ``_decomposition_score``) which use
+    ``isinstance(elem, str)`` as the unaccounted-vs-morpheme switch.
+    Don't put any third element type into the list. Empty fragments
+    are not emitted.
 
     A decomposition that has no matches at all is the single-element
     list ``[word]`` — caller decides whether to display the un-
-    decomposed word as a fallback.
+    decomposed word as a fallback. Empty input returns ``[[]]`` —
+    one decomposition that's the empty list.
 
     Walks the segmentation DAG via DFS. For each position, we emit
     every (match, residue-decomposition) combination, and we also emit
     the 'skip one character into the unaccounted bucket' alternative.
     The skip path is what makes the matcher tolerant of unrecognized
-    fragments — Bridgwater can decompose as Bridg + water OR as
-    [Bridgwa] + ter (skip-into-unaccounted with a final post match)
-    OR even Bridgwater (no matches; whole word unaccounted).
+    fragments — a name with one matchable morpheme and unrecognized
+    surrounding chars still produces a usable partial decomposition.
     """
     n = len(word)
     if n == 0:
         return [[]]
     # Memoize results per starting position so the segmentation DAG
-    # doesn't re-explore the same suffix exponentially.
+    # doesn't re-explore the same suffix exponentially. The key is
+    # ``pos`` alone because ``word`` and ``trie`` are loop-invariant
+    # in the closure — the suffix is fully determined by the position.
     cache: dict[int, list[list[Any]]] = {}
 
     def walk(pos: int) -> list[list[Any]]:
@@ -256,9 +284,10 @@ def canonical_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
     Empty input returns ``[[]]``. A word with no matches at all
     returns ``[[word]]``.
     """
+    # all_decompositions never returns []: empty input → [[]],
+    # any non-empty input has at least the all-skip decomposition
+    # ([word]). So no need for an empty-list guard before the min.
     decompositions = all_decompositions(word, trie)
-    if not decompositions:
-        return [[word]]
     # Score each, find the minimum on the (unaccounted, morpheme_count)
     # pair, and return EVERY decomposition tied at that minimum.
     scored = [(_decomposition_score(d)[:2], d) for d in decompositions]

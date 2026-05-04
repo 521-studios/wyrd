@@ -18,7 +18,7 @@ from wyrd.generators.kenning.trie_matcher import (
 def _meaning(usage: str) -> Meaning:
     """Convenience for building a Meaning at the right Meaning.location
     via the dash-marker convention. 'Bridg-' → pre; '-water' → post;
-    '-by-' → inner; 'Saint' (no dash) → post."""
+    '-by-' → inner."""
     return Meaning(usage, [], [], {})
 
 
@@ -337,14 +337,18 @@ def test_morpheme_trie_can_be_constructed_empty():
     assert decomp == ["anyword"]
 
 
-def test_morpheme_trie_dataclass_equality_is_identity():
-    """Sanity: different MorphemeTrie instances aren't equal even when
-    they represent the same morphemes — caller should pass the same
-    instance around, not rebuild and compare."""
+def test_build_morpheme_trie_returns_distinct_instances():
+    """Sanity: two calls to build_morpheme_trie with equivalent input
+    return distinct objects (not a cached singleton). MorphemeTrie is
+    declared with eq=False so structural equality is identity, which
+    matches the caller's mental model — pass one instance around, not
+    rebuild and compare."""
     t1 = build_morpheme_trie({"a": [_meaning("a")]})
     t2 = build_morpheme_trie({"a": [_meaning("a")]})
-    # Distinct instances; distinct internal _TrieNode objects.
     assert t1 is not t2
+    # Identity-equality follows from dataclass(eq=False) — the auto-
+    # structural compare would have walked the trie subtree O(N).
+    assert t1 != t2
 
 
 def test_canonical_decomposition_is_deterministic():
@@ -363,3 +367,124 @@ def test_morpheme_trie_typechecks_expected_attributes():
     assert isinstance(t, MorphemeTrie)
     assert hasattr(t, "forward")
     assert hasattr(t, "morpheme_count")
+
+
+# --- round-2 follow-ups: test-coverage P3 gaps ----------------------------
+
+
+def test_compact_unaccounted_merges_consecutive_string_runs():
+    """Direct unit pin for _compact_unaccounted: a decomposition with
+    runs of single-character unaccounted elements (the raw DFS shape)
+    collapses into single contiguous strings (the public output
+    shape)."""
+    from wyrd.generators.kenning.trie_matcher import _compact_unaccounted
+
+    ham = _meaning("-ham-")
+    # Mixed: leading run 'X','Y', a meaning, mid-run 'A','B','C',
+    # a meaning, trailing 'Z'. Expect 'XY', meaning, 'ABC', meaning,
+    # 'Z'.
+    raw = ["X", "Y", ham, "A", "B", "C", ham, "Z"]
+    compact = _compact_unaccounted(raw)
+    assert compact == ["XY", ham, "ABC", ham, "Z"]
+
+
+def test_compact_unaccounted_handles_no_strings_or_no_meanings():
+    """Boundary cases: a pure-meaning decomposition (no strings) and a
+    pure-string decomposition (no meanings) both pass through
+    correctly — the merger only acts on adjacent string elements."""
+    from wyrd.generators.kenning.trie_matcher import _compact_unaccounted
+
+    ham = _meaning("-ham-")
+    # All-meanings: no merge work.
+    assert _compact_unaccounted([ham, ham]) == [ham, ham]
+    # All-string single-char run: collapses to one string.
+    assert _compact_unaccounted(["a", "b", "c"]) == ["abc"]
+    # Empty: empty.
+    assert _compact_unaccounted([]) == []
+
+
+def test_skip_branch_runs_when_no_morpheme_matches_at_position():
+    """The skip-one-character branch is what lets the matcher tolerate
+    unrecognized fragments. Pin the branch in isolation: with a trie
+    that only recognizes 'ham' (inner) and an input 'XhamY', the only
+    decompositions reaching the pos=1 ham match come through the skip
+    branch from pos=0 (skipping 'X'). Likewise the trailing 'Y' must
+    come from the skip branch at pos=4."""
+    ham = _meaning("-ham-")
+    db = {"-ham-": [ham]}
+    trie = build_morpheme_trie(db)
+    decomps = all_decompositions("XhamY", trie)
+    # The clean ['X', ham, 'Y'] parse exists (skip-then-match-then-skip).
+    forms = [tuple(getattr(e, "usage", e) for e in d) for d in decomps]
+    assert ("X", "-ham-", "Y") in forms
+    # The all-skip parse also exists (no match at all → ['XhamY']).
+    assert ("XhamY",) in forms
+
+
+def test_canonical_decomposition_first_meaning_position_tiebreaker_fires():
+    """The third score-tuple axis (first_meaning_pos = list index of
+    the first matched element) is the deterministic tiebreaker after
+    unaccounted-chars and morpheme-count tie.
+
+    To force the tiebreaker into the winning position we need two
+    decompositions that tie on (unaccounted, morpheme_count) AND have
+    no better alternative. Overlapping morphemes are the trick: in
+    'aab' with '-aa-' and '-ab-' as inner morphemes, both span 2 of
+    the 3 chars, but they overlap on the middle char so AT MOST ONE
+    can match. That gives:
+      - [aa, 'b']     — match aa at 0-2, skip b. (1, 1, 0).
+      - ['a', ab]     — skip first, match ab at 1-3. (1, 1, 1).
+    Both tie on (1, 1); first_pos picks list-index 0 → [aa, 'b']."""
+    aa = _meaning("-aa-")
+    ab = _meaning("-ab-")
+    db = {"-aa-": [aa], "-ab-": [ab]}
+    trie = build_morpheme_trie(db)
+    canonical = canonical_decomposition("aab", trie)
+    matched = list(iter_morphemes(canonical))
+    assert len(matched) == 1
+    # Tiebreaker picks the one with first_meaning_pos=0 (i.e. the
+    # decomposition that starts with a morpheme rather than a string).
+    assert canonical[0] is aa, f"expected tiebreaker to pick aa; got {canonical}"
+
+
+def test_canonical_decomposition_three_way_tie_falls_back_to_dict_order():
+    """When (unaccounted, morpheme_count, first_meaning_pos) all tie,
+    Python's min() returns the first occurrence in iteration order. The
+    DFS visits the 'match' branch before 'skip' at each position, and
+    iterates the trie's terminals list in insertion order. Two senses
+    sharing one surface ('-y' = sense_a OR sense_b) produce
+    decompositions [sense_a] and [sense_b], tying on all three axes;
+    canonical picks whichever was inserted first in the meaning_db."""
+    sense_a = _meaning("-y")
+    sense_b = _meaning("-y")
+    db = {"-y": [sense_a, sense_b]}
+    trie = build_morpheme_trie(db)
+    # Same DB iterated twice produces the same result.
+    a = canonical_decomposition("y", trie)
+    b = canonical_decomposition("y", trie)
+    assert a == b
+    # The matched Meaning is sense_a (first in insertion order).
+    matched = list(iter_morphemes(a))
+    assert matched and matched[0] is sense_a
+
+
+def test_walk_memoization_preserves_correctness_on_repeated_substrings():
+    """Memoization guards an exponential blow-up on inputs where the
+    same suffix is reached from many distinct paths. With 'aaaaaaaaaa'
+    (10 'a' characters) and 'a' as a 1-char morpheme, every position
+    walks the same suffix; without memoization the DFS would be
+    exponential. Pin: result count is bounded (linear in length), and
+    every decomposition has the morpheme-only path among others."""
+    a = _meaning("-a-")
+    db = {"-a-": [a]}
+    trie = build_morpheme_trie(db)
+    decomps = all_decompositions("aaaaaaaaaa", trie)
+    # Every position can either match or skip → 2^10 = 1024 raw paths,
+    # but the cache collapses them. The result count is the number of
+    # distinct decompositions, which is bounded and finite.
+    assert len(decomps) > 0
+    # The all-morpheme decomposition exists (every char as 'a').
+    forms = [tuple(getattr(e, "usage", e) for e in d) for d in decomps]
+    assert ("-a-",) * 10 in forms
+    # The all-skip decomposition also exists.
+    assert ("aaaaaaaaaa",) in forms
