@@ -699,24 +699,29 @@ across language and era. Counting descent edges as extraction
 witnesses would inflate the count and break the ≥3-witnesses
 promotion threshold; a morpheme with one real scholar citation but
 ten Wiktionary descent edges would auto-promote despite being
-under-attested for actual place-name use. Synset clustering is the
+under-attested for actual place-name use. Cognate clustering is the
 correct rollup for descent.
 
-### Synset clustering: materialized via `etymon.synset_id`
+### Cognate clustering: materialized via `etymon.cognate_id`
+
+(Historically named `synset_id`; renamed in wyrd-44a to remove a
+naming collision with the wyrd-7tz `meaning_synset` table — that
+table carries SEMANTIC equivalence; this column carries
+ETYMOLOGICAL descent.)
 
 The cognate set = transitive closure of inheritance + borrowing
 edges from a common root. A separate `cluster-cognates` enrichment
 pass (filed as wyrd-81n) walks the graph and writes
-`etymon.synset_id` pointing at the most-ancestral known etymon.
+`etymon.cognate_id` pointing at the most-ancestral known etymon.
 All etymons reachable from that root via inheritance/borrowing
-share the same `synset_id`.
+share the same `cognate_id`.
 
 Materialized (column) rather than derived (recursive CTE view)
-because cross-language synset queries would walk unbounded depth on
-every call; materialization makes the query a single JOIN.
+because cross-language cognate-cluster queries would walk unbounded
+depth on every call; materialization makes the query a single JOIN.
 
-The `cognate` edge type does NOT bridge synsets — it's a peer
-relationship Wiktionary uses when two languages have lexically
+The `cognate` edge type does NOT bridge cognate clusters — it's a
+peer relationship Wiktionary uses when two languages have lexically
 similar forms but the chain isn't pinned. Bridging on cognate would
 over-unify; we want synset assignments to require an explicit
 ancestor.

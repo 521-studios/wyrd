@@ -434,23 +434,23 @@ def _add_etymon_columns(db: LexiconDB, applied: dict[str, bool]) -> None:
     if "lemma_method" not in cols:
         db.conn.execute("ALTER TABLE etymon ADD COLUMN lemma_method TEXT")
         applied["etymon.lemma_method"] = True
-    # synset_id (D27 / wyrd-0ug): cognate-cluster rollup. Points at the
+    # cognate_id (D27 / wyrd-0ug): cognate-cluster rollup. Points at the
     # most-ancestral known etymon in this cognate set; populated by the
     # cluster-cognates pass (wyrd-81n) walking etymon_descent inheritance
     # edges. Cross-language by design — distinct from merged_into_id
     # (within-language OCR cluster) and lemma_id (within-language
     # inflection family).
-    if "synset_id" not in cols:
+    if "cognate_id" not in cols:
         db.conn.execute(
-            "ALTER TABLE etymon ADD COLUMN synset_id INTEGER "
+            "ALTER TABLE etymon ADD COLUMN cognate_id INTEGER "
             "REFERENCES etymon(id) ON DELETE SET NULL"
         )
-        applied["etymon.synset_id"] = True
-    # synset_method: which version of cluster-cognates produced this
-    # synset_id assignment. Mirrors lemma_method.
-    if "synset_method" not in cols:
-        db.conn.execute("ALTER TABLE etymon ADD COLUMN synset_method TEXT")
-        applied["etymon.synset_method"] = True
+        applied["etymon.cognate_id"] = True
+    # cognate_method: which version of cluster-cognates produced this
+    # cognate_id assignment. Mirrors lemma_method.
+    if "cognate_method" not in cols:
+        db.conn.execute("ALTER TABLE etymon ADD COLUMN cognate_method TEXT")
+        applied["etymon.cognate_method"] = True
 
 
 def _create_etymon_indexes(db: LexiconDB, applied: dict[str, bool]) -> None:
@@ -464,9 +464,9 @@ def _create_etymon_indexes(db: LexiconDB, applied: dict[str, bool]) -> None:
     if "idx_etymon_merged_into" not in existing_indexes:
         db.conn.execute("CREATE INDEX idx_etymon_merged_into ON etymon(merged_into_id)")
         applied["idx_etymon_merged_into"] = True
-    if "idx_etymon_synset" not in existing_indexes:
-        db.conn.execute("CREATE INDEX idx_etymon_synset ON etymon(synset_id)")
-        applied["idx_etymon_synset"] = True
+    if "idx_etymon_cognate" not in existing_indexes:
+        db.conn.execute("CREATE INDEX idx_etymon_cognate ON etymon(cognate_id)")
+        applied["idx_etymon_cognate"] = True
 
 
 def _rebuild_etymon_views(db: LexiconDB, applied: dict[str, bool]) -> None:
@@ -518,7 +518,7 @@ def _create_etymon_descent_table(db: LexiconDB, applied: dict[str, bool]) -> Non
 
     Holds directed edges of the etymological descent graph populated by
     Wiktionary mining (wyrd-4rt) and any future scholar-cited chain
-    assertions. The cognate cluster column etymon.synset_id is derived
+    assertions. The cognate cluster column etymon.cognate_id is derived
     from this graph by the cluster-cognates pass (wyrd-81n).
 
     Schema mirrors data/lexicon.sql so fresh-install and migration paths
@@ -1036,11 +1036,11 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "etymon.inflection": False,
         "etymon.merged_into_id": False,
         "etymon.lemma_method": False,
-        "etymon.synset_id": False,
-        "etymon.synset_method": False,
+        "etymon.cognate_id": False,
+        "etymon.cognate_method": False,
         "idx_etymon_lemma": False,
         "idx_etymon_merged_into": False,
-        "idx_etymon_synset": False,
+        "idx_etymon_cognate": False,
         "etymon_text_match.method": False,
         "etymon_text_match.attested_year": False,
         "etymon_consensus_view": False,
@@ -1053,7 +1053,15 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "wal_mode": False,
         "meaning_synset_table": False,
         "etymon_meaning_synset_table": False,
+        "etymon.synset_id_renamed_to_cognate_id": False,
+        "etymon.synset_method_renamed_to_cognate_method": False,
+        "idx_etymon_synset_renamed_to_idx_etymon_cognate": False,
     }
+    # wyrd-44a: rename the legacy cognate-cluster column from synset_id
+    # to cognate_id BEFORE the add-columns helper runs — otherwise
+    # _add_etymon_columns would see no `cognate_id` and try to ADD it,
+    # leaving the legacy `synset_id` column orphaned.
+    _rename_synset_to_cognate(db, applied)
     _add_etymon_columns(db, applied)
     _create_etymon_indexes(db, applied)
     _rebuild_etymon_views(db, applied)
@@ -1068,13 +1076,45 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     return applied
 
 
+def _rename_synset_to_cognate(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """wyrd-44a: rename legacy etymon.synset_id → etymon.cognate_id (and
+    .synset_method → .cognate_method, idx_etymon_synset →
+    idx_etymon_cognate). Idempotent — runs only on legacy DBs that
+    still carry the old names; fresh-install DBs already have the
+    cognate-prefixed names from data/lexicon.sql.
+
+    Renames the COLUMN in place via SQLite's ALTER TABLE RENAME COLUMN
+    (3.25+) so existing data carries over without a copy. Drops + re-
+    creates the index by the new name (SQLite has no RENAME INDEX).
+    Order matters: rename the column FIRST so the index recreate
+    references the new column name.
+    """
+    cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon)")}
+    if "synset_id" in cols and "cognate_id" not in cols:
+        db.conn.execute("ALTER TABLE etymon RENAME COLUMN synset_id TO cognate_id")
+        applied["etymon.synset_id_renamed_to_cognate_id"] = True
+    if "synset_method" in cols and "cognate_method" not in cols:
+        db.conn.execute("ALTER TABLE etymon RENAME COLUMN synset_method TO cognate_method")
+        applied["etymon.synset_method_renamed_to_cognate_method"] = True
+    existing_indexes = {
+        row["name"]
+        for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type = 'index'")
+    }
+    if "idx_etymon_synset" in existing_indexes:
+        db.conn.execute("DROP INDEX idx_etymon_synset")
+        # The post-drop CREATE happens in _create_etymon_indexes so the
+        # rename helper stays focused on the rename itself; that helper
+        # is idempotent and will see the missing index next.
+        applied["idx_etymon_synset_renamed_to_idx_etymon_cognate"] = True
+
+
 def _create_meaning_synset_tables(db: LexiconDB, applied: dict[str, bool]) -> None:
     """Create meaning_synset + etymon_meaning_synset if missing (wyrd-7tz).
 
     Schema mirrors data/lexicon.sql so fresh-install and migration paths
     stay in lockstep. Idempotent — checks for the tables before creating.
 
-    Distinct from etymon.synset_id (cognate-cluster ID from
+    Distinct from etymon.cognate_id (cognate-cluster ID from
     cluster-cognates enrichment); these are MEANING synsets — fine-
     grained semantic equivalence used by upcoming generator transforms.
     See the comment block in data/lexicon.sql for why the naming
@@ -1372,7 +1412,7 @@ def get_meaning_preserving_candidates(
 
     Each result row carries:
       - etymon_id, canonical_form, language
-      - synset_label, synset_id (the shared synset)
+      - synset_label, meaning_synset_id (the shared meaning_synset)
       - target_fit (the source etymon's fit in this synset)
       - candidate_fit (the candidate etymon's fit)
 
@@ -1398,7 +1438,7 @@ def get_meaning_preserving_candidates(
           e.canonical_form                 AS canonical_form,
           e.language                       AS language,
           s.canonical_label                AS synset_label,
-          s.id                             AS synset_id,
+          s.id                             AS meaning_synset_id,
           ems_self.fit                     AS target_fit,
           ems_other.fit                    AS candidate_fit
         FROM etymon_meaning_synset ems_self
@@ -2378,8 +2418,8 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
                         (un-links every inflected variant from its lemma)
       text-match      - DELETE FROM etymon_text_match
                         (drops every reverse-search / fuzzy-search row)
-      cognates        - UPDATE etymon SET synset_id = NULL,
-                                           synset_method = NULL
+      cognates        - UPDATE etymon SET cognate_id = NULL,
+                                           cognate_method = NULL
                         (un-clusters every cognate-set assignment from
                         cluster-cognates; D27 / wyrd-81n)
       attested-years  - UPDATE etymon_text_match SET attested_year = NULL
@@ -2436,7 +2476,7 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
         ).fetchone()[0]
     if "cognates" in stages:
         counts["synset_assignments_to_clear"] = db.conn.execute(
-            "SELECT COUNT(*) FROM etymon WHERE synset_id IS NOT NULL"
+            "SELECT COUNT(*) FROM etymon WHERE cognate_id IS NOT NULL"
         ).fetchone()[0]
     if "attested-years" in stages:
         counts["attested_years_to_clear"] = (
@@ -2458,7 +2498,7 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
     if "text-match" in stages:
         db.conn.execute("DELETE FROM etymon_text_match")
     if "cognates" in stages:
-        db.conn.execute("UPDATE etymon SET synset_id = NULL, synset_method = NULL")
+        db.conn.execute("UPDATE etymon SET cognate_id = NULL, cognate_method = NULL")
     if "attested-years" in stages:
         # 'text-match' DELETEs etymon_text_match if it's also in stages
         # (notably under 'all-derived'), so guard that UPDATE — the
@@ -2480,13 +2520,13 @@ _CLUSTER_COGNATES_METHOD = "cluster-cognates-v1"
 
 def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     """Walk etymon_descent inheritance + borrowing edges from each root
-    and assign synset_id to every reachable descendant (D27 / wyrd-81n).
+    and assign cognate_id to every reachable descendant (D27 / wyrd-81n).
 
     A "root" is an etymon that participates in inheritance/borrowing
     descent edges as a parent but never as a child — i.e. the most-
     ancestral known form in its cognate chain (typically a Proto-* form).
     Every descendant reachable via inheritance or borrowing edges from
-    that root gets synset_id = root.id, so cross-language cognates
+    that root gets cognate_id = root.id, so cross-language cognates
     cluster behind a single canonical pointer.
 
     Edge type semantics (D27):
@@ -2509,15 +2549,15 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     Operates in CANONICAL space (per D22 / wyrd-223): edges'
     parent_id and child_id are resolved through merged_into_id before
     use, so a descent edge that points at an OCR-merge tombstone is
-    treated as if it pointed at the canonical winner. synset_id is
+    treated as if it pointed at the canonical winner. cognate_id is
     written on canonical etymons only; tombstones stay NULL (and are
     rolled up at query time via merged_into_id chain). This bridges
     cross-source canonical-form mismatches like wiktextract's
     `tun` vs the place-name dictionaries' `tūn`.
 
     With apply=False (default) reports candidate counts without writing.
-    With apply=True writes synset_id + synset_method='cluster-cognates-v1'
-    only on rows whose current (synset_id, synset_method) doesn't already
+    With apply=True writes cognate_id + cognate_method='cluster-cognates-v1'
+    only on rows whose current (cognate_id, cognate_method) doesn't already
     match the target — re-runs against unchanged data become real no-ops
     instead of redundant UPDATEs. Reverse with
     `clear-enrichment --stage=cognates --apply`.
@@ -2525,7 +2565,7 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
     Returns a dict of:
       - roots: number of canonical root etymons walked
       - candidates: total canonical etymons that received (or would
-        receive) a synset_id assignment
+        receive) a cognate_id assignment
       - applied: whether writes happened
       - rows_written: count of UPDATE statements that actually changed
         a row (always 0 in dry-run; ≤ candidates when applied)
@@ -2602,16 +2642,16 @@ def cluster_cognates(db: LexiconDB, *, apply: bool = False) -> dict:
 
     rows_written = 0
     if apply:
-        for etymon_id, synset_id in assignments.items():
+        for etymon_id, cognate_id in assignments.items():
             cur = db.conn.execute(
-                "UPDATE etymon SET synset_id = ?, synset_method = ? "
+                "UPDATE etymon SET cognate_id = ?, cognate_method = ? "
                 "WHERE id = ? "
-                "  AND (synset_id IS NOT ? OR synset_method IS NOT ?)",
+                "  AND (cognate_id IS NOT ? OR cognate_method IS NOT ?)",
                 (
-                    synset_id,
+                    cognate_id,
                     _CLUSTER_COGNATES_METHOD,
                     etymon_id,
-                    synset_id,
+                    cognate_id,
                     _CLUSTER_COGNATES_METHOD,
                 ),
             )
@@ -2879,7 +2919,7 @@ def bridge_celtic_forms(
          (celtic→old-irish that has no synset) to a clustered alternative
          (celtic→irish with a synset).
       3. Among multiple matching candidate languages, prefers the one
-         whose target is in a cognate cluster (synset_id IS NOT NULL),
+         whose target is in a cognate cluster (cognate_id IS NOT NULL),
          falling back to the priority order in `candidate_langs`.
 
     Default `candidate_langs` is biased toward MODERN reflexes (Irish,
@@ -2897,7 +2937,7 @@ def bridge_celtic_forms(
     """
     table = _CELTIC_FORM_BRIDGES if table is None else table
 
-    # Build (lower(canonical_form), language) → (live_canonical_id, synset_id)
+    # Build (lower(canonical_form), language) → (live_canonical_id, cognate_id)
     # over canonical candidate-language etymons. We resolve through any
     # merged_into_id chain so a target form named in the table that has
     # itself been OCR-merged into a canonical still routes correctly.
@@ -2905,7 +2945,7 @@ def bridge_celtic_forms(
     candidate_index: dict[tuple[str, str], tuple[int, int | None]] = {}
     for row in db.conn.execute(
         f"""
-        SELECT id, canonical_form, language, merged_into_id, synset_id
+        SELECT id, canonical_form, language, merged_into_id, cognate_id
         FROM etymon
         WHERE language IN ({placeholders})
         ORDER BY id
@@ -2916,15 +2956,15 @@ def bridge_celtic_forms(
         # OCR-cluster passes don't produce multi-step chains within a
         # single language).
         live_id = row["id"]
-        live_synset = row["synset_id"]
+        live_synset = row["cognate_id"]
         if row["merged_into_id"] is not None:
             live = db.conn.execute(
-                "SELECT id, synset_id FROM etymon WHERE id = ?",
+                "SELECT id, cognate_id FROM etymon WHERE id = ?",
                 (row["merged_into_id"],),
             ).fetchone()
             if live is not None:
                 live_id = live["id"]
-                live_synset = live["synset_id"]
+                live_synset = live["cognate_id"]
         key = (row["canonical_form"].lower(), row["language"])
         # First-seen wins per (form, lang). The ORDER BY id keeps it
         # deterministic (older entry wins).
@@ -2949,7 +2989,7 @@ def bridge_celtic_forms(
             unmatched += 1
             continue
 
-        # Find the best candidate: prefer clustered targets (synset_id IS
+        # Find the best candidate: prefer clustered targets (cognate_id IS
         # NOT NULL) in priority order, fall back to first-found unclustered.
         best_clustered: int | None = None
         best_unclustered: int | None = None
