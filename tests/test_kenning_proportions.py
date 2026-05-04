@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import random
+import textwrap
 from collections import Counter
 
 from wyrd.generators.kenning.proportions import (
@@ -1461,29 +1463,48 @@ def test_raw_class_score_is_bit_stable_across_python_hash_seed():
     """seed-reproducibility hazard fix: PYTHONHASHSEED randomizes set
     iteration order, and float += is non-associative. Without sorted
     iteration in _raw_class_score, the same input data produces ULP-
-    level different scores across processes. Verify the fix produces
-    bit-identical scores no matter which set instance order Python
-    happens to use this run.
+    level different scores across processes (verified empirically:
+    41.97856592189611 vs 41.978565921896106 vs 41.97856592189612).
 
-    The empirical hazard reported on the PR was 41.97856592189611 vs
-    41.978565921896106 vs 41.97856592189612 across runs. A float
-    equality check here pins the post-fix invariant."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator, NameGenerator
+    Within ONE process, PYTHONHASHSEED is fixed at startup so
+    set-iteration order is stable across calls — a same-process loop
+    can't catch the hazard. Spawn subprocesses with varied
+    PYTHONHASHSEED env vars and assert the score is bit-identical
+    across them. Without sorted iteration, this test fails.
+    """
+    import subprocess
+    import sys
 
-    mg = MeaningGenerator({"-a": [Meaning("-a", [], [], {})]}, {}, {"-a": 1})
-    # Densely-populated cooccurrence so the sum has many addends — the
-    # more terms, the more chances for non-associative drift to surface.
-    tags = [f"t{i}" for i in range(20)]
-    cooc = {f"{a}|{b}": (i + j + 1) * 7 for i, a in enumerate(tags) for j, b in enumerate(tags)}
-    marg = dict.fromkeys(tags, 100)
-    name_gen = NameGenerator({}, mg, {}, tag_cooccurrence=cooc, tag_marginal=marg)
-    prior = set(tags)
-    cand = set(tags)
-    # Compute many times; sorted iteration should always yield the same
-    # float regardless of any hash-order shuffling between calls.
-    scores = {name_gen._raw_class_score(prior, cand) for _ in range(50)}
-    assert len(scores) == 1, f"non-deterministic score across calls: {scores}"
+    script = textwrap.dedent("""
+        from wyrd.generators.kenning.meaning import Meaning
+        from wyrd.generators.kenning.proportions import MeaningGenerator, NameGenerator
+
+        mg = MeaningGenerator({"-a": [Meaning("-a", [], [], {})]}, {}, {"-a": 1})
+        # Dense 20x20 cooccurrence so the sum has many addends — more
+        # terms = more chances for non-associative drift to surface.
+        tags = [f"t{i}" for i in range(20)]
+        cooc = {f"{a}|{b}": (i + j + 1) * 7
+                for i, a in enumerate(tags) for j, b in enumerate(tags)}
+        marg = dict.fromkeys(tags, 100)
+        name_gen = NameGenerator({}, mg, {}, tag_cooccurrence=cooc, tag_marginal=marg)
+        score = name_gen._raw_class_score(set(tags), set(tags))
+        # repr to lock the full float precision across the subprocess boundary.
+        print(repr(score))
+    """)
+    scores = set()
+    # PYTHONHASHSEED=0 disables randomization; positive ints select a
+    # fixed hash seed. A spread of values ensures we hit several distinct
+    # set-iteration orders.
+    for seed_value in ("1", "2", "3", "5", "7", "11", "13", "17"):
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            env={"PYTHONHASHSEED": seed_value, "PATH": os.environ.get("PATH", "")},
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        scores.add(result.stdout.strip())
+    assert len(scores) == 1, f"non-deterministic score across PYTHONHASHSEED: {scores}"
 
 
 def test_generator_select_key_boost_multiplies_weights():
