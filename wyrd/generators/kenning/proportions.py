@@ -123,9 +123,7 @@ class MeaningGenerator:
         # precomputed value. Computed lazily on first lookup; the
         # meaning_db is immutable post-load so the cache is safe to
         # reuse for the process lifetime.
-        self._era_keep_cache: dict[
-            tuple[int | None, int | None], frozenset[str] | None
-        ] = {}
+        self._era_keep_cache: dict[tuple[int | None, int | None], frozenset[str] | None] = {}
         self.load_parts(proportions)
 
     def load_parts(self, proportions, *addkeys):

@@ -242,7 +242,15 @@ def generate(
         "era": era,
     }
     for _ in range(count):
-        result = kenning.generate(params, seed_rng.randrange(2**63))
+        try:
+            result = kenning.generate(params, seed_rng.randrange(2**63))
+        except ValueError as exc:
+            # Surface user-input errors (bad --era, etc.) as friendly
+            # CLI messages on stderr + exit non-zero, matching the
+            # tags/moods pre-validation pattern above. Other unexpected
+            # exceptions still propagate so a real bug isn't silenced.
+            click.echo(f"Error: {exc}", err=True)
+            sys.exit(1)
         click.echo(result.result)
         if describe:
             click.echo(result.explanation)

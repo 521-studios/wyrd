@@ -993,6 +993,54 @@ def test_name_generator_select_era_range_none_is_bit_stable():
     assert seq_default == seq_explicit_none
 
 
+def test_name_generator_select_no_era_matches_pre_pr_weighted_choice():
+    """Stronger bit-stability pin: a sample drawn through the new
+    NameGenerator.select code path matches what raw weighted_choice
+    would have produced over the same items pre-PR. The default
+    era_range=None test above only proves the default kwarg matches
+    the explicit kwarg — both go through the new code path. This test
+    locks the actual sequence against the pre-PR sampler so a regression
+    that, say, sorted items differently before passing to weighted_choice
+    would surface as a name-sequence mismatch.
+
+    Mirrors `test_generator_select_novelty_zero_takes_fast_path` for the
+    NameGenerator-level bit-stability claim. Note that
+    `NameGenerator.select` consumes one rng draw to pick the structure
+    before reaching the bucket; the comparison RNG is advanced the same
+    way to stay aligned with the seeded picks."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import (
+        MeaningGenerator,
+        NameGenerator,
+        weighted_choice,
+    )
+
+    # Skewed weights so a regression-induced order swap surfaces as a
+    # sequence change rather than a 50/50 noise wash.
+    m_a = Meaning("-a", [], [], {})
+    m_b = Meaning("-b", [], [], {})
+    meaning_db = {"-a": [m_a], "-b": [m_b]}
+    proportions = {"-a": 30, "-b": 70}
+    mg = MeaningGenerator(meaning_db, {}, proportions)
+    mg.load_parts(proportions, "single")
+    structs = {((("post", "single"),),): 1}
+    name_gen = NameGenerator(meaning_db, mg, structs)
+
+    bucket = mg.generators[("post", "single")]
+    items = list(bucket.elements.items())
+    struct_items = list(structs.items())
+
+    seq_via_select = [name_gen.select(random.Random(i)).name[0][0] for i in range(20)]
+    seq_via_weighted = []
+    for i in range(20):
+        rng = random.Random(i)
+        # Replay the structure pick that NameGenerator.select does first,
+        # so the rng state is aligned with what reaches the bucket.
+        weighted_choice(rng, struct_items)
+        seq_via_weighted.append(weighted_choice(rng, items))
+    assert seq_via_select == seq_via_weighted
+
+
 def test_kenning_generate_accepts_era_param():
     """Smoke test: Kenning.generate({'era': 'me'}) doesn't raise and
     produces a name. Bundled meanings.json has no attested_years data

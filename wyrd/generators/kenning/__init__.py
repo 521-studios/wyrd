@@ -154,9 +154,7 @@ def _coerce_bool(value: Any) -> bool:
     return bool(value)
 
 
-def _resolve_era_param(
-    era: Any, culture: str
-) -> tuple[int | None, int | None] | None:
+def _resolve_era_param(era: Any, culture: str) -> tuple[int | None, int | None] | None:
     """Resolve the request-side ``era`` value to a half-open year range,
     or None when no era filter applies.
 
