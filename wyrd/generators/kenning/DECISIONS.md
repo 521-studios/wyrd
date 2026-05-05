@@ -858,10 +858,11 @@ Implementation:
 - `NameGenerator.select(era_range=...)` — threads through every
   per-bucket pick.
 
-`era=None` is bit-stable with the pre-PR sampler. Today's bundled
-`meanings.json` carries no attested_years data — the filter is a
-documented no-op end-to-end until the next bundle re-emit. Wiring
-is in place so a single export cycle activates the feature.
+`era=None` is bit-stable with the pre-PR sampler. The 2026-05-04
+bundle re-emit (PR #58 / wyrd-j5v) populated `_attested_years` on
+1215 / 3807 words (31.9% density), activating the filter end-to-end.
+Empirical narrowing on the English keep-set: 2901 → 2327 (oe-early)
+/ 2433 (oe-late) / 2690 (me) / 2323 (early-modern) / 2246 (modern).
 
 Bare-label resolution is strict: a label not in the culture's default
 era family raises ValueError listing the families that DO define it,
