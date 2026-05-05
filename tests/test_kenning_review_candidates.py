@@ -44,9 +44,11 @@ def review_db(tmp_path: Path) -> Path:
             "harrison_1898_liverpool",
             "extracted_by:anthropic:claude-haiku-4-5-20251001",
         ),
-        # Sonnet-tagged Tier-3 row — should never come back as a Tier-2
-        # candidate even when --include-haiku is set, because its notes
-        # don't mention 'haiku'.
+        # Sonnet-tagged row — used in two roles depending on the test:
+        # (a) under --include-haiku-only, this row must NOT come back
+        #     because the haiku LIKE clause doesn't match `sonnet`;
+        # (b) under --include-sonnet (wyrd-0rsk), this row IS a
+        #     positive Tier-1-Sonnet → Tier-2-Gemini candidate.
         (
             "Eboracum",
             "smith_1928_north_riding_yorkshire",
@@ -181,6 +183,106 @@ def test_include_haiku_book_filter_scopes_to_one_source(review_db: Path):
     assert picked == {"Hereford"}
 
 
+# --- wyrd-0rsk: --include-sonnet companion to --include-haiku --------------
+
+
+def test_default_excludes_sonnet_rows(review_db: Path):
+    """Default behavior (no --include-sonnet): Sonnet-Tier-1-tagged
+    rows are NOT picked up. The Eboracum row in the fixture is Sonnet-
+    tagged; it must NOT surface as a Tier-2 candidate when neither
+    include_haiku nor include_sonnet is set."""
+    rows = _select_review_candidates(
+        db_path=review_db,
+        provider_tag="extracted_by:gemini:",
+        confidence=("low",),
+        book=None,
+        limit=None,
+    )
+    assert "Eboracum" not in _picked_names(rows)
+
+
+def test_include_sonnet_widens_to_sonnet_rows(review_db: Path):
+    """With include_sonnet=True the candidate set widens to include
+    Sonnet-Tier-1-tagged rows. Mirror of
+    test_include_haiku_widens_to_haiku_rows."""
+    rows = _select_review_candidates(
+        db_path=review_db,
+        provider_tag="extracted_by:gemini:",
+        confidence=("low",),
+        book=None,
+        limit=None,
+        include_sonnet=True,
+    )
+    picked = _picked_names(rows)
+    # Original Ollama/Qwen rows still match.
+    assert "Stockport" in picked
+    # Sonnet row now included — the wyrd-0rsk extension.
+    assert "Eboracum" in picked
+    # Haiku rows still excluded (different flag).
+    assert "Hereford" not in picked
+
+
+def test_include_haiku_and_sonnet_compose(review_db: Path):
+    """include_haiku and include_sonnet are orthogonal — setting both
+    catches Anthropic-tagged rows from either model. Useful when a
+    pipeline doesn't care which Anthropic model wrote the row."""
+    rows = _select_review_candidates(
+        db_path=review_db,
+        provider_tag="extracted_by:gemini:",
+        confidence=("low",),
+        book=None,
+        limit=None,
+        include_haiku=True,
+        include_sonnet=True,
+    )
+    picked = _picked_names(rows)
+    assert "Stockport" in picked  # Qwen
+    assert "Hereford" in picked  # Haiku
+    assert "Eboracum" in picked  # Sonnet
+    assert "Glasgow" not in picked  # Gemini, NOT EXISTS guard
+
+
+def test_include_sonnet_book_filter_scopes_to_one_source(review_db: Path):
+    """The --book scope works with --include-sonnet, matching the
+    documented invocation pattern for re-reviewing a Sonnet-mined book."""
+    rows = _select_review_candidates(
+        db_path=review_db,
+        provider_tag="extracted_by:gemini:",
+        confidence=("low",),
+        book="smith_1928_north_riding_yorkshire",
+        limit=None,
+        include_sonnet=True,
+    )
+    assert _picked_names(rows) == {"Eboracum"}
+
+
+def test_include_sonnet_still_excludes_already_tier2_reviewed_rows(review_db: Path):
+    """Idempotency: a Sonnet row that ALREADY has a Gemini Tier-2
+    review must NOT be picked up even when --include-sonnet is set."""
+    with LexiconDB(review_db) as db:
+        topo_id = db.conn.execute(
+            "SELECT id FROM toponym WHERE modern_name = ?", ("Eboracum",)
+        ).fetchone()[0]
+        db.conn.execute(
+            "INSERT INTO toponym_etymology "
+            "(toponym_id, source_id, historical_form, confidence, notes) "
+            "VALUES (?, 'smith_1928_north_riding_yorkshire', 'Eboracum-tun', 'high', "
+            "'extracted_by:gemini:flash-2-5')",
+            (topo_id,),
+        )
+        db.commit()
+
+    rows = _select_review_candidates(
+        db_path=review_db,
+        provider_tag="extracted_by:gemini:",
+        confidence=("low",),
+        book=None,
+        limit=None,
+        include_sonnet=True,
+    )
+    assert "Eboracum" not in _picked_names(rows)
+
+
 def test_default_off_means_haiku_only_book_yields_zero_candidates(review_db: Path):
     """A book that was mined ONLY with Haiku (no Ollama/Qwen rows)
     yields zero Tier-2 candidates under the default filter — the
@@ -194,3 +296,99 @@ def test_default_off_means_haiku_only_book_yields_zero_candidates(review_db: Pat
         limit=None,
     )
     assert _picked_names(rows) == set()
+
+
+# --- Anthropic-provider self-match collision regression tests -------------
+# Surfaced by Gemini's PR #69 review: the NOT EXISTS guard previously
+# matched the candidate row against itself when --provider anthropic
+# was paired with --include-haiku / --include-sonnet (the LIKE clause
+# `%extracted_by:anthropic:%` matched the SAME ROW because Anthropic-
+# Tier-1 rows and Anthropic-as-reviewer rows share the prefix). Fixed
+# by adding `te2.id != te.id` to the NOT EXISTS subquery. These tests
+# pin the fix so a future refactor can't reintroduce the self-match.
+
+
+def test_include_sonnet_with_anthropic_provider_does_not_self_match(review_db: Path):
+    """Regression test for the NOT EXISTS self-match bug: when the
+    review provider is Anthropic AND --include-sonnet is set, a Sonnet-
+    Tier-1 row should still come back as a candidate. Pre-fix it was
+    excluded because the guard's `notes LIKE %extracted_by:anthropic:%`
+    matched the candidate row itself.
+
+    Pinned because the Tier-3 anthropic review path is the documented
+    'optional Tier 3' use case in INGESTION.md, even if D19 says the
+    Sonnet uplift over Gemini Flash is empirically zero."""
+    rows = _select_review_candidates(
+        db_path=review_db,
+        provider_tag="extracted_by:anthropic:",
+        confidence=("low",),
+        book=None,
+        limit=None,
+        include_sonnet=True,
+    )
+    # Pre-fix this assertion failed: Eboracum was self-excluded because
+    # its own notes string `extracted_by:anthropic:claude-sonnet-4-6`
+    # matched the NOT EXISTS LIKE `%extracted_by:anthropic:%`.
+    assert "Eboracum" in _picked_names(rows)
+
+
+def test_include_haiku_with_anthropic_provider_does_not_self_match(review_db: Path):
+    """Symmetric regression to the sonnet collision test above. The
+    bug pre-existed in wyrd-eca (PR #66) but was never tested because
+    the project doesn't routinely run --provider anthropic Tier-3.
+
+    Pre-fix: Hereford and Liverpool were self-excluded by the NOT
+    EXISTS guard's `notes LIKE %extracted_by:anthropic:%` matching
+    their own Haiku-Tier-1 notes."""
+    rows = _select_review_candidates(
+        db_path=review_db,
+        provider_tag="extracted_by:anthropic:",
+        confidence=("low",),
+        book=None,
+        limit=None,
+        include_haiku=True,
+    )
+    picked = _picked_names(rows)
+    assert "Hereford" in picked
+    assert "Liverpool" in picked
+
+
+def test_anthropic_provider_still_excludes_pre_existing_anthropic_review_row(
+    review_db: Path,
+):
+    """The NOT EXISTS guard's PURPOSE — preventing duplicate Tier-2/3
+    review rows — must still hold under the te.id != te2.id fix. Add a
+    SECOND Anthropic-tagged row for the same (toponym, source) tuple
+    and confirm the original is now correctly excluded (because there's
+    a *different* anthropic row already on file).
+
+    Without this test, a future refactor could break the guard
+    altogether and the suite wouldn't catch it."""
+    with LexiconDB(review_db) as db:
+        # Eboracum (Smith N.Riding Yorks) already has a Sonnet-Tier-1
+        # row in the fixture. Add a SECOND Anthropic-Tier-3 review row
+        # — different model tag. Now an Anthropic provider review pass
+        # should skip Eboracum because a sibling anthropic row exists.
+        topo_id = db.conn.execute(
+            "SELECT id FROM toponym WHERE modern_name = ?", ("Eboracum",)
+        ).fetchone()[0]
+        db.conn.execute(
+            "INSERT INTO toponym_etymology "
+            "(toponym_id, source_id, historical_form, confidence, notes) "
+            "VALUES (?, 'smith_1928_north_riding_yorkshire', 'Eboracum-tun', 'high', "
+            "'extracted_by:anthropic:claude-opus-4-7')",
+            (topo_id,),
+        )
+        db.commit()
+
+    rows = _select_review_candidates(
+        db_path=review_db,
+        provider_tag="extracted_by:anthropic:",
+        confidence=("low",),
+        book=None,
+        limit=None,
+        include_sonnet=True,
+    )
+    # Now Eboracum is excluded — but for the RIGHT reason (a different
+    # anthropic row exists), not because the guard self-matched.
+    assert "Eboracum" not in _picked_names(rows)

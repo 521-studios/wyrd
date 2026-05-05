@@ -1382,6 +1382,19 @@ def lexicon_mine_llm(
         "Ollama/Qwen patterns."
     ),
 )
+@click.option(
+    "--include-sonnet",
+    is_flag=True,
+    default=False,
+    help=(
+        "wyrd-0rsk: companion to --include-haiku. Also pick up "
+        "Sonnet-Tier-1-mined rows as Tier-2 review candidates. Off by "
+        "default. Pass when re-reviewing a book whose Tier-1 mining used "
+        "Anthropic Sonnet — Joyce 1875 v1+v2, Moore 1890, Johnston 1892, "
+        "Morgan 1887 are the current set. Same wiring as --include-haiku, "
+        "different LIKE clause: matches `extracted_by:anthropic:%sonnet%`."
+    ),
+)
 def lexicon_review(
     source_dir: Path,
     db_path: Path,
@@ -1393,6 +1406,7 @@ def lexicon_review(
     timeout: float,
     apply_changes: bool,
     include_haiku: bool,
+    include_sonnet: bool,
 ) -> None:
     """Re-extract questionable Ollama-mined entries via a stronger LLM.
 
@@ -1431,6 +1445,7 @@ def lexicon_review(
         book=book,
         limit=limit,
         include_haiku=include_haiku,
+        include_sonnet=include_sonnet,
     )
 
     if not candidates:
@@ -1504,6 +1519,7 @@ def _select_review_candidates(
     book: str | None,
     limit: int | None,
     include_haiku: bool = False,
+    include_sonnet: bool = False,
 ) -> list[sqlite3.Row]:
     """Pick `toponym_etymology` rows eligible for Tier-2 re-extraction.
 
@@ -1518,9 +1534,18 @@ def _select_review_candidates(
     non-Celtic book was mined Tier-1 with Haiku (Bannister 1916,
     Harrison 1898, etc.) and needs a Gemini second-pass — Haiku rows
     otherwise slip past the candidate query because their notes don't
-    match the Ollama/Qwen patterns. The provider_tag NOT EXISTS guard
-    still ensures we don't re-review a row that already has a Tier-2
-    pass from the chosen provider, so flipping the flag is idempotent.
+    match the Ollama/Qwen patterns.
+
+    ``include_sonnet`` (wyrd-0rsk) is the parallel companion: also pick
+    up rows tagged ``extracted_by:anthropic:...sonnet...``. Off by
+    default. Pass when re-reviewing a book whose Tier-1 mining used
+    Sonnet (Joyce 1875 v1+v2, Moore 1890, Johnston 1892, Morgan 1887
+    are the current set). Composes orthogonally with include_haiku —
+    setting both picks up Anthropic-tagged rows from either model.
+
+    The provider_tag NOT EXISTS guard still ensures we don't re-review
+    a row that already has a Tier-2 pass from the chosen provider, so
+    flipping the flags is idempotent.
     """
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
@@ -1537,6 +1562,10 @@ def _select_review_candidates(
             # version suffix (claude-haiku-4-5-20251001, future
             # claude-haiku-X-X-20260101, etc.).
             provider_clauses.append("te.notes LIKE '%anthropic:%haiku%'")
+        if include_sonnet:
+            # Mirror of the haiku clause for sonnet-tagged Tier-1 rows.
+            # Same wildcard shape: matches any model version suffix.
+            provider_clauses.append("te.notes LIKE '%anthropic:%sonnet%'")
         provider_or = " OR ".join(provider_clauses)
         sql = f"""
             SELECT te.id, te.toponym_id, te.source_id, te.confidence,
@@ -1551,6 +1580,7 @@ def _select_review_candidates(
                   WHERE te2.toponym_id = te.toponym_id
                     AND te2.source_id  = te.source_id
                     AND te2.notes LIKE ?
+                    AND te2.id != te.id
               )
             """
         args: list[object] = list(confidence) + [f"%{provider_tag}%"]
