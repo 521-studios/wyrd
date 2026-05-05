@@ -60,6 +60,10 @@ APPROVED_LANGUAGES: frozenset[str] = frozenset(
         "gothic",
         "proto-germanic",
         "proto-west-germanic",
+        # German tree (kobold/wyrm-cousin morphemes; user-approved 2026-05-05)
+        "old-high-german",
+        "middle-high-german",
+        "german",
         # Romance
         "latin",
         "old-french",
