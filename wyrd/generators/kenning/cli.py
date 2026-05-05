@@ -1368,6 +1368,20 @@ def lexicon_mine_llm(
     help="Actually insert the new rows. Without this, the command runs as "
     "a dry-run reporting what would happen.",
 )
+@click.option(
+    "--include-haiku",
+    is_flag=True,
+    default=False,
+    help=(
+        "wyrd-eca: also pick up Haiku-Tier-1-mined rows as Tier-2 review "
+        "candidates. Off by default to keep the original Qwen→Gemini "
+        "pipeline untouched. Pass when re-reviewing a non-Celtic book "
+        "that was mined Tier-1 with Haiku (Bannister 1916 Welsh-Marches, "
+        "Harrison 1898 Liverpool, etc.) — those rows otherwise slip past "
+        "the candidate query because their notes don't match the "
+        "Ollama/Qwen patterns."
+    ),
+)
 def lexicon_review(
     source_dir: Path,
     db_path: Path,
@@ -1378,6 +1392,7 @@ def lexicon_review(
     model: str | None,
     timeout: float,
     apply_changes: bool,
+    include_haiku: bool,
 ) -> None:
     """Re-extract questionable Ollama-mined entries via a stronger LLM.
 
@@ -1415,6 +1430,7 @@ def lexicon_review(
         confidence=confidence,
         book=book,
         limit=limit,
+        include_haiku=include_haiku,
     )
 
     if not candidates:
@@ -1487,6 +1503,7 @@ def _select_review_candidates(
     confidence: tuple[str, ...],
     book: str | None,
     limit: int | None,
+    include_haiku: bool = False,
 ) -> list[sqlite3.Row]:
     """Pick `toponym_etymology` rows eligible for Tier-2 re-extraction.
 
@@ -1494,11 +1511,33 @@ def _select_review_candidates(
     `extracted_by:llm:` or a tier-1 marker like `qwen` / `ollama`),
     confidence is in the `confidence` set, and the same (toponym, source)
     doesn't already have a row tagged with the chosen Tier-2 provider.
+
+    ``include_haiku`` (wyrd-eca) widens the candidate set to also pick up
+    rows tagged ``extracted_by:anthropic:...haiku...``. Off by default so
+    the original Qwen→Gemini pipeline stays untouched. Use this when a
+    non-Celtic book was mined Tier-1 with Haiku (Bannister 1916,
+    Harrison 1898, etc.) and needs a Gemini second-pass — Haiku rows
+    otherwise slip past the candidate query because their notes don't
+    match the Ollama/Qwen patterns. The provider_tag NOT EXISTS guard
+    still ensures we don't re-review a row that already has a Tier-2
+    pass from the chosen provider, so flipping the flag is idempotent.
     """
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     try:
         placeholders = ",".join("?" * len(confidence))
+        provider_clauses = [
+            "te.notes LIKE '%extracted_by:llm:%'",
+            "te.notes LIKE '%qwen%'",
+            "te.notes LIKE '%llama%'",
+            "te.notes LIKE '%ollama%'",
+        ]
+        if include_haiku:
+            # Match any anthropic-haiku tagged row regardless of model
+            # version suffix (claude-haiku-4-5-20251001, future
+            # claude-haiku-X-X-20260101, etc.).
+            provider_clauses.append("te.notes LIKE '%anthropic:%haiku%'")
+        provider_or = " OR ".join(provider_clauses)
         sql = f"""
             SELECT te.id, te.toponym_id, te.source_id, te.confidence,
                    t.modern_name, t.region
@@ -1506,10 +1545,7 @@ def _select_review_candidates(
             JOIN toponym t ON t.id = te.toponym_id
             WHERE te.confidence IN ({placeholders})
               AND te.source_id IN (SELECT id FROM source)
-              AND (te.notes LIKE '%extracted_by:llm:%'
-                   OR te.notes LIKE '%qwen%'
-                   OR te.notes LIKE '%llama%'
-                   OR te.notes LIKE '%ollama%')
+              AND ({provider_or})
               AND NOT EXISTS (
                   SELECT 1 FROM toponym_etymology te2
                   WHERE te2.toponym_id = te.toponym_id
