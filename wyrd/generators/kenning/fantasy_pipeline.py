@@ -296,27 +296,24 @@ Be CONSERVATIVE. If you're not confident the name maps to a real word in the app
 Output ONLY the JSON, no preamble."""
 
 
-def _llm_full_research(
-    name: str,
-    description: str,
+def _call_gemini(
+    prompt: str,
     *,
     api_key: str | None = None,
-    model: str = "gemini-2.5-flash",
-    approved: frozenset[str] = APPROVED_LANGUAGES,
-    timeout_s: float = 60.0,
+    model: str,
+    timeout_s: float,
 ) -> dict:
-    """Call Gemini Flash with the etymology-research prompt; return parsed JSON."""
+    """Send `prompt` to Gemini and return the parsed JSON response.
+
+    Shared transport for _llm_full_research and _llm_semantic_check —
+    both expect `responseMimeType: application/json` with a JSON object
+    in the first candidate's text. Key passed in `x-goog-api-key`
+    header to keep it out of URL-logging paths.
+    """
     key = api_key or os.environ.get("GEMINI_API_KEY")
     if not key:
         raise RuntimeError("GEMINI_API_KEY is not set")
-    # Pass key in `x-goog-api-key` header instead of as a URL query
-    # parameter — URLs can be logged by intermediaries / proxies.
     url = _GEMINI_API_URL_TEMPLATE.format(model=model)
-    prompt = _RESEARCH_PROMPT_TEMPLATE.format(
-        name=name,
-        description=description,
-        langs=", ".join(sorted(approved)),
-    )
     body = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -333,6 +330,24 @@ def _llm_full_research(
         resp = json.loads(r.read())
     text = resp["candidates"][0]["content"]["parts"][0]["text"]
     return json.loads(text)
+
+
+def _llm_full_research(
+    name: str,
+    description: str,
+    *,
+    api_key: str | None = None,
+    model: str = "gemini-2.5-flash",
+    approved: frozenset[str] = APPROVED_LANGUAGES,
+    timeout_s: float = 60.0,
+) -> dict:
+    """Call Gemini with the etymology-research prompt; return parsed JSON."""
+    prompt = _RESEARCH_PROMPT_TEMPLATE.format(
+        name=name,
+        description=description,
+        langs=", ".join(sorted(approved)),
+    )
+    return _call_gemini(prompt, api_key=api_key, model=model, timeout_s=timeout_s)
 
 
 # ---------------------------------------------------------------------
@@ -381,11 +396,6 @@ def _llm_semantic_check(
 ) -> dict:
     """Cheap LLM yes/no on whether a pre-filter ancestor is the actual
     etymology of the creature, or just a homograph collision."""
-    key = api_key or os.environ.get("GEMINI_API_KEY")
-    if not key:
-        raise RuntimeError("GEMINI_API_KEY is not set")
-    # Pass key in `x-goog-api-key` header (mirrors _llm_full_research).
-    url = _GEMINI_API_URL_TEMPLATE.format(model=model)
     gloss_text = "; ".join(ancestor_glosses) if ancestor_glosses else "(no gloss in corpus)"
     prompt = _SEMANTIC_CHECK_PROMPT_TEMPLATE.format(
         name=name,
@@ -394,22 +404,7 @@ def _llm_semantic_check(
         language=ancestor.language,
         gloss=gloss_text,
     )
-    body = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "responseMimeType": "application/json",
-            "temperature": 0.0,
-        },
-    }
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json", "x-goog-api-key": key},
-    )
-    with urllib.request.urlopen(req, timeout=timeout_s) as r:
-        resp = json.loads(r.read())
-    text = resp["candidates"][0]["content"]["parts"][0]["text"]
-    return json.loads(text)
+    return _call_gemini(prompt, api_key=api_key, model=model, timeout_s=timeout_s)
 
 
 def _resolve_via_llm(
