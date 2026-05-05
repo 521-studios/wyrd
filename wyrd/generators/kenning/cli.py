@@ -2308,20 +2308,30 @@ def _stage_place_names_paths(
     compute_unaccounted_fragments / derive_positions want Path-shaped
     inputs and importlib.resources only hands back text. Returns the
     tmpdir + the per-culture path map; caller is responsible for
-    cleanup via the returned tmpdir."""
+    cleanup via the returned tmpdir.
+
+    On any failure during staging (missing resource, write_text raising),
+    the partially-populated tmpdir is cleaned up before re-raising so
+    the caller's try/finally never sees a leaked dir.
+    """
+    import shutil
     import tempfile
 
     tmpdir = Path(tempfile.mkdtemp(prefix="wyrd-empirical-mine-"))
     paths: dict[str, Path] = {}
-    for culture in target_cultures:
-        text = (
-            resources.files("wyrd.generators.kenning.data")
-            .joinpath(f"{culture}_place_names.json")
-            .read_text()
-        )
-        p = tmpdir / f"{culture}_place_names.json"
-        p.write_text(text)
-        paths[culture] = p
+    try:
+        for culture in target_cultures:
+            text = (
+                resources.files("wyrd.generators.kenning.data")
+                .joinpath(f"{culture}_place_names.json")
+                .read_text()
+            )
+            p = tmpdir / f"{culture}_place_names.json"
+            p.write_text(text)
+            paths[culture] = p
+    except Exception:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+        raise
     return tmpdir, paths
 
 

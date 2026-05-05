@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
@@ -3866,7 +3867,9 @@ def _collect_families(
     return _iterate_families_with_progress(db, root_ids, members_by_root)
 
 
-def _build_family_rollup(db: LexiconDB) -> tuple[dict[int, list[int]], Any]:
+def _build_family_rollup(
+    db: LexiconDB,
+) -> tuple[dict[int, list[int]], Callable[[int], int]]:
     """Compute the etymon → root_id rollup in PYTHON rather than via
     a SQL CREATE TEMP TABLE. The relational form needs
     ``LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id,
@@ -3907,7 +3910,7 @@ def _select_promoted_root_ids(
     min_witnesses: int,
     include_rando: bool,
     include_wiktionary_empirical: bool,
-    root_of: Any,
+    root_of: Callable[[int], int],
 ) -> list[int]:
     """Promoted root_ids come from three sources:
 
