@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -1758,42 +1760,8 @@ def reverse_search_attestations(
     if not sources_path.is_dir():
         raise ValueError(f"sources_dir not found: {sources_path}")
 
-    # Find rando-only etymons (cited by rando-port and ONLY rando-port).
-    # Exclude modern-english etymons by default — those are real English words
-    # like 'with', 'north', 'great', 'long', 'bishop' that appear thousands of
-    # times in normal prose and produce vast amounts of noise. They're also
-    # not 'unverified' in any meaningful linguistic sense; they're modern
-    # vocabulary used as place-name modifiers.
-    cur = db.conn.execute(
-        """
-        SELECT e.id, e.canonical_form, e.language
-        FROM etymon e
-        WHERE e.language != 'modern-english'
-          AND EXISTS (
-            SELECT 1 FROM etymon_citation c
-            WHERE c.etymon_id = e.id AND c.source_id = 'rando-port'
-          )
-          AND NOT EXISTS (
-            SELECT 1 FROM etymon_citation c
-            WHERE c.etymon_id = e.id AND c.source_id != 'rando-port'
-          )
-        """
-    )
-    candidates = [
-        (row["id"], row["canonical_form"], row["language"])
-        for row in cur.fetchall()
-        if len(row["canonical_form"]) >= min_form_length
-    ]
-
-    # Load and lowercase each source file's text once.
-    source_texts: dict[str, str] = {}
-    for f in sources_path.glob("*.txt"):
-        text = f.read_text(errors="replace").lower()
-        # Strip diacritics in the body too — rando lemmas are often stored
-        # ASCII but the source has macrons/æ/ð. We lowercase + ASCII-fold
-        # via the same normalize_ocr_form pass we use elsewhere.
-        text = normalize_ocr_form(text)
-        source_texts[f.stem] = text
+    candidates = _select_rando_only_candidates(db, min_form_length=min_form_length)
+    source_texts = _load_normalized_source_texts(sources_path)
 
     # Build a quick lookup so the sample report can name the etymons.
     forms_by_id = {eid: form for eid, form, _ in candidates}
@@ -1868,45 +1836,14 @@ def reverse_search_attestations(
                 written += 1
         db.commit()
 
-    # Build a quick lookup so the sample report can name the etymons.
-    forms_by_id = {eid: form for eid, form, _ in candidates}
-
-    # PARSER-BUG DIAGNOSTIC: for each etymon found in source text, count
-    # how often it actually appeared in extracted etymology rows. A large
-    # gap (lots of text appearances, few extractions) is evidence that the
-    # LLM extractor is systematically missing that morpheme.
-    extraction_counts: dict[int, int] = {}
-    for etymon_id in matches:
-        cur = db.conn.execute(
-            "SELECT COUNT(*) AS n FROM toponym_etymology_element WHERE etymon_id = ?",
-            (etymon_id,),
-        )
-        extraction_counts[etymon_id] = cur.fetchone()["n"]
-
-    # Score each match: ratio of text appearances to extraction appearances.
-    # Flag etymons with text >> extractions as potential pipeline gaps.
-    parser_bug_suspects = []
-    for etymon_id, hits in matches.items():
-        text_count = sum(c for _, c, _ in hits)
-        ext_count = extraction_counts.get(etymon_id, 0)
-        if text_count >= 10 and ext_count == 0:
-            parser_bug_suspects.append(
-                {
-                    "etymon_id": etymon_id,
-                    "form": forms_by_id.get(etymon_id),
-                    "text_count": text_count,
-                    "extraction_count": ext_count,
-                    "books": [s for s, _, _ in hits],
-                }
-            )
-    parser_bug_suspects.sort(key=lambda x: -x["text_count"])
+    parser_bug_suspects = _score_extraction_gaps(db, matches, forms_by_id)
 
     return {
         "rando_only_candidates": len(candidates),
         "etymons_with_match": len(matches),
         "total_match_records": sum(len(v) for v in matches.values()),
         "written": written,
-        "parser_bug_suspects": parser_bug_suspects[:30],
+        "parser_bug_suspects": parser_bug_suspects,
         "sample": [
             {
                 "etymon_id": eid,
@@ -1915,6 +1852,179 @@ def reverse_search_attestations(
             }
             for eid, hits in list(matches.items())[:25]
         ],
+    }
+
+
+def _select_rando_only_candidates(
+    db: LexiconDB, *, min_form_length: int
+) -> list[tuple[int, str, str]]:
+    """Find rando-only etymons (cited by rando-port and ONLY rando-port).
+
+    Excludes modern-english etymons by default — those are real English
+    words like 'with', 'north', 'great', 'long', 'bishop' that appear
+    thousands of times in normal prose and produce vast amounts of
+    noise. They're also not 'unverified' in any meaningful linguistic
+    sense; they're modern vocabulary used as place-name modifiers.
+
+    Filters by ``min_form_length`` (forms shorter than that produce too
+    many false-positive substring matches).
+    """
+    cur = db.conn.execute(
+        """
+        SELECT e.id, e.canonical_form, e.language
+        FROM etymon e
+        WHERE e.language != 'modern-english'
+          AND EXISTS (
+            SELECT 1 FROM etymon_citation c
+            WHERE c.etymon_id = e.id AND c.source_id = 'rando-port'
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM etymon_citation c
+            WHERE c.etymon_id = e.id AND c.source_id != 'rando-port'
+          )
+        """
+    )
+    return [
+        (row["id"], row["canonical_form"], row["language"])
+        for row in cur.fetchall()
+        if len(row["canonical_form"]) >= min_form_length
+    ]
+
+
+def _load_normalized_source_texts(sources_path: Path) -> dict[str, str]:
+    """Load every ``*.txt`` under ``sources_path``, lowercased + OCR-
+    normalized, keyed by file stem.
+
+    Lowercase + ASCII-fold (via ``normalize_ocr_form``) because rando
+    lemmas are often stored ASCII while sources have macrons / æ / ð
+    — we want the matcher to see the same surface from both sides.
+    """
+    source_texts: dict[str, str] = {}
+    for f in sources_path.glob("*.txt"):
+        text = f.read_text(errors="replace").lower()
+        source_texts[f.stem] = normalize_ocr_form(text)
+    return source_texts
+
+
+def _score_extraction_gaps(
+    db: LexiconDB,
+    matches: dict[int, list[tuple[str, int, str]]],
+    forms_by_id: dict[int, str],
+) -> list[dict[str, Any]]:
+    """PARSER-BUG DIAGNOSTIC: for each etymon found in source text,
+    count how often it actually appeared in extracted etymology rows.
+    A large gap (lots of text appearances, few extractions) is
+    evidence the LLM extractor is systematically missing that
+    morpheme — a candidate for prompt tuning.
+
+    Returns the top-30 suspects sorted by descending text-count.
+    """
+    extraction_counts: dict[int, int] = {}
+    if matches:
+        # One GROUP BY pass per chunk instead of N separate COUNT(*)
+        # queries. Chunked at 999 to stay under SQLite's
+        # SQLITE_MAX_VARIABLE_NUMBER default. Etymons with no row in
+        # toponym_etymology_element don't appear in the result; the
+        # zero is implicit (the call site uses ``.get(etymon_id, 0)``).
+        ids = list(matches.keys())
+        for i in range(0, len(ids), 999):
+            chunk = ids[i : i + 999]
+            placeholders = ",".join("?" * len(chunk))
+            cur = db.conn.execute(
+                f"SELECT etymon_id, COUNT(*) AS n FROM toponym_etymology_element "
+                f"WHERE etymon_id IN ({placeholders}) GROUP BY etymon_id",
+                chunk,
+            )
+            for row in cur:
+                extraction_counts[row["etymon_id"]] = row["n"]
+    suspects: list[dict[str, Any]] = []
+    for etymon_id, hits in matches.items():
+        text_count = sum(c for _, c, _ in hits)
+        ext_count = extraction_counts.get(etymon_id, 0)
+        if text_count >= 10 and ext_count == 0:
+            suspects.append(
+                {
+                    "etymon_id": etymon_id,
+                    "form": forms_by_id.get(etymon_id),
+                    "text_count": text_count,
+                    "extraction_count": ext_count,
+                    "books": [s for s, _, _ in hits],
+                }
+            )
+    suspects.sort(key=lambda x: -x["text_count"])
+    return suspects[:30]
+
+
+def _select_rando_only_candidates_with_glosses(
+    db: LexiconDB, *, min_form_length: int
+) -> list[tuple[int, str, list[str]]]:
+    """Variant of ``_select_rando_only_candidates`` that joins the
+    etymon's glosses (needed for the fuzzy-match gloss-anchor check).
+    Skips etymons with no gloss — without one there's no way to anchor
+    meaning, and per D15 the fuzzy match is gloss-window-gated.
+
+    Also additionally filters out etymons that already have an exact
+    text-match row (those have been resolved by reverse-search and
+    don't need fuzzy follow-up).
+    """
+    cur = db.conn.execute(
+        """
+        SELECT e.id, e.canonical_form, e.language,
+               GROUP_CONCAT(g.gloss, '|') AS glosses
+        FROM etymon e
+        LEFT JOIN etymon_gloss g ON g.etymon_id = e.id
+        WHERE e.language != 'modern-english'
+          AND EXISTS (
+            SELECT 1 FROM etymon_citation c
+            WHERE c.etymon_id = e.id AND c.source_id = 'rando-port'
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM etymon_citation c
+            WHERE c.etymon_id = e.id AND c.source_id != 'rando-port'
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM etymon_text_match m
+            WHERE m.etymon_id = e.id AND m.edit_distance = 0
+          )
+        GROUP BY e.id
+        """
+    )
+    out: list[tuple[int, str, list[str]]] = []
+    for row in cur.fetchall():
+        if not row["glosses"]:
+            continue
+        form = row["canonical_form"]
+        if len(form) < min_form_length:
+            continue
+        glosses = [g.lower() for g in row["glosses"].split("|") if g]
+        out.append((row["id"], form, glosses))
+    return out
+
+
+_FUZZY_TOKEN_RE = re.compile(r"[a-z]{3,}")
+
+
+def _build_source_vocab(source_texts: dict[str, str]) -> dict[str, list[str]]:
+    """Per-source unique alphabetic-token vocabulary (length 3+),
+    sorted. Lets fuzzy_search compare each etymon against a bounded
+    candidate set per source instead of scanning the body for every
+    etymon."""
+    return {
+        source_id: sorted(set(_FUZZY_TOKEN_RE.findall(text)))
+        for source_id, text in source_texts.items()
+    }
+
+
+def _all_canonical_forms_normalized(db: LexiconDB) -> set[str]:
+    """Set of OCR-normalized + lowercased canonical_forms across the
+    full (un-merged) etymon table. Used by fuzzy_search to suppress
+    fuzzy-match claims where the body token is itself an independent
+    canonical etymon (per wyrd-c3x — OCR variants between two etymons
+    should be merged by normalize-ocr upstream, not connected through
+    fuzzy-search's gloss-anchor heuristic)."""
+    return {
+        normalize_ocr_form(r["canonical_form"])
+        for r in db.conn.execute("SELECT canonical_form FROM etymon WHERE merged_into_id IS NULL")
     }
 
 
@@ -1977,66 +2087,10 @@ def fuzzy_search_attestations(
     if not sources_path.is_dir():
         raise ValueError(f"sources_dir not found: {sources_path}")
 
-    # Find rando-only etymons that have no existing text match yet, plus
-    # their glosses (we need at least one gloss to anchor meaning).
-    cur = db.conn.execute(
-        """
-        SELECT e.id, e.canonical_form, e.language,
-               GROUP_CONCAT(g.gloss, '|') AS glosses
-        FROM etymon e
-        LEFT JOIN etymon_gloss g ON g.etymon_id = e.id
-        WHERE e.language != 'modern-english'
-          AND EXISTS (
-            SELECT 1 FROM etymon_citation c
-            WHERE c.etymon_id = e.id AND c.source_id = 'rando-port'
-          )
-          AND NOT EXISTS (
-            SELECT 1 FROM etymon_citation c
-            WHERE c.etymon_id = e.id AND c.source_id != 'rando-port'
-          )
-          AND NOT EXISTS (
-            SELECT 1 FROM etymon_text_match m
-            WHERE m.etymon_id = e.id AND m.edit_distance = 0
-          )
-        GROUP BY e.id
-        """
-    )
-    candidates = []
-    for row in cur.fetchall():
-        if not row["glosses"]:
-            continue  # no gloss → can't verify meaning, skip
-        form = row["canonical_form"]
-        if len(form) < min_form_length:
-            continue
-        glosses = [g.lower() for g in row["glosses"].split("|") if g]
-        candidates.append((row["id"], form, glosses))
-
-    # Load source texts (lowercased + ocr-normalized for matching)
-    source_texts: dict[str, str] = {}
-    for f in sources_path.glob("*.txt"):
-        text = f.read_text(errors="replace").lower()
-        source_texts[f.stem] = normalize_ocr_form(text)
-
-    # Build per-source vocabulary (unique alphabetic tokens, length-bucketed)
-    # so we can fuzzy-match against the small set of plausibly-similar tokens
-    # without scanning the entire text for every etymon.
-    token_re = re.compile(r"[a-z]{3,}")
-    vocab_by_source: dict[str, list[str]] = {}
-    for source_id, text in source_texts.items():
-        tokens = set(token_re.findall(text))
-        vocab_by_source[source_id] = sorted(tokens)
-
-    # Build the set of canonical forms (OCR-normalized + lowercased) so
-    # we can suppress fuzzy claims where the body word is itself a
-    # canonical etymon. Per wyrd-c3x: the gloss anchor too easily fires
-    # on generic glosses ("land", "area", "district") near body words
-    # that are independently attested as their own etymons (herath ↔ heath).
-    # OCR variants between two etymons should be merged by normalize-ocr
-    # upstream, not connected through fuzzy-search.
-    other_canonicals: set[str] = {
-        normalize_ocr_form(r["canonical_form"])
-        for r in db.conn.execute("SELECT canonical_form FROM etymon WHERE merged_into_id IS NULL")
-    }
+    candidates = _select_rando_only_candidates_with_glosses(db, min_form_length=min_form_length)
+    source_texts = _load_normalized_source_texts(sources_path)
+    vocab_by_source = _build_source_vocab(source_texts)
+    other_canonicals = _all_canonical_forms_normalized(db)
 
     matches: dict[int, list[tuple[str, str, int, int, str]]] = {}
     # value: (source_id, matched_form, distance, count, snippet)
@@ -3812,70 +3866,109 @@ def _collect_families(
     can A/B by toggling either branch (e.g. ``--no-include-rando`` or
     ``--no-include-wiktionary-empirical``) without disturbing the other.
     """
-    witness_sql, witness_params = _build_witness_filter(lang_thresholds, min_witnesses)
+    members_by_root, root_of = _build_family_rollup(db)
+    root_ids = _select_promoted_root_ids(
+        db,
+        lang_thresholds=lang_thresholds,
+        min_witnesses=min_witnesses,
+        include_rando=include_rando,
+        include_wiktionary_empirical=include_wiktionary_empirical,
+        root_of=root_of,
+    )
+    return _iterate_families_with_progress(db, root_ids, members_by_root)
 
-    # Performance: compute the etymon → root_id rollup in PYTHON rather
-    # than via a SQL CREATE TEMP TABLE. The relational form needs
-    # ``LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id,
-    # e.lemma_id)`` — a function-on-columns join predicate that no index
-    # can satisfy. On a 731K-row etymon table that's a many-minute scan,
-    # whether materialised once into a temp table or recomputed per
-    # query. A flat ``SELECT id, merged_into_id, lemma_id FROM etymon``
-    # plus a Python dict produces the same rollup in seconds:
-    # 731K rows * ~1µs/row = ~1s vs ~minutes for the SQL JOIN.
-    #
-    # The rollup follows the consensus view's two-step rule (D22 +
-    # D8 flatten):
-    #   1) target = merged_into_id OR lemma_id OR self
-    #   2) root   = lemma_id of target OR target itself
-    # so OCR-cluster losers and inflected children both surface their
-    # ultimate lemma as root_id.
+
+def _build_family_rollup(
+    db: LexiconDB,
+) -> tuple[dict[int, list[int]], Callable[[int], int]]:
+    """Compute the etymon → root_id rollup in PYTHON rather than via
+    a SQL CREATE TEMP TABLE. The relational form needs
+    ``LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id,
+    e.lemma_id)`` — a function-on-columns join predicate that no index
+    can satisfy. On a 731K-row etymon table that's a many-minute scan,
+    whether materialised once into a temp table or recomputed per
+    query. A flat ``SELECT id, merged_into_id, lemma_id FROM etymon``
+    plus a Python dict produces the same rollup in seconds:
+    731K rows * ~1µs/row = ~1s vs ~minutes for the SQL JOIN.
+
+    The rollup follows the consensus view's two-step rule (D22 +
+    D8 flatten):
+      1) target = merged_into_id OR lemma_id OR self
+      2) root   = lemma_id of target OR target itself
+    so OCR-cluster losers and inflected children both surface their
+    ultimate lemma as root_id.
+
+    Returns ``(members_by_root, root_of_callable)``.
+    """
     rollup_rows = db.conn.execute("SELECT id, merged_into_id, lemma_id FROM etymon").fetchall()
     lemma_by_id = {r["id"]: r["lemma_id"] for r in rollup_rows}
     target_by_id = {r["id"]: (r["merged_into_id"] or r["lemma_id"] or r["id"]) for r in rollup_rows}
 
-    def _root_of(eid: int) -> int:
+    def root_of(eid: int) -> int:
         target = target_by_id.get(eid, eid)
         return lemma_by_id.get(target) or target
 
     members_by_root: dict[int, list[int]] = {}
     for eid in target_by_id:
-        rid = _root_of(eid)
-        members_by_root.setdefault(rid, []).append(eid)
+        members_by_root.setdefault(root_of(eid), []).append(eid)
+    return members_by_root, root_of
 
-    # Promoted root_ids come from three sources:
-    # (a) consensus witness threshold per language (existing query),
-    # (b) any etymon cited by 'rando-port' (legacy seed),
-    # (c) any etymon cited by 'wiktionary-empirical' (wyrd-4hx7).
-    # For (b) and (c) we just SELECT the cited etymon_ids and roll
-    # them up in Python — much faster than the JOIN-based CTE. For
-    # (a) the consensus view already keys on lemma_id, no rollup needed.
+
+def _select_promoted_root_ids(
+    db: LexiconDB,
+    *,
+    lang_thresholds: dict[str, int],
+    min_witnesses: int,
+    include_rando: bool,
+    include_wiktionary_empirical: bool,
+    root_of: Callable[[int], int],
+) -> list[int]:
+    """Promoted root_ids come from three sources:
+
+    * consensus witness threshold per language (the etymon_consensus view
+      already keys on lemma_id, no rollup needed),
+    * any etymon cited by 'rando-port' (legacy seed),
+    * any etymon cited by 'wiktionary-empirical' (wyrd-4hx7).
+
+    For the two empirical-class branches we SELECT the cited etymon_ids
+    flat and roll them up via ``root_of`` — much faster than the JOIN-
+    based CTE.
+    """
+    witness_sql, witness_params = _build_witness_filter(lang_thresholds, min_witnesses)
     promoted: set[int] = set()
     for row in db.conn.execute(
         f"SELECT lemma_id AS root_id FROM etymon_consensus WHERE {witness_sql}",
         witness_params,
     ):
         promoted.add(row["root_id"])
-
     if include_rando:
         for row in db.conn.execute(
             "SELECT etymon_id FROM etymon_citation WHERE source_id = 'rando-port'"
         ):
-            promoted.add(_root_of(row["etymon_id"]))
-
+            promoted.add(root_of(row["etymon_id"]))
     if include_wiktionary_empirical:
         for row in db.conn.execute(
             "SELECT etymon_id FROM etymon_citation WHERE source_id = 'wiktionary-empirical'"
         ):
-            promoted.add(_root_of(row["etymon_id"]))
+            promoted.add(root_of(row["etymon_id"]))
+    return sorted(promoted)
 
-    root_ids = sorted(promoted)
 
-    # Progress reporting on large empirical-class re-exports — without it
-    # the user has no way to estimate how far along a 30-minute run is.
-    # Chosen step keeps the stderr output to ~50 lines for the typical
-    # 5-10K-root corpus while still emitting first-rate-of-change signal
-    # within the first minute.
+def _iterate_families_with_progress(
+    db: LexiconDB,
+    root_ids: list[int],
+    members_by_root: dict[int, list[int]],
+) -> list[dict[str, Any]]:
+    """Walk promoted root_ids, gathering each family's data and
+    emitting stderr progress every ~2% of total. ``WYRD_EXPORT_QUIET=1``
+    silences the progress lines.
+
+    Without progress reporting the user has no way to estimate how
+    far along a multi-minute re-export is. Step chosen to keep
+    stderr output to ~50 lines on the typical 5-10K-root corpus
+    while still emitting first-rate-of-change signal within the
+    first minute.
+    """
     import os
     import sys
     import time
@@ -3884,7 +3977,6 @@ def _collect_families(
     n_total = len(root_ids)
     progress_every = max(1, n_total // 50) if n_total else 1
     started = time.monotonic()
-
     families: list[dict[str, Any]] = []
     for i, root_id in enumerate(root_ids, 1):
         member_ids = members_by_root.get(root_id, [root_id])
@@ -3896,7 +3988,7 @@ def _collect_families(
             rate = i / elapsed if elapsed > 0 else 0
             eta = (n_total - i) / rate if rate > 0 else 0
             print(
-                f"  _collect_families {i}/{n_total} "
+                f"  collect_families {i}/{n_total} "
                 f"({100 * i / n_total:.1f}%) "
                 f"elapsed={elapsed:.0f}s eta={eta:.0f}s "
                 f"({rate:.0f} roots/s)",
@@ -4336,6 +4428,30 @@ def _partition_families_by_reflex(
     return reflex_to_links, reflex_meta, families_without_reflex
 
 
+@dataclass
+class _WordLanguageAccumulators:
+    """Per-language accumulators populated during family-walk emission.
+
+    Bundle of the 5 dicts that ``_word_for_reflex`` and
+    ``_synthesize_word_for_family`` independently maintain in lockstep
+    (same keys, populated by the same absorb_* helpers, drained into
+    ``_emit_word_languages`` together). Holding them in one object
+    keeps the call signature down to one positional arg per consumer
+    and makes 'add a new per-language sibling field' a one-line edit
+    (D26 pattern) rather than a 6-touch-site refactor.
+
+    wyrd-k55 (PR-review-loop deferred): consolidates what used to be
+    five separate locals declared / passed / absorbed in two parallel
+    functions.
+    """
+
+    forms_by_lang: dict[str, list[str]] = field(default_factory=dict)
+    variants: dict[str, dict[str, int]] = field(default_factory=dict)
+    inflections: dict[str, dict[str, str]] = field(default_factory=dict)
+    citations: dict[str, set[str]] = field(default_factory=dict)
+    attested_years: dict[str, dict[str, int]] = field(default_factory=dict)
+
+
 def _word_for_reflex(
     meta: dict[str, Any], link_pairs: list[tuple[dict[str, Any], list[int]]]
 ) -> dict[str, Any]:
@@ -4345,33 +4461,20 @@ def _word_for_reflex(
     lemma's inflected children (D8) and OCR-cluster losers (D22) —
     not just the seeded etymon itself.
     """
-    per_lang: dict[str, list[str]] = {}
-    per_lang_variants: dict[str, dict[str, int]] = {}
-    per_lang_inflections: dict[str, dict[str, str]] = {}
-    per_lang_citations: dict[str, set[str]] = {}
-    per_lang_attested_years: dict[str, dict[str, int]] = {}
+    accs = _WordLanguageAccumulators()
     for fam, linked_ids in link_pairs:
         for member_id in linked_ids:
             for descendant_id in fam["member_descendants"][member_id]:
                 lang, form = fam["member_form_by_id"][descendant_id]
-                bucket = per_lang.setdefault(lang, [])
+                bucket = accs.forms_by_lang.setdefault(lang, [])
                 if form not in bucket:
                     bucket.append(form)
-                _absorb_member_variants(per_lang_variants, fam, descendant_id, lang)
-                _absorb_member_inflection(per_lang_inflections, fam, descendant_id, lang, form)
-                _absorb_member_citations(per_lang_citations, fam, descendant_id, lang)
-                _absorb_member_attested_years(
-                    per_lang_attested_years, fam, descendant_id, lang, form
-                )
+                _absorb_member_variants(accs, fam, descendant_id, lang)
+                _absorb_member_inflection(accs, fam, descendant_id, lang, form)
+                _absorb_member_citations(accs, fam, descendant_id, lang)
+                _absorb_member_attested_years(accs, fam, descendant_id, lang, form)
     word: dict[str, Any] = {"modern_usage": meta["surface_form"]}
-    _emit_word_languages(
-        word,
-        per_lang,
-        per_lang_variants,
-        per_lang_inflections,
-        per_lang_citations,
-        per_lang_attested_years,
-    )
+    _emit_word_languages(word, accs)
     return word
 
 
@@ -4383,33 +4486,20 @@ def _synthesize_word_for_family(fam: dict[str, Any]) -> dict[str, Any]:
     matching language.
     """
     word: dict[str, Any] = {"modern_usage": _synthesize_modern_usage(fam)}
-    per_lang: dict[str, list[str]] = {
-        lang: list(fam["forms_by_lang"][lang]) for lang in fam["forms_by_lang"]
-    }
-    per_lang_variants: dict[str, dict[str, int]] = {}
-    per_lang_inflections: dict[str, dict[str, str]] = {}
-    per_lang_citations: dict[str, set[str]] = {}
-    per_lang_attested_years: dict[str, dict[str, int]] = {}
-    for member_id, (member_lang, member_form) in fam["member_form_by_id"].items():
-        _absorb_member_variants(per_lang_variants, fam, member_id, member_lang)
-        _absorb_member_inflection(per_lang_inflections, fam, member_id, member_lang, member_form)
-        _absorb_member_citations(per_lang_citations, fam, member_id, member_lang)
-        _absorb_member_attested_years(
-            per_lang_attested_years, fam, member_id, member_lang, member_form
-        )
-    _emit_word_languages(
-        word,
-        per_lang,
-        per_lang_variants,
-        per_lang_inflections,
-        per_lang_citations,
-        per_lang_attested_years,
+    accs = _WordLanguageAccumulators(
+        forms_by_lang={lang: list(fam["forms_by_lang"][lang]) for lang in fam["forms_by_lang"]},
     )
+    for member_id, (member_lang, member_form) in fam["member_form_by_id"].items():
+        _absorb_member_variants(accs, fam, member_id, member_lang)
+        _absorb_member_inflection(accs, fam, member_id, member_lang, member_form)
+        _absorb_member_citations(accs, fam, member_id, member_lang)
+        _absorb_member_attested_years(accs, fam, member_id, member_lang, member_form)
+    _emit_word_languages(word, accs)
     return word
 
 
 def _absorb_member_variants(
-    per_lang_variants: dict[str, dict[str, int]],
+    accs: _WordLanguageAccumulators,
     fam: dict[str, Any],
     member_id: int,
     lang: str,
@@ -4419,12 +4509,12 @@ def _absorb_member_variants(
     `lang` matches the member's language so callers don't accidentally
     cross-pollinate across languages."""
     for variant_form, weight in fam.get("member_variants", {}).get(member_id, []):
-        lang_variants = per_lang_variants.setdefault(lang, {})
+        lang_variants = accs.variants.setdefault(lang, {})
         lang_variants[variant_form] = lang_variants.get(variant_form, 0) + weight
 
 
 def _absorb_member_inflection(
-    per_lang_inflections: dict[str, dict[str, str]],
+    accs: _WordLanguageAccumulators,
     fam: dict[str, Any],
     member_id: int,
     lang: str,
@@ -4435,11 +4525,11 @@ def _absorb_member_inflection(
     children carry a grammatical-case label worth surfacing."""
     inflection = fam.get("member_inflection_by_id", {}).get(member_id)
     if inflection:
-        per_lang_inflections.setdefault(lang, {})[form] = inflection
+        accs.inflections.setdefault(lang, {})[form] = inflection
 
 
 def _absorb_member_attested_years(
-    per_lang_attested_years: dict[str, dict[str, int]],
+    accs: _WordLanguageAccumulators,
     fam: dict[str, Any],
     member_id: int,
     lang: str,
@@ -4451,11 +4541,11 @@ def _absorb_member_attested_years(
     applies' (treat the form as always-includable under any --era)."""
     year = fam.get("member_attested_years", {}).get(member_id)
     if year is not None:
-        per_lang_attested_years.setdefault(lang, {})[form] = year
+        accs.attested_years.setdefault(lang, {})[form] = year
 
 
 def _absorb_member_citations(
-    per_lang_citations: dict[str, set[str]],
+    accs: _WordLanguageAccumulators,
     fam: dict[str, Any],
     member_id: int,
     lang: str,
@@ -4466,37 +4556,30 @@ def _absorb_member_citations(
     matches the member's language."""
     citations = fam.get("member_citations", {}).get(member_id, [])
     if citations:
-        per_lang_citations.setdefault(lang, set()).update(citations)
+        accs.citations.setdefault(lang, set()).update(citations)
 
 
-def _emit_word_languages(
-    word: dict[str, Any],
-    per_lang: dict[str, list[str]],
-    per_lang_variants: dict[str, dict[str, int]],
-    per_lang_inflections: dict[str, dict[str, str]],
-    per_lang_citations: dict[str, set[str]],
-    per_lang_attested_years: dict[str, dict[str, int]],
-) -> None:
+def _emit_word_languages(word: dict[str, Any], accs: _WordLanguageAccumulators) -> None:
     """Stamp per-language form arrays + sibling _variants /
     _inflections / _citations / _attested_years metadata onto the word
     dict. Per D26, the metadata fields are sibling keys
     (``<lang>_variants``, ``<lang>_inflections``, ``<lang>_citations``,
     ``<lang>_attested_years``) so legacy loaders that ignore unknown
     fields keep working."""
-    for lang in sorted(per_lang):
+    for lang in sorted(accs.forms_by_lang):
         json_field = _LANG_CODE_TO_JSON_FIELD.get(lang)
         if not json_field:
             continue
-        word[json_field] = per_lang[lang]
-        if lang in per_lang_variants:
-            word[f"{json_field}_variants"] = _emit_variant_list(per_lang_variants[lang])
-        if lang in per_lang_inflections:
-            word[f"{json_field}_inflections"] = _emit_inflection_list(per_lang_inflections[lang])
-        if lang in per_lang_citations:
-            word[f"{json_field}_citations"] = sorted(per_lang_citations[lang])
-        if lang in per_lang_attested_years:
+        word[json_field] = accs.forms_by_lang[lang]
+        if lang in accs.variants:
+            word[f"{json_field}_variants"] = _emit_variant_list(accs.variants[lang])
+        if lang in accs.inflections:
+            word[f"{json_field}_inflections"] = _emit_inflection_list(accs.inflections[lang])
+        if lang in accs.citations:
+            word[f"{json_field}_citations"] = sorted(accs.citations[lang])
+        if lang in accs.attested_years:
             word[f"{json_field}_attested_years"] = _emit_attested_years_list(
-                per_lang_attested_years[lang]
+                accs.attested_years[lang]
             )
 
 

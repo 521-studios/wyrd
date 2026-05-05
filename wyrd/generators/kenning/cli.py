@@ -1277,28 +1277,9 @@ def lexicon_mine_llm(
     if limit is not None:
         parsed = parsed[:limit]
 
-    if provider == "ollama":
-        client_kwargs: dict[str, Any] = {"timeout_s": timeout}
-        if ollama_url:
-            client_kwargs["base_url"] = ollama_url
-        if model:
-            client_kwargs["model"] = model
-        client = llm_extractor.OllamaClient(**client_kwargs)
-        extract_one = llm_extractor.extract_one
-    elif provider == "gemini":
-        gemini_kwargs: dict[str, Any] = {"timeout_s": timeout}
-        if model:
-            gemini_kwargs["model"] = model
-        client = gemini_extractor.GeminiClient(**gemini_kwargs)
-        extract_one = gemini_extractor.extract_one
-    elif provider == "anthropic":
-        anthropic_kwargs: dict[str, Any] = {"timeout_s": timeout}
-        if model:
-            anthropic_kwargs["model"] = model
-        client = anthropic_extractor.AnthropicClient(**anthropic_kwargs)
-        extract_one = anthropic_extractor.extract_one
-    else:
-        raise click.ClickException(f"unknown provider: {provider}")
+    client, extract_one = _build_llm_client(
+        provider, model=model, ollama_url=ollama_url, timeout=timeout
+    )
 
     click.echo(
         f"Mining {len(parsed)} entries from {path.name} via {client.base_url} model={client.model}",
@@ -1699,16 +1680,9 @@ def lexicon_review(
     Each tier is idempotent: skips toponyms that already have a row from
     the chosen provider.
     """
-    if provider == "gemini":
-        Client = gemini_extractor.GeminiClient
-        provider_extract_one = gemini_extractor.extract_one
-        provider_tag = "extracted_by:gemini:"
-    elif provider == "anthropic":
-        Client = anthropic_extractor.AnthropicClient
-        provider_extract_one = anthropic_extractor.extract_one
-        provider_tag = "extracted_by:anthropic:"
-    else:
-        raise click.ClickException(f"unknown provider: {provider}")
+    # click.Choice on the --provider option restricts to {gemini, anthropic};
+    # 'ollama' never reaches this body (Click rejects it at parse time).
+    provider_tag = f"extracted_by:{provider}:"
 
     candidates = _select_review_candidates(
         db_path=db_path,
@@ -1735,7 +1709,7 @@ def lexicon_review(
         err=True,
     )
 
-    client = Client(timeout_s=timeout, **({"model": model} if model else {}))
+    client, provider_extract_one = _build_llm_client(provider, model=model, timeout=timeout)
 
     write_db: LexiconDB | None = None
     if apply_changes:
@@ -1781,6 +1755,44 @@ def lexicon_review(
     click.echo(f"Review summary: {counts}", err=True)
     if not apply_changes:
         click.echo("(dry-run; pass --apply to write)", err=True)
+
+
+def _build_llm_client(
+    provider: str,
+    *,
+    model: str | None = None,
+    ollama_url: str | None = None,
+    timeout: float,
+) -> tuple[Any, Any]:
+    """Construct (client, extract_one) for one of the three supported
+    LLM providers. Centralises the 3-branch dispatch that used to
+    live inline in lexicon_mine_llm and lexicon_review (wyrd-lqw).
+
+    ``ollama_url`` only applies to the ``ollama`` provider; ignored
+    for gemini/anthropic. ``model`` overrides the provider's default
+    when set.
+
+    Raises ``click.ClickException`` for unknown provider names so the
+    CLI exits cleanly without a stack trace.
+    """
+    if provider == "ollama":
+        kwargs: dict[str, Any] = {"timeout_s": timeout}
+        if ollama_url:
+            kwargs["base_url"] = ollama_url
+        if model:
+            kwargs["model"] = model
+        return llm_extractor.OllamaClient(**kwargs), llm_extractor.extract_one
+    if provider == "gemini":
+        kwargs = {"timeout_s": timeout}
+        if model:
+            kwargs["model"] = model
+        return gemini_extractor.GeminiClient(**kwargs), gemini_extractor.extract_one
+    if provider == "anthropic":
+        kwargs = {"timeout_s": timeout}
+        if model:
+            kwargs["model"] = model
+        return anthropic_extractor.AnthropicClient(**kwargs), anthropic_extractor.extract_one
+    raise click.ClickException(f"unknown provider: {provider}")
 
 
 def _select_already_extracted_toponyms(db_path: Path, source_id: str) -> set[str]:
@@ -2256,16 +2268,54 @@ def lexicon_mine_wiktextract_corpus(
     """
     target_cultures: list[str] = sorted(set(CULTURES if "all" in cultures else cultures))
     meanings_data = _load_meanings_data(None)
+    tmpdir, place_names_paths_by_culture = _stage_place_names_paths(target_cultures)
+    try:
+        fragments_by_culture = _collect_fragments_per_culture(
+            target_cultures, place_names_paths_by_culture, meanings_data, min_length
+        )
+        with LexiconDB(db_path) as db:
+            counts = mine_corpus(
+                db,
+                fragments_by_culture=fragments_by_culture,
+                sources_dir=sources_dir,
+                apply=apply_changes,
+            )
+        _print_mine_summary(counts, apply_changes)
+        if not apply_changes:
+            return
+        # Empirical etymons land with no position_pref — without
+        # per-position reflex rows the bundle export emits a single
+        # undecorated modern_usage that the runtime treats as post-only.
+        # derive_positions scans the relevant cultures' corpora and
+        # writes one reflex per observed position so the export emits
+        # one bundle word per position with proper dash markers.
+        with LexiconDB(db_path) as db:
+            pos_counts = derive_positions(db, place_names_paths_by_culture, apply=True)
+        _print_position_summary(pos_counts)
+    finally:
+        import shutil
 
-    # Stage the bundled place_names corpora to a tmpdir once — used by
-    # compute_unaccounted_fragments for the miss-fragment seeding and
-    # then re-used by derive_positions for the position-classification
-    # pass. importlib.resources gives us text, but the matchers want
-    # Path-shaped inputs.
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def _stage_place_names_paths(
+    target_cultures: list[str],
+) -> tuple[Path, dict[str, Path]]:
+    """Stage bundled place_names corpora to a tmpdir as files since
+    compute_unaccounted_fragments / derive_positions want Path-shaped
+    inputs and importlib.resources only hands back text. Returns the
+    tmpdir + the per-culture path map; caller is responsible for
+    cleanup via the returned tmpdir.
+
+    On any failure during staging (missing resource, write_text raising),
+    the partially-populated tmpdir is cleaned up before re-raising so
+    the caller's try/finally never sees a leaked dir.
+    """
+    import shutil
     import tempfile
 
     tmpdir = Path(tempfile.mkdtemp(prefix="wyrd-empirical-mine-"))
-    place_names_paths_by_culture: dict[str, Path] = {}
+    paths: dict[str, Path] = {}
     try:
         for culture in target_cultures:
             text = (
@@ -2275,83 +2325,77 @@ def lexicon_mine_wiktextract_corpus(
             )
             p = tmpdir / f"{culture}_place_names.json"
             p.write_text(text)
-            place_names_paths_by_culture[culture] = p
+            paths[culture] = p
+    except Exception:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+        raise
+    return tmpdir, paths
 
-        fragments_by_culture: dict[str, Counter] = {}
-        for culture in target_cultures:
-            frags = compute_unaccounted_fragments(
-                culture,
-                place_names_paths_by_culture[culture],
-                meanings_data,
-                min_length=min_length,
-            )
-            fragments_by_culture[culture] = frags
-            click.echo(
-                f"culture={culture} unaccounted_fragments={len(frags)} "
-                f"total_occurrences={sum(frags.values())}",
-                err=True,
-            )
 
-        with LexiconDB(db_path) as db:
-            counts = mine_corpus(
-                db,
-                fragments_by_culture=fragments_by_culture,
-                sources_dir=sources_dir,
-                apply=apply_changes,
-            )
-
+def _collect_fragments_per_culture(
+    target_cultures: list[str],
+    place_names_paths_by_culture: dict[str, Path],
+    meanings_data: list[dict[str, Any]],
+    min_length: int,
+) -> dict[str, Counter]:
+    """Run compute_unaccounted_fragments per culture, echo a one-line
+    summary per culture, and return the {culture: Counter} map."""
+    fragments_by_culture: dict[str, Counter] = {}
+    for culture in target_cultures:
+        frags = compute_unaccounted_fragments(
+            culture,
+            place_names_paths_by_culture[culture],
+            meanings_data,
+            min_length=min_length,
+        )
+        fragments_by_culture[culture] = frags
         click.echo(
-            f"fragments_input={counts['fragments_input']} "
-            f"wiktionary_hits={counts['wiktionary_hits']}",
+            f"culture={culture} unaccounted_fragments={len(frags)} "
+            f"total_occurrences={sum(frags.values())}",
             err=True,
         )
-        if apply_changes:
-            click.echo(
-                f"etymons_upserted={counts['etymons_upserted']} "
-                f"glosses_added={counts['glosses_added']} "
-                f"tags_added={counts['tags_added']} "
-                f"citations_added={counts['citations_added']}",
-                err=True,
-            )
-        click.echo("per-culture summary:", err=True)
-        for culture, sub in sorted(counts["by_culture"].items()):
-            click.echo(
-                f"  {culture:10} fragments={sub['fragments']:6d} hits={sub['hits']:6d}",
-                err=True,
-            )
-        click.echo("per-language hits:", err=True)
-        for lang, n in counts["by_language"].most_common():
-            click.echo(f"  {lang:25s} {n:6d}", err=True)
-        if not apply_changes:
-            click.echo("(dry-run; pass --apply to write)", err=True)
-            return
+    return fragments_by_culture
 
-        # Empirical etymons land with no position_pref — without
-        # per-position reflex rows the bundle export emits a single
-        # undecorated modern_usage that the runtime treats as post-only.
-        # derive_positions scans the relevant cultures' corpora and
-        # writes one reflex per observed position so the export emits
-        # one bundle word per position with proper dash markers.
-        with LexiconDB(db_path) as db:
-            pos_counts = derive_positions(
-                db,
-                place_names_paths_by_culture,
-                apply=True,
-            )
-        click.echo("position derivation:", err=True)
+
+def _print_mine_summary(counts: dict[str, Any], apply_changes: bool) -> None:
+    """Echo per-culture + per-language hit summaries to stderr."""
+    click.echo(
+        f"fragments_input={counts['fragments_input']} wiktionary_hits={counts['wiktionary_hits']}",
+        err=True,
+    )
+    if apply_changes:
         click.echo(
-            f"  etymons_examined={pos_counts['etymons_examined']} "
-            f"reflex_rows_upserted={pos_counts['reflex_rows_upserted']} "
-            f"links_added={pos_counts['links_added']} "
-            f"no_observed_position={pos_counts['etymons_with_no_observed_position']}",
+            f"etymons_upserted={counts['etymons_upserted']} "
+            f"glosses_added={counts['glosses_added']} "
+            f"tags_added={counts['tags_added']} "
+            f"citations_added={counts['citations_added']}",
             err=True,
         )
-        for pos, n in sorted(pos_counts["by_position"].items()):
-            click.echo(f"  {pos:10s} reflexes_for={n}", err=True)
-    finally:
-        for p in place_names_paths_by_culture.values():
-            p.unlink(missing_ok=True)
-        tmpdir.rmdir()
+    click.echo("per-culture summary:", err=True)
+    for culture, sub in sorted(counts["by_culture"].items()):
+        click.echo(
+            f"  {culture:10} fragments={sub['fragments']:6d} hits={sub['hits']:6d}",
+            err=True,
+        )
+    click.echo("per-language hits:", err=True)
+    for lang, n in counts["by_language"].most_common():
+        click.echo(f"  {lang:25s} {n:6d}", err=True)
+    if not apply_changes:
+        click.echo("(dry-run; pass --apply to write)", err=True)
+
+
+def _print_position_summary(pos_counts: dict[str, Any]) -> None:
+    """Echo derive_positions counters to stderr."""
+    click.echo("position derivation:", err=True)
+    click.echo(
+        f"  etymons_examined={pos_counts['etymons_examined']} "
+        f"reflex_rows_upserted={pos_counts['reflex_rows_upserted']} "
+        f"links_added={pos_counts['links_added']} "
+        f"no_observed_position={pos_counts['etymons_with_no_observed_position']}",
+        err=True,
+    )
+    for pos, n in sorted(pos_counts["by_position"].items()):
+        click.echo(f"  {pos:10s} reflexes_for={n}", err=True)
 
 
 @lexicon.command("path")
