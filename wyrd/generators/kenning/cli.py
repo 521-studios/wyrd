@@ -1510,8 +1510,10 @@ def lexicon_mine_fantasy_name(
                 )
                 if res.usable and res.etymon_id is not None:
                     fp.tag_etymon_as_fantasy(write_db.conn, res.etymon_id)
-        if write_db is not None:
-            write_db.commit()
+                # Commit per resolution: each input cost an LLM call, so
+                # crashing partway through a long batch shouldn't lose
+                # already-paid-for results.
+                write_db.commit()
     finally:
         if write_db is not None:
             write_db.close()

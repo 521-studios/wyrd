@@ -112,6 +112,17 @@ BAR_REASON_HOMOGRAPH = "homograph_collision"
 BAR_REASON_NOT_IN_CORPUS = "attested_but_not_in_corpus"
 
 
+def _connect_ro(db_path: Path | str) -> sqlite3.Connection:
+    """Open a read-only SQLite connection on `db_path`.
+
+    Uses Path.as_uri() so paths with spaces, non-ASCII chars, or other
+    URI-unsafe characters are encoded correctly. Falls back to a string
+    path verbatim if the input is already URI-shaped (rare in practice).
+    """
+    p = Path(db_path).resolve()
+    return sqlite3.connect(f"{p.as_uri()}?mode=ro", uri=True)
+
+
 @dataclass(frozen=True)
 class AncestorMatch:
     """One approved-family ancestor surfaced by the descent-walking lookup."""
@@ -156,7 +167,7 @@ def descent_walking_lookup(
     matches (where the input form is itself an approved-family etymon)
     take precedence and appear first with edge_type='(direct)'.
     """
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    conn = _connect_ro(db_path)
     conn.row_factory = sqlite3.Row
     try:
         seed_rows = conn.execute(
@@ -232,7 +243,7 @@ def _dedupe_by_form_lang(matches: list[AncestorMatch]) -> list[AncestorMatch]:
 
 def _ancestor_glosses(db_path: Path | str, etymon_id: int) -> list[str]:
     """Pull etymon_gloss rows for an etymon (best-effort semantic check helper)."""
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    conn = _connect_ro(db_path)
     try:
         rows = conn.execute(
             "SELECT gloss FROM etymon_gloss WHERE etymon_id = ?", (etymon_id,)
@@ -523,7 +534,7 @@ def _lookup_etymon_id(db_path: Path | str, form: str, language: str) -> int | No
     response (e.g. "Trǫll" vs "trǫll"); language is matched exactly
     since codes are stable.
     """
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    conn = _connect_ro(db_path)
     try:
         row = conn.execute(
             "SELECT id FROM etymon WHERE LOWER(canonical_form) = LOWER(?) AND language = ?",
