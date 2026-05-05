@@ -483,6 +483,73 @@ Idempotent against re-runs. For Sonnet-mined books, use
   `extracted_by:anthropic:` in `source_quote`) lets a later review pass
   see who said what.
 
+### Decline recovery (wyrd-bgr)
+
+Tier-1 declines are entries the model refused to extract from
+("no etymology in this body"). Tier-2 review never sees them because
+review starts from existing toponym_etymology rows. Across dual-mined
+books, a stronger Tier-1 model recovers a substantial fraction of
+those declines:
+
+| Book | Qwen extracted | Haiku-also extracted | Haiku-only (Qwen missed) |
+|---|---:|---:|---:|
+| mawer_1920_northumberland_durham | 366 | 426 | 177 (39% of decline pool) |
+| lindkvist_1912_scandinavian_place_names | 39 | 119 | 91 (3× lift over Qwen) |
+| skeat_1901_cambridgeshire | 47 | 51 | 10 |
+| skeat_1913_suffolk | 42 | 42 | 7 |
+| skeat_1906_bedfordshire | 20 | 24 | 6 |
+
+To cheaply re-mine just the gaps (without re-paying for entries the
+first model already got), use `--declines-only`:
+
+```bash
+# After Qwen Tier-1 leaves declines on Ekwall 1922 Lancashire,
+# point Haiku at the residual:
+wyrd kenning lexicon mine-llm sources/ekwall_1922_lancashire.txt \
+    --provider anthropic \
+    --model claude-haiku-4-5-20251001 \
+    --declines-only
+```
+
+The flag pre-filters parsed entries to those that have NO existing
+toponym_etymology row for the source — regardless of which Tier-1
+provider produced the existing rows. Filter applies before `--limit`,
+so `--limit 50 --declines-only` smokes the first 50 of the residual,
+not the first 50 of the parsed list.
+
+#### First production batch (2026-05-05)
+
+Ran Haiku across 10 Qwen-only English books with `--declines-only`.
+1169 residual entries → 396 accepted → **314 new etymologies
+ingested** (27% recovery at the etymology level — the gap between
+accepted and ingested is mostly low-confidence rows the writer drops
+per `lexicon.py:1394`):
+
+| Book | Residual | Accepted | Ingested | Accept % |
+| --- | ---: | ---: | ---: | ---: |
+| roberts_1914_sussex | 356 | 134 | 113 | 38% |
+| ekwall_1928_river_names | 222 | 72 | 45 | 32% |
+| smith_1928_north_riding_yorkshire | 127 | 43 | 39 | 34% |
+| mawer_stenton_1927_worcestershire | 122 | 43 | 37 | 35% |
+| ekwall_1922_lancashire | 109 | 44 | 31 | 40% |
+| wyld_hirst_1911_lancashire | 84 | 14 | 10 | 17% |
+| skeat_1904_hertfordshire | 64 | 16 | 16 | 25% |
+| mawer_stenton_1930_sussex | 43 | 15 | 11 | 35% |
+| skeat_1911_berkshire | 23 | 8 | 7 | 35% |
+| mawer_stenton_1925_buckinghamshire | 19 | 7 | 5 | 37% |
+| **Total** | **1169** | **396** | **314** | **34%** |
+
+Notes:
+- Reject rates were high on Ekwall 1928 river names (31%) and Skeat
+  1911 Berkshire (61%) — both consistent with the
+  short-entry / OCR-noise pattern that trips the
+  `form_not_in_body` validator. Not a recovery problem; the
+  writer correctly drops them.
+- Wyld & Hirst 1911 Lancashire underperforms (17% accept) — its
+  entries are short and Qwen had already extracted the easy ones.
+- The 34% average tracks the smoke projection from the dual-mined
+  comparison (Mawer 39%, plus 5 smaller books at 17–30%).
+
 ---
 
 ## Stage 6 — post-mining cleanup pipeline

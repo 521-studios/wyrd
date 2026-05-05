@@ -1790,6 +1790,211 @@ def test_lexicon_mine_llm_records_mining_run_at_end_of_run(
     assert row["rejected"] == 0
 
 
+# --- wyrd-bgr: --declines-only filter on mine-llm ----------------------
+
+
+def test_lexicon_mine_llm_declines_only_skips_already_extracted(
+    fresh_db: Path, tmp_path: Path, monkeypatch
+) -> None:
+    """`mine-llm --declines-only` must skip parsed entries whose toponym
+    already has a toponym_etymology row for the source. Confirms the
+    decline-recovery workflow: pre-seed an etymology row for one toponym,
+    then run mine-llm with the flag and verify only the unseeded toponym
+    reaches the extractor."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+    from wyrd.generators.kenning import llm_extractor
+    from wyrd.generators.kenning.llm_extractor import LLMResult
+    from wyrd.generators.kenning.skeat_parser import ParsedElement, ParsedEntry
+
+    fake_parsed = [
+        ParsedEntry(
+            toponym="AlreadyMined",
+            section_suffix="-ton",
+            historical_form="already-tun",
+            elements=[],
+            confidence="low",
+            source_quote="AlreadyMined. body.",
+        ),
+        ParsedEntry(
+            toponym="StillUnmined",
+            section_suffix="-ton",
+            historical_form="still-tun",
+            elements=[],
+            confidence="low",
+            source_quote="StillUnmined. body.",
+        ),
+    ]
+    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser, **_: fake_parsed)
+
+    class FakeClient:
+        model = "fake-model:0b"
+        base_url = "http://localhost:0"
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(llm_extractor, "OllamaClient", FakeClient)
+
+    extractor_calls: list[str] = []
+
+    def fake_extract_one(client, **kw):
+        extractor_calls.append(kw["toponym"])
+        return LLMResult(
+            entry=ParsedEntry(
+                toponym=kw["toponym"],
+                section_suffix="-ton",
+                historical_form="x-tun",
+                elements=[
+                    ParsedElement(form="x", language="old-english", position="pre", gloss="x"),
+                ],
+                confidence="high",
+                source_quote=kw["body"],
+            ),
+            raw_response={},
+            failures=[],
+            accepted=True,
+        )
+
+    monkeypatch.setattr(llm_extractor, "extract_one", fake_extract_one)
+
+    # Pre-seed the DB with a toponym_etymology row for "AlreadyMined" against
+    # this source — simulating Qwen having already extracted from it.
+    src_path = tmp_path / "test_book.txt"
+    src_path.write_text("AlreadyMined. body.\n\nStillUnmined. body.\n")
+    source_id = "test_book"
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(
+            id=source_id,
+            title="Test Book",
+            author="x",
+            year=None,
+            region=None,
+            language_focus=None,
+        )
+        db.commit()
+        cur = db.conn.execute("INSERT INTO toponym (modern_name) VALUES (?)", ("AlreadyMined",))
+        topo_id = cur.lastrowid
+        db.conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, confidence, notes) "
+            "VALUES (?, ?, 'high', 'extracted_by:llm:ollama:qwen3.5:9b')",
+            (topo_id, source_id),
+        )
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        [
+            "lexicon",
+            "mine-llm",
+            str(src_path),
+            "--db",
+            str(fresh_db),
+            "--provider",
+            "ollama",
+            "--declines-only",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+
+    # The extractor was called for StillUnmined only — AlreadyMined was filtered.
+    assert extractor_calls == ["StillUnmined"]
+    # The mining_run row reflects the post-filter parsed_count.
+    with LexiconDB(fresh_db) as db:
+        rows = db.conn.execute(
+            "SELECT parsed_count, accepted FROM mining_run WHERE source_id=?",
+            (source_id,),
+        ).fetchall()
+    assert len(rows) == 1
+    assert rows[0]["parsed_count"] == 1
+    assert rows[0]["accepted"] == 1
+
+
+def test_lexicon_mine_llm_declines_only_no_op_when_fully_mined(
+    fresh_db: Path, tmp_path: Path, monkeypatch
+) -> None:
+    """When every parsed toponym already has a row, --declines-only exits
+    cleanly without calling the extractor and without writing a mining_run
+    (no work was done)."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+    from wyrd.generators.kenning import llm_extractor
+    from wyrd.generators.kenning.skeat_parser import ParsedEntry
+
+    fake_parsed = [
+        ParsedEntry(
+            toponym="OnlyOne",
+            section_suffix="-ton",
+            historical_form="only-tun",
+            elements=[],
+            confidence="low",
+            source_quote="OnlyOne. body.",
+        ),
+    ]
+    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser, **_: fake_parsed)
+
+    class FakeClient:
+        model = "fake-model:0b"
+        base_url = "http://localhost:0"
+
+        def __init__(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(llm_extractor, "OllamaClient", FakeClient)
+
+    def fail_extract(*a, **kw):
+        raise AssertionError("extractor must not be called when nothing remains")
+
+    monkeypatch.setattr(llm_extractor, "extract_one", fail_extract)
+
+    src_path = tmp_path / "test_book.txt"
+    src_path.write_text("OnlyOne. body.\n")
+    source_id = "test_book"
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(
+            id=source_id,
+            title="Test Book",
+            author="x",
+            year=None,
+            region=None,
+            language_focus=None,
+        )
+        db.commit()
+        cur = db.conn.execute("INSERT INTO toponym (modern_name) VALUES (?)", ("OnlyOne",))
+        topo_id = cur.lastrowid
+        db.conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, confidence, notes) "
+            "VALUES (?, ?, 'high', 'extracted_by:llm:ollama:qwen3.5:9b')",
+            (topo_id, source_id),
+        )
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        [
+            "lexicon",
+            "mine-llm",
+            str(src_path),
+            "--db",
+            str(fresh_db),
+            "--provider",
+            "ollama",
+            "--declines-only",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Nothing to mine after declines filter" in (result.output + (result.stderr or ""))
+    with LexiconDB(fresh_db) as db:
+        runs = db.conn.execute(
+            "SELECT COUNT(*) FROM mining_run WHERE source_id=?", (source_id,)
+        ).fetchone()[0]
+    assert runs == 0
+
+
 # --- wyrd-9kh.5: running-header page parser ----------------------------
 
 
