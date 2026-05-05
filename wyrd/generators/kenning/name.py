@@ -172,16 +172,23 @@ class Name:
     def _find_meaning_legacy(self) -> None:
         """Original Rando-port matcher: collect candidate Meanings via
         ``find_chunks``, then iterate every Meaning at every position
-        in the input. O(M) per word per recursion level."""
+        in the input. O(M) per word per recursion level.
+
+        Dedup keys on ``tuple(word.word)`` — the raw decomposition
+        elements — rather than the Word object itself. Meaning's
+        default identity-based hash and str's interned hash are both
+        cheaper than Word.__hash__ (which calls str() on each element
+        and then hashes the resulting tuple of strings)."""
         self.find_chunks()
         for word in self.words:
             w = Word(word)
             meanings = w.extract_meanings(self.chunks)
-            seen: set[Word] = set(self.words[word])
+            seen_keys: set[tuple] = {tuple(existing.word) for existing in self.words[word]}
             for meaning in meanings:
-                if meaning not in seen:
+                key = tuple(meaning.word)
+                if key not in seen_keys:
                     self.words[word].append(meaning)
-                    seen.add(meaning)
+                    seen_keys.add(key)
             if len(self.words[word]) == 0:
                 self.words[word].append(w)
 
@@ -207,20 +214,23 @@ class Name:
         word the trie matches at multiple boundaries surfaces every
         reading as its own ``Word`` object.
 
-        Dedup uses an O(1) set membership check rather than the
-        legacy O(N) ``in list`` to keep ``reduce=False`` cases tractable
-        when the trie emits many alternates."""
+        Dedup keys on ``tuple(decomposition)`` — the raw list of
+        Meaning|str elements — rather than constructing a Word per
+        candidate just to ask the dedup set. Saves both the Word
+        instantiation and the string-based Word.__hash__ on every
+        candidate; matters for ``reduce=False`` cases where the
+        trie emits many alternates."""
         trie = _trie_for(self.word_db)
         for word in self.words:
             decompositions = (
                 canonical_decompositions(word, trie) if reduce else all_decompositions(word, trie)
             )
-            seen: set[Word] = set(self.words[word])
+            seen_keys: set[tuple] = {tuple(existing.word) for existing in self.words[word]}
             for d in decompositions:
-                w = Word(d)
-                if w not in seen:
-                    self.words[word].append(w)
-                    seen.add(w)
+                key = tuple(d)
+                if key not in seen_keys:
+                    self.words[word].append(Word(d))
+                    seen_keys.add(key)
             if len(self.words[word]) == 0:
                 self.words[word].append(Word(word))
 
