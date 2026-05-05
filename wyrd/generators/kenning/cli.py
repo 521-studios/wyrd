@@ -1391,6 +1391,16 @@ def lexicon_mine_llm(
     default=False,
     help="Write fantasy_morpheme rows + add 'fantasy' tag on usable etymons. Without this, dry-run.",
 )
+@click.option(
+    "--model",
+    default=None,
+    help=(
+        "Override the LLM model used for both the semantic-check pass on "
+        "pre-filter resolutions and the full-research fallback. Gemini "
+        "default: gemini-2.5-flash. Pass a different Gemini model name "
+        "(gemini-2.5-pro, gemini-2.5-flash-lite, etc.) to substitute it."
+    ),
+)
 def lexicon_mine_fantasy_name(
     db_path: Path,
     name: str | None,
@@ -1398,6 +1408,7 @@ def lexicon_mine_fantasy_name(
     batch_path: Path | None,
     skip_llm: bool,
     apply_changes: bool,
+    model: str | None,
 ) -> None:
     """Research the etymology of a fantasy/gaming creature name (wyrd-ami).
 
@@ -1448,10 +1459,30 @@ def lexicon_mine_fantasy_name(
     )
 
     counts = {"usable": 0, "barred": 0, "by_method": {}, "by_bar": {}}
+    # Bind the LLM callers to the user-supplied model (if any). The
+    # pipeline calls semantic_check_caller(name, desc, ancestor, glosses)
+    # and llm_caller(name, desc); functools.partial pre-binds the model
+    # kwarg without changing those signatures.
+    if model:
+        from functools import partial
+
+        llm_caller = partial(fp._llm_full_research, model=model)
+        semantic_check_caller = partial(fp._llm_semantic_check, model=model)
+    else:
+        llm_caller = fp._llm_full_research
+        semantic_check_caller = fp._llm_semantic_check
+
     write_db: LexiconDB | None = LexiconDB(db_path) if apply_changes else None
     try:
         for in_name, in_desc in inputs:
-            res = fp.resolve(db_path, in_name, in_desc, skip_llm=skip_llm)
+            res = fp.resolve(
+                db_path,
+                in_name,
+                in_desc,
+                skip_llm=skip_llm,
+                llm_caller=llm_caller,
+                semantic_check_caller=semantic_check_caller,
+            )
             if res.usable:
                 counts["usable"] += 1
                 tag = f"USABLE  {in_name:<18}"

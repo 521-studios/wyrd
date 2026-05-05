@@ -151,7 +151,8 @@ def descent_walking_lookup(
     try:
         seed_rows = conn.execute(
             "SELECT id, canonical_form, language FROM etymon "
-            "WHERE LOWER(canonical_form) = LOWER(?)",
+            "WHERE LOWER(canonical_form) = LOWER(?) "
+            "ORDER BY id",
             (name,),
         ).fetchall()
         if not seed_rows:
@@ -271,9 +272,9 @@ def _llm_full_research(
     key = api_key or os.environ.get("GEMINI_API_KEY")
     if not key:
         raise RuntimeError("GEMINI_API_KEY is not set")
-    url = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
-    )
+    # Pass key in `x-goog-api-key` header instead of as a URL query
+    # parameter — URLs can be logged by intermediaries / proxies.
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     prompt = _RESEARCH_PROMPT_TEMPLATE.format(
         name=name,
         description=description,
@@ -289,7 +290,7 @@ def _llm_full_research(
     req = urllib.request.Request(
         url,
         data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "x-goog-api-key": key},
     )
     with urllib.request.urlopen(req, timeout=timeout_s) as r:
         resp = json.loads(r.read())
@@ -346,9 +347,8 @@ def _llm_semantic_check(
     key = api_key or os.environ.get("GEMINI_API_KEY")
     if not key:
         raise RuntimeError("GEMINI_API_KEY is not set")
-    url = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
-    )
+    # Pass key in `x-goog-api-key` header (mirrors _llm_full_research).
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     gloss_text = "; ".join(ancestor_glosses) if ancestor_glosses else "(no gloss in corpus)"
     prompt = _SEMANTIC_CHECK_PROMPT_TEMPLATE.format(
         name=name,
@@ -367,7 +367,7 @@ def _llm_semantic_check(
     req = urllib.request.Request(
         url,
         data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "x-goog-api-key": key},
     )
     with urllib.request.urlopen(req, timeout=timeout_s) as r:
         resp = json.loads(r.read())
