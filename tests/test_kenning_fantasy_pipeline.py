@@ -340,18 +340,128 @@ def test_write_resolution_upserts_on_same_name_and_version(fresh_db: Path) -> No
     assert rows[1]["resolution_method"] == "manual"
 
 
-def test_tag_etymon_as_fantasy_is_idempotent(fresh_db: Path) -> None:
+def test_tag_etymon_as_fantasy_applies_both_tags_and_is_idempotent(fresh_db: Path) -> None:
+    """Default tags include both 'fantasy' (register) and 'monster'
+    (creature inventory marker, matches the existing seed entries)."""
     with LexiconDB(fresh_db) as db:
         db.conn.execute(
             "INSERT INTO etymon (id, canonical_form, language) VALUES (1, 'x', 'old-english')"
         )
         fp.tag_etymon_as_fantasy(db.conn, 1)
-        fp.tag_etymon_as_fantasy(db.conn, 1)  # second call should not fail
+        fp.tag_etymon_as_fantasy(db.conn, 1)  # second call must be a no-op
         db.commit()
 
     conn = sqlite3.connect(fresh_db)
-    rows = conn.execute("SELECT tag FROM etymon_tag WHERE etymon_id = 1").fetchall()
-    assert rows == [("fantasy",)]
+    tags = {r[0] for r in conn.execute("SELECT tag FROM etymon_tag WHERE etymon_id = 1").fetchall()}
+    assert tags == {"fantasy", "monster"}
+
+
+def test_backfill_fantasy_tag_from_monster_tag(fresh_db: Path) -> None:
+    """Etymons already carrying `monster` get `fantasy` added; etymons
+    without `monster` are left alone; etymons that already have both
+    are no-ops."""
+    with LexiconDB(fresh_db) as db:
+        db.conn.execute(
+            "INSERT INTO etymon (id, canonical_form, language) VALUES "
+            "(1, 'wyrm',  'old-english'),"
+            "(2, 'elf',   'old-english'),"
+            "(3, 'beorg', 'old-english'),"  # death-tagged but not monster
+            "(4, 'troll', 'old-norse')"
+        )
+        db.conn.executemany(
+            "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)",
+            [
+                (1, "monster"),
+                (1, "magic"),
+                (2, "monster"),
+                (2, "magic"),
+                (3, "death"),
+                (4, "monster"),
+                (4, "fantasy"),  # already both — no-op
+            ],
+        )
+        db.commit()
+
+        n_etymons, n_tags = fp.backfill_fantasy_tag_from_monster_tag(db.conn)
+        db.commit()
+
+    assert n_etymons == 2  # wyrm + elf, NOT troll (already tagged) NOR beorg (no monster)
+
+    conn = sqlite3.connect(fresh_db)
+
+    def tags_of(eid: int) -> set[str]:
+        return {
+            r[0]
+            for r in conn.execute(
+                "SELECT tag FROM etymon_tag WHERE etymon_id = ?", (eid,)
+            ).fetchall()
+        }
+
+    assert tags_of(1) == {"monster", "magic", "fantasy"}
+    assert tags_of(2) == {"monster", "magic", "fantasy"}
+    assert tags_of(3) == {"death"}
+    assert tags_of(4) == {"monster", "fantasy"}
+
+
+def test_backfill_fantasy_tag_is_idempotent(fresh_db: Path) -> None:
+    with LexiconDB(fresh_db) as db:
+        db.conn.execute(
+            "INSERT INTO etymon (id, canonical_form, language) VALUES (1, 'x', 'old-english')"
+        )
+        db.conn.execute("INSERT INTO etymon_tag (etymon_id, tag) VALUES (1, 'monster')")
+        fp.backfill_fantasy_tag_from_monster_tag(db.conn)
+        fp.backfill_fantasy_tag_from_monster_tag(db.conn)  # 2nd is a no-op
+        db.commit()
+    conn = sqlite3.connect(fresh_db)
+    tags = {r[0] for r in conn.execute("SELECT tag FROM etymon_tag WHERE etymon_id = 1").fetchall()}
+    assert tags == {"monster", "fantasy"}
+
+
+def test_cli_backfill_fantasy_tags_dry_run_writes_nothing(fresh_db: Path) -> None:
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+
+    with LexiconDB(fresh_db) as db:
+        db.conn.execute(
+            "INSERT INTO etymon (id, canonical_form, language) VALUES (1, 'x', 'old-english')"
+        )
+        db.conn.execute("INSERT INTO etymon_tag (etymon_id, tag) VALUES (1, 'monster')")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        ["lexicon", "backfill-fantasy-tags", "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0
+    assert "Would backfill" in (result.output + (result.stderr or ""))
+    conn = sqlite3.connect(fresh_db)
+    tags = {r[0] for r in conn.execute("SELECT tag FROM etymon_tag WHERE etymon_id = 1").fetchall()}
+    assert tags == {"monster"}  # nothing added
+
+
+def test_cli_backfill_fantasy_tags_apply_writes(fresh_db: Path) -> None:
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+
+    with LexiconDB(fresh_db) as db:
+        db.conn.execute(
+            "INSERT INTO etymon (id, canonical_form, language) VALUES (1, 'x', 'old-english')"
+        )
+        db.conn.execute("INSERT INTO etymon_tag (etymon_id, tag) VALUES (1, 'monster')")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        ["lexicon", "backfill-fantasy-tags", "--db", str(fresh_db), "--apply"],
+    )
+    assert result.exit_code == 0
+    conn = sqlite3.connect(fresh_db)
+    tags = {r[0] for r in conn.execute("SELECT tag FROM etymon_tag WHERE etymon_id = 1").fetchall()}
+    assert tags == {"monster", "fantasy"}
 
 
 # ---------------------------------------------------------------------

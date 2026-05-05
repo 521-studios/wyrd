@@ -484,9 +484,54 @@ def write_resolution(
     return cur.fetchone()[0]
 
 
-def tag_etymon_as_fantasy(db_conn: sqlite3.Connection, etymon_id: int) -> None:
-    """Add the 'fantasy' tag to an etymon (idempotent on the etymon_tag PK)."""
-    db_conn.execute(
+# Tags applied to every etymon resolved usable through the fantasy
+# pipeline. 'fantasy' is the register marker (filter realistic-mode
+# generation OUT of fantasy entries); 'monster' is added because the
+# canonical input source is a creature-name corpus (pdsrd-data
+# monsters/, etc.) and a unified `monster` tag makes querying the
+# fantasy-creature inventory straightforward — the existing seed
+# entries (wyrm, elf, thyrs, ...) already carry it.
+FANTASY_TAGS: tuple[str, ...] = ("fantasy", "monster")
+
+
+def tag_etymon_as_fantasy(
+    db_conn: sqlite3.Connection,
+    etymon_id: int,
+    *,
+    tags: tuple[str, ...] = FANTASY_TAGS,
+) -> None:
+    """Apply fantasy-pipeline tags to an etymon (idempotent on etymon_tag PK)."""
+    db_conn.executemany(
         "INSERT OR IGNORE INTO etymon_tag (etymon_id, tag) VALUES (?, ?)",
-        (etymon_id, "fantasy"),
+        [(etymon_id, t) for t in tags],
     )
+
+
+def backfill_fantasy_tag_from_monster_tag(
+    db_conn: sqlite3.Connection,
+) -> tuple[int, int]:
+    """Add 'fantasy' tag to every etymon that already has 'monster'.
+
+    The seed (meanings.json) tags wyrm/elf/thyrs/grīma/sceocca/etc. as
+    `monster` but doesn't know about `fantasy` as a register filter.
+    This helper re-tags the existing inventory so register-aware
+    generation can find them.
+
+    Idempotent. Returns (n_etymons_processed, n_tags_added).
+    """
+    rows = db_conn.execute(
+        """SELECT DISTINCT et.etymon_id
+           FROM etymon_tag et
+           WHERE et.tag = 'monster'
+             AND NOT EXISTS (
+               SELECT 1 FROM etymon_tag et2
+               WHERE et2.etymon_id = et.etymon_id AND et2.tag = 'fantasy'
+             )"""
+    ).fetchall()
+    ids = [r[0] for r in rows]
+    if ids:
+        db_conn.executemany(
+            "INSERT OR IGNORE INTO etymon_tag (etymon_id, tag) VALUES (?, 'fantasy')",
+            [(eid,) for eid in ids],
+        )
+    return (len(ids), len(ids))
