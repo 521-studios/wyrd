@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -4336,6 +4337,30 @@ def _partition_families_by_reflex(
     return reflex_to_links, reflex_meta, families_without_reflex
 
 
+@dataclass
+class _WordLanguageAccumulators:
+    """Per-language accumulators populated during family-walk emission.
+
+    Bundle of the 5 dicts that ``_word_for_reflex`` and
+    ``_synthesize_word_for_family`` independently maintain in lockstep
+    (same keys, populated by the same absorb_* helpers, drained into
+    ``_emit_word_languages`` together). Holding them in one object
+    keeps the call signature down to one positional arg per consumer
+    and makes 'add a new per-language sibling field' a one-line edit
+    (D26 pattern) rather than a 6-touch-site refactor.
+
+    wyrd-k55 (PR-review-loop deferred): consolidates what used to be
+    five separate locals declared / passed / absorbed in two parallel
+    functions.
+    """
+
+    forms_by_lang: dict[str, list[str]] = field(default_factory=dict)
+    variants: dict[str, dict[str, int]] = field(default_factory=dict)
+    inflections: dict[str, dict[str, str]] = field(default_factory=dict)
+    citations: dict[str, set[str]] = field(default_factory=dict)
+    attested_years: dict[str, dict[str, int]] = field(default_factory=dict)
+
+
 def _word_for_reflex(
     meta: dict[str, Any], link_pairs: list[tuple[dict[str, Any], list[int]]]
 ) -> dict[str, Any]:
@@ -4345,33 +4370,20 @@ def _word_for_reflex(
     lemma's inflected children (D8) and OCR-cluster losers (D22) —
     not just the seeded etymon itself.
     """
-    per_lang: dict[str, list[str]] = {}
-    per_lang_variants: dict[str, dict[str, int]] = {}
-    per_lang_inflections: dict[str, dict[str, str]] = {}
-    per_lang_citations: dict[str, set[str]] = {}
-    per_lang_attested_years: dict[str, dict[str, int]] = {}
+    accs = _WordLanguageAccumulators()
     for fam, linked_ids in link_pairs:
         for member_id in linked_ids:
             for descendant_id in fam["member_descendants"][member_id]:
                 lang, form = fam["member_form_by_id"][descendant_id]
-                bucket = per_lang.setdefault(lang, [])
+                bucket = accs.forms_by_lang.setdefault(lang, [])
                 if form not in bucket:
                     bucket.append(form)
-                _absorb_member_variants(per_lang_variants, fam, descendant_id, lang)
-                _absorb_member_inflection(per_lang_inflections, fam, descendant_id, lang, form)
-                _absorb_member_citations(per_lang_citations, fam, descendant_id, lang)
-                _absorb_member_attested_years(
-                    per_lang_attested_years, fam, descendant_id, lang, form
-                )
+                _absorb_member_variants(accs, fam, descendant_id, lang)
+                _absorb_member_inflection(accs, fam, descendant_id, lang, form)
+                _absorb_member_citations(accs, fam, descendant_id, lang)
+                _absorb_member_attested_years(accs, fam, descendant_id, lang, form)
     word: dict[str, Any] = {"modern_usage": meta["surface_form"]}
-    _emit_word_languages(
-        word,
-        per_lang,
-        per_lang_variants,
-        per_lang_inflections,
-        per_lang_citations,
-        per_lang_attested_years,
-    )
+    _emit_word_languages(word, accs)
     return word
 
 
@@ -4383,33 +4395,20 @@ def _synthesize_word_for_family(fam: dict[str, Any]) -> dict[str, Any]:
     matching language.
     """
     word: dict[str, Any] = {"modern_usage": _synthesize_modern_usage(fam)}
-    per_lang: dict[str, list[str]] = {
-        lang: list(fam["forms_by_lang"][lang]) for lang in fam["forms_by_lang"]
-    }
-    per_lang_variants: dict[str, dict[str, int]] = {}
-    per_lang_inflections: dict[str, dict[str, str]] = {}
-    per_lang_citations: dict[str, set[str]] = {}
-    per_lang_attested_years: dict[str, dict[str, int]] = {}
-    for member_id, (member_lang, member_form) in fam["member_form_by_id"].items():
-        _absorb_member_variants(per_lang_variants, fam, member_id, member_lang)
-        _absorb_member_inflection(per_lang_inflections, fam, member_id, member_lang, member_form)
-        _absorb_member_citations(per_lang_citations, fam, member_id, member_lang)
-        _absorb_member_attested_years(
-            per_lang_attested_years, fam, member_id, member_lang, member_form
-        )
-    _emit_word_languages(
-        word,
-        per_lang,
-        per_lang_variants,
-        per_lang_inflections,
-        per_lang_citations,
-        per_lang_attested_years,
+    accs = _WordLanguageAccumulators(
+        forms_by_lang={lang: list(fam["forms_by_lang"][lang]) for lang in fam["forms_by_lang"]},
     )
+    for member_id, (member_lang, member_form) in fam["member_form_by_id"].items():
+        _absorb_member_variants(accs, fam, member_id, member_lang)
+        _absorb_member_inflection(accs, fam, member_id, member_lang, member_form)
+        _absorb_member_citations(accs, fam, member_id, member_lang)
+        _absorb_member_attested_years(accs, fam, member_id, member_lang, member_form)
+    _emit_word_languages(word, accs)
     return word
 
 
 def _absorb_member_variants(
-    per_lang_variants: dict[str, dict[str, int]],
+    accs: _WordLanguageAccumulators,
     fam: dict[str, Any],
     member_id: int,
     lang: str,
@@ -4419,12 +4418,12 @@ def _absorb_member_variants(
     `lang` matches the member's language so callers don't accidentally
     cross-pollinate across languages."""
     for variant_form, weight in fam.get("member_variants", {}).get(member_id, []):
-        lang_variants = per_lang_variants.setdefault(lang, {})
+        lang_variants = accs.variants.setdefault(lang, {})
         lang_variants[variant_form] = lang_variants.get(variant_form, 0) + weight
 
 
 def _absorb_member_inflection(
-    per_lang_inflections: dict[str, dict[str, str]],
+    accs: _WordLanguageAccumulators,
     fam: dict[str, Any],
     member_id: int,
     lang: str,
@@ -4435,11 +4434,11 @@ def _absorb_member_inflection(
     children carry a grammatical-case label worth surfacing."""
     inflection = fam.get("member_inflection_by_id", {}).get(member_id)
     if inflection:
-        per_lang_inflections.setdefault(lang, {})[form] = inflection
+        accs.inflections.setdefault(lang, {})[form] = inflection
 
 
 def _absorb_member_attested_years(
-    per_lang_attested_years: dict[str, dict[str, int]],
+    accs: _WordLanguageAccumulators,
     fam: dict[str, Any],
     member_id: int,
     lang: str,
@@ -4451,11 +4450,11 @@ def _absorb_member_attested_years(
     applies' (treat the form as always-includable under any --era)."""
     year = fam.get("member_attested_years", {}).get(member_id)
     if year is not None:
-        per_lang_attested_years.setdefault(lang, {})[form] = year
+        accs.attested_years.setdefault(lang, {})[form] = year
 
 
 def _absorb_member_citations(
-    per_lang_citations: dict[str, set[str]],
+    accs: _WordLanguageAccumulators,
     fam: dict[str, Any],
     member_id: int,
     lang: str,
@@ -4466,37 +4465,30 @@ def _absorb_member_citations(
     matches the member's language."""
     citations = fam.get("member_citations", {}).get(member_id, [])
     if citations:
-        per_lang_citations.setdefault(lang, set()).update(citations)
+        accs.citations.setdefault(lang, set()).update(citations)
 
 
-def _emit_word_languages(
-    word: dict[str, Any],
-    per_lang: dict[str, list[str]],
-    per_lang_variants: dict[str, dict[str, int]],
-    per_lang_inflections: dict[str, dict[str, str]],
-    per_lang_citations: dict[str, set[str]],
-    per_lang_attested_years: dict[str, dict[str, int]],
-) -> None:
+def _emit_word_languages(word: dict[str, Any], accs: _WordLanguageAccumulators) -> None:
     """Stamp per-language form arrays + sibling _variants /
     _inflections / _citations / _attested_years metadata onto the word
     dict. Per D26, the metadata fields are sibling keys
     (``<lang>_variants``, ``<lang>_inflections``, ``<lang>_citations``,
     ``<lang>_attested_years``) so legacy loaders that ignore unknown
     fields keep working."""
-    for lang in sorted(per_lang):
+    for lang in sorted(accs.forms_by_lang):
         json_field = _LANG_CODE_TO_JSON_FIELD.get(lang)
         if not json_field:
             continue
-        word[json_field] = per_lang[lang]
-        if lang in per_lang_variants:
-            word[f"{json_field}_variants"] = _emit_variant_list(per_lang_variants[lang])
-        if lang in per_lang_inflections:
-            word[f"{json_field}_inflections"] = _emit_inflection_list(per_lang_inflections[lang])
-        if lang in per_lang_citations:
-            word[f"{json_field}_citations"] = sorted(per_lang_citations[lang])
-        if lang in per_lang_attested_years:
+        word[json_field] = accs.forms_by_lang[lang]
+        if lang in accs.variants:
+            word[f"{json_field}_variants"] = _emit_variant_list(accs.variants[lang])
+        if lang in accs.inflections:
+            word[f"{json_field}_inflections"] = _emit_inflection_list(accs.inflections[lang])
+        if lang in accs.citations:
+            word[f"{json_field}_citations"] = sorted(accs.citations[lang])
+        if lang in accs.attested_years:
             word[f"{json_field}_attested_years"] = _emit_attested_years_list(
-                per_lang_attested_years[lang]
+                accs.attested_years[lang]
             )
 
 
