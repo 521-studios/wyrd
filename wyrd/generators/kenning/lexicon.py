@@ -554,6 +554,53 @@ def _create_etymon_descent_table(db: LexiconDB, applied: dict[str, bool]) -> Non
     applied["etymon_descent_table"] = True
 
 
+def _create_etymon_variant_table(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Create etymon_variant if missing (wyrd-fqil).
+
+    Holds the per-form rows from wiktextract entries' `forms` arrays —
+    inflected forms (Greek genitive ἁρπυίᾱς, OE dative-or-pl
+    `worde`/`hwone`), alternative spellings (ME 'harpe' alt 'harp'),
+    romanizations, and other lemma variants Wiktionary records.
+
+    The wiktextract corpus has 2M+ such rows that the original ingester
+    dropped. Surfacing them lets the wyrd-ami fantasy pre-filter resolve
+    historical-spelling inputs (Chaucer's `harpie` → modern lemma
+    `harpy` → ancient-greek ἅρπυια) and generally widens the lookup
+    surface for any "is this attested form in our corpus?" question.
+
+    `form` is COLLATE NOCASE so case-insensitive lookups work without
+    LOWER() in queries; `tags` carries the original wiktextract tag
+    list as JSON for callers that want finer-grained filtering than
+    the variant_class enum provides.
+    """
+    existing = {
+        row["name"]
+        for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
+    if "etymon_variant" in existing:
+        return
+    db.conn.executescript(
+        """
+        CREATE TABLE etymon_variant (
+          id            INTEGER PRIMARY KEY AUTOINCREMENT,
+          etymon_id     INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
+          form          TEXT NOT NULL COLLATE NOCASE,
+          variant_class TEXT NOT NULL CHECK (variant_class IN (
+                          'alternative', 'inflection', 'romanization',
+                          'canonical', 'other'
+                        )),
+          tags          TEXT,  -- JSON array of original wiktextract tags
+          source_id     TEXT NOT NULL REFERENCES source(id) ON DELETE CASCADE,
+          UNIQUE (etymon_id, form, variant_class)
+        );
+        CREATE INDEX idx_etymon_variant_etymon ON etymon_variant(etymon_id);
+        CREATE INDEX idx_etymon_variant_form   ON etymon_variant(form);
+        CREATE INDEX idx_etymon_variant_class  ON etymon_variant(variant_class);
+        """
+    )
+    applied["etymon_variant_table"] = True
+
+
 def _migrate_text_match_table(db: LexiconDB, applied: dict[str, bool]) -> None:
     """Create etymon_text_match if missing; otherwise add the method column
     if it doesn't exist. Tracks which heuristic produced each row
@@ -1183,6 +1230,7 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "etymon_canonical_view": False,
         "etymon_text_match_table": False,
         "etymon_descent_table": False,
+        "etymon_variant_table": False,
         "mining_run_table": False,
         "etymon_citation.context_snippet": False,
         "toponym_etymology.attested_year": False,
@@ -1206,6 +1254,7 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     _rebuild_etymon_views(db, applied)
     _migrate_text_match_table(db, applied)
     _create_etymon_descent_table(db, applied)
+    _create_etymon_variant_table(db, applied)
     _create_mining_run_table(db, applied)
     _migrate_citation_context_snippet(db, applied)
     _migrate_toponym_etymology_attested_year(db, applied)

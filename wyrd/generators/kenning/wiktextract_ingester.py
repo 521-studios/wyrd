@@ -539,6 +539,10 @@ def ingest_wiktextract_stream(
         "downward_edges": 0,
         "skipped_templates": 0,
         "unsupported_templates": 0,
+        # wyrd-fqil: per-form variant emission stats
+        "forms_emitted": 0,
+        "forms_skipped_metadata": 0,
+        "forms_skipped_unemittable": 0,
         "applied": int(apply),
     }
     if apply:
@@ -580,6 +584,158 @@ _DRY_RUN_PLACEHOLDER_ID = -1
 # Single source-id literal so the SQL doesn't drift between callers and
 # bumping to a new attribution scheme is one constant change.
 _WIKTIONARY_SOURCE_ID = "wiktionary"
+
+
+# wyrd-fqil: tag categorization for the `forms` array. Each form's
+# tags list mixes inflectional features (plural/dative/genitive/etc.),
+# alternative-spelling markers, romanization markers, canonical-lemma
+# markers, and pure metadata (table-tags, inflection-template, class).
+# We categorize into a small enum for fast queries; the original tag
+# list is still preserved in etymon_variant.tags JSON for fine-grained
+# filtering.
+_FORM_TAG_METADATA: frozenset[str] = frozenset(
+    {
+        "table-tags",
+        "inflection-template",
+        "class",
+        "no-table-tags",
+        "no-equivalent",
+    }
+)
+
+# Inflectional tags — having ANY of these on a form classifies it as
+# `inflection`. Drawn from the top-30 wiktextract tags survey
+# (2026-05-05): nominal/verbal inflection markers across our approved
+# language families.
+_FORM_TAG_INFLECTION: frozenset[str] = frozenset(
+    {
+        "plural",
+        "singular",
+        "dual",
+        "nominative",
+        "genitive",
+        "dative",
+        "accusative",
+        "vocative",
+        "ablative",
+        "instrumental",
+        "locative",
+        "first-person",
+        "second-person",
+        "third-person",
+        "active",
+        "middle",
+        "passive",
+        "indicative",
+        "subjunctive",
+        "optative",
+        "imperative",
+        "infinitive",
+        "present",
+        "past",
+        "future",
+        "perfect",
+        "imperfect",
+        "aorist",
+        "pluperfect",
+        "participle",
+        "gerund",
+        "supine",
+        "verbal",
+        "masculine",
+        "feminine",
+        "neuter",
+        "definite",
+        "indefinite",
+        "weak",
+        "strong",
+        "comparative",
+        "superlative",
+        "positive",
+        "construct",
+    }
+)
+
+
+def _classify_form_variant(tags: list[str]) -> str | None:
+    """Return the variant_class label for a form's tag list, or None
+    if the row is pure metadata (no actual word form to record).
+
+    Decision precedence:
+    - "alternative" tag → 'alternative' (Chaucer-era spellings, etc.)
+    - "romanization" tag → 'romanization'
+    - "canonical" tag → 'canonical' (Wiktionary's preferred lemma form)
+    - any inflectional tag → 'inflection'
+    - all tags are metadata → None (skip the row)
+    - otherwise → 'other'
+    """
+    tag_set = set(tags or [])
+    # Pure metadata: no actual form variant worth recording
+    if tag_set and tag_set.issubset(_FORM_TAG_METADATA):
+        return None
+    if "alternative" in tag_set:
+        return "alternative"
+    if "romanization" in tag_set:
+        return "romanization"
+    if "canonical" in tag_set:
+        return "canonical"
+    if tag_set & _FORM_TAG_INFLECTION:
+        return "inflection"
+    return "other"
+
+
+def _is_emittable_form(form_str: str, lemma_word: str) -> bool:
+    """Filter out form rows we can't or shouldn't store as variants."""
+    if not form_str:
+        return False
+    # Wiktextract sometimes emits inflection-template name strings
+    # (e.g. "ang-decl-noun-a-n") in the forms array — those have
+    # 'inflection-template' tags and would be filtered by classify(),
+    # but defend against bare forms with template-marker shapes.
+    if form_str.startswith("#") or form_str.startswith("-"):
+        return False
+    # Skip lemma self-reference — already in the etymon table as the
+    # canonical_form, no need to duplicate as a variant.
+    return form_str != lemma_word
+
+
+def _emit_form_variants(
+    db: LexiconDB,
+    etymon_id: int,
+    forms: list[dict[str, Any]],
+    lemma_word: str,
+    *,
+    apply: bool,
+    counts: dict[str, int],
+) -> None:
+    """Insert one etymon_variant row per form in `forms`. Counts are
+    mutated in place. INSERT OR IGNORE on the (etymon_id, form,
+    variant_class) UNIQUE so re-ingesting the same source is a no-op."""
+    for form in forms:
+        form_str = (form.get("form") or "").strip()
+        tags = form.get("tags") or []
+        if not _is_emittable_form(form_str, lemma_word):
+            counts["forms_skipped_unemittable"] += 1
+            continue
+        variant_class = _classify_form_variant(tags)
+        if variant_class is None:
+            counts["forms_skipped_metadata"] += 1
+            continue
+        counts["forms_emitted"] += 1
+        if not apply:
+            continue
+        db.conn.execute(
+            "INSERT OR IGNORE INTO etymon_variant "
+            "(etymon_id, form, variant_class, tags, source_id) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (
+                etymon_id,
+                form_str,
+                variant_class,
+                json.dumps(tags) if tags else None,
+                _WIKTIONARY_SOURCE_ID,
+            ),
+        )
 
 
 def _emit_descent_edge(
@@ -637,6 +793,14 @@ def _process_entry(
             )
             _emit_descent_edge(db, parent_id, this_id, edge_type, apply=apply)
             counts["upward_edges"] += 1
+
+    # wyrd-fqil: emit etymon_variant rows for each form Wiktionary
+    # records — alternative spellings, inflections, romanizations.
+    # Lets surface-form lookups (the wyrd-ami pre-filter, et al.)
+    # match historical / inflected forms that aren't separate lemmas.
+    forms = entry.get("forms") or []
+    if forms:
+        _emit_form_variants(db, this_id, forms, this_word, apply=apply, counts=counts)
 
     # Descendants section — a NESTED TREE. Each node has lang_code +
     # word directly, with optional `descendants` for sub-trees.

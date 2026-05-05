@@ -1117,3 +1117,184 @@ def test_each_new_skipped_template_does_not_count_unsupported(
         result = ingest_wiktextract_stream(db, _stream(line), apply=True)
     assert result["skipped_templates"] == 1
     assert result["unsupported_templates"] == 0
+
+
+# --- wyrd-fqil: forms array → etymon_variant rows --------------------
+
+
+def _wiktextract_entry_with_forms(
+    *,
+    word: str,
+    lang_code: str,
+    forms: list[dict],
+) -> str:
+    record = {"word": word, "lang_code": lang_code, "pos": "noun", "forms": forms}
+    return json.dumps(record) + "\n"
+
+
+def _all_etymon_variants(db: LexiconDB) -> list[tuple[str, str, str, str]]:
+    """Return (lemma_form, variant_form, variant_class, tags_json) tuples.
+    Sorted for stable assertions."""
+    rows = db.conn.execute(
+        """SELECT e.canonical_form AS lemma, v.form, v.variant_class, v.tags
+           FROM etymon_variant v
+           JOIN etymon e ON e.id = v.etymon_id
+           ORDER BY lemma, v.form, v.variant_class"""
+    ).fetchall()
+    return [(r["lemma"], r["form"], r["variant_class"], r["tags"]) for r in rows]
+
+
+def test_forms_alternative_tag_emits_alternative_variant(fresh_db: Path) -> None:
+    """`tags: ['alternative']` → variant_class='alternative'."""
+    line = _wiktextract_entry_with_forms(
+        word="harpe",
+        lang_code="enm",
+        forms=[{"form": "harp", "tags": ["alternative"]}],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        variants = _all_etymon_variants(db)
+    assert result["forms_emitted"] == 1
+    assert ("harpe", "harp", "alternative", '["alternative"]') in variants
+
+
+def test_forms_inflection_tag_emits_inflection_variant(fresh_db: Path) -> None:
+    """A grammatical-feature tag like `dative_or_pl` or `genitive` →
+    variant_class='inflection'."""
+    line = _wiktextract_entry_with_forms(
+        word="word",
+        lang_code="ang",
+        forms=[
+            {"form": "wordes", "tags": ["genitive", "singular"]},
+            {"form": "worde", "tags": ["dative", "singular"]},
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        variants = _all_etymon_variants(db)
+    assert result["forms_emitted"] == 2
+    classes = {v[2] for v in variants}
+    assert classes == {"inflection"}
+    forms = {v[1] for v in variants}
+    assert forms == {"wordes", "worde"}
+
+
+def test_forms_romanization_tag_emits_romanization_variant(fresh_db: Path) -> None:
+    line = _wiktextract_entry_with_forms(
+        word="ἅρπυια",
+        lang_code="grc",
+        forms=[{"form": "hárpuia", "tags": ["romanization"]}],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        variants = _all_etymon_variants(db)
+    assert result["forms_emitted"] == 1
+    assert variants[0][2] == "romanization"
+
+
+def test_forms_pure_metadata_rows_are_skipped(fresh_db: Path) -> None:
+    """Forms tagged only with metadata (`table-tags`, `inflection-template`,
+    `class`) are NOT emitted — they're not real word variants."""
+    line = _wiktextract_entry_with_forms(
+        word="word",
+        lang_code="ang",
+        forms=[
+            {"form": "no-table-tags", "tags": ["table-tags"]},
+            {"form": "ang-decl-noun-a-n", "tags": ["inflection-template"]},
+            {"form": "Strong neuter", "tags": ["class"]},
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        variants = _all_etymon_variants(db)
+    assert result["forms_emitted"] == 0
+    assert result["forms_skipped_metadata"] == 3
+    assert variants == []
+
+
+def test_forms_self_reference_to_lemma_is_skipped(fresh_db: Path) -> None:
+    """Wiktextract sometimes emits a form row equal to the lemma word
+    itself (often tagged `canonical`). Skip — already represented by
+    the etymon row's own canonical_form."""
+    line = _wiktextract_entry_with_forms(
+        word="word",
+        lang_code="ang",
+        forms=[{"form": "word", "tags": ["canonical"]}],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        variants = _all_etymon_variants(db)
+    assert result["forms_emitted"] == 0
+    assert result["forms_skipped_unemittable"] == 1
+    assert variants == []
+
+
+def test_forms_empty_form_string_is_skipped(fresh_db: Path) -> None:
+    """Defensive: empty/whitespace `form` strings are dropped."""
+    line = _wiktextract_entry_with_forms(
+        word="word",
+        lang_code="ang",
+        forms=[{"form": "", "tags": ["alternative"]}, {"form": "   ", "tags": ["plural"]}],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+    assert result["forms_emitted"] == 0
+    assert result["forms_skipped_unemittable"] == 2
+
+
+def test_forms_dry_run_counts_but_doesnt_write(fresh_db: Path) -> None:
+    """apply=False counts forms but doesn't insert into etymon_variant."""
+    line = _wiktextract_entry_with_forms(
+        word="harpe",
+        lang_code="enm",
+        forms=[{"form": "harp", "tags": ["alternative"]}],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=False)
+        n = db.conn.execute("SELECT COUNT(*) FROM etymon_variant").fetchone()[0]
+    assert result["forms_emitted"] == 1
+    assert n == 0
+
+
+def test_forms_re_ingest_is_idempotent(fresh_db: Path) -> None:
+    """Re-running the same JSONL line over the etymon_variant UNIQUE
+    constraint produces no duplicate rows."""
+    line = _wiktextract_entry_with_forms(
+        word="harpe",
+        lang_code="enm",
+        forms=[{"form": "harp", "tags": ["alternative"]}],
+    )
+    with LexiconDB(fresh_db) as db:
+        ingest_wiktextract_stream(db, _stream(line), apply=True)
+        ingest_wiktextract_stream(db, _stream(line), apply=True)
+        n = db.conn.execute("SELECT COUNT(*) FROM etymon_variant").fetchone()[0]
+    assert n == 1
+
+
+def test_forms_lookup_is_case_insensitive(fresh_db: Path) -> None:
+    """COLLATE NOCASE on form: 'harp' and 'HARP' match the same row."""
+    line = _wiktextract_entry_with_forms(
+        word="harpe",
+        lang_code="enm",
+        forms=[{"form": "harp", "tags": ["alternative"]}],
+    )
+    with LexiconDB(fresh_db) as db:
+        ingest_wiktextract_stream(db, _stream(line), apply=True)
+        rows = db.conn.execute("SELECT COUNT(*) FROM etymon_variant WHERE form = 'HARP'").fetchone()
+    assert rows[0] == 1
+
+
+def test_forms_classify_variant_function() -> None:
+    """Unit-test the tag-classification function directly."""
+    from wyrd.generators.kenning.wiktextract_ingester import _classify_form_variant
+
+    assert _classify_form_variant(["alternative"]) == "alternative"
+    assert _classify_form_variant(["romanization"]) == "romanization"
+    assert _classify_form_variant(["canonical"]) == "canonical"
+    assert _classify_form_variant(["plural"]) == "inflection"
+    assert _classify_form_variant(["genitive", "singular"]) == "inflection"
+    assert _classify_form_variant(["table-tags"]) is None
+    assert _classify_form_variant(["inflection-template"]) is None
+    assert _classify_form_variant([]) == "other"
+    # Multi-tag with both alternative and inflectional: 'alternative' wins
+    assert _classify_form_variant(["alternative", "plural"]) == "alternative"
