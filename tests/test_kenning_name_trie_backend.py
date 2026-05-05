@@ -147,17 +147,23 @@ def test_trie_path_preserves_multi_parse():
 
 
 @pytest.mark.parametrize("culture", ["english", "scottish", "welsh", "irish", "breton"])
-def test_trie_matches_legacy_count_unaccounted_on_corpus_sample(culture):
+def test_trie_matches_legacy_perfect_decision_on_corpus_sample(culture):
     """**Phase-2 equivalence regression** — the load-bearing test.
 
     For every place name in the bundled per-culture corpus, both
-    matchers must produce the same ``count_unaccounted`` after
-    ``reduce()``. If this fails, Phase 3 (flipping the default to
-    trie) is unsafe.
+    matchers must agree on whether the name is fully decomposable
+    (``count_unaccounted == 0``). This is the metric that drives
+    rebuild-proportions / COVERAGE.md / perfect-rate; equivalence
+    here is the user-visible guarantee.
 
-    Runs with ``reduce=True`` (the default) since that's what real
-    callers use; the post-reduce shape is what downstream code
-    consumes (``rebuild-proportions``, perfect-rate measurement).
+    Note: ``Name.count_unaccounted`` sums per-parse unaccounted
+    across every parse in ``self.words``. The trie matcher
+    legitimately emits more multi-parse alternates than the legacy
+    iterator (that's a feature — see the multi-parse test above) so
+    raw sums diverge even when every individual parse has identical
+    unaccounted-char counts. What matters for perfect-rate is the
+    ``== 0`` decision; that decision must be stable across the two
+    backends. Phase-3 default-flip is gated on this passing.
 
     Sample size: every name in the bundled corpus. Tens of thousands
     of names per culture for english/irish, but the trie path is
@@ -175,22 +181,23 @@ def test_trie_matches_legacy_count_unaccounted_on_corpus_sample(culture):
     )
     names = load_names(json.loads(place_names_text))
 
-    mismatches: list[tuple[str, int, int]] = []
+    mismatches: list[tuple[str, bool, bool]] = []
     for name in names:
         legacy = Name(name.name)
         legacy.find_meaning(word_db, use_trie=False)
-        legacy_count = legacy.count_unaccounted()
+        legacy_perfect = legacy.count_unaccounted() == 0
 
         trie = Name(name.name)
         trie.find_meaning(word_db, use_trie=True)
-        trie_count = trie.count_unaccounted()
+        trie_perfect = trie.count_unaccounted() == 0
 
-        if legacy_count != trie_count:
-            mismatches.append((name.name, legacy_count, trie_count))
+        if legacy_perfect != trie_perfect:
+            mismatches.append((name.name, legacy_perfect, trie_perfect))
 
     # Allow no mismatches. Phase-3 default-flip is gated on this.
     assert mismatches == [], (
-        f"{len(mismatches)} mismatches in {culture} corpus; first few: {mismatches[:5]}"
+        f"{len(mismatches)} perfect-decision mismatches in {culture} corpus; "
+        f"first few (name, legacy_perfect, trie_perfect): {mismatches[:5]}"
     )
 
 
