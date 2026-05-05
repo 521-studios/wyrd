@@ -483,6 +483,40 @@ Idempotent against re-runs. For Sonnet-mined books, use
   `extracted_by:anthropic:` in `source_quote`) lets a later review pass
   see who said what.
 
+### Decline recovery (wyrd-bgr)
+
+Tier-1 declines are entries the model refused to extract from
+("no etymology in this body"). Tier-2 review never sees them because
+review starts from existing toponym_etymology rows. Across dual-mined
+books, a stronger Tier-1 model recovers a substantial fraction of
+those declines:
+
+| Book | Qwen extracted | Haiku-also extracted | Haiku-only (Qwen missed) |
+|---|---:|---:|---:|
+| mawer_1920_northumberland_durham | 366 | 426 | 177 (39% of decline pool) |
+| lindkvist_1912_scandinavian_place_names | 39 | 119 | 91 (3× lift over Qwen) |
+| skeat_1901_cambridgeshire | 47 | 51 | 10 |
+| skeat_1913_suffolk | 42 | 42 | 7 |
+| skeat_1906_bedfordshire | 20 | 24 | 6 |
+
+To cheaply re-mine just the gaps (without re-paying for entries the
+first model already got), use `--declines-only`:
+
+```bash
+# After Qwen Tier-1 leaves declines on Ekwall 1922 Lancashire,
+# point Haiku at the residual:
+wyrd kenning lexicon mine-llm sources/ekwall_1922_lancashire.txt \
+    --provider anthropic \
+    --model claude-haiku-4-5-20251001 \
+    --declines-only
+```
+
+The flag pre-filters parsed entries to those that have NO existing
+toponym_etymology row for the source — regardless of which Tier-1
+provider produced the existing rows. Filter applies before `--limit`,
+so `--limit 50 --declines-only` smokes the first 50 of the residual,
+not the first 50 of the parsed list.
+
 ---
 
 ## Stage 6 — post-mining cleanup pipeline
