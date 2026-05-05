@@ -1038,7 +1038,8 @@ def _create_fantasy_morpheme_table(db: LexiconDB, applied: dict[str, bool]) -> N
             "SELECT sql FROM sqlite_master WHERE type='table' AND name='fantasy_morpheme'"
         ).fetchone()
         ddl = (ddl_row["sql"] if ddl_row else "") or ""
-        if "input_name" in ddl and "COLLATE NOCASE" not in ddl.upper():
+        ddl_lower = ddl.lower()
+        if "input_name" in ddl_lower and "collate nocase" not in ddl_lower:
             row_count = db.conn.execute("SELECT COUNT(*) FROM fantasy_morpheme").fetchone()[0]
             if row_count == 0:
                 db.conn.executescript(

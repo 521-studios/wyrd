@@ -701,7 +701,7 @@ def test_cli_backfill_fantasy_tags_apply_writes(fresh_db: Path) -> None:
 # ---------------------------------------------------------------------
 
 
-def test_cli_mine_fantasy_name_single_with_apply(fresh_db: Path, monkeypatch) -> None:
+def test_cli_mine_fantasy_name_single_with_apply(fresh_db: Path) -> None:
     """End-to-end CLI: pre-filter resolves, --apply writes the row + tags.
     Uses --skip-llm to keep the test offline (semantic check requires the
     network). The semantic-check-via-LLM path is covered by the unit

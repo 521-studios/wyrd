@@ -120,6 +120,13 @@ BAR_REASON_HOMOGRAPH = "homograph_collision"
 # records the LLM finding so a future backfill pass can add the etymon.
 BAR_REASON_NOT_IN_CORPUS = "attested_but_not_in_corpus"
 
+# Sentinel values the LLM uses for "no real attestation" in the
+# attested_in field (distinct from naming a real-but-unapproved
+# language). Module-level frozenset for O(1) lookups in resolve().
+_NO_REAL_ATTESTATION_SENTINELS: frozenset[str] = frozenset(
+    {"none", "modern_coinage", "outside_family"}
+)
+
 
 def _connect_ro(db_path: Path | str) -> sqlite3.Connection:
     """Open a read-only SQLite connection on `db_path`.
@@ -466,11 +473,9 @@ def _resolve_via_llm(
 
     # Sentinels the LLM uses for "no real attestation" — distinct from
     # the case where it names a real language we just don't approve.
-    NO_REAL_ATTESTATION = ("none", "modern_coinage", "outside_family")
-
     # Conservative: low-confidence answers are barred even if attested_in
     # names a real language. Per user 2026-05-05.
-    if confidence == "low" and attested_in not in NO_REAL_ATTESTATION:
+    if confidence == "low" and attested_in not in _NO_REAL_ATTESTATION_SENTINELS:
         return Resolution(
             usable=False,
             etymon_id=None,
@@ -524,7 +529,7 @@ def _resolve_via_llm(
     # bar with outside_language_family, but RECORD what language and form
     # so we can aggregate "candidate languages to approve" later. Per user
     # 2026-05-05: tracking these gives us a prioritization list.
-    if attested_in not in NO_REAL_ATTESTATION:
+    if attested_in not in _NO_REAL_ATTESTATION_SENTINELS:
         return Resolution(
             usable=False,
             etymon_id=None,
