@@ -43,9 +43,17 @@ _USE_TRIE_ENV = "WYRD_KENNING_USE_TRIE_MATCHER"
 # thousands of names → minutes of avoidable trie-builds without the
 # cache).
 #
-# Two known limitations of this approach:
+# Three assumptions / limitations of this approach:
 #
-# (a) ``id()`` is reused after garbage collection. If a word_db is
+# (a) **word_db is treated as immutable** for the duration of its
+#     entry in the cache. Mutating a word_db after a trie has been
+#     cached for it (e.g. ``word_db['new-key'] = [...]``) will not
+#     invalidate the trie; subsequent find_meaning calls would see a
+#     stale trie that doesn't reflect the mutation. Callers that
+#     need to mutate should call ``_trie_cache.clear()`` to drop the
+#     cached trie. Production / test workflows build word_db once
+#     from meanings.json and never mutate.
+# (b) ``id()`` is reused after garbage collection. If a word_db is
 #     freed and a new dict happens to land at the same address, the
 #     cache could in theory return a stale trie. In practice
 #     word_dbs are loaded once at session start and held for the
@@ -55,7 +63,7 @@ _USE_TRIE_ENV = "WYRD_KENNING_USE_TRIE_MATCHER"
 #     weakref-able subclass — too invasive for the speedup it'd
 #     enable. Documented as a known boundary; ``_trie_cache.clear()``
 #     is the explicit reset.
-# (b) Unbounded growth in long-running processes. Capped at
+# (c) Unbounded growth in long-running processes. Capped at
 #     ``_TRIE_CACHE_MAX`` via OrderedDict-based LRU eviction. Lambda
 #     and CLI workflows hit ≤2 distinct word_dbs in practice, so
 #     the bound never kicks in but the leak is bounded if it ever
@@ -153,13 +161,16 @@ class Name:
             self._find_meaning_trie(reduce=reduce)
         else:
             self._find_meaning_legacy()
-            # Trie path's canonical_decompositions already pre-filters
-            # to the lowest-unaccounted + fewest-morpheme parses; calling
-            # self.reduce() after that path is a no-op walk over the
-            # same already-filtered list. Skip it for the trie+reduce
-            # case to save a per-word pass.
-            if reduce:
-                self.reduce()
+        # Always run reduce() when reduce=True, even on the trie path.
+        # The canonical_decompositions filter only covers parses
+        # produced by THIS call; if the caller invoked find_meaning
+        # multiple times (e.g. reduce=False once, then reduce=True),
+        # the prior call's non-optimal parses are still in
+        # self.words[word] and need filtering. The marginal cost
+        # of a second-pass reduce on already-filtered data is
+        # negligible; correctness wins.
+        if reduce:
+            self.reduce()
 
     def _find_meaning_legacy(self) -> None:
         """Original Rando-port matcher: collect candidate Meanings via
@@ -184,8 +195,11 @@ class Name:
         * ``reduce=True``: ``canonical_decompositions`` returns only
           parses tied for 'best' (lowest unaccounted + fewest morphemes).
           That's the same set ``reduce()`` would keep on the legacy
-          matcher's output, so the post-reduce shape is equivalent and
-          ``find_meaning`` skips ``self.reduce()`` for this path.
+          matcher's output. ``find_meaning`` still calls ``self.reduce()``
+          afterward to handle the case where the caller invoked
+          ``find_meaning`` multiple times — pre-existing entries in
+          ``self.words[word]`` need filtering against the new
+          additions.
         * ``reduce=False``: ``all_decompositions`` returns every parse,
           matching the legacy iterator's pre-reduce contract — useful
           to callers that want to inspect alternates the canonical
