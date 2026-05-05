@@ -401,7 +401,7 @@ def test_derive_positions_culture_scope_filters_languages(tmp_path: Path, fresh_
         db.add_citation(eglwys_id, WIKTIONARY_EMPIRICAL_SOURCE_ID)
         db.commit()
 
-        counts = derive_positions(
+        derive_positions(
             db,
             {"welsh": welsh_corpus, "english": english_corpus},
             apply=True,
