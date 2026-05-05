@@ -964,6 +964,140 @@ def _create_mining_run_table(db: LexiconDB, applied: dict[str, bool]) -> None:
     applied["mining_run_table"] = True
 
 
+def _create_fantasy_morpheme_table(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """wyrd-ami: create fantasy_morpheme to record (name, description) → resolution.
+
+    Each input fed to `lexicon mine-fantasy-name` produces ONE row here,
+    regardless of whether the morpheme was usable. Usable rows link to
+    a real etymon (already in the etymon table from corpus mining); barred
+    rows record `bar_reason` so a later pass can revisit (e.g. wyrd-0ab's
+    constructed-etymology Phase 2 may rescue rows barred as
+    `no_etymology_found` or `outside_language_family`).
+
+    `approach_version` carries the pipeline-version marker the user asked
+    for: when we ship a stronger pipeline (e.g. after wyrd-gpif lands
+    alt-form ingestion), bump the version constant in
+    `fantasy_pipeline.APPROACH_VERSION` and re-process any rows from
+    earlier versions.
+    """
+    existing = {
+        row["name"]
+        for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
+    if "fantasy_morpheme" in existing:
+        # Table exists from an earlier migration; add columns if missing.
+        # Track BOTH presence and notnull-ness so we can verify required
+        # columns aren't silently nullable.
+        col_info = {
+            row["name"]: bool(row["notnull"])
+            for row in db.conn.execute("PRAGMA table_info(fantasy_morpheme)")
+        }
+        cols = set(col_info)
+        if "unapproved_language" not in cols:
+            db.conn.execute("ALTER TABLE fantasy_morpheme ADD COLUMN unapproved_language TEXT")
+            db.conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_fantasy_morpheme_unapproved "
+                "ON fantasy_morpheme(unapproved_language)"
+            )
+            applied["fantasy_morpheme.unapproved_language"] = True
+        if "unapproved_form" not in cols:
+            db.conn.execute("ALTER TABLE fantasy_morpheme ADD COLUMN unapproved_form TEXT")
+            applied["fantasy_morpheme.unapproved_form"] = True
+        # Required NOT NULL columns from the current schema. If any are
+        # missing the table is from a partial/corrupted state — we can't
+        # silently ALTER NOT NULL without defaults, so raise instead.
+        required_not_null = {
+            "input_name",
+            "usable",
+            "resolution_method",
+            "approach_version",
+            "processed_at",
+        }
+        missing_required = required_not_null - cols
+        if missing_required:
+            raise RuntimeError(
+                f"fantasy_morpheme table missing required columns "
+                f"{sorted(missing_required)}; manual intervention needed "
+                f"(drop the table or add columns with defaults)."
+            )
+        nullable_required = {c for c in required_not_null if not col_info[c]}
+        if nullable_required:
+            raise RuntimeError(
+                f"fantasy_morpheme table has columns {sorted(nullable_required)} "
+                f"declared NULL where the current schema requires NOT NULL; "
+                f"data integrity issues will follow. Manual intervention needed."
+            )
+        # SQLite ALTER TABLE can't change a column's collation; the
+        # original CREATE statement is the source of truth. Read it
+        # from sqlite_master and look for the COLLATE NOCASE clause
+        # on input_name. If it's missing, recreate the table — but
+        # only when there are no existing rows (drop+recreate is
+        # destructive). If rows exist, raise so the operator can
+        # decide how to migrate.
+        ddl_row = db.conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='fantasy_morpheme'"
+        ).fetchone()
+        ddl = (ddl_row["sql"] if ddl_row else "") or ""
+        ddl_lower = ddl.lower()
+        if "input_name" in ddl_lower and "collate nocase" not in ddl_lower:
+            row_count = db.conn.execute("SELECT COUNT(*) FROM fantasy_morpheme").fetchone()[0]
+            if row_count == 0:
+                db.conn.executescript(
+                    "DROP TABLE fantasy_morpheme;"
+                    "DROP INDEX IF EXISTS idx_fantasy_morpheme_approach;"
+                    "DROP INDEX IF EXISTS idx_fantasy_morpheme_etymon;"
+                    "DROP INDEX IF EXISTS idx_fantasy_morpheme_usable;"
+                    "DROP INDEX IF EXISTS idx_fantasy_morpheme_unapproved;"
+                )
+                applied["fantasy_morpheme_recreated_for_collation"] = True
+                # Fall through to the fresh CREATE block below.
+            else:
+                raise RuntimeError(
+                    "fantasy_morpheme.input_name is missing COLLATE NOCASE; "
+                    "case-sensitivity will produce duplicate rows for "
+                    "different casings of the same name. The table has "
+                    f"{row_count} rows so we won't auto-recreate; "
+                    "rebuild manually after exporting any data you need to keep."
+                )
+        else:
+            return
+    db.conn.executescript(
+        """
+        CREATE TABLE fantasy_morpheme (
+          id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+          -- COLLATE NOCASE so 'Harpy' and 'harpy' are the same row
+          -- under the (input_name, approach_version) UNIQUE — avoids
+          -- redundant LLM research calls when callers happen to vary
+          -- the casing of the same name.
+          input_name          TEXT NOT NULL COLLATE NOCASE,
+          input_description   TEXT,
+          usable              INTEGER NOT NULL CHECK (usable IN (0, 1)),
+          etymon_id           INTEGER REFERENCES etymon(id) ON DELETE SET NULL,
+          bar_reason          TEXT,
+          resolution_method   TEXT NOT NULL,
+          approach_version    TEXT NOT NULL,
+          confidence          TEXT,
+          citation            TEXT,
+          reasoning           TEXT,
+          -- When bar_reason='outside_language_family', record what
+          -- language the LLM thinks the etymology lives in and what
+          -- form. Lets us aggregate `SELECT unapproved_language,
+          -- COUNT(*) ... GROUP BY unapproved_language` to prioritize
+          -- new languages to approve.
+          unapproved_language TEXT,
+          unapproved_form     TEXT,
+          processed_at        TEXT NOT NULL,
+          UNIQUE (input_name, approach_version)
+        );
+        CREATE INDEX idx_fantasy_morpheme_approach    ON fantasy_morpheme(approach_version);
+        CREATE INDEX idx_fantasy_morpheme_etymon      ON fantasy_morpheme(etymon_id);
+        CREATE INDEX idx_fantasy_morpheme_usable      ON fantasy_morpheme(usable);
+        CREATE INDEX idx_fantasy_morpheme_unapproved  ON fantasy_morpheme(unapproved_language);
+        """
+    )
+    applied["fantasy_morpheme_table"] = True
+
+
 def record_mining_run(
     db: LexiconDB,
     *,
@@ -1056,6 +1190,9 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "etymon.synset_id_renamed_to_cognate_id": False,
         "etymon.synset_method_renamed_to_cognate_method": False,
         "idx_etymon_synset_renamed_to_idx_etymon_cognate": False,
+        "fantasy_morpheme_table": False,
+        "fantasy_morpheme.unapproved_language": False,
+        "fantasy_morpheme.unapproved_form": False,
     }
     # wyrd-44a: rename the legacy cognate-cluster column from synset_id
     # to cognate_id BEFORE the add-columns helper runs — otherwise
@@ -1071,6 +1208,7 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     _migrate_citation_context_snippet(db, applied)
     _migrate_toponym_etymology_attested_year(db, applied)
     _create_meaning_synset_tables(db, applied)
+    _create_fantasy_morpheme_table(db, applied)
     _migrate_wal_mode(db, applied)
     db.commit()
     return applied
