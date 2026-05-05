@@ -24,9 +24,11 @@ from __future__ import annotations
 
 import itertools
 import os
+from collections import OrderedDict
 
 from wyrd.generators.kenning.trie_matcher import (
     MorphemeTrie,
+    all_decompositions,
     build_morpheme_trie,
     canonical_decompositions,
 )
@@ -34,30 +36,53 @@ from wyrd.generators.kenning.word import Word
 
 _USE_TRIE_ENV = "WYRD_KENNING_USE_TRIE_MATCHER"
 
-# Memoize the trie per word_db identity. Building the trie is O(M)
-# where M is the morpheme count — cheap, but the Name.find_meaning
-# call site is per-name in a hot loop (rebuild-proportions iterates
-# tens of thousands of names). Keying on id() is safe because
-# word_dbs are immutable in normal use; tests and CLI sessions
-# instantiate a fresh dict per run, which gets a fresh id and
-# fresh trie. The cache never grows unbounded in practice.
-_trie_cache: dict[int, MorphemeTrie] = {}
+# Bounded LRU memoization of the trie per word_db identity. Building
+# the trie is O(M) where M is the morpheme count (~4ms on a 2.9K-
+# morpheme bundle), which is cheap once but adds up across the per-
+# name loop that rebuild-proportions / matcher consumers run (tens of
+# thousands of names → minutes of avoidable trie-builds without the
+# cache).
+#
+# Two known limitations of this approach:
+#
+# (a) ``id()`` is reused after garbage collection. If a word_db is
+#     freed and a new dict happens to land at the same address, the
+#     cache could in theory return a stale trie. In practice
+#     word_dbs are loaded once at session start and held for the
+#     process lifetime; the test suite clears _trie_cache between
+#     tests via the autouse fixture in test_kenning_name_trie_backend.
+#     A fully safe alternative would require wrapping word_db in a
+#     weakref-able subclass — too invasive for the speedup it'd
+#     enable. Documented as a known boundary; ``_trie_cache.clear()``
+#     is the explicit reset.
+# (b) Unbounded growth in long-running processes. Capped at
+#     ``_TRIE_CACHE_MAX`` via OrderedDict-based LRU eviction. Lambda
+#     and CLI workflows hit ≤2 distinct word_dbs in practice, so
+#     the bound never kicks in but the leak is bounded if it ever
+#     mattered.
+_TRIE_CACHE_MAX = 4
+_trie_cache: OrderedDict[int, MorphemeTrie] = OrderedDict()
 
 
 def _trie_for(word_db: dict) -> MorphemeTrie:
     """Return a (possibly cached) MorphemeTrie for ``word_db``.
 
     Memoized on id(word_db) so repeated find_meaning calls on the
-    same word_db share one trie. Test/CLI workflows that build a
-    fresh word_db per run get a fresh trie automatically; long-
-    running processes (Lambda) build once and reuse forever.
+    same word_db share one trie. Cache is LRU-bounded at
+    ``_TRIE_CACHE_MAX`` entries; eviction happens on insertion past
+    the limit.
     """
     key = id(word_db)
     cached = _trie_cache.get(key)
     if cached is not None:
+        # LRU: most-recently-used moves to the end.
+        _trie_cache.move_to_end(key)
         return cached
     trie = build_morpheme_trie(word_db)
     _trie_cache[key] = trie
+    _trie_cache.move_to_end(key)
+    while len(_trie_cache) > _TRIE_CACHE_MAX:
+        _trie_cache.popitem(last=False)
     return trie
 
 
@@ -99,20 +124,32 @@ class Name:
     def find_meaning(self, word_db, reduce=True, use_trie=None):
         """Decompose every word in this place name against ``word_db``.
 
-        ``use_trie`` selects the matcher backend:
-        * ``True`` — trie-indexed segmentation DAG (wyrd-k8e). Faster +
-          equivalent under canonical scoring.
-        * ``False`` — legacy ``Word.extract_meanings`` iterator.
-        * ``None`` (default) — read the ``WYRD_KENNING_USE_TRIE_MATCHER``
-          env var; ``"1"`` enables the trie, anything else falls back
-          to the legacy iterator. Phase-2 default is OFF so existing
-          callers see no behavior change without opt-in.
+        Notes on argument precedence:
+
+        * ``use_trie`` is the explicit kwarg override. If provided,
+          it wins over the env var.
+        * ``use_trie=None`` (default) reads the
+          ``WYRD_KENNING_USE_TRIE_MATCHER`` env var; ``"1"`` enables
+          the trie path, anything else (``"0"``, ``"true"``,
+          ``"yes"``, empty, unset) keeps the legacy iterator.
+
+        ``reduce=True`` (default) keeps only the lowest-unaccounted
+        decompositions (legacy behavior, gated by ``Name.reduce``).
+        ``reduce=False`` preserves every parse the matcher emits —
+        the trie backend honors this by switching to
+        ``all_decompositions`` instead of ``canonical_decompositions``,
+        keeping parity with the legacy iterator's
+        ``extract_meanings`` (which also yields every parse).
+
+        Phase-2 default is the legacy iterator; Phase 3 (wyrd-zhhz)
+        will flip the default to trie after the equivalence
+        regression has held in production for one release cycle.
         """
         if use_trie is None:
             use_trie = os.environ.get(_USE_TRIE_ENV) == "1"
         self.word_db = word_db
         if use_trie:
-            self._find_meaning_trie(word_db)
+            self._find_meaning_trie(reduce=reduce)
         else:
             self._find_meaning_legacy()
         if reduce:
@@ -132,21 +169,28 @@ class Name:
             if len(self.words[word]) == 0:
                 self.words[word].append(w)
 
-    def _find_meaning_trie(self, word_db: dict) -> None:
+    def _find_meaning_trie(self, reduce: bool = True) -> None:
         """Trie-matcher backend (wyrd-k8e Phase 2). For each word in
-        the place name, ``canonical_decompositions`` returns every
-        parse tied for 'best' (lowest unaccounted-chars + fewest
-        morphemes). That's already the same set ``reduce()`` would
-        keep on the legacy matcher's output, so the post-reduce shape
-        is equivalent.
+        the place name, surface every parse the trie produces:
 
-        Multi-parse semantics preserved: a word with two senses for
-        one surface (``-y`` = 'island' OR 'district') or a word the
-        trie matches at multiple boundaries surfaces every reading
-        as its own ``Word`` object."""
-        trie = _trie_for(word_db)
+        * ``reduce=True``: ``canonical_decompositions`` returns only
+          parses tied for 'best' (lowest unaccounted + fewest morphemes).
+          That's the same set ``reduce()`` would keep on the legacy
+          matcher's output, so the post-reduce shape is equivalent.
+        * ``reduce=False``: ``all_decompositions`` returns every parse,
+          matching the legacy iterator's pre-reduce contract — useful
+          to callers that want to inspect alternates the canonical
+          score collapses.
+
+        Multi-parse semantics preserved either way: a word with two
+        senses for one surface (``-y`` = 'island' OR 'district') or a
+        word the trie matches at multiple boundaries surfaces every
+        reading as its own ``Word`` object."""
+        trie = _trie_for(self.word_db)
         for word in self.words:
-            decompositions = canonical_decompositions(word, trie)
+            decompositions = (
+                canonical_decompositions(word, trie) if reduce else all_decompositions(word, trie)
+            )
             for d in decompositions:
                 w = Word(d)
                 if w not in self.words[word]:
