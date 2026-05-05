@@ -175,32 +175,66 @@ def descent_walking_lookup(
 ) -> list[AncestorMatch]:
     """Find approved-family ancestors of `name` via the etymon_descent chain.
 
-    1. Match input form (case-insensitive) against any etymon_canonical_form.
-    2. For each match, BFS-walk parent_id ancestors until exhausted.
+    1. Seed the BFS by matching the input form against:
+       (a) etymon.canonical_form (case-insensitive) — the lemma row
+       (b) etymon_variant.form (COLLATE NOCASE on the column) — alt
+           spellings, inflected forms, romanizations from wiktextract's
+           `forms` arrays. The variant row's parent etymon becomes the
+           seed; resolves Chaucer-era `harpie` → modern-english `harpy`
+           (via variant) → ancient-greek ἅρπυια (via descent edge).
+    2. For each seed etymon, BFS-walk parent_id ancestors until exhausted.
     3. Collect any ancestor whose language is in the approved set.
 
-    Returns ancestors deduped by (canonical_form, language). Direct
-    matches (where the input form is itself an approved-family etymon)
-    take precedence and appear first with edge_type='(direct)'.
+    Direct seed-language hits in approved langs come first; variant
+    seeds carry edge_type='(direct-via-variant)' so callers can tell
+    that the match was through an alt-form rather than the lemma.
     """
     conn = _connect_ro(db_path)
     conn.row_factory = sqlite3.Row
     try:
-        seed_rows = conn.execute(
+        # (a) Direct lemma matches against etymon.canonical_form.
+        direct_seed_rows = conn.execute(
             "SELECT id, canonical_form, language FROM etymon "
             "WHERE LOWER(canonical_form) = LOWER(?) "
             "ORDER BY id",
             (name,),
         ).fetchall()
-        if not seed_rows:
+        # (b) Variant matches: input form appears in etymon_variant.form.
+        # Uses the column's COLLATE NOCASE for case-insensitive match.
+        # Excludes etymon_ids already surfaced by (a) so we don't
+        # double-count the same lemma row.
+        direct_ids = {r["id"] for r in direct_seed_rows}
+        if direct_ids:
+            placeholders = ",".join("?" * len(direct_ids))
+            variant_seed_rows = conn.execute(
+                f"""SELECT DISTINCT e.id, e.canonical_form, e.language
+                    FROM etymon_variant v
+                    JOIN etymon e ON e.id = v.etymon_id
+                    WHERE v.form = ?
+                      AND e.id NOT IN ({placeholders})
+                    ORDER BY e.id""",
+                (name, *direct_ids),
+            ).fetchall()
+        else:
+            variant_seed_rows = conn.execute(
+                """SELECT DISTINCT e.id, e.canonical_form, e.language
+                   FROM etymon_variant v
+                   JOIN etymon e ON e.id = v.etymon_id
+                   WHERE v.form = ?
+                   ORDER BY e.id""",
+                (name,),
+            ).fetchall()
+
+        if not direct_seed_rows and not variant_seed_rows:
             return []
 
-        seen_etymon_ids: set[int] = {r["id"] for r in seed_rows}
-        frontier: list[int] = list(seen_etymon_ids)
+        all_seed_ids = direct_ids | {r["id"] for r in variant_seed_rows}
+        seen_etymon_ids: set[int] = set(all_seed_ids)
+        frontier: list[int] = list(all_seed_ids)
         approved_hits: list[AncestorMatch] = []
 
         # Direct hits in approved langs come first.
-        for r in seed_rows:
+        for r in direct_seed_rows:
             if r["language"] in approved:
                 approved_hits.append(
                     AncestorMatch(
@@ -208,6 +242,18 @@ def descent_walking_lookup(
                         canonical_form=r["canonical_form"],
                         language=r["language"],
                         edge_type="(direct)",
+                    )
+                )
+        # Then variant-mediated direct hits (the input form was in
+        # etymon_variant.form, the parent etymon is in an approved lang).
+        for r in variant_seed_rows:
+            if r["language"] in approved:
+                approved_hits.append(
+                    AncestorMatch(
+                        etymon_id=r["id"],
+                        canonical_form=r["canonical_form"],
+                        language=r["language"],
+                        edge_type="(direct-via-variant)",
                     )
                 )
 

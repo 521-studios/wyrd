@@ -111,6 +111,122 @@ def test_descent_walking_lookup_no_match_returns_empty(fresh_db: Path) -> None:
     assert fp.descent_walking_lookup(fresh_db, "gnoll") == []
 
 
+def _seed_variant(
+    db: LexiconDB,
+    *,
+    etymon_id: int,
+    form: str,
+    variant_class: str = "alternative",
+    source_id: str = "test",
+) -> None:
+    """Insert one etymon_variant row (helper for the wyrd-fqil tests)."""
+    db.conn.execute(
+        "INSERT OR IGNORE INTO source (id, title, author) VALUES (?, 'Test', 'Test')",
+        (source_id,),
+    )
+    db.conn.execute(
+        "INSERT INTO etymon_variant (etymon_id, form, variant_class, source_id) "
+        "VALUES (?, ?, ?, ?)",
+        (etymon_id, form, variant_class, source_id),
+    )
+
+
+def test_descent_walking_lookup_resolves_via_alt_form_variant(fresh_db: Path) -> None:
+    """The Chaucer-`harpie` case: input matches an etymon_variant row;
+    its parent etymon (modern-english `harpy`) seeds the BFS, and the
+    walk reaches ancient-greek ἅρπυια via the descent edge.
+
+    modern-english itself isn't in APPROVED_LANGUAGES so it doesn't
+    surface as a direct-via-variant hit; what matters is that the
+    variant seeds the descent walk into the approved-family ancestor."""
+    with LexiconDB(fresh_db) as db:
+        greek_id = _seed_etymon(db, canonical_form="ἅρπυια", language="ancient-greek")
+        modern_id = _seed_etymon(db, canonical_form="harpy", language="modern-english")
+        _seed_descent(db, parent_id=greek_id, child_id=modern_id)
+        # Wiktextract-style alt-form: 'harpie' is recorded as a variant
+        # of modern-english `harpy`, not as its own etymon row.
+        _seed_variant(db, etymon_id=modern_id, form="harpie", variant_class="alternative")
+        db.commit()
+
+    matches = fp.descent_walking_lookup(fresh_db, "harpie")
+    # Greek is reachable via variant → modern-english → descent edge → Greek.
+    by_lang = {m.language: m for m in matches}
+    assert "ancient-greek" in by_lang
+    assert by_lang["ancient-greek"].canonical_form == "ἅρπυια"
+
+
+def test_descent_walking_lookup_variant_to_approved_lang_marked_via_variant(
+    fresh_db: Path,
+) -> None:
+    """When the variant's parent etymon IS in an approved language, the
+    seed match is surfaced with edge_type='(direct-via-variant)'."""
+    with LexiconDB(fresh_db) as db:
+        # OE 'cot' is approved; 'cotan' is its genitive inflection
+        # recorded as an etymon_variant row, not a separate lemma.
+        oe_id = _seed_etymon(db, canonical_form="cot", language="old-english")
+        _seed_variant(db, etymon_id=oe_id, form="cotan", variant_class="inflection")
+        db.commit()
+
+    matches = fp.descent_walking_lookup(fresh_db, "cotan")
+    assert len(matches) == 1
+    assert matches[0].language == "old-english"
+    assert matches[0].canonical_form == "cot"
+    assert matches[0].edge_type == "(direct-via-variant)"
+
+
+def test_descent_walking_lookup_variant_match_is_case_insensitive(fresh_db: Path) -> None:
+    """COLLATE NOCASE on etymon_variant.form: 'COTAN' matches the same
+    row as 'cotan' regardless of casing."""
+    with LexiconDB(fresh_db) as db:
+        oe_id = _seed_etymon(db, canonical_form="cot", language="old-english")
+        _seed_variant(db, etymon_id=oe_id, form="cotan", variant_class="inflection")
+        db.commit()
+
+    for query in ("COTAN", "Cotan", "cotan", "cOtAn"):
+        matches = fp.descent_walking_lookup(fresh_db, query)
+        assert any(m.canonical_form == "cot" for m in matches), f"failed for {query!r}"
+
+
+def test_descent_walking_lookup_lemma_match_takes_precedence_over_variant(fresh_db: Path) -> None:
+    """If the input form matches BOTH a lemma row AND a variant row
+    (different etymons), the lemma match comes first as `(direct)` and
+    the variant match comes second as `(direct-via-variant)`."""
+    with LexiconDB(fresh_db) as db:
+        # The input form is itself a lemma in OE.
+        _seed_etymon(db, canonical_form="word", language="old-english")
+        # AND it's a variant of a different etymon (e.g. an alternative
+        # spelling of some ME word). Synthetic but exercises the
+        # ordering invariant.
+        me_id = _seed_etymon(db, canonical_form="weord", language="middle-english")
+        _seed_variant(db, etymon_id=me_id, form="word", variant_class="alternative")
+        db.commit()
+
+    matches = fp.descent_walking_lookup(fresh_db, "word")
+    assert len(matches) >= 2
+    # Direct lemma match first
+    assert matches[0].language == "old-english"
+    assert matches[0].edge_type == "(direct)"
+    # Then variant-mediated match
+    assert matches[1].language == "middle-english"
+    assert matches[1].edge_type == "(direct-via-variant)"
+
+
+def test_descent_walking_lookup_variant_only_match_works(fresh_db: Path) -> None:
+    """When the input form has NO direct lemma match but IS in
+    etymon_variant, the variant alone seeds the BFS."""
+    with LexiconDB(fresh_db) as db:
+        oe_id = _seed_etymon(db, canonical_form="cot", language="old-english")
+        # 'cotan' is a genitive inflection; not a separate lemma.
+        _seed_variant(db, etymon_id=oe_id, form="cotan", variant_class="inflection")
+        db.commit()
+
+    matches = fp.descent_walking_lookup(fresh_db, "cotan")
+    assert len(matches) == 1
+    assert matches[0].canonical_form == "cot"
+    assert matches[0].language == "old-english"
+    assert matches[0].edge_type == "(direct-via-variant)"
+
+
 def test_descent_walking_lookup_skips_unapproved_languages(fresh_db: Path) -> None:
     """Ancestors whose language isn't in the approved set are walked
     THROUGH but not returned — Proto-Finnic ancestors should not
