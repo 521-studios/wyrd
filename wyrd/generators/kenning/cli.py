@@ -10,6 +10,7 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import partial
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,7 @@ from wyrd.generators.kenning import (
     KenningExplain,
     anthropic_extractor,
     available_tags,
+    fantasy_pipeline,
     gemini_extractor,
     llm_extractor,
 )
@@ -1427,7 +1429,7 @@ def lexicon_mine_fantasy_name(
     Single mode: `--name X --description Y`
     Batch mode:  `--batch path/to/names.jsonl`
     """
-    from wyrd.generators.kenning import fantasy_pipeline as fp
+    fp = fantasy_pipeline  # local alias matches the helper-style usage below
 
     if batch_path and (name or description):
         raise click.ClickException("--batch is mutually exclusive with --name/--description")
@@ -1464,8 +1466,6 @@ def lexicon_mine_fantasy_name(
     # and llm_caller(name, desc); functools.partial pre-binds the model
     # kwarg without changing those signatures.
     if model:
-        from functools import partial
-
         llm_caller = partial(fp._llm_full_research, model=model)
         semantic_check_caller = partial(fp._llm_semantic_check, model=model)
     else:
@@ -1545,7 +1545,7 @@ def lexicon_backfill_fantasy_tags(db_path: Path, apply_changes: bool) -> None:
     the `fantasy` register tag. This adds it. Idempotent — safe to
     re-run.
     """
-    from wyrd.generators.kenning import fantasy_pipeline as fp
+    fp = fantasy_pipeline
 
     if apply_changes:
         with LexiconDB(db_path) as db:

@@ -340,6 +340,89 @@ def test_resolve_via_llm_modern_coinage_is_barred(fresh_db: Path) -> None:
     assert res.bar_reason == fp.BAR_REASON_MODERN_COINAGE
 
 
+def test_resolve_semantic_check_failure_falls_through_to_full_research(fresh_db: Path) -> None:
+    """If the semantic-check LLM call raises (network/JSON failure),
+    that candidate is skipped and we fall through to full research
+    rather than crashing."""
+    with LexiconDB(fresh_db) as db:
+        ofr_id = _seed_etymon(db, canonical_form="cloque", language="old-french")
+        modern_id = _seed_etymon(db, canonical_form="cloaker", language="modern-english")
+        _seed_descent(db, parent_id=ofr_id, child_id=modern_id)
+        db.commit()
+
+    def _broken_semantic(name, description, ancestor, glosses):
+        raise RuntimeError("simulated semantic-check network failure")
+
+    def _stub_full(name, description):
+        return {
+            "attested_in": "modern_coinage",
+            "historical_form": None,
+            "gloss": None,
+            "citation": None,
+            "confidence": "high",
+            "bar_reason": "modern_coinage",
+            "reasoning": "D&D 1981",
+        }
+
+    res = fp.resolve(
+        fresh_db,
+        "Cloaker",
+        "D&D monster",
+        llm_caller=_stub_full,
+        semantic_check_caller=_broken_semantic,
+    )
+    # Semantic check failed → skipped → full research bars as
+    # modern_coinage → upgraded to homograph_collision since
+    # pre-filter DID find a form match.
+    assert res.usable is False
+    assert res.bar_reason == fp.BAR_REASON_HOMOGRAPH
+
+
+def test_resolve_via_llm_modern_coinage_no_bar_reason_inferred(fresh_db: Path) -> None:
+    """When the LLM returns attested_in='modern_coinage' but omits
+    bar_reason, _resolve_via_llm infers BAR_REASON_MODERN_COINAGE
+    rather than collapsing to no_etymology_found."""
+
+    def _stub_llm(name, description):
+        return {
+            "attested_in": "modern_coinage",
+            "historical_form": None,
+            "gloss": None,
+            "citation": None,
+            "confidence": "high",
+            # bar_reason intentionally omitted
+            "reasoning": "Tolkien coinage",
+        }
+
+    res = fp.resolve(fresh_db, "Hobbit", "Tolkien creature", llm_caller=_stub_llm)
+    assert res.usable is False
+    assert res.bar_reason == fp.BAR_REASON_MODERN_COINAGE
+
+
+def test_resolve_via_llm_anchors_to_existing_etymon_when_attested(fresh_db: Path) -> None:
+    """Pre-filter misses but LLM identifies a real attested form whose
+    (form, language) pair is already in the etymon table → resolution
+    is anchored to that etymon's id."""
+    with LexiconDB(fresh_db) as db:
+        target_id = _seed_etymon(db, canonical_form="trǫll", language="old-norse", gloss="giant")
+        db.commit()
+
+    def _stub_llm(name, description):
+        return {
+            "attested_in": "old-norse",
+            "historical_form": "trǫll",
+            "gloss": "giant",
+            "citation": "Cleasby-Vigfusson",
+            "confidence": "high",
+            "bar_reason": None,
+            "reasoning": "ON troll",
+        }
+
+    res = fp.resolve(fresh_db, "Some-troll-variant", "ON-derived monster", llm_caller=_stub_llm)
+    assert res.usable is True
+    assert res.etymon_id == target_id  # anchored to existing row
+
+
 def test_resolve_via_llm_failure_bars_as_uncertain(fresh_db: Path) -> None:
     """A network/parse failure during LLM call doesn't crash; rows get
     barred as uncertain so the input can be re-processed later."""
@@ -739,6 +822,93 @@ def test_cli_mine_fantasy_name_rejects_conflicting_input_modes(
     )
     assert result.exit_code != 0
     assert "mutually exclusive" in (result.output + (result.stderr or ""))
+
+
+def test_migration_adds_unapproved_columns_to_existing_table(tmp_path: Path) -> None:
+    """fantasy_morpheme tables created before the unapproved_language /
+    unapproved_form columns existed must get them via ALTER on a
+    subsequent migrate_schema run."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        # Build the table WITHOUT the new columns, simulating the older
+        # version that shipped before the unapproved-language tracking.
+        db.conn.executescript(
+            """
+            CREATE TABLE fantasy_morpheme (
+              id                INTEGER PRIMARY KEY AUTOINCREMENT,
+              input_name        TEXT NOT NULL,
+              input_description TEXT,
+              usable            INTEGER NOT NULL CHECK (usable IN (0, 1)),
+              etymon_id         INTEGER REFERENCES etymon(id) ON DELETE SET NULL,
+              bar_reason        TEXT,
+              resolution_method TEXT NOT NULL,
+              approach_version  TEXT NOT NULL,
+              confidence        TEXT,
+              citation          TEXT,
+              reasoning         TEXT,
+              processed_at      TEXT NOT NULL,
+              UNIQUE (input_name, approach_version)
+            );
+            """
+        )
+        db.commit()
+
+        # Now run the migration — it should add the two new columns.
+        applied = migrate_schema(db)
+        db.commit()
+
+    assert applied.get("fantasy_morpheme.unapproved_language") is True
+    assert applied.get("fantasy_morpheme.unapproved_form") is True
+
+    conn = sqlite3.connect(db_path)
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(fantasy_morpheme)").fetchall()}
+    assert "unapproved_language" in cols
+    assert "unapproved_form" in cols
+
+
+def test_cli_mine_fantasy_name_model_flag_propagates(fresh_db: Path, monkeypatch) -> None:
+    """`--model X` must be plumbed through to both the semantic-check
+    caller and the full-research caller via functools.partial."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+    from wyrd.generators.kenning import fantasy_pipeline as fp_mod
+
+    captured_models: list[str] = []
+
+    def _spy_full(name, description, *, model="default", **kw):
+        captured_models.append(("full", model))
+        return {
+            "attested_in": "none",
+            "historical_form": None,
+            "gloss": None,
+            "citation": None,
+            "confidence": "low",
+            "bar_reason": "no_etymology_found",
+            "reasoning": "stub",
+        }
+
+    monkeypatch.setattr(fp_mod, "_llm_full_research", _spy_full)
+    # Pre-filter must miss so we hit the LLM path.
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        [
+            "lexicon",
+            "mine-fantasy-name",
+            "--db",
+            str(fresh_db),
+            "--name",
+            "NeverInCorpus",
+            "--description",
+            "test creature",
+            "--model",
+            "gemini-2.5-pro",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    assert ("full", "gemini-2.5-pro") in captured_models
 
 
 def test_cli_mine_fantasy_name_requires_input(fresh_db: Path) -> None:
