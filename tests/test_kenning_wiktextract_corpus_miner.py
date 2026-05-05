@@ -126,8 +126,6 @@ def test_culture_scope_keeps_welsh_morphemes_out_of_english_bundle(
         welsh_slice,
         [{"word": "coch", "lang_code": "cy", "senses": [{"glosses": ["red"]}]}],
     )
-    from collections import Counter
-
     fragments_by_culture = {"english": Counter({"coch": 1})}
     with LexiconDB(fresh_db) as db:
         counts = mine_corpus(
@@ -151,8 +149,6 @@ def test_apply_writes_etymon_gloss_and_empirical_citation(tmp_path: Path, fresh_
         welsh_slice,
         [{"word": "betws", "lang_code": "cy", "senses": [{"glosses": ["chapel"]}]}],
     )
-    from collections import Counter
-
     fragments = {"welsh": Counter({"betws": 4})}
     with LexiconDB(fresh_db) as db:
         counts = mine_corpus(
@@ -194,8 +190,6 @@ def test_dry_run_writes_no_rows(tmp_path: Path, fresh_db: Path) -> None:
         welsh_slice,
         [{"word": "betws", "lang_code": "cy", "senses": [{"glosses": ["chapel"]}]}],
     )
-    from collections import Counter
-
     fragments = {"welsh": Counter({"betws": 4})}
     with LexiconDB(fresh_db) as db:
         counts = mine_corpus(
@@ -221,8 +215,6 @@ def test_idempotent_reapply_does_not_duplicate_glosses_or_citations(
         welsh_slice,
         [{"word": "betws", "lang_code": "cy", "senses": [{"glosses": ["chapel"]}]}],
     )
-    from collections import Counter
-
     fragments = {"welsh": Counter({"betws": 4})}
     for _ in range(3):
         with LexiconDB(fresh_db) as db:
@@ -434,8 +426,6 @@ def test_missing_slice_file_is_silently_skipped(tmp_path: Path, fresh_db: Path) 
     that language without raising. Real-world: we don't have a Latin slice
     on disk; latin lookups should produce zero hits, not an error."""
     # No slice files in tmp_path at all.
-    from collections import Counter
-
     fragments = {"english": Counter({"thing": 1})}
     with LexiconDB(fresh_db) as db:
         counts = mine_corpus(
@@ -570,7 +560,7 @@ def test_accept_candidate_skips_empty_string() -> None:
     assert candidates == {}
 
 
-def test_mine_wiktextract_corpus_cli_apply_and_dry_run(tmp_path: Path) -> None:
+def test_mine_wiktextract_corpus_cli_apply_and_dry_run(fresh_db: Path, tmp_path: Path) -> None:
     """End-to-end: ``wyrd kenning lexicon mine-wiktextract-corpus``
     via CliRunner. Runs the dry-run path then the apply path against
     a tmp lexicon DB and a synthetic wiktextract slice."""
@@ -578,8 +568,7 @@ def test_mine_wiktextract_corpus_cli_apply_and_dry_run(tmp_path: Path) -> None:
 
     from wyrd.generators.kenning.cli import cli
 
-    db_path = tmp_path / "lexicon.db"
-    init_schema(db_path)
+    db_path = fresh_db
     sources_dir = tmp_path / "sources"
     sources_dir.mkdir()
     welsh_slice = sources_dir / "wiktextract_welsh.jsonl"
