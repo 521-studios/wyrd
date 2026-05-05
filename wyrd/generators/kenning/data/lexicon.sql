@@ -200,6 +200,30 @@ CREATE TABLE etymon_descent (
 CREATE INDEX idx_etymon_descent_parent ON etymon_descent(parent_id);
 CREATE INDEX idx_etymon_descent_child  ON etymon_descent(child_id);
 
+-- wyrd-fqil: per-form variant rows from wiktextract entries' `forms`
+-- arrays. Each row records one inflected, alternative-spelling,
+-- romanized, or otherwise lemma-variant surface form Wiktionary
+-- attests for the parent etymon. Lets surface-form lookups (the
+-- wyrd-ami fantasy pre-filter, etc.) match historical / dialectal /
+-- Chaucer-era spellings that aren't separate lemmas in wiktextract.
+-- Tags column carries the original wiktextract tag list as JSON for
+-- callers that want finer-grained filtering than variant_class.
+CREATE TABLE etymon_variant (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  etymon_id     INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
+  form          TEXT NOT NULL COLLATE NOCASE,
+  variant_class TEXT NOT NULL CHECK (variant_class IN (
+                  'alternative', 'inflection', 'romanization',
+                  'canonical', 'other'
+                )),
+  tags          TEXT,
+  source_id     TEXT NOT NULL REFERENCES source(id) ON DELETE CASCADE,
+  UNIQUE (etymon_id, form, variant_class)
+);
+CREATE INDEX idx_etymon_variant_etymon ON etymon_variant(etymon_id);
+CREATE INDEX idx_etymon_variant_form   ON etymon_variant(form);
+CREATE INDEX idx_etymon_variant_class  ON etymon_variant(variant_class);
+
 -- Per-(book, provider, model, run) audit log. The mine-llm and review CLI
 -- flows compute accept/decline/reject counts in-memory and used to print
 -- them only to stdout — once the process exits the numbers are gone. Per
