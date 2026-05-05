@@ -33,6 +33,20 @@ def _clear_trie_cache():
     _trie_cache.clear()
 
 
+@pytest.fixture(scope="module")
+def bundle_word_db():
+    """Module-scoped: load the bundled meanings.json once and share
+    the resulting word_db across the 5 parametrized corpus-equivalence
+    tests. Cuts ~5x the load_meanings overhead vs per-test loading,
+    which dominates the test suite's runtime on the larger
+    post-wyrd-4hx7 bundle."""
+    meanings = json.loads(
+        resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
+    )
+    word_db, _ = load_meanings(meanings)
+    return word_db
+
+
 @pytest.fixture
 def synthetic_word_db():
     """Tiny word_db with three deliberately overlapping morphemes:
@@ -147,7 +161,7 @@ def test_trie_path_preserves_multi_parse():
 
 
 @pytest.mark.parametrize("culture", ["english", "scottish", "welsh", "irish", "breton"])
-def test_trie_matches_legacy_perfect_decision_on_corpus_sample(culture):
+def test_trie_matches_legacy_perfect_decision_on_corpus_sample(culture, bundle_word_db):
     """**Phase-2 equivalence regression** — the load-bearing test.
 
     For every place name in the bundled per-culture corpus, both
@@ -169,10 +183,7 @@ def test_trie_matches_legacy_perfect_decision_on_corpus_sample(culture):
     of names per culture for english/irish, but the trie path is
     O(match-length) per position so the full pass is sub-second.
     """
-    meanings = json.loads(
-        resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
-    )
-    word_db, _ = load_meanings(meanings)
+    word_db = bundle_word_db
 
     place_names_text = (
         resources.files("wyrd.generators.kenning.data")

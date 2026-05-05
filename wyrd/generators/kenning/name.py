@@ -152,8 +152,13 @@ class Name:
             self._find_meaning_trie(reduce=reduce)
         else:
             self._find_meaning_legacy()
-        if reduce:
-            self.reduce()
+            # Trie path's canonical_decompositions already pre-filters
+            # to the lowest-unaccounted + fewest-morpheme parses; calling
+            # self.reduce() after that path is a no-op walk over the
+            # same already-filtered list. Skip it for the trie+reduce
+            # case to save a per-word pass.
+            if reduce:
+                self.reduce()
 
     def _find_meaning_legacy(self) -> None:
         """Original Rando-port matcher: collect candidate Meanings via
@@ -163,9 +168,11 @@ class Name:
         for word in self.words:
             w = Word(word)
             meanings = w.extract_meanings(self.chunks)
+            seen: set[Word] = set()
             for meaning in meanings:
-                if meaning not in self.words[word]:
+                if meaning not in seen:
                     self.words[word].append(meaning)
+                    seen.add(meaning)
             if len(self.words[word]) == 0:
                 self.words[word].append(w)
 
@@ -176,7 +183,8 @@ class Name:
         * ``reduce=True``: ``canonical_decompositions`` returns only
           parses tied for 'best' (lowest unaccounted + fewest morphemes).
           That's the same set ``reduce()`` would keep on the legacy
-          matcher's output, so the post-reduce shape is equivalent.
+          matcher's output, so the post-reduce shape is equivalent and
+          ``find_meaning`` skips ``self.reduce()`` for this path.
         * ``reduce=False``: ``all_decompositions`` returns every parse,
           matching the legacy iterator's pre-reduce contract — useful
           to callers that want to inspect alternates the canonical
@@ -185,16 +193,22 @@ class Name:
         Multi-parse semantics preserved either way: a word with two
         senses for one surface (``-y`` = 'island' OR 'district') or a
         word the trie matches at multiple boundaries surfaces every
-        reading as its own ``Word`` object."""
+        reading as its own ``Word`` object.
+
+        Dedup uses an O(1) set membership check rather than the
+        legacy O(N) ``in list`` to keep ``reduce=False`` cases tractable
+        when the trie emits many alternates."""
         trie = _trie_for(self.word_db)
         for word in self.words:
             decompositions = (
                 canonical_decompositions(word, trie) if reduce else all_decompositions(word, trie)
             )
+            seen: set[Word] = set()
             for d in decompositions:
                 w = Word(d)
-                if w not in self.words[word]:
+                if w not in seen:
                     self.words[word].append(w)
+                    seen.add(w)
             if len(self.words[word]) == 0:
                 self.words[word].append(Word(word))
 
