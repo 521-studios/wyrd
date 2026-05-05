@@ -1680,11 +1680,8 @@ def lexicon_review(
     Each tier is idempotent: skips toponyms that already have a row from
     the chosen provider.
     """
-    if provider == "ollama":
-        raise click.ClickException(
-            "review pass needs a stronger model than the Tier-1 default — "
-            "use --provider gemini (Tier 2) or anthropic (Tier 3)."
-        )
+    # click.Choice on the --provider option restricts to {gemini, anthropic};
+    # 'ollama' never reaches this body (Click rejects it at parse time).
     provider_tag = f"extracted_by:{provider}:"
 
     candidates = _select_review_candidates(
