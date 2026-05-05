@@ -27,7 +27,10 @@ from wyrd.generators.kenning import (
     gemini_extractor,
     llm_extractor,
 )
-from wyrd.generators.kenning.dictionary_parser import parse_alphabetical_text
+from wyrd.generators.kenning.dictionary_parser import (
+    parse_alphabetical_text,
+    parse_numbered_list_text,
+)
 from wyrd.generators.kenning.era import era_cell, language_family
 from wyrd.generators.kenning.lexicon import (
     LANGUAGE_FIELDS,
@@ -69,19 +72,47 @@ from wyrd.generators.kenning.wiktextract_ingester import ingest_wiktextract_path
 from wyrd.seed import resolve_seed, rng_for
 
 
-def _select_parser_and_run(text: str, parser: str) -> list:
+def _select_parser_and_run(
+    text: str,
+    parser: str,
+    *,
+    min_entry_number: int = 1,
+    max_entry_number: int | None = None,
+) -> list:
     """Pick the right parser for a book.
 
     Modes:
-      skeat        - force Skeat-format parser
-      alphabetical - force alphabetical-dictionary parser
-      auto         - try Skeat first; if it returns ≥5 entries, use it.
-                     Otherwise use alphabetical.
+      skeat         - force Skeat-format parser
+      alphabetical  - force alphabetical-dictionary parser
+      numbered-list - force numbered-list parser (wyrd-5af). Right tool
+                      for chrestomathy / treatise sources whose etymology
+                      bodies are organized as ordinal-prefixed lists
+                      (Longnon vol 2 saint-names: '1659. Caradocus :
+                      Saint-Caradu (...)'). Skip on dictionary-shaped
+                      sources — alphabetical is the right tool there.
+      auto          - try Skeat first; if it returns ≥5 entries, use it.
+                      Otherwise use alphabetical. ``auto`` does NOT pick
+                      numbered-list — opt in explicitly because the
+                      numbered-list shape co-exists with body prose in
+                      treatise sources, and we don't want a few stray
+                      ordinals to flip a Mawer-shaped book onto the
+                      wrong parser.
+
+    ``min_entry_number`` / ``max_entry_number`` apply ONLY to the
+    numbered-list parser (the other modes don't have an ordinal axis).
+    Inclusive bounds; default to "no filter" so the historic
+    skeat/alphabetical paths stay bit-stable.
     """
     if parser == "skeat":
         return parse_skeat_text(text)
     if parser == "alphabetical":
         return parse_alphabetical_text(text)
+    if parser == "numbered-list":
+        return parse_numbered_list_text(
+            text,
+            min_entry_number=min_entry_number,
+            max_entry_number=max_entry_number,
+        )
     skeat_result = parse_skeat_text(text)
     if len(skeat_result) >= 5:
         return skeat_result
@@ -1116,10 +1147,36 @@ def _mine_entries(
 )
 @click.option(
     "--parser",
-    type=click.Choice(["auto", "skeat", "alphabetical"]),
+    type=click.Choice(["auto", "skeat", "alphabetical", "numbered-list"]),
     default="auto",
     show_default=True,
-    help="Which parser to use; 'auto' picks based on first-pass yield.",
+    help=(
+        "Which parser to use. 'auto' picks based on first-pass yield. "
+        "'numbered-list' (wyrd-5af) is opt-in only — for ordinal-prefixed "
+        "treatise content (Longnon vol 2 saint-names section, etc.)."
+    ),
+)
+@click.option(
+    "--min-entry",
+    type=int,
+    default=1,
+    show_default=True,
+    help=(
+        "Numbered-list only: skip ordinals below this value. Use to drop "
+        "front-matter / TOC noise when the actual numbered section opens "
+        "mid-document (e.g. Longnon vol 2 saint-names start at 1659)."
+    ),
+)
+@click.option(
+    "--max-entry",
+    type=int,
+    default=None,
+    help=(
+        "Numbered-list only: skip ordinals above this value. Use to cap "
+        "at the section boundary so index-appendix cross-references don't "
+        "cost API spend on guaranteed declines (e.g. Longnon vol 2 "
+        "saint-names end at 2138)."
+    ),
 )
 @click.option(
     "--concurrency",
@@ -1146,6 +1203,8 @@ def lexicon_mine_llm(
     timeout: float,
     parser: str,
     concurrency: int,
+    min_entry: int,
+    max_entry: int | None,
 ) -> None:
     """Mine an etymology text via LLM (Ollama or Gemini).
 
@@ -1168,7 +1227,9 @@ def lexicon_mine_llm(
     )
 
     text = path.read_text()
-    parsed = _select_parser_and_run(text, parser)
+    parsed = _select_parser_and_run(
+        text, parser, min_entry_number=min_entry, max_entry_number=max_entry
+    )
     if limit is not None:
         parsed = parsed[:limit]
 
