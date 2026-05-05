@@ -135,23 +135,88 @@ def test_descent_walking_lookup_skips_unapproved_languages(fresh_db: Path) -> No
 # ---------------------------------------------------------------------
 
 
-def test_resolve_via_pre_filter_short_circuits_llm(fresh_db: Path) -> None:
-    """When the pre-filter resolves cleanly, the LLM is NOT called."""
+def test_resolve_via_pre_filter_with_semantic_match(fresh_db: Path) -> None:
+    """When pre-filter resolves AND semantic check returns 'match',
+    accept without calling full LLM research."""
     with LexiconDB(fresh_db) as db:
         greek_id = _seed_etymon(db, canonical_form="ἅρπυια", language="ancient-greek")
         modern_id = _seed_etymon(db, canonical_form="harpy", language="modern-english")
         _seed_descent(db, parent_id=greek_id, child_id=modern_id)
         db.commit()
 
-    def _llm_must_not_be_called(name, description):
-        raise AssertionError("LLM should not be called when pre-filter resolves")
+    def _llm_full_must_not_be_called(name, description):
+        raise AssertionError("Full LLM research should not be called when semantic check passes")
 
-    res = fp.resolve(fresh_db, "harpy", "winged Greek monster", llm_caller=_llm_must_not_be_called)
+    def _stub_semantic(name, description, ancestor, glosses):
+        return {"verdict": "match", "reasoning": "Greek harpyiai match the creature"}
+
+    res = fp.resolve(
+        fresh_db,
+        "harpy",
+        "winged Greek monster",
+        llm_caller=_llm_full_must_not_be_called,
+        semantic_check_caller=_stub_semantic,
+    )
     assert res.usable is True
     assert res.etymon_id == greek_id
     assert res.resolution_method == "descent_lookup"
     assert res.confidence == "high"
     assert res.bar_reason is None
+
+
+def test_resolve_homograph_collision_bars_with_homograph_reason(fresh_db: Path) -> None:
+    """The Cloaker case: pre-filter resolves to a real ancestor, but
+    semantic check rejects it as a homograph collision. Full research
+    then bars it as modern_coinage; we override that to the more
+    specific homograph_collision since pre-filter DID find a form match."""
+    with LexiconDB(fresh_db) as db:
+        ofr_id = _seed_etymon(db, canonical_form="cloque", language="old-french", gloss="bell-cape")
+        modern_id = _seed_etymon(db, canonical_form="cloaker", language="modern-english")
+        _seed_descent(db, parent_id=ofr_id, child_id=modern_id)
+        db.commit()
+
+    def _stub_semantic(name, description, ancestor, glosses):
+        return {"verdict": "mismatch", "reasoning": "1981 Gygax coinage"}
+
+    def _stub_full(name, description):
+        return {
+            "attested_in": "outside_family",
+            "historical_form": None,
+            "gloss": None,
+            "citation": None,
+            "confidence": "high",
+            "bar_reason": "modern_coinage",
+            "reasoning": "D&D 1981",
+        }
+
+    res = fp.resolve(
+        fresh_db,
+        "Cloaker",
+        "A D&D monster that disguises itself as a cloak",
+        llm_caller=_stub_full,
+        semantic_check_caller=_stub_semantic,
+    )
+    assert res.usable is False
+    # Override of full-research's modern_coinage → homograph_collision, since
+    # pre-filter DID find a form-matched ancestor.
+    assert res.bar_reason == fp.BAR_REASON_HOMOGRAPH
+
+
+def test_resolve_skip_llm_accepts_pre_filter_blindly(fresh_db: Path) -> None:
+    """skip_llm=True bypasses semantic verification; pre-filter wins
+    even if the result is a homograph. This is the legacy behavior used
+    by tests and offline coverage estimation."""
+    with LexiconDB(fresh_db) as db:
+        ofr_id = _seed_etymon(db, canonical_form="cloque", language="old-french")
+        modern_id = _seed_etymon(db, canonical_form="cloaker", language="modern-english")
+        _seed_descent(db, parent_id=ofr_id, child_id=modern_id)
+        db.commit()
+
+    res = fp.resolve(fresh_db, "Cloaker", "D&D monster", skip_llm=True)
+    # Pre-filter trusted; no semantic verification.
+    assert res.usable is True
+    assert res.etymon_id == ofr_id
+    assert "not semantically verified" in (res.reasoning or "")
 
 
 def test_resolve_skip_llm_bars_pre_filter_misses(fresh_db: Path) -> None:
@@ -470,7 +535,10 @@ def test_cli_backfill_fantasy_tags_apply_writes(fresh_db: Path) -> None:
 
 
 def test_cli_mine_fantasy_name_single_with_apply(fresh_db: Path, monkeypatch) -> None:
-    """End-to-end CLI: pre-filter resolves, --apply writes the row + tags."""
+    """End-to-end CLI: pre-filter resolves, --apply writes the row + tags.
+    Uses --skip-llm to keep the test offline (semantic check requires the
+    network). The semantic-check-via-LLM path is covered by the unit
+    tests on resolve()."""
     from click.testing import CliRunner
 
     from wyrd.generators.kenning import cli as cli_mod
@@ -493,6 +561,7 @@ def test_cli_mine_fantasy_name_single_with_apply(fresh_db: Path, monkeypatch) ->
             "Harpy",
             "--description",
             "winged creature from Greek mythology",
+            "--skip-llm",
             "--apply",
         ],
     )
@@ -537,6 +606,7 @@ def test_cli_mine_fantasy_name_dry_run_writes_nothing(fresh_db: Path) -> None:
             "Harpy",
             "--description",
             "winged creature",
+            "--skip-llm",
         ],
     )
     assert result.exit_code == 0

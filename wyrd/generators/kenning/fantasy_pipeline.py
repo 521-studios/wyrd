@@ -64,6 +64,13 @@ APPROVED_LANGUAGES: frozenset[str] = frozenset(
         "old-high-german",
         "middle-high-german",
         "german",
+        # Scots + Norn (drow/trow chain → ON troll via Orkney/Shetland Norn).
+        # `sco` = Scots, the Germanic lowland-Scotland language.
+        # `nrn` = Norn, the extinct Norse-derived language of Orkney/Shetland.
+        # User-approved 2026-05-05 (note: distinct from Scots GAELIC = the
+        # Celtic `scottish-gaelic`, which is also approved separately above).
+        "sco",
+        "nrn",
         # Romance
         "latin",
         "old-french",
@@ -283,6 +290,84 @@ def _llm_full_research(
     return json.loads(text)
 
 
+# ---------------------------------------------------------------------
+# LLM semantic-check (cheap verification of pre-filter resolutions).
+# ---------------------------------------------------------------------
+
+_SEMANTIC_CHECK_PROMPT_TEMPLATE = """You are reviewing a candidate match between a fantasy/gaming creature name and an attested historical word from an etymological corpus.
+
+Candidate name: {name}
+Description: {description}
+
+Proposed ancestor (from a wiktionary descent chain):
+- form: {form}
+- language: {language}
+- gloss: {gloss}
+
+Question: is this proposed ancestor the GENUINE etymological source of the creature, or do they merely share a form (homograph collision / modern coinage from a real word)?
+
+Return ONE JSON object:
+{{
+  "verdict": "match" | "mismatch" | "uncertain",
+  "reasoning": "<1-2 sentences>"
+}}
+
+Examples to calibrate:
+- Harpy + ancient-greek ἅρπυια ("snatcher"): MATCH. Greek harpyiai are exactly the same creature concept.
+- Troll + old-norse trǫll ("monster, giant"): MATCH. Same folkloric creature.
+- Cloaker (a D&D 1981 monster that disguises as a cloak) + old-french cloque ("bell-cape"): MISMATCH. The CREATURE is a 1981 Gygax coinage even though the form derives from a real garment word; Cloaker is not historically attested as a beast in OFr or any other approved-family corpus.
+- Drow (a D&D dark elf) + scots `drow`/`trow` (a local Orkney/Shetland Norn-derived word for a troll-like sprite): MATCH. The Scots `drow`/`trow` IS a real folkloric creature (a Shetland/Orcadian fairy or troll), and Gygax's "Drow" was named from this Scots word; the etymological chain is genuine. (Caution: do NOT match Drow against ME `truwien` "to trust" — that's a homograph in the same form.)
+- Goblin + old-french gobelin ("evil sprite"): MATCH. Same folkloric being.
+
+Be CONSERVATIVE: when in doubt prefer "mismatch" or "uncertain". A modern fantasy author naming a new creature after an existing word does not make the creature etymologically descended from that word.
+
+Output ONLY the JSON."""
+
+
+def _llm_semantic_check(
+    name: str,
+    description: str,
+    ancestor: AncestorMatch,
+    ancestor_glosses: list[str],
+    *,
+    api_key: str | None = None,
+    model: str = "gemini-2.5-flash",
+    timeout_s: float = 30.0,
+) -> dict:
+    """Cheap LLM yes/no on whether a pre-filter ancestor is the actual
+    etymology of the creature, or just a homograph collision."""
+    key = api_key or os.environ.get("GEMINI_API_KEY")
+    if not key:
+        raise RuntimeError("GEMINI_API_KEY is not set")
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+    )
+    gloss_text = "; ".join(ancestor_glosses) if ancestor_glosses else "(no gloss in corpus)"
+    prompt = _SEMANTIC_CHECK_PROMPT_TEMPLATE.format(
+        name=name,
+        description=description,
+        form=ancestor.canonical_form,
+        language=ancestor.language,
+        gloss=gloss_text,
+    )
+    body = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "temperature": 0.0,
+        },
+    }
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=timeout_s) as r:
+        resp = json.loads(r.read())
+    text = resp["candidates"][0]["content"]["parts"][0]["text"]
+    return json.loads(text)
+
+
 def _resolve_via_llm(
     db_path: Path | str,
     name: str,
@@ -387,39 +472,91 @@ def resolve(
     *,
     skip_llm: bool = False,
     llm_caller=_llm_full_research,
+    semantic_check_caller=_llm_semantic_check,
 ) -> Resolution:
     """Resolve a (name, description) into a Resolution.
 
     Routing:
-    - Pre-filter via descent_walking_lookup. If exactly one approved
-      ancestor, return usable. If multiple ancestors and they all share
-      a language family, prefer the deepest (closest to source).
-    - If pre-filter misses entirely OR returns ambiguous candidates
-      across multiple language families OR `skip_llm=False` and the
-      caller wants a confidence boost, fall through to LLM research.
-    - `skip_llm=True` short-circuits the LLM path entirely (used in
-      tests and dry-runs).
-
-    Homograph detection (e.g. "drow" matching ME `truwien` "to trust"
-    while the description says "subterranean dark elf") is handled by
-    the LLM path: when pre-filter has no clear winner, we just hand the
-    description to the LLM and trust its disambiguation.
+    - Pre-filter via descent_walking_lookup, then semantic-check each
+      candidate ancestor with a cheap LLM call. The check rejects
+      homograph collisions: a D&D 'Cloaker' has a real OFr ancestor
+      `cloque` but the creature is a 1981 Gygax coinage, not an
+      attested OFr beast — semantic check returns 'mismatch' and we
+      fall through to full research (which will likely bar it as
+      modern_coinage).
+    - First semantic-check 'match' wins.
+    - All semantic-check 'mismatch' or pre-filter miss → full LLM
+      research.
+    - `skip_llm=True` short-circuits both LLM steps. In skip mode we
+      accept pre-filter resolutions blindly (legacy behavior, used in
+      tests / offline-coverage estimation). The caller is on the hook
+      for verifying separately.
     """
     pre = descent_walking_lookup(db_path, name)
     if pre:
-        # Pick the best pre-filter ancestor: prefer direct matches, then
-        # the first-listed approved-family ancestor (BFS walks
-        # parent-first so this is the closest ancestor in the chain).
-        winner = pre[0]
-        return Resolution(
-            usable=True,
-            etymon_id=winner.etymon_id,
-            bar_reason=None,
-            resolution_method="descent_lookup",
-            confidence="high",
-            citation="wiktionary-descent-chain",
-            reasoning=f"matched {winner.language}/{winner.canonical_form} via {winner.edge_type}",
-        )
+        if skip_llm:
+            # Trust pre-filter blindly; caller verifies separately.
+            winner = pre[0]
+            return Resolution(
+                usable=True,
+                etymon_id=winner.etymon_id,
+                bar_reason=None,
+                resolution_method="descent_lookup",
+                confidence="high",
+                citation="wiktionary-descent-chain",
+                reasoning=(
+                    f"matched {winner.language}/{winner.canonical_form} "
+                    f"via {winner.edge_type} (skip_llm=True; not semantically verified)"
+                ),
+            )
+        # Verify each candidate semantically; first match wins.
+        for cand in pre:
+            glosses = _ancestor_glosses(db_path, cand.etymon_id)
+            try:
+                check = semantic_check_caller(name, description, cand, glosses)
+            except (urllib.error.URLError, RuntimeError, json.JSONDecodeError, KeyError):
+                # Semantic check failed; conservative — bar this candidate
+                # and try the next, then fall through to full research.
+                continue
+            verdict = check.get("verdict") or "uncertain"
+            check_reasoning = check.get("reasoning") or ""
+            if verdict == "match":
+                return Resolution(
+                    usable=True,
+                    etymon_id=cand.etymon_id,
+                    bar_reason=None,
+                    resolution_method="descent_lookup",
+                    confidence="high",
+                    citation="wiktionary-descent-chain",
+                    reasoning=(
+                        f"matched {cand.language}/{cand.canonical_form} "
+                        f"via {cand.edge_type}; semantic-check: {check_reasoning}"
+                    ),
+                )
+        # Every candidate failed the semantic check → fall through to full
+        # research, but tag it so we know what happened.
+        full = _resolve_via_llm(db_path, name, description, llm_caller=llm_caller)
+        # If full research bars it, prefer the homograph-collision reason
+        # over generic no_etymology since pre-filter DID find a form match.
+        if not full.usable and full.bar_reason in (
+            BAR_REASON_NO_ETYMOLOGY,
+            BAR_REASON_OUTSIDE_FAMILY,
+            BAR_REASON_MODERN_COINAGE,
+        ):
+            return Resolution(
+                usable=False,
+                etymon_id=None,
+                bar_reason=BAR_REASON_HOMOGRAPH,
+                resolution_method=full.resolution_method,
+                confidence=full.confidence,
+                citation=full.citation,
+                reasoning=(
+                    f"pre-filter matched {pre[0].language}/{pre[0].canonical_form} "
+                    f"but semantic check rejected (homograph collision); "
+                    f"full research: {full.reasoning}"
+                ),
+            )
+        return full
 
     if skip_llm:
         return Resolution(
