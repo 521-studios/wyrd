@@ -985,27 +985,47 @@ def _create_fantasy_morpheme_table(db: LexiconDB, applied: dict[str, bool]) -> N
         for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
     }
     if "fantasy_morpheme" in existing:
+        # Table exists from an earlier migration; add columns if missing.
+        cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(fantasy_morpheme)")}
+        if "unapproved_language" not in cols:
+            db.conn.execute("ALTER TABLE fantasy_morpheme ADD COLUMN unapproved_language TEXT")
+            db.conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_fantasy_morpheme_unapproved "
+                "ON fantasy_morpheme(unapproved_language)"
+            )
+            applied["fantasy_morpheme.unapproved_language"] = True
+        if "unapproved_form" not in cols:
+            db.conn.execute("ALTER TABLE fantasy_morpheme ADD COLUMN unapproved_form TEXT")
+            applied["fantasy_morpheme.unapproved_form"] = True
         return
     db.conn.executescript(
         """
         CREATE TABLE fantasy_morpheme (
-          id                INTEGER PRIMARY KEY AUTOINCREMENT,
-          input_name        TEXT NOT NULL,
-          input_description TEXT,
-          usable            INTEGER NOT NULL CHECK (usable IN (0, 1)),
-          etymon_id         INTEGER REFERENCES etymon(id) ON DELETE SET NULL,
-          bar_reason        TEXT,
-          resolution_method TEXT NOT NULL,
-          approach_version  TEXT NOT NULL,
-          confidence        TEXT,
-          citation          TEXT,
-          reasoning         TEXT,
-          processed_at      TEXT NOT NULL,
+          id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+          input_name          TEXT NOT NULL,
+          input_description   TEXT,
+          usable              INTEGER NOT NULL CHECK (usable IN (0, 1)),
+          etymon_id           INTEGER REFERENCES etymon(id) ON DELETE SET NULL,
+          bar_reason          TEXT,
+          resolution_method   TEXT NOT NULL,
+          approach_version    TEXT NOT NULL,
+          confidence          TEXT,
+          citation            TEXT,
+          reasoning           TEXT,
+          -- When bar_reason='outside_language_family', record what
+          -- language the LLM thinks the etymology lives in and what
+          -- form. Lets us aggregate `SELECT unapproved_language,
+          -- COUNT(*) ... GROUP BY unapproved_language` to prioritize
+          -- new languages to approve.
+          unapproved_language TEXT,
+          unapproved_form     TEXT,
+          processed_at        TEXT NOT NULL,
           UNIQUE (input_name, approach_version)
         );
-        CREATE INDEX idx_fantasy_morpheme_approach ON fantasy_morpheme(approach_version);
-        CREATE INDEX idx_fantasy_morpheme_etymon   ON fantasy_morpheme(etymon_id);
-        CREATE INDEX idx_fantasy_morpheme_usable   ON fantasy_morpheme(usable);
+        CREATE INDEX idx_fantasy_morpheme_approach    ON fantasy_morpheme(approach_version);
+        CREATE INDEX idx_fantasy_morpheme_etymon      ON fantasy_morpheme(etymon_id);
+        CREATE INDEX idx_fantasy_morpheme_usable      ON fantasy_morpheme(usable);
+        CREATE INDEX idx_fantasy_morpheme_unapproved  ON fantasy_morpheme(unapproved_language);
         """
     )
     applied["fantasy_morpheme_table"] = True
@@ -1104,6 +1124,8 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "etymon.synset_method_renamed_to_cognate_method": False,
         "idx_etymon_synset_renamed_to_idx_etymon_cognate": False,
         "fantasy_morpheme_table": False,
+        "fantasy_morpheme.unapproved_language": False,
+        "fantasy_morpheme.unapproved_form": False,
     }
     # wyrd-44a: rename the legacy cognate-cluster column from synset_id
     # to cognate_id BEFORE the add-columns helper runs — otherwise

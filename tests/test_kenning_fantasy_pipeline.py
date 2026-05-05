@@ -270,6 +270,57 @@ def test_resolve_via_llm_low_confidence_is_barred(fresh_db: Path) -> None:
     assert res.bar_reason == fp.BAR_REASON_UNCERTAIN
 
 
+def test_resolve_via_llm_unapproved_language_records_lang_and_form(fresh_db: Path) -> None:
+    """When the LLM finds a real etymology in a language NOT in
+    APPROVED_LANGUAGES, the row is barred but records what language and
+    historical form so we can build a 'languages to consider approving'
+    report. Per user 2026-05-05."""
+
+    def _stub_llm(name, description):
+        return {
+            "attested_in": "sanskrit",
+            "historical_form": "rakṣasa",
+            "gloss": "demon",
+            "citation": "Monier-Williams",
+            "confidence": "high",
+            "bar_reason": None,
+            "reasoning": "Sanskrit demon",
+        }
+
+    res = fp.resolve(fresh_db, "Rakshasa", "demon from Hindu mythology", llm_caller=_stub_llm)
+    assert res.usable is False
+    assert res.bar_reason == fp.BAR_REASON_OUTSIDE_FAMILY
+    assert res.unapproved_language == "sanskrit"
+    assert res.unapproved_form == "rakṣasa"
+
+
+def test_write_resolution_persists_unapproved_language_and_form(fresh_db: Path) -> None:
+    """The unapproved_language + unapproved_form fields round-trip through
+    the DB so a later query can aggregate languages-to-approve."""
+    res = fp.Resolution(
+        usable=False,
+        etymon_id=None,
+        bar_reason=fp.BAR_REASON_OUTSIDE_FAMILY,
+        resolution_method="llm_full_research",
+        confidence="high",
+        citation="Monier-Williams",
+        reasoning="Sanskrit demon",
+        unapproved_language="sanskrit",
+        unapproved_form="rakṣasa",
+    )
+    with LexiconDB(fresh_db) as db:
+        fp.write_resolution(
+            db.conn, input_name="Rakshasa", input_description="demon", resolution=res
+        )
+        db.commit()
+    conn = sqlite3.connect(fresh_db)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT * FROM fantasy_morpheme WHERE input_name='Rakshasa'").fetchone()
+    assert row["unapproved_language"] == "sanskrit"
+    assert row["unapproved_form"] == "rakṣasa"
+    assert row["bar_reason"] == fp.BAR_REASON_OUTSIDE_FAMILY
+
+
 def test_resolve_via_llm_modern_coinage_is_barred(fresh_db: Path) -> None:
     """Dunsany's Gnoll: LLM correctly identifies as outside the family."""
 

@@ -123,6 +123,11 @@ class Resolution:
     confidence: str | None
     citation: str | None
     reasoning: str | None
+    # When bar_reason='outside_language_family', the LLM may know
+    # WHICH unapproved language the etymology is in; record it so we
+    # can aggregate a "languages to consider approving" report later.
+    unapproved_language: str | None = None
+    unapproved_form: str | None = None
 
 
 def descent_walking_lookup(
@@ -237,7 +242,7 @@ Description: {description}
 
 Respond with ONE JSON object:
 {{
-  "attested_in": "<language code from the approved list>" OR "none" (no etymology found) OR "outside_family" (real etymology exists but lies outside the approved set, e.g. modern coinage, Sanskrit, Hebrew),
+  "attested_in": "<language code if attested in any real language>" OR "none" (no etymology found) OR "modern_coinage" (Tolkien/Dunsany/Gygax/etc invention, no historical attestation),
   "historical_form": "<the attested form in the source language>" OR null,
   "gloss": "<short meaning>" OR null,
   "citation": "<dictionary source you're confident about: 'Bosworth-Toller', 'Cleasby-Vigfusson', 'LSJ', 'Etymonline', etc.>" OR null,
@@ -245,6 +250,8 @@ Respond with ONE JSON object:
   "bar_reason": "<one of: no_etymology_found / outside_language_family / uncertain_attestation / modern_coinage / proper_noun_only>" OR null,
   "reasoning": "<1-2 sentences>"
 }}
+
+IMPORTANT: when the etymology IS attested but the language lies OUTSIDE the approved list, still name the SPECIFIC language code in `attested_in` (e.g., "sanskrit", "hebrew", "modern-french", "japanese"). Do NOT collapse to a generic "outside_family" string — the caller wants to track which non-approved languages the corpus is missing so the approved list can be expanded over time. Use `attested_in: "modern_coinage"` only when the name is genuinely a 20th-century author's invention with no historical root.
 
 Be CONSERVATIVE. If you're not confident the name maps to a real word in the approved list, prefer setting attested_in="none" or "outside_family" with appropriate bar_reason. Modern fantasy authors (Tolkien, Dunsany, Gygax) coined many such names; do not retrofit etymology onto coinages. Proper-noun-only attestations (literary characters whose name became a common noun only later) should be barred with bar_reason=proper_noun_only.
 
@@ -399,9 +406,13 @@ def _resolve_via_llm(
     reasoning = result.get("reasoning")
     gloss = result.get("gloss")
 
+    # Sentinels the LLM uses for "no real attestation" — distinct from
+    # the case where it names a real language we just don't approve.
+    NO_REAL_ATTESTATION = ("none", "modern_coinage", "outside_family")
+
     # Conservative: low-confidence answers are barred even if attested_in
     # names a real language. Per user 2026-05-05.
-    if confidence == "low" and attested_in not in ("none", "outside_family"):
+    if confidence == "low" and attested_in not in NO_REAL_ATTESTATION:
         return Resolution(
             usable=False,
             etymon_id=None,
@@ -429,11 +440,36 @@ def _resolve_via_llm(
             ),
         )
 
-    # Either "none" or "outside_family" → barred. Use LLM-supplied
-    # bar_reason, fall back to inference.
+    # LLM named a real language but it's NOT in APPROVED_LANGUAGES:
+    # bar with outside_language_family, but RECORD what language and form
+    # so we can aggregate "candidate languages to approve" later. Per user
+    # 2026-05-05: tracking these gives us a prioritization list.
+    if attested_in not in NO_REAL_ATTESTATION:
+        return Resolution(
+            usable=False,
+            etymon_id=None,
+            bar_reason=BAR_REASON_OUTSIDE_FAMILY,
+            resolution_method="llm_full_research",
+            confidence=confidence,
+            citation=citation,
+            reasoning=(
+                f"attested in {attested_in} as '{historical}'"
+                + (f" '{gloss}'" if gloss else "")
+                + " (not in APPROVED_LANGUAGES)"
+                + (f"; {reasoning}" if reasoning else "")
+            ),
+            unapproved_language=attested_in,
+            unapproved_form=historical,
+        )
+
+    # "none" / "modern_coinage" / "outside_family" sentinel → barred with
+    # no specific language to record. Use LLM-supplied bar_reason, fall
+    # back to inference.
     if not bar_reason:
         bar_reason = (
-            BAR_REASON_OUTSIDE_FAMILY
+            BAR_REASON_MODERN_COINAGE
+            if attested_in == "modern_coinage"
+            else BAR_REASON_OUTSIDE_FAMILY
             if attested_in == "outside_family"
             else BAR_REASON_NO_ETYMOLOGY
         )
@@ -591,13 +627,15 @@ def write_resolution(
         """INSERT INTO fantasy_morpheme (
             input_name, input_description, usable, etymon_id, bar_reason,
             resolution_method, approach_version, confidence, citation,
-            reasoning, processed_at
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            reasoning, unapproved_language, unapproved_form, processed_at
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT (input_name, approach_version) DO UPDATE SET
-            input_description = excluded.input_description,
-            usable            = excluded.usable,
-            etymon_id         = excluded.etymon_id,
-            bar_reason        = excluded.bar_reason,
+            input_description    = excluded.input_description,
+            usable               = excluded.usable,
+            etymon_id            = excluded.etymon_id,
+            bar_reason           = excluded.bar_reason,
+            unapproved_language  = excluded.unapproved_language,
+            unapproved_form      = excluded.unapproved_form,
             resolution_method = excluded.resolution_method,
             confidence        = excluded.confidence,
             citation          = excluded.citation,
@@ -615,6 +653,8 @@ def write_resolution(
             resolution.confidence,
             resolution.citation,
             resolution.reasoning,
+            resolution.unapproved_language,
+            resolution.unapproved_form,
             now,
         ),
     )
