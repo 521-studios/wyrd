@@ -19,6 +19,7 @@ from wyrd.generators.kenning.cli import cli as kenning_cli
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.wiktextract_ingester import (
     _canonical_language,
+    _classify_form_variant,
     ingest_wiktextract_path,
     ingest_wiktextract_stream,
 )
@@ -1189,7 +1190,7 @@ def test_forms_romanization_tag_emits_romanization_variant(fresh_db: Path) -> No
         result = ingest_wiktextract_stream(db, _stream(line), apply=True)
         variants = _all_etymon_variants(db)
     assert result["forms_emitted"] == 1
-    assert variants[0][2] == "romanization"
+    assert variants == [("ἅρπυια", "hárpuia", "romanization", '["romanization"]')]
 
 
 def test_forms_pure_metadata_rows_are_skipped(fresh_db: Path) -> None:
@@ -1286,8 +1287,6 @@ def test_forms_lookup_is_case_insensitive(fresh_db: Path) -> None:
 
 def test_forms_classify_variant_function() -> None:
     """Unit-test the tag-classification function directly."""
-    from wyrd.generators.kenning.wiktextract_ingester import _classify_form_variant
-
     assert _classify_form_variant(["alternative"]) == "alternative"
     assert _classify_form_variant(["romanization"]) == "romanization"
     assert _classify_form_variant(["canonical"]) == "canonical"
@@ -1298,3 +1297,55 @@ def test_forms_classify_variant_function() -> None:
     assert _classify_form_variant([]) == "other"
     # Multi-tag with both alternative and inflectional: 'alternative' wins
     assert _classify_form_variant(["alternative", "plural"]) == "alternative"
+
+
+def test_forms_template_marker_prefix_is_skipped(fresh_db: Path) -> None:
+    """`#`-prefixed and `-`-prefixed form strings (template-marker
+    artifacts) are dropped before INSERT — _is_emittable_form filter."""
+    line = _wiktextract_entry_with_forms(
+        word="word",
+        lang_code="ang",
+        forms=[
+            {"form": "#hash-prefix", "tags": ["alternative"]},
+            {"form": "-dash-prefix", "tags": ["alternative"]},
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+    assert result["forms_emitted"] == 0
+    assert result["forms_skipped_unemittable"] == 2
+
+
+def test_forms_canonical_class_round_trips_through_insert(fresh_db: Path) -> None:
+    """A 'canonical' tag on a form whose value differs from the lemma
+    word is emitted with variant_class='canonical' and survives the
+    CHECK constraint at INSERT time."""
+    line = _wiktextract_entry_with_forms(
+        word="ἅρπυια",
+        lang_code="grc",
+        # Canonical-tagged spelling variant (e.g. macron'd vs not).
+        forms=[{"form": "ἅρπυιᾰ", "tags": ["canonical"]}],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        variants = _all_etymon_variants(db)
+    assert result["forms_emitted"] == 1
+    assert variants == [("ἅρπυια", "ἅρπυιᾰ", "canonical", '["canonical"]')]
+
+
+def test_forms_other_class_round_trips_through_insert(fresh_db: Path) -> None:
+    """A form with tags that don't match alternative/romanization/
+    canonical/inflection lands as variant_class='other' and survives
+    the CHECK constraint."""
+    line = _wiktextract_entry_with_forms(
+        word="word",
+        lang_code="ang",
+        # 'sense:foo' is not in the inflection set or any of the named
+        # alternative/romanization/canonical buckets.
+        forms=[{"form": "wordlet", "tags": ["sense:foo"]}],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        variants = _all_etymon_variants(db)
+    assert result["forms_emitted"] == 1
+    assert variants == [("word", "wordlet", "other", '["sense:foo"]')]

@@ -5275,6 +5275,71 @@ def test_migrate_schema_adds_etymon_descent_to_legacy_db(fresh_db: Path) -> None
         assert applied2["etymon_descent_table"] is False
 
 
+def test_migrate_schema_adds_etymon_variant_to_legacy_db(fresh_db: Path) -> None:
+    """A pre-wyrd-fqil DB without etymon_variant picks it up on
+    migrate_schema. Mirrors the etymon_descent migration test:
+    verifies (1) the table is created, (2) ON DELETE CASCADE on
+    etymon_id survives the migration DDL, (3) all three indexes are
+    created, (4) the COLLATE NOCASE on form survives the migration
+    path. Idempotent on re-run."""
+    with LexiconDB(fresh_db) as db:
+        # Simulate a pre-wyrd-fqil schema by dropping the variant table.
+        db.conn.execute("DROP TABLE IF EXISTS etymon_variant")
+        tables = {
+            row["name"]
+            for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+        assert "etymon_variant" not in tables
+
+        applied = migrate_schema(db)
+        assert applied["etymon_variant_table"] is True
+
+        tables = {
+            row["name"]
+            for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+        assert "etymon_variant" in tables
+
+        # Cascade behavior must survive the migration-path DDL.
+        fks = list(db.conn.execute("PRAGMA foreign_key_list(etymon_variant)"))
+        on_delete = {fk["from"]: fk["on_delete"] for fk in fks}
+        assert on_delete.get("etymon_id") == "CASCADE", (
+            f"migration-path DDL dropped ON DELETE CASCADE on etymon_id; got {on_delete!r}"
+        )
+
+        # All three indexes from lexicon.sql must also be created on the
+        # migration path. Drift between lexicon.py and lexicon.sql in
+        # which indexes get attached is a real risk.
+        indexes = {
+            row["name"]
+            for row in db.conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='etymon_variant'"
+            )
+        }
+        assert "idx_etymon_variant_etymon" in indexes
+        assert "idx_etymon_variant_form" in indexes
+        assert "idx_etymon_variant_class" in indexes
+
+        # COLLATE NOCASE on form must survive — verify by inserting a
+        # case-mismatched lookup and asserting it matches.
+        db.conn.execute("INSERT INTO source (id, title, author) VALUES ('test-variant', 'T', 'T')")
+        db.conn.execute(
+            "INSERT INTO etymon (id, canonical_form, language) VALUES (9999, 'lemma', 'old-english')"
+        )
+        db.conn.execute(
+            "INSERT INTO etymon_variant (etymon_id, form, variant_class, source_id) "
+            "VALUES (9999, 'CaseTest', 'alternative', 'test-variant')"
+        )
+        n = db.conn.execute(
+            "SELECT COUNT(*) FROM etymon_variant WHERE form = 'casetest'"
+        ).fetchone()[0]
+        assert n == 1, "COLLATE NOCASE on form did not survive the migration path"
+
+        # Idempotent re-run.
+        applied2 = migrate_schema(db)
+        assert applied2["etymon_variant_table"] is False
+
+
 def test_migrate_schema_adds_etymon_cognate_columns_to_legacy_db(
     fresh_db: Path,
 ) -> None:

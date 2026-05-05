@@ -167,6 +167,72 @@ class Resolution:
     unapproved_form: str | None = None
 
 
+def _seed_rows_for_name(
+    conn: sqlite3.Connection, name: str
+) -> tuple[list[sqlite3.Row], list[sqlite3.Row]]:
+    """Return (direct_lemma_rows, variant_seeded_rows) — the two
+    BFS-seed sources used by descent_walking_lookup, deduped against
+    each other so the same etymon never appears in both lists.
+
+    (a) direct: etymon.canonical_form matches the input (case-insens).
+    (b) variant: etymon_variant.form matches (COLLATE NOCASE on column),
+        and the variant's parent etymon isn't already in (a).
+    """
+    direct = conn.execute(
+        "SELECT id, canonical_form, language FROM etymon "
+        "WHERE LOWER(canonical_form) = LOWER(?) "
+        "ORDER BY id",
+        (name,),
+    ).fetchall()
+    direct_ids = {r["id"] for r in direct}
+    if direct_ids:
+        placeholders = ",".join("?" * len(direct_ids))
+        variant = conn.execute(
+            f"""SELECT DISTINCT e.id, e.canonical_form, e.language
+                FROM etymon_variant v
+                JOIN etymon e ON e.id = v.etymon_id
+                WHERE v.form = ?
+                  AND e.id NOT IN ({placeholders})
+                ORDER BY e.id""",
+            (name, *direct_ids),
+        ).fetchall()
+    else:
+        variant = conn.execute(
+            """SELECT DISTINCT e.id, e.canonical_form, e.language
+               FROM etymon_variant v
+               JOIN etymon e ON e.id = v.etymon_id
+               WHERE v.form = ?
+               ORDER BY e.id""",
+            (name,),
+        ).fetchall()
+    return direct, variant
+
+
+def _seed_direct_hits(
+    direct: list[sqlite3.Row],
+    variant: list[sqlite3.Row],
+    approved: frozenset[str],
+) -> list[AncestorMatch]:
+    """Collect the seed rows whose language is in `approved`, tagged
+    with the appropriate edge_type. Direct lemma matches come first
+    as edge_type='(direct)'; variant-mediated matches follow with
+    edge_type='(direct-via-variant)' so callers can tell a match was
+    through an alt-form rather than the lemma."""
+    hits: list[AncestorMatch] = []
+    for rows, edge in ((direct, "(direct)"), (variant, "(direct-via-variant)")):
+        for r in rows:
+            if r["language"] in approved:
+                hits.append(
+                    AncestorMatch(
+                        etymon_id=r["id"],
+                        canonical_form=r["canonical_form"],
+                        language=r["language"],
+                        edge_type=edge,
+                    )
+                )
+    return hits
+
+
 def descent_walking_lookup(
     db_path: Path | str,
     name: str,
@@ -192,70 +258,14 @@ def descent_walking_lookup(
     conn = _connect_ro(db_path)
     conn.row_factory = sqlite3.Row
     try:
-        # (a) Direct lemma matches against etymon.canonical_form.
-        direct_seed_rows = conn.execute(
-            "SELECT id, canonical_form, language FROM etymon "
-            "WHERE LOWER(canonical_form) = LOWER(?) "
-            "ORDER BY id",
-            (name,),
-        ).fetchall()
-        # (b) Variant matches: input form appears in etymon_variant.form.
-        # Uses the column's COLLATE NOCASE for case-insensitive match.
-        # Excludes etymon_ids already surfaced by (a) so we don't
-        # double-count the same lemma row.
-        direct_ids = {r["id"] for r in direct_seed_rows}
-        if direct_ids:
-            placeholders = ",".join("?" * len(direct_ids))
-            variant_seed_rows = conn.execute(
-                f"""SELECT DISTINCT e.id, e.canonical_form, e.language
-                    FROM etymon_variant v
-                    JOIN etymon e ON e.id = v.etymon_id
-                    WHERE v.form = ?
-                      AND e.id NOT IN ({placeholders})
-                    ORDER BY e.id""",
-                (name, *direct_ids),
-            ).fetchall()
-        else:
-            variant_seed_rows = conn.execute(
-                """SELECT DISTINCT e.id, e.canonical_form, e.language
-                   FROM etymon_variant v
-                   JOIN etymon e ON e.id = v.etymon_id
-                   WHERE v.form = ?
-                   ORDER BY e.id""",
-                (name,),
-            ).fetchall()
-
-        if not direct_seed_rows and not variant_seed_rows:
+        direct, variant = _seed_rows_for_name(conn, name)
+        if not direct and not variant:
             return []
 
-        all_seed_ids = direct_ids | {r["id"] for r in variant_seed_rows}
+        all_seed_ids = {r["id"] for r in direct} | {r["id"] for r in variant}
         seen_etymon_ids: set[int] = set(all_seed_ids)
         frontier: list[int] = list(all_seed_ids)
-        approved_hits: list[AncestorMatch] = []
-
-        # Direct hits in approved langs come first.
-        for r in direct_seed_rows:
-            if r["language"] in approved:
-                approved_hits.append(
-                    AncestorMatch(
-                        etymon_id=r["id"],
-                        canonical_form=r["canonical_form"],
-                        language=r["language"],
-                        edge_type="(direct)",
-                    )
-                )
-        # Then variant-mediated direct hits (the input form was in
-        # etymon_variant.form, the parent etymon is in an approved lang).
-        for r in variant_seed_rows:
-            if r["language"] in approved:
-                approved_hits.append(
-                    AncestorMatch(
-                        etymon_id=r["id"],
-                        canonical_form=r["canonical_form"],
-                        language=r["language"],
-                        edge_type="(direct-via-variant)",
-                    )
-                )
+        approved_hits = _seed_direct_hits(direct, variant, approved)
 
         # BFS through descent edges (frontier is the set of etymon_ids
         # whose parents we haven't yet visited). One DB round-trip per
