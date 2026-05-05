@@ -244,11 +244,13 @@ new lemmas crossing the D4 ≥3-witness promotion threshold.
 
 The bundled `meanings.json` is now exported from the lexicon (D1
 follow-through), so all the mining + per-reflex narrowing + per-language
-thresholds work reaches the runtime. Current bundle: **1616 subjects**,
-**~2900 unique modern_usages**, with **444 morphemes carrying spelling
-variant pools (D18)** and **301 inflected etymons (D8)** across 9
-case labels (Bannister 1916 Herefordshire mining surfaced ~130 new OE
-inflections).
+thresholds work reaches the runtime. Current bundle (post-2026-05-04
+re-emit, PR #58): **1697 subjects**, **3807 words**, with **298 morphemes
+carrying spelling variant pools (D18)**, **306 inflected etymons (D8)**
+across 9 case labels, **1669 morphemes with scholarly citation
+metadata (wyrd-9kh.1)**, and **1215 morphemes (31.9%) carrying
+attested_year data (D5-1)** that activates the runtime `--era`
+filter (D5-3).
 
 The runtime exposes six GM-facing generation knobs, all defaulting
 to off / 0 (bit-stable historical behavior):
@@ -264,9 +266,14 @@ to off / 0 (bit-stable historical behavior):
   tag_cooccurrence data.
 - `--era` (D5-3, wyrd-lyp): restrict morpheme inventory to forms
   attested in a particular period. Accepts year (`1086`), cell label
-  (`oe-late`), or `family/label` (`english/oe-late`). Currently a
-  no-op end-to-end because the bundle lacks attested_years data; the
-  wiring activates on the next bundle re-emit.
+  (`oe-late`), or `family/label` (`english/oe-late`). Active in
+  production as of the 2026-05-04 bundle re-emit (PR #58 / wyrd-j5v):
+  31.9% of bundle words carry `_attested_years` data, and the filter
+  empirically narrows the English keep-set from 2901 → 2327 (oe-early)
+  / 2433 (oe-late) / 2690 (me) / 2323 (early-modern) / 2246 (modern).
+  The keep-set collapses to None when the era covers every usage, so
+  the filter is bit-stable with no-filter on coverage gaps and
+  short-circuits the per-bucket walk back to the historic fast path.
 - `--spelling-variety` (D18): per-morpheme probability of substituting
   an attested archaic spelling for the canonical reflex.
 - `--inflection-density` (D8): per-morpheme probability of substituting
@@ -290,7 +297,19 @@ foundation for wyrd-08m (decomposition multiplicity) and wyrd-cv3
 (corpus DB ingest); standalone in `trie_matcher.py` for now, Phase 2
 wires it into `Name.find_meaning`. And the etymon.synset_id →
 etymon.cognate_id rename (wyrd-44a, PR #63) cleared the naming
-collision between cognate-cluster IDs and meaning_synset IDs.
+collision between cognate-cluster IDs and meaning_synset IDs. The
+numbered-list parser (wyrd-5af partial, PR #65) handles ordinal-
+prefixed treatise sections (Longnon vol 2 saint-names: 7× lift on
+parsed-entry count over the alphabetical parser); the prompt-side
+sub-feature (custom schema for "Latin → French Saint-X" terse
+derivations) is deferred — empirical 30-entry smoke against the
+default English-etymology prompt yielded 3.3% accept. The
+`lexicon review --include-haiku` flag (wyrd-eca, PR #66) widens the
+Tier-2 candidate query to also pick up Haiku-Tier-1-mined rows;
+unblocks Gemini Tier-2 review on non-Celtic Haiku-mined books
+(Bannister, Moorman, Duignan, etc.). Plus the parallelized
+`mine-llm --concurrency N` (wyrd-l0r, PR #62) and the
+filter_for_tag PYTHONHASHSEED bit-stability fix (wyrd-8ga, PR #60).
 
 Five cultures: `english`, `scottish`, `welsh`, `irish`, **`breton`**.
 The breton register was added with a 1214-commune corpus pulled from
