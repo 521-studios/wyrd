@@ -964,6 +964,53 @@ def _create_mining_run_table(db: LexiconDB, applied: dict[str, bool]) -> None:
     applied["mining_run_table"] = True
 
 
+def _create_fantasy_morpheme_table(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """wyrd-ami: create fantasy_morpheme to record (name, description) → resolution.
+
+    Each input fed to `lexicon mine-fantasy-name` produces ONE row here,
+    regardless of whether the morpheme was usable. Usable rows link to
+    a real etymon (already in the etymon table from corpus mining); barred
+    rows record `bar_reason` so a later pass can revisit (e.g. wyrd-0ab's
+    constructed-etymology Phase 2 may rescue rows barred as
+    `no_etymology_found` or `outside_language_family`).
+
+    `approach_version` carries the pipeline-version marker the user asked
+    for: when we ship a stronger pipeline (e.g. after wyrd-gpif lands
+    alt-form ingestion), bump the version constant in
+    `fantasy_pipeline.APPROACH_VERSION` and re-process any rows from
+    earlier versions.
+    """
+    existing = {
+        row["name"]
+        for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
+    if "fantasy_morpheme" in existing:
+        return
+    db.conn.executescript(
+        """
+        CREATE TABLE fantasy_morpheme (
+          id                INTEGER PRIMARY KEY AUTOINCREMENT,
+          input_name        TEXT NOT NULL,
+          input_description TEXT,
+          usable            INTEGER NOT NULL CHECK (usable IN (0, 1)),
+          etymon_id         INTEGER REFERENCES etymon(id) ON DELETE SET NULL,
+          bar_reason        TEXT,
+          resolution_method TEXT NOT NULL,
+          approach_version  TEXT NOT NULL,
+          confidence        TEXT,
+          citation          TEXT,
+          reasoning         TEXT,
+          processed_at      TEXT NOT NULL,
+          UNIQUE (input_name, approach_version)
+        );
+        CREATE INDEX idx_fantasy_morpheme_approach ON fantasy_morpheme(approach_version);
+        CREATE INDEX idx_fantasy_morpheme_etymon   ON fantasy_morpheme(etymon_id);
+        CREATE INDEX idx_fantasy_morpheme_usable   ON fantasy_morpheme(usable);
+        """
+    )
+    applied["fantasy_morpheme_table"] = True
+
+
 def record_mining_run(
     db: LexiconDB,
     *,
@@ -1056,6 +1103,7 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "etymon.synset_id_renamed_to_cognate_id": False,
         "etymon.synset_method_renamed_to_cognate_method": False,
         "idx_etymon_synset_renamed_to_idx_etymon_cognate": False,
+        "fantasy_morpheme_table": False,
     }
     # wyrd-44a: rename the legacy cognate-cluster column from synset_id
     # to cognate_id BEFORE the add-columns helper runs — otherwise
@@ -1071,6 +1119,7 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     _migrate_citation_context_snippet(db, applied)
     _migrate_toponym_etymology_attested_year(db, applied)
     _create_meaning_synset_tables(db, applied)
+    _create_fantasy_morpheme_table(db, applied)
     _migrate_wal_mode(db, applied)
     db.commit()
     return applied
