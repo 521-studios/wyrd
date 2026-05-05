@@ -9,6 +9,7 @@ admission gate.
 from __future__ import annotations
 
 import json
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -17,10 +18,12 @@ from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.wiktextract_corpus_miner import (
     CULTURE_LANG_SCOPE,
     WIKTIONARY_EMPIRICAL_SOURCE_ID,
+    _accept_candidate,
     _classify_positions,
     _select_canonical_sense,
     _surface_form_for_position,
     build_index,
+    compute_unaccounted_fragments,
     derive_positions,
     mine_corpus,
 )
@@ -443,3 +446,202 @@ def test_missing_slice_file_is_silently_skipped(tmp_path: Path, fresh_db: Path) 
         )
     assert counts["wiktionary_hits"] == 0
     assert counts["etymons_upserted"] == 0
+
+
+# wyrd-7bu1: closing test-coverage gaps flagged by the test-coverage-reviewer
+# agent on PR #68. The functions below have direct unit coverage rather
+# than just transitive coverage via mine_corpus / derive_positions.
+
+
+def _make_meanings_with_one_subject() -> list[dict]:
+    """Tiny meanings-data fixture: one rando-port-style subject so the
+    matcher has a non-empty word_db. compute_unaccounted_fragments
+    needs SOMETHING in the bundle for ``find_meaning`` to run; absent
+    matches surface as candidates."""
+    return [
+        {
+            "meaning": ["River"],
+            "modifier_tags": ["water"],
+            "modifier_type": "Topographical",
+            "words": [{"modern_usage": "Av-", "old_english": ["av"]}],
+        }
+    ]
+
+
+def test_compute_unaccounted_fragments_collects_matcher_leftovers(tmp_path: Path) -> None:
+    """Class 1 of the candidate generator: matcher-leftover fragments
+    from imperfect place names. With a bundle that only knows ``Av-``,
+    ``Avlonwich`` decomposes into ``<Av-> + ['lonwich']`` — ``lonwich``
+    is the unaccounted leftover and should land in the candidate set."""
+    place_names_path = tmp_path / "english_place_names.json"
+    place_names_path.write_text(json.dumps({"England": {"all": ["Avlonwich"]}}))
+    meanings = _make_meanings_with_one_subject()
+    candidates = compute_unaccounted_fragments("english", place_names_path, meanings, min_length=3)
+    assert "lonwich" in candidates
+    # Per-name dedupe: one occurrence in the corpus → count=1.
+    assert candidates["lonwich"] == 1
+
+
+def test_compute_unaccounted_fragments_emits_prefix_and_suffix_substrings(
+    tmp_path: Path,
+) -> None:
+    """Class 3 of the candidate generator: per-word prefixes and
+    suffixes (length min..max) are emitted. For a single-word imperfect
+    place name like ``Cluainacarrick`` the candidate set should contain
+    the full word, every prefix length 3..12, and every suffix length
+    3..12 — the high-impact morphemes (``cluain`` as a prefix) live in
+    this class."""
+    place_names_path = tmp_path / "irish_place_names.json"
+    place_names_path.write_text(
+        json.dumps({"Republic of Ireland": {"all": ["Cluainacarrick"]}})
+    )
+    meanings = _make_meanings_with_one_subject()
+    candidates = compute_unaccounted_fragments(
+        "irish", place_names_path, meanings, min_length=3, max_length=12
+    )
+    # Prefixes (the 'cluain' is the wyrd-1cjg target):
+    assert "clu" in candidates
+    assert "cluain" in candidates
+    # Suffixes:
+    assert "ick" in candidates
+    assert "carrick" in candidates
+    # Whitespace-word: the whole place name (length ≤ max_length).
+    # Cluainacarrick is 14 chars, so it doesn't make the ≤12 cap —
+    # but a shorter case would. Confirm the cap holds:
+    assert all(len(c) <= 12 for c in candidates)
+
+
+def test_compute_unaccounted_fragments_dedupe_per_name(tmp_path: Path) -> None:
+    """Per-name dedup means a candidate that appears multiple times in
+    the SAME place name only contributes once to its counter. A
+    candidate that appears in N different imperfect names has count=N."""
+    place_names_path = tmp_path / "english_place_names.json"
+    place_names_path.write_text(
+        json.dumps(
+            {
+                "England": {
+                    "all": [
+                        "Smithford",  # 'smith' and 'ford' substrings
+                        "Smithfield",  # 'smith' again — should still count once across names
+                    ]
+                }
+            }
+        )
+    )
+    meanings = _make_meanings_with_one_subject()
+    candidates = compute_unaccounted_fragments("english", place_names_path, meanings, min_length=3)
+    # 'smith' appears in both names → count = 2.
+    assert candidates["smith"] == 2
+
+
+def test_accept_candidate_filters_too_short_and_too_long() -> None:
+    """The length filter on the helper. Below min_length: dropped.
+    Above max_length: dropped. In bounds: counted."""
+    candidates: Counter = Counter()
+    seen: set[str] = set()
+    _accept_candidate("ab", candidates, seen, min_length=3, max_length=12)  # too short
+    _accept_candidate(
+        "abcdefghijklmn", candidates, seen, min_length=3, max_length=12
+    )  # too long (14)
+    _accept_candidate("foo", candidates, seen, min_length=3, max_length=12)  # in bounds
+    assert "foo" in candidates
+    assert "ab" not in candidates
+    assert "abcdefghijklmn" not in candidates
+    # Counter incremented to 1 for the in-bounds candidate.
+    assert candidates["foo"] == 1
+
+
+def test_accept_candidate_dedupe_via_seen_set() -> None:
+    """The per-name seen set ensures a candidate isn't double-counted
+    when the matcher emits the same fragment via different paths
+    (matcher-leftover AND prefix substring AND suffix substring)."""
+    candidates: Counter = Counter()
+    seen: set[str] = set()
+    _accept_candidate("foo", candidates, seen, min_length=3, max_length=12)
+    _accept_candidate("foo", candidates, seen, min_length=3, max_length=12)
+    _accept_candidate("foo", candidates, seen, min_length=3, max_length=12)
+    assert candidates["foo"] == 1
+    assert "foo" in seen
+
+
+def test_accept_candidate_skips_empty_string() -> None:
+    """Defensive: empty fragment strings are dropped without raising."""
+    candidates: Counter = Counter()
+    seen: set[str] = set()
+    _accept_candidate("", candidates, seen, min_length=3, max_length=12)
+    assert candidates == {}
+
+
+def test_mine_wiktextract_corpus_cli_apply_and_dry_run(tmp_path: Path) -> None:
+    """End-to-end: ``wyrd kenning lexicon mine-wiktextract-corpus``
+    via CliRunner. Runs the dry-run path then the apply path against
+    a tmp lexicon DB and a synthetic wiktextract slice."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    welsh_slice = sources_dir / "wiktextract_welsh.jsonl"
+    _write_slice(
+        welsh_slice,
+        [{"word": "betws", "lang_code": "cy", "senses": [{"glosses": ["chapel"]}]}],
+    )
+
+    runner = CliRunner()
+
+    # The CLI builds candidates from the bundled per-culture place_names
+    # JSONs via importlib.resources, so we have to feed it a real culture
+    # (welsh) whose corpus contains 'betws' as a substring of some name.
+    # Bryneglwys and Betws Coch are both in the bundled corpus.
+
+    # Dry-run: should hit but write nothing.
+    result = runner.invoke(
+        cli,
+        [
+            "lexicon",
+            "mine-wiktextract-corpus",
+            "--db",
+            str(db_path),
+            "--sources-dir",
+            str(sources_dir),
+            "--culture",
+            "welsh",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    # Stderr summary should mention dry-run.
+    output = result.stderr or result.output
+    assert "dry-run" in output
+    with LexiconDB(db_path) as db:
+        cit_count = db.conn.execute(
+            "SELECT COUNT(*) FROM etymon_citation WHERE source_id=?",
+            (WIKTIONARY_EMPIRICAL_SOURCE_ID,),
+        ).fetchone()[0]
+    assert cit_count == 0
+
+    # Apply: should write rows.
+    result = runner.invoke(
+        cli,
+        [
+            "lexicon",
+            "mine-wiktextract-corpus",
+            "--db",
+            str(db_path),
+            "--sources-dir",
+            str(sources_dir),
+            "--culture",
+            "welsh",
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    with LexiconDB(db_path) as db:
+        cit_count = db.conn.execute(
+            "SELECT COUNT(*) FROM etymon_citation WHERE source_id=?",
+            (WIKTIONARY_EMPIRICAL_SOURCE_ID,),
+        ).fetchone()[0]
+    # 'betws' should have landed as an empirical etymon in welsh.
+    assert cit_count >= 1

@@ -670,22 +670,10 @@ def _surface_form_for_position(canonical_form: str, position: str) -> str:
     return form
 
 
-def derive_attested_year(canonical_lang: str) -> int | None:
-    """Pick a single representative attested year for an empirical
-    Wiktionary entry from its language's era cell.
-
-    The bundle's existing attested_year metadata is per-form; the
-    runtime ``--era`` filter accepts integers and takes the
-    chronologically earliest match. Returning the era's MIDPOINT keeps
-    the entry visible across reasonable era queries while staying
-    truthful about the era cell. Open-ended living languages map to
-    their START year (we don't claim a particular year of attestation
-    when the language is currently spoken).
-    """
-    rng = _LANGUAGE_ERA_RANGE.get(canonical_lang)
-    if rng is None:
-        return None
-    start, end = rng
-    if end is None:
-        return start
-    return (start + end) // 2
+# derive_attested_year was previously defined here but never called from
+# CLI or mine_corpus. Removed in wyrd-7bu1 per the test-coverage-reviewer
+# note that it was untested dead code. Reintroduce here (or write to
+# etymon_text_match.attested_year directly during mine_corpus._write_one)
+# when the empirical-mining pipeline starts populating per-form era data
+# — at which point _LANGUAGE_ERA_RANGE below is the natural source of
+# truth.

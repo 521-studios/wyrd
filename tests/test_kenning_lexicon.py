@@ -3290,6 +3290,156 @@ def test_export_meanings_includes_rando_etymons_with_no_scholar_witnesses(
     assert without_rando == []
 
 
+def test_export_meanings_includes_wiktionary_empirical_etymons(fresh_db: Path) -> None:
+    """wyrd-7bu1 / wyrd-4hx7 follow-up: a family cited only by
+    'wiktionary-empirical' (no rando-port, no scholar witnesses)
+    must surface in the bundle when ``include_wiktionary_empirical=True``
+    and disappear when ``include_wiktionary_empirical=False``. Mirror
+    of test_export_meanings_includes_rando_etymons_with_no_scholar_witnesses
+    for the third UNION admit branch added by wyrd-4hx7."""
+    with LexiconDB(fresh_db) as db:
+        # Synthetic empirical source row (added at first --apply by the
+        # corpus miner; must exist before the citation is written).
+        db.upsert_source(id="wiktionary-empirical", title="Wiktionary (empirical)")
+        eglwys_id = db.upsert_etymon("eglwys", "welsh", modifier_type="Architectural")
+        db.add_gloss(eglwys_id, "church")
+        db.add_tag(eglwys_id, "religious")
+        db.add_citation(eglwys_id, "wiktionary-empirical")
+        db.commit()
+
+        with_empirical = export_meanings(
+            db,
+            include_rando=False,
+            include_wiktionary_empirical=True,
+        )
+        without_empirical = export_meanings(
+            db,
+            include_rando=False,
+            include_wiktionary_empirical=False,
+        )
+
+    assert len(with_empirical) == 1
+    subj = with_empirical[0]
+    assert subj["meaning"] == ["church"]
+    assert "religious" in subj["modifier_tags"]
+    # eglwys's welsh forms route into celtic_mix via _LANG_CODE_TO_JSON_FIELD.
+    assert any("eglwys" in (w.get("celtic_mix") or []) for w in subj["words"])
+    # Without the admit branch, the empirical-only family is dropped.
+    assert without_empirical == []
+
+
+@pytest.mark.parametrize(
+    "etymon_lang,expected_bundle_field",
+    [
+        # The new wyrd-4hx7 mappings — each Wiktionary-canonical
+        # language must route into one of the existing 9 bundle fields.
+        ("welsh", "celtic_mix"),
+        ("middle-welsh", "celtic_mix"),
+        ("old-welsh", "celtic_mix"),
+        ("irish", "celtic_mix"),
+        ("old-irish", "celtic_mix"),
+        ("middle-irish", "celtic_mix"),
+        ("scottish-gaelic", "celtic_mix"),
+        ("manx", "celtic_mix"),
+        ("cornish", "celtic_mix"),
+        ("breton", "celtic_mix"),
+        ("middle-breton", "celtic_mix"),
+        ("old-breton", "celtic_mix"),
+        ("proto-celtic", "celtic_mix"),
+        ("proto-brythonic", "celtic_mix"),
+        ("old-french", "old_french"),
+        ("anglo-norman", "old_french"),
+        ("middle-french", "old_french"),
+        ("middle-english", "modern_english"),
+        ("scots", "modern_english"),
+        ("icelandic", "old_scandinavian"),
+        ("faroese", "old_scandinavian"),
+        ("old-high-german", "germanic"),
+        ("middle-high-german", "germanic"),
+        ("gothic", "germanic"),
+        ("old-saxon", "germanic"),
+        ("old-dutch", "germanic"),
+        ("old-frisian", "germanic"),
+        ("proto-germanic", "germanic"),
+        ("proto-west-germanic", "germanic"),
+        ("ancient-greek", "greek"),
+        ("proto-greek", "greek"),
+    ],
+)
+def test_lang_code_to_json_field_mapping_routes_into_bundle(
+    fresh_db: Path, etymon_lang: str, expected_bundle_field: str
+) -> None:
+    """wyrd-7bu1: each new ``_LANG_CODE_TO_JSON_FIELD`` mapping added
+    by wyrd-4hx7 must route an etymon's forms into the expected bundle
+    field. Without these mappings ``_emit_word_languages`` silently
+    drops the language (since it falls back to ``None`` for unknown
+    keys), which was the bug behind the COVERAGE.md narrative
+    miss in PR #68's first export pass."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="wiktionary-empirical", title="Wiktionary (empirical)")
+        eid = db.upsert_etymon("testform", etymon_lang)
+        db.add_gloss(eid, "test")
+        db.add_citation(eid, "wiktionary-empirical")
+        db.commit()
+        subjects = export_meanings(
+            db,
+            include_rando=False,
+            include_wiktionary_empirical=True,
+        )
+    # The single empirical etymon should produce a single subject with
+    # one word whose forms surface under the expected bundle field.
+    assert len(subjects) == 1
+    word = subjects[0]["words"][0]
+    assert expected_bundle_field in word, (
+        f"language {etymon_lang!r} should route into bundle field "
+        f"{expected_bundle_field!r}; got word fields {list(word.keys())}"
+    )
+    assert "testform" in word[expected_bundle_field]
+
+
+def test_lexicon_export_meanings_cli_no_include_wiktionary_empirical_flag(
+    fresh_db: Path,
+) -> None:
+    """wyrd-7bu1: the CLI's ``--no-include-wiktionary-empirical`` flag
+    suppresses the empirical admit branch, mirroring the existing
+    ``--no-include-rando``. End-to-end via CliRunner."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="wiktionary-empirical", title="Wiktionary (empirical)")
+        eid = db.upsert_etymon("eglwys", "welsh", modifier_type="Architectural")
+        db.add_gloss(eid, "church")
+        db.add_citation(eid, "wiktionary-empirical")
+        db.commit()
+
+    runner = CliRunner()
+
+    # Default: empirical-admit ON, eglwys is in the export.
+    result = runner.invoke(
+        cli,
+        ["lexicon", "export-meanings", "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    assert "eglwys" in result.output
+
+    # --no-include-wiktionary-empirical: eglwys is dropped.
+    result = runner.invoke(
+        cli,
+        [
+            "lexicon",
+            "export-meanings",
+            "--db",
+            str(fresh_db),
+            "--no-include-wiktionary-empirical",
+            "--no-include-rando",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    assert "eglwys" not in result.output
+
+
 def test_export_meanings_promotes_at_three_witnesses(fresh_db: Path) -> None:
     """A family with no rando-port citation needs ≥ min_witnesses to export."""
     with LexiconDB(fresh_db) as db:
