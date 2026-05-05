@@ -217,9 +217,67 @@ an independent 3rd-model witness layer + 121 new unique lemmas at
 sufficient for one such pass; concurrent Gemini Tier-1 work hits
 the rate limit fast. Note: works cleanly when the prior mining used
 Qwen (Tier-2 review path filters Ollama-tagged rows and slips to
-Tier-1 cleanly), but Haiku-mined books have a unique-(toponym_id,
-source_id) collision that blocks 3rd-model attribution unless the
-review query is extended (filed as wyrd-eca).
+Tier-1 cleanly), but Haiku-mined books historically had a unique-
+(toponym_id, source_id) collision that blocked 3rd-model attribution
+until the candidate query was extended (PR #66 / wyrd-eca, 2026-05-05).
+
+**Gemini Tier-2 OVER Haiku Tier-1 lifts on non-Celtic books**
+(2026-05-05, wyrd-eca + 5-book empirical pass). Pattern: a non-Celtic
+book mined with Haiku Tier-1 (because the content shape was unfamiliar
+or the Welsh-Marches NF / Norman-influenced layer made Qwen weak)
+still benefits from Gemini Tier-2 as a second-witness layer. The
+`lexicon review --include-haiku` flag widens the candidate query
+(was limited to Ollama/Qwen-tagged rows). Empirical accept rates on
+the low/medium-confidence subset of each book's Haiku rows:
+
+| Book | Haiku rows | Reviewed (low+med) | Gemini written | Accept |
+| --- | ---: | ---: | ---: | ---: |
+| moorman_1910_west_riding_yorkshire | 102 | 32 | 15 | 47% |
+| bannister_1916_herefordshire | 66 | 22 | 10 | 45% |
+| arbois_1890_recherches_propriete_fonciere | 235 | 66 | 23 | 35% |
+| duignan_1902_staffordshire | 78 | 34 | 7 | 21% |
+| goodall_1914_sw_yorkshire | 76 | 12 | 2 | 17% |
+
+Total +57 Gemini-tagged rows. Roughly: clean English county / Norman-
+adjacent content sits at 45-50% accept, generic English at 17-21%,
+Celtic+Roman at 35%. The candidate query only picks up low/medium
+confidence Haiku rows, so the high-confidence majority (Haiku already
+got it right) is left alone — the lift is concentrated where Haiku
+hedged.
+
+Workflow: after Haiku Tier-1 completes on a non-Celtic book, run
+`lexicon review --book <id> --provider gemini --include-haiku --apply`.
+Idempotent against the same `provider_tag` so re-running is safe.
+
+**Gemini Tier-2 OVER Haiku is also productive on pure Celtic content**
+(2026-05-05, after the Joyce 1898 smoke). The original "skip Tier-2
+for Celtic" rule was justified by Qwen's failure as Tier-1, NOT by
+testing Gemini-on-Haiku. The empirical data inverts the rule:
+
+| Celtic book | Reviewed (low+med) | Gemini written | Accept |
+| --- | ---: | ---: | ---: |
+| joyce_1898_irish_names_vol3 (smoke) | 30 | 24 | **80%** |
+| joyce_1898_irish_names_vol3 (full) | +24 | +12 | 50% |
+| joyce_1913_irish_names_of_places | 32 | 17 | 53% |
+| watson_1926_celtic_place_names_of_scotland | 66 | 14 | 21% |
+| johnston_1904_stirlingshire | 51 | 18 | 35% |
+| morgan_1912_wales | 39 | 21 | 54% |
+| macbain_1922_highlands_and_islands | 37 | 16 | 43% |
+| watson_1904_ross_and_cromarty (haiku id) | 8 | 3 | 38% |
+
+Total +125 Gemini-tagged rows on top of Haiku Tier-1 across 7 Celtic
+books. The smoke rate (joyce_1898 at 80%) overstates full-pass yield
+in the same way as the Watson-1904 calibration warning above, but the
+floor across the seven books is 21% — well above the 15% threshold
+where Tier-2 stops paying for itself. Updated rule:
+
+- Run Gemini Tier-2 on Haiku-Tier-1 Celtic books with `lexicon review
+  --book <id> --provider gemini --include-haiku --apply`. Idempotent.
+
+5 Celtic books are still on Sonnet-Tier-1 and need the wyrd-0rsk
+`--include-sonnet` flag (PR #69) to surface as Tier-2 candidates:
+joyce_1875 v1+v2 (293 rows), moore_1890 (54), johnston_1892 (37),
+morgan_1887 (37). Run after that PR merges.
 
 **Tier 2 review (Gemini Flash) is the standard second pass on English
 mining**, not a contingency. After `mine-llm --provider ollama`
@@ -312,6 +370,10 @@ Acceptance rate by book type:
 | Methodology volumes (Mawer 1922/1924/Mawer-Stenton 1924) | 5–25% |
 | Celtic dictionary via Haiku | 40–60% |
 | Celtic prose chapters via Haiku | 5–15% |
+| Gemini Tier-2 OVER Haiku on non-Celtic Haiku-mined book | 17–47% (low/med subset) |
+| Gemini Tier-2 OVER Haiku on Celtic+Roman content | 35% (Arbois 1890, n=66) |
+| Gemini Tier-2 OVER Haiku on pure Celtic | 21–53% across 7 books, n=287 (2026-05-05 confirmed) |
+| Gemini Tier-2 OVER Sonnet on Celtic | UNTESTED — PR #69 wyrd-0rsk unblocks |
 
 Low accept is not always a bug — it's often the right answer for the
 book type. Consult the table before assuming the pipeline is broken.
@@ -383,9 +445,26 @@ Per `DECISIONS.md` D19, the Sonnet uplift over Gemini Flash for
 mining was empirically ~zero. Reserve API budget for runtime user
 features (explainer, register-shift, MCP).
 
-**Skip Tier 2 for Celtic / Welsh / Irish / Manx mining** — those
-go through Haiku 4.5 as Tier 1 (per D13), and the review path's
-candidate query specifically targets Ollama-tagged rows.
+**Tier-2 on Celtic / Welsh / Irish / Manx IS productive over Haiku**
+(confirmed 2026-05-05). The original "skip Tier-2 for Celtic" rule
+came from Qwen's failure as Tier-1 on Celtic, NOT from testing
+Gemini-on-Haiku. With wyrd-eca's `--include-haiku` flag (PR #66) the
+candidate query reaches Haiku-tagged rows, and the empirical floor
+across 7 books is 21% accept (Watson 1926) with peaks at 50-53%
+(Joyce 1898, Joyce 1913, Morgan 1912). See the case study above for
+the full per-book table.
+
+For non-Celtic Haiku-mined books (Bannister, Harrison, Moorman,
+Arbois, etc.) and Celtic Haiku-mined books alike, Gemini Tier-2 is
+now a standard pass:
+
+```bash
+.venv/bin/wyrd kenning lexicon review sources/ \
+    --book <id> --provider gemini --include-haiku --apply
+```
+
+Idempotent against re-runs. For Sonnet-mined books, use
+`--include-sonnet` (PR #69, wyrd-0rsk).
 
 ### Resuming / re-mining
 
