@@ -250,12 +250,23 @@ variant pools (D18)** and **301 inflected etymons (D8)** across 9
 case labels (Bannister 1916 Herefordshire mining surfaced ~130 new OE
 inflections).
 
-The runtime exposes four GM-facing generation knobs, all defaulting
+The runtime exposes six GM-facing generation knobs, all defaulting
 to off / 0 (bit-stable historical behavior):
 
 - `--novelty` (D17): blend empirical-frequency sampling with a uniform
   marginal — high values let plausible-but-unattested combinations
   through.
+- `--cohesion` (D17 refinement, wyrd-mj2): the OPPOSITE direction
+  from novelty — bias each slot toward usages whose tags co-occur
+  with previously-picked slots' tags in the empirical corpus. Composes
+  orthogonally with novelty so a GM can dial 'attested-pair fidelity'
+  and 'novelty' independently. No-op when the bundle carries no
+  tag_cooccurrence data.
+- `--era` (D5-3, wyrd-lyp): restrict morpheme inventory to forms
+  attested in a particular period. Accepts year (`1086`), cell label
+  (`oe-late`), or `family/label` (`english/oe-late`). Currently a
+  no-op end-to-end because the bundle lacks attested_years data; the
+  wiring activates on the next bundle re-emit.
 - `--spelling-variety` (D18): per-morpheme probability of substituting
   an attested archaic spelling for the canonical reflex.
 - `--inflection-density` (D8): per-morpheme probability of substituting
@@ -268,15 +279,32 @@ to off / 0 (bit-stable historical behavior):
   phonological skew via colon-suffix. Multiple flags compose by
   tag-union and max-harshness. Lives in `__init__.MOODS`.
 
+**Recent infrastructure (2026-05-04 / 2026-05-05)**: meaning_synset
+layer (wyrd-7tz Phase 1, PR #61) — semantic-equivalence catalog for
+upcoming generator transforms (calque, anglicize, drift-toward-X);
+53 seed synsets covering high-frequency place-name semantic classes;
+Phase 2 (LLM-assisted etymon classification of the production
+lexicon) and Phase 3 (transform integration) deferred. Plus the
+trie-indexed segmentation DAG matcher (wyrd-k8e Phase 1, PR #64) —
+foundation for wyrd-08m (decomposition multiplicity) and wyrd-cv3
+(corpus DB ingest); standalone in `trie_matcher.py` for now, Phase 2
+wires it into `Name.find_meaning`. And the etymon.synset_id →
+etymon.cognate_id rename (wyrd-44a, PR #63) cleared the naming
+collision between cognate-cluster IDs and meaning_synset IDs.
+
 Five cultures: `english`, `scottish`, `welsh`, `irish`, **`breton`**.
 The breton register was added with a 1214-commune corpus pulled from
 Wikidata (CC0); morpheme corpus expansion still pending — wyrd-fmg.
 
 ## Pointers to the other docs
 
-- **`DECISIONS.md`** — D1–D26, the architectural decisions and their
+- **`DECISIONS.md`** — D1–D29, the architectural decisions and their
   rationale. Read individual entries when you're about to change
-  something they touch. Don't try to read all of it linearly.
+  something they touch. Don't try to read all of it linearly. Latest
+  additions: D27 (etymological descent graph), D28 (cognate vs
+  meaning_synset axes), D29 (trie-indexed segmentation DAG matcher);
+  D5-3 and D17 have refinements covering the era runtime filter
+  (wyrd-lyp) and cohesion knob (wyrd-mj2).
 - **`INGESTION.md`** — the procedure manual: how to add a new source,
   smoke-test the parser, pick a tier, run mining, run the post-mining
   chain, verify, ship. You only need it when actually mining.

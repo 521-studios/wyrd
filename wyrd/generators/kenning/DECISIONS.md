@@ -753,3 +753,155 @@ Wiktionary. Existing dictionary mining that says "from OE tūn" could
 populate `etymon_descent` rows too — Mawer / Skeat / Ekwall already
 make these chain assertions in passing. Extracting them is a
 follow-on; the schema is general enough.
+
+## D28. Two equivalence axes: cognate (etymological) vs meaning_synset (semantic).
+
+After wyrd-44a + wyrd-7tz Phase 1 (PRs #61, #63), the lexicon
+distinguishes two distinct axes of "these morphemes are related":
+
+- **Cognate cluster** — `etymon.cognate_id` (renamed from
+  `synset_id` in wyrd-44a). Etymology-based: every etymon reachable
+  via inheritance + borrowing edges from a common Proto-* root
+  shares one cognate_id. OE `tūn` / ON `tún` / Icelandic `tún` /
+  modern English `town` all point at PGmc *tūnaz. Populated by the
+  `cluster-cognates` enrichment pass against `etymon_descent`.
+
+- **Meaning synset** — `meaning_synset` table + `etymon_meaning_synset`
+  join. Semantic equivalence: every etymon assigned to the
+  `water/flowing` synset shares "flowing water" as a sense, regardless
+  of etymological relation. OE `wæter`, OE `strēam`, ON `bekkr` are
+  all in `water/flowing`; OE `mere` is in `water/body`. Populated by
+  manual seed (Phase 1) + LLM-assisted classification (Phase 2,
+  upcoming).
+
+The two axes are orthogonal:
+
+- A pair sharing cognate_id is etymologically related but may diverge
+  in sense (English `silly` and German `selig` are cognates but mean
+  different things now).
+- A pair sharing a meaning_synset is semantically equivalent but may
+  be etymologically unrelated (OE `wæter` and ON `bekkr` are not
+  cognates but both mean "flowing water" in place-name use).
+
+Generator transforms use one axis or the other based on intent:
+
+- **Anglicize / drift-toward-X**: meaning_synset (find a same-meaning
+  morpheme in the target language).
+- **Calque** (structural translation): meaning_synset (White Hill →
+  Albus Mons → Bryn Gwyn).
+- **Cognate-substitute** (etymological reverence): cognate_id (replace
+  modern `town` with the historical reflex `tūn`).
+- **Drift toward archaic register**: cognate_id (walk back to a more
+  ancestral reflex of the same etymon).
+
+The naming collision before wyrd-44a ("synset_id" was used for both
+the cognate-cluster column AND the new semantic-equivalence concept)
+was technical debt; the rename clears it.
+
+## D29. Trie-indexed segmentation DAG matcher.
+
+The matcher (wyrd-k8e Phase 1, PR #64) is a trie-indexed segmentation
+DAG with multi-path enumeration — NOT a pure trie matcher. The trie
+is the character-level prefix index; the matcher walks it from every
+input position collecting EVERY accepting state along the path
+(including intermediate ones), then DFS-enumerates every full path
+through the resulting segmentation DAG. Multi-parse is the load-
+bearing invariant: a word with two senses for one surface (-y =
+'island' OR 'district') OR competing breakdowns (`-ham-` AND
+`-hamlet-` both in trie → 'hamlet' surfaces as both `ham + let` and
+`hamlet`) surfaces ALL parses.
+
+Public API (`wyrd/generators/kenning/trie_matcher.py`):
+
+- `all_decompositions(word, trie)` — every parse, including
+  partial-match alternatives that fall through the skip-into-
+  unaccounted branch.
+- `canonical_decompositions(word, trie)` (plural) — every parse tied
+  for 'best' under the `(unaccounted_chars, morpheme_count)` score.
+  Plural for callers that need every reading the explainer would
+  surface.
+- `canonical_decomposition(word, trie)` (singular) — ONE
+  deterministic pick. Tiebreaker is list-index of the first
+  matched element; ties beyond that fall back to meaning_db
+  insertion order.
+
+Composition with the legacy matcher (Phase 2): `Name.find_meaning`
+gets a flag to choose trie or iterator; Phase 3 makes trie the
+default and removes the iterator. Phase 1 ships standalone.
+
+Why this matters:
+
+- ~200x speedup vs the legacy O(M)-per-recursion-level iterator on
+  routine corpus passes (10K toponyms × 1500 morphemes).
+- Multi-decomposition becomes a graph walk instead of a heuristic
+  reduce + dedupe-by-signature.
+- Inflection resolution at match time is the natural Phase 2
+  extension if inflected variants are inserted directly into the
+  trie source data.
+
+## D5-3. Era runtime filter (wyrd-lyp, PR #57).
+
+Refines D5-2: the era-cell mapping (D5-2 design) now has a runtime
+counterpart. The kenning generator's `--era` knob (CLI) /
+`era` input_schema property accepts a year (`1086`), a cell label
+(`oe-late`, `me`, `middle-irish`), or a `family/label` pair
+(`english/oe-late`).
+
+Implementation:
+
+- `Meaning.attested_in_era_range(era_range)` — predicate on the
+  per-language `attested_years` data (D5-1 mining output).
+- `MeaningGenerator.keep_keys_for_era(era_range)` — precomputes the
+  allowed-usage frozenset; cached per range; collapses to None on
+  full-coverage so the no-filter fast path stays bit-stable.
+- `Generator.select(keep_keys=...)` — bucket-level intersection.
+- `NameGenerator.select(era_range=...)` — threads through every
+  per-bucket pick.
+
+`era=None` is bit-stable with the pre-PR sampler. Today's bundled
+`meanings.json` carries no attested_years data — the filter is a
+documented no-op end-to-end until the next bundle re-emit. Wiring
+is in place so a single export cycle activates the feature.
+
+Bare-label resolution is strict: a label not in the culture's default
+era family raises ValueError listing the families that DO define it,
+prompting the user toward the explicit `family/label` form. No silent
+cross-family fallback — it's too easy to accidentally route an
+'english' culture's `--era middle-irish` to the goidelic range.
+
+## D17 refinement: cohesion knob (wyrd-mj2, PR #59).
+
+D17 originally specified the novelty knob: blend each morpheme
+bucket's empirical-frequency distribution with a uniform marginal,
+allowing plausible-but-unattested combinations. wyrd-mj2 adds the
+companion **cohesion** knob, which biases the OPPOSITE direction —
+toward attested tag-class pairings.
+
+As the structure walk fills slots, the union of previously-picked
+usages' tags becomes the prior-context set. Each subsequent slot's
+bucket gets a per-key multiplier:
+
+```
+raw_score(usage)  = Σ over (ta in prior, tb in usage.tags)
+                       of tag_cooccurrence[ta|tb] / tag_marginal[ta]
+multiplier(usage) = (1 - cohesion) + cohesion * (raw_score / mean_raw_in_bucket)
+```
+
+Mean-normalization preserves total mass — at cohesion=1 average-
+likelihood candidates get ~1×, above-average >1×, below-average <1×.
+
+Composes orthogonally with novelty (uniform-marginal blend, applied
+LAST in `Generator.select`) and harshness (D6 phonological re-weight).
+GMs can dial 'attested-pair fidelity' (cohesion) and 'novelty'
+independently. No-op when the bundle carries no `tag_cooccurrence`
+data (legacy bundles ride the bit-stable path even at cohesion=1).
+
+Bit-stable at cohesion=0 — `_cohesion_boost` short-circuits to None
+and `Generator.select` takes its harshness=0/novelty=0/key_boost=None
+fast path.
+
+Bit-stability across PYTHONHASHSEED: `_raw_class_score` sorts
+`prior_tags` and `candidate_tags` before iteration. Without the
+sort, set-iteration order varies across processes and float-
+summation accumulates ULP-level different scores that could flip
+weighted_choice outcomes at boundaries.
