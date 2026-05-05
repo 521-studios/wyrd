@@ -3506,6 +3506,45 @@ _LANG_CODE_TO_JSON_FIELD = {
     "greek": "greek",
     "modern-english": "modern_english",
     "biblical": "biblical",
+    # wyrd-4hx7: Wiktionary-canonical language codes (per
+    # wiktextract_ingester._canonical_language) routed into the same
+    # 9 bundle fields the historical scholarly corpus used. The
+    # bundle field structure stays at 9 buckets; the lexicon keeps
+    # finer-grained languages on the etymon row for future per-language
+    # queries. Adding new bundle field names later (e.g. "welsh",
+    # "irish") would require runtime + culture-mapping work; routing
+    # into existing buckets is the no-runtime-change path.
+    "welsh": "celtic_mix",
+    "old-welsh": "celtic_mix",
+    "middle-welsh": "celtic_mix",
+    "irish": "celtic_mix",
+    "old-irish": "celtic_mix",
+    "middle-irish": "celtic_mix",
+    "scottish-gaelic": "celtic_mix",
+    "manx": "celtic_mix",
+    "cornish": "celtic_mix",
+    "breton": "celtic_mix",
+    "old-breton": "celtic_mix",
+    "middle-breton": "celtic_mix",
+    "proto-celtic": "celtic_mix",
+    "proto-brythonic": "celtic_mix",
+    "old-french": "old_french",
+    "anglo-norman": "old_french",
+    "middle-french": "old_french",
+    "middle-english": "modern_english",
+    "scots": "modern_english",
+    "icelandic": "old_scandinavian",
+    "faroese": "old_scandinavian",
+    "old-high-german": "germanic",
+    "middle-high-german": "germanic",
+    "gothic": "germanic",
+    "old-saxon": "germanic",
+    "old-dutch": "germanic",
+    "old-frisian": "germanic",
+    "proto-germanic": "germanic",
+    "proto-west-germanic": "germanic",
+    "ancient-greek": "greek",
+    "proto-greek": "greek",
 }
 
 # Per-language witness thresholds calibrated against corpus availability and
@@ -3544,14 +3583,19 @@ def export_meanings(
     min_witnesses: int = 3,
     lang_thresholds: dict[str, int] | None = None,
     include_rando: bool = True,
+    include_wiktionary_empirical: bool = True,
 ) -> list[dict[str, Any]]:
     """Walk the lexicon and emit a meanings.json structure.
 
-    Promotion rule (D4): a family root is included if either
+    Promotion rule (D4): a family root is included if any of:
     (a) any etymon in the family is cited by 'rando-port' AND ``include_rando``
         is true (legacy seed kept until corroborated), OR
     (b) the family's witness count (``etymon_consensus.witnesses``) is at
-        least the threshold for that family's language.
+        least the threshold for that family's language, OR
+    (c) any etymon in the family is cited by 'wiktionary-empirical' AND
+        ``include_wiktionary_empirical`` is true (empirical class — wyrd-4hx7
+        corpus-mining headwords matched against unaccounted-fragment misses;
+        treated like rando-port: bypass the scholar-witness gate).
 
     The threshold per language is taken from ``lang_thresholds`` (defaults to
     ``RECOMMENDED_LANG_THRESHOLDS``); languages absent from the map use
@@ -3578,6 +3622,7 @@ def export_meanings(
         min_witnesses=min_witnesses,
         lang_thresholds=lang_thresholds,
         include_rando=include_rando,
+        include_wiktionary_empirical=include_wiktionary_empirical,
     )
     subjects = _group_families_into_subjects(families)
     if include_rando:
@@ -3616,60 +3661,122 @@ def _collect_families(
     min_witnesses: int,
     lang_thresholds: dict[str, int],
     include_rando: bool,
+    include_wiktionary_empirical: bool = True,
 ) -> list[dict[str, Any]]:
-    """Build per-family-root data: forms-by-language, glosses, tags, reflexes."""
+    """Build per-family-root data: forms-by-language, glosses, tags, reflexes.
+
+    Three admission paths feed ``promoted``:
+      * scholar-witness threshold (``etymon_consensus``)
+      * rando-port seed admit (legacy Wikipedia-derived bundle)
+      * wiktionary-empirical admit (wyrd-4hx7 corpus-mined gap-fills)
+
+    Each empirical-class admit is gated by its own boolean flag so callers
+    can A/B by toggling either branch (e.g. ``--no-include-rando`` or
+    ``--no-include-wiktionary-empirical``) without disturbing the other.
+    """
     witness_sql, witness_params = _build_witness_filter(lang_thresholds, min_witnesses)
-    cur = db.conn.execute(
-        f"""
-        WITH rollup AS (
-            SELECT
-                e.id AS etymon_id,
-                COALESCE(le.id, target.id, e.id) AS root_id
-            FROM etymon e
-            LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
-            LEFT JOIN etymon le ON le.id = target.lemma_id
-        ),
-        rando_roots AS (
-            SELECT DISTINCT r.root_id
-            FROM rollup r
-            JOIN etymon_citation c ON c.etymon_id = r.etymon_id
-            WHERE c.source_id = 'rando-port'
-        ),
-        promoted AS (
-            SELECT lemma_id AS root_id FROM etymon_consensus WHERE {witness_sql}
-            UNION
-            SELECT root_id FROM rando_roots WHERE ? = 1
-        )
-        SELECT DISTINCT root_id FROM promoted
-        ORDER BY root_id
-        """,
-        [*witness_params, 1 if include_rando else 0],
-    )
-    root_ids = [row["root_id"] for row in cur.fetchall()]
+
+    # Performance: compute the etymon → root_id rollup in PYTHON rather
+    # than via a SQL CREATE TEMP TABLE. The relational form needs
+    # ``LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id,
+    # e.lemma_id)`` — a function-on-columns join predicate that no index
+    # can satisfy. On a 731K-row etymon table that's a many-minute scan,
+    # whether materialised once into a temp table or recomputed per
+    # query. A flat ``SELECT id, merged_into_id, lemma_id FROM etymon``
+    # plus a Python dict produces the same rollup in seconds:
+    # 731K rows * ~1µs/row = ~1s vs ~minutes for the SQL JOIN.
+    #
+    # The rollup follows the consensus view's two-step rule (D22 +
+    # D8 flatten):
+    #   1) target = merged_into_id OR lemma_id OR self
+    #   2) root   = lemma_id of target OR target itself
+    # so OCR-cluster losers and inflected children both surface their
+    # ultimate lemma as root_id.
+    rollup_rows = db.conn.execute("SELECT id, merged_into_id, lemma_id FROM etymon").fetchall()
+    lemma_by_id = {r["id"]: r["lemma_id"] for r in rollup_rows}
+    target_by_id = {r["id"]: (r["merged_into_id"] or r["lemma_id"] or r["id"]) for r in rollup_rows}
+
+    def _root_of(eid: int) -> int:
+        target = target_by_id.get(eid, eid)
+        return lemma_by_id.get(target) or target
+
+    members_by_root: dict[int, list[int]] = {}
+    for eid in target_by_id:
+        rid = _root_of(eid)
+        members_by_root.setdefault(rid, []).append(eid)
+
+    # Promoted root_ids come from three sources:
+    # (a) consensus witness threshold per language (existing query),
+    # (b) any etymon cited by 'rando-port' (legacy seed),
+    # (c) any etymon cited by 'wiktionary-empirical' (wyrd-4hx7).
+    # For (b) and (c) we just SELECT the cited etymon_ids and roll
+    # them up in Python — much faster than the JOIN-based CTE. For
+    # (a) the consensus view already keys on lemma_id, no rollup needed.
+    promoted: set[int] = set()
+    for row in db.conn.execute(
+        f"SELECT lemma_id AS root_id FROM etymon_consensus WHERE {witness_sql}",
+        witness_params,
+    ):
+        promoted.add(row["root_id"])
+
+    if include_rando:
+        for row in db.conn.execute(
+            "SELECT etymon_id FROM etymon_citation WHERE source_id = 'rando-port'"
+        ):
+            promoted.add(_root_of(row["etymon_id"]))
+
+    if include_wiktionary_empirical:
+        for row in db.conn.execute(
+            "SELECT etymon_id FROM etymon_citation WHERE source_id = 'wiktionary-empirical'"
+        ):
+            promoted.add(_root_of(row["etymon_id"]))
+
+    root_ids = sorted(promoted)
+
+    # Progress reporting on large empirical-class re-exports — without it
+    # the user has no way to estimate how far along a 30-minute run is.
+    # Chosen step keeps the stderr output to ~50 lines for the typical
+    # 5-10K-root corpus while still emitting first-rate-of-change signal
+    # within the first minute.
+    import os
+    import sys
+    import time
+
+    quiet = os.environ.get("WYRD_EXPORT_QUIET") == "1"
+    n_total = len(root_ids)
+    progress_every = max(1, n_total // 50) if n_total else 1
+    started = time.monotonic()
 
     families: list[dict[str, Any]] = []
-    for root_id in root_ids:
-        family = _gather_family(db, root_id)
+    for i, root_id in enumerate(root_ids, 1):
+        member_ids = members_by_root.get(root_id, [root_id])
+        family = _gather_family(db, root_id, member_ids)
         if family is not None and family["forms_by_lang"]:
             families.append(family)
+        if not quiet and (i % progress_every == 0 or i == n_total):
+            elapsed = time.monotonic() - started
+            rate = i / elapsed if elapsed > 0 else 0
+            eta = (n_total - i) / rate if rate > 0 else 0
+            print(
+                f"  _collect_families {i}/{n_total} "
+                f"({100 * i / n_total:.1f}%) "
+                f"elapsed={elapsed:.0f}s eta={eta:.0f}s "
+                f"({rate:.0f} roots/s)",
+                file=sys.stderr,
+                flush=True,
+            )
     return families
 
 
-_FAMILY_MEMBER_SQL = """
-SELECT e.id, e.canonical_form, e.language, e.lemma_id, e.merged_into_id, e.inflection
-FROM etymon e
-LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
-LEFT JOIN etymon le ON le.id = target.lemma_id
-WHERE COALESCE(le.id, target.id, e.id) = ?
-ORDER BY e.language, e.canonical_form
-"""
-
-
-def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
+def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[str, Any] | None:
     """Collect forms / glosses / tags / reflexes for one family root.
 
     Includes the root itself plus all etymons that roll up to it
     (inflected children, OCR-cluster losers, and combinations thereof).
+    ``member_ids`` is the precomputed family-membership list (root +
+    children) — caller is responsible for the rollup, computed once in
+    ``_collect_families`` to avoid the per-root SQL JOIN that scaled
+    badly on the 731K-row etymon table.
     Pure orchestrator — each per-aspect aggregation lives in a focused
     helper below.
     """
@@ -3680,7 +3787,18 @@ def _gather_family(db: LexiconDB, root_id: int) -> dict[str, Any] | None:
     if root_row is None:
         return None
 
-    member_rows = db.conn.execute(_FAMILY_MEMBER_SQL, (root_id,)).fetchall()
+    if not member_ids:
+        return None
+    placeholders = ",".join("?" * len(member_ids))
+    member_rows = db.conn.execute(
+        f"""
+        SELECT id, canonical_form, language, lemma_id, merged_into_id, inflection
+        FROM etymon
+        WHERE id IN ({placeholders})
+        ORDER BY language, canonical_form
+        """,
+        member_ids,
+    ).fetchall()
     if not member_rows:
         return None
 

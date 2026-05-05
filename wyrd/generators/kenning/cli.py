@@ -68,6 +68,11 @@ from wyrd.generators.kenning.paths import (
     default_lexicon_path,
 )
 from wyrd.generators.kenning.skeat_parser import parse_skeat_text
+from wyrd.generators.kenning.wiktextract_corpus_miner import (
+    compute_unaccounted_fragments,
+    derive_positions,
+    mine_corpus,
+)
 from wyrd.generators.kenning.wiktextract_ingester import ingest_wiktextract_path
 from wyrd.seed import resolve_seed, rng_for
 
@@ -884,6 +889,13 @@ _KNOWN_SKEAT_BOOKS = {
     show_default=True,
     help="Include rando-port-cited families regardless of witness count (D4 legacy).",
 )
+@click.option(
+    "--include-wiktionary-empirical/--no-include-wiktionary-empirical",
+    default=True,
+    show_default=True,
+    help="Include 'wiktionary-empirical'-cited families regardless of witness "
+    "count (wyrd-4hx7 corpus-mined gap-fills, treated like rando-port).",
+)
 def lexicon_export_meanings(
     db_path: Path,
     output_path: Path | None,
@@ -891,6 +903,7 @@ def lexicon_export_meanings(
     lang_threshold_specs: tuple[str, ...],
     use_preset: bool,
     include_rando: bool,
+    include_wiktionary_empirical: bool,
 ) -> None:
     """Export the lexicon DB as a meanings.json document for the runtime.
 
@@ -931,6 +944,7 @@ def lexicon_export_meanings(
             min_witnesses=min_witnesses,
             lang_thresholds=lang_thresholds,
             include_rando=include_rando,
+            include_wiktionary_empirical=include_wiktionary_empirical,
         )
     payload = json.dumps(subjects, ensure_ascii=False, indent=2)
     if output_path is None:
@@ -1942,6 +1956,172 @@ def lexicon_import_mining_log(path: Path, db_path: Path, apply_changes: bool) ->
             click.echo(f"  ... +{len(errors) - 20} more", err=True)
     if not apply_changes:
         click.echo("(dry-run; pass --apply to write)", err=True)
+
+
+@lexicon.command("mine-wiktextract-corpus")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+@click.option(
+    "--sources-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=Path("sources"),
+    show_default=True,
+    help="Directory containing wiktextract_*.jsonl slice files.",
+)
+@click.option(
+    "--culture",
+    "cultures",
+    type=click.Choice([*CULTURES, "all"]),
+    default=("all",),
+    multiple=True,
+    show_default=True,
+    help="Cultures to mine for (repeatable, or 'all'). Each culture's "
+    "place-name corpus is decomposed against the current bundle; "
+    "unaccounted fragments seed the wiktextract lookup.",
+)
+@click.option(
+    "--min-length",
+    type=int,
+    default=3,
+    show_default=True,
+    help="Skip fragments shorter than this. Bigrams are too noisy + overlap "
+    "with the joiner question.",
+)
+@click.option(
+    "--apply",
+    "apply_changes",
+    is_flag=True,
+    default=False,
+    help="Write to the lexicon DB. Without --apply this is a dry run that "
+    "reports per-culture / per-language hit counts only.",
+)
+def lexicon_mine_wiktextract_corpus(
+    db_path: Path,
+    sources_dir: Path,
+    cultures: tuple[str, ...],
+    min_length: int,
+    apply_changes: bool,
+) -> None:
+    """Empirically mine Wiktionary headwords against unaccounted-fragment misses.
+
+    For each requested culture: decompose every name in the corresponding
+    bundled place-name corpus against the current ``meanings.json``;
+    collect unaccounted fragments of length ≥ ``--min-length``; look each
+    up against the per-culture allowed wiktextract slices; for every hit,
+    upsert an etymon + gloss + tag + citation in the lexicon DB tagged at
+    the synthetic ``wiktionary-empirical`` source.
+
+    Treated like ``rando-port`` (empirical class) — admitted to the
+    bundle without the D4 ≥3-scholar-witness gate. The export-meanings
+    promotion CTE has a third UNION branch for this source.
+
+    The bundled ``meanings.json`` and per-culture place-name corpora are
+    read via ``importlib.resources``, so this command runs from any cwd
+    as long as ``--sources-dir`` points at the wiktextract dumps.
+    """
+    target_cultures: list[str] = sorted(set(CULTURES if "all" in cultures else cultures))
+    meanings_data = _load_meanings_data(None)
+
+    # Stage the bundled place_names corpora to a tmpdir once — used by
+    # compute_unaccounted_fragments for the miss-fragment seeding and
+    # then re-used by derive_positions for the position-classification
+    # pass. importlib.resources gives us text, but the matchers want
+    # Path-shaped inputs.
+    import tempfile
+
+    tmpdir = Path(tempfile.mkdtemp(prefix="wyrd-empirical-mine-"))
+    place_names_paths_by_culture: dict[str, Path] = {}
+    try:
+        for culture in target_cultures:
+            text = (
+                resources.files("wyrd.generators.kenning.data")
+                .joinpath(f"{culture}_place_names.json")
+                .read_text()
+            )
+            p = tmpdir / f"{culture}_place_names.json"
+            p.write_text(text)
+            place_names_paths_by_culture[culture] = p
+
+        fragments_by_culture: dict[str, Counter] = {}
+        for culture in target_cultures:
+            frags = compute_unaccounted_fragments(
+                culture,
+                place_names_paths_by_culture[culture],
+                meanings_data,
+                min_length=min_length,
+            )
+            fragments_by_culture[culture] = frags
+            click.echo(
+                f"culture={culture} unaccounted_fragments={len(frags)} "
+                f"total_occurrences={sum(frags.values())}",
+                err=True,
+            )
+
+        with LexiconDB(db_path) as db:
+            counts = mine_corpus(
+                db,
+                fragments_by_culture=fragments_by_culture,
+                sources_dir=sources_dir,
+                apply=apply_changes,
+            )
+
+        click.echo(
+            f"fragments_input={counts['fragments_input']} "
+            f"wiktionary_hits={counts['wiktionary_hits']}",
+            err=True,
+        )
+        if apply_changes:
+            click.echo(
+                f"etymons_upserted={counts['etymons_upserted']} "
+                f"glosses_added={counts['glosses_added']} "
+                f"tags_added={counts['tags_added']} "
+                f"citations_added={counts['citations_added']}",
+                err=True,
+            )
+        click.echo("per-culture summary:", err=True)
+        for culture, sub in sorted(counts["by_culture"].items()):
+            click.echo(
+                f"  {culture:10} fragments={sub['fragments']:6d} hits={sub['hits']:6d}",
+                err=True,
+            )
+        click.echo("per-language hits:", err=True)
+        for lang, n in counts["by_language"].most_common():
+            click.echo(f"  {lang:25s} {n:6d}", err=True)
+        if not apply_changes:
+            click.echo("(dry-run; pass --apply to write)", err=True)
+            return
+
+        # Empirical etymons land with no position_pref — without
+        # per-position reflex rows the bundle export emits a single
+        # undecorated modern_usage that the runtime treats as post-only.
+        # derive_positions scans the relevant cultures' corpora and
+        # writes one reflex per observed position so the export emits
+        # one bundle word per position with proper dash markers.
+        with LexiconDB(db_path) as db:
+            pos_counts = derive_positions(
+                db,
+                place_names_paths_by_culture,
+                apply=True,
+            )
+        click.echo("position derivation:", err=True)
+        click.echo(
+            f"  etymons_examined={pos_counts['etymons_examined']} "
+            f"reflex_rows_upserted={pos_counts['reflex_rows_upserted']} "
+            f"links_added={pos_counts['links_added']} "
+            f"no_observed_position={pos_counts['etymons_with_no_observed_position']}",
+            err=True,
+        )
+        for pos, n in sorted(pos_counts["by_position"].items()):
+            click.echo(f"  {pos:10s} reflexes_for={n}", err=True)
+    finally:
+        for p in place_names_paths_by_culture.values():
+            p.unlink(missing_ok=True)
+        tmpdir.rmdir()
 
 
 @lexicon.command("path")
