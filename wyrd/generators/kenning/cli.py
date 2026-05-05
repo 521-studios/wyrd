@@ -1277,28 +1277,9 @@ def lexicon_mine_llm(
     if limit is not None:
         parsed = parsed[:limit]
 
-    if provider == "ollama":
-        client_kwargs: dict[str, Any] = {"timeout_s": timeout}
-        if ollama_url:
-            client_kwargs["base_url"] = ollama_url
-        if model:
-            client_kwargs["model"] = model
-        client = llm_extractor.OllamaClient(**client_kwargs)
-        extract_one = llm_extractor.extract_one
-    elif provider == "gemini":
-        gemini_kwargs: dict[str, Any] = {"timeout_s": timeout}
-        if model:
-            gemini_kwargs["model"] = model
-        client = gemini_extractor.GeminiClient(**gemini_kwargs)
-        extract_one = gemini_extractor.extract_one
-    elif provider == "anthropic":
-        anthropic_kwargs: dict[str, Any] = {"timeout_s": timeout}
-        if model:
-            anthropic_kwargs["model"] = model
-        client = anthropic_extractor.AnthropicClient(**anthropic_kwargs)
-        extract_one = anthropic_extractor.extract_one
-    else:
-        raise click.ClickException(f"unknown provider: {provider}")
+    client, extract_one = _build_llm_client(
+        provider, model=model, ollama_url=ollama_url, timeout=timeout
+    )
 
     click.echo(
         f"Mining {len(parsed)} entries from {path.name} via {client.base_url} model={client.model}",
@@ -1699,16 +1680,12 @@ def lexicon_review(
     Each tier is idempotent: skips toponyms that already have a row from
     the chosen provider.
     """
-    if provider == "gemini":
-        Client = gemini_extractor.GeminiClient
-        provider_extract_one = gemini_extractor.extract_one
-        provider_tag = "extracted_by:gemini:"
-    elif provider == "anthropic":
-        Client = anthropic_extractor.AnthropicClient
-        provider_extract_one = anthropic_extractor.extract_one
-        provider_tag = "extracted_by:anthropic:"
-    else:
-        raise click.ClickException(f"unknown provider: {provider}")
+    if provider == "ollama":
+        raise click.ClickException(
+            "review pass needs a stronger model than the Tier-1 default — "
+            "use --provider gemini (Tier 2) or anthropic (Tier 3)."
+        )
+    provider_tag = f"extracted_by:{provider}:"
 
     candidates = _select_review_candidates(
         db_path=db_path,
@@ -1735,7 +1712,7 @@ def lexicon_review(
         err=True,
     )
 
-    client = Client(timeout_s=timeout, **({"model": model} if model else {}))
+    client, provider_extract_one = _build_llm_client(provider, model=model, timeout=timeout)
 
     write_db: LexiconDB | None = None
     if apply_changes:
@@ -1781,6 +1758,44 @@ def lexicon_review(
     click.echo(f"Review summary: {counts}", err=True)
     if not apply_changes:
         click.echo("(dry-run; pass --apply to write)", err=True)
+
+
+def _build_llm_client(
+    provider: str,
+    *,
+    model: str | None = None,
+    ollama_url: str | None = None,
+    timeout: float,
+) -> tuple[Any, Any]:
+    """Construct (client, extract_one) for one of the three supported
+    LLM providers. Centralises the 3-branch dispatch that used to
+    live inline in lexicon_mine_llm and lexicon_review (wyrd-lqw).
+
+    ``ollama_url`` only applies to the ``ollama`` provider; ignored
+    for gemini/anthropic. ``model`` overrides the provider's default
+    when set.
+
+    Raises ``click.ClickException`` for unknown provider names so the
+    CLI exits cleanly without a stack trace.
+    """
+    if provider == "ollama":
+        kwargs: dict[str, Any] = {"timeout_s": timeout}
+        if ollama_url:
+            kwargs["base_url"] = ollama_url
+        if model:
+            kwargs["model"] = model
+        return llm_extractor.OllamaClient(**kwargs), llm_extractor.extract_one
+    if provider == "gemini":
+        kwargs = {"timeout_s": timeout}
+        if model:
+            kwargs["model"] = model
+        return gemini_extractor.GeminiClient(**kwargs), gemini_extractor.extract_one
+    if provider == "anthropic":
+        kwargs = {"timeout_s": timeout}
+        if model:
+            kwargs["model"] = model
+        return anthropic_extractor.AnthropicClient(**kwargs), anthropic_extractor.extract_one
+    raise click.ClickException(f"unknown provider: {provider}")
 
 
 def _select_already_extracted_toponyms(db_path: Path, source_id: str) -> set[str]:
