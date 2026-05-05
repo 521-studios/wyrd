@@ -560,16 +560,18 @@ def test_accept_candidate_skips_empty_string() -> None:
     assert candidates == {}
 
 
-def test_mine_wiktextract_corpus_cli_apply_and_dry_run(fresh_db: Path, tmp_path: Path) -> None:
+def test_mine_wiktextract_corpus_cli_apply_and_dry_run(fresh_db: Path) -> None:
     """End-to-end: ``wyrd kenning lexicon mine-wiktextract-corpus``
     via CliRunner. Runs the dry-run path then the apply path against
-    a tmp lexicon DB and a synthetic wiktextract slice."""
+    a tmp lexicon DB and a synthetic wiktextract slice. ``fresh_db``
+    already creates ``tmp_path / lexicon.db``; we derive the sources
+    dir from its parent so a single fixture covers both."""
     from click.testing import CliRunner
 
     from wyrd.generators.kenning.cli import cli
 
     db_path = fresh_db
-    sources_dir = tmp_path / "sources"
+    sources_dir = fresh_db.parent / "sources"
     sources_dir.mkdir()
     welsh_slice = sources_dir / "wiktextract_welsh.jsonl"
     _write_slice(
