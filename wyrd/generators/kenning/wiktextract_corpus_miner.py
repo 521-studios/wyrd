@@ -628,6 +628,12 @@ def derive_positions(
         position_counts = _classify_one_etymon(
             row["canonical_form"], row["language"], flat_names_by_culture
         )
+        # ``None`` means the etymon's language has no culture in scope —
+        # the etymon was never EVALUATED, so don't bucket it as
+        # "evaluated but no position observed". Mirrors the original
+        # ``continue`` before the counter increment.
+        if position_counts is None:
+            continue
         if not any(v >= min_count for v in position_counts.values()):
             counts["etymons_with_no_observed_position"] += 1
             continue
@@ -643,13 +649,20 @@ def _classify_one_etymon(
     canonical_form: str,
     lang: str,
     flat_names_by_culture: dict[str, list[str]],
-) -> dict[str, int]:
+) -> dict[str, int] | None:
     """Determine which cultures' corpora are in scope for ``lang`` and
     classify positions of ``canonical_form`` across the union of their
-    flattened names. Returns the per-position count dict (pre/post/inner)."""
+    flattened names.
+
+    Returns the per-position count dict (pre/post/inner) when at least
+    one culture's scope includes ``lang``. Returns ``None`` when no
+    culture is in scope — the caller distinguishes 'not evaluated'
+    from 'evaluated but no observed position' so the
+    ``etymons_with_no_observed_position`` counter only counts the
+    latter."""
     relevant_cultures = [c for c, scope in CULTURE_LANG_SCOPE.items() if lang in scope]
     if not relevant_cultures:
-        return {"pre": 0, "post": 0, "inner": 0}
+        return None
     names_for_culture: list[str] = []
     for c in relevant_cultures:
         names_for_culture.extend(flat_names_by_culture.get(c, []))
