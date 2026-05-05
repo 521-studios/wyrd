@@ -636,6 +636,22 @@ def resolve(
             glosses = _ancestor_glosses(db_path, cand.etymon_id)
             try:
                 check = semantic_check_caller(name, description, cand, glosses)
+            except urllib.error.HTTPError as http_exc:
+                # Mirror _llm_full_research: HTTPError carries response
+                # body with quota / safety-block / format diagnostics.
+                try:
+                    body = http_exc.read().decode("utf-8", errors="replace")[:800]
+                except Exception:
+                    body = "(could not read response body)"
+                logger.warning(
+                    "semantic check HTTP error for %s -> %s/%s: status=%s body=%s; falling through",
+                    name,
+                    cand.language,
+                    cand.canonical_form,
+                    http_exc.code,
+                    body,
+                )
+                continue
             except (
                 urllib.error.URLError,
                 RuntimeError,
