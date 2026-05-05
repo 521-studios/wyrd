@@ -986,7 +986,13 @@ def _create_fantasy_morpheme_table(db: LexiconDB, applied: dict[str, bool]) -> N
     }
     if "fantasy_morpheme" in existing:
         # Table exists from an earlier migration; add columns if missing.
-        cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(fantasy_morpheme)")}
+        # Track BOTH presence and notnull-ness so we can verify required
+        # columns aren't silently nullable.
+        col_info = {
+            row["name"]: bool(row["notnull"])
+            for row in db.conn.execute("PRAGMA table_info(fantasy_morpheme)")
+        }
+        cols = set(col_info)
         if "unapproved_language" not in cols:
             db.conn.execute("ALTER TABLE fantasy_morpheme ADD COLUMN unapproved_language TEXT")
             db.conn.execute(
@@ -1013,6 +1019,13 @@ def _create_fantasy_morpheme_table(db: LexiconDB, applied: dict[str, bool]) -> N
                 f"fantasy_morpheme table missing required columns "
                 f"{sorted(missing_required)}; manual intervention needed "
                 f"(drop the table or add columns with defaults)."
+            )
+        nullable_required = {c for c in required_not_null if not col_info[c]}
+        if nullable_required:
+            raise RuntimeError(
+                f"fantasy_morpheme table has columns {sorted(nullable_required)} "
+                f"declared NULL where the current schema requires NOT NULL; "
+                f"data integrity issues will follow. Manual intervention needed."
             )
         return
     db.conn.executescript(

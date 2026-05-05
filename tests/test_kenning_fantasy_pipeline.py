@@ -908,7 +908,7 @@ def test_cli_mine_fantasy_name_model_flag_propagates(fresh_db: Path, monkeypatch
     from wyrd.generators.kenning import cli as cli_mod
     from wyrd.generators.kenning import fantasy_pipeline as fp_mod
 
-    captured_models: list[str] = []
+    captured_models: list[tuple[str, str]] = []
 
     def _spy_full(name, description, *, model="default", **kw):
         captured_models.append(("full", model))

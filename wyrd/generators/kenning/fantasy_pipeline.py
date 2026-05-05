@@ -29,6 +29,7 @@ re-process earlier rows.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sqlite3
 import urllib.error
@@ -36,6 +37,14 @@ import urllib.request
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+# Gemini REST endpoint shared by both _llm_full_research and
+# _llm_semantic_check. Format with .format(model=...) at call time.
+_GEMINI_API_URL_TEMPLATE = (
+    "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+)
 
 # Bump when the pipeline logic changes substantively (e.g. after
 # wyrd-gpif lands alt-form ingestion, after we add Etymonline citation
@@ -295,7 +304,7 @@ def _llm_full_research(
         raise RuntimeError("GEMINI_API_KEY is not set")
     # Pass key in `x-goog-api-key` header instead of as a URL query
     # parameter — URLs can be logged by intermediaries / proxies.
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    url = _GEMINI_API_URL_TEMPLATE.format(model=model)
     prompt = _RESEARCH_PROMPT_TEMPLATE.format(
         name=name,
         description=description,
@@ -369,7 +378,7 @@ def _llm_semantic_check(
     if not key:
         raise RuntimeError("GEMINI_API_KEY is not set")
     # Pass key in `x-goog-api-key` header (mirrors _llm_full_research).
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    url = _GEMINI_API_URL_TEMPLATE.format(model=model)
     gloss_text = "; ".join(ancestor_glosses) if ancestor_glosses else "(no gloss in corpus)"
     prompt = _SEMANTIC_CHECK_PROMPT_TEMPLATE.format(
         name=name,
@@ -409,6 +418,7 @@ def _resolve_via_llm(
     try:
         result = llm_caller(name, description)
     except (urllib.error.URLError, RuntimeError, json.JSONDecodeError, KeyError) as e:
+        logger.warning("LLM full-research call failed for %s: %s", name, e)
         return Resolution(
             usable=False,
             etymon_id=None,
@@ -599,9 +609,22 @@ def resolve(
             glosses = _ancestor_glosses(db_path, cand.etymon_id)
             try:
                 check = semantic_check_caller(name, description, cand, glosses)
-            except (urllib.error.URLError, RuntimeError, json.JSONDecodeError, KeyError):
-                # Semantic check failed; conservative — bar this candidate
-                # and try the next, then fall through to full research.
+            except (
+                urllib.error.URLError,
+                RuntimeError,
+                json.JSONDecodeError,
+                KeyError,
+            ) as exc:
+                # Semantic check failed; conservative — log it for
+                # debuggability, then bar this candidate and try the
+                # next (ultimately falling through to full research).
+                logger.warning(
+                    "semantic check failed for %s -> %s/%s (%s); falling through",
+                    name,
+                    cand.language,
+                    cand.canonical_form,
+                    exc,
+                )
                 continue
             verdict = check.get("verdict") or "uncertain"
             check_reasoning = check.get("reasoning") or ""
