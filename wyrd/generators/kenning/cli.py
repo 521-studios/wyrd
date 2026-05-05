@@ -2296,9 +2296,9 @@ def lexicon_mine_wiktextract_corpus(
             pos_counts = derive_positions(db, place_names_paths_by_culture, apply=True)
         _print_position_summary(pos_counts)
     finally:
-        for p in place_names_paths_by_culture.values():
-            p.unlink(missing_ok=True)
-        tmpdir.rmdir()
+        import shutil
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def _stage_place_names_paths(

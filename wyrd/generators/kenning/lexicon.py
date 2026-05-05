@@ -1843,7 +1843,7 @@ def reverse_search_attestations(
         "etymons_with_match": len(matches),
         "total_match_records": sum(len(v) for v in matches.values()),
         "written": written,
-        "parser_bug_suspects": parser_bug_suspects[:30],
+        "parser_bug_suspects": parser_bug_suspects,
         "sample": [
             {
                 "etymon_id": eid,
