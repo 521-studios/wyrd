@@ -228,8 +228,14 @@ def test_resolve_skip_llm_bars_pre_filter_misses(fresh_db: Path) -> None:
 
 
 def test_resolve_via_llm_when_pre_filter_misses(fresh_db: Path) -> None:
-    """Pre-filter misses → LLM is called. A clean attested response
-    produces a usable Resolution."""
+    """Pre-filter misses → LLM is called. When the LLM-named (form, lang)
+    pair exists in the etymon table, the resolution is usable and
+    anchored to that etymon's id."""
+    with LexiconDB(fresh_db) as db:
+        target_id = _seed_etymon(
+            db, canonical_form="ἅρπυια", language="ancient-greek", gloss="snatcher"
+        )
+        db.commit()
 
     def _stub_llm(name, description):
         assert name == "Harpy"
@@ -245,8 +251,35 @@ def test_resolve_via_llm_when_pre_filter_misses(fresh_db: Path) -> None:
 
     res = fp.resolve(fresh_db, "Harpy", "Greek monster", llm_caller=_stub_llm)
     assert res.usable is True
+    assert res.etymon_id == target_id
     assert res.resolution_method == "llm_full_research"
     assert res.citation == "LSJ"
+
+
+def test_resolve_via_llm_attested_but_not_in_corpus_bars(fresh_db: Path) -> None:
+    """When the LLM identifies a real attested form in an approved language
+    but no matching etymon row exists, bar with attested_but_not_in_corpus
+    rather than returning usable=True with etymon_id=None — that would
+    let unmineable morphemes leak through to generation."""
+
+    # Note: NO etymon seeded for the LLM-named (form, language).
+    def _stub_llm(name, description):
+        return {
+            "attested_in": "old-english",
+            "historical_form": "rare-real-word",
+            "gloss": "real meaning",
+            "citation": "Bosworth-Toller",
+            "confidence": "high",
+            "bar_reason": None,
+            "reasoning": "OE attested but not in our corpus",
+        }
+
+    res = fp.resolve(fresh_db, "RareCreature", "test", llm_caller=_stub_llm)
+    assert res.usable is False
+    assert res.bar_reason == fp.BAR_REASON_NOT_IN_CORPUS
+    # Records the LLM finding so a future backfill can ingest it.
+    assert res.unapproved_language == "old-english"
+    assert res.unapproved_form == "rare-real-word"
 
 
 def test_resolve_via_llm_low_confidence_is_barred(fresh_db: Path) -> None:

@@ -997,6 +997,23 @@ def _create_fantasy_morpheme_table(db: LexiconDB, applied: dict[str, bool]) -> N
         if "unapproved_form" not in cols:
             db.conn.execute("ALTER TABLE fantasy_morpheme ADD COLUMN unapproved_form TEXT")
             applied["fantasy_morpheme.unapproved_form"] = True
+        # Required NOT NULL columns from the current schema. If any are
+        # missing the table is from a partial/corrupted state — we can't
+        # silently ALTER NOT NULL without defaults, so raise instead.
+        required_not_null = {
+            "input_name",
+            "usable",
+            "resolution_method",
+            "approach_version",
+            "processed_at",
+        }
+        missing_required = required_not_null - cols
+        if missing_required:
+            raise RuntimeError(
+                f"fantasy_morpheme table missing required columns "
+                f"{sorted(missing_required)}; manual intervention needed "
+                f"(drop the table or add columns with defaults)."
+            )
         return
     db.conn.executescript(
         """

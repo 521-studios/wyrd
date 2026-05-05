@@ -49,17 +49,21 @@ APPROACH_VERSION = "fantasy-v1"
 # `outside_language_family`. Per user 2026-05-05: includes Greek
 # (most monsters are Greek), Old Saxon, Frisian, Gothic, plus the
 # core OE/ON/Celtic/Latin/OFr set we already use for toponym mining.
+# Codes use the etymon-table conventions (a mix of descriptive names like
+# "old-english" and ISO short codes like "got"/"osx"/"sco" that wiktextract
+# preserves as-is). Verified against corpus: every entry below has >0 rows
+# in the etymon table at the time of writing.
 APPROVED_LANGUAGES: frozenset[str] = frozenset(
     {
         # Old Germanic
         "old-english",
-        "old-saxon",
-        "old-frisian",
+        "osx",  # Old Saxon (wiktextract uses ISO 639-3 code)
+        "ofs",  # Old Frisian (ISO code)
         "old-norse",
         "icelandic",  # ON daughter; often the actual attestation locus
-        "gothic",
+        "got",  # Gothic (ISO code)
         "proto-germanic",
-        "proto-west-germanic",
+        "gmw-pro",  # Proto-West-Germanic (Wiktionary code)
         # German tree (kobold/wyrm-cousin morphemes; user-approved 2026-05-05)
         "old-high-german",
         "middle-high-german",
@@ -68,7 +72,7 @@ APPROVED_LANGUAGES: frozenset[str] = frozenset(
         # `sco` = Scots, the Germanic lowland-Scotland language.
         # `nrn` = Norn, the extinct Norse-derived language of Orkney/Shetland.
         # User-approved 2026-05-05 (note: distinct from Scots GAELIC = the
-        # Celtic `scottish-gaelic`, which is also approved separately above).
+        # Celtic `scottish-gaelic`, which is also approved separately below).
         "sco",
         "nrn",
         # Romance
@@ -76,8 +80,8 @@ APPROVED_LANGUAGES: frozenset[str] = frozenset(
         "old-french",
         # Hellenic
         "ancient-greek",
-        # Celtic
-        "celtic-mix",
+        # Celtic (specific languages; the seed-only "celtic-mix" pseudo-code
+        # from meanings.json doesn't appear in the etymon table)
         "irish",
         "welsh",
         "scottish-gaelic",
@@ -100,6 +104,12 @@ BAR_REASON_UNCERTAIN = "uncertain_attestation"
 BAR_REASON_MODERN_COINAGE = "modern_coinage"
 BAR_REASON_PROPER_NOUN = "proper_noun_only"
 BAR_REASON_HOMOGRAPH = "homograph_collision"
+# LLM identified an attested historical form in an approved language,
+# but our etymon table doesn't yet have a row for that (form, language)
+# pair. The morpheme is real; it just isn't in our corpus, so it can't
+# be used for generation until we ingest it. The fantasy_morpheme row
+# records the LLM finding so a future backfill pass can add the etymon.
+BAR_REASON_NOT_IN_CORPUS = "attested_but_not_in_corpus"
 
 
 @dataclass(frozen=True)
@@ -426,6 +436,28 @@ def _resolve_via_llm(
     if attested_in in APPROVED_LANGUAGES and historical:
         # Try to anchor to an existing etymon row.
         etymon_id = _lookup_etymon_id(db_path, historical, attested_in)
+        if etymon_id is None:
+            # LLM identified a real attested form, but our corpus doesn't
+            # have it yet. Bar with attested_but_not_in_corpus so a
+            # future backfill can ingest the etymon — usable=True with
+            # etymon_id=None would be misleading because name generation
+            # would never see this morpheme.
+            return Resolution(
+                usable=False,
+                etymon_id=None,
+                bar_reason=BAR_REASON_NOT_IN_CORPUS,
+                resolution_method="llm_full_research",
+                confidence=confidence,
+                citation=citation,
+                reasoning=(
+                    f"attested in {attested_in} as '{historical}'"
+                    + (f" '{gloss}'" if gloss else "")
+                    + " but no matching etymon row exists in the corpus"
+                    + (f"; {reasoning}" if reasoning else "")
+                ),
+                unapproved_language=attested_in,
+                unapproved_form=historical,
+            )
         return Resolution(
             usable=True,
             etymon_id=etymon_id,
@@ -485,10 +517,16 @@ def _resolve_via_llm(
 
 
 def _lookup_etymon_id(db_path: Path | str, form: str, language: str) -> int | None:
+    """Anchor an LLM-named (form, language) pair to an existing etymon row.
+
+    Case-insensitive on form to absorb any case variation in the LLM
+    response (e.g. "Trǫll" vs "trǫll"); language is matched exactly
+    since codes are stable.
+    """
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
         row = conn.execute(
-            "SELECT id FROM etymon WHERE canonical_form = ? AND language = ?",
+            "SELECT id FROM etymon WHERE LOWER(canonical_form) = LOWER(?) AND language = ?",
             (form, language),
         ).fetchone()
         return row[0] if row else None
