@@ -17,7 +17,7 @@ Selected via the ``use_trie`` arg or the ``WYRD_KENNING_USE_TRIE_MATCHER``
 env var. Default is the legacy matcher (Phase 2 of wyrd-k8e ships the
 trie behind a flag; Phase 3 will flip the default and remove the
 legacy iterator). The two should produce equivalent ``count_unaccounted``
-across the bundled corpus — see ``tests/test_kenning_trie_equivalence.py``.
+across the bundled corpus — see ``tests/test_kenning_name_trie_backend.py``.
 """
 
 from __future__ import annotations
@@ -43,53 +43,50 @@ _USE_TRIE_ENV = "WYRD_KENNING_USE_TRIE_MATCHER"
 # thousands of names → minutes of avoidable trie-builds without the
 # cache).
 #
-# Three assumptions / limitations of this approach:
+# Cache shape: ``OrderedDict[id(word_db), tuple[word_db, trie]]``.
+# Storing the word_db reference alongside the trie keeps the dict
+# alive while it's in the cache, which prevents Python from reusing
+# its memory address for a new object. That eliminates the classic
+# ``id()``-as-key staleness bug — as long as the cache entry exists,
+# the id is bound to the same dict object.
+#
+# Two remaining assumptions:
 #
 # (a) **word_db is treated as immutable** for the duration of its
-#     entry in the cache. Mutating a word_db after a trie has been
-#     cached for it (e.g. ``word_db['new-key'] = [...]``) will not
-#     invalidate the trie; subsequent find_meaning calls would see a
-#     stale trie that doesn't reflect the mutation. Callers that
-#     need to mutate should call ``_trie_cache.clear()`` to drop the
-#     cached trie. Production / test workflows build word_db once
-#     from meanings.json and never mutate.
-# (b) ``id()`` is reused after garbage collection. If a word_db is
-#     freed and a new dict happens to land at the same address, the
-#     cache could in theory return a stale trie. In practice
-#     word_dbs are loaded once at session start and held for the
-#     process lifetime; the test suite clears _trie_cache between
-#     tests via the autouse fixture in test_kenning_name_trie_backend.
-#     A fully safe alternative would require wrapping word_db in a
-#     weakref-able subclass — too invasive for the speedup it'd
-#     enable. Documented as a known boundary; ``_trie_cache.clear()``
-#     is the explicit reset.
-# (c) Unbounded growth in long-running processes. Capped at
+#     entry in the cache. Mutating a cached word_db (e.g.
+#     ``word_db['new-key'] = [...]``) does NOT invalidate the trie;
+#     subsequent find_meaning calls would see a stale trie that
+#     doesn't reflect the mutation. Callers that mutate should call
+#     ``_trie_cache.clear()`` to drop the cached trie. Production /
+#     test workflows build word_db once from meanings.json and
+#     never mutate.
+# (b) Bounded growth in long-running processes. Capped at
 #     ``_TRIE_CACHE_MAX`` via OrderedDict-based LRU eviction. Lambda
 #     and CLI workflows hit ≤2 distinct word_dbs in practice, so
-#     the bound never kicks in but the leak is bounded if it ever
+#     the bound never kicks in but memory is bounded if it ever
 #     mattered.
 _TRIE_CACHE_MAX = 4
-_trie_cache: OrderedDict[int, MorphemeTrie] = OrderedDict()
+_trie_cache: OrderedDict[int, tuple[dict, MorphemeTrie]] = OrderedDict()
 
 
 def _trie_for(word_db: dict) -> MorphemeTrie:
     """Return a (possibly cached) MorphemeTrie for ``word_db``.
 
-    Memoized on id(word_db) so repeated find_meaning calls on the
-    same word_db share one trie. Cache is LRU-bounded at
-    ``_TRIE_CACHE_MAX`` entries; eviction happens on insertion past
-    the limit.
+    Memoized on id(word_db); cache value is ``(word_db, trie)`` so
+    the dict stays alive (and its id stable) while in the cache.
+    LRU-bounded at ``_TRIE_CACHE_MAX``; insertion past the limit
+    evicts the oldest entry.
     """
     key = id(word_db)
     cached = _trie_cache.get(key)
     if cached is not None:
         # LRU: most-recently-used moves to the end.
         _trie_cache.move_to_end(key)
-        return cached
+        return cached[1]
     trie = build_morpheme_trie(word_db)
     # New-key assignment on an OrderedDict already inserts at the end;
     # explicit move_to_end isn't needed.
-    _trie_cache[key] = trie
+    _trie_cache[key] = (word_db, trie)
     while len(_trie_cache) > _TRIE_CACHE_MAX:
         _trie_cache.popitem(last=False)
     return trie
