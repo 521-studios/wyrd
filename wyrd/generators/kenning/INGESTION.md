@@ -274,10 +274,18 @@ where Tier-2 stops paying for itself. Updated rule:
 - Run Gemini Tier-2 on Haiku-Tier-1 Celtic books with `lexicon review
   --book <id> --provider gemini --include-haiku --apply`. Idempotent.
 
-5 Celtic books are still on Sonnet-Tier-1 and need the wyrd-0rsk
-`--include-sonnet` flag (PR #69) to surface as Tier-2 candidates:
-joyce_1875 v1+v2 (293 rows), moore_1890 (54), johnston_1892 (37),
-morgan_1887 (37). Run after that PR merges.
+The 5 Celtic Sonnet-Tier-1 books were swept post-PR #69 (`--include-sonnet`)
+on 2026-05-05 and yielded **+150 Gemini Tier-2 rows on n=252 reviewed
+(60% weighted, 52–83% per-book)** — confirming Gemini lifts over Sonnet
+on Celtic toponyms at roughly the same rate it lifts over Haiku:
+
+| Book | Reviewed | Written | Accept |
+| --- | ---: | ---: | ---: |
+| joyce_1875_irish_names_vol1 | 105 | 59 | 56% |
+| joyce_1875_irish_names_vol2 | 86 | 45 | 52% |
+| moore_1890_isle_of_man | 29 | 24 | 83% |
+| johnston_1892_place_names_of_scotland | 20 | 12 | 60% |
+| morgan_1887_wales_monmouthshire | 12 | 10 | 83% |
 
 **Tier 2 review (Gemini Flash) is the standard second pass on English
 mining**, not a contingency. After `mine-llm --provider ollama`
@@ -373,7 +381,7 @@ Acceptance rate by book type:
 | Gemini Tier-2 OVER Haiku on non-Celtic Haiku-mined book | 17–47% (low/med subset) |
 | Gemini Tier-2 OVER Haiku on Celtic+Roman content | 35% (Arbois 1890, n=66) |
 | Gemini Tier-2 OVER Haiku on pure Celtic | 21–53% across 7 books, n=287 (2026-05-05 confirmed) |
-| Gemini Tier-2 OVER Sonnet on Celtic | UNTESTED — PR #69 wyrd-0rsk unblocks |
+| Gemini Tier-2 OVER Sonnet on Celtic | 52–83% across 5 books, n=252 (2026-05-05 confirmed) |
 
 Low accept is not always a bug — it's often the right answer for the
 book type. Consult the table before assuming the pipeline is broken.
