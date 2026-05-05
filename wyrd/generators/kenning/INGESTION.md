@@ -517,6 +517,39 @@ provider produced the existing rows. Filter applies before `--limit`,
 so `--limit 50 --declines-only` smokes the first 50 of the residual,
 not the first 50 of the parsed list.
 
+#### First production batch (2026-05-05)
+
+Ran Haiku across 10 Qwen-only English books with `--declines-only`.
+1169 residual entries → 396 accepted → **314 new etymologies
+ingested** (27% recovery at the etymology level — the gap between
+accepted and ingested is mostly low-confidence rows the writer drops
+per `lexicon.py:1394`):
+
+| Book | Residual | Accepted | Ingested | Accept % |
+| --- | ---: | ---: | ---: | ---: |
+| roberts_1914_sussex | 356 | 134 | 113 | 38% |
+| ekwall_1928_river_names | 222 | 72 | 45 | 32% |
+| smith_1928_north_riding_yorkshire | 127 | 43 | 39 | 34% |
+| mawer_stenton_1927_worcestershire | 122 | 43 | 37 | 35% |
+| ekwall_1922_lancashire | 109 | 44 | 31 | 40% |
+| wyld_hirst_1911_lancashire | 84 | 14 | 10 | 17% |
+| skeat_1904_hertfordshire | 64 | 16 | 16 | 25% |
+| mawer_stenton_1930_sussex | 43 | 15 | 11 | 35% |
+| skeat_1911_berkshire | 23 | 8 | 7 | 35% |
+| mawer_stenton_1925_buckinghamshire | 19 | 7 | 5 | 37% |
+| **Total** | **1169** | **396** | **314** | **34%** |
+
+Notes:
+- Reject rates were high on Ekwall 1928 river names (31%) and Skeat
+  1911 Berkshire (61%) — both consistent with the
+  short-entry / OCR-noise pattern that trips the
+  `form_not_in_body` validator. Not a recovery problem; the
+  writer correctly drops them.
+- Wyld & Hirst 1911 Lancashire underperforms (17% accept) — its
+  entries are short and Qwen had already extracted the easy ones.
+- The 34% average tracks the smoke projection from the dual-mined
+  comparison (Mawer 39%, plus 5 smaller books at 17–30%).
+
 ---
 
 ## Stage 6 — post-mining cleanup pipeline
