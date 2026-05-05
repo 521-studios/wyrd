@@ -1580,6 +1580,7 @@ def _select_review_candidates(
                   WHERE te2.toponym_id = te.toponym_id
                     AND te2.source_id  = te.source_id
                     AND te2.notes LIKE ?
+                    AND te2.id != te.id
               )
             """
         args: list[object] = list(confidence) + [f"%{provider_tag}%"]
