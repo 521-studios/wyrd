@@ -420,24 +420,7 @@ def _resolve_via_llm(
     try:
         result = llm_caller(name, description)
     except urllib.error.HTTPError as e:
-        # HTTPError carries a response body we want in the log: Gemini
-        # returns useful detail there (quota-exceeded, safety-block
-        # reason, malformed-prompt diagnostic) that the generic str()
-        # representation drops.
-        try:
-            body = e.read().decode("utf-8", errors="replace")[:800]
-        except Exception:
-            body = "(could not read response body)"
-        logger.warning("LLM full-research HTTP error for %s: status=%s body=%s", name, e.code, body)
-        return Resolution(
-            usable=False,
-            etymon_id=None,
-            bar_reason=BAR_REASON_UNCERTAIN,
-            resolution_method="llm_full_research",
-            confidence="low",
-            citation=None,
-            reasoning=f"LLM HTTP error {e.code}: {body[:200]}",
-        )
+        return _llm_http_error_resolution(name, e)
     except (
         urllib.error.URLError,
         RuntimeError,
@@ -457,17 +440,50 @@ def _resolve_via_llm(
             citation=None,
             reasoning=f"LLM call failed: {e}",
         )
+    return _classify_llm_result(db_path, result)
 
+
+def _llm_http_error_resolution(name: str, e: urllib.error.HTTPError) -> Resolution:
+    """Build an UNCERTAIN-bar Resolution from an HTTP error, capturing
+    the response body for diagnostics. Gemini returns useful detail
+    in the body (quota-exceeded, safety-block reason, malformed-prompt)
+    that the generic str() representation drops."""
+    try:
+        body = e.read().decode("utf-8", errors="replace")[:800]
+    except Exception:
+        body = "(could not read response body)"
+    logger.warning("LLM full-research HTTP error for %s: status=%s body=%s", name, e.code, body)
+    return Resolution(
+        usable=False,
+        etymon_id=None,
+        bar_reason=BAR_REASON_UNCERTAIN,
+        resolution_method="llm_full_research",
+        confidence="low",
+        citation=None,
+        reasoning=f"LLM HTTP error {e.code}: {body[:200]}",
+    )
+
+
+def _classify_llm_result(db_path: Path | str, result: dict) -> Resolution:
+    """Map the LLM's full-research result dict to a Resolution.
+
+    Five distinct paths:
+    1. confidence=low + a real-attestation language → UNCERTAIN bar
+    2. attested_in approved + historical form found → USABLE (anchored
+       to existing etymon if present; otherwise NOT_IN_CORPUS bar)
+    3. attested_in real language but NOT approved → OUTSIDE_FAMILY bar
+       with unapproved_language/form recorded for later prioritization
+    4. attested_in='modern_coinage' / 'outside_family' / 'none' →
+       barred with the appropriate sentinel reason
+    """
     attested_in = result.get("attested_in") or "none"
     confidence = result.get("confidence") or "low"
-    bar_reason = result.get("bar_reason")
     historical = result.get("historical_form")
     citation = result.get("citation")
     reasoning = result.get("reasoning")
     gloss = result.get("gloss")
+    bar_reason = result.get("bar_reason")
 
-    # Sentinels the LLM uses for "no real attestation" — distinct from
-    # the case where it names a real language we just don't approve.
     # Conservative: low-confidence answers are barred even if attested_in
     # names a real language. Per user 2026-05-05.
     if confidence == "low" and attested_in not in _NO_REAL_ATTESTATION_SENTINELS:
@@ -482,45 +498,11 @@ def _resolve_via_llm(
         )
 
     if attested_in in APPROVED_LANGUAGES and historical:
-        # Try to anchor to an existing etymon row.
-        etymon_id = _lookup_etymon_id(db_path, historical, attested_in)
-        if etymon_id is None:
-            # LLM identified a real attested form, but our corpus doesn't
-            # have it yet. Bar with attested_but_not_in_corpus so a
-            # future backfill can ingest the etymon — usable=True with
-            # etymon_id=None would be misleading because name generation
-            # would never see this morpheme.
-            return Resolution(
-                usable=False,
-                etymon_id=None,
-                bar_reason=BAR_REASON_NOT_IN_CORPUS,
-                resolution_method="llm_full_research",
-                confidence=confidence,
-                citation=citation,
-                reasoning=(
-                    f"attested in {attested_in} as '{historical}'"
-                    + (f" '{gloss}'" if gloss else "")
-                    + " but no matching etymon row exists in the corpus"
-                    + (f"; {reasoning}" if reasoning else "")
-                ),
-                unapproved_language=attested_in,
-                unapproved_form=historical,
-            )
-        return Resolution(
-            usable=True,
-            etymon_id=etymon_id,
-            bar_reason=None,
-            resolution_method="llm_full_research",
-            confidence=confidence,
-            citation=citation,
-            reasoning=(
-                f"{attested_in}/{historical}"
-                + (f" '{gloss}'" if gloss else "")
-                + (f"; {reasoning}" if reasoning else "")
-            ),
+        return _anchor_to_etymon(
+            db_path, attested_in, historical, gloss, confidence, citation, reasoning
         )
 
-    # LLM named a real language but it's NOT in APPROVED_LANGUAGES:
+    # LLM named a real language but NOT in APPROVED_LANGUAGES:
     # bar with outside_language_family, but RECORD what language and form
     # so we can aggregate "candidate languages to approve" later. Per user
     # 2026-05-05: tracking these gives us a prioritization list.
@@ -561,6 +543,51 @@ def _resolve_via_llm(
         confidence=confidence,
         citation=citation,
         reasoning=reasoning,
+    )
+
+
+def _anchor_to_etymon(
+    db_path: Path | str,
+    attested_in: str,
+    historical: str,
+    gloss: str | None,
+    confidence: str,
+    citation: str | None,
+    reasoning: str | None,
+) -> Resolution:
+    """LLM identified an approved-language attestation. Anchor it to
+    an existing etymon row when one exists; otherwise bar with
+    NOT_IN_CORPUS (so a future backfill can ingest the etymon)."""
+    etymon_id = _lookup_etymon_id(db_path, historical, attested_in)
+    if etymon_id is None:
+        return Resolution(
+            usable=False,
+            etymon_id=None,
+            bar_reason=BAR_REASON_NOT_IN_CORPUS,
+            resolution_method="llm_full_research",
+            confidence=confidence,
+            citation=citation,
+            reasoning=(
+                f"attested in {attested_in} as '{historical}'"
+                + (f" '{gloss}'" if gloss else "")
+                + " but no matching etymon row exists in the corpus"
+                + (f"; {reasoning}" if reasoning else "")
+            ),
+            unapproved_language=attested_in,
+            unapproved_form=historical,
+        )
+    return Resolution(
+        usable=True,
+        etymon_id=etymon_id,
+        bar_reason=None,
+        resolution_method="llm_full_research",
+        confidence=confidence,
+        citation=citation,
+        reasoning=(
+            f"{attested_in}/{historical}"
+            + (f" '{gloss}'" if gloss else "")
+            + (f"; {reasoning}" if reasoning else "")
+        ),
     )
 
 
@@ -617,98 +644,10 @@ def resolve(
     pre = descent_walking_lookup(db_path, name)
     if pre:
         if skip_llm:
-            # Trust pre-filter blindly; caller verifies separately.
-            winner = pre[0]
-            return Resolution(
-                usable=True,
-                etymon_id=winner.etymon_id,
-                bar_reason=None,
-                resolution_method="descent_lookup",
-                confidence="high",
-                citation="wiktionary-descent-chain",
-                reasoning=(
-                    f"matched {winner.language}/{winner.canonical_form} "
-                    f"via {winner.edge_type} (skip_llm=True; not semantically verified)"
-                ),
-            )
-        # Verify each candidate semantically; first match wins.
-        for cand in pre:
-            glosses = _ancestor_glosses(db_path, cand.etymon_id)
-            try:
-                check = semantic_check_caller(name, description, cand, glosses)
-            except urllib.error.HTTPError as http_exc:
-                # Mirror _llm_full_research: HTTPError carries response
-                # body with quota / safety-block / format diagnostics.
-                try:
-                    body = http_exc.read().decode("utf-8", errors="replace")[:800]
-                except Exception:
-                    body = "(could not read response body)"
-                logger.warning(
-                    "semantic check HTTP error for %s -> %s/%s: status=%s body=%s; falling through",
-                    name,
-                    cand.language,
-                    cand.canonical_form,
-                    http_exc.code,
-                    body,
-                )
-                continue
-            except (
-                urllib.error.URLError,
-                RuntimeError,
-                json.JSONDecodeError,
-                KeyError,
-                IndexError,
-            ) as exc:
-                # Semantic check failed; conservative — log it for
-                # debuggability, then bar this candidate and try the
-                # next (ultimately falling through to full research).
-                logger.warning(
-                    "semantic check failed for %s -> %s/%s (%s); falling through",
-                    name,
-                    cand.language,
-                    cand.canonical_form,
-                    exc,
-                )
-                continue
-            verdict = check.get("verdict") or "uncertain"
-            check_reasoning = check.get("reasoning") or ""
-            if verdict == "match":
-                return Resolution(
-                    usable=True,
-                    etymon_id=cand.etymon_id,
-                    bar_reason=None,
-                    resolution_method="descent_lookup",
-                    confidence="high",
-                    citation="wiktionary-descent-chain",
-                    reasoning=(
-                        f"matched {cand.language}/{cand.canonical_form} "
-                        f"via {cand.edge_type}; semantic-check: {check_reasoning}"
-                    ),
-                )
-        # Every candidate failed the semantic check → fall through to full
-        # research, but tag it so we know what happened.
-        full = _resolve_via_llm(db_path, name, description, llm_caller=llm_caller)
-        # If full research bars it, prefer the homograph-collision reason
-        # over generic no_etymology since pre-filter DID find a form match.
-        if not full.usable and full.bar_reason in (
-            BAR_REASON_NO_ETYMOLOGY,
-            BAR_REASON_OUTSIDE_FAMILY,
-            BAR_REASON_MODERN_COINAGE,
-        ):
-            return Resolution(
-                usable=False,
-                etymon_id=None,
-                bar_reason=BAR_REASON_HOMOGRAPH,
-                resolution_method=full.resolution_method,
-                confidence=full.confidence,
-                citation=full.citation,
-                reasoning=(
-                    f"pre-filter matched {pre[0].language}/{pre[0].canonical_form} "
-                    f"but semantic check rejected (homograph collision); "
-                    f"full research: {full.reasoning}"
-                ),
-            )
-        return full
+            return _skip_llm_resolution(pre)
+        return _semantic_check_candidates(
+            db_path, name, description, pre, semantic_check_caller, llm_caller
+        )
 
     if skip_llm:
         return Resolution(
@@ -722,6 +661,122 @@ def resolve(
         )
 
     return _resolve_via_llm(db_path, name, description, llm_caller=llm_caller)
+
+
+def _skip_llm_resolution(pre: list[AncestorMatch]) -> Resolution:
+    """skip_llm=True branch: trust the pre-filter's first hit blindly
+    without semantic verification. Used by tests and offline coverage
+    estimation; the caller is on the hook for verifying separately."""
+    winner = pre[0]
+    return Resolution(
+        usable=True,
+        etymon_id=winner.etymon_id,
+        bar_reason=None,
+        resolution_method="descent_lookup",
+        confidence="high",
+        citation="wiktionary-descent-chain",
+        reasoning=(
+            f"matched {winner.language}/{winner.canonical_form} "
+            f"via {winner.edge_type} (skip_llm=True; not semantically verified)"
+        ),
+    )
+
+
+def _semantic_check_candidates(
+    db_path: Path | str,
+    name: str,
+    description: str,
+    pre: list[AncestorMatch],
+    semantic_check_caller,
+    llm_caller,
+) -> Resolution:
+    """Verify each pre-filter candidate semantically; first 'match'
+    wins. If every candidate fails, fall through to full research,
+    re-tagging a homograph-collision bar reason if the full-research
+    bar would otherwise have been generic no-etymology / outside-family
+    / modern-coinage (pre-filter DID find a form match, so it's
+    homograph-shaped, not 'no etymology')."""
+    for cand in pre:
+        glosses = _ancestor_glosses(db_path, cand.etymon_id)
+        check = _safe_semantic_check(name, description, cand, glosses, semantic_check_caller)
+        if check is None:
+            continue
+        if (check.get("verdict") or "uncertain") == "match":
+            return Resolution(
+                usable=True,
+                etymon_id=cand.etymon_id,
+                bar_reason=None,
+                resolution_method="descent_lookup",
+                confidence="high",
+                citation="wiktionary-descent-chain",
+                reasoning=(
+                    f"matched {cand.language}/{cand.canonical_form} "
+                    f"via {cand.edge_type}; semantic-check: {check.get('reasoning') or ''}"
+                ),
+            )
+    full = _resolve_via_llm(db_path, name, description, llm_caller=llm_caller)
+    if not full.usable and full.bar_reason in (
+        BAR_REASON_NO_ETYMOLOGY,
+        BAR_REASON_OUTSIDE_FAMILY,
+        BAR_REASON_MODERN_COINAGE,
+    ):
+        return Resolution(
+            usable=False,
+            etymon_id=None,
+            bar_reason=BAR_REASON_HOMOGRAPH,
+            resolution_method=full.resolution_method,
+            confidence=full.confidence,
+            citation=full.citation,
+            reasoning=(
+                f"pre-filter matched {pre[0].language}/{pre[0].canonical_form} "
+                f"but semantic check rejected (homograph collision); "
+                f"full research: {full.reasoning}"
+            ),
+        )
+    return full
+
+
+def _safe_semantic_check(
+    name: str,
+    description: str,
+    cand: AncestorMatch,
+    glosses: list[str],
+    semantic_check_caller,
+) -> dict | None:
+    """Wrap a semantic-check call with the same HTTP / URL / parse
+    error handling as _llm_full_research. On any failure, log + return
+    None so the outer loop falls through to the next candidate."""
+    try:
+        return semantic_check_caller(name, description, cand, glosses)
+    except urllib.error.HTTPError as http_exc:
+        try:
+            body = http_exc.read().decode("utf-8", errors="replace")[:800]
+        except Exception:
+            body = "(could not read response body)"
+        logger.warning(
+            "semantic check HTTP error for %s -> %s/%s: status=%s body=%s; falling through",
+            name,
+            cand.language,
+            cand.canonical_form,
+            http_exc.code,
+            body,
+        )
+        return None
+    except (
+        urllib.error.URLError,
+        RuntimeError,
+        json.JSONDecodeError,
+        KeyError,
+        IndexError,
+    ) as exc:
+        logger.warning(
+            "semantic check failed for %s -> %s/%s (%s); falling through",
+            name,
+            cand.language,
+            cand.canonical_form,
+            exc,
+        )
+        return None
 
 
 def write_resolution(
