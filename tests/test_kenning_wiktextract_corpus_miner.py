@@ -369,9 +369,7 @@ def test_derive_positions_great_is_pre_only(tmp_path: Path, fresh_db: Path) -> N
         derive_positions(db, {"english": place_names_path}, apply=True)
 
     with LexiconDB(fresh_db) as db:
-        gid = db.conn.execute("SELECT id FROM etymon WHERE canonical_form='great'").fetchone()[
-            "id"
-        ]
+        gid = db.conn.execute("SELECT id FROM etymon WHERE canonical_form='great'").fetchone()["id"]
         positions = sorted(
             r["position"]
             for r in db.conn.execute(
