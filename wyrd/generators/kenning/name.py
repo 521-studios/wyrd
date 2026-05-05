@@ -79,8 +79,9 @@ def _trie_for(word_db: dict) -> MorphemeTrie:
         _trie_cache.move_to_end(key)
         return cached
     trie = build_morpheme_trie(word_db)
+    # New-key assignment on an OrderedDict already inserts at the end;
+    # explicit move_to_end isn't needed.
     _trie_cache[key] = trie
-    _trie_cache.move_to_end(key)
     while len(_trie_cache) > _TRIE_CACHE_MAX:
         _trie_cache.popitem(last=False)
     return trie
@@ -168,7 +169,7 @@ class Name:
         for word in self.words:
             w = Word(word)
             meanings = w.extract_meanings(self.chunks)
-            seen: set[Word] = set()
+            seen: set[Word] = set(self.words[word])
             for meaning in meanings:
                 if meaning not in seen:
                     self.words[word].append(meaning)
@@ -203,7 +204,7 @@ class Name:
             decompositions = (
                 canonical_decompositions(word, trie) if reduce else all_decompositions(word, trie)
             )
-            seen: set[Word] = set()
+            seen: set[Word] = set(self.words[word])
             for d in decompositions:
                 w = Word(d)
                 if w not in seen:
