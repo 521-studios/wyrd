@@ -1920,12 +1920,23 @@ def _score_extraction_gaps(
     Returns the top-30 suspects sorted by descending text-count.
     """
     extraction_counts: dict[int, int] = {}
-    for etymon_id in matches:
-        cur = db.conn.execute(
-            "SELECT COUNT(*) AS n FROM toponym_etymology_element WHERE etymon_id = ?",
-            (etymon_id,),
-        )
-        extraction_counts[etymon_id] = cur.fetchone()["n"]
+    if matches:
+        # One GROUP BY pass per chunk instead of N separate COUNT(*)
+        # queries. Chunked at 999 to stay under SQLite's
+        # SQLITE_MAX_VARIABLE_NUMBER default. Etymons with no row in
+        # toponym_etymology_element don't appear in the result; the
+        # zero is implicit (the call site uses ``.get(etymon_id, 0)``).
+        ids = list(matches.keys())
+        for i in range(0, len(ids), 999):
+            chunk = ids[i : i + 999]
+            placeholders = ",".join("?" * len(chunk))
+            cur = db.conn.execute(
+                f"SELECT etymon_id, COUNT(*) AS n FROM toponym_etymology_element "
+                f"WHERE etymon_id IN ({placeholders}) GROUP BY etymon_id",
+                chunk,
+            )
+            for row in cur:
+                extraction_counts[row["etymon_id"]] = row["n"]
     suspects: list[dict[str, Any]] = []
     for etymon_id, hits in matches.items():
         text_count = sum(c for _, c, _ in hits)
