@@ -1715,7 +1715,7 @@ def test_lexicon_mine_llm_records_mining_run_at_end_of_run(
             source_quote="Otherton. other body.",
         ),
     ]
-    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser: fake_parsed)
+    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser, **_: fake_parsed)
 
     # Fake OllamaClient — only needs .model and .base_url for echoed output.
     class FakeClient:
@@ -2544,7 +2544,7 @@ def test_lexicon_review_low_conf_counts_as_declined_not_written(
             source_quote="Faketon. fake body text.",
         ),
     ]
-    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser: fake_parsed)
+    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser, **_: fake_parsed)
 
     # Stub Gemini: return a "low"-confidence result with elements
     # present. The writer will silently drop this; the CLI must catch
@@ -2652,7 +2652,7 @@ def test_lexicon_review_dry_run_does_not_persist_or_count_writes(
             source_quote="Faketon. fake body.",
         ),
     ]
-    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser: fake_parsed)
+    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser, **_: fake_parsed)
 
     class FakeClient:
         model = "fake-gemini-model"

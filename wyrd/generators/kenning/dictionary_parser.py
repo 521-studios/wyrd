@@ -518,12 +518,19 @@ _NUMBERED_ENTRY_START = re.compile(r"^\s*(\d{1,5})\.\s+(?P<rest>\S.*)$")
 
 # The first place-name in an entry body — used to populate `toponym` so
 # the existing form-in-body validator (D3) has something concrete to
-# match. Matches "Saint-X" / "Sainte-X" / "St-X" / "St. X" with the
-# trailing French diacritic / hyphen / apostrophe characters that show
-# up in the corpus. The optional period after "St" handles "St. Marie"
-# vs "St-Marie" / "Saint-Marie" — all three shapes appear in real OCR.
+# match. Matches French saint-prefixed toponyms across every shape that
+# shows up in the corpus:
+#   Saint-Caradu, Sainte-Catherine     — full canonical
+#   St-Pierre, St. Marie-aux-Mines     — abbreviated masculine
+#   Ste-Marie, Ste. Foy                — abbreviated feminine
+#   Sts-Pierre-et-Paul, Sts. Innocents — plural (rare but real)
+# Plus the trailing French diacritic / hyphen / apostrophe characters
+# that show up after the prefix. Diacritic class includes capital + lower
+# variants of every accented letter that appears in French place names.
 _FIRST_TOPONYM = re.compile(
-    r"\b(?P<name>(?:Saint|Sainte|St\.?)[-\s][A-ZÉÈÀÂÎÔÛÇ][A-Za-zÉÈÀÂÎÔÛÇéèàâîôûç'-]+)"
+    r"\b(?P<name>(?:Saint|Sainte|Sts|Ste|St)\.?[-\s]"
+    r"[A-ZÀÂÄÆÇÈÉÊËÎÏÔŒÙÛÜŸ]"
+    r"[A-Za-zÀÂÄÆÇÈÉÊËÎÏÔŒÙÛÜŸàâäæçèéêëîïôœùûüÿ'-]+)"
 )
 
 
@@ -541,17 +548,20 @@ def parse_numbered_list_text(
     full entry body becomes `body_text`. Multi-line entries are joined
     with continuation whitespace until the next ordinal boundary.
 
-    ``min_entry_number`` lets the caller skip ordinals below a threshold
-    — useful when the numbered section starts mid-document (Longnon vol 2's
-    saint-names section opens at entry 1659; earlier numbered text is
-    front-matter / TOC noise that doesn't match this format). Default 1
-    accepts everything for general use.
+    ``min_entry_number`` and ``max_entry_number`` define an INCLUSIVE
+    range ``[min, max]``: an ordinal exactly equal to either bound IS
+    treated as an entry boundary. Useful when the numbered section
+    starts mid-document (Longnon vol 2's saint-names section opens at
+    entry 1659 and ends at 2138; earlier text is front-matter, later
+    text is index-appendix cross-references). Default ``min=1`` and
+    ``max=None`` accept every ordinal.
 
-    ``max_entry_number`` caps at the upper bound of the saint-names
-    section — anything past 2138 in Longnon vol 2 is index-appendix
-    cross-references, not etymology entries, and feeding those to the
-    LLM costs API spend for guaranteed declines. Default None accepts
-    everything above ``min_entry_number``.
+    Bounds also act as a noise filter against ordinal-shaped lines in
+    body prose: a continuation line that happens to start with a year
+    like ``1900. ...`` would otherwise flush the in-progress entry
+    prematurely. When ``max_entry_number`` is set, out-of-range
+    candidates are treated as body continuation rather than entry
+    starts.
 
     Entries whose body has no detectable toponym are still emitted (with
     `toponym=""`) so the caller can decide whether to skip them or pass
@@ -587,9 +597,31 @@ def parse_numbered_list_text(
             )
         )
 
+    def _in_bounds(candidate: int) -> bool:
+        if candidate < min_entry_number:
+            return False
+        return not (max_entry_number is not None and candidate > max_entry_number)
+
     for line in text.splitlines():
         m = _NUMBERED_ENTRY_START.match(line)
         if m:
+            candidate = int(m.group(1))
+            # Bounds-aware boundary detection: an "ordinal" outside the
+            # caller's [min, max] window is more likely a year citation
+            # or page reference appearing at line start (real OCR
+            # produces lines like "1900. Some text" inside body prose)
+            # than a real entry header. Treat out-of-range matches as
+            # continuation text, NOT entry boundaries — otherwise the
+            # in-progress entry would be flushed prematurely and the
+            # next real ordinal would still be a fresh start, but the
+            # body in between gets shredded across two ParsedEntry rows.
+            #
+            # When neither bound is set (default min=1, max=None) every
+            # candidate is in-bounds and we get the historic behavior.
+            if not _in_bounds(candidate):
+                if current_number is not None:
+                    current_lines.append(line)
+                continue
             _flush()
             if max_entries is not None and len(entries) >= max_entries:
                 # Already at the cap — stop accumulating new entries.
@@ -598,7 +630,7 @@ def parse_numbered_list_text(
                 current_number = None
                 current_lines = []
                 break
-            current_number = int(m.group(1))
+            current_number = candidate
             current_lines = [m.group("rest")]
         elif current_number is not None:
             current_lines.append(line)

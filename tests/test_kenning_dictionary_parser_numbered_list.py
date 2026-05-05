@@ -94,19 +94,82 @@ def test_parse_numbered_list_empty_toponym_when_no_saint_match():
 
 
 def test_parse_numbered_list_handles_sainte_and_st_variants():
-    """Toponym detection covers feminine (Sainte-X) and the abbreviated
-    'St' / 'St.' forms that occasionally surface in OCR'd French
-    dictionaries."""
+    """Toponym detection covers every saint-prefix shape that shows up
+    in real OCR: Saint/Sainte (full canonical), St/St. (abbreviated
+    masculine), Ste/Ste. (abbreviated feminine), Sts/Sts. (plural).
+    All three trailing-token shapes (hyphen, space-period-space, plain
+    space) must resolve."""
     text = textwrap.dedent("""
         1.  Catharina :  Sainte-Catherine (Île-de-France).
         2.  Petrus :  St-Pierre (Calvados).
         3.  Maria :  St. Marie-aux-Mines (Haut-Rhin).
+        4.  Maria :  Ste-Marie (Charente).
+        5.  Fides :  Ste. Foy (Aveyron).
+        6.  Innocentes :  Sts-Innocents (Paris).
     """).strip()
     entries = parse_numbered_list_text(text)
-    assert len(entries) == 3
+    assert len(entries) == 6
     assert entries[0].toponym == "Sainte-Catherine"
     assert entries[1].toponym == "St-Pierre"
-    assert entries[2].toponym.startswith("St")
+    # "St. Marie-aux-Mines" — period-space variant; toponym is the
+    # space-separated form. Pin the actual extracted shape rather than
+    # a loose startswith() so a regression that drops the period
+    # support surfaces here.
+    assert entries[2].toponym == "St. Marie-aux-Mines"
+    assert entries[3].toponym == "Ste-Marie"
+    assert entries[4].toponym == "Ste. Foy"
+    assert entries[5].toponym == "Sts-Innocents"
+
+
+def test_parse_numbered_list_diacritic_class_covers_french_capitals():
+    """The toponym regex's first-letter class must accept every accented
+    capital that shows up in French place-names. Pin the rare ones
+    (Ë, Ï, Ô, Œ, Æ) so a regression that drops them breaks here. Real
+    examples: Île-de-France (Î), Œuvre (Œ), Évreux (É)."""
+    text = textwrap.dedent("""
+        1. A : Saint-Évreux.
+        2. B : Saint-Île-Aux-Moines.
+        3. C : Saint-Œuvre.
+        4. D : Saint-Ëpiphanie.
+        5. E : Saint-Œuf.
+    """).strip()
+    entries = parse_numbered_list_text(text)
+    assert len(entries) == 5
+    assert entries[0].toponym == "Saint-Évreux"
+    assert entries[1].toponym == "Saint-Île-Aux-Moines"
+    assert entries[2].toponym == "Saint-Œuvre"
+    assert entries[3].toponym == "Saint-Ëpiphanie"
+    assert entries[4].toponym == "Saint-Œuf"
+
+
+def test_parse_numbered_list_out_of_range_ordinal_in_body_is_continuation():
+    """Bounds-aware boundary detection (round-2 fix): a continuation
+    line that happens to start with a year-like token like '1900. ...'
+    must NOT flush the in-progress entry when it falls outside
+    [min_entry_number, max_entry_number]. Without this guard, body
+    prose containing year citations or page references would shred
+    the in-progress entry across two ParsedEntry rows.
+
+    Regression case: pre-fix this test would yield 3 entries (1659,
+    1900, 2000) with the 1659 body cut off mid-sentence; post-fix it
+    yields 2 entries (1659, 2000) with 1900 absorbed into 1659's body."""
+    text = textwrap.dedent("""
+        1659.  Caradocus : Saint-Caradu. The form is first attested in
+        1900.  This 1900-prefixed line should NOT start a new entry.
+
+        2000.  Out-of-range upper boundary, would fall outside the
+        saint-names section but here we test the bounds work.
+    """).strip()
+    # Saint-names range; 1900 is INSIDE [1659, 2138], so without the
+    # bounds shrinking, the body's "1900." would split. Tighten max to
+    # 1700 to push 1900 outside the range.
+    entries = parse_numbered_list_text(text, min_entry_number=1659, max_entry_number=1700)
+    # Only the 1659 entry should remain — 2000 is also out-of-range.
+    assert len(entries) == 1
+    assert entries[0].toponym == "Saint-Caradu"
+    # The "1900." continuation got absorbed into the body, not flushed.
+    assert "1900" in entries[0].body_text
+    assert "should NOT start a new entry" in entries[0].body_text
 
 
 def test_parse_numbered_list_ignores_intra_paragraph_numbers():
@@ -185,6 +248,185 @@ def test_parse_numbered_list_max_entries_zero_returns_empty():
     """Edge case: `max_entries=0` is a valid no-op cap."""
     text = "1. Caradocus : Saint-Caradu."
     assert parse_numbered_list_text(text, max_entries=0) == []
+
+
+# --- CLI dispatch + flag flow-through (round-2 test-coverage) -------------
+
+
+def test_select_parser_and_run_routes_numbered_list_explicitly():
+    """`_select_parser_and_run(text, 'numbered-list')` must dispatch to
+    the numbered-list parser. Without this test, a regression that
+    forgot the new `if parser == 'numbered-list'` branch would silently
+    fall through to the auto path (skeat → alphabetical) and yield the
+    pre-PR 67-entry parse instead of the 475-entry numbered parse."""
+    from wyrd.generators.kenning.cli import _select_parser_and_run
+
+    text = textwrap.dedent("""
+        1659. Caradocus : Saint-Caradu (Côtes-du-Nord).
+        1660. Garaunus : Saint-Chéron (Eure).
+    """).strip()
+    entries = _select_parser_and_run(text, "numbered-list")
+    assert len(entries) == 2
+    assert entries[0].toponym == "Saint-Caradu"
+
+
+def test_select_parser_and_run_auto_does_not_pick_numbered_list():
+    """`auto` mode must NOT pick the numbered-list parser even when the
+    text has ordinal-shaped lines mixed with prose. wyrd-5af design
+    intent: auto stays as skeat → alphabetical so a few stray
+    ordinals in body prose can't flip a Mawer-shaped book onto the
+    wrong parser. Pin so a future 'auto includes numbered-list' tweak
+    has to think about this regression risk first."""
+    from wyrd.generators.kenning.cli import _select_parser_and_run
+
+    # Text with numbered-list shape — if `auto` were greedy it would
+    # pick numbered-list and yield 2 entries; instead it should fall
+    # through to skeat (which returns 0) → alphabetical (which returns
+    # 0 for this stub). Either way, NOT 2.
+    text = textwrap.dedent("""
+        1659. Caradocus : Saint-Caradu (Côtes-du-Nord).
+        1660. Garaunus : Saint-Chéron (Eure).
+    """).strip()
+    auto_entries = _select_parser_and_run(text, "auto")
+    nl_entries = _select_parser_and_run(text, "numbered-list")
+    # The numbered-list parser produces 2 from this text. If auto picked
+    # it, auto would also return 2 — and the assertion below would fail.
+    assert len(nl_entries) == 2
+    assert len(auto_entries) != 2 or len(auto_entries) == 0
+
+
+def test_select_parser_and_run_threads_min_max_entry_to_numbered_list():
+    """`_select_parser_and_run` plumbs the `min_entry_number` and
+    `max_entry_number` kwargs through to the numbered-list parser. A
+    regression that dropped one of the kwargs at the dispatcher would
+    leave the bounds story unreachable from the CLI surface — exactly
+    the round-1 reviewer concern. Pin both bounds composing correctly."""
+    from wyrd.generators.kenning.cli import _select_parser_and_run
+
+    text = textwrap.dedent("""
+        100. Pre-section.
+        500. Saint-Foo.
+        1000. Saint-Bar.
+        1500. Saint-Baz.
+        2000. Post-section.
+    """).strip()
+    entries = _select_parser_and_run(
+        text, "numbered-list", min_entry_number=500, max_entry_number=1500
+    )
+    assert {e.toponym for e in entries} == {"Saint-Foo", "Saint-Bar", "Saint-Baz"}
+
+
+def test_cli_min_entry_max_entry_flags_flow_through_to_parser(tmp_path, monkeypatch):
+    """End-to-end CLI wiring (round-2 reviewer gap): `wyrd kenning
+    lexicon mine-llm ... --parser numbered-list --min-entry 1659
+    --max-entry 2138` must thread both bounds down to the parser. A
+    regression that hardcoded the bounds, dropped a kwarg in the
+    dispatcher chain, or renamed an option would slip past the unit
+    tests above because they call `_select_parser_and_run` directly."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+    from wyrd.generators.kenning import llm_extractor
+    from wyrd.generators.kenning.lexicon import init_schema
+
+    captured: dict[str, object] = {}
+
+    def stub_select(text, parser, *, min_entry_number=1, max_entry_number=None):
+        captured["parser"] = parser
+        captured["min_entry_number"] = min_entry_number
+        captured["max_entry_number"] = max_entry_number
+        return []
+
+    monkeypatch.setattr(cli_mod, "_select_parser_and_run", stub_select)
+
+    class FakeClient:
+        model = "fake"
+        base_url = "http://localhost:0"
+
+        def __init__(self, **_):
+            pass
+
+    monkeypatch.setattr(llm_extractor, "OllamaClient", FakeClient)
+
+    src_path = tmp_path / "test_book.txt"
+    src_path.write_text("dummy body\n")
+    db_path = tmp_path / "test.db"
+    init_schema(db_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        [
+            "lexicon",
+            "mine-llm",
+            str(src_path),
+            "--db",
+            str(db_path),
+            "--provider",
+            "ollama",
+            "--parser",
+            "numbered-list",
+            "--min-entry",
+            "1659",
+            "--max-entry",
+            "2138",
+        ],
+    )
+    assert result.exit_code == 0, (result.output or "") + (result.stderr or "")
+    assert captured.get("parser") == "numbered-list"
+    assert captured.get("min_entry_number") == 1659
+    assert captured.get("max_entry_number") == 2138
+
+
+def test_cli_min_entry_default_is_one_max_entry_default_is_none(tmp_path, monkeypatch):
+    """Default values for the new --min-entry / --max-entry flags must
+    preserve the historic 'no filter' behavior. Pin so a future default
+    change doesn't silently start filtering existing mining runs."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+    from wyrd.generators.kenning import llm_extractor
+    from wyrd.generators.kenning.lexicon import init_schema
+
+    captured: dict[str, object] = {}
+
+    def stub_select(text, parser, *, min_entry_number=1, max_entry_number=None):
+        captured["min_entry_number"] = min_entry_number
+        captured["max_entry_number"] = max_entry_number
+        return []
+
+    monkeypatch.setattr(cli_mod, "_select_parser_and_run", stub_select)
+
+    class FakeClient:
+        model = "fake"
+        base_url = "http://localhost:0"
+
+        def __init__(self, **_):
+            pass
+
+    monkeypatch.setattr(llm_extractor, "OllamaClient", FakeClient)
+
+    src_path = tmp_path / "test_book.txt"
+    src_path.write_text("dummy body\n")
+    db_path = tmp_path / "test.db"
+    init_schema(db_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        [
+            "lexicon",
+            "mine-llm",
+            str(src_path),
+            "--db",
+            str(db_path),
+            "--provider",
+            "ollama",
+        ],
+    )
+    assert result.exit_code == 0, (result.output or "") + (result.stderr or "")
+    assert captured.get("min_entry_number") == 1
+    assert captured.get("max_entry_number") is None
 
 
 def test_parse_numbered_list_max_entry_number_caps_at_section_boundary():

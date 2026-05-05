@@ -343,7 +343,7 @@ def test_cli_concurrency_flag_flows_through_to_mine_entries(tmp_path, monkeypatc
             source_quote="Faketon. fake body.",
         ),
     ]
-    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser: fake_parsed)
+    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser, **_: fake_parsed)
 
     class FakeClient:
         model = "fake-model:0b"
@@ -410,7 +410,7 @@ def test_cli_concurrency_flag_default_is_one(tmp_path, monkeypatch):
             source_quote="Faketon. fake body.",
         ),
     ]
-    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser: fake_parsed)
+    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser, **_: fake_parsed)
 
     class FakeClient:
         model = "fake-model:0b"

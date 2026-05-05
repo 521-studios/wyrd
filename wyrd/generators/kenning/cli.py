@@ -72,7 +72,13 @@ from wyrd.generators.kenning.wiktextract_ingester import ingest_wiktextract_path
 from wyrd.seed import resolve_seed, rng_for
 
 
-def _select_parser_and_run(text: str, parser: str) -> list:
+def _select_parser_and_run(
+    text: str,
+    parser: str,
+    *,
+    min_entry_number: int = 1,
+    max_entry_number: int | None = None,
+) -> list:
     """Pick the right parser for a book.
 
     Modes:
@@ -91,13 +97,22 @@ def _select_parser_and_run(text: str, parser: str) -> list:
                       treatise sources, and we don't want a few stray
                       ordinals to flip a Mawer-shaped book onto the
                       wrong parser.
+
+    ``min_entry_number`` / ``max_entry_number`` apply ONLY to the
+    numbered-list parser (the other modes don't have an ordinal axis).
+    Inclusive bounds; default to "no filter" so the historic
+    skeat/alphabetical paths stay bit-stable.
     """
     if parser == "skeat":
         return parse_skeat_text(text)
     if parser == "alphabetical":
         return parse_alphabetical_text(text)
     if parser == "numbered-list":
-        return parse_numbered_list_text(text)
+        return parse_numbered_list_text(
+            text,
+            min_entry_number=min_entry_number,
+            max_entry_number=max_entry_number,
+        )
     skeat_result = parse_skeat_text(text)
     if len(skeat_result) >= 5:
         return skeat_result
@@ -1142,6 +1157,28 @@ def _mine_entries(
     ),
 )
 @click.option(
+    "--min-entry",
+    type=int,
+    default=1,
+    show_default=True,
+    help=(
+        "Numbered-list only: skip ordinals below this value. Use to drop "
+        "front-matter / TOC noise when the actual numbered section opens "
+        "mid-document (e.g. Longnon vol 2 saint-names start at 1659)."
+    ),
+)
+@click.option(
+    "--max-entry",
+    type=int,
+    default=None,
+    help=(
+        "Numbered-list only: skip ordinals above this value. Use to cap "
+        "at the section boundary so index-appendix cross-references don't "
+        "cost API spend on guaranteed declines (e.g. Longnon vol 2 "
+        "saint-names end at 2138)."
+    ),
+)
+@click.option(
     "--concurrency",
     type=click.IntRange(1, 64),
     default=1,
@@ -1166,6 +1203,8 @@ def lexicon_mine_llm(
     timeout: float,
     parser: str,
     concurrency: int,
+    min_entry: int,
+    max_entry: int | None,
 ) -> None:
     """Mine an etymology text via LLM (Ollama or Gemini).
 
@@ -1188,7 +1227,9 @@ def lexicon_mine_llm(
     )
 
     text = path.read_text()
-    parsed = _select_parser_and_run(text, parser)
+    parsed = _select_parser_and_run(
+        text, parser, min_entry_number=min_entry, max_entry_number=max_entry
+    )
     if limit is not None:
         parsed = parsed[:limit]
 
