@@ -1027,12 +1027,48 @@ def _create_fantasy_morpheme_table(db: LexiconDB, applied: dict[str, bool]) -> N
                 f"declared NULL where the current schema requires NOT NULL; "
                 f"data integrity issues will follow. Manual intervention needed."
             )
-        return
+        # SQLite ALTER TABLE can't change a column's collation; the
+        # original CREATE statement is the source of truth. Read it
+        # from sqlite_master and look for the COLLATE NOCASE clause
+        # on input_name. If it's missing, recreate the table — but
+        # only when there are no existing rows (drop+recreate is
+        # destructive). If rows exist, raise so the operator can
+        # decide how to migrate.
+        ddl_row = db.conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='fantasy_morpheme'"
+        ).fetchone()
+        ddl = (ddl_row["sql"] if ddl_row else "") or ""
+        if "input_name" in ddl and "COLLATE NOCASE" not in ddl.upper():
+            row_count = db.conn.execute("SELECT COUNT(*) FROM fantasy_morpheme").fetchone()[0]
+            if row_count == 0:
+                db.conn.executescript(
+                    "DROP TABLE fantasy_morpheme;"
+                    "DROP INDEX IF EXISTS idx_fantasy_morpheme_approach;"
+                    "DROP INDEX IF EXISTS idx_fantasy_morpheme_etymon;"
+                    "DROP INDEX IF EXISTS idx_fantasy_morpheme_usable;"
+                    "DROP INDEX IF EXISTS idx_fantasy_morpheme_unapproved;"
+                )
+                applied["fantasy_morpheme_recreated_for_collation"] = True
+                # Fall through to the fresh CREATE block below.
+            else:
+                raise RuntimeError(
+                    "fantasy_morpheme.input_name is missing COLLATE NOCASE; "
+                    "case-sensitivity will produce duplicate rows for "
+                    "different casings of the same name. The table has "
+                    f"{row_count} rows so we won't auto-recreate; "
+                    "rebuild manually after exporting any data you need to keep."
+                )
+        else:
+            return
     db.conn.executescript(
         """
         CREATE TABLE fantasy_morpheme (
           id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-          input_name          TEXT NOT NULL,
+          -- COLLATE NOCASE so 'Harpy' and 'harpy' are the same row
+          -- under the (input_name, approach_version) UNIQUE — avoids
+          -- redundant LLM research calls when callers happen to vary
+          -- the casing of the same name.
+          input_name          TEXT NOT NULL COLLATE NOCASE,
           input_description   TEXT,
           usable              INTEGER NOT NULL CHECK (usable IN (0, 1)),
           etymon_id           INTEGER REFERENCES etymon(id) ON DELETE SET NULL,

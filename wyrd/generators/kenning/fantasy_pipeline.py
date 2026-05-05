@@ -417,7 +417,34 @@ def _resolve_via_llm(
     the (form, language) pair the LLM identified."""
     try:
         result = llm_caller(name, description)
-    except (urllib.error.URLError, RuntimeError, json.JSONDecodeError, KeyError) as e:
+    except urllib.error.HTTPError as e:
+        # HTTPError carries a response body we want in the log: Gemini
+        # returns useful detail there (quota-exceeded, safety-block
+        # reason, malformed-prompt diagnostic) that the generic str()
+        # representation drops.
+        try:
+            body = e.read().decode("utf-8", errors="replace")[:800]
+        except Exception:
+            body = "(could not read response body)"
+        logger.warning("LLM full-research HTTP error for %s: status=%s body=%s", name, e.code, body)
+        return Resolution(
+            usable=False,
+            etymon_id=None,
+            bar_reason=BAR_REASON_UNCERTAIN,
+            resolution_method="llm_full_research",
+            confidence="low",
+            citation=None,
+            reasoning=f"LLM HTTP error {e.code}: {body[:200]}",
+        )
+    except (
+        urllib.error.URLError,
+        RuntimeError,
+        json.JSONDecodeError,
+        KeyError,
+        IndexError,
+    ) as e:
+        # IndexError can occur when Gemini's safety filter blocks the
+        # prompt and returns an empty `candidates` list.
         logger.warning("LLM full-research call failed for %s: %s", name, e)
         return Resolution(
             usable=False,
@@ -614,6 +641,7 @@ def resolve(
                 RuntimeError,
                 json.JSONDecodeError,
                 KeyError,
+                IndexError,
             ) as exc:
                 # Semantic check failed; conservative — log it for
                 # debuggability, then bar this candidate and try the

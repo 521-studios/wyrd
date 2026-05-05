@@ -857,6 +857,30 @@ def test_cli_mine_fantasy_name_rejects_conflicting_input_modes(
     assert "mutually exclusive" in (result.output + (result.stderr or ""))
 
 
+def test_write_resolution_input_name_is_case_insensitive(fresh_db: Path) -> None:
+    """input_name has COLLATE NOCASE so write_resolution(`Harpy`) and
+    write_resolution(`harpy`) at the same approach_version target the
+    same row instead of producing duplicates."""
+    res = fp.Resolution(
+        usable=False,
+        etymon_id=None,
+        bar_reason=fp.BAR_REASON_NO_ETYMOLOGY,
+        resolution_method="descent_lookup",
+        confidence="low",
+        citation=None,
+        reasoning="r",
+    )
+    with LexiconDB(fresh_db) as db:
+        fp.write_resolution(db.conn, input_name="Harpy", input_description="d1", resolution=res)
+        fp.write_resolution(db.conn, input_name="harpy", input_description="d2", resolution=res)
+        fp.write_resolution(db.conn, input_name="HARPY", input_description="d3", resolution=res)
+        db.commit()
+
+    conn = sqlite3.connect(fresh_db)
+    n = conn.execute("SELECT COUNT(*) FROM fantasy_morpheme").fetchone()[0]
+    assert n == 1  # all three writes upserted to the same row
+
+
 def test_migration_adds_unapproved_columns_to_existing_table(tmp_path: Path) -> None:
     """fantasy_morpheme tables created before the unapproved_language /
     unapproved_form columns existed must get them via ALTER on a
