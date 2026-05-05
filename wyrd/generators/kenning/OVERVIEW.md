@@ -312,6 +312,10 @@ Wikidata (CC0); morpheme corpus expansion still pending — wyrd-fmg.
   for the runtime perspective: how the Lambda generator works, what
   `meanings.json` contains, how proportions are computed. Lighter than
   this doc and oriented at the runtime layer rather than authoring.
+- **`COVERAGE.md`** — rolling log of place-name decomposition rate
+  per culture. Append a snapshot after every bundle re-emit so the
+  trend stays visible. Coarse "surface morphemes recognized" gauge,
+  not the north star.
 - **`bd`** (beads) — issue tracker. `bd ready` shows what's queued;
   `bd memories` carries persistent knowledge across sessions. Use bd
   for ALL task tracking; never use TodoWrite or markdown TODO lists.
