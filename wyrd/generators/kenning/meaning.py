@@ -322,4 +322,59 @@ def load_meanings(data):
                 for tag in tags:
                     tags_db.setdefault(tag, []).append(plural)
                 meaning_db.setdefault(plural, []).append(plural_meaning)
+            # wyrd-lx8: register one shadow Meaning per inflected form so
+            # the matcher recognizes inflected surface forms (cotum,
+            # brycgan, denu) and resolves them to their lemma without
+            # leaving the inflection suffix as 'unaccounted'. Inflections
+            # are already on the canonical Meaning for D8 generation
+            # picking; this loop ALSO surfaces them as match candidates.
+            #
+            # Each shadow Meaning preserves the canonical's tags / sources
+            # / inflections / variants etc. so post-match consumers see
+            # the same metadata as if the lemma matched directly. The
+            # shadow's ``usage`` carries the canonical's dash markers so
+            # its position constraint (pre/post/inner) matches the lemma.
+            #
+            # No shadow if the inflected form's surface equals the
+            # lemma's — would create a duplicate Meaning at the same key.
+            _register_inflection_shadows(
+                usage, inflections, common_kwargs, meaning_db, tags_db, tags
+            )
     return meaning_db, tags_db
+
+
+def _register_inflection_shadows(
+    canonical_usage: str,
+    inflections: dict,
+    common_kwargs: dict,
+    meaning_db: dict,
+    tags_db: dict,
+    tags: list,
+) -> None:
+    """Add one shadow Meaning per inflected form to ``meaning_db``.
+
+    The shadow shares everything but ``usage`` with the canonical
+    Meaning. Its ``usage`` wraps the inflected form in the same dash
+    markers as the canonical so position constraints round-trip
+    (a post-suffix lemma stays a post-suffix in inflected form).
+
+    Skips:
+    * Inflected forms whose dashed-usage equals the canonical (would
+      register a duplicate).
+    * Empty / whitespace-only forms.
+    """
+    leading_dash = "-" if canonical_usage.startswith("-") else ""
+    trailing_dash = "-" if canonical_usage.endswith("-") else ""
+    canonical_lower = canonical_usage.lower()
+    for _lang, infl_pairs in inflections.items():
+        for form, _label in infl_pairs:
+            form = (form or "").strip()
+            if not form:
+                continue
+            shadow_usage = f"{leading_dash}{form}{trailing_dash}"
+            if shadow_usage.lower() == canonical_lower:
+                continue
+            shadow = Meaning(shadow_usage, **common_kwargs)
+            for tag in tags:
+                tags_db.setdefault(tag, []).append(shadow_usage)
+            meaning_db.setdefault(shadow_usage, []).append(shadow)
