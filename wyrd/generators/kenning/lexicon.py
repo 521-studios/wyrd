@@ -3854,70 +3854,107 @@ def _collect_families(
     can A/B by toggling either branch (e.g. ``--no-include-rando`` or
     ``--no-include-wiktionary-empirical``) without disturbing the other.
     """
-    witness_sql, witness_params = _build_witness_filter(lang_thresholds, min_witnesses)
+    members_by_root, root_of = _build_family_rollup(db)
+    root_ids = _select_promoted_root_ids(
+        db,
+        lang_thresholds=lang_thresholds,
+        min_witnesses=min_witnesses,
+        include_rando=include_rando,
+        include_wiktionary_empirical=include_wiktionary_empirical,
+        root_of=root_of,
+    )
+    return _iterate_families_with_progress(db, root_ids, members_by_root)
 
-    # Performance: compute the etymon → root_id rollup in PYTHON rather
-    # than via a SQL CREATE TEMP TABLE. The relational form needs
-    # ``LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id,
-    # e.lemma_id)`` — a function-on-columns join predicate that no index
-    # can satisfy. On a 731K-row etymon table that's a many-minute scan,
-    # whether materialised once into a temp table or recomputed per
-    # query. A flat ``SELECT id, merged_into_id, lemma_id FROM etymon``
-    # plus a Python dict produces the same rollup in seconds:
-    # 731K rows * ~1µs/row = ~1s vs ~minutes for the SQL JOIN.
-    #
-    # The rollup follows the consensus view's two-step rule (D22 +
-    # D8 flatten):
-    #   1) target = merged_into_id OR lemma_id OR self
-    #   2) root   = lemma_id of target OR target itself
-    # so OCR-cluster losers and inflected children both surface their
-    # ultimate lemma as root_id.
+
+def _build_family_rollup(db: LexiconDB) -> tuple[dict[int, list[int]], Any]:
+    """Compute the etymon → root_id rollup in PYTHON rather than via
+    a SQL CREATE TEMP TABLE. The relational form needs
+    ``LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id,
+    e.lemma_id)`` — a function-on-columns join predicate that no index
+    can satisfy. On a 731K-row etymon table that's a many-minute scan,
+    whether materialised once into a temp table or recomputed per
+    query. A flat ``SELECT id, merged_into_id, lemma_id FROM etymon``
+    plus a Python dict produces the same rollup in seconds:
+    731K rows * ~1µs/row = ~1s vs ~minutes for the SQL JOIN.
+
+    The rollup follows the consensus view's two-step rule (D22 +
+    D8 flatten):
+      1) target = merged_into_id OR lemma_id OR self
+      2) root   = lemma_id of target OR target itself
+    so OCR-cluster losers and inflected children both surface their
+    ultimate lemma as root_id.
+
+    Returns ``(members_by_root, root_of_callable)``.
+    """
     rollup_rows = db.conn.execute("SELECT id, merged_into_id, lemma_id FROM etymon").fetchall()
     lemma_by_id = {r["id"]: r["lemma_id"] for r in rollup_rows}
     target_by_id = {r["id"]: (r["merged_into_id"] or r["lemma_id"] or r["id"]) for r in rollup_rows}
 
-    def _root_of(eid: int) -> int:
+    def root_of(eid: int) -> int:
         target = target_by_id.get(eid, eid)
         return lemma_by_id.get(target) or target
 
     members_by_root: dict[int, list[int]] = {}
     for eid in target_by_id:
-        rid = _root_of(eid)
-        members_by_root.setdefault(rid, []).append(eid)
+        members_by_root.setdefault(root_of(eid), []).append(eid)
+    return members_by_root, root_of
 
-    # Promoted root_ids come from three sources:
-    # (a) consensus witness threshold per language (existing query),
-    # (b) any etymon cited by 'rando-port' (legacy seed),
-    # (c) any etymon cited by 'wiktionary-empirical' (wyrd-4hx7).
-    # For (b) and (c) we just SELECT the cited etymon_ids and roll
-    # them up in Python — much faster than the JOIN-based CTE. For
-    # (a) the consensus view already keys on lemma_id, no rollup needed.
+
+def _select_promoted_root_ids(
+    db: LexiconDB,
+    *,
+    lang_thresholds: dict[str, int],
+    min_witnesses: int,
+    include_rando: bool,
+    include_wiktionary_empirical: bool,
+    root_of: Any,
+) -> list[int]:
+    """Promoted root_ids come from three sources:
+
+    * consensus witness threshold per language (the etymon_consensus view
+      already keys on lemma_id, no rollup needed),
+    * any etymon cited by 'rando-port' (legacy seed),
+    * any etymon cited by 'wiktionary-empirical' (wyrd-4hx7).
+
+    For the two empirical-class branches we SELECT the cited etymon_ids
+    flat and roll them up via ``root_of`` — much faster than the JOIN-
+    based CTE.
+    """
+    witness_sql, witness_params = _build_witness_filter(lang_thresholds, min_witnesses)
     promoted: set[int] = set()
     for row in db.conn.execute(
         f"SELECT lemma_id AS root_id FROM etymon_consensus WHERE {witness_sql}",
         witness_params,
     ):
         promoted.add(row["root_id"])
-
     if include_rando:
         for row in db.conn.execute(
             "SELECT etymon_id FROM etymon_citation WHERE source_id = 'rando-port'"
         ):
-            promoted.add(_root_of(row["etymon_id"]))
-
+            promoted.add(root_of(row["etymon_id"]))
     if include_wiktionary_empirical:
         for row in db.conn.execute(
             "SELECT etymon_id FROM etymon_citation WHERE source_id = 'wiktionary-empirical'"
         ):
-            promoted.add(_root_of(row["etymon_id"]))
+            promoted.add(root_of(row["etymon_id"]))
+    return sorted(promoted)
 
-    root_ids = sorted(promoted)
 
-    # Progress reporting on large empirical-class re-exports — without it
-    # the user has no way to estimate how far along a 30-minute run is.
-    # Chosen step keeps the stderr output to ~50 lines for the typical
-    # 5-10K-root corpus while still emitting first-rate-of-change signal
-    # within the first minute.
+def _iterate_families_with_progress(
+    db: LexiconDB,
+    root_ids: list[int],
+    members_by_root: dict[int, list[int]],
+) -> list[dict[str, Any]]:
+    """Walk promoted root_ids, gathering each family's data and
+    emitting stderr progress every ~2% of total. ``WYRD_EXPORT_QUIET=1``
+    silences the progress lines.
+
+    Without progress reporting the user has no way to estimate how
+    far along a multi-minute re-export is. Step chosen to keep
+    stderr output to ~50 lines on the typical 5-10K-root corpus
+    while still emitting first-rate-of-change signal within the
+    first minute.
+    """
     import os
     import sys
     import time
@@ -3926,7 +3963,6 @@ def _collect_families(
     n_total = len(root_ids)
     progress_every = max(1, n_total // 50) if n_total else 1
     started = time.monotonic()
-
     families: list[dict[str, Any]] = []
     for i, root_id in enumerate(root_ids, 1):
         member_ids = members_by_root.get(root_id, [root_id])
@@ -3938,7 +3974,7 @@ def _collect_families(
             rate = i / elapsed if elapsed > 0 else 0
             eta = (n_total - i) / rate if rate > 0 else 0
             print(
-                f"  _collect_families {i}/{n_total} "
+                f"  collect_families {i}/{n_total} "
                 f"({100 * i / n_total:.1f}%) "
                 f"elapsed={elapsed:.0f}s eta={eta:.0f}s "
                 f"({rate:.0f} roots/s)",

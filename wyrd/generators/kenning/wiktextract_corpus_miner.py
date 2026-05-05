@@ -192,31 +192,56 @@ def compute_unaccounted_fragments(
         if name.count_unaccounted() == 0:
             continue
         seen_in_name: set[str] = set()
-
-        # Class 1: matcher leftover fragments.
-        for word_list in name.words.values():
-            for word in word_list:
-                for chunk in word.word:
-                    if not isinstance(chunk, str):
-                        continue
-                    _accept_candidate(
-                        chunk.lower(), candidates, seen_in_name, min_length, max_length
-                    )
-
-        # Classes 2 + 3: whitespace-words + their prefixes/suffixes.
-        flat_lower = name.name.lower()
-        for word in flat_lower.replace("-", " ").replace("'", " ").split():
-            if len(word) < min_length:
-                continue
-            _accept_candidate(word, candidates, seen_in_name, min_length, max_length)
-            wlen = len(word)
-            # Per-word prefixes (likely pre-position morphemes)
-            for end in range(min_length, min(wlen, max_length) + 1):
-                _accept_candidate(word[:end], candidates, seen_in_name, min_length, max_length)
-            # Per-word suffixes (likely post-position morphemes)
-            for start in range(max(0, wlen - max_length), wlen - min_length + 1):
-                _accept_candidate(word[start:], candidates, seen_in_name, min_length, max_length)
+        _collect_matcher_fragments(name, candidates, seen_in_name, min_length, max_length)
+        _collect_word_substrings(name.name, candidates, seen_in_name, min_length, max_length)
     return candidates
+
+
+def _collect_matcher_fragments(
+    name: Any,
+    candidates: Counter,
+    seen_in_name: set[str],
+    min_length: int,
+    max_length: int,
+) -> None:
+    """Class 1 of the candidate generator: pull the unaccounted string
+    chunks the matcher left behind in ``name.words[*][*].word`` (the
+    ``str`` elements that didn't resolve to a Meaning)."""
+    for word_list in name.words.values():
+        for word in word_list:
+            for chunk in word.word:
+                if not isinstance(chunk, str):
+                    continue
+                _accept_candidate(chunk.lower(), candidates, seen_in_name, min_length, max_length)
+
+
+def _collect_word_substrings(
+    raw_name: str,
+    candidates: Counter,
+    seen_in_name: set[str],
+    min_length: int,
+    max_length: int,
+) -> None:
+    """Classes 2 + 3 of the candidate generator: whitespace-bounded
+    words from the original name PLUS each word's boundary-adjacent
+    prefixes and suffixes within ``[min_length, max_length]``.
+
+    Splitting on space, hyphen, and apostrophe matches the conventions
+    of the bundled place-name corpora (``Saint-Pierre`` / ``O'Connor``
+    / ``Bryneglwys``).
+    """
+    flat_lower = raw_name.lower()
+    for word in flat_lower.replace("-", " ").replace("'", " ").split():
+        if len(word) < min_length:
+            continue
+        _accept_candidate(word, candidates, seen_in_name, min_length, max_length)
+        wlen = len(word)
+        # Per-word prefixes (likely pre-position morphemes)
+        for end in range(min_length, min(wlen, max_length) + 1):
+            _accept_candidate(word[:end], candidates, seen_in_name, min_length, max_length)
+        # Per-word suffixes (likely post-position morphemes)
+        for start in range(max(0, wlen - max_length), wlen - min_length + 1):
+            _accept_candidate(word[start:], candidates, seen_in_name, min_length, max_length)
 
 
 def _accept_candidate(
@@ -420,19 +445,42 @@ def mine_corpus(
     if apply:
         _ensure_source_row(db)
 
-    # Union of fragments across cultures; stream slices once, partition
-    # the matches by which culture's language scope each entry falls in.
+    target_forms, union_languages = _candidate_targets(fragments_by_culture)
+    index = build_index(sources_dir, target_forms, union_languages)
+    counts = _init_mine_counts(target_forms, index, fragments_by_culture)
+
+    if not apply:
+        _dry_run_count(fragments_by_culture, index, counts)
+        return counts
+
+    _apply_write(db, fragments_by_culture, index, counts)
+    db.commit()
+    return counts
+
+
+def _candidate_targets(
+    fragments_by_culture: dict[str, Counter],
+) -> tuple[set[str], set[str]]:
+    """Union the per-culture fragment sets and the per-culture language
+    scopes into the two flat sets ``build_index`` consumes (target
+    forms + allowed languages)."""
     target_forms: set[str] = set()
     for c in fragments_by_culture.values():
         target_forms.update(c.keys())
-
-    # Union of allowed languages across the requested cultures.
     union_languages: set[str] = set()
     for culture in fragments_by_culture:
         union_languages.update(CULTURE_LANG_SCOPE.get(culture, frozenset()))
+    return target_forms, union_languages
 
-    index = build_index(sources_dir, target_forms, union_languages)
 
+def _init_mine_counts(
+    target_forms: set[str],
+    index: dict[tuple[str, str], dict[str, Any]],
+    fragments_by_culture: dict[str, Counter],
+) -> dict[str, Any]:
+    """Build the counters dict mine_corpus returns. Per-culture
+    fragment counts are seeded up front so a dry-run still reports
+    each culture even when zero hits land in its scope."""
     counts: dict[str, Any] = {
         "fragments_input": len(target_forms),
         "wiktionary_hits": len(index),
@@ -445,19 +493,37 @@ def mine_corpus(
     }
     for culture, frags in fragments_by_culture.items():
         counts["by_culture"][culture]["fragments"] = len(frags)
+    return counts
 
-    if not apply:
-        # Dry-run: just count hits per culture × language without touching the DB.
-        for culture, frags in fragments_by_culture.items():
-            scope = CULTURE_LANG_SCOPE.get(culture, frozenset())
-            for frag in frags:
-                for lang in scope:
-                    if (frag, lang) in index:
-                        counts["by_culture"][culture]["hits"] += 1
-                        counts["by_language"][lang] += 1
-        return counts
 
-    # Apply: write etymons + glosses + tags + citations.
+def _dry_run_count(
+    fragments_by_culture: dict[str, Counter],
+    index: dict[tuple[str, str], dict[str, Any]],
+    counts: dict[str, Any],
+) -> None:
+    """Walk per-culture (fragment × language) pairs and increment the
+    by-culture / by-language counters for any (frag, lang) hit in the
+    Wiktextract index. No DB writes."""
+    for culture, frags in fragments_by_culture.items():
+        scope = CULTURE_LANG_SCOPE.get(culture, frozenset())
+        for frag in frags:
+            for lang in scope:
+                if (frag, lang) in index:
+                    counts["by_culture"][culture]["hits"] += 1
+                    counts["by_language"][lang] += 1
+
+
+def _apply_write(
+    db: LexiconDB,
+    fragments_by_culture: dict[str, Counter],
+    index: dict[tuple[str, str], dict[str, Any]],
+    counts: dict[str, Any],
+) -> None:
+    """Apply path: walk per-culture (fragment × language) pairs and
+    write each unique (frag, lang) hit as an etymon + gloss + tag +
+    citation. Dedupe across cultures via the ``written`` set so a
+    morpheme that's in scope for multiple cultures (e.g. old-french
+    appears in both english and breton scopes) is only persisted once."""
     written: set[tuple[str, str]] = set()
     for culture, frags in fragments_by_culture.items():
         scope = CULTURE_LANG_SCOPE.get(culture, frozenset())
@@ -473,8 +539,6 @@ def mine_corpus(
                     continue
                 written.add(key)
                 _write_one(db, entry, lang, counts)
-    db.commit()
-    return counts
 
 
 def _write_one(
@@ -537,10 +601,9 @@ def derive_positions(
     Idempotent: ``upsert_reflex`` and ``link_reflex_etymon`` are both
     safe on re-run.
     """
-    flat_names_by_culture: dict[str, list[str]] = {}
-    for culture, p in place_names_paths_by_culture.items():
-        flat_names_by_culture[culture] = _load_flat_names(p)
-
+    flat_names_by_culture: dict[str, list[str]] = {
+        culture: _load_flat_names(p) for culture, p in place_names_paths_by_culture.items()
+    }
     rows = list(
         db.conn.execute(
             """
@@ -554,7 +617,6 @@ def derive_positions(
             (WIKTIONARY_EMPIRICAL_SOURCE_ID,),
         )
     )
-
     counts: dict[str, Any] = {
         "etymons_examined": len(rows),
         "reflex_rows_upserted": 0,
@@ -563,33 +625,60 @@ def derive_positions(
         "etymons_with_no_observed_position": 0,
     }
     for row in rows:
-        etymon_id = row["id"]
-        canonical_form = row["canonical_form"]
-        lang = row["language"]
-        relevant_cultures = [c for c, scope in CULTURE_LANG_SCOPE.items() if lang in scope]
-        if not relevant_cultures:
-            continue
-        names_for_culture: list[str] = []
-        for c in relevant_cultures:
-            names_for_culture.extend(flat_names_by_culture.get(c, []))
-        position_counts = _classify_positions(canonical_form, names_for_culture)
+        position_counts = _classify_one_etymon(
+            row["canonical_form"], row["language"], flat_names_by_culture
+        )
         if not any(v >= min_count for v in position_counts.values()):
             counts["etymons_with_no_observed_position"] += 1
             continue
-        for pos, n in position_counts.items():
-            if n < min_count:
-                continue
-            counts["by_position"][pos] += 1
-            if not apply:
-                continue
-            surface_form = _surface_form_for_position(canonical_form, pos)
-            reflex_id = db.upsert_reflex(surface_form, pos)
-            counts["reflex_rows_upserted"] += 1
-            db.link_reflex_etymon(reflex_id, etymon_id)
-            counts["links_added"] += 1
+        _write_reflexes_for(
+            db, row["id"], row["canonical_form"], position_counts, min_count, apply, counts
+        )
     if apply:
         db.commit()
     return counts
+
+
+def _classify_one_etymon(
+    canonical_form: str,
+    lang: str,
+    flat_names_by_culture: dict[str, list[str]],
+) -> dict[str, int]:
+    """Determine which cultures' corpora are in scope for ``lang`` and
+    classify positions of ``canonical_form`` across the union of their
+    flattened names. Returns the per-position count dict (pre/post/inner)."""
+    relevant_cultures = [c for c, scope in CULTURE_LANG_SCOPE.items() if lang in scope]
+    if not relevant_cultures:
+        return {"pre": 0, "post": 0, "inner": 0}
+    names_for_culture: list[str] = []
+    for c in relevant_cultures:
+        names_for_culture.extend(flat_names_by_culture.get(c, []))
+    return _classify_positions(canonical_form, names_for_culture)
+
+
+def _write_reflexes_for(
+    db: LexiconDB,
+    etymon_id: int,
+    canonical_form: str,
+    position_counts: dict[str, int],
+    min_count: int,
+    apply: bool,
+    counts: dict[str, Any],
+) -> None:
+    """For each position with ``count >= min_count``, write a reflex
+    row (``Great-`` / ``-great-`` / ``-great``) and link it to the
+    etymon. Mutates the global counter dict in place."""
+    for pos, n in position_counts.items():
+        if n < min_count:
+            continue
+        counts["by_position"][pos] += 1
+        if not apply:
+            continue
+        surface_form = _surface_form_for_position(canonical_form, pos)
+        reflex_id = db.upsert_reflex(surface_form, pos)
+        counts["reflex_rows_upserted"] += 1
+        db.link_reflex_etymon(reflex_id, etymon_id)
+        counts["links_added"] += 1
 
 
 def _load_flat_names(place_names_path: Path) -> list[str]:
