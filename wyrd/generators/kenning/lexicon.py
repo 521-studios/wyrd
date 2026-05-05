@@ -1759,42 +1759,8 @@ def reverse_search_attestations(
     if not sources_path.is_dir():
         raise ValueError(f"sources_dir not found: {sources_path}")
 
-    # Find rando-only etymons (cited by rando-port and ONLY rando-port).
-    # Exclude modern-english etymons by default — those are real English words
-    # like 'with', 'north', 'great', 'long', 'bishop' that appear thousands of
-    # times in normal prose and produce vast amounts of noise. They're also
-    # not 'unverified' in any meaningful linguistic sense; they're modern
-    # vocabulary used as place-name modifiers.
-    cur = db.conn.execute(
-        """
-        SELECT e.id, e.canonical_form, e.language
-        FROM etymon e
-        WHERE e.language != 'modern-english'
-          AND EXISTS (
-            SELECT 1 FROM etymon_citation c
-            WHERE c.etymon_id = e.id AND c.source_id = 'rando-port'
-          )
-          AND NOT EXISTS (
-            SELECT 1 FROM etymon_citation c
-            WHERE c.etymon_id = e.id AND c.source_id != 'rando-port'
-          )
-        """
-    )
-    candidates = [
-        (row["id"], row["canonical_form"], row["language"])
-        for row in cur.fetchall()
-        if len(row["canonical_form"]) >= min_form_length
-    ]
-
-    # Load and lowercase each source file's text once.
-    source_texts: dict[str, str] = {}
-    for f in sources_path.glob("*.txt"):
-        text = f.read_text(errors="replace").lower()
-        # Strip diacritics in the body too — rando lemmas are often stored
-        # ASCII but the source has macrons/æ/ð. We lowercase + ASCII-fold
-        # via the same normalize_ocr_form pass we use elsewhere.
-        text = normalize_ocr_form(text)
-        source_texts[f.stem] = text
+    candidates = _select_rando_only_candidates(db, min_form_length=min_form_length)
+    source_texts = _load_normalized_source_texts(sources_path)
 
     # Build a quick lookup so the sample report can name the etymons.
     forms_by_id = {eid: form for eid, form, _ in candidates}
@@ -1869,38 +1835,7 @@ def reverse_search_attestations(
                 written += 1
         db.commit()
 
-    # Build a quick lookup so the sample report can name the etymons.
-    forms_by_id = {eid: form for eid, form, _ in candidates}
-
-    # PARSER-BUG DIAGNOSTIC: for each etymon found in source text, count
-    # how often it actually appeared in extracted etymology rows. A large
-    # gap (lots of text appearances, few extractions) is evidence that the
-    # LLM extractor is systematically missing that morpheme.
-    extraction_counts: dict[int, int] = {}
-    for etymon_id in matches:
-        cur = db.conn.execute(
-            "SELECT COUNT(*) AS n FROM toponym_etymology_element WHERE etymon_id = ?",
-            (etymon_id,),
-        )
-        extraction_counts[etymon_id] = cur.fetchone()["n"]
-
-    # Score each match: ratio of text appearances to extraction appearances.
-    # Flag etymons with text >> extractions as potential pipeline gaps.
-    parser_bug_suspects = []
-    for etymon_id, hits in matches.items():
-        text_count = sum(c for _, c, _ in hits)
-        ext_count = extraction_counts.get(etymon_id, 0)
-        if text_count >= 10 and ext_count == 0:
-            parser_bug_suspects.append(
-                {
-                    "etymon_id": etymon_id,
-                    "form": forms_by_id.get(etymon_id),
-                    "text_count": text_count,
-                    "extraction_count": ext_count,
-                    "books": [s for s, _, _ in hits],
-                }
-            )
-    parser_bug_suspects.sort(key=lambda x: -x["text_count"])
+    parser_bug_suspects = _score_extraction_gaps(db, matches, forms_by_id)
 
     return {
         "rando_only_candidates": len(candidates),
@@ -1916,6 +1851,168 @@ def reverse_search_attestations(
             }
             for eid, hits in list(matches.items())[:25]
         ],
+    }
+
+
+def _select_rando_only_candidates(
+    db: LexiconDB, *, min_form_length: int
+) -> list[tuple[int, str, str]]:
+    """Find rando-only etymons (cited by rando-port and ONLY rando-port).
+
+    Excludes modern-english etymons by default — those are real English
+    words like 'with', 'north', 'great', 'long', 'bishop' that appear
+    thousands of times in normal prose and produce vast amounts of
+    noise. They're also not 'unverified' in any meaningful linguistic
+    sense; they're modern vocabulary used as place-name modifiers.
+
+    Filters by ``min_form_length`` (forms shorter than that produce too
+    many false-positive substring matches).
+    """
+    cur = db.conn.execute(
+        """
+        SELECT e.id, e.canonical_form, e.language
+        FROM etymon e
+        WHERE e.language != 'modern-english'
+          AND EXISTS (
+            SELECT 1 FROM etymon_citation c
+            WHERE c.etymon_id = e.id AND c.source_id = 'rando-port'
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM etymon_citation c
+            WHERE c.etymon_id = e.id AND c.source_id != 'rando-port'
+          )
+        """
+    )
+    return [
+        (row["id"], row["canonical_form"], row["language"])
+        for row in cur.fetchall()
+        if len(row["canonical_form"]) >= min_form_length
+    ]
+
+
+def _load_normalized_source_texts(sources_path: Path) -> dict[str, str]:
+    """Load every ``*.txt`` under ``sources_path``, lowercased + OCR-
+    normalized, keyed by file stem.
+
+    Lowercase + ASCII-fold (via ``normalize_ocr_form``) because rando
+    lemmas are often stored ASCII while sources have macrons / æ / ð
+    — we want the matcher to see the same surface from both sides.
+    """
+    source_texts: dict[str, str] = {}
+    for f in sources_path.glob("*.txt"):
+        text = f.read_text(errors="replace").lower()
+        source_texts[f.stem] = normalize_ocr_form(text)
+    return source_texts
+
+
+def _score_extraction_gaps(
+    db: LexiconDB,
+    matches: dict[int, list[tuple[str, int, str]]],
+    forms_by_id: dict[int, str],
+) -> list[dict[str, Any]]:
+    """PARSER-BUG DIAGNOSTIC: for each etymon found in source text,
+    count how often it actually appeared in extracted etymology rows.
+    A large gap (lots of text appearances, few extractions) is
+    evidence the LLM extractor is systematically missing that
+    morpheme — a candidate for prompt tuning.
+
+    Returns the top-30 suspects sorted by descending text-count.
+    """
+    extraction_counts: dict[int, int] = {}
+    for etymon_id in matches:
+        cur = db.conn.execute(
+            "SELECT COUNT(*) AS n FROM toponym_etymology_element WHERE etymon_id = ?",
+            (etymon_id,),
+        )
+        extraction_counts[etymon_id] = cur.fetchone()["n"]
+    suspects: list[dict[str, Any]] = []
+    for etymon_id, hits in matches.items():
+        text_count = sum(c for _, c, _ in hits)
+        ext_count = extraction_counts.get(etymon_id, 0)
+        if text_count >= 10 and ext_count == 0:
+            suspects.append(
+                {
+                    "etymon_id": etymon_id,
+                    "form": forms_by_id.get(etymon_id),
+                    "text_count": text_count,
+                    "extraction_count": ext_count,
+                    "books": [s for s, _, _ in hits],
+                }
+            )
+    suspects.sort(key=lambda x: -x["text_count"])
+    return suspects[:30]
+
+
+def _select_rando_only_candidates_with_glosses(
+    db: LexiconDB, *, min_form_length: int
+) -> list[tuple[int, str, list[str]]]:
+    """Variant of ``_select_rando_only_candidates`` that joins the
+    etymon's glosses (needed for the fuzzy-match gloss-anchor check).
+    Skips etymons with no gloss — without one there's no way to anchor
+    meaning, and per D15 the fuzzy match is gloss-window-gated.
+
+    Also additionally filters out etymons that already have an exact
+    text-match row (those have been resolved by reverse-search and
+    don't need fuzzy follow-up).
+    """
+    cur = db.conn.execute(
+        """
+        SELECT e.id, e.canonical_form, e.language,
+               GROUP_CONCAT(g.gloss, '|') AS glosses
+        FROM etymon e
+        LEFT JOIN etymon_gloss g ON g.etymon_id = e.id
+        WHERE e.language != 'modern-english'
+          AND EXISTS (
+            SELECT 1 FROM etymon_citation c
+            WHERE c.etymon_id = e.id AND c.source_id = 'rando-port'
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM etymon_citation c
+            WHERE c.etymon_id = e.id AND c.source_id != 'rando-port'
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM etymon_text_match m
+            WHERE m.etymon_id = e.id AND m.edit_distance = 0
+          )
+        GROUP BY e.id
+        """
+    )
+    out: list[tuple[int, str, list[str]]] = []
+    for row in cur.fetchall():
+        if not row["glosses"]:
+            continue
+        form = row["canonical_form"]
+        if len(form) < min_form_length:
+            continue
+        glosses = [g.lower() for g in row["glosses"].split("|") if g]
+        out.append((row["id"], form, glosses))
+    return out
+
+
+_FUZZY_TOKEN_RE = re.compile(r"[a-z]{3,}")
+
+
+def _build_source_vocab(source_texts: dict[str, str]) -> dict[str, list[str]]:
+    """Per-source unique alphabetic-token vocabulary (length 3+),
+    sorted. Lets fuzzy_search compare each etymon against a bounded
+    candidate set per source instead of scanning the body for every
+    etymon."""
+    return {
+        source_id: sorted(set(_FUZZY_TOKEN_RE.findall(text)))
+        for source_id, text in source_texts.items()
+    }
+
+
+def _all_canonical_forms_normalized(db: LexiconDB) -> set[str]:
+    """Set of OCR-normalized + lowercased canonical_forms across the
+    full (un-merged) etymon table. Used by fuzzy_search to suppress
+    fuzzy-match claims where the body token is itself an independent
+    canonical etymon (per wyrd-c3x — OCR variants between two etymons
+    should be merged by normalize-ocr upstream, not connected through
+    fuzzy-search's gloss-anchor heuristic)."""
+    return {
+        normalize_ocr_form(r["canonical_form"])
+        for r in db.conn.execute("SELECT canonical_form FROM etymon WHERE merged_into_id IS NULL")
     }
 
 
@@ -1978,66 +2075,10 @@ def fuzzy_search_attestations(
     if not sources_path.is_dir():
         raise ValueError(f"sources_dir not found: {sources_path}")
 
-    # Find rando-only etymons that have no existing text match yet, plus
-    # their glosses (we need at least one gloss to anchor meaning).
-    cur = db.conn.execute(
-        """
-        SELECT e.id, e.canonical_form, e.language,
-               GROUP_CONCAT(g.gloss, '|') AS glosses
-        FROM etymon e
-        LEFT JOIN etymon_gloss g ON g.etymon_id = e.id
-        WHERE e.language != 'modern-english'
-          AND EXISTS (
-            SELECT 1 FROM etymon_citation c
-            WHERE c.etymon_id = e.id AND c.source_id = 'rando-port'
-          )
-          AND NOT EXISTS (
-            SELECT 1 FROM etymon_citation c
-            WHERE c.etymon_id = e.id AND c.source_id != 'rando-port'
-          )
-          AND NOT EXISTS (
-            SELECT 1 FROM etymon_text_match m
-            WHERE m.etymon_id = e.id AND m.edit_distance = 0
-          )
-        GROUP BY e.id
-        """
-    )
-    candidates = []
-    for row in cur.fetchall():
-        if not row["glosses"]:
-            continue  # no gloss → can't verify meaning, skip
-        form = row["canonical_form"]
-        if len(form) < min_form_length:
-            continue
-        glosses = [g.lower() for g in row["glosses"].split("|") if g]
-        candidates.append((row["id"], form, glosses))
-
-    # Load source texts (lowercased + ocr-normalized for matching)
-    source_texts: dict[str, str] = {}
-    for f in sources_path.glob("*.txt"):
-        text = f.read_text(errors="replace").lower()
-        source_texts[f.stem] = normalize_ocr_form(text)
-
-    # Build per-source vocabulary (unique alphabetic tokens, length-bucketed)
-    # so we can fuzzy-match against the small set of plausibly-similar tokens
-    # without scanning the entire text for every etymon.
-    token_re = re.compile(r"[a-z]{3,}")
-    vocab_by_source: dict[str, list[str]] = {}
-    for source_id, text in source_texts.items():
-        tokens = set(token_re.findall(text))
-        vocab_by_source[source_id] = sorted(tokens)
-
-    # Build the set of canonical forms (OCR-normalized + lowercased) so
-    # we can suppress fuzzy claims where the body word is itself a
-    # canonical etymon. Per wyrd-c3x: the gloss anchor too easily fires
-    # on generic glosses ("land", "area", "district") near body words
-    # that are independently attested as their own etymons (herath ↔ heath).
-    # OCR variants between two etymons should be merged by normalize-ocr
-    # upstream, not connected through fuzzy-search.
-    other_canonicals: set[str] = {
-        normalize_ocr_form(r["canonical_form"])
-        for r in db.conn.execute("SELECT canonical_form FROM etymon WHERE merged_into_id IS NULL")
-    }
+    candidates = _select_rando_only_candidates_with_glosses(db, min_form_length=min_form_length)
+    source_texts = _load_normalized_source_texts(sources_path)
+    vocab_by_source = _build_source_vocab(source_texts)
+    other_canonicals = _all_canonical_forms_normalized(db)
 
     matches: dict[int, list[tuple[str, str, int, int, str]]] = {}
     # value: (source_id, matched_form, distance, count, snippet)
