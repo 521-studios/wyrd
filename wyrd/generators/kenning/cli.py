@@ -1192,6 +1192,20 @@ def _mine_entries(
         "there."
     ),
 )
+@click.option(
+    "--declines-only",
+    is_flag=True,
+    default=False,
+    help=(
+        "wyrd-bgr: skip parsed entries whose toponym already has a "
+        "toponym_etymology row from any earlier Tier-1 mining run on "
+        "this source. Lets you cheaply re-mine just the gaps with a "
+        "stronger model — e.g. after Qwen Tier-1 leaves declines, run "
+        "`mine-llm --declines-only --provider anthropic` to fill them "
+        "in with Haiku without re-paying for already-extracted "
+        "toponyms. Filter applies before --limit."
+    ),
+)
 def lexicon_mine_llm(
     path: Path,
     db_path: Path,
@@ -1205,6 +1219,7 @@ def lexicon_mine_llm(
     concurrency: int,
     min_entry: int,
     max_entry: int | None,
+    declines_only: bool,
 ) -> None:
     """Mine an etymology text via LLM (Ollama or Gemini).
 
@@ -1230,6 +1245,19 @@ def lexicon_mine_llm(
     parsed = _select_parser_and_run(
         text, parser, min_entry_number=min_entry, max_entry_number=max_entry
     )
+    if declines_only:
+        already = _select_already_extracted_toponyms(db_path, derived_id)
+        before = len(parsed)
+        parsed = [p for p in parsed if p.toponym not in already]
+        click.echo(
+            f"--declines-only: filtered out {before - len(parsed)} already-extracted "
+            f"toponyms (source already has {len(already)} rows). "
+            f"{len(parsed)} entries remain.",
+            err=True,
+        )
+        if not parsed:
+            click.echo("Nothing to mine after declines filter.", err=True)
+            return
     if limit is not None:
         parsed = parsed[:limit]
 
@@ -1509,6 +1537,34 @@ def lexicon_review(
     click.echo(f"Review summary: {counts}", err=True)
     if not apply_changes:
         click.echo("(dry-run; pass --apply to write)", err=True)
+
+
+def _select_already_extracted_toponyms(db_path: Path, source_id: str) -> set[str]:
+    """Return modern_name set for toponyms already extracted from `source_id`.
+
+    Used by `mine-llm --declines-only` (wyrd-bgr) to skip re-mining toponyms
+    that already have any toponym_etymology row for this source — regardless
+    of which Tier-1 provider produced it. The decline-recovery workflow is:
+    after Qwen leaves declines on a book, point a stronger model at the gaps
+    without paying to re-extract the entries Qwen already got.
+
+    Returns an empty set if the source row doesn't exist yet (fresh book) or
+    if no etymology rows have been written for it.
+    """
+    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    try:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT t.modern_name
+            FROM toponym t
+            JOIN toponym_etymology te ON te.toponym_id = t.id
+            WHERE te.source_id = ?
+            """,
+            (source_id,),
+        ).fetchall()
+        return {r[0] for r in rows}
+    finally:
+        conn.close()
 
 
 def _select_review_candidates(
