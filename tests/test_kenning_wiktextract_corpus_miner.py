@@ -492,9 +492,7 @@ def test_compute_unaccounted_fragments_emits_prefix_and_suffix_substrings(
     3..12 — the high-impact morphemes (``cluain`` as a prefix) live in
     this class."""
     place_names_path = tmp_path / "irish_place_names.json"
-    place_names_path.write_text(
-        json.dumps({"Republic of Ireland": {"all": ["Cluainacarrick"]}})
-    )
+    place_names_path.write_text(json.dumps({"Republic of Ireland": {"all": ["Cluainacarrick"]}}))
     meanings = _make_meanings_with_one_subject()
     candidates = compute_unaccounted_fragments(
         "irish", place_names_path, meanings, min_length=3, max_length=12
