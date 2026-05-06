@@ -40,9 +40,13 @@ class Generator:
         sampling is pure empirical-frequency (current behavior); at
         ``novelty=1`` every key in the bucket is equally likely. Intermediate
         values softly blend, allowing plausible-but-unattested combinations
-        without abandoning the corpus. The full D17 design layers a third
-        tag-class-prior term, deferred to a follow-up since it requires
-        threading neighbor-context through the structure walk.
+        without abandoning the corpus. The D17 β-term (tag-class-prior) is
+        realized via the multiplicative ``key_boost`` parameter — wyrd-mj2's
+        cohesion knob threads neighbor-context through the structure walk
+        in NameGenerator and computes the per-key prior from the tag
+        co-occurrence model; that boost multiplies empirical weights here
+        before novelty blends with the uniform marginal. See DECISIONS.md
+        D17 for the realized-vs-textbook math.
 
         Per D6, ``harshness`` re-weights each candidate by its phonological
         harshness score (computed from the key string) — at ``harshness=0``
