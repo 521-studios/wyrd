@@ -77,18 +77,28 @@ def _collect_section_texts(sections: list[dict[str, Any]] | None) -> list[str]:
     return out
 
 
-def _family_root(monster: dict[str, Any]) -> str | None:
-    """Return the single-word family root for `monster`, or None if
-    the family is missing, empty, or its base (after comma-split) is
-    multi-word.
+def _family_root(family: dict[str, Any] | None) -> str | None:
+    """Return the single-word family root for the given `family` dict
+    (a `stat_block.creature_type.family` node), or None if the dict is
+    missing/empty or its base (after comma-split) is multi-word.
+
+    Takes the already-fetched family dict rather than re-navigating
+    from the monster — callers usually need both `family` and
+    `family_root` together (e.g. to pass `family` to a description
+    helper), so we save a redundant lookup at every call site.
     """
-    family = monster.get("stat_block", {}).get("creature_type", {}).get("family")
     if not (family and family.get("name")):
         return None
     candidate = family["name"].split(",")[0].strip()
     if not candidate or " " in candidate:
         return None
     return candidate
+
+
+def _get_family(monster: dict[str, Any]) -> dict[str, Any] | None:
+    """Safely read `monster.stat_block.creature_type.family`, defaulting
+    to None if any segment is missing."""
+    return monster.get("stat_block", {}).get("creature_type", {}).get("family")
 
 
 def _monster_single_word_name(monster: dict[str, Any]) -> str | None:
@@ -112,7 +122,7 @@ def extract_input_name(monster: dict[str, Any]) -> str | None:
     - family is None and top-level name is single-word → use the name.
     - everything else → None (skip).
     """
-    family_root = _family_root(monster)
+    family_root = _family_root(_get_family(monster))
     if family_root is not None:
         return family_root
     return _monster_single_word_name(monster)
@@ -167,11 +177,10 @@ def extract_description(monster: dict[str, Any]) -> str:
     should call `_variant_description` directly or use
     `extract_records()`.
     """
-    family_root = _family_root(monster)
+    family = _get_family(monster)
+    family_root = _family_root(family)
     if family_root is not None:
-        family = monster["stat_block"]["creature_type"]["family"]
         return _family_only_description(family)
-    family = monster.get("stat_block", {}).get("creature_type", {}).get("family")
     if family and family.get("name"):
         return _variant_description(family, monster)
     return _no_family_description(monster)
@@ -202,8 +211,8 @@ def extract_records(monster: dict[str, Any]) -> Iterator[dict[str, str]]:
     no-family record. When neither axis produces a clean morpheme,
     yields nothing.
     """
-    family = monster.get("stat_block", {}).get("creature_type", {}).get("family")
-    family_root = _family_root(monster)
+    family = _get_family(monster)
+    family_root = _family_root(family)
     monster_name = _monster_single_word_name(monster)
 
     if family_root is not None:
