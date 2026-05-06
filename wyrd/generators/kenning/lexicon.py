@@ -261,14 +261,29 @@ class LexiconDB:
         context window for in-app citation display. Populated by siblings
         (.4 reverse-search snippet capture, .5 page-number parser); leave
         None for callers that haven't been updated to capture it yet.
+
+        Dedupe (wyrd-2pd): the unique index treats (etymon, source, NULL)
+        and (etymon, source, '15') as distinct because COALESCE(page, '')
+        differs. So after backfill_citation_pages writes page='15' on an
+        existing row, a re-mine that calls add_citation(page=None) would
+        slip past INSERT OR IGNORE and split the same evidence into two
+        rows. The INSERT ... WHERE NOT EXISTS form below collapses the
+        check and write into a single atomic statement so two parallel
+        writers can't both pass a pre-check and both insert. Matches the
+        intended one-row-per-evidence-pair semantic the unique index
+        meant to enforce.
         """
         self.conn.execute(
             """
-            INSERT OR IGNORE INTO etymon_citation
+            INSERT INTO etymon_citation
                 (etymon_id, source_id, page, short_quote, context_snippet)
-            VALUES (?, ?, ?, ?, ?)
+            SELECT ?, ?, ?, ?, ?
+            WHERE NOT EXISTS (
+                SELECT 1 FROM etymon_citation
+                WHERE etymon_id = ? AND source_id = ?
+            )
             """,
-            (etymon_id, source_id, page, short_quote, context_snippet),
+            (etymon_id, source_id, page, short_quote, context_snippet, etymon_id, source_id),
         )
 
     def upsert_reflex(self, surface_form: str, position: str) -> int:
@@ -832,6 +847,11 @@ def backfill_citation_pages(
       - no_headers: 1 if neither convention produced any headers; else
         0. On no_headers, the function returns immediately without
         touching any rows.
+      - ambiguous_match (wyrd-3yu): rows whose normalized excerpt
+        appears at multiple positions in the body. Resolution still
+        picks the leftmost match (better than NULL — citations cluster
+        by alphabet so misattribution is to a nearby page) but the
+        counter surfaces how often the heuristic was forced to guess.
 
     Idempotent: only operates on rows where page IS NULL, so a re-run
     is a no-op for already-resolved rows.
@@ -844,6 +864,7 @@ def backfill_citation_pages(
         "no_quote": 0,
         "before_first_page": 0,
         "no_headers": 0,
+        "ambiguous_match": 0,
     }
     headers, _parser = detect_running_headers(source_text)
     if not headers:
@@ -865,6 +886,12 @@ def backfill_citation_pages(
         norm_offset = norm_text.find(norm_quote)
         if norm_offset < 0:
             return None, "quote_not_in_text"
+        # wyrd-3yu: if the quote appears at more than one position the
+        # leftmost-match heuristic may attribute the citation to a nearby
+        # but wrong entry. Track the count so operators can spot when a
+        # source's quotes are systematically too-short to disambiguate.
+        if norm_text.find(norm_quote, norm_offset + 1) >= 0:
+            counts["ambiguous_match"] += 1
         orig_offset = norm_to_orig[norm_offset]
         page = page_for_offset(headers, orig_offset)
         if page is None:

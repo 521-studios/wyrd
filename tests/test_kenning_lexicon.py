@@ -2502,6 +2502,127 @@ def test_backfill_citation_pages_skips_no_quote_rows(fresh_db: Path) -> None:
     assert cit_page is None
 
 
+def test_backfill_citation_pages_increments_ambiguous_match_on_repeated_quote(
+    fresh_db: Path,
+) -> None:
+    """wyrd-3yu: when a short_quote appears at multiple body positions, the
+    leftmost-match heuristic still wins (better than NULL — citations
+    cluster by alphabet so the misattribution is to a nearby page) but
+    counts['ambiguous_match'] increments so operators know the page may
+    not be the entry the citation actually originated from."""
+
+    quote = "See Plate III."
+    body = (
+        "BACKWORTH 9\n"
+        f"earlier entry mentions: {quote} continuing\n"
+        "BEDLINGTON 15\n"
+        f"a different entry: {quote} continuing\n"
+    )
+    with LexiconDB(fresh_db) as db:
+        _, cit_id, _ = _seed_citation_for_backfill(db, "ambig_book", "cot", quote)
+        counts = backfill_citation_pages(db, "ambig_book", body, apply=True)
+        cit_page = db.conn.execute(
+            "SELECT page FROM etymon_citation WHERE id = ?", (cit_id,)
+        ).fetchone()["page"]
+
+    assert counts["citations_updated"] == 1
+    assert counts["ambiguous_match"] == 2  # one increment per ambiguous row (citation + etymology)
+    # Leftmost match wins: the citation is attributed to the BACKWORTH page,
+    # not the BEDLINGTON one.
+    assert cit_page == "9"
+
+
+def test_backfill_citation_pages_unique_quote_does_not_count_as_ambiguous(
+    fresh_db: Path,
+) -> None:
+    """Boundary check: a quote that appears exactly once must NOT bump
+    the ambiguous_match counter. Rules out a regression where the helper
+    counts every successful resolution as ambiguous."""
+
+    quote = "the body discussion of cot here"
+    body = f"BACKWORTH 9\n{quote} continuing\n"
+    with LexiconDB(fresh_db) as db:
+        _seed_citation_for_backfill(db, "unique_book", "cot", quote)
+        counts = backfill_citation_pages(db, "unique_book", body, apply=True)
+
+    assert counts["citations_updated"] == 1
+    assert counts["ambiguous_match"] == 0
+
+
+def test_backfill_citation_pages_ambiguous_match_counts_in_dry_run(
+    fresh_db: Path,
+) -> None:
+    """Dry-run (apply=False) must still count ambiguous_match — the whole
+    point of the counter is operator visibility, which works both before
+    and after writes are committed. Pin so a future refactor that gates
+    the increment on `apply` doesn't silently strand the signal."""
+
+    quote = "See Plate III."
+    body = (
+        "BACKWORTH 9\n"
+        f"first entry: {quote} continuing\n"
+        "BEDLINGTON 15\n"
+        f"second entry: {quote} continuing\n"
+    )
+    with LexiconDB(fresh_db) as db:
+        _seed_citation_for_backfill(db, "ambig_dry", "cot", quote)
+        counts = backfill_citation_pages(db, "ambig_dry", body, apply=False)
+
+    assert counts["citations_updated"] == 1
+    assert counts["etymologies_updated"] == 1
+    assert counts["ambiguous_match"] == 2
+
+
+def test_add_citation_skips_when_etymon_source_pair_already_exists(
+    fresh_db: Path,
+) -> None:
+    """wyrd-2pd: re-mining via add_citation(page=None) after a backfill set
+    page='15' must NOT create a second row at (etymon, source, NULL). The
+    unique index would have allowed it (COALESCE(page, '15') vs ('')); the
+    add_citation pre-check guards against that split."""
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src-a", title="src-a")
+        etymon_id = db.upsert_etymon("cot", "old-english")
+        db.add_citation(etymon_id, "src-a", page="15", short_quote="orig quote")
+        # Simulate a re-mine pass: same (etymon, source), different (NULL) page.
+        db.add_citation(etymon_id, "src-a", page=None, short_quote="re-mined quote")
+        db.commit()
+
+        rows = db.conn.execute(
+            "SELECT page, short_quote FROM etymon_citation WHERE etymon_id = ? AND source_id = ?",
+            (etymon_id, "src-a"),
+        ).fetchall()
+
+    assert len(rows) == 1, "second add_citation should be a no-op"
+    # First-writer-wins semantics: the original paged row survives.
+    assert rows[0]["page"] == "15"
+    assert rows[0]["short_quote"] == "orig quote"
+
+
+def test_add_citation_does_not_block_legitimate_distinct_etymon_source_pairs(
+    fresh_db: Path,
+) -> None:
+    """The dedupe is per (etymon, source). Different etymons against the
+    same source (or same etymon against different sources) must still
+    accumulate distinct rows. Regression guard against an over-broad
+    pre-check that drops valid evidence."""
+
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src-a", title="src-a")
+        db.upsert_source(id="src-b", title="src-b")
+        et1 = db.upsert_etymon("cot", "old-english")
+        et2 = db.upsert_etymon("ham", "old-english")
+        db.add_citation(et1, "src-a")
+        db.add_citation(et2, "src-a")  # different etymon, same source
+        db.add_citation(et1, "src-b")  # same etymon, different source
+        db.commit()
+
+        n = db.conn.execute("SELECT COUNT(*) AS n FROM etymon_citation").fetchone()["n"]
+
+    assert n == 3
+
+
 def test_backfill_pages_cli_dry_run_reports_without_writing(fresh_db: Path, tmp_path: Path) -> None:
     """End-to-end CLI test: dry-run reports counts to stderr and leaves
     the DB untouched. --apply is required to write."""
@@ -3084,30 +3205,40 @@ def test_migrate_schema_adds_toponym_etymology_attested_year_to_legacy_db(
 def test_add_citation_persists_context_snippet(fresh_db: Path) -> None:
     """LexiconDB.add_citation accepts context_snippet and writes it; a
     NULL-snippet caller stays compatible (existing callers haven't been
-    updated yet)."""
+    updated yet).
+
+    Note: per wyrd-2pd, the (etymon, source) pre-check means only the
+    first add_citation call for a given pair persists. Different
+    (etymon, source) pairs document the snippet-vs-no-snippet shapes
+    independently here so both code paths exercise the column.
+    """
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="mawer_1920", title="Mawer")
+        db.upsert_source(id="legacy_book", title="Legacy")
         etymon_id = db.upsert_etymon("ham", "old-english")
         db.add_citation(
             etymon_id,
             "mawer_1920",
             context_snippet="Acklington... O.E. Æcceling(a)tun = farm of Æccel.",
         )
-        db.add_citation(etymon_id, "mawer_1920", page="42")  # legacy shape, no snippet
+        db.add_citation(etymon_id, "legacy_book", page="42")  # legacy shape, no snippet
         db.commit()
 
         rows = db.conn.execute(
-            "SELECT page, context_snippet FROM etymon_citation WHERE etymon_id = ? ORDER BY id",
+            "SELECT source_id, page, context_snippet FROM etymon_citation "
+            "WHERE etymon_id = ? ORDER BY source_id",
             (etymon_id,),
         ).fetchall()
 
     assert len(rows) == 2
-    # First row: snippet captured, no page.
-    assert rows[0]["page"] is None
-    assert "Acklington" in rows[0]["context_snippet"]
-    # Second row: legacy shape with page only — context_snippet is NULL.
-    assert rows[1]["page"] == "42"
-    assert rows[1]["context_snippet"] is None
+    # mawer_1920: snippet captured, no page.
+    assert rows[1]["source_id"] == "mawer_1920"
+    assert rows[1]["page"] is None
+    assert "Acklington" in rows[1]["context_snippet"]
+    # legacy_book: legacy shape with page only — context_snippet is NULL.
+    assert rows[0]["source_id"] == "legacy_book"
+    assert rows[0]["page"] == "42"
+    assert rows[0]["context_snippet"] is None
 
 
 def test_link_lemmas_links_inflected_to_existing_lemma(fresh_db: Path) -> None:
