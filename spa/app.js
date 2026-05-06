@@ -177,12 +177,19 @@ function _wireDependentSelects(schema) {
         if (prop["x-options-by-culture"]) dependentKeys.push([key, prop]);
     }
     if (dependentKeys.length === 0) return;
-    cultureField.addEventListener("change", () => {
+    const sync = () => {
         for (const [key, prop] of dependentKeys) {
             const select = document.getElementById(`field-${key}`);
             if (select) _populateDependentOptions(select, prop, cultureField.value, null);
         }
-    });
+    };
+    cultureField.addEventListener("change", sync);
+    // One initial sync after wire-up so the dependent's options match
+    // the culture field's actual value, even when schema iteration
+    // built the dependent before the dependee. _buildDependentSelectField
+    // takes a best-guess at render time, but the post-render sync is
+    // the load-bearing source of truth.
+    sync();
 }
 
 function _buildTagGrid(key, prop, url) {
