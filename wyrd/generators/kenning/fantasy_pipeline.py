@@ -101,8 +101,55 @@ APPROVED_LANGUAGES: frozenset[str] = frozenset(
         "manx",
         # Middle English (Chaucer-era English; bridge between OE and modE)
         "middle-english",
+        # World-religion source material — wave 2, user-approved
+        # 2026-05-06. Each foundational to creature etymology in
+        # canonical fantasy: Hebrew (golem, behemoth, leviathan,
+        # lilith, cherub, seraph), Arabic (djinn/ifrit/marid/shaitan/
+        # ghoul), Persian (pari, div, simurgh — many Arabic creature
+        # names entered English via Persian translations of folktales),
+        # Sanskrit (rakshasa, naga, garuda, deva, yaksha — D&D
+        # canonical), Akkadian (tiamat, lamassu — Mesopotamian
+        # cosmology), Egyptian (sphinx, mummy origins). Plus useful
+        # intermediates: Aramaic (biblical bridge between Hebrew and
+        # Arabic), Middle Persian / Pahlavi (Persian descent chain).
+        # Codes are wiktextract's ISO short codes; descriptive names
+        # like 'arabic'/'sanskrit'/etc. map to these via
+        # _LANGUAGE_ALIAS_MAP.
+        "he",
+        "ar",
+        "fa",
+        "sa",
+        "akk",
+        "egy",
+        "arc",
+        "pal",
     }
 )
+
+
+# Map descriptive language names from LLM output to the ISO codes our
+# etymon table uses. Applied in _classify_llm_result after lowercase +
+# space-to-dash normalization. The descent_walking_lookup pre-filter
+# doesn't need this — it queries the etymon table by ISO code directly
+# — but the LLM commonly returns descriptive names. Without this map,
+# 'sanskrit' from the LLM mis-classifies as outside_language_family
+# even though `sa` is approved.
+_LANGUAGE_ALIAS_MAP: dict[str, str] = {
+    "sanskrit": "sa",
+    "arabic": "ar",
+    "classical-arabic": "ar",
+    "hebrew": "he",
+    "biblical-hebrew": "he",
+    "persian": "fa",
+    "classical-persian": "fa",
+    "farsi": "fa",
+    "akkadian": "akk",
+    "egyptian": "egy",
+    "ancient-egyptian": "egy",
+    "aramaic": "arc",
+    "middle-persian": "pal",
+    "pahlavi": "pal",
+}
 
 
 # Bar reasons enum (free-form text for forward compat, but stick to
@@ -544,7 +591,11 @@ def _classify_llm_result(db_path: Path | str, result: dict) -> Resolution:
     # the sentinel values in _NO_REAL_ATTESTATION_SENTINELS use them
     # ('modern_coinage', 'outside_family').
     raw_attested = result.get("attested_in") or "none"
-    attested_in = raw_attested.strip().lower().replace(" ", "-")
+    normalized = raw_attested.strip().lower().replace(" ", "-")
+    # Map descriptive names ('sanskrit', 'arabic', ...) to ISO codes
+    # ('sa', 'ar', ...) so they match etymon-table conventions and
+    # APPROVED_LANGUAGES. Pass-through if no alias defined.
+    attested_in = _LANGUAGE_ALIAS_MAP.get(normalized, normalized)
     confidence = result.get("confidence") or "low"
     historical = result.get("historical_form")
     citation = result.get("citation")
