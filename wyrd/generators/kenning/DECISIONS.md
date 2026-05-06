@@ -358,19 +358,25 @@ remix existing combinations. Pure marginal produces noise. The knob
 gives the GM a continuum, with "do not regress on Braitham Gate" as the
 fixed point on the novel side.
 
-**Runtime status (wyrd-gfa, 2026-05-02): partial — two-term mixture
+**Runtime status (wyrd-gfa, 2026-05-02; β-term wyrd-mj2, 2026-05-04):
 shipped.** `Generator.select(novelty)` blends each bucket's empirical-
 frequency distribution with a uniform marginal:
 `(1-novelty)·empirical + novelty·uniform`. New `_blend_uniform` helper
 handles the all-zero-empirical-weights edge case (returns 1/n so the
 result is a normalized probability distribution per the contract). CLI:
-`--novelty` (0..1). The `β·tag-class-prior` term is **not** yet wired —
-the D16 `tag_cooccurrence` + `tag_marginal` data is in the proportions
-JSONs but threading neighbor-context through the structure walk is a
-follow-up. Current implementation is the (empirical, uniform-marginal)
-two-term mixture; the third term would refine novel combinations toward
-attested *patterns* (descriptive+topography) even when the specific
-morpheme pair is novel.
+`--novelty` (0..1). The `β·tag-class-prior` term landed via the
+`--cohesion` knob (wyrd-mj2): `NameGenerator` threads `prior_tags`
+through the structure walk, `_cohesion_boost` computes the per-key
+class-conditional likelihood from the tag co-occurrence model, and the
+result is passed to `Generator.select` as a `key_boost` multiplier
+applied to empirical weights before the novelty blend. The realized
+math is multiplicative-then-blend (`weights = empirical * boost; result
+= (1-novelty)·weights + novelty·uniform`) rather than the strict
+additive `α·empirical + β·tag-class-prior + γ·marginal` of the textbook
+formulation, but the operational effect is the same — novel
+combinations refine toward attested *patterns* (descriptive+topography)
+when cohesion>0, and the GM tunes the strength independently of
+novelty. wyrd-9gt closed as superseded by this realized form.
 
 ## D18. Spelling variants are generative.
 
