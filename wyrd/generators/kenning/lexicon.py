@@ -2416,6 +2416,13 @@ def cluster_ocr_variants(db: LexiconDB, *, apply: bool = False) -> dict:
         # reflex links stay attached to their original etymons; the
         # consensus view rolls them up via merged_into_id. Mining
         # evidence (D21) is preserved exactly as written.
+        #
+        # The surrounding loop's invariant (duplicate_groups filtered to
+        # len > 1) guarantees ≥1 loser, but the empty-list guard keeps
+        # the IN (...) form from raising a SQLite syntax error if a
+        # future refactor changes that invariant.
+        if not loser_ids:
+            continue
         placeholders = ",".join("?" for _ in loser_ids)
         # Re-parent any inflected children the losers were acting as a
         # lemma for, so consensus rolls them into the canonical group.
