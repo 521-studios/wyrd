@@ -692,18 +692,19 @@ def test_mine_wiktextract_corpus_writes_mining_run_audit_row(fresh_db: Path) -> 
     assert row["rejected"] == 0
 
     audit = json.loads(row["by_failure"])
-    assert audit["etymons_upserted"] >= 1
-    assert audit["citations_added"] >= 1
+    metrics = audit["empirical_metrics"]
+    assert metrics["etymons_upserted"] >= 1
+    assert metrics["citations_added"] >= 1
     # Per-culture and per-language breakdowns must land in the audit so
     # operators can filter mining_run for "what did the welsh slice
     # contribute" without re-running the mining pass.
-    assert "welsh" in audit["by_culture"]
-    assert audit["by_culture"]["welsh"]["hits"] >= 1
+    assert "welsh" in metrics["by_culture"]
+    assert metrics["by_culture"]["welsh"]["hits"] >= 1
     # by_language is keyed by the canonical language name (build_index
     # normalizes 'cy' → 'welsh' via _canonical_language), not the raw
     # wiktextract lang_code.
-    assert audit["by_language"].get("welsh", 0) >= 1
-    assert audit["target_cultures"] == ["welsh"]
+    assert metrics["by_language"].get("welsh", 0) >= 1
+    assert metrics["target_cultures"] == ["welsh"]
 
 
 def test_mine_wiktextract_corpus_dry_run_skips_mining_run_audit_row(

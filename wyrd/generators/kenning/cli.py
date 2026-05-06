@@ -2557,16 +2557,23 @@ def _record_empirical_mining_audit(
         culture: dict(stats) for culture, stats in counts.get("by_culture", {}).items()
     }
     by_language_serializable = dict(counts.get("by_language", {}))
+    # Nest the empirical structural counters under an "empirical_metrics"
+    # key so that consumers reading the by_failure JSON column don't
+    # mistake them for failure tags. The mining_run schema uses
+    # by_failure for audit-shaped JSON regardless of column name; the
+    # nesting tags this row's payload as success metrics, not failures.
     audit = {
-        "etymons_upserted": counts.get("etymons_upserted", 0),
-        "glosses_added": counts.get("glosses_added", 0),
-        "tags_added": counts.get("tags_added", 0),
-        "citations_added": counts.get("citations_added", 0),
-        "wiktionary_hits": counts.get("wiktionary_hits", 0),
-        "by_culture": by_culture_serializable,
-        "by_language": by_language_serializable,
-        "position_reflexes_written": pos_counts.get("reflexes_written", 0),
-        "target_cultures": target_cultures,
+        "empirical_metrics": {
+            "etymons_upserted": counts.get("etymons_upserted", 0),
+            "glosses_added": counts.get("glosses_added", 0),
+            "tags_added": counts.get("tags_added", 0),
+            "citations_added": counts.get("citations_added", 0),
+            "wiktionary_hits": counts.get("wiktionary_hits", 0),
+            "by_culture": by_culture_serializable,
+            "by_language": by_language_serializable,
+            "position_reflexes_written": pos_counts.get("reflexes_written", 0),
+            "target_cultures": target_cultures,
+        },
     }
     record_mining_run(
         db,
