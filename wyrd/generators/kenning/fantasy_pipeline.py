@@ -478,7 +478,10 @@ def _resolve_via_llm(
     except urllib.error.HTTPError as e:
         return _llm_http_error_resolution(name, e)
     except (
-        urllib.error.URLError,
+        # OSError covers urllib.error.URLError (subclass), plus
+        # socket-level TimeoutError / ConnectionError that can escape
+        # urllib's wrapping.
+        OSError,
         RuntimeError,
         json.JSONDecodeError,
         KeyError,
@@ -532,7 +535,16 @@ def _classify_llm_result(db_path: Path | str, result: dict) -> Resolution:
     4. attested_in='modern_coinage' / 'outside_family' / 'none' →
        barred with the appropriate sentinel reason
     """
-    attested_in = result.get("attested_in") or "none"
+    # Lowercase + space-to-dash normalize attested_in so 'Latin',
+    # 'Old French', and 'old-french' all match APPROVED_LANGUAGES (which
+    # uses dashed-lowercase). Without this, the empirical 2026-05-06
+    # pfsrd2 mining run mis-classified ~80 morphemes as
+    # outside_language_family because the LLM returned capitalized /
+    # space-separated language names. Underscores are preserved because
+    # the sentinel values in _NO_REAL_ATTESTATION_SENTINELS use them
+    # ('modern_coinage', 'outside_family').
+    raw_attested = result.get("attested_in") or "none"
+    attested_in = raw_attested.strip().lower().replace(" ", "-")
     confidence = result.get("confidence") or "low"
     historical = result.get("historical_form")
     citation = result.get("citation")
@@ -819,7 +831,9 @@ def _safe_semantic_check(
         )
         return None
     except (
-        urllib.error.URLError,
+        # OSError covers urllib.error.URLError (subclass), plus
+        # TimeoutError / ConnectionError.
+        OSError,
         RuntimeError,
         json.JSONDecodeError,
         KeyError,

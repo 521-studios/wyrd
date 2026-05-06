@@ -66,4 +66,26 @@ _Add a brief overview of your project architecture_
 
 ## Conventions & Patterns
 
-_Add your project-specific conventions here_
+### Mining progress reporting
+
+**Every long-running mining/ingestion CLI MUST emit a periodic
+progress line.** The canonical shape (set by `lexicon mine-llm`):
+
+```
+  [completed/total]  <key>=N <key>=N (<rate>s/entry)
+```
+
+- Echo every ~10 records (or every file for file-walking ingesters).
+- Always echo a final line at completion so the last partial chunk
+  shows up.
+- Print to stderr (`click.echo(..., err=True)`) so JSONL/data output
+  on stdout stays clean.
+- When wall-clock budget matters, include the `s/entry` rate so
+  operators can extrapolate ETA.
+
+Following the pattern: `lexicon mine-llm`,
+`lexicon mine-fantasy-name`, `lexicon ingest-etymonline`. Lacking
+per-record `[N/total]` progress (retrofit candidates):
+`lexicon mine-wiktextract-corpus`, `lexicon mine-skeat`,
+`lexicon review`. Silently waiting 20+ minutes with no signs of life
+is a debuggability hole.

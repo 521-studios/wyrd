@@ -343,6 +343,58 @@ def test_resolve_skip_llm_bars_pre_filter_misses(fresh_db: Path) -> None:
     assert res.resolution_method == "descent_lookup"
 
 
+def test_resolve_via_llm_normalizes_attested_in_case_and_separators(fresh_db: Path) -> None:
+    """The LLM frequently returns 'Latin' / 'Old French' / 'old_french'
+    instead of the dashed-lowercase 'latin' / 'old-french' that
+    APPROVED_LANGUAGES uses. The pipeline must normalize at the boundary
+    so capitalization doesn't cause a usable etymology to mis-classify
+    as outside_language_family. Pinned regression for the 2026-05-06
+    pfsrd2 mining run that lost ~80 morphemes to this bug."""
+    with LexiconDB(fresh_db) as db:
+        target_id = _seed_etymon(db, canonical_form="harpyia", language="latin")
+        db.commit()
+
+    for raw_lang in ("Latin", "LATIN", " latin ", "latin"):
+
+        def _stub_llm(name, description, _raw_lang=raw_lang):
+            return {
+                "attested_in": _raw_lang,
+                "historical_form": "harpyia",
+                "gloss": None,
+                "citation": "Etymonline",
+                "confidence": "high",
+                "bar_reason": None,
+                "reasoning": "stub",
+            }
+
+        res = fp.resolve(fresh_db, "Harpy", "Greek monster", llm_caller=_stub_llm)
+        assert res.usable is True, f"failed for {raw_lang!r}"
+        assert res.etymon_id == target_id, f"failed for {raw_lang!r}"
+
+
+def test_resolve_via_llm_normalizes_space_separated_language_names(fresh_db: Path) -> None:
+    """Multi-word language names from the LLM ('Old French', 'Old
+    Norse') normalize to dashed form to match APPROVED_LANGUAGES."""
+    with LexiconDB(fresh_db) as db:
+        target_id = _seed_etymon(db, canonical_form="harpie", language="old-french")
+        db.commit()
+
+    def _stub_llm(name, description):
+        return {
+            "attested_in": "Old French",  # space-separated, capitalized
+            "historical_form": "harpie",
+            "gloss": None,
+            "citation": "Etymonline",
+            "confidence": "high",
+            "bar_reason": None,
+            "reasoning": "stub",
+        }
+
+    res = fp.resolve(fresh_db, "Harpie", "Greek monster", llm_caller=_stub_llm)
+    assert res.usable is True
+    assert res.etymon_id == target_id
+
+
 def test_resolve_via_llm_when_pre_filter_misses(fresh_db: Path) -> None:
     """Pre-filter misses → LLM is called. When the LLM-named (form, lang)
     pair exists in the etymon table, the resolution is usable and
@@ -1095,3 +1147,61 @@ def test_cli_mine_fantasy_name_requires_input(fresh_db: Path) -> None:
         ["lexicon", "mine-fantasy-name", "--db", str(fresh_db)],
     )
     assert result.exit_code != 0
+
+
+def test_cli_mine_fantasy_name_emits_progress_line(fresh_db: Path, tmp_path: Path) -> None:
+    """Mining batches must emit a `[completed/total]` progress line so
+    operators can see how far the run has gotten. Convention is set by
+    `lexicon mine-llm` and documented in CLAUDE.md."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+
+    batch = tmp_path / "names.jsonl"
+    # 12 inputs so we cross the every-10 progress threshold + emit the
+    # final line. All names will fail to resolve in --skip-llm mode
+    # (no etymon corpus seeded), but the progress line still fires.
+    lines = [json.dumps({"name": f"Creature{i}", "description": "test"}) for i in range(12)]
+    batch.write_text("\n".join(lines) + "\n")
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        [
+            "lexicon",
+            "mine-fantasy-name",
+            "--db",
+            str(fresh_db),
+            "--batch",
+            str(batch),
+            "--skip-llm",
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    # The 10/12 line should appear (every-10 threshold) and the 12/12
+    # final line as well.
+    combined = result.output + (result.stderr or "")
+    assert "[10/12]" in combined
+    assert "[12/12]" in combined
+
+
+def test_cli_ingest_etymonline_emits_progress_line(fresh_db: Path, tmp_path: Path) -> None:
+    """Same convention for the etymonline file walker."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+
+    src_dir = tmp_path / "etym"
+    src_dir.mkdir()
+    for i in range(3):
+        (src_dir / f"{i}.txt").write_text(f"word{i}(n.)\n\nlate 14c., from Old French foo{i}.\n\n")
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        ["lexicon", "ingest-etymonline", str(src_dir), "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0
+    combined = result.output + (result.stderr or "")
+    # Each file gets a [N/3] prefix.
+    assert "[1/3]" in combined
+    assert "[3/3]" in combined

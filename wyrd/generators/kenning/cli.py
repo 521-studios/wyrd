@@ -1455,9 +1455,16 @@ def lexicon_mine_fantasy_name(
         llm_caller = fp._llm_full_research
         semantic_check_caller = fp._llm_semantic_check
 
+    # Mining-progress convention: same shape as `lexicon mine-llm` so
+    # operators can read both batches the same way. See repo CLAUDE.md
+    # under "Mining progress reporting".
+    progress_start = time.time()
+    progress_every = 10
+    total_inputs = len(inputs)
+
     write_db: LexiconDB | None = LexiconDB(db_path) if apply_changes else None
     try:
-        for in_name, in_desc in inputs:
+        for completed, (in_name, in_desc) in enumerate(inputs, start=1):
             res = fp.resolve(
                 db_path,
                 in_name,
@@ -1497,6 +1504,17 @@ def lexicon_mine_fantasy_name(
                 # crashing partway through a long batch shouldn't lose
                 # already-paid-for results.
                 write_db.commit()
+            # Periodic progress line (matches mine-llm shape so operators
+            # can scan both batches the same way).
+            if completed % progress_every == 0 or completed == total_inputs:
+                elapsed = time.time() - progress_start
+                rate = elapsed / completed
+                click.echo(
+                    f"  [{completed}/{total_inputs}]  "
+                    f"usable={counts['usable']} barred={counts['barred']} "
+                    f"({rate:.1f}s/entry)",
+                    err=True,
+                )
     finally:
         if write_db is not None:
             write_db.close()
@@ -1581,10 +1599,12 @@ def lexicon_ingest_etymonline(
         "leaf_edge_skipped_no_headword": 0,
         "glosses_added": 0,
     }
+    progress_start = time.time()
+    total_files = len(files)
     with LexiconDB(db_path) as db:
         if apply_changes:
             etymonline_ingester.ensure_source(db)
-        for f in files:
+        for completed, f in enumerate(files, start=1):
             text = f.read_text()
             counts = etymonline_ingester.ingest_text(db, text, apply=apply_changes)
             totals["files"] += 1
@@ -1592,9 +1612,13 @@ def lexicon_ingest_etymonline(
                 if k in totals:
                     totals[k] += v
             edges_field = f" edges_added={counts['edges_added']}" if apply_changes else ""
+            elapsed = time.time() - progress_start
+            rate = elapsed / completed
             click.echo(
-                f"  {f.name:<32} senses={counts['senses_parsed']:<2} "
-                f"links={counts['chain_links']:<3}{edges_field}",
+                f"  [{completed}/{total_files}] {f.name:<32} "
+                f"senses={counts['senses_parsed']:<2} "
+                f"links={counts['chain_links']:<3}{edges_field} "
+                f"({rate:.2f}s/file)",
                 err=True,
             )
         if apply_changes:
