@@ -141,8 +141,12 @@ def _family_only_description(family: dict[str, Any]) -> str:
 
 
 def _variant_description(family: dict[str, Any] | None, monster: dict[str, Any]) -> str:
-    """Description for a variant record: family.text + family.sections
-    (as context) + monster.sections (variant-specific flavor)."""
+    """Description for a variant or no-family record: family.text +
+    family.sections (as context, when family is truthy) plus
+    monster.sections (variant-specific flavor). When `family` is None
+    or empty, degrades cleanly to monster.sections only — so this
+    helper covers both the "real family, single-word variant" case
+    and the "no family at all" case."""
     parts: list[str] = []
     if family:
         family_text = family.get("text")
@@ -150,12 +154,6 @@ def _variant_description(family: dict[str, Any] | None, monster: dict[str, Any])
             parts.append(family_text)
         parts.extend(_collect_section_texts(family.get("sections")))
     parts.extend(_collect_section_texts(monster.get("sections")))
-    return "\n\n".join(p for p in parts if p)
-
-
-def _no_family_description(monster: dict[str, Any]) -> str:
-    """Description for a no-family record: monster.sections only."""
-    parts = _collect_section_texts(monster.get("sections"))
     return "\n\n".join(p for p in parts if p)
 
 
@@ -181,9 +179,10 @@ def extract_description(monster: dict[str, Any]) -> str:
     family_root = _family_root(family)
     if family_root is not None:
         return _family_only_description(family)
-    if family and family.get("name"):
-        return _variant_description(family, monster)
-    return _no_family_description(monster)
+    # All other paths (multi-word family root, missing family) collapse
+    # to the variant-style description; _variant_description handles
+    # family=None gracefully by returning monster.sections only.
+    return _variant_description(family, monster)
 
 
 def extract_monster(
@@ -229,15 +228,10 @@ def extract_records(monster: dict[str, Any]) -> Iterator[dict[str, str]]:
         # No usable family root, but monster name is single-word. This
         # also catches the "family exists but is multi-word (e.g.
         # 'Blightburn Genies') AND monster name is single-word" edge
-        # case — emit the variant on its own. The variant gets the
-        # variant-style description (with family.text as context) when
-        # family is present, else no-family.
-        description = (
-            _variant_description(family, monster)
-            if family and family.get("name")
-            else _no_family_description(monster)
-        )
-        yield {"name": monster_name, "description": description}
+        # case — emit the variant on its own. _variant_description
+        # handles both branches (family present → include family.text
+        # as context; family None → just monster.sections).
+        yield {"name": monster_name, "description": _variant_description(family, monster)}
 
 
 def iter_monster_files(corpus_root: Path) -> Iterator[Path]:
