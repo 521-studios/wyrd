@@ -479,20 +479,25 @@ def test_resolve_via_llm_unapproved_language_records_lang_and_form(fresh_db: Pat
 
     def _stub_llm(name, description):
         return {
-            "attested_in": "sanskrit",
-            "historical_form": "rakṣasa",
-            "gloss": "demon",
-            "citation": "Monier-Williams",
+            # Japanese is intentionally NOT in APPROVED_LANGUAGES per
+            # user 2026-05-06 ('no credible English-speaker intuition
+            # for Japanese-derived fantasy creature names yet'). When
+            # the LLM returns it, the pipeline records the language
+            # for future-prioritization signal.
+            "attested_in": "japanese",
+            "historical_form": "kappa",
+            "gloss": "river demon",
+            "citation": "Kojien",
             "confidence": "high",
             "bar_reason": None,
-            "reasoning": "Sanskrit demon",
+            "reasoning": "Japanese folkloric creature",
         }
 
-    res = fp.resolve(fresh_db, "Rakshasa", "demon from Hindu mythology", llm_caller=_stub_llm)
+    res = fp.resolve(fresh_db, "Kappa", "Japanese water imp", llm_caller=_stub_llm)
     assert res.usable is False
     assert res.bar_reason == fp.BAR_REASON_OUTSIDE_FAMILY
-    assert res.unapproved_language == "sanskrit"
-    assert res.unapproved_form == "rakṣasa"
+    assert res.unapproved_language == "japanese"
+    assert res.unapproved_form == "kappa"
 
 
 def test_write_resolution_persists_unapproved_language_and_form(fresh_db: Path) -> None:
@@ -1205,3 +1210,76 @@ def test_cli_ingest_etymonline_emits_progress_line(fresh_db: Path, tmp_path: Pat
     # Each file gets a [N/3] prefix.
     assert "[1/3]" in combined
     assert "[3/3]" in combined
+
+
+def test_resolve_via_llm_alias_map_sanskrit_to_iso(fresh_db: Path) -> None:
+    """LLM returns 'Sanskrit' (descriptive); pipeline maps to 'sa' (ISO
+    code in etymon table) and resolves usable. Pinned regression for
+    the wave-2 language expansion (Hebrew/Arabic/Persian/Sanskrit/
+    Akkadian/Egyptian) where APPROVED_LANGUAGES is the ISO code and
+    the LLM's natural output is the descriptive name."""
+    with LexiconDB(fresh_db) as db:
+        target_id = _seed_etymon(db, canonical_form="rakṣasa", language="sa")
+        db.commit()
+
+    def _stub_llm(name, description):
+        return {
+            "attested_in": "Sanskrit",  # descriptive, capitalized
+            "historical_form": "rakṣasa",
+            "gloss": "demon",
+            "citation": "Monier-Williams",
+            "confidence": "high",
+            "bar_reason": None,
+            "reasoning": "stub",
+        }
+
+    res = fp.resolve(fresh_db, "Rakshasa", "Hindu demon", llm_caller=_stub_llm)
+    assert res.usable is True
+    assert res.etymon_id == target_id
+
+
+def test_resolve_via_llm_alias_map_arabic_with_etymonline_genie_case(fresh_db: Path) -> None:
+    """The Genie misclassification case — LLM returns 'arabic' for the
+    djinn etymology and pipeline resolves to 'ar' as the canonical code."""
+    with LexiconDB(fresh_db) as db:
+        target_id = _seed_etymon(db, canonical_form="jinn", language="ar")
+        db.commit()
+
+    def _stub_llm(name, description):
+        return {
+            "attested_in": "arabic",  # already lowercase
+            "historical_form": "jinn",
+            "gloss": "spirit",
+            "citation": "Lane's Arabic-English Lexicon",
+            "confidence": "high",
+            "bar_reason": None,
+            "reasoning": "stub",
+        }
+
+    res = fp.resolve(fresh_db, "Genie", "Arabian spirit", llm_caller=_stub_llm)
+    assert res.usable is True
+    assert res.etymon_id == target_id
+
+
+def test_resolve_via_llm_alias_map_egyptian_variants(fresh_db: Path) -> None:
+    """Both 'Egyptian' and 'ancient-egyptian' should map to 'egy'."""
+    with LexiconDB(fresh_db) as db:
+        target_id = _seed_etymon(db, canonical_form="anpw", language="egy")
+        db.commit()
+
+    for raw_lang in ("Egyptian", "ancient-egyptian", "Ancient Egyptian"):
+
+        def _stub_llm(name, description, _raw=raw_lang):
+            return {
+                "attested_in": _raw,
+                "historical_form": "anpw",
+                "gloss": "Anubis",
+                "citation": "Faulkner",
+                "confidence": "high",
+                "bar_reason": None,
+                "reasoning": "stub",
+            }
+
+        res = fp.resolve(fresh_db, "Anubis", "Egyptian deity", llm_caller=_stub_llm)
+        assert res.usable is True, f"failed for {raw_lang!r}"
+        assert res.etymon_id == target_id, f"failed for {raw_lang!r}"
