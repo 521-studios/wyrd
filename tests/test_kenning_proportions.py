@@ -1076,13 +1076,48 @@ def test_kenning_generate_accepts_era_param():
 
 def test_kenning_input_schema_exposes_era():
     """The era param surfaces in input_schema so the SPA renders an
-    input control for it. Default-less: the absence of an era key
-    means 'no filter', which the runtime maps to era_range=None."""
+    input control for it. Default empty string maps to 'no filter' in
+    _resolve_era_param."""
     from wyrd.generators.kenning import Kenning
 
     schema = Kenning().input_schema()
     assert "era" in schema["properties"]
     assert schema["properties"]["era"]["type"] == "string"
+    assert schema["properties"]["era"]["default"] == ""
+
+
+def test_kenning_input_schema_era_carries_dependent_select_options():
+    """wyrd-awo: the era field carries an x-options-by-culture map so
+    the SPA renders a culture-keyed dependent select. Each culture's
+    options must include the empty 'no filter' string and the cell
+    labels of its era family. Pinning the structure prevents a
+    regression that drops the metadata or breaks the per-culture key
+    set."""
+    from wyrd.generators.kenning import CULTURES, Kenning
+
+    schema = Kenning().input_schema()
+    options = schema["properties"]["era"]["x-options-by-culture"]
+    assert set(options.keys()) == set(CULTURES)
+    for culture, labels in options.items():
+        assert labels[0] == "", f"{culture}: empty 'no filter' option must come first"
+        assert len(labels) > 1, f"{culture}: must have at least one cell label"
+
+
+def test_kenning_input_schema_era_options_match_era_family_per_culture():
+    """The per-culture option set must equal the culture's era family
+    cells (plus the empty 'no filter' option). Drives the source-of-truth
+    invariant: adding a new cell to era.ERA_CELLS automatically surfaces
+    in the SPA dropdown without touching the input_schema."""
+    from wyrd.generators.kenning import _CULTURE_TO_ERA_FAMILY, Kenning
+    from wyrd.generators.kenning.era import era_cells_for_family
+
+    schema = Kenning().input_schema()
+    options = schema["properties"]["era"]["x-options-by-culture"]
+    for culture, family in _CULTURE_TO_ERA_FAMILY.items():
+        expected = ("", *era_cells_for_family(family))
+        assert tuple(options[culture]) == expected, (
+            f"{culture} options must equal era_cells_for_family({family!r}) plus empty"
+        )
 
 
 # --- wyrd-mj2 cohesion (tag co-occurrence bias) ---------------------------

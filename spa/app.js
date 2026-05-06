@@ -108,6 +108,79 @@ function _buildSelectField(key, prop, urlVal) {
     return input;
 }
 
+// wyrd-awo: dependent-select rendering for fields keyed off the 'culture'
+// field. The schema carries `x-options-by-culture` mapping each culture
+// to its allowed option list (e.g. era cells per era family). On render
+// the field shows options for the currently-selected culture, and the
+// culture-select's onchange rebuilds the option list while preserving
+// the current selection if still valid. Falls back to the first
+// culture's options when no culture select exists yet (defensive — the
+// kenning generator always exposes culture, but the helper stays
+// schema-agnostic).
+function _buildDependentSelectField(key, prop, urlVal) {
+    const input = document.createElement("select");
+    input.id = `field-${key}`;
+    input.name = key;
+    input.dataset.optionsByCulture = JSON.stringify(prop["x-options-by-culture"]);
+    const initialCulture = _currentCultureValue() || _firstCultureFromMap(prop["x-options-by-culture"]);
+    _populateDependentOptions(input, prop, initialCulture, urlVal);
+    return input;
+}
+
+function _currentCultureValue() {
+    const cultureField = document.getElementById("field-culture");
+    return cultureField ? cultureField.value : null;
+}
+
+function _firstCultureFromMap(optionsByCulture) {
+    const keys = Object.keys(optionsByCulture || {});
+    return keys.length > 0 ? keys[0] : null;
+}
+
+function _populateDependentOptions(select, prop, culture, preferredValue) {
+    const map = prop["x-options-by-culture"] || {};
+    const options = map[culture] || [];
+    const previous = preferredValue !== null && preferredValue !== undefined
+        ? preferredValue
+        : select.value;
+    select.replaceChildren();
+    for (const v of options) {
+        const opt = document.createElement("option");
+        opt.value = v;
+        opt.textContent = v === "" ? "(no filter)" : v;
+        select.appendChild(opt);
+    }
+    // Preserve a previously-chosen value when the new option set still
+    // contains it (e.g. switching English ↔ Scottish keeps 'modern'
+    // selected); otherwise fall back to the schema default.
+    if (previous && options.includes(previous)) {
+        select.value = previous;
+    } else if (prop.default !== undefined && options.includes(prop.default)) {
+        select.value = prop.default;
+    } else if (options.length > 0) {
+        select.value = options[0];
+    }
+}
+
+// Wire all `x-options-by-culture` fields to repopulate when the culture
+// select changes. Called once after renderForm finishes building all
+// fields, since the dependee may be rendered before its dependent.
+function _wireDependentSelects(schema) {
+    const cultureField = document.getElementById("field-culture");
+    if (!cultureField) return;
+    const dependentKeys = [];
+    for (const [key, prop] of Object.entries(schema.properties || {})) {
+        if (prop["x-options-by-culture"]) dependentKeys.push([key, prop]);
+    }
+    if (dependentKeys.length === 0) return;
+    cultureField.addEventListener("change", () => {
+        for (const [key, prop] of dependentKeys) {
+            const select = document.getElementById(`field-${key}`);
+            if (select) _populateDependentOptions(select, prop, cultureField.value, null);
+        }
+    });
+}
+
 function _buildTagGrid(key, prop, url) {
     const grid = document.createElement("div");
     grid.className = "tag-grid";
@@ -167,6 +240,9 @@ function _buildBooleanField(key, prop, urlVal) {
 
 function _buildField(key, prop, url) {
     const urlVal = url.searchParams.get(key);
+    if (prop["x-options-by-culture"]) {
+        return _buildDependentSelectField(key, prop, urlVal);
+    }
     if (prop.type === "string" && Array.isArray(prop.enum)) {
         return _buildSelectField(key, prop, urlVal);
     }
@@ -207,6 +283,11 @@ function renderForm(schema) {
         wrap.appendChild(_buildField(key, prop, url));
         form.appendChild(wrap);
     }
+    // After all fields exist, wire any dependent-select fields to their
+    // dependee (currently always the culture field). Done in a second
+    // pass since the dependee may be rendered before its dependents in
+    // the schema iteration order.
+    _wireDependentSelects(schema);
 }
 
 function readForm() {
