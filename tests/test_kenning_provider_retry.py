@@ -124,6 +124,39 @@ def test_socket_timeout_propagates_immediately() -> None:
         pr.open_with_429_retry(_make_req(), timeout=1.0, provider_label="X")
 
 
+def test_429_response_is_closed_before_retry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the e.close() call between 429 and the next retry. urllib's
+    HTTPError doubles as a response object; not closing it leaks the
+    underlying socket, which compounds at high --concurrency. Regression
+    guard: a future refactor that drops the close() (or moves it after the
+    sleep) would let sockets pile up between attempts."""
+    closed: list[urllib.error.HTTPError] = []
+
+    class _ClosableHTTPError(urllib.error.HTTPError):
+        def close(self) -> None:
+            closed.append(self)
+
+    calls = {"n": 0}
+
+    def flaky(req, timeout=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise _ClosableHTTPError(
+                url="https://example/",
+                code=429,
+                msg="rate limited",
+                hdrs=None,  # type: ignore[arg-type]
+                fp=None,
+            )
+        return _ok_response(b"ok")(req, timeout=timeout)
+
+    monkeypatch.setattr(pr.time, "sleep", lambda _s: None)
+    with patch("urllib.request.urlopen", flaky):
+        body = pr.open_with_429_retry(_make_req(), timeout=1.0, provider_label="X")
+    assert body == b"ok"
+    assert len(closed) == 1, "the 429 HTTPError should be closed before retry"
+
+
 def test_max_total_wait_caps_cumulative_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
     """If the next backoff would push cumulative sleep past max_total_wait,
     propagate the 429 instead of sleeping further."""

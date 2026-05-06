@@ -62,6 +62,11 @@ def open_with_429_retry(
             sleep_s = base * random.uniform(0.75, 1.25)
             if waited + sleep_s > max_total_wait:
                 raise
+            # HTTPError doubles as a response object; close it before
+            # sleeping so the underlying socket is freed promptly. Without
+            # this, parallel mining at --concurrency 8+ can accumulate
+            # half-open sockets across retries and hit the FD limit.
+            e.close()
             logger.warning(
                 "%s 429 rate-limited; retry %d/%d in %.1fs",
                 provider_label,
