@@ -634,3 +634,116 @@ def test_mine_wiktextract_corpus_cli_apply_and_dry_run(fresh_db: Path) -> None:
         ).fetchone()[0]
     # 'betws' should have landed as an empirical etymon in welsh.
     assert cit_count >= 1
+
+
+def test_mine_wiktextract_corpus_writes_mining_run_audit_row(fresh_db: Path) -> None:
+    """wyrd-qepf / D24: a successful --apply run must persist a
+    mining_run row so the operation is queryable from the DB. The rich
+    structural counters (etymons_upserted, by_culture, by_language,
+    position_reflexes_written) land in by_failure (the audit-shaped
+    JSON column); accept/decline/reject-style fields use the closest
+    analogues since empirical mining doesn't have those semantics."""
+    import json
+
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    db_path = fresh_db
+    sources_dir = fresh_db.parent / "sources"
+    sources_dir.mkdir()
+    welsh_slice = sources_dir / "wiktextract_welsh.jsonl"
+    _write_slice(
+        welsh_slice,
+        [{"word": "betws", "lang_code": "cy", "senses": [{"glosses": ["chapel"]}]}],
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "lexicon",
+            "mine-wiktextract-corpus",
+            "--db",
+            str(db_path),
+            "--sources-dir",
+            str(sources_dir),
+            "--culture",
+            "welsh",
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+
+    with LexiconDB(db_path) as db:
+        rows = db.conn.execute(
+            "SELECT provider, model, mode, parsed_count, accepted, declined, "
+            "rejected, by_failure FROM mining_run WHERE source_id = ?",
+            (WIKTIONARY_EMPIRICAL_SOURCE_ID,),
+        ).fetchall()
+
+    assert len(rows) == 1, "exactly one audit row per --apply run"
+    row = rows[0]
+    assert row["provider"] == "wiktionary-empirical"
+    assert row["model"] == "corpus-substring-v1"
+    assert row["mode"] == "mine"
+    assert row["accepted"] >= 1  # at least 'betws' landed
+    assert row["declined"] == 0
+    assert row["rejected"] == 0
+
+    audit = json.loads(row["by_failure"])
+    assert audit["etymons_upserted"] >= 1
+    assert audit["citations_added"] >= 1
+    # Per-culture and per-language breakdowns must land in the audit so
+    # operators can filter mining_run for "what did the welsh slice
+    # contribute" without re-running the mining pass.
+    assert "welsh" in audit["by_culture"]
+    assert audit["by_culture"]["welsh"]["hits"] >= 1
+    # by_language is keyed by the canonical language name (build_index
+    # normalizes 'cy' → 'welsh' via _canonical_language), not the raw
+    # wiktextract lang_code.
+    assert audit["by_language"].get("welsh", 0) >= 1
+    assert audit["target_cultures"] == ["welsh"]
+
+
+def test_mine_wiktextract_corpus_dry_run_skips_mining_run_audit_row(
+    fresh_db: Path,
+) -> None:
+    """The audit row is conditional on --apply (mirrors the rest of the
+    write side). A dry-run must not pollute mining_run with rows that
+    don't correspond to actual writes."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    db_path = fresh_db
+    sources_dir = fresh_db.parent / "sources"
+    sources_dir.mkdir()
+    welsh_slice = sources_dir / "wiktextract_welsh.jsonl"
+    _write_slice(
+        welsh_slice,
+        [{"word": "betws", "lang_code": "cy", "senses": [{"glosses": ["chapel"]}]}],
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "lexicon",
+            "mine-wiktextract-corpus",
+            "--db",
+            str(db_path),
+            "--sources-dir",
+            str(sources_dir),
+            "--culture",
+            "welsh",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+
+    with LexiconDB(db_path) as db:
+        rows = db.conn.execute(
+            "SELECT COUNT(*) FROM mining_run WHERE source_id = ?",
+            (WIKTIONARY_EMPIRICAL_SOURCE_ID,),
+        ).fetchone()[0]
+    assert rows == 0

@@ -751,6 +751,124 @@ def test_etymon_consensus_handles_depth_2_merged_into_lemma_chain(
     assert consensus[0]["witnesses"] == 2  # src-a + src-b
 
 
+def test_etymon_gloss_canonical_rolls_up_glosses_from_merged_losers(
+    fresh_db: Path,
+) -> None:
+    """wyrd-7lo: a gloss attached to an OCR-merged loser must surface
+    under the canonical etymon's id when read through
+    etymon_gloss_canonical. Without this view, a SELECT from
+    etymon_gloss WHERE etymon_id = canonical misses the loser's
+    glosses since the data wasn't moved (D22 non-destructive)."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src-a", title="A")
+        winner = db.upsert_etymon("ham", "old-english")
+        loser = db.upsert_etymon("harn", "old-english")
+        db.conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (winner, loser))
+        db.add_gloss(winner, "homestead")
+        db.add_gloss(loser, "OCR-variant of homestead")
+        db.commit()
+
+        glosses = sorted(
+            row["gloss"]
+            for row in db.conn.execute(
+                "SELECT gloss FROM etymon_gloss_canonical WHERE canonical_etymon_id = ?",
+                (winner,),
+            )
+        )
+    assert glosses == ["OCR-variant of homestead", "homestead"]
+
+
+def test_etymon_tag_canonical_rolls_up_tags_from_merged_losers(
+    fresh_db: Path,
+) -> None:
+    """wyrd-7lo: companion to the gloss view — tags on a merged loser
+    surface under the canonical group."""
+    with LexiconDB(fresh_db) as db:
+        winner = db.upsert_etymon("ham", "old-english")
+        loser = db.upsert_etymon("harn", "old-english")
+        db.conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (winner, loser))
+        db.add_tag(winner, "settlement")
+        db.add_tag(loser, "homestead-variant")
+        db.commit()
+
+        tags = sorted(
+            row["tag"]
+            for row in db.conn.execute(
+                "SELECT tag FROM etymon_tag_canonical WHERE canonical_etymon_id = ?",
+                (winner,),
+            )
+        )
+    assert tags == ["homestead-variant", "settlement"]
+
+
+def test_etymon_text_match_canonical_sums_match_counts_per_group(
+    fresh_db: Path,
+) -> None:
+    """wyrd-7lo: text_match rollup must SUM(match_count) when a canonical
+    group has multiple member etymons that each saw the same matched_form
+    in the same source. Mirrors D21's UPSERT semantics for writes against
+    the raw table — reads through the canonical view see one row per
+    (canonical, source, matched_form) with the aggregated count."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src-a", title="A")
+        winner = db.upsert_etymon("ham", "old-english")
+        loser = db.upsert_etymon("harn", "old-english")
+        db.conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (winner, loser))
+        # Both rows recorded text-match evidence for the same matched_form
+        # in the same source — the loser before clustering, the winner
+        # after. Without rollup the consumer sees two rows; the canonical
+        # view must collapse them.
+        db.conn.execute(
+            "INSERT INTO etymon_text_match "
+            "(etymon_id, source_id, matched_form, match_count, edit_distance) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (winner, "src-a", "ham", 7, 0),
+        )
+        db.conn.execute(
+            "INSERT INTO etymon_text_match "
+            "(etymon_id, source_id, matched_form, match_count, edit_distance) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (loser, "src-a", "ham", 3, 0),
+        )
+        db.commit()
+
+        rows = db.conn.execute(
+            "SELECT total_match_count FROM etymon_text_match_canonical "
+            "WHERE canonical_etymon_id = ? AND source_id = ? AND matched_form = ?",
+            (winner, "src-a", "ham"),
+        ).fetchall()
+    assert len(rows) == 1, "merged group should produce exactly one canonical row"
+    assert rows[0]["total_match_count"] == 10  # 7 + 3
+
+
+def test_canonical_views_use_lemma_chain_when_loser_was_inflected_variant(
+    fresh_db: Path,
+) -> None:
+    """The canonical views must follow the same two-step
+    merged_into_id → lemma_id chain that etymon_consensus uses. An OCR
+    loser whose merge target is an inflected form must surface under
+    the lemma's id, not the inflected form's id."""
+    with LexiconDB(fresh_db) as db:
+        lemma = db.upsert_etymon("had", "old-english")
+        inflected = db.upsert_etymon("hædan", "old-english")
+        ocr_loser = db.upsert_etymon("hcsdan", "old-english")
+        db.conn.execute("UPDATE etymon SET merged_into_id = ? WHERE id = ?", (inflected, ocr_loser))
+        db.conn.execute("UPDATE etymon SET lemma_id = ? WHERE id = ?", (lemma, inflected))
+        db.add_gloss(ocr_loser, "via-loser")
+        db.add_gloss(inflected, "via-inflected")
+        db.add_gloss(lemma, "lemma-direct")
+        db.commit()
+
+        glosses = sorted(
+            row["gloss"]
+            for row in db.conn.execute(
+                "SELECT gloss FROM etymon_gloss_canonical WHERE canonical_etymon_id = ?",
+                (lemma,),
+            )
+        )
+    assert glosses == ["lemma-direct", "via-inflected", "via-loser"]
+
+
 def test_clear_enrichment_dry_run_reports_without_writing(fresh_db: Path) -> None:
     """Dry-run reports counts but does not modify the DB."""
     with LexiconDB(fresh_db) as db:
@@ -5494,8 +5612,14 @@ def test_migrate_schema_adds_etymon_cognate_columns_to_legacy_db(
         # ADDED on migration), but it's not a faithful simulation of a
         # production pre-D27 schema. A FK-cascade test or constraint
         # check on this fixture would silently pass.
+        # Drop every view that references etymon so the rename below
+        # doesn't trip SQLite's dependent-view check (the wyrd-7lo
+        # canonical views all join against etymon).
         db.conn.execute("DROP VIEW IF EXISTS etymon_consensus")
         db.conn.execute("DROP VIEW IF EXISTS etymon_canonical")
+        db.conn.execute("DROP VIEW IF EXISTS etymon_gloss_canonical")
+        db.conn.execute("DROP VIEW IF EXISTS etymon_tag_canonical")
+        db.conn.execute("DROP VIEW IF EXISTS etymon_text_match_canonical")
         db.conn.execute(
             "CREATE TABLE etymon_legacy AS "
             "SELECT id, canonical_form, language, modifier_type, position_pref, "

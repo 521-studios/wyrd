@@ -367,6 +367,56 @@ CREATE VIEW etymon_consensus AS
   )
   GROUP BY lemma_id;
 
+-- wyrd-7lo: per-canonical rollup views for the gloss / tag / text-match
+-- child tables. After D22's non-destructive OCR clustering, child rows
+-- stay attached to the original (loser) etymons; a SELECT against the
+-- raw tables scoped to a canonical etymon's id misses everything on its
+-- merged tombstones. These views supply the "all data for this
+-- canonical group, including from merged variants" read path that
+-- etymon_consensus already provides for citations.
+--
+-- Same two-step rollup chain as etymon_consensus: target = first-hop
+-- redirect (merged_into_id → lemma_id); le = target's lemma. The
+-- canonical_etymon_id surfaced is the deepest non-NULL row in the
+-- chain.
+CREATE VIEW etymon_gloss_canonical AS
+  SELECT DISTINCT
+         COALESCE(le.id, target.id, e.id) AS canonical_etymon_id,
+         g.gloss
+  FROM etymon e
+  JOIN etymon_gloss g ON g.etymon_id = e.id
+  LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
+  LEFT JOIN etymon le ON le.id = target.lemma_id;
+
+CREATE VIEW etymon_tag_canonical AS
+  SELECT DISTINCT
+         COALESCE(le.id, target.id, e.id) AS canonical_etymon_id,
+         t.tag
+  FROM etymon e
+  JOIN etymon_tag t ON t.etymon_id = e.id
+  LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
+  LEFT JOIN etymon le ON le.id = target.lemma_id;
+
+-- text_match aggregates — when a canonical group has multiple member
+-- etymons that each saw the same matched_form in the same source,
+-- SUM(match_count) collapses them into one row per (canonical, source,
+-- matched_form). Mirrors the UPSERT semantics D21 documents for
+-- writes against the raw table. attested_year is MIN'd because the
+-- field stores the EARLIEST plausibly-attested year per row, and the
+-- earliest across a canonical group remains the earliest.
+CREATE VIEW etymon_text_match_canonical AS
+  SELECT COALESCE(le.id, target.id, e.id) AS canonical_etymon_id,
+         m.source_id,
+         m.matched_form,
+         SUM(m.match_count) AS total_match_count,
+         MIN(m.edit_distance) AS edit_distance,
+         MIN(m.attested_year) AS attested_year
+  FROM etymon e
+  JOIN etymon_text_match m ON m.etymon_id = e.id
+  LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
+  LEFT JOIN etymon le ON le.id = target.lemma_id
+  GROUP BY canonical_etymon_id, m.source_id, m.matched_form;
+
 -- Per-toponym disagreement: distinct breakdown signatures per toponym.
 -- A signature is the ordered list of etymon_ids; if a toponym has >1
 -- distinct signature, scholars disagree on the breakdown.
