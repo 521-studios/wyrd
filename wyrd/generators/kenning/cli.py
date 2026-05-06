@@ -1386,7 +1386,8 @@ def lexicon_mine_llm(
         "the current approach_version. Lets you grow the input corpus "
         "(e.g. extractor v2) and re-run without paying for already-"
         "resolved entries. Looks up the existing names once at startup. "
-        "Comparison is case-sensitive (matches the table's UNIQUE)."
+        "Comparison is case-insensitive (matches the table's "
+        "COLLATE NOCASE UNIQUE constraint)."
     ),
 )
 @click.option(
