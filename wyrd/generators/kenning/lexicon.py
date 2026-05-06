@@ -532,6 +532,10 @@ def _rebuild_etymon_views(db: LexiconDB, applied: dict[str, bool]) -> None:
     # canonical-group chain as etymon_consensus; surfaced as canonical
     # views so consumers wanting "all data for this canonical etymon"
     # can read through them instead of joining merged_into_id manually.
+    # The full rationale (why MIN(attested_year), why SUM(match_count),
+    # how the chain handles depth-2 cases) lives next to the matching
+    # CREATE VIEW blocks in data/lexicon.sql; this function just
+    # mirrors them for legacy-DB migration.
     db.conn.execute("DROP VIEW IF EXISTS etymon_gloss_canonical")
     db.conn.execute(
         """

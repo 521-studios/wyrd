@@ -817,28 +817,36 @@ def test_etymon_text_match_canonical_sums_match_counts_per_group(
         # Both rows recorded text-match evidence for the same matched_form
         # in the same source — the loser before clustering, the winner
         # after. Without rollup the consumer sees two rows; the canonical
-        # view must collapse them.
+        # view must collapse them. The two rows differ in edit_distance
+        # and attested_year so the MIN aggregations have something to
+        # pick the smallest of.
         db.conn.execute(
             "INSERT INTO etymon_text_match "
-            "(etymon_id, source_id, matched_form, match_count, edit_distance) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (winner, "src-a", "ham", 7, 0),
+            "(etymon_id, source_id, matched_form, match_count, edit_distance, attested_year) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (winner, "src-a", "ham", 7, 0, 1086),
         )
         db.conn.execute(
             "INSERT INTO etymon_text_match "
-            "(etymon_id, source_id, matched_form, match_count, edit_distance) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (loser, "src-a", "ham", 3, 0),
+            "(etymon_id, source_id, matched_form, match_count, edit_distance, attested_year) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (loser, "src-a", "ham", 3, 1, 1242),
         )
         db.commit()
 
         rows = db.conn.execute(
-            "SELECT total_match_count FROM etymon_text_match_canonical "
+            "SELECT total_match_count, edit_distance, attested_year "
+            "FROM etymon_text_match_canonical "
             "WHERE canonical_etymon_id = ? AND source_id = ? AND matched_form = ?",
             (winner, "src-a", "ham"),
         ).fetchall()
     assert len(rows) == 1, "merged group should produce exactly one canonical row"
     assert rows[0]["total_match_count"] == 10  # 7 + 3
+    # MIN(edit_distance) — the strongest evidence (exact match) wins
+    # over the fuzzy variant. MIN(attested_year) — the earliest
+    # attestation across the group is the canonical "first seen" date.
+    assert rows[0]["edit_distance"] == 0
+    assert rows[0]["attested_year"] == 1086
 
 
 def test_canonical_views_use_lemma_chain_when_loser_was_inflected_variant(
@@ -867,6 +875,37 @@ def test_canonical_views_use_lemma_chain_when_loser_was_inflected_variant(
             )
         )
     assert glosses == ["lemma-direct", "via-inflected", "via-loser"]
+
+
+def test_canonical_views_surface_standalone_etymons_under_their_own_id(
+    fresh_db: Path,
+) -> None:
+    """Boundary check: an etymon with no merged_into_id and no lemma_id
+    must surface under its own id. The COALESCE(le.id, target.id, e.id)
+    fallback path is what makes the view degrade gracefully to the raw
+    table for unmerged rows; a regression that broke it would silently
+    drop standalone canonical rows from every consumer that uses these
+    views as their primary read path."""
+    with LexiconDB(fresh_db) as db:
+        standalone = db.upsert_etymon("standalone", "old-english")
+        db.add_gloss(standalone, "no chain")
+        db.add_tag(standalone, "isolated")
+        db.commit()
+
+        gloss_rows = db.conn.execute(
+            "SELECT canonical_etymon_id, gloss FROM etymon_gloss_canonical "
+            "WHERE canonical_etymon_id = ?",
+            (standalone,),
+        ).fetchall()
+        tag_rows = db.conn.execute(
+            "SELECT canonical_etymon_id, tag FROM etymon_tag_canonical "
+            "WHERE canonical_etymon_id = ?",
+            (standalone,),
+        ).fetchall()
+    assert len(gloss_rows) == 1
+    assert gloss_rows[0]["gloss"] == "no chain"
+    assert len(tag_rows) == 1
+    assert tag_rows[0]["tag"] == "isolated"
 
 
 def test_clear_enrichment_dry_run_reports_without_writing(fresh_db: Path) -> None:

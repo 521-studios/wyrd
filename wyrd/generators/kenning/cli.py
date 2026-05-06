@@ -2547,6 +2547,11 @@ def _record_empirical_mining_audit(
     classification breakdown) into the by_failure JSON field; the
     LLM-style accept/decline/reject columns are zeroed because the
     empirical pipeline doesn't have those semantics.
+
+    The provider/model/mode strings follow the LLM mining_run convention
+    (see record_mining_run); 'wiktionary-empirical' / 'corpus-substring-v1'
+    / 'mine' make this run distinguishable from LLM mining without
+    needing a separate audit table.
     """
     by_culture_serializable = {
         culture: dict(stats) for culture, stats in counts.get("by_culture", {}).items()
