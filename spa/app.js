@@ -122,7 +122,15 @@ function _buildDependentSelectField(key, prop, urlVal) {
     input.id = `field-${key}`;
     input.name = key;
     const initialCulture = _currentCultureValue() || _firstCultureFromMap(prop["x-options-by-culture"]);
-    _populateDependentOptions(input, prop, initialCulture, urlVal);
+    // Pass urlVal-or-default explicitly so a fresh select (whose .value
+    // is "") doesn't accidentally beat prop.default in the fallback
+    // chain. Also load-bears for the order-agnostic-render claim — if
+    // the culture field hasn't been built yet, this initial pass picks
+    // a best-guess culture's options, and the post-render sync in
+    // _wireDependentSelects re-applies the same urlVal/default once
+    // the real culture is known.
+    const preferred = urlVal !== null ? urlVal : prop.default;
+    _populateDependentOptions(input, prop, initialCulture, preferred);
     return input;
 }
 
@@ -168,7 +176,13 @@ function _populateDependentOptions(select, prop, culture, preferredValue) {
 // Wire all `x-options-by-culture` fields to repopulate when the culture
 // select changes. Called once after renderForm finishes building all
 // fields, since the dependee may be rendered before its dependent.
-function _wireDependentSelects(schema) {
+//
+// `url` is forwarded so the initial sync can re-read URL params per
+// dependent key — without it, the urlVal a dependent built with would
+// be lost when sync rebuilds the option list against the actual
+// culture (load-bearing for the order-agnostic-render claim: even if
+// the dependent renders before the dependee, the URL value survives).
+function _wireDependentSelects(schema, url) {
     const cultureField = document.getElementById("field-culture");
     if (!cultureField) return;
     const dependentKeys = [];
@@ -176,19 +190,30 @@ function _wireDependentSelects(schema) {
         if (prop["x-options-by-culture"]) dependentKeys.push([key, prop]);
     }
     if (dependentKeys.length === 0) return;
-    const sync = () => {
+    const sync = (isInitial) => {
         for (const [key, prop] of dependentKeys) {
             const select = document.getElementById(`field-${key}`);
-            if (select) _populateDependentOptions(select, prop, cultureField.value, null);
+            if (!select) continue;
+            // On the initial sync, prefer the URL param (if any) and
+            // fall back to the schema default. On a culture-change
+            // event we want the previously-chosen value to survive
+            // when valid for the new culture, so pass null and let
+            // _populateDependentOptions read select.value.
+            let preferred = null;
+            if (isInitial) {
+                const urlVal = url.searchParams.get(key);
+                preferred = urlVal !== null ? urlVal : prop.default;
+            }
+            _populateDependentOptions(select, prop, cultureField.value, preferred);
         }
     };
-    cultureField.addEventListener("change", sync);
+    cultureField.addEventListener("change", () => sync(false));
     // One initial sync after wire-up so the dependent's options match
     // the culture field's actual value, even when schema iteration
     // built the dependent before the dependee. _buildDependentSelectField
     // takes a best-guess at render time, but the post-render sync is
     // the load-bearing source of truth.
-    sync();
+    sync(true);
 }
 
 function _buildTagGrid(key, prop, url) {
@@ -296,8 +321,9 @@ function renderForm(schema) {
     // After all fields exist, wire any dependent-select fields to their
     // dependee (currently always the culture field). Done in a second
     // pass since the dependee may be rendered before its dependents in
-    // the schema iteration order.
-    _wireDependentSelects(schema);
+    // the schema iteration order. `url` is forwarded so the initial
+    // sync can re-read URL params per dependent key.
+    _wireDependentSelects(schema, url);
 }
 
 function readForm() {
