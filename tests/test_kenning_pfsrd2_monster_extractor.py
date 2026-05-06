@@ -11,8 +11,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 from wyrd.generators.kenning.pfsrd2_monster_extractor import (
     _collect_section_texts,
     extract_corpus,
@@ -21,7 +19,6 @@ from wyrd.generators.kenning.pfsrd2_monster_extractor import (
     extract_monster,
     iter_monster_files,
 )
-
 
 # --- minimal monster JSON builders ------------------------------------
 
@@ -433,12 +430,8 @@ def test_cli_extract_pfsrd2_monsters_empty_corpus(tmp_path: Path) -> None:
     assert result.exit_code == 0
     # The only output is the summary line on stderr; no JSONL records
     # mean no JSON-parseable lines anywhere in result.output.
-    output_lines = [
-        line for line in result.output.splitlines() if line.strip()
-    ]
-    json_lines = [
-        line for line in output_lines if line.startswith("{") and line.endswith("}")
-    ]
+    output_lines = [line for line in result.output.splitlines() if line.strip()]
+    json_lines = [line for line in output_lines if line.startswith("{") and line.endswith("}")]
     assert json_lines == []
     # The summary mentions zero records.
     assert "Extracted 0 record(s)" in result.output
