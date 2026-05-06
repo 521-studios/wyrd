@@ -121,7 +121,6 @@ function _buildDependentSelectField(key, prop, urlVal) {
     const input = document.createElement("select");
     input.id = `field-${key}`;
     input.name = key;
-    input.dataset.optionsByCulture = JSON.stringify(prop["x-options-by-culture"]);
     const initialCulture = _currentCultureValue() || _firstCultureFromMap(prop["x-options-by-culture"]);
     _populateDependentOptions(input, prop, initialCulture, urlVal);
     return input;
