@@ -214,3 +214,55 @@ def test_extract_one_tags_source_quote_with_provider_prefix() -> None:
     assert result.accepted is True
     assert result.entry is not None
     assert "extracted_by:anthropic:claude-sonnet-4-6" in (result.entry.source_quote or "")
+
+
+# --- 429 retry wiring (wyrd-cfa) ------------------------------------------
+
+
+def test_chat_json_retries_through_provider_retry_helper(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Integration: chat_json must route through provider_retry.open_with_429_retry
+    so a transient 429 doesn't propagate as a transport_error_result. Pin the
+    wiring with one urlopen mock that raises 429 once then succeeds — the
+    helper's retry layer must absorb the rate-limit blip and chat_json must
+    return the parsed JSON from the recovery call."""
+    import urllib.error
+
+    from wyrd.generators.kenning import provider_retry as pr
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    monkeypatch.setattr(pr.time, "sleep", lambda _s: None)
+
+    calls = {"n": 0}
+    envelope = _envelope_with('{"found": false}')
+    body = json.dumps(envelope).encode("utf-8")
+
+    def flaky_urlopen(req, timeout=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise urllib.error.HTTPError(
+                url="https://api.anthropic.com/v1/messages",
+                code=429,
+                msg="rate limited",
+                hdrs=None,  # type: ignore[arg-type]
+                fp=None,
+            )
+
+        class _Resp:
+            def read(self) -> bytes:
+                return body
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args) -> None:
+                pass
+
+        return _Resp()
+
+    client = AnthropicClient()
+    with patch("urllib.request.urlopen", flaky_urlopen):
+        out = client.chat_json("sys", "usr")
+    assert out == {"found": False}
+    assert calls["n"] == 2

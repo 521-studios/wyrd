@@ -26,6 +26,7 @@ from wyrd.generators.kenning.llm_extractor import (
     assemble_extraction_result,
     transport_error_result,
 )
+from wyrd.generators.kenning.provider_retry import open_with_429_retry
 
 # --- config ---------------------------------------------------------------
 
@@ -164,8 +165,9 @@ class GeminiClient:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:
-                body = resp.read().decode("utf-8")
+            body = open_with_429_retry(req, timeout=self.timeout_s, provider_label="Gemini").decode(
+                "utf-8"
+            )
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace")
             raise RuntimeError(f"Gemini HTTP {e.code}: {err_body[:500]}") from e

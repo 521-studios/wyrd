@@ -35,6 +35,7 @@ from wyrd.generators.kenning.llm_extractor import (
     assemble_extraction_result,
     transport_error_result,
 )
+from wyrd.generators.kenning.provider_retry import open_with_429_retry
 
 DEFAULT_ANTHROPIC_MODEL = os.environ.get("WYRD_ANTHROPIC_MODEL", "claude-sonnet-4-6")
 ANTHROPIC_API_BASE = "https://api.anthropic.com/v1"
@@ -100,8 +101,9 @@ class AnthropicClient:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout_s) as resp:
-                body = resp.read().decode("utf-8")
+            body = open_with_429_retry(
+                req, timeout=self.timeout_s, provider_label="Anthropic"
+            ).decode("utf-8")
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace")
             raise RuntimeError(f"Anthropic HTTP {e.code}: {err_body[:500]}") from e

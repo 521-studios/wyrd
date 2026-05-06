@@ -449,3 +449,38 @@ def test_cli_concurrency_flag_default_is_one(tmp_path, monkeypatch):
     )
     assert result.exit_code == 0, (result.output or "") + (result.stderr or "")
     assert captured.get("concurrency") == 1
+
+
+# --- wyrd-mk7: paid-provider concurrency warning -------------------------
+
+
+def test_warn_if_paid_concurrency_too_high_warns_for_anthropic_above_threshold(capsys):
+    """High --concurrency against a paid provider emits a warning. The
+    threshold (PAID_CONCURRENCY_WARN_THRESHOLD) lives in the helper module
+    so a future tightening only requires changing it in one place."""
+    from wyrd.generators.kenning import cli as cli_mod
+
+    cli_mod._warn_if_paid_concurrency_too_high(
+        "anthropic", cli_mod.PAID_CONCURRENCY_WARN_THRESHOLD + 1
+    )
+    err = capsys.readouterr().err
+    assert "warning" in err.lower()
+    assert "anthropic" in err
+
+
+def test_warn_if_paid_concurrency_too_high_silent_for_ollama(capsys):
+    """Local Ollama doesn't rate-limit, so the warning never fires for it
+    even at the IntRange max (64)."""
+    from wyrd.generators.kenning import cli as cli_mod
+
+    cli_mod._warn_if_paid_concurrency_too_high("ollama", 64)
+    assert capsys.readouterr().err == ""
+
+
+def test_warn_if_paid_concurrency_too_high_silent_at_threshold(capsys):
+    """Boundary check: warning fires only ABOVE the threshold, not AT it.
+    The warning text claims 4-16 is reasonable; honor that on the boundary."""
+    from wyrd.generators.kenning import cli as cli_mod
+
+    cli_mod._warn_if_paid_concurrency_too_high("gemini", cli_mod.PAID_CONCURRENCY_WARN_THRESHOLD)
+    assert capsys.readouterr().err == ""
