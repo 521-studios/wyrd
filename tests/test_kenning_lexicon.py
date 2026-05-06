@@ -2549,6 +2549,30 @@ def test_backfill_citation_pages_unique_quote_does_not_count_as_ambiguous(
     assert counts["ambiguous_match"] == 0
 
 
+def test_backfill_citation_pages_ambiguous_match_counts_in_dry_run(
+    fresh_db: Path,
+) -> None:
+    """Dry-run (apply=False) must still count ambiguous_match — the whole
+    point of the counter is operator visibility, which works both before
+    and after writes are committed. Pin so a future refactor that gates
+    the increment on `apply` doesn't silently strand the signal."""
+
+    quote = "See Plate III."
+    body = (
+        "BACKWORTH 9\n"
+        f"first entry: {quote} continuing\n"
+        "BEDLINGTON 15\n"
+        f"second entry: {quote} continuing\n"
+    )
+    with LexiconDB(fresh_db) as db:
+        _seed_citation_for_backfill(db, "ambig_dry", "cot", quote)
+        counts = backfill_citation_pages(db, "ambig_dry", body, apply=False)
+
+    assert counts["citations_updated"] == 1
+    assert counts["etymologies_updated"] == 1
+    assert counts["ambiguous_match"] == 2
+
+
 def test_add_citation_skips_when_etymon_source_pair_already_exists(
     fresh_db: Path,
 ) -> None:
