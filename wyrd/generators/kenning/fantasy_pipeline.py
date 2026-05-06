@@ -479,11 +479,14 @@ def _resolve_via_llm(
         return _llm_http_error_resolution(name, e)
     except (
         urllib.error.URLError,
+        OSError,  # TimeoutError, ConnectionError, etc. — socket-level
         RuntimeError,
         json.JSONDecodeError,
         KeyError,
         IndexError,
     ) as e:
+        # OSError covers socket-level read timeouts (TimeoutError) and
+        # connection errors that can escape urllib's wrapping.
         # IndexError can occur when Gemini's safety filter blocks the
         # prompt and returns an empty `candidates` list.
         logger.warning("LLM full-research call failed for %s: %s", name, e)
@@ -820,6 +823,7 @@ def _safe_semantic_check(
         return None
     except (
         urllib.error.URLError,
+        OSError,  # TimeoutError, ConnectionError, etc.
         RuntimeError,
         json.JSONDecodeError,
         KeyError,
