@@ -25,6 +25,7 @@ from wyrd.generators.kenning import (
     KenningExplain,
     anthropic_extractor,
     available_tags,
+    etymonline_ingester,
     fantasy_pipeline,
     gemini_extractor,
     llm_extractor,
@@ -1501,6 +1502,105 @@ def lexicon_mine_fantasy_name(
 
     click.echo("", err=True)
     click.echo(f"Summary: {counts}", err=True)
+    if not apply_changes:
+        click.echo("(dry-run; pass --apply to write)", err=True)
+
+
+@lexicon.command("ingest-etymonline")
+@click.argument(
+    "source_dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+)
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+@click.option(
+    "--apply",
+    "apply_changes",
+    is_flag=True,
+    default=False,
+    help=(
+        "Actually upsert etymons + descent edges. Without this, the "
+        "command parses each file and reports counts without writing."
+    ),
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=None,
+    help="Stop after processing N files (smoke testing).",
+)
+def lexicon_ingest_etymonline(
+    source_dir: Path,
+    db_path: Path,
+    apply_changes: bool,
+    limit: int | None,
+) -> None:
+    """Ingest pre-scraped Etymonline prose into the etymology graph (wyrd-zqkp).
+
+    Each file in `source_dir` should be one Etymonline word page's
+    prose, captured separately by the operator (e.g. via `rodney text
+    'section.prose-lg' > harpy.txt`). The CLI doesn't fetch — it
+    consumes saved text — so the scrape rate, identity, and policy
+    decisions stay with the operator.
+
+    Per-file processing:
+    1. Parse the prose into one or more Senses (multi-sense pages
+       like 'troll' produce v./n.1/n.2 blocks).
+    2. For each Sense's etymological chain, upsert (language, word)
+       pairs and connect them with `etymon_descent` edges
+       source_id='etymonline'.
+    3. Wire chain[0] to the headword's existing modern-english
+       etymon row when present.
+
+    Idempotent: re-running over the same dir is a no-op via the
+    etymon_descent UNIQUE on (parent, child, edge_type, source).
+    """
+    files = sorted(source_dir.glob("*.txt"))
+    if limit is not None:
+        files = files[:limit]
+    click.echo(
+        f"Ingesting {len(files)} Etymonline file(s) from {source_dir}. "
+        f"{'Applying' if apply_changes else 'Dry-run'}.",
+        err=True,
+    )
+    totals = {
+        "files": 0,
+        "senses_parsed": 0,
+        "senses_with_chain": 0,
+        "senses_without_chain": 0,
+        "chain_links": 0,
+        "etymons_added_or_existing": 0,
+        "edges_added": 0,
+        "edges_skipped_dupe": 0,
+        "leaf_edge_skipped_no_headword": 0,
+        "glosses_added": 0,
+    }
+    with LexiconDB(db_path) as db:
+        if apply_changes:
+            etymonline_ingester.ensure_source(db)
+        for f in files:
+            text = f.read_text()
+            counts = etymonline_ingester.ingest_text(db, text, apply=apply_changes)
+            totals["files"] += 1
+            for k, v in counts.items():
+                if k in totals:
+                    totals[k] += v
+            edges_field = f" edges_added={counts['edges_added']}" if apply_changes else ""
+            click.echo(
+                f"  {f.name:<32} senses={counts['senses_parsed']:<2} "
+                f"links={counts['chain_links']:<3}{edges_field}",
+                err=True,
+            )
+        if apply_changes:
+            db.commit()
+
+    click.echo("", err=True)
+    click.echo(f"Summary: {totals}", err=True)
     if not apply_changes:
         click.echo("(dry-run; pass --apply to write)", err=True)
 
