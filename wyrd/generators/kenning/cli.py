@@ -3304,26 +3304,30 @@ def lexicon_disambiguate_fuzzy(
             choice_str = (
                 f"id={result.chosen_etymon_id}" if result.chosen_etymon_id is not None else "none"
             )
+            n_rows = len(case.text_match_ids)
+            row_label = f" ({n_rows} rows)" if n_rows > 1 else ""
             click.echo(
-                f"  {case.matched_form:20} → {choice_str} (conf={result.confidence}) "
-                f"— {result.reason[:80]}",
+                f"  {case.matched_form:20}{row_label} → {choice_str} "
+                f"(conf={result.confidence}) — {result.reason[:80]}",
                 err=True,
             )
             if apply_changes and write_db is not None:
-                action = apply_disambiguator_result(write_db, case, result)
-                # Commit per-row so a crash mid-run doesn't lose previously
+                row_counts = apply_disambiguator_result(write_db, case, result)
+                # Commit per-case so a crash mid-run doesn't lose previously
                 # disambiguated rows (the LLM calls have already been paid for).
                 write_db.commit()
             else:
-                # Dry-run: mirror the same action-classification so the
-                # summary tells the operator what would have happened.
+                # Dry-run: mirror the same per-row action classification so
+                # the summary tells the operator what would have happened.
+                row_counts = {"kept": 0, "reassigned": 0, "deleted": 0}
                 if result.chosen_etymon_id is None:
-                    action = "deleted"
-                elif result.chosen_etymon_id == case.current_etymon_id:
-                    action = "kept"
+                    row_counts["deleted"] = n_rows
                 else:
-                    action = "reassigned"
-            counts[action] += 1
+                    for current in case.current_etymon_ids:
+                        key = "kept" if result.chosen_etymon_id == current else "reassigned"
+                        row_counts[key] += 1
+            for k, v in row_counts.items():
+                counts[k] += v
     finally:
         if write_db is not None:
             write_db.close()
