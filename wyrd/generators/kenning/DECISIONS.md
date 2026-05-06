@@ -906,3 +906,97 @@ Bit-stability across PYTHONHASHSEED: `_raw_class_score` sorts
 sort, set-iteration order varies across processes and float-
 summation accumulates ULP-level different scores that could flip
 weighted_choice outcomes at boundaries.
+
+## D30. wyrd-ami fantasy-name research is a sibling pipeline, not a new generator.
+
+The fantasy-name pipeline (introduced 2026-05-06; see OVERVIEW.md
+"Sibling pipeline") researches creature names like Harpy, Djinni,
+Tiamat against the existing etymon corpus. It runs alongside the
+place-name mining pipeline but uses the *same* lexicon: same
+`etymon` table, same `etymon_descent` graph (D27), same descent-
+walking logic. What's new is a single result table `fantasy_morpheme`
+that records the (input → resolution) mapping per pipeline version.
+
+The shape is **inverse** to place-name mining:
+
+- **Place-name mining** (D1, D4): scrape scholarly dictionaries to
+  *populate* the etymon table. Rows accumulate citations from
+  multiple scholars; consensus rolls up via `etymon_consensus`.
+- **Fantasy-name research**: take a *single* creature name and walk
+  it back to an existing etymon. The etymon table is read-only from
+  this pipeline's perspective. `fantasy_morpheme` rows record where
+  the input landed, not what got contributed to the corpus.
+
+### Schema
+
+```sql
+CREATE TABLE fantasy_morpheme (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  -- COLLATE NOCASE so 'Harpy' and 'harpy' are the same row.
+  input_name          TEXT NOT NULL COLLATE NOCASE,
+  input_description   TEXT,
+  usable              INTEGER NOT NULL CHECK (usable IN (0, 1)),
+  etymon_id           INTEGER REFERENCES etymon(id) ON DELETE SET NULL,
+  bar_reason          TEXT,                    -- when usable=0
+  resolution_method   TEXT NOT NULL,           -- 'descent_lookup' | 'llm_full_research'
+  approach_version    TEXT NOT NULL,           -- 'fantasy-v1' today
+  confidence          TEXT,
+  citation            TEXT,
+  reasoning           TEXT,
+  unapproved_language TEXT,                    -- LLM said this lang; we don't approve it
+  unapproved_form     TEXT,                    -- the historical form the LLM identified
+  processed_at        TEXT NOT NULL,
+  UNIQUE (input_name, approach_version)
+);
+```
+
+### Bar-reason taxonomy
+
+The pipeline's failure modes are distinct on purpose so each can be
+fixed by a targeted intervention:
+
+- `modern_coinage` — game designer invented (Vrock, Werebear); not
+  fixable.
+- `outside_language_family` — real etymon in a language not in
+  `APPROVED_LANGUAGES`. Fix by approving more languages.
+- `attested_but_not_in_corpus` — LLM identified a real etymon in an
+  approved language, but our `etymon` table doesn't have a row for
+  that `(canonical_form, language)` pair. Fix by backfilling the
+  etymon corpus (epic wyrd-ialp).
+- `uncertain_attestation` — low-confidence LLM response (often a
+  network timeout that degraded gracefully). Fix by re-running.
+- `no_etymology_found`, `homograph_collision`, `proper_noun_only` —
+  edge cases.
+
+The `unapproved_language` + `unapproved_form` columns capture the
+LLM's finding even on a barred row, so a future "languages to
+consider approving" report can rank candidates empirically.
+
+### Why a separate pipeline, not a new generator
+
+Town-name generation reads the lexicon's morpheme inventory and the
+descent graph. Fantasy-name research uses the same data — it just
+*identifies* which morphemes a creature name maps onto, so the
+generator's existing temporal-axis machinery (descent chain → era
+filter → register-shifted form) Just Works for fantasy content. No
+new generator class, no new bundle schema, no runtime change.
+
+### Family-root + variant emission
+
+The pfsrd2 monster extractor emits both the family root and each
+single-word variant name when distinct (Genie + Djinni + Efreeti +
+Marid + Shaitan + Janni from the genie family). Earlier collapsing
+all variants to the family root silently lost etymologically distinct
+morphemes (Djinni from Arabic *jinn* is not the same morpheme as
+Genie from Latin *genius*; both are real, both worth researching).
+The single-word strict filter still rejects multi-word names
+("Bugbear Thug", "Ancient Black Dragon").
+
+### approach_version
+
+`fantasy_pipeline.APPROACH_VERSION` is a pipeline-version stamp.
+The (input_name, approach_version) UNIQUE means re-running with the
+same version updates rows in place; bumping the version (e.g. when a
+stronger pipeline ships) writes parallel rows so the old results stay
+queryable. The `--skip-resolved` flag scopes to the current version
+— callers can't accidentally skip rows from an older pipeline run.

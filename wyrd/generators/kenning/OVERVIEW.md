@@ -205,6 +205,70 @@ A few non-goals to keep in mind:
 - **No Sonnet for mining (D19).** Tested empirically; lifts ~zero over
   Gemini Flash. Reserve Anthropic budget for runtime user features.
 
+## Sibling pipeline: wyrd-ami fantasy-name research
+
+Kenning hosts a second mining pipeline alongside the place-name one:
+**wyrd-ami** researches the etymology of fantasy / gaming creature
+names so the same lemma layer that drives town generation can also
+generate fantasy-flavored content with verifiable etymological
+provenance.
+
+Where the place-name pipeline mines scholarly etymology dictionaries
+to populate the lexicon, wyrd-ami works the other direction: it takes
+a creature name (Harpy, Bugbear, Djinni, Tiamat) and routes it through
+two stages to find the underlying historical morpheme:
+
+1. **Descent-walking pre-filter.** Look up the input in the existing
+   `etymon` table; if it resolves cleanly to an attested etymon in an
+   approved language, mark the row usable and skip the LLM. Common
+   inputs (Harpy → ancient-greek ἅρπυια, Troll → ON trǫll) take this
+   fast path.
+2. **Gemini Flash full-research.** When the pre-filter misses, the
+   LLM is asked to identify the historical attested form, language,
+   and citation. A semantic-check pass on borderline pre-filter hits
+   uses the same LLM. Results land in `fantasy_morpheme` with
+   `bar_reason` distinguishing the failure modes (modern_coinage,
+   outside_language_family, attested_but_not_in_corpus,
+   uncertain_attestation, no_etymology_found, homograph_collision,
+   proper_noun_only).
+
+The canonical input source is **pfsrd2-data** (~/521Studios/pfsrd2-data),
+the Pathfinder 2 SRD bestiary as structured JSON. The
+`extract-pfsrd2-monsters` CLI walks that corpus and emits a JSONL of
+`{name, description}` records. Each monster contributes up to two
+records: the family root (Genie, Bugbear, Demon — deduped across
+variants) and the monster's own single-word name when distinct from
+the family root (Djinni, Efreeti, Marid under Genie). Multi-word
+variant names are dropped; "Ancient Black Dragon" with no family
+field is the canonical "no clean morpheme" case.
+
+Approved languages live in `fantasy_pipeline.APPROVED_LANGUAGES` —
+keep it dashed-lowercase for descriptive names ('old-english',
+'ancient-greek') and ISO-code form for languages where the etymon
+table uses ISO codes ('he', 'ar', 'fa', 'sa', 'akk', 'egy', 'arc',
+'pal'). The `_LANGUAGE_ALIAS_MAP` normalizes LLM output ('sanskrit' →
+'sa', 'arabic' → 'ar', 'ancient-egyptian' → 'egy') so descriptive
+names from the LLM resolve against ISO etymon rows.
+
+`approach_version` (in `fantasy_pipeline.APPROACH_VERSION`) is a
+pipeline-version stamp: the (input_name, approach_version) UNIQUE
+on `fantasy_morpheme` lets a stronger pipeline re-process all rows
+by bumping the version. The `--skip-resolved` flag on
+`mine-fantasy-name` lets you grow the input corpus and re-run without
+paying for already-resolved entries (case-insensitive match — the
+column uses COLLATE NOCASE).
+
+**Output:** every usable row links to an `etymon_id` and inherits its
+descent chain. So Harpy resolves to ancient-greek ἅρπυια and the chain
+ancient-greek → latin → middle-french → middle-english → modern-
+english is available, letting town-name generation pick a register
+(Harpyia for ancient-mythological, Harpie for medieval, Harpy for
+modern). The same temporal-axis trick works for any usable wyrd-ami
+morpheme.
+
+Procedure for running a fresh mine — `INGESTION.md` "Mining the
+wyrd-ami fantasy-name corpus".
+
 ## Where we are right now
 
 For the live snapshot, run:
@@ -317,13 +381,14 @@ Wikidata (CC0); morpheme corpus expansion still pending — wyrd-fmg.
 
 ## Pointers to the other docs
 
-- **`DECISIONS.md`** — D1–D29, the architectural decisions and their
+- **`DECISIONS.md`** — D1–D30, the architectural decisions and their
   rationale. Read individual entries when you're about to change
   something they touch. Don't try to read all of it linearly. Latest
   additions: D27 (etymological descent graph), D28 (cognate vs
-  meaning_synset axes), D29 (trie-indexed segmentation DAG matcher);
-  D5-3 and D17 have refinements covering the era runtime filter
-  (wyrd-lyp) and cohesion knob (wyrd-mj2).
+  meaning_synset axes), D29 (trie-indexed segmentation DAG matcher),
+  D30 (wyrd-ami fantasy-name pipeline as sibling); D5-3 and D17 have
+  refinements covering the era runtime filter (wyrd-lyp) and cohesion
+  knob (wyrd-mj2).
 - **`INGESTION.md`** — the procedure manual: how to add a new source,
   smoke-test the parser, pick a tier, run mining, run the post-mining
   chain, verify, ship. You only need it when actually mining.

@@ -1097,3 +1097,130 @@ match if any *other* canonical etymon is closer to the matched form
 than the claimed one). For ambiguous cases, `wyrd-6z7` proposes
 escalating to a Tier 2 LLM disambiguator with the surrounding
 snippet and candidate set.
+
+---
+
+## Mining the wyrd-ami fantasy-name corpus
+
+The wyrd-ami pipeline (see OVERVIEW.md "Sibling pipeline") researches
+fantasy / gaming creature names against the etymon corpus, producing
+`fantasy_morpheme` rows with `usable=1` + `etymon_id` for resolvable
+inputs and `usable=0` + `bar_reason` otherwise. The canonical input is
+the Pathfinder 2 SRD bestiary stored at `~/521Studios/pfsrd2-data`.
+
+### Happy-path checklist
+
+```bash
+# 1. Extract the pfsrd2 corpus to JSONL (no LLM, no DB write).
+.venv/bin/wyrd kenning lexicon extract-pfsrd2-monsters \
+    /home/$USER/521Studios/pfsrd2-data \
+    --output /tmp/pfsrd2-monsters.jsonl
+
+# 2. Mine. --skip-resolved skips inputs that already have a row for
+#    the current approach_version (each row costs one Gemini call).
+.venv/bin/wyrd kenning lexicon mine-fantasy-name \
+    --batch /tmp/pfsrd2-monsters.jsonl \
+    --skip-resolved \
+    --apply
+
+# 3. Inspect the bar-reason breakdown.
+sqlite3 ~/.wyrd/lexicon.db "
+  SELECT bar_reason, COUNT(*) FROM fantasy_morpheme
+  WHERE approach_version = 'fantasy-v1'
+  GROUP BY bar_reason ORDER BY COUNT(*) DESC;"
+```
+
+### What the extractor emits
+
+For each monster file:
+
+- **Family root** (single-word, deduped across all family-mates) is
+  always emitted when the family field is present and single-word.
+  "Bugbear", "Genie", "Demon", "Devil" all come out once apiece even
+  though pfsrd2 has dozens of variants of each.
+- **The monster's own name** is emitted as a separate record when
+  it's single-word AND differs from the family root. "Djinni",
+  "Efreeti", "Marid", "Shaitan", "Janni" all under family "Genie" each
+  emit their own record — they're etymologically distinct Arabic
+  morphemes that the family root alone wouldn't capture.
+- Multi-word names ("Bugbear Thug", "Ancient Black Dragon") are
+  dropped — no clean single-token morpheme.
+
+Empirical 2026-05-06: 3,670 monster files → 1,308 distinct morpheme
+records (the family-dedupe collapsing being the main reason 1,308 is
+much smaller than 3,670).
+
+### Bar reasons (decoder)
+
+| Bar reason | Meaning | Fixable how |
+|---|---|---|
+| `modern_coinage` | Game-designer invented (Vrock, Werebear, Picture-in-Cloud); no historical etymon exists | Not fixable — these names have no real history |
+| `outside_language_family` | LLM identified a real etymon in a language NOT in `APPROVED_LANGUAGES` | Approve the language (carefully — `APPROVED_LANGUAGES` is the gate that keeps fantasy register coherent) |
+| `attested_but_not_in_corpus` | LLM identified a real etymon in an approved language, but the etymon row doesn't exist in our `etymon` table | Backfill etymon corpus — see epic `wyrd-ialp` |
+| `uncertain_attestation` | LLM returned low-confidence; conservative-default barred | Investigate manually or re-run with a stronger model |
+| `no_etymology_found` | LLM said "I don't know" with high confidence | Probably a real modern coinage we can't classify |
+| `homograph_collision` | LLM flagged that the input collides with multiple unrelated meanings | Manual disambiguation |
+| `proper_noun_only` | LLM flagged this is a proper noun, not a common-noun morpheme | Edge case — generally correct to skip |
+
+### Approved languages
+
+`fantasy_pipeline.APPROVED_LANGUAGES` is the gate that decides whether
+a real etymon counts as "in family" for fantasy generation. The set
+covers:
+
+- Core Indo-European stack (proto-indo-european, proto-germanic,
+  ancient-greek, latin, old-english, middle-english, modern-english,
+  old-norse, old-french, etc.)
+- Celtic family (welsh, scottish-gaelic, old-irish, middle-irish,
+  breton, cornish, manx, irish)
+- World-religion source material via ISO codes (`he` Hebrew, `ar`
+  Arabic, `fa` Persian, `sa` Sanskrit, `akk` Akkadian, `egy` Egyptian,
+  `arc` Aramaic, `pal` Pahlavi/Middle Persian) — wave-2 addition,
+  2026-05-06.
+
+The `_LANGUAGE_ALIAS_MAP` normalizes LLM-returned descriptive names
+(`sanskrit`, `arabic`, `ancient-egyptian`) to the ISO codes the
+etymon table uses, so the LLM doesn't need to know our internal code
+conventions.
+
+What's NOT approved (intentionally — these would require their own
+mood/aesthetic register decisions): Japanese, Chinese, Korean,
+Nahuatl, Finnish, Basque, modern Romance (French, Spanish, Italian,
+Portuguese, Romanian — tickets filed for historical-chain mapping
+first), modern Norse (Swedish, Danish, Norwegian, Faroese — same).
+
+### Resuming a partial run
+
+The mine commits per-resolution, so a crash partway through doesn't
+lose already-paid-for results. To resume after a crash, just re-run
+with `--skip-resolved` — already-processed inputs are skipped at the
+filter (case-insensitive match against the COLLATE NOCASE column).
+
+To force re-processing of a resolved row (e.g. after an LLM-prompt
+change or new language approval), bump `fantasy_pipeline.APPROACH_VERSION`
+and re-run; the (input_name, approach_version) UNIQUE means rows
+under the new version write fresh entries, and `--skip-resolved`
+reads its skip-set scoped to the *current* version only.
+
+### Empirical baseline (2026-05-06)
+
+After PR #82 (timeout fix + case-normalize), PR #83 (wave-2 languages
++ alias map), PR #86 (extractor v2 family+variant emission), and
+PR #87 (--skip-resolved flag), the v2 mine of the full 1,308-record
+corpus yielded:
+
+- **218 usable** (16.7%) — production-ready morphemes for town-name
+  generation
+- 639 modern_coinage (48.9%) — Pathfinder-invented; not fixable
+- 210 attested_but_not_in_corpus (16.1%) — fixable via wyrd-ialp
+  epic; expect this bucket to mostly flip to usable once
+  Hebrew / Arabic / Egyptian / Aramaic / Akkadian / Pahlavi
+  wiktextract slices are ingested
+- 180 outside_language_family (13.8%) — Korean / Japanese / Tagalog
+  etc., correctly barred
+- 22 no_etymology_found, 21 homograph_collision, 17
+  uncertain_attestation, 1 proper_noun_only
+
+The Pathfinder bestiary's high modern_coinage rate (~half) is a
+floor we can't reduce — game designers invented the names — but the
+attested_but_not_in_corpus bucket is real upside for the next pass.

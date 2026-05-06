@@ -98,6 +98,8 @@ Key invariants:
 | `dictionary_parser.py` | Alphabetical-headword books (Mawer, Ekwall, Watson, Johnston, Joyce, Morgan). Auto-detected fallback. |
 | `llm_extractor.py` | Ollama client + shared SYSTEM_PROMPT, USER_TEMPLATE, RESPONSE_SCHEMA, `validate_response`. |
 | `gemini_extractor.py` | Gemini-API parallel implementation with the same `extract_one` shape. Slightly stronger on hedge-recognition and OE-form OCR garble; pay-per-call. |
+| `fantasy_pipeline.py` | wyrd-ami: fantasy-name etymology research (Harpy → ancient-greek ἅρπυια, Djinni → arabic jinn). Resolves creature names against the etymon corpus via descent_walking_lookup pre-filter + Gemini Flash full-research fallback. Output rows in `fantasy_morpheme`. See OVERVIEW.md "Sibling pipeline" + INGESTION.md "Mining the wyrd-ami fantasy-name corpus". |
+| `pfsrd2_monster_extractor.py` | Walks the Pathfinder 2 SRD bestiary JSON corpus (`pfsrd2-data`) and emits `{name, description}` JSONL records for `mine-fantasy-name --batch`. Emits both family root + single-word variants. |
 | `cli.py` | All `wyrd kenning lexicon …` commands. |
 
 Generator runtime (`__init__.py`, `name.py`, `word.py`, `meaning.py`,
@@ -182,6 +184,12 @@ wyrd kenning lexicon report
 wyrd kenning generate english --novelty 0.5 --spelling-variety 0.3 --inflection-density 0.2
 wyrd kenning generate english --mood grim --mood harsh --seed 42  # menacing English-Saxon
 wyrd kenning generate breton --seed 42
+
+# wyrd-ami fantasy-name research (creature etymologies; Pathfinder bestiary).
+wyrd kenning lexicon extract-pfsrd2-monsters ~/521Studios/pfsrd2-data \
+    --output /tmp/pfsrd2-monsters.jsonl
+wyrd kenning lexicon mine-fantasy-name --batch /tmp/pfsrd2-monsters.jsonl \
+    --skip-resolved --apply
 ```
 
 ## Extending
