@@ -169,11 +169,8 @@ def extract_description(monster: dict[str, Any]) -> str:
     - Family present but multi-word root → `_variant_description`
       (the variant carries family.text as context plus its own
       sections, since the family root itself isn't usable).
-    - No family → `_no_family_description` (monster.sections only).
-
-    Callers wanting the variant-record description independently
-    should call `_variant_description` directly or use
-    `extract_records()`.
+    - No family → `_variant_description` with `family=None`, which
+      degrades to monster.sections only.
     """
     family = _get_family(monster)
     family_root = _family_root(family)
@@ -191,11 +188,12 @@ def extract_monster(
     """Extract the *primary* record for a monster (family root or
     no-family single-word name). Returns None when neither yields a
     clean morpheme. For full multi-record extraction (family + variant)
-    use `extract_records()`."""
-    name = extract_input_name(monster)
-    if name is None:
-        return None
-    return {"name": name, "description": extract_description(monster)}
+    use `extract_records()`.
+
+    `extract_records` already encapsulates the primary-axis dispatch
+    and yields the primary record first, so this is the canonical
+    'first record only' view."""
+    return next(extract_records(monster), None)
 
 
 def extract_records(monster: dict[str, Any]) -> Iterator[dict[str, str]]:
