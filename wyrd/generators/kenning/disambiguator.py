@@ -17,7 +17,7 @@ declines.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from wyrd.generators.kenning.gemini_extractor import GeminiClient
 from wyrd.generators.kenning.lexicon import levenshtein, normalize_ocr_form
@@ -39,14 +39,23 @@ class Candidate:
 
 @dataclass(frozen=True)
 class AmbiguityCase:
-    """A fuzzy `etymon_text_match` row with multiple plausible etymons."""
+    """A group of fuzzy `etymon_text_match` rows sharing
+    ``(source_id, matched_form)`` that need a single disambiguator decision.
 
-    text_match_id: int
+    Multiple rows in one group means fuzzy-search tagged the same body
+    word against multiple distinct etymons; one LLM call serves them all
+    and the verdict is applied to every row. ``text_match_ids`` and
+    ``current_etymon_ids`` are parallel tuples — index ``i`` in the
+    first refers to the row whose current attribution is in the same
+    index of the second.
+    """
+
     source_id: str
     matched_form: str
     snippet: str
-    current_etymon_id: int
     candidates: tuple[Candidate, ...]
+    text_match_ids: tuple[int, ...]
+    current_etymon_ids: tuple[int, ...]
 
 
 @dataclass(frozen=True)
@@ -200,29 +209,50 @@ def find_ambiguous_rows(
             )
         )
 
-    cases: list[AmbiguityCase] = []
+    # Group fuzzy rows by (source_id, matched_form) so a single
+    # ambiguity decision serves every row that observed the same body
+    # word in the same source — even when fuzzy-search attached them
+    # to different etymons. wyrd-9ae: one LLM call instead of N for
+    # the same question.
+    grouped: dict[tuple[str, str], list[Any]] = {}
     for row in fuzzy_rows:
-        target = normalize_ocr_form(row["matched_form"])
+        grouped.setdefault((row["source_id"], row["matched_form"]), []).append(row)
+
+    cases: list[AmbiguityCase] = []
+    # Iterate in the original row-id order so the case ordering stays
+    # stable across runs (the dict insertion order tracks first-seen
+    # row id since fuzzy_rows came back ORDER BY id implicit).
+    for (source_id, matched_form), rows in grouped.items():
+        target = normalize_ocr_form(matched_form)
         candidates: list[Candidate] = []
+        seen_etymon_ids: set[int] = set()
         for norm, etymons in by_norm.items():
             if abs(len(norm) - len(target)) > max_distance:
                 continue
             d = levenshtein(norm, target, max_distance=max_distance)
             if d > max_distance:
                 continue
-            candidates.extend(etymons)
+            for c in etymons:
+                if c.etymon_id in seen_etymon_ids:
+                    continue
+                seen_etymon_ids.add(c.etymon_id)
+                candidates.append(c)
         # Cost gate: only ambiguous when ≥ 2 distinct etymons within range.
         # (One candidate means the matched_form is unambiguous already.)
         if len(candidates) < 2:
             continue
+        # Pick the first non-empty snippet for the LLM. Snippets across
+        # rows in a group will differ only in surrounding context for
+        # the same matched_form; one is enough for the disambiguator.
+        snippet = next((r["snippet"] for r in rows if r["snippet"]), "")
         cases.append(
             AmbiguityCase(
-                text_match_id=row["id"],
-                source_id=row["source_id"],
-                matched_form=row["matched_form"],
-                snippet=row["snippet"] or "",
-                current_etymon_id=row["etymon_id"],
+                source_id=source_id,
+                matched_form=matched_form,
+                snippet=snippet,
                 candidates=tuple(candidates),
+                text_match_ids=tuple(r["id"] for r in rows),
+                current_etymon_ids=tuple(r["etymon_id"] for r in rows),
             )
         )
         if limit is not None and len(cases) >= limit:
@@ -232,56 +262,74 @@ def find_ambiguous_rows(
 
 def apply_disambiguator_result(
     db: LexiconDB, case: AmbiguityCase, result: DisambiguatorResult
-) -> str:
-    """Update `etymon_text_match` according to the disambiguator's verdict.
+) -> dict[str, int]:
+    """Apply the disambiguator's verdict to every row in ``case``'s group.
 
-    Returns one of:
-      'kept'     — chosen etymon == current row's etymon; method bumped
-      'reassigned' — chosen etymon != current; row's etymon_id replaced
-      'deleted'  — LLM said 'none'; row deleted
+    Returns a counts dict with keys 'kept' / 'reassigned' / 'deleted'
+    summing to len(case.text_match_ids). Per-row semantics:
+      'kept'       — chosen etymon == row's current etymon; method bumped
+      'reassigned' — chosen etymon != row's current; row's etymon_id replaced
+      'deleted'    — LLM said 'none'; row deleted
+
+    A group of N rows produces a single LLM call (the disambiguator runs
+    once on the whole case) but N row-level outcomes — different rows in
+    the group may resolve to different actions because their current
+    etymon attributions differ.
     """
+    counts = {"kept": 0, "reassigned": 0, "deleted": 0}
     if result.chosen_etymon_id is None:
-        db.conn.execute("DELETE FROM etymon_text_match WHERE id = ?", (case.text_match_id,))
-        return "deleted"
+        # All rows in the group are dropped — the matched_form doesn't
+        # cleanly match any of the candidate etymons.
+        for tm_id in case.text_match_ids:
+            db.conn.execute("DELETE FROM etymon_text_match WHERE id = ?", (tm_id,))
+        counts["deleted"] = len(case.text_match_ids)
+        return counts
 
-    if result.chosen_etymon_id == case.current_etymon_id:
+    for tm_id, current_etymon_id in zip(case.text_match_ids, case.current_etymon_ids, strict=True):
+        if result.chosen_etymon_id == current_etymon_id:
+            db.conn.execute(
+                "UPDATE etymon_text_match "
+                "SET method = 'llm-disambiguated-v1', disambiguator_reason = ? "
+                "WHERE id = ?",
+                (result.reason, tm_id),
+            )
+            counts["kept"] += 1
+            continue
+
+        # Reassign to a different etymon. The UNIQUE (etymon_id, source_id,
+        # matched_form) constraint means a row may already exist at the
+        # destination — typically an exact match (edit_distance=0) discovered
+        # earlier by reverse-search, OR (new with grouping) another row in
+        # this same group whose current_etymon_id == chosen_etymon_id and
+        # has already been bumped to the chosen etymon by an earlier
+        # iteration of this loop. Per D21 (mining-evidence preservation),
+        # we don't overwrite that evidence: we record the verdict on the
+        # destination row and drop the now-misattributed source row.
+        existing = db.conn.execute(
+            "SELECT id, edit_distance FROM etymon_text_match "
+            "WHERE etymon_id = ? AND source_id = ? AND matched_form = ?",
+            (result.chosen_etymon_id, case.source_id, case.matched_form),
+        ).fetchone()
+        if existing is not None:
+            db.conn.execute(
+                "UPDATE etymon_text_match "
+                "SET method = 'llm-disambiguated-v1', disambiguator_reason = ? "
+                "WHERE id = ?",
+                (result.reason, existing["id"]),
+            )
+            db.conn.execute("DELETE FROM etymon_text_match WHERE id = ?", (tm_id,))
+            counts["reassigned"] += 1
+            continue
+
         db.conn.execute(
             "UPDATE etymon_text_match "
-            "SET method = 'llm-disambiguated-v1', disambiguator_reason = ? "
+            "SET etymon_id = ?, method = 'llm-disambiguated-v1', "
+            "    disambiguator_reason = ? "
             "WHERE id = ?",
-            (result.reason, case.text_match_id),
+            (result.chosen_etymon_id, result.reason, tm_id),
         )
-        return "kept"
-
-    # Reassign to a different etymon. The UNIQUE (etymon_id, source_id,
-    # matched_form) constraint means a row may already exist at the
-    # destination — typically an exact match (edit_distance=0) discovered
-    # earlier by reverse-search. Per D21 (mining-evidence preservation),
-    # we don't overwrite that evidence: we record the verdict on the
-    # destination row and drop the now-misattributed source row.
-    existing = db.conn.execute(
-        "SELECT id, edit_distance FROM etymon_text_match "
-        "WHERE etymon_id = ? AND source_id = ? AND matched_form = ?",
-        (result.chosen_etymon_id, case.source_id, case.matched_form),
-    ).fetchone()
-    if existing is not None:
-        db.conn.execute(
-            "UPDATE etymon_text_match "
-            "SET method = 'llm-disambiguated-v1', disambiguator_reason = ? "
-            "WHERE id = ?",
-            (result.reason, existing["id"]),
-        )
-        db.conn.execute("DELETE FROM etymon_text_match WHERE id = ?", (case.text_match_id,))
-        return "reassigned"
-
-    db.conn.execute(
-        "UPDATE etymon_text_match "
-        "SET etymon_id = ?, method = 'llm-disambiguated-v1', "
-        "    disambiguator_reason = ? "
-        "WHERE id = ?",
-        (result.chosen_etymon_id, result.reason, case.text_match_id),
-    )
-    return "reassigned"
+        counts["reassigned"] += 1
+    return counts
 
 
 __all__ = [

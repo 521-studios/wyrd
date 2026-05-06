@@ -96,7 +96,7 @@ def test_find_ambiguous_rows_picks_multi_candidate_cases(fresh_db: Path) -> None
 
     assert len(cases) == 1
     case = cases[0]
-    assert case.text_match_id == row_id
+    assert case.text_match_ids == (row_id,)
     assert case.matched_form == "heath"
     candidate_ids = {c.etymon_id for c in case.candidates}
     # Both etymons should be in the candidate set.
@@ -148,11 +148,11 @@ def test_find_ambiguous_rows_skips_already_disambiguated(fresh_db: Path) -> None
 def test_disambiguate_one_parses_choice_and_reason(monkeypatch) -> None:
     """`disambiguate_one` calls Gemini and returns a structured result."""
     case = AmbiguityCase(
-        text_match_id=1,
         source_id="test_book",
         matched_form="heath",
         snippet="bare untilled land",
-        current_etymon_id=99,
+        text_match_ids=(1,),
+        current_etymon_ids=(99,),
         candidates=(
             Candidate(
                 etymon_id=42,
@@ -189,11 +189,11 @@ def test_disambiguate_one_parses_choice_and_reason(monkeypatch) -> None:
 def test_disambiguate_one_handles_none_answer(monkeypatch) -> None:
     """If the model says 'none', the result has chosen_etymon_id=None."""
     case = AmbiguityCase(
-        text_match_id=1,
         source_id="test_book",
         matched_form="foo",
         snippet="...",
-        current_etymon_id=1,
+        text_match_ids=(1,),
+        current_etymon_ids=(1,),
         candidates=(
             Candidate(
                 etymon_id=1, canonical_form="foo", language="old-english", glosses=(), tags=()
@@ -213,11 +213,11 @@ def test_disambiguate_one_rejects_id_outside_candidates(monkeypatch) -> None:
     """If the model returns an etymon id that's not in the candidate set,
     it's treated as 'none' rather than mis-applied."""
     case = AmbiguityCase(
-        text_match_id=1,
         source_id="test_book",
         matched_form="foo",
         snippet="...",
-        current_etymon_id=1,
+        text_match_ids=(1,),
+        current_etymon_ids=(1,),
         candidates=(
             Candidate(
                 etymon_id=1, canonical_form="foo", language="old-english", glosses=(), tags=()
@@ -238,11 +238,11 @@ def test_disambiguate_one_handles_non_numeric_choice(monkeypatch) -> None:
     (a `ValueError` on `int(...)`), treat as 'none' with confidence='low'
     and a 'non-id choice' reason — never mis-apply."""
     case = AmbiguityCase(
-        text_match_id=1,
         source_id="test_book",
         matched_form="foo",
         snippet="...",
-        current_etymon_id=1,
+        text_match_ids=(1,),
+        current_etymon_ids=(1,),
         candidates=(
             Candidate(
                 etymon_id=1, canonical_form="foo", language="old-english", glosses=(), tags=()
@@ -270,17 +270,17 @@ def test_apply_disambiguator_result_kept(fresh_db: Path) -> None:
         _seed_minimum(db)
         row_id = _insert_fuzzy_row(db, etymon_id=db._heath_id, matched_form="heath", snippet="...")
         case = AmbiguityCase(
-            text_match_id=row_id,
             source_id="test_book",
             matched_form="heath",
             snippet="...",
-            current_etymon_id=db._heath_id,
+            text_match_ids=(row_id,),
+            current_etymon_ids=(db._heath_id,),
             candidates=(),  # not used by apply
         )
         result = DisambiguatorResult(
             chosen_etymon_id=db._heath_id, confidence="high", reason="phrase matches"
         )
-        action = apply_disambiguator_result(db, case, result)
+        counts = apply_disambiguator_result(db, case, result)
         db.commit()
 
         row = db.conn.execute(
@@ -288,7 +288,7 @@ def test_apply_disambiguator_result_kept(fresh_db: Path) -> None:
             (row_id,),
         ).fetchone()
 
-    assert action == "kept"
+    assert counts == {"kept": 1, "reassigned": 0, "deleted": 0}
     assert row["etymon_id"] == db._heath_id
     assert row["method"] == "llm-disambiguated-v1"
     assert row["disambiguator_reason"] == "phrase matches"
@@ -301,11 +301,11 @@ def test_apply_disambiguator_result_reassigned(fresh_db: Path) -> None:
         _seed_minimum(db)
         row_id = _insert_fuzzy_row(db, etymon_id=db._herath_id, matched_form="heath", snippet="...")
         case = AmbiguityCase(
-            text_match_id=row_id,
             source_id="test_book",
             matched_form="heath",
             snippet="...",
-            current_etymon_id=db._herath_id,
+            text_match_ids=(row_id,),
+            current_etymon_ids=(db._herath_id,),
             candidates=(),
         )
         result = DisambiguatorResult(
@@ -313,7 +313,7 @@ def test_apply_disambiguator_result_reassigned(fresh_db: Path) -> None:
             confidence="high",
             reason="OE heath, not ON herath",
         )
-        action = apply_disambiguator_result(db, case, result)
+        counts = apply_disambiguator_result(db, case, result)
         db.commit()
 
         row = db.conn.execute(
@@ -321,7 +321,7 @@ def test_apply_disambiguator_result_reassigned(fresh_db: Path) -> None:
             (row_id,),
         ).fetchone()
 
-    assert action == "reassigned"
+    assert counts == {"kept": 0, "reassigned": 1, "deleted": 0}
     assert row["etymon_id"] == db._heath_id  # reassigned!
     assert row["method"] == "llm-disambiguated-v1"
 
@@ -354,11 +354,11 @@ def test_apply_disambiguator_result_reassigned_preserves_existing_evidence(
         db.commit()
 
         case = AmbiguityCase(
-            text_match_id=wrong_row_id,
             source_id="test_book",
             matched_form="heath",
             snippet="...",
-            current_etymon_id=db._herath_id,
+            text_match_ids=(wrong_row_id,),
+            current_etymon_ids=(db._herath_id,),
             candidates=(),
         )
         result = DisambiguatorResult(
@@ -366,7 +366,7 @@ def test_apply_disambiguator_result_reassigned_preserves_existing_evidence(
             confidence="high",
             reason="OE heath, the exact-match row is correct",
         )
-        action = apply_disambiguator_result(db, case, result)
+        counts = apply_disambiguator_result(db, case, result)
         db.commit()
 
         rows = db.conn.execute(
@@ -375,7 +375,7 @@ def test_apply_disambiguator_result_reassigned_preserves_existing_evidence(
             "ORDER BY id"
         ).fetchall()
 
-    assert action == "reassigned"
+    assert counts == {"kept": 0, "reassigned": 1, "deleted": 0}
     # Only the destination row remains; the misattributed source row was deleted.
     assert len(rows) == 1
     assert rows[0]["id"] == existing_row_id
@@ -391,25 +391,119 @@ def test_apply_disambiguator_result_deleted(fresh_db: Path) -> None:
         _seed_minimum(db)
         row_id = _insert_fuzzy_row(db, etymon_id=db._heath_id, matched_form="heath", snippet="...")
         case = AmbiguityCase(
-            text_match_id=row_id,
             source_id="test_book",
             matched_form="heath",
             snippet="...",
-            current_etymon_id=db._heath_id,
+            text_match_ids=(row_id,),
+            current_etymon_ids=(db._heath_id,),
             candidates=(),
         )
         result = DisambiguatorResult(
             chosen_etymon_id=None, confidence="low", reason="passage too vague"
         )
-        action = apply_disambiguator_result(db, case, result)
+        counts = apply_disambiguator_result(db, case, result)
         db.commit()
 
         remaining = db.conn.execute(
             "SELECT COUNT(*) FROM etymon_text_match WHERE id = ?", (row_id,)
         ).fetchone()[0]
 
-    assert action == "deleted"
+    assert counts == {"kept": 0, "reassigned": 0, "deleted": 1}
     assert remaining == 0
+
+
+def test_find_ambiguous_rows_groups_rows_sharing_source_and_form(fresh_db: Path) -> None:
+    """wyrd-9ae regression: two fuzzy rows for the same body word in the
+    same source — but attached to different etymons by fuzzy-search —
+    must yield ONE AmbiguityCase, not two. Without this dedupe the
+    disambiguator pays for two LLM calls answering the identical
+    question."""
+    with LexiconDB(fresh_db) as db:
+        _seed_minimum(db)
+        # Both rows describe 'heath' showing up in test_book — one
+        # tagged against ON 'herath' (close fuzzy), one against OE
+        # 'heath' but at edit_distance=1 to simulate two competing
+        # fuzzy attributions. Use a third etymon for the second
+        # attribution so both rows have distinct current_etymon_ids
+        # but identical (source_id, matched_form).
+        third_id = db.upsert_etymon("haethy", "old-english")
+        db.add_gloss(third_id, "alt spelling")
+        db.commit()
+        row_a = _insert_fuzzy_row(
+            db,
+            etymon_id=db._herath_id,
+            matched_form="heath",
+            snippet="bare untilled land",
+        )
+        row_b = _insert_fuzzy_row(
+            db,
+            etymon_id=third_id,
+            matched_form="heath",
+            snippet="another snippet",
+        )
+
+        cases = find_ambiguous_rows(db, max_distance=1)
+
+    assert len(cases) == 1, (
+        "two fuzzy rows for the same (source, matched_form) must collapse "
+        "to one AmbiguityCase — one LLM call serves both"
+    )
+    case = cases[0]
+    assert set(case.text_match_ids) == {row_a, row_b}
+    assert set(case.current_etymon_ids) == {db._herath_id, third_id}
+
+
+def test_apply_disambiguator_result_applies_verdict_to_every_row_in_group(
+    fresh_db: Path,
+) -> None:
+    """wyrd-9ae regression: a group of rows under one ambiguity case must
+    all receive the verdict consistently. If the LLM picks one row's
+    current etymon, that row gets 'kept' and the other gets 'reassigned'."""
+    with LexiconDB(fresh_db) as db:
+        _seed_minimum(db)
+        third_id = db.upsert_etymon("haethy", "old-english")
+        db.add_gloss(third_id, "alt spelling")
+        db.commit()
+        row_a = _insert_fuzzy_row(
+            db,
+            etymon_id=db._herath_id,
+            matched_form="heath",
+            snippet="bare untilled land",
+        )
+        row_b = _insert_fuzzy_row(
+            db,
+            etymon_id=third_id,
+            matched_form="heath",
+            snippet="another snippet",
+        )
+        case = AmbiguityCase(
+            source_id="test_book",
+            matched_form="heath",
+            snippet="bare untilled land",
+            text_match_ids=(row_a, row_b),
+            current_etymon_ids=(db._herath_id, third_id),
+            candidates=(),
+        )
+        # LLM picks the OE 'heath' etymon — neither row currently points
+        # there, so both are reassigned.
+        result = DisambiguatorResult(
+            chosen_etymon_id=db._heath_id, confidence="high", reason="OE heath"
+        )
+        counts = apply_disambiguator_result(db, case, result)
+        db.commit()
+
+        rows = db.conn.execute(
+            "SELECT etymon_id, method FROM etymon_text_match "
+            "WHERE source_id = 'test_book' AND matched_form = 'heath'"
+        ).fetchall()
+
+    # Both rows landed on the chosen etymon. Per D21 evidence-preservation
+    # the second reassign collapsed onto the first (UNIQUE constraint),
+    # so we end up with one row in the DB even though the case had two.
+    assert counts["kept"] + counts["reassigned"] + counts["deleted"] == 2
+    assert counts["reassigned"] == 2
+    assert all(r["etymon_id"] == db._heath_id for r in rows)
+    assert all(r["method"] == "llm-disambiguated-v1" for r in rows)
 
 
 def test_lexicon_disambiguate_fuzzy_cli_end_to_end(
