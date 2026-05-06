@@ -1283,3 +1283,205 @@ def test_resolve_via_llm_alias_map_egyptian_variants(fresh_db: Path) -> None:
         res = fp.resolve(fresh_db, "Anubis", "Egyptian deity", llm_caller=_stub_llm)
         assert res.usable is True, f"failed for {raw_lang!r}"
         assert res.etymon_id == target_id, f"failed for {raw_lang!r}"
+
+
+# ---------------------------------------------------------------------
+# fetch_resolved_input_names + --skip-resolved
+# ---------------------------------------------------------------------
+
+
+def test_fetch_resolved_input_names_returns_empty_for_fresh_db(fresh_db: Path) -> None:
+    with LexiconDB(fresh_db) as db:
+        assert fp.fetch_resolved_input_names(db.conn) == set()
+
+
+def test_fetch_resolved_input_names_returns_resolved_names_only(fresh_db: Path) -> None:
+    """Only rows matching the requested approach_version are returned."""
+    with LexiconDB(fresh_db) as db:
+        etymon_id = _seed_etymon(db, canonical_form="harpy", language="modern-english")
+        db.commit()
+        for in_name, approach in [
+            ("Harpy", fp.APPROACH_VERSION),
+            ("Troll", fp.APPROACH_VERSION),
+            ("OldVersionName", "fantasy-v0-old"),
+        ]:
+            res = fp.Resolution(
+                usable=True,
+                etymon_id=etymon_id,
+                resolution_method="descent_lookup",
+                bar_reason=None,
+                confidence="high",
+                citation="test",
+                reasoning="seed",
+            )
+            fp.write_resolution(
+                db.conn,
+                input_name=in_name,
+                input_description="seed",
+                resolution=res,
+                approach_version=approach,
+            )
+        db.commit()
+
+        names = fp.fetch_resolved_input_names(db.conn)
+        assert names == {"Harpy", "Troll"}
+
+        old_names = fp.fetch_resolved_input_names(db.conn, "fantasy-v0-old")
+        assert old_names == {"OldVersionName"}
+
+
+def test_cli_mine_fantasy_name_skip_resolved_filters_inputs(fresh_db: Path, tmp_path: Path) -> None:
+    """--skip-resolved skips inputs whose name already has a row for
+    the current approach_version, paying for only the new ones."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+
+    # Seed: Harpy already resolved, Troll not yet.
+    with LexiconDB(fresh_db) as db:
+        etymon_id = _seed_etymon(db, canonical_form="harpy", language="modern-english")
+        db.commit()
+        res = fp.Resolution(
+            usable=True,
+            etymon_id=etymon_id,
+            resolution_method="descent_lookup",
+            bar_reason=None,
+            confidence="high",
+            citation="seed",
+            reasoning="prior run",
+        )
+        fp.write_resolution(db.conn, input_name="Harpy", input_description="prior", resolution=res)
+        db.commit()
+
+    # Need both etymons present so the offline pre-filter resolves Troll
+    # without an LLM call (--skip-llm). Harpy etymon already inserted.
+    with LexiconDB(fresh_db) as db:
+        troll_greek_id = _seed_etymon(db, canonical_form="trǫll", language="old-norse")
+        troll_modern_id = _seed_etymon(db, canonical_form="troll", language="modern-english")
+        _seed_descent(db, parent_id=troll_greek_id, child_id=troll_modern_id)
+        db.commit()
+
+    batch_path = tmp_path / "inputs.jsonl"
+    batch_path.write_text(
+        '{"name": "Harpy", "description": "winged"}\n'
+        '{"name": "Troll", "description": "Norse cave-dweller"}\n'
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        [
+            "lexicon",
+            "mine-fantasy-name",
+            "--db",
+            str(fresh_db),
+            "--batch",
+            str(batch_path),
+            "--skip-llm",
+            "--skip-resolved",
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    combined = result.output + (result.stderr or "")
+    # Routing summary reports the skip count.
+    assert "Routing 1 fantasy-name input(s)" in combined
+    assert "skipped 1 already-resolved" in combined
+    # Harpy was NOT re-processed (no log line).
+    assert "USABLE  Harpy" not in combined
+    # Troll WAS processed.
+    assert "USABLE  Troll" in combined or "BARRED  Troll" in combined
+
+
+def test_cli_mine_fantasy_name_skip_resolved_no_op_on_fresh_db(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """--skip-resolved against a fresh DB skips nothing."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+
+    with LexiconDB(fresh_db) as db:
+        gid = _seed_etymon(db, canonical_form="ἅρπυια", language="ancient-greek")
+        mid = _seed_etymon(db, canonical_form="harpy", language="modern-english")
+        _seed_descent(db, parent_id=gid, child_id=mid)
+        db.commit()
+
+    batch_path = tmp_path / "inputs.jsonl"
+    batch_path.write_text('{"name": "Harpy", "description": "winged"}\n')
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        [
+            "lexicon",
+            "mine-fantasy-name",
+            "--db",
+            str(fresh_db),
+            "--batch",
+            str(batch_path),
+            "--skip-llm",
+            "--skip-resolved",
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0
+    combined = result.output + (result.stderr or "")
+    assert "Routing 1 fantasy-name input(s) (skipped 0 already-resolved)" in combined
+
+
+def test_cli_mine_fantasy_name_skip_resolved_is_case_insensitive(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """fantasy_morpheme.input_name uses COLLATE NOCASE — so an input
+    'harpy' should be skipped when a row already exists under 'Harpy'.
+    Pinned regression for the case-sensitivity bug Gemini caught
+    2026-05-06: the Python `in` check on the resolved-names set was
+    case-sensitive while the DB constraint was not, leading to
+    redundant LLM calls for casing variants."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+
+    with LexiconDB(fresh_db) as db:
+        etymon_id = _seed_etymon(db, canonical_form="harpy", language="modern-english")
+        db.commit()
+        res = fp.Resolution(
+            usable=True,
+            etymon_id=etymon_id,
+            resolution_method="descent_lookup",
+            bar_reason=None,
+            confidence="high",
+            citation="seed",
+            reasoning="prior run",
+        )
+        # Seed with capital-H 'Harpy'.
+        fp.write_resolution(db.conn, input_name="Harpy", input_description="prior", resolution=res)
+        db.commit()
+
+    batch_path = tmp_path / "inputs.jsonl"
+    # Input uses lowercase 'harpy' — must still be recognized as
+    # already-resolved.
+    batch_path.write_text('{"name": "harpy", "description": "winged"}\n')
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        [
+            "lexicon",
+            "mine-fantasy-name",
+            "--db",
+            str(fresh_db),
+            "--batch",
+            str(batch_path),
+            "--skip-llm",
+            "--skip-resolved",
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    combined = result.output + (result.stderr or "")
+    assert "Routing 0 fantasy-name input(s) (skipped 1 already-resolved)" in combined
+    # No processing line printed.
+    assert "USABLE" not in combined
+    assert "BARRED" not in combined

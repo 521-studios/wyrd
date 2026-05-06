@@ -1378,6 +1378,19 @@ def lexicon_mine_llm(
     help="Write fantasy_morpheme rows + add 'fantasy' tag on usable etymons. Without this, dry-run.",
 )
 @click.option(
+    "--skip-resolved",
+    is_flag=True,
+    default=False,
+    help=(
+        "Skip inputs whose name already has a fantasy_morpheme row for "
+        "the current approach_version. Lets you grow the input corpus "
+        "(e.g. extractor v2) and re-run without paying for already-"
+        "resolved entries. Looks up the existing names once at startup. "
+        "Comparison is case-insensitive (matches the table's "
+        "COLLATE NOCASE UNIQUE constraint)."
+    ),
+)
+@click.option(
     "--model",
     default=None,
     help=(
@@ -1394,6 +1407,7 @@ def lexicon_mine_fantasy_name(
     batch_path: Path | None,
     skip_llm: bool,
     apply_changes: bool,
+    skip_resolved: bool,
     model: str | None,
 ) -> None:
     """Research the etymology of a fantasy/gaming creature name (wyrd-ami).
@@ -1437,8 +1451,21 @@ def lexicon_mine_fantasy_name(
     else:
         inputs.append((name, description))  # type: ignore[arg-type]
 
+    skipped_count = 0
+    if skip_resolved:
+        # Lowercase-fold both sides — fantasy_morpheme.input_name uses
+        # COLLATE NOCASE, so 'Harpy' and 'harpy' are the same row.
+        # Without folding, varying input casing would re-trigger LLM
+        # calls even though the upsert would later collapse them.
+        with LexiconDB(db_path) as resolved_db:
+            already = {n.lower() for n in fp.fetch_resolved_input_names(resolved_db.conn)}
+        before = len(inputs)
+        inputs = [(n, d) for (n, d) in inputs if n.lower() not in already]
+        skipped_count = before - len(inputs)
+
     click.echo(
-        f"Routing {len(inputs)} fantasy-name input(s). "
+        f"Routing {len(inputs)} fantasy-name input(s)"
+        f"{f' (skipped {skipped_count} already-resolved)' if skip_resolved else ''}. "
         f"approach_version={fp.APPROACH_VERSION}. "
         f"{'Applying' if apply_changes else 'Dry-run'}.",
         err=True,
