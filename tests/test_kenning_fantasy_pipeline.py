@@ -1095,3 +1095,61 @@ def test_cli_mine_fantasy_name_requires_input(fresh_db: Path) -> None:
         ["lexicon", "mine-fantasy-name", "--db", str(fresh_db)],
     )
     assert result.exit_code != 0
+
+
+def test_cli_mine_fantasy_name_emits_progress_line(fresh_db: Path, tmp_path: Path) -> None:
+    """Mining batches must emit a `[completed/total]` progress line so
+    operators can see how far the run has gotten. Convention is set by
+    `lexicon mine-llm` and documented in CLAUDE.md."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+
+    batch = tmp_path / "names.jsonl"
+    # 12 inputs so we cross the every-10 progress threshold + emit the
+    # final line. All names will fail to resolve in --skip-llm mode
+    # (no etymon corpus seeded), but the progress line still fires.
+    lines = [json.dumps({"name": f"Creature{i}", "description": "test"}) for i in range(12)]
+    batch.write_text("\n".join(lines) + "\n")
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        [
+            "lexicon",
+            "mine-fantasy-name",
+            "--db",
+            str(fresh_db),
+            "--batch",
+            str(batch),
+            "--skip-llm",
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    # The 10/12 line should appear (every-10 threshold) and the 12/12
+    # final line as well.
+    combined = result.output + (result.stderr or "")
+    assert "[10/12]" in combined
+    assert "[12/12]" in combined
+
+
+def test_cli_ingest_etymonline_emits_progress_line(fresh_db: Path, tmp_path: Path) -> None:
+    """Same convention for the etymonline file walker."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+
+    src_dir = tmp_path / "etym"
+    src_dir.mkdir()
+    for i in range(3):
+        (src_dir / f"{i}.txt").write_text(f"word{i}(n.)\n\nlate 14c., from Old French foo{i}.\n\n")
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        ["lexicon", "ingest-etymonline", str(src_dir), "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0
+    combined = result.output + (result.stderr or "")
+    # Each file gets a [N/3] prefix.
+    assert "[1/3]" in combined
+    assert "[3/3]" in combined
