@@ -8,7 +8,7 @@ from functools import lru_cache
 from importlib import resources
 from typing import Any
 
-from wyrd.generators.kenning.era import resolve_era_input
+from wyrd.generators.kenning.era import era_cells_for_family, resolve_era_input
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.name import Name
 from wyrd.generators.kenning.proportions import load_proportions
@@ -68,6 +68,22 @@ _CULTURE_TO_ERA_FAMILY: dict[str, str] = {
     "irish": "goidelic",
     "breton": "brythonic",
 }
+
+
+def _era_options_by_culture() -> dict[str, list[str]]:
+    """Per-culture list of era cell labels for the SPA's dependent select.
+
+    Empty string is prepended as the 'no era filter' option. The label
+    set is derived from era_cells_for_family so adding a new cell to
+    era.py automatically surfaces in the dropdown without touching this
+    file. Re-evaluated at schema-render time, so era.ERA_CELLS edits
+    take effect after a manifest refresh.
+    """
+    return {
+        culture: ["", *era_cells_for_family(family)]
+        for culture, family in _CULTURE_TO_ERA_FAMILY.items()
+    }
+
 
 # wyrd-yan: 'fiction' marks etymons whose etymology is constructed (post-hoc
 # applied to bestiary / NPC / homebrew content) rather than drawn from the
@@ -345,16 +361,26 @@ class Kenning(Generator):
                 },
                 "era": {
                     "type": "string",
+                    "default": "",
+                    # wyrd-awo: dependent-select metadata read by the SPA.
+                    # Each culture surfaces only the cell labels defined in
+                    # its era family — picking 'oe-late' while culture is
+                    # 'irish' would 4xx at runtime, so the dropdown
+                    # filters to the family's labels to prevent it.
+                    # CLI/API still accept bare-year and 'family/label'
+                    # shapes; this property only constrains the SPA UX.
+                    "x-options-by-culture": _era_options_by_culture(),
                     "description": (
                         "D5-2 era filter (wyrd-lyp). Restricts the morpheme inventory "
-                        "to forms attested in a particular period. Accepts a bare year "
-                        "(e.g. '1086' → the cell containing 1086 in the culture's era "
-                        "family), a cell label (e.g. 'oe-late', 'me', 'middle-irish'), "
-                        "or an explicit 'family/label' pair (e.g. 'english/oe-late') to "
-                        "disambiguate when a label is shared across families. "
-                        "Morphemes with no attested-year evidence pass through "
-                        "unconditionally — only ~32% of bundle morphemes carry year "
-                        "data today, so the filter narrows the pool rather than gutting it."
+                        "to forms attested in a particular period. The SPA renders this "
+                        "as a dropdown filtered to the chosen culture's era family. "
+                        "CLI/API also accept a bare year (e.g. '1086' → the cell "
+                        "containing 1086 in the culture's era family) or an explicit "
+                        "'family/label' pair (e.g. 'english/oe-late') to disambiguate "
+                        "when a label is shared across families. Morphemes with no "
+                        "attested-year evidence pass through unconditionally — only "
+                        "~32% of bundle morphemes carry year data today, so the filter "
+                        "narrows the pool rather than gutting it."
                     ),
                 },
                 "cohesion": {
