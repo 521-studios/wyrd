@@ -29,6 +29,7 @@ from wyrd.generators.kenning import (
     fantasy_pipeline,
     gemini_extractor,
     llm_extractor,
+    pfsrd2_monster_extractor,
 )
 from wyrd.generators.kenning.dictionary_parser import (
     parse_alphabetical_text,
@@ -1603,6 +1604,76 @@ def lexicon_ingest_etymonline(
     click.echo(f"Summary: {totals}", err=True)
     if not apply_changes:
         click.echo("(dry-run; pass --apply to write)", err=True)
+
+
+@lexicon.command("extract-pfsrd2-monsters")
+@click.argument(
+    "corpus_root",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+)
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help=(
+        "Write JSONL to this file. Default: stdout. The output is "
+        "ready to feed into `wyrd kenning lexicon mine-fantasy-name "
+        "--batch <output>` once you've reviewed it."
+    ),
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=None,
+    help="Stop after emitting N records (smoke testing).",
+)
+def lexicon_extract_pfsrd2_monsters(
+    corpus_root: Path,
+    output_path: Path | None,
+    limit: int | None,
+) -> None:
+    """Extract pfsrd2-data monsters into wyrd-ami JSONL input (wyrd-ld5x).
+
+    Walks `<corpus_root>/monsters/**/*.json` and emits one
+    `{"name": ..., "description": ...}` per distinct creature
+    morpheme. Family roots (Bugbear) win over per-variant names
+    (Bugbear Thug); compound family names (Dragon, Red) are split
+    on `,` to get the base. Multi-word creatures with no family are
+    skipped — they don't represent a single morpheme cleanly.
+
+    Dedupes by lowercased input_name across the whole walk so each
+    morpheme is emitted once even if it appears across many variants.
+
+    Typical pipeline:
+
+        wyrd kenning lexicon extract-pfsrd2-monsters \\
+            ~/521Studios/pfsrd2-data \\
+            --output /tmp/pfsrd2-monsters.jsonl
+
+        wyrd kenning lexicon mine-fantasy-name \\
+            --batch /tmp/pfsrd2-monsters.jsonl --apply
+    """
+    record_count = 0
+    out_handle = output_path.open("w") if output_path is not None else None
+    try:
+        for record in pfsrd2_monster_extractor.extract_corpus(corpus_root, limit=limit):
+            line = json.dumps(record, ensure_ascii=False)
+            if out_handle is not None:
+                out_handle.write(line + "\n")
+            else:
+                # click.echo (not sys.stdout.write) so CliRunner captures
+                # stdout output reliably; nl=True adds the newline.
+                click.echo(line)
+            record_count += 1
+    finally:
+        if out_handle is not None:
+            out_handle.close()
+    dest = str(output_path) if output_path is not None else "stdout"
+    click.echo(
+        f"Extracted {record_count} record(s) from {corpus_root} → {dest}",
+        err=True,
+    )
 
 
 @lexicon.command("backfill-fantasy-tags")
