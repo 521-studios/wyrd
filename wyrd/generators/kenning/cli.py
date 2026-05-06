@@ -73,6 +73,7 @@ from wyrd.generators.kenning.paths import (
 )
 from wyrd.generators.kenning.skeat_parser import parse_skeat_text
 from wyrd.generators.kenning.wiktextract_corpus_miner import (
+    WIKTIONARY_EMPIRICAL_SOURCE_ID,
     compute_unaccounted_fragments,
     derive_positions,
     mine_corpus,
@@ -2524,6 +2525,7 @@ def lexicon_mine_wiktextract_corpus(
         fragments_by_culture = _collect_fragments_per_culture(
             target_cultures, place_names_paths_by_culture, meanings_data, min_length
         )
+        started_at = datetime.now(UTC).isoformat()
         with LexiconDB(db_path) as db:
             counts = mine_corpus(
                 db,
@@ -2542,11 +2544,78 @@ def lexicon_mine_wiktextract_corpus(
         # one bundle word per position with proper dash markers.
         with LexiconDB(db_path) as db:
             pos_counts = derive_positions(db, place_names_paths_by_culture, apply=True)
+            # wyrd-qepf / D24: persist a mining_run audit row so the
+            # operation is queryable from the DB alongside LLM mining
+            # runs. Empirical mining doesn't have accept/decline/reject
+            # semantics in the LLM sense, so the rich structural
+            # counters land in by_failure (the audit-shaped JSON
+            # column). parsed_count/accepted use the closest analogues:
+            # candidates considered (fragments_input) and (frag, lang)
+            # entries that landed (wiktionary_hits).
+            _record_empirical_mining_audit(db, counts, pos_counts, started_at, target_cultures)
         _print_position_summary(pos_counts)
     finally:
         import shutil
 
         shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def _record_empirical_mining_audit(
+    db: LexiconDB,
+    counts: dict[str, Any],
+    pos_counts: dict[str, Any],
+    started_at: str,
+    target_cultures: list[str],
+) -> None:
+    """Write the wyrd-qepf audit row for an empirical wiktextract mining run.
+
+    Stuffs the empirical-specific structural counters (etymons_upserted,
+    glosses/tags/citations added, by_culture, by_language, position
+    classification breakdown) into the by_failure JSON field; the
+    LLM-style accept/decline/reject columns are zeroed because the
+    empirical pipeline doesn't have those semantics.
+
+    The provider/model/mode strings follow the LLM mining_run convention
+    (see record_mining_run); 'wiktionary-empirical' / 'corpus-substring-v1'
+    / 'mine' make this run distinguishable from LLM mining without
+    needing a separate audit table.
+    """
+    by_culture_serializable = {
+        culture: dict(stats) for culture, stats in counts.get("by_culture", {}).items()
+    }
+    by_language_serializable = dict(counts.get("by_language", {}))
+    # Nest the empirical structural counters under an "empirical_metrics"
+    # key so that consumers reading the by_failure JSON column don't
+    # mistake them for failure tags. The mining_run schema uses
+    # by_failure for audit-shaped JSON regardless of column name; the
+    # nesting tags this row's payload as success metrics, not failures.
+    audit = {
+        "empirical_metrics": {
+            "etymons_upserted": counts.get("etymons_upserted", 0),
+            "glosses_added": counts.get("glosses_added", 0),
+            "tags_added": counts.get("tags_added", 0),
+            "citations_added": counts.get("citations_added", 0),
+            "wiktionary_hits": counts.get("wiktionary_hits", 0),
+            "by_culture": by_culture_serializable,
+            "by_language": by_language_serializable,
+            "position_reflexes_written": pos_counts.get("reflexes_written", 0),
+            "target_cultures": target_cultures,
+        },
+    }
+    record_mining_run(
+        db,
+        source_id=WIKTIONARY_EMPIRICAL_SOURCE_ID,
+        provider="wiktionary-empirical",
+        model="corpus-substring-v1",
+        mode="mine",
+        parsed_count=counts.get("fragments_input", 0),
+        accepted=counts.get("wiktionary_hits", 0),
+        declined=0,
+        rejected=0,
+        by_failure=audit,
+        started_at=started_at,
+        completed_at=datetime.now(UTC).isoformat(),
+    )
 
 
 def _stage_place_names_paths(

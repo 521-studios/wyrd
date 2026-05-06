@@ -486,23 +486,44 @@ def _create_etymon_indexes(db: LexiconDB, applied: dict[str, bool]) -> None:
         applied["idx_etymon_cognate"] = True
 
 
-def _rebuild_etymon_views(db: LexiconDB, applied: dict[str, bool]) -> None:
-    """Recreate etymon_canonical and etymon_consensus.
+def _recreate_view(db: LexiconDB, applied: dict[str, bool], name: str, body: str) -> None:
+    """Drop-and-recreate a single view, marking the applied-flag dict.
 
-    Always rebuilt (DROP IF EXISTS + CREATE) because the definitions change
-    when new columns are introduced, and SQLite has no CREATE OR REPLACE
-    VIEW. Cheap.
+    Views are always rebuilt (DROP IF EXISTS + CREATE) because the
+    definitions change when new columns are introduced and SQLite has
+    no CREATE OR REPLACE VIEW. The applied-flag key is ``f"{name}_view"``
+    by convention; callers that need a different key can update
+    ``applied`` directly after this call.
     """
-    db.conn.execute("DROP VIEW IF EXISTS etymon_canonical")
-    db.conn.execute(
+    db.conn.execute(f"DROP VIEW IF EXISTS {name}")
+    db.conn.execute(body)
+    applied[f"{name}_view"] = True
+
+
+def _rebuild_etymon_views(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Recreate the etymon view layer (canonical + consensus + the
+    wyrd-7lo per-child rollups).
+
+    Each view body lives in this function rather than a constant so
+    the migration path stays self-contained. The full rationale for
+    each view (why MIN(attested_year), why SUM(match_count), how the
+    two-step chain handles merged_into_id → lemma_id) lives next to
+    the matching CREATE VIEW blocks in data/lexicon.sql; this function
+    just mirrors them for legacy-DB migration.
+    """
+    _recreate_view(
+        db,
+        applied,
+        "etymon_canonical",
         """
         CREATE VIEW etymon_canonical AS
           SELECT * FROM etymon WHERE merged_into_id IS NULL
-        """
+        """,
     )
-    applied["etymon_canonical_view"] = True
-    db.conn.execute("DROP VIEW IF EXISTS etymon_consensus")
-    db.conn.execute(
+    _recreate_view(
+        db,
+        applied,
+        "etymon_consensus",
         """
         CREATE VIEW etymon_consensus AS
           SELECT lemma_id,
@@ -525,9 +546,57 @@ def _rebuild_etymon_views(db: LexiconDB, applied: dict[str, bool]) -> None:
             LEFT JOIN etymon_citation c ON c.etymon_id = e.id
           )
           GROUP BY lemma_id
-        """
+        """,
     )
-    applied["etymon_consensus_view"] = True
+    _recreate_view(
+        db,
+        applied,
+        "etymon_gloss_canonical",
+        """
+        CREATE VIEW etymon_gloss_canonical AS
+          SELECT DISTINCT
+                 COALESCE(le.id, target.id, e.id) AS canonical_etymon_id,
+                 g.gloss
+          FROM etymon e
+          JOIN etymon_gloss g ON g.etymon_id = e.id
+          LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
+          LEFT JOIN etymon le ON le.id = target.lemma_id
+        """,
+    )
+    _recreate_view(
+        db,
+        applied,
+        "etymon_tag_canonical",
+        """
+        CREATE VIEW etymon_tag_canonical AS
+          SELECT DISTINCT
+                 COALESCE(le.id, target.id, e.id) AS canonical_etymon_id,
+                 t.tag
+          FROM etymon e
+          JOIN etymon_tag t ON t.etymon_id = e.id
+          LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
+          LEFT JOIN etymon le ON le.id = target.lemma_id
+        """,
+    )
+    _recreate_view(
+        db,
+        applied,
+        "etymon_text_match_canonical",
+        """
+        CREATE VIEW etymon_text_match_canonical AS
+          SELECT COALESCE(le.id, target.id, e.id) AS canonical_etymon_id,
+                 m.source_id,
+                 m.matched_form,
+                 SUM(m.match_count) AS total_match_count,
+                 MIN(m.edit_distance) AS edit_distance,
+                 MIN(m.attested_year) AS attested_year
+          FROM etymon e
+          JOIN etymon_text_match m ON m.etymon_id = e.id
+          LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
+          LEFT JOIN etymon le ON le.id = target.lemma_id
+          GROUP BY canonical_etymon_id, m.source_id, m.matched_form
+        """,
+    )
 
 
 def _create_etymon_descent_table(db: LexiconDB, applied: dict[str, bool]) -> None:
@@ -1255,6 +1324,9 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "etymon_text_match.attested_year": False,
         "etymon_consensus_view": False,
         "etymon_canonical_view": False,
+        "etymon_gloss_canonical_view": False,
+        "etymon_tag_canonical_view": False,
+        "etymon_text_match_canonical_view": False,
         "etymon_text_match_table": False,
         "etymon_descent_table": False,
         "etymon_variant_table": False,
@@ -2352,28 +2424,39 @@ def cluster_ocr_variants(db: LexiconDB, *, apply: bool = False) -> dict:
             canonical_id = next_id
             visited.add(canonical_id)
 
-        for loser_id in loser_ids:
-            # Re-parent any inflected children the loser was acting as a
-            # lemma for, so consensus rolls them into the canonical group.
-            # The redirect via merged_into_id alone wouldn't suffice
-            # because the rollup is single-level on lemma_id.
-            db.conn.execute(
-                "UPDATE etymon SET lemma_id = ? WHERE lemma_id = ?",
-                (canonical_id, loser_id),
-            )
-            # Mark merged AND flatten any pre-existing redirects so
-            # merged_into_id chains can't form. Without the second clause,
-            # rows from a prior cluster pass that point at this loser
-            # would create a 2-deep chain X → loser → canonical, and the
-            # single-level COALESCE rollup would split witnesses.
-            # Citations / glosses / tags / text-match / reflex links stay
-            # attached to their original etymons; the consensus view
-            # rolls them up via merged_into_id. Mining evidence (D21) is
-            # preserved exactly as written.
-            db.conn.execute(
-                "UPDATE etymon SET merged_into_id = ? WHERE id = ? OR merged_into_id = ?",
-                (canonical_id, loser_id, loser_id),
-            )
+        # Batch the two per-loser UPDATEs into one statement each per
+        # cluster (wyrd-v3h). OCR clusters are tiny in practice (2-5
+        # members) so SQLite's 999-parameter limit is never close — no
+        # chunking needed. Citations / glosses / tags / text-match /
+        # reflex links stay attached to their original etymons; the
+        # consensus view rolls them up via merged_into_id. Mining
+        # evidence (D21) is preserved exactly as written.
+        #
+        # The surrounding loop's invariant (duplicate_groups filtered to
+        # len > 1) guarantees ≥1 loser, but the empty-list guard keeps
+        # the IN (...) form from raising a SQLite syntax error if a
+        # future refactor changes that invariant.
+        if not loser_ids:
+            continue
+        placeholders = ",".join("?" for _ in loser_ids)
+        # Re-parent any inflected children the losers were acting as a
+        # lemma for, so consensus rolls them into the canonical group.
+        # The redirect via merged_into_id alone wouldn't suffice
+        # because the rollup is single-level on lemma_id.
+        db.conn.execute(
+            f"UPDATE etymon SET lemma_id = ? WHERE lemma_id IN ({placeholders})",
+            (canonical_id, *loser_ids),
+        )
+        # Mark merged AND flatten any pre-existing redirects so
+        # merged_into_id chains can't form. Without the second clause,
+        # rows from a prior cluster pass that point at any of these
+        # losers would create a 2-deep chain X → loser → canonical, and
+        # the single-level COALESCE rollup would split witnesses.
+        db.conn.execute(
+            f"UPDATE etymon SET merged_into_id = ? "
+            f"WHERE id IN ({placeholders}) OR merged_into_id IN ({placeholders})",
+            (canonical_id, *loser_ids, *loser_ids),
+        )
 
     db.commit()
     return counts
