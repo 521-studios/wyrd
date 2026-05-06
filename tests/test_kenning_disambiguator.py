@@ -506,6 +506,101 @@ def test_apply_disambiguator_result_applies_verdict_to_every_row_in_group(
     assert all(r["method"] == "llm-disambiguated-v1" for r in rows)
 
 
+def test_apply_disambiguator_result_handles_mixed_kept_and_reassigned(
+    fresh_db: Path,
+) -> None:
+    """wyrd-9ae corner case: in a 2-row group where the LLM picks one
+    row's CURRENT etymon, that row is 'kept' and the other is
+    'reassigned' onto the kept row — UNIQUE (etymon_id, source_id,
+    matched_form) means the second row's reassign hits the kept row's
+    slot, so the misattributed source row is deleted and the kept row
+    absorbs the verdict per D21. The hardest path in the new code; pin
+    the per-row counts so a regression that double-counted 'kept' or
+    lost the source row would surface."""
+    with LexiconDB(fresh_db) as db:
+        _seed_minimum(db)
+        third_id = db.upsert_etymon("haethy", "old-english")
+        db.add_gloss(third_id, "alt spelling")
+        db.commit()
+        kept_row = _insert_fuzzy_row(
+            db,
+            etymon_id=db._heath_id,
+            matched_form="heath",
+            snippet="bare untilled land",
+        )
+        reassigned_row = _insert_fuzzy_row(
+            db,
+            etymon_id=third_id,
+            matched_form="heath",
+            snippet="another snippet",
+        )
+        case = AmbiguityCase(
+            source_id="test_book",
+            matched_form="heath",
+            snippet="bare untilled land",
+            text_match_ids=(kept_row, reassigned_row),
+            current_etymon_ids=(db._heath_id, third_id),
+            candidates=(),
+        )
+        # LLM picks the OE 'heath' etymon — first row is kept, second
+        # row reassigns into the first's slot via the UNIQUE constraint.
+        result = DisambiguatorResult(
+            chosen_etymon_id=db._heath_id, confidence="high", reason="OE heath"
+        )
+        counts = apply_disambiguator_result(db, case, result)
+        db.commit()
+
+        rows = db.conn.execute(
+            "SELECT id, etymon_id, method FROM etymon_text_match "
+            "WHERE source_id = 'test_book' AND matched_form = 'heath' "
+            "ORDER BY id"
+        ).fetchall()
+
+    assert counts == {"kept": 1, "reassigned": 1, "deleted": 0}
+    # Only the originally-kept row remains (the second's reassign
+    # collapsed onto it via UNIQUE constraint, source row deleted).
+    assert len(rows) == 1
+    assert rows[0]["id"] == kept_row
+    assert rows[0]["etymon_id"] == db._heath_id
+    assert rows[0]["method"] == "llm-disambiguated-v1"
+
+
+def test_apply_disambiguator_result_deletes_every_row_in_group_on_none(
+    fresh_db: Path,
+) -> None:
+    """wyrd-9ae: a 'none' verdict on a multi-row group must delete every
+    row in the group. Pins the early-return delete loop so a future
+    regression that only deleted the first row would fail loudly."""
+    with LexiconDB(fresh_db) as db:
+        _seed_minimum(db)
+        third_id = db.upsert_etymon("haethy", "old-english")
+        db.add_gloss(third_id, "alt spelling")
+        db.commit()
+        row_a = _insert_fuzzy_row(db, etymon_id=db._herath_id, matched_form="heath", snippet="...")
+        row_b = _insert_fuzzy_row(db, etymon_id=third_id, matched_form="heath", snippet="...")
+        case = AmbiguityCase(
+            source_id="test_book",
+            matched_form="heath",
+            snippet="...",
+            text_match_ids=(row_a, row_b),
+            current_etymon_ids=(db._herath_id, third_id),
+            candidates=(),
+        )
+        result = DisambiguatorResult(
+            chosen_etymon_id=None, confidence="low", reason="passage too vague"
+        )
+        counts = apply_disambiguator_result(db, case, result)
+        db.commit()
+
+        remaining = db.conn.execute(
+            "SELECT COUNT(*) FROM etymon_text_match "
+            "WHERE matched_form = 'heath' AND source_id = 'test_book'"
+        ).fetchone()[0]
+
+    assert counts == {"kept": 0, "reassigned": 0, "deleted": 2}
+    assert remaining == 0
+
+
 def test_lexicon_disambiguate_fuzzy_cli_end_to_end(
     fresh_db: Path, tmp_path: Path, monkeypatch
 ) -> None:

@@ -164,6 +164,10 @@ def find_ambiguous_rows(
     Excludes rows that have already been processed (method starts with
     'llm-disambiguated-').
     """
+    # ORDER BY id makes the per-group ordering load-bearing — the
+    # grouping dict's insertion order then tracks first-seen-row id so
+    # the case sequence stays deterministic across runs (matters for
+    # operator-readable summaries and reproducible test fixtures).
     cur = db.conn.execute(
         """
         SELECT m.id, m.etymon_id, m.source_id, m.matched_form, m.snippet
@@ -171,6 +175,7 @@ def find_ambiguous_rows(
         WHERE m.method LIKE 'fuzzy%'
           AND m.edit_distance > 0
           AND m.method NOT LIKE 'llm-disambiguated%'
+        ORDER BY m.id
         """
     )
     fuzzy_rows = cur.fetchall()
@@ -219,9 +224,6 @@ def find_ambiguous_rows(
         grouped.setdefault((row["source_id"], row["matched_form"]), []).append(row)
 
     cases: list[AmbiguityCase] = []
-    # Iterate in the original row-id order so the case ordering stays
-    # stable across runs (the dict insertion order tracks first-seen
-    # row id since fuzzy_rows came back ORDER BY id implicit).
     for (source_id, matched_form), rows in grouped.items():
         target = normalize_ocr_form(matched_form)
         candidates: list[Candidate] = []
