@@ -1452,10 +1452,14 @@ def lexicon_mine_fantasy_name(
 
     skipped_count = 0
     if skip_resolved:
+        # Lowercase-fold both sides — fantasy_morpheme.input_name uses
+        # COLLATE NOCASE, so 'Harpy' and 'harpy' are the same row.
+        # Without folding, varying input casing would re-trigger LLM
+        # calls even though the upsert would later collapse them.
         with LexiconDB(db_path) as resolved_db:
-            already = fp.fetch_resolved_input_names(resolved_db.conn)
+            already = {n.lower() for n in fp.fetch_resolved_input_names(resolved_db.conn)}
         before = len(inputs)
-        inputs = [(n, d) for (n, d) in inputs if n not in already]
+        inputs = [(n, d) for (n, d) in inputs if n.lower() not in already]
         skipped_count = before - len(inputs)
 
     click.echo(

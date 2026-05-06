@@ -1428,3 +1428,60 @@ def test_cli_mine_fantasy_name_skip_resolved_no_op_on_fresh_db(
     assert result.exit_code == 0
     combined = result.output + (result.stderr or "")
     assert "Routing 1 fantasy-name input(s) (skipped 0 already-resolved)" in combined
+
+
+def test_cli_mine_fantasy_name_skip_resolved_is_case_insensitive(
+    fresh_db: Path, tmp_path: Path
+) -> None:
+    """fantasy_morpheme.input_name uses COLLATE NOCASE — so an input
+    'harpy' should be skipped when a row already exists under 'Harpy'.
+    Pinned regression for the case-sensitivity bug Gemini caught
+    2026-05-06: the Python `in` check on the resolved-names set was
+    case-sensitive while the DB constraint was not, leading to
+    redundant LLM calls for casing variants."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+
+    with LexiconDB(fresh_db) as db:
+        etymon_id = _seed_etymon(db, canonical_form="harpy", language="modern-english")
+        db.commit()
+        res = fp.Resolution(
+            usable=True,
+            etymon_id=etymon_id,
+            resolution_method="descent_lookup",
+            bar_reason=None,
+            confidence="high",
+            citation="seed",
+            reasoning="prior run",
+        )
+        # Seed with capital-H 'Harpy'.
+        fp.write_resolution(db.conn, input_name="Harpy", input_description="prior", resolution=res)
+        db.commit()
+
+    batch_path = tmp_path / "inputs.jsonl"
+    # Input uses lowercase 'harpy' — must still be recognized as
+    # already-resolved.
+    batch_path.write_text('{"name": "harpy", "description": "winged"}\n')
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        [
+            "lexicon",
+            "mine-fantasy-name",
+            "--db",
+            str(fresh_db),
+            "--batch",
+            str(batch_path),
+            "--skip-llm",
+            "--skip-resolved",
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    combined = result.output + (result.stderr or "")
+    assert "Routing 0 fantasy-name input(s) (skipped 1 already-resolved)" in combined
+    # No processing line printed.
+    assert "USABLE" not in combined
+    assert "BARRED" not in combined

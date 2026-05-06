@@ -910,9 +910,13 @@ def fetch_resolved_input_names(
     Used by `lexicon mine-fantasy-name --skip-resolved` to avoid paying
     for re-resolution (each costs one Gemini call) on inputs that
     already have a result. Names are returned with their original case
-    as stored — callers should compare in the same case-sensitivity
-    regime as `write_resolution`'s UNIQUE constraint, which is the
-    SQLite default of case-sensitive on the `input_name` column.
+    as stored — callers MUST compare case-insensitively to match
+    `write_resolution`'s UNIQUE constraint, which uses
+    `COLLATE NOCASE` on the `input_name` column (see
+    `_create_fantasy_morpheme_table`). The canonical pattern:
+
+        already = {n.lower() for n in fetch_resolved_input_names(conn)}
+        if input_name.lower() in already: skip
     """
     cur = db_conn.execute(
         "SELECT input_name FROM fantasy_morpheme WHERE approach_version = ?",
