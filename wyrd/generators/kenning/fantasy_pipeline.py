@@ -900,6 +900,27 @@ def _safe_semantic_check(
         return None
 
 
+def fetch_resolved_input_names(
+    db_conn: sqlite3.Connection,
+    approach_version: str = APPROACH_VERSION,
+) -> set[str]:
+    """Return the set of `input_name` values that already have a row in
+    `fantasy_morpheme` for the given `approach_version`.
+
+    Used by `lexicon mine-fantasy-name --skip-resolved` to avoid paying
+    for re-resolution (each costs one Gemini call) on inputs that
+    already have a result. Names are returned with their original case
+    as stored — callers should compare in the same case-sensitivity
+    regime as `write_resolution`'s UNIQUE constraint, which is the
+    SQLite default of case-sensitive on the `input_name` column.
+    """
+    cur = db_conn.execute(
+        "SELECT input_name FROM fantasy_morpheme WHERE approach_version = ?",
+        (approach_version,),
+    )
+    return {row[0] for row in cur.fetchall()}
+
+
 def write_resolution(
     db_conn: sqlite3.Connection,
     *,
