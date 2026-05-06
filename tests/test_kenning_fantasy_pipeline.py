@@ -343,6 +343,58 @@ def test_resolve_skip_llm_bars_pre_filter_misses(fresh_db: Path) -> None:
     assert res.resolution_method == "descent_lookup"
 
 
+def test_resolve_via_llm_normalizes_attested_in_case_and_separators(fresh_db: Path) -> None:
+    """The LLM frequently returns 'Latin' / 'Old French' / 'old_french'
+    instead of the dashed-lowercase 'latin' / 'old-french' that
+    APPROVED_LANGUAGES uses. The pipeline must normalize at the boundary
+    so capitalization doesn't cause a usable etymology to mis-classify
+    as outside_language_family. Pinned regression for the 2026-05-06
+    pfsrd2 mining run that lost ~80 morphemes to this bug."""
+    with LexiconDB(fresh_db) as db:
+        target_id = _seed_etymon(db, canonical_form="harpyia", language="latin")
+        db.commit()
+
+    for raw_lang in ("Latin", "LATIN", " latin ", "latin"):
+
+        def _stub_llm(name, description, _raw_lang=raw_lang):
+            return {
+                "attested_in": _raw_lang,
+                "historical_form": "harpyia",
+                "gloss": None,
+                "citation": "Etymonline",
+                "confidence": "high",
+                "bar_reason": None,
+                "reasoning": "stub",
+            }
+
+        res = fp.resolve(fresh_db, "Harpy", "Greek monster", llm_caller=_stub_llm)
+        assert res.usable is True, f"failed for {raw_lang!r}"
+        assert res.etymon_id == target_id, f"failed for {raw_lang!r}"
+
+
+def test_resolve_via_llm_normalizes_space_separated_language_names(fresh_db: Path) -> None:
+    """Multi-word language names from the LLM ('Old French', 'Old
+    Norse') normalize to dashed form to match APPROVED_LANGUAGES."""
+    with LexiconDB(fresh_db) as db:
+        target_id = _seed_etymon(db, canonical_form="harpie", language="old-french")
+        db.commit()
+
+    def _stub_llm(name, description):
+        return {
+            "attested_in": "Old French",  # space-separated, capitalized
+            "historical_form": "harpie",
+            "gloss": None,
+            "citation": "Etymonline",
+            "confidence": "high",
+            "bar_reason": None,
+            "reasoning": "stub",
+        }
+
+    res = fp.resolve(fresh_db, "Harpie", "Greek monster", llm_caller=_stub_llm)
+    assert res.usable is True
+    assert res.etymon_id == target_id
+
+
 def test_resolve_via_llm_when_pre_filter_misses(fresh_db: Path) -> None:
     """Pre-filter misses → LLM is called. When the LLM-named (form, lang)
     pair exists in the etymon table, the resolution is usable and
