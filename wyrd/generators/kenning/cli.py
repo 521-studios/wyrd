@@ -1508,7 +1508,7 @@ def lexicon_mine_fantasy_name(
             # can scan both batches the same way).
             if completed % progress_every == 0 or completed == total_inputs:
                 elapsed = time.time() - progress_start
-                rate = elapsed / completed if completed else 0.0
+                rate = elapsed / completed
                 click.echo(
                     f"  [{completed}/{total_inputs}]  "
                     f"usable={counts['usable']} barred={counts['barred']} "
