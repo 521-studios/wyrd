@@ -1247,6 +1247,7 @@ def lexicon_mine_llm(
     not ingested. Successful extractions are tagged in `notes` with the
     provider+model so we can supersede them later with a stronger model.
     """
+    _warn_if_paid_concurrency_too_high(provider, concurrency)
     derived_id = source_id or path.stem
     metadata = _KNOWN_SKEAT_BOOKS.get(
         derived_id,
@@ -1950,6 +1951,34 @@ def lexicon_review(
     click.echo(f"Review summary: {counts}", err=True)
     if not apply_changes:
         click.echo("(dry-run; pass --apply to write)", err=True)
+
+
+PAID_CONCURRENCY_WARN_THRESHOLD = 16
+PAID_PROVIDERS = ("anthropic", "gemini")
+
+
+def _warn_if_paid_concurrency_too_high(provider: str, concurrency: int) -> None:
+    """Warn when ``--concurrency`` exceeds ``PAID_CONCURRENCY_WARN_THRESHOLD``
+    against a paid provider (Anthropic, Gemini).
+
+    The IntRange on ``--concurrency`` is permissive (1-64) because Ollama on
+    a multi-GPU host can usefully run many parallel requests. Paid providers
+    have per-org RPM caps, so a copy-pasted ``--concurrency 64`` against
+    Anthropic blows past the cap and ~64 entries fail simultaneously with
+    transport_error_result. ``provider_retry`` softens this with 429
+    backoff but won't save the operator from a 4-5x oversaturation.
+
+    Surfaced by Claude review on PR #62 (wyrd-mk7).
+    """
+    if provider in PAID_PROVIDERS and concurrency > PAID_CONCURRENCY_WARN_THRESHOLD:
+        click.echo(
+            f"warning: --concurrency {concurrency} is high for paid provider "
+            f"'{provider}' (RPM-capped). 4-8 is the documented sweet spot; "
+            f"4-{PAID_CONCURRENCY_WARN_THRESHOLD} is reasonable. The 429 "
+            f"retry-with-backoff layer will absorb brief overruns but a "
+            f"sustained {concurrency}-way fan-out will saturate the cap.",
+            err=True,
+        )
 
 
 def _build_llm_client(
