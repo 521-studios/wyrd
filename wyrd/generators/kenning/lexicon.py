@@ -267,23 +267,23 @@ class LexiconDB:
         differs. So after backfill_citation_pages writes page='15' on an
         existing row, a re-mine that calls add_citation(page=None) would
         slip past INSERT OR IGNORE and split the same evidence into two
-        rows. Pre-check here for any (etymon, source) row regardless of
-        page; if one exists, skip. This matches the intended one-row-per-
-        evidence-pair semantic.
+        rows. The INSERT ... WHERE NOT EXISTS form below collapses the
+        check and write into a single atomic statement so two parallel
+        writers can't both pass a pre-check and both insert. Matches the
+        intended one-row-per-evidence-pair semantic the unique index
+        meant to enforce.
         """
-        existing = self.conn.execute(
-            "SELECT 1 FROM etymon_citation WHERE etymon_id = ? AND source_id = ? LIMIT 1",
-            (etymon_id, source_id),
-        ).fetchone()
-        if existing is not None:
-            return
         self.conn.execute(
             """
-            INSERT OR IGNORE INTO etymon_citation
+            INSERT INTO etymon_citation
                 (etymon_id, source_id, page, short_quote, context_snippet)
-            VALUES (?, ?, ?, ?, ?)
+            SELECT ?, ?, ?, ?, ?
+            WHERE NOT EXISTS (
+                SELECT 1 FROM etymon_citation
+                WHERE etymon_id = ? AND source_id = ?
+            )
             """,
-            (etymon_id, source_id, page, short_quote, context_snippet),
+            (etymon_id, source_id, page, short_quote, context_snippet, etymon_id, source_id),
         )
 
     def upsert_reflex(self, surface_form: str, position: str) -> int:
