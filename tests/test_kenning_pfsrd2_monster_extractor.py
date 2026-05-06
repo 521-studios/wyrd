@@ -17,6 +17,7 @@ from wyrd.generators.kenning.pfsrd2_monster_extractor import (
     extract_description,
     extract_input_name,
     extract_monster,
+    extract_records,
     iter_monster_files,
 )
 
@@ -473,12 +474,178 @@ def test_real_world_bugbear_thug_pattern_resolves_to_bugbear(tmp_path: Path) -> 
     }
     _write_monster_file(monsters_dir, "bugbear_thug.json", bugbear_thug)
     records = list(extract_corpus(tmp_path))
+    # 'Bugbear Thug' is multi-word so no variant record is emitted.
+    # Only the family-root 'Bugbear' record (with family-only description).
     assert len(records) == 1
     assert records[0]["name"] == "Bugbear"
     desc = records[0]["description"]
-    # Family lore comes first
+    # Family lore (family.text)
     assert desc.startswith("These stealthy goblinoid creatures")
-    # Family-section text included
+    # Family-section text
     assert "Bugbears live in small gangs" in desc
-    # Variant section text appended
-    assert "more common bugbear thug" in desc
+    # Per v2: monster.sections is NOT included in the family-root
+    # description (it would arbitrarily come from whichever variant was
+    # encountered first). Variant flavor only appears on variant records.
+    assert "more common bugbear thug" not in desc
+
+
+# --- extract_records (v2 family + variant emission) -------------------
+
+
+def test_extract_records_emits_both_family_and_variant_for_djinni():
+    """Genie family with single-word variant 'Djinni': v2 emits both
+    'Genie' (family root, deduped across all genie files) and 'Djinni'
+    (etymologically distinct Arabic morpheme worth researching alone).
+    Pre-v2, only the family root was emitted, silently losing Djinni."""
+    monster = _monster(
+        name="Djinni",
+        family_name="Genie",
+        family_text="Genies are creatures of the elemental planes.",
+        sections=[_section("Djinni", "Djinn rule the Plane of Air.")],
+    )
+    records = list(extract_records(monster))
+    assert len(records) == 2
+    family_rec, variant_rec = records
+    assert family_rec["name"] == "Genie"
+    # Family record is family-only — no monster.sections content.
+    assert family_rec["description"] == "Genies are creatures of the elemental planes."
+    assert variant_rec["name"] == "Djinni"
+    # Variant record includes both the family lore (as context) and the
+    # variant flavor.
+    assert "Genies are creatures" in variant_rec["description"]
+    assert "Djinn rule the Plane of Air" in variant_rec["description"]
+
+
+def test_extract_records_emits_only_family_when_variant_is_multi_word():
+    """Bugbear family with multi-word variant 'Bugbear Thug': v2 emits
+    only 'Bugbear' (variant is multi-word, dropped per single-word rule)."""
+    monster = _monster(name="Bugbear Thug", family_name="Bugbear", family_text="goblinoid")
+    records = list(extract_records(monster))
+    assert len(records) == 1
+    assert records[0]["name"] == "Bugbear"
+
+
+def test_extract_records_emits_only_family_when_variant_equals_family_root():
+    """A 'Bugbear' creature in the 'Bugbear' family doesn't double-emit
+    — name == family root (case-insensitive) is treated as the family
+    record, not a separate variant."""
+    monster = _monster(name="Bugbear", family_name="Bugbear", family_text="lore")
+    records = list(extract_records(monster))
+    assert len(records) == 1
+    assert records[0]["name"] == "Bugbear"
+
+
+def test_extract_records_case_insensitive_variant_vs_family():
+    """'bugbear' (lowercase) under family 'Bugbear' (capitalized) is
+    still treated as the family record — case-insensitive equality."""
+    monster = _monster(name="bugbear", family_name="Bugbear")
+    records = list(extract_records(monster))
+    assert len(records) == 1
+    assert records[0]["name"] == "Bugbear"
+
+
+def test_extract_records_no_family_single_word():
+    """Harpy: no family, single-word name → one no-family record."""
+    monster = _monster(
+        name="Harpy",
+        sections=[_section("Harpy", "winged scavengers")],
+    )
+    records = list(extract_records(monster))
+    assert len(records) == 1
+    assert records[0]["name"] == "Harpy"
+    # No-family description is monster.sections only.
+    assert records[0]["description"] == "winged scavengers"
+
+
+def test_extract_records_no_family_multi_word_yields_nothing():
+    """'Ancient Black Dragon' with no family yields no records."""
+    monster = _monster(name="Ancient Black Dragon", family_name=None)
+    assert list(extract_records(monster)) == []
+
+
+def test_extract_records_multi_word_family_with_single_word_variant():
+    """Edge case: family is multi-word ('Blightburn Genies' is a real
+    pfsrd2 family) so the family root is skipped, but the variant name
+    'Ararda' is single-word → emit just the variant record. The variant
+    gets the variant-style description (with family.text as context)."""
+    monster = _monster(
+        name="Ararda",
+        family_name="Blightburn Genies",
+        family_text="Blightburn genies are warped by radioactive blight.",
+        sections=[_section("Ararda", "Ararda are scouts.")],
+    )
+    records = list(extract_records(monster))
+    assert len(records) == 1
+    assert records[0]["name"] == "Ararda"
+    # Family.text is included as context on the variant record even
+    # though the family root was unusable.
+    assert "Blightburn genies are warped" in records[0]["description"]
+    assert "Ararda are scouts" in records[0]["description"]
+
+
+def test_extract_records_multi_word_family_with_multi_word_variant_yields_nothing():
+    """Both axes multi-word → drop everything."""
+    monster = _monster(name="Suli Dune Dancer", family_name="Blightburn Genies")
+    assert list(extract_records(monster)) == []
+
+
+# --- extract_corpus with v2 variant emission --------------------------
+
+
+def test_extract_corpus_emits_family_plus_variants_across_genie_files(
+    tmp_path: Path,
+) -> None:
+    """End-to-end: 5 genie-family files (Djinni, Efreeti, Marid, Shaitan,
+    Janni) produce 6 records: 'Genie' (family root, deduped) plus each
+    of the 5 single-word variant names. This is the canonical regression
+    for the v2 family+variant emission rule."""
+    monsters_dir = tmp_path / "monsters" / "bestiary"
+    for variant in ("Djinni", "Efreeti", "Marid", "Shaitan", "Janni"):
+        _write_monster_file(
+            monsters_dir,
+            f"{variant.lower()}.json",
+            _monster(
+                name=variant,
+                family_name="Genie",
+                family_text="Genies are elemental.",
+                sections=[_section(variant, f"{variant} flavor.")],
+            ),
+        )
+    records = list(extract_corpus(tmp_path))
+    names = sorted(r["name"] for r in records)
+    assert names == ["Djinni", "Efreeti", "Genie", "Janni", "Marid", "Shaitan"]
+    # Family record description is family-only.
+    genie = next(r for r in records if r["name"] == "Genie")
+    assert "elemental" in genie["description"]
+    for variant in ("Djinni", "Efreeti", "Marid", "Shaitan", "Janni"):
+        assert variant.lower() not in genie["description"].lower()
+    # Each variant record includes its own flavor.
+    djinni = next(r for r in records if r["name"] == "Djinni")
+    assert "Djinni flavor" in djinni["description"]
+
+
+def test_extract_corpus_dedupes_variant_across_files(tmp_path: Path) -> None:
+    """If two files emit the same variant name (rare, e.g. reprinted
+    monster), only the first wins — same dedupe rule as family roots."""
+    monsters_dir = tmp_path / "monsters" / "bestiary"
+    _write_monster_file(
+        monsters_dir,
+        "alpha.json",
+        _monster(
+            name="Djinni",
+            family_name="Genie",
+            sections=[_section("Djinni", "first version")],
+        ),
+    )
+    _write_monster_file(
+        monsters_dir,
+        "beta.json",
+        _monster(
+            name="Djinni",
+            family_name="Genie",
+            sections=[_section("Djinni", "second version")],
+        ),
+    )
+    djinni_records = [r for r in extract_corpus(tmp_path) if r["name"] == "Djinni"]
+    assert len(djinni_records) == 1
+    assert "first version" in djinni_records[0]["description"]
