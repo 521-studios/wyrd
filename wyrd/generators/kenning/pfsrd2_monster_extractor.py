@@ -151,17 +151,26 @@ def _no_family_description(monster: dict[str, Any]) -> str:
 
 def extract_description(monster: dict[str, Any]) -> str:
     """Build the LLM-input description for the *primary* morpheme of a
-    monster (family root if present, else the monster name itself).
+    monster — mirrors what `extract_corpus` (via `extract_records`)
+    emits for the primary axis, so this single-monster view matches
+    the corpus view.
 
-    Mirrors `extract_input_name`'s axis:
-    - If family present: `family.text` + family.sections + monster.sections
-      (the variant-style description, since a family-root record sees
-      content from one specific variant via dedupe-first-wins).
-    - Else: monster.sections only.
+    Three cases, parallel to `extract_records`:
+    - Single-word family root → `_family_only_description` (no per-
+      variant content; the family record represents the whole family).
+    - Family present but multi-word root → `_variant_description`
+      (the variant carries family.text as context plus its own
+      sections, since the family root itself isn't usable).
+    - No family → `_no_family_description` (monster.sections only).
 
-    Callers wanting separate family-only / variant / no-family
-    descriptions should use `extract_records()`.
+    Callers wanting the variant-record description independently
+    should call `_variant_description` directly or use
+    `extract_records()`.
     """
+    family_root = _family_root(monster)
+    if family_root is not None:
+        family = monster["stat_block"]["creature_type"]["family"]
+        return _family_only_description(family)
     family = monster.get("stat_block", {}).get("creature_type", {}).get("family")
     if family and family.get("name"):
         return _variant_description(family, monster)
@@ -210,20 +219,16 @@ def extract_records(monster: dict[str, Any]) -> Iterator[dict[str, str]]:
     elif monster_name is not None:
         # No usable family root, but monster name is single-word. This
         # also catches the "family exists but is multi-word (e.g.
-        # Geniekin) AND monster name is single-word" edge case — emit
-        # the variant on its own. The variant gets the variant-style
-        # description (with family.text as context) when family is
-        # present, else no-family.
-        if family and family.get("name"):
-            yield {
-                "name": monster_name,
-                "description": _variant_description(family, monster),
-            }
-        else:
-            yield {
-                "name": monster_name,
-                "description": _no_family_description(monster),
-            }
+        # 'Blightburn Genies') AND monster name is single-word" edge
+        # case — emit the variant on its own. The variant gets the
+        # variant-style description (with family.text as context) when
+        # family is present, else no-family.
+        description = (
+            _variant_description(family, monster)
+            if family and family.get("name")
+            else _no_family_description(monster)
+        )
+        yield {"name": monster_name, "description": description}
 
 
 def iter_monster_files(corpus_root: Path) -> Iterator[Path]:

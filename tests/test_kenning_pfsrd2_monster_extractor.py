@@ -151,9 +151,11 @@ def test_collect_section_texts_handles_none_and_empty():
 # --- extract_description ----------------------------------------------
 
 
-def test_extract_description_combines_family_and_monster_sections():
-    """Real-world pattern: family.text is the rich lore, monster
-    sections add per-variant flavor. Both are concatenated."""
+def test_extract_description_returns_family_only_for_single_word_family_root():
+    """When a single-word family root is the primary morpheme,
+    extract_description returns family-only content (no per-variant
+    monster.sections). This mirrors what extract_corpus emits for the
+    family-root record via extract_records."""
     monster = _monster(
         name="Bugbear Thug",
         family_name="Bugbear",
@@ -164,7 +166,24 @@ def test_extract_description_combines_family_and_monster_sections():
     desc = extract_description(monster)
     assert "stealthy goblinoid creatures" in desc
     assert "Bugbears live in small gangs" in desc
-    assert "more common bugbear thug" in desc
+    # Per-variant monster.sections content is excluded — would arbitrarily
+    # come from whichever variant the dedupe encountered first.
+    assert "more common bugbear thug" not in desc
+
+
+def test_extract_description_returns_variant_style_for_multi_word_family():
+    """When the family root is multi-word (unusable), the primary
+    morpheme is the variant name. extract_description includes
+    family.text as context plus monster.sections (variant flavor)."""
+    monster = _monster(
+        name="Ararda",
+        family_name="Blightburn Genies",
+        family_text="Blightburn genies are warped by radioactive blight.",
+        sections=[_section("Ararda", "Ararda are scouts.")],
+    )
+    desc = extract_description(monster)
+    assert "Blightburn genies are warped" in desc
+    assert "Ararda are scouts" in desc
 
 
 def test_extract_description_falls_back_to_monster_sections_when_no_family():
