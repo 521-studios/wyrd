@@ -1120,6 +1120,17 @@ def test_kenning_input_schema_era_options_match_era_family_per_culture():
         )
 
 
+def test_resolve_era_param_treats_empty_string_as_no_filter():
+    """The SPA now actively ships era="" when the user picks the
+    'no filter' dropdown option (vs. previously omitting the key). Pin
+    the resolver's empty-string handling so that path remains a no-op
+    rather than ever raising or being interpreted as a literal year."""
+    from wyrd.generators.kenning import _resolve_era_param
+
+    assert _resolve_era_param("", "english") is None
+    assert _resolve_era_param(None, "english") is None
+
+
 # --- wyrd-mj2 cohesion (tag co-occurrence bias) ---------------------------
 
 

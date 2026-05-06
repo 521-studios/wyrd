@@ -152,8 +152,12 @@ function _populateDependentOptions(select, prop, culture, preferredValue) {
     }
     // Preserve a previously-chosen value when the new option set still
     // contains it (e.g. switching English ↔ Scottish keeps 'modern'
-    // selected); otherwise fall back to the schema default.
-    if (previous && options.includes(previous)) {
+    // selected); otherwise fall back to the schema default. The bare
+    // includes() check (no truthy guard) is intentional: "" is the
+    // 'no filter' option and a valid selection to preserve across
+    // culture changes — wrapping with `previous &&` would silently
+    // drop the empty selection on every culture change.
+    if (options.includes(previous)) {
         select.value = previous;
     } else if (prop.default !== undefined && options.includes(prop.default)) {
         select.value = prop.default;
