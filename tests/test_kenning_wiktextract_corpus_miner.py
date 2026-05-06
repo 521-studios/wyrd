@@ -13,7 +13,9 @@ from collections import Counter
 from pathlib import Path
 
 import pytest
+from click.testing import CliRunner
 
+from wyrd.generators.kenning.cli import cli
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.wiktextract_corpus_miner import (
     CULTURE_LANG_SCOPE,
@@ -643,12 +645,6 @@ def test_mine_wiktextract_corpus_writes_mining_run_audit_row(fresh_db: Path) -> 
     position_reflexes_written) land in by_failure (the audit-shaped
     JSON column); accept/decline/reject-style fields use the closest
     analogues since empirical mining doesn't have those semantics."""
-    import json
-
-    from click.testing import CliRunner
-
-    from wyrd.generators.kenning.cli import cli
-
     db_path = fresh_db
     sources_dir = fresh_db.parent / "sources"
     sources_dir.mkdir()
@@ -713,10 +709,6 @@ def test_mine_wiktextract_corpus_dry_run_skips_mining_run_audit_row(
     """The audit row is conditional on --apply (mirrors the rest of the
     write side). A dry-run must not pollute mining_run with rows that
     don't correspond to actual writes."""
-    from click.testing import CliRunner
-
-    from wyrd.generators.kenning.cli import cli
-
     db_path = fresh_db
     sources_dir = fresh_db.parent / "sources"
     sources_dir.mkdir()

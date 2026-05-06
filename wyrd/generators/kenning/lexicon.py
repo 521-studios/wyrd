@@ -486,23 +486,44 @@ def _create_etymon_indexes(db: LexiconDB, applied: dict[str, bool]) -> None:
         applied["idx_etymon_cognate"] = True
 
 
-def _rebuild_etymon_views(db: LexiconDB, applied: dict[str, bool]) -> None:
-    """Recreate etymon_canonical and etymon_consensus.
+def _recreate_view(db: LexiconDB, applied: dict[str, bool], name: str, body: str) -> None:
+    """Drop-and-recreate a single view, marking the applied-flag dict.
 
-    Always rebuilt (DROP IF EXISTS + CREATE) because the definitions change
-    when new columns are introduced, and SQLite has no CREATE OR REPLACE
-    VIEW. Cheap.
+    Views are always rebuilt (DROP IF EXISTS + CREATE) because the
+    definitions change when new columns are introduced and SQLite has
+    no CREATE OR REPLACE VIEW. The applied-flag key is ``f"{name}_view"``
+    by convention; callers that need a different key can update
+    ``applied`` directly after this call.
     """
-    db.conn.execute("DROP VIEW IF EXISTS etymon_canonical")
-    db.conn.execute(
+    db.conn.execute(f"DROP VIEW IF EXISTS {name}")
+    db.conn.execute(body)
+    applied[f"{name}_view"] = True
+
+
+def _rebuild_etymon_views(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Recreate the etymon view layer (canonical + consensus + the
+    wyrd-7lo per-child rollups).
+
+    Each view body lives in this function rather than a constant so
+    the migration path stays self-contained. The full rationale for
+    each view (why MIN(attested_year), why SUM(match_count), how the
+    two-step chain handles merged_into_id → lemma_id) lives next to
+    the matching CREATE VIEW blocks in data/lexicon.sql; this function
+    just mirrors them for legacy-DB migration.
+    """
+    _recreate_view(
+        db,
+        applied,
+        "etymon_canonical",
         """
         CREATE VIEW etymon_canonical AS
           SELECT * FROM etymon WHERE merged_into_id IS NULL
-        """
+        """,
     )
-    applied["etymon_canonical_view"] = True
-    db.conn.execute("DROP VIEW IF EXISTS etymon_consensus")
-    db.conn.execute(
+    _recreate_view(
+        db,
+        applied,
+        "etymon_consensus",
         """
         CREATE VIEW etymon_consensus AS
           SELECT lemma_id,
@@ -525,19 +546,12 @@ def _rebuild_etymon_views(db: LexiconDB, applied: dict[str, bool]) -> None:
             LEFT JOIN etymon_citation c ON c.etymon_id = e.id
           )
           GROUP BY lemma_id
-        """
+        """,
     )
-    applied["etymon_consensus_view"] = True
-    # wyrd-7lo: rollup views for the other three child tables. Same
-    # canonical-group chain as etymon_consensus; surfaced as canonical
-    # views so consumers wanting "all data for this canonical etymon"
-    # can read through them instead of joining merged_into_id manually.
-    # The full rationale (why MIN(attested_year), why SUM(match_count),
-    # how the chain handles depth-2 cases) lives next to the matching
-    # CREATE VIEW blocks in data/lexicon.sql; this function just
-    # mirrors them for legacy-DB migration.
-    db.conn.execute("DROP VIEW IF EXISTS etymon_gloss_canonical")
-    db.conn.execute(
+    _recreate_view(
+        db,
+        applied,
+        "etymon_gloss_canonical",
         """
         CREATE VIEW etymon_gloss_canonical AS
           SELECT DISTINCT
@@ -547,11 +561,12 @@ def _rebuild_etymon_views(db: LexiconDB, applied: dict[str, bool]) -> None:
           JOIN etymon_gloss g ON g.etymon_id = e.id
           LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
           LEFT JOIN etymon le ON le.id = target.lemma_id
-        """
+        """,
     )
-    applied["etymon_gloss_canonical_view"] = True
-    db.conn.execute("DROP VIEW IF EXISTS etymon_tag_canonical")
-    db.conn.execute(
+    _recreate_view(
+        db,
+        applied,
+        "etymon_tag_canonical",
         """
         CREATE VIEW etymon_tag_canonical AS
           SELECT DISTINCT
@@ -561,11 +576,12 @@ def _rebuild_etymon_views(db: LexiconDB, applied: dict[str, bool]) -> None:
           JOIN etymon_tag t ON t.etymon_id = e.id
           LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
           LEFT JOIN etymon le ON le.id = target.lemma_id
-        """
+        """,
     )
-    applied["etymon_tag_canonical_view"] = True
-    db.conn.execute("DROP VIEW IF EXISTS etymon_text_match_canonical")
-    db.conn.execute(
+    _recreate_view(
+        db,
+        applied,
+        "etymon_text_match_canonical",
         """
         CREATE VIEW etymon_text_match_canonical AS
           SELECT COALESCE(le.id, target.id, e.id) AS canonical_etymon_id,
@@ -579,9 +595,8 @@ def _rebuild_etymon_views(db: LexiconDB, applied: dict[str, bool]) -> None:
           LEFT JOIN etymon target ON target.id = COALESCE(e.merged_into_id, e.lemma_id)
           LEFT JOIN etymon le ON le.id = target.lemma_id
           GROUP BY canonical_etymon_id, m.source_id, m.matched_form
-        """
+        """,
     )
-    applied["etymon_text_match_canonical_view"] = True
 
 
 def _create_etymon_descent_table(db: LexiconDB, applied: dict[str, bool]) -> None:
