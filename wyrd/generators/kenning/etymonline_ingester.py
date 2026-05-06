@@ -28,8 +28,6 @@ Where `dir/` contains one .txt file per word (output of `rodney text
 
 from __future__ import annotations
 
-from typing import Any
-
 from wyrd.generators.kenning.etymonline_parser import (
     Sense,
     parse_text,
@@ -94,53 +92,34 @@ def _lookup_etymon_id(db: LexiconDB, canonical_form: str, language: str) -> int 
     return row[0] if row else None
 
 
-def ingest_sense(
+def _upsert_chain(
     db: LexiconDB,
     sense: Sense,
-    *,
-    apply: bool,
-) -> dict[str, int]:
-    """Write one parsed Sense's chain into the etymon graph. Counts
-    are returned, mutating only the DB.
-
-    Strategy:
-    - Etymonline lists chain in descent order: harpy ← OFr harpie
-      ← Latin harpyia ← Greek Harpyia. So chain[0] is the immediate
-      parent of the headword; chain[-1] is the deepest ancestor.
-    - For each chain link, upsert (language, word) → etymon_id.
-    - Edge chain[i+1] → chain[i] for adjacent pairs (going leaf-ward).
-    - Leaf edge chain[0] → headword (if headword resolves to an
-      existing etymon).
-    """
-    counts = {
-        "chain_links": len(sense.chain),
-        "etymons_added_or_existing": 0,
-        "edges_added": 0,
-        "edges_skipped_dupe": 0,
-        "leaf_edge_skipped_no_headword": 0,
-        "glosses_added": 0,
-    }
-    if not sense.chain:
-        return counts
-
-    # Upsert each chain etymon and remember its id (in chain order:
-    # link[0] = closest to leaf, link[-1] = deepest ancestor).
+    counts: dict[str, int],
+) -> list[int]:
+    """Upsert each chain link's etymon row, attach glosses, and return
+    the resulting etymon ids in chain order. Mutates `counts` for
+    `etymons_added_or_existing` and `glosses_added`."""
     link_ids: list[int] = []
     for link in sense.chain:
-        if apply:
-            eid = db.upsert_etymon(link.word, link.language)
-            link_ids.append(eid)
-            if link.gloss:
-                db.add_gloss(eid, link.gloss)
-                counts["glosses_added"] += 1
-        else:
-            link_ids.append(-1)  # placeholder — dry-run can't track
+        eid = db.upsert_etymon(link.word, link.language)
+        link_ids.append(eid)
+        if link.gloss:
+            db.add_gloss(eid, link.gloss)
+            counts["glosses_added"] += 1
         counts["etymons_added_or_existing"] += 1
+    return link_ids
 
-    if not apply:
-        return counts
 
-    # Adjacent edges: chain[i+1] is parent of chain[i].
+def _emit_adjacent_edges(
+    db: LexiconDB,
+    sense: Sense,
+    link_ids: list[int],
+    counts: dict[str, int],
+) -> None:
+    """For each consecutive (parent, child) pair in the chain, emit
+    the etymon_descent edge — chain[i+1] is parent of chain[i] since
+    Etymonline lists in descent (leaf-most-first) order."""
     for i in range(len(sense.chain) - 1):
         parent_id = link_ids[i + 1]
         child_id = link_ids[i]
@@ -153,18 +132,59 @@ def ingest_sense(
         else:
             counts["edges_skipped_dupe"] += 1
 
-    # Leaf edge: chain[0] → headword (if headword exists in the corpus).
+
+def _emit_leaf_edge(
+    db: LexiconDB,
+    sense: Sense,
+    link_ids: list[int],
+    counts: dict[str, int],
+) -> None:
+    """Wire chain[0] → headword if the headword exists in the corpus
+    as a modern-english etymon. Skipped (with counter) otherwise."""
     head_id = _lookup_etymon_id(db, sense.headword, _HEADWORD_LANGUAGE)
     if head_id is None:
         counts["leaf_edge_skipped_no_headword"] += 1
+        return
+    edge_type = sense.chain[0].edge_type
+    confidence = _confidence_label(sense.chain[0].confidence)
+    if _emit_descent_edge(db, link_ids[0], head_id, edge_type, confidence):
+        counts["edges_added"] += 1
     else:
-        edge_type = sense.chain[0].edge_type
-        confidence = _confidence_label(sense.chain[0].confidence)
-        if _emit_descent_edge(db, link_ids[0], head_id, edge_type, confidence):
-            counts["edges_added"] += 1
-        else:
-            counts["edges_skipped_dupe"] += 1
+        counts["edges_skipped_dupe"] += 1
 
+
+def ingest_sense(
+    db: LexiconDB,
+    sense: Sense,
+    *,
+    apply: bool,
+) -> dict[str, int]:
+    """Write one parsed Sense's chain into the etymon graph. Counts
+    are returned, mutating only the DB.
+
+    Etymonline lists chain in descent order: harpy ← OFr harpie ←
+    Latin harpyia ← Greek Harpyia. chain[0] is the immediate parent
+    of the headword; chain[-1] is the deepest ancestor. Three phases:
+    upsert chain etymons, emit adjacent chain-pair edges, emit the
+    leaf edge to the headword.
+    """
+    counts = {
+        "chain_links": len(sense.chain),
+        "etymons_added_or_existing": 0,
+        "edges_added": 0,
+        "edges_skipped_dupe": 0,
+        "leaf_edge_skipped_no_headword": 0,
+        "glosses_added": 0,
+    }
+    if not sense.chain:
+        return counts
+    if not apply:
+        # Dry-run: just count the chain links so callers can preview.
+        counts["etymons_added_or_existing"] = len(sense.chain)
+        return counts
+    link_ids = _upsert_chain(db, sense, counts)
+    _emit_adjacent_edges(db, sense, link_ids, counts)
+    _emit_leaf_edge(db, sense, link_ids, counts)
     return counts
 
 
@@ -203,8 +223,3 @@ def ingest_text(
     if apply:
         db.commit()
     return totals
-
-
-def _normalize_count_keys(d: dict[str, Any]) -> dict[str, int]:
-    """Helper for tests / callers — return only int-valued count keys."""
-    return {k: int(v) for k, v in d.items() if isinstance(v, int)}

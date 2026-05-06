@@ -1580,39 +1580,24 @@ def lexicon_ingest_etymonline(
         "leaf_edge_skipped_no_headword": 0,
         "glosses_added": 0,
     }
-    if apply_changes:
-        with LexiconDB(db_path) as db:
+    with LexiconDB(db_path) as db:
+        if apply_changes:
             etymonline_ingester.ensure_source(db)
-            for f in files:
-                text = f.read_text()
-                counts = etymonline_ingester.ingest_text(db, text, apply=True)
-                totals["files"] += 1
-                for k, v in counts.items():
-                    if k in totals:
-                        totals[k] += v
-                click.echo(
-                    f"  {f.name:<32} senses={counts['senses_parsed']:<2} "
-                    f"links={counts['chain_links']:<3} "
-                    f"edges_added={counts['edges_added']}",
-                    err=True,
-                )
+        for f in files:
+            text = f.read_text()
+            counts = etymonline_ingester.ingest_text(db, text, apply=apply_changes)
+            totals["files"] += 1
+            for k, v in counts.items():
+                if k in totals:
+                    totals[k] += v
+            edges_field = f" edges_added={counts['edges_added']}" if apply_changes else ""
+            click.echo(
+                f"  {f.name:<32} senses={counts['senses_parsed']:<2} "
+                f"links={counts['chain_links']:<3}{edges_field}",
+                err=True,
+            )
+        if apply_changes:
             db.commit()
-    else:
-        # Dry-run: parse + count without writing. Still need a DB
-        # handle for ingest_text's signature, but pass apply=False.
-        with LexiconDB(db_path) as db:
-            for f in files:
-                text = f.read_text()
-                counts = etymonline_ingester.ingest_text(db, text, apply=False)
-                totals["files"] += 1
-                for k, v in counts.items():
-                    if k in totals:
-                        totals[k] += v
-                click.echo(
-                    f"  {f.name:<32} senses={counts['senses_parsed']:<2} "
-                    f"links={counts['chain_links']:<3}",
-                    err=True,
-                )
 
     click.echo("", err=True)
     click.echo(f"Summary: {totals}", err=True)

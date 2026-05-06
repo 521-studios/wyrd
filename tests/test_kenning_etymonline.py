@@ -7,6 +7,7 @@ tests/fixtures/etymonline/. Network-free.
 from __future__ import annotations
 
 import dataclasses
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -447,3 +448,149 @@ def test_chain_link_dataclass_is_frozen():
     )
     with pytest.raises(dataclasses.FrozenInstanceError):
         link.word = "different"  # type: ignore[misc]
+
+
+# --- coverage gaps surfaced by test-coverage-reviewer (PR #80 round 1) ---
+
+
+def test_parse_chain_hedge_with_no_word_after_language_skips():
+    """`from Latin.` (language ends the sentence with no word after) →
+    _parse_language_and_word's word-not-found branch returns None and
+    the cursor advances past the unparseable hedge."""
+    summary = "from Latin."
+    chain = parse_chain(summary)
+    assert chain == []
+
+
+def test_split_senses_headword_with_no_summary_terminates_cleanly():
+    """A truncated input with a headword line but no following summary
+    block hits the `if i + 1 >= len(blocks): break` terminal branch
+    without a crash and returns whatever was already parsed."""
+    text = "harpy(n.)\n\nlate 14c., from Old French harpie.\n\ntroll(n.1)"
+    senses = split_senses(text)
+    # Only the harpy block is complete; troll(n.1) has no summary.
+    assert len(senses) == 1
+    assert senses[0][0] == "harpy(n.)"
+
+
+def test_confidence_label_unknown_string_falls_back_to_low(fresh_db: Path) -> None:
+    """_confidence_label maps unrecognized confidence values to 'low'
+    so the etymon_descent CHECK constraint never sees a bad string."""
+    from wyrd.generators.kenning.etymonline_ingester import _confidence_label
+
+    assert _confidence_label("high") == "high"
+    assert _confidence_label("medium") == "medium"
+    assert _confidence_label("low") == "low"
+    assert _confidence_label("unknown") == "low"
+    assert _confidence_label("") == "low"
+
+
+# --- CLI subcommand tests --------------------------------------------
+
+
+def test_cli_ingest_etymonline_dry_run_writes_nothing(fresh_db: Path, tmp_path: Path) -> None:
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+
+    src_dir = tmp_path / "etym"
+    src_dir.mkdir()
+    (src_dir / "harpy.txt").write_text(
+        "harpy(n.)\n\nlate 14c., from Old French harpie.\n\nalso from late 14c."
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        ["lexicon", "ingest-etymonline", str(src_dir), "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    assert "(dry-run; pass --apply to write)" in (result.output + (result.stderr or ""))
+    conn = sqlite3.connect(fresh_db)
+    n = conn.execute("SELECT COUNT(*) FROM etymon_descent").fetchone()[0]
+    assert n == 0
+
+
+def test_cli_ingest_etymonline_apply_writes_edges(fresh_db: Path, tmp_path: Path) -> None:
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+
+    src_dir = tmp_path / "etym"
+    src_dir.mkdir()
+    (src_dir / "harpy.txt").write_text(
+        "harpy(n.)\n\nlate 14c., from Old French harpie, from Latin harpyia.\n\n"
+    )
+    # Seed the headword so the leaf edge gets wired.
+    with LexiconDB(fresh_db) as db:
+        _seed_etymon(db, canonical_form="harpy", language="modern-english")
+        db.commit()
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        [
+            "lexicon",
+            "ingest-etymonline",
+            str(src_dir),
+            "--db",
+            str(fresh_db),
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    conn = sqlite3.connect(fresh_db)
+    rows = conn.execute(
+        "SELECT COUNT(*) FROM etymon_descent WHERE source_id = ?",
+        (ETYMONLINE_SOURCE_ID,),
+    ).fetchone()
+    # 2 chain links → 1 adjacent edge + 1 leaf edge = 2.
+    assert rows[0] == 2
+    src_rows = conn.execute("SELECT id FROM source WHERE id=?", (ETYMONLINE_SOURCE_ID,)).fetchall()
+    assert len(src_rows) == 1
+
+
+def test_cli_ingest_etymonline_limit_caps_files_processed(fresh_db: Path, tmp_path: Path) -> None:
+    """`--limit N` stops after the first N files, sorted lexicographically."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+
+    src_dir = tmp_path / "etym"
+    src_dir.mkdir()
+    for name in ("aaa", "bbb", "ccc"):
+        (src_dir / f"{name}.txt").write_text(f"{name}(n.)\n\nfrom Latin {name}.\n\n")
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        [
+            "lexicon",
+            "ingest-etymonline",
+            str(src_dir),
+            "--db",
+            str(fresh_db),
+            "--limit",
+            "2",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    out = result.output + (result.stderr or "")
+    assert "aaa.txt" in out
+    assert "bbb.txt" in out
+    assert "ccc.txt" not in out
+
+
+def test_cli_ingest_etymonline_empty_dir_succeeds(fresh_db: Path, tmp_path: Path) -> None:
+    """No .txt files in the source dir → exit cleanly with zero counts."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+
+    src_dir = tmp_path / "etym"
+    src_dir.mkdir()
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        ["lexicon", "ingest-etymonline", str(src_dir), "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    out = result.output + (result.stderr or "")
+    assert "Ingesting 0 Etymonline file(s)" in out

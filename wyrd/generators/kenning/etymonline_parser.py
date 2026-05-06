@@ -239,22 +239,13 @@ def parse_chain(summary: str) -> list[ChainLink]:
     return links
 
 
-def _find_next_hedge(text: str, start: int) -> tuple[ChainLink | None, int] | None:
-    """Find the next hedge phrase at or after `start`, parse the
-    language + word that follows, and return (ChainLink, advance_to).
+def _pick_best_hedge(text: str, start: int) -> tuple[int, str, str, str] | None:
+    """Find every hedge phrase appearing at or after `start` and pick
+    the EARLIEST. Ties break to the LONGER hedge so 'probably from'
+    wins over the bare 'from' that overlaps with it.
 
-    Picks the EARLIEST hedge in the text (not the first matching
-    pattern) so longer, later hedges don't preempt earlier short ones.
-    For overlapping hedges at the same position (e.g. "probably from"
-    starts where "from" would also match), the LONGER hedge wins —
-    "probably from" carries the lower-confidence semantics we want.
-
-    Returns None when no more hedges fit. Returns (None, advance) when
-    a hedge was found but the language/word that followed was
-    unparseable — caller advances past it without emitting.
-    """
-    # Find every hedge's earliest position, pick the one that starts
-    # closest to `start`. Ties broken by longer hedge length.
+    Returns (idx, hedge_phrase, edge_type, confidence) or None if no
+    hedge appears past `start`."""
     best: tuple[int, int, str, str, str] | None = None  # (pos, -length, hedge, edge, conf)
     for hedge, edge_type, confidence in _HEDGE_PATTERNS:
         idx = _find_hedge_at_word_boundary(text, hedge, start)
@@ -266,6 +257,21 @@ def _find_next_hedge(text: str, start: int) -> tuple[ChainLink | None, int] | No
     if best is None:
         return None
     idx, _neg_len, hedge, edge_type, confidence = best
+    return (idx, hedge, edge_type, confidence)
+
+
+def _find_next_hedge(text: str, start: int) -> tuple[ChainLink | None, int] | None:
+    """Find the next hedge phrase at or after `start`, parse the
+    language + word that follows, and return (ChainLink, advance_to).
+
+    Returns None when no more hedges fit. Returns (None, advance) when
+    a hedge was found but the language/word that followed was
+    unparseable — caller advances past it without emitting.
+    """
+    pick = _pick_best_hedge(text, start)
+    if pick is None:
+        return None
+    idx, hedge, edge_type, confidence = pick
     after_hedge = idx + len(hedge)
     rest = text[after_hedge:].lstrip()
     consumed_ws = len(text[after_hedge:]) - len(rest)
@@ -294,50 +300,76 @@ def _find_hedge_at_word_boundary(text: str, hedge: str, start: int) -> int:
     return start + m.start()
 
 
+def _match_language_prefix(rest: str) -> tuple[str, int] | None:
+    """If `rest` starts with a known language phrase at a word
+    boundary, return (wyrd_language_code, n_chars_consumed). Else
+    None. Uses the by-length-descending list so 'old high german'
+    wins over 'german'."""
+    rest_lower = rest.lower()
+    for phrase in _LANGUAGE_NAMES_BY_LENGTH:
+        if not rest_lower.startswith(phrase):
+            continue
+        # Word boundary: the char after `phrase` must be space/punct.
+        after = rest[len(phrase) : len(phrase) + 1]
+        if after == "" or not after.isalpha():
+            return (LANGUAGE_NAME_MAP[phrase], len(phrase))
+    return None
+
+
+def _read_word_after_language(rest: str) -> tuple[str, int] | None:
+    """After a matched language prefix, read the next whitespace-
+    separated word (preserving asterisk-prefix and diacritics) and
+    return (word, n_chars_consumed). None if no word follows."""
+    word_match = re.match(r"\s+(\*?[\w\-’'.ǣæðþāēīōūǣǣǣáéíóúǫöäüß]+)", rest)
+    if not word_match:
+        return None
+    word = word_match.group(1).strip().rstrip(",.;:")
+    return (word, word_match.end())
+
+
+def _read_optional_gloss(rest: str) -> tuple[str, int] | None:
+    """If `rest` immediately starts with a quoted gloss, return
+    (gloss_text, n_chars_consumed). Trailing punctuation stripped."""
+    m = re.match(r'\s+"([^"]+)"', rest)
+    if not m:
+        return None
+    return (m.group(1).strip().rstrip(",.;: "), m.end())
+
+
+def _read_optional_attested_year(rest: str) -> str | None:
+    """If `rest` (after stripping leading whitespace) starts with an
+    attested-year paren like '(14c.)' or '(c. 1400)', return the year
+    string. Does NOT advance the cursor — the year stays anchored to
+    its link without affecting where the next chain candidate begins."""
+    m = _ATTESTED_YEAR_RE.match(rest.lstrip())
+    if not m:
+        return None
+    return m.group("year").strip()
+
+
 def _parse_language_and_word(
     rest: str,
 ) -> tuple[str, str, str | None, str | None, int] | None:
-    """Match the longest known language name at the start of `rest`,
-    then read the next word. Optionally pick up a following gloss
-    (in `"..."`) or attested-year parenthetical.
-
-    Returns (language_code, word, gloss, attested_year, n_chars_consumed)
-    or None if no language matches.
-    """
-    rest_lower = rest.lower()
-    matched_phrase: str | None = None
-    for phrase in _LANGUAGE_NAMES_BY_LENGTH:
-        if rest_lower.startswith(phrase):
-            # Word boundary: the char after `phrase` must be space/punct.
-            after = rest[len(phrase) : len(phrase) + 1]
-            if after == "" or not after.isalpha():
-                matched_phrase = phrase
-                break
-    if matched_phrase is None:
+    """Read a `<Language> <word> [gloss] [year]` sequence at the start
+    of `rest`. Returns (language_code, word, gloss, attested_year,
+    n_chars_consumed) or None if no language matches or no word
+    follows the language."""
+    lang_match = _match_language_prefix(rest)
+    if lang_match is None:
         return None
-    language_code = LANGUAGE_NAME_MAP[matched_phrase]
-    after_lang = len(matched_phrase)
-    # Skip whitespace then read the word.
-    word_match = re.match(r"\s+(\*?[\w\-’'.ǣæðþāēīōūǣǣǣáéíóúǫöäüß]+)", rest[after_lang:])
-    if not word_match:
+    language_code, after_lang = lang_match
+    word_result = _read_word_after_language(rest[after_lang:])
+    if word_result is None:
         return None
-    word = word_match.group(1).strip()
-    word = word.rstrip(",.;:")
-    after_word = after_lang + word_match.end()
-    # Optional immediately-following gloss in "..."
+    word, word_len = word_result
+    cursor = after_lang + word_len
     gloss = None
-    gloss_match = re.match(r'\s+"([^"]+)"', rest[after_word:])
-    if gloss_match:
-        gloss = gloss_match.group(1).strip().rstrip(",.;: ")
-        after_word += gloss_match.end()
-    # Optional attested-year paren
-    year = None
-    year_match = _ATTESTED_YEAR_RE.match(rest[after_word:].lstrip())
-    if year_match:
-        year = year_match.group("year").strip()
-        # Don't advance past it — keep the cursor on the next chain
-        # candidate; the year stays anchored to this link.
-    return (language_code, word, gloss, year, after_word)
+    gloss_result = _read_optional_gloss(rest[cursor:])
+    if gloss_result is not None:
+        gloss, gloss_len = gloss_result
+        cursor += gloss_len
+    year = _read_optional_attested_year(rest[cursor:])
+    return (language_code, word, gloss, year, cursor)
 
 
 def parse_sense(headword_line: str, summary: str) -> Sense:
