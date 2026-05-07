@@ -95,8 +95,20 @@ _FICTION_TAG = "fiction"
 
 # Tags that are filtering primitives, not meaningful selections to expose
 # in the SPA tag dropdown. 'fiction' is a metadata marker, opted into via
-# `include_fiction` rather than picked from the dropdown.
-_INTERNAL_TAGS = {"male name", "female name", "saint", _FICTION_TAG}
+# `include_fiction` rather than picked from the dropdown. 'manorial' and
+# 'norman' are wyrd-8s71 classification tags on the synthesized
+# manorial-affix Meanings — picking them in the tag-filter dropdown
+# would restrict generation to manorial families, which is not the
+# user-facing 'tag a name with this theme' contract. The user-facing
+# manorial knob is the dedicated ``manorial_affix`` probability field.
+_INTERNAL_TAGS = {
+    "male name",
+    "female name",
+    "saint",
+    "manorial",
+    "norman",
+    _FICTION_TAG,
+}
 
 # D6 mood presets. A "mood" bundles one or more effects (semantic tag union,
 # phonological harshness skew, future axes) under a single GM-facing label so
@@ -146,6 +158,41 @@ def _load_norman_manorial_families() -> tuple[str, ...]:
         return tuple(json.load(f))
 
 
+def _norman_manorial_subjects() -> list[dict[str, Any]]:
+    """Synthesize meaning-db subjects for the Norman manorial families
+    (wyrd-8s71). Generation appends the family name as a post-base
+    affix; the explainer needs to recognize the family when fed the
+    same name back, so each family becomes a Meaning entry the matcher
+    can resolve.
+
+    Multi-word families ("La Zouche", "De Vere") produce a Meaning
+    keyed on the surname token — the matcher splits on whitespace, so
+    the particle ("La", "De") is left unaccounted by design. That
+    keeps the registered keys distinctive — registering "La" and "De"
+    as standalone manorial particles would also match in non-manorial
+    contexts and pollute decompositions.
+
+    The Meaning's gloss includes the full family string so the
+    explainer surfaces "La Zouche" even when only "Zouche" matched.
+    """
+    families = _load_norman_manorial_families()
+    subjects: list[dict[str, Any]] = []
+    for family in families:
+        # Surname-only token for matching: the last whitespace-split
+        # word of the family string. Single-word families pass
+        # through unchanged ("Mandeville" → "Mandeville").
+        token = family.split()[-1]
+        subjects.append(
+            {
+                "meaning": [f"Norman manorial family: {family}"],
+                "modifier_tags": ["manorial", "norman"],
+                "modifier_type": "Manorial",
+                "words": [{"modern_usage": token, "old_french": [token.lower()]}],
+            }
+        )
+    return subjects
+
+
 @lru_cache(maxsize=1)
 def _load_meanings():
     """Load the bundled meanings, extending with anglicized-form sidecars.
@@ -169,11 +216,22 @@ def _load_meanings():
     approach keeps the data reviewable + lets a future Wiktionary
     modern-English-slice mining pass supersede it without bundle
     re-emit.
+
+    wyrd-8s71: Norman manorial families (synthesized at load time
+    from ``norman_manorial_families.json``) become Meaning entries
+    too, so KenningExplain can decompose the manorial-affix names
+    Kenning generates with manorial_affix>0. The synthesized
+    subjects use ``old_french`` for the language slot — Norman
+    families are Anglo-Norman in origin (Old French dialect of
+    11th-12th-c Normandy) so the linguistic bucket is correct, AND
+    ``old_french`` is in ``_ROOT_CODES`` so the explainer renders
+    the morpheme as "FR" rather than "(?)".
     """
     with _data_path("meanings.json").open() as f:
         data = json.load(f)
     with _data_path("irish_anglicizations.json").open() as f:
         data.extend(json.load(f))
+    data.extend(_norman_manorial_subjects())
     return load_meanings(data)
 
 
