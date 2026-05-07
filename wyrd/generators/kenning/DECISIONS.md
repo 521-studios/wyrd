@@ -1262,3 +1262,156 @@ for english_shaped over modern_usage at render time. That stays the
 wyrd-rni / wyrd-381 era-rewind demos' concern — Phase 2d delivers
 the EDUCATIONAL view (panel) but the GENERATION default still uses
 modern_usage everywhere (bit-stable historical behavior).
+
+
+## D32. Within-language stratum tagging (wyrd-lr4, PRs #105 / #107 / #109 / #111 / #112 / #113 / #115 / #120 / #121).
+
+The per-etymon `language` column is too coarse for some palettes —
+`language='welsh'` blends Brittonic substrate, Latin loans, medieval
+Welsh, and English borrowings into one bucket, and a Welsh-flavored
+generator pulling indiscriminately from all of them produces
+stylistic mush. D32 partitions each language family's etymons into
+named within-language register buckets so the runtime `--stratum`
+filter can target a specific layer.
+
+### Schema
+
+`etymon.stratum TEXT` plus an index on the column. Sparse — only
+languages with a Phase 1 classifier populate it; legacy / mining-
+backfill rows stay NULL.
+
+### Per-family vocabularies
+
+Each language family ships a `STRATA` tuple (priority-ordered) and
+two maps (`*_ANCESTOR_TO_STRATUM` for the ancestor-walk pass on
+the modern variety, `*_SELF_LANGUAGE_TO_STRATUM` for ancestor /
+period varieties). The shared `_classify_family` engine in
+`strata.py` runs both passes; per-family `classify_<lang>` wrappers
+supply the constants.
+
+  * Welsh (5 buckets): native-welsh / latin-loan / english-loan /
+    brittonic-substrate / medieval-welsh.
+  * French (5 buckets): native-french / frankish-substrate /
+    gaulish-substrate / gallo-roman / medieval-french. **Latin and
+    vulgar-latin are deliberately ABSENT from the French ancestor
+    map** — every French word descends from Latin via the standard
+    Romance path, so including them would collapse the bundle into
+    one bucket and erase the substrate distinctions. Same descent-
+    absence rationale for Old English (gmw-pro / proto-germanic /
+    proto-indo-european excluded) and Old Norse (gmq-pro /
+    proto-germanic / etc. excluded).
+  * Old English (4 buckets): native-old-english / latin-loan /
+    norse-loan / celtic-substrate. The umbrella ticket scoped
+    West Saxon / Mercian / Anglian dialect strata, but the live
+    DB has only 33 dialect-coded etymons (orphans without descent
+    edges) — too sparse for own buckets. Self-language map left
+    empty so wave-2 dialect-corpus mining can populate later.
+  * Old Norse (6 buckets): native-old-norse / east-norse /
+    latin-loan / low-german-loan / english-loan / gaelic-substrate.
+    East Norse fires only via self-language (`gmq-osw` Old Swedish
+    + `gmq-oda` Old Danish) — the ancestor walk doesn't apply
+    because old-norse is the PARENT of those varieties, not the
+    other way around.
+
+Cross-family stratum names overlap (`latin-loan` exists in Welsh /
+OE / ON; `english-loan` in Welsh / ON). The value alone is
+ambiguous about which family it belongs to; family-aware validation
+must consult the per-family `STRATA_BY_FAMILY` tuples.
+
+### Priority order convention
+
+Iteration order on `STRATA` is the priority order: when an etymon's
+parents include languages mapped to multiple strata, the first
+match wins. Each family's order encodes a scholarly-historical
+convention (institutional / clerical signals like latin-loan
+displace contact loans like norse-loan, which displace residual
+substrates, which displace dialect axes, which fall through to
+default). Welsh's "Latin > Brittonic" encodes the convention that
+explicit loans displace inherited forms.
+
+### No-data passes through
+
+Etymons with `stratum IS NULL` (every Meaning's
+`stratum_for(lang_field, form)` returning None) ALWAYS pass any
+`--stratum` filter. Without this rule the filter would gut
+unclassified-language bundles (post-Phase-4-shipped, only Welsh /
+French / OE / ON have classifier output; Latin / OS / IE / etc.
+all admit). As classifier coverage grows the rule tightens
+naturally.
+
+### Per-culture validation
+
+`_resolve_stratum_param(stratum, culture)` validates request-side
+input against `_CULTURE_TO_VALID_STRATA[culture]` (the union of
+STRATA tuples for language families that culture's place-name
+corpus draws from). Catches both typos AND culturally-incoherent
+values (`--culture welsh --stratum east-norse` 4xxs because
+east-norse isn't in any classified Welsh-bundle language family).
+Cultures without a per-culture restriction (irish / breton today
+— no classifier yet for those families) fall back to the broader
+`ALL_STRATA` typo-check. The `LANGUAGE_TO_FAMILY` map is built
+programmatically from each classifier's `*_SELF_LANGUAGE_TO_STRATUM`
+keys + the modern_lang strings, so adding a new self-language
+entry (e.g. an Old French dialect variety) auto-extends the
+family-aware validation without a separate manual list.
+
+### Bundle export shape
+
+Per-form `<bucket>_stratum` siblings on each subject word,
+mirroring the Phase 2c/2d wyrd-ha9q rendering siblings:
+
+```
+{
+  "modern_usage": "Caer-",
+  "celtic_mix": ["caer", "din"],
+  "celtic_mix_stratum": [
+    {"form": "caer", "stratum": "latin-loan"},
+    {"form": "din",  "stratum": "native-welsh"}
+  ],
+  ...
+}
+```
+
+Bucket-level union: when multiple lexicon language codes funnel
+into one bundle bucket (`welsh + middle-welsh + old-welsh + cel-bry-pro`
+all → `celtic_mix`), per-form stratum values accumulate via
+`bucket.stratum.update(...)` in lang-sort order — last-lang-wins
+on collision (matches the `english_shaped` / `pronunciation`
+plumbing's contract). Each Meaning then carries `stratum: dict[
+lang_field, dict[canonical_form, stratum_tag]]`; the `stratum_for(
+lang_field, form)` accessor returns `tag | None`.
+
+### Idempotency contract for hand-corrections (Phase 4d)
+
+`lexicon set-stratum` lets an operator manually correct individual
+etymon stratum values. `classify-stratum --apply` (without
+`--force`) skips rows that already have a non-NULL stratum — so
+hand-corrections survive subsequent bulk-classifier runs. The
+load-bearing `AND stratum IS NULL` clause on the UPDATE WHERE
+preserves this; removing it would silently blow away every
+operator override on the next classify pass.
+
+Pinned end-to-end by
+`test_cli_set_stratum_survives_classify_stratum_apply_without_force`.
+Documented at the SQL site (`cli.py:_build_case_update`) AND in
+`set-stratum`'s docstring AND in the test name itself, so a future
+editor of either side sees the contract.
+
+### Granularity caveat
+
+Filtering happens at the USAGE level, not the SENSE level. A usage
+with two Meaning instances (one `native-welsh`, one `latin-loan`)
+stays in the pool when `--stratum native-welsh` is requested; the
+downstream pick at `NameGenerator._pick_surface` falls back to
+`meanings[0]` for variant/inflection rendering, which may surface
+the wrong-stratum sense. Same caveat applies to `--era`. Sense-
+level filtering would need `_render_substitutions` reworked.
+
+### Bundle re-emit activation
+
+Until the bundle is re-emitted post-classifier-apply, the bundled
+`meanings.json` carries no `_stratum` siblings — every Meaning
+hits the no-data passthrough and the filter is bit-stable with
+no-flag. The classifier output is captured in the wyrd-lr4 ticket
+notes (per-language smoke counts) and ready for the operator's
+re-emit pass.
