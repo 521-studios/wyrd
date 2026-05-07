@@ -1059,11 +1059,11 @@ queryable. The `--skip-resolved` flag scopes to the current version
 
 When wyrd-ha9q (Phase 2 of the wyrd-ami sibling pipeline) needed to add
 pronunciation + multi-script renderings to the etymon table, the
-choice was whether to migrate `canonical_form` for non-Latin-script
-rows (so canonical_form holds academic transliteration, with native
-script in a new column) OR to keep `canonical_form` as wiktextract
-gave it (often native script for Hebrew/Arabic/etc.) and add the new
-renderings as parallel columns. The latter — option A — was chosen.
+choice was between two options. Option A (chosen): keep `canonical_form`
+as wiktextract gave it (often native script for Hebrew / Arabic / etc.)
+and add the new renderings as parallel columns. Option B (rejected):
+migrate `canonical_form` for non-Latin-script rows so it holds academic
+transliteration, with native script moving to a new column.
 
 Reasons:
 - `(canonical_form, language)` is the corpus-wide UNIQUE key. A

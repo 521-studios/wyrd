@@ -746,12 +746,16 @@ def _extract_pronunciation(sounds: list[dict[str, Any]]) -> tuple[str | None, st
     so the SPA panel can render '(Modern Standard Arabic)' etc.
 
     Returns (ipa, dialect) — either may be None when the input is empty
-    or has no `ipa` key.
+    or has no `ipa` key. Non-dict sound entries are silently skipped
+    (mirrors `_walk_descendants`'s defensive style for malformed
+    wiktextract input).
     """
     untagged_ipa: str | None = None
     fallback_ipa: str | None = None
     fallback_dialect: str | None = None
     for sound in sounds:
+        if not isinstance(sound, dict):
+            continue
         ipa = sound.get("ipa")
         if not ipa:
             continue
@@ -769,17 +773,30 @@ def _extract_pronunciation(sounds: list[dict[str, Any]]) -> tuple[str | None, st
 
 
 def _is_clean_native_form(value: str, lemma_word: str) -> bool:
-    """Filter for `head`-style native-script values: skip when it's
-    a multi-form display string, an affix marker, equal to the lemma
-    (no extra info), or empty. The Hebrew `wv` key wouldn't need this
-    (it's always a single vocalized lemma) but the Arabic / Egyptian
-    `head` arg routinely packs noisy display content."""
+    """Filter for `head`-style native-script values. Returns False when
+    the value is one of:
+
+    1. Empty or whitespace-only.
+    2. Equal to the lemma word — no extra info to surface, NULL is
+       the right "use canonical_form" signal.
+    3. An affix-position marker — leading or trailing tatweel `ـ`
+       (Arabic) or hyphen, signalling a partial form, not a complete
+       native-script word.
+    4. Carries any token from `_NATIVE_FORM_REJECT_TOKENS`:
+       ` / ` (multi-form display string),
+       `, ` (alt forms separated by commas),
+       `*` (reconstructed form marker — proto-language; the rejection
+       triggers anywhere in the string, not just at position 0, since
+       reconstructed forms have no native-script render anyway).
+
+    The Hebrew `wv` key wouldn't need this (it's always a single
+    vocalized lemma) but the Arabic / Egyptian `head` arg routinely
+    packs noisy display content.
+    """
     if not value:
         return False
     if value == lemma_word:
         return False
-    # Affix-position markers — wiktextract uses ـ (Arabic tatweel) or
-    # leading/trailing hyphens to indicate prefix/suffix usage.
     if value.startswith(("ـ", "-")) or value.endswith(("ـ", "-")):
         return False
     return not any(token in value for token in _NATIVE_FORM_REJECT_TOKENS)
@@ -806,7 +823,10 @@ def _extract_head_template_renderings(
     """
     if not head_templates:
         return None, None
-    args = head_templates[0].get("args")
+    first = head_templates[0]
+    if not isinstance(first, dict):
+        return None, None
+    args = first.get("args")
     if not isinstance(args, dict):
         return None, None
     original: str | None = None

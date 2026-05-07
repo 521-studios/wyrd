@@ -5695,6 +5695,96 @@ def test_migrate_schema_adds_etymon_cognate_columns_to_legacy_db(
         assert applied2["etymon.cognate_method"] is False
 
 
+def test_migrate_schema_adds_phase2a_pronunciation_columns_to_legacy_db(
+    fresh_db: Path,
+) -> None:
+    """A pre-wyrd-ha9q etymon table without the Phase 2a columns
+    (pronunciation_ipa, pronunciation_dialect, original_script,
+    transliteration, english_shaped) picks them up on migrate_schema.
+    Existing rows survive with NULL in every new column. Idempotent
+    re-run reports all five as already-applied (False).
+
+    Mirrors the D27 cognate-column legacy-migration test pattern; this
+    is the canonical place to pin the migration story for new etymon
+    columns."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src-a", title="A")
+        legacy_id = db.upsert_etymon("ham", "old-english")
+        db.commit()
+
+        # Drop all etymon-dependent views before the table swap (same
+        # CASCADE concern as the cognate-columns test).
+        db.conn.execute("DROP VIEW IF EXISTS etymon_consensus")
+        db.conn.execute("DROP VIEW IF EXISTS etymon_canonical")
+        db.conn.execute("DROP VIEW IF EXISTS etymon_gloss_canonical")
+        db.conn.execute("DROP VIEW IF EXISTS etymon_tag_canonical")
+        db.conn.execute("DROP VIEW IF EXISTS etymon_text_match_canonical")
+        # Recreate without the Phase 2a columns to simulate a pre-ha9q DB.
+        db.conn.execute(
+            "CREATE TABLE etymon_legacy AS "
+            "SELECT id, canonical_form, language, modifier_type, position_pref, "
+            "       notes, lemma_id, inflection, lemma_method, merged_into_id, "
+            "       cognate_id, cognate_method "
+            "FROM etymon"
+        )
+        db.conn.execute("DROP TABLE etymon")
+        db.conn.execute("ALTER TABLE etymon_legacy RENAME TO etymon")
+
+        cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon)")}
+        for c in (
+            "pronunciation_ipa",
+            "pronunciation_dialect",
+            "original_script",
+            "transliteration",
+            "english_shaped",
+        ):
+            assert c not in cols, f"{c} unexpectedly present in pre-migration legacy table"
+
+        applied = migrate_schema(db)
+        for c in (
+            "etymon.pronunciation_ipa",
+            "etymon.pronunciation_dialect",
+            "etymon.original_script",
+            "etymon.transliteration",
+            "etymon.english_shaped",
+        ):
+            assert applied[c] is True, f"{c} migration didn't apply"
+
+        cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon)")}
+        for c in (
+            "pronunciation_ipa",
+            "pronunciation_dialect",
+            "original_script",
+            "transliteration",
+            "english_shaped",
+        ):
+            assert c in cols, f"{c} missing post-migration"
+
+        # Existing row survives with NULL in every new column.
+        row = db.conn.execute(
+            """SELECT id, pronunciation_ipa, pronunciation_dialect,
+                      original_script, transliteration, english_shaped
+               FROM etymon WHERE id = ?""",
+            (legacy_id,),
+        ).fetchone()
+        assert row["pronunciation_ipa"] is None
+        assert row["pronunciation_dialect"] is None
+        assert row["original_script"] is None
+        assert row["transliteration"] is None
+        assert row["english_shaped"] is None
+
+        # Idempotent: re-running reports all five as already-present.
+        applied2 = migrate_schema(db)
+        for c in (
+            "etymon.pronunciation_ipa",
+            "etymon.pronunciation_dialect",
+            "etymon.original_script",
+            "etymon.transliteration",
+            "etymon.english_shaped",
+        ):
+            assert applied2[c] is False, f"{c} re-applied on second run"
+
+
 # --- D27 / wyrd-81n: cluster-cognates enrichment pass ------------------
 
 

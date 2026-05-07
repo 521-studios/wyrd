@@ -224,9 +224,17 @@ class LexiconDB:
         # ON CONFLICT lets us do this in a single statement: insert if new,
         # otherwise fill in any missing fields without overwriting existing
         # non-null values. RETURNING id avoids a follow-up SELECT.
+        #
         # The wyrd-ha9q pronunciation / script kwargs follow the same
-        # COALESCE-on-conflict pattern: a re-ingest fills in NULLs without
-        # clobbering values that an earlier richer source already provided.
+        # COALESCE-on-conflict pattern as the original modifier_type /
+        # position_pref / notes triple. EXCEPTION: pronunciation_ipa and
+        # pronunciation_dialect are conceptually paired (the dialect tag
+        # describes a specific IPA), so they update atomically: if the
+        # existing row has IPA already, we keep BOTH the existing IPA and
+        # dialect (even if the existing dialect is NULL); if the existing
+        # row has no IPA, we take both fields from the incoming row. The
+        # CASE on dialect prevents a dialect-only-non-NULL re-ingest from
+        # leaving the dialect tag describing an IPA we never stored.
         cur = self.conn.execute(
             """
             INSERT INTO etymon (
@@ -240,7 +248,11 @@ class LexiconDB:
                 position_pref         = COALESCE(etymon.position_pref, excluded.position_pref),
                 notes                 = COALESCE(etymon.notes, excluded.notes),
                 pronunciation_ipa     = COALESCE(etymon.pronunciation_ipa, excluded.pronunciation_ipa),
-                pronunciation_dialect = COALESCE(etymon.pronunciation_dialect, excluded.pronunciation_dialect),
+                pronunciation_dialect = CASE
+                                            WHEN etymon.pronunciation_ipa IS NULL
+                                            THEN excluded.pronunciation_dialect
+                                            ELSE etymon.pronunciation_dialect
+                                        END,
                 original_script       = COALESCE(etymon.original_script, excluded.original_script),
                 transliteration       = COALESCE(etymon.transliteration, excluded.transliteration)
             RETURNING id
@@ -443,8 +455,13 @@ def seed_from_meanings(
 
 
 def _add_etymon_columns(db: LexiconDB, applied: dict[str, bool]) -> None:
-    """Add lemma_id, inflection, merged_into_id, and lemma_method columns
-    if they don't yet exist. Each column is independent and idempotent.
+    """Add the etymon-table column migrations: lemma_id / inflection /
+    merged_into_id / lemma_method (D8 + D22), cognate_id / cognate_method
+    (D27), and the wyrd-ha9q Phase 2a pronunciation + multi-script set
+    (pronunciation_ipa, pronunciation_dialect, original_script,
+    transliteration, english_shaped). Each column is independent and
+    idempotent — re-running migrate_schema on an already-migrated DB is
+    a no-op for all of them.
     """
     cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon)")}
     if "lemma_id" not in cols:
@@ -1389,6 +1406,12 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "fantasy_morpheme_table": False,
         "fantasy_morpheme.unapproved_language": False,
         "fantasy_morpheme.unapproved_form": False,
+        # wyrd-ha9q Phase 2a: pronunciation + multi-script renderings
+        "etymon.pronunciation_ipa": False,
+        "etymon.pronunciation_dialect": False,
+        "etymon.original_script": False,
+        "etymon.transliteration": False,
+        "etymon.english_shaped": False,
     }
     # wyrd-44a: rename the legacy cognate-cluster column from synset_id
     # to cognate_id BEFORE the add-columns helper runs — otherwise

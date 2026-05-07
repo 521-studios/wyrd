@@ -20,6 +20,9 @@ from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.wiktextract_ingester import (
     _canonical_language,
     _classify_form_variant,
+    _extract_head_template_renderings,
+    _extract_pronunciation,
+    _is_clean_native_form,
     ingest_wiktextract_path,
     ingest_wiktextract_stream,
 )
@@ -1356,12 +1359,6 @@ def test_forms_other_class_round_trips_through_insert(fresh_db: Path) -> None:
 # ---------------------------------------------------------------------
 
 
-from wyrd.generators.kenning.wiktextract_ingester import (  # noqa: E402
-    _extract_head_template_renderings,
-    _extract_pronunciation,
-)
-
-
 def _wiktextract_entry_full(
     *,
     word: str,
@@ -1627,6 +1624,146 @@ def test_ingest_dry_run_does_not_set_pronunciation_columns(fresh_db: Path) -> No
         row = db.conn.execute("SELECT 1 FROM etymon WHERE canonical_form = ?", ("כלב",)).fetchone()
     assert row is None
     assert result["pronunciation_captured"] == 0
+
+
+def test_is_clean_native_form_rejects_comma_separated_alt_forms() -> None:
+    """`'كلب, كلاب'` (singular + plural in one head string) is one of
+    the multi-form display patterns `_NATIVE_FORM_REJECT_TOKENS`
+    blocks. Slash-separated is covered by another test; this pins the
+    comma path."""
+    assert _is_clean_native_form("كلب, كلاب", "كلب") is False
+
+
+def test_is_clean_native_form_rejects_reconstructed_form_anywhere() -> None:
+    """The `*` rejection isn't restricted to position 0 — any `*`
+    in the value disqualifies it (reconstructed forms have no native
+    script render). Lemma is a non-`*` value here so the equality
+    short-circuit doesn't fire and we exercise the token-rejection
+    path directly."""
+    assert _is_clean_native_form("*tūnaz", "tūnaz") is False
+    # Embedded `*` (not at position 0) — same rejection applies.
+    assert _is_clean_native_form("foo*bar", "foo") is False
+
+
+def test_is_clean_native_form_accepts_clean_value() -> None:
+    """Sanity: a non-empty value, distinct from the lemma, with no
+    affix markers and no reject tokens, passes the filter."""
+    assert _is_clean_native_form("الْعَرَبِيَّة", "العربية") is True
+
+
+def test_extract_pronunciation_skips_non_dict_sound_entries() -> None:
+    """Defensive style mirroring `_walk_descendants`: a malformed
+    `sounds` array containing a non-dict (string, None, list) should
+    not crash the ingester — skip the bad element and keep walking."""
+    sounds = [
+        "not-a-dict",  # noqa: E501
+        None,
+        {"ipa": "/d͡ʒɪnː/"},
+    ]
+    assert _extract_pronunciation(sounds) == ("/d͡ʒɪnː/", None)
+
+
+def test_extract_head_template_renderings_skips_non_dict_first_entry() -> None:
+    """Same defensive style: head_templates[0] is sometimes None or
+    a string in malformed wiktextract output. Return (None, None)
+    rather than crashing the ingester."""
+    assert _extract_head_template_renderings([None, {"args": {"wv": "כֶּלֶב"}}], "כלב") == (
+        None,
+        None,
+    )
+    assert _extract_head_template_renderings(["bad"], "lemma") == (None, None)
+
+
+def test_extract_head_template_renderings_first_template_no_wv_returns_none() -> None:
+    """First-template-wins extends to the case where template[0]
+    has neither `wv` NOR `head` populated, while template[1] has them.
+    We must NOT fall through — that would risk merging metadata across
+    distinct senses that wiktextract files separately."""
+    head_templates = [
+        {"name": "he-noun", "args": {"g": "m"}},  # no wv, no head
+        {"name": "he-noun", "args": {"wv": "OTHER", "head": "ALT", "tr": "alt"}},
+    ]
+    # Both fields come from template[0]'s args; since template[0] has
+    # neither wv nor head, original_script is None. Same for tr.
+    assert _extract_head_template_renderings(head_templates, "lemma") == (None, None)
+
+
+def test_ingest_pronunciation_ipa_and_dialect_update_atomically(fresh_db: Path) -> None:
+    """The IPA + dialect pair updates as a unit. Adversarial flow: a
+    first ingest writes IPA-only (no tags → dialect=NULL); a second
+    ingest brings BOTH a different IPA and a dialect tag.
+
+    Without atomicity (per-column COALESCE), the second pass would
+    leave the OLD IPA in place but write the NEW dialect, producing a
+    row whose dialect describes an IPA we don't store. With the CASE-
+    on-existing-IPA in upsert_etymon, the second pass sees an existing
+    IPA → keeps BOTH the existing IPA and existing (NULL) dialect,
+    preserving the pair."""
+    # First ingest: IPA only, no dialect.
+    ipa_only = _wiktextract_entry_full(
+        word="כלב",
+        lang_code="he",
+        sounds=[{"ipa": "/kalb/"}],  # untagged
+        head_templates=None,
+    )
+    # Second ingest: different IPA + a dialect tag.
+    different = _wiktextract_entry_full(
+        word="כלב",
+        lang_code="he",
+        sounds=[{"tags": ["Yemenite-Hebrew"], "ipa": "/ˈka.lav/"}],
+        head_templates=None,
+    )
+    with LexiconDB(fresh_db) as db:
+        ingest_wiktextract_stream(db, _stream(ipa_only), apply=True)
+        assert _etymon_phase2a_cols(db, "כלב", "he") == ("/kalb/", None, None, None)
+        ingest_wiktextract_stream(db, _stream(different), apply=True)
+        # Existing IPA wins; dialect stays NULL because the existing
+        # IPA was untagged. The new (IPA, dialect) pair is dropped
+        # together rather than letting the dialect leak in alone.
+        ipa, dialect, _, _ = _etymon_phase2a_cols(db, "כלב", "he")
+        assert ipa == "/kalb/"
+        assert dialect is None
+
+
+def test_ingest_pronunciation_pair_fills_when_existing_ipa_is_null(fresh_db: Path) -> None:
+    """Symmetric case: when the existing row has no IPA at all, both
+    fields take the incoming pair atomically — backfills the NULL."""
+    no_pron = _wiktextract_entry_full(
+        word="جن",
+        lang_code="ar",
+        sounds=None,
+        head_templates=None,
+    )
+    with_pair = _wiktextract_entry_full(
+        word="جن",
+        lang_code="ar",
+        sounds=[{"tags": ["MSA"], "ipa": "/d͡ʒɪnː/"}],
+        head_templates=None,
+    )
+    with LexiconDB(fresh_db) as db:
+        ingest_wiktextract_stream(db, _stream(no_pron), apply=True)
+        assert _etymon_phase2a_cols(db, "جن", "ar") == (None, None, None, None)
+        ingest_wiktextract_stream(db, _stream(with_pair), apply=True)
+        ipa, dialect, _, _ = _etymon_phase2a_cols(db, "جن", "ar")
+        assert ipa == "/d͡ʒɪnː/"
+        assert dialect == "MSA"
+
+
+def test_ingest_dry_run_does_not_set_any_phase2a_counters(fresh_db: Path) -> None:
+    """Dry-run mode (apply=False): all three Phase 2a counters stay
+    at 0, not just pronunciation_captured. Pins the contract for
+    every counter independently."""
+    line = _wiktextract_entry_full(
+        word="כלב",
+        lang_code="he",
+        sounds=[{"ipa": "/kalb/"}],
+        head_templates=[{"name": "he-noun", "args": {"wv": "כֶּלֶב", "tr": "kelev"}}],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=False)
+    assert result["pronunciation_captured"] == 0
+    assert result["original_script_captured"] == 0
+    assert result["transliteration_captured"] == 0
 
 
 def test_phase2a_columns_present_on_fresh_db(fresh_db: Path) -> None:
