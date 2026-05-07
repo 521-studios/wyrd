@@ -10,22 +10,43 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
+from wyrd.generators.kenning import (
+    _load_meanings,
+    gemini_extractor,
+    llm_extractor,
+    paths,
+)
+from wyrd.generators.kenning import (
+    cli as cli_mod,
+)
 from wyrd.generators.kenning.cli import cli as kenning_cli
 from wyrd.generators.kenning.era import (
     canonical_language_for_cell,
     era_cell_for_input,
 )
 from wyrd.generators.kenning.lexicon import (
+    _LANG_CODE_TO_JSON_FIELD,
     LANGUAGE_FIELDS,
     NON_LANGUAGE_FIELDS,
     RECOMMENDED_LANG_THRESHOLDS,
     LexiconDB,
+    _build_witness_filter,
+    _earliest_year_in_notes,
+    _emit_inflection_list,
+    _emit_variant_list,
+    _extract_attestation_pairs,
+    _filter_concatenation_glosses,
     _normalize_for_quote_match,
     _position_from_usage,
     _quote_body_excerpt,
     assign_etymon_to_meaning_synset,
     backfill_citation_pages,
+    bridge_celtic_forms,
+    bridge_generic_language,
+    bridge_phonological_oe,
+    bridge_phonological_on,
     clear_enrichment,
+    cluster_cognates,
     cluster_ocr_variants,
     derive_lemma_candidate,
     detect_running_headers,
@@ -40,13 +61,25 @@ from wyrd.generators.kenning.lexicon import (
     list_meaning_synsets,
     lookup_attested_years,
     migrate_schema,
+    mine_toponym_attestations,
     normalize_ocr_form,
+    page_for_offset,
+    parse_running_header_pages,
     parse_skeat_section_header_pages,
+    project_period_forms,
     record_mining_run,
+    reverse_search_attestations,
     seed_from_meanings,
     seed_meaning_synsets,
 )
-from wyrd.generators.kenning.meaning import load_meanings
+from wyrd.generators.kenning.llm_extractor import LLMResult
+from wyrd.generators.kenning.meaning import Meaning, load_meanings
+from wyrd.generators.kenning.rewind import (
+    MorphemeRewind,
+    _pick_form,
+    rewind_name,
+    supported_eras_for_family,
+)
 from wyrd.generators.kenning.skeat_parser import ParsedElement, ParsedEntry
 
 
@@ -1417,7 +1450,6 @@ def test_earliest_year_in_notes_does_not_false_skip_p_inside_word(
     or stray letter+dot sequences.
 
     Pin: 'Bp 1086' must yield 1086, not None."""
-    from wyrd.generators.kenning.lexicon import _earliest_year_in_notes
 
     # 'Bp.' (Bishop) — not a page marker. Year 1086 should be picked.
     assert _earliest_year_in_notes("Bp. 1086 DB.") == 1086
@@ -1668,13 +1700,11 @@ def test_clear_enrichment_all_derived_includes_attested_years(
 
 
 def _import_attestation_helpers():
-    """Local import — these are private to lexicon.py and only used by
-    the wyrd-skm tests."""
-    from wyrd.generators.kenning.lexicon import (
-        _extract_attestation_pairs,
-        mine_toponym_attestations,
-    )
+    """Returns the ``(extractor, miner)`` pair for the wyrd-skm tests.
 
+    Kept as a small accessor so tests can opt into pin-language naming
+    in their bodies (``extract, mine = _import_attestation_helpers()``)
+    without each test re-listing the imports."""
     return _extract_attestation_pairs, mine_toponym_attestations
 
 
@@ -1838,6 +1868,55 @@ def test_extract_attestation_pairs_chain_last_element_with_bare_connector() -> N
     assert "Cestretun" in forms
     assert "Chestreton" in forms
     assert dict(pairs)["Chestreton"] == 1242
+
+
+def test_extract_attestation_pairs_rejects_source_attribution_chain() -> None:
+    """wyrd-hcd9: Mawer / Skeat / Ekwall use the convention
+    ``<year> <source>, <year> <source>`` for chained same-form source
+    citations — e.g. ``Chevington 1535 VE, 1539 Wills, 1544 LP`` lists
+    three sources for the SAME form. The naive regex would catch
+    ``Wills, 1544`` as a form-year attestation, but Wills is a SOURCE
+    name (the Wills Register).
+
+    The FP detector requires both:
+    (a) the form is preceded by ``<year> `` (the source-year shape)
+    (b) the form is followed by ``, <year>`` (next chain link)
+    so real chained attestations (``Edreston ; 1242 ...``,
+    semicolon-separated) aren't suppressed.
+    """
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Chevington 1535 VE, 1539 Wills, 1544 LP")
+    forms = [f for f, _ in pairs]
+    assert "Wills" not in forms
+    assert "LP" not in forms
+
+
+def test_extract_attestation_pairs_keeps_real_attestation_chains() -> None:
+    """wyrd-hcd9 regression: the source-attribution-chain detector
+    must NOT false-suppress real attestation chains. The
+    distinguisher is COMMA (source-attribution) vs SEMICOLON
+    (different-form attestation). Mawer / Skeat use semicolons
+    between forms and commas within source-list-for-one-form."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Edredeston, 1234 Edreston ; 1242 Cl. Hetheresto")
+    forms = [f for f, _ in pairs]
+    assert "Edreston" in forms
+    assert "Edredeston" in forms
+
+
+def test_extract_attestation_pairs_keeps_long_attestation_chains() -> None:
+    """wyrd-hcd9 regression: a 4-element attestation chain like
+    ``Cestretone in 1210; Cestrede, 1218; Cestretun, 1230;
+    Chestreton 1242`` — the LAST element 'Chestreton 1242' is bare-
+    connector chain-anchored. Verify all four still capture even
+    after the source-chain detector landed."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Cestretone in 1210; Cestrede, 1218; Cestretun, 1230; Chestreton 1242.")
+    forms = [f for f, _ in pairs]
+    assert "Cestretone" in forms
+    assert "Cestrede" in forms
+    assert "Cestretun" in forms
+    assert "Chestreton" in forms
 
 
 def test_extract_attestation_pairs_chain_anchor_rejects_sentence_flow() -> None:
@@ -2610,7 +2689,6 @@ def _seed_meaning_db(usage: str, sources: dict[str, list[str]]):
     rewind tests can drive the resolver without loading the full
     bundle. Returns the dict shape ``{usage: [Meaning]}`` that
     ``rewind_name`` consumes."""
-    from wyrd.generators.kenning.meaning import Meaning
 
     m = Meaning(
         usage=usage,
@@ -2626,7 +2704,6 @@ def _make_rewind_meaning_db(*entries: tuple[str, dict[str, list[str]]]):
     Multiple Meanings per usage are appended to the same list (matches
     how the bundle exposes sibling Meanings for a single usage like
     ``Whit-`` carrying both OE and ON source variants)."""
-    from wyrd.generators.kenning.meaning import Meaning
 
     db: dict[str, list[Meaning]] = {}
     for usage, sources in entries:
@@ -2648,7 +2725,6 @@ def test_rewind_renders_morphemes_at_each_era_stop(fresh_db: Path) -> None:
     Anchors on the OE form (preferred via _ANCHOR_LANG_PREFERENCE),
     short-circuits at oe-late (anchor.language == target), walks the
     cluster at me / modern via etymon_era_reflexes."""
-    from wyrd.generators.kenning.rewind import rewind_name
 
     with LexiconDB(fresh_db) as db:
         _seed_cluster(
@@ -2685,7 +2761,6 @@ def test_rewind_resolves_anchor_across_meaning_siblings(fresh_db: Path) -> None:
     resolver MUST walk siblings to prefer ``old_english`` over
     ``old_scandinavian`` even when the trie matcher picked the ON
     sibling for the canonical decomposition."""
-    from wyrd.generators.kenning.rewind import rewind_name
 
     with LexiconDB(fresh_db) as db:
         _seed_cluster(
@@ -2717,7 +2792,6 @@ def test_rewind_falls_back_when_no_anchor_or_reflex(fresh_db: Path) -> None:
     OR the anchor has no era reflex at the target era, the rendered
     form falls back to the morpheme's modern usage and the
     ``fallback`` flag is set on the MorphemeRewind."""
-    from wyrd.generators.kenning.rewind import rewind_name
 
     with LexiconDB(fresh_db) as db:
         # No etymon rows seeded — every anchor lookup misses.
@@ -2737,7 +2811,6 @@ def test_rewind_strips_morpheme_hyphens_when_composing(fresh_db: Path) -> None:
     morphemes with explicit hyphens, so the form-level hyphens get
     stripped before joining — otherwise post-modifiers like ``-ham``
     produce double-hyphens (``Had-en--ham``)."""
-    from wyrd.generators.kenning.rewind import rewind_name
 
     with LexiconDB(fresh_db) as db:
         _seed_cluster(
@@ -2767,7 +2840,6 @@ def test_rewind_records_unaccounted_fragments(fresh_db: Path) -> None:
     captured on Rewind.unaccounted so the CLI can flag them. The
     rewind path doesn't crash — it renders what it CAN match and
     surfaces the rest as a warning."""
-    from wyrd.generators.kenning.rewind import rewind_name
 
     with LexiconDB(fresh_db) as db:
         # Only 'vale' decomposes; 'Spring' is unaccounted.
@@ -2789,7 +2861,6 @@ def test_rewind_supports_custom_era_ladder(fresh_db: Path) -> None:
     """Callers can pass a custom ``eras`` tuple to rewind a name
     across an arbitrary set of cells. Used by wyrd-381's stratified
     era-map (denser ladder than the default 3-cell English stops)."""
-    from wyrd.generators.kenning.rewind import rewind_name
 
     with LexiconDB(fresh_db) as db:
         _seed_cluster(
@@ -2819,7 +2890,6 @@ def test_rewind_supports_custom_era_ladder(fresh_db: Path) -> None:
 def test_rewind_raises_on_empty_input(fresh_db: Path) -> None:
     """Defensive: empty / whitespace-only input raises ValueError
     so a buggy caller failing-soft to '' surfaces immediately."""
-    from wyrd.generators.kenning.rewind import rewind_name
 
     with LexiconDB(fresh_db) as db:
         meaning_db = _make_rewind_meaning_db(("foo", {"old_english": ["foo"]}))
@@ -2840,7 +2910,6 @@ def test_rewind_picker_prefers_anchor_match_over_alphabetical(fresh_db: Path) ->
     peripheral entries that sort alphabetically before it
     ('amounten' etc.). Without tier-2, alphabetical first surfaces
     a noise mate; with tier-2, 'mynster' wins."""
-    from wyrd.generators.kenning.rewind import rewind_name
 
     with LexiconDB(fresh_db) as db:
         _seed_cluster(
@@ -2871,7 +2940,6 @@ def test_pick_form_strips_morpheme_hyphens() -> None:
     whichever form is selected. This is the load-bearing rule that
     keeps post-modifier morphemes ('-ham') from producing
     double-hyphens in the rendered compound."""
-    from wyrd.generators.kenning.rewind import MorphemeRewind, _pick_form
 
     # era_form present → wins, hyphens stripped.
     m = MorphemeRewind(
@@ -2899,7 +2967,6 @@ def test_supported_eras_for_family_returns_cell_labels() -> None:
     """Public helper that delegates to ``era.era_cells_for_family``;
     pin the contract so callers (CLI auto-completion, future SPA
     era selectors) can rely on the cell labels being stable."""
-    from wyrd.generators.kenning.rewind import supported_eras_for_family
 
     assert supported_eras_for_family("english") == (
         "oe-early",
@@ -2916,7 +2983,6 @@ def test_rewind_handles_multi_word_input(fresh_db: Path) -> None:
     whitespace and decomposes each word independently. The era stops
     aggregate morphemes across all words; rendered output joins
     morphemes with hyphens regardless of word boundaries."""
-    from wyrd.generators.kenning.rewind import rewind_name
 
     with LexiconDB(fresh_db) as db:
         _seed_cluster(
@@ -2953,7 +3019,6 @@ def test_cli_kenning_rewind_with_custom_era_ladder(fresh_db: Path) -> None:
     custom ladder. Pin the parsing path so a future refactor can't
     silently drop the multi-pass behaviour. Also verifies cell-label
     + family/label inputs both resolve."""
-    from wyrd.generators.kenning import _load_meanings
 
     runner = CliRunner()
     with LexiconDB(fresh_db) as db:
@@ -2994,7 +3059,6 @@ def test_cli_kenning_rewind_invalid_era_exits_nonzero(fresh_db: Path) -> None:
     cell label, out-of-range year) exits 1 with stderr message
     naming valid alternatives. The error comes from
     era_cell_for_input."""
-    from wyrd.generators.kenning import _load_meanings
 
     runner = CliRunner()
     with LexiconDB(fresh_db) as db:
@@ -3022,7 +3086,6 @@ def test_cli_kenning_rewind_smoke(fresh_db: Path) -> None:
     invokes the rewinder against a seeded lexicon and prints one
     line per era stop. Header on stderr includes the decomposition;
     body lines on stdout carry the rendered compound per era."""
-    from wyrd.generators.kenning import _load_meanings
 
     runner = CliRunner()
     with LexiconDB(fresh_db) as db:
@@ -3048,6 +3111,483 @@ def test_cli_kenning_rewind_smoke(fresh_db: Path) -> None:
     assert "decomposed:" in result.output
     # Three default English era stops printed.
     assert result.output.count("english/") == 3
+
+
+# --- wyrd-unuo Phase 3.3: per-etymon period-form projection ---------------
+
+
+def _seed_toponym_with_binary_breakdown(
+    db: LexiconDB,
+    *,
+    modern_name: str,
+    first_etymon_id: int,
+    last_etymon_id: int,
+    source_id: str = "src",
+) -> int:
+    """Insert a toponym + a binary-breakdown toponym_etymology with two
+    toponym_etymology_element rows (ordinals 0, 1) pointing at the
+    given etymon ids. Returns the toponym_id."""
+    cur = db.conn.execute("INSERT INTO toponym (modern_name) VALUES (?)", (modern_name,))
+    toponym_id = cur.lastrowid
+    cur = db.conn.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) VALUES (?, ?, ?)",
+        (toponym_id, source_id, "high"),
+    )
+    te_id = cur.lastrowid
+    db.conn.execute(
+        "INSERT INTO toponym_etymology_element "
+        "(toponym_etymology_id, ordinal, etymon_id) VALUES (?, ?, ?)",
+        (te_id, 0, first_etymon_id),
+    )
+    db.conn.execute(
+        "INSERT INTO toponym_etymology_element "
+        "(toponym_etymology_id, ordinal, etymon_id) VALUES (?, ?, ?)",
+        (te_id, 1, last_etymon_id),
+    )
+    db.commit()
+    return toponym_id
+
+
+def test_project_period_forms_segments_binary_attestation(fresh_db: Path) -> None:
+    """Bradford-style happy path: 'Bradeford' (1377) splits as
+    'Brade' + 'ford' via suffix-anchoring against the OE 'ford'
+    canonical_form."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        brad_id = db.upsert_etymon("brad", "old-english")
+        ford_id = db.upsert_etymon("ford", "old-english")
+        db.commit()
+        toponym_id = _seed_toponym_with_binary_breakdown(
+            db,
+            modern_name="Bradford",
+            first_etymon_id=brad_id,
+            last_etymon_id=ford_id,
+        )
+        db.conn.execute(
+            "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (toponym_id, "Bradeford", 1377, "src"),
+        )
+        db.commit()
+        result = project_period_forms(db, apply=True)
+        rows = db.conn.execute(
+            "SELECT etymon_id, form, date_year FROM etymon_period_form ORDER BY etymon_id, form"
+        ).fetchall()
+
+    assert result["rows_projected"] == 1
+    assert result["rows_written"] == 2
+    forms_by_etymon = {r["etymon_id"]: r["form"] for r in rows}
+    assert forms_by_etymon[brad_id] == "Brade"
+    assert forms_by_etymon[ford_id] == "ford"
+
+
+def test_project_period_forms_uses_cluster_mate_suffix(fresh_db: Path) -> None:
+    """Chesterton-style: 'Cestretone' splits as 'Cestre' + 'tone'
+    via cluster-mate suffix matching ('tone' is a Middle Scots
+    cognate of OE 'tūn'). Verifies the projector pulls suffix
+    candidates from the full cognate cluster, not just the
+    canonical_form."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        ceaster_id = db.upsert_etymon("ceaster", "old-english")
+        tun_id = db.upsert_etymon("tūn", "old-english")
+        tone_id = db.upsert_etymon("tone", "gmw-msc")
+        db.conn.execute(
+            "UPDATE etymon SET cognate_id = ? WHERE id IN (?, ?)",
+            (tun_id, tun_id, tone_id),
+        )
+        db.commit()
+        toponym_id = _seed_toponym_with_binary_breakdown(
+            db,
+            modern_name="Chesterton",
+            first_etymon_id=ceaster_id,
+            last_etymon_id=tun_id,
+        )
+        db.conn.execute(
+            "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (toponym_id, "Cestretone", 1210, "src"),
+        )
+        db.commit()
+        project_period_forms(db, apply=True)
+        forms = {
+            r["etymon_id"]: r["form"]
+            for r in db.conn.execute(
+                "SELECT etymon_id, form FROM etymon_period_form ORDER BY etymon_id"
+            )
+        }
+
+    assert forms[ceaster_id] == "Cestre"
+    assert forms[tun_id] == "tone"
+
+
+def test_project_period_forms_skips_ternary_breakdowns(fresh_db: Path) -> None:
+    """v1 limitation: ternary breakdowns are skipped (middle-morpheme
+    alignment isn't reliable without phonetic distance)."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        had_id = db.upsert_etymon("had", "old-english")
+        en_id = db.upsert_etymon("en", "old-english")
+        ham_id = db.upsert_etymon("ham", "old-english")
+        db.commit()
+        cur = db.conn.execute("INSERT INTO toponym (modern_name) VALUES (?)", ("Hadenham",))
+        toponym_id = cur.lastrowid
+        cur = db.conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) VALUES (?, ?, ?)",
+            (toponym_id, "src", "high"),
+        )
+        te_id = cur.lastrowid
+        for ordinal, eid in enumerate([had_id, en_id, ham_id]):
+            db.conn.execute(
+                "INSERT INTO toponym_etymology_element "
+                "(toponym_etymology_id, ordinal, etymon_id) VALUES (?, ?, ?)",
+                (te_id, ordinal, eid),
+            )
+        db.conn.execute(
+            "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (toponym_id, "Hadenham", 1300, "src"),
+        )
+        db.commit()
+        result = project_period_forms(db, apply=True)
+
+    assert result["rows_projected"] == 0
+
+
+def test_project_period_forms_skips_breakdowns_with_merged_etymons(
+    fresh_db: Path,
+) -> None:
+    """Per Claude review M1: a breakdown whose component points at an
+    OCR-cluster loser (merged_into_id IS NOT NULL) is skipped so loser
+    etymons don't accumulate stale period_form rows that then surface
+    via Tier 3 of the era-reflex picker. Pin the projector-side filter
+    matching Tiers 1+2's behavior."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        winner_id = db.upsert_etymon("brad", "old-english")
+        loser_id = db.upsert_etymon("brade", "old-english")
+        ford_id = db.upsert_etymon("ford", "old-english")
+        # Mark loser as merged-into the winner.
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (winner_id, loser_id),
+        )
+        db.commit()
+        # Toponym breaks down via the LOSER etymon (the original
+        # extraction predates the OCR merge).
+        toponym_id = _seed_toponym_with_binary_breakdown(
+            db,
+            modern_name="Bradford",
+            first_etymon_id=loser_id,
+            last_etymon_id=ford_id,
+        )
+        db.conn.execute(
+            "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (toponym_id, "Bradeford", 1377, "src"),
+        )
+        db.commit()
+        result = project_period_forms(db, apply=True)
+
+    assert result["rows_projected"] == 0
+
+
+def test_etymon_era_reflexes_tier3_filters_merged_into(fresh_db: Path) -> None:
+    """Per Claude review M1: Tier 3 query MUST filter
+    merged_into_id IS NULL to match Tiers 1+2. A loser etymon's
+    period_form rows (if they ever made it past the projector
+    filter) shouldn't surface as reflexes — the merge winner is
+    the canonical voice."""
+    with LexiconDB(fresh_db) as db:
+        winner_id = db.upsert_etymon("orphan", "old-english")
+        loser_id = db.upsert_etymon("orphan-loser", "old-english")
+        # Mark loser as merged-into winner; insert a period_form on
+        # the LOSER (simulates a stale row from a pre-merge projector
+        # run, or a manual data-correction).
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (winner_id, loser_id),
+        )
+        db.conn.execute(
+            "INSERT INTO etymon_period_form "
+            "(etymon_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+            (loser_id, "stale-form", 1300, "src"),
+        )
+        db.commit()
+        # Querying the LOSER directly should return [] — Tier 3 honors
+        # the merge tombstone.
+        reflexes = etymon_era_reflexes(db, loser_id, target_family_cell=("english", "me"))
+
+    assert reflexes == []
+
+
+def test_project_period_forms_idempotent_rerun(fresh_db: Path) -> None:
+    """Unique index on (etymon_id, form, date_year, source_doc) makes
+    re-projection a no-op via INSERT OR IGNORE."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        brad_id = db.upsert_etymon("brad", "old-english")
+        ford_id = db.upsert_etymon("ford", "old-english")
+        db.commit()
+        toponym_id = _seed_toponym_with_binary_breakdown(
+            db,
+            modern_name="Bradford",
+            first_etymon_id=brad_id,
+            last_etymon_id=ford_id,
+        )
+        db.conn.execute(
+            "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (toponym_id, "Bradeford", 1377, "src"),
+        )
+        db.commit()
+        first = project_period_forms(db, apply=True)
+        second = project_period_forms(db, apply=True)
+        total = db.conn.execute("SELECT COUNT(*) FROM etymon_period_form").fetchone()[0]
+
+    assert first["rows_written"] == 2
+    assert second["rows_written"] == 0
+    assert total == 2
+
+
+def test_etymon_era_reflexes_tier4_period_form_fallback(fresh_db: Path) -> None:
+    """Tier 4: when both cluster and descent paths return empty AND
+    target_family_cell is set, the picker queries etymon_period_form
+    rows whose date_year falls in the cell's range."""
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("orphan", "old-english")
+        db.conn.execute(
+            "INSERT INTO etymon_period_form (etymon_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (eid, "orphane", 1300, "src"),
+        )
+        db.commit()
+        reflexes = etymon_era_reflexes(db, eid, target_family_cell=("english", "me"))
+
+    forms = [r.form for r in reflexes]
+    assert "orphane" in forms
+
+
+def test_etymon_era_reflexes_tier4_filters_by_year_range(fresh_db: Path) -> None:
+    """Tier 4 must respect the era cell's year range — period forms
+    outside the cell don't surface."""
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("orphan", "old-english")
+        for form, year in [("orphan-oe", 950), ("orphane", 1300), ("orphan-mod", 1800)]:
+            db.conn.execute(
+                "INSERT INTO etymon_period_form "
+                "(etymon_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+                (eid, form, year, "src"),
+            )
+        db.commit()
+        me_reflexes = etymon_era_reflexes(db, eid, target_family_cell=("english", "me"))
+        oe_reflexes = etymon_era_reflexes(db, eid, target_family_cell=("english", "oe-late"))
+
+    assert [r.form for r in me_reflexes] == ["orphane"]
+    assert [r.form for r in oe_reflexes] == ["orphan-oe"]
+
+
+def test_etymon_era_reflexes_tier4_skipped_when_target_language_only(
+    fresh_db: Path,
+) -> None:
+    """Tier 4 requires a year range; with target_language only,
+    no year context exists so Tier 4 is skipped."""
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("orphan", "old-english")
+        db.conn.execute(
+            "INSERT INTO etymon_period_form (etymon_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (eid, "orphane", 1300, "src"),
+        )
+        db.commit()
+        reflexes = etymon_era_reflexes(db, eid, target_language="middle-english")
+
+    assert reflexes == []
+
+
+def test_clear_enrichment_period_forms_drops_rows(fresh_db: Path) -> None:
+    """clear_enrichment(stage='period-forms') deletes every row from
+    etymon_period_form, leaving the table empty for re-projection."""
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("orphan", "old-english")
+        db.conn.execute(
+            "INSERT INTO etymon_period_form (etymon_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (eid, "orphane", 1300, "src"),
+        )
+        db.commit()
+        before = db.conn.execute("SELECT COUNT(*) FROM etymon_period_form").fetchone()[0]
+        result = clear_enrichment(db, stage="period-forms", apply=True)
+        after = db.conn.execute("SELECT COUNT(*) FROM etymon_period_form").fetchone()[0]
+
+    assert before == 1
+    assert result["period_form_rows_to_clear"] == 1
+    assert after == 0
+
+
+def test_clear_enrichment_all_derived_includes_period_forms(fresh_db: Path) -> None:
+    """stage='all-derived' covers period-forms too."""
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("orphan", "old-english")
+        db.conn.execute(
+            "INSERT INTO etymon_period_form (etymon_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (eid, "orphane", 1300, "src"),
+        )
+        db.commit()
+        result = clear_enrichment(db, stage="all-derived", apply=True)
+        remaining = db.conn.execute("SELECT COUNT(*) FROM etymon_period_form").fetchone()[0]
+
+    assert result["period_form_rows_to_clear"] == 1
+    assert remaining == 0
+
+
+def test_migrate_schema_creates_etymon_period_form_on_legacy_db(
+    tmp_path: Path,
+) -> None:
+    """A legacy DB pre-Phase-3.3 has no etymon_period_form table.
+    migrate_schema creates it idempotently."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        db.conn.execute("DROP TABLE IF EXISTS etymon_period_form")
+        db.commit()
+        applied = migrate_schema(db)
+        tables = {
+            row["name"]
+            for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+    assert applied["etymon_period_form_table"] is True
+    assert "etymon_period_form" in tables
+
+
+def test_rewind_anchor_resolves_across_hyphen_variants(fresh_db: Path) -> None:
+    """wyrd-unuo: the anchor resolver collects siblings across
+    hyphen-variant usage keys. The bundle keys ``ton`` (Celtic-mix)
+    and ``-ton`` (OE post-modifier) are stripped-equivalent, and
+    when the trie picks the Celtic ``ton`` Meaning, the OE anchor
+    at ``-ton`` must still be found."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        oe_tun = db.upsert_etymon("tūn", "old-english")
+        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_tun, oe_tun))
+        db.upsert_etymon("ton", "celtic")
+        db.commit()
+
+        meaning_db = _make_rewind_meaning_db(
+            ("ton", {"celtic_mix": ["ton"]}),
+            ("-ton", {"old_english": ["tūn"]}),
+        )
+        result = rewind_name("ton", db, meaning_db)
+
+    # The anchor SHOULD be OE 'tūn' (via the -ton sibling).
+    by_cell = {stop.cell: stop.morphemes[0] for stop in result.eras}
+    assert by_cell["oe-late"].source_form == "tūn"
+    assert by_cell["oe-late"].source_language == "old-english"
+
+
+def test_strip_diacritics_normalizes_macrons_and_circumflexes() -> None:
+    """Direct unit test for the diacritic-stripper used by the
+    suffix-anchoring projector. Inputs include the OE macron set
+    (ūīāēō) and Welsh circumflex set (ŵâêôûŷ) that show up as
+    bundle-source forms; the projector compares stripped variants
+    against historical-form suffixes."""
+    from wyrd.generators.kenning.lexicon import _strip_diacritics
+
+    assert _strip_diacritics("tūn") == "tun"
+    assert _strip_diacritics("Hædan") == "Hædan"  # æ is a base char, not a combining mark
+    assert _strip_diacritics("Llanfaên") == "Llanfaen"
+    assert _strip_diacritics("Hēafod") == "Heafod"
+    assert _strip_diacritics("ASCII") == "ASCII"
+
+
+def test_find_longest_suffix_match_picks_longest_candidate() -> None:
+    """Direct unit test: when multiple candidates are valid suffixes,
+    the longest wins (so 'tone' wins over 'one' for 'Cestretone')."""
+    from wyrd.generators.kenning.lexicon import _find_longest_suffix_match
+
+    assert _find_longest_suffix_match("Cestretone", {"tone", "one", "ne"}) == "tone"
+    assert _find_longest_suffix_match("Bradeford", {"ford", "ord", "rd"}) == "ford"
+
+
+def test_find_longest_suffix_match_diacritic_insensitive() -> None:
+    """Suffix matching is diacritic-insensitive: ``Cestretun`` matches
+    a pre-stripped 'tun' candidate. Caller (``_suffix_candidates_for_etymon``)
+    is responsible for adding both unstripped + stripped forms to
+    the candidate set; the matcher checks whether either the raw or
+    diacritic-stripped attested form ends with any candidate."""
+    from wyrd.generators.kenning.lexicon import _find_longest_suffix_match
+
+    # Caller-provided candidates include both: 'tūn' (raw) + 'tun'
+    # (stripped). Match against 'tun' via either af.endswith path.
+    assert _find_longest_suffix_match("Cestretun", {"tūn", "tun"}) == "tun"
+    # Diacritic-bearing attested form: 'Cestretūn' (with macron)
+    # also matches via af_stripped.endswith('tun').
+    assert _find_longest_suffix_match("Cestretūn", {"tūn", "tun"}) == "tūn"
+
+
+def test_find_longest_suffix_match_returns_none_for_no_match() -> None:
+    """When no candidate is a suffix of the form, the matcher returns
+    None (caller skips the projection)."""
+    from wyrd.generators.kenning.lexicon import _find_longest_suffix_match
+
+    assert _find_longest_suffix_match("Cestretone", {"xyz", "abc"}) is None
+    assert _find_longest_suffix_match("Cestretone", set()) is None
+
+
+def test_find_longest_suffix_match_rejects_single_char_candidates() -> None:
+    """Single-char candidates (a trailing 'e' / 's') are rejected to
+    avoid spurious 1-char hits — too noisy to project as a morpheme
+    surface."""
+    from wyrd.generators.kenning.lexicon import _find_longest_suffix_match
+
+    assert _find_longest_suffix_match("Cestretone", {"e"}) is None
+
+
+def test_cli_kenning_lexicon_project_period_forms_smoke(fresh_db: Path) -> None:
+    """End-to-end CLI smoke test: ``lexicon project-period-forms``
+    against a seeded toponym + binary breakdown + attestation
+    populates etymon_period_form when --apply is set, dry-runs
+    otherwise."""
+    runner = CliRunner()
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        brad_id = db.upsert_etymon("brad", "old-english")
+        ford_id = db.upsert_etymon("ford", "old-english")
+        db.commit()
+        toponym_id = _seed_toponym_with_binary_breakdown(
+            db,
+            modern_name="Bradford",
+            first_etymon_id=brad_id,
+            last_etymon_id=ford_id,
+        )
+        db.conn.execute(
+            "INSERT INTO toponym_attestation "
+            "(toponym_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+            (toponym_id, "Bradeford", 1377, "src"),
+        )
+        db.commit()
+
+    # Dry-run: shows candidate count, no rows written.
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "project-period-forms", "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "candidates=" in result.output
+    assert "(dry-run" in result.output
+
+    with LexiconDB(fresh_db) as db:
+        assert db.conn.execute("SELECT COUNT(*) FROM etymon_period_form").fetchone()[0] == 0
+
+    # --apply: writes rows.
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "project-period-forms", "--db", str(fresh_db), "--apply"],
+    )
+    assert result.exit_code == 0, result.output
+    with LexiconDB(fresh_db) as db:
+        assert db.conn.execute("SELECT COUNT(*) FROM etymon_period_form").fetchone()[0] == 2
 
 
 def test_record_mining_run_inserts_row_with_full_fields(fresh_db: Path) -> None:
@@ -3144,8 +3684,6 @@ def test_import_mining_log_inserts_jsonl_records(fresh_db: Path, tmp_path: Path)
     via record_mining_run, idempotently."""
     from click.testing import CliRunner
 
-    from wyrd.generators.kenning.cli import cli
-
     # Seed two source rows so FK on mining_run.source_id passes.
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="skeat_1901_cambridgeshire", title="Skeat Cambridgeshire")
@@ -3173,7 +3711,7 @@ def test_import_mining_log_inserts_jsonl_records(fresh_db: Path, tmp_path: Path)
 
     # Dry-run reports counts without inserting.
     result = runner.invoke(
-        cli, ["lexicon", "import-mining-log", str(log_path), "--db", str(fresh_db)]
+        kenning_cli, ["lexicon", "import-mining-log", str(log_path), "--db", str(fresh_db)]
     )
     assert result.exit_code == 0, result.output + (result.stderr or "")
     with LexiconDB(fresh_db) as db:
@@ -3181,7 +3719,7 @@ def test_import_mining_log_inserts_jsonl_records(fresh_db: Path, tmp_path: Path)
 
     # Apply: rows land.
     result = runner.invoke(
-        cli,
+        kenning_cli,
         ["lexicon", "import-mining-log", str(log_path), "--db", str(fresh_db), "--apply"],
     )
     assert result.exit_code == 0, result.output + (result.stderr or "")
@@ -3190,7 +3728,7 @@ def test_import_mining_log_inserts_jsonl_records(fresh_db: Path, tmp_path: Path)
 
     # Re-apply: dedupe — count stays at 2.
     result = runner.invoke(
-        cli,
+        kenning_cli,
         ["lexicon", "import-mining-log", str(log_path), "--db", str(fresh_db), "--apply"],
     )
     assert result.exit_code == 0
@@ -3204,8 +3742,6 @@ def test_import_mining_log_tolerates_malformed_records(fresh_db: Path, tmp_path:
     invalid mode hitting the CHECK constraint) surfaces as an error and
     the rest of the file proceeds."""
     from click.testing import CliRunner
-
-    from wyrd.generators.kenning.cli import cli
 
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="real-src", title="Real")
@@ -3239,7 +3775,7 @@ def test_import_mining_log_tolerates_malformed_records(fresh_db: Path, tmp_path:
     )
 
     result = CliRunner().invoke(
-        cli,
+        kenning_cli,
         [
             "lexicon",
             "import-mining-log",
@@ -3262,8 +3798,6 @@ def test_import_mining_log_skips_unknown_sources(fresh_db: Path, tmp_path: Path)
     an error count, not a hard FK failure."""
     from click.testing import CliRunner
 
-    from wyrd.generators.kenning.cli import cli
-
     log_path = tmp_path / "runs.jsonl"
     log_path.write_text(
         '{"source_id":"never-existed","provider":"ollama","model":"x",'
@@ -3272,7 +3806,7 @@ def test_import_mining_log_skips_unknown_sources(fresh_db: Path, tmp_path: Path)
     )
     runner = CliRunner()
     result = runner.invoke(
-        cli,
+        kenning_cli,
         ["lexicon", "import-mining-log", str(log_path), "--db", str(fresh_db), "--apply"],
     )
     assert result.exit_code == 0
@@ -3288,11 +3822,6 @@ def test_lexicon_mine_llm_records_mining_run_at_end_of_run(
     a regression that drops the record_mining_run call in lexicon_mine_llm
     passes CI silently — only the helper's unit tests would notice."""
     from click.testing import CliRunner
-
-    from wyrd.generators.kenning import cli as cli_mod
-    from wyrd.generators.kenning import llm_extractor
-    from wyrd.generators.kenning.llm_extractor import LLMResult
-    from wyrd.generators.kenning.skeat_parser import ParsedElement, ParsedEntry
 
     # Fake parsed entries — bypasses the regex parser.
     fake_parsed = [
@@ -3400,11 +3929,6 @@ def test_lexicon_mine_llm_declines_only_skips_already_extracted(
     then run mine-llm with the flag and verify only the unseeded toponym
     reaches the extractor."""
     from click.testing import CliRunner
-
-    from wyrd.generators.kenning import cli as cli_mod
-    from wyrd.generators.kenning import llm_extractor
-    from wyrd.generators.kenning.llm_extractor import LLMResult
-    from wyrd.generators.kenning.skeat_parser import ParsedElement, ParsedEntry
 
     fake_parsed = [
         ParsedEntry(
@@ -3518,10 +4042,6 @@ def test_lexicon_mine_llm_declines_only_no_op_when_fully_mined(
     (no work was done)."""
     from click.testing import CliRunner
 
-    from wyrd.generators.kenning import cli as cli_mod
-    from wyrd.generators.kenning import llm_extractor
-    from wyrd.generators.kenning.skeat_parser import ParsedEntry
-
     fake_parsed = [
         ParsedEntry(
             toponym="OnlyOne",
@@ -3599,7 +4119,6 @@ def test_lexicon_mine_llm_declines_only_no_op_when_fully_mined(
 def test_parse_running_header_pages_finds_mawer_style_headers():
     """Mawer-style running headers like 'BACKWORTH 9' get parsed into
     (offset, page) pairs sorted by offset."""
-    from wyrd.generators.kenning.lexicon import parse_running_header_pages
 
     body = (
         "front matter\n"
@@ -3618,7 +4137,6 @@ def test_parse_running_header_pages_finds_mawer_style_headers():
 
 def test_parse_running_header_pages_handles_multi_word_headwords():
     """Multi-word ALL CAPS headwords (e.g. 'ABBEY DORE 1') are detected."""
-    from wyrd.generators.kenning.lexicon import parse_running_header_pages
 
     body = "ABBEY DORE 1\n  body...\nST PETER'S 47\n"
     headers = parse_running_header_pages(body)
@@ -3630,7 +4148,6 @@ def test_parse_running_header_pages_handles_multi_word_headwords():
 def test_parse_running_header_pages_returns_empty_when_no_match():
     """Skeat-style §-section headers don't match the Mawer pattern;
     return an empty list rather than raising."""
-    from wyrd.generators.kenning.lexicon import parse_running_header_pages
 
     skeat_style = "§   2.      NAMES   ENDING   IN   -TON.  9\n  body of section\n"
     assert parse_running_header_pages(skeat_style) == []
@@ -3639,7 +4156,6 @@ def test_parse_running_header_pages_returns_empty_when_no_match():
 def test_page_for_offset_returns_closest_preceding_header():
     """A character offset between two headers gets the page of the earlier
     header — that's the page the body text physically sits on."""
-    from wyrd.generators.kenning.lexicon import page_for_offset
 
     headers = [(100, 1), (200, 2), (300, 3)]
     assert page_for_offset(headers, 50) is None  # before any header
@@ -3652,7 +4168,6 @@ def test_page_for_offset_returns_closest_preceding_header():
 def test_page_for_offset_empty_headers_returns_none():
     """A book with no detectable running headers returns None for any
     offset — caller can fall back to NULL page."""
-    from wyrd.generators.kenning.lexicon import page_for_offset
 
     assert page_for_offset([], 0) is None
     assert page_for_offset([], 12345) is None
@@ -4335,7 +4850,6 @@ def test_reverse_search_captures_wider_snippet_window(fresh_db: Path, tmp_path: 
     """wyrd-9kh.4: reverse_search_attestations writes ±100 char snippets
     (up from the prior ±60). Pins the wider window so the SPA citation
     panel has enough surrounding scholarly prose to display."""
-    from wyrd.generators.kenning.lexicon import reverse_search_attestations
 
     # Build a long body with the matched form near the middle so ±100
     # chars on either side comfortably stay within the body.
@@ -4432,11 +4946,6 @@ def test_lexicon_review_low_conf_counts_as_declined_not_written(
     overstating real persistence by ~60% on books where Gemini was
     uncertain."""
     from click.testing import CliRunner
-
-    from wyrd.generators.kenning import cli as cli_mod
-    from wyrd.generators.kenning import gemini_extractor
-    from wyrd.generators.kenning.llm_extractor import LLMResult
-    from wyrd.generators.kenning.skeat_parser import ParsedElement, ParsedEntry
 
     # Pre-seed: one source, one toponym, one Qwen-tagged low-conf
     # etymology row that's eligible for Tier-2 review.
@@ -4543,11 +5052,6 @@ def test_lexicon_review_dry_run_does_not_persist_or_count_writes(
     the refactor moved `counts['written'] += 1` outside the apply guard, so
     dry-run reported nonzero writes that didn't exist in the DB."""
     from click.testing import CliRunner
-
-    from wyrd.generators.kenning import cli as cli_mod
-    from wyrd.generators.kenning import gemini_extractor
-    from wyrd.generators.kenning.llm_extractor import LLMResult
-    from wyrd.generators.kenning.skeat_parser import ParsedElement, ParsedEntry
 
     sources_dir = tmp_path / "sources"
     sources_dir.mkdir()
@@ -5189,8 +5693,6 @@ def test_lexicon_export_meanings_cli_no_include_wiktionary_empirical_flag(
     ``--no-include-rando``. End-to-end via CliRunner."""
     from click.testing import CliRunner
 
-    from wyrd.generators.kenning.cli import cli
-
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="wiktionary-empirical", title="Wiktionary (empirical)")
         eid = db.upsert_etymon("eglwys", "welsh", modifier_type="Architectural")
@@ -5202,7 +5704,7 @@ def test_lexicon_export_meanings_cli_no_include_wiktionary_empirical_flag(
 
     # Default: empirical-admit ON, eglwys is in the export.
     result = runner.invoke(
-        cli,
+        kenning_cli,
         ["lexicon", "export-meanings", "--db", str(fresh_db)],
     )
     assert result.exit_code == 0, result.output + (result.stderr or "")
@@ -5210,7 +5712,7 @@ def test_lexicon_export_meanings_cli_no_include_wiktionary_empirical_flag(
 
     # --no-include-wiktionary-empirical: eglwys is dropped.
     result = runner.invoke(
-        cli,
+        kenning_cli,
         [
             "lexicon",
             "export-meanings",
@@ -5395,11 +5897,6 @@ def test_lang_code_to_json_field_values_are_in_language_fields() -> None:
     Pinned as a sanity invariant: a typo in any of the new wave-2 entries
     (e.g. 'persian' miskeyed as 'persia' or 'arabic' as 'arab') would
     break round-tripping but pass every individual export test."""
-    from wyrd.generators.kenning.lexicon import (
-        _LANG_CODE_TO_JSON_FIELD,
-        LANGUAGE_FIELDS,
-    )
-
     for lang_code, json_field in _LANG_CODE_TO_JSON_FIELD.items():
         assert json_field in LANGUAGE_FIELDS, (
             f"_LANG_CODE_TO_JSON_FIELD[{lang_code!r}] = {json_field!r} "
@@ -5418,7 +5915,6 @@ def test_lang_code_to_json_field_has_no_duplicate_keys_or_unbalanced_buckets() -
     both keys but only the canonical one routes correctly. The
     invariant doesn't catch THIS case directly but the test below
     on precursor-stack routing does."""
-    from wyrd.generators.kenning.lexicon import _LANG_CODE_TO_JSON_FIELD
 
     # No duplicate KEYS in the dict literal — Python would silently keep
     # the last value, but the assertion makes the contract explicit.
@@ -6202,7 +6698,6 @@ def test_emit_variant_list_sorts_by_descending_weight_then_form(
     """`_emit_variant_list` sorts (form, weight) pairs by descending weight,
     breaking ties on form alphabetically — both axes matter for diff
     stability across rebuilds."""
-    from wyrd.generators.kenning.lexicon import _emit_variant_list
 
     out = _emit_variant_list({"alpha": 5, "beta": 5, "gamma": 7, "delta": 1})
     assert out == [
@@ -6214,7 +6709,6 @@ def test_emit_variant_list_sorts_by_descending_weight_then_form(
 
 
 def test_emit_variant_list_empty_input_returns_empty(fresh_db: Path) -> None:
-    from wyrd.generators.kenning.lexicon import _emit_variant_list
 
     assert _emit_variant_list({}) == []
 
@@ -6292,7 +6786,6 @@ def test_export_meanings_synthesized_family_emits_inflections(fresh_db: Path) ->
 def test_emit_inflection_list_sorts_by_form_alphabetically(fresh_db: Path) -> None:
     """`_emit_inflection_list` sorts entries by form so output is byte-stable
     regardless of dict insertion order."""
-    from wyrd.generators.kenning.lexicon import _emit_inflection_list
 
     out = _emit_inflection_list(
         {"cotum": "dative_or_pl", "cotan": "weak_oblique", "cotes": "genitive_strong"}
@@ -6305,7 +6798,6 @@ def test_emit_inflection_list_sorts_by_form_alphabetically(fresh_db: Path) -> No
 
 
 def test_emit_inflection_list_empty_input_returns_empty(fresh_db: Path) -> None:
-    from wyrd.generators.kenning.lexicon import _emit_inflection_list
 
     assert _emit_inflection_list({}) == []
 
@@ -6316,7 +6808,6 @@ def test_emit_inflection_list_empty_input_returns_empty(fresh_db: Path) -> None:
 def test_filter_concatenation_glosses_drops_comma_concat():
     """Glosses that are entirely a concatenation of already-present
     singleton glosses should be filtered."""
-    from wyrd.generators.kenning.lexicon import _filter_concatenation_glosses
 
     out = _filter_concatenation_glosses(["lake", "pond", "lake, pond"])
     assert out == ["lake", "pond"]
@@ -6325,7 +6816,6 @@ def test_filter_concatenation_glosses_drops_comma_concat():
 def test_filter_concatenation_glosses_keeps_partial_overlap():
     """A multi-token gloss that contains a singleton plus extra info should
     be kept — only the strict-subset case is considered redundant."""
-    from wyrd.generators.kenning.lexicon import _filter_concatenation_glosses
 
     # 'shore' is not in the singleton set, so 'bank, shore' is informative.
     out = _filter_concatenation_glosses(["bank", "bank, shore"])
@@ -6334,7 +6824,6 @@ def test_filter_concatenation_glosses_keeps_partial_overlap():
 
 def test_filter_concatenation_glosses_recognizes_semicolon_and_or():
     """Splitter accepts ',', ';' and ' or ' as connectors."""
-    from wyrd.generators.kenning.lexicon import _filter_concatenation_glosses
 
     out = _filter_concatenation_glosses(["book", "charter", "charter; book", "book or charter"])
     assert out == ["book", "charter"]
@@ -6343,7 +6832,6 @@ def test_filter_concatenation_glosses_recognizes_semicolon_and_or():
 def test_filter_concatenation_glosses_keeps_singletons_unconditionally():
     """A single-token gloss is never dropped, even if its tokens overlap
     other singletons (since by definition it has only one token)."""
-    from wyrd.generators.kenning.lexicon import _filter_concatenation_glosses
 
     out = _filter_concatenation_glosses(["bank", "edge", "shore"])
     assert out == ["bank", "edge", "shore"]
@@ -7318,7 +7806,6 @@ def test_build_witness_filter_empty_uses_uniform_threshold() -> None:
     """Direct unit test: empty lang_thresholds returns the simple fragment.
     Parenthesized to match the per-language path's contract so the helper
     composes safely when dropped into a larger expression."""
-    from wyrd.generators.kenning.lexicon import _build_witness_filter
 
     sql, params = _build_witness_filter({}, 3)
     assert sql == "(witnesses >= ?)"
@@ -7330,7 +7817,6 @@ def test_build_witness_filter_emits_clauses_in_sorted_order() -> None:
     sorted-by-lang order (so output is byte-stable regardless of dict
     insertion order), and the trailing fallback NOT IN (...) clause carries
     the global min_witnesses."""
-    from wyrd.generators.kenning.lexicon import _build_witness_filter
 
     # Insertion order intentionally not sorted, to verify the helper sorts.
     sql, params = _build_witness_filter({"old-norse": 2, "celtic": 2, "old-english": 3}, 4)
@@ -8007,7 +8493,6 @@ def _seed_descent_chain(db: LexiconDB, *edges: tuple[str, str, str]) -> dict[str
 def test_cluster_cognates_assigns_root_id_to_inheritance_chain(fresh_db: Path) -> None:
     """Happy path: a → b → c inheritance chain. All three rows get
     cognate_id = a.id, cognate_method = 'cluster-cognates-v1'."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         forms = _seed_descent_chain(
@@ -8034,7 +8519,6 @@ def test_cluster_cognates_assigns_root_id_to_inheritance_chain(fresh_db: Path) -
 def test_cluster_cognates_dry_run_does_not_write(fresh_db: Path) -> None:
     """apply=False reports counts but leaves cognate_id NULL on every
     candidate row."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         _seed_descent_chain(
@@ -8055,7 +8539,6 @@ def test_cluster_cognates_dry_run_does_not_write(fresh_db: Path) -> None:
 def test_cluster_cognates_separate_roots_get_separate_cognate_clusters(fresh_db: Path) -> None:
     """Two unrelated roots produce two distinct cognate_id values; rows
     in each cluster point at their own root."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         forms = _seed_descent_chain(
@@ -8082,7 +8565,6 @@ def test_cluster_cognates_cognate_edge_does_not_bridge_cognate_clusters(fresh_db
     not bridge cognate-cluster assignments. Pin the contract: a {{cog}}-only
     relation between two etymons leaves both with NULL cognate_id (no
     inheritance/borrowing chain to walk)."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         # Only a cognate edge — no inheritance.
@@ -8107,7 +8589,6 @@ def test_cluster_cognates_borrowing_edges_bridge_cognate_clusters(fresh_db: Path
     """Borrowing edges DO bridge — a borrowed word is part of the
     borrowing language's cognate set in practice (D27 / wyrd-81n
     documents this choice)."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         forms = _seed_descent_chain(
@@ -8130,7 +8611,6 @@ def test_cluster_cognates_diamond_graph_picks_smallest_root(
     """When a descendant is reachable from multiple roots (rare; happens
     when scholars disagree on the chain), the smallest root id wins.
     Pin the determinism so re-runs are bit-stable."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         # Diamond: root1 → mid; root2 → mid. mid is reachable from both.
@@ -8153,7 +8633,6 @@ def test_cluster_cognates_idempotent_on_rerun(fresh_db: Path) -> None:
     the same rows get the same assignments. 'candidates' count stays
     constant because the implementation doesn't track 'already-assigned'
     vs 'newly-assigned' — it overwrites with the same values."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         _seed_descent_chain(
@@ -8179,7 +8658,6 @@ def test_cluster_cognates_idempotent_on_rerun(fresh_db: Path) -> None:
 def test_cluster_cognates_skips_etymons_without_descent_edges(fresh_db: Path) -> None:
     """Singleton etymons (rando-port seed entries with no Wiktionary
     chain) get NULL cognate_id. They're not in any cognate set."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         # One chain, plus a singleton that has no descent edges.
@@ -8206,7 +8684,6 @@ def test_clear_enrichment_cognates_stage_resets_cognate_assignments(
     """clear-enrichment --stage=cognates undoes a cluster-cognates run:
     cognate_id and cognate_method go back to NULL on every row. Mining
     evidence (etymon_descent rows themselves) is untouched."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         _seed_descent_chain(
@@ -8237,7 +8714,6 @@ def test_clear_enrichment_all_derived_includes_cognates(fresh_db: Path) -> None:
     was wired into the all-derived alias. Without this, callers using
     the --stage=all-derived shortcut would silently leave synset
     assignments behind."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         _seed_descent_chain(
@@ -8311,7 +8787,6 @@ def test_lexicon_help_does_not_trigger_default_path_resolution(
     A future regression that flips one option back to
     `show_default=True` would re-introduce the surprise side-effect.
     """
-    from wyrd.generators.kenning import paths
 
     call_count = [0]
 
@@ -8321,7 +8796,6 @@ def test_lexicon_help_does_not_trigger_default_path_resolution(
 
     monkeypatch.setattr(paths, "default_lexicon_path", counting_resolver)
     # Also patch the alias re-bound at cli import time.
-    from wyrd.generators.kenning import cli as cli_mod
 
     monkeypatch.setattr(cli_mod, "_DEFAULT_LEXICON_PATH", counting_resolver)
 
@@ -8417,7 +8891,6 @@ def test_cluster_cognates_non_bridging_edge_types_do_not_cluster(
     _COGNATE_BRIDGING_EDGES to include any of them surfaces here.
     Without these tests, only 'cognate' was pinned and the others
     could silently start bridging."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         _seed_descent_chain(db, ("a", "b", non_bridging_edge))
@@ -8436,7 +8909,6 @@ def test_cluster_cognates_self_loop_silently_filtered(fresh_db: Path) -> None:
     self-loops upstream of the BFS, so they don't generate cycle_orphans
     or otherwise pollute the cluster pass. BFS must terminate (no
     infinite loop) and the etymon stays NULL — silently."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="wiktionary", title="Wiktionary")
@@ -8464,7 +8936,6 @@ def test_cluster_cognates_self_loop_silently_filtered(fresh_db: Path) -> None:
 def test_cluster_cognates_mutual_cycle_terminates_and_orphans(fresh_db: Path) -> None:
     """A two-node cycle (A→B, B→A) with no external root: BFS must
     terminate and both etymons flagged as cycle orphans."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         forms = _seed_descent_chain(
@@ -8489,7 +8960,6 @@ def test_cluster_cognates_anchored_cycle_assigns_via_root(fresh_db: Path) -> Non
     """root → a → b → a (cycle reachable from a real root): the cycle
     members get root's cognate_id, and BFS terminates because the
     not-in-assignments check doubles as a visited-set."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         forms = _seed_descent_chain(
@@ -8515,7 +8985,6 @@ def test_cluster_cognates_idempotent_apply_skips_unchanged_rows(fresh_db: Path) 
     rows_written = 0 — the WHERE-clause guard short-circuits no-op
     UPDATEs. Without the guard, every re-run would touch every row
     and inflate write counters."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         _seed_descent_chain(
@@ -8536,7 +9005,6 @@ def test_clear_enrichment_cli_cognates_stage_round_trips(fresh_db: Path) -> None
     new Click choice + new echo branch had no test (only the lib
     function did). Pin via CliRunner so a typo in the choice list
     surfaces immediately."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         _seed_descent_chain(db, ("a", "b", "inheritance"))
@@ -8738,7 +9206,6 @@ def test_cluster_cognates_resolves_descent_edges_through_merged_into_id(
       - descent edge: gmw-pro:*tūn → ang:tun (points at TOMBSTONE)
     Expected: cognate_id lands on the canonical 'tūn', not on 'tun'.
     """
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="wiktionary", title="Wiktionary")
@@ -8780,7 +9247,6 @@ def test_cluster_cognates_canonical_root_wins_when_root_was_merged(
     canonical winner becomes the parent in the canonical edge set.
     Pin so a refactor that drops the parent-side resolution doesn't
     silently regress."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="wiktionary", title="Wiktionary")
@@ -8817,7 +9283,6 @@ def test_cluster_cognates_self_loop_via_merge_does_not_crash(fresh_db: Path) -> 
     merge itself created a self-loop in canonical space), the edge is
     filtered out — no infinite loop, no spurious cluster of a single
     etymon under itself."""
-    from wyrd.generators.kenning.lexicon import cluster_cognates
 
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="wiktionary", title="Wiktionary")
@@ -8854,7 +9319,6 @@ def test_bridge_generic_language_picks_priority_match(fresh_db: Path) -> None:
     'irish' AND 'old-irish' bridges to old-irish (higher priority per
     the candidate order). Pin so a refactor of the priority semantics
     surfaces here."""
-    from wyrd.generators.kenning.lexicon import bridge_generic_language
 
     with LexiconDB(fresh_db) as db:
         # Older entries get smaller ids; pre-create the generic FIRST
@@ -8882,7 +9346,6 @@ def test_bridge_generic_language_picks_priority_match(fresh_db: Path) -> None:
 def test_bridge_generic_language_no_match_leaves_unmerged(fresh_db: Path) -> None:
     """A generic etymon with no specific-language match keeps
     merged_into_id NULL; counter increments unmatched."""
-    from wyrd.generators.kenning.lexicon import bridge_generic_language
 
     with LexiconDB(fresh_db) as db:
         no_match_id = db.upsert_etymon("rma", "celtic")  # not in any specific-celtic
@@ -8907,7 +9370,6 @@ def test_bridge_generic_language_case_insensitive_match(fresh_db: Path) -> None:
     """Canonical form match is case-insensitive — Wiktextract sometimes
     capitalizes proper nouns (`Nás`) where place-name dicts lowercase
     them (`nás`). Pin so a refactor doesn't drop the case-fold."""
-    from wyrd.generators.kenning.lexicon import bridge_generic_language
 
     with LexiconDB(fresh_db) as db:
         celtic_id = db.upsert_etymon("nás", "celtic")
@@ -8928,7 +9390,6 @@ def test_bridge_generic_language_case_insensitive_match(fresh_db: Path) -> None:
 
 def test_bridge_generic_language_dry_run_does_not_write(fresh_db: Path) -> None:
     """apply=False reports counts but leaves merged_into_id NULL."""
-    from wyrd.generators.kenning.lexicon import bridge_generic_language
 
     with LexiconDB(fresh_db) as db:
         celtic_id = db.upsert_etymon("bun", "celtic")
@@ -8954,7 +9415,6 @@ def test_bridge_generic_language_idempotent_apply_skips_unchanged(
 ) -> None:
     """A second apply against unchanged data writes zero rows — the
     UPDATE has a WHERE-clause guard."""
-    from wyrd.generators.kenning.lexicon import bridge_generic_language
 
     with LexiconDB(fresh_db) as db:
         db.upsert_etymon("bun", "celtic")
@@ -8985,7 +9445,6 @@ def test_bridge_generic_language_already_merged_tombstones_get_chain_flattened(
     Bridge: target_celtic → irish
     Post: BOTH tomb_celtic AND target_celtic point at irish
     """
-    from wyrd.generators.kenning.lexicon import bridge_generic_language
 
     with LexiconDB(fresh_db) as db:
         target_celtic_id = db.upsert_etymon("bun", "celtic")
@@ -9014,7 +9473,6 @@ def test_bridge_generic_language_already_merged_tombstones_get_chain_flattened(
 def test_bridge_generic_language_empty_candidates_raises(fresh_db: Path) -> None:
     """An empty candidate_langs is a programmer error; raise rather
     than silently process zero candidates."""
-    from wyrd.generators.kenning.lexicon import bridge_generic_language
 
     with LexiconDB(fresh_db) as db, pytest.raises(ValueError, match="candidate_langs"):
         bridge_generic_language(db, generic_lang="celtic", candidate_langs=(), apply=False)
@@ -9031,11 +9489,6 @@ def test_bridge_celtic_then_cluster_cognates_includes_generic_in_cluster(
     Tree: proto-celtic *bunV → irish bun → (celtic bun is now a
     tombstone pointing at irish bun)
     """
-    from wyrd.generators.kenning.lexicon import (
-        bridge_generic_language,
-        cluster_cognates,
-    )
-
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="wiktionary", title="Wiktionary")
         proto_id = db.upsert_etymon("*bunV", "proto-celtic")
@@ -9084,7 +9537,6 @@ def test_bridge_phonological_oe_merges_known_pair(fresh_db: Path) -> None:
     """A known OE place-name form (`ton`) with a canonical Wiktionary
     target (`tūn`) gets merged_into_id set to the canonical's id.
     Pin so a refactor of _OE_PHONOLOGICAL_BRIDGES surfaces here."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
 
     with LexiconDB(fresh_db) as db:
         place_id = db.upsert_etymon("ton", "old-english")
@@ -9141,7 +9593,6 @@ def test_bridge_phonological_oe_table_entries_resolve(
     pinned individually. A typo or accidental drop in
     _OE_PHONOLOGICAL_BRIDGES would surface against the specific
     place-name → wiktionary pair it broke."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
 
     with LexiconDB(fresh_db) as db:
         place_id = db.upsert_etymon(place_form, "old-english")
@@ -9161,7 +9612,6 @@ def test_bridge_phonological_oe_no_target_increments_missing_target(
     canonical OE etymon (because it hasn't been ingested), the
     missing_target counter increments and the place-name etymon
     stays unmerged. Pin so operators see the signal in CLI output."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
 
     with LexiconDB(fresh_db) as db:
         # 'ton' is in the table → 'tūn', but no 'tūn' etymon exists.
@@ -9181,7 +9631,6 @@ def test_bridge_phonological_oe_unmatched_form_left_alone(fresh_db: Path) -> Non
     """An OE etymon whose canonical_form isn't in the bridge table is
     counted as unmatched (silent — no missing_target signal because
     the table doesn't claim it should bridge)."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
 
     with LexiconDB(fresh_db) as db:
         unknown_id = db.upsert_etymon("xyzzy_unmapped", "old-english")
@@ -9200,7 +9649,6 @@ def test_bridge_phonological_oe_unmatched_form_left_alone(fresh_db: Path) -> Non
 def test_bridge_phonological_oe_ignores_other_languages(fresh_db: Path) -> None:
     """The pass only walks language='old-english' rows. A 'modern-english'
     or 'celtic' etymon with the same form (`ton`) is not touched."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
 
     with LexiconDB(fresh_db) as db:
         modern_id = db.upsert_etymon("ton", "modern-english")
@@ -9215,7 +9663,6 @@ def test_bridge_phonological_oe_ignores_other_languages(fresh_db: Path) -> None:
 
 def test_bridge_phonological_oe_dry_run_does_not_write(fresh_db: Path) -> None:
     """apply=False reports counts but doesn't persist merges."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
 
     with LexiconDB(fresh_db) as db:
         place_id = db.upsert_etymon("ton", "old-english")
@@ -9235,7 +9682,6 @@ def test_bridge_phonological_oe_idempotent_apply_skips_unchanged(
     fresh_db: Path,
 ) -> None:
     """Re-running --apply against unchanged data writes zero rows."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
 
     with LexiconDB(fresh_db) as db:
         db.upsert_etymon("ton", "old-english")
@@ -9254,11 +9700,6 @@ def test_bridge_phonological_oe_then_cluster_cognates_includes_place_form(
     'tūn', then run redirect-aware cluster_cognates, and confirm the
     place-name etymon is rolled up via merged_into_id into the cluster
     that contains the Proto-Germanic ancestor."""
-    from wyrd.generators.kenning.lexicon import (
-        bridge_phonological_oe,
-        cluster_cognates,
-    )
-
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="wiktionary", title="Wiktionary")
         proto_id = db.upsert_etymon("*tūnaz", "proto-germanic")
@@ -9297,7 +9738,6 @@ def test_bridge_generic_language_flattens_existing_redirect_chain(
     flatten, a 2-deep chain X → generic → target forms, and the
     single-level COALESCE rollup in etymon_consensus / etymon_canonical
     splits witnesses."""
-    from wyrd.generators.kenning.lexicon import bridge_generic_language
 
     with LexiconDB(fresh_db) as db:
         # Order matters: target_id < generic_id, so the bridge picks target.
@@ -9332,7 +9772,6 @@ def test_bridge_phonological_oe_flattens_existing_redirect_chain(
     """Same regression as bridge_generic_language: a pre-existing OCR
     tombstone pointing AT a place-name OE etymon must re-route to the
     Wiktionary canonical when the bridge fires."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
 
     with LexiconDB(fresh_db) as db:
         wiktionary_id = db.upsert_etymon("tūn", "old-english")
@@ -9361,7 +9800,6 @@ def test_bridge_generic_language_reparents_lemma_children(fresh_db: Path) -> Non
     etymon being bridged, the lemma_id is re-routed to the canonical
     target so etymon_consensus's single-level lemma_id rollup keeps
     inflected variants in the same group as the canonical."""
-    from wyrd.generators.kenning.lexicon import bridge_generic_language
 
     with LexiconDB(fresh_db) as db:
         target_id = db.upsert_etymon("bun", "irish")
@@ -9382,7 +9820,6 @@ def test_bridge_generic_language_reparents_lemma_children(fresh_db: Path) -> Non
 
 def test_bridge_phonological_oe_reparents_lemma_children(fresh_db: Path) -> None:
     """Same lemma_id re-parent for the OE phonological bridge."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
 
     with LexiconDB(fresh_db) as db:
         wiktionary_id = db.upsert_etymon("tūn", "old-english")
@@ -9597,7 +10034,6 @@ def test_bridge_phonological_oe_resolves_through_tombstone_target(
 
     Reproduces the production bug where 5+ source citations of 'dale'
     stayed unbridged because dæl was merged into dael by normalize-ocr."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
 
     with LexiconDB(fresh_db) as db:
         # Live canonical that the macroned form has been OCR-merged into.
@@ -9630,7 +10066,6 @@ def test_bridge_phonological_oe_target_index_handles_multi_step_chain(
     """Multi-step merged_into_id chains (A → B → C) must resolve all the
     way to the live canonical C, not stop at intermediate B. Pin so the
     target_index walk doesn't regress to single-step lookup."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
 
     with LexiconDB(fresh_db) as db:
         c_live = db.upsert_etymon("dael", "old-english")
@@ -9652,7 +10087,6 @@ def test_bridge_phonological_oe_target_index_skips_self_loop(fresh_db: Path) -> 
     """A merged_into_id self-loop (data corruption) must not infinite-loop
     the target_index resolution. The walk should bail and treat the row
     as its own canonical."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
 
     with LexiconDB(fresh_db) as db:
         weird_id = db.upsert_etymon("ton", "old-english")  # bridge-table key
@@ -9678,7 +10112,6 @@ def test_bridge_phonological_oe_ey_bridges_to_macron_stripped_ieg(
     ingested in that form) to 'ieg' (the OCR-stripped form that IS
     canonical in the DB). Pin the corrected mapping so a regression
     can't accidentally re-introduce 'īeg' as the bridge value."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_oe
 
     with LexiconDB(fresh_db) as db:
         ieg_id = db.upsert_etymon("ieg", "old-english")
@@ -9698,7 +10131,6 @@ def test_bridge_phonological_oe_ey_bridges_to_macron_stripped_ieg(
 def test_bridge_phonological_on_merges_known_pair(fresh_db: Path) -> None:
     """Smoke test: a known place-name → wiktionary ON pair (`by` → `býr`)
     gets merged when --apply is on."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_on
 
     with LexiconDB(fresh_db) as db:
         target_id = db.upsert_etymon("býr", "old-norse")
@@ -9747,7 +10179,6 @@ def test_bridge_phonological_on_table_entries_resolve(
 ) -> None:
     """Each high-witness ON bridge-table entry pinned individually so a
     typo or table edit surfaces against the specific pair it broke."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_on
 
     with LexiconDB(fresh_db) as db:
         place_id = db.upsert_etymon(place_form, "old-norse")
@@ -9765,7 +10196,6 @@ def test_bridge_phonological_on_no_target_increments_missing_target(
 ) -> None:
     """If the table names a target form that doesn't exist as a canonical
     ON etymon (because it hasn't been ingested), missing_target ticks."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_on
 
     with LexiconDB(fresh_db) as db:
         place_id = db.upsert_etymon("by", "old-norse")  # 'by' → 'býr'
@@ -9783,7 +10213,6 @@ def test_bridge_phonological_on_no_target_increments_missing_target(
 def test_bridge_phonological_on_unmatched_form_left_alone(fresh_db: Path) -> None:
     """An ON etymon whose canonical_form isn't in the bridge table is
     counted as unmatched (silent — no missing_target signal)."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_on
 
     with LexiconDB(fresh_db) as db:
         unknown_id = db.upsert_etymon("xyzzy_unmapped_on", "old-norse")
@@ -9802,7 +10231,6 @@ def test_bridge_phonological_on_unmatched_form_left_alone(fresh_db: Path) -> Non
 def test_bridge_phonological_on_ignores_other_languages(fresh_db: Path) -> None:
     """Bridge only touches old-norse rows; OE / Modern English / etc.
     are untouched even if their canonical_form happens to match a key."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_on
 
     with LexiconDB(fresh_db) as db:
         oe_by = db.upsert_etymon("by", "old-english")  # accidental form match
@@ -9823,7 +10251,6 @@ def test_bridge_phonological_on_ignores_other_languages(fresh_db: Path) -> None:
 
 def test_bridge_phonological_on_dry_run_does_not_write(fresh_db: Path) -> None:
     """apply=False reports counts without writing merged_into_id."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_on
 
     with LexiconDB(fresh_db) as db:
         db.upsert_etymon("býr", "old-norse")
@@ -9844,7 +10271,6 @@ def test_bridge_phonological_on_idempotent_apply_skips_unchanged(
     fresh_db: Path,
 ) -> None:
     """Re-running apply on an already-bridged corpus writes 0 new rows."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_on
 
     with LexiconDB(fresh_db) as db:
         db.upsert_etymon("býr", "old-norse")
@@ -9862,7 +10288,6 @@ def test_bridge_phonological_on_resolves_through_tombstone_target(
     """Same redirect-follow guarantee as the OE bridge: when the table
     value names a tombstone (e.g. þorp merged into thorp), the lookup
     must walk the chain and route to the live canonical."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_on
 
     with LexiconDB(fresh_db) as db:
         live_id = db.upsert_etymon("thorp", "old-norse")  # the live canonical
@@ -9889,7 +10314,6 @@ def test_bridge_phonological_on_flattens_existing_redirect_chain(
     being bridged, the bridge re-routes that redirect onto the canonical
     target so no 2-deep chain forms (which would split witnesses in the
     single-level COALESCE rollup)."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_on
 
     with LexiconDB(fresh_db) as db:
         target_id = db.upsert_etymon("býr", "old-norse")
@@ -9909,7 +10333,6 @@ def test_bridge_phonological_on_flattens_existing_redirect_chain(
 
 def test_bridge_phonological_on_reparents_lemma_children(fresh_db: Path) -> None:
     """Same lemma_id re-parent for the ON phonological bridge."""
-    from wyrd.generators.kenning.lexicon import bridge_phonological_on
 
     with LexiconDB(fresh_db) as db:
         wiktionary_id = db.upsert_etymon("býr", "old-norse")
@@ -9999,7 +10422,6 @@ def test_cli_bridge_phonological_on_warns_on_missing_target(fresh_db: Path) -> N
 def test_bridge_celtic_forms_genitive_to_lemma(fresh_db: Path) -> None:
     """Smoke test: a known Goidelic genitive (`choill` = gen of coill
     'wood') bridges to the Irish lemma."""
-    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
 
     with LexiconDB(fresh_db) as db:
         irish_id = db.upsert_etymon("coill", "irish")
@@ -10027,7 +10449,6 @@ def test_bridge_celtic_forms_prefers_clustered_target(fresh_db: Path) -> None:
     picked old-irish/mac (no synset, isolated stub) over irish/mac
     (synset 87349, clustered) because old-irish came first in the
     priority list. The new bridge prefers clustered."""
-    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
 
     with LexiconDB(fresh_db) as db:
         # Higher-priority candidate (per default order: irish first), but
@@ -10060,7 +10481,6 @@ def test_bridge_celtic_forms_falls_back_to_unclustered(
     """If no candidate has a synset, the bridge falls back to the
     first-found by priority order (unclustered target). Prevents
     silently dropping bridges when the entire Wiktionary chain is stub."""
-    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
 
     with LexiconDB(fresh_db) as db:
         # Both candidates unclustered.
@@ -10087,7 +10507,6 @@ def test_bridge_celtic_forms_reroutes_existing_stub_bridge(
     The chain-flatten OR-clause `WHERE id = ? OR merged_into_id = ?`
     catches the celtic etymon AND any rows that were already redirected
     onto it (which would now form a 2-deep chain otherwise)."""
-    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
 
     with LexiconDB(fresh_db) as db:
         # The pre-existing wyrd-083 stub-bridge target (unclustered).
@@ -10112,7 +10531,6 @@ def test_bridge_celtic_forms_reroutes_existing_stub_bridge(
 
 def test_bridge_celtic_forms_dry_run_does_not_write(fresh_db: Path) -> None:
     """apply=False reports counts without writing merged_into_id."""
-    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
 
     with LexiconDB(fresh_db) as db:
         db.upsert_etymon("coill", "irish")
@@ -10133,7 +10551,6 @@ def test_bridge_celtic_forms_idempotent_apply_skips_unchanged(
     fresh_db: Path,
 ) -> None:
     """Re-running apply on an already-bridged corpus writes 0 new rows."""
-    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
 
     with LexiconDB(fresh_db) as db:
         db.upsert_etymon("coill", "irish")
@@ -10150,7 +10567,6 @@ def test_bridge_celtic_forms_unmatched_celtic_form_left_alone(
 ) -> None:
     """A celtic etymon whose canonical_form isn't in the inflection table
     is counted as `unmatched` (silent — table makes no claim)."""
-    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
 
     with LexiconDB(fresh_db) as db:
         unknown_id = db.upsert_etymon("xyzzy_unknown_celtic", "celtic")
@@ -10169,7 +10585,6 @@ def test_bridge_celtic_forms_missing_target_increments_counter(
 ) -> None:
     """When the table names a lemma but no candidate-language etymon
     exists with that form, missing_target ticks (operator signal)."""
-    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
 
     with LexiconDB(fresh_db) as db:
         # 'choill' is in the table → 'coill', but no Irish/SG/Welsh
@@ -10193,7 +10608,6 @@ def test_bridge_celtic_forms_resolves_through_tombstone_lemma(
     single-level COALESCE rollup would split).
 
     This pins the redirect-resolve loop in the candidate_index build."""
-    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
 
     with LexiconDB(fresh_db) as db:
         # The live canonical Irish lemma (clustered).
@@ -10269,7 +10683,6 @@ def test_bridge_celtic_forms_iterates_tombstones(fresh_db: Path) -> None:
     via the chain-flatten OR-clause.
 
     This pins that the bridge does NOT filter out tombstones up-front."""
-    from wyrd.generators.kenning.lexicon import bridge_celtic_forms
 
     with LexiconDB(fresh_db) as db:
         clustered = db.upsert_etymon("mac", "irish")
