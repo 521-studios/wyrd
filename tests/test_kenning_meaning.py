@@ -665,3 +665,56 @@ def test_load_meanings_round_trips_with_no_english_shaped_field():
     m = meaning_db["Bridg-"][0]
     assert m.english_shaped == {}
     assert m.english_shaped_for("old_english", "brycg") is None
+
+
+def test_db_to_export_to_load_round_trip_preserves_english_shaped(tmp_path):
+    """End-to-end: seed a fresh DB with a wave-2 etymon carrying
+    english_shaped, run `export_meanings`, then `load_meanings` on the
+    output — the rendering survives all the way to `Meaning.english_shaped_for`.
+
+    Pinned because the exporter and loader were tested independently;
+    a field-name mismatch between `_emit_english_shaped_list`'s output
+    keys and `_ENGLISH_SHAPED_SUFFIX`-stripping would pass both tests
+    in isolation but break the round-trip. This locks the contract that
+    the two ends agree on the wire format."""
+    from wyrd.generators.kenning.lexicon import (
+        LexiconDB,
+        export_meanings,
+        init_schema,
+        seed_from_meanings,
+    )
+
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+
+    # Seed a Hebrew family + populate english_shaped on the row.
+    with LexiconDB(db_path) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        seed_from_meanings(
+            db,
+            [
+                {
+                    "modifier_tags": ["monster"],
+                    "meaning": ["golem"],
+                    "modifier_type": None,
+                    "words": [{"modern_usage": "Golem", "hebrew": ["גולם"]}],
+                }
+            ],
+            "rando-port",
+        )
+        db.conn.execute(
+            "UPDATE etymon SET english_shaped = ? WHERE canonical_form = ? AND language = ?",
+            ("golem", "גולם", "he"),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    # Round-trip through load_meanings.
+    meaning_db, _ = load_meanings(subjects)
+    assert "Golem" in meaning_db, list(meaning_db)
+    m = meaning_db["Golem"][0]
+    # Form arrived in the right bundle bucket AND english_shaped came
+    # through to the runtime accessor.
+    assert m.sources.get("hebrew") == ["גולם"]
+    assert m.english_shaped_for("hebrew", "גולם") == "golem"

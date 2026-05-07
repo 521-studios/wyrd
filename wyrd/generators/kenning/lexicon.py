@@ -4021,9 +4021,9 @@ _LANG_CODE_TO_JSON_FIELD = {
     "akk": "akkadian",
     "sux": "akkadian",  # Sumerian — Mesopotamian substrate, group with akkadian
     "egy": "egyptian",
-    "cop": "egyptian",
+    "cop": "egyptian",  # Coptic — late-stage descendant of Ancient Egyptian
     "arc": "aramaic",
-    "syc": "aramaic",
+    "syc": "aramaic",  # Classical Syriac — late descendant of Aramaic
     "sem-pro": "hebrew",  # Proto-Semitic — group with Hebrew (closest canonical)
     "sem-wes-pro": "hebrew",
     "afa-pro": "hebrew",  # Proto-Afroasiatic — same bucket
@@ -4859,10 +4859,12 @@ def _absorb_member_english_shaped(
     form: str,
 ) -> None:
     """wyrd-vsrn Phase 2c: record a member's english_shaped rendering
-    keyed by its canonical_form. NULL english_shaped (Latin-script source
-    langs OR rows that lacked transliteration / IPA inputs to derive
-    from) skip the absorb — the runtime treats the absence as 'use
-    canonical_form for display' for that member."""
+    keyed by its canonical_form. Skipped when the column is NULL or
+    empty: the runtime treats the absence as 'use canonical_form for
+    display' for that member. NULL is the documented case (Latin-script
+    source langs OR rows that lacked transliteration / IPA inputs);
+    empty-string would be an unexpected DB shape but the predicate
+    covers both for safety."""
     shaped = fam.get("member_english_shaped_by_id", {}).get(member_id)
     if shaped:
         accs.english_shaped.setdefault(lang, {})[form] = shaped
@@ -4890,34 +4892,94 @@ def _emit_word_languages(word: dict[str, Any], accs: _WordLanguageAccumulators) 
     sibling keys (``<lang>_variants``, ``<lang>_inflections``,
     ``<lang>_citations``, ``<lang>_attested_years``,
     ``<lang>_english_shaped``) so legacy loaders that ignore unknown
-    fields keep working."""
+    fields keep working.
+
+    Multiple lexicon codes can route to the SAME bundle bucket via
+    `_LANG_CODE_TO_JSON_FIELD` — e.g. welsh + old-welsh + middle-welsh
+    all land in `celtic_mix`, and wyrd-vsrn's wave-2 stack collapses
+    he + hbo + sem-pro + sem-wes-pro + afa-pro into `hebrew`. We MUST
+    union (not overwrite) per bundle bucket: if the inner loop rewrote
+    `word[json_field]` on each iteration, only the last-sorted lexicon
+    code's forms would survive.
+
+    Aggregation is done per bucket via `_BucketAccumulator` so the
+    forms / variants / inflections / citations / attested_years /
+    english_shaped fields all union under the same bucket key in one
+    pass; the final emit walks buckets in stable order so output is
+    deterministic regardless of source-lang sort order.
+    """
+    buckets: dict[str, _BucketAccumulator] = {}
     for lang in sorted(accs.forms_by_lang):
         json_field = _LANG_CODE_TO_JSON_FIELD.get(lang)
         if not json_field:
             continue
-        word[json_field] = accs.forms_by_lang[lang]
+        bucket = buckets.setdefault(json_field, _BucketAccumulator())
+        for form in accs.forms_by_lang[lang]:
+            if form not in bucket.forms_set:
+                bucket.forms.append(form)
+                bucket.forms_set.add(form)
         if lang in accs.variants:
-            word[f"{json_field}_variants"] = _emit_variant_list(accs.variants[lang])
+            for form, weight in accs.variants[lang].items():
+                bucket.variants[form] = bucket.variants.get(form, 0) + weight
         if lang in accs.inflections:
-            word[f"{json_field}_inflections"] = _emit_inflection_list(accs.inflections[lang])
+            bucket.inflections.update(accs.inflections[lang])
         if lang in accs.citations:
-            word[f"{json_field}_citations"] = sorted(accs.citations[lang])
+            bucket.citations.update(accs.citations[lang])
         if lang in accs.attested_years:
-            word[f"{json_field}_attested_years"] = _emit_attested_years_list(
-                accs.attested_years[lang]
-            )
+            for form, year in accs.attested_years[lang].items():
+                # Keep the earliest year on collision (matches the
+                # rest-of-pipeline ascending-year sort convention).
+                existing = bucket.attested_years.get(form)
+                if existing is None or year < existing:
+                    bucket.attested_years[form] = year
         if lang in accs.english_shaped:
-            word[f"{json_field}_english_shaped"] = _emit_english_shaped_list(
-                accs.english_shaped[lang]
-            )
+            bucket.english_shaped.update(accs.english_shaped[lang])
+
+    for json_field in sorted(buckets):
+        bucket = buckets[json_field]
+        word[json_field] = bucket.forms
+        if bucket.variants:
+            word[f"{json_field}_variants"] = _emit_variant_list(bucket.variants)
+        if bucket.inflections:
+            word[f"{json_field}_inflections"] = _emit_inflection_list(bucket.inflections)
+        if bucket.citations:
+            word[f"{json_field}_citations"] = sorted(bucket.citations)
+        if bucket.attested_years:
+            word[f"{json_field}_attested_years"] = _emit_attested_years_list(bucket.attested_years)
+        if bucket.english_shaped:
+            word[f"{json_field}_english_shaped"] = _emit_english_shaped_list(bucket.english_shaped)
+
+
+@dataclass
+class _BucketAccumulator:
+    """Per-bundle-bucket aggregation state used by _emit_word_languages
+    when multiple lexicon codes (e.g. welsh + old-welsh; he + hbo +
+    sem-pro) collapse into one bundle field. Fields mirror the
+    per-language pools on `_WordLanguageAccumulators` but keyed by the
+    BUNDLE bucket so cross-language values union cleanly."""
+
+    forms: list[str] = field(default_factory=list)
+    forms_set: set[str] = field(default_factory=set)
+    variants: dict[str, int] = field(default_factory=dict)
+    inflections: dict[str, str] = field(default_factory=dict)
+    citations: set[str] = field(default_factory=set)
+    attested_years: dict[str, int] = field(default_factory=dict)
+    english_shaped: dict[str, str] = field(default_factory=dict)
 
 
 def _emit_english_shaped_list(shaped: dict[str, str]) -> list[dict[str, str]]:
     """wyrd-vsrn Phase 2c: serialize {canonical_form: english_shaped} into
     the meanings.json english_shaped entry shape. Sorted by form so the
-    output is deterministic regardless of aggregation order. Each entry
-    is {form: <canonical>, english_shaped: <derived>} — the canonical
-    form is the lookup key the language form array also uses."""
+    output is deterministic regardless of aggregation order.
+
+    Each output dict has two keys:
+        ``"form"``           — the canonical_form string (the same key the
+                                language form array uses, so the runtime
+                                can match a chosen form to its shaping).
+        ``"english_shaped"`` — the Latin-script rendering produced by
+                                wyrd-ha9q's ``derive_english_shaped`` and
+                                stored on ``etymon.english_shaped``.
+    """
     return [
         {"form": form, "english_shaped": shaped_form}
         for form, shaped_form in sorted(shaped.items())
