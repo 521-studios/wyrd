@@ -276,8 +276,10 @@ def cli() -> None:
     help=(
         "wyrd-lr4 Phase 3 within-language stratum filter. Pass a register "
         "tag — for Welsh: 'native-welsh', 'brittonic-substrate', "
-        "'medieval-welsh', 'latin-loan', 'english-loan' (Phase 4 will add "
-        "French / OE / ON). Morphemes with no stratum data pass through. "
+        "'medieval-welsh', 'latin-loan', 'english-loan'; for French: "
+        "'native-french', 'medieval-french', 'gallo-roman', "
+        "'gaulish-substrate', 'frankish-substrate' (Old English / Old "
+        "Norse follow). Morphemes with no stratum data pass through. "
         "Composes with --era via intersection."
     ),
 )
