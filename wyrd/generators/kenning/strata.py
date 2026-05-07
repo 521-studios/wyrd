@@ -606,36 +606,51 @@ STRATA_BY_FAMILY: dict[str, tuple[str, ...]] = {
 # (the key used in ``STRATA_BY_FAMILY``). Lets ``set-stratum`` pick
 # the right per-family STRATA tuple for family-aware validation.
 #
+# Built programmatically from each classifier's modern_lang + self-
+# language map, so adding a new self-language entry to e.g.
+# ``_FRENCH_SELF_LANGUAGE_TO_STRATUM`` automatically extends
+# LANGUAGE_TO_FAMILY without a separate manual update. The classifier
+# constants are the single source of truth.
+#
 # Languages absent from this map don't yet have a classifier; their
 # rows fall back to the broader ``ALL_STRATA`` typo-check only.
-# Adding a new classifier in Phase 4e+ extends this map alongside
-# the new STRATA tuple + classify_<family> wrapper.
-LANGUAGE_TO_FAMILY: dict[str, str] = {
-    # Welsh family — the languages classify_welsh acts on.
-    "welsh": "welsh",
-    "middle-welsh": "welsh",
-    "old-welsh": "welsh",
-    "cel-bry-pro": "welsh",
-    # French family — classify_french's modern_lang + self-language map.
-    "french": "french",
-    "old-french": "french",
-    "middle-french": "french",
-    "norman-french": "french",
-    "vulgar-latin": "french",
-    "frk": "french",
-    "cel-gau": "french",
-    # Old English family — single-language family today.
-    "old-english": "old-english",
-    # Old Norse family — modern_lang + East Norse self-language varieties.
-    "old-norse": "old-norse",
-    "gmq-osw": "old-norse",
-    "gmq-oda": "old-norse",
-}
+def _build_language_to_family() -> dict[str, str]:
+    """Source LANGUAGE_TO_FAMILY from the per-classifier maps.
+
+    Each family contributes its modern_lang (the language the
+    ancestor walk targets) plus every key in its self-language map.
+    Drift-proof: if a classifier adds a new ancestor variety, this
+    map picks it up automatically.
+    """
+    return {
+        # Welsh family.
+        "welsh": "welsh",
+        **dict.fromkeys(_WELSH_SELF_LANGUAGE_TO_STRATUM, "welsh"),
+        # French family.
+        "french": "french",
+        **dict.fromkeys(_FRENCH_SELF_LANGUAGE_TO_STRATUM, "french"),
+        # Old English family.
+        "old-english": "old-english",
+        **dict.fromkeys(_OLD_ENGLISH_SELF_LANGUAGE_TO_STRATUM, "old-english"),
+        # Old Norse family.
+        "old-norse": "old-norse",
+        **dict.fromkeys(_OLD_NORSE_SELF_LANGUAGE_TO_STRATUM, "old-norse"),
+    }
+
+
+LANGUAGE_TO_FAMILY: dict[str, str] = _build_language_to_family()
 
 
 # Per-culture allowed strata for the runtime --stratum filter
 # (wyrd-j3gy). Captures which language families' strata are valid
 # choices when generating names for that culture-bundle.
+#
+# INVARIANT: each culture's set MUST equal the union of STRATA
+# tuples for the language families that culture's place-name
+# corpus draws from. Adding a family to a culture-bundle (e.g.
+# wave-2 mining surfaces a Goidelic stratum classifier and the
+# irish bundle starts pulling from it) requires extending the
+# culture's set here.
 #
 # Empty set = 'no per-culture restriction'; falls back to the
 # broader ALL_STRATA typo-check in ``_resolve_stratum_param``. Used

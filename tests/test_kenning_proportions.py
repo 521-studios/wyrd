@@ -1330,6 +1330,40 @@ def test_kenning_input_schema_stratum_carries_x_options_by_culture():
         assert options[culture][0] == ""
 
 
+def test_resolve_stratum_param_unknown_culture_falls_back_to_all_strata():
+    """A culture that's not in ``_CULTURE_TO_VALID_STRATA`` at all
+    (vs configured-but-empty like irish/breton) gets the ALL_STRATA
+    typo-check fallback via dict.get's frozenset() default. Both
+    sub-cases of the empty-set branch are now pinned: configured-
+    empty + missing-entirely → same fallback."""
+    import pytest
+
+    from wyrd.generators.kenning import _resolve_stratum_param
+
+    # Bogus culture — falls through to ALL_STRATA typo-check.
+    assert _resolve_stratum_param("native-welsh", "klingon") == "native-welsh"
+    # And typos still raise on this fallback path.
+    with pytest.raises(ValueError, match="lattin-loan"):
+        _resolve_stratum_param("lattin-loan", "klingon")
+
+
+def test_kenning_input_schema_stratum_default_round_trips_to_no_filter():
+    """The schema default is the empty string ('no filter' option in
+    the SPA dropdown). Pin that feeding the default through
+    ``_resolve_stratum_param`` returns None — the runtime 'no filter'
+    sentinel. A future refactor that changes the default to None or
+    a non-empty value would silently break the SPA's no-filter path
+    without this test."""
+    from wyrd.generators.kenning import Kenning, _resolve_stratum_param
+
+    schema = Kenning().input_schema()
+    default = schema["properties"]["stratum"]["default"]
+    assert default == ""
+    # SPA roundtrip — the default value must validate to None.
+    assert _resolve_stratum_param(default, "english") is None
+    assert _resolve_stratum_param(default, "irish") is None  # unrestricted culture
+
+
 def test_kenning_input_schema_stratum_options_match_per_culture_allowed_set():
     """The schema's per-culture stratum lists must match what
     _resolve_stratum_param accepts — so picking a value from the

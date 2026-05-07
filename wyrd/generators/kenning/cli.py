@@ -4750,6 +4750,15 @@ def lexicon_set_stratum(
     OLD_ENGLISH_STRATA values, etc. Languages without a classifier
     yet fall back to a cross-family ALL_STRATA typo-check so the
     operator can still hand-correct on unclassified languages.
+
+    Note: this REVERSES Phase 4d's intentional cross-family
+    tolerance (writing a Welsh stratum onto a French row used to
+    succeed silently on the operator's say-so). The runtime
+    --stratum filter validates per-culture, so the SPA needed the
+    write-side validator to match — making a Welsh stratum on a
+    French row produce an unfilterable result was the worse failure
+    mode. Pass through ``classify-stratum --apply`` if a true
+    cross-family override is needed (it bypasses set-stratum).
     """
     _validate_set_stratum_identification(etymon_id, canonical_form, language)
     _validate_set_stratum_value(stratum, clear)

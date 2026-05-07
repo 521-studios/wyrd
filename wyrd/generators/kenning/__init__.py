@@ -383,6 +383,10 @@ def _resolve_stratum_param(stratum: Any, culture: str) -> str | None:
     """
     if stratum is None or stratum == "":
         return None
+    # Empty frozenset = no per-culture restriction (irish/breton, plus
+    # any culture not in the dict at all); fall through to the
+    # ALL_STRATA typo-check. Truthiness on a frozenset is what selects
+    # between the two branches.
     valid = valid_strata_for_culture(culture)
     if valid:
         if stratum not in valid:
@@ -626,10 +630,11 @@ class Kenning(Generator):
                         "The SPA renders this as a dropdown filtered to the chosen "
                         "culture's allowed strata (wyrd-j3gy). CLI/API also accept any "
                         "stratum tag valid for the culture's bundled language families. "
-                        "Morphemes with no stratum data pass through (Welsh / French / "
-                        "Old English / Old Norse families are classified today). Composes "
-                        "with --era via intersection. Empty disables the filter — "
-                        "bit-stable behavior."
+                        "Rejects culturally-incoherent strata (e.g. east-norse on welsh) "
+                        "at request time, not just typos. Morphemes with no stratum data "
+                        "pass through (Welsh / French / Old English / Old Norse families "
+                        "are classified today). Composes with --era via intersection. "
+                        "Empty disables the filter — bit-stable behavior."
                     ),
                 },
                 "manorial_affix": {

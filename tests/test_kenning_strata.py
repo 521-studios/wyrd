@@ -2092,3 +2092,105 @@ def test_all_strata_includes_every_family_bucket() -> None:
         assert stratum in ALL_STRATA, stratum
     # Frozen — caller cannot mutate.
     assert isinstance(ALL_STRATA, frozenset)
+
+
+def test_family_for_language_classifies_every_known_language() -> None:
+    """Every entry in ``LANGUAGE_TO_FAMILY`` must map to a family
+    that's also a key of ``STRATA_BY_FAMILY``. Pins the cross-map
+    invariant: a Phase 4e classifier addition that adds to one map
+    but not the other would surface here as a KeyError."""
+    from wyrd.generators.kenning.strata import (
+        LANGUAGE_TO_FAMILY,
+        STRATA_BY_FAMILY,
+        family_for_language,
+    )
+
+    for lang, family in LANGUAGE_TO_FAMILY.items():
+        assert family_for_language(lang) == family
+        assert family in STRATA_BY_FAMILY, (lang, family)
+
+
+def test_family_for_language_returns_none_for_unclassified() -> None:
+    """Languages without a classifier yet (real lexicon codes that
+    appear in the live DB but aren't in any ``_*_SELF_LANGUAGE_TO_STRATUM``
+    map) return None, signalling 'fall back to ALL_STRATA typo-check'
+    in set-stratum."""
+    from wyrd.generators.kenning.strata import family_for_language
+
+    # ofs / goh / ga are real Wiktextract codes for Old Frisian /
+    # Old High German / Irish — none classified today.
+    assert family_for_language("ofs") is None
+    assert family_for_language("goh") is None
+    assert family_for_language("ga") is None
+    # Bogus values also return None.
+    assert family_for_language("klingon") is None
+
+
+def test_valid_strata_for_culture_known_and_unknown() -> None:
+    """``valid_strata_for_culture`` returns a non-empty frozenset
+    for cultures with a per-culture restriction (english/scottish/
+    welsh today), an empty frozenset for cultures without one
+    (irish/breton, plus unknown cultures via dict.get default)."""
+    from wyrd.generators.kenning.strata import valid_strata_for_culture
+
+    assert valid_strata_for_culture("english")  # non-empty
+    assert valid_strata_for_culture("welsh")  # non-empty
+    # Configured-but-empty (irish/breton) and unknown cultures both
+    # return frozenset() — both signal 'no per-culture restriction'.
+    assert valid_strata_for_culture("irish") == frozenset()
+    assert valid_strata_for_culture("breton") == frozenset()
+    assert valid_strata_for_culture("klingon") == frozenset()
+
+
+def test_language_to_family_values_are_known_families() -> None:
+    """Cross-map structural invariant: every value in
+    ``LANGUAGE_TO_FAMILY`` is a key of ``STRATA_BY_FAMILY``. A
+    Phase 4e+ classifier addition that adds a self-language entry
+    pointing at an unregistered family would fail this pin (drift
+    catch). Complements ``test_family_for_language_classifies_every_known_language``
+    by validating the structural invariant directly rather than via
+    the helper."""
+    from wyrd.generators.kenning.strata import LANGUAGE_TO_FAMILY, STRATA_BY_FAMILY
+
+    families_used = set(LANGUAGE_TO_FAMILY.values())
+    families_known = set(STRATA_BY_FAMILY.keys())
+    assert families_used <= families_known, families_used - families_known
+
+
+def test_cli_set_stratum_clear_skips_family_check_on_classified_language(
+    fresh_db: Path,
+) -> None:
+    """``set-stratum --clear`` on a classified-language row (one whose
+    language IS in LANGUAGE_TO_FAMILY) succeeds without hitting the
+    family-aware check. _validate_set_stratum_family_match early-
+    returns when stratum is None (the --clear path); pin so a
+    refactor that drops the early-return doesn't accidentally
+    require a family-valid stratum value to clear a row."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        # Welsh is classified — exercises the 'family is not None'
+        # path without --clear-skip, the helper would hit the ALL_STRATA
+        # check on stratum=None.
+        eid = db.upsert_etymon("caer", "welsh")
+        db.conn.execute("UPDATE etymon SET stratum = ? WHERE id = ?", ("latin-loan", eid))
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--etymon-id",
+            str(eid),
+            "--clear",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (eid,)).fetchone()[
+            "stratum"
+        ]
+    assert stratum is None
