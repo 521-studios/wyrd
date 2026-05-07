@@ -1609,23 +1609,6 @@ def test_ingest_upsert_does_not_overwrite_richer_existing_pronunciation(fresh_db
         assert _etymon_phase2a_cols(db, "جن", "ar") == ("/d͡ʒɪnː/", "MSA", None, "jinn")
 
 
-def test_ingest_dry_run_does_not_set_pronunciation_columns(fresh_db: Path) -> None:
-    """Dry-run mode (apply=False) skips the upsert, so no row exists
-    and per-field counters stay at zero."""
-    line = _wiktextract_entry_full(
-        word="כלב",
-        lang_code="he",
-        sounds=[{"ipa": "/kalb/"}],
-        head_templates=[{"name": "he-noun", "args": {"wv": "כֶּלֶב", "tr": "kelev"}}],
-    )
-    with LexiconDB(fresh_db) as db:
-        result = ingest_wiktextract_stream(db, _stream(line), apply=False)
-        # No row written.
-        row = db.conn.execute("SELECT 1 FROM etymon WHERE canonical_form = ?", ("כלב",)).fetchone()
-    assert row is None
-    assert result["pronunciation_captured"] == 0
-
-
 def test_is_clean_native_form_rejects_comma_separated_alt_forms() -> None:
     """`'كلب, كلاب'` (singular + plural in one head string) is one of
     the multi-form display patterns `_NATIVE_FORM_REJECT_TOKENS`
@@ -1751,8 +1734,8 @@ def test_ingest_pronunciation_pair_fills_when_existing_ipa_is_null(fresh_db: Pat
 
 def test_ingest_dry_run_does_not_set_any_phase2a_counters(fresh_db: Path) -> None:
     """Dry-run mode (apply=False): all three Phase 2a counters stay
-    at 0, not just pronunciation_captured. Pins the contract for
-    every counter independently."""
+    at 0, AND no etymon row is written. Pins both contracts in one
+    place so neither can regress silently."""
     line = _wiktextract_entry_full(
         word="כלב",
         lang_code="he",
@@ -1761,6 +1744,9 @@ def test_ingest_dry_run_does_not_set_any_phase2a_counters(fresh_db: Path) -> Non
     )
     with LexiconDB(fresh_db) as db:
         result = ingest_wiktextract_stream(db, _stream(line), apply=False)
+        # No row written — dry-run skips the upsert entirely.
+        row = db.conn.execute("SELECT 1 FROM etymon WHERE canonical_form = ?", ("כלב",)).fetchone()
+    assert row is None
     assert result["pronunciation_captured"] == 0
     assert result["original_script_captured"] == 0
     assert result["transliteration_captured"] == 0
