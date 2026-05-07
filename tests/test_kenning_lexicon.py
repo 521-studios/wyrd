@@ -1819,6 +1819,58 @@ def test_extract_attestation_pairs_norman_diacritics() -> None:
     assert ("Châtelaine", 1240) in pairs
 
 
+def test_extract_attestation_pairs_chain_last_element_with_bare_connector() -> None:
+    """Skeat / Mawer chains often drop the explicit connector on the
+    LAST element: ``"Cestretone in 1210; Cestrede, 1218; Cestretun,
+    1230; Chestreton 1242"`` — the four-element chain has only three
+    explicit connectors. The ``;``-anchored chain pattern picks up
+    the trailing element."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Cestretone in 1210; Cestrede, 1218; Cestretun, 1230; Chestreton 1242.")
+    forms = [f for f, _ in pairs]
+    assert "Cestretone" in forms
+    assert "Cestrede" in forms
+    assert "Cestretun" in forms
+    assert "Chestreton" in forms
+    assert dict(pairs)["Chestreton"] == 1242
+
+
+def test_extract_attestation_pairs_chain_anchor_rejects_sentence_flow() -> None:
+    """The chain pattern's leading ``;`` requirement keeps it from
+    matching arbitrary sentence-flow shapes. ``"After 1066 the
+    conquest came"`` and ``"Source 1234 mentions"`` have no
+    semicolon-prefix, so they don't trip the bare-connector branch."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("After 1066 the conquest came. Source 1234 mentions Cestretone.")
+    assert pairs == []
+
+
+def test_extract_attestation_pairs_rejects_academic_citation_with_page() -> None:
+    """``"Author, 1086 (p. 59)"`` is an academic citation, not an
+    attestation — Author is a scholar, 1086 is the publication year,
+    p. 59 is the page reference. The negative lookahead
+    ``(?!\\s*\\(p+\\.)`` after the year rejects this whole class of
+    false positives without needing a per-author blacklist."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Author, 1086 (p. 59) cited; Cestretone, 1086 (D.B.).")
+    forms = [f for f, _ in pairs]
+    assert "Author" not in forms
+    # Real attestation in the same notes should still match — its
+    # parens carry a source name, not a page reference.
+    assert "Cestretone" in forms
+
+
+def test_extract_attestation_pairs_real_paginated_attestation_is_kept() -> None:
+    """Real attestations sometimes cite the page in the parenthetical:
+    ``"Knesworth in 1276 (Rot. Hund. p. 51)"`` — ``(`` is followed by
+    ``Rot``, not ``p.``. The lookahead correctly leaves this match
+    alone since it only suppresses ``(p.`` immediately after the
+    year-paren."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Knesworth in 1276 (Rot. Hund. p. 51).")
+    assert ("Knesworth", 1276) in pairs
+
+
 def test_mine_toponym_attestations_progress_every_zero_does_not_divide_by_zero(
     fresh_db: Path,
 ) -> None:

@@ -2983,10 +2983,33 @@ _YEAR_PATTERN = r"7\d{2}|[89]\d{2}|1[0-6]\d{2}|1700"
 # pure-whitespace separator (``"After 1066"``) would generate too many
 # false positives when a sentence happens to have a capitalized word
 # followed by a year-shaped digit run.
+#
+# Trailing ``(?!\s*\(p+\.)`` negative lookahead suppresses
+# academic-citation shape "Author, 1086 (p. 59)" — when ``(p.`` /
+# ``(pp.`` immediately follows the year-paren, the year is a
+# publication date and the preceding capitalised word is a scholar
+# name, not a place-name attestation. Real attestations cite the
+# SOURCE in the parens (``"Cestretone, 1086 (D.B.)"``,
+# ``"Iselham, 1302 (F.A.)"``); page references show up as the LATER
+# component of a parenthetical (``"(D.B., p. 102)"``), which the
+# lookahead ignores because the ``(`` is followed by a non-``p`` char.
 _ATTEST_FORM_YEAR_RE = re.compile(
     rf"\b(?P<form>{_FORM_PATTERN})"
     r"(?:\s*[,;]\s*(?:in\s+)?|\s+in\s+)"
     rf"(?P<year>{_YEAR_PATTERN})\b"
+    r"(?!\s*\(p+\.)"
+)
+
+# Chain-element shape — the LAST item of a comma/semicolon-separated
+# chain often drops the explicit connector between form and year:
+# ``"Cestretone in 1210; Cestrede, 1218; Chestreton 1242"``. The
+# leading ``;`` (or ``.``) plus optional whitespace anchors this
+# pattern to chain positions; ``After 1066 the conquest came`` won't
+# match because no ``;`` precedes ``After``. Bare-whitespace connector
+# is still safe within this anchor since chain context already implies
+# we're inside a citation list.
+_ATTEST_CHAIN_FORM_YEAR_RE = re.compile(
+    rf"[;]\s*(?P<form>{_FORM_PATTERN})\s+(?P<year>{_YEAR_PATTERN})\b"
 )
 
 # Domesday-anchored patterns. Spelled-out (``Domesday Book``) and
@@ -3090,17 +3113,25 @@ def _extract_attestation_pairs(notes: str | None) -> list[tuple[str, int]]:
 
     1. ``FORM in YEAR`` / ``FORM, YEAR`` / ``FORM; YEAR`` — the
        dominant scholarly shape. Year is filtered to 700-1700 via the
-       same range used by ``_earliest_year_in_notes``.
-    2. ``FORM in Domesday[ Book]`` — Domesday-anchored citation;
+       same range used by ``_earliest_year_in_notes``. The
+       ``(?!\\s*\\(p+\\.)`` negative lookahead rejects
+       academic-citation shape ``"Author, 1086 (p. 59)"``.
+    2. ``;FORM YEAR`` — chain-element bare connector. The LAST item
+       of a citation chain often drops the explicit comma/in
+       connector; the leading semicolon anchors this to chain
+       positions so sentence-flow false positives don't leak.
+    3. ``FORM in Domesday[ Book]`` — Domesday-anchored citation;
        year=1086.
-    3. ``Domesday[ Book] has FORM`` — inverted shape for the same.
-    4. ``FORM, D.B.`` / ``FORM D.B.`` — the abbreviated form.
+    4. ``Domesday[ Book] has FORM`` — inverted shape for the same.
+    5. ``FORM, D.B.`` / ``FORM D.B.`` — the abbreviated form.
 
-    Page-reference false positives are guarded the same way
-    ``_earliest_year_in_notes`` does it: a digit run preceded by ``p.``
-    / ``pp.`` / ``vol.`` etc. is rejected. This catches false hits like
-    ``"Bedinga feld, p. 59"`` where the year-shaped digit is a page
-    number, not an attestation date.
+    Page-reference false positives are guarded TWO ways: first the
+    same ``_earliest_year_in_notes`` shared filter (a digit run
+    preceded IMMEDIATELY by ``p.`` / ``pp.`` / ``vol.`` is rejected;
+    catches ``"Bedinga feld, p. 59"`` shape), and second the
+    parenthetical-page lookahead in pattern 1 above. The two combined
+    cover both pre-year (``p. 1086``) and post-year (``1086 (p. 59)``)
+    page-marker placements.
 
     Forms that match the regex syntactically but represent scholarly
     metadata (``Domesday``, ``Spelt``, source-author surnames) are
@@ -3125,23 +3156,38 @@ def _extract_attestation_pairs(notes: str | None) -> list[tuple[str, int]]:
         return []
     pairs: set[tuple[str, int]] = set()
 
-    # Year-anchored pattern: capture (form, year), filter page refs.
-    for m in _ATTEST_FORM_YEAR_RE.finditer(notes):
+    def _admit_year_match(m: re.Match[str]) -> None:
+        """Validate and absorb a ``(form, year)`` match from the year-
+        anchored or chain-anchored regex.
+
+        Shared guards: form-quality filter, year-range bounds, and the
+        immediate-predecessor page-marker check (rejects
+        ``"Bedinga feld, p. 1086"`` shape where the year is actually
+        a page reference). The probe scope is intentionally narrow
+        (``0:year_start``) — pages cited AFTER the year are caught by
+        the ``(?!\\s*\\(p+\\.)`` lookahead on
+        ``_ATTEST_FORM_YEAR_RE``, not here.
+        """
         form = m.group("form").rstrip(",.;:")
         if not _form_passes_filter(form):
-            continue
+            return
         year = int(m.group("year"))
         if year < _ATTESTED_YEAR_MIN_LOOKUP or year > _ATTESTED_YEAR_MAX_LOOKUP:
-            continue
-        # Reject digit runs preceded by a page / volume marker — same
-        # guard as _earliest_year_in_notes. The marker may sit before
-        # the form OR between the form and year; both are bibliographic
-        # noise. We probe just before the YEAR start since that's the
-        # tighter-binding side.
-        year_start = m.start("year")
-        if _TOPONYM_NOTE_PAGE_MARKER_RE.search(notes, 0, year_start):
-            continue
+            return
+        if _TOPONYM_NOTE_PAGE_MARKER_RE.search(notes, 0, m.start("year")):
+            return
         pairs.add((form, year))
+
+    # Year-anchored pattern: explicit connector between form and year.
+    for m in _ATTEST_FORM_YEAR_RE.finditer(notes):
+        _admit_year_match(m)
+
+    # Chain-element pattern: ``;FORM YEAR`` — the last item of a
+    # comma/semicolon-separated citation chain often drops the
+    # explicit connector. The leading ``;`` anchors this to chain
+    # positions so sentence flow ("After 1066") can't slip through.
+    for m in _ATTEST_CHAIN_FORM_YEAR_RE.finditer(notes):
+        _admit_year_match(m)
 
     # Domesday-anchored patterns (year fixed to 1086 per
     # _DOMESDAY_RES). The driver tuple folds the four shape variants
