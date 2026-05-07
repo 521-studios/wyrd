@@ -17,6 +17,7 @@ Covers:
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
@@ -1069,8 +1070,6 @@ def test_disambiguate_one_agentic_handles_missing_expand_fields(monkeypatch) -> 
 def test_expansion_stats_is_immutable() -> None:
     """`ExpansionStats` is frozen so it can be hashed / used in sets
     when downstream telemetry aggregates per-case stats."""
-    from dataclasses import FrozenInstanceError
-
     s = ExpansionStats(expansions=2, final_chars=800, forced_commit=False)
     with pytest.raises(FrozenInstanceError):
         s.expansions = 5  # type: ignore[misc]
