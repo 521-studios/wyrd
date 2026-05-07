@@ -1310,6 +1310,105 @@ def test_name_generator_select_drops_out_of_stratum_morphemes_at_pick_time():
         assert new_name.name == [["-in"]]
 
 
+def test_keep_keys_for_stratum_returns_empty_when_no_usage_admits():
+    """When --stratum is set and EVERY Meaning has stratum data that
+    DOESN'T match, keep_keys_for_stratum returns an empty frozenset
+    (NOT None — the full-coverage→None collapse only fires when
+    coverage is total). The downstream Generator.select must accept
+    an empty keep_keys without crashing — it's the documented 'no
+    usage matches the filter' signal that just produces no name.
+
+    Pinned because the full-coverage tests above mask this branch:
+    they include at least one no-data Meaning that admits via
+    passthrough. Phase 4 may produce realistic 'all classified, none
+    matching' bundles that hit this exact edge."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator
+
+    only_other = Meaning(
+        "-other", [], [], {}, stratum={"celtic_mix": {"caer": "latin-loan"}}
+    )
+    mg = MeaningGenerator({"-other": [only_other]}, {}, {"-other": 1})
+    keep = mg.keep_keys_for_stratum("native-welsh")
+    assert keep == frozenset()
+    assert keep is not None
+
+
+def test_generator_select_with_empty_keep_keys_returns_none():
+    """The base Generator.select handles empty keep_keys by returning
+    None — already covered for era at line 940, but pin it explicitly
+    in the stratum context so a refactor that accidentally diverges
+    the two paths is caught. Reuses the existing
+    'empty keep_keys → None' contract."""
+    from wyrd.generators.kenning.proportions import Generator
+
+    g = Generator(tag_db={}, elements={"a": 50, "b": 50})
+    assert g.select(random.Random(0), keep_keys=frozenset()) is None
+
+
+def test_name_generator_select_stratum_threads_through_positive_tag_path():
+    """Mirror of test_name_generator_select_era_range_threads_through_positive_tag_path
+    for stratum. _select_tag / _select_tags branch threads keep_keys
+    independently from _select_no_tag, so a tag + stratum combo must
+    be pinned: two usages tagged 'tree', one in-stratum and one not,
+    with empirical weight on the wrong one. With tags=('tree',) AND
+    stratum set, every pick must still land on the in-stratum usage."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import (
+        MeaningGenerator,
+        NameGenerator,
+    )
+
+    m_in = Meaning(
+        "-in", ["tree"], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}}
+    )
+    m_out = Meaning(
+        "-out", ["tree"], [], {}, stratum={"celtic_mix": {"din": "latin-loan"}}
+    )
+    meaning_db = {"-in": [m_in], "-out": [m_out]}
+    proportions = {"-in": 1, "-out": 99}
+    tag_db = {"tree": ["-in", "-out"]}
+    mg = MeaningGenerator(meaning_db, tag_db, proportions)
+    mg.load_parts(proportions, "single")
+    structs = {(((m_in.location, "single"),),): 1}
+    name_gen = NameGenerator(meaning_db, mg, structs)
+    for i in range(50):
+        new_name = name_gen.select(random.Random(i), "tree", stratum="native-welsh")
+        assert new_name.name == [["-in"]]
+
+
+def test_kenning_generate_treats_empty_stratum_as_no_filter():
+    """``params['stratum'] = ""`` (the SPA's empty-dropdown shape AND
+    the input_schema default) reaches the Kenning layer where
+    ``stratum or None`` coerces it to None — the 'no filter' signal.
+    Pin bit-stability with the no-key call so a regression that drops
+    the coercion (and crashes on the empty string at the filter
+    layer) is caught."""
+    from wyrd.generators.kenning import Kenning
+
+    k = Kenning()
+    seed = 12345
+    a = k.generate({"culture": "english", "stratum": ""}, seed)
+    b = k.generate({"culture": "english"}, seed)
+    assert a.result == b.result
+
+
+def test_kenning_schema_default_round_trips_through_generate():
+    """The SPA reads ``input_schema().properties.stratum.default``
+    and feeds it back through ``generate()``. Pin that the schema
+    default (the empty string) is a valid input — without this, a
+    refactor that tightens the coercion (e.g. requires a non-empty
+    string) would silently break SPA usage where no test fires."""
+    from wyrd.generators.kenning import Kenning
+
+    k = Kenning()
+    default = k.input_schema()["properties"]["stratum"]["default"]
+    seed = 42
+    with_default = k.generate({"culture": "english", "stratum": default}, seed)
+    baseline = k.generate({"culture": "english"}, seed)
+    assert with_default.result == baseline.result
+
+
 def test_name_generator_select_stratum_none_is_bit_stable():
     """stratum=None matches the no-arg call exactly — the kwarg adds
     a None default rather than a behavior change. Pin via seeded
