@@ -976,25 +976,31 @@ def test_classify_old_english_unmapped_dialect_self_language_not_classified(
     fresh_db: Path,
 ) -> None:
     """The umbrella ticket scoped dialect strata (West Saxon vs
-    Mercian vs Anglian) but the live DB has no ang-x-* dialect codes,
-    so _OLD_ENGLISH_SELF_LANGUAGE_TO_STRATUM is empty. Pin that an
-    etymon seeded with a dialect-coded language is NOT silently
-    classified — confirms the empty-map invariant and pins the
-    family-membership scope to language='old-english' alone.
+    Mercian vs Anglian) but the live DB has only 33 dialect-coded
+    rows (31 ang-ang Anglian + 2 ang-wsx West Saxon, all orphans),
+    so _OLD_ENGLISH_SELF_LANGUAGE_TO_STRATUM stays empty. Pin that
+    etymons seeded with the actual dialect codes used in the live DB
+    are NOT silently classified — confirms the empty-map invariant
+    and pins the family-membership scope to language='old-english'
+    alone.
 
-    If wave-2 mining ever ingests dialect-coded OE corpora, this
-    test will need updating in lockstep with the self-language map
+    If wave-2 mining ever ingests dialect-coded OE corpora at scale,
+    this test needs updating in lockstep with the self-language map
     population — a deliberate regression-flagging point for the
     follow-up work."""
     with LexiconDB(fresh_db) as db:
         _seed_source(db)
-        ws_id = db.upsert_etymon("hām", "ang-x-ws")  # West Saxon dialect
-        mer_id = db.upsert_etymon("hām", "ang-x-mer")  # Mercian
+        # Use the actual dialect codes from the live DB (ang-ang for
+        # Anglian, ang-wsx for West Saxon — Wiktionary's wave-2
+        # convention) rather than the ang-x-* hyphen-form codes that
+        # exist in some scholarly references but not in our data.
+        anglian_id = db.upsert_etymon("hām", "ang-ang")
+        wsx_id = db.upsert_etymon("hām", "ang-wsx")
         proposals = classify_old_english(db)
     # Both dialect-coded rows fall outside the classifier's scope
     # (modern_lang='old-english' only, empty self-language map).
-    assert ws_id not in proposals
-    assert mer_id not in proposals
+    assert anglian_id not in proposals
+    assert wsx_id not in proposals
 
 
 def test_cli_classify_stratum_old_english_force_overwrites(fresh_db: Path) -> None:

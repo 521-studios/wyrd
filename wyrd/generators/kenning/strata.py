@@ -147,16 +147,31 @@ _FRENCH_SELF_LANGUAGE_TO_STRATUM: dict[str, str] = {
 # Four buckets, one fewer than Welsh / French. Listed in priority
 # order: when an etymon's parents include languages mapped to
 # multiple strata, the first match wins (so latin-loan displaces
-# norse-loan displaces celtic-substrate). The order encodes the
-# scholarly convention that an explicit Christianization-era loan
-# layer dominates the Danelaw layer dominates rare substrate
-# contact when multiple are present.
+# norse-loan displaces celtic-substrate). The order encodes a
+# scholarly-historical convention rooted in how each layer entered
+# the language: Latin came through the institutional pipe of
+# Christianization (clerical, literate, top-down vocabulary that
+# permeated all dialects), Norse came through bottom-up settler
+# contact in a defined region (the Danelaw, ~800-1000 CE), and
+# Celtic substrate is the residual pre-Anglo-Saxon layer plus
+# post-conversion Goidelic influence via Northumbrian Christianity.
+# When evidence of multiple layers coexists on a single etymon, the
+# institutional / clerical signal carries the highest semantic
+# weight, the regional-settler signal next, and the residual /
+# substrate signal last.
 #
 # The umbrella ticket called for 'West Saxon vs Mercian vs Anglian
 # dialect strata; pre-Christian vs Christian-influenced vocabulary'.
-# The dialect axis is unsupported by the actual data — no
-# ``ang-x-*`` dialect codes appear on any etymon row in the live DB
-# (live survey 2026-05-07). So the meaningful axis is loan /
+# The dialect axis is mostly unsupported by the actual data — the
+# live DB has 33 dialect-coded etymons in total (31 ``ang-ang``
+# (Anglian) + 2 ``ang-wsx`` (West Saxon), live survey 2026-05-07),
+# all orphans without descent edges. Phase 4b leaves them in
+# language-scope-outside the OE classifier (modern_lang is
+# 'old-english' only, self-language map empty), so they don't get
+# tagged today. A Phase 4d (manual hand-correction) or wave-2
+# dialect-corpus follow-up would extend the self-language map
+# and/or modern_lang scope; the classifier's two-pass shape is
+# ready for either. So the meaningful axis on Phase 4b is loan /
 # substrate signals: which post-native influence layered onto the
 # standard Germanic descent. Pre-Christian native vocabulary falls
 # into ``native-old-english`` by default.
@@ -219,11 +234,16 @@ _OLD_ENGLISH_ANCESTOR_TO_STRATUM: dict[str, str] = {
 }
 
 
-# Self-language → stratum. Empty for OE today — the live DB has no
-# dialect or sub-period varieties (no ang-x-ws / ang-x-mer / etc.
-# rows). If wave-2 mining ever ingests dialect-coded OE corpora,
-# this map gets populated with the dialect-stratum mappings; the
-# classifier's two-pass shape is ready for it.
+# Self-language → stratum. Empty for OE today. The live DB has 33
+# dialect-coded rows (31 ``ang-ang`` Anglian + 2 ``ang-wsx`` West
+# Saxon, live survey 2026-05-07) but they're all orphans without
+# descent edges, the dialect tagging is too sparse to support its
+# own bucket, and the per-dialect OE strata the umbrella ticket
+# scoped (West Saxon / Mercian / Anglian) would need a wave-2
+# dialect-corpus ingest to populate meaningfully. Until then the
+# self-language map stays empty and dialect-coded rows stay
+# unclassified. The classifier's two-pass shape is ready when the
+# data lands.
 _OLD_ENGLISH_SELF_LANGUAGE_TO_STRATUM: dict[str, str] = {}
 
 
