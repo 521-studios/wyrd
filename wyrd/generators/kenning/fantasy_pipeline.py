@@ -127,9 +127,11 @@ APPROVED_LANGUAGES: frozenset[str] = frozenset(
         # ("you may add the precursors or postcursors of any language we've
         # approved so we can do the full history"). Lets descent_walking_lookup
         # walk the FULL chain from a modern reflex back to its deepest
-        # ancestor without bailing at the language gate. Counts in parens
-        # are post-wave-2-ingest etymon-table rows; non-zero verifies the
-        # code shows up in real descent edges feeding our approved set.
+        # ancestor without bailing at the language gate. Per-code etymon-row
+        # counts at the time of approval are listed in INGESTION.md
+        # ("Approved languages" section under "Mining the wyrd-ami fantasy-name
+        # corpus") and in PR #94's body — not in this comment block, since
+        # those counts grow whenever wiktextract is re-ingested.
         #
         # Semitic precursors:
         "hbo",          # Biblical Hebrew (precursor to he)
@@ -176,6 +178,11 @@ _LANGUAGE_ALIAS_MAP: dict[str, str] = {
     # from he back through hbo don't dead-end at the language gate.
     "biblical-hebrew": "he",
     "persian": "fa",
+    # 'classical-persian' keeps mapping to 'fa' for the same reason
+    # 'biblical-hebrew' maps to 'he': modern Persian wiktextract
+    # carries the literary-classical lemmas under fa (~20k rows)
+    # rather than under fa-cls (~211 rows). fa-cls is approved
+    # separately so descent walks through it succeed.
     "classical-persian": "fa",
     "farsi": "fa",
     "akkadian": "akk",
@@ -183,6 +190,9 @@ _LANGUAGE_ALIAS_MAP: dict[str, str] = {
     "ancient-egyptian": "egy",
     "aramaic": "arc",
     "middle-persian": "pal",
+    # 'pahlavi' is a synonym for Middle Persian; both alias to 'pal'.
+    # The Iranian-stack precursors (xpr Parthian, ira-pro Proto-Iranian)
+    # are approved separately for descent-chain coverage.
     "pahlavi": "pal",
     # Wave-2 precursor / postcursor descriptive names → ISO codes
     # (user-approved 2026-05-06). Mirrors the corresponding

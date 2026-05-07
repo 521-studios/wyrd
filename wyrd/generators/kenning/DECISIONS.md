@@ -1000,18 +1000,22 @@ The single-word strict filter still rejects multi-word names
 
 ### Approved-language stratification (precursors + postcursors)
 
-`APPROVED_LANGUAGES` is layered as a stack rather than a single
-attestation tier. Each "approved" canonical language pulls in the
-precursor and postcursor codes that make up its descent stack so
-`descent_walking_lookup` can walk the FULL chain from a modern
-reflex to its deepest attested ancestor without bailing at a
-language gate. The Hebrew stack, for example, isn't just `he` —
-it's `{hbo, sem-wes-pro, sem-pro, afa-pro, he}`, and the Iranian
-stack mirrors that pattern (`{peo, fa-cls, xpr, ira-pro, fa, pal,
-iir-pro}`). Without the stack form, a Modern Hebrew word's
-descent edge to Biblical Hebrew terminates the walk at the language
-boundary even though the chain is genuine; with it, the BFS
-continues all the way to Proto-Afroasiatic when the data has it.
+`APPROVED_LANGUAGES` is the union of every code along the descent
+chain of an approved canonical language, not just the canonical
+language itself. (The container is a flat `frozenset`; "stratified"
+here means the *contents* span multiple eras of the same chain, not
+that the data structure is ordered.) Each canonical language pulls
+in its precursors and postcursors so `descent_walking_lookup` can
+walk the FULL chain from a modern reflex to its deepest attested
+ancestor without bailing at a language gate. The Hebrew chain, for
+example, isn't just `he` — it's `{hbo, sem-wes-pro, sem-pro,
+afa-pro, he}` (Biblical Hebrew → West-Semitic → Semitic → Afroasiatic
++ Modern Hebrew), and the Iranian chain mirrors the pattern
+(`{peo, fa-cls, xpr, ira-pro, fa, pal, iir-pro}`). Without the
+chain form, a Modern Hebrew word's descent edge to Biblical Hebrew
+terminates the walk at the language boundary even though the
+relationship is genuine; with it, the BFS continues all the way to
+Proto-Afroasiatic when the data carries that depth.
 
 Practical consequence: when a new "canonical" language is approved,
 its precursors / postcursors should be added at the same time so

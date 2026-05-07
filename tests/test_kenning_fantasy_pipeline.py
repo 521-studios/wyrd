@@ -1285,6 +1285,95 @@ def test_resolve_via_llm_alias_map_egyptian_variants(fresh_db: Path) -> None:
         assert res.etymon_id == target_id, f"failed for {raw_lang!r}"
 
 
+@pytest.mark.parametrize(
+    "descriptive_name,iso_code,canonical_form",
+    [
+        # Iranian precursors / postcursors (wyrd-c97z)
+        ("old-persian", "peo", "ahura"),
+        ("Old Persian", "peo", "ahura"),
+        ("parthian", "xpr", "frawardin"),
+        # Indo-Aryan precursors / postcursors
+        ("pali", "pi", "rakkhasa"),
+        ("Pali", "pi", "rakkhasa"),
+        ("prakrit", "pra", "rakkhasa"),
+        # Egyptian descendant
+        ("coptic", "cop", "anuph"),
+        ("Coptic", "cop", "anuph"),
+        # Aramaic descendant
+        ("classical-syriac", "syc", "shedda"),
+        ("Syriac", "syc", "shedda"),
+        # Proto-language reconstructions
+        ("proto-semitic", "sem-pro", "*ʔil-"),
+        ("Proto-Indo-Iranian", "iir-pro", "*sandh-"),
+        ("Proto-Indo-Aryan", "inc-pro", "*rakṣas-"),
+        ("Proto-Iranian", "ira-pro", "*ahura-"),
+        ("Proto-Afroasiatic", "afa-pro", "*napas-"),
+        ("Proto-West-Semitic", "sem-wes-pro", "*malk-"),
+        # Substrate / Armenian
+        ("sumerian", "sux", "kur"),
+        ("Old Armenian", "axm", "vahagn"),
+        ("Classical Armenian", "axm", "vahagn"),
+    ],
+)
+def test_resolve_via_llm_alias_map_wave2_precursors_postcursors(
+    fresh_db: Path, descriptive_name: str, iso_code: str, canonical_form: str
+) -> None:
+    """wyrd-c97z: the 16 precursor/postcursor codes added to
+    APPROVED_LANGUAGES come with paired _LANGUAGE_ALIAS_MAP entries
+    so the LLM's natural descriptive output (e.g., "Old Persian",
+    "Coptic", "Pali", "Proto-Semitic") routes to the correct ISO
+    code. A typo in any of the 14 new alias values would silently
+    re-classify those families as outside_language_family — this
+    test would fail. Covers normalization (case + space-to-dash)
+    end-to-end since the production pipeline always lowercases +
+    space-replaces before alias lookup."""
+    with LexiconDB(fresh_db) as db:
+        target_id = _seed_etymon(db, canonical_form=canonical_form, language=iso_code)
+        db.commit()
+
+    def _stub_llm(name, description, _raw=descriptive_name):
+        return {
+            "attested_in": _raw,
+            "historical_form": canonical_form,
+            "gloss": "stub",
+            "citation": "stub",
+            "confidence": "high",
+            "bar_reason": None,
+            "reasoning": "stub",
+        }
+
+    res = fp.resolve(
+        fresh_db, f"FantasyName_{iso_code}", "stub description", llm_caller=_stub_llm
+    )
+    assert res.usable is True, f"alias {descriptive_name!r} failed to resolve"
+    assert res.etymon_id == target_id
+
+
+def test_descent_walking_lookup_resolves_through_wave2_precursor(fresh_db: Path) -> None:
+    """wyrd-c97z: a Modern Hebrew lemma (he) with a descent edge to
+    its Biblical Hebrew precursor (hbo) should surface BOTH the he
+    seed AND the hbo ancestor as approved-family hits, because the
+    wave-2 stratification put hbo into APPROVED_LANGUAGES alongside
+    he. Before this PR, hbo was unapproved and the BFS would walk
+    PAST it without surfacing the precursor as a usable resolution
+    target; the chain would dead-end at the language gate even when
+    the data was genuine. Pinning the contract so a future bare-`he`
+    revert silently truncates the walk → test fails."""
+    with LexiconDB(fresh_db) as db:
+        biblical_id = _seed_etymon(db, canonical_form="gōlem", language="hbo")
+        modern_id = _seed_etymon(db, canonical_form="golem", language="he")
+        _seed_descent(db, parent_id=biblical_id, child_id=modern_id)
+        db.commit()
+
+    matches = fp.descent_walking_lookup(fresh_db, "golem")
+    by_lang = {m.language: m for m in matches}
+    assert "he" in by_lang, "Modern Hebrew seed should surface as direct hit"
+    assert "hbo" in by_lang, (
+        "Biblical Hebrew precursor must surface — confirms wave-2 hbo approval"
+    )
+    assert by_lang["hbo"].canonical_form == "gōlem"
+
+
 # ---------------------------------------------------------------------
 # fetch_resolved_input_names + --skip-resolved
 # ---------------------------------------------------------------------
