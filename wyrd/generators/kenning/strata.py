@@ -588,14 +588,117 @@ ALL_STRATA: frozenset[str] = frozenset(
 )
 
 
+# --- Per-family registry (wyrd-j3gy) --------------------------------------
+#
+# Maps the per-family STRATA tuples by family name. Keyed by the
+# language-family identifier the classifiers use ('welsh' / 'french'
+# / 'old-english' / 'old-norse') — same identifiers that appear in
+# the ``classify-stratum --language`` Click choices.
+STRATA_BY_FAMILY: dict[str, tuple[str, ...]] = {
+    "welsh": WELSH_STRATA,
+    "french": FRENCH_STRATA,
+    "old-english": OLD_ENGLISH_STRATA,
+    "old-norse": OLD_NORSE_STRATA,
+}
+
+
+# Maps each lexicon ``etymon.language`` value to its language family
+# (the key used in ``STRATA_BY_FAMILY``). Lets ``set-stratum`` pick
+# the right per-family STRATA tuple for family-aware validation.
+#
+# Built programmatically from each classifier's modern_lang + self-
+# language map, so adding a new self-language entry to e.g.
+# ``_FRENCH_SELF_LANGUAGE_TO_STRATUM`` automatically extends
+# LANGUAGE_TO_FAMILY without a separate manual update. The classifier
+# constants are the single source of truth.
+#
+# Languages absent from this map don't yet have a classifier; their
+# rows fall back to the broader ``ALL_STRATA`` typo-check only.
+def _build_language_to_family() -> dict[str, str]:
+    """Source LANGUAGE_TO_FAMILY from the per-classifier maps.
+
+    Each family contributes its modern_lang (the language the
+    ancestor walk targets) plus every key in its self-language map.
+    Drift-proof: if a classifier adds a new ancestor variety, this
+    map picks it up automatically.
+    """
+    return {
+        # Welsh family.
+        "welsh": "welsh",
+        **dict.fromkeys(_WELSH_SELF_LANGUAGE_TO_STRATUM, "welsh"),
+        # French family.
+        "french": "french",
+        **dict.fromkeys(_FRENCH_SELF_LANGUAGE_TO_STRATUM, "french"),
+        # Old English family.
+        "old-english": "old-english",
+        **dict.fromkeys(_OLD_ENGLISH_SELF_LANGUAGE_TO_STRATUM, "old-english"),
+        # Old Norse family.
+        "old-norse": "old-norse",
+        **dict.fromkeys(_OLD_NORSE_SELF_LANGUAGE_TO_STRATUM, "old-norse"),
+    }
+
+
+LANGUAGE_TO_FAMILY: dict[str, str] = _build_language_to_family()
+
+
+# Per-culture allowed strata for the runtime --stratum filter
+# (wyrd-j3gy). Captures which language families' strata are valid
+# choices when generating names for that culture-bundle.
+#
+# INVARIANT: each culture's set MUST equal the union of STRATA
+# tuples for the language families that culture's place-name
+# corpus draws from. Adding a family to a culture-bundle (e.g.
+# wave-2 mining surfaces a Goidelic stratum classifier and the
+# irish bundle starts pulling from it) requires extending the
+# culture's set here.
+#
+# Empty set = 'no per-culture restriction'; falls back to the
+# broader ALL_STRATA typo-check in ``_resolve_stratum_param``. Used
+# for cultures whose families don't yet have classifiers
+# (irish, breton — Goidelic / Brittonic-Brythonic classifiers
+# follow in Phase 4e+).
+#
+# english + scottish span all four classified families because
+# British place-names sample from each (OE base + ON Danelaw layer
+# + Norman French superstrate + Brythonic substrate). Welsh
+# culture is narrower — primarily Welsh-family forms plus the
+# Norman French overlay from post-1283 Welsh place naming.
+_CULTURE_TO_VALID_STRATA: dict[str, frozenset[str]] = {
+    "english": frozenset(WELSH_STRATA + FRENCH_STRATA + OLD_ENGLISH_STRATA + OLD_NORSE_STRATA),
+    "scottish": frozenset(WELSH_STRATA + FRENCH_STRATA + OLD_ENGLISH_STRATA + OLD_NORSE_STRATA),
+    "welsh": frozenset(WELSH_STRATA + FRENCH_STRATA),
+    "irish": frozenset(),
+    "breton": frozenset(),
+}
+
+
+def valid_strata_for_culture(culture: str) -> frozenset[str]:
+    """Return the set of strata valid for a culture-bundle, or an
+    empty set if the culture has no per-culture restriction
+    configured (caller should fall back to ALL_STRATA typo-check)."""
+    return _CULTURE_TO_VALID_STRATA.get(culture, frozenset())
+
+
+def family_for_language(language: str) -> str | None:
+    """Return the language-family identifier for a lexicon language
+    code, or None if the language has no classifier yet (caller
+    should fall back to ALL_STRATA typo-check). Used by
+    ``set-stratum`` for family-aware validation."""
+    return LANGUAGE_TO_FAMILY.get(language)
+
+
 __all__ = [
     "ALL_STRATA",
     "FRENCH_STRATA",
+    "LANGUAGE_TO_FAMILY",
     "OLD_ENGLISH_STRATA",
     "OLD_NORSE_STRATA",
+    "STRATA_BY_FAMILY",
     "WELSH_STRATA",
     "classify_french",
     "classify_old_english",
     "classify_old_norse",
     "classify_welsh",
+    "family_for_language",
+    "valid_strata_for_culture",
 ]
