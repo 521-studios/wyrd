@@ -138,25 +138,56 @@ def test_synthesized_manorial_subjects_use_old_french_language_slot() -> None:
     )
 
 
-def test_kenning_input_schema_unaffected_by_manorial_subjects() -> None:
-    """Adding manorial subjects to the meaning_db should not bleed
-    'manorial' or 'norman' into the SPA's tag-filter dropdown — those
-    are internal classification tags, not user-facing selection
-    primitives. ``_INTERNAL_TAGS`` already filters internal markers
-    (saint, fiction, etc.); pin that 'manorial' and 'norman' are
-    similarly excluded so a tag-filter user picking one doesn't get
-    a meaning_db restricted to manorial families."""
+def test_manorial_tags_are_excluded_from_user_facing_tag_dropdown() -> None:
+    """``available_tags()`` populates the SPA's tag-filter dropdown.
+    Manorial / norman are classification markers on the synthesized
+    affix Meanings — picking either in the dropdown would restrict
+    generation to manorial families (none of which appear in any
+    culture's proportions, so the result would be a no-op tag
+    filter). The user-facing knob for manorial layering is
+    ``manorial_affix`` (a probability field), not a tag selection.
+    Pin so a future refactor that drops manorial/norman from
+    ``_INTERNAL_TAGS`` would re-introduce the UX wart."""
     from wyrd.generators.kenning import available_tags
 
     tags = available_tags()
-    # Manorial / norman are classification tags only; they aren't
-    # user-facing, but the available_tags filter only excludes
-    # _INTERNAL_TAGS (saint / fiction / etc.). Document the current
-    # behavior with a positive assertion that they DO surface — if a
-    # future change wants to suppress them, it must explicitly add
-    # them to _INTERNAL_TAGS.
-    assert "manorial" in tags
-    assert "norman" in tags
+    assert "manorial" not in tags
+    assert "norman" not in tags
+
+
+def test_synthesized_manorial_tokens_are_disjoint_from_main_bundle() -> None:
+    """Drift guard: the synthesized surname tokens (Mandeville, Lacy,
+    Cary, Marshal, Percy, etc.) must not collide with any usage in
+    the main meanings.json or the irish_anglicizations.json
+    sidecar. A future curator who adds 'Marshal' as a generic
+    English topographic morpheme (or whatever) would silently shadow
+    the manorial entry; pinning the disjointness surfaces the
+    collision at curate-time."""
+    import json
+    from importlib import resources
+
+    main = json.loads(
+        resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
+    )
+    sidecar = json.loads(
+        resources.files("wyrd.generators.kenning.data")
+        .joinpath("irish_anglicizations.json")
+        .read_text()
+    )
+    pre_synthesis_usages: set[str] = set()
+    for source in (main, sidecar):
+        for subject in source:
+            for word in subject["words"]:
+                # Canonical-strip dashes so a subject like "-tun" can't
+                # collide with a manorial token by surface coincidence.
+                pre_synthesis_usages.add(word["modern_usage"].strip("-"))
+
+    manorial_tokens = {family.split()[-1] for family in _load_norman_manorial_families()}
+    collisions = manorial_tokens & pre_synthesis_usages
+    assert collisions == set(), (
+        f"Norman family surname tokens collide with main-bundle usages: {collisions}; "
+        f"the synthesized Meaning would silently shadow the existing entry"
+    )
 
 
 def test_synthesized_manorial_meaning_does_not_break_kenning_generate() -> None:
@@ -166,19 +197,31 @@ def test_synthesized_manorial_meaning_does_not_break_kenning_generate() -> None:
     confused — base names should not contain Norman family surnames
     when the affix knob is off. Pin so a future refactor that lets
     the synthesized subjects flow into the standard generation pool
-    doesn't silently emit 'Mandeville-tun' as a base name."""
+    doesn't silently emit 'Mandeville-tun' as a base name.
+
+    Three knob configurations exercised:
+    - default knobs (the steady state most users hit)
+    - novelty=1.0 (uniform-marginal blend, the case where a leaked
+      subject WOULD surface — proportions.py:_blend_uniform broadcasts
+      across every key in the bucket)
+    - cohesion=1.0 (tag-class-prior bias, the other path where a
+      tag-tagged subject could leak in)
+    """
     gen = Kenning()
     families = set(_load_norman_manorial_families())
     family_tokens = {f.split()[-1] for f in families}
-    # Generate a sample of names with affix=0 and verify none of
-    # them contain a manorial token. If a synthesized subject leaks
-    # into the proportions pool, this would catch it.
-    for s in range(20):
-        result = gen.generate({"culture": "english"}, seed=s)
-        words = result.result.split()
-        for token in family_tokens:
-            assert token not in words, (
-                f"seed {s}: base name {result.result!r} unexpectedly contains "
-                f"manorial token {token!r}; synthesized subjects may be leaking "
-                f"into the standard generation pool"
-            )
+    knob_configs = [
+        {"culture": "english"},
+        {"culture": "english", "novelty": 1.0},
+        {"culture": "english", "cohesion": 1.0},
+    ]
+    for config in knob_configs:
+        for s in range(20):
+            result = gen.generate(config, seed=s)
+            words = result.result.split()
+            for token in family_tokens:
+                assert token not in words, (
+                    f"config={config} seed={s}: base name {result.result!r} "
+                    f"unexpectedly contains manorial token {token!r}; synthesized "
+                    f"subjects may be leaking into the standard generation pool"
+                )
