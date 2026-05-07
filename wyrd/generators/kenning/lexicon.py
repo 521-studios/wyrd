@@ -564,6 +564,13 @@ def _add_etymon_columns(db: LexiconDB, applied: dict[str, bool]) -> None:
     if "english_shaped" not in cols:
         db.conn.execute("ALTER TABLE etymon ADD COLUMN english_shaped TEXT")
         applied["etymon.english_shaped"] = True
+    # wyrd-lr4: within-language stratum tag. NULL on rows that haven't
+    # been classified yet (stays NULL until ``lexicon classify-stratum``
+    # runs for that language family). Strata are language-specific — no
+    # global CHECK constraint.
+    if "stratum" not in cols:
+        db.conn.execute("ALTER TABLE etymon ADD COLUMN stratum TEXT")
+        applied["etymon.stratum"] = True
 
 
 def _create_etymon_indexes(db: LexiconDB, applied: dict[str, bool]) -> None:
@@ -580,6 +587,9 @@ def _create_etymon_indexes(db: LexiconDB, applied: dict[str, bool]) -> None:
     if "idx_etymon_cognate" not in existing_indexes:
         db.conn.execute("CREATE INDEX idx_etymon_cognate ON etymon(cognate_id)")
         applied["idx_etymon_cognate"] = True
+    if "idx_etymon_stratum" not in existing_indexes:
+        db.conn.execute("CREATE INDEX idx_etymon_stratum ON etymon(stratum)")
+        applied["idx_etymon_stratum"] = True
 
 
 def _recreate_view(db: LexiconDB, applied: dict[str, bool], name: str, body: str) -> None:
@@ -1444,6 +1454,9 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "etymon.original_script": False,
         "etymon.transliteration": False,
         "etymon.english_shaped": False,
+        # wyrd-lr4: within-language stratum tag.
+        "etymon.stratum": False,
+        "idx_etymon_stratum": False,
     }
     # wyrd-44a: rename the legacy cognate-cluster column from synset_id
     # to cognate_id BEFORE the add-columns helper runs — otherwise
