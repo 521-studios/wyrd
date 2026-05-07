@@ -1504,10 +1504,15 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     _create_mining_run_table(db, applied)
     _migrate_citation_context_snippet(db, applied)
     _migrate_toponym_etymology_attested_year(db, applied)
-    _create_toponym_attestation_unique_index(db, applied)
     _create_meaning_synset_tables(db, applied)
     _create_fantasy_morpheme_table(db, applied)
     _migrate_wal_mode(db, applied)
+    # wyrd-skm Phase 3.0a: runs last so an IntegrityError from a
+    # legacy DB that somehow has duplicate (toponym_id, form, date_year,
+    # source_doc) rows doesn't abort an earlier migration's commit.
+    # The mine-attestations ingest is a fresh population in production,
+    # but defending against unknown legacy state is cheap.
+    _create_toponym_attestation_unique_index(db, applied)
     db.commit()
     return applied
 
@@ -2923,14 +2928,29 @@ def lookup_attested_years(
 _DOMESDAY_YEAR = 1086
 
 # Form character class — leading capital plus letters / OE specials /
-# Welsh diacritics / hyphens. Total length 4-30 covers Hædan-ham (9)
-# through Bedingafelda (12) while excluding sentence connectives ("The",
-# "But", "And", "Of") that would otherwise leak through the year-anchor
-# patterns. The follow-up ``_form_passes_filter`` check additionally
-# requires at least one lowercase letter so 3-4 letter source
-# abbreviations (LPR, LI, LF, DB) don't slip through.
-_FORM_CHARSET = r"A-Za-zÆÐÞŒæðþœǣīāōūȳ"
-_FORM_PATTERN = rf"[A-ZÆÐÞŒ][{_FORM_CHARSET}]{{3,29}}(?:[-][{_FORM_CHARSET}]{{1,12}})*"
+# Welsh + Norman diacritics / hyphens.
+#
+# The base segment is bounded at 4-30 chars (lead + {3,29} continuation);
+# hyphenated suffixes can extend the total to ~43 chars (Hædan-ham at 9,
+# Bedingafelda at 12, Llanfaên-y-bryn at 15 are typical). The lower
+# bound excludes 3-letter sentence connectives ("The", "But", "And",
+# "Of") that would otherwise leak through the year-anchor patterns; the
+# upper bound is generous enough that real toponym variants haven't
+# tripped it on the production corpus.
+#
+# The diacritic set covers the production toponym_etymology.notes
+# corpus: Welsh ŵâêôûŷ + macron-vowel ē (Welsh-stratum work landed in
+# PR #105), Norman çéè (early French/Anglo-Norman charter spellings),
+# OE specials æðþœǣ + macron set āīōū. Both cases of each diacritic so
+# capitalised lemmas (``Hēafod``, ``Ŷrwyrne``, ``Llanfaên``) match.
+#
+# The follow-up ``_form_passes_filter`` check additionally requires at
+# least one lowercase letter so pure-uppercase source abbreviations
+# (LPR, LI, LF, DB) don't slip through.
+_FORM_CHARSET = (
+    r"A-Za-zÆÐÞŒæðþœǣĒĀĪŌŪēāīōūȳŴÂÊÔÛŶŵâêôûŷÇÉÈçéè"
+)
+_FORM_PATTERN = rf"[A-ZÆÐÞŒĒĀĪŌŪŴÂÊÔÛŶÇÉÈ][{_FORM_CHARSET}]{{3,29}}(?:[-][{_FORM_CHARSET}]{{1,12}})*"
 
 
 def _form_passes_filter(form: str) -> bool:
@@ -2948,6 +2968,7 @@ def _form_passes_filter(form: str) -> bool:
     if not any(c.islower() for c in form):
         return False
     return form.lower() not in _ATTEST_FORM_BLACKLIST
+
 
 # Year pattern — same range as _earliest_year_in_notes (post-Roman
 # 700-1700) so we share its filter on page-references / publication
@@ -2971,42 +2992,57 @@ _ATTEST_FORM_YEAR_RE = re.compile(
     rf"(?P<year>{_YEAR_PATTERN})\b"
 )
 
-# "FORM in Domesday[ Book]" — a form positioned as Domesday's spelling.
+# Domesday-anchored patterns. Spelled-out (``Domesday Book``) and
+# abbreviated (``D.B.``) shapes each cover the form-before-marker and
+# marker-before-form orderings; the four-pattern set folds to two
+# regex alternations on the marker side.
+#
+# ``D\.\s*B\.`` carries an explicit trailing ``(?:\b|,|;|\s)`` — the
+# ``\b`` alone fails to match between ``.`` and a space (both are
+# non-word) so without the alternation a sentence like ``"Cestretone
+# D.B. has more"`` would mis-match. Pinned by a regression test.
 _ATTEST_FORM_DOMESDAY_RE = re.compile(
     rf"\b(?P<form>{_FORM_PATTERN})\s+in\s+Domesday(?:\s+Book)?\b"
+    rf"|\b(?P<form2>{_FORM_PATTERN})\s*,?\s+D\.\s*B\.(?:\b|,|;|\s)"
 )
 
-# "Domesday[ Book] has FORM" — inverted phrasing for the same data.
+# Marker-before-form variants of the same data.
 _ATTEST_DOMESDAY_HAS_FORM_RE = re.compile(
     rf"\bDomesday(?:\s+Book)?\s+has\s+(?P<form>{_FORM_PATTERN})"
+    rf"|\bD\.\s*B\.\s+has\s+(?P<form2>{_FORM_PATTERN})"
 )
 
-# "FORM, D.B." — Domesday Book abbreviated. The leading comma is what
-# distinguishes a citation from a spurious "D.B." in body text.
-_ATTEST_FORM_DB_RE = re.compile(
-    rf"\b(?P<form>{_FORM_PATTERN})\s*,?\s+D\.\s*B\.(?:\b|,|;|\s)"
+# Domesday-anchored regex set, paired with the year that should be
+# stamped onto every match. The driver loop in
+# ``_extract_attestation_pairs`` iterates this tuple — adding a new
+# Domesday phrasing means adding one regex here, not a fresh code path.
+_DOMESDAY_RES: tuple[tuple[re.Pattern[str], int], ...] = (
+    (_ATTEST_FORM_DOMESDAY_RE, _DOMESDAY_YEAR),
+    (_ATTEST_DOMESDAY_HAS_FORM_RE, _DOMESDAY_YEAR),
 )
 
-# "D.B. has FORM" — the inverted abbreviated shape, mirroring
-# ``_ATTEST_DOMESDAY_HAS_FORM_RE`` for the spelled-out form.
-_ATTEST_DB_HAS_FORM_RE = re.compile(
-    rf"\bD\.\s*B\.\s+has\s+(?P<form>{_FORM_PATTERN})"
-)
 
-# Forms that look proper-noun-ish but are scholarly metadata, never
-# place-name attestations. Most false-positive candidates filter out
-# via the year-anchor (you need a year IMMEDIATELY adjacent), but a
-# handful — Domesday itself, citation-prefix words like Spelt /
-# Formerly that the regex would otherwise capture when followed by
-# another form — need an explicit list. Lowercased for case-insensitive
-# membership.
+# Forms that match the regex character class but are never legitimate
+# place-name attestations. Most false positives filter via the
+# year-anchor (a year must follow IMMEDIATELY) plus
+# ``_form_passes_filter``'s lowercase-letter requirement; this list
+# handles the leftover mixed-case false positives that survive both
+# filters. Lowercased entries; membership lookup is case-insensitive.
 _ATTEST_FORM_BLACKLIST = frozenset(
     {
+        # 1. Domesday-citation noise — "Domesday Book has Foo" would
+        #    otherwise match "Domesday" as a form on its own under the
+        #    year-anchored pattern when a year happens to be nearby.
         "domesday",
         "book",
+        # 2. Citation-prefix words — Mawer / Skeat lead with these
+        #    before naming the form. The regex captures them when the
+        #    next year-shaped digit is close enough.
         "spelt",
         "formerly",
         "apparently",
+        # 3. Generic English connectives that survive the lowercase-
+        #    required filter (mixed-case at sentence start).
         "the",
         "from",
         "where",
@@ -3018,6 +3054,8 @@ _ATTEST_FORM_BLACKLIST = frozenset(
         "but",
         "with",
         "here",
+        # 4. Scholar surnames — appear inline in citation prose
+        #    ("according to Kemble"). Never the toponym itself.
         "kemble",
         "skeat",
         "ekwall",
@@ -3025,13 +3063,14 @@ _ATTEST_FORM_BLACKLIST = frozenset(
         "joyce",
         "thorpe",
         "kelly",
+        # 5. Source / archival names that read proper-noun-ish.
         "pipe",
         "roll",
         "red",
         "inquisitio",
-        # Mixed-case source abbreviations that the lowercase-required
-        # filter doesn't catch. Pure-uppercase abbreviations (LPR, LI,
-        # DB) are filtered in `_form_passes_filter` directly.
+        # 6. Mixed-case source abbreviations that the lowercase-required
+        #    filter doesn't catch. Pure-uppercase abbreviations (LPR,
+        #    LI, DB) are filtered in `_form_passes_filter` directly.
         "cod",
         "dipl",
         "vol",
@@ -3070,6 +3109,20 @@ def _extract_attestation_pairs(notes: str | None) -> list[tuple[str, int]]:
     metadata (``Domesday``, ``Spelt``, source-author surnames) are
     filtered via ``_ATTEST_FORM_BLACKLIST``.
     """
+    def _matched_form(m: re.Match[str]) -> str | None:
+        """Resolve which named group fired in a Domesday alternation.
+
+        Each compiled regex carries either a ``form`` group (single
+        branch) or both ``form`` and ``form2`` (two branches sharing
+        one regex). Returning the first non-None capture, stripped of
+        trailing punctuation, gives one accessor for both shapes.
+        """
+        for key in ("form", "form2"):
+            captured = m.groupdict().get(key)
+            if captured is not None:
+                return captured.rstrip(",.;:")
+        return None
+
     if not notes:
         return []
     pairs: set[tuple[str, int]] = set()
@@ -3092,27 +3145,17 @@ def _extract_attestation_pairs(notes: str | None) -> list[tuple[str, int]]:
             continue
         pairs.add((form, year))
 
-    # Domesday-anchored patterns (year fixed to 1086).
-    for m in _ATTEST_FORM_DOMESDAY_RE.finditer(notes):
-        form = m.group("form").rstrip(",.;:")
-        if not _form_passes_filter(form):
-            continue
-        pairs.add((form, _DOMESDAY_YEAR))
-    for m in _ATTEST_DOMESDAY_HAS_FORM_RE.finditer(notes):
-        form = m.group("form").rstrip(",.;:")
-        if not _form_passes_filter(form):
-            continue
-        pairs.add((form, _DOMESDAY_YEAR))
-    for m in _ATTEST_FORM_DB_RE.finditer(notes):
-        form = m.group("form").rstrip(",.;:")
-        if not _form_passes_filter(form):
-            continue
-        pairs.add((form, _DOMESDAY_YEAR))
-    for m in _ATTEST_DB_HAS_FORM_RE.finditer(notes):
-        form = m.group("form").rstrip(",.;:")
-        if not _form_passes_filter(form):
-            continue
-        pairs.add((form, _DOMESDAY_YEAR))
+    # Domesday-anchored patterns (year fixed to 1086 per
+    # _DOMESDAY_RES). The driver tuple folds the four shape variants
+    # (form-before / marker-before / spelled / abbreviated) into two
+    # regexes; adding a new Domesday phrasing means appending one
+    # regex to the tuple.
+    for pattern, year in _DOMESDAY_RES:
+        for m in pattern.finditer(notes):
+            form = _matched_form(m)
+            if form is None or not _form_passes_filter(form):
+                continue
+            pairs.add((form, year))
 
     return sorted(pairs, key=lambda p: (p[1], p[0]))
 
@@ -3139,18 +3182,42 @@ def mine_toponym_attestations(
 
     Progress lines emit to stderr every ``progress_every`` rows and
     once at completion (CLAUDE.md mining-progress shape).
+    ``progress_every`` is clamped to ≥1 so a caller passing 0 doesn't
+    trip a modulo-zero (or, on the rate computation, divide-by-zero).
 
     Returns a result dict with row-counts so callers can report.
     """
     import sys
     import time
 
+    def _emit_progress(scanned: int, total: int | None = None) -> None:
+        """Print one CLAUDE.md-shape progress line to stderr.
+
+        ``total=None`` is the mid-loop case (we don't know the final
+        count yet); ``total=scanned`` is the post-loop closer that
+        guarantees the final partial chunk surfaces. The rate clamps
+        to a small floor so a sub-tick scan doesn't blow up.
+        """
+        elapsed = max(time.monotonic() - started, 1e-6)
+        denom = scanned if scanned else 1
+        head = f"[{scanned}/{total}]" if total is not None else f"[{scanned}]"
+        print(
+            f"  {head}  rows_with_pairs={rows_with_pairs} "
+            f"candidates={len(candidate_inserts)} "
+            f"rows_written={rows_written} "
+            f"({elapsed / denom:.4f}s/entry)",
+            file=sys.stderr,
+            flush=True,
+        )
+
+    progress_every = max(progress_every, 1)
     cur = db.conn.execute(
         "SELECT toponym_id, source_id, notes FROM toponym_etymology "
         "WHERE notes IS NOT NULL AND notes != ''"
     )
 
     rows_scanned = 0
+    rows_written = 0
     candidate_inserts: list[tuple[int, str, int, str]] = []
     rows_with_pairs = 0
     started = time.monotonic()
@@ -3164,16 +3231,8 @@ def mine_toponym_attestations(
                     (row["toponym_id"], form, year, row["source_id"])
                 )
         if rows_scanned % progress_every == 0:
-            elapsed = max(time.monotonic() - started, 1e-6)
-            print(
-                f"  [{rows_scanned}]  rows_with_pairs={rows_with_pairs} "
-                f"candidates={len(candidate_inserts)} "
-                f"({elapsed / rows_scanned:.4f}s/entry)",
-                file=sys.stderr,
-                flush=True,
-            )
+            _emit_progress(rows_scanned)
 
-    rows_written = 0
     if apply and candidate_inserts:
         # INSERT OR IGNORE relies on the unique index added by
         # _create_toponym_attestation_unique_index. Without it, re-runs
@@ -3186,14 +3245,7 @@ def mine_toponym_attestations(
         rows_written = result.rowcount
         db.commit()
 
-    elapsed = max(time.monotonic() - started, 1e-6)
-    print(
-        f"  [{rows_scanned}/{rows_scanned}]  rows_with_pairs={rows_with_pairs} "
-        f"candidates={len(candidate_inserts)} rows_written={rows_written} "
-        f"({elapsed / max(rows_scanned, 1):.4f}s/entry)",
-        file=sys.stderr,
-        flush=True,
-    )
+    _emit_progress(rows_scanned, total=rows_scanned)
 
     return {
         "rows_scanned": rows_scanned,

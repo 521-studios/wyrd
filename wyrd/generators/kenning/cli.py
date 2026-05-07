@@ -3592,15 +3592,26 @@ def lexicon_normalize_ocr(db_path: Path, apply_changes: bool) -> None:
 )
 @click.option(
     "--stage",
-    type=click.Choice(["ocr", "lemmas", "text-match", "cognates", "attested-years", "all-derived"]),
+    type=click.Choice(
+        [
+            "ocr",
+            "lemmas",
+            "text-match",
+            "cognates",
+            "attested-years",
+            "attestations",
+            "all-derived",
+        ]
+    ),
     required=True,
     help=(
         "Which enrichment stage to clear. 'ocr' un-marks merged_into_id, "
         "'lemmas' resets lemma_id/inflection/lemma_method, 'text-match' "
         "drops the etymon_text_match table, 'cognates' resets "
         "cognate_id/cognate_method (D27/wyrd-81n), 'attested-years' resets "
-        "etymon_text_match.attested_year (D5-1/wyrd-3ux), 'all-derived' "
-        "does all five."
+        "etymon_text_match.attested_year (D5-1/wyrd-3ux), 'attestations' "
+        "drops every toponym_attestation row (wyrd-skm Phase 3.0a), "
+        "'all-derived' does all six."
     ),
 )
 @click.option(
@@ -3639,6 +3650,11 @@ def lexicon_clear_enrichment(db_path: Path, stage: str, apply_changes: bool) -> 
         )
     if result.get("attested_years_to_clear"):
         click.echo(f"  {verb} {result['attested_years_to_clear']} attested_year values", err=True)
+    if result.get("attestation_rows_to_clear"):
+        click.echo(
+            f"  {verb} {result['attestation_rows_to_clear']} toponym_attestation rows",
+            err=True,
+        )
     if not apply_changes:
         click.echo("(dry-run; pass --apply to commit)", err=True)
 

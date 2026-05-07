@@ -1777,6 +1777,119 @@ def test_extract_attestation_pairs_handles_none_and_empty() -> None:
     assert extract("No date citations here at all.") == []
 
 
+def test_extract_attestation_pairs_db_followed_by_space_in_middle_of_sentence() -> None:
+    """Regression for the trailing ``(?:\\b|,|;|\\s)`` alternation in
+    the ``D.B.`` regex.
+
+    `\\b` does NOT match between `.` and a space — both are non-word
+    characters, and `\\b` only fires at word/non-word transitions.
+    Without the explicit `|\\s` alternation, a sentence like
+    ``"Cestretone D.B. has more"`` would mis-match because the regex
+    couldn't find a boundary after ``D.B.``.
+
+    This test pins the alternation so a future cleanup that drops
+    ``|\\s`` (which looks redundant given ``\\b``) gets caught."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Cestretone D.B. has more details elsewhere.")
+    assert ("Cestretone", 1086) in pairs
+
+
+def test_extract_attestation_pairs_welsh_diacritics() -> None:
+    """Welsh + Norman diacritics in the production toponym_etymology
+    corpus (~7% of notes carry one). Pin coverage so a future regex
+    tightening doesn't silently miss them.
+
+    Welsh stratum work (PR #105 / wyrd-lr4 Phase 1) makes this
+    increasingly important — Welsh place-names are routinely cited in
+    forms like Llanfaên / Ŷrwyrne / Hēafod with macron / circumflex
+    diacritics."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Llanfaên, 1284. Ŷrwyrne in 1310. Hēafod in Domesday Book.")
+    assert ("Llanfaên", 1284) in pairs
+    assert ("Ŷrwyrne", 1310) in pairs
+    assert ("Hēafod", 1086) in pairs
+
+
+def test_extract_attestation_pairs_norman_diacritics() -> None:
+    """Norman / Anglo-Norman diacritics (ç, é, è) used in the early
+    French charter spellings cited by the toponym corpus."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Forêt, 1180. Châtelaine in 1240.")
+    assert ("Forêt", 1180) in pairs
+    assert ("Châtelaine", 1240) in pairs
+
+
+def test_mine_toponym_attestations_progress_every_zero_does_not_divide_by_zero(
+    fresh_db: Path,
+) -> None:
+    """Defensive: a caller passing ``--progress-every 0`` would
+    otherwise trip a modulo-zero on the in-loop emit and a
+    divide-by-zero on the rate calculation. The function clamps to ≥1
+    so the call returns cleanly with a single completion progress line."""
+    _, mine = _import_attestation_helpers()
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        _seed_toponym_etymology_for_attestations(
+            db, notes="Cestretone in 1210."
+        )
+        # Should not raise.
+        result = mine(db, apply=True, progress_every=0)
+    assert result["rows_written"] == 1
+
+
+def test_cli_lexicon_mine_attestations_dry_run_smoke(fresh_db: Path) -> None:
+    """End-to-end CLI smoke test: invoke ``mine-attestations`` with no
+    --apply flag against a fresh DB carrying one citation-bearing
+    notes row. The command should exit 0, mention the candidate
+    count, and write nothing to toponym_attestation."""
+    runner = CliRunner()
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        _seed_toponym_etymology_for_attestations(
+            db, notes="Cestretone in 1210; Domesday Book has Chingestone."
+        )
+
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "mine-attestations", "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "candidates= " in result.output
+    assert "(dry-run" in result.output
+
+    with LexiconDB(fresh_db) as db:
+        row_count = db.conn.execute(
+            "SELECT COUNT(*) FROM toponym_attestation"
+        ).fetchone()[0]
+    assert row_count == 0
+
+
+def test_cli_lexicon_mine_attestations_apply_writes_rows(fresh_db: Path) -> None:
+    """End-to-end CLI smoke test with --apply: the same notes row
+    persists two attestation rows."""
+    runner = CliRunner()
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        _seed_toponym_etymology_for_attestations(
+            db, notes="Cestretone in 1210; Domesday Book has Chingestone."
+        )
+
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "mine-attestations", "--db", str(fresh_db), "--apply"],
+    )
+    assert result.exit_code == 0, result.output
+
+    with LexiconDB(fresh_db) as db:
+        rows = db.conn.execute(
+            "SELECT form, date_year FROM toponym_attestation ORDER BY date_year, form"
+        ).fetchall()
+    assert [(r["form"], r["date_year"]) for r in rows] == [
+        ("Chingestone", 1086),
+        ("Cestretone", 1210),
+    ]
+
+
 def _seed_toponym_etymology_for_attestations(
     db: LexiconDB,
     *,
