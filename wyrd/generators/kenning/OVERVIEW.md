@@ -338,6 +338,25 @@ to off / 0 (bit-stable historical behavior):
   The keep-set collapses to None when the era covers every usage, so
   the filter is bit-stable with no-filter on coverage gaps and
   short-circuits the per-bucket walk back to the historic fast path.
+- `--stratum` (D32, wyrd-lr4): restrict morpheme inventory to forms
+  classified into a within-language register bucket. Per-family
+  vocabularies — Welsh: `native-welsh / latin-loan / english-loan /
+  brittonic-substrate / medieval-welsh`; French: `native-french /
+  frankish-substrate / gaulish-substrate / gallo-roman /
+  medieval-french`; Old English: `native-old-english / latin-loan /
+  norse-loan / celtic-substrate`; Old Norse: `native-old-norse /
+  east-norse / latin-loan / low-german-loan / english-loan /
+  gaelic-substrate`. Validation is per-culture: SPA dropdown and
+  CLI both reject culturally-incoherent values
+  (`--culture welsh --stratum east-norse` 4xxs at request time).
+  Composes with `--era` via frozenset intersection on the
+  per-bucket keep-set. Bit-stable with no-filter until a bundle
+  re-emit populates the per-language `_stratum` siblings;
+  classifier output captured in the wyrd-lr4 ticket notes (Welsh
+  31,067 etymons / French 21,782 / OE 70,151 / ON 18,977). Plus
+  `lexicon set-stratum` for operator hand-corrections that survive
+  subsequent `classify-stratum --apply` runs (D32 idempotency
+  contract).
 - `--spelling-variety` (D18): per-morpheme probability of substituting
   an attested archaic spelling for the canonical reflex.
 - `--inflection-density` (D8): per-morpheme probability of substituting
