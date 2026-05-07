@@ -2,28 +2,16 @@
 
 Ported from Rando (rando/name.py) — Python 2 → 3.
 
-Two matcher backends share the same ``Name.find_meaning`` entry point:
-
-* **Legacy iterator** (``Word.extract_meanings``) — original Rando-port
-  matcher. O(M) per word per recursion level; iterates every Meaning at
-  every position. Produces every parse, then ``reduce()`` filters to
-  the minimum-unaccounted ones.
-* **Trie matcher** (``trie_matcher.canonical_decompositions``,
-  wyrd-k8e). O(match-length) per position via a character trie, then
-  DFS-enumerates the segmentation DAG. ~200x faster on routine corpus
-  passes; same multi-parse semantics.
-
-Selected via the ``use_trie`` arg or the ``WYRD_KENNING_USE_TRIE_MATCHER``
-env var. Default is the legacy matcher (Phase 2 of wyrd-k8e ships the
-trie behind a flag; Phase 3 will flip the default and remove the
-legacy iterator). The two should produce equivalent ``count_unaccounted``
-across the bundled corpus — see ``tests/test_kenning_name_trie_backend.py``.
+``Name.find_meaning`` decomposes each whitespace-split word against a
+``word_db`` via the trie matcher (``trie_matcher.canonical_decompositions``,
+wyrd-k8e). O(match-length) per position via a character trie, then
+DFS-enumerates the segmentation DAG. ~200x faster than the original
+Rando-port iterator the trie superseded in wyrd-zhhz / Phase 3.
 """
 
 from __future__ import annotations
 
 import itertools
-import os
 from collections import OrderedDict
 
 from wyrd.generators.kenning.trie_matcher import (
@@ -33,8 +21,6 @@ from wyrd.generators.kenning.trie_matcher import (
     canonical_decompositions,
 )
 from wyrd.generators.kenning.word import Word
-
-_USE_TRIE_ENV = "WYRD_KENNING_USE_TRIE_MATCHER"
 
 # Bounded LRU memoization of the trie per word_db identity. Building
 # the trie is O(M) where M is the morpheme count (~4ms on a 2.9K-
@@ -98,7 +84,6 @@ class Name:
         self.words: dict[str, list[Word]] = {}
         for word in self.name.split(" "):
             self.words[word] = []
-        self.chunks: list = []
 
     def __str__(self):
         return self.name
@@ -121,106 +106,51 @@ class Name:
                 cnt += meaning.count_unaccounted()
         return cnt
 
-    def find_chunks(self):
-        lower = self.name.lower()
-        for words in self.word_db.values():
-            if words[0].word_has_meaning(lower):
-                self.chunks.extend(words)
-
-    def find_meaning(self, word_db, reduce=True, use_trie=None):
-        """Decompose every word in this place name against ``word_db``.
-
-        Notes on argument precedence:
-
-        * ``use_trie`` is the explicit kwarg override. If provided,
-          it wins over the env var.
-        * ``use_trie=None`` (default) reads the
-          ``WYRD_KENNING_USE_TRIE_MATCHER`` env var; ``"1"`` enables
-          the trie path, anything else (``"0"``, ``"true"``,
-          ``"yes"``, empty, unset) keeps the legacy iterator.
+    def find_meaning(self, word_db, reduce=True):
+        """Decompose every word in this place name against ``word_db``
+        via the trie matcher.
 
         ``reduce=True`` (default) keeps only the lowest-unaccounted
-        decompositions (legacy behavior, gated by ``Name.reduce``).
-        ``reduce=False`` preserves every parse the matcher emits —
-        the trie backend honors this by switching to
-        ``all_decompositions`` instead of ``canonical_decompositions``,
-        keeping parity with the legacy iterator's
-        ``extract_meanings`` (which also yields every parse).
+        decompositions: ``canonical_decompositions`` returns only the
+        parses tied for 'best' (lowest unaccounted + fewest morphemes).
+        ``find_meaning`` then calls ``self.reduce()`` afterward to
+        handle the case where the caller invoked ``find_meaning``
+        multiple times — pre-existing entries in ``self.words[word]``
+        need filtering against the new additions.
 
-        Phase-2 default is the legacy iterator; Phase 3 (wyrd-zhhz)
-        will flip the default to trie after the equivalence
-        regression has held in production for one release cycle.
-        """
-        if use_trie is None:
-            use_trie = os.environ.get(_USE_TRIE_ENV) == "1"
-        self.word_db = word_db
-        if use_trie:
-            self._find_meaning_trie(reduce=reduce)
-        else:
-            self._find_meaning_legacy()
-        # Always run reduce() when reduce=True, even on the trie path.
-        # The canonical_decompositions filter only covers parses
-        # produced by THIS call; if the caller invoked find_meaning
-        # multiple times (e.g. reduce=False once, then reduce=True),
-        # the prior call's non-optimal parses are still in
-        # self.words[word] and need filtering. The marginal cost
-        # of a second-pass reduce on already-filtered data is
-        # negligible; correctness wins.
-        if reduce:
-            self.reduce()
+        ``reduce=False`` switches to ``all_decompositions``, returning
+        every parse the trie produces — useful to callers (e.g.
+        KenningExplain) that want to inspect alternates the canonical
+        score would collapse.
 
-    def _find_meaning_legacy(self) -> None:
-        """Original Rando-port matcher: collect candidate Meanings via
-        ``find_chunks``, then iterate every Meaning at every position
-        in the input. O(M) per word per recursion level.
-
-        Dedup keys on ``tuple(word.word)`` — the raw decomposition
-        elements — rather than the Word object itself. Meaning's
-        default identity-based hash and str's interned hash are both
-        cheaper than Word.__hash__ (which calls str() on each element
-        and then hashes the resulting tuple of strings)."""
-        self.find_chunks()
-        for word in self.words:
-            w = Word(word)
-            meanings = w.extract_meanings(self.chunks)
-            seen_keys: set[tuple] = {tuple(existing.word) for existing in self.words[word]}
-            for meaning in meanings:
-                key = tuple(meaning.word)
-                if key not in seen_keys:
-                    self.words[word].append(meaning)
-                    seen_keys.add(key)
-            if len(self.words[word]) == 0:
-                self.words[word].append(w)
-
-    def _find_meaning_trie(self, reduce: bool = True) -> None:
-        """Trie-matcher backend (wyrd-k8e Phase 2). For each word in
-        the place name, surface every parse the trie produces:
-
-        * ``reduce=True``: ``canonical_decompositions`` returns only
-          parses tied for 'best' (lowest unaccounted + fewest morphemes).
-          That's the same set ``reduce()`` would keep on the legacy
-          matcher's output. ``find_meaning`` still calls ``self.reduce()``
-          afterward to handle the case where the caller invoked
-          ``find_meaning`` multiple times — pre-existing entries in
-          ``self.words[word]`` need filtering against the new
-          additions.
-        * ``reduce=False``: ``all_decompositions`` returns every parse,
-          matching the legacy iterator's pre-reduce contract — useful
-          to callers that want to inspect alternates the canonical
-          score collapses.
-
-        Multi-parse semantics preserved either way: a word with two
-        senses for one surface (``-y`` = 'island' OR 'district') or a
-        word the trie matches at multiple boundaries surfaces every
-        reading as its own ``Word`` object.
+        Multi-parse semantics: a word with two senses for one surface
+        (``-y`` = 'island' OR 'district') or a word the trie matches
+        at multiple boundaries surfaces every reading as its own
+        ``Word`` object.
 
         Dedup keys on ``tuple(decomposition)`` — the raw list of
         Meaning|str elements — rather than constructing a Word per
         candidate just to ask the dedup set. Saves both the Word
         instantiation and the string-based Word.__hash__ on every
         candidate; matters for ``reduce=False`` cases where the
-        trie emits many alternates."""
-        trie = _trie_for(self.word_db)
+        trie emits many alternates.
+
+        Hash invariant: two decompositions hash equal iff they're the
+        same list of objects, where Meaning equality falls back to
+        identity (Meaning.__hash__ is the default object id()-based
+        hash). The trie cache (``_trie_for``) returns the same Meaning
+        instances across calls for a given ``word_db``, so trie-emitted
+        decompositions remain consistently dedupable within and across
+        calls. A future Meaning.__hash__ override that doesn't preserve
+        identity equality (e.g. content-hash on usage+language) would
+        keep this dedup correct but the legacy iterator's
+        ``tuple(word.word)`` shape (which bottomed out on str(Meaning),
+        i.e. the lowercased dash-stripped usage) didn't carry the
+        invariant — flagging here so a future refactor of Meaning's
+        hash doesn't quietly drift this contract.
+        """
+        self.word_db = word_db
+        trie = _trie_for(word_db)
         for word in self.words:
             decompositions = (
                 canonical_decompositions(word, trie) if reduce else all_decompositions(word, trie)
@@ -233,6 +163,8 @@ class Name:
                     seen_keys.add(key)
             if len(self.words[word]) == 0:
                 self.words[word].append(Word(word))
+        if reduce:
+            self.reduce()
 
     def reduce(self):
         self._filter_for_unaccounted()
