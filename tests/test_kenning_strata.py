@@ -1633,6 +1633,83 @@ def test_cli_set_stratum_reports_old_and_new_to_stderr(fresh_db: Path) -> None:
     assert "welsh" in combined
     assert "native-welsh" in combined
     assert "latin-loan" in combined
+    # Defense against a regression where the stderr message is
+    # constructed but the UPDATE is skipped — verify the row was
+    # actually rewritten with the new value.
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (eid,)).fetchone()[
+            "stratum"
+        ]
+    assert stratum == "latin-loan"
+
+
+def test_cli_set_stratum_allows_cross_family_stratum(fresh_db: Path) -> None:
+    """ALL_STRATA validation is value-only — it accepts any known
+    stratum regardless of which family the target etymon belongs to.
+    Setting 'native-welsh' on a french etymon (or 'frankish-substrate'
+    on a welsh etymon) is the operator's call. Pin that the write
+    succeeds; a future change that tightens to family-aware
+    validation would need this test updated."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("ville", "french")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--etymon-id",
+            str(eid),
+            "--stratum",
+            "native-welsh",  # Welsh stratum on French etymon.
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (eid,)).fetchone()[
+            "stratum"
+        ]
+    assert stratum == "native-welsh"
+
+
+def test_cli_set_stratum_clear_when_already_null_succeeds(fresh_db: Path) -> None:
+    """``--clear`` on a row whose stratum is already NULL succeeds
+    cleanly with the diff line showing 'None → None'. Pin so a
+    'skip if already NULL' optimization that suppressed the stderr
+    audit line doesn't slip in undetected."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("caer", "welsh")
+        # No stratum write — row stays NULL.
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--etymon-id",
+            str(eid),
+            "--clear",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    combined = result.output + (result.stderr or "")
+    # Both the old and new sides render as 'None'.
+    assert "None → None" in combined
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (eid,)).fetchone()[
+            "stratum"
+        ]
+    assert stratum is None
 
 
 def test_cli_set_stratum_rejects_unknown_stratum(fresh_db: Path) -> None:
@@ -1710,6 +1787,32 @@ def test_cli_set_stratum_rejects_canonical_form_without_language(
             str(fresh_db),
             "--canonical-form",
             "caer",
+            "--stratum",
+            "latin-loan",
+        ],
+    )
+    assert result.exit_code != 0
+    combined = result.output + (result.stderr or "")
+    assert "must both be passed" in combined.lower() or "canonical_form" in combined.lower()
+
+
+def test_cli_set_stratum_rejects_language_without_canonical_form(
+    fresh_db: Path,
+) -> None:
+    """Mirror of the canonical-form-without-language test — ensures
+    the by_pair guard catches both directions of half-supplied pair
+    args. A regression that loosened ``or`` to ``and`` in the
+    by_pair predicate would silently fail one direction."""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--language",
+            "welsh",
             "--stratum",
             "latin-loan",
         ],

@@ -577,6 +577,12 @@ def classify_old_norse(db: LexiconDB) -> dict[int, str]:
 # value alone is ambiguous about which family it belongs to —
 # callers that need family-aware validation must consult the per-
 # family STRATA tuples directly.
+#
+# Typed as ``frozenset`` (not ``set``) so the shared module-level
+# registry can't be mutated by a caller, and so it's hashable for
+# use as a dict key / Click choice / cache key. Same immutability
+# rationale the per-family ``WELSH_STRATA`` / ``FRENCH_STRATA`` /
+# etc. tuples carry.
 ALL_STRATA: frozenset[str] = frozenset(
     WELSH_STRATA + FRENCH_STRATA + OLD_ENGLISH_STRATA + OLD_NORSE_STRATA
 )
