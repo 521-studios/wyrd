@@ -775,50 +775,66 @@ def _collect_renderings(meanings):
     language, indexed by canonical_form so the SPA can match them up
     against the language form arrays it already shows.
 
-    Output shape (returned dict, empty when no Meaning carries any
-    rendering data — e.g. Latin-script source langs only, or older
-    bundles):
+    Output shape — sparse `dict[lang_field, dict[canonical_form, slots]]`:
 
         {
           <lang_field>: {
             <canonical_form>: {
-              "original_script": str | None,
-              "transliteration": str | None,
-              "english_shaped":  str | None,
-              "ipa":             str | None,
-              "dialect":         str | None,
+              # only the keys that have data appear; absent != None
+              "original_script": str,    # optional
+              "transliteration": str,    # optional
+              "english_shaped":  str,    # optional
+              "ipa":             str,    # optional
+              "dialect":         str,    # optional, only when ipa is present
             },
             ...
           },
           ...
         }
 
-    Sparse — only forms that have at least ONE non-None rendering
-    appear. The four-rendering panel skips a column when the value
-    is None. Works across multiple Meanings sharing one usage so a
-    family with a Hebrew etymon AND a Greek etymon under the same
-    surface form gets both lang_fields populated.
-    """
-    by_lang_form: dict[str, dict[str, dict[str, str | None]]] = {}
+    Each `slots` dict is sparse — only the keys for which the lexicon
+    has data appear (consumers like the SPA panel use truthy / `.get()`
+    checks rather than branching on None). Forms with no rendering
+    data don't appear at all; lang_fields with no shaped forms don't
+    appear at all. Returns an empty dict when no Meaning carries any
+    rendering data (Latin-script source langs only, older bundles).
 
-    def _ensure(lang_field: str, form: str) -> dict[str, str | None]:
+    Works across multiple Meanings sharing one usage. On collision
+    (same lang_field + canonical_form across two Meanings), the slot
+    for each rendering column is set to whichever value isn't None;
+    a non-None earlier write is preserved when a later iteration tries
+    to write None for the same key (matters most for the IPA/dialect
+    pair where one Meaning could have ipa=None while another has the
+    full pair).
+    """
+    by_lang_form: dict[str, dict[str, dict[str, str]]] = {}
+
+    def _ensure(lang_field: str, form: str) -> dict[str, str]:
         return by_lang_form.setdefault(lang_field, {}).setdefault(form, {})
+
+    def _set(slot: dict[str, str], key: str, value: str | None) -> None:
+        # Don't overwrite a previously-stored non-None value with None
+        # (matters when the same usage spans multiple Meanings and one
+        # carries richer data than another for the same canonical form).
+        if value is None:
+            return
+        slot[key] = value
 
     for m in meanings:
         for lang_field, forms in m.original_script.items():
             for form, value in forms.items():
-                _ensure(lang_field, form)["original_script"] = value
+                _set(_ensure(lang_field, form), "original_script", value)
         for lang_field, forms in m.transliteration.items():
             for form, value in forms.items():
-                _ensure(lang_field, form)["transliteration"] = value
+                _set(_ensure(lang_field, form), "transliteration", value)
         for lang_field, forms in m.english_shaped.items():
             for form, value in forms.items():
-                _ensure(lang_field, form)["english_shaped"] = value
+                _set(_ensure(lang_field, form), "english_shaped", value)
         for lang_field, forms in m.pronunciation.items():
             for form, pron in forms.items():
                 slot = _ensure(lang_field, form)
-                slot["ipa"] = pron.get("ipa")
-                slot["dialect"] = pron.get("dialect")
+                _set(slot, "ipa", pron.get("ipa"))
+                _set(slot, "dialect", pron.get("dialect"))
     return by_lang_form
 
 

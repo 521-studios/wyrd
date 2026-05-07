@@ -468,14 +468,18 @@ function _renderProvenanceRow(langField, canonicalForm, slots) {
         span.appendChild(valueSpan);
         row.appendChild(span);
     }
+    if (!any) return null;
     // Surface the canonical_form too — useful when it differs from
     // original_script (e.g. unvocalized vs vocalized Hebrew) and the
-    // lang form array shows it as the lookup key.
+    // lang form array shows it as the lookup key. Inserted AFTER the
+    // any-check so the canonical-form node isn't built for skipped
+    // rows (and so we don't depend on insertBefore's `null`-on-missing
+    // child-index coercion).
     const canonical = document.createElement("span");
     canonical.className = "provenance-canonical";
     canonical.textContent = canonicalForm;
     row.insertBefore(canonical, row.children[1]);
-    return any ? row : null;
+    return row;
 }
 
 function _renderCitationsDetail(components) {

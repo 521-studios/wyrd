@@ -831,3 +831,87 @@ def test_db_to_export_to_load_round_trip_preserves_english_shaped(tmp_path):
     # through to the runtime accessor.
     assert m.sources.get("hebrew") == ["גולם"]
     assert m.english_shaped_for("hebrew", "גולם") == "golem"
+
+
+def test_db_to_export_to_load_round_trip_preserves_phase2d_renderings(tmp_path):
+    """wyrd-qhs0 Phase 2d: end-to-end DB → export → load round-trip
+    for ALL FOUR renderings. Pinned because a key-name mismatch
+    between the bundle emitters (_emit_original_script_list /
+    _emit_transliteration_list / _emit_pronunciation_list) and the
+    runtime suffix-strip parsers would pass each side's unit tests
+    independently but break the round-trip silently."""
+    from wyrd.generators.kenning.lexicon import (
+        LexiconDB,
+        export_meanings,
+        init_schema,
+        seed_from_meanings,
+    )
+
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+
+    with LexiconDB(db_path) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        seed_from_meanings(
+            db,
+            [
+                {
+                    "modifier_tags": [],
+                    "meaning": ["dog"],
+                    "modifier_type": None,
+                    "words": [{"modern_usage": "Kelev", "hebrew": ["כלב"]}],
+                }
+            ],
+            "rando-port",
+        )
+        db.conn.execute(
+            """UPDATE etymon SET
+                 original_script = ?, transliteration = ?,
+                 english_shaped = ?, pronunciation_ipa = ?,
+                 pronunciation_dialect = ?
+               WHERE canonical_form = ? AND language = ?""",
+            (
+                "כֶּלֶב",
+                "kɛ́lɛḇ",
+                "kelev",
+                "/kalb/",
+                "Biblical-Hebrew",
+                "כלב",
+                "he",
+            ),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    meaning_db, _ = load_meanings(subjects)
+    m = meaning_db["Kelev"][0]
+    assert m.original_script_for("hebrew", "כלב") == "כֶּלֶב"
+    assert m.transliteration_for("hebrew", "כלב") == "kɛ́lɛḇ"
+    assert m.english_shaped_for("hebrew", "כלב") == "kelev"
+    assert m.pronunciation_for("hebrew", "כלב") == {
+        "ipa": "/kalb/",
+        "dialect": "Biblical-Hebrew",
+    }
+
+
+def test_pronunciation_for_returns_copy_not_reference():
+    """pronunciation_for returns a fresh shallow copy of the inner
+    dict so caller mutation doesn't corrupt Meaning state. Other
+    accessors return strings (immutable) so they don't need this
+    safeguard, but the pair-shape value would let a mutating caller
+    contaminate every later read."""
+    m = Meaning(
+        usage="Test-",
+        tags=[],
+        meanings=[],
+        sources={},
+        pronunciation={"hebrew": {"כלב": {"ipa": "/kalb/", "dialect": "Biblical-Hebrew"}}},
+    )
+    pair = m.pronunciation_for("hebrew", "כלב")
+    pair["ipa"] = "MUTATED"
+    pair["new_key"] = "extra"
+    # Original storage stays intact across a re-read.
+    second = m.pronunciation_for("hebrew", "כלב")
+    assert second == {"ipa": "/kalb/", "dialect": "Biblical-Hebrew"}
+    assert "new_key" not in second

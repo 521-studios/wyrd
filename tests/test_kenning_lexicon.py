@@ -4083,6 +4083,80 @@ def test_export_meanings_routes_precursor_postcursor_stack_to_canonical_bucket(
     assert set(word["hebrew"]) == {"גולם", "גלם"}
 
 
+def test_export_meanings_routes_phase2d_renderings_through_bucket_aggregation(
+    fresh_db: Path,
+) -> None:
+    """wyrd-qhs0 Phase 2d: when two members of the same family are in
+    different lexicon codes that route to the same bundle bucket
+    (he + hbo → hebrew), all four wyrd-ha9q rendering columns
+    aggregate into the bucket cleanly. Each (canonical_form,
+    rendering) pair lands once; different forms within the bucket
+    keep their own renderings.
+
+    Pinned as the multi-code-per-bucket regression test for the 3 new
+    Phase 2d columns. The Phase 2c precursor-stack test only verified
+    that the FORMS arrays unioned correctly; this test extends coverage
+    to the rendering siblings."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["golem"],
+            tags=[],
+            modifier_type=None,
+            words=[{"modern_usage": "Golem", "hebrew": ["גולם"]}],
+        )
+        modern_id = db.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = ? AND language = ?",
+            ("גולם", "he"),
+        ).fetchone()["id"]
+        # Biblical Hebrew (hbo) member with DIFFERENT canonical form
+        # and DIFFERENT renderings; verify both members' data surfaces
+        # in the merged hebrew bucket.
+        biblical_id = db.upsert_etymon("גלם", "hbo")
+        db.conn.execute("UPDATE etymon SET lemma_id = ? WHERE id = ?", (modern_id, biblical_id))
+        db.add_citation(biblical_id, "rando-port")
+        db.conn.execute(
+            """UPDATE etymon SET
+                 original_script = ?, transliteration = ?,
+                 english_shaped = ?, pronunciation_ipa = ?,
+                 pronunciation_dialect = ?
+               WHERE id = ?""",
+            ("גוֹלֶם", "gōlem", "golem", "/ɡoːlɛm/", "Modern-Hebrew", modern_id),
+        )
+        db.conn.execute(
+            """UPDATE etymon SET
+                 original_script = ?, transliteration = ?,
+                 english_shaped = ?, pronunciation_ipa = ?,
+                 pronunciation_dialect = ?
+               WHERE id = ?""",
+            ("גֹּלֶם", "gōlem-bib", "golem", "/goːlɛm/", "Biblical-Hebrew", biblical_id),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = next(w for s in subjects for w in s["words"] if w["modern_usage"] == "Golem")
+    assert set(word["hebrew"]) == {"גולם", "גלם"}
+    assert word["hebrew_original_script"] == [
+        {"form": "גולם", "original_script": "גוֹלֶם"},
+        {"form": "גלם", "original_script": "גֹּלֶם"},
+    ]
+    assert word["hebrew_transliteration"] == [
+        {"form": "גולם", "transliteration": "gōlem"},
+        {"form": "גלם", "transliteration": "gōlem-bib"},
+    ]
+    assert word["hebrew_english_shaped"] == [
+        {"form": "גולם", "english_shaped": "golem"},
+        {"form": "גלם", "english_shaped": "golem"},
+    ]
+    assert word["hebrew_pronunciation"] == [
+        {"form": "גולם", "ipa": "/ɡoːlɛm/", "dialect": "Modern-Hebrew"},
+        {"form": "גלם", "ipa": "/goːlɛm/", "dialect": "Biblical-Hebrew"},
+    ]
+
+
 def test_export_meanings_emits_phase2d_four_renderings_per_language(fresh_db: Path) -> None:
     """wyrd-qhs0 Phase 2d: export emits four sibling arrays per
     non-Latin language — `<lang>_original_script`, `_transliteration`,

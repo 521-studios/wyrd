@@ -137,8 +137,15 @@ class Meaning:
         #   — academic Latin-script form with diacritics (ʿifrīt,
         #   rakṣasa, kɛ́lɛḇ).
         # pronunciation: dict[lang_field, dict[canonical_form, dict]]
-        #   where the inner dict has 'ipa' and 'dialect' keys. NULL
-        #   dialect surfaces as None.
+        #   where the inner dict has 'ipa' and 'dialect' keys. The
+        #   {ipa, dialect} pair (rather than two parallel attrs) is
+        #   load-bearing: wiktextract associates each IPA string with
+        #   the dialect tag that was on the same `sounds[*]` entry,
+        #   and wyrd-ha9q Phase 2a's upsert_etymon CASE expression
+        #   updates the two columns atomically so the dialect tag
+        #   never describes an IPA we don't store. The runtime
+        #   accessor pronunciation_for(...) returns a copy of the
+        #   inner dict so the pair stays intact for the caller.
         # All three are empty for Latin-script source langs and older
         # bundles. Accessors: original_script_for / transliteration_for
         # / pronunciation_for.
@@ -244,11 +251,19 @@ class Meaning:
         dict for ``form`` in ``lang_field``, or None when no IPA data
         is available. The dialect value may itself be None (the IPA
         was untagged-canonical in wiktextract) — that's a separate
-        case from the whole pair being missing."""
+        case from the whole pair being missing.
+
+        Returns a fresh shallow copy of the stored dict so caller
+        mutation can't corrupt Meaning state. The other three
+        accessors return strings (immutable), so they're safe to
+        return directly; only this pair-shape value needs the copy."""
         forms = self.pronunciation.get(lang_field)
         if not forms:
             return None
-        return forms.get(form)
+        hit = forms.get(form)
+        if hit is None:
+            return None
+        return dict(hit)
 
     def attested_in_era_range(self, era_range: tuple[int | None, int | None] | None) -> bool:
         """D5-2 era filter: True if this morpheme is admissible under the
