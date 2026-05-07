@@ -16,6 +16,8 @@ from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from wyrd.generators.kenning.era import canonical_language_for_cell
+
 if TYPE_CHECKING:
     from wyrd.generators.kenning.skeat_parser import ParsedEntry
 
@@ -3296,6 +3298,147 @@ def mine_toponym_attestations(
         "rows_written": rows_written,
         "applied": apply,
     }
+
+
+# --- wyrd-skm Phase 3.0b: cognate-cluster era-reflex picker ----------------
+#
+# Given an etymon (e.g. OE ``ceaster``) and a target era cell, walk
+# the cognate cluster (D27/D28 — etymons sharing the same root via
+# inheritance/borrowing edges) and return cluster mates whose
+# language tag is the canonical pick for that era cell.
+#
+# Example: ``ceaster`` (OE, cluster_id=3617) at era=me → ME variants
+# (Chestre, Chester, Cestre, Chestir, ...) tagged middle-english in
+# the same cluster. The downstream wyrd-rni / wyrd-381 demos consume
+# this primitive to render compound names at user-chosen eras.
+#
+# Coverage: 24% of OE toponym etymons currently have cognate_id
+# (cluster_cognates pass output); the remainder return an empty list
+# and consumers fall back to the original etymon's canonical_form.
+# This is a known coverage floor that improves as the descent graph
+# grows.
+
+
+@dataclass
+class EraReflex:
+    """A single cluster-mate of an etymon at a target era.
+
+    ``etymon_id`` is the cluster mate's row id; ``form`` is its
+    ``canonical_form``; ``language`` is its ``etymon.language`` tag.
+    Multiple reflexes may surface for the same era when scholarly
+    sources record multiple period-specific spellings (the four
+    Middle-English variants of OE ``ceaster``: Chestre / Chester /
+    Cestre / Chestir / etc.).
+    """
+
+    etymon_id: int
+    form: str
+    language: str
+
+
+def etymon_era_reflexes(
+    db: LexiconDB,
+    etymon_id: int,
+    *,
+    target_language: str | None = None,
+    target_family_cell: tuple[str, str] | None = None,
+) -> list[EraReflex]:
+    """Return cluster-mates of ``etymon_id`` matching a target era.
+
+    Two callable shapes:
+
+    * ``target_language='middle-english'`` — direct language pick;
+      every cluster mate with that exact language tag is returned.
+    * ``target_family_cell=('english', 'me')`` — resolves to the
+      canonical language tag via
+      ``era.canonical_language_for_cell``, then proceeds as the
+      direct-language path.
+
+    Returns ``[]`` when the target cell has no canonical language
+    tag (``Norse/modern`` etc.) or when neither lookup path produces
+    a match. Output is sorted by ``form`` for deterministic output
+    across PYTHONHASHSEED — callers that depend on first-row
+    stability get the alphabetically-first reflex.
+
+    **Two lookup paths** with cluster-first precedence:
+
+    1. **Cognate cluster** — when the etymon has ``cognate_id`` set
+       (D27/D28 cluster_cognates output), select cluster mates of
+       the target language. ~24% of OE toponym etymons have a
+       cluster_id today; this is the high-quality path.
+    2. **Direct descent edges** — when ``cognate_id`` is NULL but
+       the etymon has ``etymon_descent`` rows, walk the immediate
+       descendants and pick those tagged with the target language.
+       Smaller boost (~4% of OE toponym etymons), but real — saves
+       a 'no era data' empty result for etymons with descent edges
+       that never reached the cluster_cognates pass (typically
+       because they aren't transitively connected to a known root).
+
+    Reflexes are filtered to ``merged_into_id IS NULL`` so OCR-
+    cluster losers (D22) don't surface as period forms; the merge
+    target is the canonical reflex for that surface.
+
+    Coverage gap: the remaining ~72% of OE toponym etymons have
+    neither ``cognate_id`` nor descent edges and return ``[]`` here.
+    Closing this gap requires either phonological-rule fallback
+    (deferred per the wyrd-skm ticket) or per-etymon period-form
+    projection from ``toponym_attestation`` (also future work).
+    """
+    # Defensive guard: exactly ONE target must be provided. An
+    # empty-string ``target_language`` would silently slip the
+    # ``is None`` check and resolve to zero rows (the SQL ``language
+    # = ''`` predicate is technically valid); catch that explicitly.
+    # Passing both targets at once is also a caller bug — silently
+    # ignoring one would mask a bad merge.
+    if (target_language is None) == (target_family_cell is None):
+        raise ValueError("must pass exactly one of target_language or target_family_cell")
+    if target_language is not None and not target_language:
+        raise ValueError("target_language must not be an empty string")
+    if target_language is None:
+        assert target_family_cell is not None  # narrowed by the guard above
+        family, cell = target_family_cell
+        target_language = canonical_language_for_cell(family, cell)
+        if target_language is None:
+            return []
+
+    row = db.conn.execute("SELECT cognate_id FROM etymon WHERE id = ?", (etymon_id,)).fetchone()
+    if row is None:
+        return []
+
+    if row["cognate_id"] is not None:
+        # Path 1: cluster-mates query.
+        cur = db.conn.execute(
+            "SELECT id, canonical_form, language FROM etymon "
+            "WHERE cognate_id = ? AND language = ? AND merged_into_id IS NULL "
+            "ORDER BY canonical_form",
+            (row["cognate_id"], target_language),
+        )
+    else:
+        # Path 2: direct descent fallback. Only walks immediate
+        # children — deeper traversal would re-implement
+        # cluster_cognates and risks pulling in cognate-edge peers
+        # whose precision we don't trust at v1. Inheritance +
+        # borrowing edges only, per D27's bridging-edge convention.
+        cur = db.conn.execute(
+            "SELECT DISTINCT child.id, child.canonical_form, child.language "
+            "FROM etymon_descent ed "
+            "JOIN etymon child ON ed.child_id = child.id "
+            "WHERE ed.parent_id = ? "
+            "  AND ed.edge_type IN ('inheritance', 'borrowing') "
+            "  AND child.language = ? "
+            "  AND child.merged_into_id IS NULL "
+            "ORDER BY child.canonical_form",
+            (etymon_id, target_language),
+        )
+
+    return [
+        EraReflex(
+            etymon_id=r["id"],
+            form=r["canonical_form"],
+            language=r["language"],
+        )
+        for r in cur
+    ]
 
 
 def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
