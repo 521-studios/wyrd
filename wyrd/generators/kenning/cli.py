@@ -4132,6 +4132,133 @@ def lexicon_derive_english_shaped(
         click.echo("(dry-run; pass --apply to write english_shaped)", err=True)
 
 
+@lexicon.command("classify-stratum")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+@click.option(
+    "--language",
+    type=click.Choice(["welsh"]),
+    required=True,
+    help=(
+        "Language family to classify. Currently only 'welsh' is "
+        "supported (covers etymons with language IN ('welsh', "
+        "'middle-welsh', 'old-welsh', 'cel-bry-pro')). French / Old "
+        "English / Old Norse are follow-up tickets."
+    ),
+)
+@click.option(
+    "--apply",
+    "apply_changes",
+    is_flag=True,
+    default=False,
+    help="Write the proposed stratum values. Without this, dry-run.",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help=(
+        "Overwrite existing stratum values. Default: skip rows that "
+        "already have a non-NULL stratum (idempotent re-runs)."
+    ),
+)
+def lexicon_classify_stratum(
+    db_path: Path,
+    language: str,
+    apply_changes: bool,
+    force: bool,
+) -> None:
+    """Within-language stratum tagging (wyrd-lr4).
+
+    Partitions a language's etymons into named buckets (e.g. for
+    'welsh': latin-loan, english-loan, brittonic-substrate,
+    medieval-welsh, native-welsh) so generation can filter to a
+    specific register. Strata are language-specific — see
+    ``wyrd/generators/kenning/strata.py`` for the per-language
+    vocabularies and the heuristic rules that drive classification.
+
+    Generator-side ``--stratum`` filter wiring is a follow-up; this
+    command populates the column.
+    """
+    # Local import keeps the cold-start path lean for unrelated CLI
+    # commands. Same pattern as other lexicon subcommands.
+    from wyrd.generators.kenning.strata import WELSH_STRATA, classify_welsh
+
+    classifiers = {"welsh": (classify_welsh, WELSH_STRATA)}
+    classifier, strata_order = classifiers[language]
+
+    with LexiconDB(db_path) as db:
+        proposals = classifier(db)
+
+    if not proposals:
+        click.echo(f"No etymons found for --language={language}.", err=True)
+        return
+
+    # Bucket counts for the operator-readable summary.
+    counts: dict[str, int] = dict.fromkeys(strata_order, 0)
+    for stratum in proposals.values():
+        counts[stratum] = counts.get(stratum, 0) + 1
+
+    click.echo(
+        f"{language} stratum classification: {len(proposals)} etymons",
+        err=True,
+    )
+    for stratum in strata_order:
+        click.echo(f"  {stratum:25} {counts.get(stratum, 0)}", err=True)
+
+    if not apply_changes:
+        click.echo("", err=True)
+        click.echo("(dry-run; pass --apply to write stratum)", err=True)
+        return
+
+    written = 0
+    skipped_existing = 0
+    with LexiconDB(db_path) as db:
+        for eid, stratum in proposals.items():
+            # When --force is off, leave rows that already carry a
+            # non-NULL stratum alone — idempotent re-runs.
+            if force:
+                cur = db.conn.execute(
+                    "UPDATE etymon SET stratum = ? WHERE id = ?",
+                    (stratum, eid),
+                )
+            else:
+                cur = db.conn.execute(
+                    "UPDATE etymon SET stratum = ? WHERE id = ? AND stratum IS NULL",
+                    (stratum, eid),
+                )
+            if cur.rowcount > 0:
+                written += 1
+            else:
+                skipped_existing += 1
+        db.commit()
+
+    click.echo("", err=True)
+    if force:
+        # Under --force the WHERE clause has no stratum-NULL gate, so
+        # a zero rowcount here means the row vanished between the
+        # classifier read and the write (deleted, or its id changed).
+        # Don't claim a "skipped because pre-existing" reason that
+        # didn't drive the skip.
+        click.echo(
+            f"Wrote {written} rows (forced overwrite). "
+            f"{skipped_existing} rows missed (row no longer present at write time).",
+            err=True,
+        )
+    else:
+        click.echo(
+            f"Wrote {written} rows. "
+            f"Skipped {skipped_existing} that already had a stratum"
+            f"{' (use --force to overwrite)' if skipped_existing else ''}.",
+            err=True,
+        )
+
+
 @lexicon.command("report")
 @click.option(
     "--db",

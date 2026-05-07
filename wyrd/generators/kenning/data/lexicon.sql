@@ -100,11 +100,22 @@ CREATE TABLE etymon (
   original_script       TEXT,
   transliteration       TEXT,
   english_shaped        TEXT,
+  -- wyrd-lr4: within-language stratum tag. Partitions the etymons
+  -- inside one language into named buckets (e.g. for 'welsh':
+  -- 'latin-loan', 'english-loan', 'brittonic-substrate',
+  -- 'medieval-welsh', 'native-welsh') so generation can filter to a
+  -- specific register. Strata are language-specific — there is no
+  -- global enum. Populated by ``lexicon classify-stratum`` from
+  -- the per-language heuristics in
+  -- wyrd/generators/kenning/strata.py. NULL on rows that haven't
+  -- been classified yet.
+  stratum               TEXT,
   UNIQUE (canonical_form, language)
 );
 CREATE INDEX idx_etymon_lemma       ON etymon(lemma_id);
 CREATE INDEX idx_etymon_merged_into ON etymon(merged_into_id);
 CREATE INDEX idx_etymon_cognate     ON etymon(cognate_id);
+CREATE INDEX idx_etymon_stratum     ON etymon(stratum);
 
 CREATE TABLE etymon_gloss (
   etymon_id INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
