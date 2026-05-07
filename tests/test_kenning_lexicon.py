@@ -3939,6 +3939,262 @@ def _add_text_match(db, etymon_id, source_id, matched_form, count, method="fuzzy
     )
 
 
+def test_lang_code_to_json_field_values_are_in_language_fields() -> None:
+    """Invariant: every value in `_LANG_CODE_TO_JSON_FIELD` (the export
+    direction: lexicon code → bundle field name) must itself be a key in
+    `LANGUAGE_FIELDS` (the ingest direction: bundle field name → lexicon
+    code). Otherwise the bundle round-trips through ingestion as if the
+    field doesn't exist — silently dropping wave-2 etymons.
+
+    Pinned as a sanity invariant: a typo in any of the new wave-2 entries
+    (e.g. 'persian' miskeyed as 'persia' or 'arabic' as 'arab') would
+    break round-tripping but pass every individual export test."""
+    from wyrd.generators.kenning.lexicon import (
+        _LANG_CODE_TO_JSON_FIELD,
+        LANGUAGE_FIELDS,
+    )
+
+    for lang_code, json_field in _LANG_CODE_TO_JSON_FIELD.items():
+        assert json_field in LANGUAGE_FIELDS, (
+            f"_LANG_CODE_TO_JSON_FIELD[{lang_code!r}] = {json_field!r} "
+            f"but {json_field!r} is not a key in LANGUAGE_FIELDS — "
+            f"bundle would silently drop {lang_code} on ingestion round-trip"
+        )
+
+
+def test_lang_code_to_json_field_has_no_duplicate_keys_or_unbalanced_buckets() -> None:
+    """Each lexicon code maps to exactly one bundle bucket, and every
+    bundle bucket is targeted by at least one lexicon code (else the
+    bucket would be empty in practice).
+
+    Catches the 'wave-2 typo' regression class: if 'sem-pro' got
+    miskeyed as 'sem_pro' (with underscore), the dict would keep
+    both keys but only the canonical one routes correctly. The
+    invariant doesn't catch THIS case directly but the test below
+    on precursor-stack routing does."""
+    from wyrd.generators.kenning.lexicon import _LANG_CODE_TO_JSON_FIELD
+
+    # No duplicate KEYS in the dict literal — Python would silently keep
+    # the last value, but the assertion makes the contract explicit.
+    keys = list(_LANG_CODE_TO_JSON_FIELD)
+    assert len(keys) == len(set(keys)), f"_LANG_CODE_TO_JSON_FIELD has duplicate keys: {keys}"
+    # Every bundle bucket has at least one routing entry.
+    buckets = set(_LANG_CODE_TO_JSON_FIELD.values())
+    expected_wave2_buckets = {
+        "hebrew",
+        "arabic",
+        "persian",
+        "sanskrit",
+        "akkadian",
+        "egyptian",
+        "aramaic",
+        "armenian",
+    }
+    assert expected_wave2_buckets.issubset(buckets), (
+        f"missing wave-2 bucket(s): {expected_wave2_buckets - buckets}"
+    )
+
+
+def test_seed_from_meanings_round_trips_wave_2_bundle_fields(fresh_db: Path) -> None:
+    """wyrd-vsrn Phase 2c: a meanings.json bundle that contains wave-2
+    fields (`hebrew`, `arabic`, etc.) must ingest cleanly with the
+    correct lexicon `language` code on each etymon row. Pre-PR these
+    fields were untracked; now they round-trip via `LANGUAGE_FIELDS`.
+
+    Pinned because export → re-ingest consistency depends on every
+    bundle field name in `LANGUAGE_FIELDS` mapping to the same lexicon
+    code that `_LANG_CODE_TO_JSON_FIELD` uses for emit."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["golem"],
+            tags=["monster"],
+            modifier_type=None,
+            words=[
+                {
+                    "modern_usage": "Golem",
+                    "hebrew": ["גולם"],
+                    "arabic": ["جن"],
+                    "sanskrit": ["रक्षस"],
+                }
+            ],
+        )
+        db.commit()
+
+        rows = db.conn.execute(
+            "SELECT canonical_form, language FROM etymon "
+            "WHERE language IN ('he','ar','sa') ORDER BY language, canonical_form"
+        ).fetchall()
+    forms_by_lang = {(r["language"], r["canonical_form"]) for r in rows}
+    assert forms_by_lang == {
+        ("ar", "جن"),
+        ("he", "גולם"),
+        ("sa", "रक्षस"),
+    }
+
+
+def test_export_meanings_routes_precursor_postcursor_stack_to_canonical_bucket(
+    fresh_db: Path,
+) -> None:
+    """wyrd-vsrn Phase 2c: when an etymon family has members in a wave-2
+    canonical lang AND in its precursor / postcursor stack, all of them
+    surface in ONE bundle bucket (the canonical's). Same pattern as
+    celtic_mix already groups welsh + old-welsh + middle-welsh.
+
+    This test seeds a Hebrew family with members in `he` (Modern
+    Hebrew) and `hbo` (Biblical Hebrew); both must land in
+    `word['hebrew']`."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        # Use the existing seed helper (it routes through LANGUAGE_FIELDS),
+        # then add the precursor row directly via upsert_etymon and
+        # link it to the same family via lemma_id.
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["golem"],
+            tags=["monster"],
+            modifier_type=None,
+            words=[{"modern_usage": "Golem", "hebrew": ["גולם"]}],
+        )
+        modern_id = db.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = ? AND language = ?",
+            ("גולם", "he"),
+        ).fetchone()["id"]
+        # Insert a precursor (`hbo`, Biblical Hebrew) etymon and tie it
+        # into the family via lemma_id rollup. The export step's family
+        # rollup walks lemma_id chains so this row lands in the same
+        # word entry as the modern Hebrew form.
+        biblical_id = db.upsert_etymon("גלם", "hbo")
+        db.conn.execute("UPDATE etymon SET lemma_id = ? WHERE id = ?", (modern_id, biblical_id))
+        # Add a citation so the biblical row joins the family rollup
+        # under the rando-port admit path.
+        db.add_citation(biblical_id, "rando-port")
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = next(w for s in subjects for w in s["words"] if w["modern_usage"] == "Golem")
+    # Both forms land in the SAME bucket (hebrew) — the precursor
+    # routing collapses he and hbo together.
+    assert "hebrew" in word
+    assert set(word["hebrew"]) == {"גולם", "גלם"}
+
+
+def test_export_meanings_emits_english_shaped_per_language(fresh_db: Path) -> None:
+    """wyrd-ha9q Phase 2c: an etymon family with non-NULL english_shaped
+    on at least one member emits a `<lang>_english_shaped` sibling array
+    in its word entry. Each entry maps the canonical_form to its
+    English-friendly rendering. Sorted by form for determinism."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        # Seed a Hebrew-language family with two members so we can
+        # verify multiple english_shaped values land in one array.
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["golem"],
+            tags=["monster"],
+            modifier_type=None,
+            words=[
+                {
+                    "modern_usage": "Golem",
+                    "hebrew": ["גולם", "גלם"],
+                }
+            ],
+        )
+        # Populate english_shaped on both etymon rows.
+        db.conn.execute(
+            "UPDATE etymon SET english_shaped = ? WHERE canonical_form = ? AND language = ?",
+            ("golem", "גולם", "he"),
+        )
+        db.conn.execute(
+            "UPDATE etymon SET english_shaped = ? WHERE canonical_form = ? AND language = ?",
+            ("gelem", "גלם", "he"),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert "hebrew_english_shaped" in word, (
+        f"hebrew_english_shaped missing from word entry: keys={list(word.keys())}"
+    )
+    # Sorted by canonical_form for determinism.
+    assert word["hebrew_english_shaped"] == [
+        {"form": "גולם", "english_shaped": "golem"},
+        {"form": "גלם", "english_shaped": "gelem"},
+    ]
+
+
+def test_export_meanings_skips_english_shaped_when_all_members_null(fresh_db: Path) -> None:
+    """An etymon family whose every member has NULL english_shaped (the
+    common case for Latin-script source langs OR rows that lacked
+    sufficient transliteration / IPA input) MUST NOT emit a
+    `<lang>_english_shaped` field at all. Pinning this so the bundle
+    doesn't bloat with empty arrays for the ~85k unshapeable rows."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["bridge"],
+            tags=["water"],
+            modifier_type="Topographical",
+            words=[{"modern_usage": "Bridg-", "old_english": ["brycg"]}],
+        )
+        # english_shaped stays NULL on the Old English etymon (Latin-
+        # script source lang — derive_english_shaped returned None at
+        # ingest time per wyrd-ha9q's _LATIN_SCRIPT_LANGS guard).
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert "old_english_english_shaped" not in word
+    assert all(not k.endswith("_english_shaped") for k in word)
+
+
+def test_export_meanings_partial_english_shaped_emits_only_populated(fresh_db: Path) -> None:
+    """A family where SOME members carry english_shaped and others
+    don't emits a `<lang>_english_shaped` array containing ONLY the
+    populated forms. The unmapped form survives in the language form
+    array but doesn't pollute the english_shaped sibling. Pinning the
+    rule so the runtime can detect 'this form has no shaping' via
+    Meaning.english_shaped_for(...) returning None."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["jinn"],
+            tags=["monster"],
+            modifier_type=None,
+            words=[
+                {
+                    "modern_usage": "Jinn",
+                    "arabic": ["جن", "عفريت"],
+                }
+            ],
+        )
+        # Only the first form gets an english_shaped value; second stays NULL.
+        db.conn.execute(
+            "UPDATE etymon SET english_shaped = ? WHERE canonical_form = ? AND language = ?",
+            ("jinn", "جن", "ar"),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert word["arabic"] == ["جن", "عفريت"]  # Both forms in the lang array.
+    assert word["arabic_english_shaped"] == [
+        {"form": "جن", "english_shaped": "jinn"},
+    ]
+
+
 def test_export_meanings_emits_variant_pool_per_language(fresh_db: Path) -> None:
     """An etymon with text-match rows whose matched_form differs from the
     canonical_form gets a `<lang>_variants` field populated in its word

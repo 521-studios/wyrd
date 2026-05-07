@@ -37,6 +37,17 @@ _CITATIONS_SUFFIX = "_citations"
 # morphemes with no year evidence.
 _ATTESTED_YEARS_SUFFIX = "_attested_years"
 
+# Suffix used for per-language english_shaped renderings (wyrd-ha9q
+# Phase 2c). Each entry is (form, english_shaped) where english_shaped
+# is the diacritic-stripped / known-form-overridden Latin rendering of
+# the canonical form (e.g. Hebrew גולם → 'golem', Arabic عفريت → 'ifrit',
+# Sanskrit रक्षस → 'rakshasa'). Sparse — only non-Latin source-language
+# rows whose wyrd-ha9q derive_english_shaped produced a non-None value
+# land here. Latin-script source langs (old-english / latin / welsh /
+# proto-germanic / etc.) don't carry this field; canonical_form is
+# already English-readable for those.
+_ENGLISH_SHAPED_SUFFIX = "_english_shaped"
+
 
 class Meaning:
     def __init__(
@@ -49,6 +60,7 @@ class Meaning:
         inflections=None,
         citations=None,
         attested_years=None,
+        english_shaped=None,
     ):
         self.usage = usage
         self.tags = tags
@@ -74,6 +86,15 @@ class Meaning:
         # under --era. Empty for morphemes with no year evidence; those
         # morphemes pass any --era filter unconditionally.
         self.attested_years = attested_years or {}
+        # english_shaped is a dict[lang_field, dict[canonical_form,
+        # english_shaped_form]] — wyrd-ha9q Phase 2c. Maps the
+        # native-script / diacritic-bearing canonical form to its
+        # English-friendly rendering for non-Latin source-language
+        # families (Hebrew, Arabic, Persian, Sanskrit, Akkadian, Egyptian,
+        # Aramaic + their precursors). Empty for Latin-script langs and
+        # for older bundles that pre-date the wyrd-ha9q export.
+        # `english_shaped_for(lang_field, form)` is the runtime accessor.
+        self.english_shaped = english_shaped or {}
         self._set_location()
 
     def _set_location(self):
@@ -119,6 +140,33 @@ class Meaning:
 
     def is_saint(self):
         return "saint" in self.tags
+
+    def english_shaped_for(self, lang_field: str, form: str) -> str | None:
+        """wyrd-ha9q Phase 2c: return the English-friendly rendering of
+        ``form`` in the language indexed by ``lang_field`` (e.g. "hebrew",
+        "arabic", "sanskrit"), or None when:
+
+        - the language doesn't carry english_shaped data (Latin-script
+          source langs OR older bundles),
+        - the form has no entry in the english_shaped map (the canonical
+          form lacked sufficient transliteration / IPA input for
+          derive_english_shaped to produce a value).
+
+        Callers MUST handle None explicitly — generally by falling back
+        to ``form`` itself for display when ``form`` is already
+        Latin-script (Old English, Latin, Welsh, ...), and by skipping
+        the morpheme for non-Latin display when None is returned and the
+        form contains non-Latin characters.
+
+        Use this when rendering surface forms that came from a non-Latin
+        source language — town-name generation in non-Latin register
+        (wyrd-rni / wyrd-381 era-rewind demos) and the SPA's
+        etymological-provenance panel are the primary consumers.
+        """
+        forms = self.english_shaped.get(lang_field)
+        if not forms:
+            return None
+        return forms.get(form)
 
     def attested_in_era_range(self, era_range: tuple[int | None, int | None] | None) -> bool:
         """D5-2 era filter: True if this morpheme is admissible under the
@@ -277,6 +325,7 @@ def load_meanings(data):
                 and not k.endswith(_INFLECTION_SUFFIX)
                 and not k.endswith(_CITATIONS_SUFFIX)
                 and not k.endswith(_ATTESTED_YEARS_SUFFIX)
+                and not k.endswith(_ENGLISH_SHAPED_SUFFIX)
             }
             variants = {
                 k[: -len(_VARIANT_SUFFIX)]: [(entry["form"], entry["weight"]) for entry in v]
@@ -298,6 +347,17 @@ def load_meanings(data):
                 for k, v in word.items()
                 if k.endswith(_ATTESTED_YEARS_SUFFIX)
             }
+            # wyrd-ha9q Phase 2c: english_shaped is keyed by canonical
+            # form so the runtime can look up the rendering of a specific
+            # form within a language (each language can carry multiple
+            # forms — e.g. Sanskrit family with both rakṣas and rakṣasa).
+            english_shaped = {
+                k[: -len(_ENGLISH_SHAPED_SUFFIX)]: {
+                    entry["form"]: entry["english_shaped"] for entry in v
+                }
+                for k, v in word.items()
+                if k.endswith(_ENGLISH_SHAPED_SUFFIX)
+            }
             # Singular and plural Meanings share every constructor arg
             # except `usage`. Bundle them so a future kwarg addition can't
             # silently drop on one branch and not the other.
@@ -309,6 +369,7 @@ def load_meanings(data):
                 "inflections": inflections,
                 "citations": citations,
                 "attested_years": attested_years,
+                "english_shaped": english_shaped,
             }
             meaning = Meaning(usage, **common_kwargs)
             for tag in tags:

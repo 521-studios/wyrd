@@ -1146,3 +1146,51 @@ Empirical first-pass coverage (post-Phase-2b backfill, 2026-05-07):
 fa 13,777 / he 12,889 / ar 11,548 / sa 5,028 / egy 2,618 / arc 1,245 /
 akk 965 = 48,070 rows populated. Skipped 85,034 rows without
 sufficient transliteration / IPA input.
+
+### Phase 2c: bundle plumbing for english_shaped + wave-2 lang fields
+
+Phase 2c wires the `english_shaped` column through to the runtime in
+two cuts:
+
+1. **Wave-2 bundle field expansion.** Pre-Phase-2c, the lexicon's
+   `_LANG_CODE_TO_JSON_FIELD` map dropped non-Latin source-lang codes
+   (`he` / `ar` / `fa` / `sa` / `akk` / `egy` / `arc` / `pal`) on
+   the floor — `_emit_word_languages`'s `if not json_field: continue`
+   silently skipped them. Phase 2c adds eight new bundle field
+   names (`hebrew`, `arabic`, `persian`, `sanskrit`, `akkadian`,
+   `egyptian`, `aramaic`, `armenian`) and routes the canonical
+   wave-2 codes plus their precursor / postcursor stack codes
+   (`hbo` → hebrew, `peo` / `fa-cls` / `xpr` / `pal` / `ira-pro`
+   → persian, `iir-pro` / `inc-pro` / `pra` / `pi` → sanskrit,
+   `cop` → egyptian, `syc` → aramaic, `sem-pro` / `sem-wes-pro` /
+   `afa-pro` → hebrew, `sux` → akkadian, `axm` → armenian) into
+   them. Same pattern as `celtic_mix` already bundles welsh /
+   old-welsh / middle-welsh / scottish-gaelic / etc.
+2. **`<lang>_english_shaped` sibling arrays.** Per the D26
+   sibling-suffix pattern (variants / inflections / citations /
+   attested_years already use it), Phase 2c adds
+   `<lang>_english_shaped` arrays of `{form, english_shaped}`
+   entries to each wave-2 word in the bundle. Sparse — only forms
+   whose `english_shaped` column is non-NULL emit; rows that
+   lacked transliteration / IPA at ingest time stay in the language
+   form array but don't pollute the shaping sibling.
+
+Runtime:
+- `meaning._ENGLISH_SHAPED_SUFFIX = "_english_shaped"` lets
+  `load_meanings` strip the suffix and route the data into
+  `Meaning.english_shaped: dict[lang_field, dict[canonical_form,
+  english_shaped]]`.
+- `Meaning.english_shaped_for(lang_field, canonical_form)` is the
+  accessor; returns the English-friendly rendering or `None` when
+  no shaping is available (Latin-script source lang, or the form
+  lacked sufficient input at derive time).
+
+Out of scope for Phase 2c: the actual generator-side preference
+for `english_shaped` over `canonical_form` when rendering surface
+forms. The current generator's `Meaning.__str__` returns
+`modern_usage` (the English-side key), not per-language forms, so
+the existing town-name render path doesn't yet consume the new data.
+Per-language rendering is the wyrd-rni / wyrd-381 era-rewind demo's
+concern — those need to pick non-English source-lang renders, which
+is exactly when `english_shaped_for` becomes the right surface-form
+source. Phase 2c is the plumbing those demos consume.

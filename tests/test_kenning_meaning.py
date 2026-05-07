@@ -564,3 +564,157 @@ def test_attested_in_era_range_searches_across_languages():
     assert m.attested_in_era_range((800, 1100)) is True
     # No language has a year >= 1500.
     assert m.attested_in_era_range((1500, 1700)) is False
+
+
+# ---------------------------------------------------------------------
+# wyrd-ha9q Phase 2c: english_shaped accessor + load round-trip
+# ---------------------------------------------------------------------
+
+
+def _meaning_with_english_shaped(english_shaped: dict[str, dict[str, str]]) -> Meaning:
+    return Meaning(
+        usage="Test-",
+        tags=[],
+        meanings=[],
+        sources={},
+        english_shaped=english_shaped,
+    )
+
+
+def test_english_shaped_for_returns_value_when_present():
+    m = _meaning_with_english_shaped(
+        {
+            "hebrew": {"גולם": "golem", "גלם": "gelem"},
+            "arabic": {"جن": "jinn"},
+        }
+    )
+    assert m.english_shaped_for("hebrew", "גולם") == "golem"
+    assert m.english_shaped_for("hebrew", "גלם") == "gelem"
+    assert m.english_shaped_for("arabic", "جن") == "jinn"
+
+
+def test_english_shaped_for_returns_none_for_missing_lang():
+    m = _meaning_with_english_shaped({"hebrew": {"גולם": "golem"}})
+    assert m.english_shaped_for("old_english", "tūn") is None
+    assert m.english_shaped_for("sanskrit", "रक्षस") is None
+
+
+def test_english_shaped_for_returns_none_for_missing_form_in_lang():
+    """Form not in the lang map → None. Matches the rule that
+    derive_english_shaped returns None for rows that lacked
+    transliteration / IPA at ingest time; those rows survive in the
+    language form array but don't carry a shaping entry."""
+    m = _meaning_with_english_shaped({"arabic": {"جن": "jinn"}})
+    assert m.english_shaped_for("arabic", "عفريت") is None
+
+
+def test_english_shaped_defaults_to_empty_dict_for_legacy_meaning():
+    """Meaning constructed without english_shaped kwarg (legacy
+    bundle pre-Phase 2c) gets an empty dict and graceful None lookup."""
+    m = Meaning(usage="Test-", tags=[], meanings=[], sources={})
+    assert m.english_shaped == {}
+    assert m.english_shaped_for("hebrew", "גולם") is None
+
+
+def test_load_meanings_strips_english_shaped_suffix_into_dedicated_dict():
+    """`<lang>_english_shaped` JSON arrays land in `Meaning.english_shaped`
+    keyed by (lang_field, canonical_form). `sources` keeps the language
+    form array but does NOT carry the _english_shaped sibling."""
+    data = [
+        {
+            "modifier_tags": ["monster"],
+            "meaning": ["golem"],
+            "modifier_type": None,
+            "words": [
+                {
+                    "modern_usage": "Golem",
+                    "hebrew": ["גולם", "גלם"],
+                    "hebrew_english_shaped": [
+                        {"form": "גולם", "english_shaped": "golem"},
+                        {"form": "גלם", "english_shaped": "gelem"},
+                    ],
+                }
+            ],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    assert "Golem" in meaning_db
+    m = meaning_db["Golem"][0]
+    assert m.sources == {"hebrew": ["גולם", "גלם"]}
+    assert m.english_shaped == {"hebrew": {"גולם": "golem", "גלם": "gelem"}}
+    assert m.english_shaped_for("hebrew", "גולם") == "golem"
+
+
+def test_load_meanings_round_trips_with_no_english_shaped_field():
+    """Legacy bundle entries (Latin-script langs / pre-Phase-2c) load
+    cleanly with an empty english_shaped dict — no KeyError."""
+    data = [
+        {
+            "modifier_tags": [],
+            "meaning": ["bridge"],
+            "modifier_type": "Topographical",
+            "words": [
+                {
+                    "modern_usage": "Bridg-",
+                    "old_english": ["brycg"],
+                }
+            ],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    m = meaning_db["Bridg-"][0]
+    assert m.english_shaped == {}
+    assert m.english_shaped_for("old_english", "brycg") is None
+
+
+def test_db_to_export_to_load_round_trip_preserves_english_shaped(tmp_path):
+    """End-to-end: seed a fresh DB with a wave-2 etymon carrying
+    english_shaped, run `export_meanings`, then `load_meanings` on the
+    output — the rendering survives all the way to `Meaning.english_shaped_for`.
+
+    Pinned because the exporter and loader were tested independently;
+    a field-name mismatch between `_emit_english_shaped_list`'s output
+    keys and `_ENGLISH_SHAPED_SUFFIX`-stripping would pass both tests
+    in isolation but break the round-trip. This locks the contract that
+    the two ends agree on the wire format."""
+    from wyrd.generators.kenning.lexicon import (
+        LexiconDB,
+        export_meanings,
+        init_schema,
+        seed_from_meanings,
+    )
+
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+
+    # Seed a Hebrew family + populate english_shaped on the row.
+    with LexiconDB(db_path) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        seed_from_meanings(
+            db,
+            [
+                {
+                    "modifier_tags": ["monster"],
+                    "meaning": ["golem"],
+                    "modifier_type": None,
+                    "words": [{"modern_usage": "Golem", "hebrew": ["גולם"]}],
+                }
+            ],
+            "rando-port",
+        )
+        db.conn.execute(
+            "UPDATE etymon SET english_shaped = ? WHERE canonical_form = ? AND language = ?",
+            ("golem", "גולם", "he"),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    # Round-trip through load_meanings.
+    meaning_db, _ = load_meanings(subjects)
+    assert "Golem" in meaning_db, list(meaning_db)
+    m = meaning_db["Golem"][0]
+    # Form arrived in the right bundle bucket AND english_shaped came
+    # through to the runtime accessor.
+    assert m.sources.get("hebrew") == ["גולם"]
+    assert m.english_shaped_for("hebrew", "גולם") == "golem"
