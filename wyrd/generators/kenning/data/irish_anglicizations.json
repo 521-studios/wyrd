@@ -1,0 +1,91 @@
+[
+  {
+    "meaning": ["homestead", "settlement", "town"],
+    "modifier_tags": ["architecture"],
+    "modifier_type": "Architectural",
+    "words": [
+      {"modern_usage": "Bally-", "celtic_mix": ["baile"]},
+      {"modern_usage": "-bally-", "celtic_mix": ["baile"]}
+    ]
+  },
+  {
+    "meaning": ["meadow", "pasture", "water-meadow"],
+    "modifier_tags": ["topography", "agriculture"],
+    "modifier_type": "Topographical",
+    "words": [
+      {"modern_usage": "Cloon-", "celtic_mix": ["cluain"]},
+      {"modern_usage": "-cloon-", "celtic_mix": ["cluain"]}
+    ]
+  },
+  {
+    "meaning": ["church", "churchyard", "monastic cell"],
+    "modifier_tags": ["religious"],
+    "modifier_type": "Religious",
+    "words": [
+      {"modern_usage": "Kil-", "celtic_mix": ["cill"]},
+      {"modern_usage": "Kill-", "celtic_mix": ["cill"]}
+    ]
+  },
+  {
+    "meaning": ["hill"],
+    "modifier_tags": ["topography"],
+    "modifier_type": "Topographical",
+    "words": [
+      {"modern_usage": "Knock-", "celtic_mix": ["cnoc"]},
+      {"modern_usage": "-knock-", "celtic_mix": ["cnoc"]}
+    ]
+  },
+  {
+    "meaning": ["enclosure", "fort", "ringfort"],
+    "modifier_tags": ["military"],
+    "modifier_type": "Architectural",
+    "words": [
+      {"modern_usage": "Lis-", "celtic_mix": ["lios"]},
+      {"modern_usage": "Liss-", "celtic_mix": ["lios"]}
+    ]
+  },
+  {
+    "meaning": ["oak grove", "oakwood"],
+    "modifier_tags": ["topography", "tree"],
+    "modifier_type": "Topographical",
+    "words": [
+      {"modern_usage": "Derry-", "celtic_mix": ["doire"]},
+      {"modern_usage": "-derry", "celtic_mix": ["doire"]}
+    ]
+  },
+  {
+    "meaning": ["glen", "narrow valley", "valley"],
+    "modifier_tags": ["topography"],
+    "modifier_type": "Topographical",
+    "words": [
+      {"modern_usage": "Glen-", "celtic_mix": ["gleann"]},
+      {"modern_usage": "-glen", "celtic_mix": ["gleann"]}
+    ]
+  },
+  {
+    "meaning": ["mountain"],
+    "modifier_tags": ["topography"],
+    "modifier_type": "Topographical",
+    "words": [
+      {"modern_usage": "Slieve-", "celtic_mix": ["sliabh"]}
+    ]
+  },
+  {
+    "meaning": ["plain", "flat country"],
+    "modifier_tags": ["topography"],
+    "modifier_type": "Topographical",
+    "words": [
+      {"modern_usage": "Magh-", "celtic_mix": ["magh"]},
+      {"modern_usage": "Moy-", "celtic_mix": ["magh"]}
+    ]
+  },
+  {
+    "meaning": ["hill", "hillock", "mound"],
+    "modifier_tags": ["topography"],
+    "modifier_type": "Topographical",
+    "words": [
+      {"modern_usage": "Tully-", "celtic_mix": ["tulach"]},
+      {"modern_usage": "-tully-", "celtic_mix": ["tulach"]}
+    ]
+  }
+]

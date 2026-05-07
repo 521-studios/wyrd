@@ -130,13 +130,18 @@ def test_find_meaning_runs_full_bundled_corpus_without_crashing(culture, bundle_
     against matcher-or-bundle regressions.
 
     Floor of 0.5% is a deliberate compromise. As of 2026-05-07 actual
-    per-culture rates are english 35.2%, scottish 25.3%, welsh 23.6%,
-    irish 17.1%, breton 2.2%. Breton sets the floor — at 0.5% the
-    test gives Breton ~4x headroom while still catching an
-    order-of-magnitude regression for any culture (e.g. corrupted
-    trie or empty bundle would drop every culture to ~0%). Tighter
-    thresholds risk false positives during morpheme-mining churn;
-    looser thresholds miss real regressions.
+    per-culture rates against the bare ``meanings.json`` bundle (no
+    sidecars — this fixture loads the bundle directly) are english
+    35.2%, scottish 25.3%, welsh 23.6%, irish 17.1%, breton 2.2%.
+    Production runtime adds the wyrd-1cjg Irish anglicization sidecar
+    via ``_load_meanings``, lifting Irish to 17.7%; the per-sidecar
+    lift is pinned in ``test_kenning_irish_anglicizations.py``.
+    Breton sets the floor — at 0.5% the test gives Breton ~4x
+    headroom while still catching an order-of-magnitude regression
+    for any culture (e.g. corrupted trie or empty bundle would drop
+    every culture to ~0%). Tighter thresholds risk false positives
+    during morpheme-mining churn; looser thresholds miss real
+    regressions.
 
     Sample size: every name in the bundled corpus. Tens of thousands of
     names per culture for english/irish, but the trie path is
