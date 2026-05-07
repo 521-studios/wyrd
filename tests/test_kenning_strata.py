@@ -1927,6 +1927,51 @@ def test_cli_set_stratum_rejects_neither_stratum_nor_clear(fresh_db: Path) -> No
     assert "must specify" in combined.lower()
 
 
+def test_cli_set_stratum_warns_on_merged_cluster_loser(fresh_db: Path) -> None:
+    """A hand-correction on a merged-cluster loser
+    (merged_into_id IS NOT NULL) succeeds but emits a warning to
+    stderr — the classifier and bundle export both filter these
+    rows out, so the operator should know the correction may not
+    surface as expected. Doesn't block (operator may have a legit
+    reason — e.g. planning to undo the merge later)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        winner = db.upsert_etymon("caer", "welsh")
+        loser = db.upsert_etymon("ceer", "welsh")  # OCR variant
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (winner, loser),
+        )
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--etymon-id",
+            str(loser),
+            "--stratum",
+            "latin-loan",
+        ],
+    )
+    # Succeeds (write goes through) ...
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    combined = result.output + (result.stderr or "")
+    # ... but warns the operator that the row is a merged loser.
+    assert "warning" in combined.lower()
+    assert "merged" in combined.lower()
+    # And the write actually happened.
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (loser,)).fetchone()[
+            "stratum"
+        ]
+    assert stratum == "latin-loan"
+
+
 def test_cli_set_stratum_survives_classify_stratum_apply_without_force(
     fresh_db: Path,
 ) -> None:

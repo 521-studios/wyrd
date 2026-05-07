@@ -4547,6 +4547,16 @@ def lexicon_classify_stratum(
         for eid, stratum in proposals.items():
             # When --force is off, leave rows that already carry a
             # non-NULL stratum alone — idempotent re-runs.
+            #
+            # The ``AND stratum IS NULL`` clause is also load-bearing
+            # for the ``set-stratum`` (wyrd-lr4 Phase 4d) idempotency
+            # contract: hand-corrections survive subsequent
+            # ``classify-stratum --apply`` runs (without --force)
+            # because they have non-NULL stratum and this WHERE
+            # excludes them. Removing the clause would silently blow
+            # away every operator hand-correction the next time the
+            # bulk-classifier ran. Pinned end-to-end by
+            # ``test_cli_set_stratum_survives_classify_stratum_apply_without_force``.
             if force:
                 cur = db.conn.execute(
                     "UPDATE etymon SET stratum = ? WHERE id = ?",
@@ -4760,27 +4770,46 @@ def _resolve_set_stratum_target(
     language) pair. The pair lookup leans on the etymon table's
     UNIQUE (canonical_form, language) constraint to guarantee 0 or
     1 matches. Exits non-zero with a friendly error when the row
-    doesn't exist."""
+    doesn't exist; warns and proceeds when the row is an OCR-cluster
+    loser (merged_into_id IS NOT NULL) since the classifier filters
+    those out and a hand-correction on a merged row is invisible to
+    the bundle export."""
     if etymon_id is not None:
         row = db.conn.execute(
-            "SELECT id, canonical_form, language, stratum FROM etymon WHERE id = ?",
+            "SELECT id, canonical_form, language, stratum, merged_into_id FROM etymon WHERE id = ?",
             (etymon_id,),
         ).fetchone()
         if row is None:
             click.echo(f"Error: no etymon with id={etymon_id}.", err=True)
             sys.exit(1)
-        return row
-    row = db.conn.execute(
-        "SELECT id, canonical_form, language, stratum FROM etymon "
-        "WHERE canonical_form = ? AND language = ?",
-        (canonical_form, language),
-    ).fetchone()
-    if row is None:
+    else:
+        row = db.conn.execute(
+            "SELECT id, canonical_form, language, stratum, merged_into_id FROM etymon "
+            "WHERE canonical_form = ? AND language = ?",
+            (canonical_form, language),
+        ).fetchone()
+        if row is None:
+            click.echo(
+                f"Error: no etymon with canonical_form={canonical_form!r} "
+                f"and language={language!r}.",
+                err=True,
+            )
+            sys.exit(1)
+
+    # Warn-and-proceed for merged-cluster losers. classify_family
+    # skips these (they're folded into a canonical winner); a
+    # hand-correction on one survives in the column but doesn't
+    # surface in the bundle export. Operators occasionally do this
+    # intentionally (planning to undo the merge later), so don't
+    # block — just flag.
+    if row["merged_into_id"] is not None:
         click.echo(
-            f"Error: no etymon with canonical_form={canonical_form!r} and language={language!r}.",
+            f"Warning: etymon {row['id']} is a merged-cluster loser "
+            f"(merged_into_id={row['merged_into_id']}); the classifier "
+            f"and bundle export both filter these rows out, so the "
+            f"hand-correction may not surface as expected.",
             err=True,
         )
-        sys.exit(1)
     return row
 
 
