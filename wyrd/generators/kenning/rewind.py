@@ -53,6 +53,16 @@ DEFAULT_ENGLISH_ERAS: tuple[tuple[str, str], ...] = (
 # / Five Boroughs); Celtic third. Modern-english is the last-resort
 # anchor — typically an inflected modern form whose history we can
 # still walk via cognate cluster.
+#
+# Some entries look like typos but are real bundle keys preserved
+# from the legacy meanings.json data:
+# - ``"old _english"`` (with stray space) was a misspelled key in
+#   the original Rando-port data; the bundle preserves it so older
+#   meanings entries don't silently lose their source attribution.
+# - ``"old_scandanavian"`` (note the misspelling) is the legacy
+#   spelling of "old_scandinavian" used in some early entries.
+# Both are also normalised by ``LANGUAGE_FIELDS`` in lexicon.py so
+# the anchor lookup against the etymon table works either way.
 _ANCHOR_LANG_PREFERENCE: tuple[str, ...] = (
     "old_english",
     "old _english",
@@ -261,16 +271,29 @@ def _render_morpheme_at_era(
 ) -> MorphemeRewind:
     """Resolve one morpheme at one era stop.
 
-    Anchor present + era-reflex returns at least one mate → use the
-    alphabetically-first reflex form (era_reflex picker's stable
-    output ordering).
+    Returns a ``MorphemeRewind`` with ``era_form`` set when a cluster
+    mate (or descent fallback) matched the requested era, or
+    ``era_form=None`` and ``fallback=True`` otherwise. The actual
+    *rendered* surface form is decided in ``_pick_form`` — this
+    function only resolves the era_form/fallback signals.
 
-    Anchor present + no era-reflex match → fall back to anchor's
-    canonical_form. Flagged ``fallback=True`` so the consumer can
-    surface 'no era data for this morpheme'.
+    Cases:
 
-    No anchor at all → fall back to morpheme's modern usage at every
-    era. Also flagged.
+    - Anchor present + era-reflex returns at least one mate → pick
+      the form per the three-tier preference (canonical match, then
+      anchor match, then alphabetical first; see inline comment).
+      ``fallback=False``.
+    - Anchor present + no era-reflex match → ``era_form=None``,
+      ``fallback=True``. ``_pick_form`` falls back to the morpheme's
+      modern canonical (NOT the anchor's source form, to keep the
+      era ladder from looking reversed at era=modern).
+    - No anchor → same fallback path; ``era_form=None``,
+      ``fallback=True``, source_form set to the modern canonical so
+      downstream consumers can still report 'no anchor for this
+      morpheme'.
+    - Anchor present but anchor.language already equals the target
+      → short-circuit on the anchor's canonical_form (era_form set;
+      ``fallback=False``).
     """
     canonical = meaning.usage.replace("-", "")
     if anchor is None:
@@ -319,17 +342,30 @@ def _render_morpheme_at_era(
             era_form=None,
             fallback=True,
         )
-    # Picker preference: when the morpheme's modern canonical also
-    # appears in the era's cluster mates (case-insensitive), prefer
-    # it. This handles a mining-artifact class where archaic forms
-    # like 'cyning' get co-tagged as modern-english (some Wiktionary
-    # cross-reference entries do this) — sorting alphabetically would
-    # surface 'cyning' as the modern reflex of OE 'king', breaking
-    # the era progression. The canonical-match preference picks
-    # 'king' instead. When no canonical match exists (e.g. ME has no
-    # exact-canonical reflex), fall back to alphabetical first.
+    # Three-tier picker preference, falling through alphabetical:
+    #
+    # Tier 1: morpheme.canonical match (modern usage in cluster)
+    #   Handles mining-artifact cases where archaic forms like
+    #   'cyning' get co-tagged as modern-english (Wiktionary
+    #   cross-reference entries do this). Sorting alphabetically
+    #   would surface 'cyning' as the modern reflex of OE 'king',
+    #   breaking the era progression. Canonical-match picks 'king'.
+    #
+    # Tier 2: anchor.canonical_form match (source form in cluster)
+    #   Handles morphemes whose orthography didn't shift much across
+    #   eras (mynster → mynster → minster) — alphabetical-first
+    #   would otherwise return a noise mate ('amounten' for OE
+    #   'mynster' at ME). Empirically this affects ~822 OE clusters
+    #   on the live corpus where the ME mate set includes
+    #   peripheral entries that sort before the actual reflex.
+    #
+    # Tier 3: alphabetical first
+    #   Final tiebreaker; deterministic.
     canonical_lower = canonical.lower()
+    anchor_lower = anchor.canonical_form.lower()
     matching = [r for r in reflexes if r.form.lower() == canonical_lower]
+    if not matching:
+        matching = [r for r in reflexes if r.form.lower() == anchor_lower]
     selected = matching[0] if matching else reflexes[0]
     return MorphemeRewind(
         canonical=canonical,

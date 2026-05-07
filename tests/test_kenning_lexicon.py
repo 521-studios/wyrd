@@ -2829,6 +2829,194 @@ def test_rewind_raises_on_empty_input(fresh_db: Path) -> None:
             rewind_name("   ", db, meaning_db)
 
 
+def test_rewind_picker_prefers_anchor_match_over_alphabetical(fresh_db: Path) -> None:
+    """Tier-2 picker preference: when neither the canonical nor a
+    canonical-match exists in the cluster, prefer reflexes whose
+    form matches the anchor's source form (case-insensitive) over
+    alphabetical-first.
+
+    Real-world case: OE 'mynster' anchor at ME — cluster has
+    'mynster' (the same orthography survives into ME) plus
+    peripheral entries that sort alphabetically before it
+    ('amounten' etc.). Without tier-2, alphabetical first surfaces
+    a noise mate; with tier-2, 'mynster' wins."""
+    from wyrd.generators.kenning.rewind import rewind_name
+
+    with LexiconDB(fresh_db) as db:
+        _seed_cluster(
+            db,
+            cluster_root_form="*munistar",
+            cluster_root_lang="proto-germanic",
+            members=[
+                ("mynster", "old-english"),
+                ("amounten", "middle-english"),  # noise mate, alphabetical first
+                ("mynster", "middle-english"),  # real ME reflex (matches anchor)
+                ("zynx", "middle-english"),  # alphabetical last
+            ],
+        )
+        meaning_db = _make_rewind_meaning_db(
+            ("-minster", {"old_english": ["mynster"]}),
+        )
+        result = rewind_name("minster", db, meaning_db)
+
+    by_cell = {stop.cell: stop.rendered for stop in result.eras}
+    # Tier-1: canonical match — 'minster' in ME cluster? No.
+    # Tier-2: anchor match — 'mynster' in ME cluster? Yes — prefer it.
+    assert by_cell["me"] == "mynster"
+
+
+def test_pick_form_strips_morpheme_hyphens() -> None:
+    """Direct unit test for ``_pick_form``: era_form takes priority
+    over canonical, and leading/trailing hyphens are stripped from
+    whichever form is selected. This is the load-bearing rule that
+    keeps post-modifier morphemes ('-ham') from producing
+    double-hyphens in the rendered compound."""
+    from wyrd.generators.kenning.rewind import MorphemeRewind, _pick_form
+
+    # era_form present → wins, hyphens stripped.
+    m = MorphemeRewind(
+        canonical="ham",
+        source_form="hām",
+        source_language="old-english",
+        source_etymon_id=1,
+        era_form="-ham",
+        fallback=False,
+    )
+    assert _pick_form(m) == "ham"
+    # era_form None + canonical with hyphens → canonical wins, stripped.
+    m = MorphemeRewind(
+        canonical="-ham-",
+        source_form="hām",
+        source_language="old-english",
+        source_etymon_id=1,
+        era_form=None,
+        fallback=True,
+    )
+    assert _pick_form(m) == "ham"
+
+
+def test_supported_eras_for_family_returns_cell_labels() -> None:
+    """Public helper that delegates to ``era.era_cells_for_family``;
+    pin the contract so callers (CLI auto-completion, future SPA
+    era selectors) can rely on the cell labels being stable."""
+    from wyrd.generators.kenning.rewind import supported_eras_for_family
+
+    assert supported_eras_for_family("english") == (
+        "oe-early",
+        "oe-late",
+        "me",
+        "early-modern",
+        "modern",
+    )
+    assert supported_eras_for_family("brythonic") == ("old", "middle", "modern")
+
+
+def test_rewind_handles_multi_word_input(fresh_db: Path) -> None:
+    """Multi-word input ('North Cape' / 'Black Hill') splits on
+    whitespace and decomposes each word independently. The era stops
+    aggregate morphemes across all words; rendered output joins
+    morphemes with hyphens regardless of word boundaries."""
+    from wyrd.generators.kenning.rewind import rewind_name
+
+    with LexiconDB(fresh_db) as db:
+        _seed_cluster(
+            db,
+            cluster_root_form="*haimaz",
+            cluster_root_lang="proto-germanic",
+            members=[("hām", "old-english"), ("ham", "middle-english")],
+        )
+        _seed_cluster(
+            db,
+            cluster_root_form="*hwītaz",
+            cluster_root_lang="proto-germanic",
+            members=[("hwīt", "old-english"), ("white", "middle-english")],
+        )
+        meaning_db = _make_rewind_meaning_db(
+            ("-ham", {"old_english": ["hām"]}),
+            ("Whit-", {"old_english": ["hwīt"]}),
+        )
+        # Two-word input: 'whit ham' decomposes to 4 morphemes
+        # total (2 per word? actually 1 per word here).
+        result = rewind_name("whit ham", db, meaning_db)
+
+    # Both words should be in the decomposition + per-era morpheme list.
+    assert "whit" in result.decomposition.lower()
+    assert "ham" in result.decomposition
+    for stop in result.eras:
+        canonicals = [m.canonical for m in stop.morphemes]
+        assert "Whit" in canonicals or "whit" in canonicals
+        assert "ham" in canonicals
+
+
+def test_cli_kenning_rewind_with_custom_era_ladder(fresh_db: Path) -> None:
+    """The CLI's ``--era`` flag accepts repeated values for a
+    custom ladder. Pin the parsing path so a future refactor can't
+    silently drop the multi-pass behaviour. Also verifies cell-label
+    + family/label inputs both resolve."""
+    from wyrd.generators.kenning import _load_meanings
+
+    runner = CliRunner()
+    with LexiconDB(fresh_db) as db:
+        _seed_cluster(
+            db,
+            cluster_root_form="*haimaz",
+            cluster_root_lang="proto-germanic",
+            members=[
+                ("hām", "old-english"),
+                ("ham", "middle-english"),
+                ("ham", "modern-english"),
+            ],
+        )
+    _load_meanings.cache_clear()
+
+    # Custom 2-stop ladder via repeated --era; mix bare label and
+    # family/label form.
+    result = runner.invoke(
+        kenning_cli,
+        [
+            "rewind",
+            "ham",
+            "--db",
+            str(fresh_db),
+            "--era",
+            "oe-late",
+            "--era",
+            "english/me",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Two era stops printed (default would be 3).
+    assert result.output.count("english/") == 2
+
+
+def test_cli_kenning_rewind_invalid_era_exits_nonzero(fresh_db: Path) -> None:
+    """Defensive CLI: an --era value that doesn't resolve (typo'd
+    cell label, out-of-range year) exits 1 with stderr message
+    naming valid alternatives. The error comes from
+    era_cell_for_input."""
+    from wyrd.generators.kenning import _load_meanings
+
+    runner = CliRunner()
+    with LexiconDB(fresh_db) as db:
+        # Just need ANY etymon present; the failure is at era parsing.
+        db.upsert_etymon("hām", "old-english")
+        db.commit()
+    _load_meanings.cache_clear()
+
+    result = runner.invoke(
+        kenning_cli,
+        [
+            "rewind",
+            "ham",
+            "--db",
+            str(fresh_db),
+            "--era",
+            "totally-fake-cell",
+        ],
+    )
+    assert result.exit_code != 0
+
+
 def test_cli_kenning_rewind_smoke(fresh_db: Path) -> None:
     """End-to-end CLI smoke test: ``wyrd kenning rewind <name>``
     invokes the rewinder against a seeded lexicon and prints one
