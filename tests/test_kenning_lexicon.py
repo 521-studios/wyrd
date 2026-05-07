@@ -3590,6 +3590,181 @@ def test_cli_kenning_lexicon_project_period_forms_smoke(fresh_db: Path) -> None:
         assert db.conn.execute("SELECT COUNT(*) FROM etymon_period_form").fetchone()[0] == 2
 
 
+# --- wyrd-obpw Phase 3.3: SPA-side bundle plumbing for era reflexes -------
+
+
+def test_meaning_era_reflex_for_returns_target_language_reflexes() -> None:
+    """Direct unit test for the runtime accessor: when the bundle
+    carried era_reflex data for a target language, the accessor
+    returns the sorted form list. Returns [] when no data for that
+    target."""
+    m = Meaning(
+        usage="-ham",
+        tags=[],
+        meanings=["village"],
+        sources={"old_english": ["hām"]},
+        era_reflexes={
+            "old-english": ["hām"],
+            "middle-english": ["ham", "hamm", "home"],
+            "modern-english": ["ham", "home"],
+        },
+    )
+    assert m.era_reflex_for("middle-english") == ["ham", "hamm", "home"]
+    assert m.era_reflex_for("modern-english") == ["ham", "home"]
+    assert m.era_reflex_for("welsh") == []
+
+
+def test_meaning_era_reflex_for_returns_independent_copy() -> None:
+    """The accessor returns a fresh list on each call so callers
+    can mutate without aliasing the underlying dict."""
+    m = Meaning(
+        usage="-ham",
+        tags=[],
+        meanings=["village"],
+        sources={"old_english": ["hām"]},
+        era_reflexes={"middle-english": ["ham", "hamm"]},
+    )
+    first = m.era_reflex_for("middle-english")
+    first.append("intruder")
+    second = m.era_reflex_for("middle-english")
+    assert second == ["ham", "hamm"]
+
+
+def test_meaning_era_reflexes_empty_on_legacy_bundle() -> None:
+    """Bundles that pre-date the wyrd-obpw export omit the
+    era_reflexes field entirely. Meaning's era_reflexes attr stays
+    {} and era_reflex_for always returns []."""
+    m = Meaning(
+        usage="-ham",
+        tags=[],
+        meanings=["village"],
+        sources={"old_english": ["hām"]},
+    )
+    assert m.era_reflexes == {}
+    assert m.era_reflex_for("middle-english") == []
+
+
+def test_load_meanings_parses_era_reflexes_top_level_field() -> None:
+    """End-to-end runtime parse: a word entry carrying ``era_reflexes``
+    at the top level (NOT a per-language sibling) lands on the
+    Meaning's era_reflexes attribute. Verifies the load pipeline
+    excludes era_reflexes from the per-language ``sources`` dict."""
+    data = [
+        {
+            "modifier_tags": [],
+            "meaning": ["village"],
+            "words": [
+                {
+                    "modern_usage": "-ham",
+                    "old_english": ["hām"],
+                    "era_reflexes": {
+                        "middle-english": ["ham", "hamm"],
+                        "modern-english": ["ham", "home"],
+                    },
+                }
+            ],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    meaning = meaning_db["-ham"][0]
+    assert meaning.era_reflex_for("middle-english") == ["ham", "hamm"]
+    assert meaning.era_reflex_for("modern-english") == ["ham", "home"]
+    assert "era_reflexes" not in meaning.sources
+
+
+def test_fetch_root_era_reflexes_walks_cognate_cluster(fresh_db: Path) -> None:
+    """Bundle-side integration: _fetch_root_era_reflexes returns the
+    cluster mates for each canonical-language target. Verifies the
+    bundle-build helper plumbs through etymon_era_reflexes correctly."""
+    from wyrd.generators.kenning.lexicon import _fetch_root_era_reflexes
+
+    with LexiconDB(fresh_db) as db:
+        ids = _seed_cluster(
+            db,
+            cluster_root_form="*hwītaz",
+            cluster_root_lang="proto-germanic",
+            members=[
+                ("hwīt", "old-english"),
+                ("whit", "middle-english"),
+                ("white", "modern-english"),
+            ],
+        )
+        # OE root since proto-* has no era cells defined.
+        result = _fetch_root_era_reflexes(db, ids["hwīt"], "old-english")
+
+    assert result["old-english"] == ["hwīt"]
+    assert result["middle-english"] == ["whit"]
+    assert result["modern-english"] == ["white"]
+
+
+def test_fetch_root_era_reflexes_returns_empty_for_unfamilied_root(
+    fresh_db: Path,
+) -> None:
+    """Roots whose language has no era family (proto-languages,
+    untracked classical languages) return an empty dict — the bundle
+    omits the era_reflexes field for these words."""
+    from wyrd.generators.kenning.lexicon import _fetch_root_era_reflexes
+
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("*tūnaz", "proto-germanic")
+        result = _fetch_root_era_reflexes(db, eid, "proto-germanic")
+
+    assert result == {}
+
+
+def test_kenning_rewind_generator_renders_three_era_stops() -> None:
+    """End-to-end Generator class smoke: KenningRewind.generate_all
+    returns one GenerationResult per English-family era stop
+    (oe-late / me / modern). Each carries a rendered compound built
+    from per-Meaning era_reflex_for lookups."""
+    import wyrd.generators.kenning as kenning_mod
+    from wyrd.generators.kenning import KenningRewind
+
+    fixture_data = [
+        {
+            "modifier_tags": [],
+            "meaning": ["village"],
+            "words": [
+                {
+                    "modern_usage": "-ham",
+                    "old_english": ["hām"],
+                    "era_reflexes": {
+                        "old-english": ["hām"],
+                        "middle-english": ["ham", "hamm"],
+                        "modern-english": ["ham"],
+                    },
+                }
+            ],
+        }
+    ]
+    fake_db, fake_tags = load_meanings(fixture_data)
+    original = kenning_mod._load_meanings
+    kenning_mod._load_meanings = lambda: (fake_db, fake_tags)
+    try:
+        gen = KenningRewind()
+        results = gen.generate_all({"name": "ham"}, 0)
+    finally:
+        kenning_mod._load_meanings = original
+
+    assert len(results) == 3
+    cells = [r.components[0]["era"] for r in results]
+    assert cells == ["oe-late", "me", "modern"]
+    rendered = [r.components[0]["rendered"] for r in results]
+    assert rendered == ["hām", "ham", "ham"]
+
+
+def test_kenning_rewind_generator_raises_on_empty_input() -> None:
+    """Defensive: empty / whitespace-only input raises ValueError so
+    a buggy SPA caller failing-soft to '' surfaces immediately."""
+    from wyrd.generators.kenning import KenningRewind
+
+    gen = KenningRewind()
+    with pytest.raises(ValueError, match="name is required"):
+        gen.generate_all({"name": ""}, 0)
+    with pytest.raises(ValueError, match="name is required"):
+        gen.generate_all({"name": "   "}, 0)
+
+
 def test_record_mining_run_inserts_row_with_full_fields(fresh_db: Path) -> None:
     """record_mining_run persists every field the writer cares about and
     serializes by_failure as JSON."""

@@ -5480,7 +5480,53 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
         "glosses": _fetch_member_glosses(db, member_ids),
         "tags": _fetch_member_tags(db, member_ids),
         "reflexes": _fetch_member_reflexes(db, member_ids, reflex_links),
+        # wyrd-obpw Phase 3.3: era reflexes for the family root,
+        # keyed by target language tag. SPA-side rewinder reads this
+        # at runtime from the bundle (Lambda has no lexicon DB).
+        "era_reflexes": _fetch_root_era_reflexes(db, root_id, root_row["language"]),
     }
+
+
+def _fetch_root_era_reflexes(
+    db: LexiconDB, root_id: int, root_language: str
+) -> dict[str, list[str]]:
+    """wyrd-obpw Phase 3.3: per-root era reflexes for bundle export.
+
+    Returns a dict mapping target language tag → sorted list of
+    cluster-mate forms. The SPA-side rewinder consumes this at
+    runtime so it can render era progressions without a Lambda-side
+    lexicon DB.
+
+    For each language tag in ``CANONICAL_LANGUAGE_FOR_CELL`` of the
+    root's family, calls ``etymon_era_reflexes`` and collects the
+    forms. Empty languages are omitted (no entry in the returned
+    dict). Returns ``{}`` when:
+
+    * the root's language has no era family (proto-languages,
+      untracked classical languages),
+    * no cluster mates / descent edges / period-form rows match any
+      target language.
+
+    Computed at bundle-build time only — the runtime caller doesn't
+    have DB access and reads from the bundle's ``era_reflexes`` field.
+    """
+    from wyrd.generators.kenning.era import (
+        CANONICAL_LANGUAGE_FOR_CELL,
+        language_family,
+    )
+
+    family = language_family(root_language)
+    if family is None:
+        return {}
+    target_languages: set[str] = {
+        lang for (fam, _cell), lang in CANONICAL_LANGUAGE_FOR_CELL.items() if fam == family
+    }
+    out: dict[str, list[str]] = {}
+    for target_language in sorted(target_languages):
+        reflexes = etymon_era_reflexes(db, root_id, target_language=target_language)
+        if reflexes:
+            out[target_language] = sorted({r.form for r in reflexes})
+    return out
 
 
 def _build_forms_by_lang(root_row: Any, member_rows: list[Any]) -> dict[str, list[str]]:
@@ -5925,7 +5971,33 @@ def _word_for_reflex(
                 _absorb_member_stratum(accs, fam, descendant_id, lang, form)
     word: dict[str, Any] = {"modern_usage": meta["surface_form"]}
     _emit_word_languages(word, accs)
+    _emit_era_reflexes(word, link_pairs)
     return word
+
+
+def _emit_era_reflexes(
+    word: dict[str, Any],
+    link_pairs: list[tuple[dict[str, Any], list[int]]],
+) -> None:
+    """wyrd-obpw Phase 3.3: stamp the family root's era_reflexes onto
+    the word dict. Each linked family contributes its root's per-
+    target-language reflex list; multiple linked families merge by
+    set-union per target language so a word linked to two families
+    gets the cross-family reflex pool.
+
+    Bundle field: ``era_reflexes`` is a dict ``{target_language:
+    [forms]}`` per word. Empty / absent for words whose linked
+    families have no era data (proto-languages, untracked classical
+    families, or roots whose cluster has no English-family targets).
+    """
+    merged: dict[str, set[str]] = {}
+    for fam, _linked_ids in link_pairs:
+        for target_language, forms in fam.get("era_reflexes", {}).items():
+            merged.setdefault(target_language, set()).update(forms)
+    if merged:
+        word["era_reflexes"] = {
+            target_language: sorted(forms) for target_language, forms in sorted(merged.items())
+        }
 
 
 def _synthesize_word_for_family(fam: dict[str, Any]) -> dict[str, Any]:
@@ -5950,6 +6022,9 @@ def _synthesize_word_for_family(fam: dict[str, Any]) -> dict[str, Any]:
         _absorb_member_pronunciation(accs, fam, member_id, member_lang, member_form)
         _absorb_member_stratum(accs, fam, member_id, member_lang, member_form)
     _emit_word_languages(word, accs)
+    # Synthesized word case: link_pairs structure isn't used here, so
+    # build a single-element link_pairs from the family directly.
+    _emit_era_reflexes(word, [(fam, list(fam["member_form_by_id"].keys()))])
     return word
 
 
