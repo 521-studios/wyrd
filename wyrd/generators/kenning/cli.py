@@ -4657,8 +4657,6 @@ def _write_stratum_proposals(
     convention so operators can extrapolate ETA on multi-minute runs;
     line shape: ``[N/total]  written=X skipped=Y (R s/entry)``.
     """
-    import time
-
     items = list(proposals.items())
     total = len(items)
     written = 0
@@ -4721,6 +4719,12 @@ def _build_case_update(
 
     Returns ``(sql, params)`` ready for ``db.conn.execute(*pair)``.
     """
+    # Defensive precondition. The caller (_write_stratum_proposals)
+    # iterates batches via range(0, total, BATCH_SIZE) which never
+    # produces an empty chunk, but an empty chunk would generate a
+    # syntactically-invalid ``CASE id END`` (no WHEN clauses) — assert
+    # so the failure mode is loud rather than a confusing SQL error.
+    assert chunk, "_build_case_update called with empty chunk"
     case_clauses = " ".join("WHEN ? THEN ?" for _ in chunk)
     id_placeholders = ",".join("?" * len(chunk))
     params: list[Any] = []
