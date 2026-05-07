@@ -4566,12 +4566,33 @@ def lexicon_classify_stratum(
     specific register. Strata are language-specific — see
     ``wyrd/generators/kenning/strata.py`` for the per-language
     vocabularies and the heuristic rules that drive classification.
-
-    Generator-side ``--stratum`` filter wiring is a follow-up; this
-    command populates the column.
     """
-    # Local import keeps the cold-start path lean for unrelated CLI
-    # commands. Same pattern as other lexicon subcommands.
+    classifier, strata_order = _resolve_stratum_classifier(language)
+
+    with LexiconDB(db_path) as db:
+        proposals = classifier(db)
+
+    if not proposals:
+        click.echo(f"No etymons found for --language={language}.", err=True)
+        return
+
+    _summarize_stratum_proposals(language, proposals, strata_order)
+
+    if not apply_changes:
+        click.echo("", err=True)
+        click.echo("(dry-run; pass --apply to write stratum)", err=True)
+        return
+
+    _write_stratum_proposals(db_path, proposals, force=force)
+
+
+def _resolve_stratum_classifier(language: str) -> tuple[Any, tuple[str, ...]]:
+    """Dispatch table for ``classify-stratum --language``. Each entry
+    maps the CLI choice to a (classifier_callable, STRATA_tuple) pair.
+
+    Local import keeps the cold-start path lean for unrelated CLI
+    commands; same pattern as other lexicon subcommands.
+    """
     from wyrd.generators.kenning.strata import (
         FRENCH_STRATA,
         OLD_ENGLISH_STRATA,
@@ -4589,83 +4610,129 @@ def lexicon_classify_stratum(
         "old-english": (classify_old_english, OLD_ENGLISH_STRATA),
         "old-norse": (classify_old_norse, OLD_NORSE_STRATA),
     }
-    classifier, strata_order = classifiers[language]
+    return classifiers[language]
 
-    with LexiconDB(db_path) as db:
-        proposals = classifier(db)
 
-    if not proposals:
-        click.echo(f"No etymons found for --language={language}.", err=True)
-        return
-
-    # Bucket counts for the operator-readable summary.
+def _summarize_stratum_proposals(
+    language: str,
+    proposals: dict[int, str],
+    strata_order: tuple[str, ...],
+) -> None:
+    """Emit the per-stratum count table to stderr. The summary lists
+    every bucket in priority order (matching ``strata_order``) so an
+    operator reading the dry-run output gets a stable shape across
+    runs and across languages."""
     counts: dict[str, int] = dict.fromkeys(strata_order, 0)
     for stratum in proposals.values():
         counts[stratum] = counts.get(stratum, 0) + 1
-
-    click.echo(
-        f"{language} stratum classification: {len(proposals)} etymons",
-        err=True,
-    )
+    click.echo(f"{language} stratum classification: {len(proposals)} etymons", err=True)
     for stratum in strata_order:
         click.echo(f"  {stratum:25} {counts.get(stratum, 0)}", err=True)
 
-    if not apply_changes:
-        click.echo("", err=True)
-        click.echo("(dry-run; pass --apply to write stratum)", err=True)
-        return
 
+# SQLite's 999-variable ceiling means a CASE-WHEN batch using 3 placeholders
+# per row (id × 2 in the CASE clause + id in the IN clause) caps at ~333
+# rows. Pick a round number under that to leave headroom for any future
+# additional WHERE-clause params.
+_STRATUM_WRITE_BATCH_SIZE = 300
+
+
+def _write_stratum_proposals(
+    db_path: Path,
+    proposals: dict[int, str],
+    *,
+    force: bool,
+) -> None:
+    """Apply stratum proposals to the etymon table via CASE-batched
+    UPDATEs (wyrd-b43r). Replaces the prior per-row loop, which scaled
+    poorly at 100k+ rows once Phase 4 classifiers landed; the batch
+    UPDATE chunks at SQLite's 999-variable ceiling (3 placeholders
+    per row → ~333 rows max per batch).
+
+    The WHERE clause carries the load-bearing ``AND stratum IS NULL``
+    gate when ``--force`` is off — see the comment block below for
+    the wyrd-lr4 Phase 4d idempotency contract.
+
+    Emits a periodic progress line per CLAUDE.md's mining-progress
+    convention so operators can extrapolate ETA on multi-minute runs;
+    line shape: ``[N/total]  written=X skipped=Y (R s/entry)``.
+    """
+    import time
+
+    items = list(proposals.items())
+    total = len(items)
     written = 0
-    skipped_existing = 0
+    skipped = 0
+    started = time.monotonic()
+
     with LexiconDB(db_path) as db:
-        for eid, stratum in proposals.items():
-            # When --force is off, leave rows that already carry a
-            # non-NULL stratum alone — idempotent re-runs.
-            #
-            # The ``AND stratum IS NULL`` clause is also load-bearing
-            # for the ``set-stratum`` (wyrd-lr4 Phase 4d) idempotency
-            # contract: hand-corrections survive subsequent
-            # ``classify-stratum --apply`` runs (without --force)
-            # because they have non-NULL stratum and this WHERE
-            # excludes them. Removing the clause would silently blow
-            # away every operator hand-correction the next time the
-            # bulk-classifier ran. Pinned end-to-end by
-            # ``test_cli_set_stratum_survives_classify_stratum_apply_without_force``.
-            if force:
-                cur = db.conn.execute(
-                    "UPDATE etymon SET stratum = ? WHERE id = ?",
-                    (stratum, eid),
-                )
-            else:
-                cur = db.conn.execute(
-                    "UPDATE etymon SET stratum = ? WHERE id = ? AND stratum IS NULL",
-                    (stratum, eid),
-                )
-            if cur.rowcount > 0:
-                written += 1
-            else:
-                skipped_existing += 1
+        for batch_start in range(0, total, _STRATUM_WRITE_BATCH_SIZE):
+            chunk = items[batch_start : batch_start + _STRATUM_WRITE_BATCH_SIZE]
+            cur = db.conn.execute(*_build_case_update(chunk, force=force))
+            written += cur.rowcount
+            skipped += len(chunk) - cur.rowcount
+            processed = min(batch_start + _STRATUM_WRITE_BATCH_SIZE, total)
+            elapsed = time.monotonic() - started
+            rate = elapsed / processed if processed > 0 else 0
+            click.echo(
+                f"  [{processed}/{total}]  written={written} skipped={skipped} ({rate:.4f}s/entry)",
+                err=True,
+            )
         db.commit()
 
     click.echo("", err=True)
     if force:
         # Under --force the WHERE clause has no stratum-NULL gate, so
-        # a zero rowcount here means the row vanished between the
+        # a zero-rowcount delta means the row vanished between the
         # classifier read and the write (deleted, or its id changed).
         # Don't claim a "skipped because pre-existing" reason that
         # didn't drive the skip.
         click.echo(
             f"Wrote {written} rows (forced overwrite). "
-            f"{skipped_existing} rows missed (row no longer present at write time).",
+            f"{skipped} rows missed (row no longer present at write time).",
             err=True,
         )
     else:
         click.echo(
             f"Wrote {written} rows. "
-            f"Skipped {skipped_existing} that already had a stratum"
-            f"{' (use --force to overwrite)' if skipped_existing else ''}.",
+            f"Skipped {skipped} that already had a stratum"
+            f"{' (use --force to overwrite)' if skipped else ''}.",
             err=True,
         )
+
+
+def _build_case_update(
+    chunk: list[tuple[int, str]],
+    *,
+    force: bool,
+) -> tuple[str, list[Any]]:
+    """Build a CASE-batched UPDATE statement + parameter list for one
+    chunk of stratum proposals.
+
+    Shape: ``UPDATE etymon SET stratum = CASE id WHEN ? THEN ? ...
+    END WHERE id IN (?, ?, ...)`` — plus the load-bearing ``AND
+    stratum IS NULL`` clause when ``force=False`` (wyrd-lr4 Phase 4d
+    idempotency contract: hand-corrections via ``set-stratum`` survive
+    subsequent ``classify-stratum --apply`` runs because they have
+    non-NULL stratum and this WHERE excludes them; removing the
+    clause would silently blow away every operator hand-correction.
+    Pinned end-to-end by
+    ``test_cli_set_stratum_survives_classify_stratum_apply_without_force``).
+
+    Returns ``(sql, params)`` ready for ``db.conn.execute(*pair)``.
+    """
+    case_clauses = " ".join("WHEN ? THEN ?" for _ in chunk)
+    id_placeholders = ",".join("?" * len(chunk))
+    params: list[Any] = []
+    for eid, stratum in chunk:
+        params.extend([eid, stratum])
+    params.extend(eid for eid, _ in chunk)
+    where_extra = "" if force else " AND stratum IS NULL"
+    sql = (
+        f"UPDATE etymon SET stratum = CASE id {case_clauses} END "  # noqa: S608 — placeholders
+        f"WHERE id IN ({id_placeholders}){where_extra}"
+    )
+    return sql, params
 
 
 @lexicon.command("set-stratum")

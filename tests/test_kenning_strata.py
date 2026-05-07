@@ -2194,3 +2194,161 @@ def test_cli_set_stratum_clear_skips_family_check_on_classified_language(
             "stratum"
         ]
     assert stratum is None
+
+
+# --- wyrd-b43r batch UPDATE + progress line -------------------------------
+
+
+def test_cli_classify_stratum_batches_writes_above_chunk_size(fresh_db: Path) -> None:
+    """wyrd-b43r CASE-batched UPDATE: at >300 rows, the write splits
+    across multiple batches but produces the same result as the prior
+    per-row loop. Pin by seeding 350 welsh etymons (above the
+    _STRATUM_WRITE_BATCH_SIZE = 300 ceiling) and verifying every row
+    gets the expected stratum.
+
+    Catches a regression where the batch boundary off-by-one drops
+    or duplicates rows."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        # Seed 350 distinct welsh etymons — none have descent edges, so
+        # all should classify as native-welsh.
+        ids = [db.upsert_etymon(f"caer{n:03d}", "welsh") for n in range(350)]
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "classify-stratum",
+            "--db",
+            str(fresh_db),
+            "--language",
+            "welsh",
+            "--apply",
+        ],
+    )
+    combined = result.output + (result.stderr or "")
+    assert result.exit_code == 0, combined
+
+    with LexiconDB(fresh_db) as db:
+        rows = db.conn.execute(
+            f"SELECT id, stratum FROM etymon WHERE id IN ({','.join('?' * len(ids))}) ORDER BY id",
+            ids,
+        ).fetchall()
+    assert len(rows) == 350
+    for r in rows:
+        assert r["stratum"] == "native-welsh", r["id"]
+
+
+def test_cli_classify_stratum_emits_progress_line(fresh_db: Path) -> None:
+    """wyrd-b43r progress line per CLAUDE.md mining-progress
+    convention: each batch emits ``[N/total]  written=X skipped=Y
+    (R s/entry)`` to stderr so operators can extrapolate ETA on
+    multi-minute classify runs.
+
+    Pin the line shape (count brackets + s/entry rate) so a refactor
+    that drops the periodic signal is caught."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        # Two welsh etymons — single-batch run, but the progress line
+        # still fires after the batch.
+        db.upsert_etymon("caer1", "welsh")
+        db.upsert_etymon("caer2", "welsh")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "classify-stratum",
+            "--db",
+            str(fresh_db),
+            "--language",
+            "welsh",
+            "--apply",
+        ],
+    )
+    combined = result.output + (result.stderr or "")
+    assert result.exit_code == 0, combined
+    # Two welsh rows → batch processes both in one pass.
+    assert "[2/2]" in combined
+    assert "written=" in combined
+    assert "skipped=" in combined
+    assert "s/entry" in combined
+
+
+def test_build_case_update_force_off_includes_stratum_null_guard() -> None:
+    """``_build_case_update`` with ``force=False`` emits the
+    load-bearing ``AND stratum IS NULL`` clause that protects
+    set-stratum hand-corrections (wyrd-lr4 Phase 4d idempotency
+    contract). Pin the SQL shape directly so a refactor that
+    accidentally drops the clause is caught at the SQL-level rather
+    than only by the end-to-end test."""
+    from wyrd.generators.kenning.cli import _build_case_update
+
+    chunk = [(1, "latin-loan"), (2, "native-welsh")]
+    sql, params = _build_case_update(chunk, force=False)
+    assert "AND stratum IS NULL" in sql
+    assert "CASE id WHEN ? THEN ? WHEN ? THEN ? END" in sql
+    # Params: 2 (id, stratum) per row + 1 id per row in the IN clause.
+    assert params == [1, "latin-loan", 2, "native-welsh", 1, 2]
+
+
+def test_build_case_update_force_on_omits_stratum_null_guard() -> None:
+    """``--force`` writes regardless of existing stratum, so the
+    AND-clause is omitted. Pin its absence so a regression that
+    accidentally re-adds the gate (and silently no-ops --force on
+    pre-classified rows) is caught."""
+    from wyrd.generators.kenning.cli import _build_case_update
+
+    chunk = [(1, "latin-loan")]
+    sql, _params = _build_case_update(chunk, force=True)
+    assert "AND stratum IS NULL" not in sql
+    assert "WHERE id IN (?)" in sql
+
+
+def test_cli_classify_stratum_batched_force_overwrites_above_chunk_size(
+    fresh_db: Path,
+) -> None:
+    """``--apply --force`` over >300 rows correctly overwrites every
+    pre-existing stratum value. Catches a regression in the batch
+    UPDATE's CASE-WHEN parameter ordering — if the (id, stratum)
+    pairs drift from the WHEN-clause expectation, rows would land
+    with the wrong stratum value."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        ids = [db.upsert_etymon(f"caer{n:03d}", "welsh") for n in range(350)]
+        # Pre-populate with a placeholder stratum across all 350 rows.
+        db.conn.execute(
+            "UPDATE etymon SET stratum = 'placeholder' WHERE id IN ("
+            + ",".join("?" * len(ids))
+            + ")",
+            ids,
+        )
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "classify-stratum",
+            "--db",
+            str(fresh_db),
+            "--language",
+            "welsh",
+            "--apply",
+            "--force",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    with LexiconDB(fresh_db) as db:
+        rows = db.conn.execute(
+            f"SELECT id, stratum FROM etymon WHERE id IN ({','.join('?' * len(ids))})",
+            ids,
+        ).fetchall()
+    for r in rows:
+        # Every row was overwritten from 'placeholder' to 'native-welsh'.
+        assert r["stratum"] == "native-welsh", r["id"]
