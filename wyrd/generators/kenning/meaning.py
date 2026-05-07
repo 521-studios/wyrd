@@ -106,6 +106,7 @@ class Meaning:
         transliteration=None,
         pronunciation=None,
         stratum=None,
+        era_reflexes=None,
     ):
         self.usage = usage
         self.tags = tags
@@ -172,6 +173,16 @@ class Meaning:
         # without a Phase 1 classifier, for unclassified rows in
         # classified languages, and for legacy bundles.
         self.stratum = stratum or {}
+        # wyrd-obpw Phase 3.3: per-target-language era reflexes for
+        # the family root, computed at bundle-build time. Dict
+        # mapping target language tag (``'old-english'`` /
+        # ``'middle-english'`` / etc.) → sorted list of cluster-mate
+        # forms. Empty for legacy bundles, proto-language roots, and
+        # roots whose cluster has no era cells defined for the
+        # target families. The SPA-side rewinder consumes this via
+        # ``era_reflex_for(target_language)`` so it can render era
+        # progressions without the lexicon DB.
+        self.era_reflexes: dict[str, list[str]] = era_reflexes or {}
         self._set_location()
 
     def _set_location(self):
@@ -297,6 +308,27 @@ class Meaning:
         if not forms:
             return None
         return forms.get(form)
+
+    def era_reflex_for(self, target_language: str) -> list[str]:
+        """wyrd-obpw Phase 3.3: return the cluster-mate forms attested
+        for ``target_language`` (e.g. 'middle-english') as a sorted
+        list, or [] when the family root has no reflexes at that
+        target.
+
+        Drives the SPA-side rewinder: for each anchored morpheme the
+        consumer asks ``meaning.era_reflex_for('middle-english')`` to
+        get the ME forms without needing the lexicon DB. Empty list
+        is the standard 'no era data' signal — caller falls back to
+        ``meaning.usage`` per the rewind convention.
+
+        The data is computed at bundle-build time via
+        ``etymon_era_reflexes`` against the family root's
+        cognate-cluster + descent + period-form fallback tiers, so
+        the same precision rules that govern the CLI rewinder apply
+        here. Bundle field: ``era_reflexes`` (dict-shaped at the
+        word top level).
+        """
+        return list(self.era_reflexes.get(target_language, ()))
 
     def attested_in_era_range(self, era_range: tuple[int | None, int | None] | None) -> bool:
         """D5-2 era filter: True if this morpheme is admissible under the
@@ -477,6 +509,7 @@ def load_meanings(data):
                 k: v
                 for k, v in word.items()
                 if k != "modern_usage"
+                and k != "era_reflexes"  # wyrd-obpw: top-level, not a source
                 and not k.endswith(_VARIANT_SUFFIX)
                 and not k.endswith(_INFLECTION_SUFFIX)
                 and not k.endswith(_CITATIONS_SUFFIX)
@@ -554,6 +587,17 @@ def load_meanings(data):
                 for k, v in word.items()
                 if k.endswith(_STRATUM_SUFFIX)
             }
+            # wyrd-obpw Phase 3.3: era_reflexes is a TOP-LEVEL field
+            # on each word entry (not a per-language sibling) since
+            # it represents the family root's cluster reflexes —
+            # one set per family, not per source language. Empty for
+            # legacy bundles that pre-date the wyrd-obpw export.
+            era_reflexes_field = word.get("era_reflexes") or {}
+            # Defensive copy — list values shouldn't be aliased into
+            # downstream Meaning instances since the runtime accessor
+            # returns a new list per call but the underlying dict is
+            # shared.
+            era_reflexes = {k: list(v) for k, v in era_reflexes_field.items()}
             # Singular and plural Meanings share every constructor arg
             # except `usage`. Bundle them so a future kwarg addition can't
             # silently drop on one branch and not the other.
@@ -570,6 +614,7 @@ def load_meanings(data):
                 "transliteration": transliteration,
                 "pronunciation": pronunciation,
                 "stratum": stratum,
+                "era_reflexes": era_reflexes,
             }
             meaning = Meaning(usage, **common_kwargs)
             for tag in tags:
