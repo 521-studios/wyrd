@@ -15,6 +15,7 @@ from wyrd.generators.kenning.proportions import load_proportions
 from wyrd.generators.kenning.strata import (
     FRENCH_STRATA,
     OLD_ENGLISH_STRATA,
+    OLD_NORSE_STRATA,
     WELSH_STRATA,
 )
 from wyrd.generators.kenning.word import Word
@@ -546,12 +547,12 @@ class Kenning(Generator):
                         "morpheme inventory to forms classified into a specific register "
                         f"bucket — for Welsh: {', '.join(repr(s) for s in WELSH_STRATA)}; "
                         f"for French: {', '.join(repr(s) for s in FRENCH_STRATA)}; for "
-                        f"Old English: {', '.join(repr(s) for s in OLD_ENGLISH_STRATA)} "
-                        "(Old Norse follows). Morphemes with no stratum data pass "
-                        "through (Welsh / French / Old English families are classified "
-                        "today; other languages all admit until their classifiers ship). "
-                        "Composes with --era via intersection. Empty disables the filter "
-                        "— bit-stable behavior."
+                        f"Old English: {', '.join(repr(s) for s in OLD_ENGLISH_STRATA)}; "
+                        f"for Old Norse: {', '.join(repr(s) for s in OLD_NORSE_STRATA)}. "
+                        "Morphemes with no stratum data pass through (Welsh / French / "
+                        "Old English / Old Norse families are classified today; other "
+                        "languages all admit until classifiers ship). Composes with --era "
+                        "via intersection. Empty disables the filter — bit-stable behavior."
                     ),
                 },
                 "manorial_affix": {

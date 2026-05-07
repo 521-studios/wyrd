@@ -247,6 +247,112 @@ _OLD_ENGLISH_ANCESTOR_TO_STRATUM: dict[str, str] = {
 _OLD_ENGLISH_SELF_LANGUAGE_TO_STRATUM: dict[str, str] = {}
 
 
+# --- Old Norse strata -----------------------------------------------------
+#
+# Six buckets — one more than Welsh / French because the umbrella
+# ticket's Eastern / Western axis adds a regional dialect dimension
+# orthogonal to the loan strata. Listed in priority order: when an
+# etymon's parents include languages mapped to multiple strata, the
+# first match wins. Order rationale matches the OE / Welsh
+# convention — institutional / clerical signals (latin-loan) carry
+# highest semantic weight, then merchant / contact loans
+# (low-german-loan from Hanseatic trade, english-loan from Viking
+# Age cross-North-Sea contact), then rare substrate (gaelic-substrate
+# from Norse-Gaelic settlement contact in Ireland / Scotland /
+# Northern Isles), then the dialect axis (east-norse for Old
+# Swedish / Old Danish), then the default.
+#
+# Umbrella ticket axis: 'Old Norse: Eastern (Swedish/Danish) vs
+# Western (Norwegian/Icelandic) traditions.' Captured by:
+# ``east-norse`` (gmq-osw + gmq-oda via self-language) vs the
+# ``native-old-norse`` default. Modern descendants (Icelandic /
+# Faroese / Norwegian / Swedish / Danish / etc.) are explicit
+# separate languages and stay outside this classifier; they're not
+# 'old-norse' anymore.
+#
+# Like French / OE, the standard Germanic descent path
+# (proto-germanic / proto-indo-european / gmq-pro / gmw-pro) is
+# intentionally ABSENT from the ancestor map. Every Old Norse word
+# descends from those, so including them would collapse the bundle
+# into one bucket and erase the loan distinctions.
+#
+# Loan / substrate signal sourcing:
+#   * latin-loan: latin (74 parents in live DB) + ancient-greek (20)
+#     — Christianization-era learned vocabulary, same convention
+#     as OE for Greek-via-Latin folding.
+#   * low-german-loan: gml (Middle Low German, 442 parents) — the
+#     Hanseatic / merchant register layer, post-1100 CE Northern
+#     European trade contact.
+#   * english-loan: old-english (164) + osx (Old Saxon, 95) — Anglo-
+#     Saxon and Continental Saxon contact via Viking-Age trade and
+#     settlement. Mirrors the Welsh classifier's english-loan
+#     bucket (which folds modern / middle / old English variants).
+#   * gaelic-substrate: old-irish (43) + middle-irish (11) +
+#     proto-celtic (10) — Norse-Gaelic contact in the Irish Sea
+#     region (Dublin, Mann, Western Isles).
+#
+# East-Norse fires only via self-language (gmq-osw / gmq-oda); the
+# ancestor walk doesn't apply because old-norse is the PARENT of
+# Old Swedish / Old Danish, not vice versa. So an old-norse-language
+# row never gets east-norse classification — by design.
+
+_OLD_NORSE_DEFAULT_STRATUM: str = "native-old-norse"
+
+OLD_NORSE_STRATA: tuple[str, ...] = (
+    "latin-loan",
+    "low-german-loan",
+    "english-loan",
+    "gaelic-substrate",
+    "east-norse",
+    _OLD_NORSE_DEFAULT_STRATUM,
+)
+
+
+# Ancestor language → stratum bucket. An etymon with
+# ``language='old-norse'`` whose ``etymon_descent`` parents include
+# any of these gets mapped to the corresponding stratum. Standard
+# Germanic descent (proto-germanic / proto-indo-european / gmq-pro
+# / gmw-pro) is intentionally absent — see the section comment above
+# for the rationale.
+#
+# Latin variants (la-lat / la-med / la-ecc / vulgar-latin) and
+# Christian-era Greek loans fold into ``latin-loan`` — same channel
+# convention as OE.
+_OLD_NORSE_ANCESTOR_TO_STRATUM: dict[str, str] = {
+    "latin": "latin-loan",
+    "la-lat": "latin-loan",
+    "la-med": "latin-loan",
+    "la-ecc": "latin-loan",
+    "vulgar-latin": "latin-loan",
+    "ancient-greek": "latin-loan",
+    "gml": "low-german-loan",
+    "old-english": "english-loan",
+    "osx": "english-loan",
+    "old-irish": "gaelic-substrate",
+    "middle-irish": "gaelic-substrate",
+    "proto-celtic": "gaelic-substrate",
+}
+
+
+# Self-language → stratum. East Norse is captured here: an etymon
+# whose own language is gmq-osw (Old Swedish) or gmq-oda (Old
+# Danish) classifies as ``east-norse`` directly. These ARE the
+# Eastern Norse varieties — classifying them by descent would
+# describe what fed INTO them (mostly old-norse itself) rather
+# than their own register.
+#
+# gmq-pro (Proto-Norse, 423 rows) is intentionally absent: it's
+# the common ancestor of both East and West Norse and would
+# nominally fold into the default 'native-old-norse'. A future
+# Phase 4d hand-correction could split out a 'proto-norse' bucket
+# if the register distinction becomes useful, but Phase 4c keeps
+# the design lean.
+_OLD_NORSE_SELF_LANGUAGE_TO_STRATUM: dict[str, str] = {
+    "gmq-osw": "east-norse",
+    "gmq-oda": "east-norse",
+}
+
+
 def _stratum_to_ancestors(
     ancestor_to_stratum: dict[str, str],
 ) -> dict[str, set[str]]:
@@ -427,11 +533,47 @@ def classify_old_english(db: LexiconDB) -> dict[int, str]:
     )
 
 
+def classify_old_norse(db: LexiconDB) -> dict[int, str]:
+    """Return ``{etymon_id: stratum}`` for the Old Norse family.
+
+    Covers etymons whose ``language`` is one of:
+    - ``old-norse`` — classified by ancestor language via ``etymon_descent``.
+    - ``gmq-osw`` (Old Swedish) / ``gmq-oda`` (Old Danish) —
+      classified as ``east-norse`` directly via self-language. These
+      ARE the Eastern Norse varieties; classifying by descent would
+      describe what fed INTO them (mostly old-norse itself) rather
+      than their own register.
+
+    Pure read. Skips ``merged_into_id IS NOT NULL`` rows.
+
+    Note on Germanic descent: proto-germanic / proto-indo-european /
+    gmq-pro / gmw-pro are intentionally NOT in the ancestor map.
+    Every Old Norse word descends from those via the standard
+    Germanic path; treating that as a 'germanic-inheritance' loan
+    would collapse the bundle into one bucket and erase the loan
+    distinctions (Latin from Christianization, Low German from
+    Hanseatic trade, English from Viking-Age contact, Gaelic from
+    Irish-Sea settlement). Same descent-absence rationale as
+    classify_french / classify_old_english — pinned by a
+    regression test.
+    """
+    return _classify_family(
+        db,
+        modern_lang="old-norse",
+        strata_order=OLD_NORSE_STRATA,
+        ancestor_to_stratum=_OLD_NORSE_ANCESTOR_TO_STRATUM,
+        self_lang_to_stratum=_OLD_NORSE_SELF_LANGUAGE_TO_STRATUM,
+        default_stratum=_OLD_NORSE_DEFAULT_STRATUM,
+    )
+
+
 __all__ = [
     "FRENCH_STRATA",
     "OLD_ENGLISH_STRATA",
+    "OLD_NORSE_STRATA",
     "WELSH_STRATA",
     "classify_french",
     "classify_old_english",
+    "classify_old_norse",
     "classify_welsh",
 ]
