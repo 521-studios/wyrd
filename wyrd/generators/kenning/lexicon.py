@@ -16,6 +16,8 @@ from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from wyrd.generators.kenning.era import canonical_language_for_cell
+
 if TYPE_CHECKING:
     from wyrd.generators.kenning.skeat_parser import ParsedEntry
 
@@ -3363,10 +3365,16 @@ def etymon_era_reflexes(
     cluster losers (D22) don't surface as period forms; the merge
     target is the canonical reflex for that surface.
     """
-    from wyrd.generators.kenning.era import canonical_language_for_cell
-
-    if target_language is None and target_family_cell is None:
-        raise ValueError("must pass either target_language or target_family_cell")
+    # Defensive guard: exactly ONE target must be provided. An
+    # empty-string ``target_language`` would silently slip the
+    # ``is None`` check and resolve to zero rows (the SQL ``language
+    # = ''`` predicate is technically valid); catch that explicitly.
+    # Passing both targets at once is also a caller bug — silently
+    # ignoring one would mask a bad merge.
+    if (target_language is None) == (target_family_cell is None):
+        raise ValueError("must pass exactly one of target_language or target_family_cell")
+    if target_language is not None and not target_language:
+        raise ValueError("target_language must not be an empty string")
     if target_language is None:
         family, cell = target_family_cell  # type: ignore[misc]
         target_language = canonical_language_for_cell(family, cell)

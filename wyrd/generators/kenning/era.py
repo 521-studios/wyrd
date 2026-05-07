@@ -136,14 +136,18 @@ LANGUAGE_TO_FAMILY: dict[str, str] = {
 # cell, which language tag should I prefer when picking a surface
 # form?". This maps each `(family, cell_label)` pair to the canonical
 # language tag (as it appears in ``etymon.language``) that
-# scholarly sources use for that cell. Non-canonical tags within the
-# cluster (Middle Scots, Anglo-Norman, etc.) still surface via the
-# family fallback path; this mapping is just the FIRST-CHOICE pick.
+# scholarly sources use for that cell.
+#
+# Cells MISSING from this dict produce an empty result from the
+# picker — there is NO family-level fallback. Norse cells past
+# 'on-classical' fold continental Scandinavian languages with no
+# single canonical tag; Latin's late cells are ambiguous against the
+# flat 'latin' / 'vulgar-latin' Wiktionary tagging. Adding an entry
+# expands picker coverage; downstream demos treat empty results as
+# 'no era data, fall back to canonical_form'.
 #
 # Where a single language tag spans multiple cells (Old English covers
-# both `oe-early` and `oe-late`), the same tag appears twice. Where a
-# cell has no obvious canonical tag (Latin's pre-200 'classical' cell
-# is just 'latin'), the tag is the family-level one.
+# both `oe-early` and `oe-late`), the same tag appears twice.
 CANONICAL_LANGUAGE_FOR_CELL: dict[tuple[str, str], str] = {
     # English: OE pre-1100 → 'old-english'; ME 1100-1500 →
     # 'middle-english'; modern post-1500 → 'modern-english' (the
@@ -154,10 +158,11 @@ CANONICAL_LANGUAGE_FOR_CELL: dict[tuple[str, str], str] = {
     ("english", "me"): "middle-english",
     ("english", "early-modern"): "modern-english",
     ("english", "modern"): "modern-english",
-    # Norse: ON pre-1100 → 'old-norse'; later cells fold the
-    # continental Scandinavian languages so we don't pick one canonical
-    # for those; the era-reflex picker falls back to family-level
-    # member when no exact match.
+    # Norse: ON pre-1100 → 'old-norse'. Later cells fold the
+    # continental Scandinavian languages (Icelandic / Norwegian /
+    # Danish / Swedish) so no single canonical tag fits — those
+    # cells are intentionally OMITTED here and the picker returns
+    # ``[]`` for them.
     ("norse", "on-classical"): "old-norse",
     # Brythonic: old/middle/modern map to old-welsh/middle-welsh/welsh
     # (Welsh is the dominant Brythonic in our corpus).
@@ -169,8 +174,10 @@ CANONICAL_LANGUAGE_FOR_CELL: dict[tuple[str, str], str] = {
     ("goidelic", "middle-irish"): "middle-irish",
     ("goidelic", "early-modern"): "irish",
     ("goidelic", "modern"): "irish",
-    # Latin: era-cell tags are ambiguous against Wiktionary's flat
-    # 'latin' / 'vulgar-latin' codes; the picker uses family fallback.
+    # Latin: Wiktionary uses flat 'latin' / 'vulgar-latin' codes, so
+    # most cells map to 'latin' (classical / medieval / renaissance
+    # don't carry distinct tags in the corpus). Late-vulgar pulls
+    # 'vulgar-latin' since some Wiktionary entries do tag that way.
     ("latin", "classical"): "latin",
     ("latin", "late-vulgar"): "vulgar-latin",
     ("latin", "medieval"): "latin",
@@ -191,10 +198,84 @@ def canonical_language_for_cell(family: str, cell: str) -> str | None:
 
     Used by the era-reflex picker (wyrd-skm Phase 3.0b) to choose the
     first-choice cluster-mate when rendering an etymon at a target
-    era. None means "no canonical pick — caller should fall back to
-    family-level membership".
+    era. **None is a hard miss — the picker returns ``[]`` for that
+    cell**, NOT a family-level fallback. Cells missing from the dict
+    represent eras where scholarly sources don't anchor on a single
+    canonical language tag (Norse 'modern' folds the continental
+    Scandinavian languages; Latin is ambiguous against the flat
+    'latin'/'vulgar-latin' tagging Wiktionary uses). Adding entries
+    expands the picker's coverage; downstream demos (wyrd-rni /
+    wyrd-381) should treat empty results as "no era data — fall back
+    to canonical_form" rather than "feature broken".
     """
     return CANONICAL_LANGUAGE_FOR_CELL.get((family, cell))
+
+
+def era_cell_for_input(
+    era: str | int,
+    *,
+    default_family: str,
+) -> tuple[str, str]:
+    """Resolve an ``--era`` CLI/API value to its ``(family, cell)``
+    pair directly, without round-tripping through year ranges.
+
+    This is the era-reflex picker's bridge: callers want to pick a
+    canonical language tag from ``CANONICAL_LANGUAGE_FOR_CELL``, which
+    is keyed on ``(family, cell)``, but ``resolve_era_input`` returns
+    a year range — and re-deriving the cell from the year range loses
+    information when ``start`` is None (open-low cells like
+    'oe-early').
+
+    Accepted shapes mirror ``resolve_era_input``:
+
+    * ``int`` (or numeric str) → year-based; resolves to the cell
+      containing that year in ``default_family``.
+    * ``str`` cell label (``"oe-late"``) → resolves against
+      ``default_family`` only.
+    * ``str`` ``family/label`` → explicit family choice.
+
+    Raises ``ValueError`` when the input is malformed or out of range,
+    matching ``resolve_era_input``'s error contract. ``None`` and
+    empty string are intentionally NOT accepted — there's no cell for
+    'no filter', and silently treating ``""`` as 'no filter' would
+    surprise an era-reflex caller. Pass an explicit cell label or
+    year instead.
+    """
+    if era is None or era == "":
+        raise ValueError(
+            "era must be a year, cell label, or family/label pair (got None or empty string)"
+        )
+    if isinstance(era, int):
+        cell = era_cell_for_family(default_family, era)
+        if cell is None:
+            raise ValueError(
+                f"year {era} is outside the defined cells for family {default_family!r}"
+            )
+        return (default_family, cell)
+    try:
+        year = int(era)
+    except ValueError:
+        year = None
+    if year is not None:
+        return era_cell_for_input(year, default_family=default_family)
+    if "/" in era:
+        family, _, label = era.partition("/")
+        if label not in era_cells_for_family(family):
+            valid = list(era_cells_for_family(family))
+            raise ValueError(f"unknown era cell {label!r} for family {family!r}; valid: {valid}")
+        return (family, label)
+    if era in era_cells_for_family(default_family):
+        return (default_family, era)
+    defined_in = [f for f in sorted(ERA_CELLS) if era in era_cells_for_family(f)]
+    if defined_in:
+        choices = ", ".join(f"{f}/{era}" for f in defined_in)
+        raise ValueError(
+            f"era cell {era!r} is not defined in family {default_family!r}; use one of: {choices}"
+        )
+    raise ValueError(
+        f"unknown era input {era!r}; pass a year (e.g. 1086), a cell "
+        f"label (e.g. 'oe-late'), or a 'family/label' pair"
+    )
 
 
 def language_family(language: str) -> str | None:

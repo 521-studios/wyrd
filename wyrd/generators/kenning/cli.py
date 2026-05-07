@@ -38,8 +38,8 @@ from wyrd.generators.kenning.dictionary_parser import (
 from wyrd.generators.kenning.english_shaping import derive_english_shaped
 from wyrd.generators.kenning.era import (
     era_cell,
+    era_cell_for_input,
     language_family,
-    resolve_era_input,
 )
 from wyrd.generators.kenning.lexicon import (
     LANGUAGE_FIELDS,
@@ -2805,11 +2805,17 @@ def lexicon_era_reflex(etymon_id: int, era_input: str, db_path: Path) -> None:
     that match the target era. Used by wyrd-rni / wyrd-381 demos to
     render etymons across historical strata.
 
-    Two outputs per match (one row per cluster mate): the reflex
-    etymon's id, its canonical_form, and its language tag. Empty
-    output when the etymon has no cognate_id (~76% of OE toponym
-    etymons today — cluster_cognates coverage gap), or when no
-    cluster mate matches the target era cell.
+    One row per matching cluster mate on stdout, tab-separated:
+    ``<reflex_id>\\t<canonical_form>\\t<language>``. The metadata
+    header (etymon canonical / language / target cell) goes to
+    stderr.
+
+    Empty output when the etymon has no cognate_id (~76% of OE
+    toponym etymons today — cluster_cognates coverage gap) or when
+    the target cell has no canonical language tag (most Norse +
+    Latin late cells; see ``CANONICAL_LANGUAGE_FOR_CELL`` in era.py).
+    Extending coverage means adding entries to that dict; the picker
+    surfaces any new entry the next call.
     """
     with LexiconDB(db_path) as db:
         row = db.conn.execute(
@@ -2831,27 +2837,15 @@ def lexicon_era_reflex(etymon_id: int, era_input: str, db_path: Path) -> None:
             )
             raise click.exceptions.Exit(1)
 
+        # Resolve --era directly to (family, cell) — the era-reflex
+        # picker is keyed on cell labels, so round-tripping through
+        # year ranges (resolve_era_input → era_cell) loses information
+        # for open-low cells like 'oe-early' where start=None.
         try:
-            era_range = resolve_era_input(era_input, default_family=family)
+            family, cell = era_cell_for_input(era_input, default_family=family)
         except ValueError as exc:
             click.echo(str(exc), err=True)
             raise click.exceptions.Exit(1) from exc
-
-        if era_range is None:
-            click.echo("--era resolved to None (no filter); pass a concrete year or cell", err=True)
-            raise click.exceptions.Exit(1)
-
-        cell = era_cell(row["language"], era_range[0] or 0)
-        if cell is None and era_range[0] is None and era_range[1] is not None:
-            from wyrd.generators.kenning.era import era_cell_for_family
-
-            cell = era_cell_for_family(family, era_range[1] - 1)
-        if cell is None:
-            click.echo(
-                f"could not resolve era cell for range {era_range} in family {family!r}",
-                err=True,
-            )
-            raise click.exceptions.Exit(1)
 
         reflexes = etymon_era_reflexes(db, etymon_id, target_family_cell=(family, cell))
 
