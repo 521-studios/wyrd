@@ -97,6 +97,19 @@ def _apply_persistent_pragmas(conn: sqlite3.Connection) -> None:
 # This produces a canonical key that's robust to OCR variation.
 
 # OCR-confused digraphs that should map to OE ligatures (in ASCII).
+# The repeated-replace shape was investigated as a perf hot-spot under
+# wyrd-0ke (Gemini PR #53 round-5 concern about M·N allocations on
+# multi-MB OCR bodies). Benchmarked alternatives (str.translate +
+# str.replace, str.translate + re.sub, single re.sub over an
+# alternation pattern) all came out 5-15x SLOWER on 1/10/50 MB bodies
+# and produced identical memory peaks (intermediate strings are GC'd
+# between replace calls so the peak is dominated by the single largest
+# in-flight string, not the running allocation count). Python's
+# str.replace is a heavily-optimized C path with a memchr-fast
+# negative-scan; replacing it with translate or regex adds Python-side
+# dispatch overhead that swamps the per-mapping allocation savings on
+# the bodies this function actually sees. Keep the loop; documented
+# here so a future drive-by perf review doesn't redo the same work.
 _OCR_LIGATURE_MAP = [
     # Order matters — longer/more-specific first. "cs" inside an OE form is
     # almost always a misread æ; same for "ce" in many positions. We keep the
@@ -116,7 +129,6 @@ _OCR_LIGATURE_MAP = [
     ("ce", "ae"),  # "Hcedan" → "haedan" (only in OE context — risky in modern)
     # Common OCR confusions for ð
     ("§", "dh"),
-    ("dh", "dh"),  # idempotent
 ]
 
 
@@ -131,6 +143,12 @@ def normalize_ocr_form(form: str) -> str:
     is genuinely OE-context-dependent and applied here; if it produces
     false positives in modern-english entries we'd want a per-language
     rule set, but for now the lexicon is dominated by historical forms.
+
+    The repeated-replace shape is intentional. See the rationale next to
+    ``_OCR_LIGATURE_MAP`` — translate / regex alternatives all benched
+    slower on the call-site body sizes (1-50 MB) we actually see, and
+    the memory-peak claim that motivated wyrd-0ke didn't hold up under
+    measurement either.
     """
     s = form.strip().strip("-").lower()
     for src, dst in _OCR_LIGATURE_MAP:

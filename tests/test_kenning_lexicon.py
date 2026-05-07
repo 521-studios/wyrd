@@ -329,6 +329,52 @@ def test_normalize_ocr_form_preserves_distinct_etymons() -> None:
     assert normalize_ocr_form("bere") != normalize_ocr_form("bera")
 
 
+def test_normalize_ocr_form_handles_overlapping_multichar_patterns() -> None:
+    """Regression coverage for the cases where 'cs' / 'ce' patterns
+    interleave. Both fold to 'ae' so the load-bearing semantic is the
+    left-to-right non-overlapping match the underlying replace chain
+    produces. Pinning these cases protects against a future refactor
+    that swaps the replace shape for translate or regex (wyrd-0ke
+    investigated but ruled out — see the rationale next to
+    ``_OCR_LIGATURE_MAP`` in lexicon.py)."""
+    # 'cs' adjacent to 'ce' — both should fold to 'ae'.
+    assert normalize_ocr_form("csce") == "aeae"
+    # 'cce': only the 'ce' suffix matches; the leading 'c' stays.
+    assert normalize_ocr_form("cce") == "cae"
+    # 'ccs': only the 'cs' suffix matches; the leading 'c' stays.
+    assert normalize_ocr_form("ccs") == "cae"
+    # Mixed unicode + multi-char: æ → ae, then cs → ae.
+    assert normalize_ocr_form("æcs") == "aeae"
+
+
+def test_normalize_ocr_form_perf_floor_on_large_body() -> None:
+    """Pin the call-site cost on a 1MB body. wyrd-0ke benchmarked the
+    function under load and confirmed the existing replace-chain shape
+    is already optimal — Python's str.replace is a memchr-fast C path
+    that beat str.translate / re.sub alternatives by 5-15x on 1-50MB
+    bodies. This test is a guard so that perf claim stays empirically
+    grounded: a future refactor that doubled the cost would trip it.
+
+    Threshold of 0.2s/call on a 1MB body is conservative — typical
+    runs land 10-50x faster — and would still trip an order-of-
+    magnitude regression (e.g. accidentally putting the function
+    inside a quadratic loop)."""
+    import time
+
+    # 1MB synthetic body. Mix of plain ASCII, OE ligatures, and the
+    # 'cs'/'ce' OCR-confusion patterns so the multi-char branches of
+    # the replace chain get exercised.
+    body = ("placement Hædan hyð csce alphabet " * 10000)[:1_000_000]
+    start = time.perf_counter()
+    result = normalize_ocr_form(body)
+    elapsed = time.perf_counter() - start
+    # Output sanity — the perf assertion alone could pass on a no-op.
+    assert "haedan" in result
+    assert "hydh" in result
+    assert "aeae" in result  # csce → aeae
+    assert elapsed < 0.2, f"normalize_ocr_form on 1MB took {elapsed:.3f}s — perf regression?"
+
+
 def test_cluster_ocr_variants_dry_run_reports_without_writing(fresh_db: Path) -> None:
     """Dry-run must not touch the DB."""
     with LexiconDB(fresh_db) as db:
