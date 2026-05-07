@@ -1097,3 +1097,47 @@ For non-Latin-script source rows the SPA panel reads original_script
 when present, falling back to canonical_form (which IS the native
 script for those rows) — so display callers don't need to know the
 partition.
+
+### Phase 2b: english_shaped derivation rules
+
+`english_shaped` is populated by `english_shaping.derive_english_shaped`
+in priority order:
+
+1. **`KNOWN_FORM_OVERRIDES`** — case-insensitive lookup against the
+   pre-strip transliteration. Cultural / literary precedent: rakṣasa
+   → rakshasa, ʿifrīt → ifrit, gōlem → golem, ǧinn → jinn, šayṭān →
+   shaitan, etc. The dict is hardcoded in the module (~70 entries
+   spanning Sanskrit creature canon, Arabic / Persian creature names,
+   Hebrew biblical creatures, Akkadian Mesopotamian, Egyptian
+   deities, Aramaic). Overrides win even when the rule pipeline
+   would produce a serviceable output — the goal is to match what
+   English readers expect, not what's mechanically derivable.
+2. **Rule-based diacritic stripping** of the transliteration. Two
+   passes: digraph replacements (longest-match-first; ṯ→th, ḫ→kh,
+   ǧ→j, š→sh, ġ→gh, ḏ→dh, ś/ṣ→sh, ñ→ny, ṅ→ng, ʒ→zh, θ→th, χ→kh)
+   then single-char replacements (emphatics ḍ/ḥ/ṭ/ẓ/ḳ→base, retroflex
+   ṛ/ṇ/ḷ→base, long vowels ā/ī/ū/ē/ō→base, stress-acute
+   á/é/í/ó/ú→base, IPA ɪ/ʊ/ɛ/ɔ/ɐ/ə→nearest English vowel, Hebrew
+   rafe ḇ→v, Arabic ḥā ħ→h, IPA pharyngeals ʿ/ʾ/ʔ/ʕ silenced).
+   Final `_looks_english_readable` check rejects outputs that still
+   carry non-ASCII residuals (the maps don't cover everything;
+   better NULL than half-stripped).
+3. **IPA fallback** when transliteration is absent. Strips IPA
+   delimiters (slashes, brackets, length marks, stress marks,
+   tie-bar) and runs the same digraph + single-char pipeline.
+   Coarser than (2); intended for the small wave-2 tail where we
+   have IPA but no transliteration.
+
+Returns NULL when the source language is in `_LATIN_SCRIPT_LANGS`
+(canonical_form is already English-readable for those — no
+derivation needed).
+
+CLI: `wyrd kenning lexicon derive-english-shaped --apply` runs the
+backfill across every NULL row in the wave-2 non-Latin set; takes a
+`--language he` filter for incremental smoke runs and `--reshape` to
+re-derive non-NULL rows after editing the override table or rules.
+
+Empirical first-pass coverage (post-Phase-2b backfill, 2026-05-07):
+fa 13,777 / he 12,889 / ar 11,548 / sa 5,028 / egy 2,618 / arc 1,245 /
+akk 965 = 48,070 rows populated. Skipped 85,034 rows without
+sufficient transliteration / IPA input.
