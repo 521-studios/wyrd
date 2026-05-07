@@ -4369,8 +4369,7 @@ def lexicon_derive_english_shaped(
         "'cel-gau'); Old English covers language='old-english' "
         "(loan-source ancestors only — dialect axis deferred); Old "
         "Norse covers ('old-norse', 'gmq-osw' Old Swedish, 'gmq-oda' "
-        "Old Danish). Phase 4d (manual hand-correction) is the next "
-        "follow-up for high-stakes etymons the heuristic gets wrong."
+        "Old Danish)."
     ),
 )
 @click.option(

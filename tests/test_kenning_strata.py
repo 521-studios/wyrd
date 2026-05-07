@@ -382,11 +382,11 @@ def test_cli_classify_stratum_force_overwrites(fresh_db: Path) -> None:
 def test_cli_classify_stratum_rejects_unknown_language(fresh_db: Path) -> None:
     """Click's Choice validator blocks unknown languages at parse
     time so we don't pretend to classify something we don't have a
-    vocabulary for. After Phase 4c the remaining unscoped languages
-    in the live DB (modern-english / icelandic / etc.) are
-    deliberately out of the classifier's Choice list — pick one
-    that's a real language code the user might plausibly type so
-    the error path is realistic."""
+    vocabulary for. Use a clearly-fictional language so the test
+    remains stable as the classifier's Choice list grows — picking
+    a real out-of-scope language (e.g. modern-english, icelandic)
+    would silently start failing the day that language enters the
+    Choice list."""
     runner = CliRunner()
     result = runner.invoke(
         cli_root,
@@ -396,12 +396,12 @@ def test_cli_classify_stratum_rejects_unknown_language(fresh_db: Path) -> None:
             "--db",
             str(fresh_db),
             "--language",
-            "modern-english",
+            "klingon",
         ],
     )
     assert result.exit_code != 0
     combined = result.output + (result.stderr or "")
-    assert "modern-english" in combined.lower() or "invalid value" in combined.lower()
+    assert "klingon" in combined.lower() or "invalid value" in combined.lower()
 
 
 def test_cli_classify_stratum_no_etymons_short_circuits(fresh_db: Path) -> None:
@@ -1238,6 +1238,51 @@ def test_classify_old_norse_priority_low_german_over_english(fresh_db: Path) -> 
         _add_descent(db, parent_id=oe_id, child_id=on_id, edge_type="borrowing")
         proposals = classify_old_norse(db)
     assert proposals[on_id] == "low-german-loan"
+
+
+def test_classify_old_norse_priority_english_over_gaelic(fresh_db: Path) -> None:
+    """Priority: english-loan beats gaelic-substrate when both are
+    present. Completes the loan-priority chain (latin > low-german
+    > english > gaelic) so a refactor that swaps any adjacent pair
+    in OLD_NORSE_STRATA gets caught at the resolution-behavior
+    layer rather than only by the tuple-shape pin."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        oe_id = db.upsert_etymon("scōl", "old-english")
+        oi_id = db.upsert_etymon("scol", "old-irish")
+        on_id = db.upsert_etymon("skóli", "old-norse")
+        _add_descent(db, parent_id=oe_id, child_id=on_id, edge_type="borrowing")
+        _add_descent(db, parent_id=oi_id, child_id=on_id, edge_type="borrowing")
+        proposals = classify_old_norse(db)
+    assert proposals[on_id] == "english-loan"
+
+
+def test_classify_old_norse_east_norse_self_lang_holds_against_ancestor_walk(
+    fresh_db: Path,
+) -> None:
+    """The self-language pass runs first in _classify_family; the
+    ancestor-walk pass runs second over modern_lang rows only. For
+    ON, gmq-osw / gmq-oda rows are NOT in modern_ids (modern_lang is
+    'old-norse'), so a gmq-osw etymon's east-norse assignment from
+    the self-language pass is structurally protected from being
+    overwritten by the ancestor walk. Pin that even when a gmq-osw
+    row carries a latin parent, the east-norse classification holds.
+
+    Catches a future refactor that changes _classify_family's
+    two-pass shape (e.g. running the ancestor walk over self-lang
+    rows too) — the silent overwrite would change which stratum
+    wins for East Norse rows with foreign loan ancestors."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        latin_id = db.upsert_etymon("ecclesia", "latin")
+        osw_id = db.upsert_etymon("kirkia", "gmq-osw")
+        # Add a latin parent edge — would route to latin-loan if the
+        # ancestor walk fired on this row.
+        _add_descent(db, parent_id=latin_id, child_id=osw_id, edge_type="borrowing")
+        proposals = classify_old_norse(db)
+    # Self-language pass assigned east-norse; ancestor walk did NOT
+    # touch this row (modern_lang='old-norse' only).
+    assert proposals[osw_id] == "east-norse"
 
 
 def test_classify_old_norse_germanic_parent_with_low_german_loan_still_classifies(

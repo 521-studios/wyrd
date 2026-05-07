@@ -249,26 +249,18 @@ _OLD_ENGLISH_SELF_LANGUAGE_TO_STRATUM: dict[str, str] = {}
 
 # --- Old Norse strata -----------------------------------------------------
 #
-# Six buckets — one more than Welsh / French because the umbrella
-# ticket's Eastern / Western axis adds a regional dialect dimension
-# orthogonal to the loan strata. Listed in priority order: when an
+# Six buckets: the standard loan/substrate set plus an east-norse
+# bucket for the umbrella's Eastern (Old Swedish / Old Danish) vs
+# Western (default) dialect axis. Listed in priority order: when an
 # etymon's parents include languages mapped to multiple strata, the
-# first match wins. Order rationale matches the OE / Welsh
-# convention — institutional / clerical signals (latin-loan) carry
-# highest semantic weight, then merchant / contact loans
-# (low-german-loan from Hanseatic trade, english-loan from Viking
-# Age cross-North-Sea contact), then rare substrate (gaelic-substrate
-# from Norse-Gaelic settlement contact in Ireland / Scotland /
-# Northern Isles), then the dialect axis (east-norse for Old
-# Swedish / Old Danish), then the default.
+# first match wins. Same convention as Welsh / French / OE —
+# institutional / clerical signals win, then contact loans, then
+# substrate, then dialect axis, then default.
 #
 # Umbrella ticket axis: 'Old Norse: Eastern (Swedish/Danish) vs
-# Western (Norwegian/Icelandic) traditions.' Captured by:
+# Western (Norwegian/Icelandic) traditions.' Captured by
 # ``east-norse`` (gmq-osw + gmq-oda via self-language) vs the
-# ``native-old-norse`` default. Modern descendants (Icelandic /
-# Faroese / Norwegian / Swedish / Danish / etc.) are explicit
-# separate languages and stay outside this classifier; they're not
-# 'old-norse' anymore.
+# ``native-old-norse`` default.
 #
 # Like French / OE, the standard Germanic descent path
 # (proto-germanic / proto-indo-european / gmq-pro / gmw-pro) is
@@ -289,7 +281,14 @@ _OLD_ENGLISH_SELF_LANGUAGE_TO_STRATUM: dict[str, str] = {}
 #     bucket (which folds modern / middle / old English variants).
 #   * gaelic-substrate: old-irish (43) + middle-irish (11) +
 #     proto-celtic (10) — Norse-Gaelic contact in the Irish Sea
-#     region (Dublin, Mann, Western Isles).
+#     region (Dublin, Mann, Western Isles). The bucket name implies
+#     Goidelic (Q-Celtic) specifically; ``proto-celtic`` parents are
+#     the common ancestor of both Goidelic and Brittonic
+#     (P-Celtic) branches, so a small minority could in principle
+#     be Brittonic-flavored. The Norse-Brittonic contact zone
+#     (Galloway, Cumbria) is much smaller than the Norse-Gaelic
+#     one historically, so 'gaelic' is the load-bearing register
+#     name even though the ancestor signal admits both branches.
 #
 # East-Norse fires only via self-language (gmq-osw / gmq-oda); the
 # ancestor walk doesn't apply because old-norse is the PARENT of
@@ -539,10 +538,8 @@ def classify_old_norse(db: LexiconDB) -> dict[int, str]:
     Covers etymons whose ``language`` is one of:
     - ``old-norse`` — classified by ancestor language via ``etymon_descent``.
     - ``gmq-osw`` (Old Swedish) / ``gmq-oda`` (Old Danish) —
-      classified as ``east-norse`` directly via self-language. These
-      ARE the Eastern Norse varieties; classifying by descent would
-      describe what fed INTO them (mostly old-norse itself) rather
-      than their own register.
+      classified as ``east-norse`` via self-language (see
+      ``_OLD_NORSE_SELF_LANGUAGE_TO_STRATUM`` for the rationale).
 
     Pure read. Skips ``merged_into_id IS NOT NULL`` rows.
 
