@@ -265,11 +265,18 @@ def _coupled_cache_clear() -> None:
     a stale ``NameGenerator`` the next time a culture is loaded.
     Replaces ``_load_meanings.cache_clear`` so the standard test-side
     pattern (``_load_meanings.cache_clear()``) clears both.
+
+    The reverse direction (``_load_culture.cache_clear()`` alone) is
+    intentionally uncoupled — a caller who only wants to drop the
+    per-culture generator (e.g. proportions-only refresh) shouldn't
+    pay to re-parse meanings.json. The asymmetry is by design.
     """
     _original_load_meanings_cache_clear()
     _load_culture.cache_clear()
 
 
+# mypy flags reassigning a bound method on the lru_cache wrapper as
+# method-assign; intentional here — the patch is the whole point.
 _load_meanings.cache_clear = _coupled_cache_clear  # type: ignore[method-assign]
 
 

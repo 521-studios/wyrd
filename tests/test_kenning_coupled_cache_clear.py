@@ -13,7 +13,21 @@ eliminates the footgun by making the obvious call do the right thing.
 
 from __future__ import annotations
 
-from wyrd.generators.kenning import _load_culture, _load_meanings
+from wyrd.generators.kenning import _coupled_cache_clear, _load_culture, _load_meanings
+
+
+def test_load_meanings_cache_clear_is_wired_to_coupled_helper() -> None:
+    """Pin the wiring itself — ``_load_meanings.cache_clear`` must
+    BE ``_coupled_cache_clear``. The other tests here exercise the
+    coupling's effect (per-culture cache empty, identity preserved),
+    but they call ``_load_culture.cache_clear()`` explicitly at
+    setup, so a regression that drops the line-273 monkey-patch
+    would still pass them. This identity check pins the patch
+    survival itself."""
+    assert _load_meanings.cache_clear is _coupled_cache_clear, (
+        "_load_meanings.cache_clear must be the coupled-clear helper; "
+        "the monkey-patch at the bottom of __init__.py looks dropped"
+    )
 
 
 def test_load_meanings_cache_clear_also_clears_load_culture() -> None:
