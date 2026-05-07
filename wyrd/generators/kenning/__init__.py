@@ -451,10 +451,11 @@ class Kenning(Generator):
                         "family surname appended (Stoke Mandeville, Ashby de la "
                         "Zouch, Stanton Lacy). Encodes the post-Conquest political "
                         "history layered onto English place-naming. At 0 (default) "
-                        "no affix is attached; at 1 every name gets one. Only "
-                        "applies to the english culture today — Domesday-and-after "
+                        "no affix is attached; at 0.5 about half of generated "
+                        "names get one; at 1 every name gets one. Only applies "
+                        "to the english culture today — Domesday-and-after "
                         "manorial layering is an English place-naming pattern. "
-                        "Affix corpus is a curated set of ~40 attested Norman "
+                        "Affix corpus is a curated set of 39 attested Norman "
                         "families (Domesday + post-Conquest subsidy rolls)."
                     ),
                 },
