@@ -232,8 +232,27 @@ def _resolve_anchor(
     Per-language preference reflects the dominant origin pattern for
     British place-name morphemes (OE first, ON second, Celtic third,
     Modern English last-resort).
+
+    Hyphen-variant lookup: the bundle keys morphemes by their full
+    hyphen-marked usage (``-ton`` post-modifier, ``Whit-`` pre-
+    modifier, ``-en-`` inner-modifier). When the trie matcher picked
+    a non-OE Meaning at ``ton`` (Celtic-mix), the OE post-modifier
+    Meaning at ``-ton`` carries the right anchor. We collect siblings
+    across all keys whose stripped-hyphen form matches the input
+    usage's stripped-hyphen form so the resolver has the full pool
+    to choose from.
     """
-    siblings = meaning_db.get(meaning.usage, [meaning])
+    stripped = meaning.usage.replace("-", "").lower()
+    siblings: list[Meaning] = []
+    seen_ids: set[int] = set()
+    for key, key_meanings in meaning_db.items():
+        if key.replace("-", "").lower() == stripped:
+            for m in key_meanings:
+                if id(m) not in seen_ids:
+                    siblings.append(m)
+                    seen_ids.add(id(m))
+    if not siblings:
+        siblings = [meaning]
     # Put the resolver's input meaning first so its source-language
     # preference is honoured when tied.
     ordered = [meaning] + [s for s in siblings if s is not meaning]

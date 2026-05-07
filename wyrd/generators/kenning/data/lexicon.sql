@@ -540,3 +540,31 @@ CREATE INDEX idx_attestation_topo   ON toponym_attestation(toponym_id);
 -- source) rows.
 CREATE UNIQUE INDEX idx_attestation_unique
   ON toponym_attestation(toponym_id, form, date_year, source_doc);
+
+-- wyrd-unuo Phase 3.3: per-etymon period-keyed surface forms,
+-- projected from toponym_attestation rows by segmenting historical
+-- compound forms onto the toponym's canonical morpheme breakdown.
+-- Used by etymon_era_reflexes as a Tier 4 fallback when neither
+-- cognate-cluster (Tier 1-2) nor direct descent (Tier 3) produces
+-- a reflex. Closes the ~72% coverage gap on isolated OE etymons
+-- that have no cognate_id and no descent edges.
+--
+-- attestation_id is a soft FK back to the source toponym_attestation
+-- row so a reverse-stage clear can drop projection-derived rows
+-- without losing the underlying attestations.
+CREATE TABLE etymon_period_form (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  etymon_id       INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
+  form            TEXT NOT NULL,
+  date_year       INTEGER NOT NULL,
+  source_doc      TEXT,
+  attestation_id  INTEGER REFERENCES toponym_attestation(id) ON DELETE SET NULL
+);
+CREATE INDEX idx_period_form_etymon
+  ON etymon_period_form(etymon_id);
+CREATE INDEX idx_period_form_year
+  ON etymon_period_form(date_year);
+-- Idempotent re-projection: identical (etymon, form, year, source)
+-- pairs from the same attestation should not duplicate.
+CREATE UNIQUE INDEX idx_period_form_unique
+  ON etymon_period_form(etymon_id, form, date_year, source_doc);
