@@ -2110,6 +2110,256 @@ def test_migrate_schema_adds_attestation_unique_index_on_legacy_db(tmp_path: Pat
     assert "idx_attestation_unique" in after
 
 
+# --- wyrd-skm Phase 3.0b: cognate-cluster era-reflex picker ---------------
+
+
+def _seed_cluster(
+    db: LexiconDB,
+    *,
+    cluster_root_form: str = "*kaster",
+    cluster_root_lang: str = "proto-germanic",
+    members: list[tuple[str, str]] | None = None,
+) -> dict[str, int]:
+    """Insert a synthetic cognate cluster with the given members
+    sharing one ``cognate_id`` (set to the root etymon's id).
+
+    ``members`` is a list of (canonical_form, language) tuples. The
+    return dict maps each form to its etymon id so tests can reference
+    cluster mates by form. Mirrors how ``cluster_cognates`` would lay
+    things out in production: root etymon is its own cognate_id, and
+    every reachable descendant points back to the root.
+    """
+    members = members or []
+    root_id = db.upsert_etymon(cluster_root_form, cluster_root_lang)
+    db.conn.execute(
+        "UPDATE etymon SET cognate_id = ? WHERE id = ?",
+        (root_id, root_id),
+    )
+    by_form = {cluster_root_form: root_id}
+    for form, lang in members:
+        member_id = db.upsert_etymon(form, lang)
+        db.conn.execute(
+            "UPDATE etymon SET cognate_id = ? WHERE id = ?",
+            (root_id, member_id),
+        )
+        by_form[form] = member_id
+    db.commit()
+    return by_form
+
+
+def test_etymon_era_reflexes_returns_matching_language_members(fresh_db: Path) -> None:
+    """Direct ``target_language`` mode: cluster mates whose
+    ``etymon.language`` matches the requested tag are returned, sorted
+    alphabetically by canonical_form for stable output."""
+    from wyrd.generators.kenning.lexicon import etymon_era_reflexes
+
+    with LexiconDB(fresh_db) as db:
+        ids = _seed_cluster(
+            db,
+            members=[
+                ("ceaster", "old-english"),
+                ("Chestre", "middle-english"),
+                ("Chester", "middle-english"),
+                ("chester", "modern-english"),
+            ],
+        )
+        reflexes = etymon_era_reflexes(
+            db, ids["ceaster"], target_language="middle-english"
+        )
+
+    forms = [r.form for r in reflexes]
+    languages = {r.language for r in reflexes}
+    assert forms == ["Chester", "Chestre"]  # alphabetical
+    assert languages == {"middle-english"}
+
+
+def test_etymon_era_reflexes_resolves_family_cell_to_canonical_language(
+    fresh_db: Path,
+) -> None:
+    """``target_family_cell=('english', 'me')`` resolves to
+    'middle-english' via ``canonical_language_for_cell`` and behaves
+    identically to passing ``target_language='middle-english'``
+    directly. Lets callers pass an era-cell label without knowing the
+    canonical-tag mapping."""
+    from wyrd.generators.kenning.lexicon import etymon_era_reflexes
+
+    with LexiconDB(fresh_db) as db:
+        ids = _seed_cluster(
+            db,
+            members=[
+                ("ceaster", "old-english"),
+                ("Chester", "middle-english"),
+                ("chester", "modern-english"),
+            ],
+        )
+        reflexes = etymon_era_reflexes(
+            db, ids["ceaster"], target_family_cell=("english", "me")
+        )
+
+    assert [r.form for r in reflexes] == ["Chester"]
+
+
+def test_etymon_era_reflexes_returns_empty_when_no_cognate_id(
+    fresh_db: Path,
+) -> None:
+    """An etymon whose ``cognate_id`` is NULL has no cluster — the
+    cluster_cognates pass hasn't run on it, or it's a singleton root.
+    Either way, the era-reflex lookup is a no-op and returns ``[]``,
+    not an error. Consumers fall back to the original etymon's
+    canonical_form."""
+    from wyrd.generators.kenning.lexicon import etymon_era_reflexes
+
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("orphan", "old-english")
+        # Don't set cognate_id — it stays NULL by default.
+        reflexes = etymon_era_reflexes(
+            db, eid, target_language="middle-english"
+        )
+
+    assert reflexes == []
+
+
+def test_etymon_era_reflexes_returns_empty_when_no_canonical_language(
+    fresh_db: Path,
+) -> None:
+    """Some era cells have no canonical language tag (the Latin
+    'classical' cell is ambiguous against the flat 'latin' tag we
+    use throughout the corpus). When ``canonical_language_for_cell``
+    returns None for the cell, the reflex picker returns ``[]``
+    rather than scanning the entire cluster."""
+    from wyrd.generators.kenning.era import canonical_language_for_cell
+    from wyrd.generators.kenning.lexicon import etymon_era_reflexes
+
+    # Sanity: pick a (family, cell) combination that's NOT in the map.
+    assert canonical_language_for_cell("norse", "modern") is None
+
+    with LexiconDB(fresh_db) as db:
+        ids = _seed_cluster(
+            db,
+            members=[("tūn", "old-norse"), ("tun", "norwegian-bokmal")],
+        )
+        reflexes = etymon_era_reflexes(
+            db, ids["tūn"], target_family_cell=("norse", "modern")
+        )
+
+    assert reflexes == []
+
+
+def test_etymon_era_reflexes_filters_merged_into_id(fresh_db: Path) -> None:
+    """OCR-cluster losers (D22) carry ``merged_into_id`` pointing at
+    the canonical winner. They're tombstones — the merge target is
+    the rendering pick. The reflex lookup excludes them so a
+    user-visible era-rewind doesn't surface a merged-away spelling
+    variant."""
+    from wyrd.generators.kenning.lexicon import etymon_era_reflexes
+
+    with LexiconDB(fresh_db) as db:
+        ids = _seed_cluster(
+            db,
+            members=[
+                ("ceaster", "old-english"),
+                ("Chester", "middle-english"),
+                ("Chestre", "middle-english"),
+            ],
+        )
+        # Mark Chestre as a merged-away duplicate of Chester.
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (ids["Chester"], ids["Chestre"]),
+        )
+        db.commit()
+        reflexes = etymon_era_reflexes(
+            db, ids["ceaster"], target_language="middle-english"
+        )
+
+    assert [r.form for r in reflexes] == ["Chester"]
+
+
+def test_etymon_era_reflexes_raises_when_no_target_provided(
+    fresh_db: Path,
+) -> None:
+    """Defensive: passing neither ``target_language`` nor
+    ``target_family_cell`` raises ValueError so a typo at the
+    call-site doesn't silently return the empty list."""
+    from wyrd.generators.kenning.lexicon import etymon_era_reflexes
+
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("ceaster", "old-english")
+        with pytest.raises(ValueError, match="target_language"):
+            etymon_era_reflexes(db, eid)
+
+
+def test_canonical_language_for_cell_returns_expected_english_picks() -> None:
+    """Pin the English-family cell → language mapping so a future
+    rename of a cell label or language tag fails loudly. Downstream
+    wyrd-rni / wyrd-381 demos depend on these picks."""
+    from wyrd.generators.kenning.era import canonical_language_for_cell
+
+    assert canonical_language_for_cell("english", "oe-early") == "old-english"
+    assert canonical_language_for_cell("english", "oe-late") == "old-english"
+    assert canonical_language_for_cell("english", "me") == "middle-english"
+    assert (
+        canonical_language_for_cell("english", "early-modern") == "modern-english"
+    )
+    assert canonical_language_for_cell("english", "modern") == "modern-english"
+
+
+def test_cli_lexicon_era_reflex_emits_cluster_mates(fresh_db: Path) -> None:
+    """End-to-end CLI smoke test: ``lexicon era-reflex <id> --era me``
+    against a cluster with English-family members prints one line
+    per matching reflex. Each line is ``<id>\\t<form>\\t<language>``
+    on stdout; the metadata header goes to stderr."""
+    runner = CliRunner()
+    with LexiconDB(fresh_db) as db:
+        ids = _seed_cluster(
+            db,
+            members=[
+                ("ceaster", "old-english"),
+                ("Chester", "middle-english"),
+                ("Chestre", "middle-english"),
+                ("chester", "modern-english"),
+            ],
+        )
+
+    result = runner.invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "era-reflex",
+            str(ids["ceaster"]),
+            "--era",
+            "me",
+            "--db",
+            str(fresh_db),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    lines = [line for line in result.output.splitlines() if not line.startswith("#")]
+    assert len(lines) == 2
+    assert "Chester\tmiddle-english" in result.output
+    assert "Chestre\tmiddle-english" in result.output
+
+
+def test_cli_lexicon_era_reflex_unknown_etymon_exits_nonzero(fresh_db: Path) -> None:
+    """Defensive CLI: an etymon_id that doesn't exist in the DB
+    exits 1 with a stderr message. Catches typos before they ship
+    silent empty output."""
+    runner = CliRunner()
+    result = runner.invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "era-reflex",
+            "999999999",
+            "--era",
+            "me",
+            "--db",
+            str(fresh_db),
+        ],
+    )
+    assert result.exit_code != 0
+
+
 def test_record_mining_run_inserts_row_with_full_fields(fresh_db: Path) -> None:
     """record_mining_run persists every field the writer cares about and
     serializes by_failure as JSON."""

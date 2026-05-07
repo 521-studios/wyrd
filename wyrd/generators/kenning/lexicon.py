@@ -3298,6 +3298,101 @@ def mine_toponym_attestations(
     }
 
 
+# --- wyrd-skm Phase 3.0b: cognate-cluster era-reflex picker ----------------
+#
+# Given an etymon (e.g. OE ``ceaster``) and a target era cell, walk
+# the cognate cluster (D27/D28 — etymons sharing the same root via
+# inheritance/borrowing edges) and return cluster mates whose
+# language tag is the canonical pick for that era cell.
+#
+# Example: ``ceaster`` (OE, cluster_id=3617) at era=me → ME variants
+# (Chestre, Chester, Cestre, Chestir, ...) tagged middle-english in
+# the same cluster. The downstream wyrd-rni / wyrd-381 demos consume
+# this primitive to render compound names at user-chosen eras.
+#
+# Coverage: 24% of OE toponym etymons currently have cognate_id
+# (cluster_cognates pass output); the remainder return an empty list
+# and consumers fall back to the original etymon's canonical_form.
+# This is a known coverage floor that improves as the descent graph
+# grows.
+
+
+@dataclass
+class EraReflex:
+    """A single cluster-mate of an etymon at a target era.
+
+    ``etymon_id`` is the cluster mate's row id; ``form`` is its
+    ``canonical_form``; ``language`` is its ``etymon.language`` tag.
+    Multiple reflexes may surface for the same era when scholarly
+    sources record multiple period-specific spellings (the four
+    Middle-English variants of OE ``ceaster``: Chestre / Chester /
+    Cestre / Chestir / etc.).
+    """
+
+    etymon_id: int
+    form: str
+    language: str
+
+
+def etymon_era_reflexes(
+    db: LexiconDB,
+    etymon_id: int,
+    *,
+    target_language: str | None = None,
+    target_family_cell: tuple[str, str] | None = None,
+) -> list[EraReflex]:
+    """Return cluster-mates of ``etymon_id`` matching a target era.
+
+    Two callable shapes:
+
+    * ``target_language='middle-english'`` — direct language pick;
+      every cluster mate with that exact language tag is returned.
+    * ``target_family_cell=('english', 'me')`` — resolves to the
+      canonical language tag via
+      ``era.canonical_language_for_cell``, then proceeds as the
+      direct-language path.
+
+    Returns ``[]`` when the etymon has no ``cognate_id`` (cluster
+    not assigned), when the target cell has no canonical language
+    tag (``Latin/classical`` etc.), or when no cluster mate matches.
+    Output is sorted by ``form`` for deterministic output across
+    PYTHONHASHSEED — callers that depend on first-row stability get
+    the alphabetically-first reflex.
+
+    Reflexes are filtered to ``merged_into_id IS NULL`` so OCR-
+    cluster losers (D22) don't surface as period forms; the merge
+    target is the canonical reflex for that surface.
+    """
+    from wyrd.generators.kenning.era import canonical_language_for_cell
+
+    if target_language is None and target_family_cell is None:
+        raise ValueError("must pass either target_language or target_family_cell")
+    if target_language is None:
+        family, cell = target_family_cell  # type: ignore[misc]
+        target_language = canonical_language_for_cell(family, cell)
+        if target_language is None:
+            return []
+
+    row = db.conn.execute("SELECT cognate_id FROM etymon WHERE id = ?", (etymon_id,)).fetchone()
+    if row is None or row["cognate_id"] is None:
+        return []
+
+    cur = db.conn.execute(
+        "SELECT id, canonical_form, language FROM etymon "
+        "WHERE cognate_id = ? AND language = ? AND merged_into_id IS NULL "
+        "ORDER BY canonical_form",
+        (row["cognate_id"], target_language),
+    )
+    return [
+        EraReflex(
+            etymon_id=r["id"],
+            form=r["canonical_form"],
+            language=r["language"],
+        )
+        for r in cur
+    ]
+
+
 def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
     """Reset one or more enrichment stages so they can be re-run.
 

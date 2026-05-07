@@ -36,7 +36,11 @@ from wyrd.generators.kenning.dictionary_parser import (
     parse_numbered_list_text,
 )
 from wyrd.generators.kenning.english_shaping import derive_english_shaped
-from wyrd.generators.kenning.era import era_cell, language_family
+from wyrd.generators.kenning.era import (
+    era_cell,
+    language_family,
+    resolve_era_input,
+)
 from wyrd.generators.kenning.lexicon import (
     LANGUAGE_FIELDS,
     RECOMMENDED_LANG_THRESHOLDS,
@@ -51,6 +55,7 @@ from wyrd.generators.kenning.lexicon import (
     cluster_cognates,
     cluster_ocr_variants,
     detect_running_headers,
+    etymon_era_reflexes,
     export_meanings,
     fuzzy_search_attestations,
     get_meaning_preserving_candidates,
@@ -2774,6 +2779,93 @@ def lexicon_path() -> None:
     DB a CLI run would hit.
     """
     click.echo(default_lexicon_path())
+
+
+@lexicon.command("era-reflex")
+@click.argument("etymon_id", type=int)
+@click.option(
+    "--era",
+    "era_input",
+    required=True,
+    help=(
+        "Target era: a year (1086), a cell label (oe-late), or a "
+        "family/label pair (english/me). Resolved against the "
+        "etymon's source-language family."
+    ),
+)
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+def lexicon_era_reflex(etymon_id: int, era_input: str, db_path: Path) -> None:
+    """wyrd-skm Phase 3.0b: print cognate-cluster mates of ETYMON_ID
+    that match the target era. Used by wyrd-rni / wyrd-381 demos to
+    render etymons across historical strata.
+
+    Two outputs per match (one row per cluster mate): the reflex
+    etymon's id, its canonical_form, and its language tag. Empty
+    output when the etymon has no cognate_id (~76% of OE toponym
+    etymons today — cluster_cognates coverage gap), or when no
+    cluster mate matches the target era cell.
+    """
+    with LexiconDB(db_path) as db:
+        row = db.conn.execute(
+            "SELECT canonical_form, language FROM etymon WHERE id = ?",
+            (etymon_id,),
+        ).fetchone()
+        if row is None:
+            click.echo(f"no etymon with id={etymon_id}", err=True)
+            raise click.exceptions.Exit(1)
+
+        family = language_family(row["language"])
+        if family is None:
+            click.echo(
+                f"etymon {etymon_id} ({row['canonical_form']!r}, "
+                f"language={row['language']!r}) has no era family — "
+                "proto-languages and untracked classical languages "
+                "don't define era cells",
+                err=True,
+            )
+            raise click.exceptions.Exit(1)
+
+        try:
+            era_range = resolve_era_input(era_input, default_family=family)
+        except ValueError as exc:
+            click.echo(str(exc), err=True)
+            raise click.exceptions.Exit(1) from exc
+
+        if era_range is None:
+            click.echo("--era resolved to None (no filter); pass a concrete year or cell", err=True)
+            raise click.exceptions.Exit(1)
+
+        cell = era_cell(row["language"], era_range[0] or 0)
+        if cell is None and era_range[0] is None and era_range[1] is not None:
+            from wyrd.generators.kenning.era import era_cell_for_family
+
+            cell = era_cell_for_family(family, era_range[1] - 1)
+        if cell is None:
+            click.echo(
+                f"could not resolve era cell for range {era_range} in family {family!r}",
+                err=True,
+            )
+            raise click.exceptions.Exit(1)
+
+        reflexes = etymon_era_reflexes(db, etymon_id, target_family_cell=(family, cell))
+
+    click.echo(
+        f"# era-reflex etymon={etymon_id} "
+        f"({row['canonical_form']!r}, {row['language']}) "
+        f"target={family}/{cell}",
+        err=True,
+    )
+    if not reflexes:
+        click.echo("(no cluster mates at this era)", err=True)
+        return
+    for reflex in reflexes:
+        click.echo(f"{reflex.etymon_id}\t{reflex.form}\t{reflex.language}")
 
 
 @lexicon.command("era-cell")

@@ -130,6 +130,73 @@ LANGUAGE_TO_FAMILY: dict[str, str] = {
 }
 
 
+# wyrd-skm Phase 3.0b: per-cell canonical language tag.
+#
+# The era-reflex picker walks a cognate cluster and asks "for THIS era
+# cell, which language tag should I prefer when picking a surface
+# form?". This maps each `(family, cell_label)` pair to the canonical
+# language tag (as it appears in ``etymon.language``) that
+# scholarly sources use for that cell. Non-canonical tags within the
+# cluster (Middle Scots, Anglo-Norman, etc.) still surface via the
+# family fallback path; this mapping is just the FIRST-CHOICE pick.
+#
+# Where a single language tag spans multiple cells (Old English covers
+# both `oe-early` and `oe-late`), the same tag appears twice. Where a
+# cell has no obvious canonical tag (Latin's pre-200 'classical' cell
+# is just 'latin'), the tag is the family-level one.
+CANONICAL_LANGUAGE_FOR_CELL: dict[tuple[str, str], str] = {
+    # English: OE pre-1100 → 'old-english'; ME 1100-1500 →
+    # 'middle-english'; modern post-1500 → 'modern-english' (the
+    # tagged variant we have most rows for; bare 'english' rows are a
+    # smaller superset).
+    ("english", "oe-early"): "old-english",
+    ("english", "oe-late"): "old-english",
+    ("english", "me"): "middle-english",
+    ("english", "early-modern"): "modern-english",
+    ("english", "modern"): "modern-english",
+    # Norse: ON pre-1100 → 'old-norse'; later cells fold the
+    # continental Scandinavian languages so we don't pick one canonical
+    # for those; the era-reflex picker falls back to family-level
+    # member when no exact match.
+    ("norse", "on-classical"): "old-norse",
+    # Brythonic: old/middle/modern map to old-welsh/middle-welsh/welsh
+    # (Welsh is the dominant Brythonic in our corpus).
+    ("brythonic", "old"): "old-welsh",
+    ("brythonic", "middle"): "middle-welsh",
+    ("brythonic", "modern"): "welsh",
+    # Goidelic: same shape against Irish.
+    ("goidelic", "old-irish"): "old-irish",
+    ("goidelic", "middle-irish"): "middle-irish",
+    ("goidelic", "early-modern"): "irish",
+    ("goidelic", "modern"): "irish",
+    # Latin: era-cell tags are ambiguous against Wiktionary's flat
+    # 'latin' / 'vulgar-latin' codes; the picker uses family fallback.
+    ("latin", "classical"): "latin",
+    ("latin", "late-vulgar"): "vulgar-latin",
+    ("latin", "medieval"): "latin",
+    ("latin", "renaissance"): "latin",
+    # Norman / Old French: 'old-norman' is best served by Wiktionary's
+    # 'old-french' tag; Anglo-Norman cell prefers 'middle-french' /
+    # 'old-french'; modern is bare 'french'.
+    ("norman-french", "old-norman"): "old-french",
+    ("norman-french", "anglo-norman"): "old-french",
+    ("norman-french", "modern"): "french",
+}
+
+
+def canonical_language_for_cell(family: str, cell: str) -> str | None:
+    """Return the canonical ``etymon.language`` tag preferred for the
+    given ``(family, cell)`` pair, or None when no canonical tag is
+    defined.
+
+    Used by the era-reflex picker (wyrd-skm Phase 3.0b) to choose the
+    first-choice cluster-mate when rendering an etymon at a target
+    era. None means "no canonical pick — caller should fall back to
+    family-level membership".
+    """
+    return CANONICAL_LANGUAGE_FOR_CELL.get((family, cell))
+
+
 def language_family(language: str) -> str | None:
     """Return the era-family for ``language``, or None if the language
     has no defined era progression (proto-languages, modern-Greek,
