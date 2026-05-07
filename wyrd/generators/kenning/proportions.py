@@ -707,7 +707,14 @@ class NewName:
             return None
 
     def components(self):
-        """Structured component breakdown for the API envelope."""
+        """Structured component breakdown for the API envelope.
+
+        wyrd-qhs0 Phase 2d: each component additionally carries a
+        per-language ``renderings`` map that surfaces the four
+        wyrd-ha9q rendering columns (original_script + transliteration
+        + english_shaped + IPA) for non-Latin source-lang morphemes.
+        Empty / absent for Latin-script langs and older bundles.
+        Consumed by the SPA's etymological-provenance panel."""
         out = []
         for word in self.name:
             for e in word:
@@ -723,6 +730,7 @@ class NewName:
                         "tags": list(first.tags),
                         "roots": self._roots(first),
                         "citations": _collect_citations(meanings),
+                        "renderings": _collect_renderings(meanings),
                     }
                 )
         return out
@@ -759,6 +767,59 @@ def _collect_citations(meanings):
         for citations in m.citations.values():
             seen.update(citations)
     return sorted(seen)
+
+
+def _collect_renderings(meanings):
+    """wyrd-qhs0 Phase 2d: gather the four wyrd-ha9q rendering columns
+    (original_script + transliteration + english_shaped + IPA) per
+    language, indexed by canonical_form so the SPA can match them up
+    against the language form arrays it already shows.
+
+    Output shape (returned dict, empty when no Meaning carries any
+    rendering data — e.g. Latin-script source langs only, or older
+    bundles):
+
+        {
+          <lang_field>: {
+            <canonical_form>: {
+              "original_script": str | None,
+              "transliteration": str | None,
+              "english_shaped":  str | None,
+              "ipa":             str | None,
+              "dialect":         str | None,
+            },
+            ...
+          },
+          ...
+        }
+
+    Sparse — only forms that have at least ONE non-None rendering
+    appear. The four-rendering panel skips a column when the value
+    is None. Works across multiple Meanings sharing one usage so a
+    family with a Hebrew etymon AND a Greek etymon under the same
+    surface form gets both lang_fields populated.
+    """
+    by_lang_form: dict[str, dict[str, dict[str, str | None]]] = {}
+
+    def _ensure(lang_field: str, form: str) -> dict[str, str | None]:
+        return by_lang_form.setdefault(lang_field, {}).setdefault(form, {})
+
+    for m in meanings:
+        for lang_field, forms in m.original_script.items():
+            for form, value in forms.items():
+                _ensure(lang_field, form)["original_script"] = value
+        for lang_field, forms in m.transliteration.items():
+            for form, value in forms.items():
+                _ensure(lang_field, form)["transliteration"] = value
+        for lang_field, forms in m.english_shaped.items():
+            for form, value in forms.items():
+                _ensure(lang_field, form)["english_shaped"] = value
+        for lang_field, forms in m.pronunciation.items():
+            for form, pron in forms.items():
+                slot = _ensure(lang_field, form)
+                slot["ipa"] = pron.get("ipa")
+                slot["dialect"] = pron.get("dialect")
+    return by_lang_form
 
 
 # Compact display max for description()'s citation block. Above this, the

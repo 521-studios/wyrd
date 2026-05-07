@@ -667,6 +667,119 @@ def test_load_meanings_round_trips_with_no_english_shaped_field():
     assert m.english_shaped_for("old_english", "brycg") is None
 
 
+def test_original_script_for_returns_value_and_none_correctly():
+    """wyrd-qhs0 Phase 2d: original_script_for accessor mirrors
+    english_shaped_for — returns the vocalized native form when
+    present, None when the lang or form lacks data."""
+    m = Meaning(
+        usage="Test-",
+        tags=[],
+        meanings=[],
+        sources={},
+        original_script={"hebrew": {"כלב": "כֶּלֶב"}},
+    )
+    assert m.original_script_for("hebrew", "כלב") == "כֶּלֶב"
+    assert m.original_script_for("hebrew", "אחר") is None
+    assert m.original_script_for("arabic", "كلب") is None
+
+
+def test_transliteration_for_returns_value_and_none_correctly():
+    m = Meaning(
+        usage="Test-",
+        tags=[],
+        meanings=[],
+        sources={},
+        transliteration={"hebrew": {"כלב": "kɛ́lɛḇ"}},
+    )
+    assert m.transliteration_for("hebrew", "כלב") == "kɛ́lɛḇ"
+    assert m.transliteration_for("hebrew", "אחר") is None
+    assert m.transliteration_for("arabic", "anything") is None
+
+
+def test_pronunciation_for_returns_pair_dict_and_none():
+    """pronunciation_for returns the {ipa, dialect} dict; missing
+    lang or form returns None. Pinned because the pair shape is
+    different from the other 3 single-string accessors."""
+    m = Meaning(
+        usage="Test-",
+        tags=[],
+        meanings=[],
+        sources={},
+        pronunciation={"hebrew": {"כלב": {"ipa": "/kalb/", "dialect": "Biblical-Hebrew"}}},
+    )
+    pair = m.pronunciation_for("hebrew", "כלב")
+    assert pair == {"ipa": "/kalb/", "dialect": "Biblical-Hebrew"}
+    assert m.pronunciation_for("hebrew", "missing") is None
+
+
+def test_phase2d_renderings_default_to_empty_dict_for_legacy_meaning():
+    """Meaning constructed without the Phase 2d kwargs (older bundles)
+    gets empty dicts on all four; every accessor returns None."""
+    m = Meaning(usage="Test-", tags=[], meanings=[], sources={})
+    assert m.original_script == {}
+    assert m.transliteration == {}
+    assert m.pronunciation == {}
+    assert m.original_script_for("hebrew", "any") is None
+    assert m.transliteration_for("hebrew", "any") is None
+    assert m.pronunciation_for("hebrew", "any") is None
+
+
+def test_load_meanings_strips_phase2d_suffixes_into_dedicated_dicts():
+    """`<lang>_original_script` / `_transliteration` / `_pronunciation`
+    JSON arrays land in dedicated Meaning attrs; `sources` does NOT
+    pick them up. Mirrors the Phase 2c english_shaped suffix behavior."""
+    data = [
+        {
+            "modifier_tags": [],
+            "meaning": ["dog"],
+            "modifier_type": None,
+            "words": [
+                {
+                    "modern_usage": "Kelev",
+                    "hebrew": ["כלב"],
+                    "hebrew_original_script": [{"form": "כלב", "original_script": "כֶּלֶב"}],
+                    "hebrew_transliteration": [{"form": "כלב", "transliteration": "kɛ́lɛḇ"}],
+                    "hebrew_pronunciation": [
+                        {"form": "כלב", "ipa": "/kalb/", "dialect": "Biblical-Hebrew"}
+                    ],
+                }
+            ],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    m = meaning_db["Kelev"][0]
+    assert m.sources == {"hebrew": ["כלב"]}
+    assert m.original_script == {"hebrew": {"כלב": "כֶּלֶב"}}
+    assert m.transliteration == {"hebrew": {"כלב": "kɛ́lɛḇ"}}
+    assert m.pronunciation == {"hebrew": {"כלב": {"ipa": "/kalb/", "dialect": "Biblical-Hebrew"}}}
+
+
+def test_load_meanings_handles_pronunciation_with_null_dialect():
+    """Pronunciation entries with no dialect key get dialect=None on
+    the loaded dict — preserves the wyrd-ha9q null-dialect contract
+    that an untagged-canonical IPA leaves dialect at NULL."""
+    data = [
+        {
+            "modifier_tags": [],
+            "meaning": ["jinn"],
+            "modifier_type": None,
+            "words": [
+                {
+                    "modern_usage": "Jinn",
+                    "arabic": ["جن"],
+                    "arabic_pronunciation": [{"form": "جن", "ipa": "/d͡ʒɪnː/"}],
+                }
+            ],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    m = meaning_db["Jinn"][0]
+    assert m.pronunciation_for("arabic", "جن") == {
+        "ipa": "/d͡ʒɪnː/",
+        "dialect": None,
+    }
+
+
 def test_db_to_export_to_load_round_trip_preserves_english_shaped(tmp_path):
     """End-to-end: seed a fresh DB with a wave-2 etymon carrying
     english_shaped, run `export_meanings`, then `load_meanings` on the

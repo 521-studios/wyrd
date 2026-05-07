@@ -4083,6 +4083,98 @@ def test_export_meanings_routes_precursor_postcursor_stack_to_canonical_bucket(
     assert set(word["hebrew"]) == {"גולם", "גלם"}
 
 
+def test_export_meanings_emits_phase2d_four_renderings_per_language(fresh_db: Path) -> None:
+    """wyrd-qhs0 Phase 2d: export emits four sibling arrays per
+    non-Latin language — `<lang>_original_script`, `_transliteration`,
+    `_pronunciation`, `_english_shaped`. All four populate when the
+    underlying etymon row has data; sparse / absent when it doesn't.
+    """
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["dog"],
+            tags=[],
+            modifier_type=None,
+            words=[{"modern_usage": "Kelev", "hebrew": ["כלב"]}],
+        )
+        # Populate all four wyrd-ha9q rendering columns on the row.
+        db.conn.execute(
+            """UPDATE etymon SET
+                 original_script = ?,
+                 transliteration = ?,
+                 english_shaped = ?,
+                 pronunciation_ipa = ?,
+                 pronunciation_dialect = ?
+               WHERE canonical_form = ? AND language = ?""",
+            ("כֶּלֶב", "kɛ́lɛḇ", "kelev", "/kalb/", "Biblical-Hebrew", "כלב", "he"),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert word["hebrew"] == ["כלב"]
+    assert word["hebrew_original_script"] == [{"form": "כלב", "original_script": "כֶּלֶב"}]
+    assert word["hebrew_transliteration"] == [{"form": "כלב", "transliteration": "kɛ́lɛḇ"}]
+    assert word["hebrew_english_shaped"] == [{"form": "כלב", "english_shaped": "kelev"}]
+    assert word["hebrew_pronunciation"] == [
+        {"form": "כלב", "ipa": "/kalb/", "dialect": "Biblical-Hebrew"}
+    ]
+
+
+def test_export_meanings_pronunciation_omits_dialect_when_null(fresh_db: Path) -> None:
+    """An IPA without a dialect tag (untagged-canonical case) surfaces
+    in the bundle with dialect=None. Round-trips through load_meanings
+    correctly via .get() (see test_load_meanings_handles_pronunciation_with_null_dialect)."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["jinn"],
+            tags=[],
+            modifier_type=None,
+            words=[{"modern_usage": "Jinn", "arabic": ["جن"]}],
+        )
+        db.conn.execute(
+            "UPDATE etymon SET pronunciation_ipa = ? WHERE canonical_form = ? AND language = ?",
+            ("/d͡ʒɪnː/", "جن", "ar"),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert word["arabic_pronunciation"] == [{"form": "جن", "ipa": "/d͡ʒɪnː/", "dialect": None}]
+
+
+def test_export_meanings_omits_phase2d_siblings_when_columns_null(fresh_db: Path) -> None:
+    """Latin-script rows / rows without rendering data must NOT emit
+    empty `_original_script` / `_transliteration` / `_pronunciation`
+    siblings — bundle stays compact."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["bridge"],
+            tags=["water"],
+            modifier_type="Topographical",
+            words=[{"modern_usage": "Bridg-", "old_english": ["brycg"]}],
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    for suffix in ("_original_script", "_transliteration", "_pronunciation"):
+        assert all(not k.endswith(suffix) for k in word), (
+            f"unexpected {suffix} sibling on Latin-script row: {list(word.keys())}"
+        )
+
+
 def test_export_meanings_emits_english_shaped_per_language(fresh_db: Path) -> None:
     """wyrd-ha9q Phase 2c: an etymon family with non-NULL english_shaped
     on at least one member emits a `<lang>_english_shaped` sibling array
