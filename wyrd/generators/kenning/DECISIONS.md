@@ -998,6 +998,54 @@ Genie from Latin *genius*; both are real, both worth researching).
 The single-word strict filter still rejects multi-word names
 ("Bugbear Thug", "Ancient Black Dragon").
 
+### Approved-language stratification (precursors + postcursors)
+
+`APPROVED_LANGUAGES` is the union of every code along the descent
+chain of an approved canonical language, not just the canonical
+language itself. (The container is a flat `frozenset`; "stratified"
+here means the *contents* span multiple eras of the same chain, not
+that the data structure is ordered.) Each canonical language pulls
+in its precursors and postcursors so `descent_walking_lookup` can
+walk the FULL chain from a modern reflex to its deepest attested
+ancestor without bailing at a language gate. The Hebrew chain, for
+example, isn't just `he` — it's `{hbo, sem-wes-pro, sem-pro,
+afa-pro, he}` (Biblical Hebrew → West-Semitic → Semitic → Afroasiatic
++ Modern Hebrew), and the Iranian chain mirrors the pattern
+(`{peo, fa-cls, xpr, ira-pro, fa, pal, iir-pro}`). Without the
+chain form, a Modern Hebrew word's descent edge to Biblical Hebrew
+terminates the walk at the language boundary even though the
+relationship is genuine; with it, the BFS continues all the way to
+Proto-Afroasiatic when the data carries that depth.
+
+Practical consequence: when a new "canonical" language is approved,
+its precursors / postcursors should be added at the same time so
+the descent walker doesn't accumulate dead ends at intermediate
+nodes. The cost is small (each code is one line) and the upside is
+that downstream temporal-axis demos (wyrd-rni / wyrd-381) can
+render the same morpheme at any era stop the corpus carries data
+for. User policy 2026-05-06: precursors / postcursors of an
+approved language can be added without separate sign-off; new
+*canonical* languages still require explicit approval (the wave-2
+canonical set was negotiated carefully).
+
+Two related implementation knobs:
+
+- `CANONICAL_LANGUAGES` vs `APPROVED_LANGUAGES`. The LLM prompt
+  template uses the smaller `CANONICAL_LANGUAGES` set (the user-
+  facing fantasy register) rather than the full `APPROVED_LANGUAGES`
+  superset; the precursor/postcursor stack is pipeline machinery the
+  LLM has weak training signal on. `_classify_llm_result` still
+  accepts any `attested_in` value that lands in `APPROVED_LANGUAGES`
+  after alias normalization, so an LLM that happens to identify a
+  Pali/Coptic attestation directly still resolves — we just don't
+  *advertise* the obscure codes in the prompt.
+- `_dedupe_by_form_lang` sorts reconstructed canonical forms (those
+  starting with the linguistic-convention `*` prefix) AFTER attested
+  forms. With the proto-* stack now reachable via BFS, both an
+  attested ancestor and a reconstructed root can surface at the same
+  layer; the sort guarantees `_skip_llm_resolution` and
+  `_semantic_check_candidates` see the attested form first.
+
 ### approach_version
 
 `fantasy_pipeline.APPROACH_VERSION` is a pipeline-version stamp.

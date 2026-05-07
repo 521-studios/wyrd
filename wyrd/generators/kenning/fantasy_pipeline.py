@@ -52,17 +52,17 @@ _GEMINI_API_URL_TEMPLATE = (
 # version are stale and re-processable.
 APPROACH_VERSION = "fantasy-v1"
 
-# Language families approved as etymological sources for fantasy
-# morphemes. A pre-filter ancestor in any of these counts as "real
-# attested in our corpus." Anything else is bar-worthy as
-# `outside_language_family`. Per user 2026-05-05: includes Greek
-# (most monsters are Greek), Old Saxon, Frisian, Gothic, plus the
-# core OE/ON/Celtic/Latin/OFr set we already use for toponym mining.
-# Codes use the etymon-table conventions (a mix of descriptive names like
-# "old-english" and ISO short codes like "got"/"osx"/"sco" that wiktextract
-# preserves as-is). Verified against corpus: every entry below has >0 rows
-# in the etymon table at the time of writing.
-APPROVED_LANGUAGES: frozenset[str] = frozenset(
+# The CANONICAL register: the user-facing approved-language set we
+# describe to the LLM in `_RESEARCH_PROMPT_TEMPLATE`. These are the
+# languages a reader would call out as the kenning fantasy register.
+# Wave-1 IE + Celtic + wave-2 world-religion set. Per user 2026-05-05:
+# includes Greek (most monsters are Greek), Old Saxon, Frisian, Gothic,
+# plus the core OE/ON/Celtic/Latin/OFr set we already use for toponym
+# mining. Codes use the etymon-table conventions (a mix of descriptive
+# names like "old-english" and ISO short codes like "got"/"osx"/"sco"
+# that wiktextract preserves as-is). Verified against corpus: every
+# entry below has >0 rows in the etymon table at the time of writing.
+CANONICAL_LANGUAGES: frozenset[str] = frozenset(
     {
         # Old Germanic
         "old-english",
@@ -127,6 +127,61 @@ APPROVED_LANGUAGES: frozenset[str] = frozenset(
 )
 
 
+# Wave-2 precursor / postcursor codes — user-approved 2026-05-06
+# ("you may add the precursors or postcursors of any language we've
+# approved so we can do the full history"). These are pipeline-internal
+# additions that let `descent_walking_lookup` walk the FULL chain from
+# a modern reflex back to its deepest ancestor without bailing at the
+# language gate, but they are NOT exposed in the LLM prompt: the model
+# has weak training signal on obscure codes like `iir-pro`/`afa-pro`
+# and would just get confused. The descriptive aliases in
+# `_LANGUAGE_ALIAS_MAP` ("Old Persian", "Proto-Semitic", "Coptic",
+# "Pali", ...) absorb anything the LLM might say in plain prose.
+#
+# Per-code etymon-row counts at the time of approval are listed in
+# INGESTION.md ("Approved languages" section under "Mining the
+# wyrd-ami fantasy-name corpus") and in PR #94's body — not in this
+# comment block, since those counts grow whenever wiktextract is
+# re-ingested.
+_PRECURSOR_POSTCURSOR_STACK: frozenset[str] = frozenset(
+    {
+        # Semitic precursors:
+        "hbo",  # Biblical Hebrew (precursor to he)
+        "sem-pro",  # Proto-Semitic (root of he/ar/akk/arc/hbo)
+        "sem-wes-pro",  # Proto-West-Semitic (intermediate Semitic node)
+        "afa-pro",  # Proto-Afroasiatic (deep root of egy + Semitic)
+        "sux",  # Sumerian (Mesopotamian substrate of akk loanwords)
+        # Aramaic descendant:
+        "syc",  # Classical Syriac (late-ancient descendant of arc)
+        # Iranian precursors / postcursors:
+        "peo",  # Old Persian (precursor of fa)
+        "fa-cls",  # Classical Persian (intermediate fa stage)
+        "xpr",  # Parthian (Iranian, sister of pal)
+        "ira-pro",  # Proto-Iranian (root of fa/pal/peo/xpr)
+        # Indo-Aryan precursors / postcursors:
+        "iir-pro",  # Proto-Indo-Iranian (root of fa+sa branches)
+        "inc-pro",  # Proto-Indo-Aryan (root of sa)
+        "pra",  # Prakrit (descendant of sa)
+        "pi",  # Pali (Buddhist canonical Indo-Aryan, descendant of sa)
+        # Egyptian descendant:
+        "cop",  # Coptic (late-ancient descendant of egy)
+        # Armenian (ancient register; appears in Iranian / Greek descent paths):
+        "axm",  # Old / Classical Armenian
+    }
+)
+
+
+# The full set the descent walker uses as its language gate. A
+# pre-filter ancestor in any of these counts as "real attested in
+# our corpus"; anything else is bar-worthy as `outside_language_family`.
+# Includes both the canonical register AND the precursor/postcursor
+# stack so BFS-walks of full chains don't dead-end at intermediate
+# nodes. The LLM prompt deliberately uses CANONICAL_LANGUAGES (smaller
+# set) — proto-codes and ancient intermediates are pipeline machinery,
+# not a register the LLM should classify against.
+APPROVED_LANGUAGES: frozenset[str] = CANONICAL_LANGUAGES | _PRECURSOR_POSTCURSOR_STACK
+
+
 # Map descriptive language names from LLM output to the ISO codes our
 # etymon table uses. Applied in _classify_llm_result after lowercase +
 # space-to-dash normalization. The descent_walking_lookup pre-filter
@@ -139,8 +194,18 @@ _LANGUAGE_ALIAS_MAP: dict[str, str] = {
     "arabic": "ar",
     "classical-arabic": "ar",
     "hebrew": "he",
+    # 'biblical-hebrew' keeps mapping to 'he' because the Hebrew
+    # wiktextract slice files biblical attestations under the modern
+    # he lemma (15k rows) rather than under hbo (229 rows). The
+    # standalone hbo code is approved separately so descent walks
+    # from he back through hbo don't dead-end at the language gate.
     "biblical-hebrew": "he",
     "persian": "fa",
+    # 'classical-persian' keeps mapping to 'fa' for the same reason
+    # 'biblical-hebrew' maps to 'he': modern Persian wiktextract
+    # carries the literary-classical lemmas under fa (~20k rows)
+    # rather than under fa-cls (~211 rows). fa-cls is approved
+    # separately so descent walks through it succeed.
     "classical-persian": "fa",
     "farsi": "fa",
     "akkadian": "akk",
@@ -148,7 +213,32 @@ _LANGUAGE_ALIAS_MAP: dict[str, str] = {
     "ancient-egyptian": "egy",
     "aramaic": "arc",
     "middle-persian": "pal",
+    # 'pahlavi' is a synonym for Middle Persian; both alias to 'pal'.
+    # The Iranian-stack precursors (xpr Parthian, ira-pro Proto-Iranian)
+    # are approved separately for descent-chain coverage.
     "pahlavi": "pal",
+    # Wave-2 precursor / postcursor descriptive names → ISO codes
+    # (user-approved 2026-05-06). Mirrors the corresponding
+    # APPROVED_LANGUAGES additions; without these aliases an LLM
+    # response of "Old Persian" / "Coptic" / "Pali" would mis-classify
+    # as outside_language_family even though the etymon table now
+    # carries those rows under the ISO codes.
+    "old-persian": "peo",
+    "parthian": "xpr",
+    "sumerian": "sux",
+    "syriac": "syc",
+    "classical-syriac": "syc",
+    "coptic": "cop",
+    "prakrit": "pra",
+    "pali": "pi",
+    "old-armenian": "axm",
+    "classical-armenian": "axm",
+    "proto-semitic": "sem-pro",
+    "proto-west-semitic": "sem-wes-pro",
+    "proto-afroasiatic": "afa-pro",
+    "proto-iranian": "ira-pro",
+    "proto-indo-iranian": "iir-pro",
+    "proto-indo-aryan": "inc-pro",
 }
 
 
@@ -349,6 +439,17 @@ def descent_walking_lookup(
 
 
 def _dedupe_by_form_lang(matches: list[AncestorMatch]) -> list[AncestorMatch]:
+    """Dedupe by (canonical_form, language), then move reconstructed
+    forms to the back. With the wave-2 precursor/postcursor stack now
+    in APPROVED_LANGUAGES, the BFS can return both an attested ancestor
+    (e.g. OE `tūn`) AND a reconstructed proto-form (e.g. proto-germanic
+    `*tūnaz`) at the same depth; without a tiebreaker, SQL row-insertion
+    order picks for us, which can put `*tūnaz` ahead of `tūn` and feed
+    the semantic-check pass a reconstruction when an attested form is
+    available. The starred-form convention (linguistic standard for
+    reconstructed lemmas) gives us a cheap, content-stable tiebreaker:
+    sort `*` keys after non-`*` keys, stable within each group so BFS
+    layer order (closer ancestors first) is preserved."""
     seen: set[tuple[str, str]] = set()
     out: list[AncestorMatch] = []
     for m in matches:
@@ -357,6 +458,7 @@ def _dedupe_by_form_lang(matches: list[AncestorMatch]) -> list[AncestorMatch]:
             continue
         seen.add(k)
         out.append(m)
+    out.sort(key=lambda m: m.canonical_form.startswith("*"))
     return out
 
 
@@ -441,10 +543,20 @@ def _llm_full_research(
     *,
     api_key: str | None = None,
     model: str = "gemini-2.5-flash",
-    approved: frozenset[str] = APPROVED_LANGUAGES,
+    approved: frozenset[str] = CANONICAL_LANGUAGES,
     timeout_s: float = 60.0,
 ) -> dict:
-    """Call Gemini with the etymology-research prompt; return parsed JSON."""
+    """Call Gemini with the etymology-research prompt; return parsed JSON.
+
+    `approved` defaults to `CANONICAL_LANGUAGES` (not `APPROVED_LANGUAGES`)
+    on purpose: we don't want the LLM scoring against the precursor /
+    postcursor stack (proto-codes like `iir-pro` and ancient intermediates
+    like `xpr`/`fa-cls`/`syc`) where it has weak training signal. The
+    descent walker still uses the full `APPROVED_LANGUAGES` gate, and
+    `_classify_llm_result` accepts any `attested_in` that lands in
+    `APPROVED_LANGUAGES` (post-alias-normalization), so an LLM that
+    happens to identify a Pali or Coptic attestation directly still
+    works — we just don't *advertise* those codes in the prompt."""
     prompt = _RESEARCH_PROMPT_TEMPLATE.format(
         name=name,
         description=description,
