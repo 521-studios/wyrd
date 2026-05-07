@@ -627,11 +627,11 @@ def test_in_stratum_searches_across_languages():
     assert m.in_stratum("medieval-welsh") is False
 
 
-def test_in_stratum_short_circuits_on_first_match():
-    """Pin that the search is short-circuit — irrelevant for
-    correctness but pinning the early-return so a refactor that
-    accidentally moves to len(matches) doesn't silently slow the
-    hot path on bundles with thousands of forms."""
+def test_in_stratum_returns_true_when_any_form_matches_in_mixed_data():
+    """A Meaning carrying multiple forms with mixed strata is admitted
+    as long as ANY form matches the target tag — the OR semantics
+    apply within a single language bucket the same way they apply
+    across languages."""
     m = _meaning_with_stratum_data(
         {
             "celtic_mix": {

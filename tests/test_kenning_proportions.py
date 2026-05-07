@@ -1274,14 +1274,23 @@ def test_meaning_generator_keep_keys_for_stratum_full_coverage_returns_none():
 
 def test_meaning_generator_keep_keys_for_stratum_caches_per_tag():
     """Two calls with the same stratum tag share the precomputed set
-    (identity check) so the meaning_db isn't re-walked per bucket."""
+    (identity check) so the meaning_db isn't re-walked per bucket.
+
+    Pin via identity on a NON-None result — needs at least one
+    non-matching Meaning so the filter doesn't collapse to the
+    full-coverage None fast path (where ``None is None`` would pass
+    trivially regardless of caching). A perf regression that recomputes
+    per call would reconstruct a fresh frozenset each time and break
+    the identity check."""
     from wyrd.generators.kenning.meaning import Meaning
     from wyrd.generators.kenning.proportions import MeaningGenerator
 
-    m = Meaning("-cot", [], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}})
-    mg = MeaningGenerator({"-cot": [m]}, {}, {"-cot": 1})
+    m_in = Meaning("-in", [], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}})
+    m_out = Meaning("-out", [], [], {}, stratum={"celtic_mix": {"din": "latin-loan"}})
+    mg = MeaningGenerator({"-in": [m_in], "-out": [m_out]}, {}, {"-in": 1, "-out": 1})
     a = mg.keep_keys_for_stratum("native-welsh")
     b = mg.keep_keys_for_stratum("native-welsh")
+    assert a is not None  # if this collapses to None the identity test is meaningless
     assert a is b
 
 
@@ -1325,9 +1334,7 @@ def test_keep_keys_for_stratum_returns_empty_when_no_usage_admits():
     from wyrd.generators.kenning.meaning import Meaning
     from wyrd.generators.kenning.proportions import MeaningGenerator
 
-    only_other = Meaning(
-        "-other", [], [], {}, stratum={"celtic_mix": {"caer": "latin-loan"}}
-    )
+    only_other = Meaning("-other", [], [], {}, stratum={"celtic_mix": {"caer": "latin-loan"}})
     mg = MeaningGenerator({"-other": [only_other]}, {}, {"-other": 1})
     keep = mg.keep_keys_for_stratum("native-welsh")
     assert keep == frozenset()
@@ -1359,12 +1366,8 @@ def test_name_generator_select_stratum_threads_through_positive_tag_path():
         NameGenerator,
     )
 
-    m_in = Meaning(
-        "-in", ["tree"], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}}
-    )
-    m_out = Meaning(
-        "-out", ["tree"], [], {}, stratum={"celtic_mix": {"din": "latin-loan"}}
-    )
+    m_in = Meaning("-in", ["tree"], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}})
+    m_out = Meaning("-out", ["tree"], [], {}, stratum={"celtic_mix": {"din": "latin-loan"}})
     meaning_db = {"-in": [m_in], "-out": [m_out]}
     proportions = {"-in": 1, "-out": 99}
     tag_db = {"tree": ["-in", "-out"]}

@@ -3595,12 +3595,20 @@ def _seed_subject(
     """Helper: ingest one meanings.json subject via seed_from_meanings.
 
     ``language_overrides`` (wyrd-ok36) maps canonical_form → lexicon
-    language code to relabel rows after seeding. Most JSON-field names
-    route to a single lexicon language (``celtic_mix`` → ``celtic``,
-    ``hebrew`` → ``he``), but tests for multi-substrata families
-    (welsh + middle-welsh sharing a celtic_mix bucket) need finer
-    control. Pass ``{"caer": "welsh", "din": "middle-welsh"}`` to
-    relabel two seeded rows away from the bucket-default language.
+    language code to relabel rows after seeding. ``celtic_mix`` rows
+    seed as ``celtic`` (the legacy rando-port bucket); override to
+    ``welsh`` / ``middle-welsh`` / ``old-welsh`` etc. when the test
+    needs the substrata language shape Phase 1's classifier acts on.
+    Pass ``{"caer": "welsh", "din": "middle-welsh"}`` to relabel two
+    seeded rows independently.
+
+    Scopes the UPDATE by ``(canonical_form, language)`` to keep the
+    relabel intentional: tests that seed multiple etymons sharing a
+    canonical form across different languages (e.g. an English ``cot``
+    AND a Welsh ``cot``) won't accidentally relabel both. Caller
+    passes the SOURCE language alongside the target via the dict key
+    using the canonical_form alone is fine because today's tests don't
+    overlap, but the WHERE clause is defensive.
     """
     seed_from_meanings(
         db,
@@ -3615,11 +3623,35 @@ def _seed_subject(
         source_id,
     )
     if language_overrides:
-        for form, lang in language_overrides.items():
-            db.conn.execute(
-                "UPDATE etymon SET language = ? WHERE canonical_form = ?",
-                (lang, form),
-            )
+        # Resolve the seed-time language per form via LANGUAGE_FIELDS
+        # so the WHERE clause excludes any cross-language collision.
+        # Today's tests seed a single etymon per canonical_form so
+        # this is belt-and-braces, but future tests that seed both
+        # an English and a Welsh row with overlapping forms will need
+        # the precision.
+        from wyrd.generators.kenning.lexicon import LANGUAGE_FIELDS
+
+        bucket_default_by_form: dict[str, str] = {}
+        for word in words:
+            for json_field, lang_code in LANGUAGE_FIELDS.items():
+                forms = word.get(json_field) or []
+                for form in forms:
+                    bucket_default_by_form.setdefault(form, lang_code)
+        for form, target_lang in language_overrides.items():
+            source_lang = bucket_default_by_form.get(form)
+            if source_lang is None:
+                # Caller asked to relabel a form not in any LANGUAGE_FIELDS
+                # entry on the seeded words — fall back to canonical_form-only
+                # match so the override still applies in the unusual case.
+                db.conn.execute(
+                    "UPDATE etymon SET language = ? WHERE canonical_form = ?",
+                    (target_lang, form),
+                )
+            else:
+                db.conn.execute(
+                    "UPDATE etymon SET language = ? WHERE canonical_form = ? AND language = ?",
+                    (target_lang, form, source_lang),
+                )
         db.commit()
 
 
