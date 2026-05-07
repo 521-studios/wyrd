@@ -13,9 +13,12 @@ Covers:
   the parallel Germanic-descent absence invariant (gmw-pro /
   proto-germanic in parents is not a stratum signal — every OE
   word descends from those, would collapse the bundle).
+- ``classify_old_norse``: per-stratum heuristic for ON, including
+  the East-Norse self-language pass (gmq-osw / gmq-oda → east-norse)
+  and the same Germanic-descent absence invariant.
 - ``lexicon classify-stratum`` CLI: dry-run reports counts without
   writing; ``--apply`` writes; ``--force`` overrides existing values;
-  exercised under Welsh / French / Old English dispatch.
+  exercised under Welsh / French / Old English / Old Norse dispatch.
 """
 
 from __future__ import annotations
@@ -30,9 +33,11 @@ from wyrd.generators.kenning.lexicon import LexiconDB, init_schema, migrate_sche
 from wyrd.generators.kenning.strata import (
     FRENCH_STRATA,
     OLD_ENGLISH_STRATA,
+    OLD_NORSE_STRATA,
     WELSH_STRATA,
     classify_french,
     classify_old_english,
+    classify_old_norse,
     classify_welsh,
 )
 
@@ -377,7 +382,11 @@ def test_cli_classify_stratum_force_overwrites(fresh_db: Path) -> None:
 def test_cli_classify_stratum_rejects_unknown_language(fresh_db: Path) -> None:
     """Click's Choice validator blocks unknown languages at parse
     time so we don't pretend to classify something we don't have a
-    vocabulary for. Old Norse is the still-unsupported follow-up."""
+    vocabulary for. Use a clearly-fictional language so the test
+    remains stable as the classifier's Choice list grows — picking
+    a real out-of-scope language (e.g. modern-english, icelandic)
+    would silently start failing the day that language enters the
+    Choice list."""
     runner = CliRunner()
     result = runner.invoke(
         cli_root,
@@ -387,12 +396,12 @@ def test_cli_classify_stratum_rejects_unknown_language(fresh_db: Path) -> None:
             "--db",
             str(fresh_db),
             "--language",
-            "old-norse",
+            "klingon",
         ],
     )
     assert result.exit_code != 0
     combined = result.output + (result.stderr or "")
-    assert "old-norse" in combined.lower() or "invalid value" in combined.lower()
+    assert "klingon" in combined.lower() or "invalid value" in combined.lower()
 
 
 def test_cli_classify_stratum_no_etymons_short_circuits(fresh_db: Path) -> None:
@@ -1078,3 +1087,418 @@ def test_cli_classify_stratum_old_english_apply_writes_column(fresh_db: Path) ->
     by_id = {r["id"]: r["stratum"] for r in rows}
     assert by_id[oe_id] == "latin-loan"
     assert by_id[native_id] == "native-old-english"
+
+
+# --- classify_old_norse (wyrd-lr4 Phase 4c) -------------------------------
+
+
+def test_classify_old_norse_assigns_native_when_no_descent(fresh_db: Path) -> None:
+    """An ON etymon with NO ``etymon_descent`` parents falls into the
+    ``native-old-norse`` default. Most-common shape — the standard
+    Germanic descent path is intentionally absent from the ancestor
+    map (would collapse the bundle), so the default catches all
+    standard-descent ON etymons."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("þorp", "old-norse")
+        proposals = classify_old_norse(db)
+    assert proposals == {eid: "native-old-norse"}
+
+
+def test_classify_old_norse_latin_loan_via_descent(fresh_db: Path) -> None:
+    """An ON etymon descending from Latin gets ``latin-loan`` —
+    Christianization-era learned vocabulary. Same convention as OE."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        latin_id = db.upsert_etymon("ecclesia", "latin")
+        on_id = db.upsert_etymon("kirkja", "old-norse")
+        _add_descent(db, parent_id=latin_id, child_id=on_id, edge_type="borrowing")
+        proposals = classify_old_norse(db)
+    assert proposals[on_id] == "latin-loan"
+
+
+def test_classify_old_norse_low_german_loan_via_descent(fresh_db: Path) -> None:
+    """An ON etymon descending from Middle Low German (gml) gets
+    ``low-german-loan``. Encodes the Hanseatic League trade-contact
+    layer (~1100-1300 CE) — the merchant register that distinguishes
+    later Old Norse vocabulary."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        gml_id = db.upsert_etymon("klippe", "gml")
+        on_id = db.upsert_etymon("klippa", "old-norse")
+        _add_descent(db, parent_id=gml_id, child_id=on_id, edge_type="borrowing")
+        proposals = classify_old_norse(db)
+    assert proposals[on_id] == "low-german-loan"
+
+
+def test_classify_old_norse_english_loan_via_descent(fresh_db: Path) -> None:
+    """An ON etymon descending from Old English or Old Saxon gets
+    ``english-loan``. Encodes Viking-Age cross-North-Sea contact
+    (Anglo-Saxon and Continental Saxon borrowings into ON, ~800-1100
+    CE)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        oe_id = db.upsert_etymon("scōl", "old-english")
+        oe_borrow = db.upsert_etymon("skóli", "old-norse")
+        _add_descent(db, parent_id=oe_id, child_id=oe_borrow, edge_type="borrowing")
+        osx_id = db.upsert_etymon("skuld", "osx")
+        osx_borrow = db.upsert_etymon("skuld", "old-norse")
+        _add_descent(db, parent_id=osx_id, child_id=osx_borrow, edge_type="borrowing")
+        proposals = classify_old_norse(db)
+    assert proposals[oe_borrow] == "english-loan"
+    assert proposals[osx_borrow] == "english-loan"
+
+
+def test_classify_old_norse_gaelic_substrate_via_descent(fresh_db: Path) -> None:
+    """An ON etymon descending from a Goidelic / Brittonic ancestor
+    gets ``gaelic-substrate``. Rare in the live DB (~64 etymons
+    total) but distinctive — Norse-Gaelic settlement contact in the
+    Irish Sea region (Dublin, Mann, Western Isles)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        oi_id = db.upsert_etymon("airigid", "old-irish")
+        on_id = db.upsert_etymon("ǽrgi", "old-norse")
+        _add_descent(db, parent_id=oi_id, child_id=on_id, edge_type="borrowing")
+        proposals = classify_old_norse(db)
+    assert proposals[on_id] == "gaelic-substrate"
+
+
+def test_classify_old_norse_east_norse_via_self_language(fresh_db: Path) -> None:
+    """The umbrella ticket's Eastern (Swedish/Danish) vs Western
+    (Norwegian/Icelandic) axis maps to a self-language pass: an
+    etymon whose own language is gmq-osw (Old Swedish) or gmq-oda
+    (Old Danish) classifies as ``east-norse`` directly. These ARE
+    the Eastern Norse varieties; classifying by descent would
+    describe what fed INTO them rather than their own register."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        osw_id = db.upsert_etymon("kalla", "gmq-osw")
+        oda_id = db.upsert_etymon("kalde", "gmq-oda")
+        proposals = classify_old_norse(db)
+    assert proposals[osw_id] == "east-norse"
+    assert proposals[oda_id] == "east-norse"
+
+
+def test_classify_old_norse_germanic_descent_does_not_collapse_into_one_bucket(
+    fresh_db: Path,
+) -> None:
+    """Critical correctness pin (parallel to French Latin-absence and
+    OE Germanic-absence). proto-germanic / proto-indo-european /
+    gmq-pro / gmw-pro in the parent set MUST NOT classify an ON
+    etymon into any non-default bucket. Every ON word descends from
+    those via the standard Germanic path; treating them as
+    'germanic-inheritance' would collapse the bundle into one
+    stratum and erase the loan distinctions. Pinned by including
+    ALL FOUR standard ancestors in the parent set with no loan
+    signals."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        gem_id = db.upsert_etymon("*þurpą", "proto-germanic")
+        gmq_id = db.upsert_etymon("*þurpa", "gmq-pro")
+        gmw_id = db.upsert_etymon("*þurpą", "gmw-pro")
+        pie_id = db.upsert_etymon("*treb-", "proto-indo-european")
+        on_id = db.upsert_etymon("þorp", "old-norse")
+        _add_descent(db, parent_id=gem_id, child_id=on_id)
+        _add_descent(db, parent_id=gmq_id, child_id=on_id)
+        _add_descent(db, parent_id=gmw_id, child_id=on_id)
+        _add_descent(db, parent_id=pie_id, child_id=on_id)
+        proposals = classify_old_norse(db)
+    # All four standard Germanic-descent ancestors → falls through to default.
+    assert proposals[on_id] == "native-old-norse"
+
+
+def test_classify_old_norse_priority_latin_over_low_german(fresh_db: Path) -> None:
+    """Priority order: an ON etymon with BOTH a Latin and a Middle
+    Low German parent classifies as ``latin-loan``, not
+    ``low-german-loan``. Encodes the convention that the
+    institutional / clerical Christianization signal dominates the
+    merchant / Hanseatic signal when both coexist (rare combo, but
+    deterministic priority is load-bearing)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        latin_id = db.upsert_etymon("schola", "latin")
+        gml_id = db.upsert_etymon("schole", "gml")
+        on_id = db.upsert_etymon("skóli", "old-norse")
+        _add_descent(db, parent_id=latin_id, child_id=on_id, edge_type="borrowing")
+        _add_descent(db, parent_id=gml_id, child_id=on_id, edge_type="borrowing")
+        proposals = classify_old_norse(db)
+    assert proposals[on_id] == "latin-loan"
+
+
+def test_classify_old_norse_priority_low_german_over_english(fresh_db: Path) -> None:
+    """Priority: low-german-loan beats english-loan when both are
+    present. Defensive — pins the deterministic ordering even though
+    the combo is rare."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        gml_id = db.upsert_etymon("kjøbe", "gml")
+        oe_id = db.upsert_etymon("ċēap", "old-english")
+        on_id = db.upsert_etymon("kaupa", "old-norse")
+        _add_descent(db, parent_id=gml_id, child_id=on_id, edge_type="borrowing")
+        _add_descent(db, parent_id=oe_id, child_id=on_id, edge_type="borrowing")
+        proposals = classify_old_norse(db)
+    assert proposals[on_id] == "low-german-loan"
+
+
+def test_classify_old_norse_priority_english_over_gaelic(fresh_db: Path) -> None:
+    """Priority: english-loan beats gaelic-substrate when both are
+    present. Completes the loan-priority chain (latin > low-german
+    > english > gaelic) so a refactor that swaps any adjacent pair
+    in OLD_NORSE_STRATA gets caught at the resolution-behavior
+    layer rather than only by the tuple-shape pin."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        oe_id = db.upsert_etymon("scōl", "old-english")
+        oi_id = db.upsert_etymon("scol", "old-irish")
+        on_id = db.upsert_etymon("skóli", "old-norse")
+        _add_descent(db, parent_id=oe_id, child_id=on_id, edge_type="borrowing")
+        _add_descent(db, parent_id=oi_id, child_id=on_id, edge_type="borrowing")
+        proposals = classify_old_norse(db)
+    assert proposals[on_id] == "english-loan"
+
+
+def test_classify_old_norse_east_norse_self_lang_holds_against_ancestor_walk(
+    fresh_db: Path,
+) -> None:
+    """The self-language pass runs first in _classify_family; the
+    ancestor-walk pass runs second over modern_lang rows only. For
+    ON, gmq-osw / gmq-oda rows are NOT in modern_ids (modern_lang is
+    'old-norse'), so a gmq-osw etymon's east-norse assignment from
+    the self-language pass is structurally protected from being
+    overwritten by the ancestor walk. Pin that even when a gmq-osw
+    row carries a latin parent, the east-norse classification holds.
+
+    Catches a future refactor that changes _classify_family's
+    two-pass shape (e.g. running the ancestor walk over self-lang
+    rows too) — the silent overwrite would change which stratum
+    wins for East Norse rows with foreign loan ancestors."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        latin_id = db.upsert_etymon("ecclesia", "latin")
+        osw_id = db.upsert_etymon("kirkia", "gmq-osw")
+        # Add a latin parent edge — would route to latin-loan if the
+        # ancestor walk fired on this row.
+        _add_descent(db, parent_id=latin_id, child_id=osw_id, edge_type="borrowing")
+        proposals = classify_old_norse(db)
+    # Self-language pass assigned east-norse; ancestor walk did NOT
+    # touch this row (modern_lang='old-norse' only).
+    assert proposals[osw_id] == "east-norse"
+
+
+def test_classify_old_norse_germanic_parent_with_low_german_loan_still_classifies(
+    fresh_db: Path,
+) -> None:
+    """Defense-in-depth on the Germanic-absence invariant for ON
+    (parallel to the OE gmw-pro+latin test). An ON etymon with BOTH
+    a proto-germanic parent (intentionally not in the ancestor map)
+    AND a gml parent (in the map) MUST classify as
+    ``low-german-loan``. Pins that proto-germanic doesn't
+    accidentally take priority over a real loan signal — proves the
+    absence is genuine, not a 'lower-priority alternative'."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        gem_id = db.upsert_etymon("*kaupą", "proto-germanic")
+        gml_id = db.upsert_etymon("kopen", "gml")
+        on_id = db.upsert_etymon("kaupa", "old-norse")
+        _add_descent(db, parent_id=gem_id, child_id=on_id)
+        _add_descent(db, parent_id=gml_id, child_id=on_id, edge_type="borrowing")
+        proposals = classify_old_norse(db)
+    assert proposals[on_id] == "low-german-loan"
+
+
+def test_classify_old_norse_christian_era_greek_loan_folds_into_latin_loan(
+    fresh_db: Path,
+) -> None:
+    """Same Christianization-via-Latin-channels semantic as OE: an ON
+    etymon with an ancient-greek parent routes to ``latin-loan``
+    because pre-modern Greek loans into ON arrived through Latin /
+    clerical pathways. Pinned dedicated rather than implicit so a
+    refactor that drops 'ancient-greek' from
+    _OLD_NORSE_ANCESTOR_TO_STRATUM gets caught."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        greek_id = db.upsert_etymon("kyrios", "ancient-greek")
+        on_id = db.upsert_etymon("kirkja", "old-norse")
+        _add_descent(db, parent_id=greek_id, child_id=on_id, edge_type="borrowing")
+        proposals = classify_old_norse(db)
+    assert proposals[on_id] == "latin-loan"
+
+
+def test_classify_old_norse_skips_merged_rows(fresh_db: Path) -> None:
+    """OCR-clustering losers (merged_into_id IS NOT NULL) are skipped
+    in BOTH passes (self-language for east-norse + ancestor walk for
+    old-norse), so we don't carry a stale stratum on a row callers
+    already filter out."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        winner = db.upsert_etymon("þorp", "old-norse")
+        loser = db.upsert_etymon("þrop", "old-norse")  # OCR variant
+        # Also a loser in the East Norse self-language pass.
+        east_loser = db.upsert_etymon("kallé", "gmq-osw")
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id IN (?, ?)",
+            (winner, loser, east_loser),
+        )
+        db.commit()
+        proposals = classify_old_norse(db)
+    assert winner in proposals
+    assert loser not in proposals
+    assert east_loser not in proposals
+
+
+def test_classify_old_norse_proto_norse_falls_through_to_default(fresh_db: Path) -> None:
+    """gmq-pro (Proto-Norse, ~423 rows) is intentionally NOT in the
+    self-language map — it's the common ancestor of both East and
+    West Norse traditions and folding into either bucket would
+    bias the East/West dichotomy. Pin that gmq-pro etymons fall
+    outside the classifier's modern_lang scope (modern_lang is
+    'old-norse' only) and aren't classified at all."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        gmq_id = db.upsert_etymon("*þurpa", "gmq-pro")
+        proposals = classify_old_norse(db)
+    # gmq-pro is outside modern_lang scope and outside self-language
+    # map — silently absent from proposals.
+    assert gmq_id not in proposals
+
+
+def test_old_norse_strata_priority_order_includes_all_buckets() -> None:
+    """``OLD_NORSE_STRATA`` is the source-of-truth ordering. Six
+    buckets — one more than Welsh / French because the Eastern /
+    Western dialect axis adds a regional dimension orthogonal to
+    the loan strata. Pin the load-bearing priority order so a
+    refactor that re-orders them (and changes which stratum wins
+    on multi-ancestor etymons) gets caught."""
+    assert OLD_NORSE_STRATA == (
+        "latin-loan",
+        "low-german-loan",
+        "english-loan",
+        "gaelic-substrate",
+        "east-norse",
+        "native-old-norse",
+    )
+
+
+def test_cli_classify_stratum_old_norse_dry_run_reports_counts(
+    fresh_db: Path,
+) -> None:
+    """End-to-end CLI sanity: ``--language old-norse`` dispatches to
+    classify_old_norse, prints per-stratum counts, doesn't write
+    without ``--apply``. Mirrors the dry-run tests for the other
+    language families."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        # One row per stratum so the summary table covers each.
+        latin_id = db.upsert_etymon("ecclesia", "latin")
+        latin_on = db.upsert_etymon("kirkja", "old-norse")
+        _add_descent(db, parent_id=latin_id, child_id=latin_on, edge_type="borrowing")
+        gml_id = db.upsert_etymon("klippe", "gml")
+        gml_on = db.upsert_etymon("klippa", "old-norse")
+        _add_descent(db, parent_id=gml_id, child_id=gml_on, edge_type="borrowing")
+        oe_id = db.upsert_etymon("scōl", "old-english")
+        oe_on = db.upsert_etymon("skóli", "old-norse")
+        _add_descent(db, parent_id=oe_id, child_id=oe_on, edge_type="borrowing")
+        oi_id = db.upsert_etymon("airigid", "old-irish")
+        oi_on = db.upsert_etymon("ǽrgi", "old-norse")
+        _add_descent(db, parent_id=oi_id, child_id=oi_on, edge_type="borrowing")
+        db.upsert_etymon("kalla", "gmq-osw")  # east-norse via self-lang
+        db.upsert_etymon("þorp", "old-norse")  # native default
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "classify-stratum",
+            "--db",
+            str(fresh_db),
+            "--language",
+            "old-norse",
+        ],
+    )
+    combined = result.output + (result.stderr or "")
+    assert result.exit_code == 0, combined
+    assert "old-norse stratum classification: 6 etymons" in combined
+    for stratum in OLD_NORSE_STRATA:
+        assert stratum in combined
+    # Dry-run — no writes.
+    with LexiconDB(fresh_db) as db:
+        non_null = db.conn.execute(
+            "SELECT COUNT(*) FROM etymon WHERE stratum IS NOT NULL"
+        ).fetchone()[0]
+    assert non_null == 0
+
+
+def test_cli_classify_stratum_old_norse_apply_writes_column(fresh_db: Path) -> None:
+    """``--apply`` writes the proposed stratum values for ON. Pinned
+    independently so a regression in the classifiers dispatch dict
+    (e.g. wiring through only some branches) gets caught."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        gml_id = db.upsert_etymon("klippe", "gml")
+        on_id = db.upsert_etymon("klippa", "old-norse")
+        _add_descent(db, parent_id=gml_id, child_id=on_id, edge_type="borrowing")
+        east_id = db.upsert_etymon("kalla", "gmq-osw")
+        native_id = db.upsert_etymon("þorp", "old-norse")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "classify-stratum",
+            "--db",
+            str(fresh_db),
+            "--language",
+            "old-norse",
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    with LexiconDB(fresh_db) as db:
+        rows = db.conn.execute(
+            "SELECT id, stratum FROM etymon WHERE id IN (?, ?, ?) ORDER BY id",
+            (on_id, east_id, native_id),
+        ).fetchall()
+    by_id = {r["id"]: r["stratum"] for r in rows}
+    assert by_id[on_id] == "low-german-loan"
+    assert by_id[east_id] == "east-norse"
+    assert by_id[native_id] == "native-old-norse"
+
+
+def test_cli_classify_stratum_old_norse_force_overwrites(fresh_db: Path) -> None:
+    """``--apply --force`` overwrites an existing stratum value when
+    dispatched to the ON classifier. Mirror of the welsh / french /
+    OE force tests — pin the ON branch of the dispatch dict
+    end-to-end."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        on_id = db.upsert_etymon("þorp", "old-norse")
+        db.conn.execute(
+            "UPDATE etymon SET stratum = ? WHERE id = ?",
+            ("manual-override", on_id),
+        )
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "classify-stratum",
+            "--db",
+            str(fresh_db),
+            "--language",
+            "old-norse",
+            "--apply",
+            "--force",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (on_id,)).fetchone()[
+            "stratum"
+        ]
+    assert stratum == "native-old-norse"

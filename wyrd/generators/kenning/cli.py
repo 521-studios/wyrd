@@ -285,8 +285,10 @@ def cli() -> None:
         "'native-french', 'medieval-french', 'gallo-roman', "
         "'gaulish-substrate', 'frankish-substrate'; for Old English: "
         "'native-old-english', 'celtic-substrate', 'norse-loan', "
-        "'latin-loan' (Old Norse follows). Morphemes with no stratum "
-        "data pass through. Composes with --era via intersection."
+        "'latin-loan'; for Old Norse: 'native-old-norse', 'east-norse', "
+        "'gaelic-substrate', 'english-loan', 'low-german-loan', "
+        "'latin-loan'. Morphemes with no stratum data pass through. "
+        "Composes with --era via intersection."
     ),
 )
 @click.option(
@@ -4357,17 +4359,17 @@ def lexicon_derive_english_shaped(
 )
 @click.option(
     "--language",
-    type=click.Choice(["welsh", "french", "old-english"]),
+    type=click.Choice(["welsh", "french", "old-english", "old-norse"]),
     required=True,
     help=(
-        "Language family to classify. Currently 'welsh', 'french', "
-        "and 'old-english' are supported. Welsh covers etymons with "
+        "Language family to classify. Welsh covers etymons with "
         "language IN ('welsh', 'middle-welsh', 'old-welsh', "
         "'cel-bry-pro'); French covers ('french', 'old-french', "
         "'middle-french', 'norman-french', 'vulgar-latin', 'frk', "
-        "'cel-gau'); Old English covers language='old-english' (the "
-        "live DB has no dialect codes — Phase 4b heuristic uses "
-        "loan-source ancestors only). Old Norse is a follow-up."
+        "'cel-gau'); Old English covers language='old-english' "
+        "(loan-source ancestors only — dialect axis deferred); Old "
+        "Norse covers ('old-norse', 'gmq-osw' Old Swedish, 'gmq-oda' "
+        "Old Danish)."
     ),
 )
 @click.option(
@@ -4409,9 +4411,11 @@ def lexicon_classify_stratum(
     from wyrd.generators.kenning.strata import (
         FRENCH_STRATA,
         OLD_ENGLISH_STRATA,
+        OLD_NORSE_STRATA,
         WELSH_STRATA,
         classify_french,
         classify_old_english,
+        classify_old_norse,
         classify_welsh,
     )
 
@@ -4419,6 +4423,7 @@ def lexicon_classify_stratum(
         "welsh": (classify_welsh, WELSH_STRATA),
         "french": (classify_french, FRENCH_STRATA),
         "old-english": (classify_old_english, OLD_ENGLISH_STRATA),
+        "old-norse": (classify_old_norse, OLD_NORSE_STRATA),
     }
     classifier, strata_order = classifiers[language]
 
