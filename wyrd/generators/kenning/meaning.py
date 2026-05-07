@@ -325,6 +325,32 @@ class Meaning:
                 return True
         return False
 
+    def in_stratum(self, stratum: str | None) -> bool:
+        """wyrd-lr4 Phase 3 stratum filter: True if any of this
+        morpheme's per-form stratum tags match ``stratum``, or if the
+        morpheme has no stratum data at all (treated as 'always
+        include' — same convention as the era filter for 'no data →
+        pass').
+
+        ``stratum`` of ``None`` means 'no filter' → always True.
+
+        The 'no stratum data → pass' rule is deliberate. Only Welsh-
+        family etymons are classified today; routing every culture
+        through a strict stratum gate would gut bundles for languages
+        without a Phase 1 classifier (Latin, Old English, French, ...).
+        As Phase 4 lands the rule can tighten per language; for now,
+        missing data is not evidence of absence.
+        """
+        if stratum is None:
+            return True
+        if not self.stratum:
+            return True
+        for forms in self.stratum.values():
+            for tag in forms.values():
+                if tag == stratum:
+                    return True
+        return False
+
     def key(self):
         key = [self.location]
         if self.is_name():

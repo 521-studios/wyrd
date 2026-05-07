@@ -3590,8 +3590,18 @@ def _seed_subject(
     tags: list[str],
     modifier_type: str | None,
     words: list[dict],
+    language_overrides: dict[str, str] | None = None,
 ) -> None:
-    """Helper: ingest one meanings.json subject via seed_from_meanings."""
+    """Helper: ingest one meanings.json subject via seed_from_meanings.
+
+    ``language_overrides`` (wyrd-ok36) maps canonical_form → lexicon
+    language code to relabel rows after seeding. Most JSON-field names
+    route to a single lexicon language (``celtic_mix`` → ``celtic``,
+    ``hebrew`` → ``he``), but tests for multi-substrata families
+    (welsh + middle-welsh sharing a celtic_mix bucket) need finer
+    control. Pass ``{"caer": "welsh", "din": "middle-welsh"}`` to
+    relabel two seeded rows away from the bucket-default language.
+    """
     seed_from_meanings(
         db,
         [
@@ -3604,6 +3614,13 @@ def _seed_subject(
         ],
         source_id,
     )
+    if language_overrides:
+        for form, lang in language_overrides.items():
+            db.conn.execute(
+                "UPDATE etymon SET language = ? WHERE canonical_form = ?",
+                (lang, form),
+            )
+        db.commit()
 
 
 def test_export_meanings_includes_rando_etymons_with_no_scholar_witnesses(
@@ -4392,9 +4409,7 @@ def test_export_meanings_emits_stratum_per_language(fresh_db: Path) -> None:
                     "celtic_mix": ["caer", "din"],
                 }
             ],
-        )
-        db.conn.execute(
-            "UPDATE etymon SET language = 'welsh' WHERE canonical_form IN ('caer', 'din')"
+            language_overrides={"caer": "welsh", "din": "welsh"},
         )
         db.conn.execute(
             "UPDATE etymon SET stratum = ? WHERE canonical_form = ? AND language = 'welsh'",
@@ -4464,9 +4479,7 @@ def test_export_meanings_partial_stratum_emits_only_populated(fresh_db: Path) ->
                     "celtic_mix": ["cwm", "glyn"],
                 }
             ],
-        )
-        db.conn.execute(
-            "UPDATE etymon SET language = 'welsh' WHERE canonical_form IN ('cwm', 'glyn')"
+            language_overrides={"cwm": "welsh", "glyn": "welsh"},
         )
         # Only 'cwm' gets a stratum; 'glyn' stays NULL.
         db.conn.execute(
@@ -4511,11 +4524,10 @@ def test_export_meanings_unions_stratum_across_welsh_substrata(
                     "celtic_mix": ["afon"],
                 }
             ],
+            language_overrides={"afon": "welsh"},
         )
-        # Relabel the seeded root from language='celtic' to 'welsh' so
-        # the substrata family looks like the production shape.
         db.conn.execute(
-            "UPDATE etymon SET language = 'welsh', stratum = ? WHERE canonical_form = 'afon'",
+            "UPDATE etymon SET stratum = ? WHERE canonical_form = 'afon'",
             ("native-welsh",),
         )
         afon_root_id = db.conn.execute(
@@ -4567,10 +4579,10 @@ def test_export_meanings_stratum_collision_resolves_by_lang_sort_order(
                     "celtic_mix": ["caer"],
                 }
             ],
+            language_overrides={"caer": "welsh"},
         )
-        # Relabel the seeded row to language='welsh' with one stratum.
         db.conn.execute(
-            "UPDATE etymon SET language = 'welsh', stratum = ? WHERE canonical_form = 'caer'",
+            "UPDATE etymon SET stratum = ? WHERE canonical_form = 'caer'",
             ("latin-loan",),
         )
         caer_root_id = db.conn.execute(
@@ -4616,10 +4628,10 @@ def test_export_meanings_stratum_via_reflex_linked_inflected_descendant(
             tags=["topography"],
             modifier_type="Topographical",
             words=[{"modern_usage": "Cwm-", "celtic_mix": ["cwm"]}],
+            language_overrides={"cwm": "welsh"},
         )
-        # Relabel to welsh + stamp the lemma's stratum.
         db.conn.execute(
-            "UPDATE etymon SET language = 'welsh', stratum = ? WHERE canonical_form = 'cwm'",
+            "UPDATE etymon SET stratum = ? WHERE canonical_form = 'cwm'",
             ("native-welsh",),
         )
         cwm_root_id = db.conn.execute(

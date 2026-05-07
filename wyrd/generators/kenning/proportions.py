@@ -132,6 +132,30 @@ class Generator:
         return {k: v for k, v in items if k not in excluded}
 
 
+def _intersect_keep_keys(
+    a: frozenset[str] | None,
+    b: frozenset[str] | None,
+) -> frozenset[str] | None:
+    """Compose two keep-key filters (era + stratum, today; any future
+    per-call USAGE-level gate would compose the same way). ``None``
+    means 'no filter' for either side, so the result follows the
+    standard intersection-with-identity rule:
+
+      * both None → None (bit-stable no-filter fast path)
+      * one None, other set → the set (single filter wins)
+      * both set → frozenset intersection (must clear both gates)
+
+    Returning ``None`` when both filters are absent is what lets
+    ``Generator.select`` short-circuit to its bit-stable empirical
+    path — see ``keep_keys_for_era`` for the contract.
+    """
+    if a is None:
+        return b
+    if b is None:
+        return a
+    return a & b
+
+
 class MeaningGenerator:
     def __init__(self, meaning_db, tag_db, proportions):
         self.meaning_db = meaning_db
@@ -145,6 +169,13 @@ class MeaningGenerator:
         # meaning_db is immutable post-load so the cache is safe to
         # reuse for the process lifetime.
         self._era_keep_cache: dict[tuple[int | None, int | None], frozenset[str] | None] = {}
+        # wyrd-lr4 Phase 3 stratum-filter cache: stratum string →
+        # frozenset of allowed usages (or None for the full-coverage
+        # / no-filter fast path). Same caching contract as
+        # _era_keep_cache; meaning_db is immutable post-load so a
+        # single computation per stratum value lasts the process
+        # lifetime.
+        self._stratum_keep_cache: dict[str, frozenset[str] | None] = {}
         self.load_parts(proportions)
 
     def load_parts(self, proportions, *addkeys):
@@ -198,6 +229,41 @@ class MeaningGenerator:
         if len(allowed) == len(self.meaning_db):
             allowed = None
         self._era_keep_cache[era_range] = allowed
+        return allowed
+
+    def keep_keys_for_stratum(self, stratum: str | None) -> frozenset[str] | None:
+        """wyrd-lr4 Phase 3: resolve a stratum tag to the set of usages
+        with at least one Meaning admissible under that stratum.
+
+        Mirrors ``keep_keys_for_era`` exactly — same None-on-no-filter,
+        None-on-full-coverage signal, same per-process cache. Today
+        only Welsh-family etymons carry stratum data, so most usages
+        will pass via the 'no stratum data → admit' branch in
+        ``Meaning.in_stratum``; the keep-set narrows only those usages
+        whose Meaning HAS stratum data and the data doesn't include
+        the requested tag. As Phase 4 lands and more languages get
+        classified, the set tightens automatically.
+
+        Granularity caveat (same as era): filtering happens at the
+        USAGE level, not the SENSE level. A usage with two senses
+        (one in-stratum, one out) stays in the pool; the downstream
+        pick at ``NameGenerator._pick_surface`` falls back to
+        ``meanings[0]`` for variant/inflection rendering, which may
+        surface the wrong-stratum sense. Sense-level filtering would
+        need ``_render_substitutions`` reworked.
+        """
+        if stratum is None:
+            return None
+        if stratum in self._stratum_keep_cache:
+            return self._stratum_keep_cache[stratum]
+        allowed: frozenset[str] | None = frozenset(
+            usage
+            for usage, meanings in self.meaning_db.items()
+            if any(m.in_stratum(stratum) for m in meanings)
+        )
+        if len(allowed) == len(self.meaning_db):
+            allowed = None
+        self._stratum_keep_cache[stratum] = allowed
         return allowed
 
     def select(
@@ -265,6 +331,7 @@ class NameGenerator:
         harshness: float = 0.0,
         exclude_tags: tuple[str, ...] = (),
         era_range: tuple[int | None, int | None] | None = None,
+        stratum: str | None = None,
         cohesion: float = 0.0,
     ):
         """Pick a structure, fill it with morpheme usages, optionally render
@@ -306,6 +373,17 @@ class NameGenerator:
         once per call from ``meaning_gen.keep_keys_for_era`` and reused
         across every per-bucket pick within this name.
 
+        ``stratum`` (wyrd-lr4 Phase 3) restricts the morpheme inventory
+        to forms classified into a specific within-language register
+        bucket — e.g. 'native-welsh' / 'brittonic-substrate' /
+        'medieval-welsh' / 'latin-loan' / 'english-loan'. Morphemes
+        with no stratum data pass through (Welsh is the only family
+        classified today; routing every culture through a strict gate
+        would gut bundles for Latin / OE / French / etc.). ``None``
+        disables the filter — bit-stable. Composes with ``era_range``
+        via frozenset intersection: a morpheme must clear BOTH gates
+        when both are set. Same usage-level granularity caveat as era.
+
         ``cohesion`` (wyrd-mj2) biases each slot's pick toward usages whose
         tags co-occur with previously-picked slots' tags in the empirical
         corpus. At ``cohesion=0`` (default) every slot samples
@@ -337,7 +415,10 @@ class NameGenerator:
         same morpheme, inflection wins — it carries grammatical meaning
         that the variant axis doesn't.
         """
-        keep_keys = self.meaning_gen.keep_keys_for_era(era_range)
+        keep_keys = _intersect_keep_keys(
+            self.meaning_gen.keep_keys_for_era(era_range),
+            self.meaning_gen.keep_keys_for_stratum(stratum),
+        )
         items = list(self.structs.items())
         struct = weighted_choice(rng, items)
         if len(tags) == 0:

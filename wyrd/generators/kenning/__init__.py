@@ -533,6 +533,20 @@ class Kenning(Generator):
                         "tag-class pairings, novelty blends toward the uniform marginal."
                     ),
                 },
+                "stratum": {
+                    "type": "string",
+                    "default": "",
+                    "description": (
+                        "wyrd-lr4 Phase 3 within-language stratum filter. Restricts the "
+                        "morpheme inventory to forms classified into a specific register "
+                        "bucket — for Welsh: 'native-welsh', 'brittonic-substrate', "
+                        "'medieval-welsh', 'latin-loan', 'english-loan'. Morphemes with "
+                        "no stratum data pass through (Phase 1 has classified Welsh-family "
+                        "etymons only; Latin / OE / French / etc. all admit until Phase 4 "
+                        "lands). Composes with --era via intersection. Empty disables "
+                        "the filter — bit-stable behavior."
+                    ),
+                },
                 "manorial_affix": {
                     "type": "number",
                     "default": 0.0,
@@ -579,6 +593,7 @@ class Kenning(Generator):
         exclude_tags: tuple[str, ...] = () if include_fiction else (_FICTION_TAG,)
 
         era_range = _resolve_era_param(params.get("era"), culture)
+        stratum = params.get("stratum") or None
 
         name_gen, _ = _load_culture(culture)
         rng = rng_for(seed)
@@ -591,6 +606,7 @@ class Kenning(Generator):
             harshness=harshness,
             exclude_tags=exclude_tags,
             era_range=era_range,
+            stratum=stratum,
             cohesion=cohesion,
         )
         result_str = str(new_name)
