@@ -1170,7 +1170,7 @@ def _create_etymon_period_form_table(db: LexiconDB, applied: dict[str, bool]) ->
     """wyrd-unuo Phase 3.3: ensure ``etymon_period_form`` table +
     indexes exist on legacy DBs.
 
-    Tier 4 fallback for the era-reflex picker (after cognate-cluster +
+    Tier 3 fallback for the era-reflex picker (after cognate-cluster +
     descent-edge paths). Stores per-etymon period-keyed surface forms
     projected from toponym_attestation rows. The unique index makes
     re-projection idempotent.
@@ -3468,10 +3468,12 @@ def etymon_era_reflexes(
        for projected period forms whose ``date_year`` falls in the
        cell's year range. Closes the ~72% coverage gap for isolated
        OE etymons (no cognate_id, no descent edges) when the
-       toponym_attestation projection has run. Tier 3 results are
-       returned with the canonical language tag for the cell — they
-       represent surface forms attested AT that period without
-       resolving to a specific etymon row.
+       toponym_attestation projection has run. Tier 3 results carry
+       ``etymon_id == etymon_id`` (the queried etymon — the projected
+       period form IS attached to that etymon row) and the cell's
+       canonical language tag (since ``etymon_period_form`` rows
+       don't carry an explicit language; the language is implicit
+       from the cell's range).
 
     Reflexes are filtered to ``merged_into_id IS NULL`` so OCR-
     cluster losers (D22) don't surface as period forms; the merge
@@ -3545,6 +3547,12 @@ def etymon_era_reflexes(
     # (b) target_family_cell is set (so we have a year range)
     # (c) the cell has a year range (some open-ended cells have
     #     start=None / end=None; we only query the closed bounds)
+    #
+    # Joins against ``etymon`` to filter ``merged_into_id IS NULL``
+    # — same OCR-tombstone filter Tiers 1 + 2 enforce. A loser
+    # etymon's projected period-form rows shouldn't surface as
+    # reflexes; the merge winner is the canonical voice for that
+    # surface.
     if not results and target_family_cell is not None:
         family, cell = target_family_cell
         try:
@@ -3553,7 +3561,7 @@ def etymon_era_reflexes(
             return results
         # Build year-range filter; treat None bounds as "open on
         # that side" (no constraint).
-        clauses = ["pf.etymon_id = ?"]
+        clauses = ["pf.etymon_id = ?", "e.merged_into_id IS NULL"]
         params: list[int] = [etymon_id]
         if start is not None:
             clauses.append("pf.date_year >= ?")
@@ -3565,6 +3573,7 @@ def etymon_era_reflexes(
             f"""
             SELECT DISTINCT pf.form, MIN(pf.date_year) AS year
             FROM etymon_period_form pf
+            JOIN etymon e ON e.id = pf.etymon_id
             WHERE {" AND ".join(clauses)}
             GROUP BY pf.form
             ORDER BY pf.form
@@ -3697,6 +3706,21 @@ def project_period_forms(
     last morpheme's known reflexes; the remaining prefix is the first
     morpheme's projected period form.
 
+    v1 limits (mirroring the module-level comment block above for
+    callers that read help() / IDE hovers):
+
+    * **Binary breakdowns only** — ternary+ skipped because middle-
+      morpheme alignment isn't reliable without phonetic distance.
+    * **Suffix-anchoring only** — last-morpheme matched against
+      cluster mates / variants; first-morpheme is whatever's left
+      after the suffix split.
+    * **Skip merged-into etymons** — toponyms whose breakdown
+      points at OCR-cluster losers (merged_into_id IS NOT NULL)
+      are skipped so loser etymons don't accumulate stale period-
+      form rows that then surface via the era-reflex Tier 3.
+    * **Reasonability gates** — both projected segments must be
+      ≥2 chars; sub-2-char prefixes / suffixes are noise.
+
     Idempotent via the unique index ``idx_period_form_unique``;
     re-runs are no-ops on already-projected (etymon, form, year,
     source_doc) tuples.
@@ -3806,11 +3830,19 @@ def _get_binary_breakdowns(db: LexiconDB, toponym_id: int) -> list[list[dict]]:
     only handles the binary case reliably. Multiple breakdowns per
     toponym are common (different scholarly proposals); each is
     projected independently.
+
+    Filters out breakdowns where ANY element points at a
+    merged_into_id-tagged tombstone — projecting a period form to
+    a loser etymon would surface stale rows via Tier 3 of the
+    era-reflex picker. The OCR-cluster winner is the canonical
+    voice; if a downstream pass needs the loser's projections,
+    it should re-resolve via the merge chain.
     """
     cur = db.conn.execute(
         """
         SELECT te.id AS te_id, tee.ordinal, tee.etymon_id,
-               e.canonical_form, e.language, e.cognate_id
+               e.canonical_form, e.language, e.cognate_id,
+               e.merged_into_id
         FROM toponym_etymology te
         JOIN toponym_etymology_element tee ON tee.toponym_etymology_id = te.id
         JOIN etymon e ON tee.etymon_id = e.id
@@ -3820,7 +3852,11 @@ def _get_binary_breakdowns(db: LexiconDB, toponym_id: int) -> list[list[dict]]:
         (toponym_id,),
     )
     grouped: dict[int, list[dict]] = {}
+    skip_te_ids: set[int] = set()
     for row in cur:
+        if row["merged_into_id"] is not None:
+            skip_te_ids.add(row["te_id"])
+            continue
         grouped.setdefault(row["te_id"], []).append(
             {
                 "ordinal": row["ordinal"],
@@ -3830,7 +3866,7 @@ def _get_binary_breakdowns(db: LexiconDB, toponym_id: int) -> list[list[dict]]:
                 "cognate_id": row["cognate_id"],
             }
         )
-    return [bd for bd in grouped.values() if len(bd) == 2]
+    return [bd for te_id, bd in grouped.items() if len(bd) == 2 and te_id not in skip_te_ids]
 
 
 def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:

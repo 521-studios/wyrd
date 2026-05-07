@@ -544,9 +544,9 @@ CREATE UNIQUE INDEX idx_attestation_unique
 -- wyrd-unuo Phase 3.3: per-etymon period-keyed surface forms,
 -- projected from toponym_attestation rows by segmenting historical
 -- compound forms onto the toponym's canonical morpheme breakdown.
--- Used by etymon_era_reflexes as a Tier 4 fallback when neither
--- cognate-cluster (Tier 1-2) nor direct descent (Tier 3) produces
--- a reflex. Closes the ~72% coverage gap on isolated OE etymons
+-- Used by etymon_era_reflexes as a Tier 3 fallback when neither
+-- cognate-cluster (Tier 1) nor direct descent (Tier 2) produces a
+-- reflex. Closes the ~72% coverage gap on isolated OE etymons
 -- that have no cognate_id and no descent edges.
 --
 -- attestation_id is a soft FK back to the source toponym_attestation

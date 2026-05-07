@@ -3452,7 +3452,7 @@ def lexicon_project_period_forms(
     'ford'); Chesterton (1210) "Cestretone" projects to "Cestre" (OE
     'ceaster') + "tone" (OE 'tūn').
 
-    Output is the Tier 4 fallback for ``etymon_era_reflexes`` —
+    Output is the Tier 3 fallback for ``etymon_era_reflexes`` —
     closes the coverage gap on isolated OE etymons (no cognate_id, no
     descent edges) when the toponym had a binary attested form.
 

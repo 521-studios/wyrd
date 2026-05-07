@@ -3254,6 +3254,73 @@ def test_project_period_forms_skips_ternary_breakdowns(fresh_db: Path) -> None:
     assert result["rows_projected"] == 0
 
 
+def test_project_period_forms_skips_breakdowns_with_merged_etymons(
+    fresh_db: Path,
+) -> None:
+    """Per Claude review M1: a breakdown whose component points at an
+    OCR-cluster loser (merged_into_id IS NOT NULL) is skipped so loser
+    etymons don't accumulate stale period_form rows that then surface
+    via Tier 3 of the era-reflex picker. Pin the projector-side filter
+    matching Tiers 1+2's behavior."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        winner_id = db.upsert_etymon("brad", "old-english")
+        loser_id = db.upsert_etymon("brade", "old-english")
+        ford_id = db.upsert_etymon("ford", "old-english")
+        # Mark loser as merged-into the winner.
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (winner_id, loser_id),
+        )
+        db.commit()
+        # Toponym breaks down via the LOSER etymon (the original
+        # extraction predates the OCR merge).
+        toponym_id = _seed_toponym_with_binary_breakdown(
+            db,
+            modern_name="Bradford",
+            first_etymon_id=loser_id,
+            last_etymon_id=ford_id,
+        )
+        db.conn.execute(
+            "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (toponym_id, "Bradeford", 1377, "src"),
+        )
+        db.commit()
+        result = project_period_forms(db, apply=True)
+
+    assert result["rows_projected"] == 0
+
+
+def test_etymon_era_reflexes_tier3_filters_merged_into(fresh_db: Path) -> None:
+    """Per Claude review M1: Tier 3 query MUST filter
+    merged_into_id IS NULL to match Tiers 1+2. A loser etymon's
+    period_form rows (if they ever made it past the projector
+    filter) shouldn't surface as reflexes — the merge winner is
+    the canonical voice."""
+    with LexiconDB(fresh_db) as db:
+        winner_id = db.upsert_etymon("orphan", "old-english")
+        loser_id = db.upsert_etymon("orphan-loser", "old-english")
+        # Mark loser as merged-into winner; insert a period_form on
+        # the LOSER (simulates a stale row from a pre-merge projector
+        # run, or a manual data-correction).
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (winner_id, loser_id),
+        )
+        db.conn.execute(
+            "INSERT INTO etymon_period_form "
+            "(etymon_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+            (loser_id, "stale-form", 1300, "src"),
+        )
+        db.commit()
+        # Querying the LOSER directly should return [] — Tier 3 honors
+        # the merge tombstone.
+        reflexes = etymon_era_reflexes(db, loser_id, target_family_cell=("english", "me"))
+
+    assert reflexes == []
+
+
 def test_project_period_forms_idempotent_rerun(fresh_db: Path) -> None:
     """Unique index on (etymon_id, form, date_year, source_doc) makes
     re-projection a no-op via INSERT OR IGNORE."""
@@ -3417,6 +3484,110 @@ def test_rewind_anchor_resolves_across_hyphen_variants(fresh_db: Path) -> None:
     by_cell = {stop.cell: stop.morphemes[0] for stop in result.eras}
     assert by_cell["oe-late"].source_form == "tūn"
     assert by_cell["oe-late"].source_language == "old-english"
+
+
+def test_strip_diacritics_normalizes_macrons_and_circumflexes() -> None:
+    """Direct unit test for the diacritic-stripper used by the
+    suffix-anchoring projector. Inputs include the OE macron set
+    (ūīāēō) and Welsh circumflex set (ŵâêôûŷ) that show up as
+    bundle-source forms; the projector compares stripped variants
+    against historical-form suffixes."""
+    from wyrd.generators.kenning.lexicon import _strip_diacritics
+
+    assert _strip_diacritics("tūn") == "tun"
+    assert _strip_diacritics("Hædan") == "Hædan"  # æ is a base char, not a combining mark
+    assert _strip_diacritics("Llanfaên") == "Llanfaen"
+    assert _strip_diacritics("Hēafod") == "Heafod"
+    assert _strip_diacritics("ASCII") == "ASCII"
+
+
+def test_find_longest_suffix_match_picks_longest_candidate() -> None:
+    """Direct unit test: when multiple candidates are valid suffixes,
+    the longest wins (so 'tone' wins over 'one' for 'Cestretone')."""
+    from wyrd.generators.kenning.lexicon import _find_longest_suffix_match
+
+    assert _find_longest_suffix_match("Cestretone", {"tone", "one", "ne"}) == "tone"
+    assert _find_longest_suffix_match("Bradeford", {"ford", "ord", "rd"}) == "ford"
+
+
+def test_find_longest_suffix_match_diacritic_insensitive() -> None:
+    """Suffix matching is diacritic-insensitive: ``Cestretun`` matches
+    a pre-stripped 'tun' candidate. Caller (``_suffix_candidates_for_etymon``)
+    is responsible for adding both unstripped + stripped forms to
+    the candidate set; the matcher checks whether either the raw or
+    diacritic-stripped attested form ends with any candidate."""
+    from wyrd.generators.kenning.lexicon import _find_longest_suffix_match
+
+    # Caller-provided candidates include both: 'tūn' (raw) + 'tun'
+    # (stripped). Match against 'tun' via either af.endswith path.
+    assert _find_longest_suffix_match("Cestretun", {"tūn", "tun"}) == "tun"
+    # Diacritic-bearing attested form: 'Cestretūn' (with macron)
+    # also matches via af_stripped.endswith('tun').
+    assert _find_longest_suffix_match("Cestretūn", {"tūn", "tun"}) == "tūn"
+
+
+def test_find_longest_suffix_match_returns_none_for_no_match() -> None:
+    """When no candidate is a suffix of the form, the matcher returns
+    None (caller skips the projection)."""
+    from wyrd.generators.kenning.lexicon import _find_longest_suffix_match
+
+    assert _find_longest_suffix_match("Cestretone", {"xyz", "abc"}) is None
+    assert _find_longest_suffix_match("Cestretone", set()) is None
+
+
+def test_find_longest_suffix_match_rejects_single_char_candidates() -> None:
+    """Single-char candidates (a trailing 'e' / 's') are rejected to
+    avoid spurious 1-char hits — too noisy to project as a morpheme
+    surface."""
+    from wyrd.generators.kenning.lexicon import _find_longest_suffix_match
+
+    assert _find_longest_suffix_match("Cestretone", {"e"}) is None
+
+
+def test_cli_kenning_lexicon_project_period_forms_smoke(fresh_db: Path) -> None:
+    """End-to-end CLI smoke test: ``lexicon project-period-forms``
+    against a seeded toponym + binary breakdown + attestation
+    populates etymon_period_form when --apply is set, dry-runs
+    otherwise."""
+    runner = CliRunner()
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        brad_id = db.upsert_etymon("brad", "old-english")
+        ford_id = db.upsert_etymon("ford", "old-english")
+        db.commit()
+        toponym_id = _seed_toponym_with_binary_breakdown(
+            db,
+            modern_name="Bradford",
+            first_etymon_id=brad_id,
+            last_etymon_id=ford_id,
+        )
+        db.conn.execute(
+            "INSERT INTO toponym_attestation "
+            "(toponym_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+            (toponym_id, "Bradeford", 1377, "src"),
+        )
+        db.commit()
+
+    # Dry-run: shows candidate count, no rows written.
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "project-period-forms", "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "candidates=" in result.output
+    assert "(dry-run" in result.output
+
+    with LexiconDB(fresh_db) as db:
+        assert db.conn.execute("SELECT COUNT(*) FROM etymon_period_form").fetchone()[0] == 0
+
+    # --apply: writes rows.
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "project-period-forms", "--db", str(fresh_db), "--apply"],
+    )
+    assert result.exit_code == 0, result.output
+    with LexiconDB(fresh_db) as db:
+        assert db.conn.execute("SELECT COUNT(*) FROM etymon_period_form").fetchone()[0] == 2
 
 
 def test_record_mining_run_inserts_row_with_full_fields(fresh_db: Path) -> None:
