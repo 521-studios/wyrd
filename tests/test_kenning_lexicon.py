@@ -11,6 +11,10 @@ import pytest
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as kenning_cli
+from wyrd.generators.kenning.era import (
+    canonical_language_for_cell,
+    era_cell_for_input,
+)
 from wyrd.generators.kenning.lexicon import (
     LANGUAGE_FIELDS,
     NON_LANGUAGE_FIELDS,
@@ -25,6 +29,7 @@ from wyrd.generators.kenning.lexicon import (
     cluster_ocr_variants,
     derive_lemma_candidate,
     detect_running_headers,
+    etymon_era_reflexes,
     export_meanings,
     fuzzy_search_attestations,
     get_meaning_preserving_candidates,
@@ -2151,7 +2156,6 @@ def test_etymon_era_reflexes_returns_matching_language_members(fresh_db: Path) -
     """Direct ``target_language`` mode: cluster mates whose
     ``etymon.language`` matches the requested tag are returned, sorted
     alphabetically by canonical_form for stable output."""
-    from wyrd.generators.kenning.lexicon import etymon_era_reflexes
 
     with LexiconDB(fresh_db) as db:
         ids = _seed_cluster(
@@ -2179,7 +2183,6 @@ def test_etymon_era_reflexes_resolves_family_cell_to_canonical_language(
     identically to passing ``target_language='middle-english'``
     directly. Lets callers pass an era-cell label without knowing the
     canonical-tag mapping."""
-    from wyrd.generators.kenning.lexicon import etymon_era_reflexes
 
     with LexiconDB(fresh_db) as db:
         ids = _seed_cluster(
@@ -2195,22 +2198,95 @@ def test_etymon_era_reflexes_resolves_family_cell_to_canonical_language(
     assert [r.form for r in reflexes] == ["Chester"]
 
 
-def test_etymon_era_reflexes_returns_empty_when_no_cognate_id(
+def test_etymon_era_reflexes_returns_empty_when_no_cognate_id_or_descent(
     fresh_db: Path,
 ) -> None:
-    """An etymon whose ``cognate_id`` is NULL has no cluster — the
-    cluster_cognates pass hasn't run on it, or it's a singleton root.
-    Either way, the era-reflex lookup is a no-op and returns ``[]``,
-    not an error. Consumers fall back to the original etymon's
-    canonical_form."""
-    from wyrd.generators.kenning.lexicon import etymon_era_reflexes
-
+    """An etymon with neither ``cognate_id`` nor descent edges has
+    nothing to walk — the era-reflex lookup is a no-op and returns
+    ``[]``, not an error. Consumers fall back to the original
+    etymon's canonical_form."""
     with LexiconDB(fresh_db) as db:
         eid = db.upsert_etymon("orphan", "old-english")
-        # Don't set cognate_id — it stays NULL by default.
+        # Don't set cognate_id — it stays NULL by default. Don't add
+        # any etymon_descent edges either.
         reflexes = etymon_era_reflexes(db, eid, target_language="middle-english")
 
     assert reflexes == []
+
+
+def test_etymon_era_reflexes_falls_back_to_descent_when_no_cognate_id(
+    fresh_db: Path,
+) -> None:
+    """When ``cognate_id`` is NULL but the etymon has direct
+    ``etymon_descent`` edges, the picker falls back to walking
+    immediate children. Recovers ~4% of OE toponym etymons that
+    have descent edges but never landed in cluster_cognates output
+    (typically because their ancestor chain isn't connected to a
+    known root).
+
+    Filters: edge_type must be 'inheritance' or 'borrowing' (peer
+    'cognate' edges are excluded — too loose for v1 era-rendering).
+    Children must match the target language and not be merged-away.
+    """
+    with LexiconDB(fresh_db) as db:
+        db.conn.execute("INSERT OR IGNORE INTO source (id, title) VALUES ('test', 'Test')")
+        parent_id = db.upsert_etymon("broc", "old-english")
+        child_id = db.upsert_etymon("brok", "middle-english")
+        cognate_peer_id = db.upsert_etymon("brokr", "middle-english")
+        db.conn.execute(
+            "INSERT INTO etymon_descent "
+            "(parent_id, child_id, edge_type, source_id, confidence) "
+            "VALUES (?, ?, 'inheritance', 'test', 'high')",
+            (parent_id, child_id),
+        )
+        # 'cognate' is a peer edge, not a chain — excluded from the
+        # fallback path so loose lexical similarity doesn't surface.
+        db.conn.execute(
+            "INSERT INTO etymon_descent "
+            "(parent_id, child_id, edge_type, source_id, confidence) "
+            "VALUES (?, ?, 'cognate', 'test', 'medium')",
+            (parent_id, cognate_peer_id),
+        )
+        db.commit()
+        reflexes = etymon_era_reflexes(db, parent_id, target_language="middle-english")
+
+    forms = [r.form for r in reflexes]
+    assert forms == ["brok"]  # cognate-peer 'brokr' excluded
+
+
+def test_etymon_era_reflexes_descent_fallback_filters_merged_into(
+    fresh_db: Path,
+) -> None:
+    """Descent-edge fallback respects ``merged_into_id`` the same
+    way the cluster path does — OCR-cluster losers are tombstones
+    and shouldn't surface as period forms even via the fallback."""
+    with LexiconDB(fresh_db) as db:
+        db.conn.execute("INSERT OR IGNORE INTO source (id, title) VALUES ('test', 'Test')")
+        parent_id = db.upsert_etymon("broc", "old-english")
+        winner_id = db.upsert_etymon("brok", "middle-english")
+        loser_id = db.upsert_etymon("broke", "middle-english")
+        # Both children are descendants of the parent.
+        db.conn.execute(
+            "INSERT INTO etymon_descent "
+            "(parent_id, child_id, edge_type, source_id, confidence) "
+            "VALUES (?, ?, 'inheritance', 'test', 'high')",
+            (parent_id, winner_id),
+        )
+        db.conn.execute(
+            "INSERT INTO etymon_descent "
+            "(parent_id, child_id, edge_type, source_id, confidence) "
+            "VALUES (?, ?, 'inheritance', 'test', 'high')",
+            (parent_id, loser_id),
+        )
+        # Mark the loser as merged into the winner (D22 OCR cluster).
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (winner_id, loser_id),
+        )
+        db.commit()
+        reflexes = etymon_era_reflexes(db, parent_id, target_language="middle-english")
+
+    assert [r.form for r in reflexes] == ["brok"]
 
 
 def test_etymon_era_reflexes_returns_empty_when_no_canonical_language(
@@ -2221,8 +2297,6 @@ def test_etymon_era_reflexes_returns_empty_when_no_canonical_language(
     use throughout the corpus). When ``canonical_language_for_cell``
     returns None for the cell, the reflex picker returns ``[]``
     rather than scanning the entire cluster."""
-    from wyrd.generators.kenning.era import canonical_language_for_cell
-    from wyrd.generators.kenning.lexicon import etymon_era_reflexes
 
     # Sanity: pick a (family, cell) combination that's NOT in the map.
     assert canonical_language_for_cell("norse", "modern") is None
@@ -2243,7 +2317,6 @@ def test_etymon_era_reflexes_filters_merged_into_id(fresh_db: Path) -> None:
     the rendering pick. The reflex lookup excludes them so a
     user-visible era-rewind doesn't surface a merged-away spelling
     variant."""
-    from wyrd.generators.kenning.lexicon import etymon_era_reflexes
 
     with LexiconDB(fresh_db) as db:
         ids = _seed_cluster(
@@ -2271,7 +2344,6 @@ def test_etymon_era_reflexes_raises_when_no_target_provided(
     """Defensive: passing neither ``target_language`` nor
     ``target_family_cell`` raises ValueError so a typo at the
     call-site doesn't silently return the empty list."""
-    from wyrd.generators.kenning.lexicon import etymon_era_reflexes
 
     with LexiconDB(fresh_db) as db:
         eid = db.upsert_etymon("ceaster", "old-english")
@@ -2285,7 +2357,6 @@ def test_etymon_era_reflexes_raises_when_both_targets_provided(
     """Defensive: passing BOTH targets is also a caller bug —
     silently picking one would mask a bad merge or a confused
     branch. Pinned by raising ValueError."""
-    from wyrd.generators.kenning.lexicon import etymon_era_reflexes
 
     with LexiconDB(fresh_db) as db:
         eid = db.upsert_etymon("ceaster", "old-english")
@@ -2304,7 +2375,6 @@ def test_etymon_era_reflexes_rejects_empty_target_language(fresh_db: Path) -> No
     silently returns zero rows (every etymon has a non-empty
     language tag). Surface this as a ValueError so a buggy caller
     failing-soft to "" gets caught."""
-    from wyrd.generators.kenning.lexicon import etymon_era_reflexes
 
     with LexiconDB(fresh_db) as db:
         eid = db.upsert_etymon("ceaster", "old-english")
@@ -2334,7 +2404,6 @@ def test_canonical_language_for_cell_returns_expected_english_picks() -> None:
     """Pin the English-family cell → language mapping so a future
     rename of a cell label or language tag fails loudly. Downstream
     wyrd-rni / wyrd-381 demos depend on these picks."""
-    from wyrd.generators.kenning.era import canonical_language_for_cell
 
     assert canonical_language_for_cell("english", "oe-early") == "old-english"
     assert canonical_language_for_cell("english", "oe-late") == "old-english"
@@ -2486,7 +2555,6 @@ def test_era_cell_for_input_year_resolves_to_cell(fresh_db: Path) -> None:
     """``era_cell_for_input(1086, default_family='english')`` resolves
     to the OE-late cell since 1086 < 1100 boundary. Pin the boundary
     so a future widening of OE-late doesn't surprise callers."""
-    from wyrd.generators.kenning.era import era_cell_for_input
 
     assert era_cell_for_input(1086, default_family="english") == ("english", "oe-late")
     assert era_cell_for_input(1210, default_family="english") == ("english", "me")
@@ -2499,7 +2567,6 @@ def test_era_cell_for_input_year_resolves_to_cell(fresh_db: Path) -> None:
 def test_era_cell_for_input_label_resolves_against_family(fresh_db: Path) -> None:
     """A bare cell label resolves against ``default_family``.
     Cross-family lookups must use the ``family/label`` form."""
-    from wyrd.generators.kenning.era import era_cell_for_input
 
     assert era_cell_for_input("oe-late", default_family="english") == (
         "english",
@@ -2516,7 +2583,6 @@ def test_era_cell_for_input_rejects_empty_and_none(fresh_db: Path) -> None:
     """Empty string and None are intentionally rejected — there's
     no cell for 'no filter'. Callers wanting that should branch
     before calling rather than passing a sentinel value."""
-    from wyrd.generators.kenning.era import era_cell_for_input
 
     with pytest.raises(ValueError, match="None or empty"):
         era_cell_for_input("", default_family="english")
@@ -2528,7 +2594,6 @@ def test_era_cell_for_input_rejects_unknown_label(fresh_db: Path) -> None:
     """A typo'd cell label raises ValueError naming families where
     the label IS defined (if any), so the user can switch to the
     explicit ``family/label`` form."""
-    from wyrd.generators.kenning.era import era_cell_for_input
 
     with pytest.raises(ValueError, match="not defined in family"):
         # 'middle-irish' exists in goidelic, not english.

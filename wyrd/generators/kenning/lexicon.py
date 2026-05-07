@@ -3354,16 +3354,35 @@ def etymon_era_reflexes(
       ``era.canonical_language_for_cell``, then proceeds as the
       direct-language path.
 
-    Returns ``[]`` when the etymon has no ``cognate_id`` (cluster
-    not assigned), when the target cell has no canonical language
-    tag (``Latin/classical`` etc.), or when no cluster mate matches.
-    Output is sorted by ``form`` for deterministic output across
-    PYTHONHASHSEED — callers that depend on first-row stability get
-    the alphabetically-first reflex.
+    Returns ``[]`` when the target cell has no canonical language
+    tag (``Norse/modern`` etc.) or when neither lookup path produces
+    a match. Output is sorted by ``form`` for deterministic output
+    across PYTHONHASHSEED — callers that depend on first-row
+    stability get the alphabetically-first reflex.
+
+    **Two lookup paths** with cluster-first precedence:
+
+    1. **Cognate cluster** — when the etymon has ``cognate_id`` set
+       (D27/D28 cluster_cognates output), select cluster mates of
+       the target language. ~24% of OE toponym etymons have a
+       cluster_id today; this is the high-quality path.
+    2. **Direct descent edges** — when ``cognate_id`` is NULL but
+       the etymon has ``etymon_descent`` rows, walk the immediate
+       descendants and pick those tagged with the target language.
+       Smaller boost (~4% of OE toponym etymons), but real — saves
+       a 'no era data' empty result for etymons with descent edges
+       that never reached the cluster_cognates pass (typically
+       because they aren't transitively connected to a known root).
 
     Reflexes are filtered to ``merged_into_id IS NULL`` so OCR-
     cluster losers (D22) don't surface as period forms; the merge
     target is the canonical reflex for that surface.
+
+    Coverage gap: the remaining ~72% of OE toponym etymons have
+    neither ``cognate_id`` nor descent edges and return ``[]`` here.
+    Closing this gap requires either phonological-rule fallback
+    (deferred per the wyrd-skm ticket) or per-etymon period-form
+    projection from ``toponym_attestation`` (also future work).
     """
     # Defensive guard: exactly ONE target must be provided. An
     # empty-string ``target_language`` would silently slip the
@@ -3383,15 +3402,35 @@ def etymon_era_reflexes(
             return []
 
     row = db.conn.execute("SELECT cognate_id FROM etymon WHERE id = ?", (etymon_id,)).fetchone()
-    if row is None or row["cognate_id"] is None:
+    if row is None:
         return []
 
-    cur = db.conn.execute(
-        "SELECT id, canonical_form, language FROM etymon "
-        "WHERE cognate_id = ? AND language = ? AND merged_into_id IS NULL "
-        "ORDER BY canonical_form",
-        (row["cognate_id"], target_language),
-    )
+    if row["cognate_id"] is not None:
+        # Path 1: cluster-mates query.
+        cur = db.conn.execute(
+            "SELECT id, canonical_form, language FROM etymon "
+            "WHERE cognate_id = ? AND language = ? AND merged_into_id IS NULL "
+            "ORDER BY canonical_form",
+            (row["cognate_id"], target_language),
+        )
+    else:
+        # Path 2: direct descent fallback. Only walks immediate
+        # children — deeper traversal would re-implement
+        # cluster_cognates and risks pulling in cognate-edge peers
+        # whose precision we don't trust at v1. Inheritance +
+        # borrowing edges only, per D27's bridging-edge convention.
+        cur = db.conn.execute(
+            "SELECT DISTINCT child.id, child.canonical_form, child.language "
+            "FROM etymon_descent ed "
+            "JOIN etymon child ON ed.child_id = child.id "
+            "WHERE ed.parent_id = ? "
+            "  AND ed.edge_type IN ('inheritance', 'borrowing') "
+            "  AND child.language = ? "
+            "  AND child.merged_into_id IS NULL "
+            "ORDER BY child.canonical_form",
+            (etymon_id, target_language),
+        )
+
     return [
         EraReflex(
             etymon_id=r["id"],
