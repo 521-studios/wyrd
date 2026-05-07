@@ -134,6 +134,20 @@ class Name:
         instantiation and the string-based Word.__hash__ on every
         candidate; matters for ``reduce=False`` cases where the
         trie emits many alternates.
+
+        Hash invariant: two decompositions hash equal iff they're the
+        same list of objects, where Meaning equality falls back to
+        identity (Meaning.__hash__ is the default object id()-based
+        hash). The trie cache (``_trie_for``) returns the same Meaning
+        instances across calls for a given ``word_db``, so trie-emitted
+        decompositions remain consistently dedupable within and across
+        calls. A future Meaning.__hash__ override that doesn't preserve
+        identity equality (e.g. content-hash on usage+language) would
+        keep this dedup correct but the legacy iterator's
+        ``tuple(word.word)`` shape (which bottomed out on str(Meaning),
+        i.e. the lowercased dash-stripped usage) didn't carry the
+        invariant — flagging here so a future refactor of Meaning's
+        hash doesn't quietly drift this contract.
         """
         self.word_db = word_db
         trie = _trie_for(word_db)
