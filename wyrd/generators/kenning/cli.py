@@ -3205,9 +3205,7 @@ def lexicon_mine_attestations(
     """
     with LexiconDB(db_path) as db:
         click.echo("mine-attestations:", err=True)
-        result = mine_toponym_attestations(
-            db, apply=apply_changes, progress_every=progress_every
-        )
+        result = mine_toponym_attestations(db, apply=apply_changes, progress_every=progress_every)
 
     click.echo(
         f"  scanned={result['rows_scanned']:>5}  "

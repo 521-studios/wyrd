@@ -1163,9 +1163,7 @@ def _migrate_toponym_etymology_attested_year(db: LexiconDB, applied: dict[str, b
         applied["toponym_etymology.attested_year"] = True
 
 
-def _create_toponym_attestation_unique_index(
-    db: LexiconDB, applied: dict[str, bool]
-) -> None:
+def _create_toponym_attestation_unique_index(db: LexiconDB, applied: dict[str, bool]) -> None:
     """wyrd-skm Phase 3.0a: ensure ``toponym_attestation`` has a unique
     index on ``(toponym_id, form, date_year, source_doc)`` so the
     ``mine-attestations`` ingest is idempotent.
@@ -1182,8 +1180,7 @@ def _create_toponym_attestation_unique_index(
     operator should investigate before re-running migrate.
     """
     rows = db.conn.execute(
-        "SELECT name FROM sqlite_master "
-        "WHERE type='index' AND name='idx_attestation_unique'"
+        "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_attestation_unique'"
     ).fetchall()
     if not rows:
         db.conn.execute(
@@ -2947,10 +2944,10 @@ _DOMESDAY_YEAR = 1086
 # The follow-up ``_form_passes_filter`` check additionally requires at
 # least one lowercase letter so pure-uppercase source abbreviations
 # (LPR, LI, LF, DB) don't slip through.
-_FORM_CHARSET = (
-    r"A-Za-zÆÐÞŒæðþœǣĒĀĪŌŪēāīōūȳŴÂÊÔÛŶŵâêôûŷÇÉÈçéè"
+_FORM_CHARSET = r"A-Za-zÆÐÞŒæðþœǣĒĀĪŌŪēāīōūȳŴÂÊÔÛŶŵâêôûŷÇÉÈçéè"
+_FORM_PATTERN = (
+    rf"[A-ZÆÐÞŒĒĀĪŌŪŴÂÊÔÛŶÇÉÈ][{_FORM_CHARSET}]{{3,29}}(?:[-][{_FORM_CHARSET}]{{1,12}})*"
 )
-_FORM_PATTERN = rf"[A-ZÆÐÞŒĒĀĪŌŪŴÂÊÔÛŶÇÉÈ][{_FORM_CHARSET}]{{3,29}}(?:[-][{_FORM_CHARSET}]{{1,12}})*"
 
 
 def _form_passes_filter(form: str) -> bool:
@@ -3109,6 +3106,7 @@ def _extract_attestation_pairs(notes: str | None) -> list[tuple[str, int]]:
     metadata (``Domesday``, ``Spelt``, source-author surnames) are
     filtered via ``_ATTEST_FORM_BLACKLIST``.
     """
+
     def _matched_form(m: re.Match[str]) -> str | None:
         """Resolve which named group fired in a Domesday alternation.
 
@@ -3227,9 +3225,7 @@ def mine_toponym_attestations(
         if pairs:
             rows_with_pairs += 1
             for form, year in pairs:
-                candidate_inserts.append(
-                    (row["toponym_id"], form, year, row["source_id"])
-                )
+                candidate_inserts.append((row["toponym_id"], form, year, row["source_id"]))
         if rows_scanned % progress_every == 0:
             _emit_progress(rows_scanned)
 

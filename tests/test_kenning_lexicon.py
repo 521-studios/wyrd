@@ -1829,9 +1829,7 @@ def test_mine_toponym_attestations_progress_every_zero_does_not_divide_by_zero(
     _, mine = _import_attestation_helpers()
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="src", title="S")
-        _seed_toponym_etymology_for_attestations(
-            db, notes="Cestretone in 1210."
-        )
+        _seed_toponym_etymology_for_attestations(db, notes="Cestretone in 1210.")
         # Should not raise.
         result = mine(db, apply=True, progress_every=0)
     assert result["rows_written"] == 1
@@ -1858,9 +1856,7 @@ def test_cli_lexicon_mine_attestations_dry_run_smoke(fresh_db: Path) -> None:
     assert "(dry-run" in result.output
 
     with LexiconDB(fresh_db) as db:
-        row_count = db.conn.execute(
-            "SELECT COUNT(*) FROM toponym_attestation"
-        ).fetchone()[0]
+        row_count = db.conn.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0]
     assert row_count == 0
 
 
@@ -1952,9 +1948,7 @@ def test_mine_toponym_attestations_idempotent_via_unique_index(fresh_db: Path) -
         )
         first = mine(db, apply=True)
         second = mine(db, apply=True)
-        total = db.conn.execute(
-            "SELECT COUNT(*) FROM toponym_attestation"
-        ).fetchone()[0]
+        total = db.conn.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0]
 
     assert first["rows_written"] == 2
     # Second run sees the same rows but INSERT OR IGNORE skips them.
@@ -1972,9 +1966,7 @@ def test_mine_toponym_attestations_dry_run(fresh_db: Path) -> None:
             db, notes="Cestretone in 1210; Chingestone in Domesday Book."
         )
         result = mine(db, apply=False)
-        total = db.conn.execute(
-            "SELECT COUNT(*) FROM toponym_attestation"
-        ).fetchone()[0]
+        total = db.conn.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0]
 
     assert result["candidates"] == 2
     assert result["rows_written"] == 0
@@ -1992,8 +1984,7 @@ def test_mine_toponym_attestations_skips_rows_without_notes(fresh_db: Path) -> N
         cur = db.conn.execute("INSERT INTO toponym (modern_name) VALUES (?)", ("Empty",))
         topo = cur.lastrowid
         db.conn.execute(
-            "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) "
-            "VALUES (?, ?, ?)",
+            "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) VALUES (?, ?, ?)",
             (topo, "src", "high"),
         )
         db.commit()
@@ -2009,17 +2000,11 @@ def test_clear_enrichment_attestations_drops_rows(fresh_db: Path) -> None:
     _, mine = _import_attestation_helpers()
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="src", title="S")
-        _seed_toponym_etymology_for_attestations(
-            db, notes="Cestretone in 1210."
-        )
+        _seed_toponym_etymology_for_attestations(db, notes="Cestretone in 1210.")
         mine(db, apply=True)
-        before = db.conn.execute(
-            "SELECT COUNT(*) FROM toponym_attestation"
-        ).fetchone()[0]
+        before = db.conn.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0]
         result = clear_enrichment(db, stage="attestations", apply=True)
-        after = db.conn.execute(
-            "SELECT COUNT(*) FROM toponym_attestation"
-        ).fetchone()[0]
+        after = db.conn.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0]
 
     assert before == 1
     assert result["attestation_rows_to_clear"] == 1
@@ -2032,14 +2017,10 @@ def test_clear_enrichment_all_derived_includes_attestations(fresh_db: Path) -> N
     _, mine = _import_attestation_helpers()
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="src", title="S")
-        _seed_toponym_etymology_for_attestations(
-            db, notes="Cestretone in 1210."
-        )
+        _seed_toponym_etymology_for_attestations(db, notes="Cestretone in 1210.")
         mine(db, apply=True)
         result = clear_enrichment(db, stage="all-derived", apply=True)
-        remaining = db.conn.execute(
-            "SELECT COUNT(*) FROM toponym_attestation"
-        ).fetchone()[0]
+        remaining = db.conn.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0]
 
     assert result["attestation_rows_to_clear"] == 1
     assert remaining == 0
