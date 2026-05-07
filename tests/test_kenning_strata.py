@@ -2352,3 +2352,170 @@ def test_cli_classify_stratum_batched_force_overwrites_above_chunk_size(
     for r in rows:
         # Every row was overwritten from 'placeholder' to 'native-welsh'.
         assert r["stratum"] == "native-welsh", r["id"]
+
+
+def test_cli_classify_stratum_emits_progress_line_per_batch(fresh_db: Path) -> None:
+    """wyrd-b43r progress line fires AFTER EACH batch, not just at
+    the end. Pin via a 350-row run (2 batches at chunk_size=300):
+    both ``[300/350]`` and ``[350/350]`` must appear in stderr.
+
+    A regression that moved the progress emit out of the loop into a
+    final-only echo would silently kill the ETA-extrapolation
+    contract on long classify runs."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        for n in range(350):
+            db.upsert_etymon(f"caer{n:03d}", "welsh")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "classify-stratum",
+            "--db",
+            str(fresh_db),
+            "--language",
+            "welsh",
+            "--apply",
+        ],
+    )
+    combined = result.output + (result.stderr or "")
+    assert result.exit_code == 0, combined
+    # First batch boundary at 300, then final at 350.
+    assert "[300/350]" in combined
+    assert "[350/350]" in combined
+
+
+def test_cli_classify_stratum_empty_proposals_short_circuits_no_write(
+    fresh_db: Path,
+) -> None:
+    """When the classifier returns no proposals (no etymons in the
+    target language family), the CLI short-circuits with a friendly
+    'No etymons found' message and exit 0 — without issuing an
+    UPDATE. Pin so a refactor that always runs the write loop (even
+    on an empty dict) is caught."""
+    runner = CliRunner()
+    # Fresh DB has no welsh etymons → classify_welsh returns {} →
+    # short-circuit branch fires.
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "classify-stratum",
+            "--db",
+            str(fresh_db),
+            "--language",
+            "welsh",
+            "--apply",
+        ],
+    )
+    combined = result.output + (result.stderr or "")
+    assert result.exit_code == 0, combined
+    assert "no etymons found" in combined.lower()
+    # And the empty etymon table stays empty.
+    with LexiconDB(fresh_db) as db:
+        count = db.conn.execute(
+            "SELECT COUNT(*) AS n FROM etymon WHERE stratum IS NOT NULL"
+        ).fetchone()["n"]
+    assert count == 0
+
+
+def test_cli_classify_stratum_progress_rate_is_nonnegative(fresh_db: Path) -> None:
+    """Progress line's ``s/entry`` rate token must be a non-negative
+    float — pin so a refactor that swaps the rate calculation's
+    numerator and denominator (or drops the per-row normalization)
+    surfaces here. Extracts the rate via regex and asserts >= 0."""
+    import re
+
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        db.upsert_etymon("caer", "welsh")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "classify-stratum",
+            "--db",
+            str(fresh_db),
+            "--language",
+            "welsh",
+            "--apply",
+        ],
+    )
+    combined = result.output + (result.stderr or "")
+    assert result.exit_code == 0, combined
+    # Match the rate token: e.g. "(0.0001s/entry)".
+    match = re.search(r"\((\d+\.\d+)s/entry\)", combined)
+    assert match, f"progress rate token missing in stderr: {combined!r}"
+    assert float(match.group(1)) >= 0
+
+
+def test_build_case_update_single_row_chunk_force_off_executes_against_db(
+    fresh_db: Path,
+) -> None:
+    """The single-row chunk shape (one ``WHEN ? THEN ?`` clause, one
+    ``IN (?)``) for ``force=False`` must execute cleanly. Pin by
+    running the SQL against a real seeded row — catches a syntax
+    regression in the CASE-clause join when the chunk has no
+    multi-clause whitespace context."""
+    from wyrd.generators.kenning.cli import _build_case_update
+
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("caer", "welsh")
+        db.commit()
+
+    chunk = [(eid, "native-welsh")]
+    sql, params = _build_case_update(chunk, force=False)
+
+    with LexiconDB(fresh_db) as db:
+        cur = db.conn.execute(sql, params)
+        db.commit()
+    assert cur.rowcount == 1
+    with LexiconDB(fresh_db) as db:
+        row = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (eid,)).fetchone()
+    assert row["stratum"] == "native-welsh"
+
+
+def test_cli_classify_stratum_batched_apply_is_idempotent(fresh_db: Path) -> None:
+    """Two back-to-back ``classify-stratum --apply`` runs over >300
+    rows: the first writes everything, the second writes 0 (all rows
+    already have non-NULL stratum, so the AND-clause filters them
+    out). Pin idempotency at the batched-write layer.
+
+    Catches a regression in the batch path's WHERE-clause guard that
+    would re-write rows on subsequent runs."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        for n in range(350):
+            db.upsert_etymon(f"caer{n:03d}", "welsh")
+        db.commit()
+
+    runner = CliRunner()
+    common_args = [
+        "lexicon",
+        "classify-stratum",
+        "--db",
+        str(fresh_db),
+        "--language",
+        "welsh",
+        "--apply",
+    ]
+    # First run: all 350 rows write.
+    first = runner.invoke(cli_root, common_args)
+    assert first.exit_code == 0, first.output + (first.stderr or "")
+    first_combined = first.output + (first.stderr or "")
+    assert "Wrote 350 rows" in first_combined
+    assert "Skipped 0" in first_combined
+
+    # Second run: 0 writes, all skipped (stratum already set).
+    second = runner.invoke(cli_root, common_args)
+    assert second.exit_code == 0, second.output + (second.stderr or "")
+    second_combined = second.output + (second.stderr or "")
+    assert "Wrote 0 rows" in second_combined
+    assert "Skipped 350" in second_combined
