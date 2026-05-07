@@ -278,9 +278,10 @@ def cli() -> None:
         "tag — for Welsh: 'native-welsh', 'brittonic-substrate', "
         "'medieval-welsh', 'latin-loan', 'english-loan'; for French: "
         "'native-french', 'medieval-french', 'gallo-roman', "
-        "'gaulish-substrate', 'frankish-substrate' (Old English / Old "
-        "Norse follow). Morphemes with no stratum data pass through. "
-        "Composes with --era via intersection."
+        "'gaulish-substrate', 'frankish-substrate'; for Old English: "
+        "'native-old-english', 'celtic-substrate', 'norse-loan', "
+        "'latin-loan' (Old Norse follows). Morphemes with no stratum "
+        "data pass through. Composes with --era via intersection."
     ),
 )
 @click.option(
@@ -4270,15 +4271,17 @@ def lexicon_derive_english_shaped(
 )
 @click.option(
     "--language",
-    type=click.Choice(["welsh", "french"]),
+    type=click.Choice(["welsh", "french", "old-english"]),
     required=True,
     help=(
-        "Language family to classify. Currently 'welsh' and 'french' "
-        "are supported. Welsh covers etymons with language IN "
-        "('welsh', 'middle-welsh', 'old-welsh', 'cel-bry-pro'); "
-        "French covers ('french', 'old-french', 'middle-french', "
-        "'norman-french', 'vulgar-latin', 'frk', 'cel-gau'). Old "
-        "English / Old Norse are follow-up tickets."
+        "Language family to classify. Currently 'welsh', 'french', "
+        "and 'old-english' are supported. Welsh covers etymons with "
+        "language IN ('welsh', 'middle-welsh', 'old-welsh', "
+        "'cel-bry-pro'); French covers ('french', 'old-french', "
+        "'middle-french', 'norman-french', 'vulgar-latin', 'frk', "
+        "'cel-gau'); Old English covers language='old-english' (the "
+        "live DB has no dialect codes — Phase 4b heuristic uses "
+        "loan-source ancestors only). Old Norse is a follow-up."
     ),
 )
 @click.option(
@@ -4319,14 +4322,17 @@ def lexicon_classify_stratum(
     # commands. Same pattern as other lexicon subcommands.
     from wyrd.generators.kenning.strata import (
         FRENCH_STRATA,
+        OLD_ENGLISH_STRATA,
         WELSH_STRATA,
         classify_french,
+        classify_old_english,
         classify_welsh,
     )
 
     classifiers = {
         "welsh": (classify_welsh, WELSH_STRATA),
         "french": (classify_french, FRENCH_STRATA),
+        "old-english": (classify_old_english, OLD_ENGLISH_STRATA),
     }
     classifier, strata_order = classifiers[language]
 
