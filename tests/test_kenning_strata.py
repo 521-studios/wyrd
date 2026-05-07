@@ -594,6 +594,72 @@ def test_cli_classify_stratum_french_dry_run_reports_counts(
     assert non_null == 0
 
 
+def test_classify_french_frankish_beats_vulgar_latin_parent(fresh_db: Path) -> None:
+    """Defense-in-depth on the Latin-absence invariant. A french
+    etymon with BOTH a frk parent (real substrate signal) AND a
+    vulgar-latin parent (NOT in the ancestor map by design) must
+    classify as frankish-substrate, not gallo-roman. Pin that
+    vulgar-latin in the ancestor pass doesn't leak into a stratum
+    when paired with a genuine substrate signal — a regression that
+    accidentally added vulgar-latin to _FRENCH_ANCESTOR_TO_STRATUM
+    would change this etymon's stratum and be caught."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        frk_id = db.upsert_etymon("baro", "frk")
+        vl_id = db.upsert_etymon("baro", "vulgar-latin")
+        fr_id = db.upsert_etymon("baron", "french")
+        _add_descent(db, parent_id=frk_id, child_id=fr_id)
+        _add_descent(db, parent_id=vl_id, child_id=fr_id)
+        proposals = classify_french(db)
+    # frk in parents → frankish-substrate; vulgar-latin in parents
+    # is intentionally not in the ancestor map so it doesn't pull
+    # toward gallo-roman.
+    assert proposals[fr_id] == "frankish-substrate"
+    # vulgar-latin self-language still classifies the parent itself.
+    assert proposals[vl_id] == "gallo-roman"
+
+
+def test_cli_classify_stratum_french_force_overwrites(fresh_db: Path) -> None:
+    """``--apply --force`` overwrites an existing stratum value when
+    the user has dispatched to the French classifier. The force/skip
+    logic lives in the CLI body (outside the per-language
+    classifier), so it's the same code path as Welsh — but pin a
+    French-specific invocation so a regression that wires --force
+    through only one branch of the dispatch dict gets caught."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        fr_id = db.upsert_etymon("amour", "french")
+        # Pre-populate with a wrong stratum so we can verify the
+        # overwrite. classify_french would assign 'native-french' to
+        # this row (no descent → default).
+        db.conn.execute(
+            "UPDATE etymon SET stratum = ? WHERE id = ?",
+            ("manual-override", fr_id),
+        )
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "classify-stratum",
+            "--db",
+            str(fresh_db),
+            "--language",
+            "french",
+            "--apply",
+            "--force",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute(
+            "SELECT stratum FROM etymon WHERE id = ?", (fr_id,)
+        ).fetchone()["stratum"]
+    assert stratum == "native-french"
+
+
 def test_cli_classify_stratum_french_apply_writes_column(fresh_db: Path) -> None:
     """``--apply`` actually writes the proposed stratum values for
     French. Mirrors the welsh apply test — pinned independently
