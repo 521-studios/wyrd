@@ -1502,3 +1502,551 @@ def test_cli_classify_stratum_old_norse_force_overwrites(fresh_db: Path) -> None
             "stratum"
         ]
     assert stratum == "native-old-norse"
+
+
+# --- lexicon set-stratum (wyrd-lr4 Phase 4d) ------------------------------
+
+
+def test_cli_set_stratum_by_etymon_id_writes_value(fresh_db: Path) -> None:
+    """Happy path — pass --etymon-id and --stratum, verify the row's
+    stratum is updated."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("caer", "welsh")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--etymon-id",
+            str(eid),
+            "--stratum",
+            "latin-loan",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (eid,)).fetchone()[
+            "stratum"
+        ]
+    assert stratum == "latin-loan"
+
+
+def test_cli_set_stratum_by_canonical_form_and_language(fresh_db: Path) -> None:
+    """Happy path — pass --canonical-form + --language for the
+    pair-lookup variant. The lookup must resolve to exactly one row."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("ville", "french")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--canonical-form",
+            "ville",
+            "--language",
+            "french",
+            "--stratum",
+            "frankish-substrate",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (eid,)).fetchone()[
+            "stratum"
+        ]
+    assert stratum == "frankish-substrate"
+
+
+def test_cli_set_stratum_clear_sets_null(fresh_db: Path) -> None:
+    """``--clear`` writes NULL to the row's stratum (escape hatch
+    when the classifier wrote something the operator now disagrees
+    with — re-running classify-stratum --apply will then re-classify
+    the cleared row on the next pass)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("caer", "welsh")
+        db.conn.execute("UPDATE etymon SET stratum = ? WHERE id = ?", ("latin-loan", eid))
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--etymon-id",
+            str(eid),
+            "--clear",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (eid,)).fetchone()[
+            "stratum"
+        ]
+    assert stratum is None
+
+
+def test_cli_set_stratum_reports_old_and_new_to_stderr(fresh_db: Path) -> None:
+    """The success path emits a stderr line of the form
+    'etymon N (canonical_form, language): <old> → <new>' so the
+    operator can verify the change. Pin both old and new values
+    appear so a regression that drops the diff signal is caught."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("caer", "welsh")
+        db.conn.execute("UPDATE etymon SET stratum = ? WHERE id = ?", ("native-welsh", eid))
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--etymon-id",
+            str(eid),
+            "--stratum",
+            "latin-loan",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    combined = result.output + (result.stderr or "")
+    assert f"etymon {eid}" in combined
+    assert "caer" in combined
+    assert "welsh" in combined
+    assert "native-welsh" in combined
+    assert "latin-loan" in combined
+    # Defense against a regression where the stderr message is
+    # constructed but the UPDATE is skipped — verify the row was
+    # actually rewritten with the new value.
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (eid,)).fetchone()[
+            "stratum"
+        ]
+    assert stratum == "latin-loan"
+
+
+def test_cli_set_stratum_allows_cross_family_stratum(fresh_db: Path) -> None:
+    """ALL_STRATA validation is value-only — it accepts any known
+    stratum regardless of which family the target etymon belongs to.
+    Setting 'native-welsh' on a french etymon (or 'frankish-substrate'
+    on a welsh etymon) is the operator's call. Pin that the write
+    succeeds; a future change that tightens to family-aware
+    validation would need this test updated."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("ville", "french")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--etymon-id",
+            str(eid),
+            "--stratum",
+            "native-welsh",  # Welsh stratum on French etymon.
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (eid,)).fetchone()[
+            "stratum"
+        ]
+    assert stratum == "native-welsh"
+
+
+def test_cli_set_stratum_clear_when_already_null_succeeds(fresh_db: Path) -> None:
+    """``--clear`` on a row whose stratum is already NULL succeeds
+    cleanly with the diff line showing 'None → None'. Pin so a
+    'skip if already NULL' optimization that suppressed the stderr
+    audit line doesn't slip in undetected."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("caer", "welsh")
+        # No stratum write — row stays NULL.
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--etymon-id",
+            str(eid),
+            "--clear",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    combined = result.output + (result.stderr or "")
+    # Both the old and new sides render as 'None'.
+    assert "None → None" in combined
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (eid,)).fetchone()[
+            "stratum"
+        ]
+    assert stratum is None
+
+
+def test_cli_set_stratum_rejects_unknown_stratum(fresh_db: Path) -> None:
+    """Stratum value validated against the union of all four families'
+    STRATA tuples (ALL_STRATA frozenset). Catches typos like
+    'lattin-loan' before they silently write garbage to the column."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("caer", "welsh")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--etymon-id",
+            str(eid),
+            "--stratum",
+            "lattin-loan",
+        ],
+    )
+    assert result.exit_code != 0
+    combined = result.output + (result.stderr or "")
+    assert "unknown stratum" in combined.lower()
+    # The error message should list known strata so the operator
+    # can fix the typo without re-reading the source.
+    assert "latin-loan" in combined
+    # Original row stratum stays NULL — the failed write didn't take.
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (eid,)).fetchone()[
+            "stratum"
+        ]
+    assert stratum is None
+
+
+def test_cli_set_stratum_rejects_missing_etymon(fresh_db: Path) -> None:
+    """A nonexistent --etymon-id returns a friendly error rather than
+    silently no-op'ing on zero rows. Catches operator typos."""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--etymon-id",
+            "999999",
+            "--stratum",
+            "latin-loan",
+        ],
+    )
+    assert result.exit_code != 0
+    combined = result.output + (result.stderr or "")
+    assert "no etymon" in combined.lower()
+
+
+def test_cli_set_stratum_rejects_canonical_form_without_language(
+    fresh_db: Path,
+) -> None:
+    """--canonical-form alone is ambiguous (the same form can exist
+    across multiple languages — e.g. 'caer' in welsh and old-welsh).
+    Require both pair components together."""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--canonical-form",
+            "caer",
+            "--stratum",
+            "latin-loan",
+        ],
+    )
+    assert result.exit_code != 0
+    combined = result.output + (result.stderr or "")
+    assert "must both be passed" in combined.lower() or "canonical_form" in combined.lower()
+
+
+def test_cli_set_stratum_rejects_language_without_canonical_form(
+    fresh_db: Path,
+) -> None:
+    """Mirror of the canonical-form-without-language test — ensures
+    the by_pair guard catches both directions of half-supplied pair
+    args. A regression that loosened ``or`` to ``and`` in the
+    by_pair predicate would silently fail one direction."""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--language",
+            "welsh",
+            "--stratum",
+            "latin-loan",
+        ],
+    )
+    assert result.exit_code != 0
+    combined = result.output + (result.stderr or "")
+    assert "must both be passed" in combined.lower() or "canonical_form" in combined.lower()
+
+
+def test_cli_set_stratum_rejects_id_and_pair_together(fresh_db: Path) -> None:
+    """Mutually-exclusive identification: --etymon-id and
+    --canonical-form/--language pick different lookup paths; passing
+    both is a usage error."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("caer", "welsh")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--etymon-id",
+            str(eid),
+            "--canonical-form",
+            "caer",
+            "--language",
+            "welsh",
+            "--stratum",
+            "latin-loan",
+        ],
+    )
+    assert result.exit_code != 0
+    combined = result.output + (result.stderr or "")
+    assert "not both" in combined.lower() or "mutually" in combined.lower()
+
+
+def test_cli_set_stratum_rejects_neither_id_nor_pair(fresh_db: Path) -> None:
+    """No identification mode at all → error explaining the two
+    available lookup modes."""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--stratum",
+            "latin-loan",
+        ],
+    )
+    assert result.exit_code != 0
+    combined = result.output + (result.stderr or "")
+    assert "must specify" in combined.lower() or "etymon-id" in combined.lower()
+
+
+def test_cli_set_stratum_rejects_stratum_and_clear_together(fresh_db: Path) -> None:
+    """``--stratum`` writes a value and ``--clear`` writes NULL —
+    mutually exclusive."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("caer", "welsh")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--etymon-id",
+            str(eid),
+            "--stratum",
+            "latin-loan",
+            "--clear",
+        ],
+    )
+    assert result.exit_code != 0
+    combined = result.output + (result.stderr or "")
+    assert "mutually exclusive" in combined.lower()
+
+
+def test_cli_set_stratum_rejects_neither_stratum_nor_clear(fresh_db: Path) -> None:
+    """Must specify either --stratum VALUE or --clear (one is
+    required so the command isn't a silent no-op)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("caer", "welsh")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--etymon-id",
+            str(eid),
+        ],
+    )
+    assert result.exit_code != 0
+    combined = result.output + (result.stderr or "")
+    assert "must specify" in combined.lower()
+
+
+def test_cli_set_stratum_warns_on_merged_cluster_loser(fresh_db: Path) -> None:
+    """A hand-correction on a merged-cluster loser
+    (merged_into_id IS NOT NULL) succeeds but emits a warning to
+    stderr — the classifier and bundle export both filter these
+    rows out, so the operator should know the correction may not
+    surface as expected. Doesn't block (operator may have a legit
+    reason — e.g. planning to undo the merge later)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        winner = db.upsert_etymon("caer", "welsh")
+        loser = db.upsert_etymon("ceer", "welsh")  # OCR variant
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (winner, loser),
+        )
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--etymon-id",
+            str(loser),
+            "--stratum",
+            "latin-loan",
+        ],
+    )
+    # Succeeds (write goes through) ...
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    combined = result.output + (result.stderr or "")
+    # ... but warns the operator that the row is a merged loser.
+    assert "warning" in combined.lower()
+    assert "merged" in combined.lower()
+    # And the write actually happened.
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (loser,)).fetchone()[
+            "stratum"
+        ]
+    assert stratum == "latin-loan"
+
+
+def test_cli_set_stratum_survives_classify_stratum_apply_without_force(
+    fresh_db: Path,
+) -> None:
+    """End-to-end idempotency check: a hand-correction (set-stratum)
+    survives a subsequent ``classify-stratum --apply`` (without
+    --force). The default classify behavior skips rows that already
+    have a non-NULL stratum, so hand-corrections aren't blown away
+    by the next bulk-classification pass.
+
+    This is the load-bearing contract for Phase 4d's value: the
+    operator's manual override stays manual until they explicitly
+    ask for it to be re-classified (via --clear, or by re-running
+    classify-stratum --force)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("caer", "welsh")
+        # Add an ancestor that classify_welsh would normally use to
+        # assign 'latin-loan' — the hand-correction overrides this.
+        latin_id = db.upsert_etymon("castrum", "latin")
+        _add_descent(db, parent_id=latin_id, child_id=eid, edge_type="borrowing")
+        db.commit()
+
+    runner = CliRunner()
+    # Step 1: hand-correct to brittonic-substrate (NOT what the
+    # classifier would assign — the descent says latin-loan).
+    result1 = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--etymon-id",
+            str(eid),
+            "--stratum",
+            "brittonic-substrate",
+        ],
+    )
+    assert result1.exit_code == 0, result1.output + (result1.stderr or "")
+
+    # Step 2: re-run classify-stratum --apply (without --force).
+    result2 = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "classify-stratum",
+            "--db",
+            str(fresh_db),
+            "--language",
+            "welsh",
+            "--apply",
+        ],
+    )
+    assert result2.exit_code == 0, result2.output + (result2.stderr or "")
+
+    # Hand-correction survives — stratum is still 'brittonic-substrate'
+    # (not the 'latin-loan' the classifier would have written).
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (eid,)).fetchone()[
+            "stratum"
+        ]
+    assert stratum == "brittonic-substrate"
+
+
+def test_all_strata_includes_every_family_bucket() -> None:
+    """``ALL_STRATA`` is the source-of-truth registry consumed by
+    ``set-stratum`` for typo protection. Pin that every family's
+    full STRATA tuple is included so a Phase 4e+ classifier addition
+    that forgets to extend ALL_STRATA gets caught (currently
+    ALL_STRATA is built from the four constants directly, but a
+    refactor that swaps to an explicit listing would silently drop
+    coverage)."""
+    from wyrd.generators.kenning.strata import ALL_STRATA
+
+    for stratum in WELSH_STRATA + FRENCH_STRATA + OLD_ENGLISH_STRATA + OLD_NORSE_STRATA:
+        assert stratum in ALL_STRATA, stratum
+    # Frozen — caller cannot mutate.
+    assert isinstance(ALL_STRATA, frozenset)
