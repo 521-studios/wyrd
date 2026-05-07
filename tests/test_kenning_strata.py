@@ -1643,13 +1643,11 @@ def test_cli_set_stratum_reports_old_and_new_to_stderr(fresh_db: Path) -> None:
     assert stratum == "latin-loan"
 
 
-def test_cli_set_stratum_allows_cross_family_stratum(fresh_db: Path) -> None:
-    """ALL_STRATA validation is value-only — it accepts any known
-    stratum regardless of which family the target etymon belongs to.
-    Setting 'native-welsh' on a french etymon (or 'frankish-substrate'
-    on a welsh etymon) is the operator's call. Pin that the write
-    succeeds; a future change that tightens to family-aware
-    validation would need this test updated."""
+def test_cli_set_stratum_rejects_cross_family_stratum(fresh_db: Path) -> None:
+    """wyrd-j3gy family-aware validation: setting a Welsh stratum on
+    a French row is rejected with a friendly error listing the
+    French family's valid strata. Replaces the Phase 4d behavior of
+    silently allowing cross-family writes."""
     with LexiconDB(fresh_db) as db:
         _seed_source(db)
         eid = db.upsert_etymon("ville", "french")
@@ -1669,12 +1667,56 @@ def test_cli_set_stratum_allows_cross_family_stratum(fresh_db: Path) -> None:
             "native-welsh",  # Welsh stratum on French etymon.
         ],
     )
+    assert result.exit_code != 0
+    combined = result.output + (result.stderr or "")
+    assert "native-welsh" in combined
+    assert "french" in combined.lower()
+    # The error message should list the French family's valid strata
+    # so the operator can pick the right one.
+    assert "frankish-substrate" in combined
+    # Original row stratum stays NULL — failed validation didn't write.
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (eid,)).fetchone()[
+            "stratum"
+        ]
+    assert stratum is None
+
+
+def test_cli_set_stratum_unclassified_language_falls_back_to_all_strata(
+    fresh_db: Path,
+) -> None:
+    """Languages without a classifier (no entry in
+    LANGUAGE_TO_FAMILY) skip the family-aware check and fall back to
+    the ALL_STRATA typo-protection only. Pin so an operator can
+    still hand-correct on unclassified rows. Will need updating when
+    wyrd-lr4 Phase 4e+ adds a classifier for the chosen language."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        # 'old-frisian' (ofs) has no Phase 4 classifier — sister
+        # West Germanic language outside the OE / ON / French scopes.
+        eid = db.upsert_etymon("hús", "ofs")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "set-stratum",
+            "--db",
+            str(fresh_db),
+            "--etymon-id",
+            str(eid),
+            "--stratum",
+            "latin-loan",  # in ALL_STRATA, not tied to any specific family
+        ],
+    )
     assert result.exit_code == 0, result.output + (result.stderr or "")
     with LexiconDB(fresh_db) as db:
         stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (eid,)).fetchone()[
             "stratum"
         ]
-    assert stratum == "native-welsh"
+    assert stratum == "latin-loan"
 
 
 def test_cli_set_stratum_clear_when_already_null_succeeds(fresh_db: Path) -> None:

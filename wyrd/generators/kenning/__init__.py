@@ -13,10 +13,12 @@ from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.name import Name
 from wyrd.generators.kenning.proportions import load_proportions
 from wyrd.generators.kenning.strata import (
+    ALL_STRATA,
     FRENCH_STRATA,
     OLD_ENGLISH_STRATA,
     OLD_NORSE_STRATA,
     WELSH_STRATA,
+    valid_strata_for_culture,
 )
 from wyrd.generators.kenning.word import Word
 from wyrd.registry import GenerationResult, Generator, register
@@ -89,6 +91,24 @@ def _era_options_by_culture() -> dict[str, list[str]]:
         culture: ["", *era_cells_for_family(family)]
         for culture, family in _CULTURE_TO_ERA_FAMILY.items()
     }
+
+
+def _stratum_options_by_culture() -> dict[str, list[str]]:
+    """Per-culture list of valid stratum tags for the SPA's dependent
+    select (wyrd-j3gy). Mirrors ``_era_options_by_culture``: empty
+    string prepended as the 'no stratum filter' option, the rest
+    sourced from ``valid_strata_for_culture``.
+
+    Cultures with no per-culture restriction (irish / breton today)
+    surface as just ``[""]`` — the SPA dropdown shows only the
+    'no filter' option, which is honest: there's no classified
+    stratum data for those cultures yet, so any --stratum value
+    would be a no-op.
+
+    Re-evaluated at schema-render time, so additions to the
+    per-culture map propagate to the SPA on the next manifest
+    refresh."""
+    return {culture: ["", *sorted(valid_strata_for_culture(culture))] for culture in CULTURES}
 
 
 # wyrd-yan: 'fiction' marks etymons whose etymology is constructed (post-hoc
@@ -337,6 +357,49 @@ def _resolve_era_param(era: Any, culture: str) -> tuple[int | None, int | None] 
         ) from None
 
 
+def _resolve_stratum_param(stratum: Any, culture: str) -> str | None:
+    """Resolve the request-side ``stratum`` value to a stratum tag,
+    or None when no stratum filter applies (wyrd-j3gy).
+
+    Treats both None and ``""`` (the SPA's empty form-field) as 'no
+    filter' explicitly, matching ``_resolve_era_param``'s shape.
+
+    Validation has two layers:
+      1. Per-culture restriction (when configured) — for english /
+         scottish / welsh, the stratum must be in the culture's
+         allowed-set. Catches both typos AND culturally-incoherent
+         values (e.g. ``--culture welsh --stratum east-norse``,
+         where east-norse isn't in any classified Welsh-bundle
+         language family).
+      2. ALL_STRATA fallback — for cultures without a per-culture
+         restriction (irish / breton today), validate against the
+         broader cross-family registry. Catches typos but not
+         family mismatches; tightens once the missing classifiers
+         (Goidelic / Brythonic-Brythonic) ship.
+
+    Bad input → ValueError naming the culture and listing valid
+    strata so the SPA / CLI surface a clean 4xx. Same error-wrapping
+    pattern as ``_resolve_era_param``.
+    """
+    if stratum is None or stratum == "":
+        return None
+    valid = valid_strata_for_culture(culture)
+    if valid:
+        if stratum not in valid:
+            raise ValueError(
+                f"invalid 'stratum' value {stratum!r} for culture {culture!r}: "
+                f"valid options are {sorted(valid)}."
+            )
+    elif stratum not in ALL_STRATA:
+        raise ValueError(
+            f"unknown 'stratum' value {stratum!r}: not in any classifier's "
+            f"vocabulary (culture {culture!r} has no per-culture restriction "
+            f"configured yet, so this falls back to a typo-check). Known: "
+            f"{sorted(ALL_STRATA)}."
+        )
+    return stratum
+
+
 def _apply_mood(spec: str, tags: list[str], harshness: float) -> tuple[list[str], float]:
     """Resolve one mood spec ('grim' or 'harsh:0.5') into tag and harshness
     contributions, returning the updated tuple. Multiple moods compose by
@@ -542,6 +605,17 @@ class Kenning(Generator):
                 "stratum": {
                     "type": "string",
                     "default": "",
+                    # wyrd-j3gy: dependent-select metadata read by the
+                    # SPA. Each culture surfaces only the stratum tags
+                    # valid for that culture's bundled language families
+                    # (e.g. picking 'east-norse' against a Welsh culture
+                    # would 4xx at runtime, so the dropdown filters to
+                    # the culture's allowed set). CLI/API still accept
+                    # any string the per-culture validator accepts;
+                    # this property only constrains the SPA UX. Same
+                    # shape + load-bearing semantics as the era
+                    # property's x-options-by-culture (wyrd-awo).
+                    "x-options-by-culture": _stratum_options_by_culture(),
                     "description": (
                         "wyrd-lr4 Phase 3 within-language stratum filter. Restricts the "
                         "morpheme inventory to forms classified into a specific register "
@@ -549,10 +623,13 @@ class Kenning(Generator):
                         f"for French: {', '.join(repr(s) for s in FRENCH_STRATA)}; for "
                         f"Old English: {', '.join(repr(s) for s in OLD_ENGLISH_STRATA)}; "
                         f"for Old Norse: {', '.join(repr(s) for s in OLD_NORSE_STRATA)}. "
+                        "The SPA renders this as a dropdown filtered to the chosen "
+                        "culture's allowed strata (wyrd-j3gy). CLI/API also accept any "
+                        "stratum tag valid for the culture's bundled language families. "
                         "Morphemes with no stratum data pass through (Welsh / French / "
-                        "Old English / Old Norse families are classified today; other "
-                        "languages all admit until classifiers ship). Composes with --era "
-                        "via intersection. Empty disables the filter — bit-stable behavior."
+                        "Old English / Old Norse families are classified today). Composes "
+                        "with --era via intersection. Empty disables the filter — "
+                        "bit-stable behavior."
                     ),
                 },
                 "manorial_affix": {
@@ -601,14 +678,12 @@ class Kenning(Generator):
         exclude_tags: tuple[str, ...] = () if include_fiction else (_FICTION_TAG,)
 
         era_range = _resolve_era_param(params.get("era"), culture)
-        # wyrd-lr4 Phase 3: no equivalent of _resolve_era_param yet —
-        # a typo'd --stratum silently no-ops because every Meaning hits
-        # the empty-stratum passthrough until the bundle is re-emitted
-        # with classifier output. Validation lands with Phase 4 once
-        # the per-language stratum vocabularies stabilize (tracked in
-        # wyrd-j3gy). For now empty-string from the schema default
-        # collapses to None — the filter's 'no filter' signal.
-        stratum = params.get("stratum") or None
+        # wyrd-j3gy: _resolve_stratum_param validates against the
+        # per-culture allowed-set (with ALL_STRATA fallback for
+        # cultures without classifiers yet). A typo'd --stratum
+        # surfaces as a clean ValueError rather than silently
+        # no-opping.
+        stratum = _resolve_stratum_param(params.get("stratum"), culture)
 
         name_gen, _ = _load_culture(culture)
         rng = rng_for(seed)

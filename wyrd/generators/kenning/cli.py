@@ -4708,8 +4708,11 @@ def lexicon_classify_stratum(
     type=str,
     default=None,
     help=(
-        "New stratum value. Must be one of the known strata across "
-        "any classified family (typo protection). Mutually exclusive "
+        "New stratum value. Must be one of the known strata for the "
+        "target row's language family — e.g. a French row accepts "
+        "values from FRENCH_STRATA only (wyrd-j3gy family-aware "
+        "validation). Languages without a classifier yet fall back "
+        "to the cross-family ALL_STRATA typo-check. Mutually exclusive "
         "with --clear."
     ),
 )
@@ -4741,16 +4744,19 @@ def lexicon_set_stratum(
     deliberately overwrite them, or ``set-stratum --clear`` to opt
     one row back into bulk classification.
 
-    The stratum value is checked against the cross-family registry
-    (``ALL_STRATA``) only — writing a Welsh stratum onto a French
-    row is not blocked. Operator is responsible for picking a value
-    valid for the row's language family.
+    The stratum value is checked against the row's language family
+    (wyrd-j3gy family-aware validation): a French-language row
+    accepts FRENCH_STRATA values, an Old English row accepts
+    OLD_ENGLISH_STRATA values, etc. Languages without a classifier
+    yet fall back to a cross-family ALL_STRATA typo-check so the
+    operator can still hand-correct on unclassified languages.
     """
     _validate_set_stratum_identification(etymon_id, canonical_form, language)
     _validate_set_stratum_value(stratum, clear)
 
     with LexiconDB(db_path) as db:
         row = _resolve_set_stratum_target(db, etymon_id, canonical_form, language)
+        _validate_set_stratum_family_match(row, stratum)
         old_stratum = row["stratum"]
         new_stratum = None if clear else stratum
         db.conn.execute(
@@ -4799,6 +4805,37 @@ def _validate_set_stratum_identification(
         click.echo(
             "Error: --canonical-form and --language must both be passed "
             "(canonical_form alone can be ambiguous across languages).",
+            err=True,
+        )
+        sys.exit(1)
+
+
+def _validate_set_stratum_family_match(row: Any, stratum: str | None) -> None:
+    """wyrd-j3gy family-aware validation. Runs after the target row
+    is resolved: looks up the row's language family and verifies the
+    stratum is in that family's STRATA tuple.
+
+    Languages without a classifier (no entry in ``LANGUAGE_TO_FAMILY``)
+    skip this check — the typo-check against ``ALL_STRATA`` already
+    ran in ``_validate_set_stratum_value``, and the operator may
+    legitimately want to hand-correct on an unclassified language.
+
+    --clear callers pass ``stratum=None`` and skip this check
+    entirely (clearing has no family-validity question).
+    """
+    from wyrd.generators.kenning.strata import STRATA_BY_FAMILY, family_for_language
+
+    if stratum is None:
+        return  # --clear path — no family validation needed
+    family = family_for_language(row["language"])
+    if family is None:
+        return  # unclassified language — fall back to ALL_STRATA typo-check
+    valid = STRATA_BY_FAMILY[family]
+    if stratum not in valid:
+        click.echo(
+            f"Error: stratum {stratum!r} is not valid for language "
+            f"{row['language']!r} (family {family!r}). Valid: "
+            f"{', '.join(valid)}.",
             err=True,
         )
         sys.exit(1)
