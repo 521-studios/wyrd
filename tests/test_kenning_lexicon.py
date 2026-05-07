@@ -345,6 +345,10 @@ def test_normalize_ocr_form_handles_overlapping_multichar_patterns() -> None:
     assert normalize_ocr_form("ccs") == "cae"
     # Mixed unicode + multi-char: æ → ae, then cs → ae.
     assert normalize_ocr_form("æcs") == "aeae"
+    # Section sign — the only punctuation-source mapping in the table.
+    # § → dh, so a hyð-shaped form rendered with § stays consistent
+    # with the existing hyð↔hydh canonicalization.
+    assert normalize_ocr_form("hy§") == "hydh"
 
 
 def test_normalize_ocr_form_perf_floor_on_large_body() -> None:
