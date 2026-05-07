@@ -998,6 +998,32 @@ Genie from Latin *genius*; both are real, both worth researching).
 The single-word strict filter still rejects multi-word names
 ("Bugbear Thug", "Ancient Black Dragon").
 
+### Approved-language stratification (precursors + postcursors)
+
+`APPROVED_LANGUAGES` is layered as a stack rather than a single
+attestation tier. Each "approved" canonical language pulls in the
+precursor and postcursor codes that make up its descent stack so
+`descent_walking_lookup` can walk the FULL chain from a modern
+reflex to its deepest attested ancestor without bailing at a
+language gate. The Hebrew stack, for example, isn't just `he` —
+it's `{hbo, sem-wes-pro, sem-pro, afa-pro, he}`, and the Iranian
+stack mirrors that pattern (`{peo, fa-cls, xpr, ira-pro, fa, pal,
+iir-pro}`). Without the stack form, a Modern Hebrew word's
+descent edge to Biblical Hebrew terminates the walk at the language
+boundary even though the chain is genuine; with it, the BFS
+continues all the way to Proto-Afroasiatic when the data has it.
+
+Practical consequence: when a new "canonical" language is approved,
+its precursors / postcursors should be added at the same time so
+the descent walker doesn't accumulate dead ends at intermediate
+nodes. The cost is small (each code is one line) and the upside is
+that downstream temporal-axis demos (wyrd-rni / wyrd-381) can
+render the same morpheme at any era stop the corpus carries data
+for. User policy 2026-05-06: precursors / postcursors of an
+approved language can be added without separate sign-off; new
+*canonical* languages still require explicit approval (the wave-2
+canonical set was negotiated carefully).
+
 ### approach_version
 
 `fantasy_pipeline.APPROACH_VERSION` is a pipeline-version stamp.

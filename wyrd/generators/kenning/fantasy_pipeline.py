@@ -123,6 +123,36 @@ APPROVED_LANGUAGES: frozenset[str] = frozenset(
         "egy",
         "arc",
         "pal",
+        # Wave-2 precursor / postcursor codes — user-approved 2026-05-06
+        # ("you may add the precursors or postcursors of any language we've
+        # approved so we can do the full history"). Lets descent_walking_lookup
+        # walk the FULL chain from a modern reflex back to its deepest
+        # ancestor without bailing at the language gate. Counts in parens
+        # are post-wave-2-ingest etymon-table rows; non-zero verifies the
+        # code shows up in real descent edges feeding our approved set.
+        #
+        # Semitic precursors:
+        "hbo",          # Biblical Hebrew (precursor to he)
+        "sem-pro",      # Proto-Semitic (root of he/ar/akk/arc/hbo)
+        "sem-wes-pro",  # Proto-West-Semitic (intermediate Semitic node)
+        "afa-pro",      # Proto-Afroasiatic (deep root of egy + Semitic)
+        "sux",          # Sumerian (Mesopotamian substrate of akk loanwords)
+        # Aramaic descendant:
+        "syc",          # Classical Syriac (late-ancient descendant of arc)
+        # Iranian precursors / postcursors:
+        "peo",          # Old Persian (precursor of fa)
+        "fa-cls",       # Classical Persian (intermediate fa stage)
+        "xpr",          # Parthian (Iranian, sister of pal)
+        "ira-pro",      # Proto-Iranian (root of fa/pal/peo/xpr)
+        # Indo-Aryan precursors / postcursors:
+        "iir-pro",      # Proto-Indo-Iranian (root of fa+sa branches)
+        "inc-pro",      # Proto-Indo-Aryan (root of sa)
+        "pra",          # Prakrit (descendant of sa)
+        "pi",           # Pali (Buddhist canonical Indo-Aryan, descendant of sa)
+        # Egyptian descendant:
+        "cop",          # Coptic (late-ancient descendant of egy)
+        # Armenian (ancient register; appears in Iranian / Greek descent paths):
+        "axm",          # Old / Classical Armenian
     }
 )
 
@@ -139,6 +169,11 @@ _LANGUAGE_ALIAS_MAP: dict[str, str] = {
     "arabic": "ar",
     "classical-arabic": "ar",
     "hebrew": "he",
+    # 'biblical-hebrew' keeps mapping to 'he' because the Hebrew
+    # wiktextract slice files biblical attestations under the modern
+    # he lemma (15k rows) rather than under hbo (229 rows). The
+    # standalone hbo code is approved separately so descent walks
+    # from he back through hbo don't dead-end at the language gate.
     "biblical-hebrew": "he",
     "persian": "fa",
     "classical-persian": "fa",
@@ -149,6 +184,28 @@ _LANGUAGE_ALIAS_MAP: dict[str, str] = {
     "aramaic": "arc",
     "middle-persian": "pal",
     "pahlavi": "pal",
+    # Wave-2 precursor / postcursor descriptive names → ISO codes
+    # (user-approved 2026-05-06). Mirrors the corresponding
+    # APPROVED_LANGUAGES additions; without these aliases an LLM
+    # response of "Old Persian" / "Coptic" / "Pali" would mis-classify
+    # as outside_language_family even though the etymon table now
+    # carries those rows under the ISO codes.
+    "old-persian": "peo",
+    "parthian": "xpr",
+    "sumerian": "sux",
+    "syriac": "syc",
+    "classical-syriac": "syc",
+    "coptic": "cop",
+    "prakrit": "pra",
+    "pali": "pi",
+    "old-armenian": "axm",
+    "classical-armenian": "axm",
+    "proto-semitic": "sem-pro",
+    "proto-west-semitic": "sem-wes-pro",
+    "proto-afroasiatic": "afa-pro",
+    "proto-iranian": "ira-pro",
+    "proto-indo-iranian": "iir-pro",
+    "proto-indo-aryan": "inc-pro",
 }
 
 

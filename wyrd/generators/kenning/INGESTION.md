@@ -1177,11 +1177,26 @@ covers:
   Arabic, `fa` Persian, `sa` Sanskrit, `akk` Akkadian, `egy` Egyptian,
   `arc` Aramaic, `pal` Pahlavi/Middle Persian) — wave-2 addition,
   2026-05-06.
+- Wave-2 precursor / postcursor codes — user-approved 2026-05-06
+  to enable full-history descent walks back from a modern reflex to
+  its deepest ancestor without bailing at the language gate:
+  - Semitic stack: `hbo` Biblical Hebrew, `sem-pro` Proto-Semitic,
+    `sem-wes-pro` Proto-West-Semitic, `afa-pro` Proto-Afroasiatic,
+    `sux` Sumerian (Akkadian substrate), `syc` Classical Syriac
+    (Aramaic descendant).
+  - Iranian stack: `peo` Old Persian, `fa-cls` Classical Persian,
+    `xpr` Parthian, `ira-pro` Proto-Iranian.
+  - Indo-Aryan stack: `iir-pro` Proto-Indo-Iranian (root of
+    Iranian + Indo-Aryan branches), `inc-pro` Proto-Indo-Aryan,
+    `pra` Prakrit, `pi` Pali.
+  - Egyptian stack: `cop` Coptic (late-ancient Egyptian descendant).
+  - Armenian: `axm` Old / Classical Armenian (intersects Iranian +
+    Greek descent paths).
 
 The `_LANGUAGE_ALIAS_MAP` normalizes LLM-returned descriptive names
-(`sanskrit`, `arabic`, `ancient-egyptian`) to the ISO codes the
-etymon table uses, so the LLM doesn't need to know our internal code
-conventions.
+(`sanskrit`, `arabic`, `ancient-egyptian`, `old-persian`, `coptic`,
+`pali`, `proto-semitic`, etc.) to the ISO codes the etymon table
+uses, so the LLM doesn't need to know our internal code conventions.
 
 What's NOT approved (intentionally — these would require their own
 mood/aesthetic register decisions): Japanese, Chinese, Korean,
