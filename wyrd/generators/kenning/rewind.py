@@ -209,6 +209,45 @@ class _Anchor:
     language: str  # etymon.language tag
 
 
+# Cache of stripped-usage indexes per meaning_db. Keyed by
+# ``id(meaning_db)`` rather than the dict itself since dicts aren't
+# hashable. Built lazily on first lookup; the meaning_db is loaded
+# once per CLI invocation so the cache is effectively per-call.
+# WeakValueDict isn't used because meaning_db has no __weakref__
+# slot and is intended to outlive the rewind calls.
+_STRIPPED_INDEX_CACHE: dict[int, dict[str, list[Meaning]]] = {}
+
+
+def _get_stripped_index(
+    meaning_db: dict[str, list[Meaning]],
+) -> dict[str, list[Meaning]]:
+    """Return a stripped-usage → list[Meaning] index for ``meaning_db``,
+    building it lazily on first lookup and caching by ``id()``.
+
+    Stripping the hyphens unifies the bundle's three usage shapes
+    (``-ham``, ``ham``, ``ham-``) under a single key so the anchor
+    resolver can find OE post-modifier Meanings even when the trie
+    picked a no-hyphen Celtic Meaning at the same stripped usage.
+
+    Cache lifetime: the cache key is ``id(meaning_db)``, which
+    persists across repeated calls within one process. ``_load_meanings``
+    in the kenning package returns the same cached meaning_db across
+    calls, so the index is built once per process and reused — O(1)
+    sibling lookup for the rewind anchor resolver instead of O(N)
+    full-scan."""
+    cache_key = id(meaning_db)
+    cached = _STRIPPED_INDEX_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    index: dict[str, list[Meaning]] = {}
+    for usage, meanings in meaning_db.items():
+        stripped = usage.replace("-", "").lower()
+        bucket = index.setdefault(stripped, [])
+        bucket.extend(meanings)
+    _STRIPPED_INDEX_CACHE[cache_key] = index
+    return index
+
+
 def _resolve_anchor(
     meaning: Meaning,
     meaning_db: dict[str, list[Meaning]],
@@ -232,8 +271,22 @@ def _resolve_anchor(
     Per-language preference reflects the dominant origin pattern for
     British place-name morphemes (OE first, ON second, Celtic third,
     Modern English last-resort).
+
+    Hyphen-variant lookup: the bundle keys morphemes by their full
+    hyphen-marked usage (``-ton`` post-modifier, ``Whit-`` pre-
+    modifier, ``-en-`` inner-modifier). When the trie matcher picked
+    a non-OE Meaning at ``ton`` (Celtic-mix), the OE post-modifier
+    Meaning at ``-ton`` carries the right anchor. The
+    stripped-usage index built once per ``meaning_db`` (cached on
+    the dict via ``_get_stripped_index``) gives O(1) sibling
+    lookup; without it this function was O(N) over the full
+    meaning_db on every call (~5k entries × every morpheme in every
+    rewind).
     """
-    siblings = meaning_db.get(meaning.usage, [meaning])
+    stripped = meaning.usage.replace("-", "").lower()
+    siblings = list(_get_stripped_index(meaning_db).get(stripped, ()))
+    if not siblings:
+        siblings = [meaning]
     # Put the resolver's input meaning first so its source-language
     # preference is honoured when tied.
     ordered = [meaning] + [s for s in siblings if s is not meaning]

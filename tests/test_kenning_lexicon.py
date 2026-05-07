@@ -66,6 +66,7 @@ from wyrd.generators.kenning.lexicon import (
     page_for_offset,
     parse_running_header_pages,
     parse_skeat_section_header_pages,
+    project_period_forms,
     record_mining_run,
     reverse_search_attestations,
     seed_from_meanings,
@@ -3110,6 +3111,483 @@ def test_cli_kenning_rewind_smoke(fresh_db: Path) -> None:
     assert "decomposed:" in result.output
     # Three default English era stops printed.
     assert result.output.count("english/") == 3
+
+
+# --- wyrd-unuo Phase 3.3: per-etymon period-form projection ---------------
+
+
+def _seed_toponym_with_binary_breakdown(
+    db: LexiconDB,
+    *,
+    modern_name: str,
+    first_etymon_id: int,
+    last_etymon_id: int,
+    source_id: str = "src",
+) -> int:
+    """Insert a toponym + a binary-breakdown toponym_etymology with two
+    toponym_etymology_element rows (ordinals 0, 1) pointing at the
+    given etymon ids. Returns the toponym_id."""
+    cur = db.conn.execute("INSERT INTO toponym (modern_name) VALUES (?)", (modern_name,))
+    toponym_id = cur.lastrowid
+    cur = db.conn.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) VALUES (?, ?, ?)",
+        (toponym_id, source_id, "high"),
+    )
+    te_id = cur.lastrowid
+    db.conn.execute(
+        "INSERT INTO toponym_etymology_element "
+        "(toponym_etymology_id, ordinal, etymon_id) VALUES (?, ?, ?)",
+        (te_id, 0, first_etymon_id),
+    )
+    db.conn.execute(
+        "INSERT INTO toponym_etymology_element "
+        "(toponym_etymology_id, ordinal, etymon_id) VALUES (?, ?, ?)",
+        (te_id, 1, last_etymon_id),
+    )
+    db.commit()
+    return toponym_id
+
+
+def test_project_period_forms_segments_binary_attestation(fresh_db: Path) -> None:
+    """Bradford-style happy path: 'Bradeford' (1377) splits as
+    'Brade' + 'ford' via suffix-anchoring against the OE 'ford'
+    canonical_form."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        brad_id = db.upsert_etymon("brad", "old-english")
+        ford_id = db.upsert_etymon("ford", "old-english")
+        db.commit()
+        toponym_id = _seed_toponym_with_binary_breakdown(
+            db,
+            modern_name="Bradford",
+            first_etymon_id=brad_id,
+            last_etymon_id=ford_id,
+        )
+        db.conn.execute(
+            "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (toponym_id, "Bradeford", 1377, "src"),
+        )
+        db.commit()
+        result = project_period_forms(db, apply=True)
+        rows = db.conn.execute(
+            "SELECT etymon_id, form, date_year FROM etymon_period_form ORDER BY etymon_id, form"
+        ).fetchall()
+
+    assert result["rows_projected"] == 1
+    assert result["rows_written"] == 2
+    forms_by_etymon = {r["etymon_id"]: r["form"] for r in rows}
+    assert forms_by_etymon[brad_id] == "Brade"
+    assert forms_by_etymon[ford_id] == "ford"
+
+
+def test_project_period_forms_uses_cluster_mate_suffix(fresh_db: Path) -> None:
+    """Chesterton-style: 'Cestretone' splits as 'Cestre' + 'tone'
+    via cluster-mate suffix matching ('tone' is a Middle Scots
+    cognate of OE 'tūn'). Verifies the projector pulls suffix
+    candidates from the full cognate cluster, not just the
+    canonical_form."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        ceaster_id = db.upsert_etymon("ceaster", "old-english")
+        tun_id = db.upsert_etymon("tūn", "old-english")
+        tone_id = db.upsert_etymon("tone", "gmw-msc")
+        db.conn.execute(
+            "UPDATE etymon SET cognate_id = ? WHERE id IN (?, ?)",
+            (tun_id, tun_id, tone_id),
+        )
+        db.commit()
+        toponym_id = _seed_toponym_with_binary_breakdown(
+            db,
+            modern_name="Chesterton",
+            first_etymon_id=ceaster_id,
+            last_etymon_id=tun_id,
+        )
+        db.conn.execute(
+            "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (toponym_id, "Cestretone", 1210, "src"),
+        )
+        db.commit()
+        project_period_forms(db, apply=True)
+        forms = {
+            r["etymon_id"]: r["form"]
+            for r in db.conn.execute(
+                "SELECT etymon_id, form FROM etymon_period_form ORDER BY etymon_id"
+            )
+        }
+
+    assert forms[ceaster_id] == "Cestre"
+    assert forms[tun_id] == "tone"
+
+
+def test_project_period_forms_skips_ternary_breakdowns(fresh_db: Path) -> None:
+    """v1 limitation: ternary breakdowns are skipped (middle-morpheme
+    alignment isn't reliable without phonetic distance)."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        had_id = db.upsert_etymon("had", "old-english")
+        en_id = db.upsert_etymon("en", "old-english")
+        ham_id = db.upsert_etymon("ham", "old-english")
+        db.commit()
+        cur = db.conn.execute("INSERT INTO toponym (modern_name) VALUES (?)", ("Hadenham",))
+        toponym_id = cur.lastrowid
+        cur = db.conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) VALUES (?, ?, ?)",
+            (toponym_id, "src", "high"),
+        )
+        te_id = cur.lastrowid
+        for ordinal, eid in enumerate([had_id, en_id, ham_id]):
+            db.conn.execute(
+                "INSERT INTO toponym_etymology_element "
+                "(toponym_etymology_id, ordinal, etymon_id) VALUES (?, ?, ?)",
+                (te_id, ordinal, eid),
+            )
+        db.conn.execute(
+            "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (toponym_id, "Hadenham", 1300, "src"),
+        )
+        db.commit()
+        result = project_period_forms(db, apply=True)
+
+    assert result["rows_projected"] == 0
+
+
+def test_project_period_forms_skips_breakdowns_with_merged_etymons(
+    fresh_db: Path,
+) -> None:
+    """Per Claude review M1: a breakdown whose component points at an
+    OCR-cluster loser (merged_into_id IS NOT NULL) is skipped so loser
+    etymons don't accumulate stale period_form rows that then surface
+    via Tier 3 of the era-reflex picker. Pin the projector-side filter
+    matching Tiers 1+2's behavior."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        winner_id = db.upsert_etymon("brad", "old-english")
+        loser_id = db.upsert_etymon("brade", "old-english")
+        ford_id = db.upsert_etymon("ford", "old-english")
+        # Mark loser as merged-into the winner.
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (winner_id, loser_id),
+        )
+        db.commit()
+        # Toponym breaks down via the LOSER etymon (the original
+        # extraction predates the OCR merge).
+        toponym_id = _seed_toponym_with_binary_breakdown(
+            db,
+            modern_name="Bradford",
+            first_etymon_id=loser_id,
+            last_etymon_id=ford_id,
+        )
+        db.conn.execute(
+            "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (toponym_id, "Bradeford", 1377, "src"),
+        )
+        db.commit()
+        result = project_period_forms(db, apply=True)
+
+    assert result["rows_projected"] == 0
+
+
+def test_etymon_era_reflexes_tier3_filters_merged_into(fresh_db: Path) -> None:
+    """Per Claude review M1: Tier 3 query MUST filter
+    merged_into_id IS NULL to match Tiers 1+2. A loser etymon's
+    period_form rows (if they ever made it past the projector
+    filter) shouldn't surface as reflexes — the merge winner is
+    the canonical voice."""
+    with LexiconDB(fresh_db) as db:
+        winner_id = db.upsert_etymon("orphan", "old-english")
+        loser_id = db.upsert_etymon("orphan-loser", "old-english")
+        # Mark loser as merged-into winner; insert a period_form on
+        # the LOSER (simulates a stale row from a pre-merge projector
+        # run, or a manual data-correction).
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id = ?",
+            (winner_id, loser_id),
+        )
+        db.conn.execute(
+            "INSERT INTO etymon_period_form "
+            "(etymon_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+            (loser_id, "stale-form", 1300, "src"),
+        )
+        db.commit()
+        # Querying the LOSER directly should return [] — Tier 3 honors
+        # the merge tombstone.
+        reflexes = etymon_era_reflexes(db, loser_id, target_family_cell=("english", "me"))
+
+    assert reflexes == []
+
+
+def test_project_period_forms_idempotent_rerun(fresh_db: Path) -> None:
+    """Unique index on (etymon_id, form, date_year, source_doc) makes
+    re-projection a no-op via INSERT OR IGNORE."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        brad_id = db.upsert_etymon("brad", "old-english")
+        ford_id = db.upsert_etymon("ford", "old-english")
+        db.commit()
+        toponym_id = _seed_toponym_with_binary_breakdown(
+            db,
+            modern_name="Bradford",
+            first_etymon_id=brad_id,
+            last_etymon_id=ford_id,
+        )
+        db.conn.execute(
+            "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (toponym_id, "Bradeford", 1377, "src"),
+        )
+        db.commit()
+        first = project_period_forms(db, apply=True)
+        second = project_period_forms(db, apply=True)
+        total = db.conn.execute("SELECT COUNT(*) FROM etymon_period_form").fetchone()[0]
+
+    assert first["rows_written"] == 2
+    assert second["rows_written"] == 0
+    assert total == 2
+
+
+def test_etymon_era_reflexes_tier4_period_form_fallback(fresh_db: Path) -> None:
+    """Tier 4: when both cluster and descent paths return empty AND
+    target_family_cell is set, the picker queries etymon_period_form
+    rows whose date_year falls in the cell's range."""
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("orphan", "old-english")
+        db.conn.execute(
+            "INSERT INTO etymon_period_form (etymon_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (eid, "orphane", 1300, "src"),
+        )
+        db.commit()
+        reflexes = etymon_era_reflexes(db, eid, target_family_cell=("english", "me"))
+
+    forms = [r.form for r in reflexes]
+    assert "orphane" in forms
+
+
+def test_etymon_era_reflexes_tier4_filters_by_year_range(fresh_db: Path) -> None:
+    """Tier 4 must respect the era cell's year range — period forms
+    outside the cell don't surface."""
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("orphan", "old-english")
+        for form, year in [("orphan-oe", 950), ("orphane", 1300), ("orphan-mod", 1800)]:
+            db.conn.execute(
+                "INSERT INTO etymon_period_form "
+                "(etymon_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+                (eid, form, year, "src"),
+            )
+        db.commit()
+        me_reflexes = etymon_era_reflexes(db, eid, target_family_cell=("english", "me"))
+        oe_reflexes = etymon_era_reflexes(db, eid, target_family_cell=("english", "oe-late"))
+
+    assert [r.form for r in me_reflexes] == ["orphane"]
+    assert [r.form for r in oe_reflexes] == ["orphan-oe"]
+
+
+def test_etymon_era_reflexes_tier4_skipped_when_target_language_only(
+    fresh_db: Path,
+) -> None:
+    """Tier 4 requires a year range; with target_language only,
+    no year context exists so Tier 4 is skipped."""
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("orphan", "old-english")
+        db.conn.execute(
+            "INSERT INTO etymon_period_form (etymon_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (eid, "orphane", 1300, "src"),
+        )
+        db.commit()
+        reflexes = etymon_era_reflexes(db, eid, target_language="middle-english")
+
+    assert reflexes == []
+
+
+def test_clear_enrichment_period_forms_drops_rows(fresh_db: Path) -> None:
+    """clear_enrichment(stage='period-forms') deletes every row from
+    etymon_period_form, leaving the table empty for re-projection."""
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("orphan", "old-english")
+        db.conn.execute(
+            "INSERT INTO etymon_period_form (etymon_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (eid, "orphane", 1300, "src"),
+        )
+        db.commit()
+        before = db.conn.execute("SELECT COUNT(*) FROM etymon_period_form").fetchone()[0]
+        result = clear_enrichment(db, stage="period-forms", apply=True)
+        after = db.conn.execute("SELECT COUNT(*) FROM etymon_period_form").fetchone()[0]
+
+    assert before == 1
+    assert result["period_form_rows_to_clear"] == 1
+    assert after == 0
+
+
+def test_clear_enrichment_all_derived_includes_period_forms(fresh_db: Path) -> None:
+    """stage='all-derived' covers period-forms too."""
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("orphan", "old-english")
+        db.conn.execute(
+            "INSERT INTO etymon_period_form (etymon_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (eid, "orphane", 1300, "src"),
+        )
+        db.commit()
+        result = clear_enrichment(db, stage="all-derived", apply=True)
+        remaining = db.conn.execute("SELECT COUNT(*) FROM etymon_period_form").fetchone()[0]
+
+    assert result["period_form_rows_to_clear"] == 1
+    assert remaining == 0
+
+
+def test_migrate_schema_creates_etymon_period_form_on_legacy_db(
+    tmp_path: Path,
+) -> None:
+    """A legacy DB pre-Phase-3.3 has no etymon_period_form table.
+    migrate_schema creates it idempotently."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        db.conn.execute("DROP TABLE IF EXISTS etymon_period_form")
+        db.commit()
+        applied = migrate_schema(db)
+        tables = {
+            row["name"]
+            for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+    assert applied["etymon_period_form_table"] is True
+    assert "etymon_period_form" in tables
+
+
+def test_rewind_anchor_resolves_across_hyphen_variants(fresh_db: Path) -> None:
+    """wyrd-unuo: the anchor resolver collects siblings across
+    hyphen-variant usage keys. The bundle keys ``ton`` (Celtic-mix)
+    and ``-ton`` (OE post-modifier) are stripped-equivalent, and
+    when the trie picks the Celtic ``ton`` Meaning, the OE anchor
+    at ``-ton`` must still be found."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        oe_tun = db.upsert_etymon("tūn", "old-english")
+        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_tun, oe_tun))
+        db.upsert_etymon("ton", "celtic")
+        db.commit()
+
+        meaning_db = _make_rewind_meaning_db(
+            ("ton", {"celtic_mix": ["ton"]}),
+            ("-ton", {"old_english": ["tūn"]}),
+        )
+        result = rewind_name("ton", db, meaning_db)
+
+    # The anchor SHOULD be OE 'tūn' (via the -ton sibling).
+    by_cell = {stop.cell: stop.morphemes[0] for stop in result.eras}
+    assert by_cell["oe-late"].source_form == "tūn"
+    assert by_cell["oe-late"].source_language == "old-english"
+
+
+def test_strip_diacritics_normalizes_macrons_and_circumflexes() -> None:
+    """Direct unit test for the diacritic-stripper used by the
+    suffix-anchoring projector. Inputs include the OE macron set
+    (ūīāēō) and Welsh circumflex set (ŵâêôûŷ) that show up as
+    bundle-source forms; the projector compares stripped variants
+    against historical-form suffixes."""
+    from wyrd.generators.kenning.lexicon import _strip_diacritics
+
+    assert _strip_diacritics("tūn") == "tun"
+    assert _strip_diacritics("Hædan") == "Hædan"  # æ is a base char, not a combining mark
+    assert _strip_diacritics("Llanfaên") == "Llanfaen"
+    assert _strip_diacritics("Hēafod") == "Heafod"
+    assert _strip_diacritics("ASCII") == "ASCII"
+
+
+def test_find_longest_suffix_match_picks_longest_candidate() -> None:
+    """Direct unit test: when multiple candidates are valid suffixes,
+    the longest wins (so 'tone' wins over 'one' for 'Cestretone')."""
+    from wyrd.generators.kenning.lexicon import _find_longest_suffix_match
+
+    assert _find_longest_suffix_match("Cestretone", {"tone", "one", "ne"}) == "tone"
+    assert _find_longest_suffix_match("Bradeford", {"ford", "ord", "rd"}) == "ford"
+
+
+def test_find_longest_suffix_match_diacritic_insensitive() -> None:
+    """Suffix matching is diacritic-insensitive: ``Cestretun`` matches
+    a pre-stripped 'tun' candidate. Caller (``_suffix_candidates_for_etymon``)
+    is responsible for adding both unstripped + stripped forms to
+    the candidate set; the matcher checks whether either the raw or
+    diacritic-stripped attested form ends with any candidate."""
+    from wyrd.generators.kenning.lexicon import _find_longest_suffix_match
+
+    # Caller-provided candidates include both: 'tūn' (raw) + 'tun'
+    # (stripped). Match against 'tun' via either af.endswith path.
+    assert _find_longest_suffix_match("Cestretun", {"tūn", "tun"}) == "tun"
+    # Diacritic-bearing attested form: 'Cestretūn' (with macron)
+    # also matches via af_stripped.endswith('tun').
+    assert _find_longest_suffix_match("Cestretūn", {"tūn", "tun"}) == "tūn"
+
+
+def test_find_longest_suffix_match_returns_none_for_no_match() -> None:
+    """When no candidate is a suffix of the form, the matcher returns
+    None (caller skips the projection)."""
+    from wyrd.generators.kenning.lexicon import _find_longest_suffix_match
+
+    assert _find_longest_suffix_match("Cestretone", {"xyz", "abc"}) is None
+    assert _find_longest_suffix_match("Cestretone", set()) is None
+
+
+def test_find_longest_suffix_match_rejects_single_char_candidates() -> None:
+    """Single-char candidates (a trailing 'e' / 's') are rejected to
+    avoid spurious 1-char hits — too noisy to project as a morpheme
+    surface."""
+    from wyrd.generators.kenning.lexicon import _find_longest_suffix_match
+
+    assert _find_longest_suffix_match("Cestretone", {"e"}) is None
+
+
+def test_cli_kenning_lexicon_project_period_forms_smoke(fresh_db: Path) -> None:
+    """End-to-end CLI smoke test: ``lexicon project-period-forms``
+    against a seeded toponym + binary breakdown + attestation
+    populates etymon_period_form when --apply is set, dry-runs
+    otherwise."""
+    runner = CliRunner()
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        brad_id = db.upsert_etymon("brad", "old-english")
+        ford_id = db.upsert_etymon("ford", "old-english")
+        db.commit()
+        toponym_id = _seed_toponym_with_binary_breakdown(
+            db,
+            modern_name="Bradford",
+            first_etymon_id=brad_id,
+            last_etymon_id=ford_id,
+        )
+        db.conn.execute(
+            "INSERT INTO toponym_attestation "
+            "(toponym_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+            (toponym_id, "Bradeford", 1377, "src"),
+        )
+        db.commit()
+
+    # Dry-run: shows candidate count, no rows written.
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "project-period-forms", "--db", str(fresh_db)],
+    )
+    assert result.exit_code == 0, result.output
+    assert "candidates=" in result.output
+    assert "(dry-run" in result.output
+
+    with LexiconDB(fresh_db) as db:
+        assert db.conn.execute("SELECT COUNT(*) FROM etymon_period_form").fetchone()[0] == 0
+
+    # --apply: writes rows.
+    result = runner.invoke(
+        kenning_cli,
+        ["lexicon", "project-period-forms", "--db", str(fresh_db), "--apply"],
+    )
+    assert result.exit_code == 0, result.output
+    with LexiconDB(fresh_db) as db:
+        assert db.conn.execute("SELECT COUNT(*) FROM etymon_period_form").fetchone()[0] == 2
 
 
 def test_record_mining_run_inserts_row_with_full_fields(fresh_db: Path) -> None:
