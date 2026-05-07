@@ -1028,6 +1028,24 @@ approved language can be added without separate sign-off; new
 *canonical* languages still require explicit approval (the wave-2
 canonical set was negotiated carefully).
 
+Two related implementation knobs:
+
+- `CANONICAL_LANGUAGES` vs `APPROVED_LANGUAGES`. The LLM prompt
+  template uses the smaller `CANONICAL_LANGUAGES` set (the user-
+  facing fantasy register) rather than the full `APPROVED_LANGUAGES`
+  superset; the precursor/postcursor stack is pipeline machinery the
+  LLM has weak training signal on. `_classify_llm_result` still
+  accepts any `attested_in` value that lands in `APPROVED_LANGUAGES`
+  after alias normalization, so an LLM that happens to identify a
+  Pali/Coptic attestation directly still resolves — we just don't
+  *advertise* the obscure codes in the prompt.
+- `_dedupe_by_form_lang` sorts reconstructed canonical forms (those
+  starting with the linguistic-convention `*` prefix) AFTER attested
+  forms. With the proto-* stack now reachable via BFS, both an
+  attested ancestor and a reconstructed root can surface at the same
+  layer; the sort guarantees `_skip_llm_resolution` and
+  `_semantic_check_candidates` see the attested form first.
+
 ### approach_version
 
 `fantasy_pipeline.APPROACH_VERSION` is a pipeline-version stamp.

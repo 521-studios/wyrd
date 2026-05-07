@@ -1347,6 +1347,76 @@ def test_resolve_via_llm_alias_map_wave2_precursors_postcursors(
     assert res.etymon_id == target_id
 
 
+def test_descent_walking_lookup_prefers_attested_over_reconstructed(fresh_db: Path) -> None:
+    """When BFS surfaces both an attested ancestor (e.g. OE `tūn`) and a
+    reconstructed proto-form (e.g. proto-germanic `*tūnaz`) for the same
+    input, the attested form must win the first-pick slot. Pre-fix, SQL
+    row-insertion order picked arbitrarily — `*tūnaz` could surface
+    before `tūn`, feeding the semantic-check pass a reconstruction when
+    a concrete attestation was available. Pinning the contract: starred
+    canonical forms (linguistic convention for reconstructions) sort
+    AFTER non-starred forms in the descent_walking_lookup return list."""
+    with LexiconDB(fresh_db) as db:
+        # Mod-en `town` is the BFS seed (not approved itself, but seeds
+        # the walk via the lemma lookup). Both ancestors are at BFS
+        # layer 1; only the dedup-time sort separates them.
+        modern_id = _seed_etymon(db, canonical_form="town", language="modern-english")
+        oe_id = _seed_etymon(db, canonical_form="tūn", language="old-english")
+        pg_id = _seed_etymon(db, canonical_form="*tūnaz", language="proto-germanic")
+        # Insert the reconstructed edge FIRST so without the sort it
+        # would naturally surface before the attested edge — this is the
+        # adversarial case the sort is supposed to fix.
+        _seed_descent(db, parent_id=pg_id, child_id=modern_id)
+        _seed_descent(db, parent_id=oe_id, child_id=modern_id)
+        db.commit()
+
+    matches = fp.descent_walking_lookup(fresh_db, "town")
+    forms = [m.canonical_form for m in matches]
+    assert "tūn" in forms, "attested OE ancestor must surface"
+    assert "*tūnaz" in forms, "reconstructed proto ancestor should still surface (just later)"
+    assert forms.index("tūn") < forms.index("*tūnaz"), (
+        "attested form must precede reconstructed form regardless of insertion order"
+    )
+
+
+def test_canonical_languages_excludes_precursor_postcursor_stack(fresh_db: Path) -> None:
+    """The LLM prompt uses CANONICAL_LANGUAGES (not APPROVED_LANGUAGES)
+    so obscure precursor/postcursor codes don't pollute the model's
+    register list. APPROVED_LANGUAGES = CANONICAL ∪ stack, but the
+    stack codes are pipeline-internal (descent-walk only). This test
+    pins the partition so a future "merge them all into one" refactor
+    can't silently put `iir-pro` and `afa-pro` strings back in the
+    Gemini prompt."""
+    # Sanity: APPROVED is a strict superset of CANONICAL.
+    assert fp.CANONICAL_LANGUAGES < fp.APPROVED_LANGUAGES
+    # The wave-2 stack lives in APPROVED but NOT in CANONICAL.
+    for code in (
+        "hbo",
+        "sem-pro",
+        "afa-pro",
+        "iir-pro",
+        "ira-pro",
+        "inc-pro",
+        "peo",
+        "xpr",
+        "cop",
+        "pra",
+        "pi",
+        "axm",
+        "syc",
+        "sux",
+        "fa-cls",
+        "sem-wes-pro",
+    ):
+        assert code in fp.APPROVED_LANGUAGES, f"{code} should be in APPROVED_LANGUAGES"
+        assert code not in fp.CANONICAL_LANGUAGES, (
+            f"{code} should NOT be in CANONICAL_LANGUAGES (it's pipeline-internal)"
+        )
+    # The canonical register codes ARE in CANONICAL.
+    for code in ("he", "ar", "fa", "sa", "akk", "egy", "arc", "pal", "old-english"):
+        assert code in fp.CANONICAL_LANGUAGES, f"{code} should be in CANONICAL_LANGUAGES"
+
+
 def test_descent_walking_lookup_resolves_through_wave2_precursor(fresh_db: Path) -> None:
     """wyrd-c97z: a Modern Hebrew lemma (he) with a descent edge to
     its Biblical Hebrew precursor (hbo) should surface BOTH the he
