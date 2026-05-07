@@ -675,8 +675,12 @@ def rewind(name: str, db_path: Path, era_input: tuple[str, ...]) -> None:
 
     meaning_db, _ = _load_meanings()
 
-    with LexiconDB(db_path) as db:
-        result = rewind_name(name, db, meaning_db, eras=eras)
+    try:
+        with LexiconDB(db_path) as db:
+            result = rewind_name(name, db, meaning_db, eras=eras)
+    except ValueError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        raise click.exceptions.Exit(1) from exc
 
     if not result.eras:
         click.echo("(no era stops requested)", err=True)
@@ -685,6 +689,12 @@ def rewind(name: str, db_path: Path, era_input: tuple[str, ...]) -> None:
     click.echo(f"{result.name} — decomposed: {result.decomposition}")
     if result.unaccounted:
         click.echo(f"  unaccounted: {' '.join(result.unaccounted)}", err=True)
+    # Bail early when nothing decomposed — printing empty era rows
+    # ('english/oe-late  ') with no rendered content clutters the
+    # output and confuses readers about what failed.
+    if not any(stop.morphemes for stop in result.eras):
+        return
+
     width = max(len(f"{stop.family}/{stop.cell}") for stop in result.eras)
     for stop in result.eras:
         label = f"{stop.family}/{stop.cell}".ljust(width)
@@ -693,7 +703,7 @@ def rewind(name: str, db_path: Path, era_input: tuple[str, ...]) -> None:
     if any(any(m.fallback for m in stop.morphemes) for stop in result.eras):
         click.echo(
             "  * one or more morphemes lacked era data; rendered with "
-            "the source canonical form as fallback.",
+            "the modern usage as fallback.",
             err=True,
         )
 
