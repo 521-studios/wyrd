@@ -245,6 +245,34 @@ def _load_culture(culture: str):
     return load_proportions(proportions, meaning_db, tag_db), tag_db
 
 
+# wyrd-h3ls: ``_load_culture`` independently caches a ``NameGenerator``
+# wrapped over the ``meaning_db`` returned by ``_load_meanings``. So
+# calling only ``_load_meanings.cache_clear()`` (the obvious test-side
+# invalidation) leaves the per-culture generator stale, holding a
+# reference to the old ``meaning_db``. Couple the clears so the
+# obvious call also drops the per-culture cache — a future test author
+# who mutates the bundle and clears ``_load_meanings`` doesn't need to
+# know about the second cache.
+_original_load_meanings_cache_clear = _load_meanings.cache_clear
+
+
+def _coupled_cache_clear() -> None:
+    """Clear both ``_load_meanings`` and ``_load_culture`` caches.
+
+    The two caches form an aggregate: ``_load_culture`` holds a
+    ``NameGenerator`` parameterised on the ``meaning_db`` from
+    ``_load_meanings``, so invalidating one without the other yields
+    a stale ``NameGenerator`` the next time a culture is loaded.
+    Replaces ``_load_meanings.cache_clear`` so the standard test-side
+    pattern (``_load_meanings.cache_clear()``) clears both.
+    """
+    _original_load_meanings_cache_clear()
+    _load_culture.cache_clear()
+
+
+_load_meanings.cache_clear = _coupled_cache_clear  # type: ignore[method-assign]
+
+
 def available_tags() -> list[str]:
     """User-visible tags from the meaning DB (excludes internal filtering tags)."""
     _, tag_db = _load_meanings()
