@@ -1,11 +1,11 @@
 [
   {
     "meaning": ["homestead", "settlement", "town"],
-    "modifier_tags": ["architecture", "settlement"],
+    "modifier_tags": ["architecture"],
     "modifier_type": "Architectural",
     "words": [
-      {"modern_usage": "Bally-", "old_irish": ["baile"]},
-      {"modern_usage": "-bally-", "old_irish": ["baile"]}
+      {"modern_usage": "Bally-", "celtic_mix": ["baile"]},
+      {"modern_usage": "-bally-", "celtic_mix": ["baile"]}
     ]
   },
   {
@@ -13,8 +13,8 @@
     "modifier_tags": ["topography", "agriculture"],
     "modifier_type": "Topographical",
     "words": [
-      {"modern_usage": "Cloon-", "old_irish": ["cluain"]},
-      {"modern_usage": "-cloon-", "old_irish": ["cluain"]}
+      {"modern_usage": "Cloon-", "celtic_mix": ["cluain"]},
+      {"modern_usage": "-cloon-", "celtic_mix": ["cluain"]}
     ]
   },
   {
@@ -22,8 +22,8 @@
     "modifier_tags": ["religious"],
     "modifier_type": "Religious",
     "words": [
-      {"modern_usage": "Kil-", "old_irish": ["cill"]},
-      {"modern_usage": "Kill-", "old_irish": ["cill"]}
+      {"modern_usage": "Kil-", "celtic_mix": ["cill"]},
+      {"modern_usage": "Kill-", "celtic_mix": ["cill"]}
     ]
   },
   {
@@ -31,8 +31,8 @@
     "modifier_tags": ["topography"],
     "modifier_type": "Topographical",
     "words": [
-      {"modern_usage": "Knock-", "old_irish": ["cnoc"]},
-      {"modern_usage": "-knock-", "old_irish": ["cnoc"]}
+      {"modern_usage": "Knock-", "celtic_mix": ["cnoc"]},
+      {"modern_usage": "-knock-", "celtic_mix": ["cnoc"]}
     ]
   },
   {
@@ -40,8 +40,8 @@
     "modifier_tags": ["military"],
     "modifier_type": "Architectural",
     "words": [
-      {"modern_usage": "Lis-", "old_irish": ["lios"]},
-      {"modern_usage": "Liss-", "old_irish": ["lios"]}
+      {"modern_usage": "Lis-", "celtic_mix": ["lios"]},
+      {"modern_usage": "Liss-", "celtic_mix": ["lios"]}
     ]
   },
   {
@@ -49,8 +49,8 @@
     "modifier_tags": ["topography", "tree"],
     "modifier_type": "Topographical",
     "words": [
-      {"modern_usage": "Derry-", "old_irish": ["doire"]},
-      {"modern_usage": "-derry", "old_irish": ["doire"]}
+      {"modern_usage": "Derry-", "celtic_mix": ["doire"]},
+      {"modern_usage": "-derry", "celtic_mix": ["doire"]}
     ]
   },
   {
@@ -58,8 +58,8 @@
     "modifier_tags": ["topography"],
     "modifier_type": "Topographical",
     "words": [
-      {"modern_usage": "Glen-", "old_irish": ["gleann"]},
-      {"modern_usage": "-glen", "old_irish": ["gleann"]}
+      {"modern_usage": "Glen-", "celtic_mix": ["gleann"]},
+      {"modern_usage": "-glen", "celtic_mix": ["gleann"]}
     ]
   },
   {
@@ -67,7 +67,7 @@
     "modifier_tags": ["topography"],
     "modifier_type": "Topographical",
     "words": [
-      {"modern_usage": "Slieve-", "old_irish": ["sliabh"]}
+      {"modern_usage": "Slieve-", "celtic_mix": ["sliabh"]}
     ]
   },
   {
@@ -75,8 +75,8 @@
     "modifier_tags": ["topography"],
     "modifier_type": "Topographical",
     "words": [
-      {"modern_usage": "Magh-", "old_irish": ["magh"]},
-      {"modern_usage": "Moy-", "old_irish": ["magh"]}
+      {"modern_usage": "Magh-", "celtic_mix": ["magh"]},
+      {"modern_usage": "Moy-", "celtic_mix": ["magh"]}
     ]
   },
   {
@@ -84,8 +84,8 @@
     "modifier_tags": ["topography"],
     "modifier_type": "Topographical",
     "words": [
-      {"modern_usage": "Tully-", "old_irish": ["tulach"]},
-      {"modern_usage": "-tully-", "old_irish": ["tulach"]}
+      {"modern_usage": "Tully-", "celtic_mix": ["tulach"]},
+      {"modern_usage": "-tully-", "celtic_mix": ["tulach"]}
     ]
   }
 ]
