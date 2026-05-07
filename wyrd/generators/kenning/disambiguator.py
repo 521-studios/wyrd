@@ -8,15 +8,19 @@ the choice plus a one-sentence reason.
 
 Cost gate: skip the LLM call when there's only one plausible candidate.
 
-Out of scope here (filed as wyrd-uct): the agentic `expand_context` loop
-where the model can request more text when the initial snippet isn't
-enough. This module uses a fixed-window snippet and either commits or
-declines.
+Two flavors:
+- ``disambiguate_one`` — single-shot, fixed-window snippet (the original
+  wyrd-6z7 path).
+- ``disambiguate_one_agentic`` — wyrd-uct: lets the model request a wider
+  snippet when 200 chars isn't enough. Action-discriminated schema:
+  ``{action: 'answer'|'expand', ...}``. Caps at 3 expansions or
+  2000 chars total context.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from wyrd.generators.kenning.gemini_extractor import GeminiClient
@@ -150,6 +154,396 @@ def disambiguate_one(client: GeminiClient, case: AmbiguityCase) -> Disambiguator
             reason=f"model chose id {chosen_id} which isn't a candidate; reason was: {reason}",
         )
     return DisambiguatorResult(chosen_etymon_id=chosen_id, confidence=confidence, reason=reason)
+
+
+# --- Agentic disambiguator (wyrd-uct) -------------------------------------
+#
+# The fixed-window snippet (±100 chars) sometimes isn't enough — the cue
+# that resolves the ambiguity is two paragraphs up, or in the next
+# sentence. Rather than picking a wider default and paying for tokens
+# every call, let the model decide when to widen via an
+# action-discriminated schema:
+#
+#   {action: 'answer', choice, confidence, reason}      # terminal
+#   {action: 'expand', direction, chars}                # ask for more
+#
+# The orchestrator widens the snippet and re-prompts. Caps: 3 expansion
+# rounds OR 2000 chars total context. On the final round the system
+# prompt explicitly says "you must answer now" so the model commits
+# instead of asking for more.
+
+
+# Initial snippet radius before/after the matched form, mirroring
+# `_TEXT_MATCH_SNIPPET_RADIUS` in lexicon.py — that's how the stored
+# `etymon_text_match.snippet` was built, so the orchestrator's
+# bookkeeping starts from the same baseline.
+_AGENTIC_INITIAL_RADIUS = 100
+
+# Per-expansion limits. Kept tight so a runaway model can't drive cost
+# unboundedly: minimum widens at all (50), maximum keeps the prompt
+# under a single Gemini call's structured-output budget (500).
+_AGENTIC_MIN_EXPANSION_CHARS = 50
+_AGENTIC_MAX_EXPANSION_CHARS = 500
+
+
+# Default per-case caps. The acceptance criterion (wyrd-uct) targets a
+# 200-char-ambiguous / 500-char-resolves pattern, well within these
+# bounds. Operators can override for harder cases.
+_AGENTIC_DEFAULT_MAX_EXPANSIONS = 3
+_AGENTIC_DEFAULT_TOTAL_CHAR_CAP = 2000
+
+
+@dataclass(frozen=True)
+class ExpansionStats:
+    """Per-case telemetry for the agentic loop.
+
+    ``expansions`` is the number of widened-context rounds the model
+    requested before committing. ``final_chars`` is the size of the
+    snippet at commit time. ``forced_commit`` is True when the loop hit
+    the cap and the model didn't volunteer an answer — useful for tuning
+    the default starting window (a case that always forces a commit
+    suggests the initial radius is too narrow for that source/pattern).
+    """
+
+    expansions: int
+    final_chars: int
+    forced_commit: bool
+
+
+@dataclass
+class SnippetExpander:
+    """Lazily loads source body texts and produces wider snippets around
+    the matched form's first occurrence.
+
+    Two ways to construct:
+    - ``SnippetExpander(sources_dir=Path)`` — load lazily from a
+      directory of ``*.txt`` files (the same shape as
+      ``_load_normalized_source_texts`` consumes).
+    - ``SnippetExpander.from_in_memory({source_id: body_text})`` — for
+      tests that don't want to write fixture files.
+
+    The body text is normalized via ``normalize_ocr_form`` (lowercased
+    + ASCII-folded) so the matcher sees the same surface as the rest of
+    the pipeline.
+    """
+
+    sources_dir: Path | None = None
+    _cache: dict[str, str] | None = field(default=None, repr=False)
+
+    @classmethod
+    def from_in_memory(cls, source_texts: dict[str, str]) -> SnippetExpander:
+        """Construct from an already-normalized dict — bypasses disk
+        loading. Used by tests."""
+        e = cls(sources_dir=None)
+        # Bypass dataclass field semantics — we want the cache pre-populated
+        # so ``get_body`` returns hits without calling _load_normalized_source_texts.
+        e._cache = dict(source_texts)
+        return e
+
+    def _ensure_loaded(self) -> None:
+        if self._cache is not None:
+            return
+        # Local import: keep the disambiguator deps off the cold-start
+        # path for unrelated CLI commands. Same pattern as the CLI's
+        # local imports in ``lexicon_disambiguate_fuzzy``.
+        from wyrd.generators.kenning.lexicon import _load_normalized_source_texts
+
+        if self.sources_dir is None:
+            self._cache = {}
+            return
+        self._cache = _load_normalized_source_texts(self.sources_dir)
+
+    def get_body(self, source_id: str) -> str | None:
+        """Return the normalized body text for a source, or None if not
+        loaded. Loads the directory on first call."""
+        self._ensure_loaded()
+        assert self._cache is not None  # _ensure_loaded post-condition
+        return self._cache.get(source_id)
+
+    def make_snippet(
+        self,
+        source_id: str,
+        matched_form: str,
+        *,
+        radius_before: int,
+        radius_after: int,
+    ) -> str | None:
+        """Find the first occurrence of ``matched_form`` in the body
+        text for ``source_id`` and return a snippet of the requested
+        radius around it. Same marker convention as
+        ``reverse_search_attestations`` (``«matched_form»``) so the LLM
+        prompt highlights the form being disambiguated.
+
+        Returns None when the source isn't loadable or the form isn't
+        found — callers force a commit on the widest snippet they have.
+        """
+        body = self.get_body(source_id)
+        if body is None:
+            return None
+        norm = normalize_ocr_form(matched_form)
+        idx = body.find(norm)
+        if idx < 0:
+            return None
+        start = max(0, idx - radius_before)
+        end = min(len(body), idx + len(norm) + radius_after)
+        snippet = body[start:end].strip()
+        return snippet.replace(norm, f"«{norm}»", 1)
+
+
+# Gemini's OpenAPI-flavored schema for the agentic response. Both
+# branches share the envelope; the orchestrator validates the
+# branch-specific fields after parsing. Conditionally-required fields
+# aren't expressible in OpenAPI 3.0, so we keep all the leaf properties
+# optional and enforce shape post-hoc.
+AGENTIC_RESPONSE_SCHEMA: dict = {
+    "type": "OBJECT",
+    "properties": {
+        "action": {
+            "type": "STRING",
+            "enum": ["answer", "expand"],
+            "description": (
+                "'answer' to commit a final verdict, 'expand' to request "
+                "more surrounding text before deciding."
+            ),
+        },
+        # action='answer' fields:
+        "choice": {
+            "type": "STRING",
+            "description": (
+                "When action='answer': the chosen etymon's id as a string "
+                "(e.g. '4127'), or 'none'. Ignored otherwise."
+            ),
+        },
+        "confidence": {
+            "type": "STRING",
+            "enum": ["high", "medium", "low"],
+        },
+        "reason": {
+            "type": "STRING",
+            "description": "One sentence explaining the choice or expansion request.",
+        },
+        # action='expand' fields:
+        "direction": {
+            "type": "STRING",
+            "enum": ["before", "after", "both"],
+            "description": "When action='expand': which side(s) to widen.",
+        },
+        "chars": {
+            "type": "INTEGER",
+            "description": (
+                "When action='expand': how many chars to add per side "
+                f"({_AGENTIC_MIN_EXPANSION_CHARS}-{_AGENTIC_MAX_EXPANSION_CHARS})."
+            ),
+        },
+    },
+    "required": ["action"],
+}
+
+
+_AGENTIC_SYSTEM_PROMPT = (
+    "You are a historical-linguistics disambiguator. Given a passage and "
+    "a list of candidate morphemes, you decide which morpheme (if any) is "
+    "being used or described in the passage. Match on meaning, language, "
+    "and context — not just spelling proximity. If the passage doesn't "
+    "clearly support any candidate, answer 'none'. Always cite the specific "
+    "phrase or context cue that informed your choice.\n\n"
+    "You may either commit a final verdict OR ask for more surrounding "
+    "text:\n"
+    "  - To commit: respond with action='answer', choice (the etymon id "
+    "    as a string, or 'none'), confidence ('high'|'medium'|'low'), and "
+    "    a one-sentence reason.\n"
+    "  - To request more context: respond with action='expand', direction "
+    "    ('before'|'after'|'both'), and chars "
+    f"    ({_AGENTIC_MIN_EXPANSION_CHARS}-{_AGENTIC_MAX_EXPANSION_CHARS}).\n\n"
+    "Use 'expand' only when more text would resolve a real ambiguity. "
+    "Prefer answering with choice='none' over chasing context indefinitely."
+)
+
+
+def _format_agentic_user(case: AmbiguityCase, snippet: str, *, force_commit: bool) -> str:
+    """Build the user-side prompt for one agentic round.
+
+    On the final round we explicitly tell the model it must commit —
+    otherwise a model that keeps requesting expansions would force the
+    orchestrator into the 'forced_commit' fallback path, which yields
+    a less informative verdict.
+    """
+    final_note = ""
+    if force_commit:
+        final_note = (
+            "\n\nFINAL ROUND: no more expansions are available. You MUST "
+            "respond with action='answer'."
+        )
+    return (
+        f"PASSAGE:\n{snippet}\n\n"
+        f"The body text contains the surface form '{case.matched_form}'. "
+        f"Which of these candidate morphemes (if any) is being described "
+        f"or used here?\n\nCANDIDATES:\n{_format_candidates(case.candidates)}"
+        f"{final_note}\n"
+    )
+
+
+def _parse_answer(response: dict, candidates: tuple[Candidate, ...]) -> DisambiguatorResult:
+    """Parse an action='answer' response into a DisambiguatorResult,
+    using the same validation rules as ``disambiguate_one`` (id-must-
+    be-in-candidates, non-numeric → 'low none', etc.)."""
+    choice_str = (response.get("choice") or "").strip()
+    confidence = response.get("confidence", "low")
+    reason = (response.get("reason") or "").strip()
+
+    if choice_str.lower() == "none" or not choice_str:
+        return DisambiguatorResult(chosen_etymon_id=None, confidence=confidence, reason=reason)
+    try:
+        chosen_id = int(choice_str)
+    except ValueError:
+        return DisambiguatorResult(
+            chosen_etymon_id=None,
+            confidence="low",
+            reason=f"model returned non-id choice: {choice_str!r}",
+        )
+    valid_ids = {c.etymon_id for c in candidates}
+    if chosen_id not in valid_ids:
+        return DisambiguatorResult(
+            chosen_etymon_id=None,
+            confidence="low",
+            reason=f"model chose id {chosen_id} which isn't a candidate; reason was: {reason}",
+        )
+    return DisambiguatorResult(chosen_etymon_id=chosen_id, confidence=confidence, reason=reason)
+
+
+def disambiguate_one_agentic(
+    client: GeminiClient,
+    case: AmbiguityCase,
+    expander: SnippetExpander,
+    *,
+    max_expansions: int = _AGENTIC_DEFAULT_MAX_EXPANSIONS,
+    total_char_cap: int = _AGENTIC_DEFAULT_TOTAL_CHAR_CAP,
+) -> tuple[DisambiguatorResult, ExpansionStats]:
+    """Run the agentic disambiguator loop on one ambiguity case.
+
+    The model can either commit ('answer') or request a wider snippet
+    ('expand') for up to ``max_expansions`` rounds. The total snippet
+    length is capped at ``total_char_cap`` chars. On the final round
+    the system prompt forces a commit.
+
+    Returns ``(DisambiguatorResult, ExpansionStats)``. The result is
+    drop-in compatible with ``apply_disambiguator_result``; the stats
+    are for telemetry/tuning the default starting window.
+
+    When the expander can't widen further (source not loadable, form
+    not found, or cap reached) the loop short-circuits to the final
+    round so the model is asked to commit on the widest snippet
+    available — never blocks waiting for context that doesn't exist.
+    """
+    radius_before = _AGENTIC_INITIAL_RADIUS
+    radius_after = _AGENTIC_INITIAL_RADIUS
+    current_snippet = case.snippet
+    expansions = 0
+
+    # Loop bound: ``max_expansions + 1`` rounds — up to N expansion
+    # rounds + one final forced-commit round. ``force_commit`` is
+    # derived from ``expansions`` (not ``round_idx``) so that
+    # short-circuit paths (source missing, cap reached) can advance
+    # ``expansions = max_expansions`` and trigger the forced-commit on
+    # the NEXT iteration instead of waiting for round_idx to catch up.
+    for round_idx in range(max_expansions + 1):
+        force_commit = expansions >= max_expansions
+        prompt = _format_agentic_user(case, current_snippet, force_commit=force_commit)
+        response = client.chat_json(
+            _AGENTIC_SYSTEM_PROMPT, prompt, response_schema=AGENTIC_RESPONSE_SCHEMA
+        )
+        action = (response.get("action") or "").lower()
+
+        if action == "answer":
+            result = _parse_answer(response, case.candidates)
+            return result, ExpansionStats(
+                expansions=expansions,
+                final_chars=len(current_snippet),
+                forced_commit=False,
+            )
+
+        if action != "expand" or force_commit:
+            # Model returned an unknown action OR refused to commit even
+            # on the final round. Treat as 'none' with low confidence so
+            # the row gets dropped rather than mis-applied.
+            return (
+                DisambiguatorResult(
+                    chosen_etymon_id=None,
+                    confidence="low",
+                    reason=(
+                        f"model failed to commit after {round_idx} round(s); "
+                        f"final action was {action!r}"
+                    ),
+                ),
+                ExpansionStats(
+                    expansions=expansions,
+                    final_chars=len(current_snippet),
+                    forced_commit=True,
+                ),
+            )
+
+        # action == 'expand' AND not the final round — widen.
+        direction = (response.get("direction") or "both").lower()
+        if direction not in ("before", "after", "both"):
+            direction = "both"
+        try:
+            chars = int(response.get("chars") or 0)
+        except (TypeError, ValueError):
+            chars = 0
+        if chars <= 0:
+            chars = 200  # sensible default if model omits
+        chars = max(_AGENTIC_MIN_EXPANSION_CHARS, min(chars, _AGENTIC_MAX_EXPANSION_CHARS))
+
+        new_radius_before = radius_before
+        new_radius_after = radius_after
+        if direction in ("before", "both"):
+            new_radius_before += chars
+        if direction in ("after", "both"):
+            new_radius_after += chars
+
+        new_snippet = expander.make_snippet(
+            case.source_id,
+            case.matched_form,
+            radius_before=new_radius_before,
+            radius_after=new_radius_after,
+        )
+        if new_snippet is None or new_snippet == current_snippet:
+            # No new context available (source missing, form not found,
+            # or already at body bounds). Skip ahead to the final round
+            # so the model is asked to commit on what we have.
+            radius_before = new_radius_before
+            radius_after = new_radius_after
+            expansions = max_expansions  # forces the next iteration's force_commit
+            continue
+
+        if len(new_snippet) > total_char_cap:
+            # Truncate to cap and skip ahead — we can't honor more
+            # expansions even if the model asks. Keep the final round
+            # to give the model a chance to commit on the widest snippet.
+            new_snippet = new_snippet[:total_char_cap]
+            current_snippet = new_snippet
+            expansions = max_expansions
+            continue
+
+        radius_before, radius_after = new_radius_before, new_radius_after
+        current_snippet = new_snippet
+        expansions += 1
+
+    # Loop exit without an answer is unreachable (force_commit on the
+    # last iteration always returns), but defensive fallback satisfies
+    # the type checker.
+    return (
+        DisambiguatorResult(
+            chosen_etymon_id=None,
+            confidence="low",
+            reason="agentic loop exited without commit",
+        ),
+        ExpansionStats(
+            expansions=expansions,
+            final_chars=len(current_snippet),
+            forced_commit=True,
+        ),
+    )
 
 
 def find_ambiguous_rows(
@@ -335,11 +729,15 @@ def apply_disambiguator_result(
 
 
 __all__ = [
+    "AGENTIC_RESPONSE_SCHEMA",
     "AmbiguityCase",
     "Candidate",
     "DISAMBIGUATOR_SCHEMA",
     "DisambiguatorResult",
+    "ExpansionStats",
+    "SnippetExpander",
     "apply_disambiguator_result",
     "disambiguate_one",
+    "disambiguate_one_agentic",
     "find_ambiguous_rows",
 ]
