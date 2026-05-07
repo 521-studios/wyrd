@@ -4328,7 +4328,7 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
         f"""
         SELECT id, canonical_form, language, lemma_id, merged_into_id, inflection,
                english_shaped, original_script, transliteration,
-               pronunciation_ipa, pronunciation_dialect
+               pronunciation_ipa, pronunciation_dialect, stratum
         FROM etymon
         WHERE id IN ({placeholders})
         ORDER BY language, canonical_form
@@ -4364,6 +4364,11 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
         else None
         for r in member_rows
     }
+    # wyrd-lr4 Phase 2: per-member within-language stratum tag
+    # (Welsh-only in Phase 1; French / OE / ON follow). NULL for
+    # languages without a Phase 1 classifier and for legacy DBs that
+    # pre-date the column.
+    member_stratum_by_id: dict[int, str | None] = {r["id"]: r["stratum"] for r in member_rows}
     canonical_forms_lower = {f.lower() for _lang, f in member_form_by_id.values()}
 
     reflex_links = _fetch_member_reflex_links(db, member_ids)
@@ -4383,6 +4388,7 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
         "member_original_script_by_id": member_original_script_by_id,
         "member_transliteration_by_id": member_transliteration_by_id,
         "member_pronunciation_by_id": member_pronunciation_by_id,
+        "member_stratum_by_id": member_stratum_by_id,
         "member_citations": _fetch_member_citations(db, member_ids),
         "member_attested_years": _fetch_member_attested_years(db, member_ids),
         "glosses": _fetch_member_glosses(db, member_ids),
@@ -4799,6 +4805,10 @@ class _WordLanguageAccumulators:
     # {"ipa": str, "dialect": str | None}. NULL pronunciation_dialect
     # surfaces as a None value for "dialect".
     pronunciation: dict[str, dict[str, dict[str, str | None]]] = field(default_factory=dict)
+    # wyrd-lr4 Phase 2: per-(lang, canonical_form) within-language
+    # stratum tag. Sparse — only languages with a Phase 1 classifier
+    # populate this (Welsh-family today). Other languages stay empty.
+    stratum: dict[str, dict[str, str]] = field(default_factory=dict)
 
 
 def _word_for_reflex(
@@ -4826,6 +4836,7 @@ def _word_for_reflex(
                 _absorb_member_original_script(accs, fam, descendant_id, lang, form)
                 _absorb_member_transliteration(accs, fam, descendant_id, lang, form)
                 _absorb_member_pronunciation(accs, fam, descendant_id, lang, form)
+                _absorb_member_stratum(accs, fam, descendant_id, lang, form)
     word: dict[str, Any] = {"modern_usage": meta["surface_form"]}
     _emit_word_languages(word, accs)
     return word
@@ -4851,6 +4862,7 @@ def _synthesize_word_for_family(fam: dict[str, Any]) -> dict[str, Any]:
         _absorb_member_original_script(accs, fam, member_id, member_lang, member_form)
         _absorb_member_transliteration(accs, fam, member_id, member_lang, member_form)
         _absorb_member_pronunciation(accs, fam, member_id, member_lang, member_form)
+        _absorb_member_stratum(accs, fam, member_id, member_lang, member_form)
     _emit_word_languages(word, accs)
     return word
 
@@ -4968,6 +4980,23 @@ def _absorb_member_pronunciation(
         accs.pronunciation.setdefault(lang, {})[form] = {"ipa": ipa, "dialect": dialect}
 
 
+def _absorb_member_stratum(
+    accs: _WordLanguageAccumulators,
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+    form: str,
+) -> None:
+    """wyrd-lr4 Phase 2: record a member's within-language stratum tag
+    keyed by canonical_form. Skipped when stratum is NULL (the common
+    case for languages without a Phase 1 classifier — only Welsh-family
+    etymons are populated today). The runtime treats absence as 'no
+    stratum filter applies' for the consumer wired up in Phase 3."""
+    stratum = fam.get("member_stratum_by_id", {}).get(member_id)
+    if stratum:
+        accs.stratum.setdefault(lang, {})[form] = stratum
+
+
 def _absorb_member_citations(
     accs: _WordLanguageAccumulators,
     fam: dict[str, Any],
@@ -5038,6 +5067,8 @@ def _emit_word_languages(word: dict[str, Any], accs: _WordLanguageAccumulators) 
             bucket.transliteration.update(accs.transliteration[lang])
         if lang in accs.pronunciation:
             bucket.pronunciation.update(accs.pronunciation[lang])
+        if lang in accs.stratum:
+            bucket.stratum.update(accs.stratum[lang])
 
     for json_field in sorted(buckets):
         bucket = buckets[json_field]
@@ -5062,6 +5093,8 @@ def _emit_word_languages(word: dict[str, Any], accs: _WordLanguageAccumulators) 
             )
         if bucket.pronunciation:
             word[f"{json_field}_pronunciation"] = _emit_pronunciation_list(bucket.pronunciation)
+        if bucket.stratum:
+            word[f"{json_field}_stratum"] = _emit_stratum_list(bucket.stratum)
 
 
 @dataclass
@@ -5083,6 +5116,8 @@ class _BucketAccumulator:
     original_script: dict[str, str] = field(default_factory=dict)
     transliteration: dict[str, str] = field(default_factory=dict)
     pronunciation: dict[str, dict[str, str | None]] = field(default_factory=dict)
+    # wyrd-lr4 Phase 2: per-canonical_form within-language stratum tag.
+    stratum: dict[str, str] = field(default_factory=dict)
 
 
 def _emit_original_script_list(scripts: dict[str, str]) -> list[dict[str, str]]:
@@ -5121,6 +5156,16 @@ def _emit_pronunciation_list(
         {"form": form, "ipa": data["ipa"], "dialect": data.get("dialect")}
         for form, data in sorted(pronunciations.items())
     ]
+
+
+def _emit_stratum_list(strata: dict[str, str]) -> list[dict[str, str]]:
+    """wyrd-lr4 Phase 2: serialize {canonical_form: stratum} into the
+    meanings.json stratum entry shape. Each dict has ``"form"`` (the
+    canonical_form lookup key, same as the language form array) and
+    ``"stratum"`` (the within-language register tag, e.g.
+    'brittonic-substrate', 'medieval-welsh', 'native-welsh'). Sorted
+    by form for determinism."""
+    return [{"form": form, "stratum": stratum_tag} for form, stratum_tag in sorted(strata.items())]
 
 
 def _emit_english_shaped_list(shaped: dict[str, str]) -> list[dict[str, str]]:
