@@ -131,6 +131,22 @@ def _data_path(filename: str):
 
 
 @lru_cache(maxsize=1)
+def _load_norman_manorial_families() -> tuple[str, ...]:
+    """Curated tuple of Anglo-Norman manorial-family surnames used as
+    optional post-name affixes (wyrd-obu).
+
+    The corpus encodes the post-Conquest political-history layering
+    English place-naming captures densely: an English/ON base name
+    plus the Norman family that held the manor (Stoke Mandeville,
+    Ashby de la Zouch, Stanton Lacy). The list is hand-curated from
+    Domesday-and-after subsidy rolls, focusing on surnames that
+    actually attach to English toponyms in the historical record.
+    """
+    with _data_path("norman_manorial_families.json").open() as f:
+        return tuple(json.load(f))
+
+
+@lru_cache(maxsize=1)
 def _load_meanings():
     """Load the bundled meanings, extending with anglicized-form sidecars.
 
@@ -424,6 +440,24 @@ class Kenning(Generator):
                         "tag-class pairings, novelty blends toward the uniform marginal."
                     ),
                 },
+                "manorial_affix": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": (
+                        "wyrd-obu Norman manorial-affix layering (0..1). "
+                        "Probability that a generated name gets an Anglo-Norman "
+                        "family surname appended (Stoke Mandeville, Ashby de la "
+                        "Zouch, Stanton Lacy). Encodes the post-Conquest political "
+                        "history layered onto English place-naming. At 0 (default) "
+                        "no affix is attached; at 1 every name gets one. Only "
+                        "applies to the english culture today — Domesday-and-after "
+                        "manorial layering is an English place-naming pattern. "
+                        "Affix corpus is a curated set of ~40 attested Norman "
+                        "families (Domesday + post-Conquest subsidy rolls)."
+                    ),
+                },
             },
             "required": [],
         }
@@ -439,6 +473,7 @@ class Kenning(Generator):
         inflection_density = float(params.get("inflection_density", 0.0) or 0.0)
         harshness = float(params.get("harshness", 0.0) or 0.0)
         cohesion = float(params.get("cohesion", 0.0) or 0.0)
+        manorial_affix = float(params.get("manorial_affix", 0.0) or 0.0)
         include_fiction = _coerce_bool(params.get("include_fiction", False))
 
         moods = params.get("mood", []) or []
@@ -464,10 +499,35 @@ class Kenning(Generator):
             era_range=era_range,
             cohesion=cohesion,
         )
+        result_str = str(new_name)
+        explanation = new_name.description()
+        components = new_name.components()
+        # wyrd-obu: optional Norman manorial-family affix appended after
+        # the morpheme-compounded base name. English-culture only (the
+        # post-Conquest manorial-layering pattern is an English place-
+        # naming convention; pasting Norman affixes onto Welsh / Irish
+        # / Breton bases would be cosmetically jarring and historically
+        # wrong). Probability-gated so a region can have a few
+        # manorialized names mixed with non-affixed neighbors, which is
+        # how the historical pattern actually surfaces.
+        if manorial_affix > 0 and culture == "english" and rng.random() < manorial_affix:
+            family = rng.choice(_load_norman_manorial_families())
+            result_str = f"{result_str} {family}"
+            explanation = f"{explanation} + manorial: {family} (Norman family)"
+            components.append(
+                {
+                    "usage": family,
+                    "location": "manorial-affix",
+                    "meanings": [f"Norman manorial family: {family}"],
+                    "tags": ["manorial", "norman"],
+                    "roots": ["FR"],
+                    "citations": [],
+                }
+            )
         return GenerationResult(
-            result=str(new_name),
-            explanation=new_name.description(),
-            components=new_name.components(),
+            result=result_str,
+            explanation=explanation,
+            components=components,
         )
 
 
