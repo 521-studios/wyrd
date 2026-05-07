@@ -751,8 +751,9 @@ def _collect_citations(meanings):
     """Distinct sorted source_ids across every Meaning sharing one usage and
     every language they cover (wyrd-9kh.1). The runtime explainer surfaces
     this so a GM can see which scholars attest the morpheme. Empty list
-    when no Meaning carries citations (rando-port-only legacy entries with
-    no scholarly witnesses yet)."""
+    when no Meaning carries citations (rando-port-only entries with no
+    scholarly witnesses yet, or older bundles that pre-date the
+    wyrd-9kh.1 citation field)."""
     seen: set[str] = set()
     for m in meanings:
         for citations in m.citations.values():

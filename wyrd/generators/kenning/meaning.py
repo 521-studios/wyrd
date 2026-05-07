@@ -65,7 +65,8 @@ class Meaning:
         # citations is a dict[lang_field, list[source_id]] — distinct sorted
         # source_ids per language attesting the morpheme. The runtime
         # explainer surfaces these so a GM can see which scholars cite each
-        # morpheme. Empty for rando-port-only legacy entries.
+        # morpheme. Empty for entries from rando-port-only sources or older
+        # bundles that pre-date the wyrd-9kh.1 citation field.
         self.citations = citations or {}
         # attested_years is a dict[lang_field, list[(form, year)]] sorted
         # by ascending year — D5-1 / wyrd-bag. The D5-2 generator filter

@@ -123,16 +123,20 @@ def test_find_meaning_preserves_multi_sense_decompositions():
 @pytest.mark.parametrize("culture", ["english", "scottish", "welsh", "irish", "breton"])
 def test_find_meaning_runs_full_bundled_corpus_without_crashing(culture, bundle_word_db):
     """Smoke test — every name in the bundled per-culture corpus must
-    decompose cleanly without raising. The previous Phase-2 regression
+    decompose cleanly without raising, and the perfect-decomposition
+    rate must stay above a floor. The previous Phase-2 regression
     that lived here compared trie vs legacy decision parity; with
-    legacy gone, this surface-level "matcher is functional on the full
-    corpus" check is what's left.
+    legacy gone, this rate-floor check is what's left to guard
+    against matcher-or-bundle regressions.
 
-    A positive perfect-decomposition count guards against a bundle
-    regression that nukes every match (e.g. shipping an empty
-    meanings.json or a corrupted trie). The exact number drifts as
-    morpheme mining lands; fixing it would be brittle. Assert > 0
-    instead — an order-of-magnitude regression would still trip it.
+    Floor of 0.5% is a deliberate compromise. As of 2026-05-07 actual
+    per-culture rates are english 35.2%, scottish 25.3%, welsh 23.6%,
+    irish 17.1%, breton 2.2%. Breton sets the floor — at 0.5% the
+    test gives Breton ~4x headroom while still catching an
+    order-of-magnitude regression for any culture (e.g. corrupted
+    trie or empty bundle would drop every culture to ~0%). Tighter
+    thresholds risk false positives during morpheme-mining churn;
+    looser thresholds miss real regressions.
 
     Sample size: every name in the bundled corpus. Tens of thousands of
     names per culture for english/irish, but the trie path is
@@ -152,4 +156,9 @@ def test_find_meaning_runs_full_bundled_corpus_without_crashing(culture, bundle_
         if n.count_unaccounted() == 0:
             perfect += 1
 
-    assert perfect > 0, f"{culture} corpus produced zero perfect decompositions"
+    rate = perfect / len(names) if names else 0.0
+    assert rate > 0.005, (
+        f"{culture} corpus perfect-decomposition rate fell below 0.5% "
+        f"({perfect}/{len(names)} = {rate * 100:.2f}%) — likely a matcher "
+        f"or bundle regression"
+    )
