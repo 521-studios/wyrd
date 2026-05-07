@@ -48,6 +48,36 @@ _ATTESTED_YEARS_SUFFIX = "_attested_years"
 # already English-readable for those.
 _ENGLISH_SHAPED_SUFFIX = "_english_shaped"
 
+# Suffix used for per-language native-script renderings (wyrd-ha9q
+# Phase 2a → exposed to the runtime in wyrd-qhs0 Phase 2d). Each entry
+# is (form, original_script) where original_script is the vocalized
+# native-script form from wiktextract head_templates' `wv` / `head`
+# arg (Hebrew niqqud, Arabic harakat, Egyptian `<hiero>`-tagged
+# markup). Distinct from canonical_form: canonical_form for non-Latin
+# rows is whatever wiktextract's `entry.word` was (often unvocalized
+# native script); original_script carries the explicitly-vocalized
+# form when wiktextract supplies one. Empty / absent for Latin-script
+# source langs.
+_ORIGINAL_SCRIPT_SUFFIX = "_original_script"
+
+# Suffix used for per-language academic transliterations (wyrd-ha9q
+# Phase 2a). Each entry is (form, transliteration) where the value is
+# the academic Latin-script form with diacritics from wiktextract
+# head_templates' `tr` arg (e.g. 'ʿifrīt', 'rakṣasa', 'kɛ́lɛḇ'). The
+# english_shaped column strips diacritics off this value (or applies
+# a known-form override) for English-friendly rendering;
+# transliteration is the full academic-register version.
+_TRANSLITERATION_SUFFIX = "_transliteration"
+
+# Suffix used for per-language IPA + dialect pairs (wyrd-ha9q Phase
+# 2a). Each entry is (form, ipa, dialect) where ipa is the most
+# authoritative IPA string from wiktextract's `sounds[*]` array and
+# dialect is the first tag on the chosen sound entry (Biblical-Hebrew,
+# Modern Standard Arabic, Yemenite-Hebrew, ...). The pair updates
+# atomically — see lexicon.py.upsert_etymon's CASE expression for the
+# integrity rule.
+_PRONUNCIATION_SUFFIX = "_pronunciation"
+
 
 class Meaning:
     def __init__(
@@ -61,6 +91,9 @@ class Meaning:
         citations=None,
         attested_years=None,
         english_shaped=None,
+        original_script=None,
+        transliteration=None,
+        pronunciation=None,
     ):
         self.usage = usage
         self.tags = tags
@@ -95,6 +128,30 @@ class Meaning:
         # for older bundles that pre-date the wyrd-ha9q export.
         # `english_shaped_for(lang_field, form)` is the runtime accessor.
         self.english_shaped = english_shaped or {}
+        # wyrd-qhs0 Phase 2d: the OTHER three wyrd-ha9q rendering
+        # columns surfaced for the SPA panel.
+        # original_script: dict[lang_field, dict[canonical_form, str]]
+        #   — vocalized native-script form (Hebrew with niqqud, Arabic
+        #   with harakat, Egyptian `<hiero>`-tagged markup).
+        # transliteration: dict[lang_field, dict[canonical_form, str]]
+        #   — academic Latin-script form with diacritics (ʿifrīt,
+        #   rakṣasa, kɛ́lɛḇ).
+        # pronunciation: dict[lang_field, dict[canonical_form, dict]]
+        #   where the inner dict has 'ipa' and 'dialect' keys. The
+        #   {ipa, dialect} pair (rather than two parallel attrs) is
+        #   load-bearing: wiktextract associates each IPA string with
+        #   the dialect tag that was on the same `sounds[*]` entry,
+        #   and wyrd-ha9q Phase 2a's upsert_etymon CASE expression
+        #   updates the two columns atomically so the dialect tag
+        #   never describes an IPA we don't store. The runtime
+        #   accessor pronunciation_for(...) returns a copy of the
+        #   inner dict so the pair stays intact for the caller.
+        # All three are empty for Latin-script source langs and older
+        # bundles. Accessors: original_script_for / transliteration_for
+        # / pronunciation_for.
+        self.original_script = original_script or {}
+        self.transliteration = transliteration or {}
+        self.pronunciation = pronunciation or {}
         self._set_location()
 
     def _set_location(self):
@@ -167,6 +224,46 @@ class Meaning:
         if not forms:
             return None
         return forms.get(form)
+
+    def original_script_for(self, lang_field: str, form: str) -> str | None:
+        """wyrd-qhs0 Phase 2d: return the vocalized native-script
+        rendering of ``form`` in ``lang_field``, or None when no
+        original_script data is available (Latin-script source lang
+        OR the row's wiktextract entry didn't supply head_templates'
+        `wv` / `head` arg)."""
+        forms = self.original_script.get(lang_field)
+        if not forms:
+            return None
+        return forms.get(form)
+
+    def transliteration_for(self, lang_field: str, form: str) -> str | None:
+        """wyrd-qhs0 Phase 2d: return the academic Latin-script
+        transliteration (with diacritics) of ``form`` in
+        ``lang_field``, or None when no transliteration data is
+        available."""
+        forms = self.transliteration.get(lang_field)
+        if not forms:
+            return None
+        return forms.get(form)
+
+    def pronunciation_for(self, lang_field: str, form: str) -> dict[str, str | None] | None:
+        """wyrd-qhs0 Phase 2d: return the {ipa, dialect} pronunciation
+        dict for ``form`` in ``lang_field``, or None when no IPA data
+        is available. The dialect value may itself be None (the IPA
+        was untagged-canonical in wiktextract) — that's a separate
+        case from the whole pair being missing.
+
+        Returns a fresh shallow copy of the stored dict so caller
+        mutation can't corrupt Meaning state. The other three
+        accessors return strings (immutable), so they're safe to
+        return directly; only this pair-shape value needs the copy."""
+        forms = self.pronunciation.get(lang_field)
+        if not forms:
+            return None
+        hit = forms.get(form)
+        if hit is None:
+            return None
+        return dict(hit)
 
     def attested_in_era_range(self, era_range: tuple[int | None, int | None] | None) -> bool:
         """D5-2 era filter: True if this morpheme is admissible under the
@@ -326,6 +423,9 @@ def load_meanings(data):
                 and not k.endswith(_CITATIONS_SUFFIX)
                 and not k.endswith(_ATTESTED_YEARS_SUFFIX)
                 and not k.endswith(_ENGLISH_SHAPED_SUFFIX)
+                and not k.endswith(_ORIGINAL_SCRIPT_SUFFIX)
+                and not k.endswith(_TRANSLITERATION_SUFFIX)
+                and not k.endswith(_PRONUNCIATION_SUFFIX)
             }
             variants = {
                 k[: -len(_VARIANT_SUFFIX)]: [(entry["form"], entry["weight"]) for entry in v]
@@ -358,6 +458,34 @@ def load_meanings(data):
                 for k, v in word.items()
                 if k.endswith(_ENGLISH_SHAPED_SUFFIX)
             }
+            # wyrd-qhs0 Phase 2d: same shape as english_shaped — each
+            # is keyed by canonical form so the runtime can look up the
+            # rendering of a specific form within a language family.
+            original_script = {
+                k[: -len(_ORIGINAL_SCRIPT_SUFFIX)]: {
+                    entry["form"]: entry["original_script"] for entry in v
+                }
+                for k, v in word.items()
+                if k.endswith(_ORIGINAL_SCRIPT_SUFFIX)
+            }
+            transliteration = {
+                k[: -len(_TRANSLITERATION_SUFFIX)]: {
+                    entry["form"]: entry["transliteration"] for entry in v
+                }
+                for k, v in word.items()
+                if k.endswith(_TRANSLITERATION_SUFFIX)
+            }
+            pronunciation = {
+                k[: -len(_PRONUNCIATION_SUFFIX)]: {
+                    entry["form"]: {
+                        "ipa": entry["ipa"],
+                        "dialect": entry.get("dialect"),
+                    }
+                    for entry in v
+                }
+                for k, v in word.items()
+                if k.endswith(_PRONUNCIATION_SUFFIX)
+            }
             # Singular and plural Meanings share every constructor arg
             # except `usage`. Bundle them so a future kwarg addition can't
             # silently drop on one branch and not the other.
@@ -370,6 +498,9 @@ def load_meanings(data):
                 "citations": citations,
                 "attested_years": attested_years,
                 "english_shaped": english_shaped,
+                "original_script": original_script,
+                "transliteration": transliteration,
+                "pronunciation": pronunciation,
             }
             meaning = Meaning(usage, **common_kwargs)
             for tag in tags:

@@ -4083,6 +4083,172 @@ def test_export_meanings_routes_precursor_postcursor_stack_to_canonical_bucket(
     assert set(word["hebrew"]) == {"גולם", "גלם"}
 
 
+def test_export_meanings_routes_phase2d_renderings_through_bucket_aggregation(
+    fresh_db: Path,
+) -> None:
+    """wyrd-qhs0 Phase 2d: when two members of the same family are in
+    different lexicon codes that route to the same bundle bucket
+    (he + hbo → hebrew), all four wyrd-ha9q rendering columns
+    aggregate into the bucket cleanly. Each (canonical_form,
+    rendering) pair lands once; different forms within the bucket
+    keep their own renderings.
+
+    Pinned as the multi-code-per-bucket regression test for the 3 new
+    Phase 2d columns. The Phase 2c precursor-stack test only verified
+    that the FORMS arrays unioned correctly; this test extends coverage
+    to the rendering siblings."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["golem"],
+            tags=[],
+            modifier_type=None,
+            words=[{"modern_usage": "Golem", "hebrew": ["גולם"]}],
+        )
+        modern_id = db.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = ? AND language = ?",
+            ("גולם", "he"),
+        ).fetchone()["id"]
+        # Biblical Hebrew (hbo) member with DIFFERENT canonical form
+        # and DIFFERENT renderings; verify both members' data surfaces
+        # in the merged hebrew bucket.
+        biblical_id = db.upsert_etymon("גלם", "hbo")
+        db.conn.execute("UPDATE etymon SET lemma_id = ? WHERE id = ?", (modern_id, biblical_id))
+        db.add_citation(biblical_id, "rando-port")
+        db.conn.execute(
+            """UPDATE etymon SET
+                 original_script = ?, transliteration = ?,
+                 english_shaped = ?, pronunciation_ipa = ?,
+                 pronunciation_dialect = ?
+               WHERE id = ?""",
+            ("גוֹלֶם", "gōlem", "golem", "/ɡoːlɛm/", "Modern-Hebrew", modern_id),
+        )
+        db.conn.execute(
+            """UPDATE etymon SET
+                 original_script = ?, transliteration = ?,
+                 english_shaped = ?, pronunciation_ipa = ?,
+                 pronunciation_dialect = ?
+               WHERE id = ?""",
+            ("גֹּלֶם", "gōlem-bib", "golem", "/goːlɛm/", "Biblical-Hebrew", biblical_id),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = next(w for s in subjects for w in s["words"] if w["modern_usage"] == "Golem")
+    assert set(word["hebrew"]) == {"גולם", "גלם"}
+    assert word["hebrew_original_script"] == [
+        {"form": "גולם", "original_script": "גוֹלֶם"},
+        {"form": "גלם", "original_script": "גֹּלֶם"},
+    ]
+    assert word["hebrew_transliteration"] == [
+        {"form": "גולם", "transliteration": "gōlem"},
+        {"form": "גלם", "transliteration": "gōlem-bib"},
+    ]
+    assert word["hebrew_english_shaped"] == [
+        {"form": "גולם", "english_shaped": "golem"},
+        {"form": "גלם", "english_shaped": "golem"},
+    ]
+    assert word["hebrew_pronunciation"] == [
+        {"form": "גולם", "ipa": "/ɡoːlɛm/", "dialect": "Modern-Hebrew"},
+        {"form": "גלם", "ipa": "/goːlɛm/", "dialect": "Biblical-Hebrew"},
+    ]
+
+
+def test_export_meanings_emits_phase2d_four_renderings_per_language(fresh_db: Path) -> None:
+    """wyrd-qhs0 Phase 2d: export emits four sibling arrays per
+    non-Latin language — `<lang>_original_script`, `_transliteration`,
+    `_pronunciation`, `_english_shaped`. All four populate when the
+    underlying etymon row has data; sparse / absent when it doesn't.
+    """
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["dog"],
+            tags=[],
+            modifier_type=None,
+            words=[{"modern_usage": "Kelev", "hebrew": ["כלב"]}],
+        )
+        # Populate all four wyrd-ha9q rendering columns on the row.
+        db.conn.execute(
+            """UPDATE etymon SET
+                 original_script = ?,
+                 transliteration = ?,
+                 english_shaped = ?,
+                 pronunciation_ipa = ?,
+                 pronunciation_dialect = ?
+               WHERE canonical_form = ? AND language = ?""",
+            ("כֶּלֶב", "kɛ́lɛḇ", "kelev", "/kalb/", "Biblical-Hebrew", "כלב", "he"),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert word["hebrew"] == ["כלב"]
+    assert word["hebrew_original_script"] == [{"form": "כלב", "original_script": "כֶּלֶב"}]
+    assert word["hebrew_transliteration"] == [{"form": "כלב", "transliteration": "kɛ́lɛḇ"}]
+    assert word["hebrew_english_shaped"] == [{"form": "כלב", "english_shaped": "kelev"}]
+    assert word["hebrew_pronunciation"] == [
+        {"form": "כלב", "ipa": "/kalb/", "dialect": "Biblical-Hebrew"}
+    ]
+
+
+def test_export_meanings_pronunciation_omits_dialect_when_null(fresh_db: Path) -> None:
+    """An IPA without a dialect tag (untagged-canonical case) surfaces
+    in the bundle with dialect=None. Round-trips through load_meanings
+    correctly via .get() (see test_load_meanings_handles_pronunciation_with_null_dialect)."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["jinn"],
+            tags=[],
+            modifier_type=None,
+            words=[{"modern_usage": "Jinn", "arabic": ["جن"]}],
+        )
+        db.conn.execute(
+            "UPDATE etymon SET pronunciation_ipa = ? WHERE canonical_form = ? AND language = ?",
+            ("/d͡ʒɪnː/", "جن", "ar"),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert word["arabic_pronunciation"] == [{"form": "جن", "ipa": "/d͡ʒɪnː/", "dialect": None}]
+
+
+def test_export_meanings_omits_phase2d_siblings_when_columns_null(fresh_db: Path) -> None:
+    """Latin-script rows / rows without rendering data must NOT emit
+    empty `_original_script` / `_transliteration` / `_pronunciation`
+    siblings — bundle stays compact."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["bridge"],
+            tags=["water"],
+            modifier_type="Topographical",
+            words=[{"modern_usage": "Bridg-", "old_english": ["brycg"]}],
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    for suffix in ("_original_script", "_transliteration", "_pronunciation"):
+        assert all(not k.endswith(suffix) for k in word), (
+            f"unexpected {suffix} sibling on Latin-script row: {list(word.keys())}"
+        )
+
+
 def test_export_meanings_emits_english_shaped_per_language(fresh_db: Path) -> None:
     """wyrd-ha9q Phase 2c: an etymon family with non-NULL english_shaped
     on at least one member emits a `<lang>_english_shaped` sibling array

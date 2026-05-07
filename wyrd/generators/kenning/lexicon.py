@@ -4314,7 +4314,8 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
     member_rows = db.conn.execute(
         f"""
         SELECT id, canonical_form, language, lemma_id, merged_into_id, inflection,
-               english_shaped
+               english_shaped, original_script, transliteration,
+               pronunciation_ipa, pronunciation_dialect
         FROM etymon
         WHERE id IN ({placeholders})
         ORDER BY language, canonical_form
@@ -4327,11 +4328,28 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
     member_ids = [r["id"] for r in member_rows]
     member_form_by_id = {r["id"]: (r["language"], r["canonical_form"]) for r in member_rows}
     member_inflection_by_id: dict[int, str | None] = {r["id"]: r["inflection"] for r in member_rows}
-    # wyrd-vsrn Phase 2c: per-member english_shaped (NULL when the row's
-    # source language is Latin-script or wyrd-ha9q's derive returned None).
-    # Keyed by member_id so the absorb-helper can look it up cheaply.
+    # wyrd-vsrn Phase 2c + wyrd-qhs0 Phase 2d: per-member wyrd-ha9q
+    # rendering data. NULL when the row's source language is Latin-
+    # script or wyrd-ha9q's derive / wiktextract ingest produced no
+    # value. Keyed by member_id so absorb-helpers can look up cheaply.
     member_english_shaped_by_id: dict[int, str | None] = {
         r["id"]: r["english_shaped"] for r in member_rows
+    }
+    member_original_script_by_id: dict[int, str | None] = {
+        r["id"]: r["original_script"] for r in member_rows
+    }
+    member_transliteration_by_id: dict[int, str | None] = {
+        r["id"]: r["transliteration"] for r in member_rows
+    }
+    # pronunciation is paired (IPA + optional dialect tag); keyed by
+    # member_id with a tuple so the absorb-helper can drop both
+    # together when either side is NULL (matches the upsert semantics
+    # that updated them atomically).
+    member_pronunciation_by_id: dict[int, tuple[str, str | None] | None] = {
+        r["id"]: (r["pronunciation_ipa"], r["pronunciation_dialect"])
+        if r["pronunciation_ipa"]
+        else None
+        for r in member_rows
     }
     canonical_forms_lower = {f.lower() for _lang, f in member_form_by_id.values()}
 
@@ -4349,6 +4367,9 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
         "member_variants": _fetch_member_variants(db, member_ids, canonical_forms_lower),
         "member_inflection_by_id": member_inflection_by_id,
         "member_english_shaped_by_id": member_english_shaped_by_id,
+        "member_original_script_by_id": member_original_script_by_id,
+        "member_transliteration_by_id": member_transliteration_by_id,
+        "member_pronunciation_by_id": member_pronunciation_by_id,
         "member_citations": _fetch_member_citations(db, member_ids),
         "member_attested_years": _fetch_member_attested_years(db, member_ids),
         "glosses": _fetch_member_glosses(db, member_ids),
@@ -4755,6 +4776,16 @@ class _WordLanguageAccumulators:
     # non-None value land here. Empty dict for Latin-script langs +
     # rows that lacked sufficient transliteration / IPA input.
     english_shaped: dict[str, dict[str, str]] = field(default_factory=dict)
+    # wyrd-qhs0 Phase 2d: the other three wyrd-ha9q rendering columns,
+    # all per-(lang, canonical_form). Together with english_shaped these
+    # are the four renderings the SPA's etymological-provenance panel
+    # surfaces (D31 four-rendering rule).
+    original_script: dict[str, dict[str, str]] = field(default_factory=dict)
+    transliteration: dict[str, dict[str, str]] = field(default_factory=dict)
+    # Pronunciation pairs IPA + dialect tag; the bucket value is a dict
+    # {"ipa": str, "dialect": str | None}. NULL pronunciation_dialect
+    # surfaces as a None value for "dialect".
+    pronunciation: dict[str, dict[str, dict[str, str | None]]] = field(default_factory=dict)
 
 
 def _word_for_reflex(
@@ -4779,6 +4810,9 @@ def _word_for_reflex(
                 _absorb_member_citations(accs, fam, descendant_id, lang)
                 _absorb_member_attested_years(accs, fam, descendant_id, lang, form)
                 _absorb_member_english_shaped(accs, fam, descendant_id, lang, form)
+                _absorb_member_original_script(accs, fam, descendant_id, lang, form)
+                _absorb_member_transliteration(accs, fam, descendant_id, lang, form)
+                _absorb_member_pronunciation(accs, fam, descendant_id, lang, form)
     word: dict[str, Any] = {"modern_usage": meta["surface_form"]}
     _emit_word_languages(word, accs)
     return word
@@ -4801,6 +4835,9 @@ def _synthesize_word_for_family(fam: dict[str, Any]) -> dict[str, Any]:
         _absorb_member_citations(accs, fam, member_id, member_lang)
         _absorb_member_attested_years(accs, fam, member_id, member_lang, member_form)
         _absorb_member_english_shaped(accs, fam, member_id, member_lang, member_form)
+        _absorb_member_original_script(accs, fam, member_id, member_lang, member_form)
+        _absorb_member_transliteration(accs, fam, member_id, member_lang, member_form)
+        _absorb_member_pronunciation(accs, fam, member_id, member_lang, member_form)
     _emit_word_languages(word, accs)
     return word
 
@@ -4870,6 +4907,54 @@ def _absorb_member_english_shaped(
         accs.english_shaped.setdefault(lang, {})[form] = shaped
 
 
+def _absorb_member_original_script(
+    accs: _WordLanguageAccumulators,
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+    form: str,
+) -> None:
+    """wyrd-qhs0 Phase 2d: record a member's vocalized native-script
+    form (Hebrew niqqud, Arabic harakat, Egyptian hieroglyphic markup)
+    keyed by canonical_form. NULL is the common case for Latin-script
+    rows; skip without absorbing."""
+    original = fam.get("member_original_script_by_id", {}).get(member_id)
+    if original:
+        accs.original_script.setdefault(lang, {})[form] = original
+
+
+def _absorb_member_transliteration(
+    accs: _WordLanguageAccumulators,
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+    form: str,
+) -> None:
+    """wyrd-qhs0 Phase 2d: record a member's academic Latin-script
+    transliteration (with diacritics — ʿifrīt, rakṣasa, kɛ́lɛḇ) keyed
+    by canonical_form."""
+    translit = fam.get("member_transliteration_by_id", {}).get(member_id)
+    if translit:
+        accs.transliteration.setdefault(lang, {})[form] = translit
+
+
+def _absorb_member_pronunciation(
+    accs: _WordLanguageAccumulators,
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+    form: str,
+) -> None:
+    """wyrd-qhs0 Phase 2d: record a member's IPA + dialect pair keyed
+    by canonical_form. The pair updates atomically (matches the upsert
+    semantics in lexicon.py.upsert_etymon's CASE expression on dialect
+    — wyrd-ha9q Phase 2a fix for IPA/dialect decoupling)."""
+    pron = fam.get("member_pronunciation_by_id", {}).get(member_id)
+    if pron:
+        ipa, dialect = pron
+        accs.pronunciation.setdefault(lang, {})[form] = {"ipa": ipa, "dialect": dialect}
+
+
 def _absorb_member_citations(
     accs: _WordLanguageAccumulators,
     fam: dict[str, Any],
@@ -4934,6 +5019,12 @@ def _emit_word_languages(word: dict[str, Any], accs: _WordLanguageAccumulators) 
                     bucket.attested_years[form] = year
         if lang in accs.english_shaped:
             bucket.english_shaped.update(accs.english_shaped[lang])
+        if lang in accs.original_script:
+            bucket.original_script.update(accs.original_script[lang])
+        if lang in accs.transliteration:
+            bucket.transliteration.update(accs.transliteration[lang])
+        if lang in accs.pronunciation:
+            bucket.pronunciation.update(accs.pronunciation[lang])
 
     for json_field in sorted(buckets):
         bucket = buckets[json_field]
@@ -4948,6 +5039,16 @@ def _emit_word_languages(word: dict[str, Any], accs: _WordLanguageAccumulators) 
             word[f"{json_field}_attested_years"] = _emit_attested_years_list(bucket.attested_years)
         if bucket.english_shaped:
             word[f"{json_field}_english_shaped"] = _emit_english_shaped_list(bucket.english_shaped)
+        if bucket.original_script:
+            word[f"{json_field}_original_script"] = _emit_original_script_list(
+                bucket.original_script
+            )
+        if bucket.transliteration:
+            word[f"{json_field}_transliteration"] = _emit_transliteration_list(
+                bucket.transliteration
+            )
+        if bucket.pronunciation:
+            word[f"{json_field}_pronunciation"] = _emit_pronunciation_list(bucket.pronunciation)
 
 
 @dataclass
@@ -4965,6 +5066,48 @@ class _BucketAccumulator:
     citations: set[str] = field(default_factory=set)
     attested_years: dict[str, int] = field(default_factory=dict)
     english_shaped: dict[str, str] = field(default_factory=dict)
+    # wyrd-qhs0 Phase 2d: the other three wyrd-ha9q rendering columns.
+    original_script: dict[str, str] = field(default_factory=dict)
+    transliteration: dict[str, str] = field(default_factory=dict)
+    pronunciation: dict[str, dict[str, str | None]] = field(default_factory=dict)
+
+
+def _emit_original_script_list(scripts: dict[str, str]) -> list[dict[str, str]]:
+    """wyrd-qhs0 Phase 2d: serialize {canonical_form: original_script}
+    into the meanings.json original_script entry shape. Each dict has
+    ``"form"`` (the canonical_form lookup key) and ``"original_script"``
+    (the vocalized native-script form from wiktextract head_templates'
+    `wv` / `head` arg). Sorted by form for deterministic output."""
+    return [
+        {"form": form, "original_script": original_form}
+        for form, original_form in sorted(scripts.items())
+    ]
+
+
+def _emit_transliteration_list(translits: dict[str, str]) -> list[dict[str, str]]:
+    """wyrd-qhs0 Phase 2d: serialize {canonical_form: transliteration}
+    into the meanings.json transliteration entry shape. Each dict has
+    ``"form"`` (canonical_form) and ``"transliteration"`` (academic
+    Latin-script form with diacritics, from wiktextract head_templates
+    `tr`). Sorted by form for determinism."""
+    return [
+        {"form": form, "transliteration": translit_form}
+        for form, translit_form in sorted(translits.items())
+    ]
+
+
+def _emit_pronunciation_list(
+    pronunciations: dict[str, dict[str, str | None]],
+) -> list[dict[str, Any]]:
+    """wyrd-qhs0 Phase 2d: serialize {canonical_form: {ipa, dialect}}
+    into the meanings.json pronunciation entry shape. Each dict has
+    ``"form"`` (canonical_form), ``"ipa"`` (the IPA string), and
+    ``"dialect"`` (the first tag on the chosen sound entry, or None
+    when the IPA was untagged-canonical). Sorted by form."""
+    return [
+        {"form": form, "ipa": data["ipa"], "dialect": data.get("dialect")}
+        for form, data in sorted(pronunciations.items())
+    ]
 
 
 def _emit_english_shaped_list(shaped: dict[str, str]) -> list[dict[str, str]]:

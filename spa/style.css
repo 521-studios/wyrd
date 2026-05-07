@@ -214,3 +214,63 @@ pre {
 }
 
 .field { margin-bottom: 0.75rem; }
+
+/* wyrd-qhs0 Phase 2d: etymological-provenance panel. Surfaces the
+   four wyrd-ha9q renderings (native script + academic transliteration
+   + english_shaped + IPA) for non-Latin source-lang morphemes. */
+.provenance {
+    margin: 0.4rem 0 0.5rem;
+    padding-left: 1.2rem;
+    list-style: disc;
+    line-height: 1.55;
+    font-size: 0.9rem;
+}
+
+.provenance li { margin-bottom: 0.4rem; }
+
+.provenance strong {
+    color: var(--accent);
+    font-weight: 600;
+    margin-right: 0.4rem;
+}
+
+.provenance-row {
+    display: block;
+    margin-left: 1rem;
+    margin-top: 0.15rem;
+    font-size: 0.88rem;
+    line-height: 1.6;
+}
+
+.provenance-lang {
+    color: var(--muted);
+    margin-right: 0.5rem;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+}
+
+.provenance-canonical {
+    background: var(--bg);
+    padding: 0.05rem 0.4rem;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.95em;
+    margin-right: 0.4rem;
+}
+
+.provenance-row > span:not(.provenance-lang):not(.provenance-canonical) {
+    margin-right: 0.6rem;
+    white-space: nowrap;
+}
+
+.provenance-label {
+    color: var(--muted);
+    font-size: 0.75rem;
+    margin-right: 0.15rem;
+}
+
+.provenance-value {
+    font-family: monospace;
+    font-size: 0.9em;
+}

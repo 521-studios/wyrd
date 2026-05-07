@@ -1194,3 +1194,71 @@ Per-language rendering is the wyrd-rni / wyrd-381 era-rewind demo's
 concern — those need to pick non-English source-lang renders, which
 is exactly when `english_shaped_for` becomes the right surface-form
 source. Phase 2c is the plumbing those demos consume.
+
+### Phase 2d: SPA etymological-provenance panel + the other 3 renderings
+
+Phase 2d completes wyrd-ha9q's runtime story by surfacing the four
+renderings (per-form for non-Latin source-lang morphemes) in the
+SPA's etymology disclosure UI:
+
+  1. **Native script (`original_script`)** — vocalized form from
+     wiktextract's head_templates `wv` / `head` arg.
+  2. **Academic transliteration** — Latin-script form with diacritics
+     from head_templates `tr`.
+  3. **English-shaped** — the wyrd-ha9q derive_english_shaped output
+     (Phase 2b shipped, Phase 2c plumbed through bundle).
+  4. **IPA pronunciation** — from `sounds[*].ipa` paired with
+     `sounds[*].tags[0]` as the dialect tag.
+
+Three sibling-suffix arrays added to the bundle (mirroring Phase 2c's
+english_shaped pattern): `<lang>_original_script`,
+`<lang>_transliteration`, `<lang>_pronunciation`. The pronunciation
+sibling carries an extra `dialect` key alongside `ipa` (NULL when the
+IPA was the untagged-canonical form per wiktextract's sounds array).
+
+Runtime layer adds three more Meaning attributes
+(`original_script`, `transliteration`, `pronunciation`) with
+matching accessors (`original_script_for`, `transliteration_for`,
+`pronunciation_for`). All three default to empty dicts on legacy
+bundles; accessors return None when no data is available.
+
+`NewName.components()` (the API envelope shape consumed by the SPA)
+gains a `renderings` field per component. Shape:
+
+    "renderings": {
+      <lang_field>: {
+        <canonical_form>: {
+          "original_script": str | None,
+          "transliteration": str | None,
+          "english_shaped":  str | None,
+          "ipa":             str | None,
+          "dialect":         str | None,
+        },
+        ...
+      },
+      ...
+    }
+
+Sparse — only forms that have at least ONE non-None rendering land in
+the dict. Forms with no rendering data don't appear; lang_fields with
+no shaped forms don't appear; consumers can iterate uniformly without
+branching on emptiness.
+
+SPA layer:
+- `_renderProvenancePanel(components)` builds a `<details>` disclosure
+  ("Etymological provenance") when ANY component carries renderings.
+  Skipped entirely for English / Celtic / Romance generation, so the
+  UI stays compact for the common case.
+- `_renderProvenanceRow(langField, canonicalForm, slots)` renders one
+  row per (lang_field, canonical_form), surfacing whichever of the
+  four renderings the lexicon has — labeled `native`, `translit`,
+  `english`, `ipa`. The IPA cell appends `(dialect)` when the dialect
+  tag is non-null.
+- CSS in `style.css` follows the existing `.citations` panel
+  conventions (accent label, monospace value cells).
+
+Out of scope deferred from Phase 2d: town-name generator preference
+for english_shaped over modern_usage at render time. That stays the
+wyrd-rni / wyrd-381 era-rewind demos' concern — Phase 2d delivers
+the EDUCATIONAL view (panel) but the GENERATION default still uses
+modern_usage everywhere (bit-stable historical behavior).
