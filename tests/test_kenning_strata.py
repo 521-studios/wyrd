@@ -659,9 +659,9 @@ def test_cli_classify_stratum_french_force_overwrites(fresh_db: Path) -> None:
     )
     assert result.exit_code == 0, result.output + (result.stderr or "")
     with LexiconDB(fresh_db) as db:
-        stratum = db.conn.execute(
-            "SELECT stratum FROM etymon WHERE id = ?", (fr_id,)
-        ).fetchone()["stratum"]
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (fr_id,)).fetchone()[
+            "stratum"
+        ]
     assert stratum == "native-french"
 
 
