@@ -412,6 +412,76 @@ def _format_agentic_user(case: AmbiguityCase, snippet: str, *, force_commit: boo
     )
 
 
+def _parse_expansion_request(response: dict) -> tuple[str, int]:
+    """Pull and validate ``direction`` + ``chars`` out of an
+    action='expand' response. Defaults to ``direction='both'`` and
+    ``chars=_AGENTIC_DEFAULT_REQUEST_CHARS`` when the model omits
+    them or returns an unknown direction / non-numeric chars.
+    ``chars`` is clamped into [MIN, MAX]."""
+    direction = (response.get("direction") or "both").lower()
+    if direction not in ("before", "after", "both"):
+        direction = "both"
+    try:
+        chars = int(response.get("chars") or 0)
+    except (TypeError, ValueError):
+        chars = 0
+    if chars <= 0:
+        chars = _AGENTIC_DEFAULT_REQUEST_CHARS
+    return direction, max(_AGENTIC_MIN_EXPANSION_CHARS, min(chars, _AGENTIC_MAX_EXPANSION_CHARS))
+
+
+def _force_commit_failure(
+    *,
+    expansions: int,
+    current_snippet: str,
+    reason: str,
+) -> tuple[DisambiguatorResult, ExpansionStats]:
+    """Build the ``(result, stats)`` pair for a forced-but-not-answered
+    outcome. Used by both the in-loop "model refused to commit" branch
+    and the post-loop defensive fallback so the failure shape stays
+    consistent."""
+    return (
+        DisambiguatorResult(chosen_etymon_id=None, confidence="low", reason=reason),
+        ExpansionStats(
+            expansions=expansions,
+            final_chars=len(current_snippet),
+            forced_commit=True,
+        ),
+    )
+
+
+def _try_widen(
+    expander: SnippetExpander,
+    case: AmbiguityCase,
+    *,
+    radius_before: int,
+    radius_after: int,
+    direction: str,
+    chars: int,
+    current_snippet: str,
+    total_char_cap: int,
+) -> tuple[str, int, int] | None:
+    """Honor one expansion request. Returns ``(new_snippet,
+    new_radius_before, new_radius_after)`` on success, or None when
+    the expander can't widen further OR the resulting snippet would
+    exceed ``total_char_cap`` (we discard the widening rather than
+    feed a marker-truncated slice that would garble the «...»
+    highlight)."""
+    new_radius_before = radius_before + (chars if direction in ("before", "both") else 0)
+    new_radius_after = radius_after + (chars if direction in ("after", "both") else 0)
+    new_snippet = expander.make_snippet(
+        case.source_id,
+        case.matched_form,
+        radius_before=new_radius_before,
+        radius_after=new_radius_after,
+    )
+    if new_snippet is None or new_snippet == current_snippet:
+        return None
+    if len(new_snippet) > total_char_cap:
+        return None
+    return new_snippet, new_radius_before, new_radius_after
+
+
 def disambiguate_one_agentic(
     client: GeminiClient,
     case: AmbiguityCase,
@@ -441,12 +511,11 @@ def disambiguate_one_agentic(
     current_snippet = case.snippet
     expansions = 0
     # ``force_next_round`` is the dedicated short-circuit signal: set
-    # when the orchestrator can't honor an expansion (source missing,
-    # form not found, or new snippet exceeds total_char_cap). Kept
-    # separate from ``expansions`` so stats remain truthful — a
-    # cap-truncation at round 0 yields expansions=0/forced_commit=True,
-    # which a caller can distinguish from "model hit the natural cap
-    # after 3 honored widenings".
+    # when ``_try_widen`` returns None (source missing / form not
+    # found / would exceed cap). Kept separate from ``expansions`` so
+    # stats remain truthful — a cap-truncation at round 0 yields
+    # expansions=0/forced_commit=True, which a caller can distinguish
+    # from "model hit the natural cap after 3 honored widenings".
     force_next_round = False
     last_action = ""
 
@@ -462,92 +531,55 @@ def disambiguate_one_agentic(
         )
         action = (response.get("action") or "").lower()
         last_action = action
+        stats = ExpansionStats(
+            expansions=expansions,
+            final_chars=len(current_snippet),
+            forced_commit=force_commit,
+        )
 
         if action == "answer":
-            result = _parse_answer(response, case.candidates)
-            return result, ExpansionStats(
-                expansions=expansions,
-                final_chars=len(current_snippet),
-                forced_commit=force_commit,
-            )
+            return _parse_answer(response, case.candidates), stats
 
         if action != "expand" or force_commit:
-            # Model returned an unknown action OR refused to commit even
-            # on the final round. Treat as 'none' with low confidence so
-            # the row gets dropped rather than mis-applied.
-            return (
-                DisambiguatorResult(
-                    chosen_etymon_id=None,
-                    confidence="low",
-                    reason=(
-                        f"model failed to commit after {expansions} honored "
-                        f"expansion(s); final action was {action!r}"
-                    ),
-                ),
-                ExpansionStats(
-                    expansions=expansions,
-                    final_chars=len(current_snippet),
-                    forced_commit=True,
+            # Model returned an unknown action OR refused to commit
+            # even on the final round. Force a 'none' verdict so the
+            # row gets dropped rather than mis-applied.
+            return _force_commit_failure(
+                expansions=expansions,
+                current_snippet=current_snippet,
+                reason=(
+                    f"model failed to commit after {expansions} honored "
+                    f"expansion(s); final action was {action!r}"
                 ),
             )
 
-        # action == 'expand' AND not the final round — try to widen.
-        direction = (response.get("direction") or "both").lower()
-        if direction not in ("before", "after", "both"):
-            direction = "both"
-        try:
-            chars = int(response.get("chars") or 0)
-        except (TypeError, ValueError):
-            chars = 0
-        if chars <= 0:
-            chars = _AGENTIC_DEFAULT_REQUEST_CHARS
-        chars = max(_AGENTIC_MIN_EXPANSION_CHARS, min(chars, _AGENTIC_MAX_EXPANSION_CHARS))
-
-        new_radius_before = radius_before + (chars if direction in ("before", "both") else 0)
-        new_radius_after = radius_after + (chars if direction in ("after", "both") else 0)
-
-        new_snippet = expander.make_snippet(
-            case.source_id,
-            case.matched_form,
-            radius_before=new_radius_before,
-            radius_after=new_radius_after,
+        direction, chars = _parse_expansion_request(response)
+        widened = _try_widen(
+            expander,
+            case,
+            radius_before=radius_before,
+            radius_after=radius_after,
+            direction=direction,
+            chars=chars,
+            current_snippet=current_snippet,
+            total_char_cap=total_char_cap,
         )
-        if new_snippet is None or new_snippet == current_snippet:
-            # Source missing, form not found, or already at body bounds.
-            # Snippet didn't change — keep state, force next iteration
-            # to commit on what we have.
+        if widened is None:
             force_next_round = True
             continue
-
-        if len(new_snippet) > total_char_cap:
-            # Wider snippet would exceed cap. Discard the widening and
-            # force commit on the previous snippet; feeding a
-            # marker-truncated slice to the model would garble the
-            # «...» highlight that anchors the question.
-            force_next_round = True
-            continue
-
-        radius_before, radius_after = new_radius_before, new_radius_after
-        current_snippet = new_snippet
+        current_snippet, radius_before, radius_after = widened
         expansions += 1
 
     # Loop exit without an answer is unreachable: the final iteration
     # always sets force_commit=True, which forces the action!='answer'
     # branch above to return. Defensive fallback satisfies the type
     # checker and surfaces a loud reason if the invariant ever breaks.
-    return (
-        DisambiguatorResult(
-            chosen_etymon_id=None,
-            confidence="low",
-            reason=(
-                f"agentic loop exited unexpectedly after {expansions} "
-                f"honored expansion(s); last action {last_action!r}"
-            ),
-        ),
-        ExpansionStats(
-            expansions=expansions,
-            final_chars=len(current_snippet),
-            forced_commit=True,
+    return _force_commit_failure(
+        expansions=expansions,
+        current_snippet=current_snippet,
+        reason=(
+            f"agentic loop exited unexpectedly after {expansions} "
+            f"honored expansion(s); last action {last_action!r}"
         ),
     )
 

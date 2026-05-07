@@ -3242,6 +3242,53 @@ def lexicon_fuzzy_search(
         click.echo("(dry-run; pass --apply to write to etymon_text_match)", err=True)
 
 
+def _classify_dry_run_row_counts(
+    result: Any,
+    case: Any,
+) -> dict[str, int]:
+    """Mirror ``apply_disambiguator_result``'s per-row classification
+    without writing. Used by the CLI's dry-run path so the summary
+    tells the operator what WOULD have happened on --apply."""
+    n_rows = len(case.text_match_ids)
+    if result.chosen_etymon_id is None:
+        return {"kept": 0, "reassigned": 0, "deleted": n_rows}
+    counts = {"kept": 0, "reassigned": 0, "deleted": 0}
+    for current in case.current_etymon_ids:
+        key = "kept" if result.chosen_etymon_id == current else "reassigned"
+        counts[key] += 1
+    return counts
+
+
+def _disambiguate_dispatch(
+    client: Any,
+    case: Any,
+    expander: Any,
+    *,
+    agentic: bool,
+    max_expansions: int,
+    total_char_cap: int,
+) -> tuple[Any, Any]:
+    """Single-shot vs agentic dispatch. Returns ``(result, stats)``;
+    ``stats`` is None on the single-shot path. Raises RuntimeError on
+    transport failure — caller increments the error counter and
+    continues."""
+    from wyrd.generators.kenning.disambiguator import (
+        disambiguate_one,
+        disambiguate_one_agentic,
+    )
+
+    if agentic:
+        result, stats = disambiguate_one_agentic(
+            client,
+            case,
+            expander,
+            max_expansions=max_expansions,
+            total_char_cap=total_char_cap,
+        )
+        return result, stats
+    return disambiguate_one(client, case), None
+
+
 @lexicon.command("disambiguate-fuzzy")
 @click.option(
     "--db",
@@ -3344,8 +3391,6 @@ def lexicon_disambiguate_fuzzy(
     from wyrd.generators.kenning.disambiguator import (
         SnippetExpander,
         apply_disambiguator_result,
-        disambiguate_one,
-        disambiguate_one_agentic,
         find_ambiguous_rows,
     )
     from wyrd.generators.kenning.gemini_extractor import GeminiClient
@@ -3379,24 +3424,22 @@ def lexicon_disambiguate_fuzzy(
     try:
         for case in cases:
             try:
-                if agentic:
-                    assert expander is not None  # guarded by the UsageError above
-                    result, stats = disambiguate_one_agentic(
-                        client,
-                        case,
-                        expander,
-                        max_expansions=max_expansions,
-                        total_char_cap=total_char_cap,
-                    )
-                    agentic_totals["expansions"] += stats.expansions
-                    if stats.forced_commit:
-                        agentic_totals["forced_commits"] += 1
-                else:
-                    result = disambiguate_one(client, case)
+                result, stats = _disambiguate_dispatch(
+                    client,
+                    case,
+                    expander,
+                    agentic=agentic,
+                    max_expansions=max_expansions,
+                    total_char_cap=total_char_cap,
+                )
             except RuntimeError as e:
                 counts["errors"] += 1
                 click.echo(f"  ERROR  {case.matched_form:20} {e}", err=True)
                 continue
+            if stats is not None:
+                agentic_totals["expansions"] += stats.expansions
+                if stats.forced_commit:
+                    agentic_totals["forced_commits"] += 1
             choice_str = (
                 f"id={result.chosen_etymon_id}" if result.chosen_etymon_id is not None else "none"
             )
@@ -3413,15 +3456,7 @@ def lexicon_disambiguate_fuzzy(
                 # disambiguated rows (the LLM calls have already been paid for).
                 write_db.commit()
             else:
-                # Dry-run: mirror the same per-row action classification so
-                # the summary tells the operator what would have happened.
-                row_counts = {"kept": 0, "reassigned": 0, "deleted": 0}
-                if result.chosen_etymon_id is None:
-                    row_counts["deleted"] = n_rows
-                else:
-                    for current in case.current_etymon_ids:
-                        key = "kept" if result.chosen_etymon_id == current else "reassigned"
-                        row_counts[key] += 1
+                row_counts = _classify_dry_run_row_counts(result, case)
             for k, v in row_counts.items():
                 counts[k] += v
     finally:
