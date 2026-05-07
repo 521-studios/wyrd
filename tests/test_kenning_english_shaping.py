@@ -577,6 +577,57 @@ def test_cli_derive_english_shaped_language_filter_is_parameterized(fresh_db: Pa
         assert _english_shaped(db, ar_id) == "jinn"
 
 
+def test_cli_derive_english_shaped_reshape_preserves_value_when_derive_returns_none(
+    fresh_db: Path,
+) -> None:
+    """`--reshape` MUST NOT NULL out an existing english_shaped value
+    just because the row's transliteration / IPA inputs are now empty.
+    A subset of the live ~48k rows have NULL transliteration AND NULL
+    IPA — derive_english_shaped returns None for those — and the CLI
+    must skip the UPDATE entirely rather than overwrite a previously-
+    written value with NULL.
+
+    Pinned because the production --reshape pass runs over 133k rows
+    and even a brief regression where None → NULL UPDATE'd would
+    corrupt the live table."""
+    with LexiconDB(fresh_db) as db:
+        eid = _seed_etymon_with_translit(
+            db,
+            canonical_form="גג",
+            language="he",
+            transliteration=None,  # nothing to derive from
+            pronunciation_ipa=None,
+        )
+        # Pre-set english_shaped to a value that came from a richer
+        # earlier ingest (analogous to a row that had transliteration
+        # the first time and got cleared / lost it later).
+        db.conn.execute(
+            "UPDATE etymon SET english_shaped = 'preserved-value' WHERE id = ?",
+            (eid,),
+        )
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        kenning_cli,
+        [
+            "lexicon",
+            "derive-english-shaped",
+            "--db",
+            str(fresh_db),
+            "--apply",
+            "--reshape",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    with LexiconDB(fresh_db) as db:
+        # The pre-set value survives the --reshape pass because
+        # derive_english_shaped returned None (no inputs) and the
+        # CLI's None-branch increments skipped_no_input rather than
+        # issuing an UPDATE.
+        assert _english_shaped(db, eid) == "preserved-value"
+
+
 def test_cli_derive_english_shaped_reshape_redoes_non_null_rows(fresh_db: Path) -> None:
     """Default behavior leaves non-NULL rows alone; --reshape
     re-derives even rows that already have a value. Pinned so a

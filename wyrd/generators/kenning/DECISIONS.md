@@ -1113,12 +1113,17 @@ in priority order:
    would produce a serviceable output — the goal is to match what
    English readers expect, not what's mechanically derivable.
 2. **Rule-based diacritic stripping** of the transliteration. Two
-   passes: digraph replacements (longest-match-first; ṯ→th, ḫ→kh,
-   ǧ→j, š→sh, ġ→gh, ḏ→dh, ś/ṣ→sh, ñ→ny, ṅ→ng, ʒ→zh, θ→th, χ→kh)
-   then single-char replacements (emphatics ḍ/ḥ/ṭ/ẓ/ḳ→base, retroflex
-   ṛ/ṇ/ḷ→base, long vowels ā/ī/ū/ē/ō→base, stress-acute
-   á/é/í/ó/ú→base, IPA ɪ/ʊ/ɛ/ɔ/ɐ/ə→nearest English vowel, Hebrew
-   rafe ḇ→v, Arabic ḥā ħ→h, IPA pharyngeals ʿ/ʾ/ʔ/ʕ silenced).
+   passes: digraph replacements (run before single-char strip; ṯ→th,
+   ḫ→kh, ǧ→j, š→sh, ġ→gh, ḏ→dh, ś/ṣ→sh, ʒ→zh, θ→th, χ→kh) then
+   single-char replacements (emphatics ḍ/ḥ/ṭ/ẓ/ḳ→base, retroflex
+   ṛ/ṇ/ḷ→base, Sanskrit palatal/velar nasals ñ/ṅ→n single-char so
+   the following consonant supplies the palatal/velar quality
+   without double-counting (liṅga→linga, añjali→anjali), long
+   vowels ā/ī/ū/ē/ō→base, stress-acute á/é/í/ó/ú→base, IPA
+   ɪ/ʊ/ɛ/ɔ/ɐ/ə→nearest English vowel, Hebrew rafe ḇ→v, Arabic ḥā
+   ħ→h, IPA pharyngeals ʿ/ʾ/ʔ/ʕ silenced). Per-language overrides
+   on top: Arabic ṣ→s instead of the default sh (ṣabr→sabr,
+   ṣalāt→salat).
    Final `_looks_english_readable` check rejects outputs that still
    carry non-ASCII residuals (the maps don't cover everything;
    better NULL than half-stripped).
