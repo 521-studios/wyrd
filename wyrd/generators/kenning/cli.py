@@ -4200,7 +4200,7 @@ def lexicon_classify_stratum(
         return
 
     # Bucket counts for the operator-readable summary.
-    counts: dict[str, int] = {s: 0 for s in strata_order}
+    counts: dict[str, int] = dict.fromkeys(strata_order, 0)
     for stratum in proposals.values():
         counts[stratum] = counts.get(stratum, 0) + 1
 
@@ -4239,12 +4239,24 @@ def lexicon_classify_stratum(
         db.commit()
 
     click.echo("", err=True)
-    click.echo(
-        f"Wrote {written} rows. "
-        f"Skipped {skipped_existing} that already had a stratum"
-        f"{' (use --force to overwrite)' if not force and skipped_existing else ''}.",
-        err=True,
-    )
+    if force:
+        # Under --force the WHERE clause has no stratum-NULL gate, so
+        # a zero rowcount here means the row vanished between the
+        # classifier read and the write (deleted, or its id changed).
+        # Don't claim a "skipped because pre-existing" reason that
+        # didn't drive the skip.
+        click.echo(
+            f"Wrote {written} rows (forced overwrite). "
+            f"{skipped_existing} rows missed (row no longer present at write time).",
+            err=True,
+        )
+    else:
+        click.echo(
+            f"Wrote {written} rows. "
+            f"Skipped {skipped_existing} that already had a stratum"
+            f"{' (use --force to overwrite)' if skipped_existing else ''}.",
+            err=True,
+        )
 
 
 @lexicon.command("report")

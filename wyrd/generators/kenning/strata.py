@@ -38,12 +38,19 @@ if TYPE_CHECKING:
 # and a Brittonic root is classified as a Latin loan, because the
 # Latin path is the load-bearing one for register).
 
+# The default bucket — assigned to a welsh etymon whose
+# ``etymon_descent`` parents don't include any language mapped to a
+# more specific stratum. Named explicitly so the priority-order loop
+# below doesn't have to slice ``WELSH_STRATA[:-1]`` and pin the
+# default to a positional invariant.
+_WELSH_DEFAULT_STRATUM: str = "native-welsh"
+
 WELSH_STRATA: tuple[str, ...] = (
     "latin-loan",
     "english-loan",
     "brittonic-substrate",
     "medieval-welsh",
-    "native-welsh",
+    _WELSH_DEFAULT_STRATUM,
 )
 
 
@@ -140,11 +147,14 @@ def classify_welsh(db: LexiconDB) -> dict[int, str]:
 
     for eid in welsh_ids:
         parent_langs = parents_by_child.get(eid, set())
-        assigned = "native-welsh"
+        assigned = _WELSH_DEFAULT_STRATUM
         # Iterate strata in priority order; first stratum whose
         # ancestor-language set intersects this etymon's parent set wins.
-        # ``WELSH_STRATA[-1]`` is the default 'native-welsh' — skip it.
-        for stratum_target in WELSH_STRATA[:-1]:
+        # The default stratum has no ancestor-language mapping so it
+        # naturally falls through here — no positional slice needed.
+        for stratum_target in WELSH_STRATA:
+            if stratum_target == _WELSH_DEFAULT_STRATUM:
+                continue
             if parent_langs & stratum_ancestors.get(stratum_target, set()):
                 assigned = stratum_target
                 break
