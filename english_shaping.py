@@ -20,12 +20,9 @@ captured, in priority order:
      where we have IPA but no transliteration.
 
 Returns None when none of the inputs is sufficient OR the source language
-is in `_LATIN_SCRIPT_LANGS` (canonical_form is the right display value for
-those — old-english `tūn`, latin `pons`, welsh `bryn`, etc. handle their
-own register elsewhere). Note: ancient-greek is intentionally NOT in the
-Latin-script set — its canonical_form uses the Greek alphabet (ἅρπυια)
-and benefits from the same diacritic-strip pipeline (η→e, ω→o, etc.) the
-wave-2 languages do.
+is already Latin-script (canonical_form is the right display value for
+those — old-english `tūn`, ancient-greek `ἅρπυια`, etc. handle their own
+register elsewhere).
 """
 
 from __future__ import annotations
@@ -127,12 +124,8 @@ KNOWN_FORM_OVERRIDES: dict[str, str] = {
     "ǧinn": "jinn",
     "jinn": "jinn",
     "ǧinnī": "jinni",
-    # Both 'djinn' and 'djinnī' drop the leading 'd' in modern English
-    # ('jinn' / 'jinni' are the prevailing forms; 'djinn' is the older
-    # 19th-century spelling). Both override values are 'jinn' / 'jinni'
-    # for consistency.
     "djinn": "jinn",
-    "djinnī": "jinni",
+    "djinnī": "djinni",
     "ǧannī": "janni",
     "jānn": "jann",
     "šayṭān": "shaitan",
@@ -193,11 +186,7 @@ KNOWN_FORM_OVERRIDES: dict[str, str] = {
 #      (ā→a, ī→i), silenced glottals (ʿ ʾ ʔ → ''), combining marks.
 # ---------------------------------------------------------------------
 
-# "Digraphs": replacements that must run BEFORE single-char stripping.
-# Most produce two-letter output (ṯ→th, ḫ→kh, š→sh) but some collapse
-# to one letter (ǧ→j, ʤ→j) — the unifying property is that the source
-# character carries semantic content that would be lost if we treated
-# it as a base-letter-plus-diacritic and stripped the diacritic alone.
+# Digraphs: replacements that produce more than one Latin letter.
 _DIGRAPH_MAP: dict[str, str] = {
     # Semitic transliteration — produce two-letter digraphs
     "ṯ": "th",
@@ -214,15 +203,16 @@ _DIGRAPH_MAP: dict[str, str] = {
     "Ǧ": "J",
     "č": "ch",
     "Č": "Ch",
-    # Sanskrit retroflex / palatal sibilants. Default ṣ → 'sh' is
-    # Sanskrit-canonical (rakṣasa → rakshasa, yakṣa → yaksha). Arabic
-    # ṣ is the same Unicode character but rendered 's' in English
-    # (ṣabr → sabr, not shabr); the language-aware override below
-    # corrects that during the strip pipeline.
+    # Sanskrit retroflex / palatal sibilants
     "ś": "sh",
     "Ś": "Sh",
     "ṣ": "sh",
     "Ṣ": "Sh",
+    # Sanskrit nasals (palatal / velar)
+    "ñ": "ny",
+    "Ñ": "Ny",
+    "ṅ": "ng",
+    "Ṅ": "Ng",
     "ṝ": "ri",
     "Ṝ": "Ri",
     # IPA segments that sometimes appear in transliteration strings
@@ -257,14 +247,6 @@ _SINGLE_CHAR_MAP: dict[str, str] = {
     "Ḷ": "L",
     "ṇ": "n",
     "Ṇ": "N",
-    # Sanskrit palatal / velar nasals — single char NOT digraph. The
-    # following consonant supplies the velar / palatal quality, so
-    # ṅ→ng + g would double-count: liṅga → "linga" (correct), not
-    # "lingga". añjali → "anjali" (correct), not "anyjali".
-    "ñ": "n",
-    "Ñ": "N",
-    "ṅ": "n",
-    "Ṅ": "N",
     # Long vowels (macron + circumflex variants)
     "ā": "a",
     "Ā": "A",
@@ -366,31 +348,13 @@ _IPA_STRIP_RE = re.compile(r"[\[\]/⟨⟩⌈⌉ˈˌˑ.\\͡]")
 _SUBSCRIPT_RE = re.compile(r"[₀-₉]")
 
 
-# Per-language overrides on the digraph map. Same Unicode character
-# can have different conventional English renderings depending on which
-# language it came from. Currently only Arabic ṣ deviates (sh in
-# Sanskrit / Hebrew / Aramaic / Akkadian; s in Arabic).
-_LANGUAGE_DIGRAPH_OVERRIDES: dict[str, dict[str, str]] = {
-    "ar": {
-        "ṣ": "s",  # Arabic ṣād → 's', not 'sh' (e.g. ṣabr → sabr)
-        "Ṣ": "S",
-    },
-}
-
-
-def _apply_digraphs(s: str, language: str | None = None) -> str:
+def _apply_digraphs(s: str) -> str:
     """Apply digraph replacements (multi-char output) before single-char.
     Each replacement is independent — order within the dict doesn't
-    matter because no digraph key is a prefix of another.
-
-    `language` (optional) selects per-language overrides on top of the
-    base map. e.g. Arabic ṣ uses 's' instead of the Sanskrit-default
-    'sh'. Pass-through when `language` has no overrides defined.
-    """
-    overrides = _LANGUAGE_DIGRAPH_OVERRIDES.get(language or "", {})
+    matter because no digraph key is a prefix of another."""
     for src, dst in _DIGRAPH_MAP.items():
         if src in s:
-            s = s.replace(src, overrides.get(src, dst))
+            s = s.replace(src, dst)
     return s
 
 
@@ -406,14 +370,10 @@ def _apply_single_chars(s: str) -> str:
     return "".join(out)
 
 
-def _strip_transliteration(value: str, language: str | None = None) -> str:
+def _strip_transliteration(value: str) -> str:
     """Run the transliteration string through digraphs → single-chars →
-    cleanup. Output is best-effort ASCII; the caller MUST run the result
-    through `_looks_english_readable` before storing — characters our
-    maps don't cover survive into the output. `language` (optional)
-    routes through `_apply_digraphs` for per-language overrides
-    (e.g. Arabic ṣ → s instead of the default sh)."""
-    s = _apply_digraphs(value, language=language)
+    cleanup. Returns the resulting Latin-only ASCII string."""
+    s = _apply_digraphs(value)
     s = _apply_single_chars(s)
     # Collapse the leftover length markers and brackets.
     s = _IPA_STRIP_RE.sub("", s)
@@ -439,7 +399,7 @@ def _looks_english_readable(s: str) -> bool:
     return all(c.isascii() and (c.isalnum() or c in " -'") for c in s)
 
 
-def _ipa_to_english_fallback(ipa: str, language: str | None = None) -> str | None:
+def _ipa_to_english_fallback(ipa: str) -> str | None:
     """Last-resort: collapse an IPA string to a Latin-letter
     approximation. Used only when transliteration is missing.
 
@@ -447,12 +407,12 @@ def _ipa_to_english_fallback(ipa: str, language: str | None = None) -> str | Non
     deep linguistic problem. We strip the IPA delimiters / length
     marks, run the same digraph + single-char pipeline, and verify
     the result looks readable. Most rows that take this path will
-    return something like 'dzhin' for /d͡ʒɪn/, which is good enough
-    as a fallback display string until somebody fills in
-    transliteration or adds a known-form override. `language` is
-    forwarded for per-language overrides (e.g. Arabic ṣ→s)."""
+    return something like 'jin' for /d͡ʒɪn/, which is good enough as a
+    fallback display string until somebody fills in transliteration
+    or adds a known-form override.
+    """
     s = _IPA_STRIP_RE.sub("", ipa)
-    s = _strip_transliteration(s, language=language)
+    s = _strip_transliteration(s)
     if _looks_english_readable(s):
         return s
     return None
@@ -486,11 +446,11 @@ def derive_english_shaped(
         normalized_key = transliteration.strip().lower()
         if normalized_key in KNOWN_FORM_OVERRIDES:
             return KNOWN_FORM_OVERRIDES[normalized_key]
-        stripped = _strip_transliteration(transliteration, language=language)
+        stripped = _strip_transliteration(transliteration)
         if _looks_english_readable(stripped):
             return stripped
 
     if pronunciation_ipa:
-        return _ipa_to_english_fallback(pronunciation_ipa, language=language)
+        return _ipa_to_english_fallback(pronunciation_ipa)
 
     return None

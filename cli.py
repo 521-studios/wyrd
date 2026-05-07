@@ -82,31 +82,6 @@ from wyrd.generators.kenning.wiktextract_corpus_miner import (
 from wyrd.generators.kenning.wiktextract_ingester import ingest_wiktextract_path
 from wyrd.seed import resolve_seed, rng_for
 
-# Wave-2 non-Latin source languages eligible for english_shaped derivation
-# (wyrd-ha9q Phase 2b). Used by `lexicon derive-english-shaped` to filter
-# the rows it walks. Hardcoded to match the canonical wave-2 + precursor
-# /postcursor stack of `english_shaping._LATIN_SCRIPT_LANGS` (its inverse
-# within the approved set).
-_PHASE2A_NON_LATIN_LANGS: tuple[str, ...] = (
-    "he",
-    "ar",
-    "fa",
-    "sa",
-    "akk",
-    "egy",
-    "arc",
-    "pal",
-    "hbo",
-    "peo",
-    "fa-cls",
-    "xpr",
-    "syc",
-    "cop",
-    "axm",
-    "pra",
-    "pi",
-)
-
 
 def _select_parser_and_run(
     text: str,
@@ -3973,18 +3948,11 @@ def lexicon_derive_english_shaped(
     final summary, matching the convention in CLAUDE.md "Mining
     progress reporting".
     """
-    # Build the WHERE predicate via parameterized SQL — never f-string
-    # interpolate user-supplied values (--language) into the query.
+    where_pred = "language IN ('he','ar','fa','sa','akk','egy','arc','pal','hbo','peo','fa-cls','xpr','syc','cop','axm','pra','pi')"
     if language_filter:
-        lang_pred = "language = ?"
-        lang_params: tuple[str, ...] = (language_filter,)
-    else:
-        placeholders = ",".join("?" * len(_PHASE2A_NON_LATIN_LANGS))
-        lang_pred = f"language IN ({placeholders})"
-        lang_params = _PHASE2A_NON_LATIN_LANGS
-    where_pred = lang_pred + ("" if reshape else " AND english_shaped IS NULL")
-    # --limit: int(limit) is safe (Click already cast) and an int is
-    # not interpolatable to anything dangerous.
+        where_pred = f"language = '{language_filter}'"
+    if not reshape:
+        where_pred += " AND english_shaped IS NULL"
     limit_clause = f" LIMIT {int(limit)}" if limit else ""
 
     with LexiconDB(db_path) as db:
@@ -3994,8 +3962,7 @@ def lexicon_derive_english_shaped(
                 FROM etymon
                 WHERE {where_pred}
                 ORDER BY language, id
-                {limit_clause}""",
-            lang_params,
+                {limit_clause}"""
         ).fetchall()
 
     total = len(rows)

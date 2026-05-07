@@ -1,0 +1,4 @@
+{"path":"tests/test_kenning_english_shaping.py","status":"added"}
+{"path":"wyrd/generators/kenning/DECISIONS.md","status":"modified"}
+{"path":"wyrd/generators/kenning/cli.py","status":"modified"}
+{"path":"wyrd/generators/kenning/english_shaping.py","status":"added"}
