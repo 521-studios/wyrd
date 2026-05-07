@@ -78,6 +78,17 @@ _TRANSLITERATION_SUFFIX = "_transliteration"
 # integrity rule.
 _PRONUNCIATION_SUFFIX = "_pronunciation"
 
+# Suffix used for per-language within-language stratum tags (wyrd-lr4
+# Phase 2). Each entry is (form, stratum) where stratum is a
+# language-specific register bucket — for Welsh: 'latin-loan' /
+# 'english-loan' / 'brittonic-substrate' / 'medieval-welsh' /
+# 'native-welsh'. Sparse — only languages with a Phase 1 classifier
+# populate this (Welsh-family today; French / OE / ON follow). Empty
+# / absent for older bundles and unclassified languages. Phase 3
+# wires the generator filter; Phase 2 just plumbs the data through so
+# the bundle carries it.
+_STRATUM_SUFFIX = "_stratum"
+
 
 class Meaning:
     def __init__(
@@ -94,6 +105,7 @@ class Meaning:
         original_script=None,
         transliteration=None,
         pronunciation=None,
+        stratum=None,
     ):
         self.usage = usage
         self.tags = tags
@@ -152,6 +164,14 @@ class Meaning:
         self.original_script = original_script or {}
         self.transliteration = transliteration or {}
         self.pronunciation = pronunciation or {}
+        # wyrd-lr4 Phase 2: stratum is a dict[lang_field, dict[
+        # canonical_form, stratum_tag]] — the within-language register
+        # bucket each form belongs to (Welsh: 'native-welsh',
+        # 'latin-loan', etc.). Phase 2 plumbs the data; the Phase 3
+        # generator filter consumes it. Empty for Latin-script langs
+        # without a Phase 1 classifier, for unclassified rows in
+        # classified languages, and for legacy bundles.
+        self.stratum = stratum or {}
         self._set_location()
 
     def _set_location(self):
@@ -264,6 +284,19 @@ class Meaning:
         if hit is None:
             return None
         return dict(hit)
+
+    def stratum_for(self, lang_field: str, form: str) -> str | None:
+        """wyrd-lr4 Phase 2: return the within-language stratum tag
+        for ``form`` in ``lang_field`` (e.g. 'native-welsh',
+        'brittonic-substrate', 'latin-loan'), or None when no stratum
+        data is available — the language has no Phase 1 classifier,
+        the form fell into the unclassified default before Phase 1
+        ran, or the bundle pre-dates the wyrd-lr4 export. Phase 3's
+        --stratum filter is the primary consumer."""
+        forms = self.stratum.get(lang_field)
+        if not forms:
+            return None
+        return forms.get(form)
 
     def attested_in_era_range(self, era_range: tuple[int | None, int | None] | None) -> bool:
         """D5-2 era filter: True if this morpheme is admissible under the
@@ -426,6 +459,7 @@ def load_meanings(data):
                 and not k.endswith(_ORIGINAL_SCRIPT_SUFFIX)
                 and not k.endswith(_TRANSLITERATION_SUFFIX)
                 and not k.endswith(_PRONUNCIATION_SUFFIX)
+                and not k.endswith(_STRATUM_SUFFIX)
             }
             variants = {
                 k[: -len(_VARIANT_SUFFIX)]: [(entry["form"], entry["weight"]) for entry in v]
@@ -486,6 +520,14 @@ def load_meanings(data):
                 for k, v in word.items()
                 if k.endswith(_PRONUNCIATION_SUFFIX)
             }
+            # wyrd-lr4 Phase 2: stratum is keyed by canonical form so the
+            # Phase 3 generator filter can ask 'is THIS form in THIS
+            # stratum?' rather than gating an entire language.
+            stratum = {
+                k[: -len(_STRATUM_SUFFIX)]: {entry["form"]: entry["stratum"] for entry in v}
+                for k, v in word.items()
+                if k.endswith(_STRATUM_SUFFIX)
+            }
             # Singular and plural Meanings share every constructor arg
             # except `usage`. Bundle them so a future kwarg addition can't
             # silently drop on one branch and not the other.
@@ -501,6 +543,7 @@ def load_meanings(data):
                 "original_script": original_script,
                 "transliteration": transliteration,
                 "pronunciation": pronunciation,
+                "stratum": stratum,
             }
             meaning = Meaning(usage, **common_kwargs)
             for tag in tags:

@@ -915,3 +915,185 @@ def test_pronunciation_for_returns_copy_not_reference():
     second = m.pronunciation_for("hebrew", "כלב")
     assert second == {"ipa": "/kalb/", "dialect": "Biblical-Hebrew"}
     assert "new_key" not in second
+
+
+# ---------------------------------------------------------------------
+# wyrd-lr4 Phase 2: stratum accessor + load round-trip
+# ---------------------------------------------------------------------
+
+
+def _meaning_with_stratum(stratum: dict[str, dict[str, str]]) -> Meaning:
+    return Meaning(
+        usage="Caer-",
+        tags=[],
+        meanings=[],
+        sources={},
+        stratum=stratum,
+    )
+
+
+def test_stratum_for_returns_value_when_present():
+    m = _meaning_with_stratum(
+        {
+            "celtic_mix": {"caer": "latin-loan", "din": "native-welsh"},
+        }
+    )
+    assert m.stratum_for("celtic_mix", "caer") == "latin-loan"
+    assert m.stratum_for("celtic_mix", "din") == "native-welsh"
+
+
+def test_stratum_for_returns_none_for_missing_lang():
+    m = _meaning_with_stratum({"celtic_mix": {"caer": "latin-loan"}})
+    assert m.stratum_for("old_english", "tūn") is None
+    assert m.stratum_for("hebrew", "גולם") is None
+
+
+def test_stratum_for_returns_none_for_missing_form_in_lang():
+    """Form not in the lang map → None. Matches the rule that
+    unclassified rows in classified languages stay NULL on the etymon
+    column; those forms survive in the language form array but don't
+    carry a stratum entry."""
+    m = _meaning_with_stratum({"celtic_mix": {"caer": "latin-loan"}})
+    assert m.stratum_for("celtic_mix", "din") is None
+
+
+def test_stratum_defaults_to_empty_dict_for_legacy_meaning():
+    """Meaning constructed without stratum kwarg (legacy bundle pre-
+    Phase 2) gets an empty dict and graceful None lookup."""
+    m = Meaning(usage="Caer-", tags=[], meanings=[], sources={})
+    assert m.stratum == {}
+    assert m.stratum_for("celtic_mix", "caer") is None
+
+
+def test_load_meanings_strips_stratum_suffix_into_dedicated_dict():
+    """``<lang>_stratum`` JSON arrays land in ``Meaning.stratum`` keyed
+    by (lang_field, canonical_form). ``sources`` keeps the language
+    form array but does NOT carry the _stratum sibling."""
+    data = [
+        {
+            "modifier_tags": ["habitation"],
+            "meaning": ["fort"],
+            "modifier_type": "Habitative",
+            "words": [
+                {
+                    "modern_usage": "Caer-",
+                    "celtic_mix": ["caer", "din"],
+                    "celtic_mix_stratum": [
+                        {"form": "caer", "stratum": "latin-loan"},
+                        {"form": "din", "stratum": "native-welsh"},
+                    ],
+                }
+            ],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    assert "Caer-" in meaning_db
+    m = meaning_db["Caer-"][0]
+    assert m.sources == {"celtic_mix": ["caer", "din"]}
+    assert m.stratum == {"celtic_mix": {"caer": "latin-loan", "din": "native-welsh"}}
+    assert m.stratum_for("celtic_mix", "caer") == "latin-loan"
+    assert m.stratum_for("celtic_mix", "din") == "native-welsh"
+
+
+def test_load_meanings_round_trips_with_no_stratum_field():
+    """Legacy bundle entries (pre-Phase 2 / unclassified langs) load
+    cleanly with an empty stratum dict — no KeyError."""
+    data = [
+        {
+            "modifier_tags": [],
+            "meaning": ["bridge"],
+            "modifier_type": "Topographical",
+            "words": [
+                {
+                    "modern_usage": "Bridg-",
+                    "old_english": ["brycg"],
+                }
+            ],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    m = meaning_db["Bridg-"][0]
+    assert m.stratum == {}
+    assert m.stratum_for("old_english", "brycg") is None
+
+
+def test_load_meanings_handles_mixed_bundle_some_words_with_stratum():
+    """A bundle where some words carry ``<lang>_stratum`` and others
+    don't (the realistic upgrade scenario — one bundle re-emit lifts
+    Welsh-classified families while leaving Latin / OE / etc. unchanged)
+    loads cleanly. Each Meaning gets only its own stratum dict; no
+    cross-contamination between word entries."""
+    data = [
+        {
+            "modifier_tags": ["habitation"],
+            "meaning": ["fort"],
+            "modifier_type": "Habitative",
+            "words": [
+                {
+                    "modern_usage": "Caer-",
+                    "celtic_mix": ["caer"],
+                    "celtic_mix_stratum": [{"form": "caer", "stratum": "latin-loan"}],
+                },
+                {
+                    "modern_usage": "Bridg-",
+                    "old_english": ["brycg"],
+                },
+            ],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    classified = meaning_db["Caer-"][0]
+    assert classified.stratum == {"celtic_mix": {"caer": "latin-loan"}}
+    assert classified.stratum_for("celtic_mix", "caer") == "latin-loan"
+    unclassified = meaning_db["Bridg-"][0]
+    assert unclassified.stratum == {}
+    assert unclassified.stratum_for("old_english", "brycg") is None
+
+
+def test_db_to_export_to_load_round_trip_preserves_stratum(tmp_path):
+    """End-to-end: seed a fresh DB with a welsh family carrying
+    stratum, run ``export_meanings``, then ``load_meanings`` on the
+    output — the tag survives all the way to ``Meaning.stratum_for``.
+
+    Pinned because the exporter and loader were tested independently;
+    a field-name mismatch between ``_emit_stratum_list``'s output keys
+    and ``_STRATUM_SUFFIX``-stripping would pass both tests in
+    isolation but break the round-trip."""
+    from wyrd.generators.kenning.lexicon import (
+        LexiconDB,
+        export_meanings,
+        init_schema,
+        seed_from_meanings,
+    )
+
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+
+    with LexiconDB(db_path) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        seed_from_meanings(
+            db,
+            [
+                {
+                    "modifier_tags": ["habitation"],
+                    "meaning": ["fort"],
+                    "modifier_type": "Habitative",
+                    "words": [{"modern_usage": "Caer-", "celtic_mix": ["caer"]}],
+                }
+            ],
+            "rando-port",
+        )
+        # Relabel to language='welsh' so the row mirrors a Phase 1
+        # classifier output, then stamp the stratum.
+        db.conn.execute(
+            "UPDATE etymon SET language = 'welsh', stratum = ? WHERE canonical_form = 'caer'",
+            ("latin-loan",),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    meaning_db, _ = load_meanings(subjects)
+    assert "Caer-" in meaning_db
+    m = meaning_db["Caer-"][0]
+    assert m.stratum_for("celtic_mix", "caer") == "latin-loan"

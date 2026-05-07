@@ -3566,7 +3566,13 @@ def test_language_field_mapping_covers_known_codes() -> None:
     # (D5-2 era cells). They legitimately don't map to a LANGUAGE_FIELDS
     # code; the runtime's load_meanings handles them via separate Meaning
     # attributes.
-    metadata_suffixes = ("_variants", "_inflections", "_citations", "_attested_years")
+    metadata_suffixes = (
+        "_variants",
+        "_inflections",
+        "_citations",
+        "_attested_years",
+        "_stratum",
+    )
     missing = {
         f for f in seen_fields - handled if not any(f.endswith(s) for s in metadata_suffixes)
     }
@@ -4358,6 +4364,287 @@ def test_export_meanings_partial_english_shaped_emits_only_populated(fresh_db: P
     assert word["arabic"] == ["جن", "عفريت"]  # Both forms in the lang array.
     assert word["arabic_english_shaped"] == [
         {"form": "جن", "english_shaped": "jinn"},
+    ]
+
+
+def test_export_meanings_emits_stratum_per_language(fresh_db: Path) -> None:
+    """wyrd-lr4 Phase 2: a Welsh-family word entry carries a
+    ``celtic_mix_stratum`` array when at least one member etymon has a
+    populated ``stratum`` column. Each entry maps the canonical_form to
+    its within-language register tag. Sorted by form for determinism.
+
+    The seed routes celtic_mix → language='celtic' (the legacy
+    rando-port bucket); Phase 1 only classifies the modern-language
+    welsh slots, so we relabel both rows to language='welsh' and stamp
+    distinct strata directly. This pins the export behavior without
+    coupling to the classifier."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["fort"],
+            tags=["habitation"],
+            modifier_type="Habitative",
+            words=[
+                {
+                    "modern_usage": "Caer-",
+                    "celtic_mix": ["caer", "din"],
+                }
+            ],
+        )
+        db.conn.execute(
+            "UPDATE etymon SET language = 'welsh' WHERE canonical_form IN ('caer', 'din')"
+        )
+        db.conn.execute(
+            "UPDATE etymon SET stratum = ? WHERE canonical_form = ? AND language = 'welsh'",
+            ("latin-loan", "caer"),
+        )
+        db.conn.execute(
+            "UPDATE etymon SET stratum = ? WHERE canonical_form = ? AND language = 'welsh'",
+            ("native-welsh", "din"),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert "celtic_mix_stratum" in word, (
+        f"celtic_mix_stratum missing from word entry: keys={list(word.keys())}"
+    )
+    assert word["celtic_mix_stratum"] == [
+        {"form": "caer", "stratum": "latin-loan"},
+        {"form": "din", "stratum": "native-welsh"},
+    ]
+
+
+def test_export_meanings_skips_stratum_when_all_members_null(fresh_db: Path) -> None:
+    """A family whose every member has NULL stratum (the common case for
+    languages without a Phase 1 classifier — Old English / Latin / etc.,
+    plus pre-classifier rows in classified languages) MUST NOT emit a
+    ``<lang>_stratum`` field. Pinning so the bundle doesn't bloat with
+    empty arrays for unclassified rows."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["bridge"],
+            tags=["water"],
+            modifier_type="Topographical",
+            words=[{"modern_usage": "Bridg-", "old_english": ["brycg"]}],
+        )
+        # stratum stays NULL — Old English has no Phase 1 classifier.
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert "old_english_stratum" not in word
+    assert all(not k.endswith("_stratum") for k in word)
+
+
+def test_export_meanings_partial_stratum_emits_only_populated(fresh_db: Path) -> None:
+    """A welsh family where some forms carry stratum and others stay
+    NULL emits a ``celtic_mix_stratum`` array with only the populated
+    entries. Mirrors the english_shaped contract so the runtime can
+    treat absence-from-array as 'no stratum filter applies' for the
+    unmapped form."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["valley"],
+            tags=["topography"],
+            modifier_type="Topographical",
+            words=[
+                {
+                    "modern_usage": "Cwm-",
+                    "celtic_mix": ["cwm", "glyn"],
+                }
+            ],
+        )
+        db.conn.execute(
+            "UPDATE etymon SET language = 'welsh' WHERE canonical_form IN ('cwm', 'glyn')"
+        )
+        # Only 'cwm' gets a stratum; 'glyn' stays NULL.
+        db.conn.execute(
+            "UPDATE etymon SET stratum = ? WHERE canonical_form = ? AND language = 'welsh'",
+            ("native-welsh", "cwm"),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert word["celtic_mix"] == ["cwm", "glyn"]  # Both forms in lang array.
+    assert word["celtic_mix_stratum"] == [
+        {"form": "cwm", "stratum": "native-welsh"},
+    ]
+
+
+def test_export_meanings_unions_stratum_across_welsh_substrata(
+    fresh_db: Path,
+) -> None:
+    """Welsh + middle-welsh + old-welsh all funnel into the celtic_mix
+    bundle bucket. A family spanning multiple welsh-substrata languages
+    must surface each form's stratum in the bucket-level array. Pins
+    that the per-bundle-bucket aggregation in _emit_word_languages
+    unions stratum the same way it unions english_shaped, citations,
+    etc.
+
+    Hand-seeded so the family rollup picks up an old-welsh row whose
+    lemma is the welsh-language root — the legacy seeder doesn't expose
+    this multi-substrata shape directly."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["river"],
+            tags=["water"],
+            modifier_type="Topographical",
+            words=[
+                {
+                    "modern_usage": "Afon-",
+                    "celtic_mix": ["afon"],
+                }
+            ],
+        )
+        # Relabel the seeded root from language='celtic' to 'welsh' so
+        # the substrata family looks like the production shape.
+        db.conn.execute(
+            "UPDATE etymon SET language = 'welsh', stratum = ? WHERE canonical_form = 'afon'",
+            ("native-welsh",),
+        )
+        afon_root_id = db.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = 'afon' AND language = 'welsh'"
+        ).fetchone()["id"]
+        # Add an old-welsh sibling pointing at the same lemma so the
+        # rollup sees them as one family.
+        db.conn.execute(
+            "INSERT INTO etymon (canonical_form, language, lemma_id, stratum) VALUES (?, ?, ?, ?)",
+            ("auon", "old-welsh", afon_root_id, "brittonic-substrate"),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    # Both forms surface in celtic_mix; the stratum array carries both
+    # tags keyed by their canonical_form.
+    assert set(word["celtic_mix"]) == {"afon", "auon"}
+    assert word["celtic_mix_stratum"] == [
+        {"form": "afon", "stratum": "native-welsh"},
+        {"form": "auon", "stratum": "brittonic-substrate"},
+    ]
+
+
+def test_export_meanings_stratum_collision_resolves_by_lang_sort_order(
+    fresh_db: Path,
+) -> None:
+    """Two welsh-substrata members sharing the SAME canonical_form with
+    DIFFERENT strata land in the same celtic_mix bucket key. Pin the
+    deterministic resolution: ``_emit_word_languages`` walks
+    ``sorted(accs.forms_by_lang)`` and ``bucket.stratum.update(...)``,
+    so the alphabetically-LAST language wins. middle-welsh < welsh, so
+    welsh's stratum overrides middle-welsh's. This locks the same
+    last-lang-wins contract the english_shaped / inflections / citations
+    plumbing already follows; without this test the order would be
+    silently dependent on dict iteration order."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["fort"],
+            tags=["habitation"],
+            modifier_type="Habitative",
+            words=[
+                {
+                    "modern_usage": "Caer-",
+                    "celtic_mix": ["caer"],
+                }
+            ],
+        )
+        # Relabel the seeded row to language='welsh' with one stratum.
+        db.conn.execute(
+            "UPDATE etymon SET language = 'welsh', stratum = ? WHERE canonical_form = 'caer'",
+            ("latin-loan",),
+        )
+        caer_root_id = db.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = 'caer' AND language = 'welsh'"
+        ).fetchone()["id"]
+        # Add a middle-welsh sibling with the SAME canonical_form but a
+        # DIFFERENT stratum, lemma_id pointing at the welsh root.
+        db.conn.execute(
+            "INSERT INTO etymon (canonical_form, language, lemma_id, stratum) VALUES (?, ?, ?, ?)",
+            ("caer", "middle-welsh", caer_root_id, "medieval-welsh"),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    # Both rows share form='caer'; the bucket emits exactly one entry.
+    assert word["celtic_mix"] == ["caer"]
+    # welsh > middle-welsh alphabetically → welsh's stratum wins.
+    assert word["celtic_mix_stratum"] == [
+        {"form": "caer", "stratum": "latin-loan"},
+    ]
+
+
+def test_export_meanings_stratum_via_reflex_linked_inflected_descendant(
+    fresh_db: Path,
+) -> None:
+    """The ``_word_for_reflex`` path walks ``member_descendants`` so a
+    reflex linked to a lemma picks up its inflected children's stratum
+    too. Pin that the descendant walk absorbs stratum from each
+    descendant, not just the directly-linked member.
+
+    Realistic shape: classify_welsh stamps stratum on every welsh-family
+    etymon including inflected children; the export must surface those
+    in the bundle so a Phase 3 generator filtering by stratum sees the
+    inflected forms alongside the lemma."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["valley"],
+            tags=["topography"],
+            modifier_type="Topographical",
+            words=[{"modern_usage": "Cwm-", "celtic_mix": ["cwm"]}],
+        )
+        # Relabel to welsh + stamp the lemma's stratum.
+        db.conn.execute(
+            "UPDATE etymon SET language = 'welsh', stratum = ? WHERE canonical_form = 'cwm'",
+            ("native-welsh",),
+        )
+        cwm_root_id = db.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = 'cwm' AND language = 'welsh'"
+        ).fetchone()["id"]
+        # Add an inflected child carrying its own (different) stratum.
+        # The reflex 'Cwm-' is already linked to cwm_root; the descendant
+        # walk in _word_for_reflex must absorb the child's stratum even
+        # though the reflex doesn't link directly to the child.
+        db.conn.execute(
+            "INSERT INTO etymon (canonical_form, language, lemma_id, inflection, stratum) "
+            "VALUES (?, ?, ?, ?, ?)",
+            ("cymau", "welsh", cwm_root_id, "plural", "english-loan"),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert set(word["celtic_mix"]) == {"cwm", "cymau"}
+    # Both strata surface — the descendant walk picked up the child's
+    # tag from its own etymon row, not the lemma's.
+    assert word["celtic_mix_stratum"] == [
+        {"form": "cwm", "stratum": "native-welsh"},
+        {"form": "cymau", "stratum": "english-loan"},
     ]
 
 
