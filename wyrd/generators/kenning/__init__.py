@@ -12,7 +12,11 @@ from wyrd.generators.kenning.era import era_cells_for_family, resolve_era_input
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.name import Name
 from wyrd.generators.kenning.proportions import load_proportions
-from wyrd.generators.kenning.strata import FRENCH_STRATA, WELSH_STRATA
+from wyrd.generators.kenning.strata import (
+    FRENCH_STRATA,
+    OLD_ENGLISH_STRATA,
+    WELSH_STRATA,
+)
 from wyrd.generators.kenning.word import Word
 from wyrd.registry import GenerationResult, Generator, register
 from wyrd.seed import rng_for
@@ -541,12 +545,13 @@ class Kenning(Generator):
                         "wyrd-lr4 Phase 3 within-language stratum filter. Restricts the "
                         "morpheme inventory to forms classified into a specific register "
                         f"bucket — for Welsh: {', '.join(repr(s) for s in WELSH_STRATA)}; "
-                        f"for French: {', '.join(repr(s) for s in FRENCH_STRATA)} "
-                        "(Old English / Old Norse follow). Morphemes with no stratum "
-                        "data pass through (Welsh and French families are classified "
-                        "today; Latin / OE / ON / etc. all admit until their classifiers "
-                        "ship). Composes with --era via intersection. Empty disables "
-                        "the filter — bit-stable behavior."
+                        f"for French: {', '.join(repr(s) for s in FRENCH_STRATA)}; for "
+                        f"Old English: {', '.join(repr(s) for s in OLD_ENGLISH_STRATA)} "
+                        "(Old Norse follows). Morphemes with no stratum data pass "
+                        "through (Welsh / French / Old English families are classified "
+                        "today; other languages all admit until their classifiers ship). "
+                        "Composes with --era via intersection. Empty disables the filter "
+                        "— bit-stable behavior."
                     ),
                 },
                 "manorial_affix": {

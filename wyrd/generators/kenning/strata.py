@@ -142,6 +142,111 @@ _FRENCH_SELF_LANGUAGE_TO_STRATUM: dict[str, str] = {
 }
 
 
+# --- Old English strata ---------------------------------------------------
+#
+# Four buckets, one fewer than Welsh / French. Listed in priority
+# order: when an etymon's parents include languages mapped to
+# multiple strata, the first match wins (so latin-loan displaces
+# norse-loan displaces celtic-substrate). The order encodes a
+# scholarly-historical convention rooted in how each layer entered
+# the language: Latin came through the institutional pipe of
+# Christianization (clerical, literate, top-down vocabulary that
+# permeated all dialects), Norse came through bottom-up settler
+# contact in a defined region (the Danelaw, ~800-1000 CE), and
+# Celtic substrate is the residual pre-Anglo-Saxon layer plus
+# post-conversion Goidelic influence via Northumbrian Christianity.
+# When evidence of multiple layers coexists on a single etymon, the
+# institutional / clerical signal carries the highest semantic
+# weight, the regional-settler signal next, and the residual /
+# substrate signal last.
+#
+# The umbrella ticket called for 'West Saxon vs Mercian vs Anglian
+# dialect strata; pre-Christian vs Christian-influenced vocabulary'.
+# The dialect axis is mostly unsupported by the actual data — the
+# live DB has 33 dialect-coded etymons in total (31 ``ang-ang``
+# (Anglian) + 2 ``ang-wsx`` (West Saxon), live survey 2026-05-07),
+# all orphans without descent edges. Phase 4b leaves them in
+# language-scope-outside the OE classifier (modern_lang is
+# 'old-english' only, self-language map empty), so they don't get
+# tagged today. A Phase 4d (manual hand-correction) or wave-2
+# dialect-corpus follow-up would extend the self-language map
+# and/or modern_lang scope; the classifier's two-pass shape is
+# ready for either. So the meaningful axis on Phase 4b is loan /
+# substrate signals: which post-native influence layered onto the
+# standard Germanic descent. Pre-Christian native vocabulary falls
+# into ``native-old-english`` by default.
+#
+# Like French, the standard descent path (gmw-pro / proto-germanic /
+# proto-indo-european) is intentionally ABSENT from the ancestor
+# map — every OE word descends from those, so including them would
+# collapse the bundle into one bucket and erase the loan
+# distinctions. Only meaningful loan / substrate ancestors go in
+# the map.
+#
+# Christian-influenced vocabulary maps cleanly to ``latin-loan`` —
+# Latin entered OE primarily via Christianization (~597 CE onward),
+# bringing church / literacy / learned-borrowing layers. Greek loans
+# of the same era arrived via Latin / clerical channels and are
+# folded into the same bucket. Norse-loan covers the Danelaw period
+# (~800-1000 CE). Celtic-substrate is rare (~60 etymons) but
+# distinct: pre-Anglo-Saxon Brittonic substrate visible in some
+# place names and topographical vocabulary.
+
+_OLD_ENGLISH_DEFAULT_STRATUM: str = "native-old-english"
+
+OLD_ENGLISH_STRATA: tuple[str, ...] = (
+    "latin-loan",
+    "norse-loan",
+    "celtic-substrate",
+    _OLD_ENGLISH_DEFAULT_STRATUM,
+)
+
+
+# Ancestor language → stratum bucket. An etymon with
+# ``language='old-english'`` whose ``etymon_descent`` parents include
+# any of these gets mapped to the corresponding stratum. The standard
+# Germanic descent path (gmw-pro / proto-germanic / proto-indo-european)
+# is intentionally absent — see the section comment above for the
+# rationale.
+#
+# Latin variants (la-lat / la-med / la-ecc / vulgar-latin) and
+# Christian-era Greek loans (which arrived in OE via Latin / clerical
+# channels) all fold into ``latin-loan``. The umbrella ticket's
+# 'Christian-influenced vocabulary' axis IS this bucket.
+#
+# Celtic ancestors include the proto / Brittonic codes plus
+# old-irish, since some OE words borrowed from Goidelic via Christian
+# missionary contact (post-597 CE Irish influence on Northumbrian
+# Christianity).
+_OLD_ENGLISH_ANCESTOR_TO_STRATUM: dict[str, str] = {
+    "latin": "latin-loan",
+    "la-lat": "latin-loan",
+    "la-med": "latin-loan",
+    "la-ecc": "latin-loan",
+    "vulgar-latin": "latin-loan",
+    "ancient-greek": "latin-loan",
+    "old-norse": "norse-loan",
+    "proto-celtic": "celtic-substrate",
+    "cel-bry-pro": "celtic-substrate",
+    "cel-bry": "celtic-substrate",
+    "cel": "celtic-substrate",
+    "old-irish": "celtic-substrate",
+}
+
+
+# Self-language → stratum. Empty for OE today. The live DB has 33
+# dialect-coded rows (31 ``ang-ang`` Anglian + 2 ``ang-wsx`` West
+# Saxon, live survey 2026-05-07) but they're all orphans without
+# descent edges, the dialect tagging is too sparse to support its
+# own bucket, and the per-dialect OE strata the umbrella ticket
+# scoped (West Saxon / Mercian / Anglian) would need a wave-2
+# dialect-corpus ingest to populate meaningfully. Until then the
+# self-language map stays empty and dialect-coded rows stay
+# unclassified. The classifier's two-pass shape is ready when the
+# data lands.
+_OLD_ENGLISH_SELF_LANGUAGE_TO_STRATUM: dict[str, str] = {}
+
+
 def _stratum_to_ancestors(
     ancestor_to_stratum: dict[str, str],
 ) -> dict[str, set[str]]:
@@ -291,9 +396,42 @@ def classify_french(db: LexiconDB) -> dict[int, str]:
     )
 
 
+def classify_old_english(db: LexiconDB) -> dict[int, str]:
+    """Return ``{etymon_id: stratum}`` for the Old English family.
+
+    Covers etymons whose ``language`` is ``old-english``, classified
+    by ancestor language via ``etymon_descent``. The Welsh / French
+    classifiers also handle ancestor varieties (cel-bry-pro,
+    middle-welsh, vulgar-latin, frk, ...) via the self-language map;
+    the OE classifier has no equivalent because the live DB has no
+    dialect or sub-period varieties (no ang-x-* rows).
+
+    Pure read. Skips ``merged_into_id IS NOT NULL`` rows.
+
+    Note on Germanic descent: gmw-pro / proto-germanic / proto-indo-
+    european are intentionally NOT in the ancestor map. Every OE
+    word descends from those via the standard Germanic path; treating
+    that as a 'germanic-inheritance' loan would collapse the bundle
+    into one bucket and erase the distinct loan signals (Latin from
+    Christianization, Norse from Danelaw, Celtic from substrate
+    contact). Same Latin-absence rationale as classify_french —
+    pinned by a regression test.
+    """
+    return _classify_family(
+        db,
+        modern_lang="old-english",
+        strata_order=OLD_ENGLISH_STRATA,
+        ancestor_to_stratum=_OLD_ENGLISH_ANCESTOR_TO_STRATUM,
+        self_lang_to_stratum=_OLD_ENGLISH_SELF_LANGUAGE_TO_STRATUM,
+        default_stratum=_OLD_ENGLISH_DEFAULT_STRATUM,
+    )
+
+
 __all__ = [
     "FRENCH_STRATA",
+    "OLD_ENGLISH_STRATA",
     "WELSH_STRATA",
     "classify_french",
+    "classify_old_english",
     "classify_welsh",
 ]
