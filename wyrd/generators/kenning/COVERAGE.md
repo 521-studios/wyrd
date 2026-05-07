@@ -104,6 +104,31 @@ the place-name corpus uses but Wiktionary slices don't have as
 headwords. Catching those needs either Wiktionary's modern-English
 slice (wyrd-iheo) or an explicit anglicization map (wyrd-1cjg).
 
+### 2026-05-07 — post-wyrd-1cjg (Irish anglicization sidecar)
+
+Hand-curated `data/irish_anglicizations.json` sidecar carrying 10
+anglicized Irish place-name elements (Bally-, Cloon-, Kil-, Knock-,
+Lis-, Glen-, Slieve-, Magh-/Moy-, Tully-, Derry-) keyed to the same
+gloss + language slot as their native Irish forms. `_load_meanings`
+unions the sidecar into the runtime `meaning_db` so the matcher
+recognizes both forms. Wiktionary indexes by native headword; the
+anglicized forms never surface from mining.
+
+Irish corpus only — no other cultures touched.
+
+| culture  | perfect | total  | rate    | Δ pp vs prior |
+|----------|--------:|-------:|--------:|--------------:|
+| irish    |    6039 | 34041  | 17.74%  |          +0.65 |
+
+Why the lift is modest: ~11,000 names use these anglicized prefixes
+but most also have unaccounted suffixes (Ballymacross → Bally + macross,
+where `macross` is itself unaccounted), so the prefix entry only
+fully resolves names where the rest is already accountable. The
++223 perfect names is narrow; the wider effect is that structure
+analysis now correctly attributes the prefix slot for ~25% of the
+Irish corpus, which downstream cohesion / proportions consumers
+benefit from regardless of the suffix gap.
+
 ## How to record a new snapshot
 
 After a bundle re-emit (`wyrd kenning lexicon export-meanings` →

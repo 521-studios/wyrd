@@ -132,8 +132,27 @@ def _data_path(filename: str):
 
 @lru_cache(maxsize=1)
 def _load_meanings():
+    """Load the bundled meanings, extending with anglicized-form sidecars.
+
+    The runtime meaning_db unions the main ``meanings.json`` (the
+    mining-pipeline-emitted bundle) with hand-curated sidecars that
+    cover morphemes the pipeline can't reach via Wiktionary headwords.
+
+    wyrd-1cjg: ``irish_anglicizations.json`` carries anglicized Irish
+    place-name elements (Bally-, Cloon-, Kil-, Knock-, etc.) keyed to
+    the same gloss + language slot as their native Irish forms. The
+    mining pipeline indexes Wiktionary by native headword (cluain,
+    baile, achadh) so the anglicized forms never surface — but ~27% of
+    the bundled Irish corpus uses anglicized prefixes, so omitting
+    them gut Irish coverage. Sidecar approach keeps the data
+    reviewable + lets a future Wiktionary modern-English-slice mining
+    pass supersede it without bundle re-emit.
+    """
     with _data_path("meanings.json").open() as f:
-        return load_meanings(json.load(f))
+        data = json.load(f)
+    with _data_path("irish_anglicizations.json").open() as f:
+        data.extend(json.load(f))
+    return load_meanings(data)
 
 
 @lru_cache(maxsize=len(CULTURES))
