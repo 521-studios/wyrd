@@ -816,6 +816,22 @@ def test_snippet_expander_returns_none_when_form_not_found() -> None:
     assert expander.make_snippet("test_book", "zzqxx", radius_before=20, radius_after=20) is None
 
 
+def test_snippet_expander_uses_word_boundary_anchor() -> None:
+    """Anchor parity with fuzzy/reverse-search: the expander must
+    locate the standalone form, not a substring inside a longer word.
+    Without ``\\b`` the expander would anchor on 'heath' inside
+    'heathen' (idx 0) and widen around the wrong position; with the
+    boundary it skips to the standalone 'heath' (idx ~14)."""
+    body = "the heathens lived where heath rolled to the sea"
+    expander = SnippetExpander.from_in_memory({"test_book": body})
+    snippet = expander.make_snippet("test_book", "heath", radius_before=10, radius_after=10)
+    assert snippet is not None
+    # The bracketed form sits in the standalone-'heath' window, well
+    # past the leading 'heathens'.
+    assert "«heath»" in snippet
+    assert "heathens" not in snippet
+
+
 def test_snippet_expander_widens_around_same_position() -> None:
     """A second `make_snippet` with a larger radius produces a strict
     superset (after stripping markers) — the orchestrator relies on
@@ -995,6 +1011,12 @@ def test_disambiguate_one_agentic_caps_total_chars(monkeypatch) -> None:
     # Cap forced an early-commit branch — only the two scripted calls
     # ran, even though max_expansions=5 in principle allowed more.
     assert queue == []
+    # The wider snippet was discarded (would have garbled the «...»
+    # marker on byte-truncate), so the model committed on the original
+    # snippet under the FINAL ROUND directive — that's a forced commit.
+    assert stats.forced_commit is True
+    # Zero honored expansions — every widening was rejected by the cap.
+    assert stats.expansions == 0
 
 
 def test_disambiguate_one_agentic_treats_unknown_action_as_none(monkeypatch) -> None:

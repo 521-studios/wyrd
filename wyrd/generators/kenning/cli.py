@@ -3297,14 +3297,17 @@ def lexicon_fuzzy_search(
 )
 @click.option(
     "--max-expansions",
-    type=int,
+    # >=0 — zero means "no expansions, force commit on round 0",
+    # which is a valid degenerate config equivalent to single-shot
+    # but with the agentic schema's defensive parsing.
+    type=click.IntRange(min=0),
     default=3,
     show_default=True,
     help="Max expand-context rounds per case (only used with --agentic).",
 )
 @click.option(
     "--total-char-cap",
-    type=int,
+    type=click.IntRange(min=1),
     default=2000,
     show_default=True,
     help="Hard cap on total snippet chars per case (only used with --agentic).",

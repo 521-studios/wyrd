@@ -19,6 +19,7 @@ Two flavors:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -116,20 +117,12 @@ def _format_candidates(candidates: tuple[Candidate, ...]) -> str:
     return "\n".join(lines)
 
 
-def disambiguate_one(client: GeminiClient, case: AmbiguityCase) -> DisambiguatorResult:
-    """Ask the LLM which of `case.candidates` fits the passage in `case.snippet`.
-
-    Returns a `DisambiguatorResult`. The chosen_etymon_id is:
-      - one of the candidate ids, when the LLM picks a clear winner
-      - None, when the LLM says "none of these match"
-    """
-    user = (
-        f"PASSAGE:\n{case.snippet}\n\n"
-        f"The body text contains the surface form '{case.matched_form}'. "
-        f"Which of these candidate morphemes (if any) is being described or "
-        f"used here?\n\nCANDIDATES:\n{_format_candidates(case.candidates)}\n"
-    )
-    response = client.chat_json(_SYSTEM_PROMPT, user, response_schema=DISAMBIGUATOR_SCHEMA)
+def _parse_answer(response: dict, candidates: tuple[Candidate, ...]) -> DisambiguatorResult:
+    """Parse a verdict-shaped response (``choice``/``confidence``/``reason``)
+    into a `DisambiguatorResult`. Shared between the single-shot
+    ``disambiguate_one`` and the agentic loop's terminal branch so the
+    validation rules (id-must-be-in-candidates, non-numeric → 'low none',
+    'none'/'' → None) stay in one place."""
     choice_str = (response.get("choice") or "").strip()
     confidence = response.get("confidence", "low")
     reason = (response.get("reason") or "").strip()
@@ -146,7 +139,7 @@ def disambiguate_one(client: GeminiClient, case: AmbiguityCase) -> Disambiguator
             confidence="low",
             reason=f"model returned non-id choice: {choice_str!r}",
         )
-    valid_ids = {c.etymon_id for c in case.candidates}
+    valid_ids = {c.etymon_id for c in candidates}
     if chosen_id not in valid_ids:
         return DisambiguatorResult(
             chosen_etymon_id=None,
@@ -154,6 +147,23 @@ def disambiguate_one(client: GeminiClient, case: AmbiguityCase) -> Disambiguator
             reason=f"model chose id {chosen_id} which isn't a candidate; reason was: {reason}",
         )
     return DisambiguatorResult(chosen_etymon_id=chosen_id, confidence=confidence, reason=reason)
+
+
+def disambiguate_one(client: GeminiClient, case: AmbiguityCase) -> DisambiguatorResult:
+    """Ask the LLM which of `case.candidates` fits the passage in `case.snippet`.
+
+    Returns a `DisambiguatorResult`. The chosen_etymon_id is:
+      - one of the candidate ids, when the LLM picks a clear winner
+      - None, when the LLM says "none of these match"
+    """
+    user = (
+        f"PASSAGE:\n{case.snippet}\n\n"
+        f"The body text contains the surface form '{case.matched_form}'. "
+        f"Which of these candidate morphemes (if any) is being described or "
+        f"used here?\n\nCANDIDATES:\n{_format_candidates(case.candidates)}\n"
+    )
+    response = client.chat_json(_SYSTEM_PROMPT, user, response_schema=DISAMBIGUATOR_SCHEMA)
+    return _parse_answer(response, case.candidates)
 
 
 # --- Agentic disambiguator (wyrd-uct) -------------------------------------
@@ -192,17 +202,25 @@ _AGENTIC_MAX_EXPANSION_CHARS = 500
 _AGENTIC_DEFAULT_MAX_EXPANSIONS = 3
 _AGENTIC_DEFAULT_TOTAL_CHAR_CAP = 2000
 
+# Fallback expansion size when the model returns ``action='expand'``
+# but omits ``chars`` (or returns a non-positive value). 200 chars per
+# side roughly doubles the initial ±100-char window, which is the
+# smallest expansion likely to surface a new resolving cue.
+_AGENTIC_DEFAULT_REQUEST_CHARS = 200
+
 
 @dataclass(frozen=True)
 class ExpansionStats:
     """Per-case telemetry for the agentic loop.
 
-    ``expansions`` is the number of widened-context rounds the model
-    requested before committing. ``final_chars`` is the size of the
-    snippet at commit time. ``forced_commit`` is True when the loop hit
-    the cap and the model didn't volunteer an answer — useful for tuning
-    the default starting window (a case that always forces a commit
-    suggests the initial radius is too narrow for that source/pattern).
+    ``expansions`` is the number of widened-context rounds that
+    actually grew the snippet (model said 'expand' AND the orchestrator
+    honored it). ``final_chars`` is the size of the snippet at commit
+    time. ``forced_commit`` is True when the orchestrator forced the
+    model to commit on the final round (cap reached, total-char-cap
+    truncation, or the expander couldn't produce more context) — a
+    case that always forces a commit suggests the initial radius is
+    too narrow for that source/pattern.
     """
 
     expansions: int
@@ -268,11 +286,17 @@ class SnippetExpander:
         radius_before: int,
         radius_after: int,
     ) -> str | None:
-        """Find the first occurrence of ``matched_form`` in the body
-        text for ``source_id`` and return a snippet of the requested
-        radius around it. Same marker convention as
+        """Find the first ``\\b``-bounded occurrence of ``matched_form``
+        in the body for ``source_id`` and return a snippet of the
+        requested radius around it. Same marker convention as
         ``reverse_search_attestations`` (``«matched_form»``) so the LLM
         prompt highlights the form being disambiguated.
+
+        Word-boundary anchored to mirror ``fuzzy_search_attestations`` /
+        ``reverse_search_attestations`` — using a plain ``str.find``
+        would silently anchor onto a substring of a longer word
+        (e.g. ``heath`` inside ``heathen``) and expand around the wrong
+        position.
 
         Returns None when the source isn't loadable or the form isn't
         found — callers force a commit on the widest snippet they have.
@@ -281,9 +305,10 @@ class SnippetExpander:
         if body is None:
             return None
         norm = normalize_ocr_form(matched_form)
-        idx = body.find(norm)
-        if idx < 0:
+        match = re.search(r"\b" + re.escape(norm) + r"\b", body)
+        if match is None:
             return None
+        idx = match.start()
         start = max(0, idx - radius_before)
         end = min(len(body), idx + len(norm) + radius_after)
         snippet = body[start:end].strip()
@@ -331,8 +356,10 @@ AGENTIC_RESPONSE_SCHEMA: dict = {
         "chars": {
             "type": "INTEGER",
             "description": (
-                "When action='expand': how many chars to add per side "
-                f"({_AGENTIC_MIN_EXPANSION_CHARS}-{_AGENTIC_MAX_EXPANSION_CHARS})."
+                "When action='expand': how many chars to add to each "
+                f"chosen side ({_AGENTIC_MIN_EXPANSION_CHARS}-"
+                f"{_AGENTIC_MAX_EXPANSION_CHARS}). For direction='both', "
+                "chars are added to BOTH sides — total widening is 2×chars."
             ),
         },
     },
@@ -354,7 +381,9 @@ _AGENTIC_SYSTEM_PROMPT = (
     "    a one-sentence reason.\n"
     "  - To request more context: respond with action='expand', direction "
     "    ('before'|'after'|'both'), and chars "
-    f"    ({_AGENTIC_MIN_EXPANSION_CHARS}-{_AGENTIC_MAX_EXPANSION_CHARS}).\n\n"
+    f"    ({_AGENTIC_MIN_EXPANSION_CHARS}-{_AGENTIC_MAX_EXPANSION_CHARS}). "
+    "    chars are added to each chosen side, so direction='both' "
+    "    widens by 2×chars total.\n\n"
     "Use 'expand' only when more text would resolve a real ambiguity. "
     "Prefer answering with choice='none' over chasing context indefinitely."
 )
@@ -381,34 +410,6 @@ def _format_agentic_user(case: AmbiguityCase, snippet: str, *, force_commit: boo
         f"or used here?\n\nCANDIDATES:\n{_format_candidates(case.candidates)}"
         f"{final_note}\n"
     )
-
-
-def _parse_answer(response: dict, candidates: tuple[Candidate, ...]) -> DisambiguatorResult:
-    """Parse an action='answer' response into a DisambiguatorResult,
-    using the same validation rules as ``disambiguate_one`` (id-must-
-    be-in-candidates, non-numeric → 'low none', etc.)."""
-    choice_str = (response.get("choice") or "").strip()
-    confidence = response.get("confidence", "low")
-    reason = (response.get("reason") or "").strip()
-
-    if choice_str.lower() == "none" or not choice_str:
-        return DisambiguatorResult(chosen_etymon_id=None, confidence=confidence, reason=reason)
-    try:
-        chosen_id = int(choice_str)
-    except ValueError:
-        return DisambiguatorResult(
-            chosen_etymon_id=None,
-            confidence="low",
-            reason=f"model returned non-id choice: {choice_str!r}",
-        )
-    valid_ids = {c.etymon_id for c in candidates}
-    if chosen_id not in valid_ids:
-        return DisambiguatorResult(
-            chosen_etymon_id=None,
-            confidence="low",
-            reason=f"model chose id {chosen_id} which isn't a candidate; reason was: {reason}",
-        )
-    return DisambiguatorResult(chosen_etymon_id=chosen_id, confidence=confidence, reason=reason)
 
 
 def disambiguate_one_agentic(
@@ -439,27 +440,35 @@ def disambiguate_one_agentic(
     radius_after = _AGENTIC_INITIAL_RADIUS
     current_snippet = case.snippet
     expansions = 0
+    # ``force_next_round`` is the dedicated short-circuit signal: set
+    # when the orchestrator can't honor an expansion (source missing,
+    # form not found, or new snippet exceeds total_char_cap). Kept
+    # separate from ``expansions`` so stats remain truthful — a
+    # cap-truncation at round 0 yields expansions=0/forced_commit=True,
+    # which a caller can distinguish from "model hit the natural cap
+    # after 3 honored widenings".
+    force_next_round = False
+    last_action = ""
 
-    # Loop bound: ``max_expansions + 1`` rounds — up to N expansion
-    # rounds + one final forced-commit round. ``force_commit`` is
-    # derived from ``expansions`` (not ``round_idx``) so that
-    # short-circuit paths (source missing, cap reached) can advance
-    # ``expansions = max_expansions`` and trigger the forced-commit on
-    # the NEXT iteration instead of waiting for round_idx to catch up.
-    for round_idx in range(max_expansions + 1):
-        force_commit = expansions >= max_expansions
+    # Loop bound: ``max_expansions + 1`` rounds — up to N honored
+    # expansion rounds + one final forced-commit round. The forced-
+    # commit gate fires when EITHER the natural expansions cap is hit
+    # OR a short-circuit set ``force_next_round``.
+    for _ in range(max_expansions + 1):
+        force_commit = force_next_round or expansions >= max_expansions
         prompt = _format_agentic_user(case, current_snippet, force_commit=force_commit)
         response = client.chat_json(
             _AGENTIC_SYSTEM_PROMPT, prompt, response_schema=AGENTIC_RESPONSE_SCHEMA
         )
         action = (response.get("action") or "").lower()
+        last_action = action
 
         if action == "answer":
             result = _parse_answer(response, case.candidates)
             return result, ExpansionStats(
                 expansions=expansions,
                 final_chars=len(current_snippet),
-                forced_commit=False,
+                forced_commit=force_commit,
             )
 
         if action != "expand" or force_commit:
@@ -471,8 +480,8 @@ def disambiguate_one_agentic(
                     chosen_etymon_id=None,
                     confidence="low",
                     reason=(
-                        f"model failed to commit after {round_idx} round(s); "
-                        f"final action was {action!r}"
+                        f"model failed to commit after {expansions} honored "
+                        f"expansion(s); final action was {action!r}"
                     ),
                 ),
                 ExpansionStats(
@@ -482,7 +491,7 @@ def disambiguate_one_agentic(
                 ),
             )
 
-        # action == 'expand' AND not the final round — widen.
+        # action == 'expand' AND not the final round — try to widen.
         direction = (response.get("direction") or "both").lower()
         if direction not in ("before", "after", "both"):
             direction = "both"
@@ -491,15 +500,11 @@ def disambiguate_one_agentic(
         except (TypeError, ValueError):
             chars = 0
         if chars <= 0:
-            chars = 200  # sensible default if model omits
+            chars = _AGENTIC_DEFAULT_REQUEST_CHARS
         chars = max(_AGENTIC_MIN_EXPANSION_CHARS, min(chars, _AGENTIC_MAX_EXPANSION_CHARS))
 
-        new_radius_before = radius_before
-        new_radius_after = radius_after
-        if direction in ("before", "both"):
-            new_radius_before += chars
-        if direction in ("after", "both"):
-            new_radius_after += chars
+        new_radius_before = radius_before + (chars if direction in ("before", "both") else 0)
+        new_radius_after = radius_after + (chars if direction in ("after", "both") else 0)
 
         new_snippet = expander.make_snippet(
             case.source_id,
@@ -508,35 +513,36 @@ def disambiguate_one_agentic(
             radius_after=new_radius_after,
         )
         if new_snippet is None or new_snippet == current_snippet:
-            # No new context available (source missing, form not found,
-            # or already at body bounds). Skip ahead to the final round
-            # so the model is asked to commit on what we have.
-            radius_before = new_radius_before
-            radius_after = new_radius_after
-            expansions = max_expansions  # forces the next iteration's force_commit
+            # Source missing, form not found, or already at body bounds.
+            # Snippet didn't change — keep state, force next iteration
+            # to commit on what we have.
+            force_next_round = True
             continue
 
         if len(new_snippet) > total_char_cap:
-            # Truncate to cap and skip ahead — we can't honor more
-            # expansions even if the model asks. Keep the final round
-            # to give the model a chance to commit on the widest snippet.
-            new_snippet = new_snippet[:total_char_cap]
-            current_snippet = new_snippet
-            expansions = max_expansions
+            # Wider snippet would exceed cap. Discard the widening and
+            # force commit on the previous snippet; feeding a
+            # marker-truncated slice to the model would garble the
+            # «...» highlight that anchors the question.
+            force_next_round = True
             continue
 
         radius_before, radius_after = new_radius_before, new_radius_after
         current_snippet = new_snippet
         expansions += 1
 
-    # Loop exit without an answer is unreachable (force_commit on the
-    # last iteration always returns), but defensive fallback satisfies
-    # the type checker.
+    # Loop exit without an answer is unreachable: the final iteration
+    # always sets force_commit=True, which forces the action!='answer'
+    # branch above to return. Defensive fallback satisfies the type
+    # checker and surfaces a loud reason if the invariant ever breaks.
     return (
         DisambiguatorResult(
             chosen_etymon_id=None,
             confidence="low",
-            reason="agentic loop exited without commit",
+            reason=(
+                f"agentic loop exited unexpectedly after {expansions} "
+                f"honored expansion(s); last action {last_action!r}"
+            ),
         ),
         ExpansionStats(
             expansions=expansions,
