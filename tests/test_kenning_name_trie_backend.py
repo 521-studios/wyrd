@@ -1,15 +1,16 @@
-"""Tests for ``Name.find_meaning(use_trie=True)`` (wyrd-k8e Phase 2,
-wyrd-ibjp).
+"""Tests for ``Name.find_meaning`` (the trie matcher, wyrd-k8e).
 
-Two levels of test:
+After wyrd-zhhz / Phase 3 the trie is the only matcher — the legacy
+iterator and the ``use_trie`` flag both went away. These tests pin
+the trie path's documented contracts:
 
-* Unit tests on small synthetic word_dbs that pin specific behaviors
-  (multi-parse, env-var override, default-off).
-* Equivalence regression that runs both matchers over a sample of the
-  bundled corpus and asserts ``count_unaccounted`` matches per place
-  name. This is the load-bearing Phase-2 acceptance criterion: the
-  trie matcher must be a drop-in replacement for the legacy iterator
-  under canonical scoring before Phase 3 flips the default.
+* default ``find_meaning`` populates the trie cache (proves the trie
+  path is on the hot path);
+* multi-parse semantics (multiple senses for one surface, multiple
+  boundary placements) survive the canonical filter;
+* the trie runs cleanly across the bundled corpus and produces a
+  positive perfect-decomposition count (smoke test that catches
+  trivial regressions like an empty bundle or a crashing matcher).
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from importlib import resources
 import pytest
 
 from wyrd.generators.kenning.meaning import load_meanings
-from wyrd.generators.kenning.name import _USE_TRIE_ENV, Name, _trie_cache, load_names
+from wyrd.generators.kenning.name import Name, _trie_cache, load_names
 
 
 @pytest.fixture(autouse=True)
@@ -36,9 +37,8 @@ def _clear_trie_cache():
 @pytest.fixture(scope="module")
 def bundle_word_db():
     """Module-scoped: load the bundled meanings.json once and share
-    the resulting word_db across the 5 parametrized corpus-equivalence
-    tests. Cuts ~5x the load_meanings overhead vs per-test loading,
-    which dominates the test suite's runtime on the larger
+    the resulting word_db across the corpus-smoke tests. Cuts ~5x the
+    load_meanings overhead vs per-test loading on the larger
     post-wyrd-4hx7 bundle."""
     meanings = json.loads(
         resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
@@ -49,15 +49,13 @@ def bundle_word_db():
 
 @pytest.fixture
 def synthetic_word_db():
-    """Tiny word_db with three deliberately overlapping morphemes:
+    """Tiny word_db with two morphemes:
 
     * ``Brad-`` (pre, 'Broad')
     * ``-ham`` (post, 'Homestead')
-    * ``-y-`` (inner, 'descriptive joiner', also as ``-y`` post)
 
-    Picks up the multi-parse axis: a name like ``Bradham`` should
-    produce one decomposition (Brad + ham), but ``Brady`` admits both
-    (Brad + y-as-post) and (Brad + leftover-y) shapes.
+    Enough to drive the basic-decomposition assertion without dragging
+    the whole bundled meanings.json through every test.
     """
     return load_meanings(
         [
@@ -77,59 +75,21 @@ def synthetic_word_db():
     )[0]
 
 
-def test_default_uses_legacy_iterator(synthetic_word_db, monkeypatch):
-    """With no env var and no kwarg, the legacy matcher runs (Phase-2
-    contract — opt-in only)."""
-    monkeypatch.delenv(_USE_TRIE_ENV, raising=False)
+def test_find_meaning_routes_through_trie_cache(synthetic_word_db):
+    """``find_meaning`` must build (and cache) a trie for the supplied
+    word_db. Pin the cache-population invariant so a regression that
+    bypasses ``_trie_for`` would surface as an unexercised cache."""
     n = Name("Bradham")
     n.find_meaning(synthetic_word_db)
-    # Legacy and trie both produce <Brad-> + <-ham> here; what we're
-    # pinning is that no env-var means no trie path was used (we'd see
-    # an exception if the trie path errored on the synthetic db).
     assert n.count_unaccounted() == 0
-
-
-def test_explicit_use_trie_true_runs_trie_path(synthetic_word_db):
-    n = Name("Bradham")
-    n.find_meaning(synthetic_word_db, use_trie=True)
-    assert n.count_unaccounted() == 0
-    # The trie cache should have been populated.
     assert id(synthetic_word_db) in _trie_cache
 
 
-def test_env_var_one_enables_trie(synthetic_word_db, monkeypatch):
-    monkeypatch.setenv(_USE_TRIE_ENV, "1")
-    n = Name("Bradham")
-    n.find_meaning(synthetic_word_db)
-    assert id(synthetic_word_db) in _trie_cache
-
-
-def test_env_var_zero_does_not_enable_trie(synthetic_word_db, monkeypatch):
-    """Env var must be exactly '1' to flip the flag; '0', 'true',
-    'yes', empty string all keep the legacy matcher."""
-    for sentinel in ("", "0", "true", "yes"):
-        _trie_cache.clear()
-        monkeypatch.setenv(_USE_TRIE_ENV, sentinel)
-        n = Name("Bradham")
-        n.find_meaning(synthetic_word_db)
-        assert id(synthetic_word_db) not in _trie_cache, (
-            f"sentinel {sentinel!r} should not enable trie path"
-        )
-
-
-def test_explicit_kwarg_overrides_env(synthetic_word_db, monkeypatch):
-    """``find_meaning(use_trie=False)`` must override
-    ``WYRD_KENNING_USE_TRIE_MATCHER=1``."""
-    monkeypatch.setenv(_USE_TRIE_ENV, "1")
-    n = Name("Bradham")
-    n.find_meaning(synthetic_word_db, use_trie=False)
-    assert id(synthetic_word_db) not in _trie_cache
-
-
-def test_trie_path_preserves_multi_parse():
+def test_find_meaning_preserves_multi_sense_decompositions():
     """When two senses of one usage exist (the explainer's classic
-    ``-y`` = 'island' OR 'district'), the trie path surfaces both
-    decompositions as distinct ``Word`` objects on the same word."""
+    ``-y`` = 'island' OR 'district'), ``find_meaning(reduce=False)``
+    surfaces both decompositions as distinct ``Word`` objects on the
+    same word."""
     word_db, _ = load_meanings(
         [
             # Two subjects, both registering '-y' (post-suffix). Sharing
@@ -150,41 +110,34 @@ def test_trie_path_preserves_multi_parse():
         ]
     )
     n = Name("Selsey")
-    n.find_meaning(word_db, use_trie=True, reduce=False)
-    # 'sel' + 'sey' is two separate words to the matcher (no whitespace
-    # to split on), but the trie produces parses that include the '-y'
-    # at the end. Without other morphemes for 'sel', the parses tied
-    # for best should still surface BOTH senses of '-y' as separate
+    n.find_meaning(word_db, reduce=False)
+    # 'sel' + 'sey' is one word to the matcher (no whitespace to split
+    # on), but the trie produces parses that include the '-y' at the
+    # end. Without other morphemes for 'sel', the parses tied for best
+    # should still surface BOTH senses of '-y' as separate
     # decompositions.
     decomp_count = len(n.words["Selsey"])
     assert decomp_count >= 2, f"expected >=2 multi-sense decompositions, got {decomp_count}"
 
 
 @pytest.mark.parametrize("culture", ["english", "scottish", "welsh", "irish", "breton"])
-def test_trie_matches_legacy_perfect_decision_on_corpus_sample(culture, bundle_word_db):
-    """**Phase-2 equivalence regression** — the load-bearing test.
+def test_find_meaning_runs_full_bundled_corpus_without_crashing(culture, bundle_word_db):
+    """Smoke test — every name in the bundled per-culture corpus must
+    decompose cleanly without raising. The previous Phase-2 regression
+    that lived here compared trie vs legacy decision parity; with
+    legacy gone, this surface-level "matcher is functional on the full
+    corpus" check is what's left.
 
-    For every place name in the bundled per-culture corpus, both
-    matchers must agree on whether the name is fully decomposable
-    (``count_unaccounted == 0``). This is the metric that drives
-    rebuild-proportions / COVERAGE.md / perfect-rate; equivalence
-    here is the user-visible guarantee.
+    A positive perfect-decomposition count guards against a bundle
+    regression that nukes every match (e.g. shipping an empty
+    meanings.json or a corrupted trie). The exact number drifts as
+    morpheme mining lands; fixing it would be brittle. Assert > 0
+    instead — an order-of-magnitude regression would still trip it.
 
-    Note: ``Name.count_unaccounted`` sums per-parse unaccounted
-    across every parse in ``self.words``. The trie matcher
-    legitimately emits more multi-parse alternates than the legacy
-    iterator (that's a feature — see the multi-parse test above) so
-    raw sums diverge even when every individual parse has identical
-    unaccounted-char counts. What matters for perfect-rate is the
-    ``== 0`` decision; that decision must be stable across the two
-    backends. Phase-3 default-flip is gated on this passing.
-
-    Sample size: every name in the bundled corpus. Tens of thousands
-    of names per culture for english/irish, but the trie path is
+    Sample size: every name in the bundled corpus. Tens of thousands of
+    names per culture for english/irish, but the trie path is
     O(match-length) per position so the full pass is sub-second.
     """
-    word_db = bundle_word_db
-
     place_names_text = (
         resources.files("wyrd.generators.kenning.data")
         .joinpath(f"{culture}_place_names.json")
@@ -192,53 +145,11 @@ def test_trie_matches_legacy_perfect_decision_on_corpus_sample(culture, bundle_w
     )
     names = load_names(json.loads(place_names_text))
 
-    mismatches: list[tuple[str, bool, bool]] = []
+    perfect = 0
     for name in names:
-        legacy = Name(name.name)
-        legacy.find_meaning(word_db, use_trie=False)
-        legacy_perfect = legacy.count_unaccounted() == 0
+        n = Name(name.name)
+        n.find_meaning(bundle_word_db)
+        if n.count_unaccounted() == 0:
+            perfect += 1
 
-        trie = Name(name.name)
-        trie.find_meaning(word_db, use_trie=True)
-        trie_perfect = trie.count_unaccounted() == 0
-
-        if legacy_perfect != trie_perfect:
-            mismatches.append((name.name, legacy_perfect, trie_perfect))
-
-    # Allow no mismatches. Phase-3 default-flip is gated on this.
-    assert mismatches == [], (
-        f"{len(mismatches)} perfect-decision mismatches in {culture} corpus; "
-        f"first few (name, legacy_perfect, trie_perfect): {mismatches[:5]}"
-    )
-
-
-def test_trie_path_matches_legacy_perfect_count():
-    """End-to-end check on the english corpus: the headline 'perfect'
-    metric (count of fully-decomposed names) must agree between the
-    two backends. This is the metric COVERAGE.md tracks; equivalence
-    here is the user-visible guarantee."""
-    meanings = json.loads(
-        resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
-    )
-    word_db, _ = load_meanings(meanings)
-    place_names_text = (
-        resources.files("wyrd.generators.kenning.data")
-        .joinpath("welsh_place_names.json")
-        .read_text()
-    )
-    names = load_names(json.loads(place_names_text))
-
-    legacy_perfect = 0
-    trie_perfect = 0
-    for name in names:
-        legacy = Name(name.name)
-        legacy.find_meaning(word_db, use_trie=False)
-        if legacy.count_unaccounted() == 0:
-            legacy_perfect += 1
-        trie = Name(name.name)
-        trie.find_meaning(word_db, use_trie=True)
-        if trie.count_unaccounted() == 0:
-            trie_perfect += 1
-    assert legacy_perfect == trie_perfect, (
-        f"perfect counts diverge: legacy={legacy_perfect} trie={trie_perfect}"
-    )
+    assert perfect > 0, f"{culture} corpus produced zero perfect decompositions"

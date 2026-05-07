@@ -21,12 +21,12 @@ segmentation DAG with multi-path enumeration**:
   ALL of them. See the unit tests for the canonical multi-parse axes.
 
 Foundation for wyrd-08m (decomposition multiplicity) and wyrd-cv3
-(corpus DB ingest). Replaces the morpheme-iteration matcher
-(Word.extract_meanings) which was O(M) per word per recursion level.
-Phase 1 ships the matcher as a standalone module with its own unit
-tests. Phase 2 wires it into Name.find_meaning behind a flag and runs
-a bundled-corpus equivalence regression. Phase 3 makes it the default
-and removes the legacy iterator.
+(corpus DB ingest). Superseded the original Rando-port morpheme-
+iteration matcher (Word.extract_meanings, removed in Phase 3 /
+wyrd-zhhz) which was O(M) per word per recursion level — this trie
+form is O(match-length) per position. Phase 3 / wyrd-zhhz made the
+trie the only matcher; the use_trie flag and the iterator both went
+away.
 
 Design:
 
@@ -179,8 +179,9 @@ def _find_matches_at(
 def _location_allows(meaning: Any, start: int, end: int, word_length: int) -> bool:
     """Filter a candidate match by its Meaning's position constraint.
     A 'pre' morpheme must start at position 0; a 'post' must end at
-    word_length; 'inner' (or unset) can match anywhere. Mirrors the
-    exact filter in the legacy Word.extract_meanings."""
+    word_length; 'inner' (or unset) can match anywhere. Same anchor
+    semantics the original Rando-port iterator enforced before the
+    trie matcher superseded it."""
     location = _location_for(meaning)
     if location == "pre":
         return start == 0

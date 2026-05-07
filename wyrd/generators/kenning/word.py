@@ -40,37 +40,6 @@ class Word:
     def size(self):
         return len(self.word)
 
-    def extract_meanings(self, meanings):
-        results = []
-        w = list(self.word)
-        prior: list = []
-        while len(w) > 0:
-            curr = w.pop(0)
-            if isinstance(curr, str):
-                for meaning in meanings:
-                    parts = None
-                    if (
-                        (len(w) == 0 and meaning.location == "post")
-                        or (len(prior) == 0 and meaning.location == "pre")
-                        or meaning.location == "inner"
-                    ):
-                        parts = meaning.test(curr)
-                    if parts:
-                        result = []
-                        result.extend(prior)
-                        result.extend(parts)
-                        result.extend(w)
-                        results.append(Word([r for r in result if r != ""]))
-            prior.append(curr)
-        summed_results: list[Word] = []
-        for r in results:
-            nr = r.extract_meanings(meanings)
-            if len(nr) == 0:
-                summed_results.append(r)
-            else:
-                summed_results.extend(nr)
-        return summed_results
-
     def count_unaccounted(self):
         size = 0
         for w in self.word:

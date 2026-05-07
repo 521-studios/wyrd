@@ -92,9 +92,6 @@ class Meaning:
             f"sources: {self.sources}, location: {self.location}}}"
         )
 
-    def word_has_meaning(self, word):
-        return word.find(str(self)) > -1
-
     def test(self, word):
         # str(self) lowercases the usage, so all matching is case-insensitive.
         # Slice (not str.replace) to strip the matched span without depending on
