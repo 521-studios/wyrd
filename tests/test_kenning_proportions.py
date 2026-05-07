@@ -685,6 +685,95 @@ def test_components_citation_is_empty_list_when_no_citations():
     assert components[0]["citations"] == []
 
 
+def test_components_renderings_is_empty_dict_when_no_phase2d_data():
+    """wyrd-qhs0 Phase 2d: components always carry a 'renderings' key
+    so the SPA panel can iterate uniformly. Empty dict signals 'no
+    wyrd-ha9q rendering data' (Latin-script source langs, older
+    bundles). The SPA's _renderProvenancePanel skips when ALL
+    components have empty renderings."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import NewName
+
+    m = Meaning("-cot", [], ["cottage"], {"old_english": ["cot"]})
+    new_name = NewName(
+        struct=None,
+        meaning_db={"-cot": [m]},
+        name=[["-cot"]],
+    )
+    components = new_name.components()
+    assert components[0]["renderings"] == {}
+
+
+def test_components_renderings_aggregates_four_phase2d_columns():
+    """A Meaning with Phase 2d data on all four columns surfaces them
+    in components() under the renderings dict, keyed by lang_field
+    then canonical_form. Each form gets a slot dict with whichever
+    of (original_script, transliteration, english_shaped, ipa,
+    dialect) the lexicon supplied. Pinned because this is the wire
+    contract the SPA's _renderProvenancePanel reads."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import NewName
+
+    m = Meaning(
+        "-golem",
+        [],
+        ["golem"],
+        {"hebrew": ["גולם"]},
+        original_script={"hebrew": {"גולם": "גוֹלֶם"}},
+        transliteration={"hebrew": {"גולם": "gōlem"}},
+        english_shaped={"hebrew": {"גולם": "golem"}},
+        pronunciation={"hebrew": {"גולם": {"ipa": "/ɡoːlɛm/", "dialect": "Modern-Hebrew"}}},
+    )
+    new_name = NewName(
+        struct=None,
+        meaning_db={"-golem": [m]},
+        name=[["-golem"]],
+    )
+    components = new_name.components()
+    assert components[0]["renderings"] == {
+        "hebrew": {
+            "גולם": {
+                "original_script": "גוֹלֶם",
+                "transliteration": "gōlem",
+                "english_shaped": "golem",
+                "ipa": "/ɡoːlɛm/",
+                "dialect": "Modern-Hebrew",
+            }
+        }
+    }
+
+
+def test_components_renderings_partial_data_only_surfaces_present_keys():
+    """If a Meaning carries only SOME of the four rendering columns
+    (e.g. transliteration + english_shaped but no IPA / native script),
+    the slot dict has only the keys that actually exist. Consumers
+    rely on this: the SPA panel iterates known keys with .get() and
+    skips missing ones rather than rendering 'None'."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import NewName
+
+    m = Meaning(
+        "-jinn",
+        [],
+        ["spirit"],
+        {"arabic": ["جن"]},
+        transliteration={"arabic": {"جن": "ǧinn"}},
+        english_shaped={"arabic": {"جن": "jinn"}},
+    )
+    new_name = NewName(
+        struct=None,
+        meaning_db={"-jinn": [m]},
+        name=[["-jinn"]],
+    )
+    slot = new_name.components()[0]["renderings"]["arabic"]["جن"]
+    assert slot == {"transliteration": "ǧinn", "english_shaped": "jinn"}
+    # Absent keys ARE absent (not None-valued) so the SPA's truthy
+    # check on `value` correctly skips them.
+    assert "original_script" not in slot
+    assert "ipa" not in slot
+    assert "dialect" not in slot
+
+
 # --- wyrd-yan: fiction-tag exclusion gate -------------------------------
 
 

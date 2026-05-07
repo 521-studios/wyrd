@@ -378,6 +378,14 @@ function _renderResultItem(r) {
     const citations = _renderCitationsDetail(r.components || []);
     if (citations) li.appendChild(citations);
 
+    // wyrd-qhs0 Phase 2d: etymological-provenance panel — surfaces the
+    // four wyrd-ha9q renderings (original_script + transliteration +
+    // english_shaped + IPA) for non-Latin source-lang morphemes. Skipped
+    // when none of the components carries any rendering data, which is
+    // the common case for English / Celtic / Romance generation.
+    const renderings = _renderProvenancePanel(r.components || []);
+    if (renderings) li.appendChild(renderings);
+
     const details = document.createElement("details");
     const summary = document.createElement("summary");
     summary.textContent = "Components (raw)";
@@ -387,6 +395,91 @@ function _renderResultItem(r) {
     details.appendChild(pre);
     li.appendChild(details);
     return li;
+}
+
+function _renderProvenancePanel(components) {
+    // wyrd-qhs0 Phase 2d. components[i].renderings is a sparse map:
+    //   { <lang_field>: { <canonical_form>: { original_script, transliteration, english_shaped, ipa, dialect } } }
+    // Returns null when no component has ANY rendering data, so the
+    // disclosure doesn't render for English-only outputs.
+    const anyRenderings = components.some(
+        (c) => c.renderings && Object.keys(c.renderings).length > 0,
+    );
+    if (!anyRenderings) return null;
+    const details = document.createElement("details");
+    const summary = document.createElement("summary");
+    summary.textContent = "Etymological provenance";
+    details.appendChild(summary);
+    const list = document.createElement("ul");
+    list.className = "provenance";
+    for (const c of components) {
+        if (!c.renderings || Object.keys(c.renderings).length === 0) continue;
+        const li = document.createElement("li");
+        const usage = document.createElement("strong");
+        usage.textContent = c.usage;
+        li.appendChild(usage);
+        for (const [langField, formMap] of Object.entries(c.renderings)) {
+            for (const [canonicalForm, slots] of Object.entries(formMap)) {
+                const row = _renderProvenanceRow(langField, canonicalForm, slots);
+                if (row) li.appendChild(row);
+            }
+        }
+        list.appendChild(li);
+    }
+    details.appendChild(list);
+    return details;
+}
+
+function _renderProvenanceRow(langField, canonicalForm, slots) {
+    // One <div class="provenance-row"> per (lang_field, canonical_form)
+    // surfacing whichever of the four renderings the lexicon has.
+    // Each rendering is its own labeled span so the SPA can style /
+    // hide individual columns. Rendering keys with null values are
+    // skipped — the panel only shows what's actually populated.
+    const row = document.createElement("div");
+    row.className = "provenance-row";
+    const lang = document.createElement("span");
+    lang.className = "provenance-lang";
+    lang.textContent = langField;
+    row.appendChild(lang);
+    const renderings = [
+        { key: "original_script", label: "native" },
+        { key: "transliteration", label: "translit" },
+        { key: "english_shaped", label: "english" },
+        { key: "ipa", label: "ipa" },
+    ];
+    let any = false;
+    for (const { key, label } of renderings) {
+        const value = slots[key];
+        if (!value) continue;
+        any = true;
+        const span = document.createElement("span");
+        span.className = `provenance-${key}`;
+        const labelSpan = document.createElement("span");
+        labelSpan.className = "provenance-label";
+        labelSpan.textContent = `${label}:`;
+        const valueSpan = document.createElement("span");
+        valueSpan.className = "provenance-value";
+        valueSpan.textContent = value;
+        if (key === "ipa" && slots.dialect) {
+            valueSpan.textContent = `${value} (${slots.dialect})`;
+        }
+        span.appendChild(labelSpan);
+        span.appendChild(valueSpan);
+        row.appendChild(span);
+    }
+    if (!any) return null;
+    // Surface the canonical_form too — useful when it differs from
+    // original_script (e.g. unvocalized vs vocalized Hebrew) and the
+    // lang form array shows it as the lookup key. Inserted AFTER the
+    // any-check so the canonical-form node isn't built for skipped
+    // rows (and so we don't depend on insertBefore's `null`-on-missing
+    // child-index coercion).
+    const canonical = document.createElement("span");
+    canonical.className = "provenance-canonical";
+    canonical.textContent = canonicalForm;
+    row.insertBefore(canonical, row.children[1]);
+    return row;
 }
 
 function _renderCitationsDetail(components) {
