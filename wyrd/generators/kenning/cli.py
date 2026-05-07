@@ -276,8 +276,10 @@ def cli() -> None:
     help=(
         "wyrd-lr4 Phase 3 within-language stratum filter. Pass a register "
         "tag — for Welsh: 'native-welsh', 'brittonic-substrate', "
-        "'medieval-welsh', 'latin-loan', 'english-loan' (Phase 4 will add "
-        "French / OE / ON). Morphemes with no stratum data pass through. "
+        "'medieval-welsh', 'latin-loan', 'english-loan'; for French: "
+        "'native-french', 'medieval-french', 'gallo-roman', "
+        "'gaulish-substrate', 'frankish-substrate' (Old English / Old "
+        "Norse follow). Morphemes with no stratum data pass through. "
         "Composes with --era via intersection."
     ),
 )
@@ -4268,12 +4270,14 @@ def lexicon_derive_english_shaped(
 )
 @click.option(
     "--language",
-    type=click.Choice(["welsh"]),
+    type=click.Choice(["welsh", "french"]),
     required=True,
     help=(
-        "Language family to classify. Currently only 'welsh' is "
-        "supported (covers etymons with language IN ('welsh', "
-        "'middle-welsh', 'old-welsh', 'cel-bry-pro')). French / Old "
+        "Language family to classify. Currently 'welsh' and 'french' "
+        "are supported. Welsh covers etymons with language IN "
+        "('welsh', 'middle-welsh', 'old-welsh', 'cel-bry-pro'); "
+        "French covers ('french', 'old-french', 'middle-french', "
+        "'norman-french', 'vulgar-latin', 'frk', 'cel-gau'). Old "
         "English / Old Norse are follow-up tickets."
     ),
 )
@@ -4313,9 +4317,17 @@ def lexicon_classify_stratum(
     """
     # Local import keeps the cold-start path lean for unrelated CLI
     # commands. Same pattern as other lexicon subcommands.
-    from wyrd.generators.kenning.strata import WELSH_STRATA, classify_welsh
+    from wyrd.generators.kenning.strata import (
+        FRENCH_STRATA,
+        WELSH_STRATA,
+        classify_french,
+        classify_welsh,
+    )
 
-    classifiers = {"welsh": (classify_welsh, WELSH_STRATA)}
+    classifiers = {
+        "welsh": (classify_welsh, WELSH_STRATA),
+        "french": (classify_french, FRENCH_STRATA),
+    }
     classifier, strata_order = classifiers[language]
 
     with LexiconDB(db_path) as db:
