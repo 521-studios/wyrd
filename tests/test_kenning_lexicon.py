@@ -1869,6 +1869,55 @@ def test_extract_attestation_pairs_chain_last_element_with_bare_connector() -> N
     assert dict(pairs)["Chestreton"] == 1242
 
 
+def test_extract_attestation_pairs_rejects_source_attribution_chain() -> None:
+    """wyrd-hcd9: Mawer / Skeat / Ekwall use the convention
+    ``<year> <source>, <year> <source>`` for chained same-form source
+    citations — e.g. ``Chevington 1535 VE, 1539 Wills, 1544 LP`` lists
+    three sources for the SAME form. The naive regex would catch
+    ``Wills, 1544`` as a form-year attestation, but Wills is a SOURCE
+    name (the Wills Register).
+
+    The FP detector requires both:
+    (a) the form is preceded by ``<year> `` (the source-year shape)
+    (b) the form is followed by ``, <year>`` (next chain link)
+    so real chained attestations (``Edreston ; 1242 ...``,
+    semicolon-separated) aren't suppressed.
+    """
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Chevington 1535 VE, 1539 Wills, 1544 LP")
+    forms = [f for f, _ in pairs]
+    assert "Wills" not in forms
+    assert "LP" not in forms
+
+
+def test_extract_attestation_pairs_keeps_real_attestation_chains() -> None:
+    """wyrd-hcd9 regression: the source-attribution-chain detector
+    must NOT false-suppress real attestation chains. The
+    distinguisher is COMMA (source-attribution) vs SEMICOLON
+    (different-form attestation). Mawer / Skeat use semicolons
+    between forms and commas within source-list-for-one-form."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Edredeston, 1234 Edreston ; 1242 Cl. Hetheresto")
+    forms = [f for f, _ in pairs]
+    assert "Edreston" in forms
+    assert "Edredeston" in forms
+
+
+def test_extract_attestation_pairs_keeps_long_attestation_chains() -> None:
+    """wyrd-hcd9 regression: a 4-element attestation chain like
+    ``Cestretone in 1210; Cestrede, 1218; Cestretun, 1230;
+    Chestreton 1242`` — the LAST element 'Chestreton 1242' is bare-
+    connector chain-anchored. Verify all four still capture even
+    after the source-chain detector landed."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Cestretone in 1210; Cestrede, 1218; Cestretun, 1230; Chestreton 1242.")
+    forms = [f for f, _ in pairs]
+    assert "Cestretone" in forms
+    assert "Cestrede" in forms
+    assert "Cestretun" in forms
+    assert "Chestreton" in forms
+
+
 def test_extract_attestation_pairs_chain_anchor_rejects_sentence_flow() -> None:
     """The chain pattern's leading ``;`` requirement keeps it from
     matching arbitrary sentence-flow shapes. ``"After 1066 the

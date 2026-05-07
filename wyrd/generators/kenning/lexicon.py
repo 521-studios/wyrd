@@ -2952,6 +2952,37 @@ _FORM_PATTERN = (
 )
 
 
+# wyrd-hcd9: source-attribution chain FP detector.
+#
+# Mawer / Skeat / Ekwall use the convention `<year> <source>` to
+# attribute SAME-FORM attestations to multiple sources, chained by
+# COMMAS:
+#
+#   Chevington 1535 VE, 1539 Wills, 1544 LP
+#                       ↑ source name, NOT a place form
+#
+# The regex would otherwise match ``Wills, 1544`` as form=Wills
+# year=1544 because it follows the FORM-comma-YEAR shape. The
+# distinguishing structural signal is two-fold:
+#   (a) the form is preceded by ``<year> `` (a 3-4 digit year + space)
+#   (b) the form is followed by ``, <year>`` (next source-attribution)
+#
+# COMMA-after-form is the load-bearing distinguisher from
+# semicolon-separated multi-form chains
+# (``Edreston ; 1242 Cl. ...``) where the form IS a real attestation:
+# scholarly convention puts commas between same-form sources and
+# semicolons between different-form attestations. Both conditions
+# together identify the source-attribution-chain FP without
+# false-suppressing real chained attestations.
+_SOURCE_CHAIN_PRECEDING_YEAR_RE = re.compile(r"\d{3,4}\s+$")
+# Note: no ``^`` anchor — ``re.match(string, pos)`` already anchors
+# at ``pos``, and the pattern's ``^`` would only match at string
+# start (position 0), not at ``pos``. ``\s*,\s*\d{3,4}\b`` covers
+# the post-form `, 1544` lookahead with optional whitespace either
+# side of the comma.
+_SOURCE_CHAIN_FOLLOWING_YEAR_RE = re.compile(r"\s*,\s*\d{3,4}\b")
+
+
 def _form_passes_filter(form: str) -> bool:
     """Final form-quality gate beyond the regex character class.
 
@@ -3162,13 +3193,17 @@ def _extract_attestation_pairs(notes: str | None) -> list[tuple[str, int]]:
         """Validate and absorb a ``(form, year)`` match from the year-
         anchored or chain-anchored regex.
 
-        Shared guards: form-quality filter, year-range bounds, and the
-        immediate-predecessor page-marker check (rejects
-        ``"Bedinga feld, p. 1086"`` shape where the year is actually
-        a page reference). The probe scope is intentionally narrow
-        (``0:year_start``) — pages cited AFTER the year are caught by
-        the ``(?!\\s*\\(p+\\.)`` lookahead on
-        ``_ATTEST_FORM_YEAR_RE``, not here.
+        Shared guards:
+        * form-quality filter (lowercase-required, blacklist),
+        * year-range bounds,
+        * immediate-predecessor page-marker check (rejects
+          ``"Bedinga feld, p. 1086"`` shape where the year is actually
+          a page reference; probe scope is narrow ``0:year_start``
+          since pages cited AFTER the year are caught by the
+          ``(?!\\s*\\(p+\\.)`` lookahead on ``_ATTEST_FORM_YEAR_RE``),
+        * source-attribution-chain check (rejects ``"1539 Wills,
+          1544 LP"`` shape where the form is a SOURCE name in a
+          multi-source chain — see _SOURCE_CHAIN_*_RE comments).
         """
         form = m.group("form").rstrip(",.;:")
         if not _form_passes_filter(form):
@@ -3177,6 +3212,17 @@ def _extract_attestation_pairs(notes: str | None) -> list[tuple[str, int]]:
         if year < _ATTESTED_YEAR_MIN_LOOKUP or year > _ATTESTED_YEAR_MAX_LOOKUP:
             return
         if _TOPONYM_NOTE_PAGE_MARKER_RE.search(notes, 0, m.start("year")):
+            return
+        # Source-attribution-chain check: form preceded by `<year> `
+        # AND followed by `, <year>` is the source-name FP shape
+        # (`Wills, 1544 LP`). Both conditions required so real
+        # attestation chains (`Edreston ; 1242 ...`) aren't
+        # suppressed.
+        form_start = m.start("form")
+        form_end = m.end("form")
+        if _SOURCE_CHAIN_PRECEDING_YEAR_RE.search(
+            notes, 0, form_start
+        ) and _SOURCE_CHAIN_FOLLOWING_YEAR_RE.match(notes, form_end):
             return
         pairs.add((form, year))
 
