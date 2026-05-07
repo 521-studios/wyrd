@@ -1659,6 +1659,311 @@ def test_clear_enrichment_all_derived_includes_attested_years(
     assert remaining == 0
 
 
+# --- wyrd-skm Phase 3.0a: toponym-attestation mining ----------------------
+
+
+def _import_attestation_helpers():
+    """Local import — these are private to lexicon.py and only used by
+    the wyrd-skm tests."""
+    from wyrd.generators.kenning.lexicon import (
+        _extract_attestation_pairs,
+        mine_toponym_attestations,
+    )
+
+    return _extract_attestation_pairs, mine_toponym_attestations
+
+
+def test_extract_attestation_pairs_form_in_year() -> None:
+    """The dominant scholarly shape: 'FORM in YEAR'. The year-anchor
+    requires a connector ('in', comma, or semicolon) so a sentence-
+    initial capitalised word followed by a year-shaped digit run
+    doesn't mis-match."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Carlton. Written Carleton in 1302 (F.A. i. 142).")
+    assert pairs == [("Carleton", 1302)]
+
+
+def test_extract_attestation_pairs_form_comma_year() -> None:
+    """The 'FORM, YEAR' shape — common in citation lists like
+    'Isilham, 1284; Iselham, 1302; Yeselham, 1321'."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Isleham. Formerly Isilham, 1284; Iselham, 1302; Yeselham, 1321.")
+    assert pairs == [("Isilham", 1284), ("Iselham", 1302), ("Yeselham", 1321)]
+
+
+def test_extract_attestation_pairs_form_comma_in_year() -> None:
+    """'FORM, in YEAR' — comma followed by 'in', appears in Skeat/
+    Mawer prose. Pin so a future regex tightening doesn't drop this
+    branch."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Tadlow. The old spelling is Tadelowe, in 1302 (F.A.).")
+    assert pairs == [("Tadelowe", 1302)]
+
+
+def test_extract_attestation_pairs_domesday_anchored() -> None:
+    """'Domesday Book' / 'Domesday' / 'D.B.' all canonicalise to year
+    1086. Both 'FORM in Domesday' and 'Domesday has FORM' (and the
+    abbreviated forms) extract the same pair."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Carlen-tone in Domesday. Domesday Book has Chingestone.")
+    assert ("Carlen-tone", 1086) in pairs
+    assert ("Chingestone", 1086) in pairs
+
+
+def test_extract_attestation_pairs_db_abbreviation() -> None:
+    """The 'D.B. has FORM' inverted shape and 'FORM, D.B.' both map to
+    Domesday Book, year=1086."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("D.B. has Badingafelda, p. 59. Spelt Benagra, D.B., p. 182.")
+    assert ("Badingafelda", 1086) in pairs
+    assert ("Benagra", 1086) in pairs
+
+
+def test_extract_attestation_pairs_rejects_uppercase_abbreviations() -> None:
+    """Source-citation abbreviations (LPR, LI, LF, DB, MS) are
+    pure-uppercase and never legitimate place-name forms. The
+    lowercase-required filter handles the entire abbreviation FP class
+    in one check."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Citation evidence: LPR, 1212; LI, 1332; LF, 1332.")
+    assert pairs == []
+
+
+def test_extract_attestation_pairs_rejects_blacklisted_sentence_words() -> None:
+    """Sentence-initial capitalised words ('The', 'From', 'These')
+    aren't place-name forms even though they pass the regex
+    character class."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("The 1086 entry is interesting. From 1242 onwards.")
+    # 'The' and 'From' are in _ATTEST_FORM_BLACKLIST.
+    assert pairs == []
+
+
+def test_extract_attestation_pairs_rejects_page_marker_year() -> None:
+    """A digit run preceded by 'p.', 'pp.', 'vol.' is a bibliographic
+    reference, not a date citation. Same guard the wyrd-bag scan
+    uses."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Cross-reference Bedingafelda, p. 1086. Compare Tunbridge in vol. 1242.")
+    # p. 1086 / vol. 1242 are page references, not dates.
+    assert pairs == []
+
+
+def test_extract_attestation_pairs_requires_connector_between_form_and_year() -> None:
+    """'After 1066' / 'Before 1066' / 'Source 1234' have a capitalised
+    word followed by a year-shaped digit run with only whitespace
+    between. The connector requirement (comma, semicolon, or 'in')
+    rejects these to keep precision high."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("After 1066 the Norman conquest. Source 1234 mentions it.")
+    assert pairs == []
+
+
+def test_extract_attestation_pairs_dedupes_by_form_and_year() -> None:
+    """When the same (form, year) appears twice in a notes value
+    (the regex matches both), only one tuple is emitted. Output
+    ordering is deterministic (year ascending, then form
+    alphabetically) so callers depending on first-row stability
+    aren't surprised."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("Tunbridge, 1086. Forde in 1086. Tunbridge, 1086 again.")
+    assert pairs == [("Forde", 1086), ("Tunbridge", 1086)]
+
+
+def test_extract_attestation_pairs_handles_none_and_empty() -> None:
+    extract, _ = _import_attestation_helpers()
+    assert extract(None) == []
+    assert extract("") == []
+    assert extract("No date citations here at all.") == []
+
+
+def _seed_toponym_etymology_for_attestations(
+    db: LexiconDB,
+    *,
+    notes: str,
+    modern_name: str = "Chesterton",
+    source_id: str = "src",
+) -> tuple[int, int]:
+    """Insert a toponym + toponym_etymology row carrying ``notes``;
+    return ``(toponym_id, etymology_id)``."""
+    cur = db.conn.execute("INSERT INTO toponym (modern_name) VALUES (?)", (modern_name,))
+    toponym_id = cur.lastrowid
+    cur = db.conn.execute(
+        "INSERT INTO toponym_etymology "
+        "(toponym_id, source_id, historical_form, confidence, notes) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (toponym_id, source_id, None, "high", notes),
+    )
+    db.commit()
+    return toponym_id, cur.lastrowid
+
+
+def test_mine_toponym_attestations_inserts_pairs(fresh_db: Path) -> None:
+    """End-to-end: notes carrying a year-anchored citation produces a
+    toponym_attestation row keyed on the toponym_id."""
+    _, mine = _import_attestation_helpers()
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="skeat_1901", title="Skeat")
+        toponym_id, _ = _seed_toponym_etymology_for_attestations(
+            db,
+            notes="Chesterton is spelt Cestretone in 1210 (R.B.). Domesday Book has Chingestone.",
+            source_id="skeat_1901",
+        )
+        result = mine(db, apply=True)
+        rows = db.conn.execute(
+            "SELECT toponym_id, form, date_year, source_doc FROM toponym_attestation "
+            "ORDER BY date_year, form"
+        ).fetchall()
+
+    assert result["rows_with_pairs"] == 1
+    assert result["rows_written"] == 2
+    assert [(r["form"], r["date_year"]) for r in rows] == [
+        ("Chingestone", 1086),
+        ("Cestretone", 1210),
+    ]
+    # source_doc carries the etymology row's source_id so multi-scholar
+    # attestations of the same toponym/year stay distinguishable.
+    assert all(r["source_doc"] == "skeat_1901" for r in rows)
+    assert all(r["toponym_id"] == toponym_id for r in rows)
+
+
+def test_mine_toponym_attestations_idempotent_via_unique_index(fresh_db: Path) -> None:
+    """Re-running mine-attestations against the same notes is a no-op:
+    the unique index on (toponym_id, form, date_year, source_doc) makes
+    INSERT OR IGNORE drop duplicates, so the table count doesn't grow."""
+    _, mine = _import_attestation_helpers()
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        _seed_toponym_etymology_for_attestations(
+            db, notes="Cestretone in 1210; Chingestone in Domesday Book."
+        )
+        first = mine(db, apply=True)
+        second = mine(db, apply=True)
+        total = db.conn.execute(
+            "SELECT COUNT(*) FROM toponym_attestation"
+        ).fetchone()[0]
+
+    assert first["rows_written"] == 2
+    # Second run sees the same rows but INSERT OR IGNORE skips them.
+    assert second["rows_written"] == 0
+    assert total == 2
+
+
+def test_mine_toponym_attestations_dry_run(fresh_db: Path) -> None:
+    """apply=False reports candidate counts but writes no rows. Same
+    shape as every other enrichment stage."""
+    _, mine = _import_attestation_helpers()
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        _seed_toponym_etymology_for_attestations(
+            db, notes="Cestretone in 1210; Chingestone in Domesday Book."
+        )
+        result = mine(db, apply=False)
+        total = db.conn.execute(
+            "SELECT COUNT(*) FROM toponym_attestation"
+        ).fetchone()[0]
+
+    assert result["candidates"] == 2
+    assert result["rows_written"] == 0
+    assert result["applied"] is False
+    assert total == 0
+
+
+def test_mine_toponym_attestations_skips_rows_without_notes(fresh_db: Path) -> None:
+    """Etymology rows with NULL or empty notes contribute nothing —
+    the WHERE filter on the SELECT keeps the scan loop bounded to
+    rows that could plausibly carry citations."""
+    _, mine = _import_attestation_helpers()
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        cur = db.conn.execute("INSERT INTO toponym (modern_name) VALUES (?)", ("Empty",))
+        topo = cur.lastrowid
+        db.conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) "
+            "VALUES (?, ?, ?)",
+            (topo, "src", "high"),
+        )
+        db.commit()
+        result = mine(db, apply=True)
+
+    assert result["rows_scanned"] == 0
+    assert result["rows_written"] == 0
+
+
+def test_clear_enrichment_attestations_drops_rows(fresh_db: Path) -> None:
+    """clear_enrichment(stage='attestations') deletes every row from
+    toponym_attestation, leaving the table empty for re-mining."""
+    _, mine = _import_attestation_helpers()
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        _seed_toponym_etymology_for_attestations(
+            db, notes="Cestretone in 1210."
+        )
+        mine(db, apply=True)
+        before = db.conn.execute(
+            "SELECT COUNT(*) FROM toponym_attestation"
+        ).fetchone()[0]
+        result = clear_enrichment(db, stage="attestations", apply=True)
+        after = db.conn.execute(
+            "SELECT COUNT(*) FROM toponym_attestation"
+        ).fetchone()[0]
+
+    assert before == 1
+    assert result["attestation_rows_to_clear"] == 1
+    assert after == 0
+
+
+def test_clear_enrichment_all_derived_includes_attestations(fresh_db: Path) -> None:
+    """stage='all-derived' covers attestations too — the rollup count
+    includes the row count from toponym_attestation."""
+    _, mine = _import_attestation_helpers()
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="src", title="S")
+        _seed_toponym_etymology_for_attestations(
+            db, notes="Cestretone in 1210."
+        )
+        mine(db, apply=True)
+        result = clear_enrichment(db, stage="all-derived", apply=True)
+        remaining = db.conn.execute(
+            "SELECT COUNT(*) FROM toponym_attestation"
+        ).fetchone()[0]
+
+    assert result["attestation_rows_to_clear"] == 1
+    assert remaining == 0
+
+
+def test_migrate_schema_adds_attestation_unique_index_on_legacy_db(tmp_path: Path) -> None:
+    """A legacy DB created before Phase 3.0a has the
+    toponym_attestation table but no idx_attestation_unique. Running
+    migrate_schema adds the index without disturbing existing rows."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        # Drop the index to simulate a pre-Phase-3.0a deployment.
+        db.conn.execute("DROP INDEX IF EXISTS idx_attestation_unique")
+        db.commit()
+        before = {
+            row["name"]
+            for row in db.conn.execute(
+                "SELECT name FROM sqlite_master "
+                "WHERE type='index' AND tbl_name='toponym_attestation'"
+            )
+        }
+        assert "idx_attestation_unique" not in before
+
+        applied = migrate_schema(db)
+
+        after = {
+            row["name"]
+            for row in db.conn.execute(
+                "SELECT name FROM sqlite_master "
+                "WHERE type='index' AND tbl_name='toponym_attestation'"
+            )
+        }
+    assert applied["idx_attestation_unique"] is True
+    assert "idx_attestation_unique" in after
+
+
 def test_record_mining_run_inserts_row_with_full_fields(fresh_db: Path) -> None:
     """record_mining_run persists every field the writer cares about and
     serializes by_failure as JSON."""

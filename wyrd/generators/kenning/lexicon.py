@@ -1163,6 +1163,36 @@ def _migrate_toponym_etymology_attested_year(db: LexiconDB, applied: dict[str, b
         applied["toponym_etymology.attested_year"] = True
 
 
+def _create_toponym_attestation_unique_index(
+    db: LexiconDB, applied: dict[str, bool]
+) -> None:
+    """wyrd-skm Phase 3.0a: ensure ``toponym_attestation`` has a unique
+    index on ``(toponym_id, form, date_year, source_doc)`` so the
+    ``mine-attestations`` ingest is idempotent.
+
+    The base table ships in ``data/lexicon.sql`` but pre-existed without
+    a unique constraint. Adding one via CREATE UNIQUE INDEX rather than
+    a table-recreate keeps existing rows intact and runs as a no-op on
+    fresh schemas (the index ships in lexicon.sql alongside the table).
+
+    Existing rows are NOT deduped here — the table is empty in
+    production today (mining hasn't run) so there's nothing to clean
+    up. If a deployment somehow has duplicate rows, the unique-index
+    creation will fail loudly rather than silently dropping data; the
+    operator should investigate before re-running migrate.
+    """
+    rows = db.conn.execute(
+        "SELECT name FROM sqlite_master "
+        "WHERE type='index' AND name='idx_attestation_unique'"
+    ).fetchall()
+    if not rows:
+        db.conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_attestation_unique "
+            "ON toponym_attestation(toponym_id, form, date_year, source_doc)"
+        )
+        applied["idx_attestation_unique"] = True
+
+
 def _create_mining_run_table(db: LexiconDB, applied: dict[str, bool]) -> None:
     """Create mining_run if missing. Per D23, this audit table closes the
     'stop losing accept/decline/reject counts to stdout' gap. One row per
@@ -1457,6 +1487,8 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         # wyrd-lr4: within-language stratum tag.
         "etymon.stratum": False,
         "idx_etymon_stratum": False,
+        # wyrd-skm Phase 3.0a: idempotent ingest of toponym_attestation.
+        "idx_attestation_unique": False,
     }
     # wyrd-44a: rename the legacy cognate-cluster column from synset_id
     # to cognate_id BEFORE the add-columns helper runs — otherwise
@@ -1472,6 +1504,7 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     _create_mining_run_table(db, applied)
     _migrate_citation_context_snippet(db, applied)
     _migrate_toponym_etymology_attested_year(db, applied)
+    _create_toponym_attestation_unique_index(db, applied)
     _create_meaning_synset_tables(db, applied)
     _create_fantasy_morpheme_table(db, applied)
     _migrate_wal_mode(db, applied)
@@ -2872,6 +2905,305 @@ def lookup_attested_years(
     }
 
 
+# --- wyrd-skm Phase 3.0a: toponym-attestation mining ----------------------
+#
+# Scan toponym_etymology.notes for (form, year) pairs and write them to
+# toponym_attestation. Per-toponym dated historical spellings are the
+# raw input that wyrd-skm Phase 3.0b derives per-etymon period forms
+# from. Schema for toponym_attestation pre-existed (lexicon.sql); this
+# pass is the populator.
+#
+# LLM-free, idempotent, reversible (clear-enrichment --stage=attestations).
+
+# Domesday Book (1086) is the load-bearing dated reference in English
+# toponym scholarship — almost every Mawer / Skeat / Ekwall entry cites
+# its Domesday spelling. We canonicalize it to the year so a single
+# regex captures both "Cestretone in Domesday Book" and "Domesday Book
+# has Chingestone". 'D.B.' is the same source, abbreviated.
+_DOMESDAY_YEAR = 1086
+
+# Form character class — leading capital plus letters / OE specials /
+# Welsh diacritics / hyphens. Total length 4-30 covers Hædan-ham (9)
+# through Bedingafelda (12) while excluding sentence connectives ("The",
+# "But", "And", "Of") that would otherwise leak through the year-anchor
+# patterns. The follow-up ``_form_passes_filter`` check additionally
+# requires at least one lowercase letter so 3-4 letter source
+# abbreviations (LPR, LI, LF, DB) don't slip through.
+_FORM_CHARSET = r"A-Za-zÆÐÞŒæðþœǣīāōūȳ"
+_FORM_PATTERN = rf"[A-ZÆÐÞŒ][{_FORM_CHARSET}]{{3,29}}(?:[-][{_FORM_CHARSET}]{{1,12}})*"
+
+
+def _form_passes_filter(form: str) -> bool:
+    """Final form-quality gate beyond the regex character class.
+
+    Place-name attestations always carry at least one lowercase letter
+    (``Cestretone``, ``Hædan-ham``, ``Wyntewurthe``). Pure-uppercase
+    runs that match the regex are scholarly source abbreviations
+    (``LPR``, ``LI``, ``LF``, ``DB``, ``MS``, ``FA``) and never
+    legitimate forms — those exist in citation suffixes and sometimes
+    pick up year-shaped digits nearby that survive the page-marker
+    guard. Requiring a lowercase letter gives us a single check that
+    handles the entire abbreviation false-positive class.
+    """
+    if not any(c.islower() for c in form):
+        return False
+    return form.lower() not in _ATTEST_FORM_BLACKLIST
+
+# Year pattern — same range as _earliest_year_in_notes (post-Roman
+# 700-1700) so we share its filter on page-references / publication
+# years.
+_YEAR_PATTERN = r"7\d{2}|[89]\d{2}|1[0-6]\d{2}|1700"
+
+# "FORM in YEAR" or "FORM, YEAR" or "FORM, in YEAR" — the canonical
+# citation shapes in Mawer / Skeat / Ekwall. Matches "Cestretone in
+# 1210", "Iselham, 1302", "Tadelowe, in 1302", "Spelt Knesworthe in
+# 1316" (the Spelt prefix doesn't need its own pattern — it leaves the
+# form right where this one anchors).
+#
+# Two branches in the connector group — punctuation-then-optional-"in"
+# OR bare-"in" — keeps an explicit anchor between form and year. A
+# pure-whitespace separator (``"After 1066"``) would generate too many
+# false positives when a sentence happens to have a capitalized word
+# followed by a year-shaped digit run.
+_ATTEST_FORM_YEAR_RE = re.compile(
+    rf"\b(?P<form>{_FORM_PATTERN})"
+    r"(?:\s*[,;]\s*(?:in\s+)?|\s+in\s+)"
+    rf"(?P<year>{_YEAR_PATTERN})\b"
+)
+
+# "FORM in Domesday[ Book]" — a form positioned as Domesday's spelling.
+_ATTEST_FORM_DOMESDAY_RE = re.compile(
+    rf"\b(?P<form>{_FORM_PATTERN})\s+in\s+Domesday(?:\s+Book)?\b"
+)
+
+# "Domesday[ Book] has FORM" — inverted phrasing for the same data.
+_ATTEST_DOMESDAY_HAS_FORM_RE = re.compile(
+    rf"\bDomesday(?:\s+Book)?\s+has\s+(?P<form>{_FORM_PATTERN})"
+)
+
+# "FORM, D.B." — Domesday Book abbreviated. The leading comma is what
+# distinguishes a citation from a spurious "D.B." in body text.
+_ATTEST_FORM_DB_RE = re.compile(
+    rf"\b(?P<form>{_FORM_PATTERN})\s*,?\s+D\.\s*B\.(?:\b|,|;|\s)"
+)
+
+# "D.B. has FORM" — the inverted abbreviated shape, mirroring
+# ``_ATTEST_DOMESDAY_HAS_FORM_RE`` for the spelled-out form.
+_ATTEST_DB_HAS_FORM_RE = re.compile(
+    rf"\bD\.\s*B\.\s+has\s+(?P<form>{_FORM_PATTERN})"
+)
+
+# Forms that look proper-noun-ish but are scholarly metadata, never
+# place-name attestations. Most false-positive candidates filter out
+# via the year-anchor (you need a year IMMEDIATELY adjacent), but a
+# handful — Domesday itself, citation-prefix words like Spelt /
+# Formerly that the regex would otherwise capture when followed by
+# another form — need an explicit list. Lowercased for case-insensitive
+# membership.
+_ATTEST_FORM_BLACKLIST = frozenset(
+    {
+        "domesday",
+        "book",
+        "spelt",
+        "formerly",
+        "apparently",
+        "the",
+        "from",
+        "where",
+        "there",
+        "these",
+        "this",
+        "that",
+        "and",
+        "but",
+        "with",
+        "here",
+        "kemble",
+        "skeat",
+        "ekwall",
+        "mawer",
+        "joyce",
+        "thorpe",
+        "kelly",
+        "pipe",
+        "roll",
+        "red",
+        "inquisitio",
+        # Mixed-case source abbreviations that the lowercase-required
+        # filter doesn't catch. Pure-uppercase abbreviations (LPR, LI,
+        # DB) are filtered in `_form_passes_filter` directly.
+        "cod",
+        "dipl",
+        "vol",
+        "ipm",
+        "ipms",
+    }
+)
+
+
+def _extract_attestation_pairs(notes: str | None) -> list[tuple[str, int]]:
+    """Extract ``(form, year)`` attestation pairs from a
+    ``toponym_etymology.notes`` value.
+
+    Returns deduped tuples ordered by year ascending, with ties broken
+    by form (alphabetical). The ordering is deterministic so callers
+    can rely on first-row-per-key idempotency under the unique-index
+    DB constraint.
+
+    Pattern set (highest precision first):
+
+    1. ``FORM in YEAR`` / ``FORM, YEAR`` / ``FORM; YEAR`` — the
+       dominant scholarly shape. Year is filtered to 700-1700 via the
+       same range used by ``_earliest_year_in_notes``.
+    2. ``FORM in Domesday[ Book]`` — Domesday-anchored citation;
+       year=1086.
+    3. ``Domesday[ Book] has FORM`` — inverted shape for the same.
+    4. ``FORM, D.B.`` / ``FORM D.B.`` — the abbreviated form.
+
+    Page-reference false positives are guarded the same way
+    ``_earliest_year_in_notes`` does it: a digit run preceded by ``p.``
+    / ``pp.`` / ``vol.`` etc. is rejected. This catches false hits like
+    ``"Bedinga feld, p. 59"`` where the year-shaped digit is a page
+    number, not an attestation date.
+
+    Forms that match the regex syntactically but represent scholarly
+    metadata (``Domesday``, ``Spelt``, source-author surnames) are
+    filtered via ``_ATTEST_FORM_BLACKLIST``.
+    """
+    if not notes:
+        return []
+    pairs: set[tuple[str, int]] = set()
+
+    # Year-anchored pattern: capture (form, year), filter page refs.
+    for m in _ATTEST_FORM_YEAR_RE.finditer(notes):
+        form = m.group("form").rstrip(",.;:")
+        if not _form_passes_filter(form):
+            continue
+        year = int(m.group("year"))
+        if year < _ATTESTED_YEAR_MIN_LOOKUP or year > _ATTESTED_YEAR_MAX_LOOKUP:
+            continue
+        # Reject digit runs preceded by a page / volume marker — same
+        # guard as _earliest_year_in_notes. The marker may sit before
+        # the form OR between the form and year; both are bibliographic
+        # noise. We probe just before the YEAR start since that's the
+        # tighter-binding side.
+        year_start = m.start("year")
+        if _TOPONYM_NOTE_PAGE_MARKER_RE.search(notes, 0, year_start):
+            continue
+        pairs.add((form, year))
+
+    # Domesday-anchored patterns (year fixed to 1086).
+    for m in _ATTEST_FORM_DOMESDAY_RE.finditer(notes):
+        form = m.group("form").rstrip(",.;:")
+        if not _form_passes_filter(form):
+            continue
+        pairs.add((form, _DOMESDAY_YEAR))
+    for m in _ATTEST_DOMESDAY_HAS_FORM_RE.finditer(notes):
+        form = m.group("form").rstrip(",.;:")
+        if not _form_passes_filter(form):
+            continue
+        pairs.add((form, _DOMESDAY_YEAR))
+    for m in _ATTEST_FORM_DB_RE.finditer(notes):
+        form = m.group("form").rstrip(",.;:")
+        if not _form_passes_filter(form):
+            continue
+        pairs.add((form, _DOMESDAY_YEAR))
+    for m in _ATTEST_DB_HAS_FORM_RE.finditer(notes):
+        form = m.group("form").rstrip(",.;:")
+        if not _form_passes_filter(form):
+            continue
+        pairs.add((form, _DOMESDAY_YEAR))
+
+    return sorted(pairs, key=lambda p: (p[1], p[0]))
+
+
+def mine_toponym_attestations(
+    db: LexiconDB,
+    *,
+    apply: bool = False,
+    progress_every: int = 500,
+) -> dict:
+    """Populate ``toponym_attestation`` from ``toponym_etymology.notes``
+    (wyrd-skm Phase 3.0a). For every etymology row carrying inline
+    scholarly date citations like ``"Cestretone in 1210; Hadenham in
+    Domesday Book"`` we extract ``(form, year)`` pairs and INSERT them
+    into ``toponym_attestation`` keyed on the etymology's
+    ``toponym_id``. Source attribution rides on the original
+    ``toponym_etymology.source_id`` so a Skeat-derived Cestretone(1210)
+    is distinguishable from a Mawer-derived one.
+
+    LLM-free, idempotent, reversible (clear-enrichment
+    --stage=attestations). Re-runs are no-ops thanks to the unique
+    index ``idx_attestation_unique`` on
+    ``(toponym_id, form, date_year, source_doc)``.
+
+    Progress lines emit to stderr every ``progress_every`` rows and
+    once at completion (CLAUDE.md mining-progress shape).
+
+    Returns a result dict with row-counts so callers can report.
+    """
+    import sys
+    import time
+
+    cur = db.conn.execute(
+        "SELECT toponym_id, source_id, notes FROM toponym_etymology "
+        "WHERE notes IS NOT NULL AND notes != ''"
+    )
+
+    rows_scanned = 0
+    candidate_inserts: list[tuple[int, str, int, str]] = []
+    rows_with_pairs = 0
+    started = time.monotonic()
+    for row in cur:
+        rows_scanned += 1
+        pairs = _extract_attestation_pairs(row["notes"])
+        if pairs:
+            rows_with_pairs += 1
+            for form, year in pairs:
+                candidate_inserts.append(
+                    (row["toponym_id"], form, year, row["source_id"])
+                )
+        if rows_scanned % progress_every == 0:
+            elapsed = max(time.monotonic() - started, 1e-6)
+            print(
+                f"  [{rows_scanned}]  rows_with_pairs={rows_with_pairs} "
+                f"candidates={len(candidate_inserts)} "
+                f"({elapsed / rows_scanned:.4f}s/entry)",
+                file=sys.stderr,
+                flush=True,
+            )
+
+    rows_written = 0
+    if apply and candidate_inserts:
+        # INSERT OR IGNORE relies on the unique index added by
+        # _create_toponym_attestation_unique_index. Without it, re-runs
+        # would duplicate every row.
+        result = db.conn.executemany(
+            "INSERT OR IGNORE INTO toponym_attestation "
+            "(toponym_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+            candidate_inserts,
+        )
+        rows_written = result.rowcount
+        db.commit()
+
+    elapsed = max(time.monotonic() - started, 1e-6)
+    print(
+        f"  [{rows_scanned}/{rows_scanned}]  rows_with_pairs={rows_with_pairs} "
+        f"candidates={len(candidate_inserts)} rows_written={rows_written} "
+        f"({elapsed / max(rows_scanned, 1):.4f}s/entry)",
+        file=sys.stderr,
+        flush=True,
+    )
+
+    return {
+        "rows_scanned": rows_scanned,
+        "rows_with_pairs": rows_with_pairs,
+        "candidates": len(candidate_inserts),
+        "rows_written": rows_written,
+        "applied": apply,
+    }
+
+
 def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
     """Reset one or more enrichment stages so they can be re-run.
 
@@ -2893,7 +3225,10 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
                                                        attested_year = NULL
                         (drops every lookup-attested-years assignment
                         on both row sources; D5-1 / wyrd-3ux + wyrd-bag)
-      all-derived     - all five of the above
+      attestations    - DELETE FROM toponym_attestation
+                        (drops every mine-attestations ingest row;
+                        wyrd-skm Phase 3.0a)
+      all-derived     - all six of the above
 
     Mining evidence (etymon, etymon_citation, etymon_gloss, etymon_tag,
     etymon_descent, toponym, toponym_etymology, toponym_etymology_element)
@@ -2910,12 +3245,20 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
     With apply=False the dry-run reports what would change. Pass
     apply=True to actually write.
     """
-    valid = {"ocr", "lemmas", "text-match", "cognates", "attested-years", "all-derived"}
+    valid = {
+        "ocr",
+        "lemmas",
+        "text-match",
+        "cognates",
+        "attested-years",
+        "attestations",
+        "all-derived",
+    }
     if stage not in valid:
         raise ValueError(f"unknown stage {stage!r}; must be one of {sorted(valid)}")
 
     stages = (
-        {"ocr", "lemmas", "text-match", "cognates", "attested-years"}
+        {"ocr", "lemmas", "text-match", "cognates", "attested-years", "attestations"}
         if stage == "all-derived"
         else {stage}
     )
@@ -2927,6 +3270,7 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
         "text_match_rows_to_clear": 0,
         "cognate_assignments_to_clear": 0,
         "attested_years_to_clear": 0,
+        "attestation_rows_to_clear": 0,
     }
     if "ocr" in stages:
         counts["ocr_merges_to_clear"] = db.conn.execute(
@@ -2953,6 +3297,10 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
                 "SELECT COUNT(*) FROM toponym_etymology WHERE attested_year IS NOT NULL"
             ).fetchone()[0]
         )
+    if "attestations" in stages:
+        counts["attestation_rows_to_clear"] = db.conn.execute(
+            "SELECT COUNT(*) FROM toponym_attestation"
+        ).fetchone()[0]
 
     if not apply:
         return counts
@@ -2973,6 +3321,8 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
         if "text-match" not in stages:
             db.conn.execute("UPDATE etymon_text_match SET attested_year = NULL")
         db.conn.execute("UPDATE toponym_etymology SET attested_year = NULL")
+    if "attestations" in stages:
+        db.conn.execute("DELETE FROM toponym_attestation")
     db.commit()
     return counts
 
