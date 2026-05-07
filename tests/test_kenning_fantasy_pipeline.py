@@ -1342,9 +1342,7 @@ def test_resolve_via_llm_alias_map_wave2_precursors_postcursors(
             "reasoning": "stub",
         }
 
-    res = fp.resolve(
-        fresh_db, f"FantasyName_{iso_code}", "stub description", llm_caller=_stub_llm
-    )
+    res = fp.resolve(fresh_db, f"FantasyName_{iso_code}", "stub description", llm_caller=_stub_llm)
     assert res.usable is True, f"alias {descriptive_name!r} failed to resolve"
     assert res.etymon_id == target_id
 
@@ -1368,9 +1366,7 @@ def test_descent_walking_lookup_resolves_through_wave2_precursor(fresh_db: Path)
     matches = fp.descent_walking_lookup(fresh_db, "golem")
     by_lang = {m.language: m for m in matches}
     assert "he" in by_lang, "Modern Hebrew seed should surface as direct hit"
-    assert "hbo" in by_lang, (
-        "Biblical Hebrew precursor must surface — confirms wave-2 hbo approval"
-    )
+    assert "hbo" in by_lang, "Biblical Hebrew precursor must surface — confirms wave-2 hbo approval"
     assert by_lang["hbo"].canonical_form == "gōlem"
 
 

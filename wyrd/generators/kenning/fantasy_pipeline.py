@@ -134,27 +134,27 @@ APPROVED_LANGUAGES: frozenset[str] = frozenset(
         # those counts grow whenever wiktextract is re-ingested.
         #
         # Semitic precursors:
-        "hbo",          # Biblical Hebrew (precursor to he)
-        "sem-pro",      # Proto-Semitic (root of he/ar/akk/arc/hbo)
+        "hbo",  # Biblical Hebrew (precursor to he)
+        "sem-pro",  # Proto-Semitic (root of he/ar/akk/arc/hbo)
         "sem-wes-pro",  # Proto-West-Semitic (intermediate Semitic node)
-        "afa-pro",      # Proto-Afroasiatic (deep root of egy + Semitic)
-        "sux",          # Sumerian (Mesopotamian substrate of akk loanwords)
+        "afa-pro",  # Proto-Afroasiatic (deep root of egy + Semitic)
+        "sux",  # Sumerian (Mesopotamian substrate of akk loanwords)
         # Aramaic descendant:
-        "syc",          # Classical Syriac (late-ancient descendant of arc)
+        "syc",  # Classical Syriac (late-ancient descendant of arc)
         # Iranian precursors / postcursors:
-        "peo",          # Old Persian (precursor of fa)
-        "fa-cls",       # Classical Persian (intermediate fa stage)
-        "xpr",          # Parthian (Iranian, sister of pal)
-        "ira-pro",      # Proto-Iranian (root of fa/pal/peo/xpr)
+        "peo",  # Old Persian (precursor of fa)
+        "fa-cls",  # Classical Persian (intermediate fa stage)
+        "xpr",  # Parthian (Iranian, sister of pal)
+        "ira-pro",  # Proto-Iranian (root of fa/pal/peo/xpr)
         # Indo-Aryan precursors / postcursors:
-        "iir-pro",      # Proto-Indo-Iranian (root of fa+sa branches)
-        "inc-pro",      # Proto-Indo-Aryan (root of sa)
-        "pra",          # Prakrit (descendant of sa)
-        "pi",           # Pali (Buddhist canonical Indo-Aryan, descendant of sa)
+        "iir-pro",  # Proto-Indo-Iranian (root of fa+sa branches)
+        "inc-pro",  # Proto-Indo-Aryan (root of sa)
+        "pra",  # Prakrit (descendant of sa)
+        "pi",  # Pali (Buddhist canonical Indo-Aryan, descendant of sa)
         # Egyptian descendant:
-        "cop",          # Coptic (late-ancient descendant of egy)
+        "cop",  # Coptic (late-ancient descendant of egy)
         # Armenian (ancient register; appears in Iranian / Greek descent paths):
-        "axm",          # Old / Classical Armenian
+        "axm",  # Old / Classical Armenian
     }
 )
 
