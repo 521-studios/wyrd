@@ -144,19 +144,29 @@ _FRENCH_SELF_LANGUAGE_TO_STRATUM: dict[str, str] = {
 
 # --- Old English strata ---------------------------------------------------
 #
-# Four buckets, one fewer than Welsh / French. The umbrella ticket
-# called for 'West Saxon vs Mercian vs Anglian dialect strata; pre-
-# Christian vs Christian-influenced vocabulary'. The dialect axis is
-# unsupported by the actual data — no ``ang-x-*`` dialect codes
-# appear on any etymon row in the live DB (live survey 2026-05-07).
-# So the meaningful axis is loan / substrate signals: which post-
-# native influence layered onto the standard Germanic descent.
+# Four buckets, one fewer than Welsh / French. Listed in priority
+# order: when an etymon's parents include languages mapped to
+# multiple strata, the first match wins (so latin-loan displaces
+# norse-loan displaces celtic-substrate). The order encodes the
+# scholarly convention that an explicit Christianization-era loan
+# layer dominates the Danelaw layer dominates rare substrate
+# contact when multiple are present.
 #
-# Like French, the standard descent path (gmw-pro / proto-germanic)
-# is intentionally ABSENT from the ancestor map — every OE word
-# descends from those, so including them would collapse the bundle
-# into one bucket and erase the loan distinctions. Only meaningful
-# loan / substrate ancestors go in the map.
+# The umbrella ticket called for 'West Saxon vs Mercian vs Anglian
+# dialect strata; pre-Christian vs Christian-influenced vocabulary'.
+# The dialect axis is unsupported by the actual data — no
+# ``ang-x-*`` dialect codes appear on any etymon row in the live DB
+# (live survey 2026-05-07). So the meaningful axis is loan /
+# substrate signals: which post-native influence layered onto the
+# standard Germanic descent. Pre-Christian native vocabulary falls
+# into ``native-old-english`` by default.
+#
+# Like French, the standard descent path (gmw-pro / proto-germanic /
+# proto-indo-european) is intentionally ABSENT from the ancestor
+# map — every OE word descends from those, so including them would
+# collapse the bundle into one bucket and erase the loan
+# distinctions. Only meaningful loan / substrate ancestors go in
+# the map.
 #
 # Christian-influenced vocabulary maps cleanly to ``latin-loan`` —
 # Latin entered OE primarily via Christianization (~597 CE onward),

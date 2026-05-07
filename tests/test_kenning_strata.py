@@ -951,6 +951,92 @@ def test_cli_classify_stratum_old_english_dry_run_reports_counts(
     assert non_null == 0
 
 
+def test_classify_old_english_christian_era_greek_loan_folds_into_latin_loan(
+    fresh_db: Path,
+) -> None:
+    """Defense for the Christianization-via-Latin-channels semantic
+    decision. ancient-greek parents on an OE etymon route to
+    ``latin-loan`` because pre-modern Greek loans into OE arrived
+    through Latin / clerical pathways (Anglo-Saxon scriptoria, the
+    7th-c. Theodore-of-Tarsus school at Canterbury). Pinned as a
+    dedicated test rather than just a batch entry so a refactor that
+    drops 'ancient-greek' from _OLD_ENGLISH_ANCESTOR_TO_STRATUM
+    doesn't silently survive (the parameterized 5-case test would
+    still pass with 4 cases)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        greek_id = db.upsert_etymon("ekklesia", "ancient-greek")
+        oe_id = db.upsert_etymon("cirice", "old-english")
+        _add_descent(db, parent_id=greek_id, child_id=oe_id, edge_type="borrowing")
+        proposals = classify_old_english(db)
+    assert proposals[oe_id] == "latin-loan"
+
+
+def test_classify_old_english_unmapped_dialect_self_language_not_classified(
+    fresh_db: Path,
+) -> None:
+    """The umbrella ticket scoped dialect strata (West Saxon vs
+    Mercian vs Anglian) but the live DB has no ang-x-* dialect codes,
+    so _OLD_ENGLISH_SELF_LANGUAGE_TO_STRATUM is empty. Pin that an
+    etymon seeded with a dialect-coded language is NOT silently
+    classified — confirms the empty-map invariant and pins the
+    family-membership scope to language='old-english' alone.
+
+    If wave-2 mining ever ingests dialect-coded OE corpora, this
+    test will need updating in lockstep with the self-language map
+    population — a deliberate regression-flagging point for the
+    follow-up work."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        ws_id = db.upsert_etymon("hām", "ang-x-ws")  # West Saxon dialect
+        mer_id = db.upsert_etymon("hām", "ang-x-mer")  # Mercian
+        proposals = classify_old_english(db)
+    # Both dialect-coded rows fall outside the classifier's scope
+    # (modern_lang='old-english' only, empty self-language map).
+    assert ws_id not in proposals
+    assert mer_id not in proposals
+
+
+def test_cli_classify_stratum_old_english_force_overwrites(fresh_db: Path) -> None:
+    """``--apply --force`` overwrites an existing stratum value when
+    dispatched to the OE classifier. Mirror of the French force
+    test (the force/skip logic shares a code path, but pin the OE
+    invocation so a regression that wires --force through only some
+    branches of the dispatch dict gets caught)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        oe_id = db.upsert_etymon("dūn", "old-english")
+        # Pre-populate with a wrong stratum so we can verify the
+        # overwrite. classify_old_english would assign
+        # 'native-old-english' to this row (no descent → default).
+        db.conn.execute(
+            "UPDATE etymon SET stratum = ? WHERE id = ?",
+            ("manual-override", oe_id),
+        )
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "classify-stratum",
+            "--db",
+            str(fresh_db),
+            "--language",
+            "old-english",
+            "--apply",
+            "--force",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    with LexiconDB(fresh_db) as db:
+        stratum = db.conn.execute("SELECT stratum FROM etymon WHERE id = ?", (oe_id,)).fetchone()[
+            "stratum"
+        ]
+    assert stratum == "native-old-english"
+
+
 def test_cli_classify_stratum_old_english_apply_writes_column(fresh_db: Path) -> None:
     """``--apply`` writes the proposed stratum values for OE. Pinned
     independently from welsh / french so a regression in the
