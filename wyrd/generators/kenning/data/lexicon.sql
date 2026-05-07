@@ -331,6 +331,13 @@ CREATE UNIQUE INDEX idx_toponym_unique
 -- the ``mine-attestations`` post-mining stage (wyrd-skm Phase 3.0a),
 -- which extracts (form, date_year) pairs from
 -- ``toponym_etymology.notes`` body text.
+--
+-- Design note (multi-source): the unique index includes ``source_doc``,
+-- so the same (toponym_id, form, date_year) cited by Skeat AND Mawer
+-- AND Ekwall produces three rows. The ingest treats each scholarly
+-- citation as independent evidence; aggregation (COUNT vs
+-- COUNT DISTINCT) is deferred to consumers (wyrd-skm Phase 3.0b's
+-- per-etymon period-form derivation will choose explicitly).
 CREATE TABLE toponym_attestation (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   toponym_id  INTEGER NOT NULL REFERENCES toponym(id) ON DELETE CASCADE,
