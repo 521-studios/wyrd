@@ -543,6 +543,10 @@ def ingest_wiktextract_stream(
         "forms_emitted": 0,
         "forms_skipped_metadata": 0,
         "forms_skipped_unemittable": 0,
+        # wyrd-ha9q Phase 2a: pronunciation + multi-script capture stats
+        "pronunciation_captured": 0,
+        "original_script_captured": 0,
+        "transliteration_captured": 0,
         "applied": int(apply),
     }
     if apply:
@@ -684,6 +688,167 @@ def _classify_form_variant(tags: list[str]) -> str | None:
     return "other"
 
 
+# wyrd-ha9q Phase 2a: pronunciation + multi-script extractors.
+# Documented inline so the wiktextract sample shapes that drove each
+# heuristic stay in code rather than just in a PR description.
+
+# `head_templates[0].args` keys that carry vocalized / native-script
+# forms. Empirical inspection across the wave-2 slices (2026-05-07):
+#
+#   - `wv`   — Hebrew vocalized (with niqqud). 10,826 hits / 17k Hebrew
+#              entries. The cleanest signal: a single form, vocalized
+#              version of the unvocalized lemma. Always preferred
+#              when present.
+#   - `head` — Arabic vocalized (with harakat) when not equal to the
+#              lemma word. 2,548 hits / 3k Egyptian entries (hieroglyphic
+#              markup, `<hiero>...</hiero>`). Messier: sometimes a
+#              compound display string with `/` separators or affix
+#              markers (`ـ` or hyphens), so we filter via
+#              `_is_clean_native_form` before accepting.
+#
+# Order matters: the first key that yields a clean value wins. `wv`
+# first because it's the unambiguous canonical convention; `head` is
+# the broader fallback for languages whose templates don't carry `wv`.
+_HEAD_TEMPLATE_NATIVE_SCRIPT_KEYS: tuple[str, ...] = ("wv", "head")
+
+
+# Substrings / characters that disqualify a `head` arg as a clean
+# native-script form. These would all confuse downstream renderers
+# (or, in the case of `/`, indicate the editor packed multiple alternate
+# forms into one string for display). Keeps the extractor conservative:
+# better to leave original_script NULL than to surface "و / و" as if it
+# were a single form.
+_NATIVE_FORM_REJECT_TOKENS: tuple[str, ...] = (
+    " / ",  # `'و / و'` (multi-form list)
+    ", ",  # `'a, b'` (alt forms separated by commas)
+    "*",  # reconstructed form marker (proto-language)
+)
+
+# `head_templates[0].args` keys that carry academic Latin-script
+# transliterations (with diacritics). `tr` is the dominant one across
+# Hebrew/Arabic/Sanskrit/Persian wiktextract entries. Some templates
+# also use `head` for a pre-formatted transliteration; we don't grab
+# that — `tr` is consistent enough that we'd rather have NULL than
+# pick up a stray formatting string.
+_HEAD_TEMPLATE_TRANSLIT_KEYS: tuple[str, ...] = ("tr",)
+
+
+def _extract_pronunciation(sounds: list[dict[str, Any]]) -> tuple[str | None, str | None]:
+    """Pick the most authoritative IPA + first dialect tag from a
+    wiktextract `sounds` array.
+
+    Strategy: prefer entries with no dialect tag (those represent the
+    canonical / undialectal pronunciation when wiktextract has one),
+    otherwise fall back to the first entry that carries an IPA string.
+    Many wave-2 entries only have dialected IPA (Biblical-Hebrew /
+    Tiberian-Hebrew / Yemenite-Hebrew / Modern-Standard-Arabic), so the
+    fallback is the common path; the dialect tag is captured alongside
+    so the SPA panel can render '(Modern Standard Arabic)' etc.
+
+    Returns (ipa, dialect) — either may be None when the input is empty
+    or has no `ipa` key. Non-dict sound entries are silently skipped
+    (mirrors `_walk_descendants`'s defensive style for malformed
+    wiktextract input).
+    """
+    untagged_ipa: str | None = None
+    fallback_ipa: str | None = None
+    fallback_dialect: str | None = None
+    for sound in sounds:
+        if not isinstance(sound, dict):
+            continue
+        ipa = sound.get("ipa")
+        if not ipa:
+            continue
+        tags = sound.get("tags") or []
+        if not tags and untagged_ipa is None:
+            untagged_ipa = ipa
+        if fallback_ipa is None:
+            fallback_ipa = ipa
+            # First tag wins; wiktextract usually puts the most-specific
+            # dialect first ('Biblical-Hebrew' before any sub-tags).
+            fallback_dialect = tags[0] if tags else None
+    if untagged_ipa is not None:
+        return untagged_ipa, None
+    return fallback_ipa, fallback_dialect
+
+
+def _is_clean_native_form(value: str, lemma_word: str) -> bool:
+    """Filter for `head`-style native-script values. Returns False when
+    the value is one of:
+
+    1. Empty or whitespace-only.
+    2. Equal to the lemma word — no extra info to surface, NULL is
+       the right "use canonical_form" signal.
+    3. An affix-position marker — leading or trailing tatweel `ـ`
+       (Arabic) or hyphen, signalling a partial form, not a complete
+       native-script word.
+    4. Carries any token from `_NATIVE_FORM_REJECT_TOKENS`:
+       ` / ` (multi-form display string),
+       `, ` (alt forms separated by commas),
+       `*` (reconstructed form marker — proto-language; the rejection
+       triggers anywhere in the string, not just at position 0, since
+       reconstructed forms have no native-script render anyway).
+
+    The Hebrew `wv` key wouldn't need this (it's always a single
+    vocalized lemma) but the Arabic / Egyptian `head` arg routinely
+    packs noisy display content.
+    """
+    if not value:
+        return False
+    if value == lemma_word:
+        return False
+    if value.startswith(("ـ", "-")) or value.endswith(("ـ", "-")):
+        return False
+    return not any(token in value for token in _NATIVE_FORM_REJECT_TOKENS)
+
+
+def _extract_head_template_renderings(
+    head_templates: list[dict[str, Any]], lemma_word: str
+) -> tuple[str | None, str | None]:
+    """Pull (original_script, transliteration) from `head_templates[0].args`.
+
+    Wiktextract puts language-specific formatting metadata on the head
+    template (e.g. `{{he-noun|wv=כֶּלֶב|tr=kɛ́lɛḇ, kélev|...}}`). The
+    first head template is the one that wins; later templates are
+    typically alternative POS headers.
+
+    For original_script we walk `_HEAD_TEMPLATE_NATIVE_SCRIPT_KEYS` in
+    order: `wv` (Hebrew vocalized — clean) first, `head` (Arabic
+    vocalized / Egyptian hieroglyphic markup — sometimes noisy) as
+    fallback. Each candidate is run through `_is_clean_native_form` so
+    multi-form display strings and affix markers don't leak into
+    storage.
+
+    Returns (original_script, transliteration) — either may be None.
+    """
+    if not head_templates:
+        return None, None
+    first = head_templates[0]
+    if not isinstance(first, dict):
+        return None, None
+    args = first.get("args")
+    if not isinstance(args, dict):
+        return None, None
+    original: str | None = None
+    for key in _HEAD_TEMPLATE_NATIVE_SCRIPT_KEYS:
+        candidate = args.get(key)
+        if candidate is None:
+            continue
+        cleaned = str(candidate).strip()
+        if _is_clean_native_form(cleaned, lemma_word):
+            original = cleaned
+            break
+    translit = next(
+        (
+            str(args[k]).strip()
+            for k in _HEAD_TEMPLATE_TRANSLIT_KEYS
+            if args.get(k) and str(args[k]).strip()
+        ),
+        None,
+    )
+    return original, translit
+
+
 def _is_emittable_form(form_str: str, lemma_word: str) -> bool:
     """Filter out form rows we can't or shouldn't store as variants."""
     if not form_str:
@@ -771,7 +936,35 @@ def _process_entry(
     descendants tree. Counts are mutated in place."""
     this_word = entry["word"]
     this_lang = _canonical_language(entry["lang_code"])
-    this_id = db.upsert_etymon(this_word, this_lang) if apply else _DRY_RUN_PLACEHOLDER_ID
+    # wyrd-ha9q Phase 2a: pull pronunciation + multi-script kwargs from
+    # the entry's `sounds` and `head_templates` arrays. None when the
+    # entry has neither (e.g. Latin / OE entries usually lack `sounds`
+    # and don't need original_script). The upsert path COALESCEs these
+    # against existing rows, so a wave-1 etymon that pre-dates this
+    # column gets its pronunciation backfilled on the next ingest pass.
+    pron_ipa, pron_dialect = _extract_pronunciation(entry.get("sounds") or [])
+    orig_script, translit = _extract_head_template_renderings(
+        entry.get("head_templates") or [], this_word
+    )
+    this_id = (
+        db.upsert_etymon(
+            this_word,
+            this_lang,
+            pronunciation_ipa=pron_ipa,
+            pronunciation_dialect=pron_dialect,
+            original_script=orig_script,
+            transliteration=translit,
+        )
+        if apply
+        else _DRY_RUN_PLACEHOLDER_ID
+    )
+    if apply:
+        if pron_ipa:
+            counts["pronunciation_captured"] = counts.get("pronunciation_captured", 0) + 1
+        if orig_script:
+            counts["original_script_captured"] = counts.get("original_script_captured", 0) + 1
+        if translit:
+            counts["transliteration_captured"] = counts.get("transliteration_captured", 0) + 1
 
     # Etymology templates — each may produce one or more UPWARD edges
     # from this entry to its named parent(s). Single-parent templates
