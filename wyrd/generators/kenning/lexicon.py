@@ -3376,7 +3376,8 @@ def etymon_era_reflexes(
     if target_language is not None and not target_language:
         raise ValueError("target_language must not be an empty string")
     if target_language is None:
-        family, cell = target_family_cell  # type: ignore[misc]
+        assert target_family_cell is not None  # narrowed by the guard above
+        family, cell = target_family_cell
         target_language = canonical_language_for_cell(family, cell)
         if target_language is None:
             return []
