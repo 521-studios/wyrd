@@ -23,6 +23,7 @@ from wyrd.generators.kenning import (
     MOODS,
     Kenning,
     KenningExplain,
+    _load_meanings,
     anthropic_extractor,
     available_tags,
     etymonline_ingester,
@@ -77,6 +78,10 @@ from wyrd.generators.kenning.name import load_names
 from wyrd.generators.kenning.paths import (
     LEXICON_DB_DEFAULT_DISPLAY,
     default_lexicon_path,
+)
+from wyrd.generators.kenning.rewind import (
+    DEFAULT_ENGLISH_ERAS,
+    rewind_name,
 )
 from wyrd.generators.kenning.skeat_parser import parse_skeat_text
 from wyrd.generators.kenning.wiktextract_corpus_miner import (
@@ -616,6 +621,81 @@ def explain(name: str) -> None:
     results = explainer.generate_all({"name": name}, 0)
     for r in results:
         click.echo(r.explanation)
+
+
+@cli.command("rewind")
+@click.argument("name")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+@click.option(
+    "--era",
+    "era_input",
+    multiple=True,
+    help=(
+        "Era stop to render. Pass multiple times for a custom ladder; "
+        "default is 'oe-late me modern' for the english family. "
+        "Each value is a cell label (oe-late) or family/label "
+        "(english/me). Year input not supported here — use cell labels "
+        "for predictable rewind output."
+    ),
+)
+def rewind(name: str, db_path: Path, era_input: tuple[str, ...]) -> None:
+    """wyrd-rni Phase 3.1: render NAME at multiple historical eras.
+
+    Decomposes the input via the kenning explainer, anchors each
+    morpheme to its source-language etymon (typically Old English),
+    and renders the compound at each requested era stop using the
+    cognate-cluster era-reflex picker (wyrd-skm Phase 3.0b).
+
+    Default ladder is three English-family stops: oe-late (800-1100),
+    me (1100-1500), modern (1700+). Pass ``--era`` repeatedly to
+    customise — e.g. ``--era oe-early --era oe-late --era me`` for a
+    five-cell pre-modern ladder.
+
+    Morphemes that don't anchor (no matching etymon row in the
+    lexicon DB, or anchor lacks both cognate_id and descent edges)
+    fall back to their modern usage and are flagged so the user can
+    see which morphemes 'don't have era data' for the requested
+    cell.
+    """
+    eras: tuple[tuple[str, str], ...]
+    if era_input:
+        try:
+            eras = tuple(era_cell_for_input(value, default_family="english") for value in era_input)
+        except ValueError as exc:
+            click.echo(str(exc), err=True)
+            raise click.exceptions.Exit(1) from exc
+    else:
+        eras = DEFAULT_ENGLISH_ERAS
+
+    meaning_db, _ = _load_meanings()
+
+    with LexiconDB(db_path) as db:
+        result = rewind_name(name, db, meaning_db, eras=eras)
+
+    if not result.eras:
+        click.echo("(no era stops requested)", err=True)
+        return
+
+    click.echo(f"{result.name} — decomposed: {result.decomposition}")
+    if result.unaccounted:
+        click.echo(f"  unaccounted: {' '.join(result.unaccounted)}", err=True)
+    width = max(len(f"{stop.family}/{stop.cell}") for stop in result.eras)
+    for stop in result.eras:
+        label = f"{stop.family}/{stop.cell}".ljust(width)
+        flag = " *" if any(m.fallback for m in stop.morphemes) else ""
+        click.echo(f"  {label}  {stop.rendered}{flag}")
+    if any(any(m.fallback for m in stop.morphemes) for stop in result.eras):
+        click.echo(
+            "  * one or more morphemes lacked era data; rendered with "
+            "the source canonical form as fallback.",
+            err=True,
+        )
 
 
 @cli.group("lexicon")
