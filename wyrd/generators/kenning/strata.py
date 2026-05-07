@@ -564,7 +564,26 @@ def classify_old_norse(db: LexiconDB) -> dict[int, str]:
     )
 
 
+# --- Cross-family registry ------------------------------------------------
+#
+# Union of every stratum name across every classified language
+# family. Used by ``lexicon set-stratum`` (wyrd-lr4 Phase 4d) for
+# typo protection on hand-corrections, and by future consumers
+# (e.g. wyrd-j3gy --stratum filter validation) that need to ask
+# 'is this string a known stratum somewhere?'.
+#
+# Note that several names overlap across families (latin-loan
+# appears in Welsh / OE / ON; english-loan in Welsh / ON). The
+# value alone is ambiguous about which family it belongs to —
+# callers that need family-aware validation must consult the per-
+# family STRATA tuples directly.
+ALL_STRATA: frozenset[str] = frozenset(
+    WELSH_STRATA + FRENCH_STRATA + OLD_ENGLISH_STRATA + OLD_NORSE_STRATA
+)
+
+
 __all__ = [
+    "ALL_STRATA",
     "FRENCH_STRATA",
     "OLD_ENGLISH_STRATA",
     "OLD_NORSE_STRATA",

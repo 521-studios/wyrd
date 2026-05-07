@@ -4584,6 +4584,168 @@ def lexicon_classify_stratum(
         )
 
 
+@lexicon.command("set-stratum")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+@click.option(
+    "--etymon-id",
+    type=int,
+    default=None,
+    help=("Direct etymon row identifier. Mutually exclusive with --canonical-form / --language."),
+)
+@click.option(
+    "--canonical-form",
+    type=str,
+    default=None,
+    help=(
+        "Canonical form to look up. Must be paired with --language; "
+        "the (form, language) pair must resolve to exactly one row."
+    ),
+)
+@click.option(
+    "--language",
+    type=str,
+    default=None,
+    help=(
+        "Language code paired with --canonical-form for the lookup. "
+        "The lexicon language code (e.g. 'welsh', 'old-french', "
+        "'gmq-osw'), not the human-readable name."
+    ),
+)
+@click.option(
+    "--stratum",
+    type=str,
+    default=None,
+    help=(
+        "New stratum value. Must be one of the known strata across "
+        "any classified family (typo protection). Mutually exclusive "
+        "with --clear."
+    ),
+)
+@click.option(
+    "--clear",
+    is_flag=True,
+    default=False,
+    help=("Set the row's stratum to NULL. Mutually exclusive with --stratum."),
+)
+def lexicon_set_stratum(
+    db_path: Path,
+    etymon_id: int | None,
+    canonical_form: str | None,
+    language: str | None,
+    stratum: str | None,
+    clear: bool,
+) -> None:
+    """Manually set the ``stratum`` value on a single etymon row.
+
+    Phase 4d hand-correction CLI for high-stakes etymons that
+    ``classify-stratum`` got wrong. The classifier's heuristic
+    (ancestor walk + self-language pass) misses some signals — most
+    commonly when the ``etymon_descent`` graph lacks a parent edge
+    that scholarly sources actually attest. Use this command to
+    write the correct stratum for an individual row.
+
+    Default behavior of ``classify-stratum --apply`` (without
+    ``--force``) skips rows that already have a non-NULL stratum,
+    so hand-corrections survive subsequent classifier re-runs.
+    """
+    from wyrd.generators.kenning.strata import ALL_STRATA
+
+    # Validate mutually-exclusive identification mode.
+    by_id = etymon_id is not None
+    by_pair = canonical_form is not None or language is not None
+    if by_id and by_pair:
+        click.echo(
+            "Error: pass --etymon-id OR --canonical-form/--language, not both.",
+            err=True,
+        )
+        sys.exit(1)
+    if not by_id and not by_pair:
+        click.echo(
+            "Error: must specify either --etymon-id or --canonical-form + --language.",
+            err=True,
+        )
+        sys.exit(1)
+    if by_pair and (canonical_form is None or language is None):
+        click.echo(
+            "Error: --canonical-form and --language must both be passed "
+            "(canonical_form alone can be ambiguous across languages).",
+            err=True,
+        )
+        sys.exit(1)
+
+    # Validate stratum vs --clear (mutually exclusive, one required).
+    if stratum is not None and clear:
+        click.echo(
+            "Error: --stratum and --clear are mutually exclusive.",
+            err=True,
+        )
+        sys.exit(1)
+    if stratum is None and not clear:
+        click.echo(
+            "Error: must specify --stratum VALUE or --clear.",
+            err=True,
+        )
+        sys.exit(1)
+    if stratum is not None and stratum not in ALL_STRATA:
+        # Sorted list of known strata for the error message — operator
+        # gets a friendly menu rather than a typo silently writing.
+        known = ", ".join(sorted(ALL_STRATA))
+        click.echo(
+            f"Error: unknown stratum {stratum!r}. Known: {known}.",
+            err=True,
+        )
+        sys.exit(1)
+
+    # Resolve target row.
+    with LexiconDB(db_path) as db:
+        if by_id:
+            row = db.conn.execute(
+                "SELECT id, canonical_form, language, stratum FROM etymon WHERE id = ?",
+                (etymon_id,),
+            ).fetchone()
+            if row is None:
+                click.echo(
+                    f"Error: no etymon with id={etymon_id}.",
+                    err=True,
+                )
+                sys.exit(1)
+        else:
+            # The etymon table has a UNIQUE (canonical_form, language)
+            # constraint, so this lookup returns 0 or 1 rows.
+            row = db.conn.execute(
+                "SELECT id, canonical_form, language, stratum FROM etymon "
+                "WHERE canonical_form = ? AND language = ?",
+                (canonical_form, language),
+            ).fetchone()
+            if row is None:
+                click.echo(
+                    f"Error: no etymon with canonical_form={canonical_form!r} "
+                    f"and language={language!r}.",
+                    err=True,
+                )
+                sys.exit(1)
+
+        old_stratum = row["stratum"]
+        new_stratum = None if clear else stratum
+        db.conn.execute(
+            "UPDATE etymon SET stratum = ? WHERE id = ?",
+            (new_stratum, row["id"]),
+        )
+        db.commit()
+
+    click.echo(
+        f"etymon {row['id']} ({row['canonical_form']}, {row['language']}): "
+        f"{old_stratum!r} → {new_stratum!r}",
+        err=True,
+    )
+
+
 @lexicon.command("report")
 @click.option(
     "--db",
