@@ -1,4 +1,4 @@
-"""Tests for the LLM disambiguator (wyrd-6z7).
+"""Tests for the LLM disambiguator (wyrd-6z7, wyrd-uct).
 
 Covers:
 - `find_ambiguous_rows` — picking out rows where multiple etymons are
@@ -11,10 +11,13 @@ Covers:
 - The `lexicon disambiguate-fuzzy` CLI end-to-end with the LLM stubbed.
 - The cost gate: a row with only one candidate etymon never reaches the
   LLM.
+- wyrd-uct: agentic expand-context loop (`disambiguate_one_agentic` +
+  `SnippetExpander`).
 """
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
@@ -25,8 +28,11 @@ from wyrd.generators.kenning.disambiguator import (
     AmbiguityCase,
     Candidate,
     DisambiguatorResult,
+    ExpansionStats,
+    SnippetExpander,
     apply_disambiguator_result,
     disambiguate_one,
+    disambiguate_one_agentic,
     find_ambiguous_rows,
 )
 from wyrd.generators.kenning.gemini_extractor import GeminiClient
@@ -711,3 +717,473 @@ def test_lexicon_disambiguate_fuzzy_cli_no_ambiguous_rows(fresh_db: Path) -> Non
     combined = result.output + (result.stderr or "")
     assert result.exit_code == 0, combined
     assert "No ambiguous fuzzy rows found" in combined
+
+
+# --- wyrd-uct: agentic expand-context loop --------------------------------
+
+
+def _stub_chat_json_sequence(monkeypatch, responses: list[dict]) -> list[dict]:
+    """Replace `GeminiClient.chat_json` with a deterministic queue: each
+    call pops the next response. Returns the same list so the test can
+    assert how many calls were consumed (``len(initial) - len(returned)``).
+
+    Tests use this to script the agentic loop: e.g. [expand, expand,
+    answer] feeds three turns of the conversation.
+    """
+    queue = list(responses)
+
+    def _stub(self, *args, **kw):  # noqa: ARG001 — drop-in for chat_json
+        if not queue:
+            raise AssertionError("agentic loop made more LLM calls than scripted")
+        return queue.pop(0)
+
+    monkeypatch.setattr(GeminiClient, "chat_json", _stub)
+    return queue
+
+
+# Toy body fixture for the expander tests. The 200-char window around
+# 'heath' (positions ~210-215) initially shows only "the heath here".
+# The next ~80 chars contain "an upland district" — the cue that
+# disambiguates herath (ON, district) vs heath (OE, untilled land).
+_LEAD = "x" * 200
+_PASSAGE = (
+    f"{_LEAD}the heath here, where shepherds graze. "
+    "Geographically this is an upland district, well above the river meadows below."
+)
+
+
+def _heath_case(
+    heath_id: int = 42, herath_id: int = 99, *, snippet: str | None = None
+) -> AmbiguityCase:
+    """Build a synthetic herath/heath ambiguity case. The default snippet
+    is the 'first 200 chars' window — narrow enough that the model
+    should request expansion."""
+    if snippet is None:
+        # 100 chars before, 100 chars after — same shape as the
+        # production _TEXT_MATCH_SNIPPET_RADIUS would produce.
+        idx = _PASSAGE.find("heath")
+        start = max(0, idx - 100)
+        end = min(len(_PASSAGE), idx + len("heath") + 100)
+        snippet = _PASSAGE[start:end].strip().replace("heath", "«heath»", 1)
+    return AmbiguityCase(
+        source_id="test_book",
+        matched_form="heath",
+        snippet=snippet,
+        text_match_ids=(1,),
+        current_etymon_ids=(herath_id,),
+        candidates=(
+            Candidate(
+                etymon_id=heath_id,
+                canonical_form="heath",
+                language="old-english",
+                glosses=("untilled land",),
+                tags=(),
+            ),
+            Candidate(
+                etymon_id=herath_id,
+                canonical_form="herath",
+                language="old-norse",
+                glosses=("district",),
+                tags=(),
+            ),
+        ),
+    )
+
+
+def test_snippet_expander_returns_marked_snippet() -> None:
+    """`make_snippet` finds the first occurrence of the matched form
+    and returns a body slice with the form bracketed for highlight."""
+    expander = SnippetExpander.from_in_memory({"test_book": _PASSAGE})
+    snippet = expander.make_snippet("test_book", "heath", radius_before=20, radius_after=20)
+    assert snippet is not None
+    assert "«heath»" in snippet
+    # The radius-bounded slice should be tight — the bracketed token
+    # plus ~40 chars of context (20 before + 20 after).
+    assert len(snippet) <= len("«heath»") + 50  # +5 fudge for trim/replace edges
+
+
+def test_snippet_expander_returns_none_for_missing_source() -> None:
+    """Missing source_id → None, so the orchestrator can short-circuit
+    to a forced commit instead of looping forever."""
+    expander = SnippetExpander.from_in_memory({"other_book": "..."})
+    assert expander.make_snippet("test_book", "heath", radius_before=20, radius_after=20) is None
+
+
+def test_snippet_expander_returns_none_when_form_not_found() -> None:
+    """Form not present in body → None. Guards against fuzzy matches
+    where the OCR-normalized body diverges from the matched form."""
+    expander = SnippetExpander.from_in_memory({"test_book": "no such word here"})
+    assert expander.make_snippet("test_book", "zzqxx", radius_before=20, radius_after=20) is None
+
+
+def test_snippet_expander_uses_word_boundary_anchor() -> None:
+    """Anchor parity with fuzzy/reverse-search: the expander must
+    locate the standalone form, not a substring inside a longer word.
+    Without ``\\b`` the expander would anchor on 'heath' inside
+    'heathen' (idx 0) and widen around the wrong position; with the
+    boundary it skips to the standalone 'heath' (idx ~14)."""
+    body = "the heathens lived where heath rolled to the sea"
+    expander = SnippetExpander.from_in_memory({"test_book": body})
+    snippet = expander.make_snippet("test_book", "heath", radius_before=10, radius_after=10)
+    assert snippet is not None
+    # The bracketed form sits in the standalone-'heath' window, well
+    # past the leading 'heathens'.
+    assert "«heath»" in snippet
+    assert "heathens" not in snippet
+
+
+def test_snippet_expander_widens_around_same_position() -> None:
+    """A second `make_snippet` with a larger radius produces a strict
+    superset (after stripping markers) — the orchestrator relies on
+    this to grow the context monotonically."""
+    expander = SnippetExpander.from_in_memory({"test_book": _PASSAGE})
+    narrow = expander.make_snippet("test_book", "heath", radius_before=20, radius_after=20)
+    wide = expander.make_snippet("test_book", "heath", radius_before=80, radius_after=80)
+    assert narrow is not None and wide is not None
+    # Strip the marker wrappers so the substring relation holds.
+    narrow_plain = narrow.replace("«", "").replace("»", "")
+    wide_plain = wide.replace("«", "").replace("»", "")
+    assert narrow_plain in wide_plain
+    assert len(wide) > len(narrow)
+
+
+def test_disambiguate_one_agentic_commits_immediately(monkeypatch) -> None:
+    """When the model answers on the first turn, the loop returns
+    that verdict with zero expansions and no forced_commit flag — so
+    the cost path matches the original `disambiguate_one`."""
+    case = _heath_case(heath_id=42)
+    expander = SnippetExpander.from_in_memory({"test_book": _PASSAGE})
+
+    queue = _stub_chat_json_sequence(
+        monkeypatch,
+        [
+            {
+                "action": "answer",
+                "choice": "42",
+                "confidence": "high",
+                "reason": "phrase clearly describes untilled land",
+            }
+        ],
+    )
+    result, stats = disambiguate_one_agentic(GeminiClient(api_key="fake"), case, expander)
+    assert result.chosen_etymon_id == 42
+    assert result.confidence == "high"
+    assert stats.expansions == 0
+    assert stats.forced_commit is False
+    assert queue == []  # exactly one LLM call
+
+
+def test_disambiguate_one_agentic_resolves_via_expansion(monkeypatch) -> None:
+    """Acceptance criterion (wyrd-uct):
+
+    The first 200 chars are genuinely ambiguous between herath ('district')
+    and heath ('untilled land'). The next 300+ chars contain 'upland
+    district' — the cue that resolves it. The model requests expansion,
+    sees the resolving phrase, and commits to herath (id 99).
+
+    Verifies: the loop honors the expansion, widens the snippet, and
+    arrives at the right answer.
+    """
+    case = _heath_case(heath_id=42, herath_id=99)
+    expander = SnippetExpander.from_in_memory({"test_book": _PASSAGE})
+
+    queue = _stub_chat_json_sequence(
+        monkeypatch,
+        [
+            # Turn 1: model thinks the snippet is too narrow.
+            {
+                "action": "expand",
+                "direction": "after",
+                "chars": 300,
+                "reason": "need more context to choose between district and untilled land",
+            },
+            # Turn 2: with the wider snippet visible, model commits to ON herath.
+            {
+                "action": "answer",
+                "choice": "99",
+                "confidence": "high",
+                "reason": "the phrase 'upland district' anchors ON herath, not OE heath",
+            },
+        ],
+    )
+    result, stats = disambiguate_one_agentic(GeminiClient(api_key="fake"), case, expander)
+    assert result.chosen_etymon_id == 99
+    assert result.confidence == "high"
+    assert "district" in result.reason.lower()
+    assert stats.expansions == 1
+    assert stats.forced_commit is False
+    assert queue == []  # both scripted calls consumed
+
+
+def test_disambiguate_one_agentic_forces_commit_at_max_expansions(monkeypatch) -> None:
+    """If the model keeps requesting expansions past `max_expansions`,
+    the orchestrator must force a commit on the final round. The model
+    in this test is stubbed to ALWAYS request expansion — the harness
+    sees the FINAL ROUND directive in the prompt and is expected to
+    answer; here we instead simulate a model that keeps asking, which
+    means the loop must label the case forced_commit=True and bail out
+    with chosen_etymon_id=None rather than spinning forever."""
+    case = _heath_case()
+    expander = SnippetExpander.from_in_memory({"test_book": _PASSAGE})
+
+    # 4 expansion responses scripted (3 honored expansions + 1 final
+    # round on which the model still says 'expand'). Loop should stop
+    # after consuming the 4th call and return a 'none' verdict.
+    queue = _stub_chat_json_sequence(
+        monkeypatch,
+        [
+            {"action": "expand", "direction": "both", "chars": 100, "reason": "more"}
+            for _ in range(4)
+        ],
+    )
+    result, stats = disambiguate_one_agentic(
+        GeminiClient(api_key="fake"), case, expander, max_expansions=3
+    )
+    assert result.chosen_etymon_id is None
+    assert result.confidence == "low"
+    assert stats.forced_commit is True
+    assert queue == []  # exactly 4 LLM calls consumed (3 honored + final force)
+
+
+def test_disambiguate_one_agentic_short_circuits_when_source_missing(monkeypatch) -> None:
+    """If the expander can't load the source body, the loop must skip
+    ahead to the final round on the next iteration so the model is
+    asked to commit on the (still-original) snippet rather than
+    re-prompting forever."""
+    case = _heath_case()
+    # Empty in-memory expander — the matched_form won't be findable.
+    empty_expander = SnippetExpander.from_in_memory({})
+
+    queue = _stub_chat_json_sequence(
+        monkeypatch,
+        [
+            # Turn 1: model asks to expand — expander fails, orchestrator
+            # advances expansions to max so the next turn forces commit.
+            {"action": "expand", "direction": "after", "chars": 200},
+            # Turn 2 (final round): model still asks to expand → 'none'.
+            {"action": "expand", "direction": "after", "chars": 200},
+        ],
+    )
+    result, stats = disambiguate_one_agentic(
+        GeminiClient(api_key="fake"), case, empty_expander, max_expansions=3
+    )
+    assert result.chosen_etymon_id is None
+    assert stats.forced_commit is True
+    # 2 calls: original "expand" + 1 forced final round (no honored
+    # widening happened because the expander returned None on turn 1).
+    assert queue == []
+
+
+def test_disambiguate_one_agentic_caps_total_chars(monkeypatch) -> None:
+    """When an expansion would push the snippet past `total_char_cap`,
+    the orchestrator truncates and skips ahead to the final round
+    rather than feeding the model an oversized prompt."""
+    case = _heath_case()
+    # Generate a body large enough that radius_before/after expansions
+    # exceed the cap quickly.
+    big_body = "a " * 5000 + "the heath here. " + "z " * 5000
+    expander = SnippetExpander.from_in_memory({"test_book": big_body})
+
+    queue = _stub_chat_json_sequence(
+        monkeypatch,
+        [
+            # Turn 1: model asks for a huge expansion — orchestrator
+            # truncates to cap and forces the next iteration to commit.
+            {"action": "expand", "direction": "both", "chars": 500},
+            # Turn 2 (forced commit): model finally answers.
+            {
+                "action": "answer",
+                "choice": "42",
+                "confidence": "medium",
+                "reason": "best read on the wider context",
+            },
+        ],
+    )
+    result, stats = disambiguate_one_agentic(
+        GeminiClient(api_key="fake"),
+        case,
+        expander,
+        max_expansions=5,
+        total_char_cap=500,
+    )
+    assert result.chosen_etymon_id == 42
+    assert stats.final_chars <= 500
+    # Cap forced an early-commit branch — only the two scripted calls
+    # ran, even though max_expansions=5 in principle allowed more.
+    assert queue == []
+    # The wider snippet was discarded (would have garbled the «...»
+    # marker on byte-truncate), so the model committed on the original
+    # snippet under the FINAL ROUND directive — that's a forced commit.
+    assert stats.forced_commit is True
+    # Zero honored expansions — every widening was rejected by the cap.
+    assert stats.expansions == 0
+
+
+def test_disambiguate_one_agentic_treats_unknown_action_as_none(monkeypatch) -> None:
+    """If the model returns an action outside {answer, expand}, the
+    orchestrator must NOT mis-apply — it returns 'none' with low
+    confidence, mirroring `disambiguate_one`'s defensive parsing."""
+    case = _heath_case()
+    expander = SnippetExpander.from_in_memory({"test_book": _PASSAGE})
+
+    _stub_chat_json_sequence(
+        monkeypatch,
+        [
+            {"action": "wat", "choice": "42", "confidence": "high", "reason": "?"},
+        ],
+    )
+    result, stats = disambiguate_one_agentic(GeminiClient(api_key="fake"), case, expander)
+    assert result.chosen_etymon_id is None
+    assert result.confidence == "low"
+    assert stats.forced_commit is True
+
+
+def test_disambiguate_one_agentic_validates_chosen_id(monkeypatch) -> None:
+    """An answer with an etymon id outside the candidate set is treated
+    as 'none' (same rule as `disambiguate_one`). Pins the validation
+    branch in `_parse_answer`."""
+    case = _heath_case(heath_id=42, herath_id=99)
+    expander = SnippetExpander.from_in_memory({"test_book": _PASSAGE})
+
+    _stub_chat_json_sequence(
+        monkeypatch,
+        [
+            {
+                "action": "answer",
+                "choice": "9999",
+                "confidence": "high",
+                "reason": "wat",
+            },
+        ],
+    )
+    result, _stats = disambiguate_one_agentic(GeminiClient(api_key="fake"), case, expander)
+    assert result.chosen_etymon_id is None
+    assert result.confidence == "low"
+    assert "9999" in result.reason
+
+
+def test_disambiguate_one_agentic_handles_missing_expand_fields(monkeypatch) -> None:
+    """A model that responds action='expand' without direction/chars
+    must still be honored — the orchestrator falls back to default
+    direction='both' + sensible chars rather than crashing."""
+    case = _heath_case(heath_id=42)
+    expander = SnippetExpander.from_in_memory({"test_book": _PASSAGE})
+
+    queue = _stub_chat_json_sequence(
+        monkeypatch,
+        [
+            # Turn 1: expand with no direction/chars — defaults apply.
+            {"action": "expand"},
+            # Turn 2: commit.
+            {
+                "action": "answer",
+                "choice": "42",
+                "confidence": "medium",
+                "reason": "ok",
+            },
+        ],
+    )
+    result, stats = disambiguate_one_agentic(GeminiClient(api_key="fake"), case, expander)
+    assert result.chosen_etymon_id == 42
+    assert stats.expansions == 1
+    assert queue == []
+
+
+def test_expansion_stats_is_immutable() -> None:
+    """`ExpansionStats` is frozen so it can be hashed / used in sets
+    when downstream telemetry aggregates per-case stats."""
+    s = ExpansionStats(expansions=2, final_chars=800, forced_commit=False)
+    with pytest.raises(FrozenInstanceError):
+        s.expansions = 5  # type: ignore[misc]
+
+
+def test_lexicon_disambiguate_fuzzy_cli_agentic_requires_sources_dir(
+    fresh_db: Path,
+) -> None:
+    """The CLI must reject ``--agentic`` without ``--sources-dir`` —
+    expansion needs a body of source text to draw from. Without the
+    guard, the agentic loop would short-circuit on every case and add
+    cost without value."""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        ["lexicon", "disambiguate-fuzzy", "--db", str(fresh_db), "--agentic"],
+    )
+    combined = result.output + (result.stderr or "")
+    # click.UsageError exits with code 2.
+    assert result.exit_code != 0
+    assert "sources-dir" in combined.lower() or "agentic" in combined.lower()
+
+
+def test_lexicon_disambiguate_fuzzy_cli_agentic_end_to_end(
+    fresh_db: Path, tmp_path: Path, monkeypatch
+) -> None:
+    """End-to-end: ``--agentic`` with ``--sources-dir`` runs the
+    agentic loop. The model first asks to expand, then commits to the
+    correct etymon. The CLI applies the verdict and reports agentic
+    stats showing one expansion."""
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    # Body must contain 'heath' so the expander can locate and widen.
+    (sources_dir / "test_book.txt").write_text(_PASSAGE)
+
+    with LexiconDB(fresh_db) as db:
+        _seed_minimum(db)
+        _insert_fuzzy_row(
+            db,
+            etymon_id=db._herath_id,
+            matched_form="heath",
+            snippet="bare untilled land",
+        )
+    with LexiconDB(fresh_db) as db:
+        _seed_minimum(db)
+        chosen_id = db._heath_id
+
+    queue = _stub_chat_json_sequence(
+        monkeypatch,
+        [
+            {
+                "action": "expand",
+                "direction": "after",
+                "chars": 200,
+                "reason": "need more context",
+            },
+            {
+                "action": "answer",
+                "choice": str(chosen_id),
+                "confidence": "high",
+                "reason": "untilled land matches OE heath after expansion",
+            },
+        ],
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "disambiguate-fuzzy",
+            "--db",
+            str(fresh_db),
+            "--agentic",
+            "--sources-dir",
+            str(sources_dir),
+            "--apply",
+        ],
+    )
+    combined = result.output + (result.stderr or "")
+    assert result.exit_code == 0, combined
+    # Agentic stats line surfaces in the summary.
+    assert "Agentic stats" in combined
+    assert "expansions=1" in combined
+    # Both LLM calls consumed.
+    assert queue == []
+
+    # Verdict was applied to the row.
+    with LexiconDB(fresh_db) as db:
+        row = db.conn.execute(
+            "SELECT etymon_id, method FROM etymon_text_match WHERE matched_form = 'heath'"
+        ).fetchone()
+    assert row is not None
+    assert row["etymon_id"] == chosen_id
+    assert row["method"] == "llm-disambiguated-v1"

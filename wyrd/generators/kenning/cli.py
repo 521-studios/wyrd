@@ -3275,12 +3275,53 @@ def lexicon_fuzzy_search(
     default=120.0,
     show_default=True,
 )
+@click.option(
+    "--agentic",
+    is_flag=True,
+    default=False,
+    help=(
+        "wyrd-uct: enable the agentic expand-context loop. The model can "
+        "request a wider snippet when 200 chars isn't enough. Requires "
+        "--sources-dir so wider snippets can be drawn from the source body."
+    ),
+)
+@click.option(
+    "--sources-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=None,
+    help=(
+        "Directory of normalized source *.txt files. Required when "
+        "--agentic is set. Same shape as the directory used by "
+        "reverse-search and fuzzy-search."
+    ),
+)
+@click.option(
+    "--max-expansions",
+    # >=0 — zero means "no expansions, force commit on round 0",
+    # which is a valid degenerate config equivalent to single-shot
+    # but with the agentic schema's defensive parsing.
+    type=click.IntRange(min=0),
+    default=3,
+    show_default=True,
+    help="Max expand-context rounds per case (only used with --agentic).",
+)
+@click.option(
+    "--total-char-cap",
+    type=click.IntRange(min=1),
+    default=2000,
+    show_default=True,
+    help="Hard cap on total snippet chars per case (only used with --agentic).",
+)
 def lexicon_disambiguate_fuzzy(
     db_path: Path,
     apply_changes: bool,
     limit: int | None,
     model: str | None,
     timeout: float,
+    agentic: bool,
+    sources_dir: Path | None,
+    max_expansions: int,
+    total_char_cap: int,
 ) -> None:
     """Re-resolve fuzzy text-matches that have multiple plausible etymons.
 
@@ -3293,15 +3334,24 @@ def lexicon_disambiguate_fuzzy(
 
     Cost gate: rows with only one candidate etymon (no ambiguity) are
     skipped entirely — no LLM call.
+
+    With --agentic (wyrd-uct), the disambiguator can request a wider
+    snippet when the initial 200-char window isn't enough. Caps at
+    --max-expansions rounds or --total-char-cap chars.
     """
     # Local imports keep the disambiguator deps off the cold-start path
     # for unrelated CLI commands.
     from wyrd.generators.kenning.disambiguator import (
+        SnippetExpander,
         apply_disambiguator_result,
         disambiguate_one,
+        disambiguate_one_agentic,
         find_ambiguous_rows,
     )
     from wyrd.generators.kenning.gemini_extractor import GeminiClient
+
+    if agentic and sources_dir is None:
+        raise click.UsageError("--agentic requires --sources-dir")
 
     with LexiconDB(db_path) as db:
         cases = find_ambiguous_rows(db, max_distance=1, limit=limit)
@@ -3310,19 +3360,39 @@ def lexicon_disambiguate_fuzzy(
         click.echo("No ambiguous fuzzy rows found.", err=True)
         return
 
+    mode_label = "Agentic" if agentic else "Single-shot"
     click.echo(
-        f"{len(cases)} ambiguous rows found. {'Applying' if apply_changes else 'Dry-run'}.",
+        f"{len(cases)} ambiguous rows found. {mode_label} "
+        f"{'apply' if apply_changes else 'dry-run'}.",
         err=True,
     )
 
     client = GeminiClient(timeout_s=timeout, **({"model": model} if model else {}))
+    expander = SnippetExpander(sources_dir=sources_dir) if agentic else None
 
     counts = {"kept": 0, "reassigned": 0, "deleted": 0, "errors": 0}
+    # Aggregate agentic stats so the operator can see how often the loop
+    # had to widen and how often the cap forced a commit. Not surfaced
+    # in the non-agentic path.
+    agentic_totals = {"expansions": 0, "forced_commits": 0}
     write_db = LexiconDB(db_path) if apply_changes else None
     try:
         for case in cases:
             try:
-                result = disambiguate_one(client, case)
+                if agentic:
+                    assert expander is not None  # guarded by the UsageError above
+                    result, stats = disambiguate_one_agentic(
+                        client,
+                        case,
+                        expander,
+                        max_expansions=max_expansions,
+                        total_char_cap=total_char_cap,
+                    )
+                    agentic_totals["expansions"] += stats.expansions
+                    if stats.forced_commit:
+                        agentic_totals["forced_commits"] += 1
+                else:
+                    result = disambiguate_one(client, case)
             except RuntimeError as e:
                 counts["errors"] += 1
                 click.echo(f"  ERROR  {case.matched_form:20} {e}", err=True)
@@ -3360,6 +3430,12 @@ def lexicon_disambiguate_fuzzy(
 
     click.echo("", err=True)
     click.echo(f"Disambiguator summary: {counts}", err=True)
+    if agentic:
+        click.echo(
+            f"Agentic stats: expansions={agentic_totals['expansions']} "
+            f"forced_commits={agentic_totals['forced_commits']}",
+            err=True,
+        )
     if not apply_changes:
         click.echo("(dry-run; pass --apply to update etymon_text_match)", err=True)
 
