@@ -69,6 +69,37 @@ CREATE TABLE etymon (
   -- cluster-cognates-v2 selectively clear and rebuild only its
   -- predecessor's work, mirroring the lemma_method shape.
   cognate_method  TEXT,
+  -- wyrd-ha9q Phase 2a: pronunciation + multi-script renderings used by
+  -- the SPA's etymological-provenance panel and (in Phase 2b) by the
+  -- english_shaped derivation that drives non-Latin-script town-name
+  -- generation. Decision A (PR after #94): we DON'T migrate canonical_form
+  -- for non-Latin-source rows; canonical_form continues to hold whatever
+  -- wiktextract used as `entry.word` (often the native script for
+  -- Hebrew/Arabic/etc.), and these columns sit alongside.
+  --
+  -- pronunciation_ipa     — most authoritative IPA from wiktextract's
+  --                         `sounds[*].ipa`; e.g. /d͡ʒɪnː/ for Arabic jinn.
+  -- pronunciation_dialect — first dialect tag on the chosen sound entry
+  --                         when present (e.g. 'Biblical-Hebrew',
+  --                         'Yemenite-Hebrew', 'Modern Standard Arabic').
+  -- original_script       — vocalized native-script form when wiktextract
+  --                         provides one via `head_templates[0].args.wv`
+  --                         (Hebrew niqqud, Arabic harakat, etc.). NULL
+  --                         when canonical_form already carries the
+  --                         intended display string.
+  -- transliteration       — academic Latin-script form from
+  --                         `head_templates[0].args.tr` (e.g. 'kɛ́lɛḇ',
+  --                         'ʿifrīt', 'rakṣasa'). Carries diacritics that
+  --                         the english_shaped derivation strips.
+  -- english_shaped        — Phase 2b: rule-derived from IPA + transliteration,
+  --                         sanitized for English readers (no diacritics,
+  --                         no exotic characters). Town-name generation
+  --                         picks this when set.
+  pronunciation_ipa     TEXT,
+  pronunciation_dialect TEXT,
+  original_script       TEXT,
+  transliteration       TEXT,
+  english_shaped        TEXT,
   UNIQUE (canonical_form, language)
 );
 CREATE INDEX idx_etymon_lemma       ON etymon(lemma_id);

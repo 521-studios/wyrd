@@ -216,21 +216,46 @@ class LexiconDB:
         modifier_type: str | None = None,
         position_pref: str | None = None,
         notes: str | None = None,
+        pronunciation_ipa: str | None = None,
+        pronunciation_dialect: str | None = None,
+        original_script: str | None = None,
+        transliteration: str | None = None,
     ) -> int:
         # ON CONFLICT lets us do this in a single statement: insert if new,
         # otherwise fill in any missing fields without overwriting existing
         # non-null values. RETURNING id avoids a follow-up SELECT.
+        # The wyrd-ha9q pronunciation / script kwargs follow the same
+        # COALESCE-on-conflict pattern: a re-ingest fills in NULLs without
+        # clobbering values that an earlier richer source already provided.
         cur = self.conn.execute(
             """
-            INSERT INTO etymon (canonical_form, language, modifier_type, position_pref, notes)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO etymon (
+                canonical_form, language, modifier_type, position_pref, notes,
+                pronunciation_ipa, pronunciation_dialect,
+                original_script, transliteration
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(canonical_form, language) DO UPDATE SET
-                modifier_type = COALESCE(etymon.modifier_type, excluded.modifier_type),
-                position_pref = COALESCE(etymon.position_pref, excluded.position_pref),
-                notes         = COALESCE(etymon.notes, excluded.notes)
+                modifier_type         = COALESCE(etymon.modifier_type, excluded.modifier_type),
+                position_pref         = COALESCE(etymon.position_pref, excluded.position_pref),
+                notes                 = COALESCE(etymon.notes, excluded.notes),
+                pronunciation_ipa     = COALESCE(etymon.pronunciation_ipa, excluded.pronunciation_ipa),
+                pronunciation_dialect = COALESCE(etymon.pronunciation_dialect, excluded.pronunciation_dialect),
+                original_script       = COALESCE(etymon.original_script, excluded.original_script),
+                transliteration       = COALESCE(etymon.transliteration, excluded.transliteration)
             RETURNING id
             """,
-            (canonical_form, language, modifier_type, position_pref, notes),
+            (
+                canonical_form,
+                language,
+                modifier_type,
+                position_pref,
+                notes,
+                pronunciation_ipa,
+                pronunciation_dialect,
+                original_script,
+                transliteration,
+            ),
         )
         return cur.fetchone()[0]
 
@@ -468,6 +493,28 @@ def _add_etymon_columns(db: LexiconDB, applied: dict[str, bool]) -> None:
     if "cognate_method" not in cols:
         db.conn.execute("ALTER TABLE etymon ADD COLUMN cognate_method TEXT")
         applied["etymon.cognate_method"] = True
+    # wyrd-ha9q Phase 2a: pronunciation + multi-script renderings.
+    # All TEXT NULL. Populated by the wiktextract ingester from
+    # `entry.sounds[*]` (IPA + dialect) and `entry.head_templates[0].args`
+    # (vocalized native form + academic transliteration). english_shaped
+    # stays NULL until Phase 2b (rule-derived from IPA + transliteration).
+    # Existing rows that pre-date this migration keep NULLs until the
+    # next ingest pass picks them up via the ingester's upsert logic.
+    if "pronunciation_ipa" not in cols:
+        db.conn.execute("ALTER TABLE etymon ADD COLUMN pronunciation_ipa TEXT")
+        applied["etymon.pronunciation_ipa"] = True
+    if "pronunciation_dialect" not in cols:
+        db.conn.execute("ALTER TABLE etymon ADD COLUMN pronunciation_dialect TEXT")
+        applied["etymon.pronunciation_dialect"] = True
+    if "original_script" not in cols:
+        db.conn.execute("ALTER TABLE etymon ADD COLUMN original_script TEXT")
+        applied["etymon.original_script"] = True
+    if "transliteration" not in cols:
+        db.conn.execute("ALTER TABLE etymon ADD COLUMN transliteration TEXT")
+        applied["etymon.transliteration"] = True
+    if "english_shaped" not in cols:
+        db.conn.execute("ALTER TABLE etymon ADD COLUMN english_shaped TEXT")
+        applied["etymon.english_shaped"] = True
 
 
 def _create_etymon_indexes(db: LexiconDB, applied: dict[str, bool]) -> None:

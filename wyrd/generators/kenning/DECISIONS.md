@@ -1054,3 +1054,46 @@ same version updates rows in place; bumping the version (e.g. when a
 stronger pipeline ships) writes parallel rows so the old results stay
 queryable. The `--skip-resolved` flag scopes to the current version
 — callers can't accidentally skip rows from an older pipeline run.
+
+## D31. wyrd-ha9q Phase 2a — multi-script renderings sit alongside canonical_form.
+
+When wyrd-ha9q (Phase 2 of the wyrd-ami sibling pipeline) needed to add
+pronunciation + multi-script renderings to the etymon table, the
+choice was whether to migrate `canonical_form` for non-Latin-script
+rows (so canonical_form holds academic transliteration, with native
+script in a new column) OR to keep `canonical_form` as wiktextract
+gave it (often native script for Hebrew/Arabic/etc.) and add the new
+renderings as parallel columns. The latter — option A — was chosen.
+
+Reasons:
+- `(canonical_form, language)` is the corpus-wide UNIQUE key. A
+  migration that re-shapes canonical_form for ~85k Hebrew/Arabic/
+  Persian rows changes the meaning of every existing reference: every
+  descent edge that resolves a parent by canonical_form, every
+  fantasy_pipeline LLM-anchor lookup, every fuzzy-search index.
+- The wiktextract ingester writes `canonical_form = entry.word`. A
+  migration that diverges from this would need both a one-time bulk
+  UPDATE and an ongoing translation layer in the ingester.
+- The SPA's etymological-provenance panel only needs the four
+  renderings (original_script, transliteration, english_shaped, IPA)
+  to exist and be retrievable; it doesn't require canonical_form to
+  be any specific kind of value.
+
+Concretely the schema adds five nullable TEXT columns to `etymon`:
+`pronunciation_ipa`, `pronunciation_dialect`, `original_script`,
+`transliteration`, `english_shaped`. Phase 2a populates the first
+four from wiktextract's `sounds[*]` and `head_templates[0].args`
+(via the upsert COALESCE-on-conflict pattern, so a re-ingest backfills
+NULLs without clobbering existing values). `english_shaped` stays
+NULL until Phase 2b's IPA-driven derivation lands.
+
+The `head` head-template arg is an Arabic / Egyptian fallback when
+`wv` (the cleaner Hebrew-style key) is absent. `head` values are run
+through `_is_clean_native_form` to filter out multi-form display
+strings (`'و / و'`), affix markers (leading/trailing `ـ` or `-`), and
+reconstructed `*-prefixed` proto-forms before storage.
+
+For non-Latin-script source rows the SPA panel reads original_script
+when present, falling back to canonical_form (which IS the native
+script for those rows) — so display callers don't need to know the
+partition.

@@ -3858,6 +3858,18 @@ def lexicon_ingest_wiktionary(
             f"(operator may want to extend the maps in wiktextract_ingester.py)",
             err=True,
         )
+    # wyrd-ha9q Phase 2a: pronunciation + multi-script capture stats.
+    # Only show non-zero counters so the slim Latin-script slices
+    # (Old English, Old Norse, etc. that wiktextract usually leaves
+    # without `sounds` arrays) don't print three zero lines.
+    pron = result.get("pronunciation_captured", 0)
+    orig = result.get("original_script_captured", 0)
+    trans = result.get("transliteration_captured", 0)
+    if pron or orig or trans:
+        click.echo(
+            f"  pronunciation captured: ipa={pron} original_script={orig} transliteration={trans}",
+            err=True,
+        )
     if not apply_changes:
         click.echo("(dry-run; pass --apply to commit)", err=True)
 

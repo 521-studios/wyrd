@@ -1349,3 +1349,296 @@ def test_forms_other_class_round_trips_through_insert(fresh_db: Path) -> None:
         variants = _all_etymon_variants(db)
     assert result["forms_emitted"] == 1
     assert variants == [("word", "wordlet", "other", '["sense:foo"]')]
+
+
+# ---------------------------------------------------------------------
+# wyrd-ha9q Phase 2a: pronunciation + multi-script capture
+# ---------------------------------------------------------------------
+
+
+from wyrd.generators.kenning.wiktextract_ingester import (  # noqa: E402
+    _extract_head_template_renderings,
+    _extract_pronunciation,
+)
+
+
+def _wiktextract_entry_full(
+    *,
+    word: str,
+    lang_code: str,
+    sounds: list[dict] | None = None,
+    head_templates: list[dict] | None = None,
+) -> str:
+    """Build a wiktextract JSONL line carrying optional `sounds` and
+    `head_templates` arrays — the two new sections Phase 2a reads."""
+    record: dict = {"word": word, "lang_code": lang_code, "pos": "noun"}
+    if sounds is not None:
+        record["sounds"] = sounds
+    if head_templates is not None:
+        record["head_templates"] = head_templates
+    return json.dumps(record) + "\n"
+
+
+def _etymon_phase2a_cols(
+    db: LexiconDB, canonical_form: str, language: str
+) -> tuple[str | None, str | None, str | None, str | None]:
+    row = db.conn.execute(
+        """SELECT pronunciation_ipa, pronunciation_dialect,
+                  original_script, transliteration
+           FROM etymon
+           WHERE canonical_form = ? AND language = ?""",
+        (canonical_form, language),
+    ).fetchone()
+    if row is None:
+        return (None, None, None, None)
+    return (
+        row["pronunciation_ipa"],
+        row["pronunciation_dialect"],
+        row["original_script"],
+        row["transliteration"],
+    )
+
+
+def test_extract_pronunciation_prefers_untagged_ipa() -> None:
+    """When the sounds array contains both an undialected entry and
+    dialected ones, the undialected entry wins as the canonical
+    pronunciation. dialect tag returns None in that case."""
+    sounds = [
+        {"ipa": "/ʤɪnː/"},  # untagged
+        {"tags": ["Modern Standard Arabic"], "ipa": "/d͡ʒɪnː/"},
+    ]
+    assert _extract_pronunciation(sounds) == ("/ʤɪnː/", None)
+
+
+def test_extract_pronunciation_falls_back_to_first_dialected_when_no_untagged() -> None:
+    """Common wave-2 case: every sound entry is dialect-tagged. First
+    one wins, with the first tag captured as pronunciation_dialect."""
+    sounds = [
+        {"tags": ["Biblical-Hebrew"], "ipa": "/kalb/"},
+        {"tags": ["Yemenite-Hebrew"], "ipa": "/ˈka.lav/"},
+    ]
+    assert _extract_pronunciation(sounds) == ("/kalb/", "Biblical-Hebrew")
+
+
+def test_extract_pronunciation_skips_entries_without_ipa() -> None:
+    """A sounds array entry without an `ipa` key is just metadata
+    (audio file, rhyme listing) — skip past it to the first IPA."""
+    sounds = [
+        {"audio": "Ar-jinn.ogg"},  # no ipa
+        {"tags": ["MSA"], "ipa": "/d͡ʒɪnː/"},
+    ]
+    assert _extract_pronunciation(sounds) == ("/d͡ʒɪnː/", "MSA")
+
+
+def test_extract_pronunciation_empty_returns_none_pair() -> None:
+    assert _extract_pronunciation([]) == (None, None)
+
+
+def test_extract_head_template_renderings_pulls_wv_and_tr() -> None:
+    """Hebrew shape: wv = vocalized native, tr = academic Latin."""
+    head_templates = [
+        {
+            "name": "he-noun",
+            "args": {
+                "g": "m",
+                "tr": "kɛ́lɛḇ, kélev",
+                "wv": "כֶּלֶב",
+                "pl": "כְּלָבִים",
+            },
+            "expansion": "...",
+        }
+    ]
+    assert _extract_head_template_renderings(head_templates, "כלב") == (
+        "כֶּלֶב",
+        "kɛ́lɛḇ, kélev",
+    )
+
+
+def test_extract_head_template_renderings_drops_wv_equal_to_lemma() -> None:
+    """When wv equals the lemma word verbatim there's no extra info
+    to surface — return None for original_script so the SPA falls
+    back to canonical_form (which is identical)."""
+    head_templates = [{"name": "he-noun", "args": {"wv": "כלב", "tr": "kelev"}}]
+    assert _extract_head_template_renderings(head_templates, "כלב") == (None, "kelev")
+
+
+def test_extract_head_template_renderings_handles_missing_args() -> None:
+    """Templates that lack `args` (or have a non-dict args field —
+    seen rarely in malformed entries) return (None, None)."""
+    assert _extract_head_template_renderings([{"name": "he-noun"}], "lemma") == (None, None)
+    assert _extract_head_template_renderings([{"name": "he-noun", "args": ["bad"]}], "lemma") == (
+        None,
+        None,
+    )
+
+
+def test_extract_head_template_renderings_falls_back_to_head_when_no_wv() -> None:
+    """Arabic / Egyptian shape: no `wv`, but `head` carries the
+    vocalized native form (Arabic harakat) or hieroglyphic markup."""
+    # Arabic: `head` = vocalized form different from lemma.
+    arabic = [{"name": "ar-noun", "args": {"head": "الْعَرَبِيَّة"}}]
+    assert _extract_head_template_renderings(arabic, "العربية") == ("الْعَرَبِيَّة", None)
+    # Egyptian: `head` = hieroglyphic markup.
+    egyptian = [{"name": "egy-noun", "args": {"head": "<hiero>g:p-mw</hiero>"}}]
+    assert _extract_head_template_renderings(egyptian, "gp") == ("<hiero>g:p-mw</hiero>", None)
+
+
+def test_extract_head_template_renderings_wv_beats_head_when_both_present() -> None:
+    """If a template carries both `wv` and `head`, the cleaner `wv`
+    convention wins (it's the unambiguous canonical form)."""
+    head_templates = [{"name": "he-noun", "args": {"wv": "כֶּלֶב", "head": "OTHER"}}]
+    orig, _ = _extract_head_template_renderings(head_templates, "כלב")
+    assert orig == "כֶּלֶב"
+
+
+def test_extract_head_template_renderings_rejects_multiform_head() -> None:
+    """Arabic editors sometimes pack multiple alt forms into one
+    `head` string with `/` separators (e.g. `'و / و'`). Don't surface
+    those as a single form — return None and let the SPA fall back to
+    canonical_form."""
+    head_templates = [{"name": "ar-noun", "args": {"head": "و / و"}}]
+    assert _extract_head_template_renderings(head_templates, "و") == (None, None)
+
+
+def test_extract_head_template_renderings_rejects_affix_marker_head() -> None:
+    """Affix markers (leading/trailing tatweel `ـ` or hyphen) signal
+    a partial form, not a complete native-script word."""
+    head_templates_pre = [{"name": "ar-noun", "args": {"head": "ـت"}}]
+    assert _extract_head_template_renderings(head_templates_pre, "ت")[0] is None
+    head_templates_post = [{"name": "ar-noun", "args": {"head": "test-"}}]
+    assert _extract_head_template_renderings(head_templates_post, "test")[0] is None
+
+
+def test_extract_head_template_renderings_rejects_reconstructed_form() -> None:
+    """Reconstructed forms (`*tūnaz` style) shouldn't land in
+    original_script — they have no native script to begin with, and
+    the `*` would confuse a SPA panel that expects renderable text."""
+    head_templates = [{"name": "gem-pro-noun", "args": {"head": "*tūnaz"}}]
+    assert _extract_head_template_renderings(head_templates, "*tūnaz")[0] is None
+
+
+def test_extract_head_template_renderings_first_template_wins() -> None:
+    """Multiple head_templates entries (alternative POS / sense
+    headers) — only the first one is read. Avoids merging metadata
+    across distinct senses that wiktextract files separately."""
+    head_templates = [
+        {"name": "he-noun", "args": {"wv": "כֶּלֶב", "tr": "kélev"}},
+        {"name": "he-noun", "args": {"wv": "OTHER", "tr": "other"}},
+    ]
+    orig, translit = _extract_head_template_renderings(head_templates, "כלב")
+    assert orig == "כֶּלֶב"
+    assert translit == "kélev"
+
+
+def test_extract_head_template_renderings_empty_list() -> None:
+    assert _extract_head_template_renderings([], "lemma") == (None, None)
+
+
+def test_ingest_persists_pronunciation_and_renderings_end_to_end(fresh_db: Path) -> None:
+    """End-to-end: a wiktextract entry with sounds + head_templates lands
+    on the etymon row with all four Phase 2a columns populated. Counters
+    in the result dict track per-field capture."""
+    line = _wiktextract_entry_full(
+        word="כלב",
+        lang_code="he",
+        sounds=[{"tags": ["Biblical-Hebrew"], "ipa": "/kalb/"}],
+        head_templates=[
+            {
+                "name": "he-noun",
+                "args": {"g": "m", "tr": "kɛ́lɛḇ, kélev", "wv": "כֶּלֶב"},
+            }
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        ipa, dialect, orig, translit = _etymon_phase2a_cols(db, "כלב", "he")
+    assert ipa == "/kalb/"
+    assert dialect == "Biblical-Hebrew"
+    assert orig == "כֶּלֶב"
+    assert translit == "kɛ́lɛḇ, kélev"
+    assert result["pronunciation_captured"] == 1
+    assert result["original_script_captured"] == 1
+    assert result["transliteration_captured"] == 1
+
+
+def test_ingest_pronunciation_columns_default_null_for_latin_entries(fresh_db: Path) -> None:
+    """Latin / OE / etc. wiktextract entries usually carry no `sounds`
+    array and no head_templates with wv/tr — those rows must end up
+    with NULL in the new columns, not crash on missing keys."""
+    line = _wiktextract_entry_full(
+        word="tūn",
+        lang_code="ang",
+        sounds=None,
+        head_templates=[{"name": "ang-noun", "args": {"head": "tūn", "g": "n"}}],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        ipa, dialect, orig, translit = _etymon_phase2a_cols(db, "tūn", "old-english")
+    assert (ipa, dialect, orig, translit) == (None, None, None, None)
+    assert result["pronunciation_captured"] == 0
+    assert result["original_script_captured"] == 0
+
+
+def test_ingest_upsert_does_not_overwrite_richer_existing_pronunciation(fresh_db: Path) -> None:
+    """COALESCE-on-conflict invariant: if an etymon already has IPA
+    populated (e.g. from a prior richer source), a re-ingest of an
+    entry that lacks IPA must NOT clobber the existing value with NULL.
+    Symmetrically, an existing NULL gets filled by a later non-NULL
+    re-ingest. This is the wave-2 backfill story."""
+    # First ingest: poor-data entry, no sounds.
+    poor = _wiktextract_entry_full(
+        word="جن",
+        lang_code="ar",
+        sounds=None,
+        head_templates=[{"name": "ar-noun", "args": {}}],
+    )
+    # Second ingest: rich-data entry on the SAME (canonical_form, language).
+    rich = _wiktextract_entry_full(
+        word="جن",
+        lang_code="ar",
+        sounds=[{"tags": ["MSA"], "ipa": "/d͡ʒɪnː/"}],
+        head_templates=[{"name": "ar-noun", "args": {"tr": "jinn"}}],
+    )
+    with LexiconDB(fresh_db) as db:
+        ingest_wiktextract_stream(db, _stream(poor), apply=True)
+        # Pre-second-ingest state: NULLs.
+        assert _etymon_phase2a_cols(db, "جن", "ar") == (None, None, None, None)
+        ingest_wiktextract_stream(db, _stream(rich), apply=True)
+        # Post-second-ingest: rich values backfilled.
+        assert _etymon_phase2a_cols(db, "جن", "ar") == ("/d͡ʒɪnː/", "MSA", None, "jinn")
+        # Now a THIRD ingest of the poor version — must NOT clobber
+        # the rich values.
+        ingest_wiktextract_stream(db, _stream(poor), apply=True)
+        assert _etymon_phase2a_cols(db, "جن", "ar") == ("/d͡ʒɪnː/", "MSA", None, "jinn")
+
+
+def test_ingest_dry_run_does_not_set_pronunciation_columns(fresh_db: Path) -> None:
+    """Dry-run mode (apply=False) skips the upsert, so no row exists
+    and per-field counters stay at zero."""
+    line = _wiktextract_entry_full(
+        word="כלב",
+        lang_code="he",
+        sounds=[{"ipa": "/kalb/"}],
+        head_templates=[{"name": "he-noun", "args": {"wv": "כֶּלֶב", "tr": "kelev"}}],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=False)
+        # No row written.
+        row = db.conn.execute("SELECT 1 FROM etymon WHERE canonical_form = ?", ("כלב",)).fetchone()
+    assert row is None
+    assert result["pronunciation_captured"] == 0
+
+
+def test_phase2a_columns_present_on_fresh_db(fresh_db: Path) -> None:
+    """Schema sanity: the five Phase 2a columns exist on a freshly-
+    initialized DB. Catches a missing entry in lexicon.sql / migration."""
+    with LexiconDB(fresh_db) as db:
+        cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(etymon)")}
+    for col in (
+        "pronunciation_ipa",
+        "pronunciation_dialect",
+        "original_script",
+        "transliteration",
+        "english_shaped",
+    ):
+        assert col in cols, f"{col} missing from etymon schema"
