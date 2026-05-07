@@ -4268,12 +4268,14 @@ def lexicon_derive_english_shaped(
 )
 @click.option(
     "--language",
-    type=click.Choice(["welsh"]),
+    type=click.Choice(["welsh", "french"]),
     required=True,
     help=(
-        "Language family to classify. Currently only 'welsh' is "
-        "supported (covers etymons with language IN ('welsh', "
-        "'middle-welsh', 'old-welsh', 'cel-bry-pro')). French / Old "
+        "Language family to classify. Currently 'welsh' and 'french' "
+        "are supported. Welsh covers etymons with language IN "
+        "('welsh', 'middle-welsh', 'old-welsh', 'cel-bry-pro'); "
+        "French covers ('french', 'old-french', 'middle-french', "
+        "'norman-french', 'vulgar-latin', 'frk', 'cel-gau'). Old "
         "English / Old Norse are follow-up tickets."
     ),
 )
@@ -4313,9 +4315,17 @@ def lexicon_classify_stratum(
     """
     # Local import keeps the cold-start path lean for unrelated CLI
     # commands. Same pattern as other lexicon subcommands.
-    from wyrd.generators.kenning.strata import WELSH_STRATA, classify_welsh
+    from wyrd.generators.kenning.strata import (
+        FRENCH_STRATA,
+        WELSH_STRATA,
+        classify_french,
+        classify_welsh,
+    )
 
-    classifiers = {"welsh": (classify_welsh, WELSH_STRATA)}
+    classifiers = {
+        "welsh": (classify_welsh, WELSH_STRATA),
+        "french": (classify_french, FRENCH_STRATA),
+    }
     classifier, strata_order = classifiers[language]
 
     with LexiconDB(db_path) as db:

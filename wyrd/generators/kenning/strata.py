@@ -7,17 +7,18 @@ A 'Welsh-flavored elven' generator pulling indiscriminately from all
 of it produces stylistic mush.
 
 The ``stratum`` column on ``etymon`` partitions each language's
-etymons into named buckets so callers (eventually a ``--stratum``
-filter on the generator, deferred to a follow-up) can target a
-specific register.
+etymons into named buckets so callers (the ``--stratum`` filter on
+the generator, wyrd-lr4 Phase 3) can target a specific register.
 
 Strata are language-specific — Welsh's strata don't transfer to
 French or Old English. This module keeps the per-language
 vocabularies + the heuristic that classifies each etymon by walking
-its ``etymon_descent`` parent edges.
+its ``etymon_descent`` parent edges. ``_classify_family`` is the
+shared engine; each language exposes ``classify_<lang>`` as a thin
+wrapper that supplies its constants.
 
-Welsh is the only language family covered in the first wyrd-lr4 PR;
-French / Old English / Old Norse follow.
+Phase 1 covered Welsh; Phase 4a adds French; Old English / Old
+Norse follow.
 """
 
 from __future__ import annotations
@@ -82,6 +83,65 @@ _WELSH_SELF_LANGUAGE_TO_STRATUM: dict[str, str] = {
 }
 
 
+# --- French strata --------------------------------------------------------
+#
+# Five mutually-exclusive buckets. Differs from the Welsh layout in
+# one important way: French IS Latin-descended, so 'Latin in your
+# ancestry' is not a useful loan signal — it'd catch every French
+# word. The meaningful strata for French are SUBSTRATE markers
+# (frankish, gaulish — pre-Latin influences) and the period self-
+# language buckets (medieval-french, gallo-roman). Words without any
+# of those markers fall into the native-french default.
+#
+# The umbrella ticket called for 'Frankish substrate + Gallo-Roman +
+# medieval French + early modern + Occitan-influenced south'. We
+# fold early-modern into native-french (no clear-cut signal in the
+# descent graph distinguishes them) and drop occitan-influenced
+# (only ~134 etymons under 'pro' in the live DB; geographically
+# narrow, hard to detect via parent-language alone). Phase 4d
+# (manual hand-correction) is the catch-all for ambiguous etymons
+# the heuristic gets wrong.
+
+_FRENCH_DEFAULT_STRATUM: str = "native-french"
+
+FRENCH_STRATA: tuple[str, ...] = (
+    "frankish-substrate",
+    "gaulish-substrate",
+    "gallo-roman",
+    "medieval-french",
+    _FRENCH_DEFAULT_STRATUM,
+)
+
+
+# Ancestor language → stratum bucket. An etymon with
+# ``language='french'`` whose ``etymon_descent`` parents include any
+# of these gets mapped to the corresponding stratum. Latin and
+# vulgar-latin are deliberately ABSENT — every French word descends
+# from Latin via the standard Romance path, so including them would
+# collapse the entire bundle into 'gallo-roman' and erase the
+# substrate distinctions.
+_FRENCH_ANCESTOR_TO_STRATUM: dict[str, str] = {
+    "frk": "frankish-substrate",
+    "cel-gau": "gaulish-substrate",
+}
+
+
+# Self-language → stratum. An etymon whose OWN language is a French-
+# family ancestor variety classifies by self-language. The grouping
+# follows the same convention as Welsh: ancestor varieties (frk,
+# cel-gau, vulgar-latin) get mapped to their substrate / loan
+# stratum directly, period varieties (old-french, middle-french,
+# norman-french) collapse into 'medieval-french'.
+_FRENCH_SELF_LANGUAGE_TO_STRATUM: dict[str, str] = {
+    "frk": "frankish-substrate",
+    "cel-gau": "gaulish-substrate",
+    "vulgar-latin": "gallo-roman",
+    "old-french": "medieval-french",
+    "middle-french": "medieval-french",
+    "norman-french": "medieval-french",
+}
+
+
 def _stratum_to_ancestors(
     ancestor_to_stratum: dict[str, str],
 ) -> dict[str, set[str]]:
@@ -93,24 +153,41 @@ def _stratum_to_ancestors(
     return inverted
 
 
-def classify_welsh(db: LexiconDB) -> dict[int, str]:
-    """Return ``{etymon_id: stratum}`` for the Welsh family.
+def _classify_family(
+    db: LexiconDB,
+    *,
+    modern_lang: str,
+    strata_order: tuple[str, ...],
+    ancestor_to_stratum: dict[str, str],
+    self_lang_to_stratum: dict[str, str],
+    default_stratum: str,
+) -> dict[int, str]:
+    """Generic classifier shared by classify_welsh / classify_french /
+    (and Phase 4b/4c follow-ons).
 
-    Covers etymons whose ``language`` is one of:
-    - ``welsh`` — classified by ancestor language via ``etymon_descent``.
-    - ``middle-welsh``, ``old-welsh``, ``cel-bry-pro`` — classified by
-      self-language (these ARE the ancestors of welsh).
+    Two passes:
+    1. Self-language pass: every etymon whose ``language`` is a key
+       in ``self_lang_to_stratum`` gets assigned the corresponding
+       stratum directly. This covers ancestor varieties (proto-
+       Brittonic, Frankish, vulgar-Latin, ...) and period varieties
+       (middle-welsh, old-french, ...) that ARE the ancestor — their
+       own descent walk would describe what fed INTO them, not their
+       own register.
+    2. Ancestor-walk pass: every etymon whose ``language ==
+       modern_lang`` gets its parent-language set built via a single
+       chunked join over ``etymon_descent``, then iterates
+       ``strata_order`` and picks the first stratum whose
+       ancestor-language set intersects the parent set.
 
-    Pure read; doesn't mutate the DB. The caller decides whether to
-    write the proposed assignments to the ``stratum`` column.
+    Both passes skip ``merged_into_id IS NOT NULL`` rows — OCR-
+    clustering losers that callers already filter out.
 
-    Skips ``merged_into_id IS NOT NULL`` rows — those have been folded
-    into a canonical winner by OCR clustering and shouldn't carry an
-    independent stratum.
+    Pure read; doesn't mutate the DB. Caller decides whether to write
+    the proposed assignments back to ``etymon.stratum``.
     """
     proposals: dict[int, str] = {}
 
-    for lang, stratum in _WELSH_SELF_LANGUAGE_TO_STRATUM.items():
+    for lang, stratum in self_lang_to_stratum.items():
         rows = db.conn.execute(
             "SELECT id FROM etymon WHERE language = ? AND merged_into_id IS NULL",
             (lang,),
@@ -118,21 +195,21 @@ def classify_welsh(db: LexiconDB) -> dict[int, str]:
         for r in rows:
             proposals[r["id"]] = stratum
 
-    welsh_rows = db.conn.execute(
-        "SELECT id FROM etymon WHERE language = 'welsh' AND merged_into_id IS NULL"
+    modern_rows = db.conn.execute(
+        "SELECT id FROM etymon WHERE language = ? AND merged_into_id IS NULL",
+        (modern_lang,),
     ).fetchall()
-    if not welsh_rows:
+    if not modern_rows:
         return proposals
 
-    # Pull every parent-language for the welsh etymon set in one pass.
-    # Chunked at SQLite's 999-variable limit. The inner SELECT keys on
-    # ``child_id`` so the index ``idx_etymon_descent_child`` carries
-    # the lookup. ``GROUP_CONCAT`` would also work but the row-iteration
-    # form keeps the parent-language set construction obvious.
-    welsh_ids = [r["id"] for r in welsh_rows]
+    # Pull every parent-language for the modern-variety etymon set
+    # in one pass. Chunked at SQLite's 999-variable limit. The inner
+    # SELECT keys on ``child_id`` so ``idx_etymon_descent_child``
+    # carries the lookup.
+    modern_ids = [r["id"] for r in modern_rows]
     parents_by_child: dict[int, set[str]] = {}
-    for i in range(0, len(welsh_ids), 999):
-        chunk = welsh_ids[i : i + 999]
+    for i in range(0, len(modern_ids), 999):
+        chunk = modern_ids[i : i + 999]
         placeholders = ",".join("?" * len(chunk))
         cur = db.conn.execute(
             f"SELECT d.child_id, e.language "  # noqa: S608 — placeholders are ints
@@ -143,17 +220,17 @@ def classify_welsh(db: LexiconDB) -> dict[int, str]:
         for row in cur:
             parents_by_child.setdefault(row["child_id"], set()).add(row["language"])
 
-    stratum_ancestors = _stratum_to_ancestors(_WELSH_ANCESTOR_TO_STRATUM)
+    stratum_ancestors = _stratum_to_ancestors(ancestor_to_stratum)
 
-    for eid in welsh_ids:
+    for eid in modern_ids:
         parent_langs = parents_by_child.get(eid, set())
-        assigned = _WELSH_DEFAULT_STRATUM
+        assigned = default_stratum
         # Iterate strata in priority order; first stratum whose
-        # ancestor-language set intersects this etymon's parent set wins.
-        # The default stratum has no ancestor-language mapping so it
-        # naturally falls through here — no positional slice needed.
-        for stratum_target in WELSH_STRATA:
-            if stratum_target == _WELSH_DEFAULT_STRATUM:
+        # ancestor-language set intersects this etymon's parent set
+        # wins. The default stratum has no ancestor-language mapping
+        # so it naturally falls through.
+        for stratum_target in strata_order:
+            if stratum_target == default_stratum:
                 continue
             if parent_langs & stratum_ancestors.get(stratum_target, set()):
                 assigned = stratum_target
@@ -163,7 +240,60 @@ def classify_welsh(db: LexiconDB) -> dict[int, str]:
     return proposals
 
 
+def classify_welsh(db: LexiconDB) -> dict[int, str]:
+    """Return ``{etymon_id: stratum}`` for the Welsh family.
+
+    Covers etymons whose ``language`` is one of:
+    - ``welsh`` — classified by ancestor language via ``etymon_descent``.
+    - ``middle-welsh``, ``old-welsh``, ``cel-bry-pro`` — classified by
+      self-language (these ARE the ancestors of welsh).
+
+    Pure read. Skips ``merged_into_id IS NOT NULL`` rows (OCR-cluster
+    losers).
+    """
+    return _classify_family(
+        db,
+        modern_lang="welsh",
+        strata_order=WELSH_STRATA,
+        ancestor_to_stratum=_WELSH_ANCESTOR_TO_STRATUM,
+        self_lang_to_stratum=_WELSH_SELF_LANGUAGE_TO_STRATUM,
+        default_stratum=_WELSH_DEFAULT_STRATUM,
+    )
+
+
+def classify_french(db: LexiconDB) -> dict[int, str]:
+    """Return ``{etymon_id: stratum}`` for the French family.
+
+    Covers etymons whose ``language`` is one of:
+    - ``french`` — classified by ancestor language via ``etymon_descent``.
+    - ``old-french`` / ``middle-french`` / ``norman-french`` —
+      classified as ``medieval-french`` via self-language.
+    - ``vulgar-latin`` — classified as ``gallo-roman`` (the
+      ancestor stage between Latin and Old French).
+    - ``frk`` (Frankish) / ``cel-gau`` (Gaulish) — classified by
+      self-language as their respective substrate.
+
+    Pure read. Skips ``merged_into_id IS NOT NULL`` rows.
+
+    Note on Latin: Latin is intentionally NOT in the ancestor map.
+    Every French word descends from Latin via the standard Romance
+    path; treating that as a 'gallo-roman loan' would collapse the
+    whole bundle into one stratum and erase the substrate
+    distinctions that motivated this classifier in the first place.
+    """
+    return _classify_family(
+        db,
+        modern_lang="french",
+        strata_order=FRENCH_STRATA,
+        ancestor_to_stratum=_FRENCH_ANCESTOR_TO_STRATUM,
+        self_lang_to_stratum=_FRENCH_SELF_LANGUAGE_TO_STRATUM,
+        default_stratum=_FRENCH_DEFAULT_STRATUM,
+    )
+
+
 __all__ = [
+    "FRENCH_STRATA",
     "WELSH_STRATA",
+    "classify_french",
     "classify_welsh",
 ]

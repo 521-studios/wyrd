@@ -18,7 +18,12 @@ from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema, migrate_schema
-from wyrd.generators.kenning.strata import WELSH_STRATA, classify_welsh
+from wyrd.generators.kenning.strata import (
+    FRENCH_STRATA,
+    WELSH_STRATA,
+    classify_french,
+    classify_welsh,
+)
 
 
 @pytest.fixture
@@ -360,7 +365,7 @@ def test_cli_classify_stratum_force_overwrites(fresh_db: Path) -> None:
 def test_cli_classify_stratum_rejects_unknown_language(fresh_db: Path) -> None:
     """Click's Choice validator blocks unknown languages at parse
     time so we don't pretend to classify something we don't have a
-    vocabulary for. French / OE / ON are follow-up tickets."""
+    vocabulary for. Old English / Old Norse are follow-up tickets."""
     runner = CliRunner()
     result = runner.invoke(
         cli_root,
@@ -370,12 +375,12 @@ def test_cli_classify_stratum_rejects_unknown_language(fresh_db: Path) -> None:
             "--db",
             str(fresh_db),
             "--language",
-            "french",
+            "old-english",
         ],
     )
     assert result.exit_code != 0
     combined = result.output + (result.stderr or "")
-    assert "french" in combined.lower() or "invalid value" in combined.lower()
+    assert "old-english" in combined.lower() or "invalid value" in combined.lower()
 
 
 def test_cli_classify_stratum_no_etymons_short_circuits(fresh_db: Path) -> None:
@@ -403,3 +408,223 @@ def test_welsh_strata_priority_order_includes_all_buckets() -> None:
         "medieval-welsh",
         "native-welsh",
     )
+
+
+# --- classify_french (wyrd-lr4 Phase 4a) ----------------------------------
+
+
+def test_classify_french_assigns_native_french_when_no_descent(fresh_db: Path) -> None:
+    """A french etymon with NO ``etymon_descent`` parents falls into
+    the default ``native-french`` bucket. Most-common shape — French
+    descends from Latin via the standard Romance path, but the bulk
+    of bundle entries lack explicit descent links."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        eid = db.upsert_etymon("ville", "french")
+        proposals = classify_french(db)
+    assert proposals == {eid: "native-french"}
+
+
+def test_classify_french_frankish_substrate_via_descent(fresh_db: Path) -> None:
+    """A french etymon descending from a Frankish (frk) parent gets
+    ``frankish-substrate``. Frankish is the Germanic source for
+    French place-name morphemes like -ville (< OE villa? no —
+    actually a Frankish/Romance compound) and personal-name suffixes
+    -hard / -old."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        frk_id = db.upsert_etymon("hard", "frk")
+        fr_id = db.upsert_etymon("hard", "french")
+        _add_descent(db, parent_id=frk_id, child_id=fr_id)
+        proposals = classify_french(db)
+    assert proposals[fr_id] == "frankish-substrate"
+    # The frk parent itself is in the family — classified by self-language.
+    assert proposals[frk_id] == "frankish-substrate"
+
+
+def test_classify_french_gaulish_substrate_via_descent(fresh_db: Path) -> None:
+    """A french etymon descending from Gaulish (cel-gau) gets
+    ``gaulish-substrate``. Gaulish is the pre-Latin Celtic substrate
+    visible in toponyms like -dunum / -briga."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        gau_id = db.upsert_etymon("dunon", "cel-gau")
+        fr_id = db.upsert_etymon("dun", "french")
+        _add_descent(db, parent_id=gau_id, child_id=fr_id)
+        proposals = classify_french(db)
+    assert proposals[fr_id] == "gaulish-substrate"
+    # Self-language path covers cel-gau too.
+    assert proposals[gau_id] == "gaulish-substrate"
+
+
+def test_classify_french_latin_descent_does_not_collapse_into_one_bucket(
+    fresh_db: Path,
+) -> None:
+    """Critical correctness pin: Latin in the parent set MUST NOT
+    classify a french etymon as gallo-roman, otherwise every French
+    word would land in one bucket and the substrate distinctions
+    would vanish. ``_FRENCH_ANCESTOR_TO_STRATUM`` deliberately
+    excludes 'latin' / 'vulgar-latin' for this reason."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        latin_id = db.upsert_etymon("villa", "latin")
+        fr_id = db.upsert_etymon("ville", "french")
+        _add_descent(db, parent_id=latin_id, child_id=fr_id)
+        proposals = classify_french(db)
+    # Latin parent → falls through to native-french, NOT gallo-roman.
+    assert proposals[fr_id] == "native-french"
+
+
+def test_classify_french_priority_frankish_over_gaulish(fresh_db: Path) -> None:
+    """Priority order: a french etymon with BOTH Frankish and
+    Gaulish ancestors classifies as ``frankish-substrate``.
+    Encodes the convention that the Germanic post-Roman layer
+    displaces the pre-Roman Celtic layer when both signals are
+    present (rare combo, but the rule needs to be deterministic
+    so callers can trust the register tag)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        frk_id = db.upsert_etymon("garda", "frk")
+        gau_id = db.upsert_etymon("garto", "cel-gau")
+        fr_id = db.upsert_etymon("jardin", "french")
+        _add_descent(db, parent_id=frk_id, child_id=fr_id)
+        _add_descent(db, parent_id=gau_id, child_id=fr_id)
+        proposals = classify_french(db)
+    assert proposals[fr_id] == "frankish-substrate"
+
+
+def test_classify_french_self_language_for_period_varieties(fresh_db: Path) -> None:
+    """An etymon whose own ``language`` is a French-family period
+    variety (old-french / middle-french / norman-french) gets
+    classified as ``medieval-french`` directly. These ARE the
+    ancestor period; classifying by descent would describe what fed
+    INTO them, not their own register."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        of_id = db.upsert_etymon("vile", "old-french")
+        mf_id = db.upsert_etymon("ville", "middle-french")
+        nf_id = db.upsert_etymon("vile", "norman-french")
+        proposals = classify_french(db)
+    assert proposals[of_id] == "medieval-french"
+    assert proposals[mf_id] == "medieval-french"
+    assert proposals[nf_id] == "medieval-french"
+
+
+def test_classify_french_self_language_for_gallo_roman(fresh_db: Path) -> None:
+    """An etymon whose own ``language`` is ``vulgar-latin`` gets
+    ``gallo-roman``. This is the ancestor stage between Classical
+    Latin and Old French — the only non-default path that
+    populates the gallo-roman bucket today (Latin parents on a
+    'french'-language row deliberately fall through, see
+    test_classify_french_latin_descent_does_not_collapse...)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        vl_id = db.upsert_etymon("villa", "vulgar-latin")
+        proposals = classify_french(db)
+    assert proposals[vl_id] == "gallo-roman"
+
+
+def test_classify_french_skips_merged_rows(fresh_db: Path) -> None:
+    """Etymons with ``merged_into_id`` set are OCR-clustering losers
+    — skipped in both passes (self-language + ancestor walk) so we
+    don't carry a stale stratum on a row callers already filter out."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        winner = db.upsert_etymon("ville", "french")
+        loser = db.upsert_etymon("vyle", "french")  # OCR variant
+        # Also a loser in an ancestor-variety language so both passes
+        # are exercised.
+        period_loser = db.upsert_etymon("vyle", "old-french")
+        db.conn.execute(
+            "UPDATE etymon SET merged_into_id = ? WHERE id IN (?, ?)",
+            (winner, loser, period_loser),
+        )
+        db.commit()
+        proposals = classify_french(db)
+    assert winner in proposals
+    assert loser not in proposals
+    assert period_loser not in proposals
+
+
+def test_french_strata_priority_order_includes_all_buckets() -> None:
+    """``FRENCH_STRATA`` is the source-of-truth ordering. Pin all
+    five buckets are present in the load-bearing priority order so a
+    refactor that re-orders them (and changes which stratum wins on
+    multi-ancestor etymons) gets caught."""
+    assert FRENCH_STRATA == (
+        "frankish-substrate",
+        "gaulish-substrate",
+        "gallo-roman",
+        "medieval-french",
+        "native-french",
+    )
+
+
+def test_cli_classify_stratum_french_dry_run_reports_counts(
+    fresh_db: Path,
+) -> None:
+    """End-to-end CLI sanity: ``--language french`` dispatches to
+    classify_french, prints the per-stratum counts, and doesn't write
+    without ``--apply`` (mirrors the welsh dry-run test)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        # One row per French stratum so the summary table covers each.
+        db.upsert_etymon("hard", "frk")  # frankish-substrate
+        db.upsert_etymon("dunon", "cel-gau")  # gaulish-substrate
+        db.upsert_etymon("villa", "vulgar-latin")  # gallo-roman
+        db.upsert_etymon("vile", "old-french")  # medieval-french
+        db.upsert_etymon("amour", "french")  # native-french (default)
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        ["lexicon", "classify-stratum", "--db", str(fresh_db), "--language", "french"],
+    )
+    combined = result.output + (result.stderr or "")
+    assert result.exit_code == 0, combined
+    assert "french stratum classification: 5 etymons" in combined
+    for stratum in FRENCH_STRATA:
+        assert stratum in combined
+    # Dry-run — no writes.
+    with LexiconDB(fresh_db) as db:
+        non_null = db.conn.execute(
+            "SELECT COUNT(*) FROM etymon WHERE stratum IS NOT NULL"
+        ).fetchone()[0]
+    assert non_null == 0
+
+
+def test_cli_classify_stratum_french_apply_writes_column(fresh_db: Path) -> None:
+    """``--apply`` actually writes the proposed stratum values for
+    French. Mirrors the welsh apply test — pinned independently
+    because the dispatch via the classifiers dict could regress."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        frk_id = db.upsert_etymon("hard", "frk")
+        of_id = db.upsert_etymon("vile", "old-french")
+        fr_id = db.upsert_etymon("amour", "french")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "classify-stratum",
+            "--db",
+            str(fresh_db),
+            "--language",
+            "french",
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    with LexiconDB(fresh_db) as db:
+        rows = db.conn.execute(
+            "SELECT id, stratum FROM etymon WHERE id IN (?, ?, ?) ORDER BY id",
+            (frk_id, of_id, fr_id),
+        ).fetchall()
+    by_id = {r["id"]: r["stratum"] for r in rows}
+    assert by_id[frk_id] == "frankish-substrate"
+    assert by_id[of_id] == "medieval-french"
+    assert by_id[fr_id] == "native-french"
