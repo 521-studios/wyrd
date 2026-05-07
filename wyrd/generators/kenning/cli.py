@@ -270,6 +270,18 @@ def cli() -> None:
     ),
 )
 @click.option(
+    "--stratum",
+    type=str,
+    default=None,
+    help=(
+        "wyrd-lr4 Phase 3 within-language stratum filter. Pass a register "
+        "tag — for Welsh: 'native-welsh', 'brittonic-substrate', "
+        "'medieval-welsh', 'latin-loan', 'english-loan' (Phase 4 will add "
+        "French / OE / ON). Morphemes with no stratum data pass through. "
+        "Composes with --era via intersection."
+    ),
+)
+@click.option(
     "--cohesion",
     type=click.FloatRange(0.0, 1.0),
     default=0.0,
@@ -293,6 +305,7 @@ def generate(
     moods: tuple[str, ...],
     include_fiction: bool,
     era: str | None,
+    stratum: str | None,
     cohesion: float,
 ) -> None:
     """Generate town names. Replaces Rando's `bin/generator`."""
@@ -327,6 +340,7 @@ def generate(
         "mood": list(moods),
         "include_fiction": include_fiction,
         "era": era,
+        "stratum": stratum,
         "cohesion": cohesion,
     }
     for _ in range(count):

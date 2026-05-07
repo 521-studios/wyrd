@@ -566,6 +566,85 @@ def test_attested_in_era_range_searches_across_languages():
     assert m.attested_in_era_range((1500, 1700)) is False
 
 
+# --- in_stratum (wyrd-lr4 Phase 3) ----------------------------------------
+
+
+def _meaning_with_stratum_data(stratum: dict[str, dict[str, str]]) -> Meaning:
+    return Meaning(
+        usage="Test-",
+        tags=[],
+        meanings=[],
+        sources={},
+        stratum=stratum,
+    )
+
+
+def test_in_stratum_none_means_no_filter():
+    """stratum=None is the runtime's 'no --stratum passed' signal —
+    every Meaning passes regardless of its data."""
+    m = _meaning_with_stratum_data({"celtic_mix": {"caer": "latin-loan"}})
+    assert m.in_stratum(None) is True
+
+
+def test_in_stratum_empty_data_passes_through():
+    """Meaning with no stratum data passes any --stratum value — the
+    documented Phase 3 rule that languages without a Phase 1
+    classifier should not be silently dropped from filtered runs."""
+    m = make_meaning("Bridg-")
+    assert m.in_stratum("native-welsh") is True
+    assert m.in_stratum("brittonic-substrate") is True
+
+
+def test_in_stratum_form_in_target_stratum_passes():
+    """A Meaning with at least one form classified into the target
+    stratum is admitted."""
+    m = _meaning_with_stratum_data({"celtic_mix": {"caer": "native-welsh"}})
+    assert m.in_stratum("native-welsh") is True
+
+
+def test_in_stratum_no_form_in_target_stratum_excluded():
+    """A Meaning whose every form has stratum data BUT none of it
+    matches the target tag is dropped — non-empty stratum dict turns
+    off the no-data passthrough, so the filter actually applies."""
+    m = _meaning_with_stratum_data({"celtic_mix": {"caer": "latin-loan"}})
+    assert m.in_stratum("native-welsh") is False
+
+
+def test_in_stratum_searches_across_languages():
+    """The OR check spans every language entry — a Meaning with
+    welsh-bucket forms in 'native-welsh' AND old-french-bucket forms
+    in 'frankish' passes either filter (once Phase 4 lands; Welsh is
+    the only classified family today, but the Meaning data shape
+    supports cross-language stratum data)."""
+    m = _meaning_with_stratum_data(
+        {
+            "celtic_mix": {"caer": "native-welsh"},
+            "old_french": {"villa": "frankish"},
+        }
+    )
+    assert m.in_stratum("native-welsh") is True
+    assert m.in_stratum("frankish") is True
+    assert m.in_stratum("medieval-welsh") is False
+
+
+def test_in_stratum_returns_true_when_any_form_matches_in_mixed_data():
+    """A Meaning carrying multiple forms with mixed strata is admitted
+    as long as ANY form matches the target tag — the OR semantics
+    apply within a single language bucket the same way they apply
+    across languages."""
+    m = _meaning_with_stratum_data(
+        {
+            "celtic_mix": {
+                "afon": "native-welsh",
+                "caer": "latin-loan",
+                "din": "native-welsh",
+            }
+        }
+    )
+    assert m.in_stratum("native-welsh") is True
+    assert m.in_stratum("medieval-welsh") is False
+
+
 # ---------------------------------------------------------------------
 # wyrd-ha9q Phase 2c: english_shaped accessor + load round-trip
 # ---------------------------------------------------------------------

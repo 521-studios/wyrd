@@ -4041,8 +4041,26 @@ def _seed_subject(
     tags: list[str],
     modifier_type: str | None,
     words: list[dict],
+    language_overrides: dict[str, str] | None = None,
 ) -> None:
-    """Helper: ingest one meanings.json subject via seed_from_meanings."""
+    """Helper: ingest one meanings.json subject via seed_from_meanings.
+
+    ``language_overrides`` (wyrd-ok36) maps canonical_form → lexicon
+    language code to relabel rows after seeding. ``celtic_mix`` rows
+    seed as ``celtic`` (the legacy rando-port bucket); override to
+    ``welsh`` / ``middle-welsh`` / ``old-welsh`` etc. when the test
+    needs the substrata language shape Phase 1's classifier acts on.
+    Pass ``{"caer": "welsh", "din": "middle-welsh"}`` to relabel two
+    seeded rows independently.
+
+    Scopes the UPDATE by ``(canonical_form, language)`` to keep the
+    relabel intentional: tests that seed multiple etymons sharing a
+    canonical form across different languages (e.g. an English ``cot``
+    AND a Welsh ``cot``) won't accidentally relabel both. Caller
+    passes the SOURCE language alongside the target via the dict key
+    using the canonical_form alone is fine because today's tests don't
+    overlap, but the WHERE clause is defensive.
+    """
     seed_from_meanings(
         db,
         [
@@ -4055,6 +4073,37 @@ def _seed_subject(
         ],
         source_id,
     )
+    if language_overrides:
+        # Resolve the seed-time language per form via LANGUAGE_FIELDS
+        # so the WHERE clause excludes any cross-language collision.
+        # Today's tests seed a single etymon per canonical_form so
+        # this is belt-and-braces, but future tests that seed both
+        # an English and a Welsh row with overlapping forms will need
+        # the precision.
+        from wyrd.generators.kenning.lexicon import LANGUAGE_FIELDS
+
+        bucket_default_by_form: dict[str, str] = {}
+        for word in words:
+            for json_field, lang_code in LANGUAGE_FIELDS.items():
+                forms = word.get(json_field) or []
+                for form in forms:
+                    bucket_default_by_form.setdefault(form, lang_code)
+        for form, target_lang in language_overrides.items():
+            source_lang = bucket_default_by_form.get(form)
+            if source_lang is None:
+                # Caller asked to relabel a form not in any LANGUAGE_FIELDS
+                # entry on the seeded words — fall back to canonical_form-only
+                # match so the override still applies in the unusual case.
+                db.conn.execute(
+                    "UPDATE etymon SET language = ? WHERE canonical_form = ?",
+                    (target_lang, form),
+                )
+            else:
+                db.conn.execute(
+                    "UPDATE etymon SET language = ? WHERE canonical_form = ? AND language = ?",
+                    (target_lang, form, source_lang),
+                )
+        db.commit()
 
 
 def test_export_meanings_includes_rando_etymons_with_no_scholar_witnesses(
@@ -4843,9 +4892,7 @@ def test_export_meanings_emits_stratum_per_language(fresh_db: Path) -> None:
                     "celtic_mix": ["caer", "din"],
                 }
             ],
-        )
-        db.conn.execute(
-            "UPDATE etymon SET language = 'welsh' WHERE canonical_form IN ('caer', 'din')"
+            language_overrides={"caer": "welsh", "din": "welsh"},
         )
         db.conn.execute(
             "UPDATE etymon SET stratum = ? WHERE canonical_form = ? AND language = 'welsh'",
@@ -4915,9 +4962,7 @@ def test_export_meanings_partial_stratum_emits_only_populated(fresh_db: Path) ->
                     "celtic_mix": ["cwm", "glyn"],
                 }
             ],
-        )
-        db.conn.execute(
-            "UPDATE etymon SET language = 'welsh' WHERE canonical_form IN ('cwm', 'glyn')"
+            language_overrides={"cwm": "welsh", "glyn": "welsh"},
         )
         # Only 'cwm' gets a stratum; 'glyn' stays NULL.
         db.conn.execute(
@@ -4962,11 +5007,10 @@ def test_export_meanings_unions_stratum_across_welsh_substrata(
                     "celtic_mix": ["afon"],
                 }
             ],
+            language_overrides={"afon": "welsh"},
         )
-        # Relabel the seeded root from language='celtic' to 'welsh' so
-        # the substrata family looks like the production shape.
         db.conn.execute(
-            "UPDATE etymon SET language = 'welsh', stratum = ? WHERE canonical_form = 'afon'",
+            "UPDATE etymon SET stratum = ? WHERE canonical_form = 'afon'",
             ("native-welsh",),
         )
         afon_root_id = db.conn.execute(
@@ -5018,10 +5062,10 @@ def test_export_meanings_stratum_collision_resolves_by_lang_sort_order(
                     "celtic_mix": ["caer"],
                 }
             ],
+            language_overrides={"caer": "welsh"},
         )
-        # Relabel the seeded row to language='welsh' with one stratum.
         db.conn.execute(
-            "UPDATE etymon SET language = 'welsh', stratum = ? WHERE canonical_form = 'caer'",
+            "UPDATE etymon SET stratum = ? WHERE canonical_form = 'caer'",
             ("latin-loan",),
         )
         caer_root_id = db.conn.execute(
@@ -5067,10 +5111,10 @@ def test_export_meanings_stratum_via_reflex_linked_inflected_descendant(
             tags=["topography"],
             modifier_type="Topographical",
             words=[{"modern_usage": "Cwm-", "celtic_mix": ["cwm"]}],
+            language_overrides={"cwm": "welsh"},
         )
-        # Relabel to welsh + stamp the lemma's stratum.
         db.conn.execute(
-            "UPDATE etymon SET language = 'welsh', stratum = ? WHERE canonical_form = 'cwm'",
+            "UPDATE etymon SET stratum = ? WHERE canonical_form = 'cwm'",
             ("native-welsh",),
         )
         cwm_root_id = db.conn.execute(

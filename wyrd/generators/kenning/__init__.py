@@ -12,6 +12,7 @@ from wyrd.generators.kenning.era import era_cells_for_family, resolve_era_input
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.name import Name
 from wyrd.generators.kenning.proportions import load_proportions
+from wyrd.generators.kenning.strata import WELSH_STRATA
 from wyrd.generators.kenning.word import Word
 from wyrd.registry import GenerationResult, Generator, register
 from wyrd.seed import rng_for
@@ -533,6 +534,20 @@ class Kenning(Generator):
                         "tag-class pairings, novelty blends toward the uniform marginal."
                     ),
                 },
+                "stratum": {
+                    "type": "string",
+                    "default": "",
+                    "description": (
+                        "wyrd-lr4 Phase 3 within-language stratum filter. Restricts the "
+                        "morpheme inventory to forms classified into a specific register "
+                        f"bucket — for Welsh: {', '.join(repr(s) for s in WELSH_STRATA)} "
+                        "(Phase 4 will add French / OE / ON tags). Morphemes with no "
+                        "stratum data pass through (Phase 1 has classified Welsh-family "
+                        "etymons only; Latin / OE / French / etc. all admit until Phase 4 "
+                        "lands). Composes with --era via intersection. Empty disables "
+                        "the filter — bit-stable behavior."
+                    ),
+                },
                 "manorial_affix": {
                     "type": "number",
                     "default": 0.0,
@@ -579,6 +594,14 @@ class Kenning(Generator):
         exclude_tags: tuple[str, ...] = () if include_fiction else (_FICTION_TAG,)
 
         era_range = _resolve_era_param(params.get("era"), culture)
+        # wyrd-lr4 Phase 3: no equivalent of _resolve_era_param yet —
+        # a typo'd --stratum silently no-ops because every Meaning hits
+        # the empty-stratum passthrough until the bundle is re-emitted
+        # with classifier output. Validation lands with Phase 4 once
+        # the per-language stratum vocabularies stabilize (tracked in
+        # wyrd-j3gy). For now empty-string from the schema default
+        # collapses to None — the filter's 'no filter' signal.
+        stratum = params.get("stratum") or None
 
         name_gen, _ = _load_culture(culture)
         rng = rng_for(seed)
@@ -591,6 +614,7 @@ class Kenning(Generator):
             harshness=harshness,
             exclude_tags=exclude_tags,
             era_range=era_range,
+            stratum=stratum,
             cohesion=cohesion,
         )
         result_str = str(new_name)

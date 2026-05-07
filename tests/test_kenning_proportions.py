@@ -1220,6 +1220,321 @@ def test_resolve_era_param_treats_empty_string_as_no_filter():
     assert _resolve_era_param(None, "english") is None
 
 
+# --- wyrd-lr4 Phase 3 stratum filter --------------------------------------
+
+
+def test_meaning_generator_keep_keys_for_stratum_returns_none_for_none_arg():
+    """MeaningGenerator.keep_keys_for_stratum(None) returns None — the
+    'no filter' bit-stable signal, mirrors keep_keys_for_era(None)."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator
+
+    m = Meaning("-cot", [], [], {})
+    mg = MeaningGenerator({"-cot": [m]}, {}, {"-cot": 1})
+    assert mg.keep_keys_for_stratum(None) is None
+
+
+def test_meaning_generator_keep_keys_for_stratum_filters_by_classified_data():
+    """A morpheme with stratum data NOT containing the target tag is
+    excluded; one with matching data is admitted; one with NO stratum
+    data passes through (the documented Phase 3 'pass-through' rule —
+    Welsh is the only family classified today, so unclassified
+    languages must not be silently dropped)."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator
+
+    in_stratum = Meaning("-in", [], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}})
+    other_stratum = Meaning("-out", [], [], {}, stratum={"celtic_mix": {"caer": "latin-loan"}})
+    no_data = Meaning("-none", [], [], {})
+    meaning_db = {"-in": [in_stratum], "-out": [other_stratum], "-none": [no_data]}
+    mg = MeaningGenerator(meaning_db, {}, dict.fromkeys(meaning_db, 1))
+    keep = mg.keep_keys_for_stratum("native-welsh")
+    assert keep == frozenset({"-in", "-none"})
+
+
+def test_meaning_generator_keep_keys_for_stratum_full_coverage_returns_none():
+    """When every usage admits (because every Meaning has either no
+    stratum data or matching data), the keep-set covers the whole
+    meaning_db and collapses to None — Generator.select takes its
+    bit-stable fast path. Steady-state today: zero usages carry
+    stratum data outside the welsh-family slice, so most --stratum
+    values are full-coverage."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator
+
+    m_match = Meaning("-match", [], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}})
+    m_no_data = Meaning("-no-data", [], [], {})
+    mg = MeaningGenerator(
+        {"-match": [m_match], "-no-data": [m_no_data]},
+        {},
+        {"-match": 1, "-no-data": 1},
+    )
+    assert mg.keep_keys_for_stratum("native-welsh") is None
+
+
+def test_meaning_generator_keep_keys_for_stratum_caches_per_tag():
+    """Two calls with the same stratum tag share the precomputed set
+    (identity check) so the meaning_db isn't re-walked per bucket.
+
+    Pin via identity on a NON-None result — needs at least one
+    non-matching Meaning so the filter doesn't collapse to the
+    full-coverage None fast path (where ``None is None`` would pass
+    trivially regardless of caching). A perf regression that recomputes
+    per call would reconstruct a fresh frozenset each time and break
+    the identity check."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator
+
+    m_in = Meaning("-in", [], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}})
+    m_out = Meaning("-out", [], [], {}, stratum={"celtic_mix": {"din": "latin-loan"}})
+    mg = MeaningGenerator({"-in": [m_in], "-out": [m_out]}, {}, {"-in": 1, "-out": 1})
+    a = mg.keep_keys_for_stratum("native-welsh")
+    b = mg.keep_keys_for_stratum("native-welsh")
+    assert a is not None  # if this collapses to None the identity test is meaningless
+    assert a is b
+
+
+def test_name_generator_select_drops_out_of_stratum_morphemes_at_pick_time():
+    """End-to-end: NameGenerator.select(stratum=...) constrains the
+    sampled morpheme to the stratum's keep-set. Both candidates carry
+    stratum data so neither benefits from the no-data passthrough; the
+    one with mismatching tag is filtered out even when its empirical
+    weight dominates."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import (
+        MeaningGenerator,
+        NameGenerator,
+    )
+
+    m_in = Meaning("-in", [], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}})
+    m_out = Meaning("-out", [], [], {}, stratum={"celtic_mix": {"din": "latin-loan"}})
+    meaning_db = {"-in": [m_in], "-out": [m_out]}
+    proportions = {"-in": 1, "-out": 99}
+    mg = MeaningGenerator(meaning_db, {}, proportions)
+    mg.load_parts(proportions, "single")
+    structs = {(((m_in.location, "single"),),): 1}
+    name_gen = NameGenerator(meaning_db, mg, structs)
+    for i in range(50):
+        new_name = name_gen.select(random.Random(i), stratum="native-welsh")
+        assert new_name.name == [["-in"]]
+
+
+def test_keep_keys_for_stratum_returns_empty_when_no_usage_admits():
+    """When --stratum is set and EVERY Meaning has stratum data that
+    DOESN'T match, keep_keys_for_stratum returns an empty frozenset
+    (NOT None — the full-coverage→None collapse only fires when
+    coverage is total). The downstream Generator.select must accept
+    an empty keep_keys without crashing — it's the documented 'no
+    usage matches the filter' signal that just produces no name.
+
+    Pinned because the full-coverage tests above mask this branch:
+    they include at least one no-data Meaning that admits via
+    passthrough. Phase 4 may produce realistic 'all classified, none
+    matching' bundles that hit this exact edge."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import MeaningGenerator
+
+    only_other = Meaning("-other", [], [], {}, stratum={"celtic_mix": {"caer": "latin-loan"}})
+    mg = MeaningGenerator({"-other": [only_other]}, {}, {"-other": 1})
+    keep = mg.keep_keys_for_stratum("native-welsh")
+    assert keep == frozenset()
+    assert keep is not None
+
+
+def test_generator_select_with_empty_keep_keys_returns_none():
+    """The base Generator.select handles empty keep_keys by returning
+    None — already covered for era at line 940, but pin it explicitly
+    in the stratum context so a refactor that accidentally diverges
+    the two paths is caught. Reuses the existing
+    'empty keep_keys → None' contract."""
+    from wyrd.generators.kenning.proportions import Generator
+
+    g = Generator(tag_db={}, elements={"a": 50, "b": 50})
+    assert g.select(random.Random(0), keep_keys=frozenset()) is None
+
+
+def test_name_generator_select_stratum_threads_through_positive_tag_path():
+    """Mirror of test_name_generator_select_era_range_threads_through_positive_tag_path
+    for stratum. _select_tag / _select_tags branch threads keep_keys
+    independently from _select_no_tag, so a tag + stratum combo must
+    be pinned: two usages tagged 'tree', one in-stratum and one not,
+    with empirical weight on the wrong one. With tags=('tree',) AND
+    stratum set, every pick must still land on the in-stratum usage."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import (
+        MeaningGenerator,
+        NameGenerator,
+    )
+
+    m_in = Meaning("-in", ["tree"], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}})
+    m_out = Meaning("-out", ["tree"], [], {}, stratum={"celtic_mix": {"din": "latin-loan"}})
+    meaning_db = {"-in": [m_in], "-out": [m_out]}
+    proportions = {"-in": 1, "-out": 99}
+    tag_db = {"tree": ["-in", "-out"]}
+    mg = MeaningGenerator(meaning_db, tag_db, proportions)
+    mg.load_parts(proportions, "single")
+    structs = {(((m_in.location, "single"),),): 1}
+    name_gen = NameGenerator(meaning_db, mg, structs)
+    for i in range(50):
+        new_name = name_gen.select(random.Random(i), "tree", stratum="native-welsh")
+        assert new_name.name == [["-in"]]
+
+
+def test_kenning_generate_treats_empty_stratum_as_no_filter():
+    """``params['stratum'] = ""`` (the SPA's empty-dropdown shape AND
+    the input_schema default) reaches the Kenning layer where
+    ``stratum or None`` coerces it to None — the 'no filter' signal.
+    Pin bit-stability with the no-key call so a regression that drops
+    the coercion (and crashes on the empty string at the filter
+    layer) is caught."""
+    from wyrd.generators.kenning import Kenning
+
+    k = Kenning()
+    seed = 12345
+    a = k.generate({"culture": "english", "stratum": ""}, seed)
+    b = k.generate({"culture": "english"}, seed)
+    assert a.result == b.result
+
+
+def test_kenning_schema_default_round_trips_through_generate():
+    """The SPA reads ``input_schema().properties.stratum.default``
+    and feeds it back through ``generate()``. Pin that the schema
+    default (the empty string) is a valid input — without this, a
+    refactor that tightens the coercion (e.g. requires a non-empty
+    string) would silently break SPA usage where no test fires."""
+    from wyrd.generators.kenning import Kenning
+
+    k = Kenning()
+    default = k.input_schema()["properties"]["stratum"]["default"]
+    seed = 42
+    with_default = k.generate({"culture": "english", "stratum": default}, seed)
+    baseline = k.generate({"culture": "english"}, seed)
+    assert with_default.result == baseline.result
+
+
+def test_name_generator_select_stratum_none_is_bit_stable():
+    """stratum=None matches the no-arg call exactly — the kwarg adds
+    a None default rather than a behavior change. Pin via seeded
+    sequence comparison."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import (
+        MeaningGenerator,
+        NameGenerator,
+    )
+
+    m_a = Meaning("-a", [], [], {})
+    m_b = Meaning("-b", [], [], {})
+    meaning_db = {"-a": [m_a], "-b": [m_b]}
+    proportions = {"-a": 50, "-b": 50}
+    mg = MeaningGenerator(meaning_db, {}, proportions)
+    mg.load_parts(proportions, "single")
+    structs = {((("post", "single"),),): 1}
+    name_gen = NameGenerator(meaning_db, mg, structs)
+    seq_default = [name_gen.select(random.Random(i)).name for i in range(20)]
+    seq_explicit_none = [name_gen.select(random.Random(i), stratum=None).name for i in range(20)]
+    assert seq_default == seq_explicit_none
+
+
+def test_name_generator_select_era_and_stratum_compose_via_intersection():
+    """When BOTH --era and --stratum are set, a usage must clear both
+    gates. Three usages: A in-era + in-stratum, B in-era + wrong-stratum,
+    C wrong-era + in-stratum. With both filters set, only A survives;
+    B and C are dropped despite passing one gate each. Pins the
+    intersection semantics in _intersect_keep_keys."""
+    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.proportions import (
+        MeaningGenerator,
+        NameGenerator,
+    )
+
+    m_ok = Meaning(
+        "-ok",
+        [],
+        [],
+        {},
+        attested_years={"old_english": [("ok", 950)]},
+        stratum={"celtic_mix": {"ok": "native-welsh"}},
+    )
+    m_wrong_stratum = Meaning(
+        "-wrong-stratum",
+        [],
+        [],
+        {},
+        attested_years={"old_english": [("ws", 950)]},
+        stratum={"celtic_mix": {"ws": "latin-loan"}},
+    )
+    m_wrong_era = Meaning(
+        "-wrong-era",
+        [],
+        [],
+        {},
+        attested_years={"old_english": [("we", 1500)]},
+        stratum={"celtic_mix": {"we": "native-welsh"}},
+    )
+    meaning_db = {
+        "-ok": [m_ok],
+        "-wrong-stratum": [m_wrong_stratum],
+        "-wrong-era": [m_wrong_era],
+    }
+    proportions = {"-ok": 1, "-wrong-stratum": 99, "-wrong-era": 99}
+    mg = MeaningGenerator(meaning_db, {}, proportions)
+    mg.load_parts(proportions, "single")
+    structs = {(((m_ok.location, "single"),),): 1}
+    name_gen = NameGenerator(meaning_db, mg, structs)
+    for i in range(50):
+        new_name = name_gen.select(
+            random.Random(i),
+            era_range=(800, 1100),
+            stratum="native-welsh",
+        )
+        assert new_name.name == [["-ok"]]
+
+
+def test_intersect_keep_keys_handles_none_and_set_combinations():
+    """Direct test of the helper — both None → None; one None → other;
+    both set → intersection. Pinning each branch independently because
+    a regression on the 'one None' path would silently widen the filter
+    (producing more morphemes than intended) without breaking
+    end-to-end seed-stability tests."""
+    from wyrd.generators.kenning.proportions import _intersect_keep_keys
+
+    assert _intersect_keep_keys(None, None) is None
+    assert _intersect_keep_keys(frozenset({"a", "b"}), None) == frozenset({"a", "b"})
+    assert _intersect_keep_keys(None, frozenset({"a", "b"})) == frozenset({"a", "b"})
+    assert _intersect_keep_keys(frozenset({"a", "b"}), frozenset({"b", "c"})) == frozenset({"b"})
+
+
+def test_kenning_generate_accepts_stratum_param():
+    """Kenning.generate threads ``stratum`` through to NameGenerator.select.
+    Pin via a smoke run that the param doesn't crash and the result is
+    a non-empty string. Bit-stability with stratum=None vs unset is
+    covered by test_name_generator_select_stratum_none_is_bit_stable
+    upstream."""
+    from wyrd.generators.kenning import Kenning
+
+    k = Kenning()
+    result = k.generate(
+        {"culture": "english", "stratum": "native-welsh"},
+        seed=12345,
+    )
+    assert result.result
+    assert isinstance(result.result, str)
+
+
+def test_kenning_input_schema_exposes_stratum():
+    """The SPA reads ``input_schema`` to render form inputs. Pin that
+    ``stratum`` is exposed with the expected default + description so
+    the SPA doesn't silently drop the new knob."""
+    from wyrd.generators.kenning import Kenning
+
+    schema = Kenning().input_schema()
+    assert "stratum" in schema["properties"]
+    stratum_def = schema["properties"]["stratum"]
+    assert stratum_def["type"] == "string"
+    assert stratum_def["default"] == ""
+    assert "wyrd-lr4" in stratum_def["description"]
+
+
 # --- wyrd-mj2 cohesion (tag co-occurrence bias) ---------------------------
 
 
