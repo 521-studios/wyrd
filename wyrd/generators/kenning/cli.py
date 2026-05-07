@@ -61,6 +61,7 @@ from wyrd.generators.kenning.lexicon import (
     list_meaning_synsets,
     lookup_attested_years,
     migrate_schema,
+    mine_toponym_attestations,
     record_mining_run,
     reverse_search_attestations,
     seed_from_meanings,
@@ -3171,6 +3172,66 @@ def lexicon_lookup_attested_years(
         click.echo("(dry-run; pass --apply to write attested_year values)", err=True)
 
 
+@lexicon.command("mine-attestations")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+@click.option(
+    "--apply",
+    "apply_changes",
+    is_flag=True,
+    default=False,
+    help="Insert into toponym_attestation. Without this, dry-run only.",
+)
+@click.option(
+    "--progress-every",
+    type=int,
+    default=500,
+    show_default=True,
+    help="Emit a progress line every N rows scanned.",
+)
+def lexicon_mine_attestations(
+    db_path: Path,
+    apply_changes: bool,
+    progress_every: int,
+) -> None:
+    """wyrd-skm Phase 3.0a: extract (form, year) attestation pairs from
+    toponym_etymology.notes and populate toponym_attestation.
+
+    Pattern set: ``FORM in YEAR`` / ``FORM, YEAR`` / ``FORM in Domesday
+    Book`` / ``Domesday has FORM`` / ``FORM, D.B.``. Year range is
+    700-1700 (post-Roman through pre-modern), matching the
+    lookup-attested-years filter. Page-reference false positives
+    (``"Bedinga feld, p. 59"``) are rejected via the same page-marker
+    guard that ``_earliest_year_in_notes`` uses.
+
+    LLM-free, idempotent (unique-index on
+    ``toponym_id, form, date_year, source_doc``), reversible:
+
+        wyrd kenning lexicon clear-enrichment --stage=attestations --apply
+
+    The output rows are the raw input that wyrd-skm Phase 3.0b will
+    derive per-etymon period-keyed surface forms from.
+    """
+    with LexiconDB(db_path) as db:
+        click.echo("mine-attestations:", err=True)
+        result = mine_toponym_attestations(db, apply=apply_changes, progress_every=progress_every)
+
+    click.echo(
+        f"  scanned={result['rows_scanned']:>5}  "
+        f"rows_with_pairs={result['rows_with_pairs']:>5}  "
+        f"candidates={result['candidates']:>5}  "
+        f"rows_written={result['rows_written']:>5}",
+        err=True,
+    )
+    if not apply_changes:
+        click.echo("(dry-run; pass --apply to write toponym_attestation rows)", err=True)
+
+
 @lexicon.command("fuzzy-search")
 @click.argument(
     "sources_dir",
@@ -3543,15 +3604,26 @@ def lexicon_normalize_ocr(db_path: Path, apply_changes: bool) -> None:
 )
 @click.option(
     "--stage",
-    type=click.Choice(["ocr", "lemmas", "text-match", "cognates", "attested-years", "all-derived"]),
+    type=click.Choice(
+        [
+            "ocr",
+            "lemmas",
+            "text-match",
+            "cognates",
+            "attested-years",
+            "attestations",
+            "all-derived",
+        ]
+    ),
     required=True,
     help=(
         "Which enrichment stage to clear. 'ocr' un-marks merged_into_id, "
         "'lemmas' resets lemma_id/inflection/lemma_method, 'text-match' "
         "drops the etymon_text_match table, 'cognates' resets "
         "cognate_id/cognate_method (D27/wyrd-81n), 'attested-years' resets "
-        "etymon_text_match.attested_year (D5-1/wyrd-3ux), 'all-derived' "
-        "does all five."
+        "etymon_text_match.attested_year (D5-1/wyrd-3ux), 'attestations' "
+        "drops every toponym_attestation row (wyrd-skm Phase 3.0a), "
+        "'all-derived' does all six."
     ),
 )
 @click.option(
@@ -3590,6 +3662,11 @@ def lexicon_clear_enrichment(db_path: Path, stage: str, apply_changes: bool) -> 
         )
     if result.get("attested_years_to_clear"):
         click.echo(f"  {verb} {result['attested_years_to_clear']} attested_year values", err=True)
+    if result.get("attestation_rows_to_clear"):
+        click.echo(
+            f"  {verb} {result['attestation_rows_to_clear']} toponym_attestation rows",
+            err=True,
+        )
     if not apply_changes:
         click.echo("(dry-run; pass --apply to commit)", err=True)
 

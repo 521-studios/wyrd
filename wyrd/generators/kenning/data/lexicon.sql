@@ -327,7 +327,17 @@ CREATE UNIQUE INDEX idx_toponym_unique
   ON toponym(modern_name, COALESCE(country, ''), COALESCE(region, ''));
 
 -- Historical spellings of a toponym (Domesday "Abbendune", Piers Plowman
--- "Abyndoun", etc.). Multiple rows expected per toponym.
+-- "Abyndoun", etc.). Multiple rows expected per toponym. Populated by
+-- the ``mine-attestations`` post-mining stage (wyrd-skm Phase 3.0a),
+-- which extracts (form, date_year) pairs from
+-- ``toponym_etymology.notes`` body text.
+--
+-- Design note (multi-source): the unique index includes ``source_doc``,
+-- so the same (toponym_id, form, date_year) cited by Skeat AND Mawer
+-- AND Ekwall produces three rows. The ingest treats each scholarly
+-- citation as independent evidence; aggregation (COUNT vs
+-- COUNT DISTINCT) is deferred to consumers (wyrd-skm Phase 3.0b's
+-- per-etymon period-form derivation will choose explicitly).
 CREATE TABLE toponym_attestation (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   toponym_id  INTEGER NOT NULL REFERENCES toponym(id) ON DELETE CASCADE,
@@ -524,3 +534,9 @@ CREATE INDEX idx_toponym_name       ON toponym(modern_name);
 CREATE INDEX idx_etymology_toponym  ON toponym_etymology(toponym_id);
 CREATE INDEX idx_etymology_source   ON toponym_etymology(source_id);
 CREATE INDEX idx_attestation_topo   ON toponym_attestation(toponym_id);
+-- wyrd-skm Phase 3.0a: keeps mine-attestations re-runs idempotent.
+-- Allows multiple attestations per toponym (different form, year, or
+-- scholarly source) without duplicating identical (toponym, form, year,
+-- source) rows.
+CREATE UNIQUE INDEX idx_attestation_unique
+  ON toponym_attestation(toponym_id, form, date_year, source_doc);
