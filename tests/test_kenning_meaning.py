@@ -1017,6 +1017,39 @@ def test_load_meanings_round_trips_with_no_stratum_field():
     assert m.stratum_for("old_english", "brycg") is None
 
 
+def test_load_meanings_handles_mixed_bundle_some_words_with_stratum():
+    """A bundle where some words carry ``<lang>_stratum`` and others
+    don't (the realistic upgrade scenario — one bundle re-emit lifts
+    Welsh-classified families while leaving Latin / OE / etc. unchanged)
+    loads cleanly. Each Meaning gets only its own stratum dict; no
+    cross-contamination between word entries."""
+    data = [
+        {
+            "modifier_tags": ["habitation"],
+            "meaning": ["fort"],
+            "modifier_type": "Habitative",
+            "words": [
+                {
+                    "modern_usage": "Caer-",
+                    "celtic_mix": ["caer"],
+                    "celtic_mix_stratum": [{"form": "caer", "stratum": "latin-loan"}],
+                },
+                {
+                    "modern_usage": "Bridg-",
+                    "old_english": ["brycg"],
+                },
+            ],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    classified = meaning_db["Caer-"][0]
+    assert classified.stratum == {"celtic_mix": {"caer": "latin-loan"}}
+    assert classified.stratum_for("celtic_mix", "caer") == "latin-loan"
+    unclassified = meaning_db["Bridg-"][0]
+    assert unclassified.stratum == {}
+    assert unclassified.stratum_for("old_english", "brycg") is None
+
+
 def test_db_to_export_to_load_round_trip_preserves_stratum(tmp_path):
     """End-to-end: seed a fresh DB with a welsh family carrying
     stratum, run ``export_meanings``, then ``load_meanings`` on the
