@@ -3939,6 +3939,118 @@ def _add_text_match(db, etymon_id, source_id, matched_form, count, method="fuzzy
     )
 
 
+def test_export_meanings_emits_english_shaped_per_language(fresh_db: Path) -> None:
+    """wyrd-ha9q Phase 2c: an etymon family with non-NULL english_shaped
+    on at least one member emits a `<lang>_english_shaped` sibling array
+    in its word entry. Each entry maps the canonical_form to its
+    English-friendly rendering. Sorted by form for determinism."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        # Seed a Hebrew-language family with two members so we can
+        # verify multiple english_shaped values land in one array.
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["golem"],
+            tags=["monster"],
+            modifier_type=None,
+            words=[
+                {
+                    "modern_usage": "Golem",
+                    "hebrew": ["גולם", "גלם"],
+                }
+            ],
+        )
+        # Populate english_shaped on both etymon rows.
+        db.conn.execute(
+            "UPDATE etymon SET english_shaped = ? WHERE canonical_form = ? AND language = ?",
+            ("golem", "גולם", "he"),
+        )
+        db.conn.execute(
+            "UPDATE etymon SET english_shaped = ? WHERE canonical_form = ? AND language = ?",
+            ("gelem", "גלם", "he"),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert "hebrew_english_shaped" in word, (
+        f"hebrew_english_shaped missing from word entry: keys={list(word.keys())}"
+    )
+    # Sorted by canonical_form for determinism.
+    assert word["hebrew_english_shaped"] == [
+        {"form": "גולם", "english_shaped": "golem"},
+        {"form": "גלם", "english_shaped": "gelem"},
+    ]
+
+
+def test_export_meanings_skips_english_shaped_when_all_members_null(fresh_db: Path) -> None:
+    """An etymon family whose every member has NULL english_shaped (the
+    common case for Latin-script source langs OR rows that lacked
+    sufficient transliteration / IPA input) MUST NOT emit a
+    `<lang>_english_shaped` field at all. Pinning this so the bundle
+    doesn't bloat with empty arrays for the ~85k unshapeable rows."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["bridge"],
+            tags=["water"],
+            modifier_type="Topographical",
+            words=[{"modern_usage": "Bridg-", "old_english": ["brycg"]}],
+        )
+        # english_shaped stays NULL on the Old English etymon (Latin-
+        # script source lang — derive_english_shaped returned None at
+        # ingest time per wyrd-ha9q's _LATIN_SCRIPT_LANGS guard).
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert "old_english_english_shaped" not in word
+    assert all(not k.endswith("_english_shaped") for k in word)
+
+
+def test_export_meanings_partial_english_shaped_emits_only_populated(fresh_db: Path) -> None:
+    """A family where SOME members carry english_shaped and others
+    don't emits a `<lang>_english_shaped` array containing ONLY the
+    populated forms. The unmapped form survives in the language form
+    array but doesn't pollute the english_shaped sibling. Pinning the
+    rule so the runtime can detect 'this form has no shaping' via
+    Meaning.english_shaped_for(...) returning None."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        _seed_subject(
+            db,
+            source_id="rando-port",
+            glosses=["jinn"],
+            tags=["monster"],
+            modifier_type=None,
+            words=[
+                {
+                    "modern_usage": "Jinn",
+                    "arabic": ["جن", "عفريت"],
+                }
+            ],
+        )
+        # Only the first form gets an english_shaped value; second stays NULL.
+        db.conn.execute(
+            "UPDATE etymon SET english_shaped = ? WHERE canonical_form = ? AND language = ?",
+            ("jinn", "جن", "ar"),
+        )
+        db.commit()
+
+        subjects = export_meanings(db, include_rando=True)
+
+    word = subjects[0]["words"][0]
+    assert word["arabic"] == ["جن", "عفريت"]  # Both forms in the lang array.
+    assert word["arabic_english_shaped"] == [
+        {"form": "جن", "english_shaped": "jinn"},
+    ]
+
+
 def test_export_meanings_emits_variant_pool_per_language(fresh_db: Path) -> None:
     """An etymon with text-match rows whose matched_form differs from the
     canonical_form gets a `<lang>_variants` field populated in its word
