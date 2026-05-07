@@ -5162,9 +5162,11 @@ def _emit_stratum_list(strata: dict[str, str]) -> list[dict[str, str]]:
     """wyrd-lr4 Phase 2: serialize {canonical_form: stratum} into the
     meanings.json stratum entry shape. Each dict has ``"form"`` (the
     canonical_form lookup key, same as the language form array) and
-    ``"stratum"`` (the within-language register tag, e.g.
-    'brittonic-substrate', 'medieval-welsh', 'native-welsh'). Sorted
-    by form for determinism."""
+    ``"stratum"`` (the language-specific register tag — see the Phase
+    1 classifier for the current vocabulary; Welsh ships with five:
+    latin-loan / english-loan / brittonic-substrate / medieval-welsh /
+    native-welsh, with French / OE / ON adding their own as Phase 4
+    lands). Sorted by form for determinism."""
     return [{"form": form, "stratum": stratum_tag} for form, stratum_tag in sorted(strata.items())]
 
 
