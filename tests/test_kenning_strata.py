@@ -5,8 +5,13 @@ Covers:
   migration paths.
 - ``classify_welsh``: per-stratum heuristic, including priority order
   when an etymon has multiple ancestor languages.
+- ``classify_french``: per-stratum heuristic for French, including
+  the load-bearing Latin-absence invariant (every French word
+  descends from Latin so 'latin in parents' is intentionally not a
+  stratum signal).
 - ``lexicon classify-stratum`` CLI: dry-run reports counts without
-  writing; ``--apply`` writes; ``--force`` overrides existing values.
+  writing; ``--apply`` writes; ``--force`` overrides existing values;
+  exercised under both Welsh and French dispatch.
 """
 
 from __future__ import annotations
@@ -63,8 +68,9 @@ def test_init_schema_creates_etymon_stratum_column(fresh_db: Path) -> None:
 
 
 def test_init_schema_creates_etymon_stratum_index(fresh_db: Path) -> None:
-    """The ``stratum`` filter (deferred follow-up) needs an index on
-    the column — pin its presence on fresh installs."""
+    """The Phase 3 ``--stratum`` filter scans the etymon table by
+    stratum value during keep-set construction; pin the index's
+    presence on fresh installs so the scan stays cheap."""
     with LexiconDB(fresh_db) as db:
         indexes = {
             row["name"]
@@ -428,9 +434,8 @@ def test_classify_french_assigns_native_french_when_no_descent(fresh_db: Path) -
 def test_classify_french_frankish_substrate_via_descent(fresh_db: Path) -> None:
     """A french etymon descending from a Frankish (frk) parent gets
     ``frankish-substrate``. Frankish is the Germanic source for
-    French place-name morphemes like -ville (< OE villa? no —
-    actually a Frankish/Romance compound) and personal-name suffixes
-    -hard / -old."""
+    French personal-name suffixes -hard / -old and toponymic
+    elements visible in post-Conquest English place names."""
     with LexiconDB(fresh_db) as db:
         _seed_source(db)
         frk_id = db.upsert_etymon("hard", "frk")
