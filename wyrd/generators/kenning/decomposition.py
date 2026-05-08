@@ -609,43 +609,50 @@ def lookup_canonical_signature(
     canonical was picked (Phase 1 multi-zero ties, or coverage gaps
     waiting on rule (c)).
 
-    Toponym lookup keys on ``modern_name``; when ``region`` is supplied
+    Toponym lookup keys on ``modern_name``. When ``region`` is supplied
     (place_names JSON files carry country/region grouping — wyrd-8m87)
-    a region-tightened lookup runs first so same-modern_name-different-
-    region collisions in the lexicon resolve to the right toponym.
-    The lookup falls back to name-only matching when no region-tagged
-    row exists — graceful degradation for legacy NULL-region toponym
-    rows that were ingested without region context.
+    the matcher prefers an exact-region row, then falls back to a
+    NULL-region row for the same name (legacy ingestion compat).
+    Other-region rows are deliberately excluded — silently picking
+    'Stratford in Bedfordshire' when the corpus passed
+    'Stratford in Yorkshire' would attribute Bedfordshire's
+    scholarship to Yorkshire's toponym, biasing proportion + gap
+    counts. Returning ``None`` on cross-region miss is safer; the
+    caller falls back to the heuristic.
 
-    Multiple matching toponyms collapse to lowest-id for determinism.
+    When ``region`` is ``None`` the lookup matches any toponym row
+    sharing the name (lowest-id wins for determinism) — used by
+    consumers that don't carry region context yet.
+
     Multiple canonical rows under one toponym (``scholar-disagreement``
     source — every matching scholar breakdown is flagged canonical)
     collapse to the lowest-id canonical row, keeping consumer counts
     stable across re-runs.
     """
-    toponym_id: int | None = None
     if region is not None:
+        # Prefer exact-region match; fall back to a NULL-region row for
+        # the same name (legacy ingestion compat). ORDER prefers exact
+        # region over NULL via ``region IS NULL`` ascending — non-NULL
+        # rows sort first.
         cur = db.conn.execute(
             """
             SELECT id FROM toponym
              WHERE modern_name = ?
-               AND COALESCE(region, '') = COALESCE(?, '')
-             ORDER BY id LIMIT 1
+               AND (region = ? OR region IS NULL)
+             ORDER BY (region IS NULL) ASC, id ASC
+             LIMIT 1
             """,
             (modern_name, region),
         )
-        row = cur.fetchone()
-        if row is not None:
-            toponym_id = row["id"]
-    if toponym_id is None:
+    else:
         cur = db.conn.execute(
             "SELECT id FROM toponym WHERE modern_name = ? ORDER BY id LIMIT 1",
             (modern_name,),
         )
-        row = cur.fetchone()
-        if row is None:
-            return None
-        toponym_id = row["id"]
+    row = cur.fetchone()
+    if row is None:
+        return None
+    toponym_id = row["id"]
     cur = db.conn.execute(
         """
         SELECT decomposition_signature, canonical_source
