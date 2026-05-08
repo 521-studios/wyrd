@@ -5567,6 +5567,13 @@ def collect_fantasy_morphemes(db: LexiconDB) -> dict[str, dict[str, Any]]:
     # the merge winner, but the user's "Harpy" → ancient-greek ἅρπυια
     # lookup is still semantically valid. The COALESCE pattern matches
     # the etymon_consensus view's two-step rollup.
+    #
+    # ``english_shaped`` semantics: when the winner's column is NULL
+    # but the loser's was populated, the COALESCE returns NULL —
+    # winner-authoritative per D22's sacred-evidence rule. The loser's
+    # english_shaped was a property of the loser's specific form, not
+    # the cluster's; it stays attached to the loser row but isn't
+    # promoted to the winner's voice.
     rows = db.conn.execute(
         """
         SELECT fm.input_name,

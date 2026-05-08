@@ -87,16 +87,37 @@ def test_collect_fantasy_morphemes_follows_merge_chain(tmp_path: Path) -> None:
     collector follows the merged_into chain so the surfaced
     canonical_form is the winner's, not the loser's. Without this
     follow-through, ~10 of the 244 usable rows would route to a
-    tombstone form."""
+    tombstone form. Glosses and era reflexes also need to be
+    queried against the WINNER (since etymon_id surfaces as the
+    winner's id, not the loser's) — pinned here so a future query
+    edit that splits these from canonical_form's resolution would
+    surface as a test failure."""
     from wyrd.generators.kenning.lexicon import collect_fantasy_morphemes
 
     db_path = tmp_path / "lexicon.db"
     _seed_fantasy_db(db_path)
+    # Add a gloss to the WINNER and the LOSER — the collector should
+    # surface the winner's, not the loser's.
     with LexiconDB(db_path) as db:
+        winner_id = db.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = 'Engel'"
+        ).fetchone()["id"]
+        loser_id = db.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = 'Eangel'"
+        ).fetchone()["id"]
+        db.add_gloss(winner_id, "messenger")
+        db.add_gloss(loser_id, "loser-gloss-should-not-surface")
+        db.commit()
         out = collect_fantasy_morphemes(db)
     angel = out["Angel"]
     assert angel["canonical_form"] == "Engel"  # winner, not loser
     assert angel["language"] == "old-english"
+    # etymon_id surfaces the WINNER's id (so era reflexes / glosses
+    # are queried against the right row).
+    assert angel["etymon_id"] == winner_id
+    # Winner's gloss surfaces; loser's stays on the loser row.
+    assert "messenger" in angel["glosses"]
+    assert "loser-gloss-should-not-surface" not in angel["glosses"]
 
 
 def test_collect_fantasy_morphemes_returns_empty_when_table_missing(
