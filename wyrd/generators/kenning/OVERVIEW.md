@@ -459,11 +459,30 @@ the projection algorithm; PR #122 added the SPA bundle plumbing
 re-emit pending (deploy ticket wyrd-j43l) before SPA renders era
 progressions.
 
-The Phase 3.2 sibling demo (`wyrd-381` stratified era-map) is
-still open; designed to consume the same primitive but with a
-denser ladder. The `EraReflexProvider` protocol abstraction
-(filed at wyrd-obpw P3.3 close) is deliberately deferred until
-wyrd-381 forces a second consumer.
+The Phase 3.2 sibling demo (`wyrd-381` stratified era-map)
+shipped 2026-05-08 (D34) as `KenningEraMap` Generator + `wyrd
+kenning era-map` CLI. The `EraReflexProvider` protocol
+abstraction (filed at wyrd-obpw P3.3 close) is deliberately
+deferred — `KenningRewind` and `KenningEraMap` both read the
+same `_bundle_era_form` helper today; a third consumer would
+justify the protocol.
+
+**Recent infrastructure (2026-05-08, D34)**: SPA-shortlist
+Phase A — four user-visible features stacked on the D33
+era-reflex foundation. **wyrd-17t** pronunciation respelling
+(SAMPA-lite per-language rule tables; `Meaning.respelling_for`
+surfaces inline in `KenningRewind` components). **wyrd-y10**
+alternate-script transliteration (`KenningRender` Generator;
+`scripts.py` ships Shavian, Tengwar / Cirth / Elder Futhark
+slot in as future dispatch arms). **wyrd-bvp** corpus-evidence
+annotations on `unaccounted` fragments (`--sources-dir` flag
+counts distinct sources + samples 60-char snippets +
+heuristic-flags etymology-body witnesses). **wyrd-381**
+stratified era-map Generator that bulk-rolls N invented
+toponyms and renders each at the three English-family era
+stops in one shot — composes the existing `Kenning` and
+`KenningRewind` generators. Coverage caveat unchanged from
+D33: era progression is data-coverage-bound, not code-bound.
 
 Five cultures: `english`, `scottish`, `welsh`, `irish`, **`breton`**.
 The breton register was added with a 1214-commune corpus pulled from
@@ -471,17 +490,19 @@ Wikidata (CC0); morpheme corpus expansion still pending — wyrd-fmg.
 
 ## Pointers to the other docs
 
-- **`DECISIONS.md`** — D1–D33, the architectural decisions and their
+- **`DECISIONS.md`** — D1–D34, the architectural decisions and their
   rationale. Read individual entries when you're about to change
   something they touch. Don't try to read all of it linearly. Latest
   additions: D27 (etymological descent graph), D28 (cognate vs
   meaning_synset axes), D29 (trie-indexed segmentation DAG matcher),
   D30 (wyrd-ami fantasy-name pipeline as sibling), D31 (wyrd-ha9q
   multi-script renderings), D32 (wyrd-lr4 within-language stratum
-  tagging), **D33 (time-aware era-reflex picker + period-form
-  projection + `KenningRewind` SPA generator)**; D5-3 and D17 have
-  refinements covering the era runtime filter (wyrd-lyp) and cohesion
-  knob (wyrd-mj2).
+  tagging), D33 (time-aware era-reflex picker + period-form
+  projection + `KenningRewind` SPA generator), **D34 (SPA-shortlist
+  Phase A: pronunciation respelling, alt-script transliteration,
+  corpus-evidence annotations, stratified era-map)**; D5-3 and D17
+  have refinements covering the era runtime filter (wyrd-lyp) and
+  cohesion knob (wyrd-mj2).
 - **`INGESTION.md`** — the procedure manual: how to add a new source,
   smoke-test the parser, pick a tier, run mining, run the post-mining
   chain, verify, ship. You only need it when actually mining.
