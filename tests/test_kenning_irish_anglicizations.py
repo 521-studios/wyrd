@@ -162,7 +162,11 @@ def test_sidecar_lifts_irish_corpus_perfect_rate() -> None:
         .read_text()
     )
 
-    word_db, _ = load_meanings(json.loads(main_text) + json.loads(sidecar_text))
+    # wyrd-c1vq: main bundle is dict-shape; subjects under 'subjects' key.
+    # Sidecar stays list-shape (its own format, separate from the export bundle).
+    main = json.loads(main_text)
+    main_subjects = main["subjects"] if isinstance(main, dict) else main
+    word_db, _ = load_meanings(main_subjects + json.loads(sidecar_text))
     names = load_names(json.loads(place_names_text))
 
     perfect = 0

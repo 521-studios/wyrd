@@ -263,7 +263,14 @@ def test_seed_from_meanings_accepts_dict_shape_bundle(fresh_db: Path) -> None:
 
 
 def test_seed_against_bundled_meanings(fresh_db: Path) -> None:
-    """End-to-end: ingest the real bundled meanings.json and sanity-check counts."""
+    """End-to-end: ingest the real bundled meanings.json and
+    sanity-check counts. The thresholds are deliberately wide
+    because the bundle's morpheme inventory grows with every
+    mining session — narrow bounds would force re-tuning on every
+    bundle re-emit. Audit follow-up wyrd-p8ve era's 8490-subject
+    bundle (4.5× growth from 1879) bumped these once already; if a
+    future bundle rolls past the upper bound, just bump again — the
+    test pins relative shape, not absolute counts."""
     text = resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
     data = json.loads(text)
 
@@ -273,12 +280,15 @@ def test_seed_against_bundled_meanings(fresh_db: Path) -> None:
         seed_from_meanings(db, data, "rando-port")
         stats = db.stats()
 
-    # 747 subjects, 2,751 words in the bundled file. Reflex count should match
-    # roughly the unique (modern_usage, position) pairs — a couple hundred
-    # collisions are expected, but we should be in the low thousands.
-    assert 1500 < stats["reflex"] < 3500
-    # Etymons are grouped by (form, language); should be fewer than reflexes.
-    assert 500 < stats["etymon"] < stats["reflex"]
+    # Wide bounds — ingest produces N reflexes / etymons proportional
+    # to bundle size. Upper bound chosen ~2× current to absorb routine
+    # churn without forcing a rebuild + rerun on every mining run.
+    assert 1500 < stats["reflex"] < 50000
+    # Etymons are grouped by (form, language). Pre-wyrd-eni4 the bundle
+    # was OE/ON-dominated so etymons < reflexes; post-cluster-expansion
+    # each modern_usage maps to many ancestor-language etymons, so the
+    # relationship inverts. Just pin the positive lower bound.
+    assert 500 < stats["etymon"] < 100000
     # Every etymon has at least one citation back to rando-port.
     assert stats["etymon_citation"] == stats["etymon"]
 
@@ -6626,9 +6636,11 @@ def test_language_field_mapping_covers_known_codes() -> None:
     rather than by LANGUAGE_FIELDS, so they're treated as known-handled here."""
     text = resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
     data = json.loads(text)
+    # wyrd-c1vq: bundle is dict-shape; subjects under the 'subjects' key.
+    subjects = data["subjects"] if isinstance(data, dict) else data
 
     seen_fields: set[str] = set()
-    for subject in data:
+    for subject in subjects:
         for word in subject.get("words", []):
             seen_fields.update(word.keys())
 
@@ -6638,7 +6650,8 @@ def test_language_field_mapping_covers_known_codes() -> None:
     # labels), *_citations (scholarly attribution), *_attested_years
     # (D5-2 era cells). They legitimately don't map to a LANGUAGE_FIELDS
     # code; the runtime's load_meanings handles them via separate Meaning
-    # attributes.
+    # attributes. ``era_reflexes`` (wyrd-obpw) is a top-level word-scoped
+    # field (not a per-language sibling) so it's listed here too.
     metadata_suffixes = (
         "_variants",
         "_inflections",
@@ -6646,8 +6659,11 @@ def test_language_field_mapping_covers_known_codes() -> None:
         "_attested_years",
         "_stratum",
     )
+    metadata_exact = {"era_reflexes"}
     missing = {
-        f for f in seen_fields - handled if not any(f.endswith(s) for s in metadata_suffixes)
+        f
+        for f in seen_fields - handled - metadata_exact
+        if not any(f.endswith(s) for s in metadata_suffixes)
     }
     assert not missing, f"Unhandled fields in meanings.json: {missing}"
 
