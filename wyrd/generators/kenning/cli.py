@@ -377,6 +377,82 @@ def generate(
     click.echo(f"(seed: {resolved})", err=True)
 
 
+def _aggregate_unaccounted_fragments(
+    resolved_names: list,
+    *,
+    min_length: int,
+    max_examples: int,
+) -> tuple[Counter, dict[str, list[str]], int]:
+    """Walk decomposed Names and tally their leftover string slots.
+
+    Per name, dedups fragments within that name (so 'ham' appearing
+    twice in one toponym counts once toward frequency). Examples are
+    capped at ``max_examples`` per fragment. Fragments shorter than
+    ``min_length`` are skipped.
+
+    Returns ``(fragments, examples_by_frag, imperfect_count)`` where
+    ``imperfect_count`` is the number of names contributing at least
+    one fragment (i.e. didn't reach zero unaccounted).
+    """
+    fragments: Counter = Counter()
+    examples_by_frag: dict[str, list[str]] = {}
+    imperfect_count = 0
+    for resolved in resolved_names:
+        if resolved.count_unaccounted() == 0:
+            continue
+        imperfect_count += 1
+        seen_in_name: set[str] = set()
+        for word_list in resolved.words.values():
+            for word in word_list:
+                for chunk in word.word:
+                    if not isinstance(chunk, str):
+                        continue
+                    frag = chunk.lower()
+                    if len(frag) < min_length or frag in seen_in_name:
+                        continue
+                    seen_in_name.add(frag)
+                    fragments[frag] += 1
+                    bucket = examples_by_frag.setdefault(frag, [])
+                    if resolved.name not in bucket and len(bucket) < max_examples:
+                        bucket.append(resolved.name)
+    return fragments, examples_by_frag, imperfect_count
+
+
+def _decompose_corpus(
+    names: list,
+    word_db: dict,
+    db_path: Path | None,
+) -> tuple[list, Counter]:
+    """Decompose a corpus of Names, honouring canonical picks when a
+    lexicon DB path is supplied.
+
+    Shared by ``rebuild-proportions`` and ``unaccounted`` (wyrd-0see).
+    Both consumers had near-identical optional-DB iteration loops; the
+    helper centralises (a) DB context-manager hygiene via
+    ``nullcontext``, (b) the per-name canonical-vs-heuristic branch,
+    (c) the ``canonical_hits`` Counter accumulation.
+
+    Returns ``(resolved_names, canonical_hits)``. ``canonical_hits`` is
+    empty when ``db_path`` is ``None`` so callers can use truthiness to
+    decide whether to surface the ``canonical[...]`` summary block.
+    """
+    from wyrd.generators.kenning.decomposition import decompose_with_canonical
+
+    canonical_hits: Counter = Counter()
+    resolved_names: list = []
+    db_context = LexiconDB(db_path) if db_path is not None else nullcontext()
+    with db_context as db:
+        for name in names:
+            if db is not None:
+                resolved, source = decompose_with_canonical(name.name, word_db, db)
+                canonical_hits[source or "heuristic"] += 1
+            else:
+                resolved = name
+                resolved.find_meaning(word_db)
+            resolved_names.append(resolved)
+    return resolved_names, canonical_hits
+
+
 @cli.command("rebuild-proportions")
 @click.argument("culture", type=click.Choice(CULTURES))
 @click.argument("place_names", type=click.Path(exists=True, dir_okay=False, path_type=Path))
@@ -416,41 +492,19 @@ def rebuild_proportions(
     others fall back to the matcher heuristic. This makes counts stable
     across re-runs and reflects scholarly attribution where available.
     """
-    from wyrd.generators.kenning.decomposition import decompose_with_canonical
-
     meanings_data = _load_meanings_data(meanings)
 
     names_data = json.loads(place_names.read_text())
     names = load_names(names_data)
     word_db, _ = load_meanings(meanings_data)
 
-    perfect = 0
-    word_names = 0
-    word_saints = 0
-    good_names = []
-    canonical_hits: Counter = Counter()
-    db_context = LexiconDB(db_path) if db_path is not None else nullcontext()
-    with db_context as db:
-        for name in names:
-            if db is not None:
-                resolved, source = decompose_with_canonical(name.name, word_db, db)
-                if source is not None:
-                    canonical_hits[source] += 1
-                else:
-                    canonical_hits["heuristic"] += 1
-            else:
-                resolved = name
-                resolved.find_meaning(word_db)
-            if resolved.has_name():
-                word_names += 1
-            if resolved.has_saint():
-                word_saints += 1
-            if resolved.count_unaccounted() == 0:
-                perfect += 1
-                good_names.append(resolved)
+    resolved_names, canonical_hits = _decompose_corpus(names, word_db, db_path)
+    good_names = [n for n in resolved_names if n.count_unaccounted() == 0]
+    word_names = sum(1 for n in resolved_names if n.has_name())
+    word_saints = sum(1 for n in resolved_names if n.has_saint())
 
     summary = (
-        f"culture={culture} perfect={perfect} names={word_names} "
+        f"culture={culture} perfect={len(good_names)} names={word_names} "
         f"saints={word_saints} total={len(names)}"
     )
     if canonical_hits:
@@ -642,49 +696,16 @@ def unaccounted(
     false-gap fragments at the cost of needing a recent
     ``lexicon decompose --apply`` run.
     """
-    from wyrd.generators.kenning.decomposition import decompose_with_canonical
-
     meanings_data = _load_meanings_data(meanings)
 
     names_data = json.loads(place_names.read_text())
     names = load_names(names_data)
     word_db, _ = load_meanings(meanings_data)
 
-    fragments: Counter = Counter()
-    examples_by_frag: dict[str, list[str]] = {}
-    imperfect_count = 0
-    canonical_hits: Counter = Counter()
-    db_context = LexiconDB(db_path) if db_path is not None else nullcontext()
-    with db_context as db:
-        for name in names:
-            if db is not None:
-                resolved, source = decompose_with_canonical(name.name, word_db, db)
-                if source is not None:
-                    canonical_hits[source] += 1
-                else:
-                    canonical_hits["heuristic"] += 1
-            else:
-                resolved = name
-                resolved.find_meaning(word_db)
-            if resolved.count_unaccounted() == 0:
-                continue
-            imperfect_count += 1
-            seen_in_name: set[str] = set()
-            for word_list in resolved.words.values():
-                for word in word_list:
-                    for chunk in word.word:
-                        if not isinstance(chunk, str):
-                            continue
-                        frag = chunk.lower()
-                        if len(frag) < min_length:
-                            continue
-                        if frag in seen_in_name:
-                            continue
-                        seen_in_name.add(frag)
-                        fragments[frag] += 1
-                        bucket = examples_by_frag.setdefault(frag, [])
-                        if resolved.name not in bucket and len(bucket) < examples:
-                            bucket.append(resolved.name)
+    resolved_names, canonical_hits = _decompose_corpus(names, word_db, db_path)
+    fragments, examples_by_frag, imperfect_count = _aggregate_unaccounted_fragments(
+        resolved_names, min_length=min_length, max_examples=examples
+    )
 
     top_fragments = fragments.most_common(top)
     # wyrd-bvp: when --sources-dir is set, scan all source-text
