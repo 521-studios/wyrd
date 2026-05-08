@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import pytest
 
-from tests.conftest import EXPLAIN_TEST_BUNDLE, swap_bundle
 from wyrd.app import create_app
 from wyrd.generators.kenning import KenningExplain
 
@@ -21,8 +20,8 @@ def client():
     return create_app().test_client()
 
 
-def test_known_compound_decomposes_cleanly():
-    with swap_bundle(EXPLAIN_TEST_BUNDLE):
+def test_known_compound_decomposes_cleanly(bundle_swapper, explain_test_bundle):
+    with bundle_swapper(explain_test_bundle):
         rs = KenningExplain().generate_all({"name": "Bridgewater"}, 0)
     # Cleanest reading should appear first thanks to the unaccounted-first sort.
     assert "Bridge" in rs[0].explanation
@@ -30,8 +29,8 @@ def test_known_compound_decomposes_cleanly():
     assert "[" not in rs[0].explanation, "best reading should have no unaccounted"
 
 
-def test_multi_word_name_decomposes_per_word():
-    with swap_bundle(EXPLAIN_TEST_BUNDLE):
+def test_multi_word_name_decomposes_per_word(bundle_swapper, explain_test_bundle):
+    with bundle_swapper(explain_test_bundle):
         rs = KenningExplain().generate_all({"name": "Saint Albans"}, 0)
     # Best reading: "Saint" (saint) + "Albans" (auto-pluralized name).
     top = rs[0]
@@ -53,8 +52,8 @@ def test_empty_name_raises():
         KenningExplain().generate_all({"name": ""}, 0)
 
 
-def test_components_carry_structured_parts():
-    with swap_bundle(EXPLAIN_TEST_BUNDLE):
+def test_components_carry_structured_parts(bundle_swapper, explain_test_bundle):
+    with bundle_swapper(explain_test_bundle):
         r = KenningExplain().generate_all({"name": "Bridgewater"}, 0)[0]
     parts = r.components[0]["parts"]
     matched = [p for p in parts if p["type"] == "matched"]
@@ -63,11 +62,11 @@ def test_components_carry_structured_parts():
     assert "EN" in bridge["roots"]
 
 
-def test_unaccounted_chunks_are_flagged_in_components():
+def test_unaccounted_chunks_are_flagged_in_components(bundle_swapper, explain_test_bundle):
     # 'Aberystwyth' has no entries in the fixture — every char is
     # unaccounted. The test only asserts the unaccounted-flagging
     # codepath, not specific morpheme picks.
-    with swap_bundle(EXPLAIN_TEST_BUNDLE):
+    with bundle_swapper(explain_test_bundle):
         r = KenningExplain().generate_all({"name": "Aberystwyth"}, 0)[0]
     flat = [p for word in r.components for p in word["parts"]]
     assert any(p["type"] == "unaccounted" for p in flat)
@@ -91,14 +90,14 @@ def test_dispatcher_returns_all_decompositions(client):
     assert all(r["result"] == "Bridgewater" for r in body["results"])
 
 
-def test_dispatcher_ignores_count_for_multi_result(client):
+def test_dispatcher_ignores_count_for_multi_result(client, bundle_swapper, explain_test_bundle):
     """Even if a client passes count=10, multi_result generators decide.
     Pinned against the fixture so the per-name decomposition count
     stays stable across bundle churn — the live bundle now produces
     25+ Bridgewater readings due to morpheme inventory growth, which
     is correct behaviour but defeats the 'count<10' assertion's
     intent (which is about dispatcher contract, not bundle scale)."""
-    with swap_bundle(EXPLAIN_TEST_BUNDLE):
+    with bundle_swapper(explain_test_bundle):
         resp = client.post("/api/kenning-explain", json={"name": "Bridgewater", "count": 10})
     assert resp.status_code == 200
     body = resp.get_json()

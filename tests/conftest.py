@@ -29,6 +29,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 import wyrd.generators.kenning as kenning_mod
 
 
@@ -139,3 +141,23 @@ EXPLAIN_TEST_BUNDLE: dict[str, Any] = {
         ),
     ]
 }
+
+
+# Pytest fixtures — exposed via parameter injection so tests don't
+# need to import from this module directly. Cross-module imports
+# (``from tests.conftest import …``) work locally but break in CI's
+# flat sys.path layout (no ``tests/__init__.py``); fixture injection
+# sidesteps that entirely.
+
+
+@pytest.fixture
+def explain_test_bundle() -> dict[str, Any]:
+    """Returns the canonical EXPLAIN_TEST_BUNDLE fixture data."""
+    return EXPLAIN_TEST_BUNDLE
+
+
+@pytest.fixture
+def bundle_swapper():
+    """Returns the ``swap_bundle`` context manager. Use as
+    ``with bundle_swapper(fixture): ...`` inside a test body."""
+    return swap_bundle
