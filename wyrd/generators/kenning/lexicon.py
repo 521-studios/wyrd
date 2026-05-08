@@ -1751,6 +1751,31 @@ INFLECTION_RULES: dict[str, list[tuple[str, str]]] = {
         ("r", "nominative"),
         ("i", "dative_or_weak"),
     ],
+    # wyrd-rc0b Phase 1: Old French / Middle English / Norman French.
+    # Same conservative-precision approach as the Welsh entry above.
+    # All three languages use case-marking + plural -s suffixes per
+    # Old French's two-case system (nom/oblique) inherited into ME via
+    # Anglo-Norman influence. Only the LONGER form (-es feminine plural
+    # / genitive plural) is registered here; the bare -s is too generic
+    # — many OF/ME lemmas end in -s naturally (OF 'pres' 'near', 'fois'
+    # 'time'; ME 'is' / 'thus' / 'bras'), and the strip would corrupt
+    # those families.
+    "old-french": [
+        # 336 candidates; OF feminine plural / oblique case.
+        ("es", "feminine_plural"),
+    ],
+    "middle-english": [
+        # 5863 candidates; weak plural (oxen, children, brethren).
+        # Listed before -es so the longer ending wins on tied stems.
+        ("en", "plural"),
+        # 2574 candidates; ME plural / genitive singular (cotes / kynges).
+        ("es", "genitive_or_plural"),
+    ],
+    "norman-french": [
+        # 5 candidates (NF corpus is small — 70 etymons total). Same
+        # shape as Old French.
+        ("es", "feminine_plural"),
+    ],
     # wyrd-r6bk Phase 1: Welsh suffix-strippable subset, conservative.
     # Initial-mutation morphology (lenition / nasal / aspirate) is
     # NOT suffix-strippable and stays unhandled — wyrd-jott tracks
