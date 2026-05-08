@@ -397,8 +397,15 @@ def pick_canonical_decomposition(
     exactly one stored row has zero unaccounted fragments, that one
     wins ``'unique-zero-unaccounted'``.
 
-    Rule (c) multi-zero tiebreaker is not yet implemented. Toponyms
-    that fall through rules (a) and (b) end with no canonical pick.
+    Rule (c) multi-zero tiebreaker (Phase 4a): when 2+ stored rows
+    have zero unaccounted, prefers the smallest ``morpheme_count``
+    (Occam) with lex-order on ``morpheme_ids`` as the deterministic
+    final tiebreak. Tagged ``'tiebreaker'`` so consumers can audit
+    these picks. Witness-count + rare-morpheme refinements (from the
+    parent ticket's rule-c sub-criteria) are deferred to Phase 4b.
+
+    Toponyms with no zero-unaccounted decomposition (every breakdown
+    has at least one leftover) fall through with no canonical pick.
 
     Returns ``{rule, canonical_count, decomposition_count}``.
     """
@@ -429,6 +436,15 @@ def pick_canonical_decomposition(
             "decomposition_count": decomposition_count,
         }
 
+    tiebreak_row_id = _try_rule_tiebreaker(rows)
+    if tiebreak_row_id is not None:
+        _set_canonical(db, [tiebreak_row_id], "tiebreaker")
+        return {
+            "rule": "tiebreaker",
+            "canonical_count": 1,
+            "decomposition_count": decomposition_count,
+        }
+
     return {
         "rule": None,
         "canonical_count": 0,
@@ -451,11 +467,13 @@ def _reset_canonical(db: LexiconDB, toponym_id: int) -> None:
 
 
 def _load_stored_decompositions(db: LexiconDB, toponym_id: int) -> list:
-    """Fetch (id, morpheme_ids JSON, unaccounted_count) rows for a
-    toponym, ordered by id (insert order)."""
+    """Fetch (id, morpheme_ids JSON, unaccounted_count, morpheme_count)
+    rows for a toponym, ordered by id (insert order). morpheme_count
+    is read because the Phase 4a tiebreaker rule (c) needs it for
+    Occam-ordering among multi-zero-unaccounted candidates."""
     return db.conn.execute(
         """
-        SELECT id, morpheme_ids, unaccounted_count
+        SELECT id, morpheme_ids, unaccounted_count, morpheme_count
           FROM toponym_decomposition
          WHERE toponym_id = ?
          ORDER BY id
@@ -530,6 +548,39 @@ def _try_rule_unique_zero(rows: list) -> int | None:
     if len(zero_rows) != 1:
         return None
     return zero_rows[0]["id"]
+
+
+def _try_rule_tiebreaker(rows: list) -> int | None:
+    """Rule (c) Phase 4a: multi-zero tiebreaker via Occam (fewest
+    morphemes) + lex-order final fallback.
+
+    Fires when two-or-more stored rows have ``unaccounted_count == 0``
+    and rule (a) [scholar match] didn't cover them. Among the zero-
+    unaccounted candidates, prefers:
+
+    1. The row with the smallest ``morpheme_count`` (Occam: fewer
+       morphemes = simpler analysis, less likely to be over-segmented).
+    2. If still tied, the lex-smallest ``morpheme_ids`` JSON string
+       (deterministic — re-runs against the same DB always pick the
+       same row).
+
+    Witness-count and rare-morpheme penalties from the parent ticket
+    are deferred to Phase 4b (require an etymon→toponym_decomposition
+    mapping that doesn't exist yet). Phase 4a covers the common case:
+    most multi-zero ties differ in morpheme count.
+
+    Returns the chosen row id, or ``None`` if there are fewer than
+    two zero-unaccounted candidates (rule (b) already handled those).
+    """
+    zero_rows = [row for row in rows if row["unaccounted_count"] == 0]
+    if len(zero_rows) < 2:
+        return None
+    # Sort by (morpheme_count ASC, morpheme_ids ASC) — both tiebreakers
+    # in one pass. Lex-order on the JSON serialization is deterministic
+    # across Python versions because morpheme_ids is built with
+    # ``sort_keys=False, separators=(",", ":")`` at populate time.
+    sorted_rows = sorted(zero_rows, key=lambda r: (r["morpheme_count"], r["morpheme_ids"]))
+    return sorted_rows[0]["id"]
 
 
 def _candidates_for_usage(word_db: dict, usage: str) -> set[tuple[str, str]]:

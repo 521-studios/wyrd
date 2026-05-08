@@ -2250,3 +2250,249 @@ def test_cli_export_meanings_legacy_list_shape_when_no_canonicals(
     assert result.exit_code == 0, result.output
     bundle = json.loads(output_path.read_text())
     assert isinstance(bundle, list)
+
+
+# --- wyrd-08m Phase 4a: rule (c) tiebreaker -----------------------------
+
+
+def test_tiebreaker_picks_min_morpheme_count_among_zero_unaccounted(
+    fresh_db: Path,
+) -> None:
+    """When 2+ stored decompositions are zero-unaccounted, rule (c)
+    Phase 4a picks the one with FEWEST morphemes (Occam). Pinned
+    against a hand-inserted scenario with two zero-unaccounted rows
+    of differing morpheme counts."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        # Hand-insert two zero-unaccounted decompositions with
+        # different morpheme counts. The picker should choose the
+        # 2-morpheme reading (Occam) over the 3-morpheme one.
+        two_payload = [["morpheme", "Strat-"], ["morpheme", "-ford"]]
+        two_sig = _signature_for_payload(two_payload)
+        db.conn.execute(
+            """
+            INSERT INTO toponym_decomposition (
+              toponym_id, decomposition_signature, morpheme_ids,
+              unaccounted_fragments, unaccounted_count, morpheme_count
+            ) VALUES (?, ?, ?, '[]', 0, 2)
+            """,
+            (topo_id, two_sig, json.dumps(two_payload)),
+        )
+        three_payload = [
+            ["morpheme", "Strat-"],
+            ["morpheme", "-for-"],
+            ["morpheme", "-d"],
+        ]
+        three_sig = _signature_for_payload(three_payload)
+        db.conn.execute(
+            """
+            INSERT INTO toponym_decomposition (
+              toponym_id, decomposition_signature, morpheme_ids,
+              unaccounted_fragments, unaccounted_count, morpheme_count
+            ) VALUES (?, ?, ?, '[]', 0, 3)
+            """,
+            (topo_id, three_sig, json.dumps(three_payload)),
+        )
+        db.commit()
+        result = pick_canonical_decomposition(db, topo_id, word_db)
+        db.commit()
+        canonical_row = db.conn.execute(
+            "SELECT morpheme_count, decomposition_signature "
+            "FROM toponym_decomposition "
+            "WHERE toponym_id = ? AND is_canonical = 1",
+            (topo_id,),
+        ).fetchone()
+
+    assert result["rule"] == "tiebreaker"
+    assert result["canonical_count"] == 1
+    # The chosen row should be the 2-morpheme one.
+    assert canonical_row["morpheme_count"] == 2
+    assert canonical_row["decomposition_signature"] == two_sig
+
+
+def test_tiebreaker_lex_order_falls_back_when_morpheme_counts_tie(
+    fresh_db: Path,
+) -> None:
+    """When the morpheme-count Occam check doesn't break the tie
+    (multiple zero-unaccounted decompositions with the same morpheme
+    count), Phase 4a falls back to lex order on the morpheme_ids JSON
+    string. Deterministic across re-runs."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        # Two zero-unaccounted, same morpheme count, distinct payloads.
+        # Lex-smaller payload wins.
+        a_payload = [["morpheme", "Aa-"], ["morpheme", "-bb"]]
+        a_sig = _signature_for_payload(a_payload)
+        a_morpheme_ids = json.dumps(a_payload, sort_keys=False, separators=(",", ":"))
+        db.conn.execute(
+            """
+            INSERT INTO toponym_decomposition (
+              toponym_id, decomposition_signature, morpheme_ids,
+              unaccounted_fragments, unaccounted_count, morpheme_count
+            ) VALUES (?, ?, ?, '[]', 0, 2)
+            """,
+            (topo_id, a_sig, a_morpheme_ids),
+        )
+        z_payload = [["morpheme", "Zz-"], ["morpheme", "-yy"]]
+        z_sig = _signature_for_payload(z_payload)
+        z_morpheme_ids = json.dumps(z_payload, sort_keys=False, separators=(",", ":"))
+        db.conn.execute(
+            """
+            INSERT INTO toponym_decomposition (
+              toponym_id, decomposition_signature, morpheme_ids,
+              unaccounted_fragments, unaccounted_count, morpheme_count
+            ) VALUES (?, ?, ?, '[]', 0, 2)
+            """,
+            (topo_id, z_sig, z_morpheme_ids),
+        )
+        db.commit()
+        result = pick_canonical_decomposition(db, topo_id, word_db)
+        canonical = db.conn.execute(
+            "SELECT decomposition_signature FROM toponym_decomposition "
+            "WHERE toponym_id = ? AND is_canonical = 1",
+            (topo_id,),
+        ).fetchone()
+
+    assert result["rule"] == "tiebreaker"
+    # 'Aa-' lex-smaller than 'Zz-' → 'a' row wins.
+    assert canonical["decomposition_signature"] == a_sig
+
+
+def test_tiebreaker_does_not_fire_when_only_one_zero_unaccounted(
+    fresh_db: Path,
+) -> None:
+    """When only ONE row has zero unaccounted, rule (b) handles it
+    and rule (c) doesn't fire — even though the multi-zero check on
+    rule (c) would still pick the same row, the rule label is
+    'unique-zero-unaccounted' not 'tiebreaker'. Audit trail matters."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        populate_and_pick(db, topo_id, "Stratford", word_db)
+        db.commit()
+        # Confirm rule fired as 'unique-zero-unaccounted' (one row,
+        # one canonical) — not 'tiebreaker'.
+        canonical = db.conn.execute(
+            "SELECT canonical_source FROM toponym_decomposition "
+            "WHERE toponym_id = ? AND is_canonical = 1",
+            (topo_id,),
+        ).fetchone()
+    assert canonical is not None
+    assert canonical["canonical_source"] == "unique-zero-unaccounted"
+
+
+def test_tiebreaker_does_not_fire_when_no_zero_unaccounted(
+    fresh_db: Path,
+) -> None:
+    """A toponym with zero zero-unaccounted decompositions still ends
+    with no canonical pick — Phase 4a only resolves multi-zero
+    ties, not 'every breakdown has leftovers'."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Nowhere")
+        compute_decompositions(db, topo_id, "Nowhere", word_db)
+        # Don't run the picker via populate_and_pick — call it directly
+        # to inspect the rule outcome.
+        result = pick_canonical_decomposition(db, topo_id, word_db)
+        canonical = db.conn.execute(
+            "SELECT COUNT(*) AS c FROM toponym_decomposition "
+            "WHERE toponym_id = ? AND is_canonical = 1",
+            (topo_id,),
+        ).fetchone()
+    # Rule (c) didn't fire because there are no zero-unaccounted rows.
+    assert result["rule"] is None
+    assert canonical["c"] == 0
+
+
+def test_tiebreaker_does_not_override_scholar_match(fresh_db: Path) -> None:
+    """When rule (a) [scholar match] fires, rule (c) MUST NOT fire —
+    scholarly attribution outranks Occam. Pinned to confirm rule
+    ordering: scholar → unique-zero → tiebreaker."""
+    subjects = _two_morpheme_subjects()
+    word_db = _word_db_for(subjects)
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        # Wire a scholar etymology that matches the 2-morpheme reading.
+        _insert_scholar_etymology(
+            db,
+            toponym_id=topo_id,
+            elements=[("stræt", "old-english"), ("ford", "old-english")],
+        )
+        populate_and_pick(db, topo_id, "Stratford", word_db)
+        db.commit()
+        canonical = db.conn.execute(
+            "SELECT canonical_source FROM toponym_decomposition "
+            "WHERE toponym_id = ? AND is_canonical = 1",
+            (topo_id,),
+        ).fetchone()
+    # Rule (a) fired, not rule (c).
+    assert canonical["canonical_source"] == "scholar"
+
+
+def test_cli_decompose_summary_includes_tiebreaker_count(tmp_path: Path) -> None:
+    """End-to-end: ``lexicon decompose --apply`` summary output
+    includes the new ``tiebreaker=N`` count alongside scholar /
+    unique-zero / no-canonical. A future regression that drops the
+    tiebreaker key from the summary surfaces here."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        # Hand-insert two zero-unaccounted rows with different
+        # morpheme counts — the populator below would idempotent-ignore
+        # any signature it'd produce, but it'll re-pick canonical via
+        # the rule chain.
+        two_payload = [["morpheme", "Strat-"], ["morpheme", "-ford"]]
+        two_sig = _signature_for_payload(two_payload)
+        db.conn.execute(
+            """
+            INSERT INTO toponym_decomposition (
+              toponym_id, decomposition_signature, morpheme_ids,
+              unaccounted_fragments, unaccounted_count, morpheme_count
+            ) VALUES (?, ?, ?, '[]', 0, 2)
+            """,
+            (topo_id, two_sig, json.dumps(two_payload)),
+        )
+        three_payload = [
+            ["morpheme", "Strat-"],
+            ["morpheme", "-for-"],
+            ["morpheme", "-d"],
+        ]
+        three_sig = _signature_for_payload(three_payload)
+        db.conn.execute(
+            """
+            INSERT INTO toponym_decomposition (
+              toponym_id, decomposition_signature, morpheme_ids,
+              unaccounted_fragments, unaccounted_count, morpheme_count
+            ) VALUES (?, ?, ?, '[]', 0, 3)
+            """,
+            (topo_id, three_sig, json.dumps(three_payload)),
+        )
+        db.commit()
+
+    meanings_path = tmp_path / "meanings.json"
+    meanings_path.write_text(json.dumps(_two_morpheme_subjects()))
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "decompose",
+            "--db",
+            str(db_path),
+            "--meanings",
+            str(meanings_path),
+            "--apply",
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    assert "tiebreaker=" in result.stderr

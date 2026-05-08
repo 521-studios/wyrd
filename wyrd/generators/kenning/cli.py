@@ -5310,6 +5310,7 @@ def lexicon_decompose(
             "scholar": 0,
             "scholar-disagreement": 0,
             "unique-zero-unaccounted": 0,
+            "tiebreaker": 0,
             "no-canonical": 0,
         }
         decomposition_total = 0
@@ -5324,6 +5325,7 @@ def lexicon_decompose(
                     f"scholar={rule_counts['scholar']} "
                     f"scholar-disagreement={rule_counts['scholar-disagreement']} "
                     f"unique-zero={rule_counts['unique-zero-unaccounted']} "
+                    f"tiebreaker={rule_counts['tiebreaker']} "
                     f"no-canonical={rule_counts['no-canonical']}",
                     err=True,
                 )
@@ -5339,6 +5341,7 @@ def lexicon_decompose(
             f"scholar={rule_counts['scholar']} "
             f"scholar-disagreement={rule_counts['scholar-disagreement']} "
             f"unique-zero={rule_counts['unique-zero-unaccounted']} "
+            f"tiebreaker={rule_counts['tiebreaker']} "
             f"no-canonical={rule_counts['no-canonical']}",
             err=True,
         )
