@@ -8245,9 +8245,7 @@ def test_export_meanings_cli_lang_threshold_accepts_json_field_alias(
     )
     assert result.exit_code == 0, result.output
     # Threshold 3 with only 2 witnesses → not promoted.
-    promoted = any(
-        s["meaning"] == ["mountain"] for s in json.loads(result.stdout)["subjects"]
-    )
+    promoted = any(s["meaning"] == ["mountain"] for s in json.loads(result.stdout)["subjects"])
     assert not promoted
 
 
@@ -8276,9 +8274,7 @@ def test_export_meanings_cli_no_preset_uses_uniform_min_witnesses(fresh_db: Path
         ],
     )
     assert result.exit_code == 0, result.output
-    promoted = any(
-        s["meaning"] == ["mountain"] for s in json.loads(result.stdout)["subjects"]
-    )
+    promoted = any(s["meaning"] == ["mountain"] for s in json.loads(result.stdout)["subjects"])
     assert not promoted
 
 
