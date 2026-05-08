@@ -410,11 +410,11 @@ ME_TO_EMODE_RULES: tuple[SoundChangeRule, ...] = (
 
 # --- Early Modern English → Modern English (wyrd-n9x5 Phase 2.2) --------
 #
-# Sources: Cameron, *English Place Names* (1996, ch. 2 on the
-# orthographic settling of place-name spellings 1500-1800); Mills, *A
-# Dictionary of British Place Names* (rev. ed. 2011, per-toponym
-# attestation chains showing EModE intermediate forms); Smith, *English
-# Place-Name Elements* (EPNS vol 25–26, 1956, suffix evolution).
+# Sources: Smith, *English Place-Name Elements* (EPNS vol 25–26, 1956,
+# suffix evolution); Mills, *A Dictionary of British Place Names* (rev.
+# ed. 2011, per-toponym attestation chains showing EModE intermediate
+# forms). Each rule cites the EPNS s.v. for the suffix root and the
+# Mills s.v. for the canonical exemplar attestation.
 #
 # Note on scope: most British place-name orthography stabilized by
 # EModE — the dominant phonological changes (Great Vowel Shift,

@@ -644,6 +644,28 @@ def test_emode_to_mode_does_not_corrupt_unrelated_suffixes() -> None:
         )
 
 
+def test_emode_to_mode_pattern_fires_only_on_hyphen_anchored_suffix() -> None:
+    """Regression: the Phase 2.2 patterns all carry a leading hyphen
+    (`-stocke`, `-brooke`, `-grene`, `-poole`, `-ditche`) which acts as
+    the framework's word-boundary proxy. A ModE-shaped form that
+    contains the BARE suffix string (without the hyphen) MUST NOT
+    silently fire the rule — otherwise an unrelated stem ending in
+    e.g. 'poole' or 'grene' would get mangled.
+
+    Parallel to Phase 2.1's `test_me_to_emode_does_not_corrupt_internal_*`
+    pins; pinned per-suffix here so a future rule edit that drops the
+    leading hyphen surfaces immediately.
+    """
+    bare_forms = ("stockeholder", "brookekeeper", "greneliness", "pooledom", "ditcheside")
+    for form in bare_forms:
+        candidates = apply_rules(form, "english", "early-modern-english", "modern-english")
+        forms = [f for f, _ in candidates]
+        assert form in forms, (
+            f"bare-suffix form {form!r} should pass through Phase 2.2 "
+            f"unchanged (no leading hyphen → no suffix anchor); got {forms!r}"
+        )
+
+
 def test_emode_to_mode_full_chain_oe_to_mode_via_intermediates() -> None:
     """Full attestation chain: OE → ME → EModE → ModE. Pick a place-
     name that has a real attestation chain and confirm the framework
