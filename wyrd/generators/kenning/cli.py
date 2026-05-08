@@ -385,13 +385,38 @@ def generate(
     default=None,
     help="Path to meanings.json (defaults to bundled).",
 )
-def rebuild_proportions(culture: str, place_names: Path, meanings: Path | None) -> None:
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help=(
+        "wyrd-70s0: lexicon DB to read canonical decompositions from. "
+        "When set, names with a canonical pick (from `lexicon decompose "
+        "--apply`) use that breakdown; names without one fall back to "
+        "the matcher's reduce=True heuristic. Without this flag the "
+        "command runs heuristic-only (legacy behaviour)."
+    ),
+)
+def rebuild_proportions(
+    culture: str,
+    place_names: Path,
+    meanings: Path | None,
+    db_path: Path | None,
+) -> None:
     """Recompute a culture's proportions from a corpus + meanings DB.
 
     Replaces Rando's `bin/load_names`. Reads place_names JSON (the same shape as
     the bundled `<culture>_place_names.json` files), deconstructs each name
     against the meaning DB, and emits a fresh proportions JSON to stdout.
+
+    With ``--db``, canonical decompositions (wyrd-08m / wyrd-70s0) drive
+    the proportion counts for toponyms with a registered canonical pick;
+    others fall back to the matcher heuristic. This makes counts stable
+    across re-runs and reflects scholarly attribution where available.
     """
+    from wyrd.generators.kenning.decomposition import decompose_with_canonical
+
     meanings_data = _load_meanings_data(meanings)
 
     names_data = json.loads(place_names.read_text())
@@ -402,21 +427,39 @@ def rebuild_proportions(culture: str, place_names: Path, meanings: Path | None) 
     word_names = 0
     word_saints = 0
     good_names = []
-    for name in names:
-        name.find_meaning(word_db)
-        if name.has_name():
-            word_names += 1
-        if name.has_saint():
-            word_saints += 1
-        if name.count_unaccounted() == 0:
-            perfect += 1
-            good_names.append(name)
+    canonical_hits: Counter = Counter()
+    db_cm = LexiconDB(db_path) if db_path is not None else None
+    try:
+        db = db_cm.__enter__() if db_cm is not None else None
+        for name in names:
+            if db is not None:
+                resolved, source = decompose_with_canonical(name.name, word_db, db)
+                if source is not None:
+                    canonical_hits[source] += 1
+                else:
+                    canonical_hits["heuristic"] += 1
+            else:
+                resolved = name
+                resolved.find_meaning(word_db)
+            if resolved.has_name():
+                word_names += 1
+            if resolved.has_saint():
+                word_saints += 1
+            if resolved.count_unaccounted() == 0:
+                perfect += 1
+                good_names.append(resolved)
+    finally:
+        if db_cm is not None:
+            db_cm.__exit__(None, None, None)
 
-    click.echo(
-        f"culture={culture} perfect={perfect} names={word_names} saints={word_saints} "
-        f"total={len(names)}",
-        err=True,
+    summary = (
+        f"culture={culture} perfect={perfect} names={word_names} "
+        f"saints={word_saints} total={len(names)}"
     )
+    if canonical_hits:
+        breakdown = " ".join(f"{src}={n}" for src, n in sorted(canonical_hits.items()))
+        summary += f" canonical[{breakdown}]"
+    click.echo(summary, err=True)
     proportions = _proportions_from(good_names)
     click.echo(json.dumps(proportions))
 
@@ -563,6 +606,20 @@ def add_meaning(tags: tuple[str, ...]) -> None:
         "flags snippets that look like an etymology body."
     ),
 )
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help=(
+        "wyrd-70s0: lexicon DB to read canonical decompositions from. "
+        "When set, gap counts honour the canonical pick — a fragment "
+        "appears in the gap report only if it's unaccounted under the "
+        "toponym's canonical decomposition. False-gap fragments that "
+        "the heuristic surfaced but a zero-unaccounted alternate "
+        "covered will silently disappear from the report."
+    ),
+)
 def unaccounted(
     culture: str,
     place_names: Path,
@@ -572,6 +629,7 @@ def unaccounted(
     min_length: int,
     as_json: bool,
     sources_dir: Path | None,
+    db_path: Path | None,
 ) -> None:
     """Surface morpheme fragments the corpus uses but the meaning DB doesn't.
 
@@ -579,7 +637,16 @@ def unaccounted(
     aggregates the leftover string fragments by frequency. The top fragments are
     candidates for new entries in meanings.json — this is the mining tool that
     surfaces what the previous deconstruction silently dropped.
+
+    With ``--db``, canonical decompositions (wyrd-08m / wyrd-70s0) drive
+    the gap counting: a fragment is reported as unaccounted only if it
+    appears in the toponym's canonical breakdown's leftovers. Names
+    without a canonical fall back to the heuristic. Operators see fewer
+    false-gap fragments at the cost of needing a recent
+    ``lexicon decompose --apply`` run.
     """
+    from wyrd.generators.kenning.decomposition import decompose_with_canonical
+
     meanings_data = _load_meanings_data(meanings)
 
     names_data = json.loads(place_names.read_text())
@@ -589,27 +656,42 @@ def unaccounted(
     fragments: Counter = Counter()
     examples_by_frag: dict[str, list[str]] = {}
     imperfect_count = 0
-    for name in names:
-        name.find_meaning(word_db)
-        if name.count_unaccounted() == 0:
-            continue
-        imperfect_count += 1
-        seen_in_name: set[str] = set()
-        for word_list in name.words.values():
-            for word in word_list:
-                for chunk in word.word:
-                    if not isinstance(chunk, str):
-                        continue
-                    frag = chunk.lower()
-                    if len(frag) < min_length:
-                        continue
-                    if frag in seen_in_name:
-                        continue
-                    seen_in_name.add(frag)
-                    fragments[frag] += 1
-                    bucket = examples_by_frag.setdefault(frag, [])
-                    if name.name not in bucket and len(bucket) < examples:
-                        bucket.append(name.name)
+    canonical_hits: Counter = Counter()
+    db_cm = LexiconDB(db_path) if db_path is not None else None
+    try:
+        db = db_cm.__enter__() if db_cm is not None else None
+        for name in names:
+            if db is not None:
+                resolved, source = decompose_with_canonical(name.name, word_db, db)
+                if source is not None:
+                    canonical_hits[source] += 1
+                else:
+                    canonical_hits["heuristic"] += 1
+            else:
+                resolved = name
+                resolved.find_meaning(word_db)
+            if resolved.count_unaccounted() == 0:
+                continue
+            imperfect_count += 1
+            seen_in_name: set[str] = set()
+            for word_list in resolved.words.values():
+                for word in word_list:
+                    for chunk in word.word:
+                        if not isinstance(chunk, str):
+                            continue
+                        frag = chunk.lower()
+                        if len(frag) < min_length:
+                            continue
+                        if frag in seen_in_name:
+                            continue
+                        seen_in_name.add(frag)
+                        fragments[frag] += 1
+                        bucket = examples_by_frag.setdefault(frag, [])
+                        if resolved.name not in bucket and len(bucket) < examples:
+                            bucket.append(resolved.name)
+    finally:
+        if db_cm is not None:
+            db_cm.__exit__(None, None, None)
 
     top_fragments = fragments.most_common(top)
     # wyrd-bvp: when --sources-dir is set, scan all source-text
@@ -634,10 +716,13 @@ def unaccounted(
         click.echo(json.dumps(out, indent=2))
         return
 
-    click.echo(
-        f"culture={culture} imperfect_names={imperfect_count} unique_fragments={len(fragments)}",
-        err=True,
+    summary = (
+        f"culture={culture} imperfect_names={imperfect_count} " f"unique_fragments={len(fragments)}"
     )
+    if canonical_hits:
+        breakdown = " ".join(f"{src}={n}" for src, n in sorted(canonical_hits.items()))
+        summary += f" canonical[{breakdown}]"
+    click.echo(summary, err=True)
     if evidence_by_frag:
         click.echo(f"{'fragment':<20} {'count':>6}  {'corpus':>6}  {'strong':>6}  examples")
     else:
@@ -1993,15 +2078,13 @@ def lexicon_backfill_fantasy_tags(db_path: Path, apply_changes: bool) -> None:
         # Dry-run: count without writing.
         conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
         try:
-            n = conn.execute(
-                """SELECT COUNT(DISTINCT et.etymon_id)
+            n = conn.execute("""SELECT COUNT(DISTINCT et.etymon_id)
                    FROM etymon_tag et
                    WHERE et.tag = 'monster'
                      AND NOT EXISTS (
                        SELECT 1 FROM etymon_tag et2
                        WHERE et2.etymon_id = et.etymon_id AND et2.tag = 'fantasy'
-                     )"""
-            ).fetchone()[0]
+                     )""").fetchone()[0]
         finally:
             conn.close()
         click.echo(
@@ -5301,16 +5384,14 @@ def lexicon_report(db_path: Path, top: int) -> None:
     click.echo("")
     click.echo("=== disagreements ===")
     # A toponym with >1 distinct breakdown signature has scholars disagreeing.
-    disagreement_count = count(
-        """
+    disagreement_count = count("""
         SELECT COUNT(*) FROM (
             SELECT toponym_id
             FROM toponym_breakdown_signature
             GROUP BY toponym_id
             HAVING COUNT(DISTINCT signature) > 1
         )
-        """
-    )
+        """)
     click.echo(f"  toponyms with conflicting breakdowns: {disagreement_count}")
 
     if disagreement_count > 0 and top > 0:

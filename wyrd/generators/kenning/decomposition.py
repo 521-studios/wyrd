@@ -24,14 +24,16 @@ Phase 1 ships:
 - ``pick_canonical_decomposition`` rules (a) and (b).
 - CLI: ``wyrd kenning lexicon decompose``.
 
-Phase 2 will wire the canonical pick into ``rebuild-proportions``,
-``unaccounted``, and the explainer; that's where the false-gap / false-
-hit failure modes get resolved at the consumer side.
+Phase 3 (this module's ``decompose_with_canonical`` helper) wires the
+canonical pick into ``rebuild-proportions`` and ``unaccounted`` at the
+consumer side. KenningExplain (Lambda / SPA path) has no DB access and
+remains heuristic-only until a future bundle-side projection lands.
 """
 
 from __future__ import annotations
 
 import hashlib
+import itertools
 import json
 import logging
 from typing import TYPE_CHECKING
@@ -579,3 +581,145 @@ def populate_and_pick(
     """
     compute_decompositions(db, toponym_id, modern_name, word_db)
     return pick_canonical_decomposition(db, toponym_id, word_db)
+
+
+# --- Phase 3 consumer integration -----------------------------------------
+#
+# Phase 1 stored every plausible decomposition + tagged a canonical pick;
+# Phase 2 refactored the picker. Phase 3 wires the pick into the matcher
+# consumers (``rebuild-proportions`` and ``unaccounted``) so their
+# proportion / gap counts honour the canonical breakdown instead of the
+# matcher's per-name reduce=True heuristic.
+#
+# The integration is OPT-IN at the CLI layer: callers pass an optional
+# LexiconDB; consumers narrow each matched ``Name`` to the canonical
+# cross-product cell when one exists, and fall back to the heuristic
+# pick otherwise.
+
+
+def lookup_canonical_signature(
+    db: LexiconDB,
+    modern_name: str,
+    region: str | None = None,
+) -> tuple[str, str] | None:
+    """Find the canonical decomposition for a toponym by name.
+
+    Returns ``(decomposition_signature, canonical_source)`` for the
+    canonical row, or ``None`` if no toponym row exists OR no
+    canonical was picked (Phase 1 multi-zero ties, or coverage gaps
+    waiting on rule (c)).
+
+    Toponym lookup keys on ``modern_name``; when ``region`` is supplied
+    (place_names JSON files carry country/region grouping) it tightens
+    the match. Multiple matching toponyms collapse to lowest-id for
+    determinism. Multiple canonical rows under one toponym
+    (``scholar-disagreement`` source — every matching scholar
+    breakdown is flagged canonical) collapse to the lowest-id
+    canonical row, keeping consumer counts stable across re-runs.
+    """
+    if region is not None:
+        cur = db.conn.execute(
+            """
+            SELECT id FROM toponym
+             WHERE modern_name = ?
+               AND COALESCE(region, '') = COALESCE(?, '')
+             ORDER BY id LIMIT 1
+            """,
+            (modern_name, region),
+        )
+    else:
+        cur = db.conn.execute(
+            "SELECT id FROM toponym WHERE modern_name = ? ORDER BY id LIMIT 1",
+            (modern_name,),
+        )
+    toponym_row = cur.fetchone()
+    if toponym_row is None:
+        return None
+    cur = db.conn.execute(
+        """
+        SELECT decomposition_signature, canonical_source
+          FROM toponym_decomposition
+         WHERE toponym_id = ? AND is_canonical = 1
+         ORDER BY id LIMIT 1
+        """,
+        (toponym_row["id"],),
+    )
+    row = cur.fetchone()
+    if row is None:
+        return None
+    return row["decomposition_signature"], row["canonical_source"]
+
+
+def apply_canonical_to_name(name: Name, canonical_signature: str) -> bool:
+    """Narrow ``name.words`` to the cross-product cell whose payload
+    signature matches ``canonical_signature``.
+
+    Caller must invoke ``name.find_meaning(word_db, reduce=False)``
+    first so all alternates are populated. Iterates the cross-product
+    of per-word options, computes each cell's payload signature, and
+    on first match replaces every ``name.words[word]`` list with a
+    singleton holding the chosen Word.
+
+    Returns ``True`` on hit, ``False`` on miss. ``name.words`` is
+    untouched on miss so the caller can fall back to the heuristic.
+    A miss happens when the bundle's word_db has shifted since the
+    canonical was picked — re-running ``decompose --apply`` repairs
+    the canonical.
+    """
+    word_keys = name.name.split(" ")
+    per_word_options = [name.words.get(w, []) for w in word_keys]
+    if not all(per_word_options):
+        return False
+    for combo_idx in itertools.product(*[range(len(opts)) for opts in per_word_options]):
+        flat: list = []
+        for w_idx, opt_idx in enumerate(combo_idx):
+            flat.extend(per_word_options[w_idx][opt_idx].word)
+        sig = _signature_for_payload(_decomposition_payload(flat))
+        if sig == canonical_signature:
+            for w_idx, opt_idx in enumerate(combo_idx):
+                name.words[word_keys[w_idx]] = [per_word_options[w_idx][opt_idx]]
+            return True
+    return False
+
+
+def decompose_with_canonical(
+    name_str: str,
+    word_db: dict,
+    db: LexiconDB | None,
+    region: str | None = None,
+) -> tuple[Name, str | None]:
+    """Decompose ``name_str`` honouring the canonical pick when one exists.
+
+    When ``db`` is None, falls through to ``find_meaning(reduce=True)``
+    — the legacy heuristic path. With a db: looks up the canonical
+    signature for the toponym, runs ``find_meaning(reduce=False)``,
+    then narrows to the canonical cross-product cell. Falls back to
+    the heuristic when (a) no toponym row exists, (b) no canonical
+    was picked, or (c) the canonical signature doesn't match any
+    cross-product cell of the current word_db.
+
+    Returns ``(name, source)`` where ``source`` is the canonical
+    source string (``'scholar'`` / ``'scholar-disagreement'`` /
+    ``'unique-zero-unaccounted'``) when canonical was applied, or
+    ``None`` when the heuristic was used.
+    """
+    name = Name(name_str)
+    if db is not None:
+        canonical = lookup_canonical_signature(db, name_str, region)
+        if canonical is not None:
+            signature, source = canonical
+            name.find_meaning(word_db, reduce=False)
+            if apply_canonical_to_name(name, signature):
+                return name, source
+            # Canonical recorded but signature doesn't match any cell —
+            # word_db drifted. Re-init Name (find_meaning would dedupe
+            # against the existing reduce=False alternates) and fall
+            # through to the heuristic.
+            _logger.debug(
+                "Canonical signature %s for %r missed cross-product; " "falling back to heuristic.",
+                signature,
+                name_str,
+            )
+            name = Name(name_str)
+    name.find_meaning(word_db, reduce=True)
+    return name, None
