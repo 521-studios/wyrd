@@ -377,6 +377,63 @@ CREATE TABLE toponym_etymology_element (
   PRIMARY KEY (toponym_etymology_id, ordinal)
 );
 
+-- wyrd-08m: matcher-derived alternative breakdowns per toponym. One row
+-- per (toponym_id, signature), where signature is a stable hash of the
+-- decomposition's morpheme + unaccounted-fragment shape. Many rows per
+-- toponym are expected (the matcher routinely emits 2-5 alternatives for
+-- compound names). At most one row per toponym is canonical (is_canonical=1).
+--
+-- The canonical pick follows priority rules in
+-- ``decomposition.pick_canonical_decomposition``:
+--   1. scholar match — a decomposition whose (lang_field, canonical_form)
+--      slots align with an existing toponym_etymology row's element list.
+--      ``canonical_source='scholar'``. Multiple scholarly breakdowns ->
+--      every matching decomposition is canonical, tagged
+--      ``'scholar-disagreement'`` (the scholarship genuinely disagrees;
+--      the schema preserves the disagreement).
+--   2. unique-zero-unaccounted — exactly one decomposition has zero
+--      unaccounted_fragments. ``canonical_source='unique-zero-unaccounted'``.
+--   3. tiebreaker — multi-zero-unaccounted disambiguation (Phase 2; not
+--      yet implemented).
+--
+-- Distinct from ``toponym_etymology``: that's the SCHOLAR's claim
+-- (mining evidence), this is the MATCHER's enumeration of every plausible
+-- breakdown derivable from the bundled meanings.json. Scholar evidence
+-- INFORMS the canonical pick but doesn't generate the rows.
+--
+-- ``decomposition_signature`` is the canonical-shape hash; reused as the
+-- UNIQUE key so re-running the populator is idempotent. Collisions on the
+-- same (toponym, shape) update existing rows rather than duplicating.
+--
+-- ``morpheme_ids`` is a JSON list whose entries are either a string
+-- ``modern_usage`` (matched morpheme — e.g. ``"Bridg-"``) or a JSON
+-- object ``{"unaccounted": "<chars>"}`` for unaccounted fragments. The
+-- mixed shape preserves slot ordering — the morpheme/unaccounted
+-- interleaving is part of the decomposition's identity. Plus
+-- ``unaccounted_fragments`` for fast querying of pure-fragment lists.
+CREATE TABLE toponym_decomposition (
+  id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+  toponym_id               INTEGER NOT NULL REFERENCES toponym(id) ON DELETE CASCADE,
+  decomposition_signature  TEXT NOT NULL,
+  morpheme_ids             TEXT NOT NULL,
+  unaccounted_fragments    TEXT NOT NULL,
+  unaccounted_count        INTEGER NOT NULL DEFAULT 0,
+  morpheme_count           INTEGER NOT NULL DEFAULT 0,
+  is_canonical             INTEGER NOT NULL DEFAULT 0 CHECK (is_canonical IN (0, 1)),
+  canonical_source         TEXT CHECK (
+    canonical_source IN (
+      'scholar', 'scholar-disagreement', 'unique-zero-unaccounted', 'tiebreaker'
+    ) OR canonical_source IS NULL
+  ),
+  created_at               TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX idx_toponym_decomposition_unique
+  ON toponym_decomposition(toponym_id, decomposition_signature);
+CREATE INDEX idx_toponym_decomposition_topo
+  ON toponym_decomposition(toponym_id);
+CREATE INDEX idx_toponym_decomposition_canonical
+  ON toponym_decomposition(toponym_id) WHERE is_canonical = 1;
+
 -- The set of canonical etymons — i.e. the ones that aren't OCR-merge
 -- losers. Most queries that want "the real etymons" should read through
 -- this view instead of the raw `etymon` table. Tombstoned merge-losers
