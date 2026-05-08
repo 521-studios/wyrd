@@ -1208,6 +1208,61 @@ def _create_etymon_period_form_table(db: LexiconDB, applied: dict[str, bool]) ->
     applied["etymon_period_form_table"] = True
 
 
+def _create_toponym_decomposition_table(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """wyrd-08m Phase 1: ensure ``toponym_decomposition`` table + indexes
+    exist on legacy DBs.
+
+    Stores matcher-derived alternative breakdowns per toponym (one row
+    per signature), with a single canonical pick per toponym (rule-driven
+    in ``decomposition.pick_canonical_decomposition``). The unique index
+    on (toponym_id, decomposition_signature) makes re-running the
+    populator idempotent.
+
+    Idempotent: checks for the table first; runs as no-op on fresh
+    installs (table ships in data/lexicon.sql).
+    """
+    cur = db.conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='toponym_decomposition'"
+    )
+    if cur.fetchone() is not None:
+        return
+    db.conn.execute(
+        """
+        CREATE TABLE toponym_decomposition (
+          id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+          toponym_id               INTEGER NOT NULL REFERENCES toponym(id) ON DELETE CASCADE,
+          decomposition_signature  TEXT NOT NULL,
+          morpheme_ids             TEXT NOT NULL,
+          unaccounted_fragments    TEXT NOT NULL,
+          unaccounted_count        INTEGER NOT NULL DEFAULT 0,
+          morpheme_count           INTEGER NOT NULL DEFAULT 0,
+          is_canonical             INTEGER NOT NULL DEFAULT 0
+                                   CHECK (is_canonical IN (0, 1)),
+          canonical_source         TEXT CHECK (
+            canonical_source IN (
+              'scholar', 'scholar-disagreement',
+              'unique-zero-unaccounted', 'tiebreaker'
+            ) OR canonical_source IS NULL
+          ),
+          created_at               TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+        """
+    )
+    db.conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_toponym_decomposition_unique "
+        "ON toponym_decomposition(toponym_id, decomposition_signature)"
+    )
+    db.conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_toponym_decomposition_topo "
+        "ON toponym_decomposition(toponym_id)"
+    )
+    db.conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_toponym_decomposition_canonical "
+        "ON toponym_decomposition(toponym_id) WHERE is_canonical = 1"
+    )
+    applied["toponym_decomposition_table"] = True
+
+
 def _create_toponym_attestation_unique_index(db: LexiconDB, applied: dict[str, bool]) -> None:
     """wyrd-skm Phase 3.0a: ensure ``toponym_attestation`` has a unique
     index on ``(toponym_id, form, date_year, source_doc)`` so the
@@ -1533,6 +1588,8 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "idx_attestation_unique": False,
         # wyrd-unuo Phase 3.3: per-etymon period-form projection table.
         "etymon_period_form_table": False,
+        # wyrd-08m Phase 1: matcher-derived decomposition multiplicity.
+        "toponym_decomposition_table": False,
     }
     # wyrd-44a: rename the legacy cognate-cluster column from synset_id
     # to cognate_id BEFORE the add-columns helper runs — otherwise
@@ -1558,6 +1615,7 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     # but defending against unknown legacy state is cheap.
     _create_toponym_attestation_unique_index(db, applied)
     _create_etymon_period_form_table(db, applied)
+    _create_toponym_decomposition_table(db, applied)
     db.commit()
     return applied
 
