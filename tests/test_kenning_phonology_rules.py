@@ -25,6 +25,7 @@ from dataclasses import FrozenInstanceError
 import pytest
 
 from wyrd.generators.kenning.phonology_rules import (
+    EMODE_TO_MODE_RULES,
     ME_TO_EMODE_RULES,
     OE_TO_ME_RULES,
     OW_TO_MW_RULES,
@@ -520,9 +521,173 @@ def test_registered_cell_count_matches_expected() -> None:
     this; intentional additions should bump the count."""
     from wyrd.generators.kenning.phonology_rules import _RULES
 
-    assert len(_RULES) == 3, (
-        f"expected 3 cells (OE→ME, ME→EModE, OW→ModW), got {len(_RULES)}: {sorted(_RULES.keys())}"
+    assert len(_RULES) == 4, (
+        f"expected 4 cells (OE→ME, ME→EModE, EModE→ModE, OW→ModW), got "
+        f"{len(_RULES)}: {sorted(_RULES.keys())}"
     )
+
+
+# --- Early Modern English → Modern English (wyrd-n9x5 Phase 2.2) --------
+
+
+def test_has_rules_returns_true_for_emode_to_mode_cell() -> None:
+    """The new EModE→ModE cell is registered and discoverable via
+    ``has_rules``."""
+    assert has_rules("english", "early-modern-english", "modern-english") is True
+
+
+@pytest.mark.parametrize("rule", EMODE_TO_MODE_RULES, ids=lambda r: r.pattern)
+def test_emode_to_mode_rule_exemplar_forward(rule: SoundChangeRule) -> None:
+    """Each EModE→ModE rule's exemplar input run through the rule's
+    pattern/replacement (in isolation) produces the documented output.
+    Same single-rule semantics as the OE→ME / ME→EModE / OW→ModW
+    exemplar tests."""
+    input_form, expected_output = rule.exemplar
+    candidates = _apply_one_rule([(input_form, 1.0)], rule.pattern, rule.replacement, rule.weight)
+    forms = [form for form, _ in candidates]
+    assert expected_output in forms, (
+        f"rule {rule.pattern!r} → {rule.replacement!r} on exemplar "
+        f"input {input_form!r} did not produce {expected_output!r}; got {forms!r}"
+    )
+
+
+def test_emode_to_mode_rules_have_required_documentation() -> None:
+    """Every EModE→ModE rule carries description / exemplar / source —
+    parallel to the per-cell contract enforced for OE→ME, ME→EModE,
+    and OW→ModW. Adding a new rule without docs surfaces here."""
+    for rule in EMODE_TO_MODE_RULES:
+        assert rule.description, f"rule {rule.pattern!r} missing description"
+        assert isinstance(rule.exemplar, tuple) and len(rule.exemplar) == 2
+        assert all(isinstance(s, str) and s for s in rule.exemplar)
+        assert rule.source, f"rule {rule.pattern!r} missing source citation"
+
+
+def test_emode_to_mode_unknown_form_no_op() -> None:
+    """A form that doesn't match any EModE→ModE pattern passes through
+    unchanged. Distinguishes 'cell registered, no match' from 'no cell'."""
+    candidates = apply_rules("qqq", "english", "early-modern-english", "modern-english")
+    assert candidates == [("qqq", 1.0)]
+
+
+def test_emode_to_mode_probability_distribution_sums_to_one() -> None:
+    """Universal-only rules in EModE→ModE preserve total probability
+    mass at 1.0 (no sporadic branching yet — Phase 2.4 may add weight<1.0
+    rules)."""
+    candidates = apply_rules("Liver-poole", "english", "early-modern-english", "modern-english")
+    total = sum(p for _, p in candidates)
+    assert abs(total - 1.0) < 1e-9
+
+
+def test_emode_to_mode_dispatch_lookup_works_via_apply_rules() -> None:
+    """End-to-end via ``apply_rules``: a typo in the dispatch tuple
+    key would silently route the cell to 'unknown cell, no-op'. Pin
+    via a forward call exercising the actual dispatch lookup."""
+    candidates = apply_rules("Tavi-stocke", "english", "early-modern-english", "modern-english")
+    forms = [form for form, _ in candidates]
+    assert "Tavi-stock" in forms, (
+        "EModE→ModE cell should fire '-stocke → -stock'; if not, the dispatch table key may be wrong"
+    )
+
+
+def test_emode_to_mode_inverse_undoes_simple_chain() -> None:
+    """Inverse direction: ModE 'Hol-brook' → EModE candidates including
+    'Hol-brooke'. Inverse-mode 50/50 branching surfaces the EModE
+    source among the alternatives."""
+    forward = apply_rules("Hol-brooke", "english", "early-modern-english", "modern-english")
+    forward_form = forward[0][0]
+    assert forward_form == "Hol-brook"
+
+    inverse = apply_rules(
+        forward_form,
+        "english",
+        "early-modern-english",
+        "modern-english",
+        mode="inverse",
+    )
+    inverse_forms = [form for form, _ in inverse]
+    assert "Hol-brooke" in inverse_forms
+
+
+def test_apply_rules_chains_me_to_mode_via_emode_intermediate() -> None:
+    """A two-step chain: ME → EModE → ModE. Apply the ME→EModE cell
+    then the EModE→ModE cell and the cumulative pipeline produces a
+    recognizable ModE form. Pinned to confirm the cells compose
+    cleanly without surface change to apply_rules.
+
+    'Hamp-stede' (ME) → 'Hamp-stead' (EModE, via -stede → -stead in
+    Phase 2.1) is a stable EModE form; the EModE→ModE cell does NOT
+    further modify it (no -stead → -X rule in Phase 2.2). Pin BOTH
+    edges: the chain is reachable AND the EModE form is preserved
+    across the second cell when no rule fires.
+    """
+    me_to_emode = apply_rules("Hamp-stede", "english", "middle-english", "early-modern-english")
+    emode_form = me_to_emode[0][0]
+    assert emode_form == "Hamp-stead"
+
+    emode_to_mode = apply_rules(emode_form, "english", "early-modern-english", "modern-english")
+    forms = [form for form, _ in emode_to_mode]
+    assert "Hamp-stead" in forms
+
+
+def test_emode_to_mode_does_not_corrupt_unrelated_suffixes() -> None:
+    """Regression: EModE forms ending in suffixes NOT covered by Phase
+    2.2 (-borough, -worth, -wood from Phase 2.1's outputs) pass
+    through unchanged. Pinned to confirm the new cell only touches the
+    five suffixes it claims; no over-broad pattern is silently
+    rewriting Phase 2.1 outputs."""
+    cases = ("Peter-borough", "Pal-worth", "Birch-wood", "Hamp-stead", "Spring-field")
+    for form in cases:
+        candidates = apply_rules(form, "english", "early-modern-english", "modern-english")
+        forms = [f for f, _ in candidates]
+        assert form in forms, (
+            f"EModE form {form!r} should pass through Phase 2.2 unchanged; got {forms!r}"
+        )
+
+
+def test_emode_to_mode_pattern_fires_only_on_hyphen_anchored_suffix() -> None:
+    """Regression: the Phase 2.2 patterns all carry a leading hyphen
+    (`-stocke`, `-brooke`, `-grene`, `-poole`, `-ditche`) which acts as
+    the framework's word-boundary proxy. A ModE-shaped form that
+    contains the BARE suffix string (without the hyphen) MUST NOT
+    silently fire the rule — otherwise an unrelated stem ending in
+    e.g. 'poole' or 'grene' would get mangled.
+
+    Parallel to Phase 2.1's `test_me_to_emode_does_not_corrupt_internal_*`
+    pins; pinned per-suffix here so a future rule edit that drops the
+    leading hyphen surfaces immediately.
+    """
+    bare_forms = ("stockeholder", "brookekeeper", "greneliness", "pooledom", "ditcheside")
+    for form in bare_forms:
+        candidates = apply_rules(form, "english", "early-modern-english", "modern-english")
+        forms = [f for f, _ in candidates]
+        assert form in forms, (
+            f"bare-suffix form {form!r} should pass through Phase 2.2 "
+            f"unchanged (no leading hyphen → no suffix anchor); got {forms!r}"
+        )
+
+
+def test_emode_to_mode_full_chain_oe_to_mode_via_intermediates() -> None:
+    """Full attestation chain: OE → ME → EModE → ModE. Pick a place-
+    name that has a real attestation chain and confirm the framework
+    can route through all three intermediates.
+
+    'Hamp-stede' is ME (post-OE→ME of a hypothetical 'Hamp-stede'-shape
+    OE form); applying ME→EModE yields 'Hamp-stead'; applying
+    EModE→ModE leaves it stable (the -stead reflex is stable into
+    ModE). The cell-composition test for the OE→ME→EModE chain is
+    already pinned; this one extends it to the fourth era and is the
+    canonical 'all-cells-compose' integration check.
+    """
+    me = apply_rules("Hamp-stede", "english", "old-english", "middle-english")
+    me_form = me[0][0]
+    # OE→ME doesn't touch '-stede' so the form is preserved.
+    assert me_form == "Hamp-stede"
+    emode = apply_rules(me_form, "english", "middle-english", "early-modern-english")
+    emode_form = emode[0][0]
+    assert emode_form == "Hamp-stead"
+    mode = apply_rules(emode_form, "english", "early-modern-english", "modern-english")
+    forms = [f for f, _ in mode]
+    assert "Hamp-stead" in forms
 
 
 # --- Old Welsh → Modern Welsh (wyrd-n9x5 Phase 2.3) --------------------
