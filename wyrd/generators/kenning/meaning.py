@@ -90,6 +90,46 @@ _PRONUNCIATION_SUFFIX = "_pronunciation"
 _STRATUM_SUFFIX = "_stratum"
 
 
+class Joiner:
+    """A consumed phonological joiner (wyrd-q0g6 Phase 1).
+
+    A Joiner is NEITHER ``str`` NOR ``Meaning`` — that's the load-
+    bearing discriminator. Code walking decompositions on the
+    str-vs-Meaning axis (``count_unaccounted``, ``has_name``,
+    ``get_structure``, ``_decomposition_score``) treats Joiners as
+    'matched-but-no-semantic': not counted as unaccounted (non-str),
+    not counted as semantic structure (non-Meaning). ``__str__``
+    returns the surface so ``Word.__str__`` keeps the joiner chars
+    in the rendered output.
+
+    The morpheme_count line of ``_decomposition_score`` does count
+    Joiners (they're non-str), giving a tiny Occam preference for
+    no-joiner parses on otherwise-tied scores — the desired bias.
+    """
+
+    __slots__ = ("surface", "lang_field")
+
+    def __init__(self, surface: str, lang_field: str | None = None):
+        self.surface = surface
+        self.lang_field = lang_field
+
+    def __str__(self) -> str:
+        return self.surface
+
+    def __repr__(self) -> str:
+        return f"Joiner({self.surface!r}, lang_field={self.lang_field!r})"
+
+    def __eq__(self, other: object) -> bool:
+        return (
+            isinstance(other, Joiner)
+            and self.surface == other.surface
+            and self.lang_field == other.lang_field
+        )
+
+    def __hash__(self) -> int:
+        return hash(("joiner", self.surface, self.lang_field))
+
+
 class Meaning:
     def __init__(
         self,
@@ -520,10 +560,47 @@ def _mimic_case(template: str, variant: str) -> str:
     return variant.lower()
 
 
+def _bundle_subjects(data) -> list:
+    """Extract the subjects list from a meanings.json bundle that may
+    be either the legacy list-of-subjects shape or the wyrd-q0g6 dict-
+    shape ``{"subjects": [...], "joiners": {...}}``. Other bundle-level
+    fields (joiners) are read by ``load_joiners`` separately."""
+    if isinstance(data, dict):
+        return data.get("subjects") or []
+    return data
+
+
+def load_joiners(data) -> dict[str, list[tuple[str, int]]]:
+    """Extract the per-language-field joiner pool from a bundle (wyrd-q0g6
+    Phase 1).
+
+    Returns a dict keyed by lang_field (``"old_english"``,
+    ``"celtic_mix"``, etc.) carrying ``[(form, weight), ...]`` tuples.
+    Empty for legacy list-shape bundles AND for dict-shape bundles
+    that don't carry a ``joiners`` field. Callers (the matcher hook)
+    can rely on iteration over an empty dict being a no-op.
+
+    A joiner entry's ``form`` is the lowercase surface string that
+    matches between morphemes; ``weight`` is the attestation count
+    Phase 2 will populate from the corpus audit. Phase 1 ships the
+    schema; the bundle ships with no joiners until a Phase 2 audit
+    populates them.
+    """
+    if isinstance(data, dict):
+        raw = data.get("joiners") or {}
+    else:
+        raw = {}
+    return {
+        lang_field: [(entry["form"], entry["weight"]) for entry in entries]
+        for lang_field, entries in raw.items()
+        if entries
+    }
+
+
 def load_meanings(data):
     meaning_db: dict[str, list[Meaning]] = {}
     tags_db: dict[str, list[str]] = {}
-    for subject in data:
+    for subject in _bundle_subjects(data):
         tags = subject["modifier_tags"]
         meanings = subject["meaning"]
         for word in subject["words"]:

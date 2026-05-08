@@ -14,6 +14,7 @@ from __future__ import annotations
 import itertools
 from collections import OrderedDict
 
+from wyrd.generators.kenning.meaning import Joiner, Meaning
 from wyrd.generators.kenning.trie_matcher import (
     MorphemeTrie,
     all_decompositions,
@@ -78,6 +79,61 @@ def _trie_for(word_db: dict) -> MorphemeTrie:
     return trie
 
 
+def _build_joiner_lookup(
+    joiners: dict[str, list[tuple[str, int]]] | None,
+) -> dict[str, str]:
+    """Flatten a per-language-field joiner pool into a lowercase
+    surface→lang_field lookup.
+
+    The matcher's joiner consumption (wyrd-q0g6 Phase 1) only needs
+    'is this str slot a registered joiner, and which family is it
+    from?'. Cross-language collisions (e.g. ``'y'`` in welsh AND
+    French) are resolved by 'first lang_field wins' — iteration order
+    follows the joiner dict's key order, which is lang-sorted at
+    bundle-emit time. Phase 2 may need finer disambiguation but Phase
+    1 ships zero populated joiners so the conflict can't surface yet.
+    """
+    if not joiners:
+        return {}
+    lookup: dict[str, str] = {}
+    for lang_field, entries in joiners.items():
+        for form, _weight in entries:
+            key = form.lower()
+            if key and key not in lookup:
+                lookup[key] = lang_field
+    return lookup
+
+
+def _consume_joiners(decomposition: list, joiner_lookup: dict[str, str]) -> list:
+    """Replace each ``str`` slot whose lowercase surface is a
+    registered joiner AND that sits between two Meaning slots with a
+    ``Joiner`` sentinel.
+
+    The both-neighbors-must-be-Meaning gate is load-bearing: joiners
+    are phonological CONNECTORS, not standalone morphemes. A leading
+    or trailing 'en' with no morpheme on the other side is genuinely
+    unaccounted — consuming it would silently launder garbage into
+    'matched-but-no-semantic'. Same goes for an 'en' between two
+    unaccounted fragments. Only firing between two Meanings keeps
+    the rule defensible against Phase 2 data alone.
+    """
+    if not joiner_lookup:
+        return decomposition
+    n = len(decomposition)
+    new_decomp: list = []
+    for i, slot in enumerate(decomposition):
+        if isinstance(slot, str):
+            lang = joiner_lookup.get(slot.lower())
+            if lang is not None:
+                left_is_meaning = i > 0 and isinstance(decomposition[i - 1], Meaning)
+                right_is_meaning = i < n - 1 and isinstance(decomposition[i + 1], Meaning)
+                if left_is_meaning and right_is_meaning:
+                    new_decomp.append(Joiner(slot, lang_field=lang))
+                    continue
+        new_decomp.append(slot)
+    return new_decomp
+
+
 class Name:
     def __init__(self, name):
         self.name = str(name)
@@ -106,7 +162,7 @@ class Name:
                 cnt += meaning.count_unaccounted()
         return cnt
 
-    def find_meaning(self, word_db, reduce=True):
+    def find_meaning(self, word_db, reduce=True, joiners=None):
         """Decompose every word in this place name against ``word_db``
         via the trie matcher.
 
@@ -117,6 +173,19 @@ class Name:
         handle the case where the caller invoked ``find_meaning``
         multiple times — pre-existing entries in ``self.words[word]``
         need filtering against the new additions.
+
+        ``joiners`` (wyrd-q0g6 Phase 1, optional) is a
+        ``dict[lang_field, list[(form, weight)]]`` from
+        ``meaning.load_joiners``. When provided, str slots between
+        two Meaning slots whose lowercase surface matches a
+        registered joiner are demoted to ``Joiner`` sentinels —
+        non-str (don't count as unaccounted) and non-Meaning (don't
+        pollute structure stats). Caveat: under ``reduce=True``, the
+        canonical filter scores the RAW matcher output before joiner
+        consumption; a parse that needs a joiner to reach 0
+        unaccounted may not survive canonical filtering against a
+        no-joiner parse with already-fewer unaccounted chars. Phase
+        2.5 may fold joiners into the canonical score.
 
         ``reduce=False`` switches to ``all_decompositions``, returning
         every parse the trie produces — useful to callers (e.g.
@@ -151,10 +220,13 @@ class Name:
         """
         self.word_db = word_db
         trie = _trie_for(word_db)
+        joiner_forms = _build_joiner_lookup(joiners)
         for word in self.words:
             decompositions = (
                 canonical_decompositions(word, trie) if reduce else all_decompositions(word, trie)
             )
+            if joiner_forms:
+                decompositions = [_consume_joiners(d, joiner_forms) for d in decompositions]
             seen_keys: set[tuple] = {tuple(existing.word) for existing in self.words[word]}
             for d in decompositions:
                 key = tuple(d)
