@@ -1,9 +1,11 @@
-"""Sound-change rules library — Phase 1 (wyrd-4i6).
+"""Sound-change rules library — Phases 1 + 2.1 + 2.3 (wyrd-4i6 / wyrd-n9x5).
 
 Encodes phonological transforms per ``(language, era_from, era_to)``
-cell. Phase 1 ships the framework + ONE cell (Old English → Middle
-English). Phase 2 extends to ME → EModE, EModE → ModE, OW → ModW; per-
-culture overrides land later.
+cell. Phase 1 (PR #131) shipped the framework + Old English → Middle
+English. Phase 2.1 (PR #135) added Middle English → Early Modern
+English. Phase 2.3 (this commit) adds Old Welsh → Modern Welsh.
+Phase 2.2 (EModE → ModE) and Phase 2.4 (sporadic-weight rules + env
+constraints + restoration of dropped rules) remain.
 
 Public API: ``apply_rules(form, language, from_era, to_era, mode)``
 returns ``[(derived_form, probability), ...]``. ``has_rules`` checks
@@ -405,6 +407,165 @@ ME_TO_EMODE_RULES: tuple[SoundChangeRule, ...] = (
 )
 
 
+# --- Old Welsh → Modern Welsh (wyrd-n9x5 Phase 2.3) ---------------------
+#
+# Sources: Morris-Jones, *A Welsh Grammar Historical and Comparative*
+# (1913, the canonical handbook for OW→MW phonology); Lewis & Pedersen,
+# *A Concise Comparative Celtic Grammar* (1937, used for cross-checking
+# diphthong reflexes); Charles, *The Place-Names of Pembrokeshire*
+# (1992, the EPNS-style reference for Welsh place-name suffix evolution).
+#
+# Old Welsh attestation is sparse (8th–11th c. glosses + a few short
+# texts); most "OW→MW" transitions in the handbooks are reconstructed
+# from the gloss corpus + comparative reconstruction. The rules below
+# cover orthographic shifts that surface in real Welsh place-names:
+# the k→c spelling normalization (OW used 'k' for /k/, MW uses 'c'),
+# the au/iu/ui/oi diphthong reflexes, the place-name suffix transitions
+# -auc → -og / -iauc → -iog (very common in MW toponyms — Mathryniog,
+# Pennog, etc.), and a small handful of consonant cluster shifts. The
+# rule set is deliberately compact (10 rules) — Welsh place-name
+# orthography stabilized late-medieval and most variation lives in
+# stratum-specific spellings rather than systematic OW→MW change.
+#
+# Rule ordering: multi-char place-name suffixes ('-iauc', '-auc') run
+# BEFORE single-char rules so the 'k → c' normalization doesn't consume
+# the 'k' in '-iauc' before the suffix can match. Within the diphthong
+# block, longer patterns ('kair' which captures both k→c AND ai→ae)
+# precede their constituent single-char rules.
+
+OW_TO_MW_RULES: tuple[SoundChangeRule, ...] = (
+    # --- Place-name suffixes (multi-char, run first) ---
+    SoundChangeRule(
+        pattern="-iauc",
+        replacement="-iog",
+        weight=1.0,
+        description=(
+            "Adjectival/place-name suffix -iauc → -iog. au-monophthongization "
+            "+ k→g voicing in word-final position; the preceding -i- carries "
+            "across. OW 'mathryn-iauc' → MW 'Mathryn-iog'."
+        ),
+        exemplar=("Mathryn-iauc", "Mathryn-iog"),
+        source="Morris-Jones 1913 § 21",
+    ),
+    SoundChangeRule(
+        pattern="-auc",
+        replacement="-og",
+        weight=1.0,
+        description=(
+            "Adjectival/place-name suffix -auc → -og. au-monophthongization "
+            "+ k→g voicing in word-final position. OW 'pennauc' → MW 'pennog'; "
+            "common in MW toponym roots."
+        ),
+        exemplar=("Penn-auc", "Penn-og"),
+        source="Morris-Jones 1913 § 21",
+    ),
+    SoundChangeRule(
+        pattern="-niau",
+        replacement="-nau",
+        weight=1.0,
+        description=(
+            "Pluralizing/diminutive suffix -niau → -nau (yod-loss + "
+            "monophthongization). Less common in toponymy than the -auc "
+            "family but well-attested in the gloss corpus."
+        ),
+        exemplar=("Lloch-niau", "Lloch-nau"),
+        source="Morris-Jones 1913 § 22",
+    ),
+    # --- Multi-char patterns capturing both spelling AND diphthong shifts ---
+    SoundChangeRule(
+        pattern="kair",
+        replacement="caer",
+        weight=1.0,
+        description=(
+            "Lexical 'kair' → 'caer' 'fortress'. Captures both the k→c "
+            "spelling normalization AND the ai→ae adjustment specific to "
+            "this very common toponym element ('caerwent', 'caernarfon'). "
+            "Pattern is lowercase only; capitalized inputs ('Kair-...') "
+            "should be lowercased before the cell is applied — same "
+            "convention as every other rule in the library."
+        ),
+        exemplar=("kair-uent", "caer-uent"),
+        source="Morris-Jones 1913 § 13",
+    ),
+    # --- Diphthong reflexes ---
+    SoundChangeRule(
+        pattern="au",
+        replacement="aw",
+        weight=1.0,
+        description=(
+            "Diphthong au → aw. OW 'maur' → MW 'mawr' 'great'; the au→aw "
+            "shift is universal in MW orthography for stressed mid-word "
+            "diphthongs that don't get captured by the suffix rules."
+        ),
+        exemplar=("maur", "mawr"),
+        source="Morris-Jones 1913 § 70",
+    ),
+    SoundChangeRule(
+        pattern="iu",
+        replacement="yw",
+        weight=1.0,
+        description=(
+            "Diphthong iu → yw. OW 'biu' → MW 'byw' 'alive'; the y in MW "
+            "is a vowel here, parallel to the i in OW spelling."
+        ),
+        exemplar=("biu", "byw"),
+        source="Morris-Jones 1913 § 75",
+    ),
+    SoundChangeRule(
+        pattern="ui",
+        replacement="wy",
+        weight=1.0,
+        description=(
+            "Diphthong ui → wy. Visible in Welsh place-names containing "
+            "the 'dwy-' element ('Dwyfor', 'Dwyfach') and any toponym with "
+            "the 'wy' diphthong reflex of OW 'ui'."
+        ),
+        exemplar=("uir", "wyr"),
+        source="Morris-Jones 1913 § 78",
+    ),
+    SoundChangeRule(
+        pattern="oi",
+        replacement="oe",
+        weight=1.0,
+        description=(
+            "Diphthong oi → oe. The most common reflex; some lexical items "
+            "took 'wy' instead, which Phase 2.4 may add as a sporadic-weight "
+            "alternative."
+        ),
+        exemplar=("doisig", "doesig"),
+        source="Morris-Jones 1913 § 81",
+    ),
+    # --- Single-char orthographic shifts (run last so multi-char rules
+    # capture their inputs first). ---
+    SoundChangeRule(
+        pattern="k",
+        replacement="c",
+        weight=1.0,
+        description=(
+            "Velar /k/ orthographic shift. Old Welsh 8th–11th c. glosses "
+            "use 'k' for /k/; standardized to 'c' in Middle/Modern Welsh "
+            "orthography. Universal — any 'k' surviving the multi-char "
+            "rules above gets normalized."
+        ),
+        exemplar=("kil", "cil"),
+        source="Morris-Jones 1913 § 9",
+    ),
+    SoundChangeRule(
+        pattern="ph",
+        replacement="ff",
+        weight=1.0,
+        description=(
+            "Voiceless labiodental orthographic shift. OW 'ph' → MW 'ff' — "
+            "MW 'f' alone represents /v/, so voiceless /f/ is written 'ff'. "
+            "Surfaces in toponymic elements like '-ffynnon' (well/spring) "
+            "where OW had a 'ph' digraph."
+        ),
+        exemplar=("phin", "ffin"),
+        source="Morris-Jones 1913 § 14",
+    ),
+)
+
+
 # --- dispatch table ------------------------------------------------------
 #
 # Keyed by ``(language, from_era, to_era)``. Add a tuple here and the
@@ -416,6 +577,7 @@ ME_TO_EMODE_RULES: tuple[SoundChangeRule, ...] = (
 _RULES: dict[tuple[str, str, str], tuple[SoundChangeRule, ...]] = {
     ("english", "old-english", "middle-english"): OE_TO_ME_RULES,
     ("english", "middle-english", "early-modern-english"): ME_TO_EMODE_RULES,
+    ("welsh", "old-welsh", "modern-welsh"): OW_TO_MW_RULES,
 }
 
 
