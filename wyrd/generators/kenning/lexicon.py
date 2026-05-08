@@ -5844,7 +5844,13 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
         "member_citations": _fetch_member_citations(db, member_ids),
         "member_attested_years": _fetch_member_attested_years(db, member_ids),
         "glosses": _fetch_member_glosses(db, member_ids),
-        "tags": _fetch_member_tags(db, member_ids),
+        # wyrd-i1s1: union member tags (lemma + inflections + OCR
+        # losers) with cognate-cluster-mate tags so semantic signal
+        # from non-promoted cluster mates (ME / ModE / NF cognates of
+        # a promoted OE root) reaches the bundle subject.
+        "tags": sorted(
+            set(_fetch_member_tags(db, member_ids)) | set(_fetch_cluster_mate_tags(db, root_id))
+        ),
         "reflexes": _fetch_member_reflexes(db, member_ids, reflex_links),
         # wyrd-obpw Phase 3.3: era reflexes for the family root,
         # keyed by target language tag. SPA-side rewinder reads this
@@ -6004,6 +6010,45 @@ def _fetch_member_tags(db: LexiconDB, member_ids: list[int]) -> list[str]:
         for row in db.conn.execute(
             f"SELECT DISTINCT tag FROM etymon_tag WHERE etymon_id IN ({placeholders}) ORDER BY tag",
             member_ids,
+        )
+    ]
+
+
+def _fetch_cluster_mate_tags(db: LexiconDB, root_id: int) -> list[str]:
+    """wyrd-i1s1: tags from cognate-cluster mates of ``root_id``.
+
+    The family rollup (``_build_family_rollup``) traverses
+    ``merged_into_id`` and ``lemma_id`` chains only — cluster mates
+    sharing a ``cognate_id`` are SEPARATE family roots. Their tags
+    don't surface in the rolled-up family's tag list.
+
+    But cluster mates of a promoted OE root (typically ME / ModE
+    cognates that didn't pass the per-language witness threshold on
+    their own) carry valuable semantic-tag signal that the bundle
+    consumer ought to see attached to the bundle subject the OE root
+    grounds. This helper pulls those tags so they can be merged into
+    ``family["tags"]`` alongside ``_fetch_member_tags``'s output.
+
+    Excludes the root itself (its tags ride in via ``_fetch_member_tags``)
+    and OCR-merge tombstones. Returns an empty list when the root has
+    no ``cognate_id`` (no cluster) — most non-promoted etymons.
+    """
+    return [
+        row["tag"]
+        for row in db.conn.execute(
+            """
+            SELECT DISTINCT t.tag
+            FROM etymon mate
+            JOIN etymon_tag t ON t.etymon_id = mate.id
+            WHERE mate.cognate_id = (
+                SELECT cognate_id FROM etymon WHERE id = ?
+              )
+              AND mate.cognate_id IS NOT NULL
+              AND mate.id != ?
+              AND mate.merged_into_id IS NULL
+            ORDER BY t.tag
+            """,
+            (root_id, root_id),
         )
     ]
 

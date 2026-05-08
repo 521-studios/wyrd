@@ -12548,3 +12548,114 @@ def test_init_schema_uses_cognate_id_not_synset_id(fresh_db: Path) -> None:
     assert "synset_method" not in cols
     assert "idx_etymon_cognate" in indexes
     assert "idx_etymon_synset" not in indexes
+
+
+# --- wyrd-i1s1: cognate-cluster-mate tag rollup --------------------------
+
+
+def test_fetch_cluster_mate_tags_returns_other_languages_tags(fresh_db: Path) -> None:
+    """wyrd-i1s1: tags from cognate-cluster mates of root_id surface in
+    the family's tag list. Pinned scenario: OE 'ceaster' has cluster
+    mate ME 'chestre' tagged 'topography'; that tag lands in the OE
+    root's _fetch_cluster_mate_tags output. Without this, the ME
+    semantic signal would never reach the bundle subject the OE root
+    grounds."""
+    from wyrd.generators.kenning.lexicon import _fetch_cluster_mate_tags
+
+    with LexiconDB(fresh_db) as db:
+        oe_id = db.upsert_etymon("ceaster", "old-english")
+        me_id = db.upsert_etymon("chestre", "middle-english")
+        # Wire them into a cognate cluster (cognate_id points at OE root).
+        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, oe_id))
+        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, me_id))
+        db.conn.execute(
+            "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)",
+            (me_id, "topography"),
+        )
+        db.commit()
+        result = _fetch_cluster_mate_tags(db, oe_id)
+    assert result == ["topography"]
+
+
+def test_fetch_cluster_mate_tags_excludes_root_itself(fresh_db: Path) -> None:
+    """The root's own tags ride in via _fetch_member_tags — the cluster-
+    mate helper must skip the root to avoid double-counting."""
+    from wyrd.generators.kenning.lexicon import _fetch_cluster_mate_tags
+
+    with LexiconDB(fresh_db) as db:
+        oe_id = db.upsert_etymon("ceaster", "old-english")
+        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, oe_id))
+        # OE's OWN tag — must NOT appear in cluster_mate_tags.
+        db.conn.execute(
+            "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)",
+            (oe_id, "architecture"),
+        )
+        db.commit()
+        result = _fetch_cluster_mate_tags(db, oe_id)
+    assert result == []
+
+
+def test_fetch_cluster_mate_tags_skips_merged_into_losers(fresh_db: Path) -> None:
+    """OCR-cluster losers (merged_into_id IS NOT NULL) are tombstones —
+    their tags belong to the merge winner via the existing rollup, not
+    to the cluster mate's tag pool."""
+    from wyrd.generators.kenning.lexicon import _fetch_cluster_mate_tags
+
+    with LexiconDB(fresh_db) as db:
+        oe_id = db.upsert_etymon("ceaster", "old-english")
+        me_winner = db.upsert_etymon("chestre", "middle-english")
+        me_loser = db.upsert_etymon("chastre", "middle-english")
+        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, oe_id))
+        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, me_winner))
+        db.conn.execute(
+            "UPDATE etymon SET cognate_id = ?, merged_into_id = ? WHERE id = ?",
+            (oe_id, me_winner, me_loser),
+        )
+        db.conn.execute(
+            "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)", (me_winner, "topography")
+        )
+        db.conn.execute(
+            "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)", (me_loser, "should-skip")
+        )
+        db.commit()
+        result = _fetch_cluster_mate_tags(db, oe_id)
+    assert result == ["topography"]
+    assert "should-skip" not in result
+
+
+def test_fetch_cluster_mate_tags_returns_empty_for_no_cognate(fresh_db: Path) -> None:
+    """An etymon without a cognate_id has no cluster — empty list."""
+    from wyrd.generators.kenning.lexicon import _fetch_cluster_mate_tags
+
+    with LexiconDB(fresh_db) as db:
+        oe_id = db.upsert_etymon("orphan", "old-english")
+        # No cognate_id assignment; defaults to NULL.
+        db.commit()
+        result = _fetch_cluster_mate_tags(db, oe_id)
+    assert result == []
+
+
+def test_gather_family_unions_member_and_cluster_tags(fresh_db: Path) -> None:
+    """End-to-end: _gather_family's "tags" field is the union of
+    member-rollup tags AND cluster-mate tags. Pinned via a family
+    where the root has its own tag AND a cluster mate has a different
+    tag — both surface in the family's tags list."""
+    from wyrd.generators.kenning.lexicon import _gather_family
+
+    with LexiconDB(fresh_db) as db:
+        oe_id = db.upsert_etymon("ceaster", "old-english")
+        me_id = db.upsert_etymon("chestre", "middle-english")
+        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, oe_id))
+        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (oe_id, me_id))
+        db.conn.execute(
+            "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)", (oe_id, "architecture")
+        )
+        db.conn.execute(
+            "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)", (me_id, "topography")
+        )
+        db.commit()
+        # _gather_family with member_ids=[oe_id] (just the OE root, no
+        # lemma children). Cluster mate ME 'chestre' is a separate root.
+        family = _gather_family(db, oe_id, [oe_id])
+    assert family is not None
+    assert family["tags"] == ["architecture", "topography"]
