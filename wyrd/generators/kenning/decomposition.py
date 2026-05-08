@@ -207,18 +207,6 @@ def _meaning_form_keys(meaning: Meaning) -> set[tuple[str, str]]:
     return keys
 
 
-def _decomposition_slots(decomposition: list) -> list[set[tuple[str, str]] | str]:
-    """For each slot in order: a set of candidate (lang_field, form) pairs
-    (Meaning slot), or the raw unaccounted string."""
-    slots: list[set[tuple[str, str]] | str] = []
-    for elem in decomposition:
-        if isinstance(elem, Meaning):
-            slots.append(_meaning_form_keys(elem))
-        else:
-            slots.append(str(elem))
-    return slots
-
-
 def _dedupe_scholar_seqs(
     seqs: list[list[tuple[str, str]]],
 ) -> list[list[tuple[str, str]]]:
