@@ -16,6 +16,7 @@ from wyrd.generators.kenning.era import era_cells_for_family, resolve_era_input
 from wyrd.generators.kenning.meaning import (
     Meaning,
     load_canonical_decompositions,
+    load_fantasy_morphemes,
     load_joiners,
     load_meanings,
 )
@@ -304,6 +305,18 @@ def _load_canonical_decompositions() -> dict[str, dict[str, str]]:
     return load_canonical_decompositions(data)
 
 
+@lru_cache(maxsize=1)
+def _load_fantasy_morphemes() -> dict[str, dict]:
+    """wyrd-vz7f: load the bundle's fantasy-creature etymology map.
+    Returns ``{lowercase_input_name: {input_name, etymon_id, language,
+    canonical_form, english_shaped, glosses, citation, era_reflexes}}``.
+    Empty for bundles that pre-date wyrd-vz7f or for DBs whose
+    ``fantasy_morpheme`` table is empty."""
+    with _data_path("meanings.json").open() as f:
+        data = json.load(f)
+    return load_fantasy_morphemes(data)
+
+
 @lru_cache(maxsize=len(CULTURES))
 def _load_culture(culture: str):
     if culture not in CULTURES:
@@ -345,6 +358,7 @@ def _coupled_cache_clear() -> None:
     _load_culture.cache_clear()
     _load_joiners.cache_clear()
     _load_canonical_decompositions.cache_clear()
+    _load_fantasy_morphemes.cache_clear()
 
 
 # mypy flags reassigning a bound method on the lru_cache wrapper as
@@ -1510,3 +1524,104 @@ class KenningEraMap(Generator):
 
 
 register(KenningEraMap())
+
+
+class KenningCreature(Generator):
+    """wyrd-vz7f: surface fantasy-creature etymology from the wyrd-ami
+    pipeline data. Input is a creature name (Harpy, Daemon, Dwarf,
+    Drake, ...); output is the etymology line + descent context + era
+    reflexes when available.
+
+    The wyrd-ami pipeline (D30) mines fantasy_morpheme rows linking
+    creature input_names to real etymons in the lexicon; this is the
+    runtime tap. ``_load_fantasy_morphemes`` reads the bundle's
+    ``fantasy_morphemes`` field (populated by
+    ``lexicon.collect_fantasy_morphemes`` at export time). 234 usable
+    creatures shipped at wyrd-vz7f time; the catalog grows as the
+    wyrd-ami pipeline ingests more pfsrd2-monsters input.
+    """
+
+    name = "kenning-creature"
+    display_name = "Kenning — Creature etymology"
+    description = (
+        "Look up the historical etymology of a fantasy / mythological "
+        "creature name. Returns the linked attested ancestor (language, "
+        "canonical form, glosses) and any era reflexes mined for that "
+        "etymon's cluster."
+    )
+    details = (
+        "<p>"
+        "Type a creature name like <em>Harpy</em>, <em>Daemon</em>, or "
+        "<em>Drake</em> and Kenning surfaces the historical etymon the "
+        "wyrd-ami research pipeline linked it to: the source language, "
+        "the attested ancestral form, and any descendant forms across "
+        "later eras."
+        "</p>"
+        "<p>"
+        "Unknown names (modern coinages, non-corpus mythologies, or "
+        "names the LLM-research pipeline couldn't resolve) return a "
+        "polite 'no etymology found' result rather than an error."
+        "</p>"
+    )
+    legend = _LEGEND
+    multi_result = False
+
+    def input_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Creature name (e.g. 'Harpy', 'Daemon').",
+                },
+            },
+            "required": ["name"],
+        }
+
+    def generate(self, params: dict[str, Any], seed: int) -> GenerationResult:
+        text = (params.get("name") or "").strip()
+        if not text:
+            raise ValueError("name is required")
+        creatures = _load_fantasy_morphemes()
+        entry = creatures.get(text.lower())
+        if entry is None:
+            return GenerationResult(
+                result=text,
+                explanation=(
+                    f"No etymology found for {text!r} in the wyrd-ami "
+                    "fantasy-morpheme corpus. The pipeline may classify "
+                    "it as a modern coinage, an outside-language-family "
+                    "name, or simply not yet mined."
+                ),
+            )
+        return GenerationResult(
+            result=entry["input_name"],
+            explanation=_format_creature_explanation(entry),
+        )
+
+
+def _format_creature_explanation(entry: dict[str, Any]) -> str:
+    """Render a creature scorecard as a human-readable explanation
+    line. Pulled out so tests can pin the exact format without
+    re-instantiating the Generator."""
+    parts: list[str] = []
+    head = f"{entry['input_name']} ← {entry['language']} {entry['canonical_form']}"
+    if entry.get("english_shaped"):
+        head += f" ({entry['english_shaped']})"
+    parts.append(head)
+    if entry.get("glosses"):
+        glosses = entry["glosses"][:3]
+        parts.append("glosses: " + " / ".join(glosses))
+    if entry.get("citation"):
+        parts.append(f"source: {entry['citation']}")
+    explanation = ". ".join(parts) + "."
+    era_lines: list[str] = []
+    for lang, refs in entry.get("era_reflexes", {}).items():
+        forms = ", ".join(form for form, _source in refs)
+        era_lines.append(f"{lang}: {forms}")
+    if era_lines:
+        explanation += " Era reflexes — " + "; ".join(era_lines) + "."
+    return explanation
+
+
+register(KenningCreature())
