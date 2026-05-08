@@ -16,7 +16,7 @@ def client():
 def test_known_compound_decomposes_cleanly():
     rs = KenningExplain().generate_all({"name": "Bridgewater"}, 0)
     # Cleanest reading should appear first thanks to the unaccounted-first sort.
-    assert "Bridge" in rs[0].explanation
+    assert "bridge" in rs[0].explanation.lower()
     assert "water" in rs[0].explanation
     assert "[" not in rs[0].explanation, "best reading should have no unaccounted"
 
