@@ -3968,6 +3968,100 @@ def test_kenning_rewind_components_carry_respelling() -> None:
     assert modern_morphemes[0]["respelling"] is None
 
 
+# --- wyrd-bvp: corpus-evidence annotation for unaccounted fragments -------
+
+
+def test_annotate_fragments_counts_corpus_hits(tmp_path: Path) -> None:
+    """End-to-end: scan a synthetic sources/ dir for word-boundary
+    matches of each fragment. corpus_hits is the count of distinct
+    source files where the fragment appears."""
+    from wyrd.generators.kenning.lexicon import (
+        annotate_fragments_with_corpus_evidence,
+    )
+
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "skeat.txt").write_text(
+        "Court Henry. From Welsh cwrt 'court' meaning enclosed yard."
+    )
+    (sources / "mawer.txt").write_text(
+        "Hampton Court — Domesday entry has Hampton; court appended later."
+    )
+    (sources / "joyce.txt").write_text("This source mentions farming but not the c-word we want.")
+
+    out = annotate_fragments_with_corpus_evidence(["court"], sources_path=sources)
+
+    assert out["court"]["corpus_hits"] == 2  # skeat + mawer
+    assert len(out["court"]["snippets"]) == 2
+    sources_seen = {s["source"] for s in out["court"]["snippets"]}
+    assert sources_seen == {"skeat", "mawer"}
+
+
+def test_annotate_fragments_flags_etym_body_snippets(tmp_path: Path) -> None:
+    """Heuristic in_etym_body flag: snippets whose left-context has
+    a year-citation OR a source marker (A.S. / O.E. / M.E. / cf. /
+    from) get flagged True. Pure prose without those markers is
+    flagged False."""
+    from wyrd.generators.kenning.lexicon import (
+        annotate_fragments_with_corpus_evidence,
+    )
+
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    # Prose mention only — no etym markers in the LEFT half.
+    (sources / "casual.txt").write_text(
+        "We saw a court in the village; everyone gathered around to watch the procession pass."
+    )
+    # Etym body: 'from' marker in left context.
+    (sources / "etym.txt").write_text(
+        "Henrycourt is from Welsh cwrt — the typical court suffix on Welsh-borderland names."
+    )
+
+    out = annotate_fragments_with_corpus_evidence(["court"], sources_path=sources)
+
+    by_source = {s["source"]: s["in_etym_body"] for s in out["court"]["snippets"]}
+    assert by_source["etym"] is True
+    assert by_source["casual"] is False
+    assert out["court"]["strong_hits"] == 1
+
+
+def test_annotate_fragments_handles_empty_and_missing_fragments(
+    tmp_path: Path,
+) -> None:
+    """Fragments not found in any source still get an entry with
+    corpus_hits=0 and empty snippets — caller can render a 'no
+    evidence' marker uniformly. Empty-string fragments are skipped
+    entirely."""
+    from wyrd.generators.kenning.lexicon import (
+        annotate_fragments_with_corpus_evidence,
+    )
+
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    (sources / "skeat.txt").write_text("Some text without the fragment we're searching for.")
+
+    out = annotate_fragments_with_corpus_evidence(["", "missingfragment"], sources_path=sources)
+
+    # Empty-string skipped.
+    assert "" not in out
+    # Missing fragment kept with zero evidence.
+    assert out["missingfragment"]["corpus_hits"] == 0
+    assert out["missingfragment"]["snippets"] == []
+    assert out["missingfragment"]["strong_hits"] == 0
+
+
+def test_annotate_fragments_raises_on_missing_sources_dir(tmp_path: Path) -> None:
+    """Defensive: a non-existent sources_dir raises ValueError so
+    a typo at the CLI surface immediately rather than silently
+    returning empty."""
+    from wyrd.generators.kenning.lexicon import (
+        annotate_fragments_with_corpus_evidence,
+    )
+
+    with pytest.raises(ValueError, match="not found"):
+        annotate_fragments_with_corpus_evidence(["court"], sources_path=tmp_path / "does-not-exist")
+
+
 def test_record_mining_run_inserts_row_with_full_fields(fresh_db: Path) -> None:
     """record_mining_run persists every field the writer cares about and
     serializes by_failure as JSON."""
