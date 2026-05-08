@@ -2361,6 +2361,91 @@ def test_cli_export_meanings_joiners_sidecar_invalid_shape_fails(
     assert "expected top-level dict" in result.output
 
 
+def test_cli_export_meanings_joiners_sidecar_per_field_must_be_list(
+    tmp_path: Path,
+) -> None:
+    """Per-field value must be a list of entries; a non-list (string,
+    dict, etc.) under a lang_field surfaces a pointed error rather
+    than failing later when the loader tries to iterate."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    joiners_path = tmp_path / "joiners.json"
+    joiners_path.write_text(json.dumps({"old_english": "not-a-list"}))
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-meanings",
+            "--db",
+            str(db_path),
+            "--joiners-from",
+            str(joiners_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code != 0
+    assert "must be a list" in result.output
+
+
+def test_cli_export_meanings_joiners_sidecar_invalid_json_fails(
+    tmp_path: Path,
+) -> None:
+    """Malformed JSON in the sidecar surfaces an 'invalid JSON' error
+    rather than a raw decoder traceback. Pinned so the operator-facing
+    error message stays consistent."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    joiners_path = tmp_path / "joiners.json"
+    joiners_path.write_text("{")  # truncated JSON
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-meanings",
+            "--db",
+            str(db_path),
+            "--joiners-from",
+            str(joiners_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code != 0
+    assert "invalid JSON" in result.output
+
+
+def test_cli_export_meanings_empty_top_level_joiners_sidecar_omits_key(
+    tmp_path: Path,
+) -> None:
+    """A literal ``{}`` sidecar (no fields at all) produces no
+    ``joiners`` key in the bundle. Same outcome as the empty-per-field
+    case but exercises the no-loop-iteration path."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    joiners_path = tmp_path / "joiners.json"
+    joiners_path.write_text("{}")
+    output_path = tmp_path / "meanings.json"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-meanings",
+            "--db",
+            str(db_path),
+            "--joiners-from",
+            str(joiners_path),
+            "--output",
+            str(output_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    bundle = json.loads(output_path.read_text())
+    assert "joiners" not in bundle
+
+
 def test_cli_export_meanings_joiners_sidecar_missing_form_or_weight_fails(
     tmp_path: Path,
 ) -> None:
