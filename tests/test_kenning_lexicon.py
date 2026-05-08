@@ -3432,7 +3432,207 @@ def test_etymon_era_reflexes_tier4_skipped_when_target_language_only(
         db.commit()
         reflexes = etymon_era_reflexes(db, eid, target_language="middle-english")
 
+    # Period-form skipped (no year range), but phonology-rule Tier 4
+    # still runs on the canonical_form. 'orphan' has no OE→ME rule
+    # triggers (no macrons / special chars), so it passes through and
+    # _phonology_rule_form returns None — assert empty.
     assert reflexes == []
+
+
+# --- wyrd-98cs: phonology-rule Tier 4 fallback ---------------------------
+
+
+def test_era_reflex_dataclass_carries_source_field_default_cluster() -> None:
+    """``EraReflex.source`` defaults to 'cluster' for back-compat with
+    existing call sites that didn't pass an explicit source. Pin so a
+    future refactor can't silently drop the default."""
+    from wyrd.generators.kenning.lexicon import EraReflex
+
+    ref = EraReflex(etymon_id=1, form="x", language="old-english")
+    assert ref.source == "cluster"
+
+
+def test_etymon_era_reflexes_cluster_path_tags_source_cluster(
+    fresh_db: Path,
+) -> None:
+    """Tier 1 (cognate cluster) reflexes carry ``source='cluster'``."""
+    with LexiconDB(fresh_db) as db:
+        ids = _seed_cluster(
+            db,
+            members=[
+                ("ceaster", "old-english"),
+                ("Chester", "middle-english"),
+            ],
+        )
+        reflexes = etymon_era_reflexes(db, ids["ceaster"], target_language="middle-english")
+    assert all(r.source == "cluster" for r in reflexes)
+    assert len(reflexes) == 1
+
+
+def test_etymon_era_reflexes_descent_path_tags_source_descent(
+    fresh_db: Path,
+) -> None:
+    """Tier 2 (descent fallback) reflexes carry ``source='descent'``."""
+    with LexiconDB(fresh_db) as db:
+        db.conn.execute("INSERT OR IGNORE INTO source (id, title) VALUES ('test', 'Test')")
+        parent_id = db.upsert_etymon("broc", "old-english")
+        child_id = db.upsert_etymon("brok", "middle-english")
+        db.conn.execute(
+            "INSERT INTO etymon_descent "
+            "(parent_id, child_id, edge_type, source_id, confidence) "
+            "VALUES (?, ?, 'inheritance', 'test', 'high')",
+            (parent_id, child_id),
+        )
+        db.commit()
+        reflexes = etymon_era_reflexes(db, parent_id, target_language="middle-english")
+    assert [r.source for r in reflexes] == ["descent"]
+
+
+def test_etymon_era_reflexes_phonology_tier_fires_when_other_tiers_empty(
+    fresh_db: Path,
+) -> None:
+    """Tier 4 (phonology rule) fires when Tier 1-3 produce nothing AND
+    the canonical_form contains a rule trigger. Pinned with an OE
+    form whose ǣ → e rule fires cleanly."""
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("dǣg", "old-english")
+        db.commit()
+        reflexes = etymon_era_reflexes(db, eid, target_language="middle-english")
+    assert len(reflexes) == 1
+    assert reflexes[0].source == "phonology-rule:v1"
+    assert reflexes[0].language == "middle-english"
+    # ǣ → e fires; macron loss leaves "deg".
+    assert reflexes[0].form == "deg"
+    assert reflexes[0].etymon_id == eid
+
+
+def test_etymon_era_reflexes_phonology_tier_skipped_when_cluster_present(
+    fresh_db: Path,
+) -> None:
+    """Tier 4 is gated on Tier 1-3 being empty. When cluster mates
+    exist, the phonology fallback doesn't fire (the cluster mates
+    are higher-quality evidence)."""
+    with LexiconDB(fresh_db) as db:
+        ids = _seed_cluster(
+            db,
+            members=[
+                ("dǣg", "old-english"),
+                ("dei", "middle-english"),
+            ],
+        )
+        reflexes = etymon_era_reflexes(db, ids["dǣg"], target_language="middle-english")
+    # Only the cluster mate, not a phonology-derived "deg".
+    assert [(r.form, r.source) for r in reflexes] == [("dei", "cluster")]
+
+
+def test_etymon_era_reflexes_phonology_tier_inverse_walk(
+    fresh_db: Path,
+) -> None:
+    """Inverse direction: ME etymon with no cluster/descent gets a
+    phonology-rule-derived OE form via inverse-mode rule walking.
+    Inverse mode is inherently lossy (50/50 branching) but produces a
+    deterministic top candidate."""
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("ston", "middle-english")
+        db.commit()
+        reflexes = etymon_era_reflexes(db, eid, target_language="old-english")
+    assert len(reflexes) == 1
+    assert reflexes[0].source == "phonology-rule:v1"
+    assert reflexes[0].language == "old-english"
+    # Inverse of ā → o: ston → stān is one branch; the picker takes
+    # the highest-probability candidate. Either 'ston' (didn't fire)
+    # or 'stān' (fired) is plausible, but if the result equals input
+    # we suppress per the no-rule-fired check, so non-empty means
+    # 'stān'-shaped.
+    assert reflexes[0].form != "ston"
+
+
+def test_etymon_era_reflexes_phonology_tier_no_op_when_form_passes_through(
+    fresh_db: Path,
+) -> None:
+    """When the canonical_form contains no rule trigger, the phonology
+    walk produces the input unchanged. We treat that as 'no Tier 4
+    reflex' — consumers fall back to the etymon's own canonical_form
+    without an extra spurious EraReflex carrying the same string."""
+    with LexiconDB(fresh_db) as db:
+        # 'orphan' has no OE→ME rule triggers — no macrons, no ǣ/ġ/ċ,
+        # no ME suffix collapsing. Forward walk is a pass-through.
+        eid = db.upsert_etymon("orphan", "old-english")
+        db.commit()
+        reflexes = etymon_era_reflexes(db, eid, target_language="middle-english")
+    assert reflexes == []
+
+
+def test_etymon_era_reflexes_phonology_tier_skipped_for_cross_family(
+    fresh_db: Path,
+) -> None:
+    """No phonology rules bridge English ↔ Welsh. Cross-family Tier 4
+    walks correctly return empty rather than blindly applying the
+    English chain to a Welsh form."""
+    with LexiconDB(fresh_db) as db:
+        # Welsh etymon, asking for a middle-english reflex. No
+        # cross-family chain.
+        eid = db.upsert_etymon("kair", "old-welsh")
+        db.commit()
+        reflexes = etymon_era_reflexes(db, eid, target_language="middle-english")
+    assert reflexes == []
+
+
+def test_etymon_era_reflexes_phonology_tier_welsh_chain_works(
+    fresh_db: Path,
+) -> None:
+    """OW → ModW phonology cell fires. 'kair' → 'caer' via the
+    composite kair → caer rule (Phase 2.3, PR #141)."""
+    with LexiconDB(fresh_db) as db:
+        eid = db.upsert_etymon("kair", "old-welsh")
+        db.commit()
+        reflexes = etymon_era_reflexes(db, eid, target_language="modern-welsh")
+    assert len(reflexes) == 1
+    assert reflexes[0].source == "phonology-rule:v1"
+    assert reflexes[0].form == "caer"
+
+
+def test_etymon_era_reflexes_phonology_tier_chain_oe_to_modern_english(
+    fresh_db: Path,
+) -> None:
+    """OE → ModE chains through ME and EModE cells. Pin a multi-step
+    walk so the chain composition is exercised end-to-end."""
+    with LexiconDB(fresh_db) as db:
+        # 'stān' → 'ston' (OE→ME via ā → o) → 'ston' (ME→EModE no
+        # match) → 'ston' (EModE→ModE no match). The key point is the
+        # chain runs without error and produces SOME modified form.
+        eid = db.upsert_etymon("stān", "old-english")
+        db.commit()
+        reflexes = etymon_era_reflexes(db, eid, target_language="modern-english")
+    assert len(reflexes) == 1
+    assert reflexes[0].source == "phonology-rule:v1"
+    assert reflexes[0].language == "modern-english"
+    assert reflexes[0].form == "ston"
+
+
+def test_phonology_rule_form_returns_none_for_unknown_language() -> None:
+    """Languages absent from the phonology family chains map (Goidelic,
+    Norse, Romance) get None — Tier 4 silently no-ops for them."""
+    from wyrd.generators.kenning.lexicon import _phonology_rule_form
+
+    # 'irish' is not in _PHONOLOGY_FAMILY_CHAINS.
+    assert _phonology_rule_form("baile", "irish", "old-irish") is None
+
+
+def test_phonology_rule_form_returns_none_for_same_language() -> None:
+    """Same from/to language is a no-op — no transformation needed."""
+    from wyrd.generators.kenning.lexicon import _phonology_rule_form
+
+    assert _phonology_rule_form("dǣg", "old-english", "old-english") is None
+
+
+def test_phonology_rule_form_returns_none_when_pass_through() -> None:
+    """A form with no rule triggers returns None (rather than the
+    same input echoed back). Consumers can use canonical_form directly
+    when this happens."""
+    from wyrd.generators.kenning.lexicon import _phonology_rule_form
+
+    assert _phonology_rule_form("orphan", "old-english", "middle-english") is None
 
 
 def test_clear_enrichment_period_forms_drops_rows(fresh_db: Path) -> None:

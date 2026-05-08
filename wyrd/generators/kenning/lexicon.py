@@ -3572,11 +3572,22 @@ class EraReflex:
     sources record multiple period-specific spellings (the four
     Middle-English variants of OE ``ceaster``: Chestre / Chester /
     Cestre / Chestir / etc.).
+
+    ``source`` distinguishes how the reflex was derived. Consumers
+    that surface era progressions (KenningRewind, KenningEraMap) can
+    mark phonology-rule-derived forms differently so the user knows
+    the form is an inferred derivation rather than an attested
+    cluster mate. Values: ``"cluster"`` (Tier 1, cognate cluster),
+    ``"descent"`` (Tier 2, descent edge), ``"period-form"`` (Tier 3,
+    projected from toponym_attestation), ``"phonology-rule:v1"``
+    (Tier 4, derived via phonology_rules.apply_rules). Default
+    ``"cluster"`` so existing callers stay unchanged.
     """
 
     etymon_id: int
     form: str
     language: str
+    source: str = "cluster"
 
 
 def etymon_era_reflexes(
@@ -3657,6 +3668,7 @@ def etymon_era_reflexes(
     if row is None:
         return []
 
+    tier_source: str
     if row["cognate_id"] is not None:
         # Path 1: cluster-mates query.
         cur = db.conn.execute(
@@ -3665,6 +3677,7 @@ def etymon_era_reflexes(
             "ORDER BY canonical_form",
             (row["cognate_id"], target_language),
         )
+        tier_source = "cluster"
     else:
         # Path 2: direct descent fallback. Only walks immediate
         # children — deeper traversal would re-implement
@@ -3682,12 +3695,14 @@ def etymon_era_reflexes(
             "ORDER BY child.canonical_form",
             (etymon_id, target_language),
         )
+        tier_source = "descent"
 
     results = [
         EraReflex(
             etymon_id=r["id"],
             form=r["canonical_form"],
             language=r["language"],
+            source=tier_source,
         )
         for r in cur
     ]
@@ -3737,10 +3752,150 @@ def etymon_era_reflexes(
                     etymon_id=etymon_id,
                     form=r["form"],
                     language=target_language,
+                    source="period-form",
                 )
             )
 
+    # Path 4: phonology-rule fallback (wyrd-98cs). Last resort when no
+    # attested data covers the target era. Walks the registered sound-
+    # change cells (phonology_rules.py: OE→ME, ME→EModE, EModE→ModE,
+    # OW→ModW) forward or inverse to derive a target-era form from the
+    # etymon's canonical_form. Lower precision than Tier 1-3 (no
+    # mining evidence behind it), so callers can distinguish via
+    # ``source == 'phonology-rule:v1'``.
+    if not results:
+        row = db.conn.execute(
+            "SELECT canonical_form, language FROM etymon WHERE id = ?",
+            (etymon_id,),
+        ).fetchone()
+        if row is not None:
+            phon_form = _phonology_rule_form(
+                row["canonical_form"], row["language"], target_language
+            )
+            if phon_form is not None:
+                results.append(
+                    EraReflex(
+                        etymon_id=etymon_id,
+                        form=phon_form,
+                        language=target_language,
+                        source="phonology-rule:v1",
+                    )
+                )
+
     return results
+
+
+# --- wyrd-98cs: phonology-rule Tier 4 fallback ---------------------------
+#
+# Maps a lexicon-language code to the phonology_rules.py family +
+# era-chain it lives in. Languages absent from this map have no
+# phonology rules registered (Goidelic, Norse, Romance, etc.) — Tier 4
+# silently no-ops for them. Phonology_rules' "language" arg is the
+# rule-cell family (``english``, ``welsh``); era values are the cell
+# era labels (``old-english`` etc.).
+#
+# The chain order encodes the family timeline: walking from index i
+# to j>i applies forward cells; j<i applies inverse cells in reverse.
+# 'welsh' (the bundle alias) is treated as 'modern-welsh' for chain
+# walking — they're the same era from the rules' perspective.
+
+_ENGLISH_CHAIN: tuple[str, ...] = (
+    "old-english",
+    "middle-english",
+    "early-modern-english",
+    "modern-english",
+)
+_WELSH_CHAIN: tuple[str, ...] = ("old-welsh", "modern-welsh")
+
+_PHONOLOGY_FAMILY_CHAINS: dict[str, tuple[str, tuple[str, ...]]] = {
+    "old-english": ("english", _ENGLISH_CHAIN),
+    "middle-english": ("english", _ENGLISH_CHAIN),
+    "early-modern-english": ("english", _ENGLISH_CHAIN),
+    "modern-english": ("english", _ENGLISH_CHAIN),
+    "old-welsh": ("welsh", _WELSH_CHAIN),
+    "modern-welsh": ("welsh", _WELSH_CHAIN),
+}
+
+# Bundle / lexicon aliases that share a chain with a canonical era.
+# Resolved before the chain.index lookup so the alias name itself
+# doesn't need to appear in the chain tuple. 'welsh' as a lexicon
+# language code is conventionally treated as modern-welsh for era
+# purposes (the lexicon mostly stores Welsh forms with this tag).
+_PHONOLOGY_LANGUAGE_ALIASES: dict[str, str] = {
+    "welsh": "modern-welsh",
+}
+
+
+def _phonology_rule_form(
+    canonical_form: str,
+    from_language: str,
+    to_language: str,
+) -> str | None:
+    """Derive a ``to_language`` form from ``canonical_form`` (in
+    ``from_language``) by walking the phonology_rules cell chain.
+
+    Returns None when:
+    - either language is absent from ``_PHONOLOGY_FAMILY_CHAINS``
+    - the two languages live in different families (no chain bridges
+      Goidelic→Brythonic etc.)
+    - both languages map to the same era index (no transformation
+      needed; caller should prefer the canonical_form directly)
+    - the chain walk returns no candidates above the probability floor
+
+    Walks forward when the target era is later in the family chain;
+    inverse when the target is earlier. At each step picks the
+    highest-probability candidate; downstream consumers wanting
+    multiple readings would need a richer return shape (deferred until
+    KenningRewind explainer surfaces multiple Tier-4 forms — Phase 2).
+    """
+    # Resolve bundle aliases ('welsh' → 'modern-welsh') before chain
+    # lookup so the alias name doesn't need to appear in the chain
+    # tuple itself.
+    from_resolved = _PHONOLOGY_LANGUAGE_ALIASES.get(from_language, from_language)
+    to_resolved = _PHONOLOGY_LANGUAGE_ALIASES.get(to_language, to_language)
+    if from_resolved == to_resolved:
+        return None
+    from_chain = _PHONOLOGY_FAMILY_CHAINS.get(from_resolved)
+    to_chain = _PHONOLOGY_FAMILY_CHAINS.get(to_resolved)
+    if from_chain is None or to_chain is None:
+        return None
+    family, chain = from_chain
+    # Cross-family (e.g. english → welsh) has no rules path.
+    if family != to_chain[0]:
+        return None
+    i_from = chain.index(from_resolved)
+    i_to = chain.index(to_resolved)
+    if i_from == i_to:
+        return None
+
+    from wyrd.generators.kenning.phonology_rules import apply_rules
+
+    current = canonical_form
+    if i_from < i_to:
+        # Forward walk: apply cells (chain[i], chain[i+1]) for i in
+        # [i_from, i_to). Each step picks the highest-probability
+        # candidate produced by the cell.
+        for i in range(i_from, i_to):
+            candidates = apply_rules(current, family, chain[i], chain[i + 1], mode="forward")
+            if not candidates:
+                return None
+            current = max(candidates, key=lambda c: c[1])[0]
+    else:
+        # Inverse walk: apply cells (chain[i-1], chain[i]) for i in
+        # (i_from, i_to], reading them in inverse mode so the input
+        # treated as the to_era form produces the from_era candidate.
+        for i in range(i_from, i_to, -1):
+            candidates = apply_rules(current, family, chain[i - 1], chain[i], mode="inverse")
+            if not candidates:
+                return None
+            current = max(candidates, key=lambda c: c[1])[0]
+    if current == canonical_form:
+        # No rule fired across the walk — the form passed through
+        # unchanged. Downstream consumers don't need a "tier-4
+        # reflex" that's the same as the input; treat as no result so
+        # the caller falls back to the canonical.
+        return None
+    return current
 
 
 # --- wyrd-unuo Phase 3.3: per-etymon period-form projection ---------------
