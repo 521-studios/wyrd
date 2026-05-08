@@ -25,6 +25,7 @@ from dataclasses import FrozenInstanceError
 import pytest
 
 from wyrd.generators.kenning.phonology_rules import (
+    ME_TO_EMODE_RULES,
     OE_TO_ME_RULES,
     SoundChangeRule,
     _apply_one_rule,
@@ -395,4 +396,129 @@ def test_apply_rules_inverse_candidate_count_stays_bounded() -> None:
     assert len(candidates) < 100_000, (
         f"inverse mode produced {len(candidates)} candidates; "
         f"probability floor should keep this bounded"
+    )
+
+
+# --- Middle English → Early Modern English (wyrd-n9x5) ------------------
+
+
+def test_has_rules_returns_true_for_me_to_emode_cell() -> None:
+    """The new ME→EModE cell is registered and discoverable via
+    ``has_rules``."""
+    assert has_rules("english", "middle-english", "early-modern-english") is True
+
+
+@pytest.mark.parametrize("rule", ME_TO_EMODE_RULES, ids=lambda r: r.pattern)
+def test_me_to_emode_rule_exemplar_forward(rule: SoundChangeRule) -> None:
+    """Each ME→EModE rule's exemplar input run through the rule's
+    pattern/replacement (in isolation) produces the documented output.
+    Same single-rule semantics as the OE→ME exemplar test."""
+    input_form, expected_output = rule.exemplar
+    candidates = _apply_one_rule([(input_form, 1.0)], rule.pattern, rule.replacement, rule.weight)
+    forms = [form for form, _ in candidates]
+    assert expected_output in forms, (
+        f"rule {rule.pattern!r} → {rule.replacement!r} on exemplar "
+        f"input {input_form!r} did not produce {expected_output!r}; "
+        f"got {forms!r}"
+    )
+
+
+def test_me_to_emode_rules_have_required_documentation() -> None:
+    """Every ME→EModE rule carries description / exemplar / source —
+    parallel to the OE→ME contract test, pinned per-cell so adding a
+    new rule without docs surfaces here."""
+    for rule in ME_TO_EMODE_RULES:
+        assert rule.description, f"rule {rule.pattern!r} missing description"
+        assert isinstance(rule.exemplar, tuple) and len(rule.exemplar) == 2
+        assert all(isinstance(s, str) and s for s in rule.exemplar)
+        assert rule.source, f"rule {rule.pattern!r} missing source citation"
+
+
+def test_apply_rules_chains_oe_to_emode_via_me_intermediate() -> None:
+    """A two-step chain: OE → ME → EModE. Apply the OE→ME cell then
+    the ME→EModE cell on the intermediate output, and the cumulative
+    pipeline produces a recognizable EModE form. Pinned to confirm
+    the cells compose without surface change to apply_rules."""
+    me_intermediate = apply_rules("Hamp-stede", "english", "old-english", "middle-english")
+    me_form = me_intermediate[0][0]
+    assert me_form == "Hamp-stede"  # OE→ME doesn't touch this form
+
+    emode_candidates = apply_rules(me_form, "english", "middle-english", "early-modern-english")
+    forms = [form for form, _ in emode_candidates]
+    assert "Hamp-stead" in forms
+
+
+def test_apply_rules_inverse_me_to_emode_undoes_simple_chain() -> None:
+    """Forward 'Pal-worde' → 'Pal-worth'; inverse from 'Pal-worth'
+    surfaces the OE-shape ancestor in the candidate list."""
+    forward = apply_rules("Pal-worde", "english", "middle-english", "early-modern-english")
+    forward_form = forward[0][0]
+    assert forward_form == "Pal-worth"
+    inverse = apply_rules(
+        forward_form,
+        "english",
+        "middle-english",
+        "early-modern-english",
+        mode="inverse",
+    )
+    inverse_forms = [form for form, _ in inverse]
+    assert "Pal-worde" in inverse_forms
+
+
+def test_me_to_emode_unknown_form_no_op() -> None:
+    """A form that doesn't match any ME→EModE pattern passes through
+    unchanged. Distinguishes 'cell registered, no match' from 'no cell'."""
+    candidates = apply_rules("qqq", "english", "middle-english", "early-modern-english")
+    assert candidates == [("qqq", 1.0)]
+
+
+def test_me_to_emode_probability_distribution_sums_to_one() -> None:
+    """Universal-only rules in ME→EModE preserve total probability
+    mass at 1.0 (no sporadic branching yet)."""
+    candidates = apply_rules("Birch-wude", "english", "middle-english", "early-modern-english")
+    total = sum(p for _, p in candidates)
+    assert abs(total - 1.0) < 1e-9
+
+
+def test_me_to_emode_dispatch_lookup_works_via_apply_rules() -> None:
+    """End-to-end via ``apply_rules``: a typo in the dispatch tuple
+    key would silently route the cell to 'unknown cell, no-op'. Pin
+    via a forward call exercising the actual dispatch lookup (not
+    just direct _apply_one_rule on a rule)."""
+    candidates = apply_rules("Hai-ston", "english", "middle-english", "early-modern-english")
+    forms = [form for form, _ in candidates]
+    assert "Hay-ston" in forms, (
+        "ME→EModE cell should fire 'ai → ay'; if not, the dispatch table key may be wrong"
+    )
+
+
+def test_me_to_emode_does_not_corrupt_internal_ou() -> None:
+    """Regression for review concern: ME forms with internal -ou-
+    (hous, mous, cou) are NOT mangled by Phase 2.1. The 'ou → ow'
+    transition is environment-sensitive (word-final OK, morpheme-
+    internal NOT) — deferred to Phase 2.4 with env-constraint regex."""
+    candidates = apply_rules("Hous-tone", "english", "middle-english", "early-modern-english")
+    forms = [form for form, _ in candidates]
+    assert "Hous-tone" in forms  # passes through unchanged
+
+
+def test_me_to_emode_does_not_corrupt_internal_ye() -> None:
+    """Regression for review concern: ME 'Wye-' (river name) and
+    similar word-internal 'ye' substrings are NOT mangled by Phase
+    2.1. The 'ye → y' rule was deliberately deferred to Phase 2.4
+    because it substring-overreaches (Wyeham → Wyham, yeoman → yoman)
+    without an env-constraint."""
+    candidates = apply_rules("Wye-ham", "english", "middle-english", "early-modern-english")
+    forms = [form for form, _ in candidates]
+    assert "Wye-ham" in forms  # passes through unchanged
+
+
+def test_registered_cell_count_matches_expected() -> None:
+    """Pin the count of registered cells. A future PR that
+    accidentally drops a cell from the dispatch table would fail
+    this; intentional additions should bump the count."""
+    from wyrd.generators.kenning.phonology_rules import _RULES
+
+    assert len(_RULES) == 2, (
+        f"expected 2 cells (OE→ME, ME→EModE), got {len(_RULES)}: {sorted(_RULES.keys())}"
     )

@@ -285,6 +285,126 @@ OE_TO_ME_RULES: tuple[SoundChangeRule, ...] = (
 )
 
 
+# --- Middle English → Early Modern English (wyrd-n9x5) ------------------
+#
+# Sources: Sweet, *History of English Sounds* (1888, §§ on the Great
+# Vowel Shift block); Smith, *English Place-Name Elements* (EPNS vol
+# 25–26, 1956, suffix evolution by period); Lass, *The Cambridge
+# History of the English Language* vol III (1999, EModE phonology
+# chapter for cross-checking).
+#
+# Note on scope: the Great Vowel Shift is primarily a PHONEMIC shift,
+# not orthographic — most ME spellings persist through EModE
+# (mete, name, mood). Rules below cover the orthographic transitions
+# that DO surface, particularly in place-name forms: final -e loss,
+# diphthong reanalysis, and a handful of consonant-cluster shifts.
+# The set is deliberately smaller than OE→ME (~10 rules vs 28)
+# because so much of the phonological change in this period stays
+# below the spelling layer; Phase 2 mining of period-specific
+# attestation forms would expand the rule set if needed.
+
+ME_TO_EMODE_RULES: tuple[SoundChangeRule, ...] = (
+    # --- Place-name suffix shifts ---
+    SoundChangeRule(
+        pattern="-worde",
+        replacement="-worth",
+        weight=1.0,
+        description=(
+            "Habitative suffix -worde → -worth (final -e loss + th preserved). "
+            "ME 'Pal-worde' → EModE 'Pal-worth'."
+        ),
+        exemplar=("Pal-worde", "Pal-worth"),
+        source="Smith EPNS s.v. 'worð'",
+    ),
+    SoundChangeRule(
+        pattern="-burgh",
+        replacement="-borough",
+        weight=1.0,
+        description=(
+            "Habitative suffix -burgh → -borough (some Northern dialects; "
+            "spelling normalization in EModE Standard). Cf. Edinburgh "
+            "(retained Northern) vs Peterborough (Southern reflex)."
+        ),
+        exemplar=("Peter-burgh", "Peter-borough"),
+        source="Smith EPNS s.v. 'burh'",
+    ),
+    SoundChangeRule(
+        pattern="-feld",
+        replacement="-field",
+        weight=1.0,
+        description=(
+            "Topographic suffix -feld → -field (16th-17th c. printer-driven "
+            "orthographic standardization; vowel quality phonologically stable)."
+        ),
+        exemplar=("Spring-feld", "Spring-field"),
+        source="Smith EPNS s.v. 'feld'",
+    ),
+    SoundChangeRule(
+        pattern="-mor",
+        replacement="-moor",
+        weight=1.0,
+        description=(
+            "Topographic suffix -mor → -moor (orthographic standardization of "
+            "the long vowel as oo in EModE printer-era)."
+        ),
+        exemplar=("Black-mor", "Black-moor"),
+        source="Smith EPNS s.v. 'mōr'",
+    ),
+    SoundChangeRule(
+        pattern="-wude",
+        replacement="-wood",
+        weight=1.0,
+        description=(
+            "Topographic suffix -wude (ME) → -wood (EModE; final -e loss + long vowel oo-spelling)."
+        ),
+        exemplar=("Birch-wude", "Birch-wood"),
+        source="Smith EPNS s.v. 'wudu'",
+    ),
+    SoundChangeRule(
+        pattern="-stede",
+        replacement="-stead",
+        weight=1.0,
+        description=(
+            "Habitative suffix -stede → -stead (final -e loss + ea-spelling for the long e reflex)."
+        ),
+        exemplar=("Hamp-stede", "Hamp-stead"),
+        source="Smith EPNS s.v. 'stede'",
+    ),
+    # --- Diphthong shifts (printer-era orthographic standardization) ---
+    #
+    # ai/ei → ay/ey is a stable spelling normalization in the 16th-c.
+    # printer era; ME 'ai'/'ei' digraphs WERE consistently respelled in
+    # EModE, so the literal-pattern framework handles them cleanly with
+    # no false-fires on real ME forms. Rules NOT in this cell:
+    # - 'ye → y' (final-e loss after y) — substring-overreach risk
+    #   (would mangle 'Wyeham', 'yeoman'). Defer to Phase 2.4 with
+    #   word-final regex anchor.
+    # - 'ou → ow' — environment-sensitive (word-final OK, morpheme-
+    #   internal NOT — would corrupt ME 'hous'/'mous'). Defer to
+    #   Phase 2.4 with env-constraint regex.
+    SoundChangeRule(
+        pattern="ai",
+        replacement="ay",
+        weight=1.0,
+        description=(
+            "Diphthong -ai- → -ay- (orthographic normalization in EModE; "
+            "ME 'dai' → EModE 'day'). Stable in pronunciation; the spelling "
+            "shift is the visible change."
+        ),
+        exemplar=("Hai-ston", "Hay-ston"),
+        source="Sweet 1888 § 814",
+    ),
+    SoundChangeRule(
+        pattern="ei",
+        replacement="ey",
+        weight=1.0,
+        description=("Diphthong -ei- → -ey- (orthographic normalization; ME 'kei' → EModE 'key')."),
+        exemplar=("Mei-ham", "Mey-ham"),
+        source="Sweet 1888 § 814",
+    ),
+)
+
+
 # --- dispatch table ------------------------------------------------------
 #
 # Keyed by ``(language, from_era, to_era)``. Add a tuple here and the
@@ -295,6 +415,7 @@ OE_TO_ME_RULES: tuple[SoundChangeRule, ...] = (
 
 _RULES: dict[tuple[str, str, str], tuple[SoundChangeRule, ...]] = {
     ("english", "old-english", "middle-english"): OE_TO_ME_RULES,
+    ("english", "middle-english", "early-modern-english"): ME_TO_EMODE_RULES,
 }
 
 
