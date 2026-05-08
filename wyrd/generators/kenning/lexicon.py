@@ -57,7 +57,7 @@ LANGUAGE_FIELDS = {
 # Fields on a `word` that are not source-language slots and must be skipped
 # during ingestion. `source_known` is a per-entry boolean flag; we'll store it
 # as etymon notes if it ever matters, but for now we just pass over it.
-NON_LANGUAGE_FIELDS = {"modern_usage", "source_known"}
+NON_LANGUAGE_FIELDS = {"modern_usage", "source_known", "era_reflexes"}
 
 
 def _schema_sql() -> str:
