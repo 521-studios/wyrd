@@ -1751,6 +1751,33 @@ INFLECTION_RULES: dict[str, list[tuple[str, str]]] = {
         ("r", "nominative"),
         ("i", "dative_or_weak"),
     ],
+    # wyrd-r6bk Phase 1: Welsh suffix-strippable subset, conservative.
+    # Initial-mutation morphology (lenition / nasal / aspirate) is
+    # NOT suffix-strippable and stays unhandled — wyrd-jott tracks
+    # the Goidelic+Brythonic-shared problem.
+    #
+    # Rules ordered specific-before-general. Several plausibly-Welsh
+    # suffixes are DELIBERATELY OMITTED for false-positive risk:
+    # - ``-af``: the superlative reading conflicts with common nouns
+    #   ending in -af (gaeaf 'winter', gwarthaf 'summit') that aren't
+    #   superlatives. Linking 'gaeaf' to 'gae' would corrupt 'gae's
+    #   family rollup. Defer to a richer rule with positional / part-
+    #   of-speech context.
+    # - ``-au``: too generic — many Welsh place-name words coincidentally
+    #   end in -au (Llysau / Tegau / Trau as proper nouns). The 1301
+    #   candidates would mostly be false positives. Specific plural
+    #   variants (-iau, -oedd, -ion) capture the safe subset.
+    # - ``-ydd``: derivational nominal suffix as often as plural marker
+    #   (gweithydd 'worker'). Too risky for v1.
+    # - ``-aint``: rare (43 candidates) and mostly archaic.
+    #
+    # The Phase 1 subset prioritises precision over recall.
+    "welsh": [
+        ("iau", "plural"),  # 327 candidates; specific plural subtype
+        ("oedd", "plural"),  # 170 candidates; e.g. blynydd + -oedd
+        ("ion", "plural"),  # 402 candidates; e.g. dyn + -ion
+        ("ach", "comparative"),  # 262 candidates; consistent adj. use
+    ],
 }
 
 

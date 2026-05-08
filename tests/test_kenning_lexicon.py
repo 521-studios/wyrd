@@ -6149,6 +6149,41 @@ def test_derive_lemma_candidate_returns_none_for_unknown_lang() -> None:
     assert derive_lemma_candidate("foobar", "klingon") is None
 
 
+def test_derive_lemma_candidate_strips_welsh_inflections() -> None:
+    """wyrd-r6bk Phase 1: Welsh suffix-strippable subset (initial
+    mutation deferred to wyrd-jott). Pin one case per registered
+    Welsh suffix so a future rule edit that drops one surfaces."""
+    # -iau plural: dyddiau → dydd
+    assert derive_lemma_candidate("dyddiau", "welsh") == ("dydd", "plural")
+    # -oedd plural: siroedd → sir
+    assert derive_lemma_candidate("siroedd", "welsh") == ("sir", "plural")
+    # -ion plural: cantorion → cantor
+    assert derive_lemma_candidate("cantorion", "welsh") == ("cantor", "plural")
+    # -ach comparative: cochach → coch
+    assert derive_lemma_candidate("cochach", "welsh") == ("coch", "comparative")
+
+
+def test_derive_lemma_candidate_welsh_specific_before_general() -> None:
+    """Rule order: -iau (4 chars) must match BEFORE -au would, else
+    'llysiau' would strip the trailing 'au' and produce 'llysi'
+    instead of 'llys'. Same shape as the OE/ON ordering invariants."""
+    assert derive_lemma_candidate("llysiau", "welsh") == ("llys", "plural")
+
+
+def test_derive_lemma_candidate_welsh_skips_excluded_suffixes() -> None:
+    """The Phase-1 rule list deliberately omits -af / -au / -ydd /
+    -aint per the false-positive-rate audit. Pin: 'gaeaf' (winter,
+    NOT a superlative) does NOT strip — the absence of -af in the
+    rule list is a deliberate precision-vs-recall trade-off."""
+    # -af not in rules: 'gaeaf' should pass through unchanged.
+    assert derive_lemma_candidate("gaeaf", "welsh") is None
+    # -au not in rules: 'tegau' (proper noun) should pass through.
+    assert derive_lemma_candidate("tegau", "welsh") is None
+    # -ydd not in rules: 'gweithydd' (worker, derivational suffix
+    # not a plural) should pass through.
+    assert derive_lemma_candidate("gweithydd", "welsh") is None
+
+
 def test_derive_lemma_candidate_respects_min_stem_length() -> None:
     """Refuse to produce a 2-char-or-less stem."""
     # "an" stripped from "ban" would give a 1-char stem; reject.
