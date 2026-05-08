@@ -14,6 +14,7 @@ from __future__ import annotations
 import itertools
 from collections import OrderedDict
 
+from wyrd.generators.kenning.meaning import Joiner
 from wyrd.generators.kenning.trie_matcher import (
     MorphemeTrie,
     all_decompositions,
@@ -78,6 +79,53 @@ def _trie_for(word_db: dict) -> MorphemeTrie:
     return trie
 
 
+def _build_joiner_lookup(
+    joiners: dict[str, list[tuple[str, int]]] | None,
+) -> dict[str, str]:
+    """Flatten a per-language-field joiner pool into a lowercase
+    surface→lang_field lookup.
+
+    The matcher's joiner consumption (wyrd-q0g6 Phase 1) only needs
+    'is this str slot a registered joiner, and which family is it
+    from?'. Cross-language collisions (e.g. ``'y'`` in welsh AND
+    French) are resolved by 'first lang_field wins' — iteration order
+    follows the joiner dict's key order, which is lang-sorted at
+    bundle-emit time. Phase 2 may need finer disambiguation but Phase
+    1 ships zero populated joiners so the conflict can't surface yet.
+    """
+    if not joiners:
+        return {}
+    lookup: dict[str, str] = {}
+    for lang_field, entries in joiners.items():
+        for form, _weight in entries:
+            key = form.lower()
+            if key and key not in lookup:
+                lookup[key] = lang_field
+    return lookup
+
+
+def _consume_joiners(decomposition: list, joiner_lookup: dict[str, str]) -> list:
+    """Replace each ``str`` slot in ``decomposition`` whose lowercase
+    text matches a registered joiner form with a ``Joiner`` sentinel
+    (Meaning instances pass through unchanged).
+
+    ``joiner_lookup`` is the flat surface→lang_field map from
+    ``_build_joiner_lookup``. Empty lookup → identity transform (caller
+    short-circuits before calling, but the no-op behavior is safe).
+    """
+    if not joiner_lookup:
+        return decomposition
+    new_decomp: list = []
+    for slot in decomposition:
+        if isinstance(slot, str):
+            lang = joiner_lookup.get(slot.lower())
+            if lang is not None:
+                new_decomp.append(Joiner(slot, lang_field=lang))
+                continue
+        new_decomp.append(slot)
+    return new_decomp
+
+
 class Name:
     def __init__(self, name):
         self.name = str(name)
@@ -106,7 +154,7 @@ class Name:
                 cnt += meaning.count_unaccounted()
         return cnt
 
-    def find_meaning(self, word_db, reduce=True):
+    def find_meaning(self, word_db, reduce=True, joiners=None):
         """Decompose every word in this place name against ``word_db``
         via the trie matcher.
 
@@ -117,6 +165,25 @@ class Name:
         handle the case where the caller invoked ``find_meaning``
         multiple times — pre-existing entries in ``self.words[word]``
         need filtering against the new additions.
+
+        ``joiners`` (wyrd-q0g6 Phase 1, optional) is a
+        ``dict[lang_field, list[(form, weight)]]`` from
+        ``meaning.load_joiners``. When provided, the matcher post-
+        processes each decomposition: any ``str`` slot whose lowercase
+        text matches a registered joiner ``form`` becomes a ``Joiner``
+        sentinel — its chars stop counting as unaccounted (Joiner is
+        non-str so ``Word.count_unaccounted`` skips it) without
+        polluting structure-pattern stats (Joiner is non-Meaning so
+        ``Word.has_name`` / ``get_structure`` / etc. skip it too).
+        Surface form is preserved via ``Joiner.__str__``.
+
+        Phase 1 ships the hook; the bundled meanings.json carries no
+        joiners until a Phase 2 audit populates them, so the no-op
+        fast path (``joiners=None``) remains the default. With non-
+        empty joiners under ``reduce=True``, the canonical filter
+        runs on the raw matcher output; joiner consumption applies
+        AFTERWARD. A future Phase 2.5 may push joiner-awareness into
+        the canonical scoring.
 
         ``reduce=False`` switches to ``all_decompositions``, returning
         every parse the trie produces — useful to callers (e.g.
@@ -151,10 +218,13 @@ class Name:
         """
         self.word_db = word_db
         trie = _trie_for(word_db)
+        joiner_forms = _build_joiner_lookup(joiners)
         for word in self.words:
             decompositions = (
                 canonical_decompositions(word, trie) if reduce else all_decompositions(word, trie)
             )
+            if joiner_forms:
+                decompositions = [_consume_joiners(d, joiner_forms) for d in decompositions]
             seen_keys: set[tuple] = {tuple(existing.word) for existing in self.words[word]}
             for d in decompositions:
                 key = tuple(d)
