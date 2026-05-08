@@ -4109,6 +4109,43 @@ def test_fetch_root_era_reflexes_prefers_higher_quality_source(
     assert me == [{"form": "deg", "source": "cluster"}]
 
 
+def test_emit_era_reflexes_merges_cross_family_with_quality_preference() -> None:
+    """When a single bundle word links to two families that BOTH
+    contribute the same form for a target language, the higher-
+    quality source wins. Pin the cross-family priority resolution in
+    _emit_era_reflexes (the same logic as the per-tier path in
+    _fetch_root_era_reflexes — both share _better_era_reflex_source)."""
+    from wyrd.generators.kenning.lexicon import _emit_era_reflexes
+
+    fam_a = {
+        "era_reflexes": {
+            "middle-english": [
+                {"form": "ham", "source": "phonology-rule:v1"},  # low quality
+                {"form": "hamm", "source": "cluster"},
+            ]
+        }
+    }
+    fam_b = {
+        "era_reflexes": {
+            "middle-english": [
+                {"form": "ham", "source": "cluster"},  # SAME form, high quality
+                {"form": "home", "source": "descent"},
+            ]
+        }
+    }
+    word: dict = {}
+    _emit_era_reflexes(word, [(fam_a, []), (fam_b, [])])
+
+    assert word["era_reflexes"]["middle-english"] == [
+        # 'ham' resolved to source='cluster' (fam_b's reading wins).
+        {"form": "ham", "source": "cluster"},
+        # 'hamm' carries fam_a's cluster.
+        {"form": "hamm", "source": "cluster"},
+        # 'home' carries fam_b's descent.
+        {"form": "home", "source": "descent"},
+    ]
+
+
 def test_kenning_rewind_generator_renders_three_era_stops() -> None:
     """End-to-end Generator class smoke: KenningRewind.generate_all
     returns one GenerationResult per English-family era stop

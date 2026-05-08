@@ -5905,15 +5905,7 @@ def _fetch_root_era_reflexes(
         best: dict[str, str] = {}
         for r in reflexes:
             existing = best.get(r.form)
-            new_priority = _ERA_REFLEX_SOURCE_PRIORITY.get(
-                r.source, _ERA_REFLEX_SOURCE_DEFAULT_PRIORITY
-            )
-            existing_priority = (
-                _ERA_REFLEX_SOURCE_PRIORITY.get(existing, _ERA_REFLEX_SOURCE_DEFAULT_PRIORITY)
-                if existing is not None
-                else _ERA_REFLEX_SOURCE_DEFAULT_PRIORITY + 1
-            )
-            if existing is None or new_priority < existing_priority:
+            if existing is None or _better_era_reflex_source(r.source, existing):
                 best[r.form] = r.source
         out[target_language] = [{"form": form, "source": best[form]} for form in sorted(best)]
     return out
@@ -5931,6 +5923,19 @@ _ERA_REFLEX_SOURCE_PRIORITY: dict[str, int] = {
     "phonology-rule:v1": 3,
 }
 _ERA_REFLEX_SOURCE_DEFAULT_PRIORITY: int = 2
+
+
+def _better_era_reflex_source(candidate: str, current: str) -> bool:
+    """True iff ``candidate`` outranks ``current`` per the era-reflex
+    source priority. Used to resolve same-form collisions in both
+    ``_fetch_root_era_reflexes`` (per-tier dedupe) and
+    ``_emit_era_reflexes`` (cross-family merge). Unknown sources fall
+    through to default priority on both sides — the comparison stays
+    well-defined and a new tier doesn't silently win or lose against
+    everything."""
+    return _ERA_REFLEX_SOURCE_PRIORITY.get(
+        candidate, _ERA_REFLEX_SOURCE_DEFAULT_PRIORITY
+    ) < _ERA_REFLEX_SOURCE_PRIORITY.get(current, _ERA_REFLEX_SOURCE_DEFAULT_PRIORITY)
 
 
 def _build_forms_by_lang(root_row: Any, member_rows: list[Any]) -> dict[str, list[str]]:
@@ -6402,15 +6407,7 @@ def _emit_era_reflexes(
                 form = entry["form"]
                 source = entry["source"]
                 existing = bucket.get(form)
-                new_priority = _ERA_REFLEX_SOURCE_PRIORITY.get(
-                    source, _ERA_REFLEX_SOURCE_DEFAULT_PRIORITY
-                )
-                existing_priority = (
-                    _ERA_REFLEX_SOURCE_PRIORITY.get(existing, _ERA_REFLEX_SOURCE_DEFAULT_PRIORITY)
-                    if existing is not None
-                    else _ERA_REFLEX_SOURCE_DEFAULT_PRIORITY + 1
-                )
-                if existing is None or new_priority < existing_priority:
+                if existing is None or _better_era_reflex_source(source, existing):
                     bucket[form] = source
     if merged:
         word["era_reflexes"] = {
