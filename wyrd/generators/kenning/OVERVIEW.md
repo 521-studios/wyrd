@@ -269,6 +269,51 @@ morpheme.
 Procedure for running a fresh mine — `INGESTION.md` "Mining the
 wyrd-ami fantasy-name corpus".
 
+## Time-aware era-reflex infrastructure (D33)
+
+Renders the same etymon at multiple historical strata. Spans
+authoring (mining + projection) and runtime (CLI + SPA). Three
+generators currently surface the temporal-axis story:
+
+- `kenning` — main town-name generator. `--era` filters the
+  morpheme inventory by attestation period (D5-2 / D5-3).
+- `kenning-explain` — decompose a name into morphemes, every
+  reading.
+- **`kenning-rewind`** (Phase 3.1 / 3.3) — render a name at multiple
+  era stops (oe-late / me / modern). CLI: `wyrd kenning rewind
+  <name>`. SPA: `KenningRewind` Generator class. Reads era data
+  from the bundle (`Meaning.era_reflex_for(target_language)`).
+
+The single primitive every consumer reads is
+`lexicon.etymon_era_reflexes(etymon_id, target_language=...)`,
+which walks three lookup tiers in order:
+
+1. **Cognate cluster** (D27 + D28) — cluster mates of the target
+   language. ~24% of OE toponym etymons today.
+2. **Direct descent fallback** — immediate-children walk via
+   inheritance + borrowing edges, +4% coverage.
+3. **Period-form projection** (`etymon_period_form`) — Phase 3.3.
+   Per-etymon period forms projected from `toponym_attestation`
+   rows via suffix-anchoring against the last morpheme's known
+   reflexes.
+
+Two new authoring stages feed the data:
+
+- `lexicon mine-attestations` — extracts `(form, year)` pairs from
+  `toponym_etymology.notes` into `toponym_attestation`. 1,476 rows
+  on the live DB.
+- `lexicon project-period-forms` — segments historical compounds
+  via suffix-anchoring; writes `etymon_period_form` rows. 755
+  projected rows; ~85-90% precision on a 40-row spot-check.
+
+Coverage closure via the orthogonal phonological-rules path
+(wyrd-4i6) is deferred. Bundle re-emit is the dependency for the
+SPA `KenningRewind` to surface era reflexes; until then the SPA
+falls back to the morpheme's modern canonical (still functional,
+no era progression visible). Deploy ticket: `wyrd-j43l`.
+
+Full design: `DECISIONS.md` D33.
+
 ## Where we are right now
 
 For the live snapshot, run:
@@ -394,18 +439,47 @@ unblocks Gemini Tier-2 review on non-Celtic Haiku-mined books
 `mine-llm --concurrency N` (wyrd-l0r, PR #62) and the
 filter_for_tag PYTHONHASHSEED bit-stability fix (wyrd-8ga, PR #60).
 
+**Recent infrastructure (2026-05-07)**: time-aware era-reflex
+infrastructure (D33; wyrd-skm + wyrd-rni + Phase 3.3 epic
+wyrd-lm5m). The `etymon_era_reflexes` primitive (PR #110) is the
+single lookup every consumer reads — three tiers (cognate cluster
+→ direct descent → period-form projection) returning cluster mates
+of a target era. Authoring stages added: `lexicon mine-attestations`
+(PR #108) extracts dated historical spellings from
+`toponym_etymology.notes` into `toponym_attestation` (1,476 rows
+live); `lexicon project-period-forms` (PR #118) segments compounds
+via suffix-anchoring into `etymon_period_form` (755 rows; ~85-90%
+precision). Runtime surfaces: `wyrd kenning rewind <name>` CLI
+(PR #114) and the bundled `KenningRewind` Generator class
+(PR #122) backed by per-Meaning `era_reflexes` data computed at
+bundle-build time. Phase 3.3 cleanups (PRs #116-118) shipped
+test-imports cleanup, source-attribution-chain FP filter, and
+the projection algorithm; PR #122 added the SPA bundle plumbing
++ `Meaning.era_reflex_for(target_language)` accessor. Bundle
+re-emit pending (deploy ticket wyrd-j43l) before SPA renders era
+progressions.
+
+The Phase 3.2 sibling demo (`wyrd-381` stratified era-map) is
+still open; designed to consume the same primitive but with a
+denser ladder. The `EraReflexProvider` protocol abstraction
+(filed at wyrd-obpw P3.3 close) is deliberately deferred until
+wyrd-381 forces a second consumer.
+
 Five cultures: `english`, `scottish`, `welsh`, `irish`, **`breton`**.
 The breton register was added with a 1214-commune corpus pulled from
 Wikidata (CC0); morpheme corpus expansion still pending — wyrd-fmg.
 
 ## Pointers to the other docs
 
-- **`DECISIONS.md`** — D1–D30, the architectural decisions and their
+- **`DECISIONS.md`** — D1–D33, the architectural decisions and their
   rationale. Read individual entries when you're about to change
   something they touch. Don't try to read all of it linearly. Latest
   additions: D27 (etymological descent graph), D28 (cognate vs
   meaning_synset axes), D29 (trie-indexed segmentation DAG matcher),
-  D30 (wyrd-ami fantasy-name pipeline as sibling); D5-3 and D17 have
+  D30 (wyrd-ami fantasy-name pipeline as sibling), D31 (wyrd-ha9q
+  multi-script renderings), D32 (wyrd-lr4 within-language stratum
+  tagging), **D33 (time-aware era-reflex picker + period-form
+  projection + `KenningRewind` SPA generator)**; D5-3 and D17 have
   refinements covering the era runtime filter (wyrd-lyp) and cohesion
   knob (wyrd-mj2).
 - **`INGESTION.md`** — the procedure manual: how to add a new source,
