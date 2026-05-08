@@ -3664,7 +3664,13 @@ def etymon_era_reflexes(
         if target_language is None:
             return []
 
-    row = db.conn.execute("SELECT cognate_id FROM etymon WHERE id = ?", (etymon_id,)).fetchone()
+    # Fetch every etymon column we'll need across all four tiers in
+    # one round-trip — Tier 4 also reads canonical_form + language, so
+    # a second SELECT later would be wasteful.
+    row = db.conn.execute(
+        "SELECT cognate_id, canonical_form, language FROM etymon WHERE id = ?",
+        (etymon_id,),
+    ).fetchone()
     if row is None:
         return []
 
@@ -3764,23 +3770,18 @@ def etymon_era_reflexes(
     # mining evidence behind it), so callers can distinguish via
     # ``source == 'phonology-rule:v1'``.
     if not results:
-        row = db.conn.execute(
-            "SELECT canonical_form, language FROM etymon WHERE id = ?",
-            (etymon_id,),
-        ).fetchone()
-        if row is not None:
-            phon_form = _phonology_rule_form(
-                row["canonical_form"], row["language"], target_language
-            )
-            if phon_form is not None:
-                results.append(
-                    EraReflex(
-                        etymon_id=etymon_id,
-                        form=phon_form,
-                        language=target_language,
-                        source="phonology-rule:v1",
-                    )
+        phon_form = _phonology_rule_form(
+            row["canonical_form"], row["language"], target_language
+        )
+        if phon_form is not None:
+            results.append(
+                EraReflex(
+                    etymon_id=etymon_id,
+                    form=phon_form,
+                    language=target_language,
+                    source="phonology-rule:v1",
                 )
+            )
 
     return results
 
