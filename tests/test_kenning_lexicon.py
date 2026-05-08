@@ -6170,6 +6170,50 @@ def test_derive_lemma_candidate_welsh_specific_before_general() -> None:
     assert derive_lemma_candidate("llysiau", "welsh") == ("llys", "plural")
 
 
+def test_derive_lemma_candidate_strips_old_french_inflections() -> None:
+    """wyrd-rc0b Phase 1: Old French feminine-plural / oblique -es.
+    Conservative subset — bare -s is too generic. Pin the -es rule
+    so a future edit that drops it surfaces."""
+    # cisoires → cisoir (feminine plural)
+    assert derive_lemma_candidate("cisoires", "old-french") == (
+        "cisoir",
+        "feminine_plural",
+    )
+
+
+def test_derive_lemma_candidate_strips_middle_english_inflections() -> None:
+    """wyrd-rc0b Phase 1: Middle English -en (weak plural) and -es
+    (plural / genitive singular). Pin both rules + their order so a
+    future edit can't silently flip them."""
+    # -en weak plural: oxen → ox (BUT ox is 2 chars, fails min-stem;
+    # use a longer stem: salten → salt)
+    assert derive_lemma_candidate("salten", "middle-english") == ("salt", "plural")
+    # -es plural / genitive: kynges → kyng
+    assert derive_lemma_candidate("kynges", "middle-english") == (
+        "kyng",
+        "genitive_or_plural",
+    )
+
+
+def test_derive_lemma_candidate_strips_norman_french_inflections() -> None:
+    """wyrd-rc0b Phase 1: Norman French shares the OF -es shape.
+    Live corpus is tiny (70 etymons) but the rule path is pinned for
+    when more NF rows are mined."""
+    assert derive_lemma_candidate("dames", "norman-french") == (
+        "dam",
+        "feminine_plural",
+    )
+
+
+def test_derive_lemma_candidate_old_french_skips_bare_s() -> None:
+    """The Phase-1 OF rule list deliberately omits bare -s — many OF
+    lemmas end in -s naturally ('pres', 'fois'). Pin: 'pres' should
+    NOT strip to 'pre'. The absence of -s in the rule list is a
+    deliberate precision-vs-recall trade-off."""
+    assert derive_lemma_candidate("pres", "old-french") is None
+    assert derive_lemma_candidate("fois", "old-french") is None
+
+
 def test_derive_lemma_candidate_welsh_skips_excluded_suffixes() -> None:
     """The Phase-1 rule list deliberately omits -af / -au / -ydd /
     -aint per the false-positive-rate audit. Pin: 'gaeaf' (winter,
