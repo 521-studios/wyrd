@@ -2094,6 +2094,130 @@ def get_meaning_preserving_candidates(
     )
 
 
+# wyrd-jott Phase 1: Goidelic initial-mutation rules (séimhiú = lenition,
+# urú = eclipsis). UNLIKE the suffix-strip rules in INFLECTION_RULES,
+# these strip from the START of the form because Irish / Scottish
+# Gaelic / Old Irish mark grammatical mutation by prepending or
+# transforming the initial consonant.
+#
+# Each rule is ``(prefix, replacement, label)``:
+#   - ``prefix`` is what to look for at the start of the inflected form
+#   - ``replacement`` is the first character of the unmutated lemma
+#   - ``label`` describes the mutation
+#
+# Example: 'mboga' (eclipsis of 'b' → 'mb' prefix) → strip 'mb', prepend
+# 'b' → 'boga'.
+#
+# CONSERVATIVE SUBSET: ch- and th- (lenition of c-/t-) are DELIBERATELY
+# OMITTED. Both are also real digraph-initial Irish lemmas (chéile,
+# cheap, cheart; thart, thiar, thuas) so the strip rule produces too
+# many false positives. The remaining lenition rules cover m-, b-, d-,
+# g-, p-, f-, s- which rarely have the lenited digraph as a true
+# lemma-initial spelling. Eclipsis rules are unambiguous (the eclipsing
+# digraphs are never real word-initial sequences in Goidelic).
+#
+# h-prefix (vowel-initial mutation) and t-prefix are also OMITTED for
+# false-positive risk — many real Irish lemmas start with h- (loans
+# like 'hata' 'hat') or t- (typical lemma initials).
+
+MUTATION_RULES: dict[str, list[tuple[str, str, str]]] = {
+    "irish": [
+        # Eclipsis (urú) — unambiguous, always grammatical mutation.
+        ("bhf", "f", "eclipsis"),  # longest first; bhf- before bh- below
+        ("mb", "b", "eclipsis"),
+        ("gc", "c", "eclipsis"),
+        ("nd", "d", "eclipsis"),
+        ("ng", "g", "eclipsis"),
+        ("bp", "p", "eclipsis"),
+        ("dt", "t", "eclipsis"),
+        # Lenition (séimhiú) — safe subset (skip ch-/th-).
+        ("mh", "m", "lenition"),
+        ("bh", "b", "lenition"),
+        ("dh", "d", "lenition"),
+        ("gh", "g", "lenition"),
+        ("ph", "p", "lenition"),
+        ("fh", "f", "lenition"),
+        ("sh", "s", "lenition"),
+    ],
+    "old-irish": [
+        ("bhf", "f", "eclipsis"),
+        ("mb", "b", "eclipsis"),
+        ("gc", "c", "eclipsis"),
+        ("nd", "d", "eclipsis"),
+        ("ng", "g", "eclipsis"),
+        ("bp", "p", "eclipsis"),
+        ("dt", "t", "eclipsis"),
+        ("mh", "m", "lenition"),
+        ("bh", "b", "lenition"),
+        ("dh", "d", "lenition"),
+        ("gh", "g", "lenition"),
+        ("ph", "p", "lenition"),
+        ("fh", "f", "lenition"),
+        ("sh", "s", "lenition"),
+    ],
+    "middle-irish": [
+        ("bhf", "f", "eclipsis"),
+        ("mb", "b", "eclipsis"),
+        ("gc", "c", "eclipsis"),
+        ("nd", "d", "eclipsis"),
+        ("ng", "g", "eclipsis"),
+        ("bp", "p", "eclipsis"),
+        ("dt", "t", "eclipsis"),
+        ("mh", "m", "lenition"),
+        ("bh", "b", "lenition"),
+        ("dh", "d", "lenition"),
+        ("gh", "g", "lenition"),
+        ("ph", "p", "lenition"),
+        ("fh", "f", "lenition"),
+        ("sh", "s", "lenition"),
+    ],
+    "scottish-gaelic": [
+        ("bhf", "f", "eclipsis"),
+        ("mb", "b", "eclipsis"),
+        ("gc", "c", "eclipsis"),
+        ("nd", "d", "eclipsis"),
+        ("ng", "g", "eclipsis"),
+        ("bp", "p", "eclipsis"),
+        ("dt", "t", "eclipsis"),
+        ("mh", "m", "lenition"),
+        ("bh", "b", "lenition"),
+        ("dh", "d", "lenition"),
+        ("gh", "g", "lenition"),
+        ("ph", "p", "lenition"),
+        ("fh", "f", "lenition"),
+        ("sh", "s", "lenition"),
+    ],
+}
+
+
+def derive_mutation_lemma_candidate(inflected_form: str, language: str) -> tuple[str, str] | None:
+    """wyrd-jott: Goidelic-specific lemma-derivation via initial-
+    mutation prefix stripping. Mirror of ``derive_lemma_candidate``
+    but for prefix-shaped morphology rather than suffix.
+
+    Returns ``(lemma_form, mutation_label)`` or None. Conservative:
+    requires the resulting lemma to be at least 3 characters (same
+    floor as the suffix path).
+
+    Walks ``MUTATION_RULES[language]`` in declared order; the
+    longest-prefix-first ordering means 'bhf' (eclipsis of f-) wins
+    over 'bh' (lenition of b-) when both could match. Returns the
+    first hit; if no rule fires, returns None.
+    """
+    if not inflected_form:
+        return None
+    rules = MUTATION_RULES.get(language, [])
+    s = inflected_form.lower()
+    for prefix, replacement, label in rules:
+        if not s.startswith(prefix):
+            continue
+        stem = replacement + s[len(prefix) :]
+        if len(stem) < 3:
+            continue
+        return stem, label
+    return None
+
+
 def derive_lemma_candidate(inflected_form: str, language: str) -> tuple[str, str] | None:
     """Try to identify the lemma form for an inflected etymon by stripping
     a known inflectional suffix.
@@ -2143,7 +2267,15 @@ def link_lemmas(db: LexiconDB, *, apply: bool = False) -> dict:
     proposed: list[dict] = []
     inflected_rows = candidate_rows
     for row in inflected_rows:
+        # Try suffix-strip first (INFLECTION_RULES); fall through to
+        # mutation prefix-strip for Goidelic (MUTATION_RULES). Both
+        # produce the same (lemma_form, label) shape; either resolves
+        # to the same lemma_id lookup. Suffix-first because suffix
+        # rules are universally available across the registered
+        # languages, while mutation is Goidelic-only.
         match = derive_lemma_candidate(row["canonical_form"], row["language"])
+        if match is None:
+            match = derive_mutation_lemma_candidate(row["canonical_form"], row["language"])
         if match is None:
             continue
         lemma_form, inflection = match
