@@ -3666,38 +3666,31 @@ def etymon_era_reflexes(
     across PYTHONHASHSEED — callers that depend on first-row
     stability get the alphabetically-first reflex.
 
-    **Three lookup paths** in order of precedence:
+    **Four lookup tiers** in order of precedence — each is its own
+    helper (``_tier1_cluster_reflexes`` etc.) that this dispatcher
+    composes. Tiers 1 + 2 are ALTERNATES (cluster wins when
+    ``cognate_id`` is set; otherwise descent fires). Tiers 3 + 4
+    are sequential FALLBACKS (each runs only if every prior tier
+    returned empty).
 
-    1. **Cognate cluster** — when the etymon has ``cognate_id`` set
-       (D27/D28 cluster_cognates output), select cluster mates of
-       the target language. ~24% of OE toponym etymons have a
-       cluster_id today; this is the high-quality path.
-    2. **Direct descent edges** — when ``cognate_id`` is NULL but
-       the etymon has ``etymon_descent`` rows, walk the immediate
-       descendants and pick those tagged with the target language.
-       Smaller boost (~4% of OE toponym etymons).
-    3. **Period-form projection** (wyrd-unuo Phase 3.3) — when both
-       cluster and descent paths return empty AND
-       ``target_family_cell`` is set, query ``etymon_period_form``
-       for projected period forms whose ``date_year`` falls in the
-       cell's year range. Closes the ~72% coverage gap for isolated
-       OE etymons (no cognate_id, no descent edges) when the
-       toponym_attestation projection has run. Tier 3 results carry
-       ``etymon_id == etymon_id`` (the queried etymon — the projected
-       period form IS attached to that etymon row) and the cell's
-       canonical language tag (since ``etymon_period_form`` rows
-       don't carry an explicit language; the language is implicit
-       from the cell's range).
+    1. **Cognate cluster** (D27/D28) — cluster mates of the target
+       language. ~24% of OE toponym etymons. High-quality path.
+    2. **Direct descent edges** — immediate inheritance / borrowing
+       children of the target language. ~4% of OE toponym etymons.
+    3. **Period-form projection** (wyrd-unuo Phase 3.3) — projected
+       forms from ``etymon_period_form`` whose ``date_year`` falls
+       in the target cell's year range. Requires
+       ``target_family_cell``. Closes the ~72% coverage gap for
+       isolated OE etymons.
+    4. **Phonology rule** (wyrd-98cs) — derives the target-era form
+       via phonology_rules.apply_rules forward / inverse cell walks.
+       Lower precision (no mining evidence); reflexes carry
+       ``source='phonology-rule:v1'`` so consumers can mark inferred
+       forms differently from attested ones.
 
     Reflexes are filtered to ``merged_into_id IS NULL`` so OCR-
-    cluster losers (D22) don't surface as period forms; the merge
-    target is the canonical reflex for that surface.
-
-    Coverage gap remaining: etymons with no cognate_id, no descent
-    edges, and no period-form projection (typically because their
-    parent toponym wasn't binary-decomposable or the suffix-anchor
-    algorithm couldn't align the historical form). The orthogonal
-    path is phonological-rule fallback (wyrd-4i6).
+    cluster losers (D22) don't surface; the merge target is the
+    canonical reflex for that surface.
     """
     # Defensive guard: exactly ONE target must be provided. An
     # empty-string ``target_language`` would silently slip the
@@ -3726,114 +3719,153 @@ def etymon_era_reflexes(
     if row is None:
         return []
 
-    tier_source: str
+    # Tier 1 + Tier 2 are alternates — cognate cluster wins when the
+    # etymon has cognate_id; otherwise descent edges. The "first
+    # non-empty wins" pattern doesn't apply here; we pick exactly one.
     if row["cognate_id"] is not None:
-        # Path 1: cluster-mates query.
-        cur = db.conn.execute(
-            "SELECT id, canonical_form, language FROM etymon "
-            "WHERE cognate_id = ? AND language = ? AND merged_into_id IS NULL "
-            "ORDER BY canonical_form",
-            (row["cognate_id"], target_language),
-        )
-        tier_source = "cluster"
+        results = _tier1_cluster_reflexes(db, row["cognate_id"], target_language)
     else:
-        # Path 2: direct descent fallback. Only walks immediate
-        # children — deeper traversal would re-implement
-        # cluster_cognates and risks pulling in cognate-edge peers
-        # whose precision we don't trust at v1. Inheritance +
-        # borrowing edges only, per D27's bridging-edge convention.
-        cur = db.conn.execute(
-            "SELECT DISTINCT child.id, child.canonical_form, child.language "
-            "FROM etymon_descent ed "
-            "JOIN etymon child ON ed.child_id = child.id "
-            "WHERE ed.parent_id = ? "
-            "  AND ed.edge_type IN ('inheritance', 'borrowing') "
-            "  AND child.language = ? "
-            "  AND child.merged_into_id IS NULL "
-            "ORDER BY child.canonical_form",
-            (etymon_id, target_language),
-        )
-        tier_source = "descent"
+        results = _tier2_descent_reflexes(db, etymon_id, target_language)
 
-    results = [
+    # Tier 3 + Tier 4 are sequential fallbacks: each runs only if the
+    # prior tier produced nothing. Both surface lower-confidence data
+    # so we'd rather return cluster/descent reflexes alone when they
+    # exist.
+    if not results and target_family_cell is not None:
+        results = _tier3_period_form_reflexes(db, etymon_id, target_language, target_family_cell)
+    if not results:
+        results = _tier4_phonology_reflexes(
+            etymon_id, row["canonical_form"], row["language"], target_language
+        )
+
+    return results
+
+
+def _tier1_cluster_reflexes(
+    db: LexiconDB, cognate_id: int, target_language: str
+) -> list[EraReflex]:
+    """Tier 1: cluster-mates query. Selects every etymon sharing
+    ``cognate_id`` whose language matches the target. Highest-quality
+    reflex source — backed by the D27/D28 cluster_cognates output."""
+    cur = db.conn.execute(
+        "SELECT id, canonical_form, language FROM etymon "
+        "WHERE cognate_id = ? AND language = ? AND merged_into_id IS NULL "
+        "ORDER BY canonical_form",
+        (cognate_id, target_language),
+    )
+    return [
         EraReflex(
             etymon_id=r["id"],
             form=r["canonical_form"],
             language=r["language"],
-            source=tier_source,
+            source="cluster",
         )
         for r in cur
     ]
 
-    # Path 3: period-form projection fallback (wyrd-unuo Phase 3.3).
-    # Only runs when:
-    # (a) Tier 1 + 2 produced no reflexes
-    # (b) target_family_cell is set (so we have a year range)
-    # (c) the cell has a year range (some open-ended cells have
-    #     start=None / end=None; we only query the closed bounds)
-    #
-    # Joins against ``etymon`` to filter ``merged_into_id IS NULL``
-    # — same OCR-tombstone filter Tiers 1 + 2 enforce. A loser
-    # etymon's projected period-form rows shouldn't surface as
-    # reflexes; the merge winner is the canonical voice for that
-    # surface.
-    if not results and target_family_cell is not None:
-        family, cell = target_family_cell
-        try:
-            start, end = era_year_range(family, cell)
-        except KeyError:
-            return results
-        # Build year-range filter; treat None bounds as "open on
-        # that side" (no constraint).
-        clauses = ["pf.etymon_id = ?", "e.merged_into_id IS NULL"]
-        params: list[int] = [etymon_id]
-        if start is not None:
-            clauses.append("pf.date_year >= ?")
-            params.append(start)
-        if end is not None:
-            clauses.append("pf.date_year < ?")
-            params.append(end)
-        cur = db.conn.execute(
-            f"""
-            SELECT DISTINCT pf.form, MIN(pf.date_year) AS year
-            FROM etymon_period_form pf
-            JOIN etymon e ON e.id = pf.etymon_id
-            WHERE {" AND ".join(clauses)}
-            GROUP BY pf.form
-            ORDER BY pf.form
-            """,
-            params,
+
+def _tier2_descent_reflexes(db: LexiconDB, etymon_id: int, target_language: str) -> list[EraReflex]:
+    """Tier 2: direct descent fallback. Only walks immediate children
+    via inheritance / borrowing edges (peer 'cognate' edges excluded
+    — too loose for v1 era-rendering). Deeper traversal would re-
+    implement cluster_cognates."""
+    cur = db.conn.execute(
+        "SELECT DISTINCT child.id, child.canonical_form, child.language "
+        "FROM etymon_descent ed "
+        "JOIN etymon child ON ed.child_id = child.id "
+        "WHERE ed.parent_id = ? "
+        "  AND ed.edge_type IN ('inheritance', 'borrowing') "
+        "  AND child.language = ? "
+        "  AND child.merged_into_id IS NULL "
+        "ORDER BY child.canonical_form",
+        (etymon_id, target_language),
+    )
+    return [
+        EraReflex(
+            etymon_id=r["id"],
+            form=r["canonical_form"],
+            language=r["language"],
+            source="descent",
         )
-        for r in cur:
-            results.append(
-                EraReflex(
-                    etymon_id=etymon_id,
-                    form=r["form"],
-                    language=target_language,
-                    source="period-form",
-                )
-            )
+        for r in cur
+    ]
 
-    # Path 4: phonology-rule fallback (wyrd-98cs). Last resort when no
-    # attested data covers the target era. Walks the registered sound-
-    # change cells (phonology_rules.py: OE→ME, ME→EModE, EModE→ModE,
-    # OW→ModW) forward or inverse to derive a target-era form from the
-    # etymon's canonical_form. Lower precision than Tier 1-3 (no
-    # mining evidence behind it), so callers can distinguish via
-    # ``source == 'phonology-rule:v1'``.
-    if not results:
-        phon_form = _phonology_rule_form(row["canonical_form"], row["language"], target_language)
-        if phon_form is not None:
-            results.append(
-                EraReflex(
-                    etymon_id=etymon_id,
-                    form=phon_form,
-                    language=target_language,
-                    source="phonology-rule:v1",
-                )
-            )
 
-    return results
+def _tier3_period_form_reflexes(
+    db: LexiconDB,
+    etymon_id: int,
+    target_language: str,
+    target_family_cell: tuple[str, str],
+) -> list[EraReflex]:
+    """Tier 3: period-form projection (wyrd-unuo Phase 3.3). Queries
+    ``etymon_period_form`` for projected period forms whose
+    ``date_year`` falls in the cell's year range. Returns empty when
+    the cell has no registered range. Joins against ``etymon`` to
+    filter ``merged_into_id IS NULL`` — OCR-cluster losers' projected
+    period forms don't surface; the merge winner is the canonical
+    voice for that surface."""
+    family, cell = target_family_cell
+    try:
+        start, end = era_year_range(family, cell)
+    except KeyError:
+        return []
+    # Build year-range filter; treat None bounds as "open on that
+    # side" (no constraint).
+    clauses = ["pf.etymon_id = ?", "e.merged_into_id IS NULL"]
+    params: list[int] = [etymon_id]
+    if start is not None:
+        clauses.append("pf.date_year >= ?")
+        params.append(start)
+    if end is not None:
+        clauses.append("pf.date_year < ?")
+        params.append(end)
+    cur = db.conn.execute(
+        f"""
+        SELECT DISTINCT pf.form, MIN(pf.date_year) AS year
+        FROM etymon_period_form pf
+        JOIN etymon e ON e.id = pf.etymon_id
+        WHERE {" AND ".join(clauses)}
+        GROUP BY pf.form
+        ORDER BY pf.form
+        """,
+        params,
+    )
+    return [
+        EraReflex(
+            etymon_id=etymon_id,
+            form=r["form"],
+            language=target_language,
+            source="period-form",
+        )
+        for r in cur
+    ]
+
+
+def _tier4_phonology_reflexes(
+    etymon_id: int,
+    canonical_form: str,
+    source_language: str,
+    target_language: str,
+) -> list[EraReflex]:
+    """Tier 4: phonology-rule fallback (wyrd-98cs). Walks the
+    registered sound-change cells (phonology_rules.py: OE→ME,
+    ME→EModE, EModE→ModE, OW→ModW) forward or inverse to derive a
+    target-era form from ``canonical_form``. Lower precision than
+    Tier 1-3 (no mining evidence behind it), so the resulting
+    EraReflex carries ``source='phonology-rule:v1'`` for callers
+    that want to mark inferred forms differently. Returns empty when
+    no rule fires (the form passes through unchanged)."""
+    phon_form = _phonology_rule_form(canonical_form, source_language, target_language)
+    if phon_form is None:
+        return []
+    return [
+        EraReflex(
+            etymon_id=etymon_id,
+            form=phon_form,
+            language=target_language,
+            source="phonology-rule:v1",
+        )
+    ]
 
 
 # --- wyrd-98cs: phonology-rule Tier 4 fallback ---------------------------
