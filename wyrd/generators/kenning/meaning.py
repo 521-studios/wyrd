@@ -213,16 +213,20 @@ class Meaning:
         # without a Phase 1 classifier, for unclassified rows in
         # classified languages, and for legacy bundles.
         self.stratum = stratum or {}
-        # wyrd-obpw Phase 3.3: per-target-language era reflexes for
-        # the family root, computed at bundle-build time. Dict
-        # mapping target language tag (``'old-english'`` /
-        # ``'middle-english'`` / etc.) → sorted list of cluster-mate
-        # forms. Empty for legacy bundles, proto-language roots, and
-        # roots whose cluster has no era cells defined for the
-        # target families. The SPA-side rewinder consumes this via
-        # ``era_reflex_for(target_language)`` so it can render era
-        # progressions without the lexicon DB.
-        self.era_reflexes: dict[str, list[str]] = era_reflexes or {}
+        # wyrd-obpw Phase 3.3 + wyrd-jbcu source tag: per-target-
+        # language era reflexes for the family root, computed at
+        # bundle-build time. Internal storage is the rich shape
+        # ``{target_language: [(form, source), ...]}``; ``source`` is
+        # 'cluster' / 'descent' / 'period-form' / 'phonology-rule:v1'.
+        # Legacy bundles (list-of-strings entries) load as (form,
+        # 'cluster') tuples — the safe back-compat default since
+        # everything in the legacy bundle was attestation-backed.
+        # The SPA-side rewinder consumes via
+        # ``era_reflex_for(target_language)`` (forms only, back-compat)
+        # or ``era_reflex_sources_for(target_language)`` (form → source
+        # dict). Empty for legacy proto-language roots and untracked
+        # classical families.
+        self.era_reflexes: dict[str, list[tuple[str, str]]] = era_reflexes or {}
         self._set_location()
 
     def _set_location(self):
@@ -362,13 +366,29 @@ class Meaning:
         ``meaning.usage`` per the rewind convention.
 
         The data is computed at bundle-build time via
-        ``etymon_era_reflexes`` against the family root's
-        cognate-cluster + descent + period-form fallback tiers, so
-        the same precision rules that govern the CLI rewinder apply
-        here. Bundle field: ``era_reflexes`` (dict-shaped at the
-        word top level).
+        ``etymon_era_reflexes`` against the family root's cognate-
+        cluster + descent + period-form + phonology-rule fallback
+        tiers (wyrd-98cs added the phonology tier; wyrd-jbcu wired it
+        through to the bundle). Source-aware consumers can call
+        ``era_reflex_sources_for(target_language)`` to get the
+        ``{form: source}`` mapping instead.
         """
-        return list(self.era_reflexes.get(target_language, ()))
+        return [form for form, _source in self.era_reflexes.get(target_language, ())]
+
+    def era_reflex_sources_for(self, target_language: str) -> dict[str, str]:
+        """wyrd-jbcu: return ``{form: source}`` for ``target_language``,
+        where source is 'cluster' (Tier 1, cognate cluster mate),
+        'descent' (Tier 2, descent edge), 'period-form' (Tier 3,
+        projected period form), or 'phonology-rule:v1' (Tier 4,
+        derived via phonology rules). Empty dict when the family root
+        has no reflexes for that target.
+
+        Source-aware consumers (KenningRewind / KenningEraMap) can
+        render phonology-rule-derived forms differently — e.g. italic
+        with a tooltip — so users know the form is inferred rather
+        than attested. Source-agnostic consumers can keep using
+        ``era_reflex_for`` which returns a forms-only list."""
+        return dict(self.era_reflexes.get(target_language, ()))
 
     def respelling_for(self, form: str, lang_field: str) -> str | None:
         """wyrd-17t: SAMPA-lite respelling of ``form`` in
@@ -560,6 +580,33 @@ def _mimic_case(template: str, variant: str) -> str:
     return variant.lower()
 
 
+def _normalize_era_reflexes(
+    raw: dict,
+) -> dict[str, list[tuple[str, str]]]:
+    """wyrd-jbcu: normalize era_reflexes to the internal
+    ``{lang: [(form, source), ...]}`` shape. Accepts both the legacy
+    ``{lang: [form, ...]}`` shape (entries default to source='cluster'
+    since legacy bundles only carried attestation-backed reflexes)
+    and the new ``{lang: [{form, source}, ...]}`` shape. Skips
+    malformed entries silently rather than crashing — a stray
+    integer or null shouldn't break the entire bundle load."""
+    out: dict[str, list[tuple[str, str]]] = {}
+    if not isinstance(raw, dict):
+        return out
+    for lang, entries in raw.items():
+        if not isinstance(entries, list):
+            continue
+        normalized: list[tuple[str, str]] = []
+        for entry in entries:
+            if isinstance(entry, str):
+                normalized.append((entry, "cluster"))
+            elif isinstance(entry, dict) and "form" in entry:
+                normalized.append((entry["form"], entry.get("source") or "cluster"))
+        if normalized:
+            out[lang] = normalized
+    return out
+
+
 def _bundle_subjects(data) -> list:
     """Extract the subjects list from a meanings.json bundle that may
     be either the legacy list-of-subjects shape or the wyrd-q0g6 dict-
@@ -730,12 +777,15 @@ def load_meanings(data):
             # it represents the family root's cluster reflexes —
             # one set per family, not per source language. Empty for
             # legacy bundles that pre-date the wyrd-obpw export.
+            #
+            # wyrd-jbcu schema upgrade: each entry can be EITHER a
+            # bare form string (legacy bundles, source defaults to
+            # 'cluster' since everything in the legacy bundle was
+            # attestation-backed) OR a {"form": str, "source": str}
+            # dict (new schema). Internal storage is always the rich
+            # (form, source) tuple shape.
             era_reflexes_field = word.get("era_reflexes") or {}
-            # Defensive copy — list values shouldn't be aliased into
-            # downstream Meaning instances since the runtime accessor
-            # returns a new list per call but the underlying dict is
-            # shared.
-            era_reflexes = {k: list(v) for k, v in era_reflexes_field.items()}
+            era_reflexes = _normalize_era_reflexes(era_reflexes_field)
             # Singular and plural Meanings share every constructor arg
             # except `usage`. Bundle them so a future kwarg addition can't
             # silently drop on one branch and not the other.

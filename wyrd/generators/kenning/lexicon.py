@@ -5855,33 +5855,30 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
 
 def _fetch_root_era_reflexes(
     db: LexiconDB, root_id: int, root_language: str
-) -> dict[str, list[str]]:
-    """wyrd-obpw Phase 3.3: per-root era reflexes for bundle export.
+) -> dict[str, list[dict[str, str]]]:
+    """wyrd-obpw Phase 3.3 + wyrd-jbcu source-aware schema: per-root
+    era reflexes for bundle export.
 
     Returns a dict mapping target language tag → sorted list of
-    cluster-mate forms. The SPA-side rewinder consumes this at
-    runtime so it can render era progressions without a Lambda-side
-    lexicon DB.
+    ``{"form": str, "source": str}`` dicts. The SPA-side rewinder
+    consumes this at runtime; ``source`` distinguishes attestation-
+    backed reflexes ('cluster' / 'descent' / 'period-form') from
+    phonology-rule-derived ones ('phonology-rule:v1') so consumers
+    can render inferred forms differently if they want to.
 
     For each language tag in ``CANONICAL_LANGUAGE_FOR_CELL`` of the
     root's family, calls ``etymon_era_reflexes`` and collects the
-    forms. Empty languages are omitted (no entry in the returned
-    dict). Returns ``{}`` when:
+    forms. When the same form arrives via multiple tiers (cluster
+    mate AND a phonology rule that landed on the same surface), the
+    higher-quality source wins per ``_ERA_REFLEX_SOURCE_PRIORITY``.
+
+    Empty languages are omitted (no entry in the returned dict).
+    Returns ``{}`` when:
 
     * the root's language has no era family (proto-languages,
       untracked classical languages),
-    * no cluster mates / descent edges / period-form rows match any
-      target language.
-
-    **Tier 4 (phonology rule) reflexes are filtered out at bundle-
-    build time** (wyrd-98cs follow-up wyrd-jbcu). The bundle's
-    current ``era_reflexes: {lang: [forms]}`` schema doesn't carry
-    the per-form source tag, so phonology-derived inferred forms
-    would reach the SPA indistinguishable from human-vetted Tier 1
-    cluster mates. Keeping the bundle high-confidence (Tier 1-3)
-    until the schema is upgraded to ``{lang: [{form, source}]}``.
-    Tier 4 still surfaces for direct CLI consumers (``wyrd kenning
-    rewind <name>``) which call ``etymon_era_reflexes`` directly.
+    * no cluster mates / descent edges / period-form rows / phonology
+      rule walks match any target language.
 
     Computed at bundle-build time only — the runtime caller doesn't
     have DB access and reads from the bundle's ``era_reflexes`` field.
@@ -5897,15 +5894,48 @@ def _fetch_root_era_reflexes(
     target_languages: set[str] = {
         lang for (fam, _cell), lang in CANONICAL_LANGUAGE_FOR_CELL.items() if fam == family
     }
-    out: dict[str, list[str]] = {}
+    out: dict[str, list[dict[str, str]]] = {}
     for target_language in sorted(target_languages):
         reflexes = etymon_era_reflexes(db, root_id, target_language=target_language)
-        # Filter Tier 4 (phonology-rule) out of the bundle export —
-        # the schema can't distinguish them from Tier 1-3 mates today.
-        attested = [r for r in reflexes if r.source != "phonology-rule:v1"]
-        if attested:
-            out[target_language] = sorted({r.form for r in attested})
+        if not reflexes:
+            continue
+        # Dedupe by form, keeping the highest-quality source on
+        # collision. Same form might surface via cluster (high) and
+        # phonology-rule (low) — prefer the cluster.
+        best: dict[str, str] = {}
+        for r in reflexes:
+            existing = best.get(r.form)
+            if existing is None or _better_era_reflex_source(r.source, existing):
+                best[r.form] = r.source
+        out[target_language] = [{"form": form, "source": best[form]} for form in sorted(best)]
     return out
+
+
+# Lower number = higher quality. Used by _fetch_root_era_reflexes when
+# the same form surfaces via multiple tiers, and by _emit_era_reflexes
+# when multiple linked families contribute the same form. Unknown
+# sources fall through to default priority so a future tier doesn't
+# silently downgrade everything.
+_ERA_REFLEX_SOURCE_PRIORITY: dict[str, int] = {
+    "cluster": 0,
+    "descent": 1,
+    "period-form": 2,
+    "phonology-rule:v1": 3,
+}
+_ERA_REFLEX_SOURCE_DEFAULT_PRIORITY: int = 2
+
+
+def _better_era_reflex_source(candidate: str, current: str) -> bool:
+    """True iff ``candidate`` outranks ``current`` per the era-reflex
+    source priority. Used to resolve same-form collisions in both
+    ``_fetch_root_era_reflexes`` (per-tier dedupe) and
+    ``_emit_era_reflexes`` (cross-family merge). Unknown sources fall
+    through to default priority on both sides — the comparison stays
+    well-defined and a new tier doesn't silently win or lose against
+    everything."""
+    return _ERA_REFLEX_SOURCE_PRIORITY.get(
+        candidate, _ERA_REFLEX_SOURCE_DEFAULT_PRIORITY
+    ) < _ERA_REFLEX_SOURCE_PRIORITY.get(current, _ERA_REFLEX_SOURCE_DEFAULT_PRIORITY)
 
 
 def _build_forms_by_lang(root_row: Any, member_rows: list[Any]) -> dict[str, list[str]]:
@@ -6358,24 +6388,31 @@ def _emit_era_reflexes(
     word: dict[str, Any],
     link_pairs: list[tuple[dict[str, Any], list[int]]],
 ) -> None:
-    """wyrd-obpw Phase 3.3: stamp the family root's era_reflexes onto
-    the word dict. Each linked family contributes its root's per-
-    target-language reflex list; multiple linked families merge by
-    set-union per target language so a word linked to two families
-    gets the cross-family reflex pool.
+    """wyrd-obpw Phase 3.3 + wyrd-jbcu source-aware schema: stamp the
+    family root's era_reflexes onto the word dict. Each linked family
+    contributes its root's per-target-language reflex list; multiple
+    linked families merge per target language with same-form
+    collisions resolved by source quality (higher-quality source wins).
 
-    Bundle field: ``era_reflexes`` is a dict ``{target_language:
-    [forms]}`` per word. Empty / absent for words whose linked
+    Bundle field: ``era_reflexes`` is ``{target_language: [{form,
+    source}, ...]}`` per word. Empty / absent for words whose linked
     families have no era data (proto-languages, untracked classical
     families, or roots whose cluster has no English-family targets).
     """
-    merged: dict[str, set[str]] = {}
+    merged: dict[str, dict[str, str]] = {}
     for fam, _linked_ids in link_pairs:
-        for target_language, forms in fam.get("era_reflexes", {}).items():
-            merged.setdefault(target_language, set()).update(forms)
+        for target_language, entries in fam.get("era_reflexes", {}).items():
+            bucket = merged.setdefault(target_language, {})
+            for entry in entries:
+                form = entry["form"]
+                source = entry["source"]
+                existing = bucket.get(form)
+                if existing is None or _better_era_reflex_source(source, existing):
+                    bucket[form] = source
     if merged:
         word["era_reflexes"] = {
-            target_language: sorted(forms) for target_language, forms in sorted(merged.items())
+            target_language: [{"form": form, "source": forms[form]} for form in sorted(forms)]
+            for target_language, forms in sorted(merged.items())
         }
 
 
