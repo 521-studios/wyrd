@@ -3840,6 +3840,90 @@ def test_meaning_respelling_for_delegates_to_module() -> None:
     assert m.respelling_for("", "old-english") is None
 
 
+# --- wyrd-y10: alternate-script transliteration ---------------------------
+
+
+def test_transliterate_shavian_renders_basic_input() -> None:
+    """End-to-end: Shavian transliteration produces plane-1 glyph
+    output for English-orthography input."""
+    from wyrd.generators.kenning.scripts import transliterate
+
+    out = transliterate("Whitchurch", "shavian")
+    assert out
+    # All output codepoints land in the Shavian block (U+10450..U+1047F).
+    assert all(0x10450 <= ord(c) <= 0x1047F for c in out)
+
+
+def test_transliterate_shavian_preserves_hyphens() -> None:
+    """Hyphenated compounds keep their structure so 'Pont-Dwfr'
+    renders as two glyph runs separated by a hyphen."""
+    from wyrd.generators.kenning.scripts import transliterate
+
+    out = transliterate("Pont-Dwfr", "shavian")
+    assert "-" in out
+    parts = out.split("-")
+    assert len(parts) == 2
+    assert all(parts)
+
+
+def test_transliterate_shavian_handles_digraphs() -> None:
+    """Digraph rules fire before single-char so 'ch' produces a
+    single ch-glyph (not separate c+h glyphs). Glyph-count for
+    'church' should be smaller than its 6-char input length."""
+    from wyrd.generators.kenning.scripts import transliterate
+
+    out_church = transliterate("church", "shavian")
+    assert len(out_church) < len("church")
+
+
+def test_transliterate_empty_returns_empty() -> None:
+    from wyrd.generators.kenning.scripts import transliterate
+
+    assert transliterate("", "shavian") == ""
+
+
+def test_transliterate_unknown_script_raises() -> None:
+    """Defensive: unknown script raises ValueError with the
+    supported-list in the message so SPA / CLI surface immediately
+    rather than silently passing input through."""
+    from wyrd.generators.kenning.scripts import transliterate
+
+    with pytest.raises(ValueError, match="unsupported script"):
+        transliterate("hello", "klingon")
+
+
+def test_kenning_render_generator_produces_shavian() -> None:
+    """End-to-end Generator smoke: KenningRender renders Shavian
+    and returns it as a GenerationResult."""
+    from wyrd.generators.kenning import KenningRender
+
+    gen = KenningRender()
+    result = gen.generate({"name": "Bradford", "script": "shavian"}, 0)
+    assert result.result
+    assert all(0x10450 <= ord(c) <= 0x1047F for c in result.result)
+
+
+def test_kenning_render_generator_defaults_to_shavian() -> None:
+    """When ``script`` isn't passed, the generator falls back to
+    Shavian (the default per input_schema)."""
+    from wyrd.generators.kenning import KenningRender
+
+    gen = KenningRender()
+    result = gen.generate({"name": "Bradford"}, 0)
+    assert result.components[0]["script"] == "shavian"
+
+
+def test_kenning_render_generator_raises_on_empty_input() -> None:
+    """Defensive: empty / whitespace-only input raises ValueError."""
+    from wyrd.generators.kenning import KenningRender
+
+    gen = KenningRender()
+    with pytest.raises(ValueError, match="name is required"):
+        gen.generate({"name": ""}, 0)
+    with pytest.raises(ValueError, match="name is required"):
+        gen.generate({"name": "  "}, 0)
+
+
 def test_kenning_rewind_components_carry_respelling() -> None:
     """End-to-end: KenningRewind output components include the
     SAMPA-lite respelling when the target language has a respeller.
