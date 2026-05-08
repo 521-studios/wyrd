@@ -58,6 +58,7 @@ from wyrd.generators.kenning.lexicon import (
     cluster_cognates,
     cluster_ocr_variants,
     collect_canonical_decompositions,
+    collect_fantasy_morphemes,
     detect_running_headers,
     etymon_era_reflexes,
     export_meanings,
@@ -908,6 +909,31 @@ def era_map(culture: str, count: int, seed: int, as_json: bool) -> None:
             click.echo(f"  {label:<20} {cell.get('rendered', '?')}")
 
 
+@cli.command("creature")
+@click.argument("name")
+def creature(name: str) -> None:
+    """wyrd-vz7f: surface fantasy-creature etymology from the
+    wyrd-ami pipeline.
+
+    Looks up the creature name in the bundled ``fantasy_morphemes``
+    map (populated by ``lexicon export-meanings`` from the
+    ``fantasy_morpheme`` table). Prints the linked attested ancestor
+    (language, canonical form, glosses, citation) and any era
+    reflexes mined for that etymon's cluster.
+
+    Unknown names return a polite 'not found' rather than erroring,
+    so chaining ``wyrd kenning creature <random>`` against a list
+    is safe.
+    """
+    from wyrd.generators.kenning import KenningCreature
+
+    gen = KenningCreature()
+    result = gen.generate({"name": name}, seed=0)
+    click.echo(result.result)
+    if result.explanation:
+        click.echo(f"  {result.explanation}")
+
+
 @cli.group("lexicon")
 def lexicon() -> None:
     """Manage the authoring lexicon DB (etymology data store)."""
@@ -1304,6 +1330,7 @@ def lexicon_export_meanings(
             include_wiktionary_empirical=include_wiktionary_empirical,
         )
         canonical_decompositions = collect_canonical_decompositions(db)
+        fantasy_morphemes = collect_fantasy_morphemes(db)
 
     joiners: dict[str, list[dict[str, Any]]] = {}
     if joiners_path is not None:
@@ -1311,10 +1338,10 @@ def lexicon_export_meanings(
 
     # wyrd-c1vq: bundle is always dict-shape going forward. The
     # runtime loaders (load_meanings, load_canonical_decompositions,
-    # load_joiners) tolerate both list-shape (legacy) and dict-shape
-    # input, so flipping the default doesn't break consumers; future
-    # field additions just become new keys instead of re-deciding the
-    # shape each time. ``canonical_decompositions`` and ``joiners``
+    # load_joiners, load_fantasy_morphemes) tolerate both list-shape
+    # (legacy) and dict-shape input, so flipping the default doesn't
+    # break consumers; future field additions just become new keys
+    # instead of re-deciding the shape each time. Optional fields
     # only appear when populated so empty-dict noise stays out of the
     # rendered JSON.
     bundle: dict[str, Any] = {"subjects": subjects}
@@ -1322,6 +1349,8 @@ def lexicon_export_meanings(
         bundle["canonical_decompositions"] = canonical_decompositions
     if joiners:
         bundle["joiners"] = joiners
+    if fantasy_morphemes:
+        bundle["fantasy_morphemes"] = fantasy_morphemes
 
     payload = json.dumps(bundle, ensure_ascii=False, indent=2)
     if output_path is None:
@@ -1334,6 +1363,8 @@ def lexicon_export_meanings(
         if joiners:
             joiner_total = sum(len(entries) for entries in joiners.values())
             notes.append(f"{joiner_total} joiners across {len(joiners)} fields")
+        if fantasy_morphemes:
+            notes.append(f"{len(fantasy_morphemes)} fantasy morphemes")
         suffix = " + " + " + ".join(notes) if notes else ""
         click.echo(
             f"Wrote {len(subjects)} subjects{suffix} to {output_path}",

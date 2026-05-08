@@ -652,6 +652,45 @@ def load_canonical_decompositions(data) -> dict[str, dict[str, str]]:
     return out
 
 
+def load_fantasy_morphemes(data) -> dict[str, dict]:
+    """wyrd-vz7f: extract the per-creature fantasy-morpheme map from a
+    bundle for the runtime ``KenningCreature`` Generator.
+
+    Returns ``{lowercase_input_name: {input_name, etymon_id, language,
+    canonical_form, english_shaped, glosses, citation, era_reflexes}}``.
+    Keyed lowercase to match the lexicon's ``fantasy_morpheme.input_name
+    COLLATE NOCASE`` semantics so 'Harpy' and 'harpy' resolve to the
+    same row at runtime.
+
+    Empty for legacy list-shape bundles AND for dict-shape bundles
+    that don't carry a ``fantasy_morphemes`` field. ``era_reflexes``
+    is normalized to the wyrd-jbcu source-aware shape via
+    ``_normalize_era_reflexes`` so KenningCreature can read source
+    tags consistently with the toponym path.
+    """
+    if not isinstance(data, dict):
+        return {}
+    raw = data.get("fantasy_morphemes") or {}
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, dict] = {}
+    for input_name, entry in raw.items():
+        if not isinstance(entry, dict):
+            continue
+        normalized_era = _normalize_era_reflexes(entry.get("era_reflexes") or {})
+        out[input_name.lower()] = {
+            "input_name": entry.get("input_name") or input_name,
+            "etymon_id": entry.get("etymon_id"),
+            "language": entry.get("language") or "",
+            "canonical_form": entry.get("canonical_form") or "",
+            "english_shaped": entry.get("english_shaped") or "",
+            "glosses": list(entry.get("glosses") or []),
+            "citation": entry.get("citation") or "",
+            "era_reflexes": normalized_era,
+        }
+    return out
+
+
 def load_joiners(data) -> dict[str, list[tuple[str, int]]]:
     """Extract the per-language-field joiner pool from a bundle (wyrd-q0g6
     Phase 1).
