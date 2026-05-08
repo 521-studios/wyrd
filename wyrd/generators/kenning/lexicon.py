@@ -3770,9 +3770,7 @@ def etymon_era_reflexes(
     # mining evidence behind it), so callers can distinguish via
     # ``source == 'phonology-rule:v1'``.
     if not results:
-        phon_form = _phonology_rule_form(
-            row["canonical_form"], row["language"], target_language
-        )
+        phon_form = _phonology_rule_form(row["canonical_form"], row["language"], target_language)
         if phon_form is not None:
             results.append(
                 EraReflex(
