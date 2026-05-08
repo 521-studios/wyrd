@@ -3847,16 +3847,21 @@ def test_meaning_era_reflex_for_returns_target_language_reflexes() -> None:
     """Direct unit test for the runtime accessor: when the bundle
     carried era_reflex data for a target language, the accessor
     returns the sorted form list. Returns [] when no data for that
-    target."""
+    target. Internal storage is now ``[(form, source), ...]``
+    tuples (wyrd-jbcu); the forms-only accessor projects them out."""
     m = Meaning(
         usage="-ham",
         tags=[],
         meanings=["village"],
         sources={"old_english": ["hām"]},
         era_reflexes={
-            "old-english": ["hām"],
-            "middle-english": ["ham", "hamm", "home"],
-            "modern-english": ["ham", "home"],
+            "old-english": [("hām", "cluster")],
+            "middle-english": [
+                ("ham", "cluster"),
+                ("hamm", "cluster"),
+                ("home", "cluster"),
+            ],
+            "modern-english": [("ham", "cluster"), ("home", "cluster")],
         },
     )
     assert m.era_reflex_for("middle-english") == ["ham", "hamm", "home"]
@@ -3872,12 +3877,36 @@ def test_meaning_era_reflex_for_returns_independent_copy() -> None:
         tags=[],
         meanings=["village"],
         sources={"old_english": ["hām"]},
-        era_reflexes={"middle-english": ["ham", "hamm"]},
+        era_reflexes={
+            "middle-english": [("ham", "cluster"), ("hamm", "cluster")],
+        },
     )
     first = m.era_reflex_for("middle-english")
     first.append("intruder")
     second = m.era_reflex_for("middle-english")
     assert second == ["ham", "hamm"]
+
+
+def test_meaning_era_reflex_sources_for_returns_form_to_source_map() -> None:
+    """wyrd-jbcu source-aware accessor. Returns ``{form: source}``
+    so consumers (KenningRewind / KenningEraMap) can render
+    phonology-rule-derived forms differently from cluster mates."""
+    m = Meaning(
+        usage="-ham",
+        tags=[],
+        meanings=["village"],
+        sources={"old_english": ["hām"]},
+        era_reflexes={
+            "middle-english": [
+                ("ham", "cluster"),
+                ("hamm", "phonology-rule:v1"),
+            ],
+        },
+    )
+    sources = m.era_reflex_sources_for("middle-english")
+    assert sources == {"ham": "cluster", "hamm": "phonology-rule:v1"}
+    # Empty dict for languages without data.
+    assert m.era_reflex_sources_for("welsh") == {}
 
 
 def test_meaning_era_reflexes_empty_on_legacy_bundle() -> None:
@@ -3898,7 +3927,11 @@ def test_load_meanings_parses_era_reflexes_top_level_field() -> None:
     """End-to-end runtime parse: a word entry carrying ``era_reflexes``
     at the top level (NOT a per-language sibling) lands on the
     Meaning's era_reflexes attribute. Verifies the load pipeline
-    excludes era_reflexes from the per-language ``sources`` dict."""
+    excludes era_reflexes from the per-language ``sources`` dict.
+
+    wyrd-jbcu: bundle now emits the new ``{form, source}`` shape;
+    legacy bundles with bare-string entries are handled by a separate
+    test below for back-compat."""
     data = [
         {
             "modifier_tags": [],
@@ -3908,8 +3941,14 @@ def test_load_meanings_parses_era_reflexes_top_level_field() -> None:
                     "modern_usage": "-ham",
                     "old_english": ["hām"],
                     "era_reflexes": {
-                        "middle-english": ["ham", "hamm"],
-                        "modern-english": ["ham", "home"],
+                        "middle-english": [
+                            {"form": "ham", "source": "cluster"},
+                            {"form": "hamm", "source": "phonology-rule:v1"},
+                        ],
+                        "modern-english": [
+                            {"form": "ham", "source": "cluster"},
+                            {"form": "home", "source": "cluster"},
+                        ],
                     },
                 }
             ],
@@ -3919,7 +3958,63 @@ def test_load_meanings_parses_era_reflexes_top_level_field() -> None:
     meaning = meaning_db["-ham"][0]
     assert meaning.era_reflex_for("middle-english") == ["ham", "hamm"]
     assert meaning.era_reflex_for("modern-english") == ["ham", "home"]
+    assert meaning.era_reflex_sources_for("middle-english") == {
+        "ham": "cluster",
+        "hamm": "phonology-rule:v1",
+    }
     assert "era_reflexes" not in meaning.sources
+
+
+def test_load_meanings_parses_era_reflexes_legacy_list_of_strings_shape() -> None:
+    """wyrd-jbcu: legacy bundles emitted era_reflexes as
+    ``{lang: [form, ...]}`` (bare strings). The loader must keep
+    parsing them for back-compat — entries default to source='cluster'
+    since legacy bundles only carried attestation-backed reflexes."""
+    data = [
+        {
+            "modifier_tags": [],
+            "meaning": ["village"],
+            "words": [
+                {
+                    "modern_usage": "-ham",
+                    "old_english": ["hām"],
+                    "era_reflexes": {
+                        "middle-english": ["ham", "hamm"],  # legacy bare strings
+                    },
+                }
+            ],
+        }
+    ]
+    meaning_db, _ = load_meanings(data)
+    meaning = meaning_db["-ham"][0]
+    assert meaning.era_reflex_for("middle-english") == ["ham", "hamm"]
+    # Legacy entries default to 'cluster' since pre-jbcu bundles only
+    # carried attestation-backed reflexes.
+    assert meaning.era_reflex_sources_for("middle-english") == {
+        "ham": "cluster",
+        "hamm": "cluster",
+    }
+
+
+def test_load_meanings_normalize_era_reflexes_skips_malformed() -> None:
+    """Malformed entries (non-string, non-dict, dict without 'form')
+    are skipped silently rather than crashing the load. Pin the
+    defensive parse so a future bundle export bug doesn't take down
+    the entire runtime."""
+    from wyrd.generators.kenning.meaning import _normalize_era_reflexes
+
+    raw = {
+        "middle-english": [
+            "good",  # legacy bare string OK
+            {"form": "also-good", "source": "cluster"},  # new shape OK
+            {"weight": 5},  # missing 'form' — skip
+            None,  # not a dict or string — skip
+            42,  # not a dict or string — skip
+        ],
+        "welsh": "not-a-list",  # whole entry skipped
+    }
+    out = _normalize_era_reflexes(raw)
+    assert out == {"middle-english": [("good", "cluster"), ("also-good", "cluster")]}
 
 
 def test_fetch_root_era_reflexes_walks_cognate_cluster(fresh_db: Path) -> None:
@@ -3942,9 +4037,10 @@ def test_fetch_root_era_reflexes_walks_cognate_cluster(fresh_db: Path) -> None:
         # OE root since proto-* has no era cells defined.
         result = _fetch_root_era_reflexes(db, ids["hwīt"], "old-english")
 
-    assert result["old-english"] == ["hwīt"]
-    assert result["middle-english"] == ["whit"]
-    assert result["modern-english"] == ["white"]
+    # wyrd-jbcu schema: each entry is {"form", "source"}.
+    assert result["old-english"] == [{"form": "hwīt", "source": "cluster"}]
+    assert result["middle-english"] == [{"form": "whit", "source": "cluster"}]
+    assert result["modern-english"] == [{"form": "white", "source": "cluster"}]
 
 
 def test_fetch_root_era_reflexes_returns_empty_for_unfamilied_root(
@@ -3962,37 +4058,55 @@ def test_fetch_root_era_reflexes_returns_empty_for_unfamilied_root(
     assert result == {}
 
 
-def test_fetch_root_era_reflexes_filters_phonology_rule_reflexes(
+def test_fetch_root_era_reflexes_carries_phonology_rule_source_tag(
     fresh_db: Path,
 ) -> None:
-    """Bundle export filters Tier 4 (phonology-rule) reflexes out —
-    the bundle's ``era_reflexes: {lang: [forms]}`` schema doesn't
-    carry the source tag, so phonology-derived inferred forms would
-    reach the SPA indistinguishable from human-vetted Tier 1 cluster
-    mates. Pinned regression for the source-aware filtering at the
-    bundle boundary; the same etymon still surfaces Tier 4 reflexes
-    via direct ``etymon_era_reflexes`` queries (CLI consumers)."""
+    """wyrd-jbcu: bundle export carries Tier 4 (phonology-rule)
+    reflexes WITH the source tag intact. The schema upgrade
+    (``{lang: [{form, source}, ...]}``) lets consumers distinguish
+    inferred forms from attested cluster mates. Pin the round-trip
+    so a regression that drops the tag (or filters Tier 4 entirely)
+    surfaces here."""
     from wyrd.generators.kenning.lexicon import _fetch_root_era_reflexes
 
     with LexiconDB(fresh_db) as db:
         # OE etymon with a rule trigger (ǣ → e) but no cluster /
-        # descent / period-form data. Tier 4 fires for direct queries
-        # but the bundle should drop it.
+        # descent / period-form data. Tier 4 is the only path.
         eid = db.upsert_etymon("dǣg", "old-english")
         db.commit()
 
-        # Direct query: Tier 4 fires (proves the etymon is
-        # phonology-eligible).
-        direct = etymon_era_reflexes(db, eid, target_language="middle-english")
-        assert any(r.source == "phonology-rule:v1" for r in direct)
-
-        # Bundle export path: Tier 4 stripped, no entry for
-        # middle-english (only attestation-backed reflexes survive).
         bundle_data = _fetch_root_era_reflexes(db, eid, "old-english")
 
-    # 'middle-english' should be absent (only Tier 4 had data) —
-    # confirms the filter worked.
-    assert "middle-english" not in bundle_data
+    # Tier 4 reflex IS in the bundle, tagged 'phonology-rule:v1' so
+    # consumers can render it differently.
+    assert "middle-english" in bundle_data
+    me_entries = bundle_data["middle-english"]
+    assert me_entries == [{"form": "deg", "source": "phonology-rule:v1"}]
+
+
+def test_fetch_root_era_reflexes_prefers_higher_quality_source(
+    fresh_db: Path,
+) -> None:
+    """When the same form surfaces via cluster (high quality) AND
+    phonology rule (low quality), the higher-quality source wins in
+    the bundle output. Pinned so a future schema edit can't silently
+    flip the priority."""
+    from wyrd.generators.kenning.lexicon import _fetch_root_era_reflexes
+
+    with LexiconDB(fresh_db) as db:
+        # 'dǣg' with cluster mate 'deg' in ME — Tier 1 also produces
+        # 'deg'. Phonology rule produces 'deg' too (ǣ → e). The bundle
+        # should record source='cluster' since cluster outranks
+        # phonology-rule.
+        ids = _seed_cluster(
+            db,
+            members=[("dǣg", "old-english"), ("deg", "middle-english")],
+        )
+        bundle_data = _fetch_root_era_reflexes(db, ids["dǣg"], "old-english")
+
+    me = bundle_data["middle-english"]
+    # 'deg' present once with source='cluster' (NOT 'phonology-rule:v1').
+    assert me == [{"form": "deg", "source": "cluster"}]
 
 
 def test_kenning_rewind_generator_renders_three_era_stops() -> None:
