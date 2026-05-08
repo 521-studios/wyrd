@@ -1612,3 +1612,68 @@ Until the bundled `meanings.json` is re-emitted post-Phase-3.3,
 `KenningRewind` reads empty `era_reflexes` and falls back to
 canonical (still functional, just no era progression visible in
 the SPA). The deploy ticket is `wyrd-j43l` (P1).
+
+
+## D34. SPA-shortlist Phase A: respelling, alt-scripts, corpus evidence, era-map (PRs #125 / #127 / #128 / #129).
+
+Four user-visible features layered on top of the D33 era-reflex
+infrastructure. Each ships as a Generator class (so the SPA
+exposes it via `/api/generators`) and/or a CLI subcommand. None
+introduces new data; all compose existing primitives.
+
+### wyrd-17t: pronunciation respelling (PR #125)
+
+`Meaning.respelling_for(form, language)` delegates to
+`respelling.py`, a per-language SAMPA-lite rule table
+(Old English, Welsh, Old Norse, Latin, Greek, Norman-French).
+`KenningRewind` components surface respellings inline so users
+who can't sound out a non-modern-English morpheme see a
+reading hint next to the rendered form. Modern-English passes
+through with `respelling=None`. Atomic alternation guards
+against rule-chaining bugs (`ff → f → v` → `ffynon` becoming
+`vuhnon`).
+
+### wyrd-y10: alternate-script transliteration (PR #127)
+
+`scripts.py` exposes `transliterate(text, script)` and
+`SUPPORTED_SCRIPTS = ("shavian",)`. `KenningRender` Generator
+wraps it. v1 ships Shavian (~48 glyphs, U+10450-U+1047F);
+Tengwar / Cirth / Elder Futhark / Ogham drop in as additional
+dispatch arms. Lossy grapheme-based heuristic — Read Lex
+(~30K-word phoneme-precise dictionary) is filed as a future
+refinement. Hyphens / spaces / digits pass through verbatim
+so compound names retain structure.
+
+### wyrd-bvp: corpus-evidence annotations (PR #128)
+
+`annotate_fragments_with_corpus_evidence` extends
+`wyrd kenning unaccounted` with a `--sources-dir` flag. Each
+top-N fragment is annotated with `corpus_hits` (distinct
+source files where the fragment word-boundary-matches),
+`snippets` (~60-char context), `in_etym_body` (heuristic flag
+when the snippet's left context contains a year-citation OR a
+source marker like A.S. / O.E. / M.E. / cf. / from), and
+`strong_hits` (count of in_etym_body snippets). Reuses
+`_load_normalized_source_texts` from the existing
+reverse-search machinery. Future SPA integration would surface
+the same evidence next to KenningExplain output, but Lambda
+has no DB — needs either bundle-time precomputation or a
+separate API endpoint.
+
+### wyrd-381: stratified era-map (PR #129)
+
+`KenningEraMap` Generator + `wyrd kenning era-map` CLI.
+Bulk-rolls N invented toponyms (drives the underlying
+`Kenning.generate` loop with `seed+i` since Kenning is
+`multi_result=False`) and renders each at the three English-
+family era stops (oe-late / me / modern). Each result carries
+`{name, era_cells: [{era, family, rendered, morphemes,
+unaccounted}, ...]}`. The killer GM-handout pattern is the
+"Domesday-vs-modern map" pair — same morpheme stack, different
+eras of paper.
+
+**Coverage caveat (unchanged from D33):** names whose
+morphemes lack mined `era_reflexes` render uniformly across
+all eras. Not a bug — a coverage limit. Expanding
+`era_reflexes` mining is the natural follow-on for the
+kenning-data-mining track.
