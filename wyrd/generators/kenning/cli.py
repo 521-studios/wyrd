@@ -8,6 +8,7 @@ import sys
 import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import partial
@@ -428,9 +429,8 @@ def rebuild_proportions(
     word_saints = 0
     good_names = []
     canonical_hits: Counter = Counter()
-    db_cm = LexiconDB(db_path) if db_path is not None else None
-    try:
-        db = db_cm.__enter__() if db_cm is not None else None
+    db_context = LexiconDB(db_path) if db_path is not None else nullcontext()
+    with db_context as db:
         for name in names:
             if db is not None:
                 resolved, source = decompose_with_canonical(name.name, word_db, db)
@@ -448,9 +448,6 @@ def rebuild_proportions(
             if resolved.count_unaccounted() == 0:
                 perfect += 1
                 good_names.append(resolved)
-    finally:
-        if db_cm is not None:
-            db_cm.__exit__(None, None, None)
 
     summary = (
         f"culture={culture} perfect={perfect} names={word_names} "
@@ -657,9 +654,8 @@ def unaccounted(
     examples_by_frag: dict[str, list[str]] = {}
     imperfect_count = 0
     canonical_hits: Counter = Counter()
-    db_cm = LexiconDB(db_path) if db_path is not None else None
-    try:
-        db = db_cm.__enter__() if db_cm is not None else None
+    db_context = LexiconDB(db_path) if db_path is not None else nullcontext()
+    with db_context as db:
         for name in names:
             if db is not None:
                 resolved, source = decompose_with_canonical(name.name, word_db, db)
@@ -689,9 +685,6 @@ def unaccounted(
                         bucket = examples_by_frag.setdefault(frag, [])
                         if resolved.name not in bucket and len(bucket) < examples:
                             bucket.append(resolved.name)
-    finally:
-        if db_cm is not None:
-            db_cm.__exit__(None, None, None)
 
     top_fragments = fragments.most_common(top)
     # wyrd-bvp: when --sources-dir is set, scan all source-text
