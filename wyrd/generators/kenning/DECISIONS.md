@@ -1677,3 +1677,35 @@ morphemes lack mined `era_reflexes` render uniformly across
 all eras. Not a bug — a coverage limit. Expanding
 `era_reflexes` mining is the natural follow-on for the
 kenning-data-mining track.
+
+
+## D35. Bundle is dict-shape going forward (wyrd-c1vq, PR #145).
+
+`lexicon export-meanings` always emits dict-shape
+`{"subjects": [...], "canonical_decompositions": {...},
+"joiners": {...}}` — empty optional keys are omitted to keep
+the rendered JSON tight, but the top-level shape is always a
+dict, never the legacy list of subjects.
+
+Why: future bundle additions (joiners pool, fantasy morpheme
+runtime data, per-language tag projections) need named keys.
+Re-deciding the shape each time a field lands fragments the
+forward-compat policy. The runtime loaders (`load_meanings`,
+`load_canonical_decompositions`, `load_joiners`) already route
+through `meaning._bundle_subjects`, which tolerates BOTH list-
+shape (legacy bundles checked into git pre-2026-05-08) and
+dict-shape, so flipping the export default does not break any
+consumer.
+
+Joiners sidecar path: `--joiners-from PATH` on
+`lexicon export-meanings` reads
+`{lang_field: [{"form": str, "weight": int}, ...], ...}` and
+folds it into the bundle's `joiners` key. Phase 2 of
+wyrd-q0g6 / wyrd-semi (manual audit + pool population) will
+produce the sidecar; the export wiring is in place ahead of
+the data.
+
+Defensive `collect_canonical_decompositions`: returns empty
+dict when the `toponym_decomposition` table is missing
+(older DBs predate wyrd-08m Phase 1 migration). Prevents
+the bundle export from crashing on unmigrated DBs.
