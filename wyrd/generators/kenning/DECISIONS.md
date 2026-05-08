@@ -1415,3 +1415,200 @@ hits the no-data passthrough and the filter is bit-stable with
 no-flag. The classifier output is captured in the wyrd-lr4 ticket
 notes (per-language smoke counts) and ready for the operator's
 re-emit pass.
+
+## D33. Time-aware era-reflex infrastructure (wyrd-skm + wyrd-rni + Phase 3.3, PRs #108 / #110 / #114 / #116-118 / #122).
+
+Renders the same etymon at multiple historical strata. The story
+spans authoring (mining + projection) and runtime (CLI rewinder +
+SPA Generator). Three lookup tiers + bundle plumbing.
+
+### Three-tier era-reflex picker
+
+`lexicon.etymon_era_reflexes(etymon_id, target_language=...)` is
+the single primitive every consumer reads. It tries three lookup
+paths in order and returns the first non-empty result:
+
+1. **Cognate cluster** — when `etymon.cognate_id` is set
+   (D27 + D28 cluster_cognates output), select cluster mates of the
+   target language. ~24% of OE toponym etymons today; this is the
+   high-quality path because cluster_cognates output is
+   human-vetted via the merge pass.
+2. **Direct descent fallback** — when `cognate_id` is NULL but the
+   etymon has `etymon_descent` rows, walk the immediate children
+   via `inheritance` + `borrowing` edges (peer `cognate` edges
+   excluded — too loose for v1). Recovers ~4% additional coverage
+   on the OE toponym etymons that have descent edges but never
+   reached the cluster pass.
+3. **Period-form projection (`etymon_period_form`)** — when both
+   cluster + descent return empty AND the caller passed
+   `target_family_cell`, query `etymon_period_form` rows whose
+   `date_year` falls in the cell's year range. Closes the ~72%
+   coverage gap on isolated OE etymons. Tier 3 results carry
+   `etymon_id == etymon_id` (the queried etymon) and the cell's
+   canonical language tag (since `etymon_period_form` rows don't
+   carry an explicit language).
+
+All three tiers filter `merged_into_id IS NULL` so OCR-cluster
+losers (D22) don't surface as period forms; the merge winner is
+the canonical voice.
+
+`era.canonical_language_for_cell((family, cell))` is the
+era→language adapter: `('english', 'me')` resolves to
+`'middle-english'`. Cells missing from the dict produce `[]`
+from the picker — there is NO family-level fallback.
+`era.era_cell_for_input(input, default_family)` parses CLI/API
+era values directly to `(family, cell)` without round-tripping
+through year ranges (the round-trip loses information for
+open-low cells like `oe-early` whose `start=None`).
+
+### Schema additions
+
+- `toponym_attestation` (table existed, was empty pre-Phase-3.0a):
+  `(toponym_id, form, date_year, source_doc)` with idempotent
+  unique index. Populated by `lexicon mine-attestations` from
+  `toponym_etymology.notes` body text.
+- `etymon_period_form` (new in Phase 3.3): per-etymon period-keyed
+  surface forms, FK to `etymon` + soft FK to `toponym_attestation`.
+  Unique index on `(etymon_id, form, date_year, source_doc)` for
+  idempotent re-projection.
+
+### Mining + projection commands
+
+- `lexicon mine-attestations [--apply]` — extracts `(form, year)`
+  pairs from `toponym_etymology.notes` via 5 high-precision regex
+  patterns:
+  * `FORM in YEAR` / `FORM, YEAR` / `FORM, in YEAR`
+  * `FORM in Domesday[ Book]` / `Domesday has FORM` / `D.B. has FORM` / `FORM, D.B.`
+  * `;FORM YEAR` (chain-anchored bare connector for trailing chain elements)
+  Three precision gates:
+  * Connector requirement (comma, semicolon, or `in`) between form
+    and year — drops `"After 1066"` / `"Source 1234"` flow-text FPs.
+  * Lowercase-required form filter — drops scholarly source
+    abbreviations (LPR / LI / LF / DB / MS) without an explicit
+    per-token list.
+  * Source-attribution-chain detector (PR #117) — suppresses
+    `<year> <source>, <year>` shapes like
+    `"Chevington 1535 VE, 1539 Wills, 1544 LP"` where Wills is
+    the source name in a multi-source chain, not a place form.
+  * Page-marker rejection both pre-year (`p. 1086` shape via
+    `_TOPONYM_NOTE_PAGE_MARKER_RE`) and post-year (`1086 (p. 59)`
+    via `(?!\s*\(p+\.)` lookahead).
+  Year range 700-1700 (post-Roman through pre-modern). Welsh
+  (ŵâêôûŷ + ē) + Norman (çéè) + OE (æðþœǣĒĀĪŌŪ) diacritics covered
+  in the form-character class.
+  Live: 1,476 rows / 669 toponyms / 29 sources.
+- `lexicon project-period-forms [--apply]` — segments the
+  historical compound against the toponym's binary breakdown via
+  suffix-anchoring against the last morpheme's known reflexes
+  (canonical_form + cognate-cluster mates + etymon_variants). The
+  remaining prefix is the first morpheme's projected period form.
+  V1 limits: binary breakdowns only (ternary alignment isn't
+  reliable without phonetic distance); suffix-anchoring only;
+  ≥2-char projected segments. Skips breakdowns whose components
+  point at OCR-cluster losers (`merged_into_id IS NOT NULL`).
+  Live: 755 rows; ~85-90% precision on 40-row stratified
+  spot-check. The few suspect projections trace to upstream
+  scholarly extraction noise, not the projector's algorithm.
+  Eager-loads breakdowns in one query (`_preload_binary_breakdowns`)
+  to avoid N+1.
+- `lexicon clear-enrichment --stage=attestations|period-forms` —
+  reverse paths; `all-derived` rolls them in.
+
+### CLI rewinder (`wyrd-rni`)
+
+`wyrd kenning rewind <name>` decomposes via the existing
+`Name + meaning_db` matcher, anchors each morpheme to its
+source-language etymon, and renders the compound at multiple era
+stops. Default ladder: 3 English-family stops (oe-late / me /
+modern); `--era` repeated for custom ladders.
+
+Anchor-resolver design notes:
+- `_ANCHOR_LANG_PREFERENCE` walks OE → ON → OldFrench → Celtic → Latin
+  → ModernEnglish in priority order.
+- **Hyphen-variant sibling lookup**: the bundle keys morphemes by
+  hyphen-marked usage (`-ton` vs `ton` vs `Ton-`). When the trie
+  matches the no-hyphen Celtic Meaning at `ton`, the OE
+  post-modifier Meaning at `-ton` carries the right anchor —
+  resolver collects siblings across all keys whose stripped-hyphen
+  form matches. Cached via `_get_stripped_index(meaning_db)` keyed
+  by `id(meaning_db)` for O(1) lookup.
+- **Three-tier picker preference** (matches Tier 4 of Claude review
+  on PR #114):
+  * Tier 1: case-insensitive match for `morpheme.canonical` (modern
+    usage). Handles mining-artifact cases where archaic forms get
+    co-tagged as modern-english (Wiktionary cross-reference
+    entries) — alphabetical-first would surface `cyning` as the
+    "modern reflex" of OE `king`, breaking the era progression.
+  * Tier 2: case-insensitive match for `anchor.canonical_form`
+    (source form). Handles morphemes whose orthography didn't
+    shift much across eras (`mynster → mynster → minster`) —
+    alphabetical-first would otherwise return a noise mate
+    (`amounten` for OE `mynster` at ME).
+  * Tier 3: alphabetical first.
+- **Fallback rule**: when no era reflex found, render the
+  morpheme's modern canonical (NOT the anchor's OE source). The
+  asterisk `*` flag in the CLI output is the truth-marker. Falling
+  back to the source would make the era ladder look reversed
+  (`oe-late: king → me: chinge → modern: cyning`).
+
+### Bundle plumbing for SPA-side rewinder (wyrd-obpw)
+
+The Lambda runs on bundled data (the lexicon DB is 673MB —
+too big to ship). To enable a SPA `KenningRewind`, era-reflex
+data is precomputed at bundle-build time:
+
+- `lexicon._fetch_root_era_reflexes(db, root_id, root_language)`
+  computes `{target_language: [forms]}` for the family root via
+  the same three-tier picker. Wired into `_gather_family` so each
+  family carries `era_reflexes` data.
+- `_emit_era_reflexes(word, link_pairs)` stamps the family root's
+  reflexes onto the word entry's top-level `era_reflexes` field.
+  Multiple linked families merge by set-union per target language.
+- Runtime: `Meaning.era_reflexes` (dict[target_lang, list[form]])
+  parsed at `load_meanings`. `Meaning.era_reflex_for(target)`
+  returns sorted-list copy. Empty for legacy bundles.
+
+`era_reflexes` is a TOP-LEVEL field on each word entry, NOT a
+per-language sibling. It represents the family root's cluster
+reflexes — one set per family, not per source language. The
+`load_meanings` pipeline excludes `era_reflexes` from the
+per-language `sources` dict.
+
+### KenningRewind generator class
+
+Registered alongside `KenningExplain`. Input schema `{name}`.
+Renders the input across 3 default English-family era stops
+(oe-late / me / modern). Per-Meaning era reflex picked via
+canonical-match preference (matches CLI rewinder's tier-1);
+falls back to alphabetical first, then `morpheme.canonical` when
+no era data. **No DB access** — reads exclusively from
+`Meaning.era_reflex_for`.
+
+The CLI rewinder (`rewind.py:rewind_name`) and `KenningRewind`
+have parallel small picker logic. The full `EraReflexProvider`
+protocol abstraction is **deliberately deferred** until wyrd-381
+(stratified era-map) lands as a second consumer — designing the
+protocol with one consumer would bake in assumptions the second
+might want to change.
+
+### Coverage limits + extension paths
+
+The remaining ~72% of OE toponym etymons that have neither
+cognate_id, descent edges, nor period-form projection (because
+their toponym wasn't binary-decomposable or the suffix-anchor
+algorithm couldn't align the historical form) still return `[]`
+from the picker. Two orthogonal closure paths:
+
+- **Phonological-rule fallback** (wyrd-4i6 — sound-change rules
+  library). Forward-derives surface forms from canonical via
+  per-language phonetic transforms. NOT data-driven; rules-driven.
+- **Mining + re-projection**. Each new English-corpus mining run
+  expands `toponym_attestation`; re-running `project-period-forms`
+  picks up newly-recoverable suffix anchors.
+
+### Bundle re-emit dependency
+
+Until the bundled `meanings.json` is re-emitted post-Phase-3.3,
+`KenningRewind` reads empty `era_reflexes` and falls back to
+canonical (still functional, just no era progression visible in
+the SPA). The deploy ticket is `wyrd-j43l` (P1).

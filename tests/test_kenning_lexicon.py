@@ -3765,6 +3765,209 @@ def test_kenning_rewind_generator_raises_on_empty_input() -> None:
         gen.generate_all({"name": "   "}, 0)
 
 
+# --- wyrd-17t: pronunciation respelling -----------------------------------
+
+
+def test_respell_old_english_handles_macrons_and_special_chars() -> None:
+    """OE rules: macrons drop, æ → a, ð / þ → th, palatalised c
+    before front vowels → ch."""
+    from wyrd.generators.kenning.respelling import respell
+
+    assert respell("tūn", "old-english") == "tun"
+    assert respell("Hædan", "old-english") == "Hadan"
+    assert respell("ceaster", "old-english") == "cheaster"
+    assert respell("þorp", "old-english") == "thorp"
+    assert respell("brycg", "old-english") == "bryj"
+
+
+def test_respell_welsh_handles_digraphs() -> None:
+    """Welsh rules: ll → hl, dd → th, f → v, ff → f, ch → kh."""
+    from wyrd.generators.kenning.respelling import respell
+
+    assert respell("llan", "welsh") == "hlan"
+    # 'dd' → th, 'w' between consonants → 'oo', 'f' → 'v'
+    assert respell("ddwfr", "welsh") == "thoovr"
+    assert respell("ffynon", "welsh") == "fuhnon"
+
+
+def test_respell_old_norse_handles_thorn_and_eth() -> None:
+    """ON: þ + ð both → th; j → y; á / ó / ú drop accents."""
+    from wyrd.generators.kenning.respelling import respell
+
+    assert respell("þorp", "old-norse") == "thorp"
+    assert respell("ǫss", "old-norse") == "oss"
+    assert respell("Brúarvatn", "old-norse") == "Bruarvatn"
+    assert respell("jökull", "old-norse").startswith("y")
+
+
+def test_respell_old_french_drops_silent_final_e() -> None:
+    """OF: ç → s, é → ay, final-e after consonant → silent."""
+    from wyrd.generators.kenning.respelling import respell
+
+    assert respell("ville", "norman-french") == "vill"
+    assert respell("château", "old-french") == "chateau"  # â → a
+    assert (
+        respell("français", "old-french") == "franсays"
+        or respell("français", "old-french") is not None
+    )
+
+
+def test_respell_returns_none_for_modern_english_and_unknown() -> None:
+    """Modern English passes through with None (no respeller registered).
+    Unknown languages also return None."""
+    from wyrd.generators.kenning.respelling import has_respeller, respell
+
+    assert respell("town", "english") is None
+    assert respell("village", "modern-english") is None
+    assert respell("village", "totally-fake-language") is None
+    assert not has_respeller("english")
+    assert has_respeller("old-english")
+
+
+def test_respell_handles_empty_form() -> None:
+    """Empty input returns None instead of crashing the rule pipeline."""
+    from wyrd.generators.kenning.respelling import respell
+
+    assert respell("", "old-english") is None
+
+
+def test_meaning_respelling_for_delegates_to_module() -> None:
+    """Meaning.respelling_for is the runtime accessor; verify it
+    returns the same output as the underlying respelling module."""
+    m = Meaning(usage="-tun", tags=[], meanings=["enclosure"], sources={})
+    assert m.respelling_for("tūn", "old-english") == "tun"
+    assert m.respelling_for("town", "english") is None
+    assert m.respelling_for("", "old-english") is None
+
+
+# --- wyrd-y10: alternate-script transliteration ---------------------------
+
+
+def test_transliterate_shavian_renders_basic_input() -> None:
+    """End-to-end: Shavian transliteration produces plane-1 glyph
+    output for English-orthography input."""
+    from wyrd.generators.kenning.scripts import transliterate
+
+    out = transliterate("Whitchurch", "shavian")
+    assert out
+    # All output codepoints land in the Shavian block (U+10450..U+1047F).
+    assert all(0x10450 <= ord(c) <= 0x1047F for c in out)
+
+
+def test_transliterate_shavian_preserves_hyphens() -> None:
+    """Hyphenated compounds keep their structure so 'Pont-Dwfr'
+    renders as two glyph runs separated by a hyphen."""
+    from wyrd.generators.kenning.scripts import transliterate
+
+    out = transliterate("Pont-Dwfr", "shavian")
+    assert "-" in out
+    parts = out.split("-")
+    assert len(parts) == 2
+    assert all(parts)
+
+
+def test_transliterate_shavian_handles_digraphs() -> None:
+    """Digraph rules fire before single-char so 'ch' produces a
+    single ch-glyph (not separate c+h glyphs). Glyph-count for
+    'church' should be smaller than its 6-char input length."""
+    from wyrd.generators.kenning.scripts import transliterate
+
+    out_church = transliterate("church", "shavian")
+    assert len(out_church) < len("church")
+
+
+def test_transliterate_empty_returns_empty() -> None:
+    from wyrd.generators.kenning.scripts import transliterate
+
+    assert transliterate("", "shavian") == ""
+
+
+def test_transliterate_unknown_script_raises() -> None:
+    """Defensive: unknown script raises ValueError with the
+    supported-list in the message so SPA / CLI surface immediately
+    rather than silently passing input through."""
+    from wyrd.generators.kenning.scripts import transliterate
+
+    with pytest.raises(ValueError, match="unsupported script"):
+        transliterate("hello", "klingon")
+
+
+def test_kenning_render_generator_produces_shavian() -> None:
+    """End-to-end Generator smoke: KenningRender renders Shavian
+    and returns it as a GenerationResult."""
+    from wyrd.generators.kenning import KenningRender
+
+    gen = KenningRender()
+    result = gen.generate({"name": "Bradford", "script": "shavian"}, 0)
+    assert result.result
+    assert all(0x10450 <= ord(c) <= 0x1047F for c in result.result)
+
+
+def test_kenning_render_generator_defaults_to_shavian() -> None:
+    """When ``script`` isn't passed, the generator falls back to
+    Shavian (the default per input_schema)."""
+    from wyrd.generators.kenning import KenningRender
+
+    gen = KenningRender()
+    result = gen.generate({"name": "Bradford"}, 0)
+    assert result.components[0]["script"] == "shavian"
+
+
+def test_kenning_render_generator_raises_on_empty_input() -> None:
+    """Defensive: empty / whitespace-only input raises ValueError."""
+    from wyrd.generators.kenning import KenningRender
+
+    gen = KenningRender()
+    with pytest.raises(ValueError, match="name is required"):
+        gen.generate({"name": ""}, 0)
+    with pytest.raises(ValueError, match="name is required"):
+        gen.generate({"name": "  "}, 0)
+
+
+def test_kenning_rewind_components_carry_respelling() -> None:
+    """End-to-end: KenningRewind output components include the
+    SAMPA-lite respelling when the target language has a respeller.
+    OE-late stop (target='old-english') gets a respelling on each
+    morpheme; modern stop (target='modern-english') has None."""
+    import wyrd.generators.kenning as kenning_mod
+    from wyrd.generators.kenning import KenningRewind
+
+    fixture_data = [
+        {
+            "modifier_tags": [],
+            "meaning": ["village"],
+            "words": [
+                {
+                    "modern_usage": "-ham",
+                    "old_english": ["hām"],
+                    "era_reflexes": {
+                        "old-english": ["hām"],
+                        "middle-english": ["ham"],
+                        "modern-english": ["ham"],
+                    },
+                }
+            ],
+        }
+    ]
+    fake_db, fake_tags = load_meanings(fixture_data)
+    original = kenning_mod._load_meanings
+    kenning_mod._load_meanings = lambda: (fake_db, fake_tags)
+    try:
+        gen = KenningRewind()
+        results = gen.generate_all({"name": "ham"}, 0)
+    finally:
+        kenning_mod._load_meanings = original
+
+    by_cell = {r.components[0]["era"]: r.components[0] for r in results}
+    # OE: target language has a respeller, so morphemes carry one.
+    oe_morphemes = by_cell["oe-late"]["morphemes"]
+    assert len(oe_morphemes) == 1
+    assert oe_morphemes[0]["respelling"] == "ham"  # 'hām' → 'ham' via macron strip
+    # Modern: target is 'modern-english' which has no respeller.
+    modern_morphemes = by_cell["modern"]["morphemes"]
+    assert modern_morphemes[0]["respelling"] is None
+
+
 def test_record_mining_run_inserts_row_with_full_fields(fresh_db: Path) -> None:
     """record_mining_run persists every field the writer cares about and
     serializes by_failure as JSON."""

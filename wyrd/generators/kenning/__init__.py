@@ -988,6 +988,7 @@ class KenningRewind(Generator):
         for family, cell in era_stops:
             target_language = canonical_language_for_cell(family, cell)
             rendered_morphemes: list[str] = []
+            morpheme_components: list[dict[str, Any]] = []
             unaccounted: list[str] = []
             for word_str in text.split():
                 candidates = name_obj.words.get(word_str, [])
@@ -996,7 +997,24 @@ class KenningRewind(Generator):
                     continue
                 for chunk in candidates[0].word:
                     if isinstance(chunk, Meaning):
-                        rendered_morphemes.append(_bundle_era_form(chunk, target_language))
+                        form = _bundle_era_form(chunk, target_language)
+                        rendered_morphemes.append(form)
+                        # wyrd-17t: surface SAMPA-lite respelling next to
+                        # the rendered form when the target language has
+                        # a respeller (OE / Welsh / ON / Latin / Greek /
+                        # Norman-French). Modern-English passes through
+                        # with respelling=None since users can already
+                        # sound those out.
+                        respelling = (
+                            chunk.respelling_for(form, target_language) if target_language else None
+                        )
+                        morpheme_components.append(
+                            {
+                                "form": form,
+                                "respelling": respelling,
+                                "language": target_language,
+                            }
+                        )
                     elif isinstance(chunk, str) and chunk:
                         unaccounted.append(chunk)
             rendered = "-".join(m.strip("-") for m in rendered_morphemes if m)
@@ -1009,6 +1027,7 @@ class KenningRewind(Generator):
                             "era": cell,
                             "family": family,
                             "rendered": rendered or text,
+                            "morphemes": morpheme_components,
                             "unaccounted": unaccounted,
                         }
                     ],
@@ -1037,3 +1056,72 @@ def _bundle_era_form(meaning: Meaning, target_language: str | None) -> str:
 
 
 register(KenningRewind())
+
+
+class KenningRender(Generator):
+    """wyrd-y10 — render an English (or English-rendered) name in
+    an alternate phonemic script.
+
+    A phonemic script written for English IS English, just visually
+    disguised. Killer GM-handout demo: produce signage / inscriptions
+    that look foreign but are decodable for committed players.
+
+    Initial target: Shavian (~48 glyphs, plane-1 codepoints
+    U+10450-U+1047F). Future scripts (Tengwar / Cirth / Elder Futhark
+    / Ogham) drop in via additional ``transliterate`` dispatch arms
+    in ``wyrd.generators.kenning.scripts``.
+    """
+
+    name = "kenning-render"
+    display_name = "Kenning — Render in an Alternate Script"
+    description = (
+        "Render an English (or English-rendered) name in an alternate "
+        "phonemic script — Shavian today, Tengwar / Cirth / Elder "
+        "Futhark on follow-up. Atmospheric for tabletop handouts; the "
+        "result is still English, just visually disguised."
+    )
+    legend = _LEGEND
+    multi_result = False
+
+    def input_schema(self) -> dict[str, Any]:
+        from wyrd.generators.kenning.scripts import SUPPORTED_SCRIPTS
+
+        return {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "English-rendered name to transliterate.",
+                },
+                "script": {
+                    "type": "string",
+                    "enum": list(SUPPORTED_SCRIPTS),
+                    "default": "shavian",
+                    "description": "Target script. Currently only Shavian.",
+                },
+            },
+            "required": ["name"],
+        }
+
+    def generate(self, params: dict[str, Any], seed: int) -> GenerationResult:
+        from wyrd.generators.kenning.scripts import transliterate
+
+        text = (params.get("name") or "").strip()
+        if not text:
+            raise ValueError("name is required")
+        script = params.get("script") or "shavian"
+        rendered = transliterate(text, script)
+        return GenerationResult(
+            result=rendered,
+            explanation=f"{text} → {rendered} ({script})",
+            components=[
+                {
+                    "input": text,
+                    "rendered": rendered,
+                    "script": script,
+                }
+            ],
+        )
+
+
+register(KenningRender())
