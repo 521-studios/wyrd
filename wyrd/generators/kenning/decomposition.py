@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from typing import TYPE_CHECKING
 
 from wyrd.generators.kenning.lexicon import _LANG_CODE_TO_JSON_FIELD
@@ -41,6 +42,22 @@ from wyrd.generators.kenning.name import Name
 
 if TYPE_CHECKING:
     from wyrd.generators.kenning.lexicon import LexiconDB
+
+
+_logger = logging.getLogger(__name__)
+
+
+# Cap on how many cross-product decomposition combos a single toponym
+# can produce. Without a cap, a multi-word toponym whose words each
+# admit many parses could explode the candidate list (worst case:
+# K^N where K is the per-word option count, N is the word count). The
+# cap protects against bulk-`--apply` runs against the live DB
+# producing pathologically-large rows for a few outlier names.
+#
+# 256 is generous for real toponyms (most have 1-2 words with 1-5
+# decompositions each); when a single name overflows the cap, only
+# the first 256 combos persist and a warning surfaces on the logger.
+_MAX_CROSS_PRODUCT_COMBOS: int = 256
 
 
 # --- decomposition signature ----------------------------------------------
@@ -165,6 +182,12 @@ def _cross_product_decompositions(name: Name) -> list[list]:
     multi-word toponym ('Saint Mary Bourne') returns every combination
     of (word_1_decomp, word_2_decomp, word_3_decomp), with whitespace
     elided — slot ordering tracks the toponym's left-to-right reading.
+
+    Capped at ``_MAX_CROSS_PRODUCT_COMBOS`` to prevent pathological
+    blow-up. When a name's cross product would exceed the cap, only
+    the first cap combos persist and a warning is logged. The cap is
+    deterministic (early termination of the multiplication loop) so
+    re-runs produce identical row sets.
     """
     if not name.words:
         return []
@@ -177,13 +200,31 @@ def _cross_product_decompositions(name: Name) -> list[list]:
         per_word: list[list] = [list(w.word) for w in word_objs] if word_objs else [[word_str]]
         per_word_lists.append(per_word)
     # Cross-product: start with [[]], extend with each word's options.
+    # Early-terminate at the cap to bound memory and signal upstream.
     combos: list[list] = [[]]
+    truncated = False
     for per_word in per_word_lists:
-        new_combos = []
+        new_combos: list[list] = []
         for prefix in combos:
             for option in per_word:
                 new_combos.append(prefix + option)
+                if len(new_combos) >= _MAX_CROSS_PRODUCT_COMBOS:
+                    truncated = True
+                    break
+            if truncated:
+                break
         combos = new_combos
+        if truncated:
+            break
+    if truncated:
+        _logger.warning(
+            "Cross-product cap (%d) reached for toponym %r — keeping the "
+            "first %d combos. Increase _MAX_CROSS_PRODUCT_COMBOS or split "
+            "the toponym if more coverage is needed.",
+            _MAX_CROSS_PRODUCT_COMBOS,
+            name.name,
+            len(combos),
+        )
     return combos
 
 
@@ -232,8 +273,10 @@ def _scholar_form_sequences(db: LexiconDB, toponym_id: int) -> list[list[tuple[s
     Each sequence is the etymon list ordered by ``ordinal``, with each
     etymon's ``language`` translated to its bundle ``lang_field`` via
     ``_LANG_CODE_TO_JSON_FIELD``. Etymons whose language doesn't map to
-    a bundle field are dropped from the sequence — they can't possibly
-    match a Meaning's sources.
+    a bundle field — OR whose ``canonical_form`` is empty — are dropped
+    from the sequence and a debug log surfaces the drop, since the
+    silently-shortened sequence can later fail length-equality checks
+    against the matcher's slot count.
     """
     rows = db.conn.execute(
         """
@@ -253,9 +296,22 @@ def _scholar_form_sequences(db: LexiconDB, toponym_id: int) -> list[list[tuple[s
     for row in rows:
         lang_field = _LANG_CODE_TO_JSON_FIELD.get(row["language"])
         if not lang_field:
+            _logger.debug(
+                "Dropping etymon (toponym=%d, etymology=%d): unmapped "
+                "language %r — no bundle lang_field for this code.",
+                toponym_id,
+                row["etymology_id"],
+                row["language"],
+            )
             continue
         canonical = row["canonical_form"]
         if not canonical:
+            _logger.debug(
+                "Dropping etymon (toponym=%d, etymology=%d): empty "
+                "canonical_form (incomplete mining row?).",
+                toponym_id,
+                row["etymology_id"],
+            )
             continue
         by_etymology.setdefault(row["etymology_id"], []).append((lang_field, canonical))
     return [seq for seq in by_etymology.values() if seq]
@@ -294,33 +350,61 @@ def pick_canonical_decomposition(
     toponym_id: int,
     word_db: dict,
 ) -> dict[str, int | str | None]:
-    """Apply Phase 1 canonical-picker rules (a) and (b) to a toponym's
-    stored decompositions.
+    """Apply canonical-picker rules to a toponym's stored decompositions.
 
-    Rule (a) — scholar match: if a stored decomposition's slot list
-    aligns with any ``toponym_etymology`` row's ordered etymon list,
-    that decomposition is canonical with source=``'scholar'``.
-    Multiple matching scholar rows (i.e. scholars proposed different
-    breakdowns AND each has a matching stored decomposition) result in
-    every matching stored decomposition being marked canonical with
-    source=``'scholar-disagreement'`` — the schema preserves the
-    disagreement rather than picking a single 'truth'.
+    Rule (a) scholar match: if a stored decomposition's slot list aligns
+    with any ``toponym_etymology`` row's ordered etymon list, mark it
+    canonical with source ``'scholar'``. Multiple matching scholar
+    breakdowns → every matching stored row tagged
+    ``'scholar-disagreement'``.
 
-    Rule (b) — unique-zero-unaccounted: if rule (a) didn't fire AND
-    exactly one stored decomposition has zero unaccounted fragments,
-    that one is canonical with source=``'unique-zero-unaccounted'``.
+    Rule (b) unique-zero-unaccounted: if rule (a) didn't fire AND
+    exactly one stored row has zero unaccounted fragments, that one
+    wins ``'unique-zero-unaccounted'``.
 
-    Rule (c) — multi-zero tiebreaker — is Phase 2, NOT applied here.
-    Toponyms that fall through both rules end with no canonical pick;
-    Phase 2 will fill the gap.
+    Rule (c) multi-zero tiebreaker is deferred to Phase 2. Toponyms
+    that fall through both rules end with no canonical pick.
 
-    Returns a result dict ``{rule, canonical_count, decomposition_count}``
-    so callers (CLI, tests) can summarize.
+    Returns ``{rule, canonical_count, decomposition_count}``.
     """
-    # Reset any prior canonical pick for this toponym; the rule chain
-    # below fully redetermines canonical state. Idempotent across
-    # re-runs because it's a clean reset + reapply, not a partial
-    # update.
+    _reset_canonical(db, toponym_id)
+    rows = _load_stored_decompositions(db, toponym_id)
+    if not rows:
+        return {"rule": None, "canonical_count": 0, "decomposition_count": 0}
+
+    decomposition_count = len(rows)
+    slots_per_row = _build_slot_candidates_per_row(rows, word_db)
+
+    scholar_match = _try_rule_scholar(db, toponym_id, rows, slots_per_row)
+    if scholar_match is not None:
+        source, matching_row_ids = scholar_match
+        _set_canonical(db, matching_row_ids, source)
+        return {
+            "rule": source,
+            "canonical_count": len(matching_row_ids),
+            "decomposition_count": decomposition_count,
+        }
+
+    zero_row_id = _try_rule_unique_zero(rows)
+    if zero_row_id is not None:
+        _set_canonical(db, [zero_row_id], "unique-zero-unaccounted")
+        return {
+            "rule": "unique-zero-unaccounted",
+            "canonical_count": 1,
+            "decomposition_count": decomposition_count,
+        }
+
+    return {
+        "rule": None,
+        "canonical_count": 0,
+        "decomposition_count": decomposition_count,
+    }
+
+
+def _reset_canonical(db: LexiconDB, toponym_id: int) -> None:
+    """Clear prior canonical state for a toponym so the rule chain
+    fully redetermines canonical assignments. Idempotent across
+    re-runs (clean reset + reapply, not partial update)."""
     db.conn.execute(
         """
         UPDATE toponym_decomposition
@@ -330,7 +414,12 @@ def pick_canonical_decomposition(
         (toponym_id,),
     )
 
-    rows = db.conn.execute(
+
+def _load_stored_decompositions(db: LexiconDB, toponym_id: int) -> list:
+    """Fetch the (id, morpheme_ids JSON, unaccounted_count) rows for
+    a toponym, ordered by id (insert order). Caller iterates these
+    to rehydrate slots and apply rules."""
+    return db.conn.execute(
         """
         SELECT id, morpheme_ids, unaccounted_count
           FROM toponym_decomposition
@@ -339,18 +428,22 @@ def pick_canonical_decomposition(
         """,
         (toponym_id,),
     ).fetchall()
-    if not rows:
-        return {"rule": None, "canonical_count": 0, "decomposition_count": 0}
 
-    decomposition_count = len(rows)
 
-    # Rebuild slot-candidate sets per stored row from morpheme_ids JSON.
-    # Note: stored rows hold stable ``usage`` strings for matched slots,
-    # not Meaning objects. We rehydrate slot-candidate sets by looking
-    # up each ``usage`` against the live word_db. A usage absent from
-    # word_db (e.g. after a bundle re-emit removed it) yields an empty
-    # candidate set — a scholar-form lookup against empty fails, so the
-    # row safely passes scholar matching without false positives.
+def _build_slot_candidates_per_row(
+    rows: list,
+    word_db: dict,
+) -> list[list[set[tuple[str, str]] | str]]:
+    """Rehydrate the per-row slot-candidate lists from stored
+    morpheme_ids JSON.
+
+    Stored rows hold stable ``usage`` strings for matched slots, not
+    Meaning objects. Each row's slots are rebuilt by looking up each
+    usage's (lang_field, canonical_form) candidate set against the
+    live word_db. A usage absent from word_db (e.g. after a bundle
+    re-emit removed it) yields an empty candidate set; the scholar
+    matcher then can't false-positive on it.
+    """
     slots_per_row: list[list[set[tuple[str, str]] | str]] = []
     for row in rows:
         payload = json.loads(row["morpheme_ids"])
@@ -361,19 +454,25 @@ def pick_canonical_decomposition(
             else:
                 slots.append(value)
         slots_per_row.append(slots)
+    return slots_per_row
 
-    scholar_seqs = _scholar_form_sequences(db, toponym_id)
-    # De-dupe scholar sequences by content. Two scholars who happened
-    # to publish IDENTICAL etymon lists are not in disagreement; they
-    # corroborate. Without this dedup, two duplicate scholar_etymology
-    # rows would both match the same stored decomposition and inflate
-    # the distinct-scholar count to >=2, mis-tagging as
-    # 'scholar-disagreement'.
-    distinct_scholar_seqs = _dedupe_scholar_seqs(scholar_seqs)
 
-    # Rule (a): collect every (row_idx, scholar_idx) pair that matches
-    # against the deduplicated scholar list. Disagreement iff >=2
-    # DISTINCT scholar breakdowns each matched.
+def _try_rule_scholar(
+    db: LexiconDB,
+    toponym_id: int,
+    rows: list,
+    slots_per_row: list[list[set[tuple[str, str]] | str]],
+) -> tuple[str, list[int]] | None:
+    """Rule (a): scholar match. Returns ``(source, matching_row_ids)``
+    if any scholar breakdown matched a stored decomposition; ``None``
+    otherwise.
+
+    ``source`` is ``'scholar-disagreement'`` if >=2 distinct scholar
+    breakdowns each matched; ``'scholar'`` if exactly one breakdown
+    matched (possibly multiple stored rows, but they share the same
+    breakdown).
+    """
+    distinct_scholar_seqs = _dedupe_scholar_seqs(_scholar_form_sequences(db, toponym_id))
     matching_pairs: list[tuple[int, int]] = []
     matched_scholar_indices: set[int] = set()
     for r_idx, slots in enumerate(slots_per_row):
@@ -381,35 +480,22 @@ def pick_canonical_decomposition(
             if _scholar_seq_matches_decomposition(seq, slots):
                 matching_pairs.append((r_idx, s_idx))
                 matched_scholar_indices.add(s_idx)
+    if not matching_pairs:
+        return None
+    is_disagreement = len(matched_scholar_indices) >= 2
+    source = "scholar-disagreement" if is_disagreement else "scholar"
+    matching_row_ids = sorted({rows[r_idx]["id"] for r_idx, _ in matching_pairs})
+    return source, matching_row_ids
 
-    if matching_pairs:
-        is_disagreement = len(matched_scholar_indices) >= 2
-        source = "scholar-disagreement" if is_disagreement else "scholar"
-        matching_row_ids = sorted({rows[r_idx]["id"] for r_idx, _ in matching_pairs})
-        _set_canonical(db, matching_row_ids, source)
-        return {
-            "rule": source,
-            "canonical_count": len(matching_row_ids),
-            "decomposition_count": decomposition_count,
-        }
 
-    # Rule (b): unique zero-unaccounted.
+def _try_rule_unique_zero(rows: list) -> int | None:
+    """Rule (b): unique zero-unaccounted. Returns the row id of the
+    sole zero-unaccounted decomposition, or ``None`` if zero or
+    multiple stored rows have unaccounted_count==0."""
     zero_rows = [row for row in rows if row["unaccounted_count"] == 0]
-    if len(zero_rows) == 1:
-        _set_canonical(db, [zero_rows[0]["id"]], "unique-zero-unaccounted")
-        return {
-            "rule": "unique-zero-unaccounted",
-            "canonical_count": 1,
-            "decomposition_count": decomposition_count,
-        }
-
-    # Phase 1 stops here. Multi-zero / no-zero cases get a Phase 2
-    # tiebreaker.
-    return {
-        "rule": None,
-        "canonical_count": 0,
-        "decomposition_count": decomposition_count,
-    }
+    if len(zero_rows) != 1:
+        return None
+    return zero_rows[0]["id"]
 
 
 def _candidates_for_usage(word_db: dict, usage: str) -> set[tuple[str, str]]:

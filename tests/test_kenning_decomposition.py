@@ -892,3 +892,170 @@ def test_cross_product_decompositions_with_multi_option_per_word() -> None:
     single_word_lens = {len(w.word) for w in name.words["Salem"]}
     expected_total_lens = {a + b for a in single_word_lens for b in single_word_lens}
     assert {len(combo) for combo in combos} == expected_total_lens
+
+
+# --- Phase 2 (wyrd-zpi9) refactor + safety improvements ------------------
+
+
+def test_cross_product_caps_pathological_combo_count(caplog) -> None:
+    """A toponym whose cross product would explode past the cap is
+    truncated at ``_MAX_CROSS_PRODUCT_COMBOS`` and a warning logs.
+    Bounds memory before bulk --apply against the production corpus.
+    """
+    import logging
+
+    from wyrd.generators.kenning import decomposition
+
+    name = Name("a b c d")
+
+    class _FakeWord:
+        def __init__(self, contents: list) -> None:
+            self.word = contents
+
+    # 5 options per word × 4 words = 625 combos, well past the 256 cap.
+    for word_str in name.name.split(" "):
+        name.words[word_str] = [_FakeWord([f"{word_str}_{i}"]) for i in range(5)]
+
+    with caplog.at_level(logging.WARNING, logger="wyrd.generators.kenning.decomposition"):
+        combos = decomposition._cross_product_decompositions(name)
+
+    assert len(combos) == decomposition._MAX_CROSS_PRODUCT_COMBOS
+    assert any("Cross-product cap" in rec.message for rec in caplog.records)
+
+
+def test_cross_product_under_cap_is_unchanged() -> None:
+    """A name whose cross product fits under the cap is unchanged —
+    no truncation, no warning. Bit-stable with the pre-cap version
+    for the typical-input case."""
+    from wyrd.generators.kenning import decomposition
+
+    name = Name("a b")
+
+    class _FakeWord:
+        def __init__(self, contents: list) -> None:
+            self.word = contents
+
+    # 3 options per word, 2 words → 3*3 = 9 combos.
+    for word_str in name.name.split(" "):
+        name.words[word_str] = [_FakeWord([f"{word_str}_{i}"]) for i in range(3)]
+
+    combos = decomposition._cross_product_decompositions(name)
+    assert len(combos) == 9
+
+
+def test_scholar_form_sequences_logs_unmapped_language(fresh_db: Path, caplog) -> None:
+    """Phase 2: silent drops on unmapped language now emit a debug
+    log. Surfaces the failure mode for future operators."""
+    import logging
+
+    from wyrd.generators.kenning.decomposition import _scholar_form_sequences
+
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        cur = db.conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) "
+            "VALUES (?, 'skeat-1901', 'high')",
+            (topo_id,),
+        )
+        etymology_id = cur.lastrowid
+        unmapped = db.upsert_etymon("ar-tawa", "no-such-language")
+        db.conn.execute(
+            "INSERT INTO toponym_etymology_element "
+            "(toponym_etymology_id, ordinal, etymon_id, inflection, surface_in_modern) "
+            "VALUES (?, 0, ?, NULL, NULL)",
+            (etymology_id, unmapped),
+        )
+        db.commit()
+        with caplog.at_level(logging.DEBUG, logger="wyrd.generators.kenning.decomposition"):
+            seqs = _scholar_form_sequences(db, topo_id)
+    assert seqs == []
+    assert any(
+        "unmapped" in rec.message.lower() and "no-such-language" in rec.message
+        for rec in caplog.records
+    )
+
+
+# --- refactored helpers (wyrd-zpi9 split of pick_canonical_decomposition) -
+
+
+def test_load_stored_decompositions_returns_rows_in_id_order(fresh_db: Path) -> None:
+    """``_load_stored_decompositions`` returns rows ordered by id.
+    Pinned so a caller relying on insert order stays correct after
+    the refactor."""
+    from wyrd.generators.kenning.decomposition import _load_stored_decompositions
+
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        compute_decompositions(db, topo_id, "Stratford", word_db)
+        db.commit()
+        rows = _load_stored_decompositions(db, topo_id)
+    assert len(rows) >= 1
+    ids = [row["id"] for row in rows]
+    assert ids == sorted(ids)
+
+
+def _row(row_id: int, unacc: int) -> dict:
+    """Synthetic minimal Row mock for unit-testing _try_rule_unique_zero
+    without DB roundtrip."""
+
+    class _R:
+        def __init__(self) -> None:
+            self._d = {"id": row_id, "unaccounted_count": unacc}
+
+        def __getitem__(self, k: str):
+            return self._d[k]
+
+    return _R()
+
+
+def test_try_rule_unique_zero_returns_none_when_multiple_zero_rows() -> None:
+    """When multiple stored rows have unaccounted_count==0,
+    _try_rule_unique_zero returns None (Phase 2 tiebreaker territory)."""
+    from wyrd.generators.kenning.decomposition import _try_rule_unique_zero
+
+    rows = [_row(1, 0), _row(2, 0), _row(3, 1)]
+    assert _try_rule_unique_zero(rows) is None
+
+
+def test_try_rule_unique_zero_returns_id_when_exactly_one_zero() -> None:
+    """The unique-zero rule fires only when exactly one zero-row
+    exists."""
+    from wyrd.generators.kenning.decomposition import _try_rule_unique_zero
+
+    rows = [_row(1, 1), _row(2, 0), _row(3, 2)]
+    assert _try_rule_unique_zero(rows) == 2
+
+
+def test_try_rule_unique_zero_returns_none_for_empty_rows() -> None:
+    """No rows at all → None (defensive)."""
+    from wyrd.generators.kenning.decomposition import _try_rule_unique_zero
+
+    assert _try_rule_unique_zero([]) is None
+
+
+def test_build_slot_candidates_per_row_uses_word_db(fresh_db: Path) -> None:
+    """``_build_slot_candidates_per_row`` rehydrates per-row slot lists
+    from stored morpheme_ids JSON. Each Meaning slot becomes a
+    candidate set drawn from the live word_db; each unaccounted slot
+    stays a string."""
+    from wyrd.generators.kenning.decomposition import (
+        _build_slot_candidates_per_row,
+        _load_stored_decompositions,
+    )
+
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        compute_decompositions(db, topo_id, "Stratford", word_db)
+        db.commit()
+        rows = _load_stored_decompositions(db, topo_id)
+    slots_per_row = _build_slot_candidates_per_row(rows, word_db)
+    assert len(slots_per_row) == len(rows)
+    # Every Meaning slot should be a set; every unaccounted slot a str.
+    for slots in slots_per_row:
+        for slot in slots:
+            assert isinstance(slot, (set, str))
