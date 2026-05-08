@@ -27,6 +27,7 @@ import pytest
 from wyrd.generators.kenning.phonology_rules import (
     ME_TO_EMODE_RULES,
     OE_TO_ME_RULES,
+    OW_TO_MW_RULES,
     SoundChangeRule,
     _apply_one_rule,
     _dedupe_candidates,
@@ -519,6 +520,130 @@ def test_registered_cell_count_matches_expected() -> None:
     this; intentional additions should bump the count."""
     from wyrd.generators.kenning.phonology_rules import _RULES
 
-    assert len(_RULES) == 2, (
-        f"expected 2 cells (OE→ME, ME→EModE), got {len(_RULES)}: {sorted(_RULES.keys())}"
+    assert len(_RULES) == 3, (
+        f"expected 3 cells (OE→ME, ME→EModE, OW→ModW), got {len(_RULES)}: {sorted(_RULES.keys())}"
+    )
+
+
+# --- Old Welsh → Modern Welsh (wyrd-n9x5 Phase 2.3) --------------------
+
+
+def test_has_rules_returns_true_for_ow_to_mw_cell() -> None:
+    """The OW→ModW cell is registered and discoverable via ``has_rules``."""
+    assert has_rules("welsh", "old-welsh", "modern-welsh") is True
+
+
+@pytest.mark.parametrize("rule", OW_TO_MW_RULES, ids=lambda r: r.pattern)
+def test_ow_to_mw_rule_exemplar_forward(rule: SoundChangeRule) -> None:
+    """Each OW→ModW rule's exemplar input run through the rule's
+    pattern/replacement (in isolation) produces the documented output.
+    Single-rule semantics — exemplar stability across rule re-ordering."""
+    input_form, expected_output = rule.exemplar
+    candidates = _apply_one_rule([(input_form, 1.0)], rule.pattern, rule.replacement, rule.weight)
+    forms = [form for form, _ in candidates]
+    assert expected_output in forms, (
+        f"rule {rule.pattern!r} → {rule.replacement!r} on exemplar "
+        f"input {input_form!r} did not produce {expected_output!r}; got {forms!r}"
+    )
+
+
+def test_ow_to_mw_rules_have_required_documentation() -> None:
+    """Every OW→ModW rule carries description / exemplar / source — the
+    documentation contract enforced for OE→ME and ME→EModE applies here
+    too. Adding a new rule without docs surfaces here."""
+    for rule in OW_TO_MW_RULES:
+        assert rule.description, f"rule {rule.pattern!r} missing description"
+        assert isinstance(rule.exemplar, tuple) and len(rule.exemplar) == 2
+        assert all(isinstance(s, str) and s for s in rule.exemplar)
+        assert rule.source, f"rule {rule.pattern!r} missing source citation"
+
+
+def test_ow_to_mw_caer_lexical_pattern_fires() -> None:
+    """The composite 'kair → caer' rule is the canonical OW→ModW
+    transition for the toponym element 'fortress'. Captures both
+    spelling normalization (k→c) AND the diphthong adjustment (ai→ae)
+    in a single atomic rule, so that 'kair' doesn't go via 'cair'."""
+    candidates = apply_rules("kair-uent", "welsh", "old-welsh", "modern-welsh")
+    forms = [form for form, _ in candidates]
+    assert "caer-uent" in forms
+
+
+def test_ow_to_mw_auc_suffix_voicing_fires() -> None:
+    """The -auc / -iauc → -og / -iog suffix transitions are the most
+    visible OW→ModW reflex in real toponyms (Pennog, Mathriog, etc.).
+    Both the suffix rule AND the consequence (au-monophthongization +
+    k→g voicing in word-final position) must fire."""
+    candidates = apply_rules("Penn-auc", "welsh", "old-welsh", "modern-welsh")
+    forms = [form for form, _ in candidates]
+    assert "Penn-og" in forms
+
+    candidates = apply_rules("Mathryn-iauc", "welsh", "old-welsh", "modern-welsh")
+    forms = [form for form, _ in candidates]
+    assert "Mathryn-iog" in forms
+
+
+def test_ow_to_mw_diphthong_au_to_aw() -> None:
+    """OW 'maur' → MW 'mawr' 'great'. Universal au→aw shift for
+    stressed mid-word diphthongs (suffix rules consume the word-final
+    'auc' before this rule fires)."""
+    candidates = apply_rules("maur", "welsh", "old-welsh", "modern-welsh")
+    forms = [form for form, _ in candidates]
+    assert "mawr" in forms
+
+
+def test_ow_to_mw_k_to_c_orthographic_normalization() -> None:
+    """Any 'k' surviving the multi-char rules above gets normalized to
+    'c'. Pinned because the rule order matters: 'k → c' running BEFORE
+    a multi-char 'kair → caer' rule would mean the lexical pattern
+    never matches its OW spelling."""
+    candidates = apply_rules("kil", "welsh", "old-welsh", "modern-welsh")
+    forms = [form for form, _ in candidates]
+    assert "cil" in forms
+
+
+def test_ow_to_mw_unknown_form_no_op() -> None:
+    """A form that doesn't match any OW→ModW pattern passes through
+    unchanged. Distinguishes 'cell registered, no match' from 'no cell'."""
+    candidates = apply_rules("xyz", "welsh", "old-welsh", "modern-welsh")
+    assert candidates == [("xyz", 1.0)]
+
+
+def test_ow_to_mw_probability_distribution_sums_to_one() -> None:
+    """Universal-only rules in OW→ModW preserve total probability mass
+    at 1.0 (no sporadic branching yet — Phase 2.4 may add weight<1.0
+    rules for the oi→oe vs oi→wy alternation)."""
+    candidates = apply_rules("Penn-auc", "welsh", "old-welsh", "modern-welsh")
+    total = sum(p for _, p in candidates)
+    assert abs(total - 1.0) < 1e-9
+
+
+def test_ow_to_mw_inverse_undoes_simple_chain() -> None:
+    """Inverse direction: ModW 'Penn-og' → OW candidates including
+    'Penn-auc'. Inverse-mode 50/50 branching surfaces the OW source
+    among the alternatives even when the ModW form is itself a final
+    rule's output."""
+    forward = apply_rules("Penn-auc", "welsh", "old-welsh", "modern-welsh")
+    forward_form = forward[0][0]
+    assert forward_form == "Penn-og"
+
+    inverse = apply_rules(
+        forward_form,
+        "welsh",
+        "old-welsh",
+        "modern-welsh",
+        mode="inverse",
+    )
+    inverse_forms = [form for form, _ in inverse]
+    assert "Penn-auc" in inverse_forms
+
+
+def test_ow_to_mw_dispatch_lookup_works_via_apply_rules() -> None:
+    """End-to-end via ``apply_rules``: a typo in the dispatch tuple
+    key (e.g. ('welsh', 'modern-welsh', 'old-welsh') reversed) would
+    silently route to 'unknown cell, no-op'. Pin via a forward call
+    exercising the actual dispatch lookup."""
+    candidates = apply_rules("Penn-auc", "welsh", "old-welsh", "modern-welsh")
+    forms = [form for form, _ in candidates]
+    assert "Penn-og" in forms, (
+        "OW→ModW cell should fire '-auc → -og'; if not, the dispatch table key may be wrong"
     )
