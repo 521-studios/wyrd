@@ -41,6 +41,52 @@ _SOURCE_NOTES = (
     "scholar-witness gate. wiktextract data via kaikki.org (CC-BY-SA 3.0)."
 )
 
+# wyrd-vx09: distinct source row for the forms-mining path. Forms are
+# variants of existing etymons (e.g. plural / comparative / mutated
+# spellings) ingested into etymon_text_match, NOT new etymons. The
+# distinct source_id lets dashboard / clear-enrichment paths
+# distinguish 'forms' rows from the 'empirical' headword ingest.
+WIKTIONARY_FORMS_SOURCE_ID = "wiktionary-forms"
+_FORMS_SOURCE_TITLE = "Wiktionary (forms variant mining)"
+_FORMS_SOURCE_NOTES = (
+    "Variant-mining class. Wiktionary 'forms' arrays ingested as "
+    "etymon_text_match rows so the bundle's per-language _variants pool "
+    "carries plural / comparative / mutated spellings for non-OE/ON "
+    "languages (audit wyrd-f6v4). wiktextract data via kaikki.org "
+    "(CC-BY-SA 3.0)."
+)
+
+# Tags that mark a forms entry as noise / not a meaningful variant.
+# Wiktionary's table-rendering scaffolding leaks structural-template
+# entries into the forms array; filtering at ingest keeps them out of
+# etymon_text_match. Excludes verbal-conjugation tags too — verbal
+# forms aren't useful for place-name variant pools, and including them
+# would inflate the variant pool with conjugation noise.
+_NOISE_FORM_TAGS: frozenset[str] = frozenset(
+    {
+        # Structural / rendering scaffolding
+        "table-tags",
+        "no-table-tags",
+        "inflection-template",
+        "error-unrecognized-form",
+        # Verbal conjugation (not relevant to place-name variants)
+        "first-person",
+        "second-person",
+        "third-person",
+        "indicative",
+        "subjunctive",
+        "imperative",
+        "conditional",
+        "present",
+        "preterite",
+        "future",
+        "imperfect",
+        "pluperfect",
+        "impersonal",
+        "participle",
+    }
+)
+
 # Per-culture allowed canonical languages. The miner only accepts a
 # Wiktionary entry as evidence for a fragment if the entry's language is
 # in the culture's scope — keeps Welsh morphemes from leaking into the
@@ -570,6 +616,171 @@ def _write_one(
         short_quote=gloss[:200],
     )
     counts["citations_added"] += 1
+
+
+# --- wyrd-vx09: forms-mining path -----------------------------------------
+
+
+def _meaningful_form_label(form_entry: dict[str, Any]) -> str | None:
+    """For a wiktextract forms-array entry, return a single-string
+    label describing the form (e.g. 'plural', 'comparative',
+    'soft-mutation'), or None if the entry is noise.
+
+    Wiktionary's forms array carries both meaningful inflection /
+    mutation entries AND rendering scaffolding (table-tags,
+    inflection-template). Tags from ``_NOISE_FORM_TAGS`` exclude the
+    entry entirely. The label joins remaining tags with hyphens —
+    a 'soft' + 'mutation' form becomes 'soft-mutation'. Mutation-
+    specific entries (source='mutation') prefix with 'mutation:'
+    so consumers can distinguish initial-mutation variants from
+    plain inflection.
+    """
+    tags = form_entry.get("tags") or []
+    if not tags:
+        return None
+    if any(t in _NOISE_FORM_TAGS for t in tags):
+        return None
+    # Join remaining (meaningful) tags into a label.
+    label = "-".join(tags)
+    if not label:
+        return None
+    if form_entry.get("source") == "mutation":
+        label = f"mutation:{label}"
+    return label
+
+
+def _iter_meaningful_forms(
+    entry: dict[str, Any],
+) -> Iterator[tuple[str, str]]:
+    """For a wiktextract entry, yield ``(form, label)`` pairs for each
+    meaningful (non-noise) form. Skips:
+
+    * Forms identical to the canonical word (no self-match).
+    * Forms with only noise tags (table-tags / inflection-template /
+      verbal-conjugation).
+    * Forms whose stripped surface is empty.
+
+    Comparison is case-insensitive on the self-match check — Welsh
+    'A' and 'a' are the same surface for variant-pool purposes.
+    """
+    canonical = (entry.get("word") or "").strip()
+    canonical_lower = canonical.lower()
+    for form_entry in entry.get("forms") or []:
+        if not isinstance(form_entry, dict):
+            continue
+        form = (form_entry.get("form") or "").strip()
+        if not form:
+            continue
+        if form.lower() == canonical_lower:
+            continue
+        label = _meaningful_form_label(form_entry)
+        if label is None:
+            continue
+        yield form, label
+
+
+def _ensure_forms_source_row(db: LexiconDB) -> None:
+    """Idempotently insert the wiktionary-forms synthetic source row.
+    Mirror of ``_ensure_source_row`` for the empirical path."""
+    db.upsert_source(
+        id=WIKTIONARY_FORMS_SOURCE_ID,
+        title=_FORMS_SOURCE_TITLE,
+        notes=_FORMS_SOURCE_NOTES,
+    )
+
+
+def mine_corpus_forms(
+    db: LexiconDB,
+    slice_path: Path,
+    *,
+    apply: bool = False,
+    limit: int | None = None,
+) -> dict[str, Any]:
+    """wyrd-vx09: walk a wiktextract slice and persist each entry's
+    ``forms`` array into ``etymon_text_match`` so the bundle's per-
+    language _variants pool gets non-OE/ON variant data.
+
+    Audit context (wyrd-f6v4): scholarly etymology dictionaries (the
+    OE/ON corpora) have prose bodies the existing reverse-search +
+    fuzzy-search infrastructure can scan; Welsh / Irish / Celtic /
+    French wiktextract corpora are headword-only with no prose. The
+    forms array IS the structured-data path for those languages.
+
+    For each entry:
+    * Resolve the canonical etymon (must already exist — typically
+      ingested via ``mine_corpus`` first; this pass enriches existing
+      rows, not creates new ones).
+    * Filter forms via ``_iter_meaningful_forms`` (skip noise tags,
+      verbal conjugation, self-matches).
+    * Upsert each meaningful form as an ``etymon_text_match`` row
+      with ``source_id='wiktionary-forms'`` and the form-label as
+      snippet for human-readable provenance.
+
+    Returns dict of counts: ``entries_walked``, ``forms_processed``,
+    ``forms_skipped_noise``, ``forms_written``, ``etymons_missing``
+    (canonical headword wasn't in the lexicon — likely the corpus
+    was never ingested via mine_corpus).
+
+    Idempotent on (etymon_id, source_id, matched_form) UNIQUE: re-
+    runs silently update match_count without duplicating rows.
+    """
+    if apply:
+        _ensure_forms_source_row(db)
+
+    counts: dict[str, Any] = {
+        "entries_walked": 0,
+        "forms_processed": 0,
+        "forms_written": 0,
+        "etymons_missing": 0,
+    }
+    for i, entry in enumerate(_iter_wiktextract_entries(slice_path)):
+        if limit is not None and counts["entries_walked"] >= limit:
+            break
+        counts["entries_walked"] += 1
+        canonical_form = (entry.get("word") or "").strip()
+        if not canonical_form:
+            continue
+        # Resolve the canonical language via the existing helper —
+        # consistent with how mine_corpus tags the etymon language.
+        lang_code = entry.get("lang_code") or ""
+        canonical_lang = _canonical_language(lang_code)
+        if canonical_lang is None:
+            continue
+        # Locate the existing etymon. Don't create new ones — the
+        # forms-mining path enriches existing rows; if mine_corpus
+        # hasn't ingested the headword yet, count and skip.
+        row = db.conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = ? AND language = ? "
+            "AND merged_into_id IS NULL",
+            (canonical_form, canonical_lang),
+        ).fetchone()
+        if row is None:
+            counts["etymons_missing"] += 1
+            continue
+        etymon_id = row["id"]
+        for form, label in _iter_meaningful_forms(entry):
+            counts["forms_processed"] += 1
+            if not apply:
+                continue
+            db.conn.execute(
+                """
+                INSERT INTO etymon_text_match
+                  (etymon_id, source_id, matched_form, match_count,
+                   edit_distance, snippet, method)
+                VALUES (?, ?, ?, 1, 0, ?, 'wiktionary-forms-v1')
+                ON CONFLICT(etymon_id, source_id, matched_form) DO UPDATE
+                  SET match_count = match_count + 1
+                """,
+                (etymon_id, WIKTIONARY_FORMS_SOURCE_ID, form, label),
+            )
+            counts["forms_written"] += 1
+        # Periodic commit so mid-run crashes don't lose progress.
+        if apply and i > 0 and i % 1000 == 0:
+            db.commit()
+
+    if apply:
+        db.commit()
+    return counts
 
 
 def derive_positions(
