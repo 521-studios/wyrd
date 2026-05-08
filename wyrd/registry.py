@@ -16,6 +16,13 @@ class GenerationResult:
     result: str
     explanation: str = ""
     components: list[dict[str, Any]] = field(default_factory=list)
+    # wyrd-h8k1: KenningExplain marks the canonical decomposition reading
+    # so the SPA can render it distinctly. ``canonical_source`` carries
+    # the rule that picked it (``'scholar'``, ``'unique-zero-unaccounted'``,
+    # or ``'scholar-disagreement'``). Both default to falsy for generators
+    # that don't surface canonical info.
+    canonical: bool = False
+    canonical_source: str | None = None
 
 
 class Generator(ABC):

@@ -570,6 +570,41 @@ def _bundle_subjects(data) -> list:
     return data
 
 
+def load_canonical_decompositions(data) -> dict[str, dict[str, str]]:
+    """Extract the per-toponym canonical decomposition map from a
+    bundle (wyrd-h8k1 Phase 3b).
+
+    Returns ``{modern_name: {"signature": sha1_hex, "source": label}}``.
+    Empty for legacy list-shape bundles AND for dict-shape bundles
+    that don't carry a ``canonical_decompositions`` field. Callers
+    (the explainer) can rely on ``.get(name)`` returning ``None`` when
+    no canonical was projected.
+
+    The signature is the SHA-1 hex from
+    ``decomposition._signature_for_payload`` over a flattened slot
+    list — KenningExplain re-derives this signature for each candidate
+    decomposition the matcher emits and matches it against the bundle
+    map to mark + front-load the canonical reading.
+    """
+    if not isinstance(data, dict):
+        return {}
+    raw = data.get("canonical_decompositions") or {}
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, dict[str, str]] = {}
+    for name, entry in raw.items():
+        if not isinstance(entry, dict):
+            continue
+        signature = entry.get("signature")
+        if not isinstance(signature, str) or not signature:
+            continue
+        out[name] = {
+            "signature": signature,
+            "source": entry.get("source") or "",
+        }
+    return out
+
+
 def load_joiners(data) -> dict[str, list[tuple[str, int]]]:
     """Extract the per-language-field joiner pool from a bundle (wyrd-q0g6
     Phase 1).

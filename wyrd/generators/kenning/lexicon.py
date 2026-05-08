@@ -405,10 +405,15 @@ class LexiconDB:
 
 def seed_from_meanings(
     db: LexiconDB,
-    meanings_data: list[dict[str, Any]],
+    meanings_data: list[dict[str, Any]] | dict[str, Any],
     source_id: str,
 ) -> dict[str, int]:
     """Ingest a meanings.json document into the lexicon as <source_id>.
+
+    Accepts either the legacy list-shape bundle OR the wyrd-q0g6 /
+    wyrd-h8k1 dict-shape bundle ``{"subjects": [...], ...}`` — sibling
+    fields (``joiners``, ``canonical_decompositions``) are ignored
+    here since they don't seed lexicon rows.
 
     Each subject in the meanings.json contributes:
       - one etymon per (canonical_form, language) tuple that appears across
@@ -423,6 +428,8 @@ def seed_from_meanings(
 
     Returns a counts dict for sanity-checking.
     """
+    from wyrd.generators.kenning.meaning import _bundle_subjects
+
     counts = {
         "etymons": 0,
         "reflexes": 0,
@@ -432,7 +439,7 @@ def seed_from_meanings(
         "citations": 0,
     }
 
-    for subject in meanings_data:
+    for subject in _bundle_subjects(meanings_data):
         glosses: list[str] = subject.get("meaning", []) or []
         tags: list[str] = subject.get("modifier_tags", []) or []
         modifier_type: str | None = subject.get("modifier_type")
@@ -5301,6 +5308,52 @@ RECOMMENDED_LANG_THRESHOLDS: dict[str, int] = {
     "latin": 2,
     "biblical": 2,
 }
+
+
+def collect_canonical_decompositions(db: LexiconDB) -> dict[str, dict[str, str]]:
+    """Project the lexicon's canonical decomposition picks into a
+    bundle-shaped lookup keyed by toponym ``modern_name``.
+
+    Used by ``lexicon export-meanings`` to emit a ``canonical_decompositions``
+    field that ``KenningExplain`` (Lambda / SPA — no DB access) can read
+    at runtime to mark and front-load the canonical reading among the
+    matcher's alternatives (wyrd-h8k1).
+
+    Output shape:
+    ``{modern_name: {"signature": sha1_hex, "source": canonical_source}}``.
+
+    Multiple toponym rows sharing a ``modern_name`` (one per region)
+    collapse to the lex-first ``(region, id)`` ordered row's canonical.
+    The Lambda has no region context at decomposition time so this
+    matches ``load_names_with_regions``'s dedup policy: deterministic,
+    same-name entries get the same canonical pick across re-runs.
+    """
+    rows = db.conn.execute(
+        """
+        SELECT t.modern_name,
+               td.decomposition_signature,
+               td.canonical_source
+          FROM toponym t
+          JOIN toponym_decomposition td ON td.toponym_id = t.id
+         WHERE td.is_canonical = 1
+         ORDER BY t.modern_name,
+                  COALESCE(t.region, ''),
+                  t.id,
+                  td.id
+        """
+    ).fetchall()
+    out: dict[str, dict[str, str]] = {}
+    for row in rows:
+        name = row["modern_name"]
+        if name in out:
+            # Same-name multi-region collisions collapse to the
+            # lex-first row's canonical; later rows skipped.
+            continue
+        out[name] = {
+            "signature": row["decomposition_signature"],
+            "source": row["canonical_source"] or "",
+        }
+    return out
 
 
 def export_meanings(

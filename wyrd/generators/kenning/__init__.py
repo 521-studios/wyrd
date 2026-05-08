@@ -8,8 +8,17 @@ from functools import lru_cache
 from importlib import resources
 from typing import Any
 
+from wyrd.generators.kenning.decomposition import (
+    _decomposition_payload,
+    _signature_for_payload,
+)
 from wyrd.generators.kenning.era import era_cells_for_family, resolve_era_input
-from wyrd.generators.kenning.meaning import Meaning, load_joiners, load_meanings
+from wyrd.generators.kenning.meaning import (
+    Meaning,
+    load_canonical_decompositions,
+    load_joiners,
+    load_meanings,
+)
 from wyrd.generators.kenning.name import Name
 from wyrd.generators.kenning.proportions import load_proportions
 from wyrd.generators.kenning.strata import (
@@ -256,8 +265,21 @@ def _load_meanings():
     with _data_path("meanings.json").open() as f:
         data = json.load(f)
     with _data_path("irish_anglicizations.json").open() as f:
-        data.extend(json.load(f))
-    data.extend(_norman_manorial_subjects())
+        sidecar = json.load(f)
+    manorial = _norman_manorial_subjects()
+    # The bundle may be list-shape (legacy) or dict-shape
+    # ``{"subjects": [...], "joiners": ..., "canonical_decompositions": ...}``
+    # (wyrd-q0g6 / wyrd-h8k1). Sidecars extend the subjects list either way;
+    # dict-shape callers preserve the bundle keys for downstream loaders
+    # (joiners, canonical_decompositions) to read.
+    if isinstance(data, dict):
+        subjects = list(data.get("subjects") or [])
+        subjects.extend(sidecar)
+        subjects.extend(manorial)
+        data["subjects"] = subjects
+    else:
+        data.extend(sidecar)
+        data.extend(manorial)
     return load_meanings(data)
 
 
@@ -269,6 +291,17 @@ def _load_joiners() -> dict[str, list[tuple[str, int]]]:
     with _data_path("meanings.json").open() as f:
         data = json.load(f)
     return load_joiners(data)
+
+
+@lru_cache(maxsize=1)
+def _load_canonical_decompositions() -> dict[str, dict[str, str]]:
+    """Load the bundle's per-toponym canonical decomposition map
+    (wyrd-h8k1). Returns ``{modern_name: {"signature", "source"}}``;
+    empty for legacy list-shape bundles AND for dict-shape bundles
+    that don't carry a ``canonical_decompositions`` field."""
+    with _data_path("meanings.json").open() as f:
+        data = json.load(f)
+    return load_canonical_decompositions(data)
 
 
 @lru_cache(maxsize=len(CULTURES))
@@ -293,12 +326,13 @@ _original_load_meanings_cache_clear = _load_meanings.cache_clear
 
 
 def _coupled_cache_clear() -> None:
-    """Clear ``_load_meanings``, ``_load_culture``, and
-    ``_load_joiners`` caches.
+    """Clear all per-bundle caches: ``_load_meanings``,
+    ``_load_culture``, ``_load_joiners``, ``_load_canonical_decompositions``.
 
-    The three caches form an aggregate: ``_load_culture`` holds a
-    ``NameGenerator`` parameterised on the ``meaning_db`` from
-    ``_load_meanings``; ``_load_joiners`` reads the same bundle.
+    These caches form an aggregate over a single ``meanings.json``
+    read: ``_load_culture`` holds a ``NameGenerator`` parameterised on
+    the ``meaning_db`` from ``_load_meanings``; ``_load_joiners`` and
+    ``_load_canonical_decompositions`` read the same bundle file.
     Invalidating one without the others yields a stale view next
     time. Replaces ``_load_meanings.cache_clear`` so the standard
     test-side pattern (``_load_meanings.cache_clear()``) clears all.
@@ -310,6 +344,7 @@ def _coupled_cache_clear() -> None:
     _original_load_meanings_cache_clear()
     _load_culture.cache_clear()
     _load_joiners.cache_clear()
+    _load_canonical_decompositions.cache_clear()
 
 
 # mypy flags reassigning a bound method on the lru_cache wrapper as
@@ -951,7 +986,12 @@ def _decomposition_signature(words: tuple[Word, ...]) -> tuple:
 
 
 def _build_decomposition_result(
-    name_str: str, words, meaning_db: dict[str, list[Meaning]]
+    name_str: str,
+    words,
+    meaning_db: dict[str, list[Meaning]],
+    *,
+    canonical: bool = False,
+    canonical_source: str | None = None,
 ) -> GenerationResult:
     explanation_parts: list[str] = []
     components: list[dict[str, Any]] = []
@@ -967,7 +1007,29 @@ def _build_decomposition_result(
         result=name_str,
         explanation=" + ".join(explanation_parts) or "no morphemes recognized",
         components=components,
+        canonical=canonical,
+        canonical_source=canonical_source,
     )
+
+
+def _canonical_signature_for_words(words) -> str:
+    """Compute the SHA-1-of-JSON-payload signature used by
+    decomposition.py over a flat slot list across the words of a name.
+
+    The canonical map projected into the bundle (wyrd-h8k1) keys on
+    this signature; KenningExplain re-derives it per candidate so the
+    matching reading can be marked canonical and front-loaded.
+
+    Slot order mirrors ``decomposition._cross_product_decompositions``
+    (concat each Word.word list in word-iteration order, no filtering)
+    so populator + runtime payloads byte-match for the same parse.
+    Filtering empty-string slots here would diverge from the populator
+    and silently miss canonicals on edge-case Word.word lists.
+    """
+    flat: list = []
+    for word in words:
+        flat.extend(word.word)
+    return _signature_for_payload(_decomposition_payload(flat))
 
 
 class KenningExplain(Generator):
@@ -1032,14 +1094,27 @@ class KenningExplain(Generator):
         if not per_word:
             return [GenerationResult(result=text, explanation="no morphemes recognized")]
 
+        # wyrd-h8k1: when the bundle carries a canonical signature for
+        # this toponym, the matching reading floats to the top of the
+        # candidates list and gets marked ``canonical=True`` so the SPA
+        # can render it distinctly. Bundle map is empty for legacy
+        # list-shape bundles + dict-shape bundles missing the
+        # ``canonical_decompositions`` field — this codepath is
+        # transparent to legacy data.
+        canonical_map = _load_canonical_decompositions()
+        canonical_entry = canonical_map.get(text)
+        canonical_signature = canonical_entry["signature"] if canonical_entry else None
+        canonical_source = canonical_entry["source"] if canonical_entry else None
+
         # Dedupe by structural signature: when one usage has multiple Meanings
         # (different senses, e.g. -y as both "district" and "island"), the raw
         # cartesian product produces N copies of the same structural break with
         # only the Meaning identity differing. We collapse those into one
         # result and combine senses inside _build_explanation_part.
         seen: set[tuple] = set()
-        candidates: list[tuple[int, int, tuple]] = []
+        candidates: list[tuple[int, int, int, tuple]] = []
         sig_to_words: dict[tuple, Any] = {}
+        sig_is_canonical: dict[tuple, bool] = {}
         for words in itertools.product(*per_word):
             sig = _decomposition_signature(words)
             if sig in seen:
@@ -1048,13 +1123,29 @@ class KenningExplain(Generator):
             sig_to_words[sig] = words
             unaccounted = sum(1 for w in words for c in w.word if isinstance(c, str) and c)
             total = sum(1 for w in words for c in w.word if not (isinstance(c, str) and not c))
-            candidates.append((unaccounted, total, sig))
+            is_canonical = (
+                canonical_signature is not None
+                and _canonical_signature_for_words(words) == canonical_signature
+            )
+            sig_is_canonical[sig] = is_canonical
+            # Canonical sorts first by carrying a leading-zero rank;
+            # within-rank order falls back to the heuristic
+            # (lowest unaccounted, then min-complexity).
+            rank = 0 if is_canonical else 1
+            candidates.append((rank, unaccounted, total, sig))
 
-        # Best readings first: fewer unaccounted fragments, then simpler.
+        # Best readings first: canonical (when present), then fewer
+        # unaccounted fragments, then simpler.
         candidates.sort()
         return [
-            _build_decomposition_result(text, sig_to_words[sig], meaning_db)
-            for _, _, sig in candidates[:_MAX_DECOMPOSITIONS]
+            _build_decomposition_result(
+                text,
+                sig_to_words[sig],
+                meaning_db,
+                canonical=sig_is_canonical[sig],
+                canonical_source=canonical_source if sig_is_canonical[sig] else None,
+            )
+            for _, _, _, sig in candidates[:_MAX_DECOMPOSITIONS]
         ]
 
 

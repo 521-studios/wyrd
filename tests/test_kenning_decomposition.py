@@ -2091,3 +2091,162 @@ def test_cli_unaccounted_as_json_without_db_still_prints_summary(
     # Summary on stderr — no canonical[…] block since no --db.
     assert "imperfect_names=" in result.stderr
     assert "canonical[" not in result.stderr
+
+
+# --- wyrd-h8k1: bundle-side projection of canonical picks ---------------
+
+
+def test_collect_canonical_decompositions_returns_picks_keyed_by_name(
+    fresh_db: Path,
+) -> None:
+    """Toponyms with a canonical pick surface in the projected map
+    keyed by ``modern_name``; toponyms without one are absent."""
+    from wyrd.generators.kenning.lexicon import collect_canonical_decompositions
+
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_with = _insert_toponym(db, "Stratford")
+        populate_and_pick(db, topo_with, "Stratford", word_db)
+        topo_without = _insert_toponym(db, "Nowhere")
+        compute_decompositions(db, topo_without, "Nowhere", word_db)
+        db.commit()
+        out = collect_canonical_decompositions(db)
+
+    assert "Stratford" in out
+    assert "Nowhere" not in out
+    entry = out["Stratford"]
+    assert isinstance(entry["signature"], str) and len(entry["signature"]) == 40
+    assert entry["source"] == "unique-zero-unaccounted"
+
+
+def test_collect_canonical_decompositions_dedupes_multi_region_collision(
+    fresh_db: Path,
+) -> None:
+    """Same-modern_name multi-region toponyms collapse to a single
+    map entry — Lambda has no region context at decomposition time."""
+    from wyrd.generators.kenning.lexicon import collect_canonical_decompositions
+
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        cur = db.conn.execute(
+            "INSERT INTO toponym (modern_name, region) VALUES (?, ?)",
+            ("Stratford", "Suffolk"),
+        )
+        topo_b = cur.lastrowid
+        populate_and_pick(db, topo_b, "Stratford", word_db)
+        cur = db.conn.execute(
+            "INSERT INTO toponym (modern_name, region) VALUES (?, ?)",
+            ("Stratford", "Bedfordshire"),
+        )
+        topo_a = cur.lastrowid
+        populate_and_pick(db, topo_a, "Stratford", word_db)
+        db.commit()
+        out = collect_canonical_decompositions(db)
+
+    assert list(out.keys()) == ["Stratford"]
+
+
+def test_load_canonical_decompositions_dict_shape() -> None:
+    """``load_canonical_decompositions`` reads the dict-shape bundle's
+    ``canonical_decompositions`` field and skips malformed entries."""
+    from wyrd.generators.kenning.meaning import load_canonical_decompositions
+
+    bundle = {
+        "subjects": [],
+        "canonical_decompositions": {
+            "Stratford": {"signature": "abc123", "source": "scholar"},
+            "Bridgford": {"signature": "def456", "source": ""},
+            "Bogus": {"source": "missing-signature"},
+            "AlsoBogus": "not-a-dict",
+        },
+    }
+    out = load_canonical_decompositions(bundle)
+    assert set(out.keys()) == {"Stratford", "Bridgford"}
+    assert out["Stratford"] == {"signature": "abc123", "source": "scholar"}
+    assert out["Bridgford"] == {"signature": "def456", "source": ""}
+
+
+def test_load_canonical_decompositions_legacy_list_shape() -> None:
+    """Legacy list-shape bundles return an empty map without
+    crashing — KenningExplain's canonical surfacing becomes a
+    transparent no-op."""
+    from wyrd.generators.kenning.meaning import load_canonical_decompositions
+
+    assert load_canonical_decompositions([]) == {}
+    assert load_canonical_decompositions([{"meaning": [], "words": []}]) == {}
+
+
+def test_load_canonical_decompositions_dict_without_field() -> None:
+    """A dict-shape bundle missing the canonical_decompositions key
+    returns empty."""
+    from wyrd.generators.kenning.meaning import load_canonical_decompositions
+
+    assert load_canonical_decompositions({"subjects": []}) == {}
+    assert load_canonical_decompositions({"subjects": [], "joiners": {}}) == {}
+
+
+def test_cli_export_meanings_emits_canonical_block_when_db_has_picks(
+    tmp_path: Path,
+) -> None:
+    """End-to-end: ``lexicon export-meanings`` writes a dict-shape
+    bundle with the ``canonical_decompositions`` block when the DB
+    has at least one canonical pick."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        populate_and_pick(db, topo_id, "Stratford", word_db)
+        db.commit()
+
+    output_path = tmp_path / "meanings.json"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-meanings",
+            "--db",
+            str(db_path),
+            "--output",
+            str(output_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    bundle = json.loads(output_path.read_text())
+    assert isinstance(bundle, dict)
+    assert "subjects" in bundle
+    assert "canonical_decompositions" in bundle
+    assert "Stratford" in bundle["canonical_decompositions"]
+    assert "canonical decompositions" in result.stderr
+
+
+def test_cli_export_meanings_legacy_list_shape_when_no_canonicals(
+    tmp_path: Path,
+) -> None:
+    """Without any canonical picks in the DB, the bundle stays
+    list-shape — backward compatible for downstream consumers that
+    haven't been updated for the dict shape."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    output_path = tmp_path / "meanings.json"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-meanings",
+            "--db",
+            str(db_path),
+            "--output",
+            str(output_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    bundle = json.loads(output_path.read_text())
+    assert isinstance(bundle, list)

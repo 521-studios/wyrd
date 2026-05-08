@@ -232,6 +232,36 @@ def test_seed_from_minimal_meanings(fresh_db: Path) -> None:
         assert {row["tag"] for row in tag_rows} == {"plant", "food"}
 
 
+def test_seed_from_meanings_accepts_dict_shape_bundle(fresh_db: Path) -> None:
+    """wyrd-h8k1: ``seed_from_meanings`` must accept the dict-shape
+    bundle ``{"subjects": [...], "canonical_decompositions": {...}}``
+    that ``lexicon export-meanings`` emits when the DB has canonical
+    picks. Sibling fields (joiners, canonical_decompositions) are
+    ignored at seed time — only the subjects feed lexicon ingestion."""
+    bundle = {
+        "subjects": [
+            {
+                "meaning": ["Home"],
+                "modifier_tags": ["habitative"],
+                "modifier_type": "Habitative",
+                "words": [{"modern_usage": "-ham", "old_english": ["ham"]}],
+            },
+        ],
+        "canonical_decompositions": {
+            "Stratford": {"signature": "abc123", "source": "scholar"},
+        },
+        "joiners": {},
+    }
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="test-src", title="Test")
+        db.commit()
+        seed_from_meanings(db, bundle, "test-src")
+        stats = db.stats()
+    # One etymon (ham), one reflex (-ham).
+    assert stats["etymon"] == 1
+    assert stats["reflex"] == 1
+
+
 def test_seed_against_bundled_meanings(fresh_db: Path) -> None:
     """End-to-end: ingest the real bundled meanings.json and sanity-check counts."""
     text = resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
