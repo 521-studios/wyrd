@@ -1,11 +1,12 @@
-"""Sound-change rules library — Phases 1 + 2.1 + 2.3 (wyrd-4i6 / wyrd-n9x5).
+"""Sound-change rules library — Phases 1 + 2.1 + 2.2 + 2.3 (wyrd-4i6 / wyrd-n9x5).
 
 Encodes phonological transforms per ``(language, era_from, era_to)``
 cell. Phase 1 (PR #131) shipped the framework + Old English → Middle
 English. Phase 2.1 (PR #135) added Middle English → Early Modern
-English. Phase 2.3 (this commit) adds Old Welsh → Modern Welsh.
-Phase 2.2 (EModE → ModE) and Phase 2.4 (sporadic-weight rules + env
-constraints + restoration of dropped rules) remain.
+English. Phase 2.3 (PR #141) added Old Welsh → Modern Welsh. Phase
+2.2 (this commit) adds Early Modern English → Modern English. Phase
+2.4 (sporadic-weight rules + env constraints + restoration of dropped
+rules) remains.
 
 Public API: ``apply_rules(form, language, from_era, to_era, mode)``
 returns ``[(derived_form, probability), ...]``. ``has_rules`` checks
@@ -407,6 +408,94 @@ ME_TO_EMODE_RULES: tuple[SoundChangeRule, ...] = (
 )
 
 
+# --- Early Modern English → Modern English (wyrd-n9x5 Phase 2.2) --------
+#
+# Sources: Cameron, *English Place Names* (1996, ch. 2 on the
+# orthographic settling of place-name spellings 1500-1800); Mills, *A
+# Dictionary of British Place Names* (rev. ed. 2011, per-toponym
+# attestation chains showing EModE intermediate forms); Smith, *English
+# Place-Name Elements* (EPNS vol 25–26, 1956, suffix evolution).
+#
+# Note on scope: most British place-name orthography stabilized by
+# EModE — the dominant phonological changes (Great Vowel Shift,
+# consonant cluster shifts) had run their course by 1700, and the
+# 18th–19th c. settling is mostly orthographic standardization rather
+# than phonological. The rules below cover the surfacing transitions
+# that DO appear in attestation chains: final-e drop on EModE-attested
+# place-name suffixes (-stocke, -brooke, -grene, -poole, -ditche)
+# yielding their ModE forms. The set is deliberately compact (5
+# rules); Phase 2 mining of period-specific attestation forms would
+# expand it if needed.
+
+EMODE_TO_MODE_RULES: tuple[SoundChangeRule, ...] = (
+    SoundChangeRule(
+        pattern="-stocke",
+        replacement="-stock",
+        weight=1.0,
+        description=(
+            "Habitative suffix -stocke → -stock (final -e loss). EModE "
+            "'Tavystocke' / 'Tavistocke' → ModE 'Tavistock'; same "
+            "pattern in 'Bemerstocke' → 'Bemerstock'. Stable in "
+            "pronunciation; the e drop is the orthographic settling."
+        ),
+        exemplar=("Tavi-stocke", "Tavi-stock"),
+        source="Smith EPNS s.v. 'stoc'; Mills s.v. 'Tavistock'",
+    ),
+    SoundChangeRule(
+        pattern="-brooke",
+        replacement="-brook",
+        weight=1.0,
+        description=(
+            "Topographic suffix -brooke → -brook (final -e loss). EModE "
+            "'Holbrooke' / 'Hollybrooke' → ModE 'Holbrook'. The "
+            "preceding ME→EModE step had already settled the long-o "
+            "as -oo- spelling; Phase 2.2 strips the EModE final -e."
+        ),
+        exemplar=("Hol-brooke", "Hol-brook"),
+        source="Smith EPNS s.v. 'brōc'; Mills s.v. 'Holbrook'",
+    ),
+    SoundChangeRule(
+        pattern="-grene",
+        replacement="-green",
+        weight=1.0,
+        description=(
+            "Topographic suffix -grene → -green (final -e loss + "
+            "ee-spelling for the long-e reflex). EModE 'Bethnal Grene' "
+            "→ ModE 'Bethnal Green'. Cf. -wude → -wood (Phase 2.1) for "
+            "the parallel oo-spelling on the long-o reflex."
+        ),
+        exemplar=("Bethnal-grene", "Bethnal-green"),
+        source="Smith EPNS s.v. 'grēne'; Mills s.v. 'Bethnal Green'",
+    ),
+    SoundChangeRule(
+        pattern="-poole",
+        replacement="-pool",
+        weight=1.0,
+        description=(
+            "Topographic suffix -poole → -pool (final -e loss). EModE "
+            "'Liverpoole' / 'Hartelpoole' → ModE 'Liverpool' / "
+            "'Hartlepool'. The oo-spelling for long-o was already "
+            "stable by EModE; Phase 2.2 strips the trailing -e."
+        ),
+        exemplar=("Liver-poole", "Liver-pool"),
+        source="Smith EPNS s.v. 'pōl'; Mills s.v. 'Liverpool'",
+    ),
+    SoundChangeRule(
+        pattern="-ditche",
+        replacement="-ditch",
+        weight=1.0,
+        description=(
+            "Topographic suffix -ditche → -ditch (final -e loss). "
+            "EModE 'Houndsditche' → ModE 'Houndsditch' (London "
+            "ward / street name); same pattern across other ditch- "
+            "compounds with EModE -e tail."
+        ),
+        exemplar=("Hounds-ditche", "Hounds-ditch"),
+        source="Smith EPNS s.v. 'dīc'; Mills s.v. 'Houndsditch'",
+    ),
+)
+
+
 # --- Old Welsh → Modern Welsh (wyrd-n9x5 Phase 2.3) ---------------------
 #
 # Sources: Morris-Jones, *A Welsh Grammar Historical and Comparative*
@@ -577,6 +666,7 @@ OW_TO_MW_RULES: tuple[SoundChangeRule, ...] = (
 _RULES: dict[tuple[str, str, str], tuple[SoundChangeRule, ...]] = {
     ("english", "old-english", "middle-english"): OE_TO_ME_RULES,
     ("english", "middle-english", "early-modern-english"): ME_TO_EMODE_RULES,
+    ("english", "early-modern-english", "modern-english"): EMODE_TO_MODE_RULES,
     ("welsh", "old-welsh", "modern-welsh"): OW_TO_MW_RULES,
 }
 
