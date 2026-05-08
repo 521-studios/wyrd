@@ -8,10 +8,18 @@ Per-language metrics:
   source count.
 - B. Bundle representation — count of bundle words carrying this
   language as a sibling field.
-- C. Semantic-profile coverage — for each top-N tag of the English
-  reference distribution (top-15 of english_proportions.json
-  ``tag_marginal``), does this language have at least one bundle
-  subject tagged it? Plus per-tag morpheme count vs the English count.
+- C. Semantic-tag coverage — split into two views, both keyed off the
+  top-N tags of the English reference distribution (top-15 of
+  english_proportions.json ``tag_marginal``):
+  * **Lexicon side** (``etymon_tag`` join): how many etymons in this
+    language carry ≥1 tag, plus per-reference-tag distinct etymon
+    count. Surfaces the corpus-side gap independent of bundle export
+    so middle-english / modern-english (no bundle sibling) still get a
+    real reading.
+  * **Bundle side** (``modifier_tags`` × bundle sibling): how many
+    bundle subjects expose this language with each reference tag.
+    Captures the runtime-visibility view; bundle-less languages read 0
+    across the board.
 - D. Inflection coverage (D8) — % of lemmas with at least one linked
   inflected child + distinct case labels.
 - E. Spelling-variant coverage (D18) — % of etymons with a
@@ -187,8 +195,18 @@ class LanguageScorecard:
     bundle_shared_with: list[str] = field(default_factory=list)
     # C. Semantic-profile coverage (vs English reference)
     reference_tags: list[str] = field(default_factory=list)
-    tag_coverage: dict[str, int] = field(default_factory=dict)
-    tag_hit_rate: float = 0.0
+    # Lexicon-side: counts of etymons in this language tagged with each
+    # reference tag. Reads etymon_tag directly so middle-english /
+    # modern-english (no bundle sibling) still get a meaningful reading.
+    lexicon_tagged_etymons: int = 0
+    lexicon_tag_coverage: dict[str, int] = field(default_factory=dict)
+    lexicon_tag_hit_rate: float = 0.0
+    # Bundle-side: counts of bundle subjects whose modifier_tags include
+    # the reference tag AND whose words contain a sibling for this
+    # language. Captures the runtime-visibility view; bundle-less
+    # languages (middle-english, norman-french) read 0 across the board.
+    bundle_tag_coverage: dict[str, int] = field(default_factory=dict)
+    bundle_tag_hit_rate: float = 0.0
     # D. Inflection coverage
     lemmas_with_inflections: int = 0
     inflection_density: float = 0.0
@@ -366,6 +384,57 @@ def _bundle_tag_coverage_for_sibling(
 
 
 # --- per-language metric computation -------------------------------------
+
+
+def _lexicon_tag_coverage(
+    conn: sqlite3.Connection,
+    language: str,
+    reference_tags: list[str],
+) -> dict[str, Any]:
+    """Metric C (lexicon side). Counts off the ``etymon_tag`` table —
+    independent of bundle export, so middle-english + modern-english
+    (which have no bundle sibling) still get a real reading.
+
+    Returns:
+    - ``tagged_etymons``: distinct etymons in this language with ≥1
+      etymon_tag row.
+    - ``tag_coverage``: ``{reference_tag: distinct_etymon_count}`` —
+      hits per reference tag.
+    - ``hits``: count of reference tags with ≥1 etymon (the M of M/N).
+    """
+    tagged_total = conn.execute(
+        """
+        SELECT COUNT(DISTINCT et.etymon_id)
+          FROM etymon_tag et
+          JOIN etymon e ON e.id = et.etymon_id
+         WHERE e.language = ?
+           AND e.merged_into_id IS NULL
+        """,
+        (language,),
+    ).fetchone()[0]
+    coverage: dict[str, int] = dict.fromkeys(reference_tags, 0)
+    if reference_tags:
+        placeholders = ",".join("?" * len(reference_tags))
+        rows = conn.execute(
+            f"""
+            SELECT et.tag, COUNT(DISTINCT et.etymon_id)
+              FROM etymon_tag et
+              JOIN etymon e ON e.id = et.etymon_id
+             WHERE e.language = ?
+               AND e.merged_into_id IS NULL
+               AND et.tag IN ({placeholders})
+             GROUP BY et.tag
+            """,
+            (language, *reference_tags),
+        ).fetchall()
+        for tag, count in rows:
+            coverage[tag] = count
+    hits = sum(1 for v in coverage.values() if v > 0)
+    return {
+        "lexicon_tagged_etymons": tagged_total,
+        "lexicon_tag_coverage": coverage,
+        "lexicon_tag_hits": hits,
+    }
 
 
 def _corpus_depth(conn: sqlite3.Connection, language: str, threshold: int) -> dict[str, Any]:
@@ -640,12 +709,14 @@ def compute_scorecard(
     depth = _corpus_depth(conn, language, threshold)
     sibling = _BUNDLE_LANG_KEY.get(language)
     bundle_words = _bundle_language_word_count(bundle, sibling)
-    tag_counts = _bundle_tag_coverage_for_sibling(bundle, sibling, reference_tags)
+    bundle_tag_counts = _bundle_tag_coverage_for_sibling(bundle, sibling, reference_tags)
     shared_with: list[str] = []
     if sibling is not None and sibling in _SHARED_BUNDLE_SIBLINGS:
         shared_with = [other for other in _SHARED_BUNDLE_SIBLINGS[sibling] if other != language]
-    tags_hit = sum(1 for v in tag_counts.values() if v > 0)
-    tag_hit_rate = tags_hit / len(reference_tags) if reference_tags else 0.0
+    bundle_tags_hit = sum(1 for v in bundle_tag_counts.values() if v > 0)
+    bundle_tag_hit_rate = bundle_tags_hit / len(reference_tags) if reference_tags else 0.0
+    lex_tag = _lexicon_tag_coverage(conn, language, reference_tags)
+    lex_tag_hit_rate = lex_tag["lexicon_tag_hits"] / len(reference_tags) if reference_tags else 0.0
     inflect = _inflection_coverage(conn, language)
     variants = _variant_coverage(conn, language)
     era = _era_reflex_coverage(conn, language)
@@ -666,8 +737,11 @@ def compute_scorecard(
         bundle_word_count=bundle_words,
         bundle_shared_with=shared_with,
         reference_tags=list(reference_tags),
-        tag_coverage=tag_counts,
-        tag_hit_rate=round(tag_hit_rate, 3),
+        lexicon_tagged_etymons=lex_tag["lexicon_tagged_etymons"],
+        lexicon_tag_coverage=lex_tag["lexicon_tag_coverage"],
+        lexicon_tag_hit_rate=round(lex_tag_hit_rate, 3),
+        bundle_tag_coverage=bundle_tag_counts,
+        bundle_tag_hit_rate=round(bundle_tag_hit_rate, 3),
         lemmas_with_inflections=inflect["lemmas_with_inflections"],
         inflection_density=(
             round(inflect["lemmas_with_inflections"] / total_lemmas, 4) if total_lemmas else 0.0
@@ -775,14 +849,16 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
     lines.append("## Summary")
     lines.append("")
     lines.append(
-        "| Language | Etymons | Lemmas | Promo (≥thr) | Bundle | Tag hit | Inflect | Variants | Era reflex |"
+        "| Language | Etymons | Lemmas | Promo (≥thr) | Bundle | Lex tag hit | Bundle tag hit | Inflect | Variants | Era reflex |"
     )
-    lines.append("|---|---:|---:|---|---:|---|---|---|---|")
+    lines.append("|---|---:|---:|---|---:|---|---|---|---|---|")
     for c in report.languages:
         promo = f"{c.promotion_eligible} (≥{c.promotion_threshold})"
         bundle_pct = _format_pct(c.bundle_word_count, report.bundle_total_words)
         bundle_cell = f"{c.bundle_word_count} ({bundle_pct})"
-        tag_hit = f"{int(c.tag_hit_rate * len(c.reference_tags))}/{len(c.reference_tags)}"
+        ref_n = len(c.reference_tags)
+        lex_hit = f"{int(round(c.lexicon_tag_hit_rate * ref_n))}/{ref_n}"
+        bundle_hit = f"{int(round(c.bundle_tag_hit_rate * ref_n))}/{ref_n}"
         inflect = f"{c.lemmas_with_inflections} ({_format_pct(c.lemmas_with_inflections, c.total_lemmas)})"
         variants = (
             f"{c.etymons_with_variants} ({_format_pct(c.etymons_with_variants, c.total_etymons)})"
@@ -790,7 +866,7 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
         era = f"{c.any_reflex_count} ({_format_pct(c.any_reflex_count, c.total_etymons)})"
         lines.append(
             f"| {c.language} | {c.total_etymons} | {c.total_lemmas} | {promo} | "
-            f"{bundle_cell} | {tag_hit} | {inflect} | {variants} | {era} |"
+            f"{bundle_cell} | {lex_hit} | {bundle_hit} | {inflect} | {variants} | {era} |"
         )
     lines.append("")
 
@@ -821,14 +897,29 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
                 bundle_line += f"; **shared with** {', '.join(c.bundle_shared_with)}"
             bundle_line += ")."
         lines.append(bundle_line)
-        tags_hit = sum(1 for v in c.tag_coverage.values() if v > 0)
-        missing = [t for t, v in c.tag_coverage.items() if v == 0]
-        miss_str = ", ".join(missing) if missing else "none"
+        lex_hit = sum(1 for v in c.lexicon_tag_coverage.values() if v > 0)
+        lex_missing = [t for t, v in c.lexicon_tag_coverage.items() if v == 0]
+        lex_miss_str = ", ".join(lex_missing) if lex_missing else "none"
         lines.append(
-            f"- **C. Semantic-profile coverage:** {tags_hit}/{len(c.reference_tags)} "
-            f"reference tags hit ({_format_pct(tags_hit, len(c.reference_tags))}). "
-            f"Missing: {miss_str}."
+            f"- **C. Semantic-tag coverage (lexicon):** {c.lexicon_tagged_etymons}/"
+            f"{c.total_etymons} etymons "
+            f"({_format_pct(c.lexicon_tagged_etymons, c.total_etymons)}) "
+            f"carry ≥1 tag. Reference-tag hits: {lex_hit}/{len(c.reference_tags)} "
+            f"({_format_pct(lex_hit, len(c.reference_tags))}). Missing: {lex_miss_str}."
         )
+        bundle_hit = sum(1 for v in c.bundle_tag_coverage.values() if v > 0)
+        if c.bundle_sibling is None:
+            bundle_tag_line = (
+                "- **C₂. Bundle tag visibility:** n/a — language has no dedicated bundle sibling."
+            )
+        else:
+            bundle_missing = [t for t, v in c.bundle_tag_coverage.items() if v == 0]
+            bundle_miss_str = ", ".join(bundle_missing) if bundle_missing else "none"
+            bundle_tag_line = (
+                f"- **C₂. Bundle tag visibility:** {bundle_hit}/{len(c.reference_tags)} "
+                f"({_format_pct(bundle_hit, len(c.reference_tags))}). Missing: {bundle_miss_str}."
+            )
+        lines.append(bundle_tag_line)
         lines.append(
             f"- **D. Inflection coverage:** {c.lemmas_with_inflections}/{c.total_lemmas} "
             f"lemmas ({_format_pct(c.lemmas_with_inflections, c.total_lemmas)}) "

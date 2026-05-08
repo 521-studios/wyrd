@@ -84,6 +84,11 @@ def _build_fixture_db() -> sqlite3.Connection:
             form TEXT NOT NULL,
             date_year INTEGER NOT NULL
         );
+        CREATE TABLE etymon_tag (
+            etymon_id INTEGER NOT NULL REFERENCES etymon(id),
+            tag TEXT NOT NULL,
+            PRIMARY KEY (etymon_id, tag)
+        );
 
         CREATE VIEW etymon_consensus AS
           SELECT lemma_id, canonical_form, language, witnesses FROM (
@@ -169,6 +174,18 @@ def _build_fixture_db() -> sqlite3.Connection:
     # variant coverage on ID 4 (which is OE).
     conn.executescript(
         "INSERT INTO etymon_text_match(etymon_id, matched_form) VALUES (4, 'cotvm');"
+    )
+    # Etymon tags: cot tagged architecture; tun tagged topography +
+    # agriculture; cwt (welsh) tagged architecture. Exercises lexicon-
+    # side semantic coverage (Metric C). 'ham' deliberately untagged so
+    # the per-tag distinct-etymon count != total-tagged-etymon count.
+    conn.executescript(
+        """
+        INSERT INTO etymon_tag(etymon_id, tag) VALUES (1, 'architecture');
+        INSERT INTO etymon_tag(etymon_id, tag) VALUES (3, 'topography');
+        INSERT INTO etymon_tag(etymon_id, tag) VALUES (3, 'agriculture');
+        INSERT INTO etymon_tag(etymon_id, tag) VALUES (20, 'architecture');
+        """
     )
     # Welsh has just the cognate mate (ID 20) — sparse on every other
     # axis. No citations, no inflections, no variants.
@@ -321,6 +338,23 @@ def test_scorecard_old_english_full_metrics() -> None:
     # citations
     assert card.etymons_with_citations == 3  # cot, ham, tun all cited
     assert card.avg_citations > 1.5  # 3+1+2=6 across 3 etymons
+    # lexicon-side tag coverage: cot tagged architecture, tun tagged
+    # topography + agriculture. ham untagged. So 2 distinct tagged
+    # etymons (cot, tun). Top-5 reference set is architecture,
+    # topography, social, descriptive, plant — so architecture (cot)
+    # and topography (tun) both hit; agriculture is in the lexicon
+    # but NOT in top-5 → not credited.
+    assert card.lexicon_tagged_etymons == 2  # cot, tun
+    assert card.lexicon_tag_coverage["architecture"] == 1
+    assert card.lexicon_tag_coverage["topography"] == 1
+    assert card.lexicon_tag_coverage["plant"] == 0  # in top-5 but no matches
+    assert "agriculture" not in card.lexicon_tag_coverage  # not in top-5
+    # 2 of 5 top-5 tags hit (architecture, topography).
+    assert abs(card.lexicon_tag_hit_rate - 0.4) < 1e-6
+    # bundle-side tag visibility: OE has 'old_english' sibling; subjects
+    # tagged architecture (cot subject) and topography (tun subject)
+    # both have an old_english word. So 2 of 5 reference tags hit.
+    assert abs(card.bundle_tag_hit_rate - 0.4) < 1e-6
 
 
 def test_scorecard_welsh_sparse_terminus_forward() -> None:
@@ -345,6 +379,42 @@ def test_scorecard_welsh_sparse_terminus_forward() -> None:
     # tier-2-back: welsh's 'older' chain is [middle-welsh, old-welsh] —
     # neither in fixture, so back edge count is 0 (different from n/a).
     assert card.tier2_back_count == 0
+
+
+def test_scorecard_lexicon_tag_coverage_is_independent_of_bundle() -> None:
+    """Regression for the 'middle-english reads 0/15 in metric C' bug:
+    lexicon-side tag coverage MUST read etymon_tag directly so that
+    languages without a bundle sibling still get a real reading.
+
+    Build a fresh fixture where 'middle-english' has 2 tagged etymons
+    but NO bundle sibling. Pin: lexicon_tagged_etymons reflects the
+    etymon_tag rows; bundle_tag_coverage is all-zero (no sibling)."""
+    conn = _build_fixture_db()
+    # ME etymons cote (id 10) and tonn (id 11) — tag them.
+    conn.executescript(
+        """
+        INSERT INTO etymon_tag(etymon_id, tag) VALUES (10, 'architecture');
+        INSERT INTO etymon_tag(etymon_id, tag) VALUES (11, 'topography');
+        """
+    )
+    bundle = _fixture_bundle()
+    card = compute_scorecard(
+        conn,
+        "middle-english",
+        bundle,
+        list(FALLBACK_REFERENCE_TAGS[:5]),
+    )
+    assert card.bundle_sibling is None  # no dedicated bundle sibling
+    # lexicon side surfaces the tags
+    assert card.lexicon_tagged_etymons == 2
+    assert card.lexicon_tag_coverage["architecture"] == 1
+    assert card.lexicon_tag_coverage["topography"] == 1
+    assert abs(card.lexicon_tag_hit_rate - 0.4) < 1e-6
+    # bundle side correctly reports 0 — but the user can read the
+    # lexicon-side metric to know the language HAS tag data, just no
+    # bundle visibility.
+    assert all(v == 0 for v in card.bundle_tag_coverage.values())
+    assert card.bundle_tag_hit_rate == 0.0
 
 
 def test_scorecard_unknown_language_chain_is_marked_unknown() -> None:
@@ -431,8 +501,9 @@ def test_report_to_json_round_trips_through_load() -> None:
     assert data["bundle_total_words"] == 4
     assert data["languages"][0]["language"] == "old-english"
     assert data["languages"][0]["promotion_threshold"] == 3
-    # tag_coverage must round-trip as a dict.
-    assert isinstance(data["languages"][0]["tag_coverage"], dict)
+    # Both tag-coverage maps must round-trip as dicts.
+    assert isinstance(data["languages"][0]["lexicon_tag_coverage"], dict)
+    assert isinstance(data["languages"][0]["bundle_tag_coverage"], dict)
 
 
 def test_report_to_markdown_includes_summary_and_detail() -> None:
@@ -455,6 +526,9 @@ def test_report_to_markdown_includes_summary_and_detail() -> None:
     assert "shared with" in md.lower()
     # OE's chain is terminus-back; the markdown should say so.
     assert "terminus-back" in md
+    # Both lexicon-side and bundle-side tag-coverage sections appear.
+    assert "Semantic-tag coverage (lexicon)" in md
+    assert "Bundle tag visibility" in md
 
 
 def test_report_to_markdown_handles_no_bundle_sibling() -> None:
@@ -549,8 +623,11 @@ def test_language_scorecard_dataclass_carries_required_fields() -> None:
         "bundle_word_count",
         "bundle_shared_with",
         "reference_tags",
-        "tag_coverage",
-        "tag_hit_rate",
+        "lexicon_tagged_etymons",
+        "lexicon_tag_coverage",
+        "lexicon_tag_hit_rate",
+        "bundle_tag_coverage",
+        "bundle_tag_hit_rate",
         "lemmas_with_inflections",
         "inflection_density",
         "distinct_inflection_labels",
