@@ -31,8 +31,10 @@ Per-language metrics:
   marked terminus-back / terminus-forward in ``ERA_CHAINS`` so missing
   edges don't penalize languages with no parent / child cell in corpus.
 - G. Stratum coverage (D32) — % of etymons with ``stratum`` set.
-- I. Citation depth — % with at least one ``etymon_citation`` row +
-  average count.
+- I. Citation depth — % of etymons with ≥1 ``etymon_citation`` row +
+  average citations per cited etymon (denominator is cited etymons,
+  not total etymons; reports depth among the cited population rather
+  than diluting with uncited zeros).
 
 Phase-1 metric C uses the simpler tag-marginal hit rate; per-meaning
 catalog coverage (cataloging meanings INSIDE each subject so we can
@@ -946,7 +948,7 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
         lines.append(
             f"- **I. Citation depth:** {c.etymons_with_citations}/{c.total_etymons} "
             f"({_format_pct(c.etymons_with_citations, c.total_etymons)}) cited; "
-            f"avg {c.avg_citations} citations/etymon."
+            f"avg {c.avg_citations} citations per cited etymon."
         )
         lines.append("")
     return "\n".join(lines)
