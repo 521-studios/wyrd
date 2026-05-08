@@ -46,6 +46,7 @@ from wyrd.generators.kenning.lexicon import (
     LANGUAGE_FIELDS,
     RECOMMENDED_LANG_THRESHOLDS,
     LexiconDB,
+    annotate_fragments_with_corpus_evidence,
     assign_etymon_to_meaning_synset,
     backfill_citation_pages,
     bridge_celtic_forms,
@@ -550,6 +551,18 @@ def add_meaning(tags: tuple[str, ...]) -> None:
 @click.option("--examples", type=int, default=3, help="Up to N example names per fragment.")
 @click.option("--min-length", type=int, default=2, help="Skip fragments shorter than this.")
 @click.option("--as-json", is_flag=True, default=False, help="Emit machine-readable JSON.")
+@click.option(
+    "--sources-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=None,
+    help=(
+        "wyrd-bvp: when set, annotate each top-N fragment with "
+        "scholarly-corpus presence — count of source files where "
+        "the fragment appears at a word boundary, plus 1-2 sample "
+        "snippets with surrounding context. Strong-hit indicator "
+        "flags snippets that look like an etymology body."
+    ),
+)
 def unaccounted(
     culture: str,
     place_names: Path,
@@ -558,6 +571,7 @@ def unaccounted(
     examples: int,
     min_length: int,
     as_json: bool,
+    sources_dir: Path | None,
 ) -> None:
     """Surface morpheme fragments the corpus uses but the meaning DB doesn't.
 
@@ -597,11 +611,26 @@ def unaccounted(
                     if name.name not in bucket and len(bucket) < examples:
                         bucket.append(name.name)
 
+    top_fragments = fragments.most_common(top)
+    # wyrd-bvp: when --sources-dir is set, scan all source-text
+    # files for each top-N fragment and annotate with corpus
+    # presence. The annotation is computed once and threaded
+    # through both JSON and text output paths so consumers see the
+    # same evidence shape regardless of format.
+    evidence_by_frag: dict[str, dict[str, Any]] = {}
+    if sources_dir is not None:
+        evidence_by_frag = annotate_fragments_with_corpus_evidence(
+            [frag for frag, _ in top_fragments],
+            sources_dir,
+        )
+
     if as_json:
-        out = [
-            {"fragment": frag, "count": count, "examples": examples_by_frag[frag]}
-            for frag, count in fragments.most_common(top)
-        ]
+        out = []
+        for frag, count in top_fragments:
+            entry = {"fragment": frag, "count": count, "examples": examples_by_frag[frag]}
+            if evidence_by_frag:
+                entry.update(evidence_by_frag.get(frag, {}))
+            out.append(entry)
         click.echo(json.dumps(out, indent=2))
         return
 
@@ -609,11 +638,20 @@ def unaccounted(
         f"culture={culture} imperfect_names={imperfect_count} unique_fragments={len(fragments)}",
         err=True,
     )
-    click.echo(f"{'fragment':<20} {'count':>6}  examples")
+    if evidence_by_frag:
+        click.echo(f"{'fragment':<20} {'count':>6}  {'corpus':>6}  {'strong':>6}  examples")
+    else:
+        click.echo(f"{'fragment':<20} {'count':>6}  examples")
     click.echo("-" * 70)
-    for frag, count in fragments.most_common(top):
+    for frag, count in top_fragments:
         ex = ", ".join(examples_by_frag[frag])
-        click.echo(f"{frag:<20} {count:>6}  {ex}")
+        if evidence_by_frag:
+            ev = evidence_by_frag.get(frag, {})
+            corpus = ev.get("corpus_hits", 0)
+            strong = ev.get("strong_hits", 0)
+            click.echo(f"{frag:<20} {count:>6}  {corpus:>6}  {strong:>6}  {ex}")
+        else:
+            click.echo(f"{frag:<20} {count:>6}  {ex}")
 
 
 @cli.command("explain")

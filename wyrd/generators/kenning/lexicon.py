@@ -2237,6 +2237,92 @@ def _select_rando_only_candidates(
     ]
 
 
+def annotate_fragments_with_corpus_evidence(
+    fragments: list[str],
+    sources_path: Path | str,
+    *,
+    snippets_per_fragment: int = 2,
+    snippet_window: int = 60,
+) -> dict[str, dict[str, Any]]:
+    """wyrd-bvp: for each fragment in ``fragments``, scan all
+    ``sources/*.txt`` files for word-boundary matches and return
+    per-fragment evidence:
+
+    * ``corpus_hits`` — count of distinct source files where the
+      fragment appears at a word boundary.
+    * ``snippets`` — up to ``snippets_per_fragment`` ``{source,
+      snippet, in_etym_body}`` entries; ``snippet`` carries
+      ``snippet_window`` chars of surrounding context.
+    * ``in_etym_body`` — heuristic bool: True when the snippet sits
+      inside what looks like an etymology body (preceding text
+      contains a year-citation OR a source marker like ``A.S.`` /
+      ``O.E.`` / ``M.E.`` / ``cf.`` / ``from``). Lets gap-triage
+      prioritise evidence that's actually authoritative rather
+      than running prose.
+    * ``strong_hits`` — count of in_etym_body snippets in the
+      sample. Surfaces fragments with multiple etymology-body
+      witnesses for promotion to actual etymon authoring.
+
+    Reuses ``_load_normalized_source_texts`` for the lowercased +
+    OCR-normalized source corpus. Lossy on case (per the existing
+    convention) since lemma-vs-source case-mismatches are common.
+
+    Returns ``{fragment: evidence_dict}``. Fragments with zero hits
+    still get an entry with ``corpus_hits=0`` and empty snippets,
+    so callers can render a 'no scholarly evidence' marker
+    uniformly.
+    """
+    sources_path = Path(sources_path)
+    if not sources_path.is_dir():
+        raise ValueError(f"sources_dir not found: {sources_path}")
+    source_texts = _load_normalized_source_texts(sources_path)
+    out: dict[str, dict[str, Any]] = {}
+    for fragment in fragments:
+        frag_lower = fragment.lower()
+        if not frag_lower:
+            continue
+        frag_re = re.compile(r"\b" + re.escape(frag_lower) + r"\b")
+        hits = 0
+        snippets: list[dict[str, Any]] = []
+        # Stable ordering for deterministic output across runs.
+        for source_id in sorted(source_texts):
+            text = source_texts[source_id]
+            m = frag_re.search(text)
+            if m is None:
+                continue
+            hits += 1
+            if len(snippets) < snippets_per_fragment:
+                lo = max(0, m.start() - snippet_window)
+                hi = min(len(text), m.end() + snippet_window)
+                snippet = text[lo:hi].strip().replace("\n", " ")
+                # Heuristic: an etymology body typically has a
+                # year-citation (3-4 digit number, 700-1700 era
+                # range) or a source-marker like 'a.s.' / 'o.e.'
+                # / 'm.e.' / 'cf.' / 'from' in the immediately-
+                # preceding text. Probe the LEFT half of the
+                # snippet so we don't flag prose where the year
+                # is FOLLOWING the fragment (citation prose
+                # typically puts year-marker before the form).
+                left = text[lo : m.start()]
+                in_etym_body = bool(
+                    re.search(r"\b(7\d{2}|[89]\d{2}|1[0-6]\d{2})\b", left)
+                    or re.search(r"\b(a\.s\.|o\.e\.|m\.e\.|cf\.|from)\b", left)
+                )
+                snippets.append(
+                    {
+                        "source": source_id,
+                        "snippet": snippet,
+                        "in_etym_body": in_etym_body,
+                    }
+                )
+        out[fragment] = {
+            "corpus_hits": hits,
+            "strong_hits": sum(1 for s in snippets if s["in_etym_body"]),
+            "snippets": snippets,
+        }
+    return out
+
+
 def _load_normalized_source_texts(sources_path: Path) -> dict[str, str]:
     """Load every ``*.txt`` under ``sources_path``, lowercased + OCR-
     normalized, keyed by file stem.
