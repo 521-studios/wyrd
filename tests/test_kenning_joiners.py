@@ -620,3 +620,182 @@ def test_find_meaning_with_reduce_canonical_filters_before_joiners() -> None:
         "Phase 2.5 limitation: canonical filter should pick the no-joiner "
         "parse [Bridge-, -xywater] over [Bridge-, joiner('xy'), -water]"
     )
+
+
+# --- compose-time joiner insertion (wyrd-0l2g Phase 1.5) -----------------
+
+
+def test_kenning_input_schema_exposes_joiner_density() -> None:
+    """The Kenning generator's input_schema declares a
+    ``joiner_density`` knob (0..1, default 0). Pinned so the SPA's
+    schema-driven form picks it up automatically."""
+    from wyrd.generators.kenning import Kenning
+
+    schema = Kenning().input_schema()
+    assert "joiner_density" in schema["properties"]
+    knob = schema["properties"]["joiner_density"]
+    assert knob["default"] == 0.0
+    assert knob["minimum"] == 0.0
+    assert knob["maximum"] == 1.0
+
+
+def test_kenning_generate_default_joiner_density_is_bit_stable() -> None:
+    """``Kenning.generate`` with joiner_density=0 (default) produces
+    identical output to a call without the param. Bit-stability gate."""
+    from wyrd.generators.kenning import Kenning
+
+    kenning = Kenning()
+    out_default = kenning.generate({"culture": "english"}, seed=42)
+    out_explicit = kenning.generate({"culture": "english", "joiner_density": 0.0}, seed=42)
+    assert out_default.result == out_explicit.result
+    assert out_default.explanation == out_explicit.explanation
+    assert out_default.components == out_explicit.components
+
+
+def test_kenning_generate_no_joiners_in_bundle_is_no_op() -> None:
+    """Even with joiner_density=1.0, today's bundle ships no joiners
+    so the surface form is identical to the default-knob output.
+    Pinned so a future joiner population can't silently regress
+    legacy callers."""
+    from wyrd.generators.kenning import Kenning
+
+    kenning = Kenning()
+    out_zero = kenning.generate({"culture": "english"}, seed=42)
+    out_full = kenning.generate({"culture": "english", "joiner_density": 1.0}, seed=42)
+    # No joiners in the bundle → no insertion happens regardless of
+    # density. Both calls produce the same name string.
+    assert out_zero.result == out_full.result
+
+
+def test_apply_joiner_insertion_skips_when_no_shared_lang() -> None:
+    """``_apply_joiner_insertion`` is a no-op when adjacent morphemes
+    don't share any lang_field with a populated joiner pool."""
+    import random
+
+    from wyrd.generators.kenning import _apply_joiner_insertion
+    from wyrd.generators.kenning.proportions import NewName
+
+    m1 = Meaning("Bridge-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
+    m2 = Meaning("-water", tags=[], meanings=["Water"], sources={"celtic_mix": ["dwr"]})
+    meaning_db = {"Bridge-": [m1], "-water": [m2]}
+    new_name = NewName(struct=None, meaning_db=meaning_db, name=[["Bridge-", "-water"]])
+
+    # Joiner pool only has 'old_english' but right meaning is celtic.
+    joiners = {"old_english": [("en", 100)]}
+    rng = random.Random(0)
+    surface, _, components = _apply_joiner_insertion(new_name, joiners, rng, density=1.0)
+    assert "en" not in surface  # no shared lang → no joiner
+    assert all(c["location"] != "joiner" for c in components)
+
+
+def test_apply_joiner_insertion_inserts_joiner_when_shared_lang() -> None:
+    """When two adjacent morphemes share a lang_field with populated
+    joiners, density=1.0 deterministically inserts the joiner. Surface
+    + components reflect the insertion."""
+    import random
+
+    from wyrd.generators.kenning import _apply_joiner_insertion
+    from wyrd.generators.kenning.proportions import NewName
+
+    m1 = Meaning("Bridge-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
+    m2 = Meaning("-water", tags=[], meanings=["Water"], sources={"old_english": ["wæter"]})
+    meaning_db = {"Bridge-": [m1], "-water": [m2]}
+    new_name = NewName(struct=None, meaning_db=meaning_db, name=[["Bridge-", "-water"]])
+
+    joiners = {"old_english": [("en", 100)]}
+    rng = random.Random(0)
+    surface, explanation, components = _apply_joiner_insertion(new_name, joiners, rng, density=1.0)
+    assert "en" in surface
+    assert "+joiner: en" in explanation
+    joiner_components = [c for c in components if c["location"] == "joiner"]
+    assert len(joiner_components) == 1
+    assert joiner_components[0]["usage"] == "en"
+    assert "joiner" in joiner_components[0]["tags"]
+
+
+def test_apply_joiner_insertion_zero_density_is_no_op() -> None:
+    """At density=0.0, even with shared lang + populated pool, no
+    joiner inserts."""
+    import random
+
+    from wyrd.generators.kenning import _apply_joiner_insertion
+    from wyrd.generators.kenning.proportions import NewName
+
+    m1 = Meaning("Bridge-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
+    m2 = Meaning("-water", tags=[], meanings=["Water"], sources={"old_english": ["wæter"]})
+    meaning_db = {"Bridge-": [m1], "-water": [m2]}
+    new_name = NewName(struct=None, meaning_db=meaning_db, name=[["Bridge-", "-water"]])
+
+    joiners = {"old_english": [("en", 100)]}
+    rng = random.Random(0)
+    surface, _, components = _apply_joiner_insertion(new_name, joiners, rng, density=0.0)
+    assert all(c["location"] != "joiner" for c in components)
+    assert "bridgewater" in surface.lower()
+
+
+def test_shared_lang_fields_returns_intersection_with_populated_pools() -> None:
+    """``_shared_lang_fields_with_joiners`` returns lang_fields that
+    BOTH morpheme groups carry AND that have a non-empty joiner pool."""
+    from wyrd.generators.kenning import _shared_lang_fields_with_joiners
+
+    m1 = Meaning(
+        "x",
+        tags=[],
+        meanings=["x"],
+        sources={"old_english": ["xx"], "celtic_mix": ["yy"]},
+    )
+    m2 = Meaning("y", tags=[], meanings=["y"], sources={"old_english": ["zz"]})
+    joiners = {"old_english": [("en", 100)], "celtic_mix": [("y", 50)]}
+    shared = _shared_lang_fields_with_joiners([m1], [m2], joiners)
+    assert shared == {"old_english"}
+
+
+def test_shared_lang_fields_empty_when_pool_is_empty() -> None:
+    """A shared lang_field with an EMPTY joiner pool doesn't qualify
+    — no joiner to insert."""
+    from wyrd.generators.kenning import _shared_lang_fields_with_joiners
+
+    m1 = Meaning("x", tags=[], meanings=["x"], sources={"old_english": ["xx"]})
+    m2 = Meaning("y", tags=[], meanings=["y"], sources={"old_english": ["zz"]})
+    joiners: dict = {"old_english": []}
+    shared = _shared_lang_fields_with_joiners([m1], [m2], joiners)
+    assert shared == set()
+
+
+def test_weighted_joiner_choice_respects_weights() -> None:
+    """Over many draws, the weighted choice converges on the higher-
+    weight option."""
+    import random
+
+    from wyrd.generators.kenning import _weighted_joiner_choice
+
+    rng = random.Random(42)
+    pool = [("a", 10), ("b", 90)]
+    counts = {"a": 0, "b": 0}
+    for _ in range(1000):
+        counts[_weighted_joiner_choice(pool, rng)] += 1
+    assert counts["b"] > 800
+
+
+def test_weighted_joiner_choice_falls_back_to_uniform_when_zero_weights() -> None:
+    """A pool where every weight is zero falls back to uniform random
+    choice."""
+    import random
+
+    from wyrd.generators.kenning import _weighted_joiner_choice
+
+    rng = random.Random(0)
+    pool = [("a", 0), ("b", 0)]
+    result = _weighted_joiner_choice(pool, rng)
+    assert result in {"a", "b"}
+
+
+def test_load_joiners_runtime_helper_returns_empty_for_legacy_bundle() -> None:
+    """``_load_joiners`` reads the bundled meanings.json. Today's
+    bundle ships zero joiners (legacy list shape) so the runtime
+    helper returns an empty dict."""
+    from wyrd.generators.kenning import _load_joiners
+
+    _load_joiners.cache_clear()
+    joiners = _load_joiners()
+    assert joiners == {}
