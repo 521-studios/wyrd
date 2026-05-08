@@ -565,6 +565,32 @@ def test_report_to_markdown_handles_no_bundle_sibling() -> None:
     assert "no dedicated bundle sibling" in md
 
 
+def test_report_to_markdown_renders_shared_with_for_modern_english_cluster() -> None:
+    """wyrd-i1s1 added middle-english / early-modern-english / scots to
+    the modern_english shared-sibling cluster. Pin the per-cluster
+    'shared with' annotation so a future map edit that drops one of
+    the languages surfaces here rather than silently in the rendered
+    output."""
+    conn = _build_fixture_db()
+    # middle-english already in the fixture (cote, tonn at ids 10/11).
+    bundle = _fixture_bundle()
+    report = compute_report(
+        conn,
+        bundle,
+        languages=["middle-english"],
+        reference_tags=list(FALLBACK_REFERENCE_TAGS[:3]),
+    )
+    md = report_to_markdown(report)
+    # The middle-english scorecard should annotate the shared sibling.
+    assert "sibling=`modern_english`" in md
+    assert "shared with" in md.lower()
+    # The shared-with list should include the ME/EModE/ModE/Scots
+    # cluster mates (other than middle-english itself).
+    assert "early-modern-english" in md
+    assert "modern-english" in md
+    assert "scots" in md
+
+
 # --- reference-tag loader ------------------------------------------------
 
 

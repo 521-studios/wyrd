@@ -12659,3 +12659,22 @@ def test_gather_family_unions_member_and_cluster_tags(fresh_db: Path) -> None:
         family = _gather_family(db, oe_id, [oe_id])
     assert family is not None
     assert family["tags"] == ["architecture", "topography"]
+
+
+def test_fetch_cluster_mate_tags_includes_same_language_mates(fresh_db: Path) -> None:
+    """Cluster mates in the SAME language as the root are still mates —
+    the helper doesn't filter by language. Pin so a future regression
+    that adds a language-mismatch filter wouldn't silently exclude
+    same-language siblings (e.g. two OE etymons in the same cognate
+    cluster, like a doublet pair)."""
+    from wyrd.generators.kenning.lexicon import _fetch_cluster_mate_tags
+
+    with LexiconDB(fresh_db) as db:
+        a = db.upsert_etymon("ceaster", "old-english")
+        b = db.upsert_etymon("cæster", "old-english")  # same-language doublet
+        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (a, a))
+        db.conn.execute("UPDATE etymon SET cognate_id = ? WHERE id = ?", (a, b))
+        db.conn.execute("INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)", (b, "topography"))
+        db.commit()
+        result = _fetch_cluster_mate_tags(db, a)
+    assert result == ["topography"]
