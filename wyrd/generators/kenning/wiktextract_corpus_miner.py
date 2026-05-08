@@ -22,10 +22,13 @@ Idempotent: re-runs are no-ops via ``etymon`` UNIQUE(canonical_form, language)
 from __future__ import annotations
 
 import json
+import time
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
+
+import click
 
 from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.meaning import load_meanings
@@ -717,12 +720,17 @@ def mine_corpus_forms(
       snippet for human-readable provenance.
 
     Returns dict of counts: ``entries_walked``, ``forms_processed``,
-    ``forms_skipped_noise``, ``forms_written``, ``etymons_missing``
-    (canonical headword wasn't in the lexicon — likely the corpus
-    was never ingested via mine_corpus).
+    ``forms_skipped_noise`` (forms filtered out by
+    ``_iter_meaningful_forms``), ``forms_written``,
+    ``etymons_missing`` (canonical headword wasn't in the lexicon —
+    likely the corpus was never ingested via mine_corpus).
 
     Idempotent on (etymon_id, source_id, matched_form) UNIQUE: re-
     runs silently update match_count without duplicating rows.
+
+    Progress reporting per CLAUDE.md convention: stderr line every
+    1000 entries with running counts + s/entry rate so operators
+    can extrapolate ETA on multi-minute slice walks.
     """
     if apply:
         _ensure_forms_source_row(db)
@@ -730,10 +738,12 @@ def mine_corpus_forms(
     counts: dict[str, Any] = {
         "entries_walked": 0,
         "forms_processed": 0,
+        "forms_skipped_noise": 0,
         "forms_written": 0,
         "etymons_missing": 0,
     }
-    for i, entry in enumerate(_iter_wiktextract_entries(slice_path)):
+    started_at = time.time()
+    for entry in _iter_wiktextract_entries(slice_path):
         if limit is not None and counts["entries_walked"] >= limit:
             break
         counts["entries_walked"] += 1
@@ -742,9 +752,12 @@ def mine_corpus_forms(
             continue
         # Resolve the canonical language via the existing helper —
         # consistent with how mine_corpus tags the etymon language.
+        # ``_canonical_language`` returns the empty string for
+        # missing lang_code (not None); guard on truthiness so we
+        # short-circuit before issuing a wasted etymon SELECT.
         lang_code = entry.get("lang_code") or ""
         canonical_lang = _canonical_language(lang_code)
-        if canonical_lang is None:
+        if not canonical_lang:
             continue
         # Locate the existing etymon. Don't create new ones — the
         # forms-mining path enriches existing rows; if mine_corpus
@@ -758,7 +771,13 @@ def mine_corpus_forms(
             counts["etymons_missing"] += 1
             continue
         etymon_id = row["id"]
-        for form, label in _iter_meaningful_forms(entry):
+        # Count noise BEFORE filtering so the dashboard can surface
+        # how much of the slice's forms array is structural noise vs
+        # meaningful inflection.
+        forms_in_entry = entry.get("forms") or []
+        meaningful = list(_iter_meaningful_forms(entry))
+        counts["forms_skipped_noise"] += len(forms_in_entry) - len(meaningful)
+        for form, label in meaningful:
             counts["forms_processed"] += 1
             if not apply:
                 continue
@@ -774,9 +793,37 @@ def mine_corpus_forms(
                 (etymon_id, WIKTIONARY_FORMS_SOURCE_ID, form, label),
             )
             counts["forms_written"] += 1
-        # Periodic commit so mid-run crashes don't lose progress.
-        if apply and i > 0 and i % 1000 == 0:
-            db.commit()
+        # Periodic commit + progress line every 1000 entries. CLAUDE.md
+        # mining-progress convention: ~every-N records, stderr,
+        # include s/entry rate when wall-clock matters. 1000 is the
+        # right cadence for slice walks (50k+ entries common).
+        if counts["entries_walked"] % 1000 == 0:
+            elapsed = time.time() - started_at
+            rate = elapsed / counts["entries_walked"] if counts["entries_walked"] else 0.0
+            click.echo(
+                f"  [{counts['entries_walked']}] "
+                f"forms_processed={counts['forms_processed']} "
+                f"forms_written={counts['forms_written']} "
+                f"etymons_missing={counts['etymons_missing']} "
+                f"({rate:.4f}s/entry)",
+                err=True,
+            )
+            if apply:
+                db.commit()
+
+    # Final progress line so the last partial chunk shows up,
+    # per CLAUDE.md convention.
+    elapsed = time.time() - started_at
+    rate = elapsed / counts["entries_walked"] if counts["entries_walked"] else 0.0
+    click.echo(
+        f"  [{counts['entries_walked']}] (final) "
+        f"forms_processed={counts['forms_processed']} "
+        f"forms_skipped_noise={counts['forms_skipped_noise']} "
+        f"forms_written={counts['forms_written']} "
+        f"etymons_missing={counts['etymons_missing']} "
+        f"({rate:.4f}s/entry)",
+        err=True,
+    )
 
     if apply:
         db.commit()

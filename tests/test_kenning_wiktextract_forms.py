@@ -336,6 +336,71 @@ def test_mine_corpus_forms_skips_self_matched_forms(tmp_path: Path) -> None:
     assert {r["matched_form"] for r in rows} == {"meirch"}
 
 
+def test_mine_corpus_forms_counts_noise_skipped(tmp_path: Path) -> None:
+    """The ``forms_skipped_noise`` counter tracks how many entries
+    in each entry's forms array were filtered out (table-tags /
+    inflection-template / verbal conjugation / etc.). Surfaces in
+    the dashboard so operators can tell how much of a slice's forms
+    array is structural noise vs meaningful inflection."""
+    db_path = tmp_path / "lexicon.db"
+    _seed_minimal_db(db_path)
+    slice_path = tmp_path / "wiktextract_welsh.jsonl"
+    _write_slice(
+        slice_path,
+        [
+            {
+                "word": "march",
+                "lang_code": "cy",
+                "forms": [
+                    # 1 meaningful + 3 noise
+                    {"form": "meirch", "tags": ["plural"]},
+                    {"form": "no-table-tags", "tags": ["table-tags"]},
+                    {"form": "cy-mut", "tags": ["inflection-template"]},
+                    {"form": "ydw", "tags": ["first-person", "present"]},
+                ],
+            }
+        ],
+    )
+    with LexiconDB(db_path) as db:
+        counts = mine_corpus_forms(db, slice_path, apply=True)
+    assert counts["forms_processed"] == 1
+    assert counts["forms_skipped_noise"] == 3
+
+
+def test_mine_corpus_forms_surface_in_fetch_member_variants(tmp_path: Path) -> None:
+    """End-to-end audit-gap closure (wyrd-f6v4): rows written by
+    mine_corpus_forms actually surface in the bundle's _variants
+    pool via ``_fetch_member_variants`` (the function _gather_family
+    calls at bundle-export time). Pin the full chain — without this,
+    a future regression that drops 'wiktionary-forms' from the
+    variant lookup wouldn't be caught by the unit tests above."""
+    from wyrd.generators.kenning.lexicon import _fetch_member_variants
+
+    db_path = tmp_path / "lexicon.db"
+    eid = _seed_minimal_db(db_path)
+    slice_path = tmp_path / "wiktextract_welsh.jsonl"
+    _write_slice(
+        slice_path,
+        [
+            {
+                "word": "march",
+                "lang_code": "cy",
+                "forms": [{"form": "meirch", "tags": ["plural"]}],
+            }
+        ],
+    )
+    with LexiconDB(db_path) as db:
+        mine_corpus_forms(db, slice_path, apply=True)
+        # _fetch_member_variants returns {member_id: list[(form,
+        # weight)]} keyed by etymon row id (it's per-member; the
+        # bundle export later remaps to lang_field via the family
+        # rollup). Pin the per-etymon variant pool here.
+        variants = _fetch_member_variants(db, [eid], {"march"})
+    assert eid in variants
+    forms = {form for form, _weight in variants[eid]}
+    assert "meirch" in forms
+
+
 def test_mine_corpus_forms_respects_limit(tmp_path: Path) -> None:
     """``limit=N`` stops after N entries — useful for smoke-testing
     a slice before committing to a full ingest."""
