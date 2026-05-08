@@ -6205,6 +6205,102 @@ def test_derive_lemma_candidate_strips_norman_french_inflections() -> None:
     )
 
 
+def test_derive_mutation_lemma_candidate_strips_irish_eclipsis() -> None:
+    """wyrd-jott Phase 1: Goidelic eclipsis (urú) — eclipsing digraph
+    prefixes are unambiguous in Goidelic since they're never real
+    word-initial sequences in lemmas. Pin one case per registered
+    eclipsis rule."""
+    from wyrd.generators.kenning.lexicon import derive_mutation_lemma_candidate
+
+    # mb- → b-
+    assert derive_mutation_lemma_candidate("mboga", "irish") == ("boga", "eclipsis")
+    # gc- → c-
+    assert derive_mutation_lemma_candidate("gcaisleán", "irish") == (
+        "caisleán",
+        "eclipsis",
+    )
+    # nd- → d-
+    assert derive_mutation_lemma_candidate("ndoruis", "old-irish") == (
+        "doruis",
+        "eclipsis",
+    )
+    # bhf- → f- (longest first; bh- doesn't trigger here)
+    assert derive_mutation_lemma_candidate("bhfuil", "irish") == ("fuil", "eclipsis")
+
+
+def test_derive_mutation_lemma_candidate_strips_irish_lenition() -> None:
+    """wyrd-jott Phase 1: Goidelic lenition (séimhiú). Safe subset
+    only — m/b/d/g/p/f/s rarely have the lenited digraph as a real
+    lemma-initial spelling. ch- and th- are excluded."""
+    from wyrd.generators.kenning.lexicon import derive_mutation_lemma_candidate
+
+    # mh- → m-
+    assert derive_mutation_lemma_candidate("mhór", "irish") == ("mór", "lenition")
+    # bh- → b-
+    assert derive_mutation_lemma_candidate("bheith", "irish") == ("beith", "lenition")
+    # dh- → d-
+    assert derive_mutation_lemma_candidate("dhuine", "irish") == ("duine", "lenition")
+
+
+def test_derive_mutation_lemma_candidate_works_across_goidelic_languages() -> None:
+    """All four Goidelic languages register the same rule set;
+    Scottish Gaelic + Old Irish + Middle Irish all behave like Irish
+    for the prefix-strip path."""
+    from wyrd.generators.kenning.lexicon import derive_mutation_lemma_candidate
+
+    assert derive_mutation_lemma_candidate("bhith", "scottish-gaelic") == (
+        "bith",
+        "lenition",
+    )
+    assert derive_mutation_lemma_candidate("mblas", "middle-irish") == (
+        "blas",
+        "eclipsis",
+    )
+
+
+def test_derive_mutation_lemma_candidate_returns_none_for_non_goidelic() -> None:
+    """Non-Goidelic languages have no mutation rules registered —
+    Welsh / OE / etc. fall through to None."""
+    from wyrd.generators.kenning.lexicon import derive_mutation_lemma_candidate
+
+    assert derive_mutation_lemma_candidate("mhór", "welsh") is None
+    assert derive_mutation_lemma_candidate("mboga", "old-english") is None
+
+
+def test_derive_mutation_lemma_candidate_skips_excluded_prefixes() -> None:
+    """ch- and th- are DELIBERATELY OMITTED — both are real digraph-
+    initial Irish lemmas (chéile, cheap, thart, thiar). Pin so a
+    future rule addition is intentional."""
+    from wyrd.generators.kenning.lexicon import derive_mutation_lemma_candidate
+
+    # 'chéile' looks like lenition of 'céile' but ch- isn't in the
+    # rules list, so the function returns None.
+    assert derive_mutation_lemma_candidate("chéile", "irish") is None
+    assert derive_mutation_lemma_candidate("thiar", "irish") is None
+    # h-prefix and t-prefix also omitted (real h- and t- initial loans).
+    assert derive_mutation_lemma_candidate("hata", "irish") is None
+
+
+def test_derive_mutation_lemma_candidate_respects_min_stem_length() -> None:
+    """Stems shorter than 3 characters are rejected — same floor as
+    the suffix-strip path. Stripping 'mb' from 'mb' would give a 1-
+    char stem."""
+    from wyrd.generators.kenning.lexicon import derive_mutation_lemma_candidate
+
+    # 'mba' would strip to 'ba' (2 chars) — rejected.
+    assert derive_mutation_lemma_candidate("mba", "irish") is None
+
+
+def test_derive_mutation_lemma_candidate_longest_prefix_wins() -> None:
+    """Rule order matters: 'bhf' (eclipsis of f-) must be tried before
+    'bh' (lenition of b-) so 'bhfuil' resolves to 'fuil' (eclipsis)
+    rather than mis-resolving via the shorter 'bh' prefix to a non-
+    existent 'b' + 'fuil' hybrid."""
+    from wyrd.generators.kenning.lexicon import derive_mutation_lemma_candidate
+
+    assert derive_mutation_lemma_candidate("bhfuil", "irish") == ("fuil", "eclipsis")
+
+
 def test_derive_lemma_candidate_old_french_skips_bare_s() -> None:
     """The Phase-1 OF rule list deliberately omits bare -s — many OF
     lemmas end in -s naturally ('pres', 'fois'). Pin: 'pres' should
@@ -6429,6 +6525,33 @@ def test_link_lemmas_links_inflected_to_existing_lemma(fresh_db: Path) -> None:
     assert by_id[ham_id]["lemma_id"] is None
     assert by_id[ham_id]["lemma_method"] is None
     assert result["candidates"] >= 2
+
+
+def test_link_lemmas_wires_in_mutation_path_for_goidelic(fresh_db: Path) -> None:
+    """wyrd-jott Phase 1: link_lemmas falls through from suffix-strip
+    to mutation prefix-strip for Goidelic etymons. Pin the wiring so
+    a future refactor can't silently bypass the mutation path.
+
+    'bhfuil' (eclipsis of 'fuil') should link to 'fuil' as its lemma
+    with inflection='eclipsis' even though no suffix rule matches."""
+    with LexiconDB(fresh_db) as db:
+        fuil_id = db.upsert_etymon("fuil", "irish")
+        bhfuil_id = db.upsert_etymon("bhfuil", "irish")
+        # Independent etymon — should stay unlinked.
+        beith_id = db.upsert_etymon("beith", "irish")
+        db.commit()
+
+        link_lemmas(db, apply=True)
+        rows = db.conn.execute(
+            "SELECT id, canonical_form, lemma_id, inflection FROM etymon"
+        ).fetchall()
+    by_id = {r["id"]: r for r in rows}
+    assert by_id[bhfuil_id]["lemma_id"] == fuil_id
+    assert by_id[bhfuil_id]["inflection"] == "eclipsis"
+    # Lemma stays its own.
+    assert by_id[fuil_id]["lemma_id"] is None
+    # Unrelated row stays unlinked.
+    assert by_id[beith_id]["lemma_id"] is None
 
 
 def test_link_lemmas_dry_run_does_not_write(fresh_db: Path) -> None:
