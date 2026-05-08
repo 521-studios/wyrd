@@ -3968,6 +3968,76 @@ def test_kenning_rewind_components_carry_respelling() -> None:
     assert modern_morphemes[0]["respelling"] is None
 
 
+# --- wyrd-381: stratified era-map (compose Kenning + KenningRewind) ------
+
+
+def test_kenning_era_map_generates_n_names_with_era_cells() -> None:
+    """End-to-end: KenningEraMap composes Kenning (roll N names)
+    with KenningRewind (render each at era stops). Each result
+    carries a single ``name`` + the era_cells table."""
+    from wyrd.generators.kenning import KenningEraMap
+
+    gen = KenningEraMap()
+    results = gen.generate_all({"culture": "english", "count": 3}, 42)
+
+    assert len(results) >= 1  # may dedupe if seeds collide
+    for r in results:
+        assert r.components
+        comp = r.components[0]
+        assert "name" in comp
+        assert "era_cells" in comp
+        # English ladder = 3 stops (oe-late, me, modern).
+        assert len(comp["era_cells"]) == 3
+        eras = {c["era"] for c in comp["era_cells"]}
+        assert eras == {"oe-late", "me", "modern"}
+
+
+def test_kenning_era_map_dedupes_collisions() -> None:
+    """Successive seeds may roll the same name; the era-map drops
+    duplicates rather than rendering the same map cell twice."""
+    from wyrd.generators.kenning import KenningEraMap
+
+    gen = KenningEraMap()
+    results = gen.generate_all({"culture": "english", "count": 5}, 100)
+
+    names = [r.components[0]["name"] for r in results]
+    assert len(names) == len(set(names))  # all unique
+
+
+def test_kenning_era_map_modern_form_anchors_result() -> None:
+    """Each result's ``result`` field is the modern-era rendering
+    of the name — that's what shows up in single-result fallback
+    paths (e.g. SPA cards that don't unfold the era table)."""
+    from wyrd.generators.kenning import KenningEraMap
+
+    gen = KenningEraMap()
+    results = gen.generate_all({"culture": "english", "count": 2}, 7)
+
+    for r in results:
+        modern_cell = next(
+            (c for c in r.components[0]["era_cells"] if c["era"] == "modern"),
+            None,
+        )
+        assert modern_cell is not None
+        assert r.result == modern_cell["rendered"]
+
+
+def test_kenning_era_map_explanation_traces_era_progression() -> None:
+    """The result's ``explanation`` joins each era's rendering with
+    arrows so the SPA / CLI can render a single-line summary."""
+    from wyrd.generators.kenning import KenningEraMap
+
+    gen = KenningEraMap()
+    results = gen.generate_all({"culture": "english", "count": 1}, 7)
+
+    assert results
+    expl = results[0].explanation
+    assert "oe-late" in expl
+    assert "me:" in expl
+    assert "modern:" in expl
+    assert "→" in expl
+
+
 # --- wyrd-bvp: corpus-evidence annotation for unaccounted fragments -------
 
 
