@@ -988,6 +988,7 @@ class KenningRewind(Generator):
         for family, cell in era_stops:
             target_language = canonical_language_for_cell(family, cell)
             rendered_morphemes: list[str] = []
+            morpheme_components: list[dict[str, Any]] = []
             unaccounted: list[str] = []
             for word_str in text.split():
                 candidates = name_obj.words.get(word_str, [])
@@ -996,7 +997,24 @@ class KenningRewind(Generator):
                     continue
                 for chunk in candidates[0].word:
                     if isinstance(chunk, Meaning):
-                        rendered_morphemes.append(_bundle_era_form(chunk, target_language))
+                        form = _bundle_era_form(chunk, target_language)
+                        rendered_morphemes.append(form)
+                        # wyrd-17t: surface SAMPA-lite respelling next to
+                        # the rendered form when the target language has
+                        # a respeller (OE / Welsh / ON / Latin / Greek /
+                        # Norman-French). Modern-English passes through
+                        # with respelling=None since users can already
+                        # sound those out.
+                        respelling = (
+                            chunk.respelling_for(form, target_language) if target_language else None
+                        )
+                        morpheme_components.append(
+                            {
+                                "form": form,
+                                "respelling": respelling,
+                                "language": target_language,
+                            }
+                        )
                     elif isinstance(chunk, str) and chunk:
                         unaccounted.append(chunk)
             rendered = "-".join(m.strip("-") for m in rendered_morphemes if m)
@@ -1009,6 +1027,7 @@ class KenningRewind(Generator):
                             "era": cell,
                             "family": family,
                             "rendered": rendered or text,
+                            "morphemes": morpheme_components,
                             "unaccounted": unaccounted,
                         }
                     ],

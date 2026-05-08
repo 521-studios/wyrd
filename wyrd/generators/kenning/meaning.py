@@ -330,6 +330,32 @@ class Meaning:
         """
         return list(self.era_reflexes.get(target_language, ()))
 
+    def respelling_for(self, form: str, lang_field: str) -> str | None:
+        """wyrd-17t: SAMPA-lite respelling of ``form`` in
+        ``lang_field`` for non-modern-English readers.
+
+        Computed via per-language grapheme→phonetic-respelling
+        rules in ``wyrd.generators.kenning.respelling``. Returns
+        None when:
+
+        * the language has no respeller (modern English, untracked
+          languages — see ``has_respeller`` for the dispatch list),
+        * ``form`` is empty.
+
+        Caller pattern: render the respelling next to the canonical
+        form so a GM can sound it out at the table::
+
+            Pont-Dwfr   /pont DOO-vr/  (Welsh)
+
+        Pure-rule output, no DB / bundle lookup. Future refinement:
+        consult scholar-attested IPA mined from Mawer / Skeat
+        bracket-notation (wyrd-17t source #1, deferred) before
+        falling through to rules.
+        """
+        from wyrd.generators.kenning.respelling import respell
+
+        return respell(form, lang_field)
+
     def attested_in_era_range(self, era_range: tuple[int | None, int | None] | None) -> bool:
         """D5-2 era filter: True if this morpheme is admissible under the
         ``[start, end)`` half-open year range, or has no attestation data
