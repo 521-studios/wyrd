@@ -333,8 +333,8 @@ ME_TO_EMODE_RULES: tuple[SoundChangeRule, ...] = (
         replacement="-field",
         weight=1.0,
         description=(
-            "Topographic suffix -feld → -field (vowel quality stable; "
-            "spelling adjustment with i-insertion in EModE Standard)."
+            "Topographic suffix -feld → -field (16th-17th c. printer-driven "
+            "orthographic standardization; vowel quality phonologically stable)."
         ),
         exemplar=("Spring-feld", "Spring-field"),
         source="Smith EPNS s.v. 'feld'",
@@ -344,7 +344,8 @@ ME_TO_EMODE_RULES: tuple[SoundChangeRule, ...] = (
         replacement="-moor",
         weight=1.0,
         description=(
-            "Topographic suffix -mor → -moor (long vowel oo-spelling normalization in EModE)."
+            "Topographic suffix -mor → -moor (orthographic standardization of "
+            "the long vowel as oo in EModE printer-era)."
         ),
         exemplar=("Black-mor", "Black-moor"),
         source="Smith EPNS s.v. 'mōr'",
@@ -369,25 +370,18 @@ ME_TO_EMODE_RULES: tuple[SoundChangeRule, ...] = (
         exemplar=("Hamp-stede", "Hamp-stead"),
         source="Smith EPNS s.v. 'stede'",
     ),
-    # --- Final -e loss (orthographic) ---
+    # --- Diphthong shifts (printer-era orthographic standardization) ---
     #
-    # Final -e was unstressed and lost in pronunciation late in ME, but
-    # the orthographic loss persisted into EModE. This rule fires last
-    # in declared order so it doesn't strip -e from intermediate forms
-    # whose suffix transitions haven't fired yet.
-    SoundChangeRule(
-        pattern="ye",
-        replacement="y",
-        weight=1.0,
-        description=(
-            "Word-final -ye → -y (final -e loss after -y; ME 'fyye' → "
-            "EModE 'fy'). Treats the digraph; bare-vowel -e is a "
-            "separate rule below."
-        ),
-        exemplar=("Bricye", "Bricy"),
-        source="Sweet 1888 §§ 766–768",
-    ),
-    # --- Diphthong shifts ---
+    # ai/ei → ay/ey is a stable spelling normalization in the 16th-c.
+    # printer era; ME 'ai'/'ei' digraphs WERE consistently respelled in
+    # EModE, so the literal-pattern framework handles them cleanly with
+    # no false-fires on real ME forms. Rules NOT in this cell:
+    # - 'ye → y' (final-e loss after y) — substring-overreach risk
+    #   (would mangle 'Wyeham', 'yeoman'). Defer to Phase 2.4 with
+    #   word-final regex anchor.
+    # - 'ou → ow' — environment-sensitive (word-final OK, morpheme-
+    #   internal NOT — would corrupt ME 'hous'/'mous'). Defer to
+    #   Phase 2.4 with env-constraint regex.
     SoundChangeRule(
         pattern="ai",
         replacement="ay",
@@ -407,21 +401,6 @@ ME_TO_EMODE_RULES: tuple[SoundChangeRule, ...] = (
         description=("Diphthong -ei- → -ey- (orthographic normalization; ME 'kei' → EModE 'key')."),
         exemplar=("Mei-ham", "Mey-ham"),
         source="Sweet 1888 § 814",
-    ),
-    SoundChangeRule(
-        pattern="ou",
-        replacement="ow",
-        weight=1.0,
-        description=(
-            "Diphthong -ou- → -ow- word-finally / word-medially (orthographic; "
-            "the ME 'hous' / 'cou' spellings settle on -ow- in EModE: 'how' / "
-            "'cow'). Note that morpheme-internal -ou- often persists "
-            "(house, mouse) — this rule is dialect-specific; the literal-"
-            "pattern Phase 1 framework can't gate environment, so apply "
-            "judiciously."
-        ),
-        exemplar=("Houroun", "Howrown"),
-        source="Sweet 1888 § 837",
     ),
 )
 

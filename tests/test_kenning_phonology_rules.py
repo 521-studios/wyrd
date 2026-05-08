@@ -478,3 +478,47 @@ def test_me_to_emode_probability_distribution_sums_to_one() -> None:
     candidates = apply_rules("Birch-wude", "english", "middle-english", "early-modern-english")
     total = sum(p for _, p in candidates)
     assert abs(total - 1.0) < 1e-9
+
+
+def test_me_to_emode_dispatch_lookup_works_via_apply_rules() -> None:
+    """End-to-end via ``apply_rules``: a typo in the dispatch tuple
+    key would silently route the cell to 'unknown cell, no-op'. Pin
+    via a forward call exercising the actual dispatch lookup (not
+    just direct _apply_one_rule on a rule)."""
+    candidates = apply_rules("Hai-ston", "english", "middle-english", "early-modern-english")
+    forms = [form for form, _ in candidates]
+    assert "Hay-ston" in forms, (
+        "ME→EModE cell should fire 'ai → ay'; if not, the dispatch table key may be wrong"
+    )
+
+
+def test_me_to_emode_does_not_corrupt_internal_ou() -> None:
+    """Regression for review concern: ME forms with internal -ou-
+    (hous, mous, cou) are NOT mangled by Phase 2.1. The 'ou → ow'
+    transition is environment-sensitive (word-final OK, morpheme-
+    internal NOT) — deferred to Phase 2.4 with env-constraint regex."""
+    candidates = apply_rules("Hous-tone", "english", "middle-english", "early-modern-english")
+    forms = [form for form, _ in candidates]
+    assert "Hous-tone" in forms  # passes through unchanged
+
+
+def test_me_to_emode_does_not_corrupt_internal_ye() -> None:
+    """Regression for review concern: ME 'Wye-' (river name) and
+    similar word-internal 'ye' substrings are NOT mangled by Phase
+    2.1. The 'ye → y' rule was deliberately deferred to Phase 2.4
+    because it substring-overreaches (Wyeham → Wyham, yeoman → yoman)
+    without an env-constraint."""
+    candidates = apply_rules("Wye-ham", "english", "middle-english", "early-modern-english")
+    forms = [form for form, _ in candidates]
+    assert "Wye-ham" in forms  # passes through unchanged
+
+
+def test_registered_cell_count_matches_expected() -> None:
+    """Pin the count of registered cells. A future PR that
+    accidentally drops a cell from the dispatch table would fail
+    this; intentional additions should bump the count."""
+    from wyrd.generators.kenning.phonology_rules import _RULES
+
+    assert len(_RULES) == 2, (
+        f"expected 2 cells (OE→ME, ME→EModE), got {len(_RULES)}: {sorted(_RULES.keys())}"
+    )
