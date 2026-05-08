@@ -36,7 +36,10 @@ from wyrd.generators.kenning.decomposition import (
     _scholar_form_sequences,
     _scholar_seq_matches_decomposition,
     _signature_for_payload,
+    apply_canonical_to_name,
     compute_decompositions,
+    decompose_with_canonical,
+    lookup_canonical_signature,
     pick_canonical_decomposition,
     populate_and_pick,
 )
@@ -1249,3 +1252,492 @@ def test_build_slot_candidates_per_row_uses_word_db(fresh_db: Path) -> None:
     for slots in slots_per_row:
         for slot in slots:
             assert isinstance(slot, (set, str))
+
+
+# --- Phase 3 consumer integration ----------------------------------------
+#
+# wyrd-70s0: lookup_canonical_signature / apply_canonical_to_name /
+# decompose_with_canonical wire the Phase 1+2 canonical pick into the
+# matcher consumers (rebuild-proportions, unaccounted miner). The
+# tests below cover the helpers in isolation; CLI integration is
+# covered separately further down.
+
+
+def test_lookup_canonical_returns_none_for_unknown_name(fresh_db: Path) -> None:
+    """A toponym that doesn't exist in the lexicon yields ``None`` —
+    consumer falls back to the heuristic without crashing."""
+    with LexiconDB(fresh_db) as db:
+        result = lookup_canonical_signature(db, "Nowhere")
+    assert result is None
+
+
+def test_lookup_canonical_returns_none_when_no_canonical_picked(fresh_db: Path) -> None:
+    """A toponym row with no is_canonical=1 child (multi-zero tie or
+    coverage gap awaiting rule (c)) yields ``None``."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        topo_id = _insert_toponym(db, "Stratford")
+        compute_decompositions(db, topo_id, "Stratford", word_db)
+        # Don't run the picker; canonical stays NULL on every row.
+        db.commit()
+        result = lookup_canonical_signature(db, "Stratford")
+    assert result is None
+
+
+def test_lookup_canonical_returns_signature_and_source(fresh_db: Path) -> None:
+    """When the picker fired (b) unique-zero-unaccounted, the lookup
+    returns the canonical row's signature plus source string."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        populate_and_pick(db, topo_id, "Stratford", word_db)
+        db.commit()
+        result = lookup_canonical_signature(db, "Stratford")
+    assert result is not None
+    signature, source = result
+    assert isinstance(signature, str) and len(signature) == 40  # SHA-1 hex
+    assert source == "unique-zero-unaccounted"
+
+
+def test_lookup_canonical_with_region_tightens_match(fresh_db: Path) -> None:
+    """Two toponyms with the same modern_name but different regions get
+    disambiguated by the optional region argument."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        cur1 = db.conn.execute(
+            "INSERT INTO toponym (modern_name, region) VALUES (?, ?)",
+            ("Stratford", "Bedfordshire"),
+        )
+        topo_a = cur1.lastrowid
+        cur2 = db.conn.execute(
+            "INSERT INTO toponym (modern_name, region) VALUES (?, ?)",
+            ("Stratford", "Suffolk"),
+        )
+        topo_b = cur2.lastrowid
+        populate_and_pick(db, topo_a, "Stratford", word_db)
+        populate_and_pick(db, topo_b, "Stratford", word_db)
+        db.commit()
+        a_result = lookup_canonical_signature(db, "Stratford", region="Bedfordshire")
+        b_result = lookup_canonical_signature(db, "Stratford", region="Suffolk")
+        none_result = lookup_canonical_signature(db, "Stratford", region="Yorkshire")
+    # Both regional pulls hit canonical (each toponym got its own pick).
+    assert a_result is not None
+    assert b_result is not None
+    # The unknown region misses cleanly rather than fuzzy-matching either of
+    # the existing rows.
+    assert none_result is None
+
+
+def test_lookup_canonical_picks_lowest_id_on_disagreement(fresh_db: Path) -> None:
+    """Scholar-disagreement marks every matching breakdown canonical;
+    the lookup deterministically returns the lowest-id canonical row so
+    consumer counts stay stable across re-runs."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        # Force two scholars with different breakdowns — Phase 1 canonical
+        # picker will tag both is_canonical=1 with source='scholar-disagreement'.
+        # The matcher only finds 'Strat-' + '-ford' here, so disagreement
+        # requires hand-inserting two distinct decomposition rows tagged
+        # canonical. Easier path: insert two rows manually and tag them both.
+        compute_decompositions(db, topo_id, "Stratford", word_db)
+        rows = db.conn.execute(
+            "SELECT id FROM toponym_decomposition WHERE toponym_id = ? ORDER BY id",
+            (topo_id,),
+        ).fetchall()
+        # Synthesize a second decomposition row by hashing a fake payload
+        # the matcher would never produce (so it doesn't collide with an
+        # existing real decomposition's signature).
+        fake_payload = [
+            ["morpheme", "Strat-"],
+            ["unaccounted", "fo"],
+            ["unaccounted", "rd"],
+        ]
+        fake_sig = _signature_for_payload(fake_payload)
+        cur = db.conn.execute(
+            """
+            INSERT INTO toponym_decomposition (
+              toponym_id, decomposition_signature, morpheme_ids,
+              unaccounted_fragments, unaccounted_count, morpheme_count
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (topo_id, fake_sig, json.dumps(fake_payload), '["fo","rd"]', 2, 1),
+        )
+        synth_id = cur.lastrowid
+        # Tag both rows canonical with disagreement source.
+        db.conn.execute(
+            "UPDATE toponym_decomposition SET is_canonical = 1, "
+            "canonical_source = 'scholar-disagreement' WHERE id IN (?, ?)",
+            (rows[0]["id"], synth_id),
+        )
+        db.commit()
+        result = lookup_canonical_signature(db, "Stratford")
+    assert result is not None
+    signature, source = result
+    assert source == "scholar-disagreement"
+    # Lowest-id row wins (the matcher-derived row, not the synth).
+    real_sig = db_signature_for(fresh_db, rows[0]["id"])
+    assert signature == real_sig
+
+
+def db_signature_for(db_path: Path, row_id: int) -> str:
+    with LexiconDB(db_path) as db:
+        return db.conn.execute(
+            "SELECT decomposition_signature FROM toponym_decomposition WHERE id = ?",
+            (row_id,),
+        ).fetchone()["decomposition_signature"]
+
+
+def test_apply_canonical_narrows_words_to_canonical_cell(fresh_db: Path) -> None:
+    """When the canonical signature matches a cross-product cell,
+    each word in name.words collapses to a singleton holding the
+    chosen Word."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        populate_and_pick(db, topo_id, "Stratford", word_db)
+        db.commit()
+        result = lookup_canonical_signature(db, "Stratford")
+    assert result is not None
+    signature, _ = result
+
+    name = Name("Stratford")
+    name.find_meaning(word_db, reduce=False)
+    # Confirm there's at least one alternative before narrowing
+    # (otherwise the assertion below proves nothing).
+    options = name.words["Stratford"]
+    pre_count = len(options)
+    applied = apply_canonical_to_name(name, signature)
+    assert applied is True
+    assert len(name.words["Stratford"]) == 1
+    # Narrowed Word must be one of the originals — apply doesn't synthesize.
+    chosen = name.words["Stratford"][0]
+    assert pre_count >= 1
+    assert chosen in options
+
+
+def test_apply_canonical_returns_false_when_signature_does_not_match(
+    fresh_db: Path,
+) -> None:
+    """A stale signature (e.g. word_db drifted since canonical was
+    picked) returns False without mutating name.words. The caller can
+    then fall back to the heuristic safely."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    name = Name("Stratford")
+    name.find_meaning(word_db, reduce=False)
+    pre_words = {w: list(opts) for w, opts in name.words.items()}
+    applied = apply_canonical_to_name(name, "0" * 40)  # bogus signature
+    assert applied is False
+    # words dict unchanged
+    assert {w: list(opts) for w, opts in name.words.items()} == pre_words
+
+
+def test_apply_canonical_returns_false_for_empty_word_options() -> None:
+    """A name with no decompositions populated yields False on apply
+    rather than crashing on an empty per-word options list."""
+    name = Name("Nowhere")
+    # find_meaning not called — name.words[word] is empty list.
+    applied = apply_canonical_to_name(name, "0" * 40)
+    assert applied is False
+
+
+def test_apply_canonical_handles_multi_word_toponyms(fresh_db: Path) -> None:
+    """A two-word toponym ('Saint Mary') has its per-word entries each
+    narrowed; canonical signature spans both words."""
+    subjects = [
+        _make_subject(
+            meaning=["Saint"],
+            words=[{"modern_usage": "Saint", "old_english": ["sanct"]}],
+        ),
+        _make_subject(
+            meaning=["Mary"],
+            words=[{"modern_usage": "Mary"}],
+            modifier_tags=["female-name"],
+        ),
+    ]
+    word_db = _word_db_for(subjects)
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Saint Mary")
+        populate_and_pick(db, topo_id, "Saint Mary", word_db)
+        db.commit()
+        result = lookup_canonical_signature(db, "Saint Mary")
+    assert result is not None
+    signature, _ = result
+    name = Name("Saint Mary")
+    name.find_meaning(word_db, reduce=False)
+    applied = apply_canonical_to_name(name, signature)
+    assert applied is True
+    assert len(name.words["Saint"]) == 1
+    assert len(name.words["Mary"]) == 1
+
+
+def test_decompose_with_canonical_uses_canonical_when_available(
+    fresh_db: Path,
+) -> None:
+    """The integrated helper returns a canonical-narrowed Name plus
+    the canonical source string."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        populate_and_pick(db, topo_id, "Stratford", word_db)
+        db.commit()
+        name, source = decompose_with_canonical("Stratford", word_db, db)
+    assert source == "unique-zero-unaccounted"
+    assert len(name.words["Stratford"]) == 1
+
+
+def test_decompose_with_canonical_falls_back_when_no_canonical(
+    fresh_db: Path,
+) -> None:
+    """No toponym row, no decomposition stored, no canonical pick →
+    fall through to the heuristic (reduce=True). The returned source
+    is None so callers can distinguish canonical from heuristic for
+    instrumentation."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        name, source = decompose_with_canonical("Stratford", word_db, db)
+    assert source is None
+    # Heuristic still produces a decomposition.
+    assert len(name.words["Stratford"]) >= 1
+    # Heuristic narrows to lowest-unaccounted by reduce(); each entry
+    # contributes Meaning slots only — no extra alternates beyond the
+    # heuristic pick.
+    for word_obj in name.words["Stratford"]:
+        assert word_obj.count_unaccounted() == 0
+
+
+def test_decompose_with_canonical_falls_back_when_signature_stale(
+    fresh_db: Path,
+) -> None:
+    """Canonical signature recorded but no cross-product cell of the
+    current word_db matches → fall through to heuristic. Source is
+    None to flag the silent drift."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        compute_decompositions(db, topo_id, "Stratford", word_db)
+        # Hand-insert a canonical row with a bogus signature so the
+        # lookup hits but apply misses.
+        db.conn.execute(
+            """
+            INSERT INTO toponym_decomposition (
+              toponym_id, decomposition_signature, morpheme_ids,
+              unaccounted_fragments, unaccounted_count, morpheme_count,
+              is_canonical, canonical_source
+            ) VALUES (?, ?, ?, ?, ?, ?, 1, 'scholar')
+            """,
+            (topo_id, "f" * 40, '[["morpheme", "fake"]]', "[]", 0, 1),
+        )
+        db.commit()
+        name, source = decompose_with_canonical("Stratford", word_db, db)
+    assert source is None  # fell back
+
+
+def test_decompose_with_canonical_no_db_uses_heuristic() -> None:
+    """When ``db`` is None, the helper short-circuits straight to
+    reduce=True. Source is None."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    name, source = decompose_with_canonical("Stratford", word_db, db=None)
+    assert source is None
+    assert len(name.words["Stratford"]) >= 1
+
+
+# --- CLI integration: --db flag on rebuild-proportions / unaccounted ----
+
+
+def test_cli_rebuild_proportions_with_db_runs(tmp_path: Path) -> None:
+    """Smoke test: ``rebuild-proportions --db <db>`` runs end-to-end on
+    a toponym with a registered canonical pick. The summary line carries
+    a ``canonical[…]`` block so operators can verify the wiring."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        populate_and_pick(db, topo_id, "Stratford", word_db)
+        db.commit()
+
+    meanings_path = tmp_path / "meanings.json"
+    meanings_path.write_text(json.dumps(_two_morpheme_subjects()))
+    place_names = tmp_path / "places.json"
+    place_names.write_text(json.dumps({"England": {"Bedfordshire": ["Stratford"]}}))
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "rebuild-proportions",
+            "english",
+            str(place_names),
+            "--meanings",
+            str(meanings_path),
+            "--db",
+            str(db_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    # canonical[...] block on the summary line confirms the --db path ran.
+    assert "canonical[" in result.stderr
+
+
+def test_cli_rebuild_proportions_without_db_omits_canonical_summary(
+    tmp_path: Path,
+) -> None:
+    """The legacy heuristic path remains unchanged when ``--db`` is
+    omitted — no canonical[...] surfacing on the summary line."""
+    meanings_path = tmp_path / "meanings.json"
+    meanings_path.write_text(json.dumps(_two_morpheme_subjects()))
+    place_names = tmp_path / "places.json"
+    place_names.write_text(json.dumps({"England": {"Bedfordshire": ["Stratford"]}}))
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "rebuild-proportions",
+            "english",
+            str(place_names),
+            "--meanings",
+            str(meanings_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    assert "canonical[" not in result.stderr
+
+
+def test_cli_unaccounted_with_db_runs(tmp_path: Path) -> None:
+    """Smoke test: ``unaccounted --db <db>`` runs end-to-end. The
+    summary line carries the canonical[...] block on success."""
+    # Build a meaning DB that DOESN'T cover '-burh' so we get a leftover
+    # fragment when the heuristic runs on 'Bridgwaterburh'.
+    subjects = [
+        _make_subject(
+            meaning=["Bridge"],
+            words=[{"modern_usage": "Bridg-", "old_english": ["brycg"]}],
+        ),
+    ]
+    word_db = _word_db_for(subjects)
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Bridgburh")
+        populate_and_pick(db, topo_id, "Bridgburh", word_db)
+        db.commit()
+
+    meanings_path = tmp_path / "meanings.json"
+    meanings_path.write_text(json.dumps(subjects))
+    place_names = tmp_path / "places.json"
+    place_names.write_text(json.dumps({"England": {"Bedfordshire": ["Bridgburh"]}}))
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "unaccounted",
+            "english",
+            str(place_names),
+            "--meanings",
+            str(meanings_path),
+            "--db",
+            str(db_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    assert "canonical[" in result.stderr
+
+
+def test_cli_unaccounted_canonical_drops_false_gap(tmp_path: Path) -> None:
+    """When a name has a zero-unaccounted canonical decomposition, the
+    unaccounted miner --db path drops it from the gap report — even if
+    the heuristic alternates have leftovers. This is the user-facing
+    payoff of wyrd-70s0."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        populate_and_pick(db, topo_id, "Stratford", word_db)
+        db.commit()
+
+    meanings_path = tmp_path / "meanings.json"
+    meanings_path.write_text(json.dumps(_two_morpheme_subjects()))
+    place_names = tmp_path / "places.json"
+    place_names.write_text(json.dumps({"England": {"Bedfordshire": ["Stratford"]}}))
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "unaccounted",
+            "english",
+            str(place_names),
+            "--meanings",
+            str(meanings_path),
+            "--db",
+            str(db_path),
+            "--as-json",
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    output = json.loads(result.output)
+    # Canonical zero-unaccounted means Stratford contributes ZERO
+    # fragments to the gap report.
+    assert output == []
+
+
+def test_cli_rebuild_proportions_mixes_canonical_and_heuristic(tmp_path: Path) -> None:
+    """Realistic operator path: corpus has some names with canonical
+    picks (in-DB) and some without (not yet decomposed). The summary
+    line must surface both source counts so an operator can verify
+    the canonical wiring is doing useful work AND see how much fell
+    through to the heuristic."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        _seed_source(db)
+        # 'Stratford' gets a canonical; 'Bridgford' is left out of the
+        # DB entirely so the consumer must fall through to heuristic.
+        topo_id = _insert_toponym(db, "Stratford")
+        populate_and_pick(db, topo_id, "Stratford", word_db)
+        db.commit()
+
+    meanings_path = tmp_path / "meanings.json"
+    meanings_path.write_text(json.dumps(_two_morpheme_subjects()))
+    place_names = tmp_path / "places.json"
+    place_names.write_text(json.dumps({"England": {"Bedfordshire": ["Stratford", "Bridgford"]}}))
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "rebuild-proportions",
+            "english",
+            str(place_names),
+            "--meanings",
+            str(meanings_path),
+            "--db",
+            str(db_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    # Both source labels appear in the canonical[…] block — proves the
+    # branch covering canonical_hits["heuristic"] += 1 fires.
+    assert "canonical[" in result.stderr
+    assert "heuristic=1" in result.stderr
+    assert "unique-zero-unaccounted=1" in result.stderr
