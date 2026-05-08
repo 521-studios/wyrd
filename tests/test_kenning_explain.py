@@ -19,6 +19,10 @@ def test_known_compound_decomposes_cleanly():
     assert "bridge" in rs[0].explanation.lower()
     assert "water" in rs[0].explanation
     assert "[" not in rs[0].explanation, "best reading should have no unaccounted"
+    # Case-preservation: the capitalized `Bridge` etymon must still surface in
+    # at least one reading so that the original-case form remains decomposable
+    # even when the lowercase variant wins the top slot.
+    assert any("Bridge" in r.explanation for r in rs)
 
 
 def test_multi_word_name_decomposes_per_word():
