@@ -29,7 +29,11 @@ from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.decomposition import (
+    _candidates_for_usage,
+    _cross_product_decompositions,
     _decomposition_payload,
+    _dedupe_scholar_seqs,
+    _scholar_form_sequences,
     _scholar_seq_matches_decomposition,
     _signature_for_payload,
     compute_decompositions,
@@ -38,6 +42,7 @@ from wyrd.generators.kenning.decomposition import (
 )
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema, migrate_schema
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
+from wyrd.generators.kenning.name import Name
 
 
 @pytest.fixture
@@ -397,7 +402,7 @@ def test_pick_canonical_rule_a_scholar_disagreement(fresh_db: Path) -> None:
             "WHERE toponym_id = ? AND is_canonical = 1",
             (topo_id,),
         ).fetchall()
-    assert result["rule"] == "scholar"
+    assert result["rule"] == "scholar-disagreement"
     # Both decompositions are canonical (each scholar's breakdown
     # matched a different stored row).
     assert len(rows) == 2
@@ -710,3 +715,180 @@ def test_cli_decompose_handles_empty_corpus(fresh_db: Path) -> None:
     )
     assert result.exit_code == 0, result.output
     assert "No toponym rows" in result.output or "No toponym rows" in result.stderr_bytes.decode()
+
+
+# --- regression + missing-coverage cases ---------------------------------
+
+
+def test_pick_canonical_corroborating_scholars_not_disagreement(fresh_db: Path) -> None:
+    """Regression: two scholars publishing IDENTICAL etymologies are not
+    in disagreement — they corroborate. Picker tags 'scholar', not
+    'scholar-disagreement'.
+
+    Earlier draft tracked matched scholar INDICES (s_idx) instead of
+    DISTINCT scholar content; two duplicate rows would inflate the
+    distinct-scholar count and mis-tag the strongest-canonical case.
+    """
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        compute_decompositions(db, topo_id, "Stratford", word_db)
+        # Two scholars, same breakdown.
+        _insert_scholar_etymology(
+            db,
+            toponym_id=topo_id,
+            elements=[("stræt", "old-english"), ("ford", "old-english")],
+        )
+        _insert_scholar_etymology(
+            db,
+            toponym_id=topo_id,
+            elements=[("stræt", "old-english"), ("ford", "old-english")],
+        )
+        result = pick_canonical_decomposition(db, topo_id, word_db)
+        db.commit()
+        rows = db.conn.execute(
+            "SELECT canonical_source FROM toponym_decomposition "
+            "WHERE toponym_id = ? AND is_canonical = 1",
+            (topo_id,),
+        ).fetchall()
+    assert result["rule"] == "scholar"
+    assert len(rows) == 1
+    assert rows[0]["canonical_source"] == "scholar"
+
+
+def test_dedupe_scholar_seqs_preserves_first_occurrence_order() -> None:
+    """``_dedupe_scholar_seqs`` keeps the first-seen sequence and drops
+    later content-duplicates. Order matters — downstream consumers may
+    care about scholar-source priority encoded in row order."""
+    seqs = [
+        [("old_english", "stræt"), ("old_english", "ford")],
+        [("old_english", "brycgwæter")],
+        [("old_english", "stræt"), ("old_english", "ford")],  # duplicate
+    ]
+    distinct = _dedupe_scholar_seqs(seqs)
+    assert distinct == [
+        [("old_english", "stræt"), ("old_english", "ford")],
+        [("old_english", "brycgwæter")],
+    ]
+
+
+def test_scholar_form_sequences_drops_unmapped_language(fresh_db: Path) -> None:
+    """An etymon whose ``language`` doesn't appear in
+    ``_LANG_CODE_TO_JSON_FIELD`` can't possibly match a Meaning's
+    sources; ``_scholar_form_sequences`` filters it out so the empty
+    placeholder doesn't shorten the sequence and silently fail
+    matching."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        cur = db.conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) "
+            "VALUES (?, 'skeat-1901', 'high')",
+            (topo_id,),
+        )
+        etymology_id = cur.lastrowid
+        unmapped_etymon = db.upsert_etymon("ar-tawa", "no-such-language")
+        db.conn.execute(
+            "INSERT INTO toponym_etymology_element "
+            "(toponym_etymology_id, ordinal, etymon_id, inflection, surface_in_modern) "
+            "VALUES (?, 0, ?, NULL, NULL)",
+            (etymology_id, unmapped_etymon),
+        )
+        db.commit()
+        seqs = _scholar_form_sequences(db, topo_id)
+    # Etymology row had only one element with an unmapped language;
+    # after filtering it's empty, and empty sequences are dropped.
+    assert seqs == []
+
+
+def test_scholar_form_sequences_drops_etymon_with_no_canonical_form(fresh_db: Path) -> None:
+    """An etymon row with NULL canonical_form (corrupt / partial mining
+    output) is dropped from the sequence — it can't possibly match a
+    Meaning's sources entry."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        cur = db.conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) "
+            "VALUES (?, 'skeat-1901', 'high')",
+            (topo_id,),
+        )
+        etymology_id = cur.lastrowid
+        # Direct INSERT to bypass upsert_etymon's NOT NULL guard.
+        cur = db.conn.execute(
+            "INSERT INTO etymon (canonical_form, language) VALUES ('', 'old-english')"
+        )
+        empty_etymon_id = cur.lastrowid
+        db.conn.execute(
+            "INSERT INTO toponym_etymology_element "
+            "(toponym_etymology_id, ordinal, etymon_id, inflection, surface_in_modern) "
+            "VALUES (?, 0, ?, NULL, NULL)",
+            (etymology_id, empty_etymon_id),
+        )
+        db.commit()
+        seqs = _scholar_form_sequences(db, topo_id)
+    assert seqs == []
+
+
+def test_candidates_for_usage_unions_co_located_meanings() -> None:
+    """When a single ``modern_usage`` carries multiple Meanings (different
+    senses sharing one surface), ``_candidates_for_usage`` returns the
+    UNION of their (lang_field, form) pairs. Without the union, a
+    scholar match against the second sense would fail because the slot
+    only carried the first sense's forms."""
+    # Build a word_db where '-y' has TWO Meanings: 'island' and 'district'.
+    subjects = [
+        _make_subject(
+            meaning=["Island"],
+            words=[{"modern_usage": "-y", "old_english": ["īg"]}],
+        ),
+        _make_subject(
+            meaning=["District"],
+            words=[{"modern_usage": "-y", "old_english": ["gē"]}],
+        ),
+    ]
+    word_db = _word_db_for(subjects)
+    candidates = _candidates_for_usage(word_db, "-y")
+    assert ("old_english", "īg") in candidates
+    assert ("old_english", "gē") in candidates
+
+
+def test_cross_product_decompositions_with_multi_option_per_word() -> None:
+    """Multi-word toponyms with multiple matcher options per word should
+    produce the full N×M cross-product. Pin this so the ``-y``-as-
+    'island'-or-'district' multi-sense case (and similar) round-trips
+    correctly through the cross-product path.
+    """
+    # 'salem' with TWO options: full-word match, and 'sal-' + '-em'.
+    subjects = [
+        _make_subject(
+            meaning=["Sale"],
+            words=[{"modern_usage": "Sal-", "old_english": ["sal"]}],
+        ),
+        _make_subject(
+            meaning=["End"],
+            words=[{"modern_usage": "-em", "old_english": ["em"]}],
+        ),
+        _make_subject(
+            meaning=["Salem"],
+            words=[{"modern_usage": "Salem", "old_english": ["salem"]}],
+        ),
+    ]
+    word_db = _word_db_for(subjects)
+    name = Name("Salem Salem")  # multi-word, each word multi-option
+    name.find_meaning(word_db, reduce=False)
+    combos = _cross_product_decompositions(name)
+    # Both words admit at least 2 zero-unaccounted parses, so the
+    # cross-product yields at least 2*2 = 4 combinations. The exact
+    # count depends on partial-match alternatives the trie emits; the
+    # invariant we pin is "more than just the per-word sum, i.e.
+    # cross-product was actually computed."
+    n_per_word = len(name.words["Salem"])
+    assert n_per_word >= 2
+    assert len(combos) == n_per_word * n_per_word
+    # And every combo is double the morpheme/unaccounted-slot count of
+    # a single-word combo (each word contributes its slots).
+    single_word_lens = {len(w.word) for w in name.words["Salem"]}
+    expected_total_lens = {a + b for a in single_word_lens for b in single_word_lens}
+    assert {len(combo) for combo in combos} == expected_total_lens

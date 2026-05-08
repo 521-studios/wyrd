@@ -5095,14 +5095,9 @@ def lexicon_decompose(
         decomposition_total = 0
         for idx, row in enumerate(rows, start=1):
             summary = populate_and_pick(db, row["id"], row["modern_name"], word_db)
-            rule = summary["rule"]
             decomposition_total += int(summary["decomposition_count"] or 0)
-            if rule == "scholar" and summary["canonical_count"] and summary["canonical_count"] > 1:
-                rule = "scholar-disagreement"
-            if rule is None:
-                rule_counts["no-canonical"] += 1
-            else:
-                rule_counts[rule] = rule_counts.get(rule, 0) + 1
+            rule_key = summary["rule"] or "no-canonical"
+            rule_counts[rule_key] = rule_counts.get(rule_key, 0) + 1
             if idx % 10 == 0 or idx == len(rows):
                 click.echo(
                     f"  [{idx}/{len(rows)}] decompositions={decomposition_total} "

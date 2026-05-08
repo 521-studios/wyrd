@@ -72,9 +72,7 @@ def _decomposition_payload(decomposition: list) -> list:
 
 
 def _signature_for_payload(payload: list) -> str:
-    """SHA-1 of the canonical-JSON serialization of the payload. 40-char
-    hex digest is short enough to index cheaply and collision-free for
-    this corpus's expected scale (10K toponyms × ~5 alternatives)."""
+    """SHA-1 hex digest of the canonical-JSON serialization of the payload."""
     text = json.dumps(payload, ensure_ascii=False, sort_keys=False, separators=(",", ":"))
     return hashlib.sha1(text.encode("utf-8")).hexdigest()
 
@@ -102,16 +100,12 @@ def compute_decompositions(
     """Run the matcher (reduce=False) on ``modern_name`` and persist every
     decomposition into ``toponym_decomposition``.
 
-    Idempotent on (toponym_id, decomposition_signature): re-running with
-    the same word_db produces the same signatures, and the UNIQUE index
-    skips duplicates. New decompositions (e.g. after a meanings.json
-    re-emit unlocks new morphemes) get appended; previously-seen rows
-    keep their is_canonical / canonical_source values until
+    Idempotent on (toponym_id, decomposition_signature) via INSERT OR
+    IGNORE. A re-emit that unlocks new morphemes appends new rows;
+    previously-seen rows keep their canonical assignment until
     ``pick_canonical_decomposition`` re-runs.
 
-    Returns the ids of the rows touched (inserted or already-existing).
-    The ordering matches the matcher's emit order so callers can pair
-    rows with the matcher's view if needed.
+    Returns the ids of the rows touched, in matcher emit order.
     """
     name = Name(modern_name)
     name.find_meaning(word_db, reduce=False)
@@ -223,6 +217,23 @@ def _decomposition_slots(decomposition: list) -> list[set[tuple[str, str]] | str
         else:
             slots.append(str(elem))
     return slots
+
+
+def _dedupe_scholar_seqs(
+    seqs: list[list[tuple[str, str]]],
+) -> list[list[tuple[str, str]]]:
+    """Remove content-duplicate scholar sequences while preserving the
+    first occurrence's order. Two identical sequences from different
+    toponym_etymology rows mean two scholars said the same thing —
+    that's corroboration, not disagreement."""
+    seen: set[tuple[tuple[str, str], ...]] = set()
+    distinct: list[list[tuple[str, str]]] = []
+    for seq in seqs:
+        key = tuple(seq)
+        if key not in seen:
+            seen.add(key)
+            distinct.append(seq)
+    return distinct
 
 
 def _scholar_form_sequences(db: LexiconDB, toponym_id: int) -> list[list[tuple[str, str]]]:
@@ -364,14 +375,21 @@ def pick_canonical_decomposition(
         slots_per_row.append(slots)
 
     scholar_seqs = _scholar_form_sequences(db, toponym_id)
+    # De-dupe scholar sequences by content. Two scholars who happened
+    # to publish IDENTICAL etymon lists are not in disagreement; they
+    # corroborate. Without this dedup, two duplicate scholar_etymology
+    # rows would both match the same stored decomposition and inflate
+    # the distinct-scholar count to >=2, mis-tagging as
+    # 'scholar-disagreement'.
+    distinct_scholar_seqs = _dedupe_scholar_seqs(scholar_seqs)
 
-    # Rule (a): collect every (row_idx, scholar_idx) pair that matches.
-    # When >=2 distinct scholar sequences match (across one or more
-    # stored rows), all matching rows are tagged scholar-disagreement.
+    # Rule (a): collect every (row_idx, scholar_idx) pair that matches
+    # against the deduplicated scholar list. Disagreement iff >=2
+    # DISTINCT scholar breakdowns each matched.
     matching_pairs: list[tuple[int, int]] = []
     matched_scholar_indices: set[int] = set()
     for r_idx, slots in enumerate(slots_per_row):
-        for s_idx, seq in enumerate(scholar_seqs):
+        for s_idx, seq in enumerate(distinct_scholar_seqs):
             if _scholar_seq_matches_decomposition(seq, slots):
                 matching_pairs.append((r_idx, s_idx))
                 matched_scholar_indices.add(s_idx)
@@ -382,7 +400,7 @@ def pick_canonical_decomposition(
         matching_row_ids = sorted({rows[r_idx]["id"] for r_idx, _ in matching_pairs})
         _set_canonical(db, matching_row_ids, source)
         return {
-            "rule": "scholar",
+            "rule": source,
             "canonical_count": len(matching_row_ids),
             "decomposition_count": decomposition_count,
         }
