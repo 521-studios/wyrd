@@ -384,23 +384,33 @@ def test_scorecard_welsh_sparse_terminus_forward() -> None:
 def test_scorecard_lexicon_tag_coverage_is_independent_of_bundle() -> None:
     """Regression for the 'middle-english reads 0/15 in metric C' bug:
     lexicon-side tag coverage MUST read etymon_tag directly so that
-    languages without a bundle sibling still get a real reading.
+    languages with sparse / no bundle visibility still get a real
+    reading from the corpus side.
 
-    Build a fresh fixture where 'middle-english' has 2 tagged etymons
-    but NO bundle sibling. Pin: lexicon_tagged_etymons reflects the
-    etymon_tag rows; bundle_tag_coverage is all-zero (no sibling)."""
+    Use a language that's NOT in _BUNDLE_LANG_KEY at all (sibling
+    resolves to None) so the bundle-side path returns zeros while the
+    lexicon-side path reads the etymon_tag rows directly. Originally
+    pinned with 'middle-english' which mapped to None; wyrd-i1s1
+    fixed that map (ME now routes to the modern_english sibling), so
+    the regression coverage moved to a synthetic language."""
     conn = _build_fixture_db()
-    # ME etymons cote (id 10) and tonn (id 11) — tag them.
+    # Insert etymons in a synthetic language that has no _BUNDLE_LANG_KEY
+    # entry. Tagged with reference-set entries to verify lex-side
+    # reads them.
     conn.executescript(
         """
-        INSERT INTO etymon_tag(etymon_id, tag) VALUES (10, 'architecture');
-        INSERT INTO etymon_tag(etymon_id, tag) VALUES (11, 'topography');
+        INSERT INTO etymon(id, canonical_form, language)
+          VALUES (100, 'ax', 'klingon');
+        INSERT INTO etymon(id, canonical_form, language)
+          VALUES (101, 'ay', 'klingon');
+        INSERT INTO etymon_tag(etymon_id, tag) VALUES (100, 'architecture');
+        INSERT INTO etymon_tag(etymon_id, tag) VALUES (101, 'topography');
         """
     )
     bundle = _fixture_bundle()
     card = compute_scorecard(
         conn,
-        "middle-english",
+        "klingon",
         bundle,
         list(FALLBACK_REFERENCE_TAGS[:5]),
     )
@@ -533,13 +543,37 @@ def test_report_to_markdown_includes_summary_and_detail() -> None:
 
 def test_report_to_markdown_handles_no_bundle_sibling() -> None:
     """Languages without a dedicated bundle sibling get the explicit
-    'no dedicated bundle sibling' line rather than a misleading 0/N."""
+    'no dedicated bundle sibling' line rather than a misleading 0/N.
+
+    Uses a synthetic language not present in _BUNDLE_LANG_KEY so the
+    sibling resolves to None — the test target moved off
+    middle-english after wyrd-i1s1 mapped ME to the modern_english
+    sibling (matching the actual export-side routing)."""
     conn = _build_fixture_db()
-    # middle-english is _BUNDLE_LANG_KEY=None per the map.
-    assert _BUNDLE_LANG_KEY["middle-english"] is None
+    # 'klingon' has no _BUNDLE_LANG_KEY entry — sibling resolves None.
+    assert _BUNDLE_LANG_KEY.get("klingon") is None
+    # Insert a klingon etymon so the language isn't dropped as empty.
+    conn.execute("INSERT INTO etymon(id, canonical_form, language) VALUES (200, 'qet', 'klingon')")
     bundle = _fixture_bundle()
-    # middle-english has 2 etymons in the fixture (cote, tonn) so the
-    # report keeps it.
+    report = compute_report(
+        conn,
+        bundle,
+        languages=["klingon"],
+        reference_tags=list(FALLBACK_REFERENCE_TAGS[:3]),
+    )
+    md = report_to_markdown(report)
+    assert "no dedicated bundle sibling" in md
+
+
+def test_report_to_markdown_renders_shared_with_for_modern_english_cluster() -> None:
+    """wyrd-i1s1 added middle-english / early-modern-english / scots to
+    the modern_english shared-sibling cluster. Pin the per-cluster
+    'shared with' annotation so a future map edit that drops one of
+    the languages surfaces here rather than silently in the rendered
+    output."""
+    conn = _build_fixture_db()
+    # middle-english already in the fixture (cote, tonn at ids 10/11).
+    bundle = _fixture_bundle()
     report = compute_report(
         conn,
         bundle,
@@ -547,7 +581,14 @@ def test_report_to_markdown_handles_no_bundle_sibling() -> None:
         reference_tags=list(FALLBACK_REFERENCE_TAGS[:3]),
     )
     md = report_to_markdown(report)
-    assert "no dedicated bundle sibling" in md
+    # The middle-english scorecard should annotate the shared sibling.
+    assert "sibling=`modern_english`" in md
+    assert "shared with" in md.lower()
+    # The shared-with list should include the ME/EModE/ModE/Scots
+    # cluster mates (other than middle-english itself).
+    assert "early-modern-english" in md
+    assert "modern-english" in md
+    assert "scots" in md
 
 
 # --- reference-tag loader ------------------------------------------------

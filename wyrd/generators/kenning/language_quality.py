@@ -289,8 +289,16 @@ def load_reference_tags(
 
 _BUNDLE_LANG_KEY: dict[str, str | None] = {
     "old-english": "old_english",
-    "middle-english": None,
+    # ME / EModE / Scots route to the modern_english sibling at export
+    # per _LANG_CODE_TO_JSON_FIELD in lexicon.py; the dashboard map
+    # mirrors that so bundle-side tag visibility reads correctly.
+    # Originally mapped to None in PR #144, which mis-reported
+    # middle-english at 0/15 bundle tag hits despite 13/15 lex tag
+    # hits — fixed alongside wyrd-i1s1's cluster-mate tag rollup.
+    "middle-english": "modern_english",
+    "early-modern-english": "modern_english",
     "modern-english": "modern_english",
+    "scots": "modern_english",
     "old-welsh": "celtic_mix",
     "welsh": "celtic_mix",
     "modern-welsh": "celtic_mix",
@@ -302,8 +310,12 @@ _BUNDLE_LANG_KEY: dict[str, str | None] = {
     "breton": "celtic_mix",
     "old-norse": "old_scandinavian",
     "icelandic": "old_scandinavian",
+    # OF / Anglo-Norman / NF / Middle French route to old_french per
+    # export-side map.
     "old-french": "old_french",
-    "norman-french": None,
+    "norman-french": "old_french",
+    "anglo-norman": "old_french",
+    "middle-french": "old_french",
     "latin": "latin",
     "biblical": "biblical",
     "celtic": "celtic_mix",
@@ -330,6 +342,17 @@ _SHARED_BUNDLE_SIBLINGS: dict[str, list[str]] = {
         "celtic",
     ],
     "old_scandinavian": ["old-norse", "icelandic"],
+    # ME / EModE / ModE / Scots share the modern_english sibling; the
+    # dashboard surfaces the sharing so per-language bundle counts
+    # aren't read as exclusive.
+    "modern_english": [
+        "middle-english",
+        "early-modern-english",
+        "modern-english",
+        "scots",
+    ],
+    # OF / NF / Anglo-Norman / Middle French share old_french.
+    "old_french": ["old-french", "norman-french", "anglo-norman", "middle-french"],
 }
 
 
