@@ -177,17 +177,22 @@ def compute_decompositions(
 def _cross_product_decompositions(name: Name) -> list[list]:
     """Build the cross product of per-word decompositions for a name.
 
-    A single-word toponym just returns the matcher's per-word list with
-    each entry promoted to a list of ``Meaning|str`` (Word.word). A
-    multi-word toponym ('Saint Mary Bourne') returns every combination
+    Single-word toponyms return the matcher's per-word list as-is.
+    Multi-word toponyms ('Saint Mary Bourne') return every combination
     of (word_1_decomp, word_2_decomp, word_3_decomp), with whitespace
-    elided — slot ordering tracks the toponym's left-to-right reading.
+    elided.
 
-    Capped at ``_MAX_CROSS_PRODUCT_COMBOS`` to prevent pathological
-    blow-up. When a name's cross product would exceed the cap, only
-    the first cap combos persist and a warning is logged. The cap is
-    deterministic (early termination of the multiplication loop) so
-    re-runs produce identical row sets.
+    Capped at ``_MAX_CROSS_PRODUCT_COMBOS``. When the projected combo
+    count would exceed the cap, per-word option lists are truncated
+    BEFORE multiplying so every emitted combo remains full-length.
+    Mid-multiplication truncation would emit prefix-only combos
+    missing later words' contributions — those would persist as
+    'complete' decompositions with bogus zero-unaccounted scores.
+
+    Truncation is deterministic (first K options per word kept, where
+    K is sized so the product stays under the cap) and warns via the
+    module logger. Re-runs against the same input produce identical
+    row sets.
     """
     if not name.words:
         return []
@@ -199,33 +204,63 @@ def _cross_product_decompositions(name: Name) -> list[list]:
         # matcher guarantees at least one entry per word.
         per_word: list[list] = [list(w.word) for w in word_objs] if word_objs else [[word_str]]
         per_word_lists.append(per_word)
-    # Cross-product: start with [[]], extend with each word's options.
-    # Early-terminate at the cap to bound memory and signal upstream.
+
+    per_word_lists = _cap_per_word_options(per_word_lists, name.name)
+
     combos: list[list] = [[]]
-    truncated = False
     for per_word in per_word_lists:
-        new_combos: list[list] = []
-        for prefix in combos:
-            for option in per_word:
-                new_combos.append(prefix + option)
-                if len(new_combos) >= _MAX_CROSS_PRODUCT_COMBOS:
-                    truncated = True
-                    break
-            if truncated:
-                break
-        combos = new_combos
-        if truncated:
-            break
-    if truncated:
-        _logger.warning(
-            "Cross-product cap (%d) reached for toponym %r — keeping the "
-            "first %d combos. Increase _MAX_CROSS_PRODUCT_COMBOS or split "
-            "the toponym if more coverage is needed.",
-            _MAX_CROSS_PRODUCT_COMBOS,
-            name.name,
-            len(combos),
-        )
+        combos = [prefix + option for prefix in combos for option in per_word]
     return combos
+
+
+def _cap_per_word_options(
+    per_word_lists: list[list[list]],
+    toponym_name: str,
+) -> list[list[list]]:
+    """Cap each per-word option list so the cross-product stays under
+    ``_MAX_CROSS_PRODUCT_COMBOS``. Truncates the longest per-word
+    lists first (greedy) until the projected product fits.
+
+    All emitted combos remain full-length: each word still contributes
+    one option per combo, just drawn from a smaller pool. Deterministic
+    (keeps the first K options of each list, no sampling).
+    """
+    if not per_word_lists:
+        return per_word_lists
+    projected = 1
+    for per_word in per_word_lists:
+        projected *= max(1, len(per_word))
+    if projected <= _MAX_CROSS_PRODUCT_COMBOS:
+        return per_word_lists
+
+    # Trim the longest list down by one option at a time until the
+    # projected product fits. Stable: order of equal-length lists
+    # respects input order so re-runs produce identical truncations.
+    capped = [list(pw) for pw in per_word_lists]
+    while projected > _MAX_CROSS_PRODUCT_COMBOS:
+        # Find the longest list with >1 option (can't trim singleton
+        # lists without dropping a word entirely).
+        idx = max(
+            range(len(capped)),
+            key=lambda i: len(capped[i]) if len(capped[i]) > 1 else -1,
+        )
+        if len(capped[idx]) <= 1:
+            break  # everything is singleton; can't trim further
+        # Drop the last option from this list. Re-project.
+        capped[idx].pop()
+        projected = 1
+        for per_word in capped:
+            projected *= max(1, len(per_word))
+
+    _logger.warning(
+        "Cross-product cap (%d) reached for toponym %r — capped per-word "
+        "options (was %s, now %s) so all combos stay full-length.",
+        _MAX_CROSS_PRODUCT_COMBOS,
+        toponym_name,
+        [len(pw) for pw in per_word_lists],
+        [len(pw) for pw in capped],
+    )
+    return capped
 
 
 # --- canonical picker -----------------------------------------------------
@@ -297,8 +332,7 @@ def _scholar_form_sequences(db: LexiconDB, toponym_id: int) -> list[list[tuple[s
         lang_field = _LANG_CODE_TO_JSON_FIELD.get(row["language"])
         if not lang_field:
             _logger.debug(
-                "Dropping etymon (toponym=%d, etymology=%d): unmapped "
-                "language %r — no bundle lang_field for this code.",
+                "Dropping etymon (toponym=%d, etymology=%d): unmapped language %r.",
                 toponym_id,
                 row["etymology_id"],
                 row["language"],
@@ -307,8 +341,7 @@ def _scholar_form_sequences(db: LexiconDB, toponym_id: int) -> list[list[tuple[s
         canonical = row["canonical_form"]
         if not canonical:
             _logger.debug(
-                "Dropping etymon (toponym=%d, etymology=%d): empty "
-                "canonical_form (incomplete mining row?).",
+                "Dropping etymon (toponym=%d, etymology=%d): empty canonical_form.",
                 toponym_id,
                 row["etymology_id"],
             )
@@ -416,9 +449,8 @@ def _reset_canonical(db: LexiconDB, toponym_id: int) -> None:
 
 
 def _load_stored_decompositions(db: LexiconDB, toponym_id: int) -> list:
-    """Fetch the (id, morpheme_ids JSON, unaccounted_count) rows for
-    a toponym, ordered by id (insert order). Caller iterates these
-    to rehydrate slots and apply rules."""
+    """Fetch (id, morpheme_ids JSON, unaccounted_count) rows for a
+    toponym, ordered by id (insert order)."""
     return db.conn.execute(
         """
         SELECT id, morpheme_ids, unaccounted_count

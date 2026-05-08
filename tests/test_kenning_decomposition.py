@@ -899,9 +899,9 @@ def test_cross_product_decompositions_with_multi_option_per_word() -> None:
 
 def test_cross_product_caps_pathological_combo_count(caplog) -> None:
     """A toponym whose cross product would explode past the cap is
-    truncated at ``_MAX_CROSS_PRODUCT_COMBOS`` and a warning logs.
-    Bounds memory before bulk --apply against the production corpus.
-    """
+    truncated by capping per-word options BEFORE multiplying. Every
+    emitted combo is full-length (one slot per word). Bounds memory
+    before bulk --apply against the production corpus."""
     import logging
 
     from wyrd.generators.kenning import decomposition
@@ -919,8 +919,79 @@ def test_cross_product_caps_pathological_combo_count(caplog) -> None:
     with caplog.at_level(logging.WARNING, logger="wyrd.generators.kenning.decomposition"):
         combos = decomposition._cross_product_decompositions(name)
 
-    assert len(combos) == decomposition._MAX_CROSS_PRODUCT_COMBOS
+    assert len(combos) <= decomposition._MAX_CROSS_PRODUCT_COMBOS
+    # CRITICAL: every combo must be full-length (4 slots, one per word).
+    # Mid-multiplication truncation would have produced prefix-only
+    # combos missing words 3-4 — silently persisted as 0-unaccounted.
+    assert all(len(combo) == 4 for combo in combos), (
+        f"truncation produced incomplete combos; lengths: {[len(c) for c in combos]}"
+    )
     assert any("Cross-product cap" in rec.message for rec in caplog.records)
+
+
+def test_cross_product_cap_persists_full_length_combos_when_truncating_first_word() -> None:
+    """Regression test: with truncation triggered by the FIRST word's
+    options (16 options × 4 words = 4^4*16 vs cap), the cap must NOT
+    emit prefix-only combos. Pinned because the original
+    early-termination implementation produced length-1 combos in this
+    pathological case."""
+    from wyrd.generators.kenning import decomposition
+
+    name = Name("a b c d")
+
+    class _FakeWord:
+        def __init__(self, contents: list) -> None:
+            self.word = contents
+
+    # 16 options on word 'a', 4 each on b/c/d → projected 16*4*4*4 =
+    # 1024 combos. Old early-termination would truncate during word
+    # 'a' iteration giving length-1 combos. New per-word capping
+    # trims word 'a' so the product fits.
+    name.words["a"] = [_FakeWord([f"a_{i}"]) for i in range(16)]
+    for word_str in ("b", "c", "d"):
+        name.words[word_str] = [_FakeWord([f"{word_str}_{i}"]) for i in range(4)]
+
+    combos = decomposition._cross_product_decompositions(name)
+    assert len(combos) <= decomposition._MAX_CROSS_PRODUCT_COMBOS
+    assert all(len(combo) == 4 for combo in combos)
+
+
+def test_cap_per_word_options_returns_input_when_under_cap() -> None:
+    """``_cap_per_word_options`` is a no-op when the projected product
+    fits under the cap."""
+    from wyrd.generators.kenning import decomposition
+
+    per_word_lists = [[[1], [2], [3]], [[4], [5]]]  # 3*2 = 6
+    capped = decomposition._cap_per_word_options(per_word_lists, "test")
+    assert capped == per_word_lists
+
+
+def test_cap_per_word_options_trims_longest_list_first(caplog) -> None:
+    """When trimming, ``_cap_per_word_options`` removes from the
+    LONGEST list first (greedy), keeping smaller lists intact when
+    possible."""
+    import logging
+
+    from wyrd.generators.kenning import decomposition
+
+    # 100 + 4 + 4 + 4 — projected 100*4*4*4 = 6400, way over cap.
+    # Trimming should reduce list 0 (the 100-list) most.
+    per_word_lists = [
+        [[i] for i in range(100)],
+        [[i] for i in range(4)],
+        [[i] for i in range(4)],
+        [[i] for i in range(4)],
+    ]
+    with caplog.at_level(logging.WARNING, logger="wyrd.generators.kenning.decomposition"):
+        capped = decomposition._cap_per_word_options(per_word_lists, "test")
+    projected = 1
+    for pw in capped:
+        projected *= len(pw)
+    assert projected <= decomposition._MAX_CROSS_PRODUCT_COMBOS
+    # The 100-list should have been the most-trimmed.
+    assert len(capped[0]) < len(per_word_lists[0])
+    # The 4-lists should remain untrimmed when possible (sizes still 4).
+    assert all(len(capped[i]) == 4 for i in (1, 2, 3))
 
 
 def test_cross_product_under_cap_is_unchanged() -> None:
@@ -1034,6 +1105,125 @@ def test_try_rule_unique_zero_returns_none_for_empty_rows() -> None:
     from wyrd.generators.kenning.decomposition import _try_rule_unique_zero
 
     assert _try_rule_unique_zero([]) is None
+
+
+def test_try_rule_scholar_returns_none_when_no_match(fresh_db: Path) -> None:
+    """``_try_rule_scholar`` returns None when no scholar etymology
+    matches any stored decomposition's slot candidates."""
+    from wyrd.generators.kenning.decomposition import (
+        _build_slot_candidates_per_row,
+        _load_stored_decompositions,
+        _try_rule_scholar,
+    )
+
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        compute_decompositions(db, topo_id, "Stratford", word_db)
+        # No scholar etymology rows.
+        rows = _load_stored_decompositions(db, topo_id)
+        slots = _build_slot_candidates_per_row(rows, word_db)
+        result = _try_rule_scholar(db, topo_id, rows, slots)
+    assert result is None
+
+
+def test_try_rule_scholar_returns_scholar_for_single_match(fresh_db: Path) -> None:
+    """``_try_rule_scholar`` returns ('scholar', [row_ids]) when one
+    distinct scholar breakdown matches a stored decomposition."""
+    from wyrd.generators.kenning.decomposition import (
+        _build_slot_candidates_per_row,
+        _load_stored_decompositions,
+        _try_rule_scholar,
+    )
+
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        compute_decompositions(db, topo_id, "Stratford", word_db)
+        _insert_scholar_etymology(
+            db,
+            toponym_id=topo_id,
+            elements=[("stræt", "old-english"), ("ford", "old-english")],
+        )
+        rows = _load_stored_decompositions(db, topo_id)
+        slots = _build_slot_candidates_per_row(rows, word_db)
+        result = _try_rule_scholar(db, topo_id, rows, slots)
+    assert result is not None
+    source, matching_ids = result
+    assert source == "scholar"
+    assert len(matching_ids) >= 1
+
+
+def test_reset_canonical_clears_prior_assignment(fresh_db: Path) -> None:
+    """``_reset_canonical`` resets is_canonical=0 and
+    canonical_source=NULL on every row for the given toponym."""
+    from wyrd.generators.kenning.decomposition import _reset_canonical
+
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        compute_decompositions(db, topo_id, "Stratford", word_db)
+        # Manually mark a row canonical.
+        db.conn.execute(
+            "UPDATE toponym_decomposition SET is_canonical = 1, "
+            "canonical_source = 'scholar' WHERE toponym_id = ?",
+            (topo_id,),
+        )
+        db.commit()
+        # Reset.
+        _reset_canonical(db, topo_id)
+        db.commit()
+        canonical_count = db.conn.execute(
+            "SELECT COUNT(*) AS c FROM toponym_decomposition "
+            "WHERE toponym_id = ? AND is_canonical = 1",
+            (topo_id,),
+        ).fetchone()["c"]
+        source_count = db.conn.execute(
+            "SELECT COUNT(*) AS c FROM toponym_decomposition "
+            "WHERE toponym_id = ? AND canonical_source IS NOT NULL",
+            (topo_id,),
+        ).fetchone()["c"]
+    assert canonical_count == 0
+    assert source_count == 0
+
+
+def test_scholar_form_sequences_logs_empty_canonical_form(fresh_db: Path, caplog) -> None:
+    """An etymon row with empty canonical_form is silently dropped;
+    Phase 2's debug log surfaces this distinct failure mode."""
+    import logging
+
+    from wyrd.generators.kenning.decomposition import _scholar_form_sequences
+
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        topo_id = _insert_toponym(db, "Stratford")
+        cur = db.conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) "
+            "VALUES (?, 'skeat-1901', 'high')",
+            (topo_id,),
+        )
+        etymology_id = cur.lastrowid
+        # Direct INSERT to bypass upsert_etymon's NOT NULL guard.
+        cur = db.conn.execute(
+            "INSERT INTO etymon (canonical_form, language) VALUES ('', 'old-english')"
+        )
+        empty_etymon_id = cur.lastrowid
+        db.conn.execute(
+            "INSERT INTO toponym_etymology_element "
+            "(toponym_etymology_id, ordinal, etymon_id, inflection, surface_in_modern) "
+            "VALUES (?, 0, ?, NULL, NULL)",
+            (etymology_id, empty_etymon_id),
+        )
+        db.commit()
+        with caplog.at_level(logging.DEBUG, logger="wyrd.generators.kenning.decomposition"):
+            seqs = _scholar_form_sequences(db, topo_id)
+    assert seqs == []
+    assert any(
+        "empty" in rec.message.lower() and "canonical_form" in rec.message for rec in caplog.records
+    )
 
 
 def test_build_slot_candidates_per_row_uses_word_db(fresh_db: Path) -> None:
