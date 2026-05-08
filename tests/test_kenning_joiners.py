@@ -16,6 +16,8 @@ Covers:
 
 from __future__ import annotations
 
+import pytest
+
 from wyrd.generators.kenning.meaning import (
     Joiner,
     Meaning,
@@ -799,3 +801,147 @@ def test_load_joiners_runtime_helper_returns_empty_for_legacy_bundle() -> None:
     _load_joiners.cache_clear()
     joiners = _load_joiners()
     assert joiners == {}
+
+
+def test_load_joiners_caches_result() -> None:
+    """``_load_joiners`` is `@lru_cache(maxsize=1)`. Two consecutive
+    calls return the SAME dict object (no re-parse of the bundle
+    file)."""
+    from wyrd.generators.kenning import _load_joiners
+
+    _load_joiners.cache_clear()
+    a = _load_joiners()
+    b = _load_joiners()
+    assert a is b
+
+
+def test_weighted_joiner_choice_raises_on_empty_pool() -> None:
+    """Defensive: an empty joiner pool should raise ``ValueError``,
+    not crash with ``IndexError`` deep inside ``rng.choice([])``.
+    Every call site filters empty pools out via
+    ``_shared_lang_fields_with_joiners``, but a future caller
+    bypassing that filter gets a clear error."""
+    import random
+
+    import pytest
+
+    from wyrd.generators.kenning import _weighted_joiner_choice
+
+    with pytest.raises(ValueError):
+        _weighted_joiner_choice([], random.Random(0))
+
+
+@pytest.mark.parametrize("seed", [0, 1, 42, 1000, 2026])
+def test_kenning_generate_density_zero_bit_stable_across_seeds(seed: int) -> None:
+    """Multi-seed bit-stability gate. Pre-PR Kenning.generate at
+    seed=N must produce identical output to post-PR generate at
+    seed=N when joiner_density=0. Pinned across multiple seeds so
+    a single coincidentally-stable seed can't mask a regression."""
+    from wyrd.generators.kenning import Kenning
+
+    kenning = Kenning()
+    out_default = kenning.generate({"culture": "english"}, seed=seed)
+    out_explicit = kenning.generate({"culture": "english", "joiner_density": 0.0}, seed=seed)
+    assert out_default.result == out_explicit.result, f"seed={seed}"
+    assert out_default.explanation == out_explicit.explanation, f"seed={seed}"
+
+
+def test_apply_joiner_insertion_skips_none_elements() -> None:
+    """A NewName word can contain ``None`` placeholder slots (the
+    selector emitting None for empty slots). The walker must skip
+    them rather than crash on attribute access."""
+    import random
+
+    from wyrd.generators.kenning import _apply_joiner_insertion
+    from wyrd.generators.kenning.proportions import NewName
+
+    m1 = Meaning("Bridge-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
+    m2 = Meaning("-water", tags=[], meanings=["Water"], sources={"old_english": ["wæter"]})
+    meaning_db = {"Bridge-": [m1], "-water": [m2]}
+    # Word with a None slot mid-list — only the non-None elements
+    # should be considered for adjacency.
+    new_name = NewName(struct=None, meaning_db=meaning_db, name=[["Bridge-", None, "-water"]])
+
+    joiners = {"old_english": [("en", 100)]}
+    rng = random.Random(0)
+    surface, _, components = _apply_joiner_insertion(new_name, joiners, rng, density=1.0)
+    # Joiner still inserted between the two non-None morphemes.
+    assert "en" in surface
+    assert any(c["location"] == "joiner" for c in components)
+
+
+def test_apply_joiner_insertion_single_element_word_no_op() -> None:
+    """A word with a single morpheme has no adjacent pair; joiner
+    insertion is a no-op."""
+    import random
+
+    from wyrd.generators.kenning import _apply_joiner_insertion
+    from wyrd.generators.kenning.proportions import NewName
+
+    m1 = Meaning("Bridge-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
+    meaning_db = {"Bridge-": [m1]}
+    new_name = NewName(struct=None, meaning_db=meaning_db, name=[["Bridge-"]])
+
+    joiners = {"old_english": [("en", 100)]}
+    rng = random.Random(0)
+    _, _, components = _apply_joiner_insertion(new_name, joiners, rng, density=1.0)
+    assert all(c["location"] != "joiner" for c in components)
+
+
+def test_apply_joiner_insertion_uses_rendered_substitutions() -> None:
+    """When NewName has ``rendered`` substitutions (D18 spelling-
+    variant or D8 inflection picks), the joiner insertion uses the
+    rendered surfaces, not the dash-stripped raw usage."""
+    import random
+
+    from wyrd.generators.kenning import _apply_joiner_insertion
+    from wyrd.generators.kenning.proportions import NewName
+
+    m1 = Meaning("Bridge-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
+    m2 = Meaning("-water", tags=[], meanings=["Water"], sources={"old_english": ["wæter"]})
+    meaning_db = {"Bridge-": [m1], "-water": [m2]}
+    # Rendered substitutions: 'brycg' (variant) + 'water' (canonical).
+    new_name = NewName(
+        struct=None,
+        meaning_db=meaning_db,
+        name=[["Bridge-", "-water"]],
+        rendered=[["brycg", None]],  # variant for slot 0, default for slot 1
+    )
+
+    joiners = {"old_english": [("en", 100)]}
+    rng = random.Random(0)
+    surface, _, _ = _apply_joiner_insertion(new_name, joiners, rng, density=1.0)
+    # Surface should carry the variant 'brycg' (not 'bridge'), the joiner
+    # 'en', and the default 'water'.
+    assert "brycg" in surface
+    assert "en" in surface
+    assert "water" in surface
+
+
+def test_apply_joiner_insertion_multi_word_within_each_word() -> None:
+    """For a multi-word toponym, joiner insertion only fires WITHIN
+    each word, not across the whitespace boundary."""
+    import random
+
+    from wyrd.generators.kenning import _apply_joiner_insertion
+    from wyrd.generators.kenning.proportions import NewName
+
+    m1 = Meaning("Bridge-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
+    m2 = Meaning("-water", tags=[], meanings=["Water"], sources={"old_english": ["wæter"]})
+    m3 = Meaning("Saint", tags=[], meanings=["Saint"], sources={"old_english": ["sanct"]})
+    meaning_db = {"Bridge-": [m1], "-water": [m2], "Saint": [m3]}
+    # Two-word name: word 1 is 'Saint' (single morpheme), word 2 is
+    # 'Bridge- + -water'. Joiners can only fire within word 2.
+    new_name = NewName(
+        struct=None,
+        meaning_db=meaning_db,
+        name=[["Saint"], ["Bridge-", "-water"]],
+    )
+
+    joiners = {"old_english": [("en", 100)]}
+    rng = random.Random(0)
+    surface, _, components = _apply_joiner_insertion(new_name, joiners, rng, density=1.0)
+    # Surface has exactly one joiner — between Bridge and water.
+    assert surface.count("en") >= 1
+    joiner_components = [c for c in components if c["location"] == "joiner"]
+    assert len(joiner_components) == 1

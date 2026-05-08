@@ -263,14 +263,9 @@ def _load_meanings():
 
 @lru_cache(maxsize=1)
 def _load_joiners() -> dict[str, list[tuple[str, int]]]:
-    """Load the bundle's joiner pool (wyrd-q0g6 Phase 1.5).
-
-    Returns ``{lang_field: [(form, weight), ...]}``. Empty for legacy
-    list-shape bundles (today's bundle ships zero joiners until a
-    Phase 2 audit populates them per wyrd-semi). Cached at module
-    level so repeated ``Kenning.generate`` calls don't re-parse the
-    bundle on each invocation.
-    """
+    """Load the bundle's joiner pool. Returns
+    ``{lang_field: [(form, weight), ...]}``; empty for legacy
+    list-shape bundles."""
     with _data_path("meanings.json").open() as f:
         data = json.load(f)
     return load_joiners(data)
@@ -678,21 +673,12 @@ class Kenning(Generator):
                     "minimum": 0.0,
                     "maximum": 1.0,
                     "description": (
-                        "wyrd-q0g6 Phase 1.5 compose-time joiner insertion "
-                        "(0..1). For each pair of adjacent picked morphemes "
-                        "within a word that share a populated joiner pool "
-                        "(via lang_field), with probability=joiner_density "
-                        "insert one joiner (weighted by attestation) between "
-                        "the morpheme surfaces. At 0 (default) no joiners "
-                        "are inserted — bit-stable historical behavior. "
-                        "Bundle ships zero populated joiners until a Phase 2 "
-                        "audit (wyrd-semi) classifies the 149 short subjects, "
-                        "so the runtime effect is currently a no-op. Each "
-                        "inserted joiner emits a component with "
-                        "location='joiner' so KenningExplain can round-trip "
-                        "it. Only fires when both adjacent morphemes share "
-                        "a lang_field with a non-empty joiner pool — cross-"
-                        "language joiner insertion is deferred."
+                        "Probability (0..1) of inserting a phonological "
+                        "joiner between adjacent morphemes that share a "
+                        "language family. At 0 (default) no joiners are "
+                        "inserted. Bundle currently ships no populated "
+                        "joiner pool, so this is a no-op until a future "
+                        "data update."
                     ),
                 },
             },
@@ -747,11 +733,8 @@ class Kenning(Generator):
         result_str = str(new_name)
         explanation = new_name.description()
         components = new_name.components()
-        # wyrd-q0g6 Phase 1.5: optional compose-time joiner insertion.
-        # Bit-stable at joiner_density=0 (default). Skipped entirely
-        # when the bundle's joiner pool is empty — today's bundle ships
-        # zero joiners until the Phase 2 audit (wyrd-semi) populates
-        # them, so this is a no-op in production.
+        # wyrd-q0g6 Phase 1.5: compose-time joiner insertion. Gated on
+        # density>0 + non-empty pool so legacy callers stay bit-stable.
         if joiner_density > 0:
             joiners = _load_joiners()
             if joiners:
@@ -831,7 +814,13 @@ def _weighted_joiner_choice(
     rng,
 ) -> str:
     """Weighted draw from a joiner pool ``[(form, weight), ...]``.
-    Falls back to uniform if total weight is zero."""
+    Falls back to uniform when total weight is zero. Raises
+    ``ValueError`` on an empty pool — every call site must filter
+    empty pools out via ``_shared_lang_fields_with_joiners``, but the
+    helper guards explicitly in case a future caller bypasses the
+    filter."""
+    if not pool:
+        raise ValueError("cannot draw from an empty joiner pool")
     total = sum(max(0, w) for _, w in pool)
     if total <= 0:
         return rng.choice([form for form, _ in pool])
@@ -858,13 +847,14 @@ def _apply_joiner_insertion(
 
     Returns ``(surface_str, explanation, components)`` rebuilt to
     incorporate the inserted joiners. Each inserted joiner appends a
-    component dict with ``location='joiner'`` so KenningExplain can
-    round-trip the breakdown.
+    component dict with ``location='joiner'`` so the API envelope
+    surfaces the breakdown to clients (the matcher-side ``Joiner``
+    sentinel from PR #130 is what KenningExplain uses for round-trip
+    decomposition; this component is purely the structured-output
+    annotation).
 
-    Bit-stable when ``density=0``, ``joiners`` is empty, or no
-    adjacent morpheme pair shares a joinable lang_field. Within-word
-    only — no cross-word insertion (whitespace is the natural
-    separator).
+    Within-word only — no cross-word insertion (whitespace is the
+    natural separator).
     """
     word_surfaces: list[str] = []
     inserted: list[tuple[str, str]] = []  # (joiner_surface, lang_field)

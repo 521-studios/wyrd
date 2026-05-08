@@ -13,7 +13,12 @@ eliminates the footgun by making the obvious call do the right thing.
 
 from __future__ import annotations
 
-from wyrd.generators.kenning import _coupled_cache_clear, _load_culture, _load_meanings
+from wyrd.generators.kenning import (
+    _coupled_cache_clear,
+    _load_culture,
+    _load_joiners,
+    _load_meanings,
+)
 
 
 def test_load_meanings_cache_clear_is_wired_to_coupled_helper() -> None:
@@ -84,3 +89,25 @@ def test_culture_load_returns_a_consistent_meaning_db_after_clear() -> None:
     # And the two clears produced distinct meaning_db objects (no
     # cache leak across the explicit clear).
     assert id(word_db_before) != id(word_db_after)
+
+
+def test_load_meanings_cache_clear_also_clears_load_joiners() -> None:
+    """wyrd-0l2g: ``_load_meanings.cache_clear()`` must ALSO drop the
+    ``_load_joiners`` cache. The two read the same bundle file; if
+    one's cache stays warm while the other's drops, a test that
+    mutates the bundle gets inconsistent views."""
+    _load_meanings.cache_clear()
+    _load_joiners.cache_clear()
+
+    # Prime both caches.
+    _load_meanings()
+    _load_joiners()
+    assert _load_joiners.cache_info().currsize == 1, (
+        "joiners should be cached after _load_joiners() call"
+    )
+
+    # The coupled clear should drop joiners too.
+    _load_meanings.cache_clear()
+    assert _load_joiners.cache_info().currsize == 0, (
+        "_load_meanings.cache_clear() should also drop _load_joiners' cache"
+    )
