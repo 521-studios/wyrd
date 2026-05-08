@@ -57,6 +57,7 @@ from wyrd.generators.kenning.lexicon import (
     clear_enrichment,
     cluster_cognates,
     cluster_ocr_variants,
+    collect_canonical_decompositions,
     detect_running_headers,
     etymon_era_reflexes,
     export_meanings,
@@ -1289,12 +1290,34 @@ def lexicon_export_meanings(
             include_rando=include_rando,
             include_wiktionary_empirical=include_wiktionary_empirical,
         )
-    payload = json.dumps(subjects, ensure_ascii=False, indent=2)
+        canonical_decompositions = collect_canonical_decompositions(db)
+    # wyrd-h8k1: when the DB carries canonical picks, project them
+    # alongside subjects in dict-shape so KenningExplain (Lambda /
+    # SPA — no DB access) can mark + front-load the canonical reading
+    # at runtime. Legacy list-shape preserved when no canonicals exist
+    # so older consumers still parse without code changes.
+    bundle: list | dict
+    if canonical_decompositions:
+        bundle = {
+            "subjects": subjects,
+            "canonical_decompositions": canonical_decompositions,
+        }
+    else:
+        bundle = subjects
+    payload = json.dumps(bundle, ensure_ascii=False, indent=2)
     if output_path is None:
         click.echo(payload)
     else:
         output_path.write_text(payload + "\n")
-        click.echo(f"Wrote {len(subjects)} subjects to {output_path}", err=True)
+        canonical_note = (
+            f" + {len(canonical_decompositions)} canonical decompositions"
+            if canonical_decompositions
+            else ""
+        )
+        click.echo(
+            f"Wrote {len(subjects)} subjects{canonical_note} to {output_path}",
+            err=True,
+        )
 
 
 @lexicon.command("mine-skeat")

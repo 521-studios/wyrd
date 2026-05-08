@@ -105,3 +105,129 @@ def test_explainer_combines_senses_for_one_usage():
     # together inside one slot rather than each spawning its own reading.
     assert "District" in text
     assert "Market" in text
+
+
+# --- wyrd-h8k1: canonical surfacing via bundle projection -----------------
+
+
+def test_explain_marks_canonical_when_bundle_carries_signature(monkeypatch):
+    """When the bundle's canonical_decompositions map carries a
+    signature for the input name AND that signature matches one of
+    the matcher's emitted readings, the matching reading is flagged
+    canonical AND sorted to the top of the results list."""
+    # First, decompose without canonical info to find the signature
+    # that the bundle would need to carry to mark the 'best' reading.
+    rs_baseline = KenningExplain().generate_all({"name": "Bridgewater"}, 0)
+    assert len(rs_baseline) >= 1
+    # Cleanest reading (rs[0]) has zero unaccounted; pull its
+    # signature shape to inject as canonical.
+    from wyrd.generators.kenning import (
+        _canonical_signature_for_words,
+        _load_canonical_decompositions,
+    )
+    from wyrd.generators.kenning.name import Name
+
+    name_obj = Name("Bridgewater")
+    from wyrd.generators.kenning import _load_meanings
+
+    meaning_db, _ = _load_meanings()
+    name_obj.find_meaning(meaning_db, reduce=False)
+    per_word = [name_obj.words[w] for w in ["Bridgewater"]]
+    # Find an emitted reading and use its signature.
+    import itertools
+
+    target_words = next(itertools.product(*per_word))
+    target_sig = _canonical_signature_for_words(target_words)
+
+    fake_map = {"Bridgewater": {"signature": target_sig, "source": "scholar"}}
+    _load_canonical_decompositions.cache_clear()
+    monkeypatch.setattr(
+        "wyrd.generators.kenning._load_canonical_decompositions",
+        lambda: fake_map,
+    )
+
+    rs = KenningExplain().generate_all({"name": "Bridgewater"}, 0)
+    canonical_results = [r for r in rs if r.canonical]
+    assert len(canonical_results) == 1
+    assert canonical_results[0].canonical_source == "scholar"
+    # Canonical sorts to the top.
+    assert rs[0].canonical is True
+
+
+def test_explain_no_canonical_when_bundle_lacks_map(monkeypatch):
+    """Legacy bundles (list-shape, no canonical_decompositions field)
+    should leave every reading with ``canonical=False`` and sort by
+    the original heuristic. The full suite already runs on a legacy
+    bundle, so this test mirrors the production path while making the
+    no-canonical contract explicit."""
+    from wyrd.generators.kenning import _load_canonical_decompositions
+
+    _load_canonical_decompositions.cache_clear()
+    monkeypatch.setattr(
+        "wyrd.generators.kenning._load_canonical_decompositions",
+        lambda: {},
+    )
+
+    rs = KenningExplain().generate_all({"name": "Bridgewater"}, 0)
+    assert len(rs) >= 1
+    assert all(not r.canonical for r in rs)
+    assert all(r.canonical_source is None for r in rs)
+
+
+def test_explain_falls_back_when_canonical_signature_no_match(monkeypatch):
+    """When the bundle carries a canonical signature for the input but
+    NO matcher reading produces that signature (word_db drift or stale
+    bundle), every reading stays uncanonical and the heuristic sort
+    applies — graceful no-op rather than promoting the wrong reading."""
+    from wyrd.generators.kenning import _load_canonical_decompositions
+
+    fake_map = {
+        "Bridgewater": {"signature": "0" * 40, "source": "scholar"},
+    }
+    _load_canonical_decompositions.cache_clear()
+    monkeypatch.setattr(
+        "wyrd.generators.kenning._load_canonical_decompositions",
+        lambda: fake_map,
+    )
+
+    rs = KenningExplain().generate_all({"name": "Bridgewater"}, 0)
+    assert len(rs) >= 1
+    assert all(not r.canonical for r in rs)
+
+
+def test_explain_canonical_surfaces_in_envelope(client, monkeypatch):
+    """The API envelope carries the canonical + canonical_source fields
+    so the SPA can render the canonical reading distinctly."""
+    from wyrd.generators.kenning import (
+        _canonical_signature_for_words,
+        _load_canonical_decompositions,
+        _load_meanings,
+    )
+    from wyrd.generators.kenning.name import Name
+
+    meaning_db, _ = _load_meanings()
+    name_obj = Name("Bridgewater")
+    name_obj.find_meaning(meaning_db, reduce=False)
+    per_word = [name_obj.words[w] for w in ["Bridgewater"]]
+    import itertools
+
+    target_words = next(itertools.product(*per_word))
+    target_sig = _canonical_signature_for_words(target_words)
+
+    fake_map = {"Bridgewater": {"signature": target_sig, "source": "scholar"}}
+    _load_canonical_decompositions.cache_clear()
+    monkeypatch.setattr(
+        "wyrd.generators.kenning._load_canonical_decompositions",
+        lambda: fake_map,
+    )
+
+    resp = client.post("/api/kenning-explain", json={"name": "Bridgewater"})
+    assert resp.status_code == 200
+    body = resp.get_json()
+    canonical_entries = [r for r in body["results"] if r.get("canonical")]
+    assert len(canonical_entries) == 1
+    assert canonical_entries[0]["canonical_source"] == "scholar"
+    # Non-canonical results carry the field too, defaulting to False/null.
+    for r in body["results"]:
+        assert "canonical" in r
+        assert "canonical_source" in r

@@ -26,6 +26,8 @@ def envelope(
                 "components": [
                     asdict(c) if hasattr(c, "__dataclass_fields__") else c for c in r.components
                 ],
+                "canonical": r.canonical,
+                "canonical_source": r.canonical_source,
             }
             for r in results
         ],
