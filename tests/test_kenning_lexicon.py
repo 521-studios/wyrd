@@ -8145,10 +8145,12 @@ def test_export_meanings_cli_writes_file(fresh_db: Path, tmp_path: Path) -> None
     )
     assert result.exit_code == 0, result.output
     assert "Wrote 1 subjects" in result.stderr
+    # wyrd-c1vq: bundle is dict-shape; subjects under the 'subjects' key.
     payload = json.loads(out_path.read_text())
-    assert len(payload) == 1
-    assert payload[0]["meaning"] == ["Hill"]
-    assert payload[0]["words"][0]["modern_usage"] == "-hill"
+    subjects = payload["subjects"]
+    assert len(subjects) == 1
+    assert subjects[0]["meaning"] == ["Hill"]
+    assert subjects[0]["words"][0]["modern_usage"] == "-hill"
 
 
 def test_export_meanings_cli_emits_to_stdout(fresh_db: Path) -> None:
@@ -8170,7 +8172,7 @@ def test_export_meanings_cli_emits_to_stdout(fresh_db: Path) -> None:
     )
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
-    assert any(s["meaning"] == ["Hill"] for s in payload)
+    assert any(s["meaning"] == ["Hill"] for s in payload["subjects"])
 
 
 def test_export_meanings_cli_lang_threshold_flag(fresh_db: Path) -> None:
@@ -8192,7 +8194,7 @@ def test_export_meanings_cli_lang_threshold_flag(fresh_db: Path) -> None:
         ["lexicon", "export-meanings", "--db", str(fresh_db), "--no-include-rando"],
     )
     assert r1.exit_code == 0, r1.output
-    promoted = any(s["meaning"] == ["mountain"] for s in json.loads(r1.stdout))
+    promoted = any(s["meaning"] == ["mountain"] for s in json.loads(r1.stdout)["subjects"])
     assert promoted
 
     # With --lang-threshold old-norse=3: doesn't promote.
@@ -8209,7 +8211,7 @@ def test_export_meanings_cli_lang_threshold_flag(fresh_db: Path) -> None:
         ],
     )
     assert r2.exit_code == 0, r2.output
-    promoted = any(s["meaning"] == ["mountain"] for s in json.loads(r2.stdout))
+    promoted = any(s["meaning"] == ["mountain"] for s in json.loads(r2.stdout)["subjects"])
     assert not promoted
 
 
@@ -8243,7 +8245,7 @@ def test_export_meanings_cli_lang_threshold_accepts_json_field_alias(
     )
     assert result.exit_code == 0, result.output
     # Threshold 3 with only 2 witnesses → not promoted.
-    promoted = any(s["meaning"] == ["mountain"] for s in json.loads(result.stdout))
+    promoted = any(s["meaning"] == ["mountain"] for s in json.loads(result.stdout)["subjects"])
     assert not promoted
 
 
@@ -8272,7 +8274,7 @@ def test_export_meanings_cli_no_preset_uses_uniform_min_witnesses(fresh_db: Path
         ],
     )
     assert result.exit_code == 0, result.output
-    promoted = any(s["meaning"] == ["mountain"] for s in json.loads(result.stdout))
+    promoted = any(s["meaning"] == ["mountain"] for s in json.loads(result.stdout)["subjects"])
     assert not promoted
 
 
@@ -8369,7 +8371,7 @@ def test_export_meanings_cli_no_preset_with_lang_threshold_overrides(
     )
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
-    glosses = {tuple(s["meaning"]) for s in payload}
+    glosses = {tuple(s["meaning"]) for s in payload["subjects"]}
     assert ("mountain",) in glosses
     assert ("hill",) not in glosses
 

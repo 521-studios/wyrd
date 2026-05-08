@@ -1240,6 +1240,18 @@ _KNOWN_SKEAT_BOOKS = {
     help="Include 'wiktionary-empirical'-cited families regardless of witness "
     "count (wyrd-4hx7 corpus-mined gap-fills, treated like rando-port).",
 )
+@click.option(
+    "--joiners-from",
+    "joiners_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help=(
+        "Optional path to a joiners-pool sidecar JSON (wyrd-q0g6 Phase 2). "
+        'Shape: {lang_field: [{"form": str, "weight": int}, ...], ...}. '
+        "When provided + non-empty, the bundle's ``joiners`` key is "
+        "populated; the runtime joiner_density knob then has data to act on."
+    ),
+)
 def lexicon_export_meanings(
     db_path: Path,
     output_path: Path | None,
@@ -1248,6 +1260,7 @@ def lexicon_export_meanings(
     use_preset: bool,
     include_rando: bool,
     include_wiktionary_empirical: bool,
+    joiners_path: Path | None,
 ) -> None:
     """Export the lexicon DB as a meanings.json document for the runtime.
 
@@ -1291,33 +1304,75 @@ def lexicon_export_meanings(
             include_wiktionary_empirical=include_wiktionary_empirical,
         )
         canonical_decompositions = collect_canonical_decompositions(db)
-    # wyrd-h8k1: when the DB carries canonical picks, project them
-    # alongside subjects in dict-shape so KenningExplain (Lambda /
-    # SPA — no DB access) can mark + front-load the canonical reading
-    # at runtime. Legacy list-shape preserved when no canonicals exist
-    # so older consumers still parse without code changes.
-    bundle: list | dict
+
+    joiners: dict[str, list[dict[str, Any]]] = {}
+    if joiners_path is not None:
+        joiners = _load_joiners_sidecar(joiners_path)
+
+    # wyrd-c1vq: bundle is always dict-shape going forward. The
+    # runtime loaders (load_meanings, load_canonical_decompositions,
+    # load_joiners) tolerate both list-shape (legacy) and dict-shape
+    # input, so flipping the default doesn't break consumers; future
+    # field additions just become new keys instead of re-deciding the
+    # shape each time. ``canonical_decompositions`` and ``joiners``
+    # only appear when populated so empty-dict noise stays out of the
+    # rendered JSON.
+    bundle: dict[str, Any] = {"subjects": subjects}
     if canonical_decompositions:
-        bundle = {
-            "subjects": subjects,
-            "canonical_decompositions": canonical_decompositions,
-        }
-    else:
-        bundle = subjects
+        bundle["canonical_decompositions"] = canonical_decompositions
+    if joiners:
+        bundle["joiners"] = joiners
+
     payload = json.dumps(bundle, ensure_ascii=False, indent=2)
     if output_path is None:
         click.echo(payload)
     else:
         output_path.write_text(payload + "\n")
-        canonical_note = (
-            f" + {len(canonical_decompositions)} canonical decompositions"
-            if canonical_decompositions
-            else ""
-        )
+        notes = []
+        if canonical_decompositions:
+            notes.append(f"{len(canonical_decompositions)} canonical decompositions")
+        if joiners:
+            joiner_total = sum(len(entries) for entries in joiners.values())
+            notes.append(f"{joiner_total} joiners across {len(joiners)} fields")
+        suffix = " + " + " + ".join(notes) if notes else ""
         click.echo(
-            f"Wrote {len(subjects)} subjects{canonical_note} to {output_path}",
+            f"Wrote {len(subjects)} subjects{suffix} to {output_path}",
             err=True,
         )
+
+
+def _load_joiners_sidecar(path: Path) -> dict[str, list[dict[str, Any]]]:
+    """Read + validate a joiners-pool sidecar JSON.
+
+    Expected shape: ``{lang_field: [{"form": str, "weight": int}, ...], ...}``.
+    Empty dict returned if the file is empty or shaped wrong; specific
+    issues raised as ``click.ClickException`` so the operator gets a
+    pointed error rather than a JSON parse traceback."""
+    try:
+        data = json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        raise click.ClickException(f"--joiners-from {path}: invalid JSON: {exc}") from exc
+    if not isinstance(data, dict):
+        raise click.ClickException(
+            f"--joiners-from {path}: expected top-level dict keyed by lang_field"
+        )
+    out: dict[str, list[dict[str, Any]]] = {}
+    for lang_field, entries in data.items():
+        if not isinstance(entries, list):
+            raise click.ClickException(
+                f"--joiners-from {path}: entries for {lang_field!r} must be a list"
+            )
+        validated: list[dict[str, Any]] = []
+        for entry in entries:
+            if not isinstance(entry, dict) or "form" not in entry or "weight" not in entry:
+                raise click.ClickException(
+                    f"--joiners-from {path}: each entry under {lang_field!r} must "
+                    "be a dict with 'form' and 'weight' keys"
+                )
+            validated.append({"form": entry["form"], "weight": entry["weight"]})
+        if validated:
+            out[lang_field] = validated
+    return out
 
 
 @lexicon.command("mine-skeat")
