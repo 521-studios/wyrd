@@ -1,59 +1,23 @@
 """Sound-change rules library — Phase 1 (wyrd-4i6).
 
 Encodes phonological transforms per ``(language, era_from, era_to)``
-cell. Phase 1 ships the framework + ONE well-attested cell (Old English
-→ Middle English, ~25 rules covering place-name morphology). Phase 2
-extends to ME → EModE, EModE → ModE, and Welsh OW → ModW; Phase 3 may
-add per-culture overrides (e.g. Scots-specific reflexes).
+cell. Phase 1 ships the framework + ONE cell (Old English → Middle
+English). Phase 2 extends to ME → EModE, EModE → ModE, OW → ModW; per-
+culture overrides land later.
 
-Public API:
+Public API: ``apply_rules(form, language, from_era, to_era, mode)``
+returns ``[(derived_form, probability), ...]``. ``has_rules`` checks
+whether a given forward cell is registered.
 
-    apply_rules(form, language, from_era, to_era, mode='forward'|'inverse')
-        -> list[tuple[str, float]]
+Rule encoding: patterns are literal strings (no regex). Rule order
+matters — declarations are specific-before-general so multi-char
+suffixes / digraphs match before constituent single chars consume
+them. Per-rule docstring sections cover documentation requirements
+(description, exemplar, bibliographic source).
 
-Returns ``[(derived_form, probability), ...]``. Forward mode applies
-the rules for ``(language, from_era, to_era)`` in order; inverse mode
-reverses the cell direction and inverts each rule's pattern ↔
-replacement. Universal rules (``weight == 1.0``) fire deterministically.
-Sporadic rules (``weight < 1.0``) produce two candidates per branch
-(the rule fires with prob=weight, doesn't fire with prob=1-weight) and
-the candidate list expands accordingly. Phase 1 rules are all universal
-to keep the curated set small + auditable; Phase 2 mining adds
-sporadic rules.
-
-Unknown cells (no rules registered) are a no-op: the input form is
-returned unchanged with probability 1.0. Callers can pre-check
-``has_rules(language, from_era, to_era)`` if they need to distinguish
-'no rules registered' from 'rules ran, no changes'.
-
-Rule encoding choices:
-
-- **Patterns are literal strings**, not regex. Phase 1 covers place-
-  name morphology where literal substring rules ('-tūn' → '-ton',
-  'sċ' → 'sh') express the transitions cleanly. Regex (with
-  environment constraints like 'before front vowel') is a Phase 2
-  refinement; the framework here is small enough to upgrade later
-  without API breakage.
-- **Rules apply in declared order**. Order matters: 'sċ' → 'sh' must
-  run before 'ċ' → 'ch' or the digraph case would mis-match. Each
-  cell's rule list documents the ordering rationale inline.
-- **Inverse swaps pattern ↔ replacement** and reverses iteration order.
-  A forward rule 'ū' → 'ou' inverses to 'ou' → 'ū'. Multi-candidate
-  semantics naturally surface when two forward rules collapse
-  different OE forms into the same ME form: inverse from the ME
-  produces both candidates.
-
-Documentation requirements per rule (enforced by tests):
-
-- ``description``: human-readable summary of the change.
-- ``exemplar``: ``(input, output)`` pair the rule should produce. Test
-  for each rule asserts the exemplar round-trips through the rule.
-- ``source``: bibliographic citation (Campbell OE Grammar §X, Smith
-  Place-Names §Y, Hogg & Fulk grammar reference, etc.).
-
-Composition with the higher-level downstream features (homophone
-mutation, time-warp, calque/foreignize) lives in their respective
-modules; this one is the rule data + transform engine only.
+Composition with downstream features (homophone mutation, time-warp,
+calque/foreignize) lives in their own modules; this one is the rule
+data + transform engine.
 """
 
 from __future__ import annotations
@@ -334,6 +298,13 @@ _RULES: dict[tuple[str, str, str], tuple[SoundChangeRule, ...]] = {
 }
 
 
+# Probability floor for candidate pruning. Inverse mode branches 50/50
+# on every rule; a 28-rule chain on pathological input could otherwise
+# blow up exponentially. 1e-6 is permissive (any real reflex chain
+# stays well above) but bounds the candidate list past the chain.
+_PROBABILITY_FLOOR: float = 1e-6
+
+
 def has_rules(language: str, from_era: str, to_era: str) -> bool:
     """True iff Phase 1+ ships rules for the requested cell direction
     (forward). Inverse availability is the same check with eras
@@ -350,30 +321,20 @@ def apply_rules(
     mode: str = "forward",
 ) -> list[tuple[str, float]]:
     """Apply the rule cell for ``(language, from_era, to_era)`` to
-    ``form`` and return a list of ``(derived_form, probability)``
-    candidates.
+    ``form`` and return a list of ``(derived_form, probability)``.
 
-    Forward mode walks rules in declared order; each rule replaces
-    every occurrence of its ``pattern`` with ``replacement``.
+    Forward mode walks rules in declared order. Inverse walks the
+    SAME cell in REVERSE rule order with pattern↔replacement swapped;
+    when two forward rules collapse different inputs onto the same
+    replacement (``ē`` and ``ǣ`` both → ``e``), inverse from the
+    target surfaces both candidates. Inverse mode always branches
+    (the inverse of even a universal forward rule is non-
+    deterministic); a probability floor (``_PROBABILITY_FLOOR``)
+    drops candidates whose mass falls past 1e-6 so inverse explosion
+    stays bounded.
 
-    Inverse mode walks the SAME cell in REVERSE rule order with
-    pattern↔replacement swapped — undoing the forward chain rule by
-    rule. When two forward rules collapse different inputs onto the
-    same replacement (e.g. both ``ē`` and ``ǣ`` → ``e``), inverse from
-    the shared output produces multiple candidates, each branched at
-    the offending rule.
-
-    Universal rules (``weight == 1.0``) fire deterministically (1
-    candidate per input). Sporadic rules (``weight < 1.0``) branch:
-    one candidate where the rule fired (probability *= weight), one
-    where it didn't (probability *= (1 - weight)). Phase 1 cells are
-    all universal; sporadic-rule branching is shipped now so Phase 2
-    additions land without API change.
-
-    Unknown cells (no rules registered for the requested direction)
-    return ``[(form, 1.0)]`` unchanged. Callers that need to
-    distinguish 'no rules registered' from 'rules ran, no changes'
-    should call ``has_rules`` first.
+    Unknown cells return ``[(form, 1.0)]``. Use ``has_rules`` to
+    discriminate 'no cell registered' from 'cell ran, no match'.
     """
     if mode not in ("forward", "inverse"):
         raise ValueError(f"mode must be 'forward' or 'inverse', got {mode!r}")
@@ -397,6 +358,19 @@ def apply_rules(
         candidates = _apply_one_rule(
             candidates, pattern, replacement, rule.weight, always_branch=inverse
         )
+        # Prune low-probability candidates after each rule. Inverse mode
+        # branches 50/50 on every rule; without a floor a 28-rule chain
+        # could blow up to 2^28 candidates on pathological input. The
+        # floor is permissive enough (1e-6) that real candidates survive
+        # the chain — only mass-near-zero combinations are dropped.
+        candidates = _dedupe_candidates(candidates)
+        if len(candidates) > 1:
+            candidates = [c for c in candidates if c[1] >= _PROBABILITY_FLOOR]
+            if not candidates:
+                # Pathological case: every candidate fell below the
+                # floor. Restore the input as a defensive fallback so
+                # callers never get an empty list.
+                candidates = [(form, 1.0)]
     return _dedupe_candidates(candidates)
 
 
@@ -410,19 +384,21 @@ def _apply_one_rule(
 ) -> list[tuple[str, float]]:
     """Apply one rule's transformation across every candidate.
 
-    Forward (``always_branch=False``): a universal rule (weight=1.0)
-    collapses each input into one output; a sporadic rule branches
-    into (fired with prob=weight, didn't fire with prob=1-weight).
+    Forward (``always_branch=False``): universal rule (weight=1.0)
+    collapses each input into one output; sporadic (weight<1.0)
+    branches into (fired with prob=weight, didn't fire with
+    prob=1-weight).
 
-    Inverse (``always_branch=True``): always branches, even for
-    universal forward rules — the inverse direction is inherently
-    non-deterministic (the ME form 'fish' could have come from OE
-    'fisċ' OR from a hypothetical 'fish' that already had 'sh').
-    Probability splits 50/50 in inverse mode regardless of forward
-    weight; refinement (attestation-weighted priors) is Phase 2+.
+    Inverse (``always_branch=True``): always branches at 50/50 even
+    for universal forward rules — the inverse direction is inherently
+    non-deterministic. Phase 2+ may attach attestation-weighted priors.
 
     Candidates not containing ``pattern`` pass through unchanged.
+    Empty ``pattern`` is a no-op (would otherwise interpolate
+    ``replacement`` between every character via ``str.replace``).
     """
+    if not pattern:
+        return list(candidates)
     new_candidates: list[tuple[str, float]] = []
     for cand_form, cand_weight in candidates:
         if pattern not in cand_form:

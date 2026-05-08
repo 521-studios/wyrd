@@ -284,3 +284,115 @@ def test_place_name_combined_palatalization_and_suffix() -> None:
     candidates = apply_rules("Sand-wīc", "english", "old-english", "middle-english")
     forms = [form for form, _ in candidates]
     assert "Sand-wich" in forms
+
+
+# --- empty-pattern + edge-case regressions (general-review findings) -----
+
+
+def test_apply_one_rule_empty_pattern_is_noop() -> None:
+    """Regression: ``str.replace("", X)`` interpolates X between every
+    character. The empty-pattern guard in apply_rules wasn't
+    duplicated in the helper; tests calling _apply_one_rule directly
+    surfaced the bug. Pinned so a future refactor doesn't drop the
+    guard."""
+    out = _apply_one_rule([("hello", 1.0)], "", "X", 1.0)
+    assert out == [("hello", 1.0)]
+
+
+def test_apply_one_rule_empty_pattern_is_noop_in_branch_mode() -> None:
+    """Same guard applies under always_branch=True (inverse mode)."""
+    out = _apply_one_rule([("hello", 1.0)], "", "X", 1.0, always_branch=True)
+    assert out == [("hello", 1.0)]
+
+
+def test_apply_one_rule_always_branch_universal_weight_branches_50_50() -> None:
+    """Direct test of always_branch=True path. Previously only
+    exercised indirectly via inverse-mode integration tests."""
+    out = _apply_one_rule([("xa", 1.0)], "x", "y", 1.0, always_branch=True)
+    assert len(out) == 2
+    forms = dict(out)
+    assert forms == {"ya": pytest.approx(0.5), "xa": pytest.approx(0.5)}
+
+
+def test_apply_rules_forward_sporadic_chain_distributes_mass() -> None:
+    """Sporadic rules in a forward chain branch at each match; total
+    probability mass stays at 1.0 across the candidate list. Direct
+    apply_rules-level test (not just _apply_one_rule unit-level)."""
+    # Use a synthetic rule by injecting it temporarily isn't trivial
+    # without mutating module state; instead exercise the existing
+    # OE→ME chain and confirm probabilities sum to 1.0 after a
+    # multi-rule trace.
+    candidates = apply_rules("Hædan-tūn", "english", "old-english", "middle-english")
+    total = sum(p for _, p in candidates)
+    assert abs(total - 1.0) < 1e-9
+
+
+def test_dedupe_candidates_handles_empty_input() -> None:
+    """Empty input → empty output (no crash on the boundary)."""
+    assert _dedupe_candidates([]) == []
+
+
+# --- rule-ordering structural invariants ---------------------------------
+
+
+def test_oe_to_me_suffix_rules_precede_single_char_rules() -> None:
+    """Place-name suffix rules MUST come before single-char rules;
+    otherwise the constituent vowels (ū, ē, etc.) get rewritten
+    before the suffix can match. Pin the structural invariant so a
+    future rule-list edit that drops this ordering surfaces here."""
+    suffix_indices = []
+    single_char_indices = []
+    for i, rule in enumerate(OE_TO_ME_RULES):
+        if rule.pattern.startswith("-"):
+            suffix_indices.append(i)
+        elif len(rule.pattern) == 1:
+            single_char_indices.append(i)
+    assert suffix_indices, "no suffix rules found"
+    assert single_char_indices, "no single-char rules found"
+    last_suffix = max(suffix_indices)
+    first_single_char = min(single_char_indices)
+    assert last_suffix < first_single_char, (
+        "place-name suffix rules must precede single-char rules; "
+        f"last suffix at index {last_suffix}, first single-char at "
+        f"{first_single_char}"
+    )
+
+
+def test_oe_to_me_digraph_rules_precede_constituent_chars() -> None:
+    """Digraph palatal rules (sċ → sh, ċġ → dg) must run before
+    their constituent single chars (ċ → ch, ġ → y) — otherwise
+    'sċ' gets rewritten to 'sh' through the wrong path. Pin the
+    invariant."""
+    pos = {rule.pattern: i for i, rule in enumerate(OE_TO_ME_RULES)}
+    # ċġ contains both ċ and ġ; both single-char rules must come
+    # AFTER the digraph rule.
+    assert pos["ċġ"] < pos["ċ"]
+    assert pos["ċġ"] < pos["ġ"]
+    # sċ contains ċ; the digraph must come before the single-char
+    # ċ rule.
+    assert pos["sċ"] < pos["ċ"]
+
+
+# --- inverse explosion bound ---------------------------------------------
+
+
+def test_apply_rules_inverse_candidate_count_stays_bounded() -> None:
+    """With 28 rules each branching 50/50 in inverse mode, the
+    candidate list could theoretically reach 2^28 ≈ 268M without the
+    probability-floor pruning. Pin a bounded ceiling so a future
+    floor-removal regresses here."""
+    # A pathological-looking input that touches several rules' inverse
+    # patterns. The exact candidate count depends on rule
+    # interactions; the assertion is a generous upper bound that's
+    # still well under the unpruned 2^28.
+    candidates = apply_rules(
+        "the-quick-brown-fox-leaps-over-the-lazy-dog",
+        "english",
+        "old-english",
+        "middle-english",
+        mode="inverse",
+    )
+    assert len(candidates) < 100_000, (
+        f"inverse mode produced {len(candidates)} candidates; "
+        f"probability floor should keep this bounded"
+    )
