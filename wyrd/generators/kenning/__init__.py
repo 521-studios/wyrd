@@ -9,7 +9,7 @@ from importlib import resources
 from typing import Any
 
 from wyrd.generators.kenning.era import era_cells_for_family, resolve_era_input
-from wyrd.generators.kenning.meaning import Meaning, load_meanings
+from wyrd.generators.kenning.meaning import Meaning, load_joiners, load_meanings
 from wyrd.generators.kenning.name import Name
 from wyrd.generators.kenning.proportions import load_proportions
 from wyrd.generators.kenning.strata import (
@@ -261,6 +261,16 @@ def _load_meanings():
     return load_meanings(data)
 
 
+@lru_cache(maxsize=1)
+def _load_joiners() -> dict[str, list[tuple[str, int]]]:
+    """Load the bundle's joiner pool. Returns
+    ``{lang_field: [(form, weight), ...]}``; empty for legacy
+    list-shape bundles."""
+    with _data_path("meanings.json").open() as f:
+        data = json.load(f)
+    return load_joiners(data)
+
+
 @lru_cache(maxsize=len(CULTURES))
 def _load_culture(culture: str):
     if culture not in CULTURES:
@@ -283,22 +293,23 @@ _original_load_meanings_cache_clear = _load_meanings.cache_clear
 
 
 def _coupled_cache_clear() -> None:
-    """Clear both ``_load_meanings`` and ``_load_culture`` caches.
+    """Clear ``_load_meanings``, ``_load_culture``, and
+    ``_load_joiners`` caches.
 
-    The two caches form an aggregate: ``_load_culture`` holds a
+    The three caches form an aggregate: ``_load_culture`` holds a
     ``NameGenerator`` parameterised on the ``meaning_db`` from
-    ``_load_meanings``, so invalidating one without the other yields
-    a stale ``NameGenerator`` the next time a culture is loaded.
-    Replaces ``_load_meanings.cache_clear`` so the standard test-side
-    pattern (``_load_meanings.cache_clear()``) clears both.
+    ``_load_meanings``; ``_load_joiners`` reads the same bundle.
+    Invalidating one without the others yields a stale view next
+    time. Replaces ``_load_meanings.cache_clear`` so the standard
+    test-side pattern (``_load_meanings.cache_clear()``) clears all.
 
     The reverse direction (``_load_culture.cache_clear()`` alone) is
     intentionally uncoupled — a caller who only wants to drop the
-    per-culture generator (e.g. proportions-only refresh) shouldn't
-    pay to re-parse meanings.json. The asymmetry is by design.
+    per-culture generator shouldn't pay to re-parse meanings.json.
     """
     _original_load_meanings_cache_clear()
     _load_culture.cache_clear()
+    _load_joiners.cache_clear()
 
 
 # mypy flags reassigning a bound method on the lru_cache wrapper as
@@ -656,6 +667,20 @@ class Kenning(Generator):
                         "families (Domesday + post-Conquest subsidy rolls)."
                     ),
                 },
+                "joiner_density": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": (
+                        "Probability (0..1) of inserting a phonological "
+                        "joiner between adjacent morphemes that share a "
+                        "language family. At 0 (default) no joiners are "
+                        "inserted. Bundle currently ships no populated "
+                        "joiner pool, so this is a no-op until a future "
+                        "data update."
+                    ),
+                },
             },
             "required": [],
         }
@@ -672,6 +697,7 @@ class Kenning(Generator):
         harshness = float(params.get("harshness", 0.0) or 0.0)
         cohesion = float(params.get("cohesion", 0.0) or 0.0)
         manorial_affix = float(params.get("manorial_affix", 0.0) or 0.0)
+        joiner_density = float(params.get("joiner_density", 0.0) or 0.0)
         include_fiction = _coerce_bool(params.get("include_fiction", False))
 
         moods = params.get("mood", []) or []
@@ -707,6 +733,14 @@ class Kenning(Generator):
         result_str = str(new_name)
         explanation = new_name.description()
         components = new_name.components()
+        # wyrd-q0g6 Phase 1.5: compose-time joiner insertion. Gated on
+        # density>0 + non-empty pool so legacy callers stay bit-stable.
+        if joiner_density > 0:
+            joiners = _load_joiners()
+            if joiners:
+                result_str, explanation, components = _apply_joiner_insertion(
+                    new_name, joiners, rng, joiner_density
+                )
         # wyrd-obu: optional Norman manorial-family affix appended after
         # the morpheme-compounded base name. English-culture only (the
         # post-Conquest manorial-layering pattern is an English place-
@@ -756,6 +790,122 @@ def _all_senses(meanings: list[Meaning]) -> list[str]:
     """Distinct sense strings across every Meaning sharing one usage,
     preserving first-seen order."""
     return list(dict.fromkeys(sense for m in meanings for sense in m.meanings))
+
+
+# --- compose-time joiner insertion (wyrd-q0g6 Phase 1.5) -----------------
+
+
+def _shared_lang_fields_with_joiners(
+    left: list[Meaning],
+    right: list[Meaning],
+    joiners: dict[str, list[tuple[str, int]]],
+) -> set[str]:
+    """Return lang_fields BOTH morpheme groups carry AND that have a
+    populated joiner pool. Empty when the pair has no shared family
+    or when no joiner pool exists for the shared language(s)."""
+    left_langs = {lang for m in left for lang in m.sources}
+    right_langs = {lang for m in right for lang in m.sources}
+    shared = left_langs & right_langs
+    return {lang for lang in shared if joiners.get(lang)}
+
+
+def _weighted_joiner_choice(
+    pool: list[tuple[str, int]],
+    rng,
+) -> str:
+    """Weighted draw from a joiner pool ``[(form, weight), ...]``.
+    Falls back to uniform when total weight is zero. Raises
+    ``ValueError`` on an empty pool — every call site must filter
+    empty pools out via ``_shared_lang_fields_with_joiners``, but the
+    helper guards explicitly in case a future caller bypasses the
+    filter."""
+    if not pool:
+        raise ValueError("cannot draw from an empty joiner pool")
+    total = sum(max(0, w) for _, w in pool)
+    if total <= 0:
+        return rng.choice([form for form, _ in pool])
+    threshold = rng.uniform(0, total)
+    running = 0
+    for form, weight in pool:
+        if weight <= 0:
+            continue
+        running += weight
+        if threshold < running:
+            return form
+    return pool[-1][0]
+
+
+def _apply_joiner_insertion(
+    new_name,
+    joiners: dict[str, list[tuple[str, int]]],
+    rng,
+    density: float,
+) -> tuple[str, str, list[dict[str, Any]]]:
+    """Walk a NewName's per-word morpheme structure and insert joiners
+    between adjacent picked morphemes whose lang_fields share a
+    populated joiner pool.
+
+    Returns ``(surface_str, explanation, components)`` rebuilt to
+    incorporate the inserted joiners. Each inserted joiner appends a
+    component dict with ``location='joiner'`` so the API envelope
+    surfaces the breakdown to clients (the matcher-side ``Joiner``
+    sentinel from PR #130 is what KenningExplain uses for round-trip
+    decomposition; this component is purely the structured-output
+    annotation).
+
+    Within-word only — no cross-word insertion (whitespace is the
+    natural separator).
+    """
+    word_surfaces: list[str] = []
+    inserted: list[tuple[str, str]] = []  # (joiner_surface, lang_field)
+    for wi, word in enumerate(new_name.name):
+        elements: list[tuple[str, list[Meaning]]] = []
+        for ei, e in enumerate(word):
+            if e is None:
+                continue
+            if new_name.rendered is not None and new_name.rendered[wi][ei] is not None:
+                surface = new_name.rendered[wi][ei]
+            else:
+                surface = e.replace("-", "")
+            meanings = new_name.meaning_db[e]
+            elements.append((surface, meanings))
+        word_parts: list[str] = []
+        for ei in range(len(elements)):
+            word_parts.append(elements[ei][0])
+            if ei < len(elements) - 1:
+                shared = _shared_lang_fields_with_joiners(
+                    elements[ei][1], elements[ei + 1][1], joiners
+                )
+                if shared and rng.random() < density:
+                    # Deterministic lang pick — sorted set, then
+                    # weighted draw within the lang's pool.
+                    lang = rng.choice(sorted(shared))
+                    joiner_surface = _weighted_joiner_choice(joiners[lang], rng)
+                    word_parts.append(joiner_surface)
+                    inserted.append((joiner_surface, lang))
+        word_surfaces.append("".join(word_parts))
+
+    surface_str = " ".join(word_surfaces).strip()
+    base_explanation = new_name.description()
+    base_components = new_name.components()
+    if not inserted:
+        return surface_str, base_explanation, list(base_components)
+
+    new_components = list(base_components)
+    for surface, lang in inserted:
+        new_components.append(
+            {
+                "usage": surface,
+                "location": "joiner",
+                "meanings": [f"phonological joiner ({lang})"],
+                "tags": ["joiner"],
+                "roots": [],
+                "citations": [],
+            }
+        )
+    joiner_descs = [f"+joiner: {surface} ({lang})" for surface, lang in inserted]
+    new_explanation = f"{base_explanation} {' '.join(joiner_descs)}"
+    return surface_str, new_explanation, new_components
 
 
 def _build_explanation_part(chunk, meaning_db: dict[str, list[Meaning]]) -> str:
