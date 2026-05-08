@@ -91,46 +91,26 @@ _STRATUM_SUFFIX = "_stratum"
 
 
 class Joiner:
-    """A consumed phonological joiner — wyrd-q0g6 Phase 1.
+    """A consumed phonological joiner (wyrd-q0g6 Phase 1).
 
-    Represents a phonological connector between morphemes (OE genitive
-    -en-, Norse -by-, Welsh -y-) that the matcher recognizes from the
-    bundle's ``joiners`` field. Joiners contribute NO semantic content
-    but DO consume surface characters that would otherwise be tagged
-    unaccounted.
+    A Joiner is NEITHER ``str`` NOR ``Meaning`` — that's the load-
+    bearing discriminator. Code walking decompositions on the
+    str-vs-Meaning axis (``count_unaccounted``, ``has_name``,
+    ``get_structure``, ``_decomposition_score``) treats Joiners as
+    'matched-but-no-semantic': not counted as unaccounted (non-str),
+    not counted as semantic structure (non-Meaning). ``__str__``
+    returns the surface so ``Word.__str__`` keeps the joiner chars
+    in the rendered output.
 
-    Discriminator: a Joiner is NEITHER ``str`` NOR ``Meaning``. Code
-    that walks decompositions on the str-vs-Meaning axis sees Joiners
-    as 'matched-but-no-semantic':
-
-      - ``Word.count_unaccounted`` (sums ``len(s)`` for str slots) →
-        Joiner not counted ✓ (joiner chars do NOT count as unaccounted).
-      - ``Word.has_name`` / ``has_saint`` / ``get_samples`` /
-        ``get_structure`` (act on Meaning instances) → Joiner skipped ✓
-        (joiners don't pollute structure-pattern stats).
-      - ``Word.__str__`` (calls ``str(slot)``) → Joiner.__str__ returns
-        the consumed surface form ✓ (surface preserved — 'BridgeYWater'
-        stays 'BridgeYWater' in the output, not 'BridgeWater').
-      - ``trie_matcher._decomposition_score`` unaccounted_chars line
-        (sums ``len(e)`` for str slots) → Joiner not counted ✓.
-
-    The morpheme_count line in ``_decomposition_score`` DOES count
-    Joiners (they're non-str). That's an Occam-preference
-    micro-penalty: between two zero-unaccounted decompositions where
-    one needs a joiner and the other doesn't, the no-joiner version
-    wins. That's the correct preference (a clean morpheme parse beats
-    a parse needing a phonological bridge).
+    The morpheme_count line of ``_decomposition_score`` does count
+    Joiners (they're non-str), giving a tiny Occam preference for
+    no-joiner parses on otherwise-tied scores — the desired bias.
     """
 
     __slots__ = ("surface", "lang_field")
 
     def __init__(self, surface: str, lang_field: str | None = None):
         self.surface = surface
-        # Lang field that contributed the joiner form. Optional —
-        # callers that only need surface preservation can pass None.
-        # Set when the matcher consumed a registered joiner so future
-        # consumers (generator-side audits, explainer rendering) can
-        # tell which family's pool the joiner came from.
         self.lang_field = lang_field
 
     def __str__(self) -> str:
@@ -613,6 +593,7 @@ def load_joiners(data) -> dict[str, list[tuple[str, int]]]:
     return {
         lang_field: [(entry["form"], entry["weight"]) for entry in entries]
         for lang_field, entries in raw.items()
+        if entries
     }
 
 

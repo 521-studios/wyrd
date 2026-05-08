@@ -217,25 +217,32 @@ def test_build_joiner_lookup_skips_empty_form() -> None:
 # --- _consume_joiners -----------------------------------------------------
 
 
-def test_consume_joiners_replaces_str_slot_with_joiner() -> None:
-    """A decomposition slot that's a bare str matching a registered
-    joiner form becomes a ``Joiner`` instance carrying the same
-    surface + originating lang_field."""
-    m = Meaning("Bridg-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
-    decomp = [m, "en"]
+def _meaning_for_anchor(usage: str = "Bridg-") -> Meaning:
+    """Cheap Meaning instance for anchor-gate test fixtures."""
+    return Meaning(usage, tags=[], meanings=[usage], sources={"old_english": ["brycg"]})
+
+
+def test_consume_joiners_replaces_str_slot_when_sandwiched() -> None:
+    """A str slot matching a joiner form becomes a Joiner ONLY when
+    it sits between two Meaning slots (anchor gate)."""
+    left = _meaning_for_anchor("Bridg-")
+    right = _meaning_for_anchor("-water")
+    decomp = [left, "en", right]
     consumed = _consume_joiners(decomp, {"en": "old_english"})
-    assert consumed[0] is m  # Meaning passes through
+    assert consumed[0] is left
     assert isinstance(consumed[1], Joiner)
     assert consumed[1].surface == "en"
     assert consumed[1].lang_field == "old_english"
+    assert consumed[2] is right
 
 
 def test_consume_joiners_leaves_unmatched_strings_alone() -> None:
     """A str slot whose surface isn't in the joiner lookup stays a
     plain str — count_unaccounted will charge those chars, which is
     the correct behavior (genuinely unaccounted)."""
-    m = Meaning("Bridg-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
-    decomp = [m, "xyz"]
+    left = _meaning_for_anchor("Bridg-")
+    right = _meaning_for_anchor("-water")
+    decomp = [left, "xyz", right]
     consumed = _consume_joiners(decomp, {"en": "old_english"})
     assert consumed[1] == "xyz"
 
@@ -243,19 +250,64 @@ def test_consume_joiners_leaves_unmatched_strings_alone() -> None:
 def test_consume_joiners_no_op_with_empty_lookup() -> None:
     """Empty lookup means no joiners registered; the decomposition is
     returned unchanged."""
-    m = Meaning("Bridg-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
-    decomp = [m, "en"]
+    left = _meaning_for_anchor("Bridg-")
+    right = _meaning_for_anchor("-water")
+    decomp = [left, "en", right]
     consumed = _consume_joiners(decomp, {})
     assert consumed == decomp
 
 
 def test_consume_joiners_case_insensitive_match() -> None:
-    """A str slot 'EN' matches a registered joiner 'en' — case
-    independence matches the lookup's lowercase normalization."""
-    decomp = ["EN"]
+    """A str slot 'EN' between two Meanings matches a registered
+    joiner 'en' — case independence matches the lookup's lowercase
+    normalization."""
+    left = _meaning_for_anchor("Bridg-")
+    right = _meaning_for_anchor("-water")
+    decomp = [left, "EN", right]
     consumed = _consume_joiners(decomp, {"en": "old_english"})
-    assert isinstance(consumed[0], Joiner)
-    assert consumed[0].surface == "EN"  # ORIGINAL case preserved on the Joiner
+    assert isinstance(consumed[1], Joiner)
+    assert consumed[1].surface == "EN"  # ORIGINAL case preserved
+
+
+def test_consume_joiners_anchor_required_no_left_meaning() -> None:
+    """A str matching a joiner form at position 0 (no left neighbor)
+    stays unconsumed even when right is a Meaning. Phase 2 data alone
+    could otherwise launder garbage: with joiner 'en' registered,
+    'enbridge' would falsely report 0 unaccounted via leading
+    Joiner('en') with no morphological evidence for it."""
+    right = _meaning_for_anchor("Bridg-")
+    consumed = _consume_joiners(["en", right], {"en": "old_english"})
+    assert consumed[0] == "en"
+    assert not isinstance(consumed[0], Joiner)
+
+
+def test_consume_joiners_anchor_required_no_right_meaning() -> None:
+    """Trailing joiner-form str with no right neighbor stays
+    unconsumed."""
+    left = _meaning_for_anchor("Bridg-")
+    consumed = _consume_joiners([left, "en"], {"en": "old_english"})
+    assert consumed[1] == "en"
+
+
+def test_consume_joiners_anchor_required_both_str_neighbors() -> None:
+    """A joiner-form str sandwiched between two unaccounted strs is
+    NOT consumed — joiners connect morphemes, not unaccounted
+    fragments."""
+    consumed = _consume_joiners(["xx", "en", "yy"], {"en": "old_english"})
+    assert consumed == ["xx", "en", "yy"]
+
+
+def test_consume_joiners_anchor_required_joiner_neighbor_does_not_count() -> None:
+    """A Joiner adjacent to another joiner-form str does NOT satisfy
+    the Meaning-anchor requirement — only Meaning instances anchor.
+    Pinned so a future ``isinstance(slot, str)`` change doesn't
+    inadvertently let consumed-Joiner anchors cascade."""
+    # Construct a synthetic decomposition with a pre-existing Joiner
+    # next to a joiner-form str.
+    left_joiner = Joiner("en", lang_field="old_english")
+    consumed = _consume_joiners([left_joiner, "es"], {"es": "old_english"})
+    assert consumed[1] == "es"
+    assert not isinstance(consumed[1], Joiner)
 
 
 # --- find_meaning integration --------------------------------------------
@@ -420,18 +472,151 @@ def test_joiner_does_not_count_in_word_has_name() -> None:
 
 
 def test_consume_joiners_handles_multiple_lang_fields() -> None:
-    """The matcher hook with multiple lang_fields populated still
-    consumes correctly per-form; lang_field carried on each Joiner
-    reflects the source pool."""
+    """Multiple lang_fields populated: the right joiner-form fires
+    for each, the lang_field on each Joiner reflects the source pool."""
     joiners = {
         "old_english": [("en", 100)],
         "celtic_mix": [("y", 50)],
     }
     lookup = _build_joiner_lookup(joiners)
-    decomp = ["en", "y", "xx"]
+    a = _meaning_for_anchor("a-")
+    b = _meaning_for_anchor("-b-")
+    c = _meaning_for_anchor("-c")
+    decomp = [a, "en", b, "y", c]
     consumed = _consume_joiners(decomp, lookup)
-    assert isinstance(consumed[0], Joiner)
-    assert consumed[0].lang_field == "old_english"
     assert isinstance(consumed[1], Joiner)
-    assert consumed[1].lang_field == "celtic_mix"
-    assert consumed[2] == "xx"  # unmatched, stays str
+    assert consumed[1].lang_field == "old_english"
+    assert isinstance(consumed[3], Joiner)
+    assert consumed[3].lang_field == "celtic_mix"
+
+
+# --- Joiner equality boundary cases (test-coverage gap fill) -------------
+
+
+def test_joiner_eq_returns_false_for_non_joiner() -> None:
+    """Sentinel-discriminator code paths depend on
+    ``isinstance(other, Joiner)``. Pin the contract so a bare
+    ``j == "en"`` doesn't surprise downstream consumers."""
+    j = Joiner("en", lang_field="old_english")
+    assert (j == "en") is False
+    assert (j == None) is False  # noqa: E711 — testing the equality directly
+    m = Meaning("en", tags=[], meanings=["en"], sources={"old_english": ["en"]})
+    assert (j == m) is False
+
+
+def test_joiner_default_lang_field_is_none() -> None:
+    """Constructing without a lang_field defaults to None — the
+    public constructor shape that callers without lang context can
+    use."""
+    j = Joiner("en")
+    assert j.lang_field is None
+    assert str(j) == "en"
+
+
+def test_joiner_with_default_lang_field_compares_equal() -> None:
+    """Two Joiners constructed with default lang_field are equal."""
+    a = Joiner("en")
+    b = Joiner("en")
+    assert a == b
+    assert hash(a) == hash(b)
+
+
+# --- load_joiners boundary cases (test-coverage gap fill) ----------------
+
+
+def test_load_joiners_handles_null_per_language_entries() -> None:
+    """A bundle with ``{"old_english": null}`` (e.g. an export
+    setting the per-lang slot before populating it) skips the entry
+    rather than raising. Defensive — keeps load_joiners robust against
+    partially-emitted bundles."""
+    bundle = {
+        "subjects": [],
+        "joiners": {"old_english": None, "celtic_mix": [{"form": "y", "weight": 50}]},
+    }
+    joiners = load_joiners(bundle)
+    assert "old_english" not in joiners
+    assert joiners == {"celtic_mix": [("y", 50)]}
+
+
+def test_load_meanings_with_populated_joiners_loads_subjects_correctly() -> None:
+    """End-to-end: a dict bundle with BOTH subjects and a populated
+    joiners pool produces the same meaning_db as the bare-list shape.
+    Pinned so the dict-shape parsing doesn't accidentally couple
+    joiners and subjects."""
+    subjects = [
+        {
+            "meaning": ["Bridge"],
+            "modifier_tags": [],
+            "modifier_type": "T",
+            "words": [{"modern_usage": "Bridg-", "old_english": ["brycg"]}],
+        }
+    ]
+    bundle = {
+        "subjects": subjects,
+        "joiners": {"old_english": [{"form": "en", "weight": 100}]},
+    }
+    word_db, _ = load_meanings(bundle)
+    assert "Bridg-" in word_db
+    # And load_joiners on the SAME bundle returns the populated pool.
+    joiners = load_joiners(bundle)
+    assert joiners == {"old_english": [("en", 100)]}
+
+
+# --- reduce=True canonical filter caveat (Phase 2.5 limitation pin) ------
+
+
+def test_find_meaning_with_reduce_canonical_filters_before_joiners() -> None:
+    """Phase 2.5 LIMITATION pinned: under ``reduce=True``, the
+    canonical filter scores RAW matcher output BEFORE joiner
+    consumption. So a non-joiner parse that already reaches 0
+    unaccounted wins canonical over a joiner-needing parse — even
+    when the joiner-needing parse would tie on score after
+    consumption.
+
+    Setup: 'Bridgexywater' admits BOTH:
+      A. [Bridge-, -xywater] — 0 unaccounted, 2 morphemes (raw)
+      B. [Bridge-, "xy", -water] — 2 unaccounted, 2 morphemes (raw)
+
+    Canonical filter sees A wins on (0, 2) before consumption. After
+    consumption, B becomes [Bridge-, Joiner("xy"), -water] — 0 unacc,
+    3 'morphemes' counting the Joiner. A still wins on Occam.
+
+    Concretely: the surface picked by reduce=True is 'Bridgexywater'
+    decomposed as [Bridge-, -xywater], NOT as [Bridge-, joiner,
+    -water]. A future Phase 2.5 may push joiner-awareness into the
+    canonical scoring; until then this is the documented behavior.
+    """
+    subjects = [
+        {
+            "meaning": ["Bridge"],
+            "modifier_tags": [],
+            "modifier_type": "T",
+            "words": [{"modern_usage": "Bridge-", "old_english": ["brycg"]}],
+        },
+        {
+            "meaning": ["Water"],
+            "modifier_tags": [],
+            "modifier_type": "T",
+            "words": [{"modern_usage": "-water", "old_english": ["wæter"]}],
+        },
+        {
+            "meaning": ["XYWater"],  # synthetic morpheme covering 'xywater' suffix
+            "modifier_tags": [],
+            "modifier_type": "T",
+            "words": [{"modern_usage": "-xywater", "old_english": ["xywæter"]}],
+        },
+    ]
+    word_db, _ = load_meanings(subjects)
+    name = Name("Bridgexywater")
+    name.find_meaning(word_db, reduce=True, joiners={"old_english": [("xy", 100)]})
+    # Both parses reach 0 unaccounted but the non-joiner parse wins.
+    assert name.count_unaccounted() == 0
+    # Confirm: NO Joiner ended up in the canonical set — the parse
+    # that would have needed one was filtered out.
+    found_joiner = any(
+        isinstance(slot, Joiner) for words in name.words.values() for w in words for slot in w.word
+    )
+    assert not found_joiner, (
+        "Phase 2.5 limitation: canonical filter should pick the no-joiner "
+        "parse [Bridge-, -xywater] over [Bridge-, joiner('xy'), -water]"
+    )

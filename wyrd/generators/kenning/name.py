@@ -14,7 +14,7 @@ from __future__ import annotations
 import itertools
 from collections import OrderedDict
 
-from wyrd.generators.kenning.meaning import Joiner
+from wyrd.generators.kenning.meaning import Joiner, Meaning
 from wyrd.generators.kenning.trie_matcher import (
     MorphemeTrie,
     all_decompositions,
@@ -105,23 +105,31 @@ def _build_joiner_lookup(
 
 
 def _consume_joiners(decomposition: list, joiner_lookup: dict[str, str]) -> list:
-    """Replace each ``str`` slot in ``decomposition`` whose lowercase
-    text matches a registered joiner form with a ``Joiner`` sentinel
-    (Meaning instances pass through unchanged).
+    """Replace each ``str`` slot whose lowercase surface is a
+    registered joiner AND that sits between two Meaning slots with a
+    ``Joiner`` sentinel.
 
-    ``joiner_lookup`` is the flat surface→lang_field map from
-    ``_build_joiner_lookup``. Empty lookup → identity transform (caller
-    short-circuits before calling, but the no-op behavior is safe).
+    The both-neighbors-must-be-Meaning gate is load-bearing: joiners
+    are phonological CONNECTORS, not standalone morphemes. A leading
+    or trailing 'en' with no morpheme on the other side is genuinely
+    unaccounted — consuming it would silently launder garbage into
+    'matched-but-no-semantic'. Same goes for an 'en' between two
+    unaccounted fragments. Only firing between two Meanings keeps
+    the rule defensible against Phase 2 data alone.
     """
     if not joiner_lookup:
         return decomposition
+    n = len(decomposition)
     new_decomp: list = []
-    for slot in decomposition:
+    for i, slot in enumerate(decomposition):
         if isinstance(slot, str):
             lang = joiner_lookup.get(slot.lower())
             if lang is not None:
-                new_decomp.append(Joiner(slot, lang_field=lang))
-                continue
+                left_is_meaning = i > 0 and isinstance(decomposition[i - 1], Meaning)
+                right_is_meaning = i < n - 1 and isinstance(decomposition[i + 1], Meaning)
+                if left_is_meaning and right_is_meaning:
+                    new_decomp.append(Joiner(slot, lang_field=lang))
+                    continue
         new_decomp.append(slot)
     return new_decomp
 
@@ -168,22 +176,16 @@ class Name:
 
         ``joiners`` (wyrd-q0g6 Phase 1, optional) is a
         ``dict[lang_field, list[(form, weight)]]`` from
-        ``meaning.load_joiners``. When provided, the matcher post-
-        processes each decomposition: any ``str`` slot whose lowercase
-        text matches a registered joiner ``form`` becomes a ``Joiner``
-        sentinel — its chars stop counting as unaccounted (Joiner is
-        non-str so ``Word.count_unaccounted`` skips it) without
-        polluting structure-pattern stats (Joiner is non-Meaning so
-        ``Word.has_name`` / ``get_structure`` / etc. skip it too).
-        Surface form is preserved via ``Joiner.__str__``.
-
-        Phase 1 ships the hook; the bundled meanings.json carries no
-        joiners until a Phase 2 audit populates them, so the no-op
-        fast path (``joiners=None``) remains the default. With non-
-        empty joiners under ``reduce=True``, the canonical filter
-        runs on the raw matcher output; joiner consumption applies
-        AFTERWARD. A future Phase 2.5 may push joiner-awareness into
-        the canonical scoring.
+        ``meaning.load_joiners``. When provided, str slots between
+        two Meaning slots whose lowercase surface matches a
+        registered joiner are demoted to ``Joiner`` sentinels —
+        non-str (don't count as unaccounted) and non-Meaning (don't
+        pollute structure stats). Caveat: under ``reduce=True``, the
+        canonical filter scores the RAW matcher output before joiner
+        consumption; a parse that needs a joiner to reach 0
+        unaccounted may not survive canonical filtering against a
+        no-joiner parse with already-fewer unaccounted chars. Phase
+        2.5 may fold joiners into the canonical score.
 
         ``reduce=False`` switches to ``all_decompositions``, returning
         every parse the trie produces — useful to callers (e.g.
