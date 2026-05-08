@@ -129,6 +129,64 @@ analysis now correctly attributes the prefix slot for ~25% of the
 Irish corpus, which downstream cohesion / proportions consumers
 benefit from regardless of the suffix gap.
 
+### 2026-05-08 — post-wyrd-eni4 epic (deploy-chain bundle re-emit)
+
+The full gap-closing epic shipped today: 11 PRs across the bundle
+schema (dict-shape + source-tagged era_reflexes + fantasy_morphemes),
+the per-language-quality dashboard, INFLECTION_RULES expansion to
+Welsh / OF / ME / NF + Goidelic mutation rules, Wiktionary forms
+ingest for variant pools, phonology-rules → Tier-4 era reflex,
+and bundle tag-visibility rollup across cognate clusters.
+
+Post-epic deploy chain ran:
+
+1. `link-lemmas --apply` against the live DB — landed ~17,500 lemma
+   linkages (was: ~170 OE+ON only). New languages contributing:
+   middle-english 2958, irish 2128, old-norse 1767, welsh 609,
+   scottish-gaelic 335, old-irish 78, old-french 60, middle-irish 9.
+2. `mine-wiktextract-forms --apply` across 10 gap-language slices
+   (welsh / irish / scottish-gaelic / middle-irish / old-irish /
+   breton / cornish / manx / middle-english / old-french). Wrote
+   ~441K variant rows to etymon_text_match (was: ~1300 rows for
+   OE+ON only).
+3. `lexicon export-meanings` → meanings.json: 1879 → 8490 subjects
+   (4.5× growth from the cluster + variant + linkage cascade). 244
+   fantasy_morphemes ride along in the dict-shape bundle.
+4. `rebuild-proportions` for all 5 cultures.
+
+Discovered during deploy: rebuild-proportions OOMs on the 58-char
+'Llanfairpwllgwyngyllgogerychwyrndrobwyllllantysiliogogogoch' due
+to a cartesian explosion in trie_matcher.py:all_decompositions.
+Workaround: removed from welsh_place_names.json (welsh corpus
+1916 → 1915 names). Tracked as wyrd-p8ve (algorithmic fix:
+score-prune during the canonical_decompositions walk) and
+wyrd-v8x0 (re-add the village post-fix). Pragmatic call: the rest
+of the corpus completes cleanly; the village restore comes later.
+
+| culture  | perfect | total  | rate    | Δ pp vs baseline | Δ pp vs prior (2026-05-07) |
+|----------|--------:|-------:|--------:|-----------------:|---------------------------:|
+| english  |   12686 | 17876  | 71.0%   |            +42.7 |                      +35.9 |
+| scottish |    1526 | 2321   | 65.7%   |            +47.4 |                      +40.6 |
+| welsh    |    1312 | 1915   | 68.5%   |            +53.4 |                      +45.0 |
+| irish    |   17565 | 34041  | 51.6%   |            +41.6 |                      +33.9 |
+| breton   |     221 | 1208   | 18.3%   |              new |                      +16.1 |
+
+What landed in the lift: the bundle's morpheme inventory grew 4.5×,
+so far more place-name fragments have a registered match. The
+inflection-link path in particular surfaces forms like Welsh
+`dyddiau` / `siroedd` / `cantorion` (plural) and OF `cisoires`
+(feminine plural) that pre-this-epic were unmatched. Forms-mining
+expanded the variants pool for runtime sampling under
+``--spelling-variety``, but doesn't directly affect decomposition
+rate (the matcher decomposes against canonical forms; variants
+sample at generation time).
+
+Audit follow-ups remaining: wyrd-j43l (deploy bundle + Lambda +
+SPA — operator-driven), wyrd-p8ve (matcher score-pruning fix),
+wyrd-v8x0 (restore Llanfairpwll... post-fix). Every code-side
+ticket on the gap-closing epic is closed; the bundle re-emit
+captured here is the artifact the epic produced.
+
 ## How to record a new snapshot
 
 After a bundle re-emit (`wyrd kenning lexicon export-meanings` →
