@@ -717,7 +717,7 @@ def unaccounted(
         return
 
     summary = (
-        f"culture={culture} imperfect_names={imperfect_count} " f"unique_fragments={len(fragments)}"
+        f"culture={culture} imperfect_names={imperfect_count} unique_fragments={len(fragments)}"
     )
     if canonical_hits:
         breakdown = " ".join(f"{src}={n}" for src, n in sorted(canonical_hits.items()))
@@ -5226,10 +5226,13 @@ def lexicon_decompose(
          ``toponym_decomposition`` (idempotent on signature).
       3. Apply the canonical picker (rules a + b — Phase 1).
 
-    Phase 1 only ships rules (a) [scholar match] and (b) [unique-zero-
-    unaccounted]. Multi-zero ties are left without a canonical pick;
-    Phase 2 will add the tiebreaker. Consumer integration (rebuild-
-    proportions, unaccounted miner, explainer) is also Phase 2.
+    Rules (a) [scholar match] and (b) [unique-zero-unaccounted] are
+    implemented. Multi-zero ties fall through with no canonical pick
+    (rule (c) tiebreaker is a future enhancement). Consumer integration
+    for ``rebuild-proportions`` and ``unaccounted`` lives in Phase 3a
+    (wyrd-70s0); ``KenningExplain`` (Lambda / SPA path) has no DB access
+    and remains heuristic-only until a future bundle-side projection
+    lands.
     """
     meanings_data = _load_meanings_data(meanings)
     word_db, _ = load_meanings(meanings_data)

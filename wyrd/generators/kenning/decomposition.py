@@ -14,8 +14,8 @@ fixed heuristic, but a single heuristic pick conflates two failure modes:
 This module persists every decomposition the matcher produces (one row
 per (toponym, signature)) and runs a rule-driven canonical picker that
 favors scholarly attribution where available, then unique-zero-
-unaccounted decompositions, leaving multi-zero ties for a Phase 2
-tiebreaker.
+unaccounted decompositions, leaving multi-zero ties for a future
+tiebreaker rule (c).
 
 Phase 1 ships:
 - Schema (``toponym_decomposition``).
@@ -397,8 +397,8 @@ def pick_canonical_decomposition(
     exactly one stored row has zero unaccounted fragments, that one
     wins ``'unique-zero-unaccounted'``.
 
-    Rule (c) multi-zero tiebreaker is deferred to Phase 2. Toponyms
-    that fall through both rules end with no canonical pick.
+    Rule (c) multi-zero tiebreaker is not yet implemented. Toponyms
+    that fall through rules (a) and (b) end with no canonical pick.
 
     Returns ``{rule, canonical_count, decomposition_count}``.
     """
@@ -660,6 +660,16 @@ def apply_canonical_to_name(name: Name, canonical_signature: str) -> bool:
     on first match replaces every ``name.words[word]`` list with a
     singleton holding the chosen Word.
 
+    Per-word option lists are capped via ``_cap_per_word_options`` so
+    the search space matches the populator's. Without this symmetry,
+    ``compute_decompositions`` would emit signatures over a capped
+    cross-product while ``apply`` iterates the uncapped one — fine
+    when the canonical is in the kept first-K options of every word
+    (the common case), but a determinism crack when truncation order
+    shifts between populate and apply runs (e.g. trie cache rebuild
+    on a fresh process). Capping here keeps both sides on the same
+    K-prefix per word.
+
     Returns ``True`` on hit, ``False`` on miss. ``name.words`` is
     untouched on miss so the caller can fall back to the heuristic.
     A miss happens when the bundle's word_db has shifted since the
@@ -670,14 +680,15 @@ def apply_canonical_to_name(name: Name, canonical_signature: str) -> bool:
     per_word_options = [name.words.get(w, []) for w in word_keys]
     if not all(per_word_options):
         return False
-    for combo_idx in itertools.product(*[range(len(opts)) for opts in per_word_options]):
+    capped = _cap_per_word_options(per_word_options, name.name)
+    for combo_idx in itertools.product(*[range(len(opts)) for opts in capped]):
         flat: list = []
         for w_idx, opt_idx in enumerate(combo_idx):
-            flat.extend(per_word_options[w_idx][opt_idx].word)
+            flat.extend(capped[w_idx][opt_idx].word)
         sig = _signature_for_payload(_decomposition_payload(flat))
         if sig == canonical_signature:
             for w_idx, opt_idx in enumerate(combo_idx):
-                name.words[word_keys[w_idx]] = [per_word_options[w_idx][opt_idx]]
+                name.words[word_keys[w_idx]] = [capped[w_idx][opt_idx]]
             return True
     return False
 
@@ -712,14 +723,16 @@ def decompose_with_canonical(
             if apply_canonical_to_name(name, signature):
                 return name, source
             # Canonical recorded but signature doesn't match any cell —
-            # word_db drifted. Re-init Name (find_meaning would dedupe
-            # against the existing reduce=False alternates) and fall
-            # through to the heuristic.
+            # word_db drifted. The reduce=False alternates are already
+            # populated; ``Name.reduce()`` filters them down to the
+            # heuristic pick (lowest unaccounted, then min-complexity)
+            # without a second matcher pass.
             _logger.debug(
-                "Canonical signature %s for %r missed cross-product; " "falling back to heuristic.",
+                "Canonical signature %s for %r missed cross-product; falling back to heuristic.",
                 signature,
                 name_str,
             )
-            name = Name(name_str)
+            name.reduce()
+            return name, None
     name.find_meaning(word_db, reduce=True)
     return name, None

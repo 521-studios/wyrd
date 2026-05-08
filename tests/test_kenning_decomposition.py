@@ -926,9 +926,9 @@ def test_cross_product_caps_pathological_combo_count(caplog) -> None:
     # CRITICAL: every combo must be full-length (4 slots, one per word).
     # Mid-multiplication truncation would have produced prefix-only
     # combos missing words 3-4 — silently persisted as 0-unaccounted.
-    assert all(
-        len(combo) == 4 for combo in combos
-    ), f"truncation produced incomplete combos; lengths: {[len(c) for c in combos]}"
+    assert all(len(combo) == 4 for combo in combos), (
+        f"truncation produced incomplete combos; lengths: {[len(c) for c in combos]}"
+    )
     assert any("Cross-product cap" in rec.message for rec in caplog.records)
 
 
@@ -1697,3 +1697,47 @@ def test_cli_unaccounted_canonical_drops_false_gap(tmp_path: Path) -> None:
     # Canonical zero-unaccounted means Stratford contributes ZERO
     # fragments to the gap report.
     assert output == []
+
+
+def test_cli_rebuild_proportions_mixes_canonical_and_heuristic(tmp_path: Path) -> None:
+    """Realistic operator path: corpus has some names with canonical
+    picks (in-DB) and some without (not yet decomposed). The summary
+    line must surface both source counts so an operator can verify
+    the canonical wiring is doing useful work AND see how much fell
+    through to the heuristic."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        _seed_source(db)
+        # 'Stratford' gets a canonical; 'Bridgford' is left out of the
+        # DB entirely so the consumer must fall through to heuristic.
+        topo_id = _insert_toponym(db, "Stratford")
+        populate_and_pick(db, topo_id, "Stratford", word_db)
+        db.commit()
+
+    meanings_path = tmp_path / "meanings.json"
+    meanings_path.write_text(json.dumps(_two_morpheme_subjects()))
+    place_names = tmp_path / "places.json"
+    place_names.write_text(json.dumps({"England": {"Bedfordshire": ["Stratford", "Bridgford"]}}))
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "rebuild-proportions",
+            "english",
+            str(place_names),
+            "--meanings",
+            str(meanings_path),
+            "--db",
+            str(db_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    # Both source labels appear in the canonical[…] block — proves the
+    # branch covering canonical_hits["heuristic"] += 1 fires.
+    assert "canonical[" in result.stderr
+    assert "heuristic=1" in result.stderr
+    assert "unique-zero-unaccounted=1" in result.stderr
