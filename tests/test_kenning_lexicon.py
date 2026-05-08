@@ -3396,6 +3396,11 @@ def test_etymon_era_reflexes_tier4_period_form_fallback(fresh_db: Path) -> None:
 
     forms = [r.form for r in reflexes]
     assert "orphane" in forms
+    # Period-form reflexes carry source='period-form' so consumers
+    # can distinguish them from Tier 1 cluster mates. Pinned to catch
+    # a future regression that defaults the source back to 'cluster'.
+    sources = {r.source for r in reflexes if r.form == "orphane"}
+    assert sources == {"period-form"}
 
 
 def test_etymon_era_reflexes_tier4_filters_by_year_range(fresh_db: Path) -> None:
@@ -3633,6 +3638,21 @@ def test_phonology_rule_form_returns_none_when_pass_through() -> None:
     from wyrd.generators.kenning.lexicon import _phonology_rule_form
 
     assert _phonology_rule_form("orphan", "old-english", "middle-english") is None
+
+
+def test_phonology_rule_form_resolves_welsh_alias() -> None:
+    """The lexicon code 'welsh' is a bundle alias for 'modern-welsh' in
+    the phonology family chain. Without alias resolution the chain
+    lookup would fail with ValueError. Pin: the alias resolves to the
+    canonical era so passing 'welsh' produces the same output as
+    passing 'modern-welsh' (regardless of what that output is)."""
+    from wyrd.generators.kenning.lexicon import _phonology_rule_form
+
+    # Alias case: welsh (= modern-welsh) → old-welsh
+    via_alias = _phonology_rule_form("kaer-uent", "welsh", "old-welsh")
+    # Canonical case: modern-welsh → old-welsh
+    via_canonical = _phonology_rule_form("kaer-uent", "modern-welsh", "old-welsh")
+    assert via_alias == via_canonical
 
 
 def test_clear_enrichment_period_forms_drops_rows(fresh_db: Path) -> None:
@@ -3940,6 +3960,39 @@ def test_fetch_root_era_reflexes_returns_empty_for_unfamilied_root(
         result = _fetch_root_era_reflexes(db, eid, "proto-germanic")
 
     assert result == {}
+
+
+def test_fetch_root_era_reflexes_filters_phonology_rule_reflexes(
+    fresh_db: Path,
+) -> None:
+    """Bundle export filters Tier 4 (phonology-rule) reflexes out —
+    the bundle's ``era_reflexes: {lang: [forms]}`` schema doesn't
+    carry the source tag, so phonology-derived inferred forms would
+    reach the SPA indistinguishable from human-vetted Tier 1 cluster
+    mates. Pinned regression for the source-aware filtering at the
+    bundle boundary; the same etymon still surfaces Tier 4 reflexes
+    via direct ``etymon_era_reflexes`` queries (CLI consumers)."""
+    from wyrd.generators.kenning.lexicon import _fetch_root_era_reflexes
+
+    with LexiconDB(fresh_db) as db:
+        # OE etymon with a rule trigger (ǣ → e) but no cluster /
+        # descent / period-form data. Tier 4 fires for direct queries
+        # but the bundle should drop it.
+        eid = db.upsert_etymon("dǣg", "old-english")
+        db.commit()
+
+        # Direct query: Tier 4 fires (proves the etymon is
+        # phonology-eligible).
+        direct = etymon_era_reflexes(db, eid, target_language="middle-english")
+        assert any(r.source == "phonology-rule:v1" for r in direct)
+
+        # Bundle export path: Tier 4 stripped, no entry for
+        # middle-english (only attestation-backed reflexes survive).
+        bundle_data = _fetch_root_era_reflexes(db, eid, "old-english")
+
+    # 'middle-english' should be absent (only Tier 4 had data) —
+    # confirms the filter worked.
+    assert "middle-english" not in bundle_data
 
 
 def test_kenning_rewind_generator_renders_three_era_stops() -> None:
