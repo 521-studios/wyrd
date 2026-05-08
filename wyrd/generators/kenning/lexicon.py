@@ -5327,7 +5327,18 @@ def collect_canonical_decompositions(db: LexiconDB) -> dict[str, dict[str, str]]
     The Lambda has no region context at decomposition time so this
     matches ``load_names_with_regions``'s dedup policy: deterministic,
     same-name entries get the same canonical pick across re-runs.
+
+    Returns an empty dict when the ``toponym_decomposition`` table
+    doesn't exist yet — older DBs predate the wyrd-08m Phase 1 migration
+    and shouldn't crash the bundle export. Run ``lexicon migrate`` to
+    create the table, then ``lexicon decompose --apply`` to populate
+    canonical picks.
     """
+    table_exists = db.conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='toponym_decomposition'"
+    ).fetchone()
+    if not table_exists:
+        return {}
     rows = db.conn.execute(
         """
         SELECT t.modern_name,
