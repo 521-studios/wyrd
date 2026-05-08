@@ -610,13 +610,20 @@ def lookup_canonical_signature(
     waiting on rule (c)).
 
     Toponym lookup keys on ``modern_name``; when ``region`` is supplied
-    (place_names JSON files carry country/region grouping) it tightens
-    the match. Multiple matching toponyms collapse to lowest-id for
-    determinism. Multiple canonical rows under one toponym
-    (``scholar-disagreement`` source — every matching scholar
-    breakdown is flagged canonical) collapse to the lowest-id
-    canonical row, keeping consumer counts stable across re-runs.
+    (place_names JSON files carry country/region grouping — wyrd-8m87)
+    a region-tightened lookup runs first so same-modern_name-different-
+    region collisions in the lexicon resolve to the right toponym.
+    The lookup falls back to name-only matching when no region-tagged
+    row exists — graceful degradation for legacy NULL-region toponym
+    rows that were ingested without region context.
+
+    Multiple matching toponyms collapse to lowest-id for determinism.
+    Multiple canonical rows under one toponym (``scholar-disagreement``
+    source — every matching scholar breakdown is flagged canonical)
+    collapse to the lowest-id canonical row, keeping consumer counts
+    stable across re-runs.
     """
+    toponym_id: int | None = None
     if region is not None:
         cur = db.conn.execute(
             """
@@ -627,14 +634,18 @@ def lookup_canonical_signature(
             """,
             (modern_name, region),
         )
-    else:
+        row = cur.fetchone()
+        if row is not None:
+            toponym_id = row["id"]
+    if toponym_id is None:
         cur = db.conn.execute(
             "SELECT id FROM toponym WHERE modern_name = ? ORDER BY id LIMIT 1",
             (modern_name,),
         )
-    toponym_row = cur.fetchone()
-    if toponym_row is None:
-        return None
+        row = cur.fetchone()
+        if row is None:
+            return None
+        toponym_id = row["id"]
     cur = db.conn.execute(
         """
         SELECT decomposition_signature, canonical_source
@@ -642,7 +653,7 @@ def lookup_canonical_signature(
          WHERE toponym_id = ? AND is_canonical = 1
          ORDER BY id LIMIT 1
         """,
-        (toponym_row["id"],),
+        (toponym_id,),
     )
     row = cur.fetchone()
     if row is None:

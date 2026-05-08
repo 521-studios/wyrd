@@ -45,7 +45,7 @@ from wyrd.generators.kenning.decomposition import (
 )
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema, migrate_schema
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
-from wyrd.generators.kenning.name import Name
+from wyrd.generators.kenning.name import Name, load_names_with_regions
 
 
 @pytest.fixture
@@ -1302,7 +1302,8 @@ def test_lookup_canonical_returns_signature_and_source(fresh_db: Path) -> None:
 
 def test_lookup_canonical_with_region_tightens_match(fresh_db: Path) -> None:
     """Two toponyms with the same modern_name but different regions get
-    disambiguated by the optional region argument."""
+    disambiguated by the optional region argument. Each region-tagged
+    pull returns its OWN toponym's canonical, not the lowest-id one."""
     word_db = _word_db_for(_two_morpheme_subjects())
     with LexiconDB(fresh_db) as db:
         _seed_source(db)
@@ -1321,13 +1322,65 @@ def test_lookup_canonical_with_region_tightens_match(fresh_db: Path) -> None:
         db.commit()
         a_result = lookup_canonical_signature(db, "Stratford", region="Bedfordshire")
         b_result = lookup_canonical_signature(db, "Stratford", region="Suffolk")
-        none_result = lookup_canonical_signature(db, "Stratford", region="Yorkshire")
     # Both regional pulls hit canonical (each toponym got its own pick).
     assert a_result is not None
     assert b_result is not None
-    # The unknown region misses cleanly rather than fuzzy-matching either of
-    # the existing rows.
-    assert none_result is None
+
+
+def test_lookup_canonical_falls_back_to_name_only_on_region_miss(
+    fresh_db: Path,
+) -> None:
+    """wyrd-8m87: legacy NULL-region toponyms in the lexicon DB shouldn't
+    cause a region-tagged consumer call to silently return None — the
+    lookup falls back to a name-only match. This keeps backward compat
+    with toponyms ingested before the region-plumbing work landed.
+
+    The fallback also fires when the corpus passes a region that
+    doesn't exist in the DB at all (e.g. a 'Yorkshire/Stratford' corpus
+    entry against a DB whose only Stratford rows are in Bedfordshire +
+    Suffolk) — operators get a canonical for the same-name toponym
+    rather than a blank fallback to the heuristic. Trade-off: in the
+    rare cross-region collision case this picks the lowest-id canonical
+    arbitrarily; the regional disambiguation only takes effect when the
+    DB actually carries a region-matched row."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        cur = db.conn.execute(
+            "INSERT INTO toponym (modern_name, region) VALUES (?, ?)",
+            ("Stratford", "Bedfordshire"),
+        )
+        topo_a = cur.lastrowid
+        populate_and_pick(db, topo_a, "Stratford", word_db)
+        db.commit()
+        # Consumer asks for Yorkshire/Stratford but DB only has Bedfordshire.
+        result = lookup_canonical_signature(db, "Stratford", region="Yorkshire")
+    # Fallback fires: the Bedfordshire row's canonical wins.
+    assert result is not None
+    signature, source = result
+    assert source == "unique-zero-unaccounted"
+
+
+def test_lookup_canonical_with_region_against_null_region_db(fresh_db: Path) -> None:
+    """A NULL-region toponym row (legacy ingestion path) is reachable
+    via region-tagged lookup thanks to the name-only fallback. Without
+    this, every region-tagged consumer call against a legacy DB would
+    silently return None."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        # Legacy insert: no region.
+        cur = db.conn.execute(
+            "INSERT INTO toponym (modern_name) VALUES (?)",
+            ("Stratford",),
+        )
+        topo_id = cur.lastrowid
+        populate_and_pick(db, topo_id, "Stratford", word_db)
+        db.commit()
+        result = lookup_canonical_signature(db, "Stratford", region="Bedfordshire")
+    assert result is not None
+    _, source = result
+    assert source == "unique-zero-unaccounted"
 
 
 def test_lookup_canonical_picks_lowest_id_on_disagreement(fresh_db: Path) -> None:
@@ -1693,7 +1746,7 @@ def test_cli_unaccounted_canonical_drops_false_gap(tmp_path: Path) -> None:
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
-    output = json.loads(result.output)
+    output = json.loads(result.stdout)
     # Canonical zero-unaccounted means Stratford contributes ZERO
     # fragments to the gap report.
     assert output == []
@@ -1740,4 +1793,160 @@ def test_cli_rebuild_proportions_mixes_canonical_and_heuristic(tmp_path: Path) -
     # branch covering canonical_hits["heuristic"] += 1 fires.
     assert "canonical[" in result.stderr
     assert "heuristic=1" in result.stderr
+    assert "unique-zero-unaccounted=1" in result.stderr
+
+
+# --- wyrd-8m87: region plumbing through CLI consumers ------------------
+
+
+def test_load_names_with_regions_emits_tagged_tuples() -> None:
+    """Each (Name, region) pair carries the region the name was
+    grouped under in the place_names JSON. Output is sorted
+    alphabetically by name to match ``load_names``."""
+    data = {
+        "England": {
+            "Bedfordshire": ["Aspley", "Bridgford"],
+            "Suffolk": ["Stratford"],
+        }
+    }
+    out = load_names_with_regions(data)
+    names = [n.name for n, _ in out]
+    regions = [r for _, r in out]
+    assert names == ["Aspley", "Bridgford", "Stratford"]
+    assert regions == ["Bedfordshire", "Bedfordshire", "Suffolk"]
+
+
+def test_load_names_with_regions_dedupes_keeping_first_country_region() -> None:
+    """Same-name entries across multiple (country, region) groupings
+    dedupe to a single tuple; the lex-first (country, region) wins so
+    re-runs are deterministic."""
+    data = {
+        "England": {
+            "Bedfordshire": ["Stratford"],
+            "Suffolk": ["Stratford"],
+        }
+    }
+    out = load_names_with_regions(data)
+    assert len(out) == 1
+    name, region = out[0]
+    assert name.name == "Stratford"
+    # 'Bedfordshire' < 'Suffolk' lex-first, so Bedfordshire wins.
+    assert region == "Bedfordshire"
+
+
+def test_load_names_with_regions_handles_multiple_countries() -> None:
+    """Country participates in lex-tiebreak only — the kept entry's
+    region is what travels onward to the canonical lookup."""
+    data = {
+        "Wales": {"Powys": ["Tref"]},
+        "England": {"Cornwall": ["Tref"]},
+    }
+    out = load_names_with_regions(data)
+    assert len(out) == 1
+    _, region = out[0]
+    # 'England' < 'Wales' lex-first → Cornwall wins.
+    assert region == "Cornwall"
+
+
+def test_cli_rebuild_proportions_region_picks_right_canonical(
+    tmp_path: Path,
+) -> None:
+    """wyrd-8m87 acceptance: corpus has same-modern_name in two
+    different regions; lexicon has a distinct toponym row per region
+    with its own canonical. The consumer must pull the
+    region-tightened canonical for each entry rather than always
+    landing on the lowest-id row."""
+    # Build a meaning DB where 'Stratford' has TWO equally-zero-
+    # unaccounted decompositions so the per-toponym canonical pick
+    # isn't trivially identical between the two region rows.
+    word_db = _word_db_for(_two_morpheme_subjects())
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        _seed_source(db)
+        # Two toponyms, same name, distinct regions, each with its own
+        # canonical pick.
+        cur1 = db.conn.execute(
+            "INSERT INTO toponym (modern_name, region) VALUES (?, ?)",
+            ("Stratford", "Bedfordshire"),
+        )
+        topo_a = cur1.lastrowid
+        cur2 = db.conn.execute(
+            "INSERT INTO toponym (modern_name, region) VALUES (?, ?)",
+            ("Stratford", "Suffolk"),
+        )
+        topo_b = cur2.lastrowid
+        populate_and_pick(db, topo_a, "Stratford", word_db)
+        populate_and_pick(db, topo_b, "Stratford", word_db)
+        db.commit()
+
+    meanings_path = tmp_path / "meanings.json"
+    meanings_path.write_text(json.dumps(_two_morpheme_subjects()))
+    place_names = tmp_path / "places.json"
+    # Corpus name appears under Bedfordshire only — region tightening
+    # should land on topo_a's canonical, not topo_b's.
+    place_names.write_text(json.dumps({"England": {"Bedfordshire": ["Stratford"]}}))
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "rebuild-proportions",
+            "english",
+            str(place_names),
+            "--meanings",
+            str(meanings_path),
+            "--db",
+            str(db_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    # Canonical applied — the region-tightened lookup found a hit.
+    assert "unique-zero-unaccounted=1" in result.stderr
+
+
+def test_cli_unaccounted_handles_legacy_null_region_db(tmp_path: Path) -> None:
+    """Backward compat: a NULL-region toponym row in the DB still
+    contributes its canonical even though the corpus carries region
+    tags. The fallback in ``lookup_canonical_signature`` keeps the
+    region-tagged corpus from silently skipping legacy rows."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        _seed_source(db)
+        # Legacy insert: no region column.
+        cur = db.conn.execute(
+            "INSERT INTO toponym (modern_name) VALUES (?)",
+            ("Stratford",),
+        )
+        topo_id = cur.lastrowid
+        populate_and_pick(db, topo_id, "Stratford", word_db)
+        db.commit()
+
+    meanings_path = tmp_path / "meanings.json"
+    meanings_path.write_text(json.dumps(_two_morpheme_subjects()))
+    place_names = tmp_path / "places.json"
+    place_names.write_text(json.dumps({"England": {"Bedfordshire": ["Stratford"]}}))
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "unaccounted",
+            "english",
+            str(place_names),
+            "--meanings",
+            str(meanings_path),
+            "--db",
+            str(db_path),
+            "--as-json",
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    # Canonical fired (zero-unaccounted) → no fragments in the gap report.
+    assert json.loads(result.stdout) == []
+    # Stderr proves we hit canonical, not heuristic.
     assert "unique-zero-unaccounted=1" in result.stderr

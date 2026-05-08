@@ -77,7 +77,7 @@ from wyrd.generators.kenning.lexicon import (
     seed_meaning_synsets,
 )
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
-from wyrd.generators.kenning.name import load_names
+from wyrd.generators.kenning.name import load_names_with_regions
 from wyrd.generators.kenning.paths import (
     LEXICON_DB_DEFAULT_DISPLAY,
     default_lexicon_path,
@@ -419,32 +419,43 @@ def _aggregate_unaccounted_fragments(
 
 
 def _decompose_corpus(
-    names: list,
+    name_entries: list,
     word_db: dict,
     db_path: Path | None,
 ) -> tuple[list, Counter]:
     """Decompose a corpus of Names, honouring canonical picks when a
     lexicon DB path is supplied.
 
-    Shared by ``rebuild-proportions`` and ``unaccounted`` (wyrd-0see).
-    Both consumers had near-identical optional-DB iteration loops; the
-    helper centralises (a) DB context-manager hygiene via
-    ``nullcontext``, (b) the per-name canonical-vs-heuristic branch,
-    (c) the ``canonical_hits`` Counter accumulation.
+    ``name_entries`` is a list of ``(Name, region)`` pairs from
+    ``load_names_with_regions`` (wyrd-8m87). Region is forwarded into
+    the canonical lookup so same-modern_name-different-region
+    collisions in the lexicon resolve to the right toponym row.
+    Bare ``Name`` entries (legacy ``load_names`` callers) are accepted
+    too — region defaults to ``None``, and the lookup fallback in
+    ``decompose_with_canonical`` handles NULL-region DBs gracefully.
+
+    Centralises (a) DB context-manager hygiene via ``nullcontext``,
+    (b) the per-name canonical-vs-heuristic branch, (c) the
+    ``canonical_hits`` Counter accumulation.
 
     Returns ``(resolved_names, canonical_hits)``. ``canonical_hits`` is
     empty when ``db_path`` is ``None`` so callers can use truthiness to
     decide whether to surface the ``canonical[...]`` summary block.
     """
     from wyrd.generators.kenning.decomposition import decompose_with_canonical
+    from wyrd.generators.kenning.name import Name
 
     canonical_hits: Counter = Counter()
     resolved_names: list = []
     db_context = LexiconDB(db_path) if db_path is not None else nullcontext()
     with db_context as db:
-        for name in names:
+        for entry in name_entries:
+            if isinstance(entry, Name):
+                name, region = entry, None
+            else:
+                name, region = entry[0], entry[1]
             if db is not None:
-                resolved, source = decompose_with_canonical(name.name, word_db, db)
+                resolved, source = decompose_with_canonical(name.name, word_db, db, region=region)
                 canonical_hits[source or "heuristic"] += 1
             else:
                 resolved = name
@@ -495,17 +506,17 @@ def rebuild_proportions(
     meanings_data = _load_meanings_data(meanings)
 
     names_data = json.loads(place_names.read_text())
-    names = load_names(names_data)
+    name_entries = load_names_with_regions(names_data)
     word_db, _ = load_meanings(meanings_data)
 
-    resolved_names, canonical_hits = _decompose_corpus(names, word_db, db_path)
+    resolved_names, canonical_hits = _decompose_corpus(name_entries, word_db, db_path)
     good_names = [n for n in resolved_names if n.count_unaccounted() == 0]
     word_names = sum(1 for n in resolved_names if n.has_name())
     word_saints = sum(1 for n in resolved_names if n.has_saint())
 
     summary = (
         f"culture={culture} perfect={len(good_names)} names={word_names} "
-        f"saints={word_saints} total={len(names)}"
+        f"saints={word_saints} total={len(name_entries)}"
     )
     if canonical_hits:
         breakdown = " ".join(f"{src}={n}" for src, n in sorted(canonical_hits.items()))
@@ -699,10 +710,10 @@ def unaccounted(
     meanings_data = _load_meanings_data(meanings)
 
     names_data = json.loads(place_names.read_text())
-    names = load_names(names_data)
+    name_entries = load_names_with_regions(names_data)
     word_db, _ = load_meanings(meanings_data)
 
-    resolved_names, canonical_hits = _decompose_corpus(names, word_db, db_path)
+    resolved_names, canonical_hits = _decompose_corpus(name_entries, word_db, db_path)
     fragments, examples_by_frag, imperfect_count = _aggregate_unaccounted_fragments(
         resolved_names, min_length=min_length, max_examples=examples
     )
@@ -720,6 +731,14 @@ def unaccounted(
             sources_dir,
         )
 
+    summary = (
+        f"culture={culture} imperfect_names={imperfect_count} unique_fragments={len(fragments)}"
+    )
+    if canonical_hits:
+        breakdown = " ".join(f"{src}={n}" for src, n in sorted(canonical_hits.items()))
+        summary += f" canonical[{breakdown}]"
+    click.echo(summary, err=True)
+
     if as_json:
         out = []
         for frag, count in top_fragments:
@@ -730,13 +749,6 @@ def unaccounted(
         click.echo(json.dumps(out, indent=2))
         return
 
-    summary = (
-        f"culture={culture} imperfect_names={imperfect_count} unique_fragments={len(fragments)}"
-    )
-    if canonical_hits:
-        breakdown = " ".join(f"{src}={n}" for src, n in sorted(canonical_hits.items()))
-        summary += f" canonical[{breakdown}]"
-    click.echo(summary, err=True)
     if evidence_by_frag:
         click.echo(f"{'fragment':<20} {'count':>6}  {'corpus':>6}  {'strong':>6}  examples")
     else:

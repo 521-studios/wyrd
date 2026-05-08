@@ -315,3 +315,38 @@ def load_names(data):
         if len(newnames) == 0 or newnames[-1] != name:
             newnames.append(str(name))
     return [Name(name) for name in newnames]
+
+
+def load_names_with_regions(data) -> list[tuple[Name, str | None]]:
+    """Like ``load_names`` but tags each Name with its region.
+
+    Used by consumers that pass region context into the canonical-pick
+    lookup (wyrd-8m87): same-modern_name-different-region collisions
+    in the lexicon DB get disambiguated by region rather than always
+    resolving to the lowest-id toponym row.
+
+    Names are deduplicated by surface (matching ``load_names`` so the
+    matcher doesn't double-count a 'Stratford' that shows up in two
+    counties); the FIRST (country, region) pair encountered in lex
+    order wins for the kept entry. Output is sorted alphabetically by
+    name. Country is consumed only as part of the deterministic
+    tiebreak — only region travels onward to the canonical lookup
+    (the lexicon's toponym schema doesn't index country yet).
+
+    Single-region corpora behave identically to ``load_names`` once
+    region info is dropped.
+    """
+    tagged: list[tuple[str, str, str]] = []
+    for country in data:
+        for region in data[country]:
+            for name in data[country][region]:
+                tagged.append((str(name), country, region))
+    tagged.sort()
+    out: list[tuple[Name, str | None]] = []
+    seen: set[str] = set()
+    for name, _country, region in tagged:
+        if name in seen:
+            continue
+        seen.add(name)
+        out.append((Name(name), region))
+    return out

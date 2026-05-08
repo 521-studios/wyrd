@@ -51,7 +51,7 @@ def test_unaccounted_json_output(tmp_path):
         ["unaccounted", "english", str(corpus), "--as-json", "--min-length", "2"],
     )
     assert result.exit_code == 0
-    data = json.loads(result.output)
+    data = json.loads(result.stdout)
     assert isinstance(data, list)
     assert all("fragment" in entry and "count" in entry for entry in data)
 
@@ -64,7 +64,7 @@ def test_unaccounted_respects_min_length(tmp_path):
         ["unaccounted", "english", str(corpus), "--as-json", "--min-length", "5"],
     )
     assert result.exit_code == 0
-    data = json.loads(result.output)
+    data = json.loads(result.stdout)
     assert all(len(entry["fragment"]) >= 5 for entry in data)
 
 
