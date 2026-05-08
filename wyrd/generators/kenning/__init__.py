@@ -326,12 +326,13 @@ _original_load_meanings_cache_clear = _load_meanings.cache_clear
 
 
 def _coupled_cache_clear() -> None:
-    """Clear ``_load_meanings``, ``_load_culture``, and
-    ``_load_joiners`` caches.
+    """Clear all per-bundle caches: ``_load_meanings``,
+    ``_load_culture``, ``_load_joiners``, ``_load_canonical_decompositions``.
 
-    The three caches form an aggregate: ``_load_culture`` holds a
-    ``NameGenerator`` parameterised on the ``meaning_db`` from
-    ``_load_meanings``; ``_load_joiners`` reads the same bundle.
+    These caches form an aggregate over a single ``meanings.json``
+    read: ``_load_culture`` holds a ``NameGenerator`` parameterised on
+    the ``meaning_db`` from ``_load_meanings``; ``_load_joiners`` and
+    ``_load_canonical_decompositions`` read the same bundle file.
     Invalidating one without the others yields a stale view next
     time. Replaces ``_load_meanings.cache_clear`` so the standard
     test-side pattern (``_load_meanings.cache_clear()``) clears all.
@@ -343,6 +344,7 @@ def _coupled_cache_clear() -> None:
     _original_load_meanings_cache_clear()
     _load_culture.cache_clear()
     _load_joiners.cache_clear()
+    _load_canonical_decompositions.cache_clear()
 
 
 # mypy flags reassigning a bound method on the lru_cache wrapper as
@@ -1017,13 +1019,16 @@ def _canonical_signature_for_words(words) -> str:
     The canonical map projected into the bundle (wyrd-h8k1) keys on
     this signature; KenningExplain re-derives it per candidate so the
     matching reading can be marked canonical and front-loaded.
+
+    Slot order mirrors ``decomposition._cross_product_decompositions``
+    (concat each Word.word list in word-iteration order, no filtering)
+    so populator + runtime payloads byte-match for the same parse.
+    Filtering empty-string slots here would diverge from the populator
+    and silently miss canonicals on edge-case Word.word lists.
     """
     flat: list = []
     for word in words:
-        for chunk in word.word:
-            if isinstance(chunk, str) and not chunk:
-                continue
-            flat.append(chunk)
+        flat.extend(word.word)
     return _signature_for_payload(_decomposition_payload(flat))
 
 
