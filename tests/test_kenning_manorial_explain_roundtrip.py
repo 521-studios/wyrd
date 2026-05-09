@@ -174,8 +174,11 @@ def test_synthesized_manorial_tokens_are_disjoint_from_main_bundle() -> None:
         .joinpath("irish_anglicizations.json")
         .read_text()
     )
+    # wyrd-c1vq: bundle is dict-shape; subjects under the 'subjects' key.
+    main_subjects = main["subjects"] if isinstance(main, dict) else main
+    sidecar_subjects = sidecar["subjects"] if isinstance(sidecar, dict) else sidecar
     pre_synthesis_usages: set[str] = set()
-    for source in (main, sidecar):
+    for source in (main_subjects, sidecar_subjects):
         for subject in source:
             for word in subject["words"]:
                 # Canonical-strip dashes so a subject like "-tun" can't

@@ -178,16 +178,33 @@ def _find_matches_at(
 
 def _location_allows(meaning: Any, start: int, end: int, word_length: int) -> bool:
     """Filter a candidate match by its Meaning's position constraint.
-    A 'pre' morpheme must start at position 0; a 'post' must end at
-    word_length; 'inner' (or unset) can match anywhere. Same anchor
-    semantics the original Rando-port iterator enforced before the
-    trie matcher superseded it."""
+
+    * ``pre`` — must start at position 0.
+    * ``post`` — must end at ``word_length``.
+    * ``inner`` — must be STRICTLY inner: ``start > 0`` AND
+      ``end < word_length``. Inner-only morphemes (those with dashes
+      on both sides like ``-don-``, ``-stone-``) only make sense as
+      compound infixes; allowing them at boundaries produced the
+      ``donhole`` / ``nwydmillate`` style outputs that wyrd-zewx
+      caught in the post-wyrd-eni4 bundle.
+    * unset / unknown — no anchor constraint (same permissive
+      fallback the original Rando-port iterator used for synthetic
+      test fixtures and edge-case Meaning subclasses).
+
+    The strict-inner rule means a 4-char word whose only matching
+    morpheme is inner-only has no decomposition via that morpheme;
+    the matcher falls back to the skip-one-char branch and emits
+    the chars as unaccounted. That's correct: the morpheme really
+    isn't a valid compound element for that input position.
+    """
     location = _location_for(meaning)
     if location == "pre":
         return start == 0
     if location == "post":
         return end == word_length
-    # 'inner' (or anything else) — no anchor constraint.
+    if location == "inner":
+        return start > 0 and end < word_length
+    # Unknown / synthetic — no anchor constraint.
     return True
 
 

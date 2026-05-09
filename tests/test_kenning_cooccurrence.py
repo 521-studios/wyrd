@@ -42,12 +42,15 @@ def test_proportions_now_emits_tag_cooccurrence_keys():
     assert "tag_marginal" in out
 
 
-def test_ordered_tag_pairs_within_compound():
-    """Ashton = Ash- + -ton; the ordered pair carries both tags."""
-    word_db = _build_word_db()
-    name = Name("Ashton")  # decomposes cleanly into Ash- + -ton
-    name.find_meaning(word_db)
-    pairs = _ordered_tag_pairs(name)
+def test_ordered_tag_pairs_within_compound(bundle_swapper, explain_test_bundle):
+    """Ashton = Ash- + -ton; the ordered pair carries both tags.
+    Pinned against the fixture so the tag-pair shape doesn't drift
+    as the live bundle's morpheme tags evolve."""
+    with bundle_swapper(explain_test_bundle):
+        word_db, _ = load_meanings(explain_test_bundle)
+        name = Name("Ashton")  # decomposes cleanly into Ash- + -ton
+        name.find_meaning(word_db)
+        pairs = _ordered_tag_pairs(name)
     # Pairs should be tuples of (left_tags, right_tags) lists
     assert len(pairs) >= 1
     for left_tags, right_tags in pairs:

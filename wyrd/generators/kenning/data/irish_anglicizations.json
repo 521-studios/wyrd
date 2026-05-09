@@ -5,7 +5,8 @@
     "modifier_type": "Architectural",
     "words": [
       {"modern_usage": "Bally-", "celtic_mix": ["baile"]},
-      {"modern_usage": "-bally-", "celtic_mix": ["baile"]}
+      {"modern_usage": "-bally-", "celtic_mix": ["baile"]},
+      {"modern_usage": "-bally", "celtic_mix": ["baile"]}
     ]
   },
   {
@@ -14,7 +15,8 @@
     "modifier_type": "Topographical",
     "words": [
       {"modern_usage": "Cloon-", "celtic_mix": ["cluain"]},
-      {"modern_usage": "-cloon-", "celtic_mix": ["cluain"]}
+      {"modern_usage": "-cloon-", "celtic_mix": ["cluain"]},
+      {"modern_usage": "-cloon", "celtic_mix": ["cluain"]}
     ]
   },
   {
@@ -23,7 +25,8 @@
     "modifier_type": "Religious",
     "words": [
       {"modern_usage": "Kil-", "celtic_mix": ["cill"]},
-      {"modern_usage": "Kill-", "celtic_mix": ["cill"]}
+      {"modern_usage": "Kill-", "celtic_mix": ["cill"]},
+      {"modern_usage": "-kil", "celtic_mix": ["cill"]}
     ]
   },
   {
@@ -32,7 +35,8 @@
     "modifier_type": "Topographical",
     "words": [
       {"modern_usage": "Knock-", "celtic_mix": ["cnoc"]},
-      {"modern_usage": "-knock-", "celtic_mix": ["cnoc"]}
+      {"modern_usage": "-knock-", "celtic_mix": ["cnoc"]},
+      {"modern_usage": "-knock", "celtic_mix": ["cnoc"]}
     ]
   },
   {
@@ -41,7 +45,9 @@
     "modifier_type": "Architectural",
     "words": [
       {"modern_usage": "Lis-", "celtic_mix": ["lios"]},
-      {"modern_usage": "Liss-", "celtic_mix": ["lios"]}
+      {"modern_usage": "Liss-", "celtic_mix": ["lios"]},
+      {"modern_usage": "-lis", "celtic_mix": ["lios"]},
+      {"modern_usage": "-liss", "celtic_mix": ["lios"]}
     ]
   },
   {
