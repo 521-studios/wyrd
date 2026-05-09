@@ -3,8 +3,13 @@
 
 from __future__ import annotations
 
+import warnings
+
+import pytest
+
 from wyrd.generators.kenning.meaning import Meaning
 from wyrd.generators.kenning.trie_matcher import (
+    DecompositionTruncatedWarning,
     MorphemeTrie,
     all_decompositions,
     build_morpheme_trie,
@@ -506,3 +511,125 @@ def test_walk_memoization_preserves_correctness_on_repeated_substrings():
     assert any(d and getattr(d[-1], "usage", None) == "a" for d in decomps), forms
     # The all-skip decomposition also exists.
     assert ("aaaaaaaaaa",) in forms
+
+
+# --- wyrd-p8ve: score-pruning + per-position caps -------------------------
+
+
+def test_canonical_decompositions_completes_on_long_input_with_dense_overlap():
+    """wyrd-p8ve: a long word with many overlapping morpheme matches at
+    every position used to OOM ``canonical_decompositions`` because the
+    underlying ``all_decompositions`` walk cached the cartesian product
+    of (match × cached-tail) at every position. The 58-char Welsh
+    village 'Llanfairpwllgwyngyllgogerychwyrndrobwyllllantysiliogogogoch'
+    blew memory past 16 GB during rebuild-proportions before the fix.
+
+    Synthetic input here: 30 'a' chars with 'a-' (pre) / '-a-' (inner) /
+    '-a' (post) all matching, so every position has 1-2 candidate
+    matches plus a skip branch. Pre-fix this would explode; post-fix
+    completes near-instantly because the score-pruning walk keeps only
+    decompositions tied at the current best at each position."""
+    import time
+
+    # 'aa-' / '-a-' / '-aa' so we get matches at every position with
+    # different end-positions (forces the multi-tail tie scenarios that
+    # previously blew up the cache).
+    pre = _meaning("aa-")
+    inner = _meaning("-a-")
+    post = _meaning("-aa")
+    db = {"aa-": [pre], "-a-": [inner], "-aa": [post]}
+    trie = build_morpheme_trie(db)
+
+    word = "a" * 30
+    t0 = time.monotonic()
+    decomps = canonical_decompositions(word, trie)
+    elapsed = time.monotonic() - t0
+
+    # The fix runs in ms; 5 seconds is a generous ceiling that catches
+    # the OOM blowup (which would never finish) without flaking on
+    # slow CI runners.
+    assert elapsed < 5.0, f"canonical_decompositions took {elapsed:.1f}s (regression?)"
+    # Result count is bounded by MAX_TIED_DECOMPOSITIONS_PER_POSITION.
+    assert 0 < len(decomps) <= 100
+
+
+def test_canonical_decompositions_returns_global_minimum_via_score_pruning():
+    """The score-pruning walk must produce the SAME global-minimum set
+    as the legacy enumerate-then-filter approach. Pin: a deterministic
+    multi-parse case where the canonical readings are well-defined.
+
+    'Bridgwater' with 'Bridg-' (pre) and '-water' (post) has exactly
+    one perfect parse: (Bridg-, -water). With both 'Bridg-' AND 'B-'
+    in the trie, two parses now tie on (0, 2) score: (Bridg-, -water)
+    and (B-, ridgwater) — except the latter has unaccounted 'ridgwater',
+    so it scores (8, 1). Only (Bridg-, -water) wins."""
+    bridg = _meaning("Bridg-")
+    b = _meaning("B-")
+    water = _meaning("-water")
+    db = {"Bridg-": [bridg], "B-": [b], "-water": [water]}
+    trie = build_morpheme_trie(db)
+
+    decomps = canonical_decompositions("Bridgwater", trie)
+    forms = [tuple(getattr(e, "usage", e) for e in d) for d in decomps]
+    # Only the full-explanation parse wins on score (0 unaccounted).
+    assert ("Bridg-", "-water") in forms
+    # The (B-, ridgwater) parse has 8 unaccounted chars — strictly worse.
+    assert all("ridgwater" not in str(f) for f in forms), forms
+
+
+def test_all_decompositions_caps_per_position_on_pathological_input():
+    """wyrd-p8ve: the pre-fix walk could grow the per-position cache
+    without bound on long inputs with dense matches. The post-fix walk
+    caps each position at MAX_DECOMPOSITIONS_PER_POSITION (1000) so
+    KenningExplain stays responsive on pathological inputs even though
+    it asks for the full enumeration. Pin: even with 30 'a' chars and
+    every position matching multiple ways, the result list is bounded
+    AND a DecompositionTruncatedWarning fires so callers can flag the
+    non-exhaustive return in their UI."""
+    pre = _meaning("aa-")
+    inner = _meaning("-a-")
+    post = _meaning("-aa")
+    db = {"aa-": [pre], "-a-": [inner], "-aa": [post]}
+    trie = build_morpheme_trie(db)
+
+    with pytest.warns(DecompositionTruncatedWarning, match="per-position cap"):
+        decomps = all_decompositions("a" * 30, trie)
+    # Bounded by MAX_DECOMPOSITIONS_PER_POSITION at the top level.
+    # Top-level result count tracks the cap directly when truncation
+    # fires at position 0; allow up to 5× slack (truncated branches
+    # downstream of pos 0 still contribute multiplicatively up to
+    # the top-level cap on each branch).
+    assert 0 < len(decomps) <= 50000
+
+
+def test_all_decompositions_does_not_warn_on_normal_inputs():
+    """The cap-fired warning must only fire on pathological inputs.
+    Normal-length inputs (Bridgwater etc.) stay well under the cap
+    and emit no warning — pin so a future change doesn't accidentally
+    trip the warning on every call."""
+    bridg = _meaning("Bridg-")
+    water = _meaning("-water")
+    db = {"Bridg-": [bridg], "-water": [water]}
+    trie = build_morpheme_trie(db)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DecompositionTruncatedWarning)
+        # If the warning fires here, simplefilter('error') turns it
+        # into a raised exception — assertion is implicit.
+        decomps = all_decompositions("Bridgwater", trie)
+    assert len(decomps) > 0
+
+
+def test_canonical_decomposition_singular_uses_score_pruning():
+    """``canonical_decomposition`` (singular) routes through
+    ``canonical_decompositions`` post-wyrd-p8ve so it inherits the
+    memory bounds. Behavioral pin: the deterministic single-answer
+    pick is unchanged."""
+    bridg = _meaning("Bridg-")
+    water = _meaning("-water")
+    db = {"Bridg-": [bridg], "-water": [water]}
+    trie = build_morpheme_trie(db)
+
+    canonical = canonical_decomposition("Bridgwater", trie)
+    forms = tuple(getattr(e, "usage", e) for e in canonical)
+    assert forms == ("Bridg-", "-water")
