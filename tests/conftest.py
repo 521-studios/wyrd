@@ -23,41 +23,66 @@ guards, not behavioural pins.
 
 from __future__ import annotations
 
-import json
+import functools
 from collections.abc import Iterator
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
 import wyrd.generators.kenning as kenning_mod
+from wyrd.generators.kenning.meaning import (
+    load_canonical_decompositions,
+    load_fantasy_morphemes,
+    load_joiners,
+    load_meanings,
+)
 
 
 @contextmanager
 def swap_bundle(fixture_data: dict[str, Any] | list) -> Iterator[None]:
-    """Temporarily replace the runtime ``meanings.json`` bundle with
-    ``fixture_data`` for the duration of a test.
+    """Run a test against ``fixture_data`` instead of the live
+    runtime ``meanings.json`` bundle.
 
-    Writes the fixture to ``wyrd/generators/kenning/data/meanings.json``
-    (the same path ``importlib.resources`` resolves), clears the
-    coupled bundle caches (``_load_meanings``, ``_load_culture``,
+    Patches the lru-cached top-level loaders (``_load_meanings``,
     ``_load_joiners``, ``_load_canonical_decompositions``,
-    ``_load_fantasy_morphemes``), runs the test body, then restores
-    the original on exit.
+    ``_load_fantasy_morphemes``) with stub functions whose return
+    values come from ``load_meanings(fixture_data)`` etc. directly.
+    Doesn't write anywhere on disk — earlier versions of this helper
+    overwrote the source-tree ``meanings.json`` then restored it in a
+    ``finally`` block, but a hard interrupt between the write and the
+    restore could leave the repo with the fixture corrupt-overwriting
+    the real bundle. Mock-patching avoids that whole class of risk.
+
+    Stubs are wrapped in ``functools.lru_cache(maxsize=1)`` so they
+    expose a real ``cache_clear`` attribute — preserves the
+    ``_load_meanings.cache_clear()`` call protocol that tests use to
+    invalidate caches between scenarios. Production code does not
+    call ``cache_clear`` (verified via grep), so the patch is fully
+    transparent to runtime callers.
 
     Use the dict-shape (``{"subjects": [...], ...}``) per wyrd-c1vq;
-    list-shape input also accepted for legacy back-compat.
+    list-shape input also accepted for legacy back-compat by
+    ``load_meanings``.
     """
-    bundle_path = Path(kenning_mod.__file__).parent / "data" / "meanings.json"
-    original = bundle_path.read_text()
-    try:
-        bundle_path.write_text(json.dumps(fixture_data))
-        kenning_mod._coupled_cache_clear()
+    fake_meanings = load_meanings(fixture_data)
+    fake_joiners = load_joiners(fixture_data)
+    fake_canonical = load_canonical_decompositions(fixture_data)
+    fake_fantasy = load_fantasy_morphemes(fixture_data)
+
+    fake_load_meanings = functools.lru_cache(maxsize=1)(lambda: fake_meanings)
+    fake_load_joiners = functools.lru_cache(maxsize=1)(lambda: fake_joiners)
+    fake_load_canonical = functools.lru_cache(maxsize=1)(lambda: fake_canonical)
+    fake_load_fantasy = functools.lru_cache(maxsize=1)(lambda: fake_fantasy)
+
+    with (
+        patch.object(kenning_mod, "_load_meanings", fake_load_meanings),
+        patch.object(kenning_mod, "_load_joiners", fake_load_joiners),
+        patch.object(kenning_mod, "_load_canonical_decompositions", fake_load_canonical),
+        patch.object(kenning_mod, "_load_fantasy_morphemes", fake_load_fantasy),
+    ):
         yield
-    finally:
-        bundle_path.write_text(original)
-        kenning_mod._coupled_cache_clear()
 
 
 def _word(modern_usage: str, **lang_forms: list[str]) -> dict:

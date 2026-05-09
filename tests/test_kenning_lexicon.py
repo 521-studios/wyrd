@@ -280,15 +280,17 @@ def test_seed_against_bundled_meanings(fresh_db: Path) -> None:
         seed_from_meanings(db, data, "rando-port")
         stats = db.stats()
 
-    # Wide bounds — ingest produces N reflexes / etymons proportional
-    # to bundle size. Upper bound chosen ~2× current to absorb routine
-    # churn without forcing a rebuild + rerun on every mining run.
-    assert 1500 < stats["reflex"] < 50000
+    # Bounds calibrated against the post-wyrd-eni4 bundle (8490
+    # subjects, ~12.9K reflexes, ~14.6K etymons). Floors set at
+    # ~50% of current to catch a meaningful regression (e.g. ingest
+    # silently dropping half the bundle) without re-tuning on every
+    # mining session. Ceilings ~2× to absorb routine growth.
+    assert 6000 < stats["reflex"] < 50000
     # Etymons are grouped by (form, language). Pre-wyrd-eni4 the bundle
     # was OE/ON-dominated so etymons < reflexes; post-cluster-expansion
     # each modern_usage maps to many ancestor-language etymons, so the
-    # relationship inverts. Just pin the positive lower bound.
-    assert 500 < stats["etymon"] < 100000
+    # relationship inverts. Floor at ~7K (~50% of current).
+    assert 7000 < stats["etymon"] < 100000
     # Every etymon has at least one citation back to rando-port.
     assert stats["etymon_citation"] == stats["etymon"]
 

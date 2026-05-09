@@ -607,7 +607,11 @@ class NameGenerator:
                 if not pool:
                     keys.append(None)
                     continue
-                picked = pool[0]
+                # rng.choice always returns a usage; the loop's job is
+                # to retry up to 3 times if it's an adjacent dupe of
+                # the previous slot's pick. After the loop the latest
+                # picked stands either way (3rd-attempt dupe accepted
+                # rather than infinite-loop on a single-element pool).
                 for _ in range(3):
                     picked = rng.choice(pool)
                     if picked != prev_picked:
