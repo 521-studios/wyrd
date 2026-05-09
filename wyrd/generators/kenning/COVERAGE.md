@@ -163,13 +163,17 @@ score-prune during the canonical_decompositions walk) and
 wyrd-v8x0 (re-add the village post-fix). Pragmatic call: the rest
 of the corpus completes cleanly; the village restore comes later.
 
-| culture  | perfect | total  | rate    | Δ pp vs baseline | Δ pp vs prior (2026-05-07) |
-|----------|--------:|-------:|--------:|-----------------:|---------------------------:|
-| english  |   12686 | 17876  | 71.0%   |            +42.7 |                      +35.9 |
-| scottish |    1526 | 2321   | 65.7%   |            +47.4 |                      +40.6 |
-| welsh    |    1312 | 1915   | 68.5%   |            +53.4 |                      +45.0 |
-| irish    |   17565 | 34041  | 51.6%   |            +41.6 |                      +33.9 |
-| breton   |     221 | 1208   | 18.3%   |              new |                      +16.1 |
+| culture  | perfect | total  | rate    | Δ pp vs baseline | Δ pp vs prior |
+|----------|--------:|-------:|--------:|-----------------:|--------------:|
+| english  |   12686 | 17876  | 71.0%   |            +42.7 |         +35.9 |
+| scottish |    1526 | 2321   | 65.7%   |            +47.4 |         +40.6 |
+| welsh    |    1312 | 1915   | 68.5%   |            +53.4 |         +45.0 |
+| irish    |   17565 | 34041  | 51.6%   |            +41.6 |         +33.9 |
+| breton   |     221 | 1208   | 18.3%   |              new |         +16.1 |
+
+(Per-culture priors vary: English / Scottish / Welsh from
+2026-05-05 post-wyrd-4hx7; Irish from 2026-05-07 post-wyrd-1cjg;
+Breton is genuinely new — no prior snapshot.)
 
 What landed in the lift: the bundle's morpheme inventory grew 4.5×,
 so far more place-name fragments have a registered match. The
