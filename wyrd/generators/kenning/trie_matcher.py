@@ -61,9 +61,19 @@ decomposition can be rendered back without losing case info.
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
+
+
+class DecompositionTruncatedWarning(UserWarning):
+    """Raised by ``all_decompositions`` when its per-position result
+    cap fires — the returned list is a non-exhaustive subset of the
+    full enumeration. Callers like KenningExplain that surface 'every
+    valid reading' to the user MAY want to flag the truncation in
+    their UI; most callers can ignore the warning. The actual cap
+    constant is ``MAX_DECOMPOSITIONS_PER_POSITION``."""
 
 
 @dataclass(eq=False)
@@ -218,7 +228,15 @@ def _location_allows(meaning: Any, start: int, end: int, word_length: int) -> bo
 # cache never grows the cartesian product in the first place; the
 # tie cap is a defensive fallback for cases where many decompositions
 # legitimately tie at the same score.
-MAX_DECOMPOSITIONS_PER_POSITION = 1000
+# Cap chosen to be high enough that NORMAL inputs (typical place
+# names against the live ~8500-subject bundle) never trip it —
+# 'Westminster' against the live bundle generates several thousand
+# decompositions, so 1000 was too low. 10000 gives ~10× headroom
+# while still bounding pathological cases (the 58-char Welsh village
+# was the OOM trigger). Worst-case memory at cap × max_decomp_len ×
+# n_positions is ~30 MB even at the cap on a long input — safe vs
+# the 16+ GB pre-fix blowup.
+MAX_DECOMPOSITIONS_PER_POSITION = 10000
 MAX_TIED_DECOMPOSITIONS_PER_POSITION = 100
 
 
@@ -243,6 +261,20 @@ def all_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
     The skip path is what makes the matcher tolerant of unrecognized
     fragments — a name with one matchable morpheme and unrecognized
     surrounding chars still produces a usable partial decomposition.
+
+    wyrd-p8ve: per-position result list is capped at
+    ``MAX_DECOMPOSITIONS_PER_POSITION`` so adversarial / very long
+    inputs (the 58-char Welsh village name was the trigger) can't
+    blow memory. When the cap fires the returned list is a
+    deterministic non-exhaustive subset of the full enumeration —
+    a ``DecompositionTruncatedWarning`` is raised so callers like
+    KenningExplain that surface 'every valid reading' to the user
+    can flag the truncation in their UI. Most callers can ignore
+    the warning; the bit-stable subset is still a valid partial
+    answer. ``canonical_decompositions`` (the score-pruning path) is
+    the right entry point for callers that only need the best parses
+    — its memory is bounded by score-pruning regardless of input
+    length, so it doesn't trip the cap or emit the warning.
     """
     n = len(word)
     if n == 0:
@@ -252,6 +284,7 @@ def all_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
     # ``pos`` alone because ``word`` and ``trie`` are loop-invariant
     # in the closure — the suffix is fully determined by the position.
     cache: dict[int, list[list[Any]]] = {}
+    truncated = [False]  # Closure-mutable flag — set if the cap ever fired.
 
     def walk(pos: int) -> list[list[Any]]:
         if pos == n:
@@ -266,6 +299,7 @@ def all_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
                 continue
             for tail in walk(end):
                 if len(results) >= MAX_DECOMPOSITIONS_PER_POSITION:
+                    truncated[0] = True
                     break
                 results.append([meaning, *tail])
             if len(results) >= MAX_DECOMPOSITIONS_PER_POSITION:
@@ -277,12 +311,23 @@ def all_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
         if len(results) < MAX_DECOMPOSITIONS_PER_POSITION:
             for tail in walk(pos + 1):
                 if len(results) >= MAX_DECOMPOSITIONS_PER_POSITION:
+                    truncated[0] = True
                     break
                 results.append([word[pos], *tail])
         cache[pos] = results
         return results
 
     raw = walk(0)
+    if truncated[0]:
+        warnings.warn(
+            f"all_decompositions on {word!r} (len={n}) hit the "
+            f"per-position cap of {MAX_DECOMPOSITIONS_PER_POSITION}; "
+            f"returned list is a deterministic but non-exhaustive subset. "
+            f"Use canonical_decompositions for memory-bounded best-parse "
+            f"enumeration, or raise the cap if exhaustiveness matters here.",
+            DecompositionTruncatedWarning,
+            stacklevel=2,
+        )
     # Compress runs of single-character unaccounted strings into one
     # contiguous string — the legacy matcher's output shape.
     return [_compact_unaccounted(d) for d in raw]
@@ -409,10 +454,11 @@ def canonical_decomposition(word: str, trie: MorphemeTrie) -> list[Any]:
     inherits the score-pruning walk's memory bounds. The (un, mor)
     tied set is small enough that applying the first-meaning-pos
     tiebreaker via ``min`` over the tied list is O(K) with K << N.
+    ``canonical_decompositions`` is guaranteed to return at least one
+    decomposition (``[[]]`` for empty input, ``[[word]]`` for no
+    matches), so no empty-list guard is needed before ``min``.
     """
     decompositions = canonical_decompositions(word, trie)
-    if not decompositions:
-        return [word]
     return min(decompositions, key=_decomposition_score)
 
 

@@ -3,8 +3,13 @@
 
 from __future__ import annotations
 
+import warnings
+
+import pytest
+
 from wyrd.generators.kenning.meaning import Meaning
 from wyrd.generators.kenning.trie_matcher import (
+    DecompositionTruncatedWarning,
     MorphemeTrie,
     all_decompositions,
     build_morpheme_trie,
@@ -578,20 +583,41 @@ def test_all_decompositions_caps_per_position_on_pathological_input():
     caps each position at MAX_DECOMPOSITIONS_PER_POSITION (1000) so
     KenningExplain stays responsive on pathological inputs even though
     it asks for the full enumeration. Pin: even with 30 'a' chars and
-    every position matching multiple ways, the result list is bounded."""
+    every position matching multiple ways, the result list is bounded
+    AND a DecompositionTruncatedWarning fires so callers can flag the
+    non-exhaustive return in their UI."""
     pre = _meaning("aa-")
     inner = _meaning("-a-")
     post = _meaning("-aa")
     db = {"aa-": [pre], "-a-": [inner], "-aa": [post]}
     trie = build_morpheme_trie(db)
 
-    decomps = all_decompositions("a" * 30, trie)
+    with pytest.warns(DecompositionTruncatedWarning, match="per-position cap"):
+        decomps = all_decompositions("a" * 30, trie)
     # Bounded by MAX_DECOMPOSITIONS_PER_POSITION at the top level.
-    # Allow a small slack — the cap fires per-position during the walk;
-    # the final list size depends on which positions hit the cap and
-    # how the cartesian-product accumulates downstream of those caps.
-    # The point of the test is 'doesn't blow up', not the exact bound.
-    assert 0 < len(decomps) < 5000
+    # Top-level result count tracks the cap directly when truncation
+    # fires at position 0; allow up to 5× slack (truncated branches
+    # downstream of pos 0 still contribute multiplicatively up to
+    # the top-level cap on each branch).
+    assert 0 < len(decomps) <= 50000
+
+
+def test_all_decompositions_does_not_warn_on_normal_inputs():
+    """The cap-fired warning must only fire on pathological inputs.
+    Normal-length inputs (Bridgwater etc.) stay well under the cap
+    and emit no warning — pin so a future change doesn't accidentally
+    trip the warning on every call."""
+    bridg = _meaning("Bridg-")
+    water = _meaning("-water")
+    db = {"Bridg-": [bridg], "-water": [water]}
+    trie = build_morpheme_trie(db)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DecompositionTruncatedWarning)
+        # If the warning fires here, simplefilter('error') turns it
+        # into a raised exception — assertion is implicit.
+        decomps = all_decompositions("Bridgwater", trie)
+    assert len(decomps) > 0
 
 
 def test_canonical_decomposition_singular_uses_score_pruning():
