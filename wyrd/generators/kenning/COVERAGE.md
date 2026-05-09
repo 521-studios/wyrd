@@ -187,6 +187,39 @@ wyrd-v8x0 (restore Llanfairpwll... post-fix). Every code-side
 ticket on the gap-closing epic is closed; the bundle re-emit
 captured here is the artifact the epic produced.
 
+### 2026-05-09 — wyrd-zewx (strict-inner matcher fix)
+
+Tightened ``_location_allows`` so inner-only morphemes (those with
+dashes on both sides like ``-don-``, ``-stone-``) match STRICTLY
+inside (start>0 AND end<len) rather than the previous "anywhere"
+semantics. Combined with the wyrd-a4p5 adjacent-duplicate fix and
+the wyrd-c0xn description-text cleanup. Generation output post-fix
+no longer produces 'donhole' / 'nwydmillate' / 'port port' style
+artifacts.
+
+| culture  | perfect | total  | rate   | Δ pp vs prior (2026-05-08) |
+|----------|--------:|-------:|-------:|---------------------------:|
+| english  |   12341 | 17876  | 69.0%  |                       -2.0 |
+| scottish |    1446 | 2321   | 62.3%  |                       -3.4 |
+| welsh    |    1263 | 1915   | 65.9%  |                       -2.6 |
+| irish    |   16369 | 34041  | 48.1%  |                       -3.5 |
+| breton   |     181 | 1208   | 15.0%  |                       -3.3 |
+
+The 1.9-3.5pp drops reflect place names that previously decomposed
+ONLY via inner-at-boundary matches (e.g. a name like 'Donhole' that
+matched as ``-don-`` + ``-hole-``). Those names now stay partially
+unaccounted at the boundary positions — correct, since inner
+morphemes shouldn't be the first or last element of a compound.
+The drop is pure generation-quality wins traded for a small
+decomposition-rate loss.
+
+Sidecar update: ``irish_anglicizations.json`` gained ``-bally``,
+``-cloon``, ``-kil``, ``-knock``, ``-lis``, ``-liss`` (all post)
+since the previous file relied on the permissive inner semantics
+to cover word-end positions. With strict-inner, post variants are
+now needed explicitly for prefixes that legitimately appear at
+word-end (Ballyknock = Bally- + -knock).
+
 ## How to record a new snapshot
 
 After a bundle re-emit (`wyrd kenning lexicon export-meanings` →

@@ -524,22 +524,33 @@ class NameGenerator:
     ):
         words = []
         prior_tags: set[str] = set()
+        # wyrd-a4p5: track the most-recently-picked usage so adjacent
+        # slots (within OR across words) don't dupe — 'port port' /
+        # 'les les' artifacts visible in post-wyrd-eni4 generation.
+        # Three re-roll attempts; if a tiny bucket can only deliver
+        # the same usage we accept the dupe rather than infinite-loop.
+        prev_picked: str | None = None
         for w in struct:
             keys = []
             for key in w:
                 key_boost = self._cohesion_boost(key, prior_tags, cohesion, keep_keys=keep_keys)
-                picked = self.meaning_gen.select(
-                    rng,
-                    key,
-                    novelty=novelty,
-                    harshness=harshness,
-                    exclude_tags=exclude_tags,
-                    keep_keys=keep_keys,
-                    key_boost=key_boost,
-                )
+                picked = None
+                for _ in range(3):
+                    picked = self.meaning_gen.select(
+                        rng,
+                        key,
+                        novelty=novelty,
+                        harshness=harshness,
+                        exclude_tags=exclude_tags,
+                        keep_keys=keep_keys,
+                        key_boost=key_boost,
+                    )
+                    if picked is None or picked != prev_picked:
+                        break
                 keys.append(picked)
                 if picked is not None:
                     prior_tags.update(self._tags_for_usage(picked))
+                    prev_picked = picked
             words.append(keys)
         return NewName(struct, self.meaning_db, words)
 
@@ -579,6 +590,12 @@ class NameGenerator:
                 )
             )
         words = []
+        # wyrd-a4p5: track the most-recently-picked usage across the
+        # merged pools so the per-slot rng.choice doesn't produce
+        # adjacent dupes ('port port' / 'les les'). Three re-roll
+        # attempts on tied pools; accept the dupe if the pool only
+        # contains the dupe.
+        prev_picked: str | None = None
         for i in range(len(struct)):
             keys = []
             for j in range(len(struct[i])):
@@ -589,8 +606,14 @@ class NameGenerator:
                         pool.append(e)
                 if not pool:
                     keys.append(None)
-                else:
-                    keys.append(rng.choice(pool))
+                    continue
+                picked = pool[0]
+                for _ in range(3):
+                    picked = rng.choice(pool)
+                    if picked != prev_picked:
+                        break
+                keys.append(picked)
+                prev_picked = picked
             words.append(keys)
         return NewName(struct, self.meaning_db, words)
 
@@ -760,6 +783,10 @@ class NewName:
         return repr(words)
 
     def description(self):
+        # wyrd-c0xn: one entry per line, gloss block only — citations
+        # ride in components() for the SPA's expandable citation box.
+        # The CLI human-readable text channel stays scannable instead
+        # of a dense citation-laden paragraph.
         results = []
         for wi, word in enumerate(self.name):
             single = len(word) == 1
@@ -770,14 +797,9 @@ class NewName:
                 label = self._inflection_label_for(wi, ei)
                 head = f"{lemma}@{label}" if label else lemma
                 meanings = [self._find_meaning(m) for m in self.meaning_db[e]]
-                citations = _collect_citations(self.meaning_db[e])
                 gloss_block = " or ".join(meanings)
-                if citations:
-                    cite_block = f"; cited by {_format_citations_for_description(citations)}"
-                else:
-                    cite_block = ""
-                results.append(f"{head} ({gloss_block}{cite_block})")
-        return " ".join(results)
+                results.append(f"{head} ({gloss_block})")
+        return "\n".join(results)
 
     def _inflection_label_for(self, wi: int, ei: int) -> str | None:
         if self.inflection_labels is None:

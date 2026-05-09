@@ -524,8 +524,10 @@ def test_description_handles_mixed_labels_within_word():
         inflection_labels=[[None, "genitive_strong"]],
     )
     # Multi-element words keep dashes in the head per the existing
-    # description() shape.
-    assert new_name.description() == "Bridg- (EN bridge) -water@genitive_strong (EN water)"
+    # description() shape. wyrd-c0xn: each etymon on its own line
+    # (newline-separated) and no inline citations — citations live
+    # in components() for the SPA's expandable box.
+    assert new_name.description() == "Bridg- (EN bridge)\n-water@genitive_strong (EN water)"
 
 
 def test_description_inflection_labels_shorter_than_name_does_not_crash():
@@ -549,12 +551,17 @@ def test_description_inflection_labels_shorter_than_name_does_not_crash():
     assert new_name.description() == "cot (EN cottage)"
 
 
-# --- wyrd-9kh.1: citation surfacing in description() / components() ----
+# --- wyrd-c0xn: description() is now newline-joined gloss-only. Citations
+# stay in components() for the SPA's expandable citation box (see
+# test_components_includes_citation_list below). The previous wyrd-9kh.1
+# tests that pinned 'cited by ...' INSIDE description() were removed
+# along with that codepath; coverage now lives in the components-side
+# tests below.
 
 
-def test_description_surfaces_citations_when_present():
-    """When a Meaning carries scholarly citations, description() appends
-    'cited by <list>' to the breakdown line."""
+def test_description_omits_citation_block():
+    """description() carries gloss only — no inline citations regardless
+    of whether the Meaning has them. wyrd-c0xn."""
     from wyrd.generators.kenning.meaning import Meaning
     from wyrd.generators.kenning.proportions import NewName
 
@@ -570,58 +577,14 @@ def test_description_surfaces_citations_when_present():
         meaning_db={"-cot": [m]},
         name=[["-cot"]],
     )
-    assert new_name.description() == "cot (EN cottage; cited by mawer_1920, skeat_1901)"
-
-
-def test_description_omits_citation_block_when_absent():
-    """A Meaning with no citations gets the historic shape — no trailing
-    'cited by' clutters the explainer for legacy rando-only morphemes."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import NewName
-
-    m = Meaning("-cot", [], ["cottage"], {"old_english": ["cot"]})
-    new_name = NewName(
-        struct=None,
-        meaning_db={"-cot": [m]},
-        name=[["-cot"]],
-    )
     assert new_name.description() == "cot (EN cottage)"
 
 
-def test_description_dedupes_citations_across_languages():
-    """A Meaning with citations under multiple languages (rare but possible
-    when the family spans both — e.g., a Welsh-Marches morpheme cited for
-    both its OE and Welsh attestations) emits each source once, sorted."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import NewName
-
-    m = Meaning(
-        "-allt",
-        [],
-        ["wood"],
-        {"old_english": ["allt"], "celtic_mix": ["allt"]},
-        citations={
-            "old_english": ["bannister_1916", "morgan_1912"],
-            "celtic_mix": ["morgan_1912", "watson_1926"],
-        },
-    )
-    new_name = NewName(
-        struct=None,
-        meaning_db={"-allt": [m]},
-        name=[["-allt"]],
-    )
-    # bannister_1916, morgan_1912 (deduped), watson_1926 — sorted alpha,
-    # at the 3-citation limit so all three render without truncation.
-    assert new_name.description() == (
-        "allt (EN/CL wood; cited by bannister_1916, morgan_1912, watson_1926)"
-    )
-
-
-def test_description_truncates_long_citation_lists_with_count():
-    """Words like '-ham' carry 18+ citations from the well-mined OE corpus.
-    The explainer surfaces the first three with '(+N more)' so the
-    breakdown stays readable; components() keeps the full list for SPA
-    rendering."""
+def test_components_carries_full_citation_list_unchanged():
+    """The components() envelope still surfaces the full citation list
+    (not truncated) so the SPA can render attribution per element. The
+    description-side truncation that wyrd-9kh.1 introduced was removed
+    along with description-side citations entirely (wyrd-c0xn)."""
     from wyrd.generators.kenning.meaning import Meaning
     from wyrd.generators.kenning.proportions import NewName
 
@@ -638,9 +601,6 @@ def test_description_truncates_long_citation_lists_with_count():
         meaning_db={"-ham": [m]},
         name=[["-ham"]],
     )
-    # 7 citations → top 3 + '(+4 more)'.
-    assert new_name.description() == "ham (EN home; cited by src_00, src_01, src_02 (+4 more))"
-    # components() carries the full list — the truncation is display-only.
     components = new_name.components()
     assert components[0]["citations"] == sources
 

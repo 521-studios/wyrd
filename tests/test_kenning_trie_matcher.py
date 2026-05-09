@@ -105,23 +105,22 @@ def test_multi_decomposition_when_morpheme_has_multiple_senses():
 
 
 def test_multi_decomposition_when_two_morphemes_match_same_position():
-    """Trie carries '-ham-' AND '-hamlet-' (both inner — no position
-    constraint). Walking 'hamlet' from pos 0 finds BOTH (at end=3
-    and end=6). All_decompositions must surface every parse:
-    '-ham- + let' (with 'let' unaccounted) AND '-hamlet-' (full match).
-    Inner morphemes here so position-constraint filtering doesn't
-    suppress one of the matches — the multi-parse axis is what's
-    being tested."""
-    ham = _meaning("-ham-")
-    hamlet = _meaning("-hamlet-")
-    db = {"-ham-": [ham], "-hamlet-": [hamlet]}
+    """Trie carries 'ham-' AND 'hamlet' — both can match at pos 0
+    (one short, one long). All_decompositions must surface every
+    parse: 'ham- + let' (with 'let' unaccounted) AND 'hamlet' (full
+    match). 'pre' / no-dash usages so wyrd-zewx's strict-inner
+    semantics doesn't suppress the multi-parse axis (which is what's
+    actually being tested)."""
+    ham = _meaning("ham-")
+    hamlet = _meaning("hamlet")
+    db = {"ham-": [ham], "hamlet": [hamlet]}
     trie = build_morpheme_trie(db)
     decomps = all_decompositions("hamlet", trie)
     parses = []
     for d in decomps:
         parses.append(tuple((getattr(e, "usage", e), isinstance(e, str)) for e in d))
-    assert (("-hamlet-", False),) in parses
-    assert (("-ham-", False), ("let", True)) in parses
+    assert (("hamlet", False),) in parses
+    assert (("ham-", False), ("let", True)) in parses
 
 
 def test_multi_decomposition_matches_at_different_starts():
@@ -172,13 +171,14 @@ def test_pre_morpheme_only_matches_at_position_zero():
     inner = _meaning("-bridg-")  # 'inner' for contrast
     db = {"Bridg-": [bridg], "-bridg-": [inner]}
     trie = build_morpheme_trie(db)
-    # 'XBridg' — Bridg starts at pos 1. The 'pre' Meaning must NOT
-    # match; the 'inner' Meaning IS allowed mid-word.
-    decomps = all_decompositions("Xbridg", trie)
+    # 'XbridgX' — bridg sits at pos 1..6 of len=7: strictly inner
+    # (start>0 AND end<len). The 'pre' Meaning must NOT match (start
+    # != 0); the 'inner' Meaning IS allowed.
+    decomps = all_decompositions("XbridgX", trie)
     matched_meanings = [m for d in decomps for m in iter_morphemes(d) if not isinstance(m, str)]
     # 'pre' Bridg- should never appear in any decomposition.
     assert bridg not in matched_meanings
-    # 'inner' -bridg- can appear (matches mid-word).
+    # 'inner' -bridg- can appear (strictly inner).
     assert inner in matched_meanings
 
 
@@ -200,17 +200,30 @@ def test_post_morpheme_only_matches_at_word_end():
     assert water_post in matched_end
 
 
-def test_inner_morpheme_matches_anywhere():
-    """An 'inner' Meaning (dashes both sides) should match at start,
-    mid, and end positions — its location constraint is the no-op."""
+def test_inner_morpheme_only_matches_strictly_inside():
+    """wyrd-zewx: an 'inner' Meaning (dashes both sides) must match
+    STRICTLY inside the word — start > 0 AND end < word_length.
+    Allowing inner morphemes at boundaries produced 'donhole' /
+    'nwydmillate' style outputs from the post-wyrd-eni4 bundle's
+    expanded inner-morpheme inventory.
+
+    'by' as inner: matches in 'XbyX' (start=1, end=3, strictly
+    interior of len=4) but NOT in 'by' (start=0, end=len), 'Xby'
+    (end=len), or 'byX' (start=0)."""
     by = _meaning("-by-")
     db = {"-by-": [by]}
     trie = build_morpheme_trie(db)
-    # 'by' at start, middle, and end — all should produce a match.
-    for word in ("by", "Xby", "byX", "XbyX"):
+
+    # Strictly-interior position — should match.
+    decomps = all_decompositions("XbyX", trie)
+    matched = [m for d in decomps for m in iter_morphemes(d)]
+    assert by in matched, "'-by-' should match strictly inside 'XbyX'"
+
+    # Boundary positions — should NOT match.
+    for word in ("by", "Xby", "byX"):
         decomps = all_decompositions(word, trie)
         matched = [m for d in decomps for m in iter_morphemes(d)]
-        assert by in matched, f"'-by-' did not match in {word!r}"
+        assert by not in matched, f"'-by-' should NOT match at boundary in {word!r}"
 
 
 # --- canonical_decomposition (single answer) -------------------------------
@@ -426,18 +439,20 @@ def test_canonical_decomposition_first_meaning_position_tiebreaker_fires():
     the first matched element) is the deterministic tiebreaker after
     unaccounted-chars and morpheme-count tie.
 
-    To force the tiebreaker into the winning position we need two
-    decompositions that tie on (unaccounted, morpheme_count) AND have
-    no better alternative. Overlapping morphemes are the trick: in
-    'aab' with '-aa-' and '-ab-' as inner morphemes, both span 2 of
-    the 3 chars, but they overlap on the middle char so AT MOST ONE
-    can match. That gives:
-      - [aa, 'b']     — match aa at 0-2, skip b. (1, 1, 0).
-      - ['a', ab]     — skip first, match ab at 1-3. (1, 1, 1).
-    Both tie on (1, 1); first_pos picks list-index 0 → [aa, 'b']."""
-    aa = _meaning("-aa-")
-    ab = _meaning("-ab-")
-    db = {"-aa-": [aa], "-ab-": [ab]}
+    Setup: 'aab' with 'aa-' (pre, must start at pos 0) and '-ab'
+    (post, must end at pos len). Both span 2 of 3 chars but overlap
+    on the middle char so AT MOST ONE matches per parse:
+      - [aa, 'b']     — match aa- at 0-2, skip b. (1, 1, 0).
+      - ['a', ab]     — skip first, match -ab at 1-3. (1, 1, 1).
+    Both tie on (1, 1); first_pos picks list-index 0 → [aa, 'b'].
+
+    wyrd-zewx: pre/post used here instead of inner because strict-
+    inner semantics rejects boundary positions; the overlap pattern
+    is what matters for the tiebreaker, not which location flavour
+    surfaces it."""
+    aa = _meaning("aa-")
+    ab = _meaning("-ab")
+    db = {"aa-": [aa], "-ab": [ab]}
     trie = build_morpheme_trie(db)
     canonical = canonical_decomposition("aab", trie)
     matched = list(iter_morphemes(canonical))
@@ -471,20 +486,23 @@ def test_canonical_decomposition_three_way_tie_falls_back_to_dict_order():
 def test_walk_memoization_preserves_correctness_on_repeated_substrings():
     """Memoization guards an exponential blow-up on inputs where the
     same suffix is reached from many distinct paths. With 'aaaaaaaaaa'
-    (10 'a' characters) and 'a' as a 1-char morpheme, every position
-    walks the same suffix; without memoization the DFS would be
-    exponential. Pin: result count is bounded (linear in length), and
-    every decomposition has the morpheme-only path among others."""
-    a = _meaning("-a-")
-    db = {"-a-": [a]}
+    (10 'a' characters) and 'a' as a 1-char no-dash morpheme (location
+    'post' — matches only when end==len), the cache must still
+    collapse the DFS without producing wrong answers.
+
+    wyrd-zewx: previously this used '-a-' (inner) for the 'matches
+    everywhere' axis, but strict-inner now rejects boundary positions.
+    Switched to no-dash 'a' (post) — matches at pos 9 only — which
+    still exercises the memoization path because the skip branch
+    walks every position."""
+    a = _meaning("a")
+    db = {"a": [a]}
     trie = build_morpheme_trie(db)
     decomps = all_decompositions("aaaaaaaaaa", trie)
-    # Every position can either match or skip → 2^10 = 1024 raw paths,
-    # but the cache collapses them. The result count is the number of
-    # distinct decompositions, which is bounded and finite.
+    # Result count is bounded (memoization).
     assert len(decomps) > 0
-    # The all-morpheme decomposition exists (every char as 'a').
     forms = [tuple(getattr(e, "usage", e) for e in d) for d in decomps]
-    assert ("-a-",) * 10 in forms
+    # Some decomposition ends with the 'a' morpheme matched at pos 9.
+    assert any(d and getattr(d[-1], "usage", None) == "a" for d in decomps), forms
     # The all-skip decomposition also exists.
     assert ("aaaaaaaaaa",) in forms
