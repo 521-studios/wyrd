@@ -208,6 +208,20 @@ def _location_allows(meaning: Any, start: int, end: int, word_length: int) -> bo
     return True
 
 
+# wyrd-p8ve: hard caps so adversarial / long inputs (the 58-char
+# Welsh village 'Llanfairpwllgwyngyllgogerychwyrndrobwyllllantysiliogogogoch'
+# was the trigger) can't blow memory. ``all_decompositions`` enumerates
+# every parse so it's the cap that actually fires in pathological
+# cases — bounded at the per-position result list. Bit-stable for
+# normal-length inputs (their actual count never approaches the cap).
+# ``canonical_decompositions`` score-prunes during the walk so its
+# cache never grows the cartesian product in the first place; the
+# tie cap is a defensive fallback for cases where many decompositions
+# legitimately tie at the same score.
+MAX_DECOMPOSITIONS_PER_POSITION = 1000
+MAX_TIED_DECOMPOSITIONS_PER_POSITION = 100
+
+
 def all_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
     """Enumerate every valid decomposition of ``word`` against the
     trie. Each result is a list whose elements alternate between
@@ -251,13 +265,20 @@ def all_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
             if not _location_allows(meaning, pos, end, n):
                 continue
             for tail in walk(end):
+                if len(results) >= MAX_DECOMPOSITIONS_PER_POSITION:
+                    break
                 results.append([meaning, *tail])
+            if len(results) >= MAX_DECOMPOSITIONS_PER_POSITION:
+                break
         # Branch 2: skip one character into the unaccounted bucket and
         # recurse. The skip lets the matcher partially-decompose names
         # that have unrecognized fragments. Adjacent skip characters
         # collapse into one unaccounted string at emit time.
-        for tail in walk(pos + 1):
-            results.append([word[pos], *tail])
+        if len(results) < MAX_DECOMPOSITIONS_PER_POSITION:
+            for tail in walk(pos + 1):
+                if len(results) >= MAX_DECOMPOSITIONS_PER_POSITION:
+                    break
+                results.append([word[pos], *tail])
         cache[pos] = results
         return results
 
@@ -301,16 +322,75 @@ def canonical_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
 
     Empty input returns ``[[]]``. A word with no matches at all
     returns ``[[word]]``.
+
+    wyrd-p8ve: implementation score-prunes during the DAG walk
+    rather than enumerating ``all_decompositions`` then filtering.
+    The previous shape (enumerate-then-filter) blew up memory on
+    long words with many overlapping matches because the walk's
+    cache stored the cartesian product of (match × cached-tail)
+    at every position — the 58-char Welsh village name
+    'Llanfairpwllgwyngyllgogerychwyrndrobwyllllantysiliogogogoch'
+    OOM'd at 16+ GB during rebuild-proportions. Score-pruning
+    bounds the cache: at each position only the decompositions
+    tied at that position's best score survive, so the cache size
+    stays linear in the tie count (typically 1-3) instead of
+    exponential.
+
+    The walk's recurrence:
+      - At ``pos == n``: empty suffix, score = (0, 0).
+      - Else: collect candidates from every match-branch (each adds
+        +1 to morpheme count, +0 to unaccounted) and the skip-1-char
+        branch (+0 morpheme, +1 unaccounted). Each candidate's score
+        adds the chosen tail's best-score. Take the global minimum,
+        keep ties.
+
+    The kept-tied-list at each position is capped at
+    ``MAX_TIED_DECOMPOSITIONS_PER_POSITION`` (defensive fallback for
+    cases where many decompositions legitimately tie). For real
+    inputs the tie count is small and the cap never fires.
     """
-    # all_decompositions never returns []: empty input → [[]],
-    # any non-empty input has at least the all-skip decomposition
-    # ([word]). So no need for an empty-list guard before the min.
-    decompositions = all_decompositions(word, trie)
-    # Score each, find the minimum on the (unaccounted, morpheme_count)
-    # pair, and return EVERY decomposition tied at that minimum.
-    scored = [(_decomposition_score(d)[:2], d) for d in decompositions]
-    best_key = min(s for s, _ in scored)
-    return [d for s, d in scored if s == best_key]
+    n = len(word)
+    if n == 0:
+        return [[]]
+
+    # cache: pos → (best_score_for_suffix, [decompositions tied at best]).
+    cache: dict[int, tuple[tuple[int, int], list[list[Any]]]] = {}
+
+    def walk_best(pos: int) -> tuple[tuple[int, int], list[list[Any]]]:
+        if pos == n:
+            return ((0, 0), [[]])
+        if pos in cache:
+            return cache[pos]
+        candidates: list[tuple[tuple[int, int], list[Any]]] = []
+        # Branch 1: each trie-match contributes +1 morpheme, +0 unaccounted.
+        for end, meaning in _find_matches_at(trie, word, pos):
+            if not _location_allows(meaning, pos, end, n):
+                continue
+            (tail_un, tail_mor), tails = walk_best(end)
+            score = (tail_un, tail_mor + 1)
+            for tail in tails:
+                candidates.append((score, [meaning, *tail]))
+        # Branch 2: skip-one-char contributes +0 morpheme, +1 unaccounted.
+        (tail_un, tail_mor), tails = walk_best(pos + 1)
+        score = (tail_un + 1, tail_mor)
+        for tail in tails:
+            candidates.append((score, [word[pos], *tail]))
+        # Pick the best score; keep only the candidates tied at it.
+        # ``candidates`` is always non-empty: the skip branch produces
+        # at least one entry for every pos < n (walk_best(pos+1) always
+        # yields at least the skip-the-rest path).
+        best_score = min(s for s, _ in candidates)
+        best_decomps = [d for s, d in candidates if s == best_score]
+        # Defensive cap on the tied-best list. Bit-stable: candidate
+        # iteration order is deterministic, so the kept subset is a
+        # function of the trie + word.
+        if len(best_decomps) > MAX_TIED_DECOMPOSITIONS_PER_POSITION:
+            best_decomps = best_decomps[:MAX_TIED_DECOMPOSITIONS_PER_POSITION]
+        cache[pos] = (best_score, best_decomps)
+        return cache[pos]
+
+    _, decompositions = walk_best(0)
+    return [_compact_unaccounted(d) for d in decompositions]
 
 
 def canonical_decomposition(word: str, trie: MorphemeTrie) -> list[Any]:
@@ -324,8 +404,13 @@ def canonical_decomposition(word: str, trie: MorphemeTrie) -> list[Any]:
     Tiebreaker (after the unaccounted-chars + morpheme-count score
     used by ``canonical_decompositions``): position of the first
     matched morpheme — earlier wins. Stable across runs.
+
+    wyrd-p8ve: routes through ``canonical_decompositions`` so it
+    inherits the score-pruning walk's memory bounds. The (un, mor)
+    tied set is small enough that applying the first-meaning-pos
+    tiebreaker via ``min`` over the tied list is O(K) with K << N.
     """
-    decompositions = all_decompositions(word, trie)
+    decompositions = canonical_decompositions(word, trie)
     if not decompositions:
         return [word]
     return min(decompositions, key=_decomposition_score)

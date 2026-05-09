@@ -224,6 +224,43 @@ to cover word-end positions. With strict-inner, post variants are
 now needed explicitly for prefixes that legitimately appear at
 word-end (Ballyknock = Bally- + -knock).
 
+### 2026-05-09 — wyrd-p8ve (canonical_decompositions score-pruning + village restored)
+
+Fixed the algorithmic OOM in ``canonical_decompositions``: it now
+score-prunes during the walk instead of enumerating
+``all_decompositions`` then filtering. The 58-character Welsh village
+'Llanfairpwllgwyngyllgogerychwyrndrobwyllllantysiliogogogoch' that
+the wyrd-eni4 deploy had to remove from welsh_place_names.json
+now decomposes in 0.00s with 170 MB peak RSS (was 16+ GB OOM).
+Restored the village to the Welsh corpus (welsh count
+1915 → 1916) so welsh_place_names.json carries the genuine corpus
+again.
+
+Welsh perfect-rate stayed at 1263/1916 = 65.9% — the village
+itself doesn't reach a 0-unaccounted decomposition (the 58 chars
+include genuine etymological compounds the bundle hasn't fully
+mined), but it no longer blocks the rest of the corpus from
+completing rebuild-proportions.
+
+Side-effect win: every test exercising the full corpus matcher
+runs ~3× faster (suite 200s → 69s) because canonical_decompositions
+no longer pays the cartesian-product cost on every name.
+
+| culture  | perfect | total  | rate   | Δ pp vs prior (2026-05-09a) |
+|----------|--------:|-------:|-------:|----------------------------:|
+| english  |   12341 | 17876  | 69.0%  |                         0.0 |
+| scottish |    1446 | 2321   | 62.3%  |                         0.0 |
+| welsh    |    1263 | 1916   | 65.9%  |                         0.0 |
+| irish    |   16369 | 34041  | 48.1%  |                         0.0 |
+| breton   |     181 | 1208   | 15.0%  |                         0.0 |
+
+Welsh denominator changed from 1915 to 1916 (village restored),
+but the perfect count is the same since the village stays
+partial-decomposition. Per-culture rates are unchanged because
+the score-pruning walk produces the same global-minimum set as
+the legacy enumerate-then-filter approach — only the memory
+profile differs.
+
 ## How to record a new snapshot
 
 After a bundle re-emit (`wyrd kenning lexicon export-meanings` →
