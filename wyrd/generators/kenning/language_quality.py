@@ -170,6 +170,16 @@ FALLBACK_REFERENCE_TAGS: tuple[str, ...] = (
 )
 
 
+# wyrd-lc94: source-IDs that admit a family root via paths OTHER than
+# scholarly witness consensus. The bundle attestation breakdown bins
+# each shipped subject by which path it relied on so the dashboard can
+# surface the actionable runtime-quality signal alongside the existing
+# DB-level metrics. See ``_bundle_attestation_breakdown`` for the
+# classification rules.
+_GRANDFATHER_CITATION_SOURCES: frozenset[str] = frozenset({"rando-port"})
+_EMPIRICAL_CITATION_SOURCES: frozenset[str] = frozenset({"wiktionary-empirical"})
+
+
 # --- dataclasses ----------------------------------------------------------
 
 
@@ -232,6 +242,17 @@ class LanguageScorecard:
     # I. Citation depth
     etymons_with_citations: int = 0
     avg_citations: float = 0.0
+    # J. Bundle attestation breakdown (wyrd-lc94)
+    # Per-subject classification of how each shipped subject containing
+    # this language reached the bundle. Surfaces the runtime-quality
+    # signal that DB-level corpus-depth metrics don't. See
+    # ``_bundle_attestation_breakdown`` for classification rules.
+    bundle_attestation_total: int = 0
+    bundle_scholar_attested: int = 0
+    bundle_empirical_only: int = 0
+    bundle_rando_only: int = 0
+    bundle_uncited: int = 0
+    bundle_scholar_attestation_rate: float = 0.0
 
 
 @dataclass
@@ -379,6 +400,83 @@ def _bundle_total_words(bundle: list[dict[str, Any]] | dict[str, Any]) -> int:
     """Total word entries across all subjects (denominator for bundle %)."""
     subjects = bundle if isinstance(bundle, list) else bundle.get("subjects") or []
     return sum(len(subj.get("words") or []) for subj in subjects)
+
+
+def _bundle_attestation_breakdown(
+    bundle: list[dict[str, Any]] | dict[str, Any],
+    sibling: str | None,
+) -> dict[str, int]:
+    """wyrd-lc94: classify every bundle subject containing the language
+    sibling by which admission path landed it in the bundle.
+
+    Subjects are binned (priority order, scholar wins ties):
+
+    * ``scholar_attested`` — at least one citation that's NOT
+      ``rando-port`` and NOT ``wiktionary-empirical``. The actionable
+      'real-attestation' class — these are subjects backed by named
+      scholarly sources.
+    * ``empirical_only`` — only ``wiktionary-empirical`` citations.
+      Admitted via the wyrd-4hx7 corpus-mining path (Wiktionary
+      headwords matched against unaccounted-fragment misses); not
+      scholar-attested per se but at least confirmed by an empirical
+      Wiktionary lookup.
+    * ``rando_only`` — only ``rando-port`` citations. The legacy
+      hand-curated grandfather class (export_meanings'
+      ``include_rando=True`` path). These haven't accumulated
+      independent attestation through mining yet.
+    * ``uncited`` — language sibling present but no citation field
+      (older bundles or coverage paths that didn't carry attribution).
+
+    Returns a dict with ``total`` (subjects in this language) plus the
+    four bin counts. Empty (all zeros) when ``sibling is None``.
+
+    Used by the dashboard to surface 'what % of what we ship has
+    independent scholarly backing vs grandfathered' — the runtime-
+    quality signal that DB-level depth metrics don't capture.
+    """
+    counts = {
+        "total": 0,
+        "scholar_attested": 0,
+        "empirical_only": 0,
+        "rando_only": 0,
+        "uncited": 0,
+    }
+    if sibling is None:
+        return counts
+    citation_key = f"{sibling}_citations"
+    subjects = bundle if isinstance(bundle, list) else bundle.get("subjects") or []
+    for subj in subjects:
+        # Classify per-subject (not per-word): if any word in the
+        # subject has a scholar citation, the subject counts as
+        # scholar-attested. Treats subject-level admission as the
+        # natural unit since one subject = one (meaning, tags) family.
+        has_lang = False
+        scholar = False
+        empirical = False
+        rando = False
+        for word in subj.get("words") or []:
+            if not word.get(sibling):
+                continue
+            has_lang = True
+            for c in word.get(citation_key) or []:
+                if c in _GRANDFATHER_CITATION_SOURCES:
+                    rando = True
+                elif c in _EMPIRICAL_CITATION_SOURCES:
+                    empirical = True
+                else:
+                    scholar = True
+        if not has_lang:
+            continue
+        counts["total"] += 1
+        if scholar:
+            counts["scholar_attested"] += 1
+        elif empirical:
+            counts["empirical_only"] += 1
+        elif rando:
+            counts["rando_only"] += 1
+        else:
+            counts["uncited"] += 1
+    return counts
 
 
 def _bundle_tag_coverage_for_sibling(
@@ -735,6 +833,7 @@ def compute_scorecard(
     sibling = _BUNDLE_LANG_KEY.get(language)
     bundle_words = _bundle_language_word_count(bundle, sibling)
     bundle_tag_counts = _bundle_tag_coverage_for_sibling(bundle, sibling, reference_tags)
+    attestation = _bundle_attestation_breakdown(bundle, sibling)
     shared_with: list[str] = []
     if sibling is not None and sibling in _SHARED_BUNDLE_SIBLINGS:
         shared_with = [other for other in _SHARED_BUNDLE_SIBLINGS[sibling] if other != language]
@@ -789,6 +888,16 @@ def compute_scorecard(
         stratum_density=(round(stratum / total_etymons, 4) if total_etymons else 0.0),
         etymons_with_citations=citations["etymons_with_citations"],
         avg_citations=citations["avg_citations"],
+        bundle_attestation_total=attestation["total"],
+        bundle_scholar_attested=attestation["scholar_attested"],
+        bundle_empirical_only=attestation["empirical_only"],
+        bundle_rando_only=attestation["rando_only"],
+        bundle_uncited=attestation["uncited"],
+        bundle_scholar_attestation_rate=(
+            round(attestation["scholar_attested"] / attestation["total"], 4)
+            if attestation["total"]
+            else 0.0
+        ),
     )
 
 
@@ -874,9 +983,11 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
     lines.append("## Summary")
     lines.append("")
     lines.append(
-        "| Language | Etymons | Lemmas | Promo (≥thr) | Bundle | Lex tag hit | Bundle tag hit | Inflect | Variants | Era reflex |"
+        "| Language | Etymons | Lemmas | Promo (≥thr) | Bundle | "
+        "Scholar atst | Lex tag hit | Bundle tag hit | Inflect | "
+        "Variants | Era reflex |"
     )
-    lines.append("|---|---:|---:|---|---:|---|---|---|---|---|")
+    lines.append("|---|---:|---:|---|---:|---|---|---|---|---|---|")
     for c in report.languages:
         promo = f"{c.promotion_eligible} (≥{c.promotion_threshold})"
         bundle_pct = _format_pct(c.bundle_word_count, report.bundle_total_words)
@@ -889,9 +1000,22 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
             f"{c.etymons_with_variants} ({_format_pct(c.etymons_with_variants, c.total_etymons)})"
         )
         era = f"{c.any_reflex_count} ({_format_pct(c.any_reflex_count, c.total_etymons)})"
+        # Scholar-attestation column: scholar / total bundle subjects
+        # for this language. Renders 'n/a' when language has no bundle
+        # representation (denominator zero) so a dashboard reader can
+        # tell 'absent' apart from '0% attested'.
+        if c.bundle_attestation_total == 0:
+            scholar_atst = "n/a"
+        else:
+            scholar_atst = (
+                f"{c.bundle_scholar_attested}/"
+                f"{c.bundle_attestation_total} "
+                f"({_format_pct(c.bundle_scholar_attested, c.bundle_attestation_total)})"
+            )
         lines.append(
             f"| {c.language} | {c.total_etymons} | {c.total_lemmas} | {promo} | "
-            f"{bundle_cell} | {lex_hit} | {bundle_hit} | {inflect} | {variants} | {era} |"
+            f"{bundle_cell} | {scholar_atst} | {lex_hit} | {bundle_hit} | "
+            f"{inflect} | {variants} | {era} |"
         )
     lines.append("")
 
@@ -922,6 +1046,27 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
                 bundle_line += f"; **shared with** {', '.join(c.bundle_shared_with)}"
             bundle_line += ")."
         lines.append(bundle_line)
+        # B₂. Bundle attestation breakdown — wyrd-lc94. Surfaces the
+        # actionable runtime-quality signal: of what's actually shipping,
+        # what fraction is scholar-attested vs grandfathered. Distinct
+        # from A (DB-level corpus depth) which counts mining residue
+        # that never reaches the bundle.
+        if c.bundle_attestation_total == 0:
+            atst_line = "- **B₂. Bundle attestation:** n/a — no bundle subjects for this language."
+        else:
+            atst_line = (
+                f"- **B₂. Bundle attestation:** "
+                f"{c.bundle_scholar_attested} scholar-attested "
+                f"({_format_pct(c.bundle_scholar_attested, c.bundle_attestation_total)}), "
+                f"{c.bundle_empirical_only} wiktionary-empirical-only "
+                f"({_format_pct(c.bundle_empirical_only, c.bundle_attestation_total)}), "
+                f"{c.bundle_rando_only} rando-port-grandfather-only "
+                f"({_format_pct(c.bundle_rando_only, c.bundle_attestation_total)}), "
+                f"{c.bundle_uncited} uncited "
+                f"({_format_pct(c.bundle_uncited, c.bundle_attestation_total)}); "
+                f"of {c.bundle_attestation_total} subjects shipped."
+            )
+        lines.append(atst_line)
         lex_hit = sum(1 for v in c.lexicon_tag_coverage.values() if v > 0)
         lex_missing = [t for t, v in c.lexicon_tag_coverage.items() if v == 0]
         lex_miss_str = ", ".join(lex_missing) if lex_missing else "none"
