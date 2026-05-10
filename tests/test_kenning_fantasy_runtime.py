@@ -12,7 +12,6 @@ Covers:
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -215,15 +214,14 @@ def test_load_fantasy_morphemes_skips_malformed_entries() -> None:
 # --- KenningCreature Generator -------------------------------------------
 
 
-def test_kenning_creature_generator_finds_known_creature(tmp_path: Path) -> None:
+def test_kenning_creature_generator_finds_known_creature(bundle_swapper) -> None:
     """End-to-end Generator: populate the bundle, swap it into the
     package data, invoke KenningCreature.generate, assert the
-    explanation surfaces the linked etymon."""
-    import wyrd.generators.kenning as kenning_mod
+    explanation surfaces the linked etymon. wyrd-lqlw: migrated from
+    the source-tree file-swap antipattern to ``bundle_swapper`` so a
+    test interrupt can't leave a corrupted meanings.json behind."""
     from wyrd.generators.kenning import KenningCreature
 
-    bundle_path = Path(kenning_mod.__file__).parent / "data" / "meanings.json"
-    original = bundle_path.read_text()
     bundle = {
         "subjects": [],
         "fantasy_morphemes": {
@@ -239,30 +237,22 @@ def test_kenning_creature_generator_finds_known_creature(tmp_path: Path) -> None
             }
         },
     }
-    try:
-        bundle_path.write_text(json.dumps(bundle))
-        kenning_mod._coupled_cache_clear()
+    with bundle_swapper(bundle):
         gen = KenningCreature()
         result = gen.generate({"name": "Harpy"}, seed=0)
-        assert result.result == "Harpy"
-        assert "ancient-greek" in result.explanation
-        assert "ἅρπυια" in result.explanation
-        assert "harpyia" in result.explanation
-        assert "snatcher" in result.explanation
-        assert "test-citation" in result.explanation
-    finally:
-        bundle_path.write_text(original)
-        kenning_mod._coupled_cache_clear()
+    assert result.result == "Harpy"
+    assert "ancient-greek" in result.explanation
+    assert "ἅρπυια" in result.explanation
+    assert "harpyia" in result.explanation
+    assert "snatcher" in result.explanation
+    assert "test-citation" in result.explanation
 
 
-def test_kenning_creature_generator_case_insensitive(tmp_path: Path) -> None:
+def test_kenning_creature_generator_case_insensitive(bundle_swapper) -> None:
     """Lowercase / uppercase / mixed-case input all resolve to the
     same row, matching the lexicon's COLLATE NOCASE semantics."""
-    import wyrd.generators.kenning as kenning_mod
     from wyrd.generators.kenning import KenningCreature
 
-    bundle_path = Path(kenning_mod.__file__).parent / "data" / "meanings.json"
-    original = bundle_path.read_text()
     bundle = {
         "subjects": [],
         "fantasy_morphemes": {
@@ -278,51 +268,37 @@ def test_kenning_creature_generator_case_insensitive(tmp_path: Path) -> None:
             }
         },
     }
-    try:
-        bundle_path.write_text(json.dumps(bundle))
-        kenning_mod._coupled_cache_clear()
+    with bundle_swapper(bundle):
         gen = KenningCreature()
+        results = []
         for cased in ("drake", "Drake", "DRAKE", "DrAkE"):
-            result = gen.generate({"name": cased}, seed=0)
-            assert result.result == "Drake"
-            assert "sco" in result.explanation
-    finally:
-        bundle_path.write_text(original)
-        kenning_mod._coupled_cache_clear()
+            results.append(gen.generate({"name": cased}, seed=0))
+    for result in results:
+        assert result.result == "Drake"
+        assert "sco" in result.explanation
 
 
 def test_kenning_creature_generator_unknown_returns_polite_message(
-    tmp_path: Path,
+    bundle_swapper,
 ) -> None:
     """Unknown creature names return a 'no etymology found' result,
     not an exception. Pinned so chaining the CLI against a list of
     arbitrary inputs is safe."""
-    import wyrd.generators.kenning as kenning_mod
     from wyrd.generators.kenning import KenningCreature
 
-    bundle_path = Path(kenning_mod.__file__).parent / "data" / "meanings.json"
-    original = bundle_path.read_text()
-    try:
-        bundle_path.write_text(json.dumps({"subjects": [], "fantasy_morphemes": {}}))
-        kenning_mod._coupled_cache_clear()
+    with bundle_swapper({"subjects": [], "fantasy_morphemes": {}}):
         gen = KenningCreature()
         result = gen.generate({"name": "NotARealCreature"}, seed=0)
-        assert result.result == "NotARealCreature"
-        assert "No etymology found" in result.explanation
-    finally:
-        bundle_path.write_text(original)
-        kenning_mod._coupled_cache_clear()
+    assert result.result == "NotARealCreature"
+    assert "No etymology found" in result.explanation
 
 
-def test_kenning_creature_generator_renders_era_reflexes(tmp_path: Path) -> None:
+def test_kenning_creature_generator_renders_era_reflexes(bundle_swapper) -> None:
     """When era reflexes are present, they appear in the explanation
     line. Verifies the wyrd-jbcu source-aware shape round-trips
     through to the human-readable output."""
-    import wyrd.generators.kenning as kenning_mod
     from wyrd.generators.kenning import KenningCreature
 
-    bundle_path = Path(kenning_mod.__file__).parent / "data" / "meanings.json"
-    original = bundle_path.read_text()
     bundle = {
         "subjects": [],
         "fantasy_morphemes": {
@@ -344,18 +320,13 @@ def test_kenning_creature_generator_renders_era_reflexes(tmp_path: Path) -> None
             }
         },
     }
-    try:
-        bundle_path.write_text(json.dumps(bundle))
-        kenning_mod._coupled_cache_clear()
+    with bundle_swapper(bundle):
         gen = KenningCreature()
         result = gen.generate({"name": "Wyrm"}, seed=0)
-        assert "Era reflexes" in result.explanation
-        assert "middle-english" in result.explanation
-        assert "worm" in result.explanation
-        assert "modern-english" in result.explanation
-    finally:
-        bundle_path.write_text(original)
-        kenning_mod._coupled_cache_clear()
+    assert "Era reflexes" in result.explanation
+    assert "middle-english" in result.explanation
+    assert "worm" in result.explanation
+    assert "modern-english" in result.explanation
 
 
 def test_kenning_creature_generator_blank_input_raises() -> None:
@@ -375,14 +346,10 @@ def test_kenning_creature_generator_blank_input_raises() -> None:
 # --- CLI -----------------------------------------------------------------
 
 
-def test_kenning_creature_cli_prints_result_and_explanation(tmp_path: Path) -> None:
+def test_kenning_creature_cli_prints_result_and_explanation(bundle_swapper) -> None:
     """`wyrd kenning creature Harpy` prints the result line + the
     indented explanation line. End-to-end pin so the CLI stays in
     sync with the Generator's output shape."""
-    import wyrd.generators.kenning as kenning_mod
-
-    bundle_path = Path(kenning_mod.__file__).parent / "data" / "meanings.json"
-    original = bundle_path.read_text()
     bundle = {
         "subjects": [],
         "fantasy_morphemes": {
@@ -398,38 +365,24 @@ def test_kenning_creature_cli_prints_result_and_explanation(tmp_path: Path) -> N
             }
         },
     }
-    try:
-        bundle_path.write_text(json.dumps(bundle))
-        kenning_mod._coupled_cache_clear()
+    with bundle_swapper(bundle):
         runner = CliRunner()
         result = runner.invoke(cli, ["creature", "Harpy"], catch_exceptions=False)
-        assert result.exit_code == 0
-        assert "Harpy" in result.output
-        assert "ancient-greek" in result.output
-        assert "ἅρπυια" in result.output
-    finally:
-        bundle_path.write_text(original)
-        kenning_mod._coupled_cache_clear()
+    assert result.exit_code == 0
+    assert "Harpy" in result.output
+    assert "ancient-greek" in result.output
+    assert "ἅρπυια" in result.output
 
 
-def test_kenning_creature_cli_unknown_creature_polite(tmp_path: Path) -> None:
+def test_kenning_creature_cli_unknown_creature_polite(bundle_swapper) -> None:
     """CLI on unknown creature exits cleanly with the 'no etymology
     found' message rather than a stack trace."""
-    import wyrd.generators.kenning as kenning_mod
-
-    bundle_path = Path(kenning_mod.__file__).parent / "data" / "meanings.json"
-    original = bundle_path.read_text()
-    try:
-        bundle_path.write_text(json.dumps({"subjects": [], "fantasy_morphemes": {}}))
-        kenning_mod._coupled_cache_clear()
+    with bundle_swapper({"subjects": [], "fantasy_morphemes": {}}):
         runner = CliRunner()
         result = runner.invoke(cli, ["creature", "Frobnicator"], catch_exceptions=False)
-        assert result.exit_code == 0
-        assert "No etymology found" in result.output
-        assert "Frobnicator" in result.output
-    finally:
-        bundle_path.write_text(original)
-        kenning_mod._coupled_cache_clear()
+    assert result.exit_code == 0
+    assert "No etymology found" in result.output
+    assert "Frobnicator" in result.output
 
 
 # --- generator registration ----------------------------------------------

@@ -134,7 +134,13 @@ def test_explain_marks_canonical_when_bundle_carries_signature(monkeypatch):
     """When the bundle's canonical_decompositions map carries a
     signature for the input name AND that signature matches one of
     the matcher's emitted readings, the matching reading is flagged
-    canonical AND sorted to the top of the results list."""
+    canonical AND sorted to the top of the results list.
+
+    wyrd-lqlw: stays against the live bundle because the test is
+    self-stabilizing — it grabs WHATEVER signature the matcher emits
+    for Bridgewater (no specific decomposition pinned) and injects
+    that into a monkey-patched canonical map. Drift-resistant by
+    construction."""
     # First, decompose without canonical info to find the signature
     # that the bundle would need to carry to mark the 'best' reading.
     rs_baseline = KenningExplain().generate_all({"name": "Bridgewater"}, 0)
