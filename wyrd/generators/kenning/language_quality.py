@@ -975,10 +975,18 @@ def compute_rando_port_grandfather_audit(
     threads the result into ``compute_scorecard``) — the rollup walks
     every etymon row, so per-language recomputation would be wasteful.
     """
-    # Build per-etymon root_id rollup.
-    rollup_rows = conn.execute("SELECT id, merged_into_id, lemma_id FROM etymon").fetchall()
-    target_by_id = {r["id"]: (r["merged_into_id"] or r["lemma_id"] or r["id"]) for r in rollup_rows}
-    lemma_by_id = {r["id"]: r["lemma_id"] for r in rollup_rows}
+    # Single-pass scan of the ~860K-row etymon table to populate both
+    # the rollup maps AND the language lookup. Integer indices instead
+    # of row_factory-dependent column names so the function is robust
+    # to callers whose connection doesn't set sqlite3.Row.
+    target_by_id: dict[int, int] = {}
+    lemma_by_id: dict[int, int | None] = {}
+    lang_by_id: dict[int, str] = {}
+    for r in conn.execute("SELECT id, merged_into_id, lemma_id, language FROM etymon"):
+        eid, merged, lemma, lang = r[0], r[1], r[2], r[3]
+        target_by_id[eid] = merged or lemma or eid
+        lemma_by_id[eid] = lemma
+        lang_by_id[eid] = lang
 
     def root_of(eid: int) -> int:
         target = target_by_id.get(eid, eid)
@@ -988,19 +996,11 @@ def compute_rando_port_grandfather_audit(
     for eid in target_by_id:
         family_members.setdefault(root_of(eid), []).append(eid)
 
-    # Citation map: etymon_id → set of source_ids.
+    # Citation map: etymon_id → set of source_ids. Same integer-index
+    # robustness as above.
     cites_by_etymon: dict[int, set[str]] = {}
     for r in conn.execute("SELECT etymon_id, source_id FROM etymon_citation"):
-        cites_by_etymon.setdefault(r["etymon_id"], set()).add(r["source_id"])
-
-    # Root etymon's language for bucketing. Single-pass fetch of all
-    # (id, language) pairs — SQLite's parameter limit (32K) blocks the
-    # WHERE IN (?...) variant on the ~860K root-id list. The full-scan
-    # is faster anyway (no per-id index lookup).
-    lang_by_id: dict[int, str] = {
-        r["id"]: r["language"]
-        for r in conn.execute("SELECT id, language FROM etymon")
-    }
+        cites_by_etymon.setdefault(r[0], set()).add(r[1])
 
     audit: dict[str, dict[str, int]] = {}
     for root_id, members in family_members.items():
