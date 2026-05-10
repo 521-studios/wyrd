@@ -386,7 +386,7 @@ def _bundle_language_word_count(
     dict-shaped bundles."""
     if sibling is None:
         return 0
-    subjects = bundle if isinstance(bundle, list) else bundle.get("subjects") or []
+    subjects = _bundle_subjects(bundle)
     n = 0
     for subj in subjects:
         for word in subj.get("words") or []:
@@ -396,10 +396,33 @@ def _bundle_language_word_count(
     return n
 
 
+def _bundle_subjects(bundle: Any) -> list[dict[str, Any]]:
+    """Defensive subjects-extraction shared by every bundle helper.
+
+    Returns the list-shaped subjects array from either:
+
+    * a list-shaped bundle (legacy pre-wyrd-c1vq) — returns it directly,
+    * a dict-shaped bundle with a ``subjects`` list — returns the list,
+    * any other shape (None, malformed, non-list 'subjects' value) —
+      returns an empty list.
+
+    The defensive return path catches malformed bundle inputs that
+    would otherwise raise ``AttributeError`` (None) or ``TypeError``
+    (truthy non-list ``subjects``). Cheaper to handle once here than
+    to repeat the isinstance dance in every helper.
+    """
+    if isinstance(bundle, list):
+        return bundle
+    if isinstance(bundle, dict):
+        subjects = bundle.get("subjects")
+        if isinstance(subjects, list):
+            return subjects
+    return []
+
+
 def _bundle_total_words(bundle: list[dict[str, Any]] | dict[str, Any]) -> int:
     """Total word entries across all subjects (denominator for bundle %)."""
-    subjects = bundle if isinstance(bundle, list) else bundle.get("subjects") or []
-    return sum(len(subj.get("words") or []) for subj in subjects)
+    return sum(len(subj.get("words") or []) for subj in _bundle_subjects(bundle))
 
 
 def _bundle_attestation_breakdown(
@@ -444,7 +467,7 @@ def _bundle_attestation_breakdown(
     if sibling is None:
         return counts
     citation_key = f"{sibling}_citations"
-    subjects = bundle if isinstance(bundle, list) else bundle.get("subjects") or []
+    subjects = _bundle_subjects(bundle)
     for subj in subjects:
         # Classify per-subject (not per-word): if any word in the
         # subject has a scholar citation, the subject counts as
@@ -465,14 +488,12 @@ def _bundle_attestation_breakdown(
                     empirical = True
                 else:
                     scholar = True
-                    # Scholar wins all ties below. No remaining citation
-                    # could downgrade the classification, so short-
-                    # circuit. Per-word break only — outer per-subject
-                    # loop continues so other words in the subject are
-                    # still examined for their own contribution to
-                    # has_lang (a sibling-only word still carries the
-                    # language even if the scholar word doesn't).
-                    break
+                    break  # inner break — scholar locks classification
+            if scholar:
+                # Outer break too — has_lang is already True (set above
+                # for the current word) and scholar wins all ties, so
+                # examining additional words can't change the bin.
+                break
         if not has_lang:
             continue
         counts["total"] += 1
@@ -499,7 +520,7 @@ def _bundle_tag_coverage_for_sibling(
     counts: dict[str, int] = dict.fromkeys(reference_tags, 0)
     if sibling is None:
         return counts
-    subjects = bundle if isinstance(bundle, list) else bundle.get("subjects") or []
+    subjects = _bundle_subjects(bundle)
     ref_set = set(reference_tags)
     for subj in subjects:
         tags = subj.get("modifier_tags") or []
