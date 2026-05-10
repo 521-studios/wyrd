@@ -33,7 +33,11 @@ import click
 from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.meaning import load_meanings
 from wyrd.generators.kenning.name import load_names
-from wyrd.generators.kenning.wiktextract_ingester import _canonical_language
+from wyrd.generators.kenning.wiktextract_ingester import (
+    _canonical_language,
+    _extract_head_template_renderings,
+    _extract_pronunciation,
+)
 
 # Synthetic source row written on first --apply run.
 WIKTIONARY_EMPIRICAL_SOURCE_ID = "wiktionary-empirical"
@@ -537,6 +541,12 @@ def _init_mine_counts(
         "glosses_added": 0,
         "tags_added": 0,
         "citations_added": 0,
+        # wyrd-69s5: capture-stat counters mirroring the full ingester
+        # so per-run dry-run / apply summaries surface multi-script
+        # rendering coverage in the same shape across both paths.
+        "pronunciation_captured": 0,
+        "original_script_captured": 0,
+        "transliteration_captured": 0,
         "by_culture": defaultdict(lambda: {"fragments": 0, "hits": 0}),
         "by_language": Counter(),
     }
@@ -596,15 +606,51 @@ def _write_one(
     canonical_lang: str,
     counts: dict[str, Any],
 ) -> None:
-    """Persist one wiktextract entry as an empirical etymon."""
+    """Persist one wiktextract entry as an empirical etymon.
+
+    wyrd-69s5: threads ``pronunciation_ipa`` + ``pronunciation_dialect``
+    AND the multi-script renderings (``original_script`` +
+    ``transliteration``) from the entry's ``sounds`` and
+    ``head_templates`` arrays into the upsert. Full parity with the
+    ingester path (``wiktextract_ingester._process_entry``) which has
+    been doing this since wyrd-ha9q. Pre-fix, the corpus-miner path
+    dropped all four fields, so European-language etymons admitted via
+    empirical mining shipped with empty pronunciation + rendering
+    columns even though the source data carried them. Reusing the
+    ingester's helpers keeps both paths consistent on extraction
+    strategy.
+
+    The English culture scope includes non-Latin-script languages
+    (Latin → Greek borrowing chains, etc.), so ``original_script`` /
+    ``transliteration`` matters here too — not just for the explicitly-
+    non-Latin slices the full ingester also handles.
+    """
     canonical_form = (entry.get("word") or "").strip()
     sense = _select_canonical_sense(entry)
     if not canonical_form or sense is None:
         return
     gloss, tags = sense
 
-    etymon_id = db.upsert_etymon(canonical_form, canonical_lang)
+    pron_ipa, pron_dialect = _extract_pronunciation(entry.get("sounds") or [])
+    orig_script, translit = _extract_head_template_renderings(
+        entry.get("head_templates") or [], canonical_form
+    )
+
+    etymon_id = db.upsert_etymon(
+        canonical_form,
+        canonical_lang,
+        pronunciation_ipa=pron_ipa,
+        pronunciation_dialect=pron_dialect,
+        original_script=orig_script,
+        transliteration=translit,
+    )
     counts["etymons_upserted"] += 1
+    if pron_ipa:
+        counts["pronunciation_captured"] = counts.get("pronunciation_captured", 0) + 1
+    if orig_script:
+        counts["original_script_captured"] = counts.get("original_script_captured", 0) + 1
+    if translit:
+        counts["transliteration_captured"] = counts.get("transliteration_captured", 0) + 1
 
     db.add_gloss(etymon_id, gloss)
     counts["glosses_added"] += 1
