@@ -465,6 +465,14 @@ def _bundle_attestation_breakdown(
                     empirical = True
                 else:
                     scholar = True
+                    # Scholar wins all ties below. No remaining citation
+                    # could downgrade the classification, so short-
+                    # circuit. Per-word break only — outer per-subject
+                    # loop continues so other words in the subject are
+                    # still examined for their own contribution to
+                    # has_lang (a sibling-only word still carries the
+                    # language even if the scholar word doesn't).
+                    break
         if not has_lang:
             continue
         counts["total"] += 1
@@ -987,7 +995,7 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
         "Scholar atst | Lex tag hit | Bundle tag hit | Inflect | "
         "Variants | Era reflex |"
     )
-    lines.append("|---|---:|---:|---|---:|---|---|---|---|---|---|")
+    lines.append("|---|---:|---:|---|---:|---:|---|---|---|---|---|")
     for c in report.languages:
         promo = f"{c.promotion_eligible} (≥{c.promotion_threshold})"
         bundle_pct = _format_pct(c.bundle_word_count, report.bundle_total_words)
