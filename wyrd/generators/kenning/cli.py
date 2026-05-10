@@ -526,7 +526,15 @@ def rebuild_proportions(
         summary += f" canonical[{breakdown}]"
     click.echo(summary, err=True)
     proportions = _proportions_from(good_names)
-    click.echo(json.dumps(proportions))
+    # wyrd-xmk3 review: sort_keys so the on-disk proportions JSON is
+    # deterministic across re-runs. Insertion-order dicts produced
+    # non-determinism in usages / single_usages / tag_cooccurrence
+    # maps, polluting the diff in every rebuild even when counts
+    # were identical. The structures array is a list of dicts; each
+    # 'words' position is iterated by index so the array order is
+    # already determined by the corpus walk — sort_keys handles the
+    # dict slots inside.
+    click.echo(json.dumps(proportions, sort_keys=True))
 
 
 def _proportions_from(names) -> dict:
