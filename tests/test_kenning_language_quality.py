@@ -26,6 +26,7 @@ from wyrd.generators.kenning.language_quality import (
     ERA_CHAINS,
     FALLBACK_REFERENCE_TAGS,
     LanguageScorecard,
+    _bundle_attestation_breakdown,
     _bundle_language_word_count,
     _bundle_tag_coverage_for_sibling,
     _bundle_total_words,
@@ -196,13 +197,24 @@ def _build_fixture_db() -> sqlite3.Connection:
 def _fixture_bundle() -> list[dict]:
     """Tiny bundle exercising both the old_english sibling and the
     celtic_mix shared sibling. One subject tagged 'topography'
-    (covers tag coverage), one tagged 'water', one untagged."""
+    (covers tag coverage), one tagged 'water', one untagged.
+
+    Citation fields exercise the wyrd-lc94 bundle-attestation breakdown:
+    cot has scholarly citation (mawer_1920), tun has only rando-port
+    (grandfather class), afon has only wiktionary-empirical, the filler
+    has no citations at all (uncited)."""
     return [
         {
             "meaning": ["cottage"],
             "modifier_tags": ["architecture"],
             "modifier_type": None,
-            "words": [{"modern_usage": "cot", "old_english": ["cot"]}],
+            "words": [
+                {
+                    "modern_usage": "cot",
+                    "old_english": ["cot"],
+                    "old_english_citations": ["mawer_1920", "skeat_1901"],
+                }
+            ],
         },
         {
             "meaning": ["enclosure"],
@@ -212,7 +224,9 @@ def _fixture_bundle() -> list[dict]:
                 {
                     "modern_usage": "tun",
                     "old_english": ["tun"],
+                    "old_english_citations": ["rando-port"],
                     "celtic_mix": ["caer"],
+                    "celtic_mix_citations": ["watson_1926"],
                 }
             ],
         },
@@ -220,7 +234,13 @@ def _fixture_bundle() -> list[dict]:
             "meaning": ["river"],
             "modifier_tags": ["water"],
             "modifier_type": None,
-            "words": [{"modern_usage": "afon", "celtic_mix": ["afon"]}],
+            "words": [
+                {
+                    "modern_usage": "afon",
+                    "celtic_mix": ["afon"],
+                    "celtic_mix_citations": ["wiktionary-empirical"],
+                }
+            ],
         },
         {
             "meaning": [],
@@ -279,6 +299,104 @@ def test_bundle_tag_coverage_returns_zeros_when_sibling_none() -> None:
         _fixture_bundle(), None, ["architecture", "topography"]
     )
     assert counts == {"architecture": 0, "topography": 0}
+
+
+# --- wyrd-lc94: bundle attestation breakdown ----------------------------
+
+
+def test_bundle_attestation_classifies_each_admit_path() -> None:
+    """The four admission paths produce four distinct bins. Fixture:
+    cot has scholar (mawer_1920), tun has only rando-port → grandfather,
+    afon has only wiktionary-empirical → empirical-only, plus celtic_mix
+    side which has watson_1926 (scholar) for tun and -empirical for afon."""
+    bundle = _fixture_bundle()
+    # OE sibling: cot (scholar), tun (rando-port-only) → 1+1=2 subjects.
+    oe = _bundle_attestation_breakdown(bundle, "old_english")
+    assert oe["total"] == 2
+    assert oe["scholar_attested"] == 1  # cot via mawer_1920
+    assert oe["rando_only"] == 1  # tun has only rando-port on OE side
+    assert oe["empirical_only"] == 0
+    assert oe["uncited"] == 0
+
+
+def test_bundle_attestation_celtic_mix_bins_separately() -> None:
+    """Per-language sibling attestation: same subjects can land in
+    different bins for different languages. tun's celtic_mix side
+    has scholar attestation (watson_1926); afon's celtic_mix side
+    has wiktionary-empirical only — separate from how they classify
+    on the OE side."""
+    bundle = _fixture_bundle()
+    cl = _bundle_attestation_breakdown(bundle, "celtic_mix")
+    assert cl["total"] == 2
+    assert cl["scholar_attested"] == 1  # tun via watson_1926
+    assert cl["empirical_only"] == 1  # afon only has wiktionary-empirical
+    assert cl["rando_only"] == 0
+    assert cl["uncited"] == 0
+
+
+def test_bundle_attestation_returns_empty_for_none_sibling() -> None:
+    """Languages without a bundle sibling get all-zeros — same defensive
+    behaviour as _bundle_tag_coverage_for_sibling."""
+    counts = _bundle_attestation_breakdown(_fixture_bundle(), None)
+    assert counts == {
+        "total": 0,
+        "scholar_attested": 0,
+        "empirical_only": 0,
+        "rando_only": 0,
+        "uncited": 0,
+    }
+
+
+def test_bundle_attestation_handles_uncited_subjects() -> None:
+    """A subject whose language sibling exists but has no _citations
+    field bins as 'uncited' (older bundle entries or coverage paths
+    that didn't carry attribution)."""
+    bundle = [
+        {
+            "meaning": ["cottage"],
+            "modifier_tags": ["architecture"],
+            "modifier_type": None,
+            "words": [{"modern_usage": "cot", "old_english": ["cot"]}],
+        }
+    ]
+    counts = _bundle_attestation_breakdown(bundle, "old_english")
+    assert counts["total"] == 1
+    assert counts["uncited"] == 1
+    assert counts["scholar_attested"] == 0
+
+
+def test_bundle_attestation_scholar_wins_mixed_citations() -> None:
+    """When a subject has BOTH scholar and rando-port citations, scholar
+    wins (the priority order in _bundle_attestation_breakdown). Pin so
+    a future change doesn't accidentally bin scholar+grandfather as
+    'rando_only' (which would understate real attestation)."""
+    bundle = [
+        {
+            "meaning": ["test"],
+            "modifier_tags": [],
+            "modifier_type": None,
+            "words": [
+                {
+                    "modern_usage": "x",
+                    "old_english": ["x"],
+                    "old_english_citations": ["rando-port", "skeat_1901"],
+                }
+            ],
+        }
+    ]
+    counts = _bundle_attestation_breakdown(bundle, "old_english")
+    assert counts["scholar_attested"] == 1
+    assert counts["rando_only"] == 0
+
+
+def test_bundle_attestation_handles_dict_shape() -> None:
+    """Forward-compat: dict-shaped bundles (post-wyrd-c1vq) read the
+    'subjects' key. Same coverage as the list-shaped fixture."""
+    bundle = {"subjects": _fixture_bundle(), "joiners": {}}
+    oe = _bundle_attestation_breakdown(bundle, "old_english")
+    assert oe["total"] == 2
+    assert oe["scholar_attested"] == 1
+    assert oe["rando_only"] == 1
 
 
 # --- per-language scorecard ----------------------------------------------
@@ -687,6 +805,13 @@ def test_language_scorecard_dataclass_carries_required_fields() -> None:
         "stratum_density",
         "etymons_with_citations",
         "avg_citations",
+        # J. Bundle attestation breakdown (wyrd-lc94)
+        "bundle_attestation_total",
+        "bundle_scholar_attested",
+        "bundle_empirical_only",
+        "bundle_rando_only",
+        "bundle_uncited",
+        "bundle_scholar_attestation_rate",
     }
     actual = set(LanguageScorecard.__dataclass_fields__.keys())
     assert actual == fields, f"missing: {fields - actual}, extra: {actual - fields}"
