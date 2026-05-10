@@ -284,10 +284,11 @@ language sibling AND a non-empty pronunciation entry):
 | old_scandinavian |     1,238 |       21 |   1.7% |
 | latin            |        23 |        0 |   0.0% |
 
-Old-norse stays low because the wiktextract OE/ON slices often
-leave their ``sounds`` arrays empty for older entries; addressing
-that needs a separate mining pass against richer sources, tracked
-as a wyrd-69s5 follow-up if it matters for a future SPA panel.
+The ``old_scandinavian`` (Old Norse) row stays low because the
+wiktextract Old Norse slice often leaves its ``sounds`` arrays
+empty for older entries; addressing that needs a separate mining
+pass against richer sources, tracked as a wyrd-69s5 follow-up if
+it matters for a future SPA panel.
 
 The mining also re-walked the empirical corpus and surfaced ~50
 new etymons that weren't in the previous bundle (mostly via

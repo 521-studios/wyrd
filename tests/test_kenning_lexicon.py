@@ -6660,11 +6660,14 @@ def test_language_field_mapping_covers_known_codes() -> None:
         "_citations",
         "_attested_years",
         "_stratum",
-        # wyrd-69s5 / wyrd-ha9q: per-language pronunciation + multi-script
-        # rendering siblings emitted by export-meanings. The runtime's
-        # load_meanings parses these into Meaning.pronunciation /
-        # original_script / transliteration / english_shaped maps —
-        # not part of the LANGUAGE_FIELDS source-language table.
+        # Per-language pronunciation + multi-script rendering siblings
+        # emitted by export-meanings. The columns themselves were added
+        # in wyrd-ha9q (Phase 2a/c/d, multi-script support); wyrd-69s5
+        # is the corpus-miner fix that finally populated them on
+        # European-language etymons. The runtime's load_meanings
+        # parses these into Meaning.pronunciation / original_script /
+        # transliteration / english_shaped maps — not part of the
+        # LANGUAGE_FIELDS source-language table.
         "_pronunciation",
         "_original_script",
         "_transliteration",
