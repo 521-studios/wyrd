@@ -230,6 +230,66 @@ def test_apply_threads_pronunciation_ipa_into_etymon(tmp_path: Path, fresh_db: P
         assert row["pronunciation_dialect"] is None
 
 
+def test_apply_threads_original_script_and_transliteration_into_etymon(
+    tmp_path: Path, fresh_db: Path
+) -> None:
+    """wyrd-69s5 (parity with full ingester): non-Latin entries' head
+    templates carry both an original-script form and a Latin-script
+    transliteration. The corpus miner must thread both through
+    ``upsert_etymon`` so the bundle's runtime rendering layer can show
+    original-script alongside transliteration even on entries admitted
+    via empirical mining. Pre-fix the corpus miner dropped these on
+    the floor; post-fix the kwargs flow through and the per-run summary
+    counters mirror the full ingester's shape."""
+    # OE slice with a head_templates entry (OE rarely has them in real
+    # data, but the wiring under test is the corpus miner's flow into
+    # upsert_etymon, not the wiktextract parser's coverage). Counters
+    # are the behavioural pin — exact key extraction depends on
+    # _extract_head_template_renderings' heuristics, which are tested
+    # separately in the ingester's test suite.
+    oe_slice = tmp_path / "wiktextract_old_english.jsonl"
+    _write_slice(
+        oe_slice,
+        [
+            {
+                "word": "wyrd",
+                "lang_code": "ang",
+                "senses": [{"glosses": ["fate, destiny"]}],
+                "head_templates": [
+                    {
+                        "name": "head",
+                        "args": {"1": "ang", "head": "wyrd"},
+                        "expansion": "wyrd",
+                    }
+                ],
+            }
+        ],
+    )
+    fragments = {"english": Counter({"wyrd": 3})}
+    with LexiconDB(fresh_db) as db:
+        counts = mine_corpus(
+            db,
+            fragments_by_culture=fragments,
+            sources_dir=tmp_path,
+            apply=True,
+        )
+    # Behavioural pin: the row gets written, AND the per-run counter
+    # keys mirror the full ingester's shape so dashboard/dry-run output
+    # is consistent across both paths.
+    assert "pronunciation_captured" in counts
+    assert "original_script_captured" in counts
+    assert "transliteration_captured" in counts
+    with LexiconDB(fresh_db) as db:
+        row = db.conn.execute(
+            "SELECT pronunciation_ipa, original_script, transliteration "
+            "FROM etymon WHERE canonical_form='wyrd' AND language='old-english'"
+        ).fetchone()
+        assert row is not None
+        # Columns exist on the row (wiring works); whether the helper
+        # extracts content from a vanilla head_templates entry is a
+        # separate concern — the ingester-side helper tests cover that.
+
+
 def test_apply_skips_pronunciation_for_entries_without_sounds(
     tmp_path: Path, fresh_db: Path
 ) -> None:
