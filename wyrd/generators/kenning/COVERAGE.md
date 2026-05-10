@@ -261,6 +261,55 @@ the score-pruning walk produces the same global-minimum set as
 the legacy enumerate-then-filter approach — only the memory
 profile differs.
 
+### 2026-05-09 — wyrd-69s5 IPA backfill (operational re-mining)
+
+Operational follow-up to the wyrd-69s5 corpus-miner code fix (PR
+#158): re-ran ``mine-wiktextract-corpus --apply --culture all``
+to backfill ``pronunciation_ipa`` + ``original_script`` +
+``transliteration`` on the ~9000 etymons the empirical mining
+path touches. Pre-backfill IPA coverage was 0% on every shipped
+European language despite the source wiktextract slices carrying
+IPA in their ``sounds`` arrays — the corpus miner had been
+dropping the field on the floor before fbee68f / PR #158.
+
+Per-language IPA coverage in the bundle (subjects with the
+language sibling AND a non-empty pronunciation entry):
+
+| sibling          | with_lang | with_ipa |   ipa% |
+|------------------|----------:|---------:|-------:|
+| celtic_mix       |     6,061 |    2,431 |  40.1% |
+| modern_english   |     5,495 |    1,083 |  19.7% |
+| old_english      |     4,470 |    1,779 |  39.8% |
+| old_french       |     1,403 |      211 |  15.0% |
+| old_scandinavian |     1,238 |       21 |   1.7% |
+| latin            |        23 |        0 |   0.0% |
+
+The ``old_scandinavian`` (Old Norse) row stays low because the
+wiktextract Old Norse slice often leaves its ``sounds`` arrays
+empty for older entries; addressing that needs a separate mining
+pass against richer sources, tracked as a wyrd-69s5 follow-up if
+it matters for a future SPA panel.
+
+The mining also re-walked the empirical corpus and surfaced ~50
+new etymons that weren't in the previous bundle (mostly via
+inflection-form lookups that landed in etymon_text_match). The
+re-emitted bundle grew 8490 → 8502 subjects.
+
+| culture  | perfect | total  | rate   | Δ pp vs prior (wyrd-zewx) |
+|----------|--------:|-------:|-------:|--------------------------:|
+| english  |   12383 | 17876  | 69.3%  |                      +0.3 |
+| scottish |    1452 | 2321   | 62.6%  |                      +0.3 |
+| welsh    |    1265 | 1916   | 66.0%  |                      +0.1 |
+| irish    |   16417 | 34041  | 48.2%  |                      +0.1 |
+| breton   |     183 | 1208   | 15.2%  |                      +0.2 |
+
+Modest perfect-rate uptick (+0.1-0.3pp) from the new etymons
+the empirical re-mining surfaced. The headline result is the
+runtime visibility win: SPA's etymological-provenance panel can
+now render IPA on ~40% of OE / Celtic morphemes and ~20% of
+modern-English morphemes, where pre-fix it was 0% across the
+board.
+
 ## How to record a new snapshot
 
 After a bundle re-emit (`wyrd kenning lexicon export-meanings` →
