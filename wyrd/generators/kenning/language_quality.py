@@ -273,6 +273,29 @@ class LanguageScorecard:
     bundle_rando_only: int = 0
     bundle_uncited: int = 0
     bundle_scholar_attestation_rate: float = 0.0
+    # K. Rando-port grandfather audit (wyrd-vn09)
+    # Family-level (etymon-rollup) classification of which morpheme
+    # families ride solely on the rando-port legacy seed for admission
+    # vs which are corroborated through the cluster. Distinct from J's
+    # bundle-attestation reading because that one operated on the
+    # bundle's per-word citation list, which propagates scholar
+    # attestation across cluster siblings. THIS metric operates on the
+    # raw etymon_citation table at the family level — the cleanest
+    # answer to 'how many morphemes would lose their bundle slot if we
+    # turned off include_rando=True'.
+    #
+    # ``rando_pure_grandfather_families``: families where every cited
+    # etymon's only citation is 'rando-port'. Curation candidates.
+    # ``rando_mixed_grandfather_families``: families with rando-port +
+    # scholar/empirical on some sibling. Already corroborated through
+    # the cluster — safe to keep, useful as a trend indicator (count
+    # should drift down as mining propagates).
+    # ``rando_total_cited_families``: denominator (families whose root
+    # is in this language, with at least one citation anywhere).
+    rando_pure_grandfather_families: int = 0
+    rando_mixed_grandfather_families: int = 0
+    rando_total_cited_families: int = 0
+    rando_pure_grandfather_rate: float = 0.0
 
 
 @dataclass
@@ -909,6 +932,104 @@ def _bundle_ipa_coverage(
     return n
 
 
+def compute_rando_port_grandfather_audit(
+    conn: sqlite3.Connection,
+) -> dict[str, dict[str, int]]:
+    """wyrd-vn09: classify every citation-bearing family in the lexicon
+    by whether it depends solely on the rando-port legacy seed for
+    admission, and bucket the results by the family root's language.
+
+    The lc94 dashboard surfaced 0% rando-port-only at the bundle level,
+    because the bundle's per-word citation list is the union across the
+    family — any scholar citation on any cluster sibling propagates to
+    every member. The actionable curation question is at the etymon-
+    family level: which morpheme families would lose their bundle slot
+    if ``include_rando=True`` were flipped off?
+
+    Three classes per family (citation-bearing only — uncited families
+    are reported separately):
+
+    * ``pure_grandfather`` — the entire family's only citations are
+      ``rando-port``. Admission rides solely on the legacy hand-curated
+      seed. Curation candidates: spot-check, look for typos /
+      transcription errors / spurious entries, target for empirical
+      mining corroboration.
+    * ``mixed_grandfather`` — the family has rando-port citations AND
+      at least one scholar / wiktionary-empirical citation on some
+      sibling. The legacy seed is corroborated through cluster — these
+      are SAFE to keep but interesting to track for trend purposes
+      (over time the count should drift down as mining propagates).
+    * ``no_grandfather`` (implicit, not returned per-language) — the
+      family has citations but none from rando-port; all-modern
+      attestation, not part of the audit.
+
+    Returns ``{language: {pure_grandfather: int, mixed_grandfather:
+    int, total_families: int}}``. ``total_families`` is the count of
+    citation-bearing families whose root is in this language —
+    denominator for grandfather-density rates.
+
+    Family rollup matches ``lexicon._build_family_rollup``: target =
+    merged_into_id OR lemma_id OR self; root = lemma_id of target OR
+    target itself. So OCR-cluster losers and inflected children both
+    surface their lemma as root. Computed once per report (caller
+    threads the result into ``compute_scorecard``) — the rollup walks
+    every etymon row, so per-language recomputation would be wasteful.
+    """
+    # Single-pass scan of the ~860K-row etymon table to populate both
+    # the rollup maps AND the language lookup. Integer indices instead
+    # of row_factory-dependent column names so the function is robust
+    # to callers whose connection doesn't set sqlite3.Row.
+    target_by_id: dict[int, int] = {}
+    lemma_by_id: dict[int, int | None] = {}
+    lang_by_id: dict[int, str] = {}
+    for r in conn.execute("SELECT id, merged_into_id, lemma_id, language FROM etymon"):
+        eid, merged, lemma, lang = r[0], r[1], r[2], r[3]
+        target_by_id[eid] = merged or lemma or eid
+        lemma_by_id[eid] = lemma
+        lang_by_id[eid] = lang
+
+    def root_of(eid: int) -> int:
+        target = target_by_id.get(eid, eid)
+        return lemma_by_id.get(target) or target
+
+    family_members: dict[int, list[int]] = {}
+    for eid in target_by_id:
+        family_members.setdefault(root_of(eid), []).append(eid)
+
+    # Citation map: etymon_id → set of source_ids. Same integer-index
+    # robustness as above.
+    cites_by_etymon: dict[int, set[str]] = {}
+    for r in conn.execute("SELECT etymon_id, source_id FROM etymon_citation"):
+        cites_by_etymon.setdefault(r[0], set()).add(r[1])
+
+    audit: dict[str, dict[str, int]] = {}
+    for root_id, members in family_members.items():
+        family_sources: set[str] = set()
+        for mid in members:
+            # ``update`` with the get-default-tuple avoids the per-miss
+            # empty-set allocation that ``|= cites_by_etymon.get(mid,
+            # set())`` triggered — ~860K families × member loop adds
+            # up under GC pressure.
+            family_sources.update(cites_by_etymon.get(mid, ()))
+        if not family_sources:
+            continue  # uncited family — reported elsewhere (citation depth metric I)
+        lang = lang_by_id.get(root_id)
+        if lang is None:
+            continue
+        bucket = audit.setdefault(
+            lang, {"pure_grandfather": 0, "mixed_grandfather": 0, "total_families": 0}
+        )
+        bucket["total_families"] += 1
+        # Use the same ``_GRANDFATHER_CITATION_SOURCES`` constant as
+        # ``_bundle_attestation_breakdown`` so changes to the
+        # grandfather source list propagate to both audits.
+        if family_sources == _GRANDFATHER_CITATION_SOURCES:
+            bucket["pure_grandfather"] += 1
+        elif family_sources & _GRANDFATHER_CITATION_SOURCES:
+            bucket["mixed_grandfather"] += 1
+    return audit
+
+
 # --- top-level scorecard --------------------------------------------------
 
 
@@ -920,8 +1041,16 @@ def compute_scorecard(
     *,
     default_threshold: int = 3,
     lang_thresholds: dict[str, int] | None = None,
+    rando_port_audit: dict[str, dict[str, int]] | None = None,
 ) -> LanguageScorecard:
-    """Compute the full scorecard for one language."""
+    """Compute the full scorecard for one language.
+
+    ``rando_port_audit`` (wyrd-vn09, optional) is the precomputed
+    family-level grandfather classification from
+    ``compute_rando_port_grandfather_audit``. Passed in rather than
+    recomputed because the rollup walks all ~900K etymons. ``None``
+    skips the K. fields (they stay at default 0).
+    """
     if lang_thresholds is None:
         lang_thresholds = RECOMMENDED_LANG_THRESHOLDS
     threshold = lang_thresholds.get(language, default_threshold)
@@ -945,6 +1074,9 @@ def compute_scorecard(
     citations = _citation_depth(conn, language)
     lex_ipa = _lexicon_ipa_coverage(conn, language)
     bundle_ipa = _bundle_ipa_coverage(bundle, sibling)
+    rando_bucket = (rando_port_audit or {}).get(
+        language, {"pure_grandfather": 0, "mixed_grandfather": 0, "total_families": 0}
+    )
 
     total_lemmas = depth["total_lemmas"]
     total_etymons = depth["total_etymons"]
@@ -1003,6 +1135,14 @@ def compute_scorecard(
         bundle_ipa_rate=(
             round(bundle_ipa / attestation["total"], 4) if attestation["total"] else 0.0
         ),
+        rando_pure_grandfather_families=rando_bucket["pure_grandfather"],
+        rando_mixed_grandfather_families=rando_bucket["mixed_grandfather"],
+        rando_total_cited_families=rando_bucket["total_families"],
+        rando_pure_grandfather_rate=(
+            round(rando_bucket["pure_grandfather"] / rando_bucket["total_families"], 4)
+            if rando_bucket["total_families"]
+            else 0.0
+        ),
     )
 
 
@@ -1026,6 +1166,11 @@ def compute_report(
     languages_to_check = list(languages or DEFAULT_LANGUAGES)
     if reference_tags is None:
         reference_tags = list(FALLBACK_REFERENCE_TAGS[:REFERENCE_TAG_COUNT])
+    # wyrd-vn09: precompute the rando-port grandfather audit ONCE
+    # (rollup walks every etymon row, so per-language recomputation
+    # would be wasteful). Each scorecard reads its bucket from the
+    # precomputed map.
+    rando_port_audit = compute_rando_port_grandfather_audit(conn)
     cards: list[LanguageScorecard] = []
     for lang in languages_to_check:
         card = compute_scorecard(
@@ -1035,6 +1180,7 @@ def compute_report(
             reference_tags,
             default_threshold=default_threshold,
             lang_thresholds=lang_thresholds,
+            rando_port_audit=rando_port_audit,
         )
         if drop_empty and card.total_etymons == 0:
             continue
@@ -1089,10 +1235,10 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
     lines.append("")
     lines.append(
         "| Language | Etymons | Lemmas | Promo (≥thr) | Bundle | "
-        "Scholar atst | IPA (db / bundle) | Lex tag hit | Bundle tag hit | Inflect | "
-        "Variants | Era reflex |"
+        "Scholar atst | IPA (db / bundle) | Grandfather | Lex tag hit | "
+        "Bundle tag hit | Inflect | Variants | Era reflex |"
     )
-    lines.append("|---|---:|---:|---|---:|---:|---|---|---|---|---|---|")
+    lines.append("|---|---:|---:|---|---:|---:|---|---:|---|---|---|---|---|")
     for c in report.languages:
         promo = f"{c.promotion_eligible} (≥{c.promotion_threshold})"
         bundle_pct = _format_pct(c.bundle_word_count, report.bundle_total_words)
@@ -1127,10 +1273,20 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
         else:
             bundle_ipa_pct = _format_pct(c.bundle_subjects_with_ipa, c.bundle_attestation_total)
         ipa_cell = f"{lex_ipa_pct} / {bundle_ipa_pct}"
+        # Grandfather column: pure-grandfather families / cited families.
+        # 'n/a' when this language has no citation-bearing families at
+        # all (denominator zero).
+        if c.rando_total_cited_families == 0:
+            grandfather_cell = "n/a"
+        else:
+            grandfather_cell = (
+                f"{c.rando_pure_grandfather_families}/{c.rando_total_cited_families} "
+                f"({_format_pct(c.rando_pure_grandfather_families, c.rando_total_cited_families)})"
+            )
         lines.append(
             f"| {c.language} | {c.total_etymons} | {c.total_lemmas} | {promo} | "
-            f"{bundle_cell} | {scholar_atst} | {ipa_cell} | {lex_hit} | {bundle_hit} | "
-            f"{inflect} | {variants} | {era} |"
+            f"{bundle_cell} | {scholar_atst} | {ipa_cell} | {grandfather_cell} | "
+            f"{lex_hit} | {bundle_hit} | {inflect} | {variants} | {era} |"
         )
     lines.append("")
 
@@ -1182,6 +1338,28 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
                 f"of {c.bundle_attestation_total} subjects shipped."
             )
         lines.append(atst_line)
+        # K. Rando-port grandfather audit (wyrd-vn09). Family-level
+        # classification of which morpheme families ride solely on the
+        # legacy seed. Distinct from B₂ above because that operated on
+        # the bundle's per-word citation list (cluster-propagated). The
+        # 'pure_grandfather' count is the curation candidate set —
+        # families that would lose their bundle slot if include_rando
+        # were turned off.
+        if c.rando_total_cited_families == 0:
+            grandfather_line = (
+                "- **K. Rando-port grandfather audit:** n/a — no "
+                "citation-bearing families rooted in this language."
+            )
+        else:
+            grandfather_line = (
+                f"- **K. Rando-port grandfather audit:** "
+                f"{c.rando_pure_grandfather_families} pure-grandfather "
+                f"({_format_pct(c.rando_pure_grandfather_families, c.rando_total_cited_families)}), "
+                f"{c.rando_mixed_grandfather_families} mixed (rando-port + scholar/empirical), "
+                f"of {c.rando_total_cited_families} cited families "
+                f"rooted in this language."
+            )
+        lines.append(grandfather_line)
         # H. Pronunciation / IPA coverage (wyrd-dxu2). Two-axis line:
         # lexicon-side (true per-language IPA we have in the DB) and
         # bundle-side (what users see, which can include cluster-mate

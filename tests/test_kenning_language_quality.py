@@ -33,6 +33,7 @@ from wyrd.generators.kenning.language_quality import (
     _bundle_tag_coverage_for_sibling,
     _bundle_total_words,
     _lexicon_ipa_coverage,
+    compute_rando_port_grandfather_audit,
     compute_report,
     compute_scorecard,
     load_reference_tags,
@@ -519,6 +520,103 @@ def test_scorecard_inheritance_warning_pin() -> None:
     assert "Bundle IPA is INHERITED from cluster mates" in md
 
 
+# --- wyrd-vn09: rando-port grandfather audit -----------------------------
+
+
+def _seed_grandfather_fixture_db() -> sqlite3.Connection:
+    """Tiny in-memory DB that exercises the three classification paths
+    of compute_rando_port_grandfather_audit:
+      - pure-grandfather family (etymon 100, rando-port only)
+      - mixed-grandfather family (etymon 101, rando-port + scholar)
+      - no-grandfather family (etymon 102, scholar only — should not
+        count toward the audit's grandfather buckets but DOES count
+        toward total_families since it's citation-bearing)
+    """
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(
+        """
+        CREATE TABLE source (id TEXT PRIMARY KEY);
+        INSERT INTO source(id) VALUES ('rando-port'), ('skeat_1901');
+        CREATE TABLE etymon (
+            id INTEGER PRIMARY KEY,
+            canonical_form TEXT NOT NULL,
+            language TEXT NOT NULL,
+            lemma_id INTEGER,
+            merged_into_id INTEGER
+        );
+        CREATE TABLE etymon_citation (
+            id INTEGER PRIMARY KEY,
+            etymon_id INTEGER NOT NULL,
+            source_id TEXT NOT NULL
+        );
+        INSERT INTO etymon(id, canonical_form, language) VALUES (100, 'aecern', 'old-english');
+        INSERT INTO etymon(id, canonical_form, language) VALUES (101, 'cot', 'old-english');
+        INSERT INTO etymon(id, canonical_form, language) VALUES (102, 'ham', 'old-english');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (100, 'rando-port');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (101, 'rando-port');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (101, 'skeat_1901');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (102, 'skeat_1901');
+        """
+    )
+    return conn
+
+
+def test_grandfather_audit_classifies_three_paths() -> None:
+    """Pure-grandfather, mixed-grandfather, and no-grandfather families
+    each land in the right bucket. Pin: 1 pure, 1 mixed, total_families
+    = 3 (all three are citation-bearing, including the scholar-only
+    family which counts toward the denominator but neither grandfather
+    bucket)."""
+    conn = _seed_grandfather_fixture_db()
+    audit = compute_rando_port_grandfather_audit(conn)
+    oe = audit["old-english"]
+    assert oe["pure_grandfather"] == 1
+    assert oe["mixed_grandfather"] == 1
+    assert oe["total_families"] == 3
+
+
+def test_grandfather_audit_excludes_uncited_families() -> None:
+    """A family with NO citations anywhere isn't in the audit at all —
+    uncited rows are reported by the citation-depth metric (I), not by
+    the grandfather audit which is specifically about admission paths."""
+    conn = _seed_grandfather_fixture_db()
+    conn.execute(
+        "INSERT INTO etymon(id, canonical_form, language) VALUES (200, 'uncited', 'old-english')"
+    )
+    conn.commit()
+    audit = compute_rando_port_grandfather_audit(conn)
+    # Same counts as before — the uncited row contributes nothing.
+    oe = audit["old-english"]
+    assert oe["total_families"] == 3
+
+
+def test_grandfather_audit_follows_family_rollup() -> None:
+    """Lemma-id and merged_into_id rollup matches lexicon._build_family_rollup:
+    a family is rolled up to its root, and citations from any member count
+    toward the family's classification. Pin: an inflected child of a pure-
+    grandfather lemma stays in the pure-grandfather bucket, NOT a separate
+    family."""
+    conn = _seed_grandfather_fixture_db()
+    # Add an inflected child of etymon 100 (pure-grandfather lemma)
+    # plus a scholar citation on the CHILD (the family becomes mixed
+    # because the rollup unions all members' sources).
+    conn.execute(
+        "INSERT INTO etymon(id, canonical_form, language, lemma_id) "
+        "VALUES (110, 'aecernas', 'old-english', 100)"
+    )
+    conn.execute("INSERT INTO etymon_citation(etymon_id, source_id) VALUES (110, 'skeat_1901')")
+    conn.commit()
+    audit = compute_rando_port_grandfather_audit(conn)
+    oe = audit["old-english"]
+    # Family 100 was 'pure'; the new child's scholar citation rolls up,
+    # so the family is now 'mixed'. Pure count drops by 1, mixed
+    # increases by 1; total_families unchanged (110 rolls up to 100).
+    assert oe["pure_grandfather"] == 0
+    assert oe["mixed_grandfather"] == 2
+    assert oe["total_families"] == 3
+
+
 # --- per-language scorecard ----------------------------------------------
 
 
@@ -937,6 +1035,11 @@ def test_language_scorecard_dataclass_carries_required_fields() -> None:
         "lexicon_ipa_density",
         "bundle_subjects_with_ipa",
         "bundle_ipa_rate",
+        # K. Rando-port grandfather audit (wyrd-vn09)
+        "rando_pure_grandfather_families",
+        "rando_mixed_grandfather_families",
+        "rando_total_cited_families",
+        "rando_pure_grandfather_rate",
     }
     actual = set(LanguageScorecard.__dataclass_fields__.keys())
     assert actual == fields, f"missing: {fields - actual}, extra: {actual - fields}"
