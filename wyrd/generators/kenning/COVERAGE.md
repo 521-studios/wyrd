@@ -310,6 +310,64 @@ now render IPA on ~40% of OE / Celtic morphemes and ~20% of
 modern-English morphemes, where pre-fix it was 0% across the
 board.
 
+### 2026-05-10 — wyrd-xmk3 (full ingest-wiktionary on European slices)
+
+Followed wyrd-69s5's corpus-miner IPA backfill (PR #158/#159) by
+running the FULL ``ingest-wiktionary`` path on all on-disk
+European-language wiktextract slices. The corpus miner only touches
+~1% of etymons (those whose surface matches an unaccounted place-name
+fragment), so the IPA in those etymons' ``sounds`` arrays was
+mostly going to waste. The full ingester walks every entry, runs
+the same ``_extract_pronunciation`` helper, and COALESCEs the IPA
+into the etymon table.
+
+Per-language IPA coverage in the **lexicon DB** (etymon table)
+after running on 13 slices:
+
+| language       | before | after  | gain  |
+|----------------|-------:|-------:|------:|
+| old-english    |   1.0% | **75.2%** | +74pp |
+| welsh          |   1.4% | **59.7%** | +58pp |
+| old-irish      |   3.1% | **47.3%** | +44pp |
+| irish          |   1.1% |  32.1% | +31pp |
+| breton         |   1.3% |  30.0% | +29pp |
+| scottish-gaelic |  0.5% |  24.3% | +24pp |
+| cornish        |   0.0% |  20.9% | +21pp |
+| manx           |   0.0% |  19.5% | +19pp |
+| middle-english |   0.9% |  12.1% | +11pp |
+| middle-irish   |   0.9% |  10.5% | +10pp |
+| old-french     |   0.9% |   6.2% |  +5pp |
+| old-norse      |   0.1% |   1.9% |  +2pp |
+
+Bundle-side coverage (subjects with non-empty pronunciation slot)
+post-export:
+
+| sibling          | before | after  |
+|------------------|-------:|-------:|
+| old_english      |  39.8% | **84.2%** |
+| celtic_mix       |  40.1% | **60.0%** |
+| modern_english   |  19.7% |  36.4% (still inherited from cluster mates) |
+| old_french       |  15.0% |  19.3% |
+| old_scandinavian |   1.7% |   6.9% |
+
+Modern-english is still 0% in the DB and surfaces only via cluster-
+mate inheritance from middle-english / old-english — wyrd-dxu2
+(reopened) tracks acquiring the modern-english wiktextract slice
+from Kaikki to fill that gap directly.
+
+Side-effects: the full ingester ALSO writes ``etymon_descent`` rows
+(28K upward + 98K downward for OE alone). These propagate into the
+era-reflex generation path and shape the cluster cognate logic.
+Net effect should be more accurate era reflexes; no behavioural
+regressions surfaced in spot-check.
+
+Per-culture perfect-rates unchanged from the wyrd-69s5 snapshot
+(see prior section) — IPA backfill doesn't change which morphemes
+match, only what pronunciation accompanies them. The win is in the
+SPA's etymological-provenance panel: it now has IPA to render on
+~85% of OE morphemes and ~60% of Celtic morphemes, where pre-fix
+the bundle path showed nothing (or borrowed from cluster mates).
+
 ## How to record a new snapshot
 
 After a bundle re-emit (`wyrd kenning lexicon export-meanings` →
