@@ -239,20 +239,6 @@ class LanguageScorecard:
     # G. Stratum coverage
     stratum_classified: int = 0
     stratum_density: float = 0.0
-    # I. Citation depth
-    etymons_with_citations: int = 0
-    avg_citations: float = 0.0
-    # J. Bundle attestation breakdown (wyrd-lc94)
-    # Per-subject classification of how each shipped subject containing
-    # this language reached the bundle. Surfaces the runtime-quality
-    # signal that DB-level corpus-depth metrics don't. See
-    # ``_bundle_attestation_breakdown`` for classification rules.
-    bundle_attestation_total: int = 0
-    bundle_scholar_attested: int = 0
-    bundle_empirical_only: int = 0
-    bundle_rando_only: int = 0
-    bundle_uncited: int = 0
-    bundle_scholar_attestation_rate: float = 0.0
     # H. Pronunciation / IPA coverage (wyrd-dxu2)
     # Two parallel views, mirroring the DB-vs-bundle split used for tag
     # coverage (C / C₂) and attestation (B₂):
@@ -273,6 +259,20 @@ class LanguageScorecard:
     lexicon_ipa_density: float = 0.0
     bundle_subjects_with_ipa: int = 0
     bundle_ipa_rate: float = 0.0
+    # I. Citation depth
+    etymons_with_citations: int = 0
+    avg_citations: float = 0.0
+    # J. Bundle attestation breakdown (wyrd-lc94)
+    # Per-subject classification of how each shipped subject containing
+    # this language reached the bundle. Surfaces the runtime-quality
+    # signal that DB-level corpus-depth metrics don't. See
+    # ``_bundle_attestation_breakdown`` for classification rules.
+    bundle_attestation_total: int = 0
+    bundle_scholar_attested: int = 0
+    bundle_empirical_only: int = 0
+    bundle_rando_only: int = 0
+    bundle_uncited: int = 0
+    bundle_scholar_attestation_rate: float = 0.0
 
 
 @dataclass

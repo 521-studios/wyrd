@@ -25,11 +25,14 @@ from wyrd.generators.kenning.language_quality import (
     DEFAULT_LANGUAGES,
     ERA_CHAINS,
     FALLBACK_REFERENCE_TAGS,
+    LanguageQualityReport,
     LanguageScorecard,
     _bundle_attestation_breakdown,
+    _bundle_ipa_coverage,
     _bundle_language_word_count,
     _bundle_tag_coverage_for_sibling,
     _bundle_total_words,
+    _lexicon_ipa_coverage,
     compute_report,
     compute_scorecard,
     load_reference_tags,
@@ -449,8 +452,6 @@ def test_lexicon_ipa_coverage_counts_only_non_null() -> None:
     """The DB-side helper counts etymons with non-null pronunciation_ipa.
     Fixture seed: cot + ham have IPA on the OE row, tun does not (3
     lemmas total, 2 with IPA)."""
-    from wyrd.generators.kenning.language_quality import _lexicon_ipa_coverage
-
     conn = _build_fixture_db()
     n = _lexicon_ipa_coverage(conn, "old-english")
     # cot ('/kot/') + ham ('/ham/') seeded; tun left NULL; the inflected
@@ -465,8 +466,6 @@ def test_bundle_ipa_coverage_counts_subjects_with_non_empty_ipa() -> None:
     truthy 'ipa' key. Defensive: entries without an 'ipa' key (or with
     an empty IPA string) don't count, even though the pronunciation
     array exists."""
-    from wyrd.generators.kenning.language_quality import _bundle_ipa_coverage
-
     bundle = _fixture_bundle_with_ipa()
     # Only 'cot' has a pronunciation entry with a populated 'ipa' key.
     assert _bundle_ipa_coverage(bundle, "old_english") == 1
@@ -475,15 +474,11 @@ def test_bundle_ipa_coverage_counts_subjects_with_non_empty_ipa() -> None:
 def test_bundle_ipa_coverage_returns_zero_for_none_sibling() -> None:
     """Languages without a bundle sibling get 0 — same defensive
     behaviour as the other bundle helpers."""
-    from wyrd.generators.kenning.language_quality import _bundle_ipa_coverage
-
     assert _bundle_ipa_coverage(_fixture_bundle_with_ipa(), None) == 0
 
 
 def test_bundle_ipa_coverage_handles_dict_shape() -> None:
     """Forward-compat: dict-shaped bundles (post-wyrd-c1vq)."""
-    from wyrd.generators.kenning.language_quality import _bundle_ipa_coverage
-
     bundle = {"subjects": _fixture_bundle_with_ipa(), "joiners": {}}
     assert _bundle_ipa_coverage(bundle, "old_english") == 1
 
@@ -495,12 +490,6 @@ def test_scorecard_inheritance_warning_pin() -> None:
     Pin: a fixture matching the modern-english post-wyrd-69s5 case
     (DB has 0 IPA, bundle inherits from cluster mates) renders the
     warning."""
-    from wyrd.generators.kenning.language_quality import (
-        LanguageQualityReport,
-        LanguageScorecard,
-        report_to_markdown,
-    )
-
     scorecard = LanguageScorecard(
         language="modern-english",
         total_etymons=21175,
