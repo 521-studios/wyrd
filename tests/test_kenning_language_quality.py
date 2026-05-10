@@ -25,11 +25,14 @@ from wyrd.generators.kenning.language_quality import (
     DEFAULT_LANGUAGES,
     ERA_CHAINS,
     FALLBACK_REFERENCE_TAGS,
+    LanguageQualityReport,
     LanguageScorecard,
     _bundle_attestation_breakdown,
+    _bundle_ipa_coverage,
     _bundle_language_word_count,
     _bundle_tag_coverage_for_sibling,
     _bundle_total_words,
+    _lexicon_ipa_coverage,
     compute_report,
     compute_scorecard,
     load_reference_tags,
@@ -61,7 +64,8 @@ def _build_fixture_db() -> sqlite3.Connection:
             lemma_method TEXT,
             cognate_id INTEGER REFERENCES etymon(id),
             cognate_method TEXT,
-            stratum TEXT
+            stratum TEXT,
+            pronunciation_ipa TEXT
         );
         CREATE TABLE etymon_citation (
             id INTEGER PRIMARY KEY,
@@ -119,10 +123,10 @@ def _build_fixture_db() -> sqlite3.Connection:
     # (single inflection child).
     conn.executescript(
         """
-        INSERT INTO etymon(id, canonical_form, language, stratum)
-          VALUES (1, 'cot', 'old-english', 'native-old-english');
-        INSERT INTO etymon(id, canonical_form, language, stratum)
-          VALUES (2, 'ham', 'old-english', 'native-old-english');
+        INSERT INTO etymon(id, canonical_form, language, stratum, pronunciation_ipa)
+          VALUES (1, 'cot', 'old-english', 'native-old-english', '/kot/');
+        INSERT INTO etymon(id, canonical_form, language, stratum, pronunciation_ipa)
+          VALUES (2, 'ham', 'old-english', 'native-old-english', '/ham/');
         INSERT INTO etymon(id, canonical_form, language, stratum)
           VALUES (3, 'tun', 'old-english', 'native-old-english');
         INSERT INTO etymon(id, canonical_form, language, lemma_id, inflection)
@@ -397,6 +401,122 @@ def test_bundle_attestation_handles_dict_shape() -> None:
     assert oe["total"] == 2
     assert oe["scholar_attested"] == 1
     assert oe["rando_only"] == 1
+
+
+# --- wyrd-dxu2: IPA / pronunciation coverage -----------------------------
+
+
+def _fixture_bundle_with_ipa() -> list[dict]:
+    """Bundle exercising the bundle-side IPA coverage helper. Three
+    subjects in old_english:
+      - cot has IPA in old_english_pronunciation
+      - tun has the language but NO pronunciation entry
+      - ham has the language and a pronunciation entry but the entry
+        carries no IPA string (defensive: we don't count it)
+    """
+    return [
+        {
+            "meaning": ["cottage"],
+            "modifier_tags": ["architecture"],
+            "modifier_type": None,
+            "words": [
+                {
+                    "modern_usage": "cot",
+                    "old_english": ["cot"],
+                    "old_english_pronunciation": [{"form": "cot", "ipa": "/kot/"}],
+                }
+            ],
+        },
+        {
+            "meaning": ["enclosure"],
+            "modifier_tags": ["topography"],
+            "modifier_type": None,
+            "words": [{"modern_usage": "tun", "old_english": ["tun"]}],
+        },
+        {
+            "meaning": ["home"],
+            "modifier_tags": ["architecture"],
+            "modifier_type": None,
+            "words": [
+                {
+                    "modern_usage": "ham",
+                    "old_english": ["ham"],
+                    "old_english_pronunciation": [{"form": "ham"}],  # no ipa key
+                }
+            ],
+        },
+    ]
+
+
+def test_lexicon_ipa_coverage_counts_only_non_null() -> None:
+    """The DB-side helper counts etymons with non-null pronunciation_ipa.
+    Fixture seed: cot + ham have IPA on the OE row, tun does not (3
+    lemmas total, 2 with IPA)."""
+    conn = _build_fixture_db()
+    n = _lexicon_ipa_coverage(conn, "old-english")
+    # cot ('/kot/') + ham ('/ham/') seeded; tun left NULL; the inflected
+    # children (cotum/cotan/hamum) also have NULL since the seed didn't
+    # set IPA on them.
+    assert n == 2
+
+
+def test_bundle_ipa_coverage_counts_subjects_with_non_empty_ipa() -> None:
+    """The bundle-side helper counts subjects whose sibling is populated
+    AND whose ``<sibling>_pronunciation`` has at least one entry with a
+    truthy 'ipa' key. Defensive: entries without an 'ipa' key (or with
+    an empty IPA string) don't count, even though the pronunciation
+    array exists."""
+    bundle = _fixture_bundle_with_ipa()
+    # Only 'cot' has a pronunciation entry with a populated 'ipa' key.
+    assert _bundle_ipa_coverage(bundle, "old_english") == 1
+
+
+def test_bundle_ipa_coverage_returns_zero_for_none_sibling() -> None:
+    """Languages without a bundle sibling get 0 — same defensive
+    behaviour as the other bundle helpers."""
+    assert _bundle_ipa_coverage(_fixture_bundle_with_ipa(), None) == 0
+
+
+def test_bundle_ipa_coverage_handles_dict_shape() -> None:
+    """Forward-compat: dict-shaped bundles (post-wyrd-c1vq)."""
+    bundle = {"subjects": _fixture_bundle_with_ipa(), "joiners": {}}
+    assert _bundle_ipa_coverage(bundle, "old_english") == 1
+
+
+def test_scorecard_inheritance_warning_pin() -> None:
+    """When lexicon-side IPA is 0 and bundle-side IPA is non-zero, the
+    rendered markdown surfaces an explicit ⚠ warning so a reader can
+    tell 'we have IPA' apart from 'we're showing cluster mates' IPA'.
+    Pin: a fixture matching the modern-english post-wyrd-69s5 case
+    (DB has 0 IPA, bundle inherits from cluster mates) renders the
+    warning."""
+    scorecard = LanguageScorecard(
+        language="modern-english",
+        total_etymons=21175,
+        total_lemmas=21175,
+        promotion_threshold=2,
+        promotion_eligible=0,
+        avg_witnesses=0.0,
+        source_count=0,
+        bundle_sibling="modern_english",
+        bundle_word_count=5495,
+        reference_tags=["a", "b"],
+        bundle_attestation_total=5495,
+        bundle_scholar_attested=2000,
+        lexicon_etymons_with_ipa=0,
+        lexicon_ipa_density=0.0,
+        bundle_subjects_with_ipa=1083,
+        bundle_ipa_rate=0.197,
+    )
+    report = LanguageQualityReport(
+        schema_version="1.0",
+        generated_at="2026-05-09T00:00:00Z",
+        reference_tags=["a", "b"],
+        bundle_total_words=18767,
+        languages=[scorecard],
+    )
+    md = report_to_markdown(report)
+    assert "Bundle IPA is INHERITED from cluster mates" in md
 
 
 # --- per-language scorecard ----------------------------------------------
@@ -812,6 +932,11 @@ def test_language_scorecard_dataclass_carries_required_fields() -> None:
         "bundle_rando_only",
         "bundle_uncited",
         "bundle_scholar_attestation_rate",
+        # H. Pronunciation / IPA coverage (wyrd-dxu2)
+        "lexicon_etymons_with_ipa",
+        "lexicon_ipa_density",
+        "bundle_subjects_with_ipa",
+        "bundle_ipa_rate",
     }
     actual = set(LanguageScorecard.__dataclass_fields__.keys())
     assert actual == fields, f"missing: {fields - actual}, extra: {actual - fields}"

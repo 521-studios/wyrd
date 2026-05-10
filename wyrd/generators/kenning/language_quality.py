@@ -239,6 +239,26 @@ class LanguageScorecard:
     # G. Stratum coverage
     stratum_classified: int = 0
     stratum_density: float = 0.0
+    # H. Pronunciation / IPA coverage (wyrd-dxu2)
+    # Two parallel views, mirroring the DB-vs-bundle split used for tag
+    # coverage (C / C₂) and attestation (B₂):
+    #   * Lexicon side: how many etymons in this language have a non-null
+    #     ``pronunciation_ipa`` column. Surfaces the DB-curation signal
+    #     ('how much of the lexicon has IPA at all').
+    #   * Bundle side: how many shipped subjects in this language have a
+    #     non-empty ``*_pronunciation`` slot. Surfaces the runtime-quality
+    #     signal ('what % of what we ship can be rendered with IPA in
+    #     the SPA's etymological-provenance panel').
+    # The two ARE NOT THE SAME — the bundle-side number can include IPA
+    # inherited from cluster-mate languages (e.g. modern_english forms
+    # that share a surface with a middle-english member with IPA), so
+    # the bundle figure overstates true per-language coverage. Both are
+    # useful: the DB number is the cleanest 'do we have IPA for this
+    # language?' signal, the bundle number is what users actually see.
+    lexicon_etymons_with_ipa: int = 0
+    lexicon_ipa_density: float = 0.0
+    bundle_subjects_with_ipa: int = 0
+    bundle_ipa_rate: float = 0.0
     # I. Citation depth
     etymons_with_citations: int = 0
     avg_citations: float = 0.0
@@ -841,6 +861,54 @@ def _citation_depth(conn: sqlite3.Connection, language: str) -> dict[str, Any]:
     }
 
 
+def _lexicon_ipa_coverage(conn: sqlite3.Connection, language: str) -> int:
+    """Metric H (lexicon side). Count of etymons in this language with
+    non-null ``pronunciation_ipa``. Excludes merged-away rows (consensus
+    view convention). The DB column is populated by
+    ``wiktextract_ingester._process_entry`` and (post-wyrd-69s5)
+    ``wiktextract_corpus_miner._write_one``; absent on languages
+    whose wiktextract slice doesn't carry ``sounds`` arrays."""
+    return conn.execute(
+        """
+        SELECT COUNT(*) FROM etymon
+         WHERE language = ?
+           AND merged_into_id IS NULL
+           AND pronunciation_ipa IS NOT NULL
+           AND pronunciation_ipa != ''
+        """,
+        (language,),
+    ).fetchone()[0]
+
+
+def _bundle_ipa_coverage(
+    bundle: list[dict[str, Any]] | dict[str, Any],
+    sibling: str | None,
+) -> int:
+    """Metric H (bundle side). Count of bundle subjects whose ``sibling``
+    is populated AND carry a ``<sibling>_pronunciation`` entry with at
+    least one non-empty IPA string. Caveat: this OVER-counts true
+    per-language IPA coverage because the bundle export's family rollup
+    can attach a cluster-mate's IPA to a sibling slot when the canonical
+    forms match (e.g. modern-english 'brede' inherits middle-english
+    'brede's IPA). Compare with ``_lexicon_ipa_coverage`` to detect
+    the cross-language inheritance — a 0% lexicon-side reading paired
+    with a non-zero bundle-side reading flags a language whose bundle
+    IPA is entirely inherited from cluster mates."""
+    if sibling is None:
+        return 0
+    pronunciation_key = f"{sibling}_pronunciation"
+    n = 0
+    for subj in _bundle_subjects(bundle):
+        for word in subj.get("words") or []:
+            if not word.get(sibling):
+                continue
+            pron_list = word.get(pronunciation_key) or []
+            if any(p.get("ipa") for p in pron_list if isinstance(p, dict)):
+                n += 1
+                break  # Per-subject count, not per-word.
+    return n
+
+
 # --- top-level scorecard --------------------------------------------------
 
 
@@ -875,6 +943,8 @@ def compute_scorecard(
     era = _era_reflex_coverage(conn, language)
     stratum = _stratum_coverage(conn, language)
     citations = _citation_depth(conn, language)
+    lex_ipa = _lexicon_ipa_coverage(conn, language)
+    bundle_ipa = _bundle_ipa_coverage(bundle, sibling)
 
     total_lemmas = depth["total_lemmas"]
     total_etymons = depth["total_etymons"]
@@ -926,6 +996,12 @@ def compute_scorecard(
             round(attestation["scholar_attested"] / attestation["total"], 4)
             if attestation["total"]
             else 0.0
+        ),
+        lexicon_etymons_with_ipa=lex_ipa,
+        lexicon_ipa_density=(round(lex_ipa / total_etymons, 4) if total_etymons else 0.0),
+        bundle_subjects_with_ipa=bundle_ipa,
+        bundle_ipa_rate=(
+            round(bundle_ipa / attestation["total"], 4) if attestation["total"] else 0.0
         ),
     )
 
@@ -1013,10 +1089,10 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
     lines.append("")
     lines.append(
         "| Language | Etymons | Lemmas | Promo (≥thr) | Bundle | "
-        "Scholar atst | Lex tag hit | Bundle tag hit | Inflect | "
+        "Scholar atst | IPA (db / bundle) | Lex tag hit | Bundle tag hit | Inflect | "
         "Variants | Era reflex |"
     )
-    lines.append("|---|---:|---:|---|---:|---:|---|---|---|---|---|")
+    lines.append("|---|---:|---:|---|---:|---:|---|---|---|---|---|---|")
     for c in report.languages:
         promo = f"{c.promotion_eligible} (≥{c.promotion_threshold})"
         bundle_pct = _format_pct(c.bundle_word_count, report.bundle_total_words)
@@ -1041,9 +1117,19 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
                 f"{c.bundle_attestation_total} "
                 f"({_format_pct(c.bundle_scholar_attested, c.bundle_attestation_total)})"
             )
+        # IPA column: 'db_pct / bundle_pct' so the gap between the
+        # two is visible at a glance. A high bundle / 0 db reading
+        # flags pure cluster-mate inheritance (modern_english is the
+        # canonical example post-wyrd-69s5).
+        lex_ipa_pct = _format_pct(c.lexicon_etymons_with_ipa, c.total_etymons)
+        if c.bundle_attestation_total == 0:
+            bundle_ipa_pct = "n/a"
+        else:
+            bundle_ipa_pct = _format_pct(c.bundle_subjects_with_ipa, c.bundle_attestation_total)
+        ipa_cell = f"{lex_ipa_pct} / {bundle_ipa_pct}"
         lines.append(
             f"| {c.language} | {c.total_etymons} | {c.total_lemmas} | {promo} | "
-            f"{bundle_cell} | {scholar_atst} | {lex_hit} | {bundle_hit} | "
+            f"{bundle_cell} | {scholar_atst} | {ipa_cell} | {lex_hit} | {bundle_hit} | "
             f"{inflect} | {variants} | {era} |"
         )
     lines.append("")
@@ -1096,6 +1182,37 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
                 f"of {c.bundle_attestation_total} subjects shipped."
             )
         lines.append(atst_line)
+        # H. Pronunciation / IPA coverage (wyrd-dxu2). Two-axis line:
+        # lexicon-side (true per-language IPA we have in the DB) and
+        # bundle-side (what users see, which can include cluster-mate
+        # inheritance). The gap between the two is the diagnostic
+        # signal — a 0% / 20% reading means the bundle's IPA on this
+        # language is entirely inherited from cluster mates.
+        ipa_db_pct = _format_pct(c.lexicon_etymons_with_ipa, c.total_etymons)
+        if c.bundle_attestation_total == 0:
+            ipa_line = (
+                f"- **H. Pronunciation coverage:** lexicon "
+                f"{c.lexicon_etymons_with_ipa}/{c.total_etymons} ({ipa_db_pct}); "
+                f"bundle n/a — no bundle subjects for this language."
+            )
+        else:
+            ipa_bundle_pct = _format_pct(c.bundle_subjects_with_ipa, c.bundle_attestation_total)
+            ipa_line = (
+                f"- **H. Pronunciation coverage:** lexicon "
+                f"{c.lexicon_etymons_with_ipa}/{c.total_etymons} ({ipa_db_pct}); "
+                f"bundle {c.bundle_subjects_with_ipa}/{c.bundle_attestation_total} "
+                f"({ipa_bundle_pct})."
+            )
+            # Diagnostic note when bundle reading is entirely inherited
+            # from cluster mates (lexicon side is 0 but bundle side is
+            # non-zero). Helps the reader distinguish 'we have IPA for
+            # this language' from 'we're showing cluster mates' IPA'.
+            if c.lexicon_etymons_with_ipa == 0 and c.bundle_subjects_with_ipa > 0:
+                ipa_line += (
+                    " ⚠ Bundle IPA is INHERITED from cluster mates "
+                    "(no native IPA in the DB for this language)."
+                )
+        lines.append(ipa_line)
         lex_hit = sum(1 for v in c.lexicon_tag_coverage.values() if v > 0)
         lex_missing = [t for t, v in c.lexicon_tag_coverage.items() if v == 0]
         lex_miss_str = ", ".join(lex_missing) if lex_missing else "none"
