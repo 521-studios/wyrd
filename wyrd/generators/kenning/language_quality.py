@@ -1006,7 +1006,11 @@ def compute_rando_port_grandfather_audit(
     for root_id, members in family_members.items():
         family_sources: set[str] = set()
         for mid in members:
-            family_sources |= cites_by_etymon.get(mid, set())
+            # ``update`` with the get-default-tuple avoids the per-miss
+            # empty-set allocation that ``|= cites_by_etymon.get(mid,
+            # set())`` triggered — ~860K families × member loop adds
+            # up under GC pressure.
+            family_sources.update(cites_by_etymon.get(mid, ()))
         if not family_sources:
             continue  # uncited family — reported elsewhere (citation depth metric I)
         lang = lang_by_id.get(root_id)
@@ -1016,9 +1020,12 @@ def compute_rando_port_grandfather_audit(
             lang, {"pure_grandfather": 0, "mixed_grandfather": 0, "total_families": 0}
         )
         bucket["total_families"] += 1
-        if family_sources == {"rando-port"}:
+        # Use the same ``_GRANDFATHER_CITATION_SOURCES`` constant as
+        # ``_bundle_attestation_breakdown`` so changes to the
+        # grandfather source list propagate to both audits.
+        if family_sources == _GRANDFATHER_CITATION_SOURCES:
             bucket["pure_grandfather"] += 1
-        elif "rando-port" in family_sources:
+        elif family_sources & _GRANDFATHER_CITATION_SOURCES:
             bucket["mixed_grandfather"] += 1
     return audit
 
