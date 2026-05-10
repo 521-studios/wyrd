@@ -33,7 +33,10 @@ import click
 from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.meaning import load_meanings
 from wyrd.generators.kenning.name import load_names
-from wyrd.generators.kenning.wiktextract_ingester import _canonical_language
+from wyrd.generators.kenning.wiktextract_ingester import (
+    _canonical_language,
+    _extract_pronunciation,
+)
 
 # Synthetic source row written on first --apply run.
 WIKTIONARY_EMPIRICAL_SOURCE_ID = "wiktionary-empirical"
@@ -596,15 +599,34 @@ def _write_one(
     canonical_lang: str,
     counts: dict[str, Any],
 ) -> None:
-    """Persist one wiktextract entry as an empirical etymon."""
+    """Persist one wiktextract entry as an empirical etymon.
+
+    wyrd-69s5: threads ``pronunciation_ipa`` + ``pronunciation_dialect``
+    from the entry's ``sounds`` array into the upsert. The full ingester
+    path (``wiktextract_ingester._process_entry``) had been doing this
+    since wyrd-ha9q, but the corpus-miner path didn't, so European-
+    language etymons admitted via empirical mining shipped with empty
+    pronunciation columns. Reusing ``_extract_pronunciation`` keeps both
+    paths consistent on the IPA-extraction strategy (prefer untagged,
+    fall back to first tagged).
+    """
     canonical_form = (entry.get("word") or "").strip()
     sense = _select_canonical_sense(entry)
     if not canonical_form or sense is None:
         return
     gloss, tags = sense
 
-    etymon_id = db.upsert_etymon(canonical_form, canonical_lang)
+    pron_ipa, pron_dialect = _extract_pronunciation(entry.get("sounds") or [])
+
+    etymon_id = db.upsert_etymon(
+        canonical_form,
+        canonical_lang,
+        pronunciation_ipa=pron_ipa,
+        pronunciation_dialect=pron_dialect,
+    )
     counts["etymons_upserted"] += 1
+    if pron_ipa:
+        counts["pronunciation_captured"] = counts.get("pronunciation_captured", 0) + 1
 
     db.add_gloss(etymon_id, gloss)
     counts["glosses_added"] += 1

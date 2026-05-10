@@ -186,6 +186,78 @@ def test_apply_writes_etymon_gloss_and_empirical_citation(tmp_path: Path, fresh_
         assert cit_sources == [WIKTIONARY_EMPIRICAL_SOURCE_ID]
 
 
+def test_apply_threads_pronunciation_ipa_into_etymon(tmp_path: Path, fresh_db: Path) -> None:
+    """wyrd-69s5: the corpus-miner path used to drop the wiktextract
+    ``sounds`` field on the floor, so European-language etymons admitted
+    via empirical mining shipped with NULL ``pronunciation_ipa`` even
+    when the source slice carried IPA. After threading
+    ``_extract_pronunciation`` through ``_write_one`` the IPA + dialect
+    columns get filled on upsert, and the rebuild-bundle path can render
+    pronunciation in the SPA's etymological-provenance panel."""
+    oe_slice = tmp_path / "wiktextract_old_english.jsonl"
+    _write_slice(
+        oe_slice,
+        [
+            {
+                "word": "word",
+                "lang_code": "ang",
+                "senses": [{"glosses": ["a word"]}],
+                "sounds": [{"ipa": "/word/"}, {"ipa": "[worˠd]"}],
+            }
+        ],
+    )
+    fragments = {"english": Counter({"word": 4})}
+    with LexiconDB(fresh_db) as db:
+        counts = mine_corpus(
+            db,
+            fragments_by_culture=fragments,
+            sources_dir=tmp_path,
+            apply=True,
+        )
+    assert counts.get("pronunciation_captured") == 1
+
+    with LexiconDB(fresh_db) as db:
+        row = db.conn.execute(
+            "SELECT pronunciation_ipa, pronunciation_dialect FROM etymon "
+            "WHERE canonical_form='word' AND language='old-english'"
+        ).fetchone()
+        assert row is not None
+        # Untagged-IPA preference: '/word/' (no dialect) wins over the
+        # tagged fallback. _extract_pronunciation's strategy is shared
+        # between corpus miner + full ingester, so the same priority
+        # rule applies.
+        assert row["pronunciation_ipa"] == "/word/"
+        assert row["pronunciation_dialect"] is None
+
+
+def test_apply_skips_pronunciation_for_entries_without_sounds(
+    tmp_path: Path, fresh_db: Path
+) -> None:
+    """When the wiktextract entry has no ``sounds`` field, the IPA
+    columns stay NULL and the per-run counter doesn't increment."""
+    welsh_slice = tmp_path / "wiktextract_welsh.jsonl"
+    _write_slice(
+        welsh_slice,
+        [{"word": "betws", "lang_code": "cy", "senses": [{"glosses": ["chapel"]}]}],
+    )
+    fragments = {"welsh": Counter({"betws": 4})}
+    with LexiconDB(fresh_db) as db:
+        counts = mine_corpus(
+            db,
+            fragments_by_culture=fragments,
+            sources_dir=tmp_path,
+            apply=True,
+        )
+    # Counter stays 0 (or absent) when no entry had sounds.
+    assert counts.get("pronunciation_captured", 0) == 0
+    with LexiconDB(fresh_db) as db:
+        row = db.conn.execute(
+            "SELECT pronunciation_ipa FROM etymon WHERE canonical_form='betws'"
+        ).fetchone()
+        assert row is not None
+        assert row["pronunciation_ipa"] is None
+
+
 def test_dry_run_writes_no_rows(tmp_path: Path, fresh_db: Path) -> None:
     welsh_slice = tmp_path / "wiktextract_welsh.jsonl"
     _write_slice(
