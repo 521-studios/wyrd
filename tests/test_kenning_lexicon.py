@@ -6660,6 +6660,15 @@ def test_language_field_mapping_covers_known_codes() -> None:
         "_citations",
         "_attested_years",
         "_stratum",
+        # wyrd-69s5 / wyrd-ha9q: per-language pronunciation + multi-script
+        # rendering siblings emitted by export-meanings. The runtime's
+        # load_meanings parses these into Meaning.pronunciation /
+        # original_script / transliteration / english_shaped maps —
+        # not part of the LANGUAGE_FIELDS source-language table.
+        "_pronunciation",
+        "_original_script",
+        "_transliteration",
+        "_english_shaped",
     )
     metadata_exact = {"era_reflexes"}
     missing = {
