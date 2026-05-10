@@ -240,12 +240,12 @@ def test_kenning_creature_generator_finds_known_creature(bundle_swapper) -> None
     with bundle_swapper(bundle):
         gen = KenningCreature()
         result = gen.generate({"name": "Harpy"}, seed=0)
-    assert result.result == "Harpy"
-    assert "ancient-greek" in result.explanation
-    assert "ἅρπυια" in result.explanation
-    assert "harpyia" in result.explanation
-    assert "snatcher" in result.explanation
-    assert "test-citation" in result.explanation
+        assert result.result == "Harpy"
+        assert "ancient-greek" in result.explanation
+        assert "ἅρπυια" in result.explanation
+        assert "harpyia" in result.explanation
+        assert "snatcher" in result.explanation
+        assert "test-citation" in result.explanation
 
 
 def test_kenning_creature_generator_case_insensitive(bundle_swapper) -> None:
@@ -270,12 +270,10 @@ def test_kenning_creature_generator_case_insensitive(bundle_swapper) -> None:
     }
     with bundle_swapper(bundle):
         gen = KenningCreature()
-        results = []
         for cased in ("drake", "Drake", "DRAKE", "DrAkE"):
-            results.append(gen.generate({"name": cased}, seed=0))
-    for result in results:
-        assert result.result == "Drake"
-        assert "sco" in result.explanation
+            result = gen.generate({"name": cased}, seed=0)
+            assert result.result == "Drake"
+            assert "sco" in result.explanation
 
 
 def test_kenning_creature_generator_unknown_returns_polite_message(
@@ -289,8 +287,8 @@ def test_kenning_creature_generator_unknown_returns_polite_message(
     with bundle_swapper({"subjects": [], "fantasy_morphemes": {}}):
         gen = KenningCreature()
         result = gen.generate({"name": "NotARealCreature"}, seed=0)
-    assert result.result == "NotARealCreature"
-    assert "No etymology found" in result.explanation
+        assert result.result == "NotARealCreature"
+        assert "No etymology found" in result.explanation
 
 
 def test_kenning_creature_generator_renders_era_reflexes(bundle_swapper) -> None:
@@ -323,10 +321,10 @@ def test_kenning_creature_generator_renders_era_reflexes(bundle_swapper) -> None
     with bundle_swapper(bundle):
         gen = KenningCreature()
         result = gen.generate({"name": "Wyrm"}, seed=0)
-    assert "Era reflexes" in result.explanation
-    assert "middle-english" in result.explanation
-    assert "worm" in result.explanation
-    assert "modern-english" in result.explanation
+        assert "Era reflexes" in result.explanation
+        assert "middle-english" in result.explanation
+        assert "worm" in result.explanation
+        assert "modern-english" in result.explanation
 
 
 def test_kenning_creature_generator_blank_input_raises() -> None:
@@ -368,10 +366,10 @@ def test_kenning_creature_cli_prints_result_and_explanation(bundle_swapper) -> N
     with bundle_swapper(bundle):
         runner = CliRunner()
         result = runner.invoke(cli, ["creature", "Harpy"], catch_exceptions=False)
-    assert result.exit_code == 0
-    assert "Harpy" in result.output
-    assert "ancient-greek" in result.output
-    assert "ἅρπυια" in result.output
+        assert result.exit_code == 0
+        assert "Harpy" in result.output
+        assert "ancient-greek" in result.output
+        assert "ἅρπυια" in result.output
 
 
 def test_kenning_creature_cli_unknown_creature_polite(bundle_swapper) -> None:
@@ -380,9 +378,9 @@ def test_kenning_creature_cli_unknown_creature_polite(bundle_swapper) -> None:
     with bundle_swapper({"subjects": [], "fantasy_morphemes": {}}):
         runner = CliRunner()
         result = runner.invoke(cli, ["creature", "Frobnicator"], catch_exceptions=False)
-    assert result.exit_code == 0
-    assert "No etymology found" in result.output
-    assert "Frobnicator" in result.output
+        assert result.exit_code == 0
+        assert "No etymology found" in result.output
+        assert "Frobnicator" in result.output
 
 
 # --- generator registration ----------------------------------------------
