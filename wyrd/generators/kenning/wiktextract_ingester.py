@@ -1004,7 +1004,16 @@ def _extract_entry_tags(entry: dict[str, Any]) -> list[str]:
     all_categories: set[str] = set()
     for sense in entry.get("senses") or []:
         for cat in sense.get("categories") or []:
-            name = cat.get("name") if isinstance(cat, dict) else None
+            # The current wiktextract format emits each category as a
+            # dict with name + kind + parents; older / custom configs
+            # sometimes emit raw strings. Handle both for forward-
+            # compat against wiktextract version drift.
+            if isinstance(cat, dict):
+                name = cat.get("name")
+            elif isinstance(cat, str):
+                name = cat
+            else:
+                name = None
             if name:
                 all_categories.add(name)
     return _map_categories_to_tags(all_categories)
