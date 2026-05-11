@@ -1776,6 +1776,38 @@ INFLECTION_RULES: dict[str, list[tuple[str, str]]] = {
         # shape as Old French.
         ("es", "feminine_plural"),
     ],
+    # Modern English — conservative set chosen to minimize false-
+    # positive linkages. The wyrd-r6bk precision-over-recall principle
+    # applies x10 to ModE because the corpus is 1.4M etymons (most via
+    # English wiktextract slice), and many natural English words end in
+    # the same surfaces as inflectional suffixes (e.g. 'bed' → 'be'+'d'
+    # would mislink to 'be'; 'string' → 'str'+'ing' wrong).
+    #
+    # Rules to consider but DEFERRED:
+    # - "-s" plural / "-es" plural: too generic. Words like 'is', 'this',
+    #   'thus', 'pass', 'class' end in -s naturally; linking 'pass' to
+    #   'pas' or 'class' to 'clas' would corrupt. Defer to a richer
+    #   rule with frequency-of-stem context.
+    # - "-er" comparative: conflicts with agent-noun -er (baker, walker
+    #   would link to verbs). Defer.
+    # - "-ly" adverb: conflicts with adjective-final -ly (ugly, lovely,
+    #   silly are NOT 'ug'/'love'/'sill' + ly). Too risky.
+    #
+    # The v1 subset stays narrow. Inflection coverage for ModE relies
+    # on Wiktionary's form-tables (mined via mine-wiktextract-forms
+    # which writes etymon_text_match rows — not lemma_id links).
+    "modern-english": [
+        # Past tense / past participle. Silent-e collision (hoped →
+        # hope, not hop) handled via the optional 3rd-tuple element:
+        # try (stem + 'e') first, fall back to plain stem. So 'hoped'
+        # → ['hope', 'hop']: 'hope' wins if both exist, 'hop' wins if
+        # only 'hop' exists.
+        ("ed", "past", "e"),
+        # Gerund / present participle. Same silent-e handling:
+        # 'hoping' → ['hope', 'hop']; 'walking' → ['walke', 'walk']
+        # (where 'walke' won't exist so 'walk' wins).
+        ("ing", "gerund", "e"),
+    ],
     # wyrd-r6bk Phase 1: Welsh suffix-strippable subset, conservative.
     # Initial-mutation morphology (lenition / nasal / aspirate) is
     # NOT suffix-strippable and stays unhandled — wyrd-jott tracks
@@ -2218,21 +2250,55 @@ def derive_mutation_lemma_candidate(inflected_form: str, language: str) -> tuple
     return None
 
 
-def derive_lemma_candidate(inflected_form: str, language: str) -> tuple[str, str] | None:
-    """Try to identify the lemma form for an inflected etymon by stripping
+def derive_lemma_candidates(inflected_form: str, language: str) -> list[tuple[str, str]]:
+    """Try to identify lemma forms for an inflected etymon by stripping
     a known inflectional suffix.
 
-    Returns (lemma_form, inflection_label) or None. Conservative: only
-    suggests a lemma if the resulting stem is at least 3 characters.
+    Returns a list of (lemma_form, inflection_label) candidates in
+    preferred order — caller picks the first one that matches an
+    existing etymon row. Conservative: only suggests stems ≥3 chars.
+
+    Each ``INFLECTION_RULES`` entry is either ``(suffix, label)`` or
+    ``(suffix, label, restore_suffix)``. The 3-tuple form lets a rule
+    produce TWO candidates: the stripped stem plus ``restore_suffix``
+    appended (e.g. silent-e for modern English: 'hoped' → 'hope'),
+    and the bare stripped stem ('hoped' → 'hop'). Restore-suffix
+    candidates are preferred — silent-e is the common case for modern
+    English -ed/-ing inflections.
     """
     if not inflected_form:
-        return None
+        return []
     rules = INFLECTION_RULES.get(language, [])
     s = inflected_form.lower()
-    for suffix, label in rules:
-        if s.endswith(suffix) and len(s) - len(suffix) >= 3:
-            return s[: -len(suffix)], label
-    return None
+    out: list[tuple[str, str]] = []
+    for rule in rules:
+        # Extended unpacking handles both the 2-tuple (legacy) and
+        # 3-tuple (wyrd-gf28 restore-suffix) rule shapes. ``*rest``
+        # is empty for 2-tuples; restore defaults to ''.
+        suffix, label, *rest = rule
+        restore = rest[0] if rest else ""
+        if not s.endswith(suffix) or len(s) - len(suffix) < 3:
+            continue
+        stem = s[: -len(suffix)]
+        if restore:
+            # Prefer restored-suffix candidate (silent-e etc.) before
+            # bare stem so a real lemma like 'hope' wins over a
+            # coincidentally-existing 'hop'.
+            out.append((stem + restore, label))
+        out.append((stem, label))
+    return out
+
+
+def derive_lemma_candidate(inflected_form: str, language: str) -> tuple[str, str] | None:
+    """Back-compat single-candidate wrapper around ``derive_lemma_candidates``.
+
+    Returns the FIRST candidate or None. Existing callers (and the
+    tests pinned against this signature) keep working unchanged;
+    link-lemmas itself uses the plural form to leverage the silent-e
+    alternates.
+    """
+    candidates = derive_lemma_candidates(inflected_form, language)
+    return candidates[0] if candidates else None
 
 
 def link_lemmas(db: LexiconDB, *, apply: bool = False) -> dict:
@@ -2267,20 +2333,30 @@ def link_lemmas(db: LexiconDB, *, apply: bool = False) -> dict:
     proposed: list[dict] = []
     inflected_rows = candidate_rows
     for row in inflected_rows:
-        # Try suffix-strip first (INFLECTION_RULES); fall through to
-        # mutation prefix-strip for Goidelic (MUTATION_RULES). Both
-        # produce the same (lemma_form, label) shape; either resolves
-        # to the same lemma_id lookup. Suffix-first because suffix
-        # rules are universally available across the registered
-        # languages, while mutation is Goidelic-only.
-        match = derive_lemma_candidate(row["canonical_form"], row["language"])
-        if match is None:
-            match = derive_mutation_lemma_candidate(row["canonical_form"], row["language"])
-        if match is None:
-            continue
-        lemma_form, inflection = match
-        lemma_id = lemmas_by_key.get((lemma_form, row["language"]))
-        if lemma_id is None or lemma_id == row["id"]:
+        # Try suffix-strip first (INFLECTION_RULES); always APPEND the
+        # mutation prefix-strip candidate (MUTATION_RULES) so it acts
+        # as a fallback when suffix candidates don't match a DB lemma.
+        # Pre-wyrd-gf28 the mutation path only ran when suffix
+        # returned no candidates at all — but with the new plural-
+        # candidates form a suffix rule can produce 2+ candidates
+        # that ALL fail to resolve, and the mutation path needs to
+        # still get a shot. Suffix priority preserved because
+        # candidates are tried in list order.
+        candidates = derive_lemma_candidates(row["canonical_form"], row["language"])
+        mut = derive_mutation_lemma_candidate(row["canonical_form"], row["language"])
+        if mut is not None:
+            candidates.append(mut)
+        lemma_id = None
+        inflection = None
+        lemma_form = None
+        for candidate_form, candidate_label in candidates:
+            candidate_id = lemmas_by_key.get((candidate_form, row["language"]))
+            if candidate_id is not None and candidate_id != row["id"]:
+                lemma_id = candidate_id
+                inflection = candidate_label
+                lemma_form = candidate_form
+                break
+        if lemma_id is None:
             continue
         proposed.append(
             {

@@ -49,6 +49,7 @@ from wyrd.generators.kenning.lexicon import (
     cluster_cognates,
     cluster_ocr_variants,
     derive_lemma_candidate,
+    derive_lemma_candidates,
     detect_running_headers,
     etymon_era_reflexes,
     export_meanings,
@@ -6161,6 +6162,52 @@ def test_derive_lemma_candidate_returns_none_for_unknown_lang() -> None:
     assert derive_lemma_candidate("foobar", "klingon") is None
 
 
+def test_derive_lemma_candidates_returns_silent_e_alternates_for_modern_english() -> None:
+    """wyrd-gf28: the plural-candidates form returns BOTH the
+    restore-suffix candidate (preferred) AND the bare-stem fallback
+    for modern-english -ed and -ing. Order matters — silent-e first
+    so 'hoped' gets to try 'hope' before 'hop'."""
+    # 'hoped' → restore 'e' → 'hope' preferred, 'hop' fallback
+    assert derive_lemma_candidates("hoped", "modern-english") == [
+        ("hope", "past"),
+        ("hop", "past"),
+    ]
+    assert derive_lemma_candidates("hoping", "modern-english") == [
+        ("hope", "gerund"),
+        ("hop", "gerund"),
+    ]
+    # 'walked' → 'walke' preferred (won't match in practice), 'walk' fallback
+    assert derive_lemma_candidates("walked", "modern-english") == [
+        ("walke", "past"),
+        ("walk", "past"),
+    ]
+
+
+def test_derive_lemma_candidates_returns_single_for_legacy_2tuple_rules() -> None:
+    """OE / ON / Welsh / etc. rules are 2-tuples without restore_suffix.
+    The plural-candidates form returns a single candidate for each
+    matching rule — same behavior as the singular wrapper, just in a
+    list. Pin so a future schema migration doesn't accidentally start
+    emitting bogus restore-suffix alternates for the legacy languages."""
+    # OE 'cotan' → only ('cot', 'weak_oblique'), no restore
+    assert derive_lemma_candidates("cotan", "old-english") == [("cot", "weak_oblique")]
+    # Welsh 'dyddiau' → only ('dydd', 'plural')
+    assert derive_lemma_candidates("dyddiau", "welsh") == [("dydd", "plural")]
+
+
+def test_derive_lemma_candidate_wrapper_returns_first_candidate() -> None:
+    """The singular back-compat wrapper returns candidates[0] —
+    pinning so existing call sites that read a single (form, label)
+    tuple keep working. For silent-e modern-english this means the
+    restore-suffix variant is what the wrapper returns."""
+    # Silent-e: wrapper returns 'hope', not 'hop'.
+    assert derive_lemma_candidate("hoped", "modern-english") == ("hope", "past")
+    # Legacy 2-tuple: same as before.
+    assert derive_lemma_candidate("cotan", "old-english") == ("cot", "weak_oblique")
+    # No-match still returns None.
+    assert derive_lemma_candidate("zzqxk", "modern-english") is None
+
+
 def test_derive_lemma_candidate_strips_welsh_inflections() -> None:
     """wyrd-r6bk Phase 1: Welsh suffix-strippable subset (initial
     mutation deferred to wyrd-jott). Pin one case per registered
@@ -6537,6 +6584,105 @@ def test_link_lemmas_links_inflected_to_existing_lemma(fresh_db: Path) -> None:
     assert by_id[ham_id]["lemma_id"] is None
     assert by_id[ham_id]["lemma_method"] is None
     assert result["candidates"] >= 2
+
+
+def test_link_lemmas_links_modern_english_past_and_gerund(fresh_db: Path) -> None:
+    """wyrd-gf28: modern-english INFLECTION_RULES added -ed (past) and
+    -ing (gerund). Pin: when both the inflected form and its stem are
+    in the DB, link-lemmas wires them up. Catches a future regression
+    that removes either rule from the modern-english entry."""
+    with LexiconDB(fresh_db) as db:
+        walk_id = db.upsert_etymon("walk", "modern-english")
+        walked_id = db.upsert_etymon("walked", "modern-english")
+        walking_id = db.upsert_etymon("walking", "modern-english")
+        # An unrelated -ed-ending lemma whose stripped stem ISN'T in
+        # the DB stays unlinked — the conservative-precision invariant
+        # the modern-english entry's docstring promises.
+        bed_id = db.upsert_etymon("bed", "modern-english")
+        db.commit()
+
+        link_lemmas(db, apply=True)
+        rows = db.conn.execute(
+            "SELECT id, canonical_form, lemma_id, inflection FROM etymon"
+        ).fetchall()
+
+    by_id = {r["id"]: r for r in rows}
+    assert by_id[walked_id]["lemma_id"] == walk_id
+    assert by_id[walked_id]["inflection"] == "past"
+    assert by_id[walking_id]["lemma_id"] == walk_id
+    assert by_id[walking_id]["inflection"] == "gerund"
+    # 'bed' stays its own lemma — no 'b' verb in the DB to link to.
+    assert by_id[bed_id]["lemma_id"] is None
+    # Source lemma stays unlinked.
+    assert by_id[walk_id]["lemma_id"] is None
+
+
+def test_link_lemmas_modern_english_handles_silent_e_collision(
+    fresh_db: Path,
+) -> None:
+    """wyrd-gf28 round-2 review: the naïve suffix-strip would route
+    'hoped' to 'hop' (silent-e + double-consonant verb) when both
+    'hop' and 'hope' exist as etymons in the corpus. The 3-tuple
+    INFLECTION_RULES form (suffix, label, restore_suffix) covers
+    this by trying stem+restore (preferred) before bare stem. Pin
+    the fix so a future refactor can't silently regress to the
+    naïve single-candidate path."""
+    with LexiconDB(fresh_db) as db:
+        # Both 'hop' (verb, to jump) and 'hope' (verb, to wish) exist
+        # — the canonical case for silent-e collision.
+        hop_id = db.upsert_etymon("hop", "modern-english")
+        hope_id = db.upsert_etymon("hope", "modern-english")
+        hoped_id = db.upsert_etymon("hoped", "modern-english")
+        hoping_id = db.upsert_etymon("hoping", "modern-english")
+        # 'hopped' wouldn't be in the DB from Wiktionary (it's a form
+        # of 'hop', tracked under hop's forms array, not as a separate
+        # entry). But if it WERE present and only 'hop' existed (no
+        # 'hope'), the bare-stem fallback would correctly link it.
+        # That's covered by the prior walk_id test.
+        db.commit()
+
+        link_lemmas(db, apply=True)
+        rows = db.conn.execute(
+            "SELECT id, canonical_form, lemma_id, inflection FROM etymon"
+        ).fetchall()
+
+    by_id = {r["id"]: r for r in rows}
+    # Silent-e wins: hoped → hope, NOT hop.
+    assert by_id[hoped_id]["lemma_id"] == hope_id, (
+        f"expected hoped → hope, got hoped → {by_id[hoped_id]['lemma_id']} "
+        f"(hop_id={hop_id}, hope_id={hope_id})"
+    )
+    assert by_id[hoped_id]["inflection"] == "past"
+    # Same for -ing.
+    assert by_id[hoping_id]["lemma_id"] == hope_id
+    assert by_id[hoping_id]["inflection"] == "gerund"
+    # 'hop' stays its own lemma (no inflection in this test seeded
+    # against it).
+    assert by_id[hop_id]["lemma_id"] is None
+    assert by_id[hope_id]["lemma_id"] is None
+
+
+def test_link_lemmas_modern_english_falls_back_to_bare_stem_when_silent_e_missing(
+    fresh_db: Path,
+) -> None:
+    """The silent-e candidate is PREFERRED but not required. When
+    only the bare-stem lemma exists in the DB (e.g. 'walk' but no
+    'walke'), the second candidate fires and the link still happens.
+    Pin: silent-e must not become a hard prerequisite."""
+    with LexiconDB(fresh_db) as db:
+        # Only 'walk' exists, no 'walke'. 'walked' should link to walk.
+        walk_id = db.upsert_etymon("walk", "modern-english")
+        walked_id = db.upsert_etymon("walked", "modern-english")
+        db.commit()
+
+        link_lemmas(db, apply=True)
+        rows = db.conn.execute(
+            "SELECT id, canonical_form, lemma_id, inflection FROM etymon"
+        ).fetchall()
+
+    by_id = {r["id"]: r for r in rows}
+    assert by_id[walked_id]["lemma_id"] == walk_id
+    assert by_id[walked_id]["inflection"] == "past"
 
 
 def test_link_lemmas_wires_in_mutation_path_for_goidelic(fresh_db: Path) -> None:
