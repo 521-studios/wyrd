@@ -401,6 +401,81 @@ def test_mine_corpus_forms_surface_in_fetch_member_variants(tmp_path: Path) -> N
     assert "meirch" in forms
 
 
+def test_mine_corpus_forms_modern_english_plurals_and_verbs(tmp_path: Path) -> None:
+    """wyrd-m032: modern-english slice mining keeps plurals /
+    comparatives / superlatives and filters English verb conjugations.
+
+    Pins the noise-filter behavior on the modern-english corpus
+    specifically. The wyrd-r1ks expansion added ``past`` /
+    ``infinitive`` / ``participle`` / etc. to filter OE verb forms;
+    those tags appear on English verb-form entries too, so this
+    test guards against a future filter regression that would
+    re-leak ``walked`` / ``walking`` into the noun variant pool.
+    """
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        migrate_schema(db)
+        ancient_id = db.upsert_etymon("ancient", "modern-english")
+        walk_id = db.upsert_etymon("walk", "modern-english")
+        db.commit()
+    slice_path = tmp_path / "wiktextract_english.jsonl"
+    _write_slice(
+        slice_path,
+        [
+            {
+                "word": "ancient",
+                "lang_code": "en",
+                "forms": [
+                    {"form": "ancients", "tags": ["plural"]},
+                    {"form": "more ancient", "tags": ["comparative"]},
+                    {"form": "most ancient", "tags": ["superlative"]},
+                ],
+            },
+            {
+                "word": "walk",
+                "lang_code": "en",
+                "forms": [
+                    {"form": "walks", "tags": ["plural"]},  # keep (noun plural)
+                    {"form": "walked", "tags": ["past"]},  # filter (verb)
+                    {"form": "walking", "tags": ["participle"]},  # filter (verb)
+                    {"form": "walks", "tags": ["third-person", "present"]},  # filter
+                ],
+            },
+        ],
+    )
+    with LexiconDB(db_path) as db:
+        counts = mine_corpus_forms(db, slice_path, apply=True)
+        rows = list(
+            db.conn.execute(
+                "SELECT etymon_id, matched_form, snippet "
+                "FROM etymon_text_match "
+                "WHERE source_id = ? ORDER BY matched_form",
+                (WIKTIONARY_FORMS_SOURCE_ID,),
+            )
+        )
+
+    assert counts["entries_walked"] == 2
+    # 4 kept (3 ancient + 1 noun-plural walk), 3 verb-form-noise skipped.
+    assert counts["forms_written"] == 4
+    assert counts["forms_skipped_noise"] == 3
+
+    written = {(r["matched_form"], r["snippet"]) for r in rows}
+    assert written == {
+        ("ancients", "plural"),
+        ("more ancient", "comparative"),
+        ("most ancient", "superlative"),
+        ("walks", "plural"),
+    }
+    # Verify cross-etymon attribution (each form attached to the
+    # correct headword's row, not collapsed onto one).
+    rows_by_etymon = {r["etymon_id"]: r["matched_form"] for r in rows}
+    assert rows_by_etymon.get(walk_id) == "walks"
+    # `ancients` row is one of three for ancient_id.
+    ancient_forms = {r["matched_form"] for r in rows if r["etymon_id"] == ancient_id}
+    assert ancient_forms == {"ancients", "more ancient", "most ancient"}
+
+
 def test_mine_corpus_forms_respects_limit(tmp_path: Path) -> None:
     """``limit=N`` stops after N entries — useful for smoke-testing
     a slice before committing to a full ingest."""
