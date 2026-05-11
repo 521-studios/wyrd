@@ -492,12 +492,15 @@ Fix: ran ``mine-wiktextract-forms --apply`` on both slices.
 | bundle | old_english _variants pool | ~0 | **2,756/4,483 (61.5%)** |
 | bundle | old_scandinavian _variants pool | ~0 | **683/1,238 (55.2%)** |
 
-Per-run stats:
+Per-run stats (forms_processed counts forms that passed the noise
+filter; forms_skipped_noise counts forms filtered out as table /
+scaffolding noise; total candidates = processed + skipped):
 
-* OE: 66,179 entries walked → 291,252 forms processed, **291,252
-  rows written** (~96K filtered as table-scaffolding noise)
-* ON: 11,193 entries walked → 37,271 forms processed, **37,271 rows
-  written** (~50K filtered)
+* OE: 66,179 entries walked → 387,410 form candidates total
+  (291,252 processed and written + 96,158 filtered as
+  table-scaffolding noise)
+* ON: 11,193 entries walked → 87,458 form candidates total
+  (37,271 processed and written + 50,187 filtered)
 
 Sample OE morpheme post-mining (``-ing-``):
 
