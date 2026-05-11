@@ -77,6 +77,8 @@ _NOISE_FORM_TAGS: frozenset[str] = frozenset(
         "no-table-tags",
         "inflection-template",
         "error-unrecognized-form",
+        "class",  # OE strong/weak verb class markers — not a surface variant
+        "no-equivalent",  # parity with full ingester's metadata set
         # Verbal conjugation (not relevant to place-name variants).
         # Wiktextract uses both 'preterite' (most modern languages) and
         # 'past' (OE) for past-tense forms; both need to be filtered.
@@ -112,6 +114,7 @@ _NOISE_FORM_TAGS: frozenset[str] = frozenset(
         "participle",
         "infinitive",
         "gerund",
+        "gerundive",
         "supine",
         "verbal",
     }
