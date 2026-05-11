@@ -234,6 +234,17 @@ class LanguageScorecard:
     tier2_forward_count: int = 0
     tier2_back_count: int = 0
     tier3_period_form_count: int = 0
+    # F (Tier 4). Phonology-rule fallback (wyrd-98cs, audit wyrd-pmne).
+    # Etymons whose canonical_form would produce a transformed reflex
+    # for at least one other era in the same phonology chain when
+    # routed through ``phonology_rules.apply_rules`` via
+    # ``_phonology_rule_form``. Not persisted in DB tables — synthesized
+    # at bundle-export / runtime — so this count is computed by walking
+    # the rule chain over every etymon in a chain-eligible language at
+    # report time. Languages without a registered phonology chain
+    # (Goidelic, Norse, Romance, etc.) carry ``-1`` to distinguish 'no
+    # rules registered' from '0 etymons fire'.
+    tier4_phonology_count: int = -1
     any_reflex_count: int = 0
     any_reflex_rate: float = 0.0
     # F₂. Bundle-side era-reflex coverage (wyrd-h5it). The lex-side F
@@ -946,6 +957,77 @@ def _bundle_ipa_coverage(
     return n
 
 
+def _tier4_phonology_coverage(
+    conn: sqlite3.Connection,
+    language: str,
+    *,
+    progress_callback: Any = None,
+) -> int:
+    """Metric F Tier-4 (wyrd-pmne). Count of etymons in ``language``
+    whose ``canonical_form`` produces a transformed reflex for at
+    least one other era in the same phonology chain when routed
+    through ``_phonology_rule_form`` (wyrd-98cs Tier-4 fallback).
+
+    Returns ``-1`` for languages without a registered phonology chain
+    (the LanguageScorecard renders this as 'n/a' to distinguish 'no
+    rules registered' from '0 etymons fire'). Returns ``0`` for
+    chain-eligible languages with no etymons or no etymon whose form
+    fires a rule.
+
+    Full-population walk: the rule library doesn't persist outputs to
+    DB tables, so the count can only be computed by applying the rules
+    over every etymon. Early-breaks on the first target language that
+    produces a non-None result, since 'this etymon fires Tier-4 for at
+    least one era' is the metric semantic. Optional
+    ``progress_callback(done, total)`` lets the CLI surface progress
+    on the long modern-english walk (~3 minutes for 1.4M etymons).
+    """
+    from wyrd.generators.kenning.lexicon import (
+        _PHONOLOGY_FAMILY_CHAINS,
+        _PHONOLOGY_LANGUAGE_ALIASES,
+        _phonology_rule_form,
+    )
+
+    resolved = _PHONOLOGY_LANGUAGE_ALIASES.get(language, language)
+    chain_info = _PHONOLOGY_FAMILY_CHAINS.get(resolved)
+    if chain_info is None:
+        return -1
+    _family, chain = chain_info
+    other_stops = [stop for stop in chain if stop != resolved]
+    if not other_stops:
+        return -1
+
+    total_in_lang = conn.execute(
+        "SELECT COUNT(*) FROM etymon WHERE language=? AND merged_into_id IS NULL",
+        (language,),
+    ).fetchone()[0]
+    if total_in_lang == 0:
+        return 0
+
+    # Throttle to ~20 callback fires per language; clamp floor at 1 so
+    # tiny populations (old-welsh 456) still see a single tick rather
+    # than only the final emission. The CLI callback in turn throttles
+    # to ~10 stderr lines per language for human-paced output.
+    progress_step = max(1, total_in_lang // 20)
+    fires = 0
+    seen = 0
+    for (canonical_form,) in conn.execute(
+        "SELECT canonical_form FROM etymon WHERE language=? AND merged_into_id IS NULL",
+        (language,),
+    ):
+        seen += 1
+        if canonical_form:
+            for target in other_stops:
+                if _phonology_rule_form(canonical_form, language, target) is not None:
+                    fires += 1
+                    break
+        if progress_callback is not None and seen % progress_step == 0:
+            progress_callback(seen, total_in_lang)
+    if progress_callback is not None and seen % progress_step != 0:
+        progress_callback(seen, total_in_lang)
+    return fires
+
+
 def _bundle_era_reflex_coverage(
     bundle: list[dict[str, Any]] | dict[str, Any],
     language: str,
@@ -1095,6 +1177,8 @@ def compute_scorecard(
     default_threshold: int = 3,
     lang_thresholds: dict[str, int] | None = None,
     rando_port_audit: dict[str, dict[str, int]] | None = None,
+    compute_tier4: bool = True,
+    tier4_progress_callback: Any = None,
 ) -> LanguageScorecard:
     """Compute the full scorecard for one language.
 
@@ -1128,6 +1212,12 @@ def compute_scorecard(
     lex_ipa = _lexicon_ipa_coverage(conn, language)
     bundle_ipa = _bundle_ipa_coverage(bundle, sibling)
     bundle_reflex = _bundle_era_reflex_coverage(bundle, language, sibling)
+    if compute_tier4:
+        tier4_count = _tier4_phonology_coverage(
+            conn, language, progress_callback=tier4_progress_callback
+        )
+    else:
+        tier4_count = -1
     rando_bucket = (rando_port_audit or {}).get(
         language, {"pure_grandfather": 0, "mixed_grandfather": 0, "total_families": 0}
     )
@@ -1165,6 +1255,7 @@ def compute_scorecard(
         tier2_forward_count=era["tier2_forward_count"],
         tier2_back_count=era["tier2_back_count"],
         tier3_period_form_count=era["tier3_period_form_count"],
+        tier4_phonology_count=tier4_count,
         any_reflex_count=era["any_reflex_count"],
         any_reflex_rate=(
             round(era["any_reflex_count"] / total_etymons, 4) if total_etymons else 0.0
@@ -1213,6 +1304,8 @@ def compute_report(
     default_threshold: int = 3,
     lang_thresholds: dict[str, int] | None = None,
     drop_empty: bool = True,
+    compute_tier4: bool = True,
+    tier4_progress_callback: Any = None,
 ) -> LanguageQualityReport:
     """Compute the full multi-language report.
 
@@ -1220,7 +1313,15 @@ def compute_report(
     (Phase-1 default — every-zero scorecards are noise on the human
     output and don't help mining decisions). Set
     ``drop_empty=False`` for trend tracking where the absence is
-    informative."""
+    informative.
+
+    ``compute_tier4=False`` skips the wyrd-pmne Tier-4 phonology walk
+    (which adds ~3 minutes for the modern-english 1.4M etymon
+    population). Tier-4 counts render as 'n/a' in the dashboard when
+    skipped — same visual rendering as 'no phonology rules registered'.
+    ``tier4_progress_callback(language, done, total)`` lets the CLI
+    surface a CLAUDE.md-shape progress line on the long English walk.
+    """
     languages_to_check = list(languages or DEFAULT_LANGUAGES)
     if reference_tags is None:
         reference_tags = list(FALLBACK_REFERENCE_TAGS[:REFERENCE_TAG_COUNT])
@@ -1231,6 +1332,12 @@ def compute_report(
     rando_port_audit = compute_rando_port_grandfather_audit(conn)
     cards: list[LanguageScorecard] = []
     for lang in languages_to_check:
+        per_lang_callback = None
+        if compute_tier4 and tier4_progress_callback is not None:
+
+            def per_lang_callback(done: int, total: int, lang: str = lang) -> None:
+                tier4_progress_callback(lang, done, total)
+
         card = compute_scorecard(
             conn,
             lang,
@@ -1239,6 +1346,8 @@ def compute_report(
             default_threshold=default_threshold,
             lang_thresholds=lang_thresholds,
             rando_port_audit=rando_port_audit,
+            compute_tier4=compute_tier4,
+            tier4_progress_callback=per_lang_callback,
         )
         if drop_empty and card.total_etymons == 0:
             continue
@@ -1498,10 +1607,22 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
                 f"{c.bundle_subjects_with_reflex}/{c.bundle_attestation_total} "
                 f"({_format_pct(c.bundle_subjects_with_reflex, c.bundle_attestation_total)})"
             )
+        # F (Tier 4) — phonology-rule synthesized count (wyrd-pmne). -1
+        # encodes 'no phonology chain registered for this language'
+        # OR 'skipped via --no-tier4', both rendered as 'n/a' so the
+        # cell visually flags absence rather than 0 firing.
+        if c.tier4_phonology_count == -1:
+            tier4_label = "n/a"
+        else:
+            tier4_label = (
+                f"{c.tier4_phonology_count} "
+                f"({_format_pct(c.tier4_phonology_count, c.total_etymons)})"
+            )
         lines.append(
             f"- **F. Era-reflex coverage:** Tier 1 cognate {c.tier1_cognate_count}, "
             f"Tier 2 forward {forward_label}, Tier 2 back {back_label}, "
-            f"Tier 3 period-form {c.tier3_period_form_count}; "
+            f"Tier 3 period-form {c.tier3_period_form_count}, "
+            f"Tier 4 phonology {tier4_label}; "
             f"ANY reflex {c.any_reflex_count} "
             f"({_format_pct(c.any_reflex_count, c.total_etymons)}). "
             f"Bundle subjects with reflex stop targeting this language: "
