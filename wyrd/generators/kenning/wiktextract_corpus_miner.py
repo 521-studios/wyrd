@@ -156,7 +156,7 @@ _LANG_TO_SLICE_BASENAME: dict[str, str | None] = {
     "old-english": "wiktextract_old_english.jsonl",
     "middle-english": "wiktextract_middle_english.jsonl",
     # wyrd-dxu2: Kaikki English dump downloaded as
-    # wiktextract_english.jsonl (~3GB, ~1M entries). Mapping was
+    # wiktextract_english.jsonl (~3GB, ~1.47M entries). Mapping was
     # None pre-wyrd-dxu2 because no slice was on disk.
     "modern-english": "wiktextract_english.jsonl",
     "old-norse": "wiktextract_old_norse.jsonl",
