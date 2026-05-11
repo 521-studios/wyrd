@@ -630,14 +630,18 @@ def _encode_structs(struct: Counter) -> list:
     decomposition outputs change. Sorting by (-proportion, structure
     key) gives a stable canonical order: most-frequent first, with the
     structure tuple as deterministic tiebreaker."""
-    structs = []
-    for key, value in struct.items():
-        words = [[_encode_meaning(meaning) for meaning in word] for word in key]
-        structs.append({"proportion": value, "words": words, "_sort_key": key})
-    structs.sort(key=lambda s: (-s["proportion"], s["_sort_key"]))
-    for s in structs:
-        del s["_sort_key"]
-    return structs
+    # Sort Counter.items() once before serializing so we don't need
+    # a temp _sort_key on each dict. Sort by (-proportion, key) for
+    # most-frequent-first with the structure tuple as a deterministic
+    # tiebreaker.
+    sorted_items = sorted(struct.items(), key=lambda item: (-item[1], item[0]))
+    return [
+        {
+            "proportion": value,
+            "words": [[_encode_meaning(meaning) for meaning in word] for word in key],
+        }
+        for key, value in sorted_items
+    ]
 
 
 @cli.command("add-meaning")
