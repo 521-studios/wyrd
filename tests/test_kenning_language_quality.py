@@ -611,6 +611,75 @@ def test_bundle_era_reflex_coverage_handles_dict_shape() -> None:
     assert _bundle_era_reflex_coverage(bundle, "modern-english", "modern_english") == 2
 
 
+def test_bundle_era_reflex_coverage_handles_missing_era_reflexes_key() -> None:
+    """Words without the ``era_reflexes`` key entirely (not just empty)
+    don't crash — the ``or {}`` defensive read handles missing keys
+    the same way the bundle export does for older schema versions."""
+    bundle = [
+        {
+            "words": [
+                {"modern_english": "cot"},  # No era_reflexes key at all.
+            ],
+        },
+    ]
+    assert _bundle_era_reflex_coverage(bundle, "modern-english", "modern_english") == 0
+
+
+def test_bundle_era_reflex_coverage_combines_sibling_and_reflex_across_words() -> None:
+    """Per-subject (not per-word) semantic: a subject counts when its
+    words collectively have BOTH the sibling populated AND a target
+    reflex, even if those signals live in different words within the
+    same subject.
+
+    This is the intended bundle-export contract — a single subject is
+    one Meaning whose words are cluster siblings, and 'this subject
+    can render an era stop in language L' is a subject-level claim,
+    not a per-word claim. Pin it so a future refactor that tightens
+    the gate to 'same word' doesn't silently shift the metric."""
+    bundle = [
+        {
+            "words": [
+                # Word 1: has sibling, no reflex.
+                {"modern_english": "cot"},
+                # Word 2: no sibling, has target reflex.
+                {"era_reflexes": {"modern-english": [{"form": "X", "source": "cluster"}]}},
+            ],
+        },
+    ]
+    assert _bundle_era_reflex_coverage(bundle, "modern-english", "modern_english") == 1
+
+
+def test_summary_table_era_cell_renders_na_when_no_bundle_subjects() -> None:
+    """Markdown formatter renders the bundle-side half of the F cell
+    as 'n/a' when ``bundle_attestation_total == 0`` (the language has
+    no bundle representation). Mirrors H's n/a branch — keeps
+    'absent' visually distinct from '0% covered'."""
+    scorecard = LanguageScorecard(
+        language="latin",
+        total_etymons=100,
+        total_lemmas=100,
+        promotion_threshold=2,
+        promotion_eligible=0,
+        avg_witnesses=0.0,
+        source_count=0,
+        bundle_sibling=None,
+        bundle_word_count=0,
+        bundle_attestation_total=0,
+        any_reflex_count=40,
+    )
+    report = LanguageQualityReport(
+        schema_version="1.0",
+        generated_at="2026-05-11T00:00:00Z",
+        reference_tags=list(FALLBACK_REFERENCE_TAGS[:3]),
+        bundle_total_words=100,
+        languages=[scorecard],
+    )
+    md = report_to_markdown(report)
+    # The summary table's era cell is 'lex_pct / bundle_pct'; with
+    # zero bundle subjects, bundle side renders 'n/a'.
+    assert "40.0% / n/a" in md
+
+
 def test_scorecard_inheritance_warning_pin() -> None:
     """When lexicon-side IPA is 0 and bundle-side IPA is non-zero, the
     rendered markdown surfaces an explicit ⚠ warning so a reader can
