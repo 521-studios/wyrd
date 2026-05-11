@@ -368,6 +368,62 @@ SPA's etymological-provenance panel: it now has IPA to render on
 ~85% of OE morphemes and ~60% of Celtic morphemes, where pre-fix
 the bundle path showed nothing (or borrowed from cluster mates).
 
+### 2026-05-11 — wyrd-dxu2 (modern-english slice ingestion)
+
+Closes the final IPA gap from wyrd-69s5 / wyrd-xmk3. Downloaded
+Kaikki's English wiktextract dump (``kaikki.org-dictionary-English.jsonl``,
+2.99 GB, 1.47M entries) to ``sources/wiktextract_english.jsonl``,
+mapped it via ``_LANG_TO_SLICE_BASENAME["modern-english"]``, and ran
+the full ``ingest-wiktionary --apply`` path.
+
+Per-language IPA coverage after the run:
+
+| layer | language       | before | after  |
+|-------|----------------|-------:|-------:|
+| lex DB | modern-english | 0.0%  | **7.1%** (97,702 / 1.4M etymons) |
+| lex DB | old-english    | 75.2% | 75.4% |
+| lex DB | welsh          | 59.7% | 59.0% |
+| bundle | **modern_english** | 19.7% | **41.8%** |
+| bundle | old_english    | 84.2% | 84.5% |
+| bundle | celtic_mix     | 60.0% | 61.9% |
+| bundle | old_french     | 19.3% | 19.9% |
+
+Per-run capture stats from the ingest:
+
+* 1,465,676 entries parsed
+* 944,728 upward edges (etymology templates: borrow / inherit /
+  derive / calque / compound / affix / root)
+* 18,512 downward edges (descendants tables — small share since
+  English entries rarely have descent trees)
+* **136,048 IPA captures**
+* 4,776 original_script + 329 transliteration captures
+
+The 7.1% lexicon-side number looks low but reflects a denominator
+explosion: the ingest created ~1.35M new modern-english etymons
+from etymology templates (e.g. every Latin / French / Greek
+borrowing chain's English landing-form). Most of those don't have
+their own ``sounds`` entry in the slice — they're referenced via
+template, not as a full Wiktionary entry. Among English forms
+that ARE full entries (i.e. the words a user would actually want
+IPA for), coverage is much higher: spot-check shows 651/948 (69%)
+of real bundle-form modern-english entries have IPA.
+
+The bundle's 41.8% number is the actionable one — it tracks what
+the SPA's etymological-provenance panel can render. Doubling from
+19.7% to 41.8% reflects real modern-english IPA replacing
+cluster-mate inheritance on common words (bridge, water, town,
+hill, etc.). The remaining 58.2% breaks down as:
+
+* ~33% bundle-synthesized non-words (forms like 'babllings',
+  'alwent' that are ME/OE reflexes auto-derived as
+  "modern-english forms" but aren't real English words)
+* ~18% real words still without IPA in Wiktionary's English slice
+* ~7% cluster-mate-inherited (Section H warning still fires)
+
+Per-culture perfect-rates unchanged (IPA backfill doesn't change
+which morphemes match). Bundle subjects + proportions re-emitted
+for diff-determinism.
+
 ## How to record a new snapshot
 
 After a bundle re-emit (`wyrd kenning lexicon export-meanings` →
