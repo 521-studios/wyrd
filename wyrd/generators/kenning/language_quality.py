@@ -1489,6 +1489,15 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
         # F. era-reflex
         forward_label = f"{c.tier2_forward_count}" if c.chain_younger else "n/a (terminus-forward)"
         back_label = f"{c.tier2_back_count}" if c.chain_older else "n/a (terminus-back)"
+        if c.bundle_attestation_total == 0:
+            bundle_reflex_detail = (
+                f"{c.bundle_subjects_with_reflex}/{c.bundle_attestation_total} (n/a)"
+            )
+        else:
+            bundle_reflex_detail = (
+                f"{c.bundle_subjects_with_reflex}/{c.bundle_attestation_total} "
+                f"({_format_pct(c.bundle_subjects_with_reflex, c.bundle_attestation_total)})"
+            )
         lines.append(
             f"- **F. Era-reflex coverage:** Tier 1 cognate {c.tier1_cognate_count}, "
             f"Tier 2 forward {forward_label}, Tier 2 back {back_label}, "
@@ -1496,8 +1505,7 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
             f"ANY reflex {c.any_reflex_count} "
             f"({_format_pct(c.any_reflex_count, c.total_etymons)}). "
             f"Bundle subjects with reflex stop targeting this language: "
-            f"{c.bundle_subjects_with_reflex}/{c.bundle_attestation_total} "
-            f"({_format_pct(c.bundle_subjects_with_reflex, c.bundle_attestation_total)})."
+            f"{bundle_reflex_detail}."
         )
         lines.append(
             f"- **G. Stratum coverage:** {c.stratum_classified}/{c.total_etymons} "
