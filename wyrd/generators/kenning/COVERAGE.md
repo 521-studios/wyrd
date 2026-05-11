@@ -560,7 +560,7 @@ Per-run stats:
   (703,929 processed and written + 264,053 filtered as
   table-scaffolding / verbal-conjugation noise)
 * 644 etymons missing (entries whose canonical headword isn't in
-  the lexicon — 0.04% miss rate, essentially full corpus overlap)
+  the lexicon — 0.04% miss rate)
 
 The noise filter inherited from wyrd-r1ks already catches
 ``past`` / ``infinitive`` / ``preterite`` / ``participle`` /
@@ -575,14 +575,17 @@ Sample modern-english variants now pooled:
 abbess  → abbesses (plural)
 ancient → ancients (plural), more ancient (comparative),
           most ancient (superlative)
-hope    → hopes, hoping, hoped (plural / gerund / past)
+mouse   → mice (plural)
 ```
+
+(``hope`` → ``hoping`` / ``hoped`` and similar verb-conjugation
+forms are correctly filtered out by the wyrd-r1ks noise-tag set —
+they aren't useful for place-name variant pools.)
 
 The variants pool feeds the runtime's ``--spelling-variety`` knob:
 the English culture (which heavily reuses modern-english morphemes
 in synthetic place-name generation) now has 485K real variant forms
-to draw from at non-zero spelling_variety, where pre-fix it had
-essentially zero.
+to draw from at non-zero spelling_variety, where pre-fix it had zero.
 
 Per-culture perfect-rates unchanged after rebuild-proportions —
 the variant pool is a generation-time enrichment, not a corpus

@@ -469,9 +469,8 @@ def test_mine_corpus_forms_modern_english_plurals_and_verbs(tmp_path: Path) -> N
     }
     # Verify cross-etymon attribution (each form attached to the
     # correct headword's row, not collapsed onto one).
-    rows_by_etymon = {r["etymon_id"]: r["matched_form"] for r in rows}
-    assert rows_by_etymon.get(walk_id) == "walks"
-    # `ancients` row is one of three for ancient_id.
+    walk_forms = {r["matched_form"] for r in rows if r["etymon_id"] == walk_id}
+    assert walk_forms == {"walks"}
     ancient_forms = {r["matched_form"] for r in rows if r["etymon_id"] == ancient_id}
     assert ancient_forms == {"ancients", "more ancient", "most ancient"}
 
