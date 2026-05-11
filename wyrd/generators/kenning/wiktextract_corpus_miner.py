@@ -155,7 +155,10 @@ CULTURE_LANG_SCOPE: dict[str, frozenset[str]] = {
 _LANG_TO_SLICE_BASENAME: dict[str, str | None] = {
     "old-english": "wiktextract_old_english.jsonl",
     "middle-english": "wiktextract_middle_english.jsonl",
-    "modern-english": None,
+    # wyrd-dxu2: Kaikki English dump downloaded as
+    # wiktextract_english.jsonl (~3GB, ~1M entries). Mapping was
+    # None pre-wyrd-dxu2 because no slice was on disk.
+    "modern-english": "wiktextract_english.jsonl",
     "old-norse": "wiktextract_old_norse.jsonl",
     "old-french": "wiktextract_old_french.jsonl",
     "anglo-norman": None,
