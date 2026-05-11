@@ -6539,6 +6539,37 @@ def test_link_lemmas_links_inflected_to_existing_lemma(fresh_db: Path) -> None:
     assert result["candidates"] >= 2
 
 
+def test_link_lemmas_links_modern_english_past_and_gerund(fresh_db: Path) -> None:
+    """wyrd-gf28: modern-english INFLECTION_RULES added -ed (past) and
+    -ing (gerund). Pin: when both the inflected form and its stem are
+    in the DB, link-lemmas wires them up. Catches a future regression
+    that removes either rule from the modern-english entry."""
+    with LexiconDB(fresh_db) as db:
+        walk_id = db.upsert_etymon("walk", "modern-english")
+        walked_id = db.upsert_etymon("walked", "modern-english")
+        walking_id = db.upsert_etymon("walking", "modern-english")
+        # An unrelated -ed-ending lemma whose stripped stem ISN'T in
+        # the DB stays unlinked — the conservative-precision invariant
+        # the modern-english entry's docstring promises.
+        bed_id = db.upsert_etymon("bed", "modern-english")
+        db.commit()
+
+        link_lemmas(db, apply=True)
+        rows = db.conn.execute(
+            "SELECT id, canonical_form, lemma_id, inflection FROM etymon"
+        ).fetchall()
+
+    by_id = {r["id"]: r for r in rows}
+    assert by_id[walked_id]["lemma_id"] == walk_id
+    assert by_id[walked_id]["inflection"] == "past"
+    assert by_id[walking_id]["lemma_id"] == walk_id
+    assert by_id[walking_id]["inflection"] == "gerund"
+    # 'bed' stays its own lemma — no 'b' verb in the DB to link to.
+    assert by_id[bed_id]["lemma_id"] is None
+    # Source lemma stays unlinked.
+    assert by_id[walk_id]["lemma_id"] is None
+
+
 def test_link_lemmas_wires_in_mutation_path_for_goidelic(fresh_db: Path) -> None:
     """wyrd-jott Phase 1: link_lemmas falls through from suffix-strip
     to mutation prefix-strip for Goidelic etymons. Pin the wiring so

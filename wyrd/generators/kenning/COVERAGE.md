@@ -549,8 +549,8 @@ Added conservative rules:
 
 | suffix | label  | risk |
 |--------|--------|------|
-| ``-ed`` | past   | low (false-positive stems usually aren't verb etymons) |
-| ``-ing`` | gerund | low (same safety net) |
+| ``-ed`` | past   | low — false-positive stems ('sh' from 'shed') usually aren't verb etymons, so link-lemmas' EXISTS check rejects them |
+| ``-ing`` | gerund | low — same: stems like 'str' from 'string' aren't verb etymons |
 
 Re-ran ``link-lemmas --apply``:
 
@@ -565,8 +565,7 @@ DEFERRED rules (too risky given 1.4M ModE etymon denominator):
 - ``-ly`` adverb: conflicts with adjective-final -ly (ugly, silly)
 
 These would need richer rules with frequency-of-stem context to
-avoid corrupting lemma rollups. Filed as wyrd-gf28-followup if a
-future pass adds the precision context.
+avoid corrupting lemma rollups. Filed as wyrd-gf28-followup.
 
 Sample of new links: impending→impend, neighing→neigh, bemused→
 bemuse, dejeunered→dejeuner, beshivered→beshiver. Real morphology.
