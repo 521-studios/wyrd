@@ -31,10 +31,10 @@ from wyrd.generators.kenning.language_quality import (
     _bundle_era_reflex_coverage,
     _bundle_ipa_coverage,
     _bundle_language_word_count,
-    _tier4_phonology_coverage,
     _bundle_tag_coverage_for_sibling,
     _bundle_total_words,
     _lexicon_ipa_coverage,
+    _tier4_phonology_coverage,
     compute_rando_port_grandfather_audit,
     compute_report,
     compute_scorecard,
@@ -731,6 +731,71 @@ def test_tier4_phonology_coverage_counts_firing_etymons() -> None:
 
     if _phonology_rule_form("house", "modern-english", "old-english") is not None:
         assert count >= 1, "phonology rules fire on 'house' but T4 count says 0"
+
+
+def test_compute_scorecard_compute_tier4_false_skips_walk() -> None:
+    """``compute_scorecard(..., compute_tier4=False)`` skips the Tier-4
+    walk and returns ``-1`` — same rendering as a non-chain language
+    but reached without paying the ~3 minute modern-english cost.
+    Pin both: count is -1, AND the optional progress callback isn't
+    invoked under the skip path."""
+    conn = _build_fixture_db()
+    bundle: list[dict] = []
+    callbacks: list[tuple[int, int]] = []
+
+    def cb(done: int, total: int) -> None:
+        callbacks.append((done, total))
+
+    # old-english is chain-eligible in _PHONOLOGY_FAMILY_CHAINS, so
+    # compute_tier4=True WOULD fire. compute_tier4=False must skip.
+    card = compute_scorecard(
+        conn,
+        "old-english",
+        bundle,
+        list(FALLBACK_REFERENCE_TAGS[:3]),
+        compute_tier4=False,
+        tier4_progress_callback=cb,
+    )
+    assert card.tier4_phonology_count == -1
+    assert callbacks == [], "callback must not fire under compute_tier4=False"
+
+
+def test_compute_report_per_language_callback_threads_correct_lang() -> None:
+    """The per-lang callback closure in compute_report wraps the
+    operator's callback so each language's progress emissions carry
+    the right language tag. Classic late-binding-closure-over-loop-var
+    bug surface — pin that the closure uses the active language at
+    each iteration, not the last value of ``lang`` after the loop.
+
+    Pin: with a multi-language fixture, the callback records
+    ``(language, done, total)`` tuples; verify each language emits
+    at least one tick AND the language tag matches the active
+    iteration (no cross-talk between languages)."""
+    conn = _build_fixture_db()
+    bundle: list[dict] = []
+    received: list[tuple[str, int, int]] = []
+
+    def cb(lang: str, done: int, total: int) -> None:
+        received.append((lang, done, total))
+
+    # Two chain-eligible languages in the fixture: old-english (rich,
+    # 7 rows) + welsh (sparse, 2 rows).
+    compute_report(
+        conn,
+        bundle,
+        languages=["old-english", "welsh"],
+        reference_tags=list(FALLBACK_REFERENCE_TAGS[:3]),
+        tier4_progress_callback=cb,
+    )
+    languages_seen = {lang for lang, _, _ in received}
+    assert "old-english" in languages_seen
+    assert "welsh" in languages_seen
+    # Specifically guard the late-binding bug: every callback for
+    # 'old-english' carries 'old-english', not 'welsh'.
+    oe_calls = [t for t in received if t[0] == "old-english"]
+    welsh_calls = [t for t in received if t[0] == "welsh"]
+    assert oe_calls, "old-english should have at least one callback"
+    assert welsh_calls, "welsh should have at least one callback"
 
 
 def test_tier4_phonology_coverage_progress_callback_fires() -> None:
