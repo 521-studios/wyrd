@@ -489,8 +489,8 @@ Fix: ran ``mine-wiktextract-forms --apply`` on both slices.
 |-------|----------|-------:|------:|
 | lex DB | old-english variants | 177/72,382 (0.2%) | **44,929/72,382 (62.1%)** |
 | lex DB | old-norse variants   | 21/14,679 (0.1%) | **3,363/14,679 (22.9%)** |
-| bundle | old_english _variants pool | ~0 | **2,756/4,483 (61.5%)** |
-| bundle | old_scandinavian _variants pool | ~0 | **683/1,238 (55.2%)** |
+| bundle | old_english_variants pool | ~0 | **2,756/4,483 (61.5%)** |
+| bundle | old_scandinavian_variants pool | ~0 | **683/1,238 (55.2%)** |
 
 Per-run stats (forms_processed counts forms that passed the noise
 filter; forms_skipped_noise counts forms filtered out as table /
