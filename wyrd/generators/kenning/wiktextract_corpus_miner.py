@@ -37,6 +37,7 @@ from wyrd.generators.kenning.wiktextract_ingester import (
     _canonical_language,
     _extract_head_template_renderings,
     _extract_pronunciation,
+    _map_categories_to_tags,
 )
 
 # Synthetic source row written on first --apply run.
@@ -377,52 +378,11 @@ def _select_canonical_sense(entry: dict[str, Any]) -> tuple[str, list[str]] | No
     return None
 
 
-# Coarse Wiktionary-category → kenning-tag mapping. The lookup is
-# substring-based so "Christianity" and "en:Christianity" both hit the
-# religious tag. Not exhaustive — the goal is to surface the most
-# common semantic classes for place-name use; uncovered categories
-# just produce no tags (still fine for matching).
-_CATEGORY_PATTERNS: list[tuple[str, list[str]]] = [
-    ("christianity", ["religious"]),
-    ("religion", ["religious"]),
-    ("places of worship", ["religious", "architecture"]),
-    ("color", ["descriptive", "color"]),
-    ("colors", ["descriptive", "color"]),
-    ("topograph", ["topography"]),
-    ("landform", ["topography", "geology"]),
-    ("building", ["architecture"]),
-    ("architecture", ["architecture"]),
-    ("settlement", ["architecture", "social"]),
-    ("plant", ["plant"]),
-    ("tree", ["plant", "tree"]),
-    ("animal", ["animal"]),
-    ("mammal", ["animal", "mammal"]),
-    ("bird", ["animal", "bird"]),
-    ("water", ["water"]),
-    ("river", ["water", "topography"]),
-    ("body of water", ["water"]),
-    ("agriculture", ["agriculture"]),
-    ("farm", ["agriculture", "architecture"]),
-    ("metal", ["material"]),
-    ("stone", ["material", "geology"]),
-    ("size", ["descriptive", "size"]),
-    ("direction", ["descriptive", "direction"]),
-]
-
-
-def _map_categories_to_tags(categories: list[str]) -> list[str]:
-    """Translate wiktextract category names to kenning tag strings.
-
-    Idempotent dedupe + sort so the resulting tag list is stable across
-    re-runs (categories arrive in document order which can shuffle).
-    """
-    out: set[str] = set()
-    for cat in categories:
-        cat_l = cat.lower()
-        for pattern, tags in _CATEGORY_PATTERNS:
-            if pattern in cat_l:
-                out.update(tags)
-    return sorted(out)
+# wyrd-vsvi: _CATEGORY_PATTERNS + _map_categories_to_tags moved to
+# wiktextract_ingester.py so both the corpus miner and the full
+# ingester can use them without an import cycle. Re-exported here
+# (top-level import above) so existing call sites in this module
+# keep working unchanged.
 
 
 def build_index(

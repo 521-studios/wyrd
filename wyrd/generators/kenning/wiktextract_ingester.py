@@ -22,6 +22,7 @@ array per `_DESCENDANT_TAG_TO_EDGE` (e.g. `tags=['calque']`).
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
 from typing import IO, Any
 
@@ -547,6 +548,12 @@ def ingest_wiktextract_stream(
         "pronunciation_captured": 0,
         "original_script_captured": 0,
         "transliteration_captured": 0,
+        # wyrd-vsvi: tag-extraction stats from sense categories.
+        # tags_added is total tag-writes; entries_with_tags is the
+        # number of etymons that received at least one tag (denominator
+        # for tag-coverage rate calcs).
+        "tags_added": 0,
+        "entries_with_tags": 0,
         "applied": int(apply),
     }
     if apply:
@@ -924,6 +931,94 @@ def _emit_descent_edge(
     )
 
 
+# wyrd-vsvi: coarse Wiktionary-category → kenning-tag mapping.
+# Lives here (not in wiktextract_corpus_miner) because the full
+# ingester needs it; the miner re-imports from here. Lookup is
+# substring-based so "Christianity" and "en:Christianity" both hit
+# the religious tag. Not exhaustive — the goal is to surface the
+# most common semantic classes for place-name use; uncovered
+# categories just produce no tags (still fine for matching).
+_CATEGORY_PATTERNS: list[tuple[str, list[str]]] = [
+    ("christianity", ["religious"]),
+    ("religion", ["religious"]),
+    ("places of worship", ["religious", "architecture"]),
+    ("color", ["descriptive", "color"]),
+    ("colors", ["descriptive", "color"]),
+    ("topograph", ["topography"]),
+    ("landform", ["topography", "geology"]),
+    ("building", ["architecture"]),
+    ("architecture", ["architecture"]),
+    ("settlement", ["architecture", "social"]),
+    ("plant", ["plant"]),
+    ("tree", ["plant", "tree"]),
+    ("animal", ["animal"]),
+    ("mammal", ["animal", "mammal"]),
+    ("bird", ["animal", "bird"]),
+    ("water", ["water"]),
+    ("river", ["water", "topography"]),
+    ("body of water", ["water"]),
+    ("agriculture", ["agriculture"]),
+    ("farm", ["agriculture", "architecture"]),
+    ("metal", ["material"]),
+    ("stone", ["material", "geology"]),
+    ("size", ["descriptive", "size"]),
+    ("direction", ["descriptive", "direction"]),
+]
+
+
+def _map_categories_to_tags(categories: Iterable[str]) -> list[str]:
+    """Translate wiktextract category names to kenning tag strings.
+
+    Idempotent dedupe + sort so the resulting tag list is stable across
+    re-runs (categories arrive in document order which can shuffle).
+    Accepts any iterable so callers can pass a dedup'd set directly
+    when they have one already.
+    """
+    out: set[str] = set()
+    for cat in categories:
+        cat_l = cat.lower()
+        for pattern, tags in _CATEGORY_PATTERNS:
+            if pattern in cat_l:
+                out.update(tags)
+    return sorted(out)
+
+
+def _extract_entry_tags(entry: dict[str, Any]) -> list[str]:
+    """wyrd-vsvi: union sense categories across an entry and map them to
+    kenning tag strings. Mirrors the corpus-miner path's tag-extraction
+    so both ingesters produce comparable etymon_tag coverage. The
+    corpus miner picks ONE sense (the canonical one) and tags from its
+    categories; the full ingester unions across ALL senses since an
+    etymon can legitimately have multiple senses with distinct semantic
+    classes (e.g. 'mill' = grinding-building AND a unit of measure →
+    architecture + agriculture + measurement tags).
+
+    Categories are deduplicated at the input layer (via set) before
+    pattern-matching, which saves redundant substring scans when an
+    entry has many senses sharing categories (common — wiktextract
+    duplicates topical categories across senses). Returns sorted-
+    dedupe list of tag strings; ``[]`` for entries with no
+    categorizable senses (the common case for etymology-template stub
+    rows that don't have full sense entries).
+    """
+    all_categories: set[str] = set()
+    for sense in entry.get("senses") or []:
+        for cat in sense.get("categories") or []:
+            # The current wiktextract format emits each category as a
+            # dict with name + kind + parents; older / custom configs
+            # sometimes emit raw strings. Handle both for forward-
+            # compat against wiktextract version drift.
+            if isinstance(cat, dict):
+                name = cat.get("name")
+            elif isinstance(cat, str):
+                name = cat
+            else:
+                name = None
+            if name:
+                all_categories.add(name)
+    return _map_categories_to_tags(all_categories)
+
+
 def _process_entry(
     db: LexiconDB,
     entry: dict[str, Any],
@@ -946,6 +1041,11 @@ def _process_entry(
     orig_script, translit = _extract_head_template_renderings(
         entry.get("head_templates") or [], this_word
     )
+    # wyrd-vsvi: tags from sense categories — surface modern-english /
+    # middle-english / OF tag coverage that the corpus-miner path
+    # only fills for fragment-matched entries. The full ingester walks
+    # every entry so tag coverage tracks the slice's sense coverage.
+    tag_list = _extract_entry_tags(entry)
     this_id = (
         db.upsert_etymon(
             this_word,
@@ -965,6 +1065,11 @@ def _process_entry(
             counts["original_script_captured"] = counts.get("original_script_captured", 0) + 1
         if translit:
             counts["transliteration_captured"] = counts.get("transliteration_captured", 0) + 1
+        if tag_list:
+            for tag in tag_list:
+                db.add_tag(this_id, tag)
+            counts["tags_added"] = counts.get("tags_added", 0) + len(tag_list)
+            counts["entries_with_tags"] = counts.get("entries_with_tags", 0) + 1
 
     # Etymology templates — each may produce one or more UPWARD edges
     # from this entry to its named parent(s). Single-parent templates

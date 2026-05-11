@@ -4746,6 +4746,14 @@ def lexicon_ingest_wiktionary(
             f"  pronunciation captured: ipa={pron} original_script={orig} transliteration={trans}",
             err=True,
         )
+    # wyrd-vsvi: tag-extraction stats from sense categories.
+    tags_added = result.get("tags_added", 0)
+    entries_with_tags = result.get("entries_with_tags", 0)
+    if tags_added:
+        click.echo(
+            f"  tags captured: {tags_added} tag-writes across {entries_with_tags} entries",
+            err=True,
+        )
     if not apply_changes:
         click.echo("(dry-run; pass --apply to commit)", err=True)
 
