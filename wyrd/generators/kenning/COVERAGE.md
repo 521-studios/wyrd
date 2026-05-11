@@ -537,6 +537,59 @@ runtime knob is engaged.
 
 
 
+### 2026-05-11 — wyrd-m032 (modern-english spelling-variant forms mining)
+
+Closes the dashboard's largest single-cell gap surviving wyrd-r1ks:
+modern-english E (Spelling-variant coverage) at 0.0% on 1.4M
+lemmas, 29.2% of bundle. Same shape as wyrd-r1ks — the
+``mine-wiktextract-forms`` pipeline had been run on welsh, irish,
+scottish-gaelic, OE, ON, etc. but **NOT** on the modern-english
+slice (``sources/wiktextract_english.jsonl``, 2.8GB, 1.47M entries)
+despite that slice carrying rich plural / comparative form arrays.
+
+Fix: ran ``wyrd kenning lexicon mine-wiktextract-forms --apply
+sources/wiktextract_english.jsonl``.
+
+| layer | language | before | after |
+|-------|----------|-------:|------:|
+| lex DB | modern-english variants | 0/1,376,099 (0.0%) | **485,400/1,376,099 (35.3%)** |
+
+Per-run stats:
+
+* 1,465,676 entries walked → 967,982 form candidates total
+  (703,929 processed and written + 264,053 filtered as
+  table-scaffolding / verbal-conjugation noise)
+* 644 etymons missing (entries whose canonical headword isn't in
+  the lexicon — 0.04% miss rate)
+
+The noise filter inherited from wyrd-r1ks already catches
+``past`` / ``infinitive`` / ``preterite`` / ``participle`` /
+``gerund`` / ``supine`` for English verb conjugations, so the leak
+that drove the round-1 wyrd-r1ks fix doesn't recur here — what's
+left after filtering is plurals, comparatives, superlatives, and
+genuine spelling variants.
+
+Sample modern-english variants now pooled:
+
+```
+abbess  → abbesses (plural)
+ancient → ancients (plural), more ancient (comparative),
+          most ancient (superlative)
+mouse   → mice (plural)
+```
+
+The variants pool feeds the runtime's ``--spelling-variety`` knob:
+the English culture (which heavily reuses modern-english morphemes
+in synthetic place-name generation) now has 485K real variant forms
+to draw from at non-zero spelling_variety, where pre-fix it had zero.
+
+Per-culture perfect-rates unchanged after rebuild-proportions —
+the variant pool is a generation-time enrichment, not a corpus
+metric. The win is in generation diversity at non-zero
+spelling_variety.
+
+
+
 ### 2026-05-11 — wyrd-gf28 (modern-english inflection rules)
 
 Closes the dashboard's #4 weakness from the wyrd-vsvi audit:
