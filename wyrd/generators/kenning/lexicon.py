@@ -2333,16 +2333,19 @@ def link_lemmas(db: LexiconDB, *, apply: bool = False) -> dict:
     proposed: list[dict] = []
     inflected_rows = candidate_rows
     for row in inflected_rows:
-        # Try suffix-strip first (INFLECTION_RULES); fall through to
-        # mutation prefix-strip for Goidelic (MUTATION_RULES). The
-        # plural candidates helper returns multiple lemma candidates
-        # per rule (silent-e for modern English etc.); first matching
-        # candidate wins.
+        # Try suffix-strip first (INFLECTION_RULES); always APPEND the
+        # mutation prefix-strip candidate (MUTATION_RULES) so it acts
+        # as a fallback when suffix candidates don't match a DB lemma.
+        # Pre-wyrd-gf28 the mutation path only ran when suffix
+        # returned no candidates at all — but with the new plural-
+        # candidates form a suffix rule can produce 2+ candidates
+        # that ALL fail to resolve, and the mutation path needs to
+        # still get a shot. Suffix priority preserved because
+        # candidates are tried in list order.
         candidates = derive_lemma_candidates(row["canonical_form"], row["language"])
-        if not candidates:
-            mut = derive_mutation_lemma_candidate(row["canonical_form"], row["language"])
-            if mut is not None:
-                candidates = [mut]
+        mut = derive_mutation_lemma_candidate(row["canonical_form"], row["language"])
+        if mut is not None:
+            candidates.append(mut)
         lemma_id = None
         inflection = None
         lemma_form = None
