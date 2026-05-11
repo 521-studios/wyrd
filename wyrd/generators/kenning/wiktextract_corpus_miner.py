@@ -88,10 +88,13 @@ _NOISE_FORM_TAGS: frozenset[str] = frozenset(
         "first-person",
         "second-person",
         "third-person",
+        # Moods
         "indicative",
         "subjunctive",
         "imperative",
         "conditional",
+        "optative",
+        # Tenses (preterite vs past for cross-language coverage)
         "present",
         "preterite",
         "past",
@@ -99,11 +102,18 @@ _NOISE_FORM_TAGS: frozenset[str] = frozenset(
         "imperfect",
         "pluperfect",
         "perfect",
+        "aorist",
+        # Voices
+        "active",
+        "middle",
+        "passive",
+        # Non-finite + generic verbal
         "impersonal",
         "participle",
         "infinitive",
         "gerund",
         "supine",
+        "verbal",
     }
 )
 
