@@ -489,8 +489,8 @@ Fix: ran ``mine-wiktextract-forms --apply`` on both slices.
 |-------|----------|-------:|------:|
 | lex DB | old-english variants | 177/72,382 (0.2%) | **44,929/72,382 (62.1%)** |
 | lex DB | old-norse variants   | 21/14,679 (0.1%) | **3,363/14,679 (22.9%)** |
-| bundle | old_english_variants pool | ~0 | **2,756/4,483 (61.5%)** |
-| bundle | old_scandinavian_variants pool | ~0 | **683/1,238 (55.2%)** |
+| bundle | old_english_variants pool | ~0 | **2,749/4,483 (61.3%)** |
+| bundle | old_scandinavian_variants pool | ~0 | **648/1,238 (52.3%)** |
 
 Per-run stats (forms_processed counts forms that passed the noise
 filter; forms_skipped_noise counts forms filtered out as table /
@@ -507,11 +507,21 @@ Sample OE morpheme post-mining (``-ing-``):
 ```
 forms:    ['inga', 'ingas', 'ing', 'inge', 'ingan', 'Inga', 'Ing',
            '-ingas', '-inga', '-ing']
-variants: [{'form': 'ingān',    'weight': 2},
-           {'form': 'ingum',    'weight': 1},
-           {'form': 'ingānne',  'weight': 1},
-           {'form': 'inēode',   'weight': 1}]
+variants: [{'form': 'ingum',    'weight': 1},
+           {'form': 'ingān',    'weight': 1}]
 ```
+
+Round-1 review surfaced that the initial run leaked verbal
+conjugations of OE ``ingān`` ('to enter') — ``inēode``,
+``ingānne`` — into the suffix's variant pool because wiktextract
+emits OE verb forms with ``past`` / ``infinitive`` tags neither
+of which the original ``_NOISE_FORM_TAGS`` set caught (only
+``preterite`` was filtered). Expanded the filter to include
+``past``, ``perfect``, ``infinitive``, ``gerund``, ``supine`` —
+re-mined and the verbal conjugations are now filtered out at
+ingest. Two remaining cluster-mate leaks (``ingum``, ``ingān``
+canonical forms of the verb etymon) tracked separately as
+wyrd-sg7l for cluster-rollup-time filtering.
 
 The variants pool feeds the runtime's ``--spelling-variety`` knob:
 the generator now has real OE inflected forms to draw from for
