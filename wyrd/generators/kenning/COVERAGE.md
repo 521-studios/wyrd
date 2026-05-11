@@ -537,6 +537,68 @@ runtime knob is engaged.
 
 
 
+### 2026-05-11 — wyrd-h5it (F₂: bundle-side era-reflex coverage mirror)
+
+The dashboard's F (Era-reflex coverage) metric was reading 2.0% for
+modern-english, suggesting a giant time-travel gap — but the actual
+deploy-ready BUNDLE coverage was 66.6% post-wyrd-98cs. Root cause:
+the lex-side F denominator (1.4M etymons) is dominated by the
+wyrd-dxu2 Kaikki ingest of common-noun headwords that aren't in the
+toponymy descent graph, drowning the actually-shipped signal. The
+wyrd-98cs phonology-rule Tier-4 fallback also isn't persisted to
+DB tables — it's synthesized at bundle-export time — so it never
+counted toward the lex-side metric at all.
+
+Fix: added F₂ bundle-side mirror, parallel to H (Pronunciation
+coverage)'s lex/bundle split. New summary column **Era reflex
+(lex / bundle)** shows both readings side-by-side; per-language
+detail includes a new line "Bundle subjects with reflex stop
+targeting this language: N/D (X%)" mirroring H's shape.
+
+Selected post-fix readings:
+
+| language | F lex | F₂ bundle |
+|----------|------:|----------:|
+| modern-english | 2.0% | **66.6%** |
+| middle-english | 61.3% | 79.8% |
+| old-english | 20.4% | 63.9% |
+| irish | 18.5% | 31.3% |
+| old-french | 37.0% | 70.0% |
+| old-norse | 51.7% | 52.5% |
+| latin | 40.1% | 60.0% |
+| welsh | 16.4% | 17.6% |
+| scottish-gaelic | 18.0% | **0.0%** |
+| breton | 39.4% | **0.0%** |
+
+Patterns the dual reading surfaces that the single lex-side
+reading hid:
+
+1. **Wiktextract-ingest denominator bias** (modern-english) — lex
+   F is denominator-collapsed by ~1.3M common-noun etymons. F₂'s
+   bundle-only denominator (2,485 subjects) gives the real
+   deploy-ready coverage. Same pattern will hit any language that
+   gains a bulk wiktextract slice ingest in future.
+2. **Tier-4 phonology rule firing** — wyrd-98cs's phonology-rule:v1
+   source contributes 471 modern-english + 1,643 OE + 389 OW + 329 ME
+   reflexes to the bundle, all invisible to lex-side F. F₂ counts
+   them by reading the bundle directly.
+3. **Cluster-sibling languages with 0% F₂** — scottish-gaelic and
+   breton both show F₂ = 0% because they share a `celtic_mix`
+   sibling with welsh / irish / etc. but the bundle's era_reflexes
+   are keyed by chain-target, and the celtic cluster doesn't have
+   stops at scottish-gaelic / breton (only welsh / irish / old-irish
+   / old-welsh). NOT a bug — it's the chain config; flagged for
+   future wyrd-pmne work on Tier-4 visibility.
+
+Implementation: ``_bundle_era_reflex_coverage(bundle, language,
+sibling)`` walks bundle subjects, counts those where sibling is
+populated AND any word carries ``era_reflexes[language]`` with a
+non-empty list. Includes all source tags (cluster / descent /
+period-form / phonology-rule:v1) so wyrd-98cs Tier-4 coverage
+finally surfaces in the metric.
+
+
+
 ### 2026-05-11 — wyrd-m032 (modern-english spelling-variant forms mining)
 
 Closes the dashboard's largest single-cell gap surviving wyrd-r1ks:

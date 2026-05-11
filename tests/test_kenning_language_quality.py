@@ -28,6 +28,7 @@ from wyrd.generators.kenning.language_quality import (
     LanguageQualityReport,
     LanguageScorecard,
     _bundle_attestation_breakdown,
+    _bundle_era_reflex_coverage,
     _bundle_ipa_coverage,
     _bundle_language_word_count,
     _bundle_tag_coverage_for_sibling,
@@ -484,6 +485,207 @@ def test_bundle_ipa_coverage_handles_dict_shape() -> None:
     assert _bundle_ipa_coverage(bundle, "old_english") == 1
 
 
+def _fixture_bundle_with_era_reflexes() -> list[dict]:
+    """Bundle with era_reflexes data shaped per the post-wyrd-jbcu schema.
+    Three subjects:
+    - 'cot' (modern_english sibling) — has a modern-english reflex stop
+      via cluster source: counts toward both old-english and modern-english F₂.
+    - 'ham' (modern_english sibling) — has a phonology-rule:v1 modern-english
+      reflex: counts (wyrd-98cs Tier-4 coverage MUST count just like cluster).
+    - 'tun' (modern_english sibling) — has era_reflexes targeting only
+      OLD-english, not modern-english: counts for old-english, NOT modern-english.
+    """
+    return [
+        {
+            "words": [
+                {
+                    "modern_english": "cot",
+                    "old_english": "cot",
+                    "era_reflexes": {
+                        "modern-english": [{"form": "cot", "source": "cluster"}],
+                        "old-english": [{"form": "cot", "source": "cluster"}],
+                    },
+                }
+            ],
+        },
+        {
+            "words": [
+                {
+                    "modern_english": "ham",
+                    "era_reflexes": {
+                        "modern-english": [{"form": "ham", "source": "phonology-rule:v1"}],
+                    },
+                }
+            ],
+        },
+        {
+            "words": [
+                {
+                    "modern_english": "tun",
+                    "era_reflexes": {
+                        "old-english": [{"form": "tūn", "source": "cluster"}],
+                    },
+                }
+            ],
+        },
+    ]
+
+
+def test_bundle_era_reflex_coverage_counts_target_language_hits() -> None:
+    """F₂: count bundle subjects whose sibling is populated AND at least
+    one word has a non-empty list under era_reflexes[language].
+
+    Fixture: 3 subjects all have the modern_english sibling. Two have
+    a modern-english era_reflexes entry (one cluster, one phonology-rule:v1);
+    one targets only old-english. Modern-english F₂ should be 2, not 3."""
+    bundle = _fixture_bundle_with_era_reflexes()
+    assert _bundle_era_reflex_coverage(bundle, "modern-english", "modern_english") == 2
+
+
+def test_bundle_era_reflex_coverage_includes_phonology_rule_source() -> None:
+    """Pin wyrd-h5it's load-bearing claim: phonology-rule:v1 sourced
+    reflexes count toward F₂, not just cluster / descent / period-form.
+    Without this, the metric would silently re-create the lex-side
+    blindspot (Tier 4 ignored) that motivated F₂."""
+    bundle = [
+        {
+            "words": [
+                {
+                    "modern_english": "ham",
+                    "era_reflexes": {
+                        "modern-english": [{"form": "ham", "source": "phonology-rule:v1"}],
+                    },
+                }
+            ],
+        },
+    ]
+    assert _bundle_era_reflex_coverage(bundle, "modern-english", "modern_english") == 1
+
+
+def test_bundle_era_reflex_coverage_requires_sibling_populated() -> None:
+    """Denominator gate: a subject without the language's sibling
+    populated doesn't count, even if it carries era_reflexes for the
+    target. Matches H's denominator shape."""
+    bundle = [
+        {
+            "words": [
+                {
+                    # No modern_english key — sibling unpopulated.
+                    "era_reflexes": {
+                        "modern-english": [{"form": "X", "source": "cluster"}],
+                    },
+                }
+            ],
+        },
+    ]
+    assert _bundle_era_reflex_coverage(bundle, "modern-english", "modern_english") == 0
+
+
+def test_bundle_era_reflex_coverage_returns_zero_for_none_sibling() -> None:
+    """Languages without a bundle sibling get 0 — same defensive
+    behaviour as the other bundle-side helpers."""
+    bundle = _fixture_bundle_with_era_reflexes()
+    assert _bundle_era_reflex_coverage(bundle, "modern-english", None) == 0
+
+
+def test_bundle_era_reflex_coverage_skips_empty_reflex_lists() -> None:
+    """era_reflexes[language] == [] doesn't count — only non-empty lists
+    are reflex evidence. Guards against a bundle export bug that wrote
+    empty arrays as placeholders."""
+    bundle = [
+        {
+            "words": [
+                {
+                    "modern_english": "cot",
+                    "era_reflexes": {"modern-english": []},
+                }
+            ],
+        },
+    ]
+    assert _bundle_era_reflex_coverage(bundle, "modern-english", "modern_english") == 0
+
+
+def test_bundle_era_reflex_coverage_handles_dict_shape() -> None:
+    """Forward-compat: dict-shaped bundles (post-wyrd-c1vq)."""
+    bundle = {"subjects": _fixture_bundle_with_era_reflexes(), "joiners": {}}
+    assert _bundle_era_reflex_coverage(bundle, "modern-english", "modern_english") == 2
+
+
+def test_bundle_era_reflex_coverage_handles_missing_era_reflexes_key() -> None:
+    """Words without the ``era_reflexes`` key entirely (not just empty)
+    don't crash — the ``or {}`` defensive read handles missing keys
+    the same way the bundle export does for older schema versions."""
+    bundle = [
+        {
+            "words": [
+                {"modern_english": "cot"},  # No era_reflexes key at all.
+            ],
+        },
+    ]
+    assert _bundle_era_reflex_coverage(bundle, "modern-english", "modern_english") == 0
+
+
+def test_bundle_era_reflex_coverage_combines_sibling_and_reflex_across_words() -> None:
+    """Per-subject (not per-word) semantic: a subject counts when its
+    words collectively have BOTH the sibling populated AND a target
+    reflex, even if those signals live in different words within the
+    same subject.
+
+    This is the intended bundle-export contract — a single subject is
+    one Meaning whose words are cluster siblings, and 'this subject
+    can render an era stop in language L' is a subject-level claim,
+    not a per-word claim. Pin it so a future refactor that tightens
+    the gate to 'same word' doesn't silently shift the metric."""
+    bundle = [
+        {
+            "words": [
+                # Word 1: has sibling, no reflex.
+                {"modern_english": "cot"},
+                # Word 2: no sibling, has target reflex.
+                {"era_reflexes": {"modern-english": [{"form": "X", "source": "cluster"}]}},
+            ],
+        },
+    ]
+    assert _bundle_era_reflex_coverage(bundle, "modern-english", "modern_english") == 1
+
+
+def test_summary_table_era_cell_renders_na_when_no_bundle_subjects() -> None:
+    """Markdown formatter renders the bundle-side half of the F cell
+    as 'n/a' when ``bundle_attestation_total == 0`` (the language has
+    no bundle representation). Mirrors H's n/a branch — keeps
+    'absent' visually distinct from '0% covered'."""
+    scorecard = LanguageScorecard(
+        language="latin",
+        total_etymons=100,
+        total_lemmas=100,
+        promotion_threshold=2,
+        promotion_eligible=0,
+        avg_witnesses=0.0,
+        source_count=0,
+        bundle_sibling=None,
+        bundle_word_count=0,
+        bundle_attestation_total=0,
+        any_reflex_count=40,
+    )
+    report = LanguageQualityReport(
+        schema_version="1.0",
+        generated_at="2026-05-11T00:00:00Z",
+        reference_tags=list(FALLBACK_REFERENCE_TAGS[:3]),
+        bundle_total_words=100,
+        languages=[scorecard],
+    )
+    md = report_to_markdown(report)
+    # The summary table's era cell is 'lex_pct / bundle_pct'; with
+    # zero bundle subjects, bundle side renders 'n/a'.
+    assert "40.0% / n/a" in md
+    # The per-language detail F₂ line must also render 'n/a' when
+    # bundle_attestation_total==0 — consistent with the summary table,
+    # keeps 'no bundle representation' visually distinct from
+    # '0% covered'. Otherwise _format_pct returns '0.0%' for zero
+    # denominator, which is misleading.
+    assert "Bundle subjects with reflex stop targeting this language: 0/0 (n/a)" in md
+
+
 def test_scorecard_inheritance_warning_pin() -> None:
     """When lexicon-side IPA is 0 and bundle-side IPA is non-zero, the
     rendered markdown surfaces an explicit ⚠ warning so a reader can
@@ -875,6 +1077,10 @@ def test_report_to_markdown_includes_summary_and_detail() -> None:
     # Both lexicon-side and bundle-side tag-coverage sections appear.
     assert "Semantic-tag coverage (lexicon)" in md
     assert "Bundle tag visibility" in md
+    # F₂ (wyrd-h5it): the summary table column is the lex/bundle split
+    # and the per-language detail mentions the bundle-side reading.
+    assert "Era reflex (lex / bundle)" in md
+    assert "Bundle subjects with reflex stop targeting this language" in md
 
 
 def test_report_to_markdown_handles_no_bundle_sibling() -> None:
@@ -1019,6 +1225,9 @@ def test_language_scorecard_dataclass_carries_required_fields() -> None:
         "tier3_period_form_count",
         "any_reflex_count",
         "any_reflex_rate",
+        # F₂. Bundle-side era-reflex coverage (wyrd-h5it)
+        "bundle_subjects_with_reflex",
+        "bundle_reflex_rate",
         "stratum_classified",
         "stratum_density",
         "etymons_with_citations",
