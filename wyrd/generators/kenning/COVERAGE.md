@@ -537,6 +537,82 @@ runtime knob is engaged.
 
 
 
+### 2026-05-11 — wyrd-pmne (F Tier 4: count synthesized phonology-rule reflexes)
+
+Companion to wyrd-h5it. F's lex-side breakdown listed Tier 1 / Tier 2
+forward / Tier 2 back / Tier 3 period-form — but NOT Tier 4
+(phonology-rule fallback wired in wyrd-98cs), making it look like
+phonology wasn't wired even though the bundle ships ~3,000
+``phonology-rule:v1`` source-tagged reflexes (459 modern-english +
+1,643 OE + 389 OW + 329 ME, etc.).
+
+Root cause: Tier 4 isn't persisted in DB tables — it's synthesized
+on-demand by ``etymon_era_reflexes()`` via ``_phonology_rule_form()``.
+The dashboard query was reading DB tables only.
+
+Fix: added ``_tier4_phonology_coverage()`` which walks every etymon
+in chain-eligible languages (English chain: OE / ME / EModE / ModE;
+Welsh chain: OW / ModW) and counts those whose ``canonical_form``
+produces a transformed reflex via ``_phonology_rule_form`` for at
+least one other era in the chain. Full-population walk is slow on
+the modern-english 1.4M-etymon population (~3 minutes); guarded
+behind ``--tier4 / --no-tier4`` so operators can skip it during
+fast iteration. Languages without a registered phonology chain
+(Goidelic, Norse, Romance, etc.) render as ``Tier 4 phonology n/a``,
+distinguishing 'no rules registered' from '0 etymons fire'.
+
+The dashboard's per-language F line now reads:
+
+```
+- **F. Era-reflex coverage:** Tier 1 cognate N, Tier 2 forward N,
+  Tier 2 back N, Tier 3 period-form N, Tier 4 phonology N (N%);
+  ANY reflex N (N%). Bundle subjects with reflex stop targeting
+  this language: N/D (N%).
+```
+
+Selected post-fix Tier-4 readings (the count of etymons that fire
+at least one Tier-4 reflex; numerator/total_etymons percentage):
+
+| language | Tier 4 phonology |
+|----------|-----------------:|
+| modern-english | 1,346,968 / 1,376,099 (97.9%) |
+| middle-english | 62,123 / 62,367 (99.6%) |
+| old-english | 31,883 / 72,382 (44.0%) |
+| welsh | 11,231 / 26,859 (41.8%) |
+| old-welsh | 93 / 456 (20.4%) |
+| irish / scottish-gaelic / old-irish / breton / old-norse / old-french / norman-french / latin | n/a |
+
+Notable patterns:
+
+- **Modern-english / middle-english fire near-universal Tier 4
+  (97.9% / 99.6%).** Both languages live in the middle of the
+  English chain, and the inverse-walk to old-english applies many
+  rule passes — almost every form has at least one transformation
+  trigger across the full chain. ANY-reflex jumps from 2.0% (lex)
+  to ~98% if Tier-4 is admitted — the operator signal wyrd-pmne
+  was meant to surface.
+- **Old-english only 44.0%.** Forward-walk from OE applies only the
+  OE→ME cell, and a significant fraction of OE forms (e.g.
+  short / consonant-cluster lemmas) pass through unchanged. This
+  is genuinely lower than the modern-english reading and
+  proportional to the size of the surviving rule transformations.
+- **Welsh / old-welsh: 41.8% / 20.4%.** Two-step Welsh chain
+  (OW→ModW) is smaller than the four-step English chain, so fewer
+  forms encounter a rule trigger. Old-welsh has the lowest reading
+  because the small population is dominated by short consonant-
+  pattern lemmas.
+- **Languages with no registered phonology chain (Old French,
+  Latin, Goidelic family, Norse family) render Tier 4 as n/a.**
+  These depend entirely on DB-persisted T1/T2/T3 reflexes for
+  era-time-travel coverage. Filing future tickets to expand the
+  rule library is the path to closing those gaps.
+
+Stderr emits a CLAUDE.md-shape progress line every ~5% of each
+language's walk so operators can watch the long modern-english
+walk advance rather than wonder if the process is stuck.
+
+
+
 ### 2026-05-11 — wyrd-h5it (F₂: bundle-side era-reflex coverage mirror)
 
 The dashboard's F (Era-reflex coverage) metric was reading 2.0% for

@@ -34,6 +34,7 @@ from wyrd.generators.kenning.language_quality import (
     _bundle_tag_coverage_for_sibling,
     _bundle_total_words,
     _lexicon_ipa_coverage,
+    _tier4_phonology_coverage,
     compute_rando_port_grandfather_audit,
     compute_report,
     compute_scorecard,
@@ -649,6 +650,170 @@ def test_bundle_era_reflex_coverage_combines_sibling_and_reflex_across_words() -
     assert _bundle_era_reflex_coverage(bundle, "modern-english", "modern_english") == 1
 
 
+def _seed_tier4_fixture_db() -> sqlite3.Connection:
+    """In-memory etymon table seeded with three modern-english forms
+    chosen so the wyrd-98cs phonology chain produces a transformed
+    Tier-4 reflex (the rules walk back through early-modern-english /
+    middle-english / old-english cells).
+
+    The actual phonology_rules library is imported live so any cell
+    re-tuning shows up as a test failure here — pinning the count
+    would over-couple to internal rule probabilities.
+    """
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(
+        """
+        CREATE TABLE etymon (
+            id INTEGER PRIMARY KEY,
+            canonical_form TEXT NOT NULL,
+            language TEXT NOT NULL,
+            merged_into_id INTEGER REFERENCES etymon(id)
+        );
+        """
+    )
+    rows = [
+        ("house", "modern-english"),
+        ("ham", "modern-english"),
+        ("cot", "modern-english"),
+        ("liorth", "modern-welsh"),  # phonology-rule-eligible welsh form
+        # A non-chain-eligible language — Tier-4 must return -1.
+        ("ríg", "old-irish"),
+        # An empty canonical_form — defensive: must not crash.
+        ("", "modern-english"),
+    ]
+    conn.executemany(
+        "INSERT INTO etymon (canonical_form, language) VALUES (?, ?)",
+        rows,
+    )
+    conn.commit()
+    return conn
+
+
+def test_tier4_phonology_coverage_returns_negative_one_for_no_chain() -> None:
+    """Languages without a registered phonology chain (Goidelic, Norse,
+    Romance, etc.) return -1 — sentinel for 'no rules to apply', which
+    the markdown formatter renders as 'n/a' to distinguish it from
+    '0 etymons fire'."""
+    conn = _seed_tier4_fixture_db()
+    assert _tier4_phonology_coverage(conn, "old-irish") == -1
+
+
+def test_tier4_phonology_coverage_returns_zero_for_empty_language() -> None:
+    """A chain-eligible language with no etymons in the DB returns 0
+    (the chain exists, the population is just empty)."""
+    conn = _seed_tier4_fixture_db()
+    # middle-english is phonology-chain-eligible but unpopulated here.
+    assert _tier4_phonology_coverage(conn, "middle-english") == 0
+
+
+def test_tier4_phonology_coverage_counts_firing_etymons() -> None:
+    """Etymons whose canonical_form produces a transformed Tier-4
+    reflex (via _phonology_rule_form) for at least one chain stop
+    count. Tests run against the live phonology_rules cells (wyrd-98cs
+    et al.), so the count reflects real rule firing rather than a
+    fixed expected value — empty canonical_form gets skipped.
+
+    Bound the assertion to a range rather than a fixed number so cell-
+    rule re-tuning doesn't break this test for the wrong reason; the
+    invariant is 'at least one of {house, ham, cot} fires Tier-4 for
+    at least one other English-chain era'."""
+    conn = _seed_tier4_fixture_db()
+    count = _tier4_phonology_coverage(conn, "modern-english")
+    # Three real modern-english forms in the fixture; empirically the
+    # rules fire for every form that has letters that the cells
+    # transform (~99% in production). One empty-form row must not
+    # crash and must not count.
+    assert 0 <= count <= 3
+    # Skip the strict lower-bound assertion if the rules library has
+    # been disabled — fail loud if rules are wired but nothing fires.
+    from wyrd.generators.kenning.lexicon import _phonology_rule_form
+
+    if _phonology_rule_form("house", "modern-english", "old-english") is not None:
+        assert count >= 1, "phonology rules fire on 'house' but T4 count says 0"
+
+
+def test_compute_scorecard_compute_tier4_false_skips_walk() -> None:
+    """``compute_scorecard(..., compute_tier4=False)`` skips the Tier-4
+    walk and returns ``-1`` — same rendering as a non-chain language
+    but reached without paying the ~3 minute modern-english cost.
+    Pin both: count is -1, AND the optional progress callback isn't
+    invoked under the skip path."""
+    conn = _build_fixture_db()
+    bundle: list[dict] = []
+    callbacks: list[tuple[int, int]] = []
+
+    def cb(done: int, total: int) -> None:
+        callbacks.append((done, total))
+
+    # old-english is chain-eligible in _PHONOLOGY_FAMILY_CHAINS, so
+    # compute_tier4=True WOULD fire. compute_tier4=False must skip.
+    card = compute_scorecard(
+        conn,
+        "old-english",
+        bundle,
+        list(FALLBACK_REFERENCE_TAGS[:3]),
+        compute_tier4=False,
+        tier4_progress_callback=cb,
+    )
+    assert card.tier4_phonology_count == -1
+    assert callbacks == [], "callback must not fire under compute_tier4=False"
+
+
+def test_compute_report_per_language_callback_threads_correct_lang() -> None:
+    """The per-lang callback closure in compute_report wraps the
+    operator's callback so each language's progress emissions carry
+    the right language tag. Classic late-binding-closure-over-loop-var
+    bug surface — pin that the closure uses the active language at
+    each iteration, not the last value of ``lang`` after the loop.
+
+    Pin: with a multi-language fixture, the callback records
+    ``(language, done, total)`` tuples; verify each language emits
+    at least one tick AND the language tag matches the active
+    iteration (no cross-talk between languages)."""
+    conn = _build_fixture_db()
+    bundle: list[dict] = []
+    received: list[tuple[str, int, int]] = []
+
+    def cb(lang: str, done: int, total: int) -> None:
+        received.append((lang, done, total))
+
+    # Two chain-eligible languages in the fixture: old-english (rich,
+    # 7 rows) + welsh (sparse, 2 rows).
+    compute_report(
+        conn,
+        bundle,
+        languages=["old-english", "welsh"],
+        reference_tags=list(FALLBACK_REFERENCE_TAGS[:3]),
+        tier4_progress_callback=cb,
+    )
+    languages_seen = {lang for lang, _, _ in received}
+    assert "old-english" in languages_seen
+    assert "welsh" in languages_seen
+    # Specifically guard the late-binding bug: every callback for
+    # 'old-english' carries 'old-english', not 'welsh'.
+    oe_calls = [t for t in received if t[0] == "old-english"]
+    welsh_calls = [t for t in received if t[0] == "welsh"]
+    assert oe_calls, "old-english should have at least one callback"
+    assert welsh_calls, "welsh should have at least one callback"
+
+
+def test_tier4_phonology_coverage_progress_callback_fires() -> None:
+    """The optional progress_callback receives (done, total) tuples.
+    Pin the callback contract — tiny populations should still receive
+    at least one tick (the final emission)."""
+    conn = _seed_tier4_fixture_db()
+    callbacks: list[tuple[int, int]] = []
+
+    def cb(done: int, total: int) -> None:
+        callbacks.append((done, total))
+
+    _tier4_phonology_coverage(conn, "modern-english", progress_callback=cb)
+    assert callbacks, "expected at least one progress callback for non-empty population"
+    # Last callback reports completion.
+    assert callbacks[-1][0] == callbacks[-1][1] == 4  # 4 modern-english rows in fixture
+
+
 def test_summary_table_era_cell_renders_na_when_no_bundle_subjects() -> None:
     """Markdown formatter renders the bundle-side half of the F cell
     as 'n/a' when ``bundle_attestation_total == 0`` (the language has
@@ -1081,6 +1246,12 @@ def test_report_to_markdown_includes_summary_and_detail() -> None:
     # and the per-language detail mentions the bundle-side reading.
     assert "Era reflex (lex / bundle)" in md
     assert "Bundle subjects with reflex stop targeting this language" in md
+    # F Tier 4 (wyrd-pmne): the per-language detail breakdown lists a
+    # Tier 4 phonology slot — 'n/a' for languages without a registered
+    # phonology chain (Welsh in the integration fixture has no in-DB
+    # canonical_forms whose chain is wired in lexicon._PHONOLOGY_*),
+    # a count otherwise.
+    assert "Tier 4 phonology" in md
 
 
 def test_report_to_markdown_handles_no_bundle_sibling() -> None:
@@ -1223,6 +1394,8 @@ def test_language_scorecard_dataclass_carries_required_fields() -> None:
         "tier2_forward_count",
         "tier2_back_count",
         "tier3_period_form_count",
+        # F (Tier 4). Phonology-rule fallback (wyrd-pmne)
+        "tier4_phonology_count",
         "any_reflex_count",
         "any_reflex_rate",
         # F₂. Bundle-side era-reflex coverage (wyrd-h5it)

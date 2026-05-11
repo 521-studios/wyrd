@@ -5739,6 +5739,18 @@ def lexicon_stats(db_path: Path) -> None:
     show_default=True,
     help="Output format on stdout.",
 )
+@click.option(
+    "--tier4/--no-tier4",
+    "compute_tier4",
+    default=True,
+    show_default=True,
+    help=(
+        "Compute the wyrd-pmne Tier-4 phonology-rule reflex count "
+        "(full-population walk over each chain-eligible language; ~3 "
+        "minutes for modern-english's 1.4M etymons). --no-tier4 skips "
+        "the walk and renders the cell as 'n/a' — fast for iteration."
+    ),
+)
 def lexicon_language_report(
     db_path: Path,
     bundle_path: Path | None,
@@ -5748,6 +5760,7 @@ def lexicon_language_report(
     keep_empty: bool,
     json_path: Path | None,
     output_format: str,
+    compute_tier4: bool,
 ) -> None:
     """Per-language quality scorecard (wyrd-wzwa Phase 1).
 
@@ -5781,6 +5794,22 @@ def lexicon_language_report(
     reference_tags = load_reference_tags(proportions_path, top_n=top_tags)
     languages = list(language_filter) if language_filter else list(DEFAULT_LANGUAGES)
 
+    # CLAUDE.md-shape stderr progress for the long modern-english
+    # Tier-4 walk. The inner helper throttles to ~20 callbacks per
+    # language; we emit them all (so 20 lines per language, finer
+    # cadence than 10). Only fires when --tier4 is enabled.
+    tier4_progress_state: dict[str, str] = {"last_lang": ""}
+
+    def _tier4_progress(lang: str, done: int, total: int) -> None:
+        if lang != tier4_progress_state["last_lang"]:
+            click.echo(f"  tier4-phonology {lang}: walking {total} etymons…", err=True)
+            tier4_progress_state["last_lang"] = lang
+        pct = (done / total * 100.0) if total else 0.0
+        click.echo(
+            f"  tier4-phonology {lang}: {done}/{total} ({pct:.1f}%)",
+            err=True,
+        )
+
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     try:
@@ -5790,6 +5819,8 @@ def lexicon_language_report(
             languages=languages,
             reference_tags=reference_tags,
             drop_empty=not keep_empty,
+            compute_tier4=compute_tier4,
+            tier4_progress_callback=_tier4_progress if compute_tier4 else None,
         )
     finally:
         conn.close()
