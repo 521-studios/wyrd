@@ -566,7 +566,11 @@ the stripped stem plus ``restore_suffix`` is the PREFERRED candidate,
 the bare stem is the fallback. For modern-english:
 ``("ed", "past", "e")`` tries ``stem + "e"`` first (catches hoped→
 hope), falls back to ``stem`` (catches walked→walk where no
-``walke`` lemma exists). Doubled ModE coverage 1.9% → 3.3%.
+``walke`` lemma exists). The silent-e restore lifted ModE coverage
+from 1.9% (bare-stem only, where 'hoped' had been linking to 'hop')
+to 3.3% (silent-e preferred, where 'hoped' correctly links to
+'hope' and the additional verb-pairs the bare stem missed —
+'baked'/'liked'/'loved'/etc. — also get correctly linked).
 
 DEFERRED rules (too risky given 1.4M ModE etymon denominator):
 - ``-s`` / ``-es`` plural: many natural -s lemmas (is, this, pass)

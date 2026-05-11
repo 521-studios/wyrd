@@ -49,6 +49,7 @@ from wyrd.generators.kenning.lexicon import (
     cluster_cognates,
     cluster_ocr_variants,
     derive_lemma_candidate,
+    derive_lemma_candidates,
     detect_running_headers,
     etymon_era_reflexes,
     export_meanings,
@@ -6159,6 +6160,52 @@ def test_derive_lemma_candidate_strips_on_inflections() -> None:
 def test_derive_lemma_candidate_returns_none_for_unknown_lang() -> None:
     """Languages without rules don't produce candidates."""
     assert derive_lemma_candidate("foobar", "klingon") is None
+
+
+def test_derive_lemma_candidates_returns_silent_e_alternates_for_modern_english() -> None:
+    """wyrd-gf28: the plural-candidates form returns BOTH the
+    restore-suffix candidate (preferred) AND the bare-stem fallback
+    for modern-english -ed and -ing. Order matters — silent-e first
+    so 'hoped' gets to try 'hope' before 'hop'."""
+    # 'hoped' → restore 'e' → 'hope' preferred, 'hop' fallback
+    assert derive_lemma_candidates("hoped", "modern-english") == [
+        ("hope", "past"),
+        ("hop", "past"),
+    ]
+    assert derive_lemma_candidates("hoping", "modern-english") == [
+        ("hope", "gerund"),
+        ("hop", "gerund"),
+    ]
+    # 'walked' → 'walke' preferred (won't match in practice), 'walk' fallback
+    assert derive_lemma_candidates("walked", "modern-english") == [
+        ("walke", "past"),
+        ("walk", "past"),
+    ]
+
+
+def test_derive_lemma_candidates_returns_single_for_legacy_2tuple_rules() -> None:
+    """OE / ON / Welsh / etc. rules are 2-tuples without restore_suffix.
+    The plural-candidates form returns a single candidate for each
+    matching rule — same behavior as the singular wrapper, just in a
+    list. Pin so a future schema migration doesn't accidentally start
+    emitting bogus restore-suffix alternates for the legacy languages."""
+    # OE 'cotan' → only ('cot', 'weak_oblique'), no restore
+    assert derive_lemma_candidates("cotan", "old-english") == [("cot", "weak_oblique")]
+    # Welsh 'dyddiau' → only ('dydd', 'plural')
+    assert derive_lemma_candidates("dyddiau", "welsh") == [("dydd", "plural")]
+
+
+def test_derive_lemma_candidate_wrapper_returns_first_candidate() -> None:
+    """The singular back-compat wrapper returns candidates[0] —
+    pinning so existing call sites that read a single (form, label)
+    tuple keep working. For silent-e modern-english this means the
+    restore-suffix variant is what the wrapper returns."""
+    # Silent-e: wrapper returns 'hope', not 'hop'.
+    assert derive_lemma_candidate("hoped", "modern-english") == ("hope", "past")
+    # Legacy 2-tuple: same as before.
+    assert derive_lemma_candidate("cotan", "old-english") == ("cot", "weak_oblique")
+    # No-match still returns None.
+    assert derive_lemma_candidate("zzqxk", "modern-english") is None
 
 
 def test_derive_lemma_candidate_strips_welsh_inflections() -> None:
