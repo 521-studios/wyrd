@@ -1776,6 +1776,38 @@ INFLECTION_RULES: dict[str, list[tuple[str, str]]] = {
         # shape as Old French.
         ("es", "feminine_plural"),
     ],
+    # Modern English — conservative set chosen to minimize false-
+    # positive linkages. The wyrd-r6bk precision-over-recall principle
+    # applies x10 to ModE because the corpus is 1.4M etymons (most via
+    # English wiktextract slice), and many natural English words end in
+    # the same surfaces as inflectional suffixes (e.g. 'bed' → 'be'+'d'
+    # would mislink to 'be'; 'string' → 'str'+'ing' wrong).
+    #
+    # Rules to consider but DEFERRED:
+    # - "-s" plural / "-es" plural: too generic. Words like 'is', 'this',
+    #   'thus', 'pass', 'class' end in -s naturally; linking 'pass' to
+    #   'pas' or 'class' to 'clas' would corrupt. Defer to a richer
+    #   rule with frequency-of-stem context.
+    # - "-er" comparative: conflicts with agent-noun -er (baker, walker
+    #   would link to verbs). Defer.
+    # - "-ly" adverb: conflicts with adjective-final -ly (ugly, lovely,
+    #   silly are NOT 'ug'/'love'/'sill' + ly). Too risky.
+    #
+    # The v1 subset stays narrow. Inflection coverage for ModE relies
+    # on Wiktionary's form-tables (mined via mine-wiktextract-forms
+    # which writes etymon_text_match rows — not lemma_id links).
+    "modern-english": [
+        # Past tense / past participle. Risk: 'shed' / 'bed' / 'led' /
+        # 'red' / 'fed' are NOT V+'-ed' compositions but the stripped
+        # stem (sh/b/l/r/f) wouldn't exist as a verb etymon anyway, so
+        # link-lemmas' EXISTS check rejects them safely.
+        ("ed", "past"),
+        # Gerund / present participle. Risk: 'string' / 'ring' / 'thing'
+        # / 'king' / 'spring' end in -ing as integral lemmas. Same
+        # safety: their stripped stems (str/r/th/k/spr) typically aren't
+        # verb etymons in the DB, so link-lemmas won't false-positive.
+        ("ing", "gerund"),
+    ],
     # wyrd-r6bk Phase 1: Welsh suffix-strippable subset, conservative.
     # Initial-mutation morphology (lenition / nasal / aspirate) is
     # NOT suffix-strippable and stays unhandled — wyrd-jott tracks

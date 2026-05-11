@@ -534,6 +534,44 @@ quality at non-zero spelling_variety — particularly impactful for
 the English culture (which heavily uses OE morphemes) when the
 runtime knob is engaged.
 
+
+
+
+### 2026-05-11 — wyrd-gf28 (modern-english inflection rules)
+
+Closes the dashboard's #4 weakness from the wyrd-vsvi audit:
+modern-english D (Inflection coverage) at 0% despite the bundle
+having 1.4M modern-english etymons via the wyrd-dxu2 Kaikki ingest.
+Root cause: ``INFLECTION_RULES`` in ``lexicon.py`` had rules for
+6 languages (OE/ON/OF/ME/NF/welsh) but NOT modern-english.
+
+Added conservative rules:
+
+| suffix | label  | risk |
+|--------|--------|------|
+| ``-ed`` | past   | low (false-positive stems usually aren't verb etymons) |
+| ``-ing`` | gerund | low (same safety net) |
+
+Re-ran ``link-lemmas --apply``:
+
+| language | before | after |
+|----------|-------:|------:|
+| **modern-english** | 0 (0.0%) | **24,733 lemmas (1.9%)** |
+| middle-english | 4.2% | 4.7% |
+
+DEFERRED rules (too risky given 1.4M ModE etymon denominator):
+- ``-s`` / ``-es`` plural: many natural -s lemmas (is, this, pass)
+- ``-er`` comparative: conflicts with agent-noun -er
+- ``-ly`` adverb: conflicts with adjective-final -ly (ugly, silly)
+
+These would need richer rules with frequency-of-stem context to
+avoid corrupting lemma rollups. Filed as wyrd-gf28-followup if a
+future pass adds the precision context.
+
+Sample of new links: impending→impend, neighing→neigh, bemused→
+bemuse, dejeunered→dejeuner, beshivered→beshiver. Real morphology.
+
+
 ## How to record a new snapshot
 
 After a bundle re-emit (`wyrd kenning lexicon export-meanings` →
