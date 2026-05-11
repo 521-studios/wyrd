@@ -22,6 +22,7 @@ array per `_DESCENDANT_TAG_TO_EDGE` (e.g. `tags=['calque']`).
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
 from typing import IO, Any
 
@@ -930,31 +931,82 @@ def _emit_descent_edge(
     )
 
 
+# wyrd-vsvi: coarse Wiktionary-category → kenning-tag mapping.
+# Lives here (not in wiktextract_corpus_miner) because the full
+# ingester needs it; the miner re-imports from here. Lookup is
+# substring-based so "Christianity" and "en:Christianity" both hit
+# the religious tag. Not exhaustive — the goal is to surface the
+# most common semantic classes for place-name use; uncovered
+# categories just produce no tags (still fine for matching).
+_CATEGORY_PATTERNS: list[tuple[str, list[str]]] = [
+    ("christianity", ["religious"]),
+    ("religion", ["religious"]),
+    ("places of worship", ["religious", "architecture"]),
+    ("color", ["descriptive", "color"]),
+    ("colors", ["descriptive", "color"]),
+    ("topograph", ["topography"]),
+    ("landform", ["topography", "geology"]),
+    ("building", ["architecture"]),
+    ("architecture", ["architecture"]),
+    ("settlement", ["architecture", "social"]),
+    ("plant", ["plant"]),
+    ("tree", ["plant", "tree"]),
+    ("animal", ["animal"]),
+    ("mammal", ["animal", "mammal"]),
+    ("bird", ["animal", "bird"]),
+    ("water", ["water"]),
+    ("river", ["water", "topography"]),
+    ("body of water", ["water"]),
+    ("agriculture", ["agriculture"]),
+    ("farm", ["agriculture", "architecture"]),
+    ("metal", ["material"]),
+    ("stone", ["material", "geology"]),
+    ("size", ["descriptive", "size"]),
+    ("direction", ["descriptive", "direction"]),
+]
+
+
+def _map_categories_to_tags(categories: Iterable[str]) -> list[str]:
+    """Translate wiktextract category names to kenning tag strings.
+
+    Idempotent dedupe + sort so the resulting tag list is stable across
+    re-runs (categories arrive in document order which can shuffle).
+    Accepts any iterable so callers can pass a dedup'd set directly
+    when they have one already.
+    """
+    out: set[str] = set()
+    for cat in categories:
+        cat_l = cat.lower()
+        for pattern, tags in _CATEGORY_PATTERNS:
+            if pattern in cat_l:
+                out.update(tags)
+    return sorted(out)
+
+
 def _extract_entry_tags(entry: dict[str, Any]) -> list[str]:
     """wyrd-vsvi: union sense categories across an entry and map them to
     kenning tag strings. Mirrors the corpus-miner path's tag-extraction
     so both ingesters produce comparable etymon_tag coverage. The
-    corpus miner picks ONE sense (the canonical one) and tags from
-    its categories; the full ingester unions across ALL senses since
-    an etymon can legitimately have multiple senses with distinct
-    semantic classes (e.g. 'mill' = grinding-building AND a unit of
-    measure → architecture + agriculture + measurement tags).
+    corpus miner picks ONE sense (the canonical one) and tags from its
+    categories; the full ingester unions across ALL senses since an
+    etymon can legitimately have multiple senses with distinct semantic
+    classes (e.g. 'mill' = grinding-building AND a unit of measure →
+    architecture + agriculture + measurement tags).
 
-    Returns sorted-dedupe list of tag strings; ``[]`` for entries with
-    no categorizable senses (the common case for etymology-template
-    stub rows that don't have full sense entries).
+    Categories are deduplicated at the input layer (via set) before
+    pattern-matching, which saves redundant substring scans when an
+    entry has many senses sharing categories (common — wiktextract
+    duplicates topical categories across senses). Returns sorted-
+    dedupe list of tag strings; ``[]`` for entries with no
+    categorizable senses (the common case for etymology-template stub
+    rows that don't have full sense entries).
     """
-    # Lazy-import to avoid the wiktextract_corpus_miner ↔ ingester
-    # import order edge case. Both modules can be imported standalone
-    # because the function is small + pure.
-    from wyrd.generators.kenning.wiktextract_corpus_miner import _map_categories_to_tags
-
-    all_categories: list[str] = []
+    all_categories: set[str] = set()
     for sense in entry.get("senses") or []:
         for cat in sense.get("categories") or []:
             name = cat.get("name") if isinstance(cat, dict) else None
             if name:
-                all_categories.append(name)
+                all_categories.add(name)
     return _map_categories_to_tags(all_categories)
 
 
