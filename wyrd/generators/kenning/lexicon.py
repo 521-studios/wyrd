@@ -2272,11 +2272,11 @@ def derive_lemma_candidates(inflected_form: str, language: str) -> list[tuple[st
     s = inflected_form.lower()
     out: list[tuple[str, str]] = []
     for rule in rules:
-        if len(rule) == 3:
-            suffix, label, restore = rule
-        else:
-            suffix, label = rule
-            restore = ""
+        # Extended unpacking handles both the 2-tuple (legacy) and
+        # 3-tuple (wyrd-gf28 restore-suffix) rule shapes. ``*rest``
+        # is empty for 2-tuples; restore defaults to ''.
+        suffix, label, *rest = rule
+        restore = rest[0] if rest else ""
         if not s.endswith(suffix) or len(s) - len(suffix) < 3:
             continue
         stem = s[: -len(suffix)]
