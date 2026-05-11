@@ -77,21 +77,46 @@ _NOISE_FORM_TAGS: frozenset[str] = frozenset(
         "no-table-tags",
         "inflection-template",
         "error-unrecognized-form",
-        # Verbal conjugation (not relevant to place-name variants)
+        "class",  # OE strong/weak verb class markers — not a surface variant
+        "no-equivalent",  # parity with full ingester's metadata set
+        # Verbal conjugation (not relevant to place-name variants).
+        # Wiktextract uses both 'preterite' (most modern languages) and
+        # 'past' (OE) for past-tense forms; both need to be filtered.
+        # Similarly 'infinitive' for the verb head form. wyrd-r1ks
+        # review: round-1 OE forms-mining surfaced verb forms of ingān
+        # ('inēode', 'ingānne', 'ingān') in the -ing- suffix variant
+        # pool because wiktextract emits OE conjugations with 'past' /
+        # 'infinitive' tags, neither of which the pre-r1ks set caught.
         "first-person",
         "second-person",
         "third-person",
+        # Moods
         "indicative",
         "subjunctive",
         "imperative",
         "conditional",
+        "optative",
+        # Tenses (preterite vs past for cross-language coverage)
         "present",
         "preterite",
+        "past",
         "future",
         "imperfect",
         "pluperfect",
+        "perfect",
+        "aorist",
+        # Voices
+        "active",
+        "middle",
+        "passive",
+        # Non-finite + generic verbal
         "impersonal",
         "participle",
+        "infinitive",
+        "gerund",
+        "gerundive",
+        "supine",
+        "verbal",
     }
 )
 

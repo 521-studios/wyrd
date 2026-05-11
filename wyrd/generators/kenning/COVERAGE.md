@@ -473,6 +473,67 @@ quality — the tag pool for ``--tag`` filtering now reaches
 modern-english/middle-english/old-french entries where pre-fix
 the tag filter silently excluded them.
 
+### 2026-05-11 — wyrd-r1ks (OE / ON spelling-variant forms mining)
+
+Closes the dashboard's #2 weakness from the wyrd-vsvi audit: OE / ON
+spelling-variant coverage stuck at 0.1-0.2% while welsh / irish /
+OF were at 49-77%. Root cause: ``mine-wiktextract-forms`` (the
+wyrd-vx09 forms-mining path) had been run on welsh, irish,
+scottish-gaelic, middle-irish, old-irish, breton, cornish, manx,
+middle-english, old-french — but **NOT** on OE or ON despite both
+slices carrying rich form-table data.
+
+Fix: ran ``mine-wiktextract-forms --apply`` on both slices.
+
+| layer | language | before | after |
+|-------|----------|-------:|------:|
+| lex DB | old-english variants | 177/72,382 (0.2%) | **44,929/72,382 (62.1%)** |
+| lex DB | old-norse variants   | 21/14,679 (0.1%) | **3,363/14,679 (22.9%)** |
+| bundle | old_english_variants pool | ~0 | **2,749/4,483 (61.3%)** |
+| bundle | old_scandinavian_variants pool | ~0 | **648/1,238 (52.3%)** |
+
+Per-run stats (forms_processed counts forms that passed the noise
+filter; forms_skipped_noise counts forms filtered out as table /
+scaffolding noise; total candidates = processed + skipped):
+
+* OE: 66,179 entries walked → 387,410 form candidates total
+  (291,252 processed and written + 96,158 filtered as
+  table-scaffolding noise)
+* ON: 11,193 entries walked → 87,458 form candidates total
+  (37,271 processed and written + 50,187 filtered)
+
+Sample OE morpheme post-mining (``-ing-``):
+
+```
+forms:    ['inga', 'ingas', 'ing', 'inge', 'ingan', 'Inga', 'Ing',
+           '-ingas', '-inga', '-ing']
+variants: [{'form': 'ingum',    'weight': 1},
+           {'form': 'ingān',    'weight': 1}]
+```
+
+Round-1 review surfaced that the initial run leaked verbal
+conjugations of OE ``ingān`` ('to enter') — ``inēode``,
+``ingānne`` — into the suffix's variant pool because wiktextract
+emits OE verb forms with ``past`` / ``infinitive`` tags neither
+of which the original ``_NOISE_FORM_TAGS`` set caught (only
+``preterite`` was filtered). Expanded the filter to include
+``past``, ``perfect``, ``infinitive``, ``gerund``, ``supine`` —
+re-mined and the verbal conjugations are now filtered out at
+ingest. Two remaining cluster-mate leaks (``ingum``, ``ingān``
+canonical forms of the verb etymon) tracked separately as
+wyrd-sg7l for cluster-rollup-time filtering.
+
+The variants pool feeds the runtime's ``--spelling-variety`` knob:
+the generator now has real OE inflected forms to draw from for
+spelling variation, where pre-fix it had basically nothing for OE
+and rendered every reflex as the canonical headword. Same story
+for ON (less dramatic since the ON slice is smaller).
+
+Per-culture perfect-rates unchanged. The win is in generation
+quality at non-zero spelling_variety — particularly impactful for
+the English culture (which heavily uses OE morphemes) when the
+runtime knob is engaged.
+
 ## How to record a new snapshot
 
 After a bundle re-emit (`wyrd kenning lexicon export-meanings` →
