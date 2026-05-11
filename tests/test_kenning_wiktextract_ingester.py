@@ -1365,15 +1365,34 @@ def _wiktextract_entry_full(
     lang_code: str,
     sounds: list[dict] | None = None,
     head_templates: list[dict] | None = None,
+    senses: list[dict] | None = None,
 ) -> str:
-    """Build a wiktextract JSONL line carrying optional `sounds` and
-    `head_templates` arrays — the two new sections Phase 2a reads."""
+    """Build a wiktextract JSONL line carrying optional `sounds`,
+    `head_templates`, and `senses` arrays — the sections the ingester
+    reads for Phase 2a (pronunciation + multi-script) and wyrd-vsvi
+    (sense-category tag extraction)."""
     record: dict = {"word": word, "lang_code": lang_code, "pos": "noun"}
     if sounds is not None:
         record["sounds"] = sounds
     if head_templates is not None:
         record["head_templates"] = head_templates
+    if senses is not None:
+        record["senses"] = senses
     return json.dumps(record) + "\n"
+
+
+def _etymon_tags(db: LexiconDB, canonical_form: str, language: str) -> list[str]:
+    """Fetch the tags attached to an etymon (wyrd-vsvi assertion helper)."""
+    row = db.conn.execute(
+        "SELECT id FROM etymon WHERE canonical_form = ? AND language = ?",
+        (canonical_form, language),
+    ).fetchone()
+    if row is None:
+        return []
+    return sorted(
+        r["tag"]
+        for r in db.conn.execute("SELECT tag FROM etymon_tag WHERE etymon_id = ?", (row["id"],))
+    )
 
 
 def _etymon_phase2a_cols(
@@ -1529,6 +1548,97 @@ def test_extract_head_template_renderings_first_template_wins() -> None:
 
 def test_extract_head_template_renderings_empty_list() -> None:
     assert _extract_head_template_renderings([], "lemma") == (None, None)
+
+
+def test_ingest_extracts_tags_from_sense_categories(fresh_db: Path) -> None:
+    """wyrd-vsvi: a wiktextract entry with senses+categories must
+    surface mapped tags on the etymon. Pin: the mapping mirrors the
+    corpus-miner path's _map_categories_to_tags so the two ingesters
+    produce comparable tag coverage."""
+    line = _wiktextract_entry_full(
+        word="bridge",
+        lang_code="en",
+        senses=[
+            {
+                "glosses": ["a structure"],
+                "categories": [{"name": "Architecture"}, {"name": "Topography"}],
+            }
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        tags = _etymon_tags(db, "bridge", "modern-english")
+    # 'Architecture' → architecture tag; 'Topography' → topography tag.
+    assert tags == ["architecture", "topography"]
+    assert result["tags_added"] == 2
+    assert result["entries_with_tags"] == 1
+
+
+def test_ingest_unions_tags_across_multiple_senses(fresh_db: Path) -> None:
+    """An entry with multiple senses spanning different semantic
+    classes (e.g. 'mill' = grinding building AND a unit of measure)
+    gets the union of all mapped tags. Distinct from the corpus-miner
+    path which picks ONE canonical sense; the full ingester unions
+    across all senses for richer tag coverage."""
+    line = _wiktextract_entry_full(
+        word="mill",
+        lang_code="en",
+        senses=[
+            {
+                "glosses": ["a grinding building"],
+                "categories": [{"name": "Buildings"}, {"name": "Agriculture"}],
+            },
+            {
+                "glosses": ["1/1000 of a unit"],
+                "categories": [{"name": "Units of measure"}],
+            },
+        ],
+    )
+    with LexiconDB(fresh_db) as db:
+        ingest_wiktextract_stream(db, _stream(line), apply=True)
+        tags = _etymon_tags(db, "mill", "modern-english")
+    # Buildings → architecture; Agriculture → agriculture; Units of
+    # measure isn't in the current pattern table (correctly absent).
+    # The point: tags from BOTH senses appear, not just sense [0].
+    assert "architecture" in tags
+    assert "agriculture" in tags
+
+
+def test_ingest_skips_tag_writes_for_entries_without_categories(
+    fresh_db: Path,
+) -> None:
+    """Entries without senses, or with senses but no categories, leave
+    the etymon untagged. Counter stays at 0. Common case for etymology-
+    template stub rows that the wiktextract dump references via the
+    etym-templates section but doesn't carry a full sense list for."""
+    line = _wiktextract_entry_full(
+        word="placeholder",
+        lang_code="en",
+        senses=[{"glosses": ["a placeholder"]}],  # no categories
+    )
+    with LexiconDB(fresh_db) as db:
+        result = ingest_wiktextract_stream(db, _stream(line), apply=True)
+        tags = _etymon_tags(db, "placeholder", "modern-english")
+    assert tags == []
+    assert result["tags_added"] == 0
+    assert result["entries_with_tags"] == 0
+
+
+def test_ingest_idempotent_on_tag_rerun(fresh_db: Path) -> None:
+    """Re-running ingest with the same entry doesn't duplicate tag rows.
+    Add-tag uses INSERT OR IGNORE under the hood; pin so a future
+    schema change can't silently allow duplicates."""
+    line = _wiktextract_entry_full(
+        word="forest",
+        lang_code="en",
+        senses=[{"glosses": ["wooded area"], "categories": [{"name": "Trees"}]}],
+    )
+    with LexiconDB(fresh_db) as db:
+        ingest_wiktextract_stream(db, _stream(line), apply=True)
+        ingest_wiktextract_stream(db, _stream(line), apply=True)
+        tags = _etymon_tags(db, "forest", "modern-english")
+    # 'Trees' maps to ['plant', 'tree']; two runs but only one row each.
+    assert tags == ["plant", "tree"]
 
 
 def test_ingest_persists_pronunciation_and_renderings_end_to_end(fresh_db: Path) -> None:

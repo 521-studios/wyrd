@@ -424,6 +424,55 @@ Per-culture perfect-rates unchanged (IPA backfill doesn't change
 which morphemes match). Bundle subjects + proportions re-emitted
 for diff-determinism.
 
+### 2026-05-11 — wyrd-vsvi (tag extraction in full ingest)
+
+Closes the dashboard's biggest weakness: modern-english at 2/15
+reference-tag hits despite being 29% of bundle words. Root cause:
+the full ``ingest-wiktionary`` path (used by wyrd-xmk3 and
+wyrd-dxu2) extracted etymology, pronunciation, and renderings —
+but NOT tags from sense categories. So the 1.4M modern-english
+etymons created by the English slice ingest were all tag-less.
+
+Fix: thread ``_extract_entry_tags`` (new) through
+``wiktextract_ingester._process_entry``. Unions sense categories
+across all senses (richer than the corpus-miner's single-canonical-
+sense pick), runs them through ``_map_categories_to_tags`` (shared
+with the corpus miner), and writes ``etymon_tag`` rows via
+``db.add_tag``. Idempotent on re-run via INSERT OR IGNORE.
+
+Re-ran ingest-wiktionary --apply on the English slice. The run
+captured **50,705 tag-writes across 32,649 entries**. Modern-english
+tagged-etymon count went from 5 → 31,445.
+
+Reference-tag coverage (C row in the dashboard):
+
+| language       | before | after |
+|----------------|-------:|------:|
+| **modern-english** | 2/15 | **12/15** |
+| middle-english | 13/15 | 14/15 |
+| old-french     | 9/15  | 10/15 |
+| welsh          | 12/15 | 13/15 |
+| irish          | 12/15 | 13/15 |
+| old-irish      | 12/15 | 13/15 |
+| breton         | 6/15  | 7/15  |
+| norman-french  | 6/15  | 7/15  |
+| latin (C₂)     | 9/15  | 12/15 |
+
+Remaining missing tags are mostly ``monster``, ``fantasy``,
+``measurement`` — Wiktionary doesn't categorize those reliably.
+
+Side-effect: bundle expanded 8502 → 8629 subjects because the new
+tag-bearing modern-english entries cleared the
+``include_wiktionary_empirical=True`` admission gate now that
+they have semantic signal. Most of these are common English words
+(bridge, mill, water variants) that were always there but now
+ship with proper tags.
+
+Per-culture perfect-rates unchanged. The win is in generation
+quality — the tag pool for ``--tag`` filtering now reaches
+modern-english/middle-english/old-french entries where pre-fix
+the tag filter silently excluded them.
+
 ## How to record a new snapshot
 
 After a bundle re-emit (`wyrd kenning lexicon export-meanings` →
