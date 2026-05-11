@@ -236,6 +236,20 @@ class LanguageScorecard:
     tier3_period_form_count: int = 0
     any_reflex_count: int = 0
     any_reflex_rate: float = 0.0
+    # F₂. Bundle-side era-reflex coverage (wyrd-h5it). The lex-side F
+    # above counts DB-persisted reflex evidence (T1 cognate / T2 descent
+    # / T3 period-form) over a denominator of every etymon in the
+    # language — for languages with bulk wiktextract ingest like
+    # modern-english (1.4M etymons, mostly common-noun headwords not in
+    # the toponymy descent graph), that denominator drowns the
+    # toponym-relevant signal. F₂ counts bundle subjects-with-sibling
+    # whose era_reflexes map carries an entry for THIS language as a
+    # target — including the wyrd-98cs phonology-rule:v1 reflexes that
+    # don't appear in DB tables. Operationally the more useful 'can the
+    # SPA render this language' signal. Compare with lex-side any-reflex
+    # rate to see deploy-ready vs DB-persistence reading.
+    bundle_subjects_with_reflex: int = 0
+    bundle_reflex_rate: float = 0.0
     # G. Stratum coverage
     stratum_classified: int = 0
     stratum_density: float = 0.0
@@ -932,6 +946,45 @@ def _bundle_ipa_coverage(
     return n
 
 
+def _bundle_era_reflex_coverage(
+    bundle: list[dict[str, Any]] | dict[str, Any],
+    language: str,
+    sibling: str | None,
+) -> int:
+    """Metric F₂ (bundle side, wyrd-h5it). Count of bundle subjects whose
+    ``sibling`` is populated AND at least one word carries a non-empty
+    ``era_reflexes[language]`` entry. Includes wyrd-98cs Tier-4
+    phonology-rule:v1 reflexes that aren't in DB tables, so this is the
+    deploy-ready 'can the SPA render an era stop in this language'
+    signal rather than the DB-persistence reading the lex-side metric
+    produces.
+
+    A subject counts when it has the language's sibling populated AND
+    any of its words has a non-empty list under ``era_reflexes[language]``.
+    The sibling gate matches H's denominator shape: 'of the N bundle
+    subjects in this language's cluster, how many can time-travel to
+    this language as an era stop'. Subjects without the sibling are
+    excluded from the denominator (see ``bundle_attestation_total``).
+    """
+    if sibling is None:
+        return 0
+    n = 0
+    for subj in _bundle_subjects(bundle):
+        has_sibling = False
+        has_target_reflex = False
+        for word in subj.get("words") or []:
+            if word.get(sibling):
+                has_sibling = True
+            reflexes = word.get("era_reflexes") or {}
+            if reflexes.get(language):
+                has_target_reflex = True
+            if has_sibling and has_target_reflex:
+                break
+        if has_sibling and has_target_reflex:
+            n += 1
+    return n
+
+
 def compute_rando_port_grandfather_audit(
     conn: sqlite3.Connection,
 ) -> dict[str, dict[str, int]]:
@@ -1074,6 +1127,7 @@ def compute_scorecard(
     citations = _citation_depth(conn, language)
     lex_ipa = _lexicon_ipa_coverage(conn, language)
     bundle_ipa = _bundle_ipa_coverage(bundle, sibling)
+    bundle_reflex = _bundle_era_reflex_coverage(bundle, language, sibling)
     rando_bucket = (rando_port_audit or {}).get(
         language, {"pure_grandfather": 0, "mixed_grandfather": 0, "total_families": 0}
     )
@@ -1114,6 +1168,10 @@ def compute_scorecard(
         any_reflex_count=era["any_reflex_count"],
         any_reflex_rate=(
             round(era["any_reflex_count"] / total_etymons, 4) if total_etymons else 0.0
+        ),
+        bundle_subjects_with_reflex=bundle_reflex,
+        bundle_reflex_rate=(
+            round(bundle_reflex / attestation["total"], 4) if attestation["total"] else 0.0
         ),
         stratum_classified=stratum,
         stratum_density=(round(stratum / total_etymons, 4) if total_etymons else 0.0),
@@ -1236,7 +1294,7 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
     lines.append(
         "| Language | Etymons | Lemmas | Promo (≥thr) | Bundle | "
         "Scholar atst | IPA (db / bundle) | Grandfather | Lex tag hit | "
-        "Bundle tag hit | Inflect | Variants | Era reflex |"
+        "Bundle tag hit | Inflect | Variants | Era reflex (lex / bundle) |"
     )
     lines.append("|---|---:|---:|---|---:|---:|---|---:|---|---|---|---|---|")
     for c in report.languages:
@@ -1250,7 +1308,12 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
         variants = (
             f"{c.etymons_with_variants} ({_format_pct(c.etymons_with_variants, c.total_etymons)})"
         )
-        era = f"{c.any_reflex_count} ({_format_pct(c.any_reflex_count, c.total_etymons)})"
+        lex_era_pct = _format_pct(c.any_reflex_count, c.total_etymons)
+        if c.bundle_attestation_total == 0:
+            bundle_era_pct = "n/a"
+        else:
+            bundle_era_pct = _format_pct(c.bundle_subjects_with_reflex, c.bundle_attestation_total)
+        era = f"{lex_era_pct} / {bundle_era_pct}"
         # Scholar-attestation column: scholar / total bundle subjects
         # for this language. Renders 'n/a' when language has no bundle
         # representation (denominator zero) so a dashboard reader can
@@ -1431,7 +1494,10 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
             f"Tier 2 forward {forward_label}, Tier 2 back {back_label}, "
             f"Tier 3 period-form {c.tier3_period_form_count}; "
             f"ANY reflex {c.any_reflex_count} "
-            f"({_format_pct(c.any_reflex_count, c.total_etymons)})."
+            f"({_format_pct(c.any_reflex_count, c.total_etymons)}). "
+            f"Bundle subjects with reflex stop targeting this language: "
+            f"{c.bundle_subjects_with_reflex}/{c.bundle_attestation_total} "
+            f"({_format_pct(c.bundle_subjects_with_reflex, c.bundle_attestation_total)})."
         )
         lines.append(
             f"- **G. Stratum coverage:** {c.stratum_classified}/{c.total_etymons} "
