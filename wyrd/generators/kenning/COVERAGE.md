@@ -556,8 +556,17 @@ Re-ran ``link-lemmas --apply``:
 
 | language | before | after |
 |----------|-------:|------:|
-| **modern-english** | 0 (0.0%) | **24,733 lemmas (1.9%)** |
+| **modern-english** | 0 (0.0%) | **42,495 lemmas (3.3%)** |
 | middle-english | 4.2% | 4.7% |
+
+Round-2 review fix: silent-e collisions (``hoped`` → ``hop`` instead
+of ``hope``) caught by Gemini. Extended the ``INFLECTION_RULES``
+schema to support a 3-tuple ``(suffix, label, restore_suffix)``:
+the stripped stem plus ``restore_suffix`` is the PREFERRED candidate,
+the bare stem is the fallback. For modern-english:
+``("ed", "past", "e")`` tries ``stem + "e"`` first (catches hoped→
+hope), falls back to ``stem`` (catches walked→walk where no
+``walke`` lemma exists). Doubled ModE coverage 1.9% → 3.3%.
 
 DEFERRED rules (too risky given 1.4M ModE etymon denominator):
 - ``-s`` / ``-es`` plural: many natural -s lemmas (is, this, pass)

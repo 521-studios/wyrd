@@ -1797,16 +1797,16 @@ INFLECTION_RULES: dict[str, list[tuple[str, str]]] = {
     # on Wiktionary's form-tables (mined via mine-wiktextract-forms
     # which writes etymon_text_match rows — not lemma_id links).
     "modern-english": [
-        # Past tense / past participle. Risk: 'shed' / 'bed' / 'led' /
-        # 'red' / 'fed' are NOT V+'-ed' compositions but the stripped
-        # stem (sh/b/l/r/f) wouldn't exist as a verb etymon anyway, so
-        # link-lemmas' EXISTS check rejects them safely.
-        ("ed", "past"),
-        # Gerund / present participle. Risk: 'string' / 'ring' / 'thing'
-        # / 'king' / 'spring' end in -ing as integral lemmas. Same
-        # safety: their stripped stems (str/r/th/k/spr) typically aren't
-        # verb etymons in the DB, so link-lemmas won't false-positive.
-        ("ing", "gerund"),
+        # Past tense / past participle. Silent-e collision (hoped →
+        # hope, not hop) handled via the optional 3rd-tuple element:
+        # try (stem + 'e') first, fall back to plain stem. So 'hoped'
+        # → ['hope', 'hop']: 'hope' wins if both exist, 'hop' wins if
+        # only 'hop' exists.
+        ("ed", "past", "e"),
+        # Gerund / present participle. Same silent-e handling:
+        # 'hoping' → ['hope', 'hop']; 'walking' → ['walke', 'walk']
+        # (where 'walke' won't exist so 'walk' wins).
+        ("ing", "gerund", "e"),
     ],
     # wyrd-r6bk Phase 1: Welsh suffix-strippable subset, conservative.
     # Initial-mutation morphology (lenition / nasal / aspirate) is
@@ -2250,21 +2250,55 @@ def derive_mutation_lemma_candidate(inflected_form: str, language: str) -> tuple
     return None
 
 
-def derive_lemma_candidate(inflected_form: str, language: str) -> tuple[str, str] | None:
-    """Try to identify the lemma form for an inflected etymon by stripping
+def derive_lemma_candidates(inflected_form: str, language: str) -> list[tuple[str, str]]:
+    """Try to identify lemma forms for an inflected etymon by stripping
     a known inflectional suffix.
 
-    Returns (lemma_form, inflection_label) or None. Conservative: only
-    suggests a lemma if the resulting stem is at least 3 characters.
+    Returns a list of (lemma_form, inflection_label) candidates in
+    preferred order — caller picks the first one that matches an
+    existing etymon row. Conservative: only suggests stems ≥3 chars.
+
+    Each ``INFLECTION_RULES`` entry is either ``(suffix, label)`` or
+    ``(suffix, label, restore_suffix)``. The 3-tuple form lets a rule
+    produce TWO candidates: the stripped stem plus ``restore_suffix``
+    appended (e.g. silent-e for modern English: 'hoped' → 'hope'),
+    and the bare stripped stem ('hoped' → 'hop'). Restore-suffix
+    candidates are preferred — silent-e is the common case for modern
+    English -ed/-ing inflections.
     """
     if not inflected_form:
-        return None
+        return []
     rules = INFLECTION_RULES.get(language, [])
     s = inflected_form.lower()
-    for suffix, label in rules:
-        if s.endswith(suffix) and len(s) - len(suffix) >= 3:
-            return s[: -len(suffix)], label
-    return None
+    out: list[tuple[str, str]] = []
+    for rule in rules:
+        if len(rule) == 3:
+            suffix, label, restore = rule
+        else:
+            suffix, label = rule
+            restore = ""
+        if not s.endswith(suffix) or len(s) - len(suffix) < 3:
+            continue
+        stem = s[: -len(suffix)]
+        if restore:
+            # Prefer restored-suffix candidate (silent-e etc.) before
+            # bare stem so a real lemma like 'hope' wins over a
+            # coincidentally-existing 'hop'.
+            out.append((stem + restore, label))
+        out.append((stem, label))
+    return out
+
+
+def derive_lemma_candidate(inflected_form: str, language: str) -> tuple[str, str] | None:
+    """Back-compat single-candidate wrapper around ``derive_lemma_candidates``.
+
+    Returns the FIRST candidate or None. Existing callers (and the
+    tests pinned against this signature) keep working unchanged;
+    link-lemmas itself uses the plural form to leverage the silent-e
+    alternates.
+    """
+    candidates = derive_lemma_candidates(inflected_form, language)
+    return candidates[0] if candidates else None
 
 
 def link_lemmas(db: LexiconDB, *, apply: bool = False) -> dict:
@@ -2300,19 +2334,26 @@ def link_lemmas(db: LexiconDB, *, apply: bool = False) -> dict:
     inflected_rows = candidate_rows
     for row in inflected_rows:
         # Try suffix-strip first (INFLECTION_RULES); fall through to
-        # mutation prefix-strip for Goidelic (MUTATION_RULES). Both
-        # produce the same (lemma_form, label) shape; either resolves
-        # to the same lemma_id lookup. Suffix-first because suffix
-        # rules are universally available across the registered
-        # languages, while mutation is Goidelic-only.
-        match = derive_lemma_candidate(row["canonical_form"], row["language"])
-        if match is None:
-            match = derive_mutation_lemma_candidate(row["canonical_form"], row["language"])
-        if match is None:
-            continue
-        lemma_form, inflection = match
-        lemma_id = lemmas_by_key.get((lemma_form, row["language"]))
-        if lemma_id is None or lemma_id == row["id"]:
+        # mutation prefix-strip for Goidelic (MUTATION_RULES). The
+        # plural candidates helper returns multiple lemma candidates
+        # per rule (silent-e for modern English etc.); first matching
+        # candidate wins.
+        candidates = derive_lemma_candidates(row["canonical_form"], row["language"])
+        if not candidates:
+            mut = derive_mutation_lemma_candidate(row["canonical_form"], row["language"])
+            if mut is not None:
+                candidates = [mut]
+        lemma_id = None
+        inflection = None
+        lemma_form = None
+        for candidate_form, candidate_label in candidates:
+            candidate_id = lemmas_by_key.get((candidate_form, row["language"]))
+            if candidate_id is not None and candidate_id != row["id"]:
+                lemma_id = candidate_id
+                inflection = candidate_label
+                lemma_form = candidate_form
+                break
+        if lemma_id is None:
             continue
         proposed.append(
             {
