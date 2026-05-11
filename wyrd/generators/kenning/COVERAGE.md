@@ -473,6 +473,54 @@ quality — the tag pool for ``--tag`` filtering now reaches
 modern-english/middle-english/old-french entries where pre-fix
 the tag filter silently excluded them.
 
+### 2026-05-11 — wyrd-r1ks (OE / ON spelling-variant forms mining)
+
+Closes the dashboard's #2 weakness from the wyrd-vsvi audit: OE / ON
+spelling-variant coverage stuck at 0.1-0.2% while welsh / irish /
+OF were at 49-77%. Root cause: ``mine-wiktextract-forms`` (the
+wyrd-vx09 forms-mining path) had been run on welsh, irish,
+scottish-gaelic, middle-irish, old-irish, breton, cornish, manx,
+middle-english, old-french — but **NOT** on OE or ON despite both
+slices carrying rich form-table data.
+
+Fix: ran ``mine-wiktextract-forms --apply`` on both slices.
+
+| layer | language | before | after |
+|-------|----------|-------:|------:|
+| lex DB | old-english variants | 177/72,382 (0.2%) | **44,929/72,382 (62.1%)** |
+| lex DB | old-norse variants   | 21/14,679 (0.1%) | **3,363/14,679 (22.9%)** |
+| bundle | old_english _variants pool | ~0 | **2,756/4,483 (61.5%)** |
+| bundle | old_scandinavian _variants pool | ~0 | **683/1,238 (55.2%)** |
+
+Per-run stats:
+
+* OE: 66,179 entries walked → 291,252 forms processed, **291,252
+  rows written** (~96K filtered as table-scaffolding noise)
+* ON: 11,193 entries walked → 37,271 forms processed, **37,271 rows
+  written** (~50K filtered)
+
+Sample OE morpheme post-mining (``-ing-``):
+
+```
+forms:    ['inga', 'ingas', 'ing', 'inge', 'ingan', 'Inga', 'Ing',
+           '-ingas', '-inga', '-ing']
+variants: [{'form': 'ingān',    'weight': 2},
+           {'form': 'ingum',    'weight': 1},
+           {'form': 'ingānne',  'weight': 1},
+           {'form': 'inēode',   'weight': 1}]
+```
+
+The variants pool feeds the runtime's ``--spelling-variety`` knob:
+the generator now has real OE inflected forms to draw from for
+spelling variation, where pre-fix it had basically nothing for OE
+and rendered every reflex as the canonical headword. Same story
+for ON (less dramatic since the ON slice is smaller).
+
+Per-culture perfect-rates unchanged. The win is in generation
+quality at non-zero spelling_variety — particularly impactful for
+the English culture (which heavily uses OE morphemes) when the
+runtime knob is engaged.
+
 ## How to record a new snapshot
 
 After a bundle re-emit (`wyrd kenning lexicon export-meanings` →
