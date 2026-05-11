@@ -622,10 +622,21 @@ def _encode_meaning(qualities) -> dict:
 
 
 def _encode_structs(struct: Counter) -> list:
+    """Serialize the structure → count map into the proportions-JSON
+    shape, sorted for deterministic output (wyrd-dxu2 review). Counter
+    iteration order is insertion-order, so the underlying corpus walk
+    determines initial order — but two re-runs against the same corpus
+    can iterate in slightly different orders if the matcher's
+    decomposition outputs change. Sorting by (-proportion, structure
+    key) gives a stable canonical order: most-frequent first, with the
+    structure tuple as deterministic tiebreaker."""
     structs = []
     for key, value in struct.items():
         words = [[_encode_meaning(meaning) for meaning in word] for word in key]
-        structs.append({"proportion": value, "words": words})
+        structs.append({"proportion": value, "words": words, "_sort_key": key})
+    structs.sort(key=lambda s: (-s["proportion"], s["_sort_key"]))
+    for s in structs:
+        del s["_sort_key"]
     return structs
 
 
