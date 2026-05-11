@@ -578,10 +578,6 @@ ancient → ancients (plural), more ancient (comparative),
 mouse   → mice (plural)
 ```
 
-(``hope`` → ``hoping`` / ``hoped`` and similar verb-conjugation
-forms are correctly filtered out by the wyrd-r1ks noise-tag set —
-they aren't useful for place-name variant pools.)
-
 The variants pool feeds the runtime's ``--spelling-variety`` knob:
 the English culture (which heavily reuses modern-english morphemes
 in synthetic place-name generation) now has 485K real variant forms
