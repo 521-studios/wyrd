@@ -7,6 +7,11 @@ dependencies = [
     "flask>=3.0",
     "click>=8.1",
     "apig-wsgi>=2.18",
+    # wyrd-el93: pure-Python reader for Hull's Domesday MDB files
+    # (Microsoft Access format). Used only by ``lexicon ingest-domesday``
+    # so the import is deferred to that command — other commands pay no
+    # startup cost.
+    "access_parser>=0.0.6",
 ]
 
 [project.optional-dependencies]
