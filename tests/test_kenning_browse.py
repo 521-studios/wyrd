@@ -179,17 +179,23 @@ def test_parse_toponym_ref_without_region():
     assert parse_toponym_ref("Acton") == ("Acton", None)
 
 
-def test_parse_toponym_ref_dash_region_means_null():
-    """The '-' placeholder is our JSONL dumper's null-region marker;
-    when looking up, '-' should be treated as None (the actual DB
-    column value)."""
-    assert parse_toponym_ref("Acton@-") == ("Acton", None)
+def test_parse_toponym_ref_dash_region_means_specifically_null():
+    """The '-' placeholder is the JSONL dumper's null-region marker.
+    Returns the empty-string sentinel — semantically distinct from a
+    bare name (None = any region)."""
+    assert parse_toponym_ref("Acton@-") == ("Acton", "")
 
 
-def test_parse_toponym_ref_empty_region_means_null():
+def test_parse_toponym_ref_empty_region_means_specifically_null():
     """Empty region after '@' (e.g. 'Acton@') is equivalent to the
-    '-' placeholder — both mean null region in the DB."""
-    assert parse_toponym_ref("Acton@") == ("Acton", None)
+    '-' placeholder — both mean 'WHERE region IS NULL'."""
+    assert parse_toponym_ref("Acton@") == ("Acton", "")
+
+
+def test_parse_toponym_ref_bare_name_means_any_region():
+    """Bare name (no '@') = None = any region — distinct from
+    '@-' which specifically means null region."""
+    assert parse_toponym_ref("Acton") == ("Acton", None)
 
 
 def test_parse_toponym_ref_raises_empty_name():
@@ -357,6 +363,23 @@ def test_fetch_toponyms_matching_filters_by_region():
     matches = fetch_toponyms_matching(conn, "Acton", "Suffolk")
     assert len(matches) == 1
     assert matches[0]["region"] == "Suffolk"
+
+
+def test_fetch_toponyms_matching_empty_string_means_null_region():
+    """Empty-string sentinel = WHERE region IS NULL — distinct from
+    None which matches any region. Verifies the JSONL ref 'name@-'
+    can target a specifically-null-region row when other regions
+    also exist."""
+    conn = _build_fixture_db()
+    conn.execute(
+        "INSERT INTO toponym (modern_name, country, region) VALUES ('Acton', 'England', 'Cheshire')"
+    )
+    conn.execute(
+        "INSERT INTO toponym (modern_name, country, region) VALUES ('Acton', 'England', NULL)"
+    )
+    matches = fetch_toponyms_matching(conn, "Acton", "")
+    assert len(matches) == 1
+    assert matches[0]["region"] is None
 
 
 def test_fetch_toponym_detail_full():

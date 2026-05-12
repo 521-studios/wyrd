@@ -48,9 +48,18 @@ def parse_etymon_ref(ref: str) -> tuple[str, str]:
 
 
 def parse_toponym_ref(query: str) -> tuple[str, str | None]:
-    """Split ``"<name>@<region>"``. When no ``@`` is present, region is
-    ``None`` (caller treats as "any region"). Region of ``-`` or empty
-    string means "null region" — the placeholder our JSONL dumper uses."""
+    """Split ``"<name>@<region>"``. Three result shapes:
+
+    - Bare name (no ``@``): region is ``None`` — "any region" lookup.
+    - ``@-`` or ``@`` (empty region): region is ``""`` — "specifically
+      null region" lookup. The ``-`` matches our JSONL dumper's null
+      placeholder.
+    - ``@<word>``: region is ``"<word>"`` — exact-region lookup.
+
+    The two sentinels (``None`` vs ``""``) let
+    :func:`fetch_toponyms_matching` distinguish "show every Cotton" from
+    "show only Cotton with no recorded region."
+    """
     if "@" not in query:
         if not query:
             raise ValueError(f"toponym ref has empty name: {query!r}")
@@ -59,7 +68,7 @@ def parse_toponym_ref(query: str) -> tuple[str, str | None]:
     if not name:
         raise ValueError(f"toponym ref has empty name: {query!r}")
     if region in ("", "-"):
-        return name, None
+        return name, ""
     return name, region
 
 
@@ -227,17 +236,28 @@ def fetch_etymon(conn: sqlite3.Connection, ref: str) -> dict[str, Any] | None:
 def fetch_toponyms_matching(
     conn: sqlite3.Connection, name: str, region: str | None
 ) -> list[dict[str, Any]]:
-    """Return all toponyms matching ``name`` (case-sensitive). When
-    ``region`` is None, returns every region the name appears in; when
-    set, filters to that one region."""
+    """Return all toponyms matching ``name`` (case-sensitive). Three
+    region semantics from :func:`parse_toponym_ref`:
+
+    - ``region is None`` — match any region (including null).
+    - ``region == ""`` — match WHERE region IS NULL specifically.
+    - ``region == "<word>"`` — match WHERE region = "<word>".
+    """
     if region is None:
         rows = conn.execute(
             "SELECT id, modern_name, country, region FROM toponym WHERE modern_name = ?",
             (name,),
         ).fetchall()
+    elif region == "":
+        rows = conn.execute(
+            "SELECT id, modern_name, country, region FROM toponym "
+            "WHERE modern_name = ? AND region IS NULL",
+            (name,),
+        ).fetchall()
     else:
         rows = conn.execute(
-            "SELECT id, modern_name, country, region FROM toponym WHERE modern_name = ? AND region = ?",
+            "SELECT id, modern_name, country, region FROM toponym "
+            "WHERE modern_name = ? AND region = ?",
             (name, region),
         ).fetchall()
     return [dict(r) for r in rows]
