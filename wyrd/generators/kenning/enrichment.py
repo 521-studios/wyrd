@@ -253,14 +253,21 @@ def run_ocr_lemma_enrichment(
     1. ``normalize-ocr`` tombstones OCR-variant duplicates.
     2. ``link-lemmas`` links inflected forms to canonicals (the
        previous step's tombstones aren't candidate targets).
-    3. ``apply_curation_overrides`` (only when ``curation_state`` is
-       passed AND ``apply=True``) overrides specific lemma/merge
-       assignments where auto-clustering got it wrong.
+    3. ``apply_curation_overrides`` (when ``curation_state`` is passed)
+       overrides specific lemma/merge assignments where auto-clustering
+       got it wrong.
 
-    Dry-run (``apply=False``) walks the first two passes and reports
-    candidates without writing. Curation overrides require a real DB
-    write to be observable, so they're skipped on dry-run — the
-    returned dict reports ``curation: None`` to signal this.
+    Dry-run (``apply=False``) walks the enrichment passes and reports
+    candidates without writing. Curation overrides, when
+    ``curation_state`` is passed, ARE validated on dry-run — refs
+    resolve, unresolved/self-reference cases get counted — but no DB
+    writes occur. Lets operators preview a curation batch before
+    committing.
+
+    When ``curation_state`` is None, the returned dict carries
+    ``curation: None`` (the apply-curation step didn't run). When it's
+    a dict, the returned ``curation`` value is the counts dict from
+    :func:`apply_curation_overrides` regardless of ``apply``.
     """
     ocr_result = cluster_ocr_variants(db, apply=apply)
     lemma_result = link_lemmas(db, apply=apply)
