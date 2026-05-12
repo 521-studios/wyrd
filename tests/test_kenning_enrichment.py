@@ -106,26 +106,26 @@ def test_orchestrator_apply_writes_merge_and_lemma(tmp_path: Path):
     with LexiconDB(db_path) as db:
         result = run_ocr_lemma_enrichment(db, apply=True)
     assert result["applied"] is True
-    # OCR-merge tombstoned at least one of the (cot, côt) pair.
+    # OCR-merge tombstoned one of the (cæt, caet) pair.
     assert result["ocr"]["etymons_merged"] >= 1
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-    # Exactly one of cot / cot_alt should still be canonical
+    # Exactly one of cæt / caet should still be canonical
     # (merged_into_id is NULL); the other is a tombstone.
-    cot_row = conn.execute(
+    winner_row = conn.execute(
         "SELECT merged_into_id FROM etymon WHERE id=?", (ids["winner"],)
     ).fetchone()
-    cot_alt_row = conn.execute(
+    loser_row = conn.execute(
         "SELECT merged_into_id FROM etymon WHERE id=?", (ids["loser"],)
     ).fetchone()
-    tombstones = sum(1 for r in (cot_row, cot_alt_row) if r["merged_into_id"] is not None)
+    tombstones = sum(1 for r in (winner_row, loser_row) if r["merged_into_id"] is not None)
     assert tombstones == 1
     conn.close()
 
 
 def test_orchestrator_lemma_link_resolves_against_canonical_after_ocr_merge(tmp_path: Path):
-    """Critical ordering check: after OCR-merge tombstones one of (cot,
-    côt), the lemma link from cotan must still find the surviving
+    """Critical ordering check: after OCR-merge tombstones one of (cæt,
+    caet), the lemma link from cætan must still find the surviving
     canonical (not the tombstone). The order normalize-ocr → link-lemmas
     is what makes this work."""
     db_path = _build_db(tmp_path)
@@ -207,7 +207,7 @@ def test_status_reports_coverage_after_enrichment(tmp_path: Path):
     conn.row_factory = sqlite3.Row
     status = enrichment_status(conn)
     conn.close()
-    # ≥1 merged + ≥1 lemma-linked (cotan).
+    # ≥1 merged (caet tombstoned) + ≥1 lemma-linked (cætan → cæt).
     assert status["columns"]["merged_into_id"]["populated"] >= 1
     assert status["columns"]["lemma_id"]["populated"] >= 1
     # Method version shows up in the lemma column distribution.
