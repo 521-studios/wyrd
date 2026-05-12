@@ -856,22 +856,28 @@ def resolve_language(language: str) -> str:
     return LANGUAGE_ALIASES.get(language, language)
 
 
-def chain_for(language: str) -> tuple[str, tuple[str, ...]] | None:
-    """Return the rule-cell ``(family, chain)`` pair for ``language``,
-    resolving lexicon-language aliases (e.g. ``welsh`` → ``modern-welsh``)
-    along the way. Returns None when the language has no registered
-    phonology chain — callers should treat that as 'no Tier-4 reflex
-    is reachable from this language'.
+def chain_for(language: str) -> tuple[str, str, tuple[str, ...]] | None:
+    """Return the rule-cell ``(resolved_language, family, chain)``
+    triple for ``language``, resolving lexicon-language aliases
+    (e.g. ``welsh`` → ``modern-welsh``) along the way.
+    ``resolved_language`` is the canonical era name (suitable for
+    ``chain.index()`` lookup). Returns None when the language has no
+    registered phonology chain — callers should treat that as 'no
+    Tier-4 reflex is reachable from this language'.
 
     Stable public API for the chain config. ``FAMILY_CHAINS`` and
     ``LANGUAGE_ALIASES`` themselves are exported too (iterable for
     diagnostics / schema introspection), but the alias-resolution +
     chain lookup logic should go through this function rather than
     being replicated at call sites — that keeps future refactors of
-    the registry shape internal. Pair with ``resolve_language`` when
-    you need the canonical era name for chain-position lookup.
+    the registry shape internal.
     """
-    return FAMILY_CHAINS.get(resolve_language(language))
+    resolved = resolve_language(language)
+    info = FAMILY_CHAINS.get(resolved)
+    if info is None:
+        return None
+    family, chain = info
+    return resolved, family, chain
 
 
 def rule_form(
@@ -898,19 +904,19 @@ def rule_form(
     until KenningRewind explainer surfaces multiple Tier-4 forms —
     Phase 2).
     """
-    # Resolve bundle aliases ('welsh' → 'modern-welsh') before chain
-    # lookup so the alias name doesn't need to appear in the chain
-    # tuple itself.
-    from_resolved = resolve_language(from_language)
-    to_resolved = resolve_language(to_language)
+    # Route both languages through ``chain_for`` so alias resolution +
+    # registry lookup share one code path. The resolved era names are
+    # carried in the triple, so we don't re-derive them here.
+    from_info = chain_for(from_language)
+    to_info = chain_for(to_language)
+    if from_info is None or to_info is None:
+        return None
+    from_resolved, family, chain = from_info
+    to_resolved, to_family, to_chain = to_info
+    # No-op when both languages resolve to the same era (covers
+    # alias-equivalent inputs like ('welsh', 'modern-welsh')).
     if from_resolved == to_resolved:
         return None
-    from_chain_info = FAMILY_CHAINS.get(from_resolved)
-    to_chain_info = FAMILY_CHAINS.get(to_resolved)
-    if from_chain_info is None or to_chain_info is None:
-        return None
-    family, chain = from_chain_info
-    to_family, to_chain = to_chain_info
     # Cross-family (e.g. english → welsh) OR cross-chain within same
     # family (defensive — current registry has one chain per family,
     # but a future refactor that adds branching within ``english``
@@ -919,8 +925,6 @@ def rule_form(
         return None
     i_from = chain.index(from_resolved)
     i_to = chain.index(to_resolved)
-    if i_from == i_to:
-        return None
 
     current = canonical_form
     # Note: ``apply_rules`` carries its own probability-floor restore

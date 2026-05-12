@@ -839,12 +839,14 @@ def test_resolve_language_passes_through_canonical_era_names() -> None:
     assert resolve_language("irish") == "irish"  # non-chain language passes through
 
 
-def test_chain_for_returns_family_chain_for_modern_english() -> None:
-    """Modern English is in the English chain family. Pin the chain
-    shape so consumers can rely on the (family, chain) return tuple."""
+def test_chain_for_returns_resolved_family_chain_for_modern_english() -> None:
+    """Modern English is in the English chain family. Pin the return
+    triple shape (resolved_language, family, chain) so consumers can
+    rely on it for chain-position lookup without re-resolving aliases."""
     result = chain_for("modern-english")
     assert result is not None
-    family, chain = result
+    resolved, family, chain = result
+    assert resolved == "modern-english"
     assert family == "english"
     assert chain == (
         "old-english",
@@ -854,15 +856,18 @@ def test_chain_for_returns_family_chain_for_modern_english() -> None:
     )
 
 
-def test_chain_for_resolves_welsh_alias() -> None:
+def test_chain_for_resolves_welsh_alias_and_carries_canonical_name() -> None:
     """The lexicon language code 'welsh' is an alias for 'modern-welsh'.
-    Pin that ``chain_for`` resolves it to the welsh chain rather than
-    returning None (the alias-unaware fallback would crash on chain.index)."""
+    Pin that ``chain_for('welsh')`` returns the canonical resolved
+    name 'modern-welsh' in the triple's first slot, so consumers can
+    use ``chain.index(resolved)`` without re-running alias resolution
+    themselves."""
     via_alias = chain_for("welsh")
     via_canonical = chain_for("modern-welsh")
     assert via_alias is not None
     assert via_alias == via_canonical
-    family, chain = via_alias
+    resolved, family, chain = via_alias
+    assert resolved == "modern-welsh"  # alias resolved
     assert family == "welsh"
     assert "modern-welsh" in chain
 
