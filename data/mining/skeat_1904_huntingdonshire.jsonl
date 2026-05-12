@@ -1,0 +1,2 @@
+{"_type": "source", "ref": "skeat_1904_huntingdonshire", "title": "Skeat 1904 Huntingdonshire", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "mining_run", "provider": "ollama", "model": "qwen3.5:35b-a3b", "mode": "mine", "completed_at": "2026-05-01T00:48:57.835Z", "parsed_count": 108, "accepted": 0, "declined": 108, "rejected": 0, "notes": "english-tier-2 batch"}
