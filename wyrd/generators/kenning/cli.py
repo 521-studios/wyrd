@@ -2120,6 +2120,169 @@ def lexicon_ingest_domesday(
         click.echo("(dry-run; pass --apply to write)", err=True)
 
 
+@lexicon.group("browse")
+def lexicon_browse() -> None:
+    """Read-only navigation of the lexicon DB (wyrd-7oma).
+
+    Grep-friendly markdown views of toponyms, etymons, decompositions,
+    and sources. Use BEFORE running a curation pass (lemma normalize,
+    dead-rando prune, language retag) to verify which rows you're
+    about to edit.
+    """
+
+
+def _open_lexicon_readonly(db_path: Path) -> sqlite3.Connection:
+    """Open the lexicon DB in read-only mode for browse subcommands."""
+    from urllib.parse import quote
+
+    db_uri = f"file:{quote(str(db_path.absolute()))}?mode=ro"
+    conn = sqlite3.connect(db_uri, uri=True)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+@lexicon_browse.command("etymon")
+@click.argument("ref")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+def lexicon_browse_etymon(ref: str, db_path: Path) -> None:
+    """Show one etymon: glosses, tags, citations, descent, lemma family.
+
+    REF is the cross-file etymon ref, e.g. 'old-english:cot'.
+    """
+    from wyrd.generators.kenning.browse import fetch_etymon, format_etymon
+
+    conn = _open_lexicon_readonly(db_path)
+    try:
+        data = fetch_etymon(conn, ref)
+    finally:
+        conn.close()
+
+    if data is None:
+        click.echo(f"No etymon found for ref={ref!r}", err=True)
+        raise SystemExit(1)
+    click.echo(format_etymon(data))
+
+
+@lexicon_browse.command("toponym")
+@click.argument("query")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+def lexicon_browse_toponym(query: str, db_path: Path) -> None:
+    """Show one toponym: attestations + etymologies + decompositions.
+
+    QUERY is either a bare modern name ('Cotton') or 'name@region'
+    ('Cotton@Norfolk'). A bare name that matches multiple toponyms
+    prints the disambiguation list instead.
+    """
+    from wyrd.generators.kenning.browse import (
+        fetch_toponym_detail,
+        fetch_toponyms_matching,
+        format_toponym,
+        format_toponym_list,
+        parse_toponym_ref,
+    )
+
+    name, region = parse_toponym_ref(query)
+    conn = _open_lexicon_readonly(db_path)
+    try:
+        matches = fetch_toponyms_matching(conn, name, region)
+        if not matches:
+            click.echo(f"No toponym found for query={query!r}", err=True)
+            raise SystemExit(1)
+        if len(matches) > 1:
+            click.echo(format_toponym_list(matches))
+            return
+        data = fetch_toponym_detail(conn, matches[0]["id"])
+    finally:
+        conn.close()
+    click.echo(format_toponym(data))
+
+
+@lexicon_browse.command("decomposition")
+@click.argument("query")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+def lexicon_browse_decomposition(query: str, db_path: Path) -> None:
+    """Show matcher decompositions for one toponym.
+
+    QUERY is 'name' or 'name@region'. Surfaces the canonical pick +
+    every alternative the matcher emitted.
+    """
+    from wyrd.generators.kenning.browse import (
+        fetch_decompositions,
+        fetch_toponyms_matching,
+        format_decompositions,
+        format_toponym_list,
+        parse_toponym_ref,
+    )
+
+    name, region = parse_toponym_ref(query)
+    conn = _open_lexicon_readonly(db_path)
+    try:
+        matches = fetch_toponyms_matching(conn, name, region)
+        if not matches:
+            click.echo(f"No toponym found for query={query!r}", err=True)
+            raise SystemExit(1)
+        if len(matches) > 1:
+            click.echo(format_toponym_list(matches))
+            return
+        decompositions = fetch_decompositions(conn, matches[0]["id"])
+        match = matches[0]
+    finally:
+        conn.close()
+    click.echo(format_decompositions(match["modern_name"], match["region"], decompositions))
+
+
+@lexicon_browse.command("source")
+@click.argument("source_id")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+@click.option(
+    "--list-toponyms",
+    is_flag=True,
+    default=False,
+    help="Also print the full list of toponyms covered by this source.",
+)
+def lexicon_browse_source(source_id: str, db_path: Path, list_toponyms: bool) -> None:
+    """Show one source: bibliographic record + contribution counts.
+
+    SOURCE_ID is the source row's id (e.g. 'skeat_1901_cambridgeshire').
+    """
+    from wyrd.generators.kenning.browse import fetch_source, format_source
+
+    conn = _open_lexicon_readonly(db_path)
+    try:
+        data = fetch_source(conn, source_id)
+    finally:
+        conn.close()
+
+    if data is None:
+        click.echo(f"No source found for id={source_id!r}", err=True)
+        raise SystemExit(1)
+    click.echo(format_source(data, list_toponyms=list_toponyms))
+
+
 @lexicon.command("dump-jsonl")
 @click.option(
     "--db",
