@@ -853,20 +853,34 @@ def test_compute_report_no_filter_omits_header_line() -> None:
     assert "Slice filter:" not in md
 
 
-def test_cli_language_report_source_tag_mutually_exclusive() -> None:
+def test_cli_language_report_source_tag_mutually_exclusive(tmp_path: Path) -> None:
     """wyrd-5ecx CLI contract: ``--source X --tag Y`` raises a
-    UsageError. The two flags define different seed shapes and
-    composing them produces an empty-seed degenerate case (see
-    ``populate_eligible_etymon_table`` docstring). The CLI rejects
-    the combination so operators don't hit the empty case."""
+    UsageError. The two flags define different seed shapes; the CLI
+    rejects the combination so operators don't have to think about
+    union semantics. Pass an explicit ``--db`` (defaults to a path
+    that doesn't exist on CI) so click's parameter validation
+    passes BEFORE reaching the mutual-exclusion check."""
     from click.testing import CliRunner
 
     from wyrd.generators.kenning.cli import cli
 
+    # Create a minimal SQLite file so --db existence check passes.
+    db_path = tmp_path / "lexicon.db"
+    sqlite3.connect(db_path).close()
+
     runner = CliRunner()
     result = runner.invoke(
         cli,
-        ["lexicon", "language-report", "--source", "x", "--tag", "y"],
+        [
+            "lexicon",
+            "language-report",
+            "--db",
+            str(db_path),
+            "--source",
+            "x",
+            "--tag",
+            "y",
+        ],
     )
     assert result.exit_code != 0
     assert "mutually exclusive" in result.output.lower()
