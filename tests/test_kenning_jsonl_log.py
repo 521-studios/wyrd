@@ -131,7 +131,13 @@ def test_op_set_idempotent_on_missing_ref():
 
 def test_op_patch_scalar_last_write_wins():
     rows = [
-        {"_op": "add", "_type": "etymon", "ref": "oe:cot", "canonical_form": "cot", "stratum": "common"},
+        {
+            "_op": "add",
+            "_type": "etymon",
+            "ref": "oe:cot",
+            "canonical_form": "cot",
+            "stratum": "common",
+        },
         {"_op": "patch", "_type": "etymon", "ref": "oe:cot", "stratum": "rare"},
     ]
     state = replay(rows)
@@ -375,7 +381,7 @@ def test_read_jsonl_skips_blanks_and_comments(tmp_path: Path):
     p = tmp_path / "x.jsonl"
     p.write_text(
         "\n"
-        '# a comment\n'
+        "# a comment\n"
         '{"_type": "etymon", "ref": "oe:cot"}\n'
         "\n"
         '{"_type": "etymon", "ref": "oe:tun"}\n'

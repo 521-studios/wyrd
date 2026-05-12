@@ -93,7 +93,9 @@ class ReplayError(ValueError):
     offending row in :attr:`row` and the 1-indexed file line number in
     :attr:`line_no` when known."""
 
-    def __init__(self, message: str, *, row: dict[str, Any] | None = None, line_no: int | None = None):
+    def __init__(
+        self, message: str, *, row: dict[str, Any] | None = None, line_no: int | None = None
+    ):
         prefix = f"line {line_no}: " if line_no is not None else ""
         super().__init__(prefix + message)
         self.row = row
@@ -135,7 +137,13 @@ class ReplayState:
                 row = {"_type": _type, "ref": ref}
                 row.update(entries[ref])
                 out.append(row)
-        for _type in ("citation", "attestation", "etymology_element", "etymon_descent", "mining_run"):
+        for _type in (
+            "citation",
+            "attestation",
+            "etymology_element",
+            "etymon_descent",
+            "mining_run",
+        ):
             for fact in self.lists.get(_type, []):
                 row = {"_type": _type}
                 row.update(fact)

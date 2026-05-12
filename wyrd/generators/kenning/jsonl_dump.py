@@ -198,11 +198,15 @@ def _dump_citations(conn: sqlite3.Connection, source_id: str) -> Iterable[dict[s
             "_type": "citation",
             "etymon_ref": etymon_ref(c["language"], c["canonical_form"]),
         }
-        row.update(_drop_nulls({
-            "page": c["page"],
-            "short_quote": c["short_quote"],
-            "context_snippet": c["context_snippet"],
-        }))
+        row.update(
+            _drop_nulls(
+                {
+                    "page": c["page"],
+                    "short_quote": c["short_quote"],
+                    "context_snippet": c["context_snippet"],
+                }
+            )
+        )
         yield row
 
 
@@ -305,23 +309,31 @@ def _dump_toponyms_and_etymologies(
                 "ordinal": el["ordinal"],
                 "etymon_ref": etymon_ref(el["language"], el["canonical_form"]),
             }
-            elem.update(_drop_nulls({
-                "inflection": el["inflection"],
-                "surface_in_modern": el["surface_in_modern"],
-            }))
+            elem.update(
+                _drop_nulls(
+                    {
+                        "inflection": el["inflection"],
+                        "surface_in_modern": el["surface_in_modern"],
+                    }
+                )
+            )
             elements.append(elem)
         row: dict[str, Any] = {
             "_type": "etymology_element",
             "toponym_ref": toponym_ref(te["modern_name"], te["region"]),
             "elements": elements,
         }
-        row.update(_drop_nulls({
-            "page": te["page"],
-            "historical_form": te["historical_form"],
-            "confidence": te["confidence"],
-            "notes": te["notes"],
-            "attested_year": te["attested_year"],
-        }))
+        row.update(
+            _drop_nulls(
+                {
+                    "page": te["page"],
+                    "historical_form": te["historical_form"],
+                    "confidence": te["confidence"],
+                    "notes": te["notes"],
+                    "attested_year": te["attested_year"],
+                }
+            )
+        )
         yield row
 
 

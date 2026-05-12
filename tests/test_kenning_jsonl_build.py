@@ -141,9 +141,13 @@ def _write_jsonl(tmp: Path, source_id: str, rows: list[dict]) -> Path:
 
 
 def test_build_inserts_source_row(tmp_path: Path):
-    _write_jsonl(tmp_path, "skeat", [
-        {"_type": "source", "ref": "skeat", "title": "Place-Names of Cambs", "year": 1901},
-    ])
+    _write_jsonl(
+        tmp_path,
+        "skeat",
+        [
+            {"_type": "source", "ref": "skeat", "title": "Place-Names of Cambs", "year": 1901},
+        ],
+    )
     conn = _build_fixture_db()
     counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
     assert counts["source"] == 1
@@ -152,71 +156,104 @@ def test_build_inserts_source_row(tmp_path: Path):
 
 
 def test_build_inserts_etymon_with_glosses_and_tags(tmp_path: Path):
-    _write_jsonl(tmp_path, "skeat", [
-        {"_type": "source", "ref": "skeat", "title": "X"},
-        {
-            "_type": "etymon", "ref": "old-english:cot",
-            "language": "old-english", "canonical_form": "cot",
-            "glosses": ["cottage", "hut"], "tags": ["architecture"],
-        },
-    ])
+    _write_jsonl(
+        tmp_path,
+        "skeat",
+        [
+            {"_type": "source", "ref": "skeat", "title": "X"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:cot",
+                "language": "old-english",
+                "canonical_form": "cot",
+                "glosses": ["cottage", "hut"],
+                "tags": ["architecture"],
+            },
+        ],
+    )
     conn = _build_fixture_db()
     build_from_jsonl(conn, jsonl_paths_in(tmp_path))
     e = conn.execute("SELECT id, canonical_form, language FROM etymon").fetchone()
     assert (e["canonical_form"], e["language"]) == ("cot", "old-english")
-    glosses = [r["gloss"] for r in conn.execute("SELECT gloss FROM etymon_gloss WHERE etymon_id=?", (e["id"],))]
+    glosses = [
+        r["gloss"]
+        for r in conn.execute("SELECT gloss FROM etymon_gloss WHERE etymon_id=?", (e["id"],))
+    ]
     assert sorted(glosses) == ["cottage", "hut"]
     tags = [r["tag"] for r in conn.execute("SELECT tag FROM etymon_tag")]
     assert tags == ["architecture"]
 
 
 def test_build_inserts_citation_with_source_fk(tmp_path: Path):
-    _write_jsonl(tmp_path, "skeat", [
-        {"_type": "source", "ref": "skeat", "title": "X"},
-        {"_type": "etymon", "ref": "old-english:cot", "language": "old-english", "canonical_form": "cot"},
-        {"_type": "citation", "etymon_ref": "old-english:cot", "page": "15"},
-    ])
+    _write_jsonl(
+        tmp_path,
+        "skeat",
+        [
+            {"_type": "source", "ref": "skeat", "title": "X"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:cot",
+                "language": "old-english",
+                "canonical_form": "cot",
+            },
+            {"_type": "citation", "etymon_ref": "old-english:cot", "page": "15"},
+        ],
+    )
     conn = _build_fixture_db()
     build_from_jsonl(conn, jsonl_paths_in(tmp_path))
-    c = conn.execute(
-        "SELECT source_id, page FROM etymon_citation"
-    ).fetchone()
+    c = conn.execute("SELECT source_id, page FROM etymon_citation").fetchone()
     assert (c["source_id"], c["page"]) == ("skeat", "15")
 
 
 def test_build_inserts_descent_with_resolved_fks(tmp_path: Path):
-    _write_jsonl(tmp_path, "wiki", [
-        {"_type": "source", "ref": "wiki", "title": "Wiktionary"},
-        {"_type": "etymon", "ref": "proto-germanic:*tunaz", "language": "proto-germanic", "canonical_form": "*tunaz"},
-        {"_type": "etymon", "ref": "old-english:tun", "language": "old-english", "canonical_form": "tun"},
-        {
-            "_type": "etymon_descent",
-            "parent_ref": "proto-germanic:*tunaz",
-            "child_ref": "old-english:tun",
-            "edge_type": "inheritance",
-            "confidence": "high",
-        },
-    ])
+    _write_jsonl(
+        tmp_path,
+        "wiki",
+        [
+            {"_type": "source", "ref": "wiki", "title": "Wiktionary"},
+            {
+                "_type": "etymon",
+                "ref": "proto-germanic:*tunaz",
+                "language": "proto-germanic",
+                "canonical_form": "*tunaz",
+            },
+            {
+                "_type": "etymon",
+                "ref": "old-english:tun",
+                "language": "old-english",
+                "canonical_form": "tun",
+            },
+            {
+                "_type": "etymon_descent",
+                "parent_ref": "proto-germanic:*tunaz",
+                "child_ref": "old-english:tun",
+                "edge_type": "inheritance",
+                "confidence": "high",
+            },
+        ],
+    )
     conn = _build_fixture_db()
     build_from_jsonl(conn, jsonl_paths_in(tmp_path))
-    d = conn.execute(
-        "SELECT edge_type, confidence, source_id FROM etymon_descent"
-    ).fetchone()
+    d = conn.execute("SELECT edge_type, confidence, source_id FROM etymon_descent").fetchone()
     assert (d["edge_type"], d["confidence"], d["source_id"]) == ("inheritance", "high", "wiki")
 
 
 def test_build_inserts_mining_run_with_source_fk(tmp_path: Path):
-    _write_jsonl(tmp_path, "skeat", [
-        {"_type": "source", "ref": "skeat", "title": "X"},
-        {
-            "_type": "mining_run",
-            "provider": "anthropic",
-            "model": "claude-opus-4-7",
-            "mode": "mine",
-            "parsed_count": 100,
-            "accepted": 95,
-        },
-    ])
+    _write_jsonl(
+        tmp_path,
+        "skeat",
+        [
+            {"_type": "source", "ref": "skeat", "title": "X"},
+            {
+                "_type": "mining_run",
+                "provider": "anthropic",
+                "model": "claude-opus-4-7",
+                "mode": "mine",
+                "parsed_count": 100,
+                "accepted": 95,
+            },
+        ],
+    )
     conn = _build_fixture_db()
     build_from_jsonl(conn, jsonl_paths_in(tmp_path))
     m = conn.execute("SELECT source_id, provider, parsed_count FROM mining_run").fetchone()
@@ -224,25 +261,42 @@ def test_build_inserts_mining_run_with_source_fk(tmp_path: Path):
 
 
 def test_build_inserts_toponym_and_etymology_elements(tmp_path: Path):
-    _write_jsonl(tmp_path, "mawer", [
-        {"_type": "source", "ref": "mawer", "title": "N&D"},
-        {"_type": "etymon", "ref": "old-english:cot", "language": "old-english", "canonical_form": "cot"},
-        {"_type": "etymon", "ref": "old-english:tun", "language": "old-english", "canonical_form": "tun"},
-        {
-            "_type": "toponym", "ref": "Cotton@Norfolk",
-            "modern_name": "Cotton", "country": "England", "region": "Norfolk",
-        },
-        {
-            "_type": "etymology_element",
-            "toponym_ref": "Cotton@Norfolk",
-            "historical_form": "Cotuna",
-            "confidence": "high",
-            "elements": [
-                {"ordinal": 1, "etymon_ref": "old-english:cot"},
-                {"ordinal": 2, "etymon_ref": "old-english:tun", "inflection": "oblique"},
-            ],
-        },
-    ])
+    _write_jsonl(
+        tmp_path,
+        "mawer",
+        [
+            {"_type": "source", "ref": "mawer", "title": "N&D"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:cot",
+                "language": "old-english",
+                "canonical_form": "cot",
+            },
+            {
+                "_type": "etymon",
+                "ref": "old-english:tun",
+                "language": "old-english",
+                "canonical_form": "tun",
+            },
+            {
+                "_type": "toponym",
+                "ref": "Cotton@Norfolk",
+                "modern_name": "Cotton",
+                "country": "England",
+                "region": "Norfolk",
+            },
+            {
+                "_type": "etymology_element",
+                "toponym_ref": "Cotton@Norfolk",
+                "historical_form": "Cotuna",
+                "confidence": "high",
+                "elements": [
+                    {"ordinal": 1, "etymon_ref": "old-english:cot"},
+                    {"ordinal": 2, "etymon_ref": "old-english:tun", "inflection": "oblique"},
+                ],
+            },
+        ],
+    )
     conn = _build_fixture_db()
     build_from_jsonl(conn, jsonl_paths_in(tmp_path))
     te = conn.execute(
@@ -269,24 +323,38 @@ def test_build_merges_etymon_across_files(tmp_path: Path):
     """Same etymon ref in two files = ONE etymon row, with union of
     glosses + tags. Scalar fields (notes) follow last-write-wins by
     file-order (alphabetical)."""
-    _write_jsonl(tmp_path, "a_file", [
-        {"_type": "source", "ref": "a_file", "title": "A"},
-        {
-            "_type": "etymon", "ref": "old-english:cot",
-            "language": "old-english", "canonical_form": "cot",
-            "glosses": ["cottage"], "tags": ["architecture"],
-            "notes": "from A",
-        },
-    ])
-    _write_jsonl(tmp_path, "b_file", [
-        {"_type": "source", "ref": "b_file", "title": "B"},
-        {
-            "_type": "etymon", "ref": "old-english:cot",
-            "language": "old-english", "canonical_form": "cot",
-            "glosses": ["hut", "shed"], "tags": ["domestic"],
-            "notes": "from B",
-        },
-    ])
+    _write_jsonl(
+        tmp_path,
+        "a_file",
+        [
+            {"_type": "source", "ref": "a_file", "title": "A"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:cot",
+                "language": "old-english",
+                "canonical_form": "cot",
+                "glosses": ["cottage"],
+                "tags": ["architecture"],
+                "notes": "from A",
+            },
+        ],
+    )
+    _write_jsonl(
+        tmp_path,
+        "b_file",
+        [
+            {"_type": "source", "ref": "b_file", "title": "B"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:cot",
+                "language": "old-english",
+                "canonical_form": "cot",
+                "glosses": ["hut", "shed"],
+                "tags": ["domestic"],
+                "notes": "from B",
+            },
+        ],
+    )
     conn = _build_fixture_db()
     build_from_jsonl(conn, jsonl_paths_in(tmp_path))
     rows = list(conn.execute("SELECT id, notes FROM etymon"))
@@ -305,59 +373,84 @@ def test_build_merges_etymon_across_files(tmp_path: Path):
 
 
 def test_build_rejects_file_with_no_source(tmp_path: Path):
-    _write_jsonl(tmp_path, "x", [
-        {"_type": "etymon", "ref": "old-english:cot", "language": "old-english", "canonical_form": "cot"},
-    ])
+    _write_jsonl(
+        tmp_path,
+        "x",
+        [
+            {
+                "_type": "etymon",
+                "ref": "old-english:cot",
+                "language": "old-english",
+                "canonical_form": "cot",
+            },
+        ],
+    )
     conn = _build_fixture_db()
     with pytest.raises(BuildError, match="no source row"):
         build_from_jsonl(conn, jsonl_paths_in(tmp_path))
 
 
 def test_build_rejects_file_with_multiple_sources(tmp_path: Path):
-    _write_jsonl(tmp_path, "x", [
-        {"_type": "source", "ref": "a", "title": "A"},
-        {"_type": "source", "ref": "b", "title": "B"},
-    ])
+    _write_jsonl(
+        tmp_path,
+        "x",
+        [
+            {"_type": "source", "ref": "a", "title": "A"},
+            {"_type": "source", "ref": "b", "title": "B"},
+        ],
+    )
     conn = _build_fixture_db()
     with pytest.raises(BuildError, match="found 2 source"):
         build_from_jsonl(conn, jsonl_paths_in(tmp_path))
 
 
 def test_build_rejects_citation_to_unknown_etymon(tmp_path: Path):
-    _write_jsonl(tmp_path, "x", [
-        {"_type": "source", "ref": "x", "title": "X"},
-        {"_type": "citation", "etymon_ref": "old-english:ghost"},
-    ])
+    _write_jsonl(
+        tmp_path,
+        "x",
+        [
+            {"_type": "source", "ref": "x", "title": "X"},
+            {"_type": "citation", "etymon_ref": "old-english:ghost"},
+        ],
+    )
     conn = _build_fixture_db()
     with pytest.raises(BuildError, match="unknown etymon"):
         build_from_jsonl(conn, jsonl_paths_in(tmp_path))
 
 
 def test_build_rejects_descent_to_unknown_etymon(tmp_path: Path):
-    _write_jsonl(tmp_path, "x", [
-        {"_type": "source", "ref": "x", "title": "X"},
-        {
-            "_type": "etymon_descent",
-            "parent_ref": "old-english:ghost-a",
-            "child_ref": "old-english:ghost-b",
-            "edge_type": "inheritance",
-        },
-    ])
+    _write_jsonl(
+        tmp_path,
+        "x",
+        [
+            {"_type": "source", "ref": "x", "title": "X"},
+            {
+                "_type": "etymon_descent",
+                "parent_ref": "old-english:ghost-a",
+                "child_ref": "old-english:ghost-b",
+                "edge_type": "inheritance",
+            },
+        ],
+    )
     conn = _build_fixture_db()
     with pytest.raises(BuildError, match="unknown etymon"):
         build_from_jsonl(conn, jsonl_paths_in(tmp_path))
 
 
 def test_build_rejects_element_ref_to_unknown_etymon(tmp_path: Path):
-    _write_jsonl(tmp_path, "x", [
-        {"_type": "source", "ref": "x", "title": "X"},
-        {"_type": "toponym", "ref": "Foo@-", "modern_name": "Foo"},
-        {
-            "_type": "etymology_element",
-            "toponym_ref": "Foo@-",
-            "elements": [{"ordinal": 1, "etymon_ref": "old-english:ghost"}],
-        },
-    ])
+    _write_jsonl(
+        tmp_path,
+        "x",
+        [
+            {"_type": "source", "ref": "x", "title": "X"},
+            {"_type": "toponym", "ref": "Foo@-", "modern_name": "Foo"},
+            {
+                "_type": "etymology_element",
+                "toponym_ref": "Foo@-",
+                "elements": [{"ordinal": 1, "etymon_ref": "old-english:ghost"}],
+            },
+        ],
+    )
     conn = _build_fixture_db()
     with pytest.raises(BuildError, match="unknown etymon"):
         build_from_jsonl(conn, jsonl_paths_in(tmp_path))
@@ -373,12 +466,8 @@ def _populate_realistic_db() -> sqlite3.Connection:
     etymons, citations + descent edges + a toponym etymology with
     elements + a mining run."""
     conn = _build_fixture_db()
-    conn.execute(
-        "INSERT INTO source (id, title, year) VALUES ('skeat', 'Cambs', 1901)"
-    )
-    conn.execute(
-        "INSERT INTO source (id, title, year) VALUES ('mawer', 'N&D', 1920)"
-    )
+    conn.execute("INSERT INTO source (id, title, year) VALUES ('skeat', 'Cambs', 1901)")
+    conn.execute("INSERT INTO source (id, title, year) VALUES ('mawer', 'N&D', 1920)")
     cur = conn.execute(
         "INSERT INTO etymon (language, canonical_form, notes) VALUES ('old-english', 'cot', 'dwelling')"
     )
@@ -475,7 +564,15 @@ def _l2_state_snapshot(conn: sqlite3.Connection) -> dict:
             """)
         ),
         "etymon_descent": sorted(
-            (r["p_lang"], r["p_form"], r["c_lang"], r["c_form"], r["edge_type"], r["source_id"], r["confidence"])
+            (
+                r["p_lang"],
+                r["p_form"],
+                r["c_lang"],
+                r["c_form"],
+                r["edge_type"],
+                r["source_id"],
+                r["confidence"],
+            )
             for r in conn.execute("""
                 SELECT pe.language AS p_lang, pe.canonical_form AS p_form,
                        ce.language AS c_lang, ce.canonical_form AS c_form,
@@ -503,7 +600,14 @@ def _l2_state_snapshot(conn: sqlite3.Connection) -> dict:
             """)
         ),
         "toponym_etymology_element": sorted(
-            (r["modern_name"], r["region"], r["ordinal"], r["language"], r["canonical_form"], r["inflection"])
+            (
+                r["modern_name"],
+                r["region"],
+                r["ordinal"],
+                r["language"],
+                r["canonical_form"],
+                r["inflection"],
+            )
             for r in conn.execute("""
                 SELECT t.modern_name, t.region, el.ordinal,
                        e.language, e.canonical_form, el.inflection
@@ -547,12 +651,8 @@ def test_round_trip_dump_rebuild_dump(tmp_path: Path):
     assert files_a == files_b
 
     for fname in files_a:
-        rows_a = sorted(
-            (json.dumps(r, sort_keys=True) for r in _read_rows(dump_dir_a / fname))
-        )
-        rows_b = sorted(
-            (json.dumps(r, sort_keys=True) for r in _read_rows(dump_dir_b / fname))
-        )
+        rows_a = sorted((json.dumps(r, sort_keys=True) for r in _read_rows(dump_dir_a / fname)))
+        rows_b = sorted((json.dumps(r, sort_keys=True) for r in _read_rows(dump_dir_b / fname)))
         assert rows_a == rows_b, f"round-trip diff in {fname}"
 
 

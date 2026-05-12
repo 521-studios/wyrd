@@ -149,9 +149,7 @@ def _add_source(conn: sqlite3.Connection, **kwargs) -> str:
     return kwargs["id"]
 
 
-def _add_etymon(
-    conn: sqlite3.Connection, language: str, canonical_form: str, **kwargs
-) -> int:
+def _add_etymon(conn: sqlite3.Connection, language: str, canonical_form: str, **kwargs) -> int:
     cols = ["language", "canonical_form", *kwargs.keys()]
     vals = [language, canonical_form, *kwargs.values()]
     placeholders = ", ".join("?" * len(cols))
@@ -168,7 +166,9 @@ def _add_etymon(
 
 def test_dump_source_row_minimal():
     conn = _build_fixture_db()
-    _add_source(conn, id="skeat_1901", title="Place-Names of Cambs", author="W. W. Skeat", year=1901)
+    _add_source(
+        conn, id="skeat_1901", title="Place-Names of Cambs", author="W. W. Skeat", year=1901
+    )
     rows = dump_source_to_rows(conn, "skeat_1901")
     assert rows[0] == {
         "_type": "source",
@@ -182,6 +182,7 @@ def test_dump_source_row_minimal():
 def test_dump_source_row_missing_raises():
     conn = _build_fixture_db()
     import pytest
+
     with pytest.raises(ValueError, match="no source row"):
         dump_source_to_rows(conn, "nope")
 
@@ -206,10 +207,15 @@ def test_dump_etymon_with_citation():
     conn = _build_fixture_db()
     _add_source(conn, id="skeat", title="X")
     eid = _add_etymon(
-        conn, "old-english", "cot",
-        modifier_type="noun", notes="dwelling-place",
+        conn,
+        "old-english",
+        "cot",
+        modifier_type="noun",
+        notes="dwelling-place",
         # L3 columns — should NOT appear in the dump
-        lemma_id=None, stratum="common", english_shaped="cot",
+        lemma_id=None,
+        stratum="common",
+        english_shaped="cot",
     )
     conn.execute(
         "INSERT INTO etymon_citation (etymon_id, source_id, page) VALUES (?, ?, ?)",
@@ -244,12 +250,8 @@ def test_dump_etymon_only_cited_by_target_source():
     _add_source(conn, id="b", title="B")
     a_only = _add_etymon(conn, "old-english", "cot")
     b_only = _add_etymon(conn, "old-english", "tun")
-    conn.execute(
-        "INSERT INTO etymon_citation (etymon_id, source_id) VALUES (?, ?)", (a_only, "a")
-    )
-    conn.execute(
-        "INSERT INTO etymon_citation (etymon_id, source_id) VALUES (?, ?)", (b_only, "b")
-    )
+    conn.execute("INSERT INTO etymon_citation (etymon_id, source_id) VALUES (?, ?)", (a_only, "a"))
+    conn.execute("INSERT INTO etymon_citation (etymon_id, source_id) VALUES (?, ?)", (b_only, "b"))
     a_rows = dump_source_to_rows(conn, "a")
     b_rows = dump_source_to_rows(conn, "b")
     a_etymons = {r["ref"] for r in a_rows if r["_type"] == "etymon"}
@@ -264,8 +266,12 @@ def test_dump_etymon_distinct_per_source_even_with_multiple_citations():
     conn = _build_fixture_db()
     _add_source(conn, id="skeat", title="X")
     eid = _add_etymon(conn, "old-english", "cot")
-    conn.execute("INSERT INTO etymon_citation (etymon_id, source_id, page) VALUES (?, 'skeat', '15')", (eid,))
-    conn.execute("INSERT INTO etymon_citation (etymon_id, source_id, page) VALUES (?, 'skeat', '16')", (eid,))
+    conn.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, page) VALUES (?, 'skeat', '15')", (eid,)
+    )
+    conn.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, page) VALUES (?, 'skeat', '16')", (eid,)
+    )
     rows = dump_source_to_rows(conn, "skeat")
     n_etymons = sum(1 for r in rows if r["_type"] == "etymon")
     n_citations = sum(1 for r in rows if r["_type"] == "citation")

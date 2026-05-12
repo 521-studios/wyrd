@@ -150,9 +150,7 @@ def _insert_etymon(conn: sqlite3.Connection, payload: dict[str, Any]) -> int:
     pre-merging across files so this is the first insert for the pair."""
     cols = [c for c in _ETYMON_INSERT_COLUMNS if c in payload]
     if "canonical_form" not in cols or "language" not in cols:
-        raise BuildError(
-            f"etymon row missing canonical_form or language: {payload}"
-        )
+        raise BuildError(f"etymon row missing canonical_form or language: {payload}")
     vals = [payload[c] for c in cols]
     placeholders = ", ".join("?" * len(cols))
     cur = conn.execute(
@@ -226,9 +224,7 @@ def _insert_descent(
     )
 
 
-def _insert_mining_run(
-    conn: sqlite3.Connection, source_id: str, row: dict[str, Any]
-) -> None:
+def _insert_mining_run(conn: sqlite3.Connection, source_id: str, row: dict[str, Any]) -> None:
     conn.execute(
         """INSERT OR IGNORE INTO mining_run
            (source_id, provider, model, mode, started_at, completed_at,
@@ -305,8 +301,7 @@ def _extract_source_id(path: Path, state: ReplayState) -> str:
         raise BuildError(f"{path}: no source row found; every L2 file must contain one")
     if len(sources) > 1:
         raise BuildError(
-            f"{path}: found {len(sources)} source rows; each L2 file must "
-            f"contain exactly one"
+            f"{path}: found {len(sources)} source rows; each L2 file must contain exactly one"
         )
     return next(iter(sources))
 
@@ -369,9 +364,7 @@ def build_from_jsonl(
             eref = row["etymon_ref"]
             eid = etymon_id_by_ref.get(eref)
             if eid is None:
-                raise BuildError(
-                    f"{path}: citation references unknown etymon {eref!r}"
-                )
+                raise BuildError(f"{path}: citation references unknown etymon {eref!r}")
             _insert_citation(conn, eid, source_id, row)
             counts["citation"] += 1
 
@@ -394,9 +387,7 @@ def build_from_jsonl(
             tref = row["toponym_ref"]
             tid = toponym_id_by_ref.get(tref)
             if tid is None:
-                raise BuildError(
-                    f"{path}: etymology_element references unknown toponym {tref!r}"
-                )
+                raise BuildError(f"{path}: etymology_element references unknown toponym {tref!r}")
             _insert_etymology_element(conn, tid, source_id, row, etymon_id_by_ref)
             counts["etymology_element"] += 1
 
