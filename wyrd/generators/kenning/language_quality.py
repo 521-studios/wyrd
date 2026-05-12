@@ -55,7 +55,7 @@ from pathlib import Path
 from typing import Any
 
 from wyrd.generators.kenning.lexicon import RECOMMENDED_LANG_THRESHOLDS
-from wyrd.generators.kenning.phonology_rules import LANGUAGE_ALIASES, chain_for, rule_form
+from wyrd.generators.kenning.phonology_rules import chain_for, resolve_language, rule_form
 
 # --- era chain config -----------------------------------------------------
 #
@@ -988,10 +988,11 @@ def _tier4_phonology_coverage(
         return -1
     _family, chain = chain_info
     # ``chain_for`` alias-resolves (e.g. 'welsh' → 'modern-welsh');
-    # the chain tuple is keyed by the canonical era names, so re-resolve
-    # the input language with the same alias map to find self-position
-    # in the chain.
-    resolved = LANGUAGE_ALIASES.get(language, language)
+    # the chain tuple is keyed by the canonical era names, so use
+    # ``resolve_language`` (same public alias-resolution API) to find
+    # self-position in the chain without reaching into the alias dict
+    # directly.
+    resolved = resolve_language(language)
     other_stops = [stop for stop in chain if stop != resolved]
     if not other_stops:
         return -1

@@ -37,6 +37,7 @@ from wyrd.generators.kenning.phonology_rules import (
     apply_rules,
     chain_for,
     has_rules,
+    resolve_language,
     rule_form,
 )
 
@@ -819,6 +820,23 @@ def test_ow_to_mw_dispatch_lookup_works_via_apply_rules() -> None:
 
 
 # --- chain_for + rule_form: public chain-walker API (wyrd-u728) ----------
+
+
+def test_resolve_language_returns_canonical_era_for_alias() -> None:
+    """``resolve_language('welsh')`` returns 'modern-welsh'; the alias
+    map is the public API for this transform so consumers can find
+    their position in a chain tuple without reaching into
+    ``LANGUAGE_ALIASES`` directly."""
+    assert resolve_language("welsh") == "modern-welsh"
+
+
+def test_resolve_language_passes_through_canonical_era_names() -> None:
+    """Languages absent from the alias map pass through unchanged.
+    Pin so consumers can safely call resolve_language on any language
+    code, not just known aliases."""
+    assert resolve_language("modern-welsh") == "modern-welsh"
+    assert resolve_language("old-english") == "old-english"
+    assert resolve_language("irish") == "irish"  # non-chain language passes through
 
 
 def test_chain_for_returns_family_chain_for_modern_english() -> None:

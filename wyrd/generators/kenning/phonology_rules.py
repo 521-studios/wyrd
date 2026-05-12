@@ -844,6 +844,18 @@ LANGUAGE_ALIASES: dict[str, str] = {
 }
 
 
+def resolve_language(language: str) -> str:
+    """Alias-resolve a lexicon language code (e.g. ``welsh`` →
+    ``modern-welsh``) to its canonical chain-era name. Languages
+    absent from ``LANGUAGE_ALIASES`` pass through unchanged.
+
+    Stable public API alongside ``chain_for`` so consumers can find
+    their own position in a chain (``chain.index(resolve_language(L))``)
+    without reaching into ``LANGUAGE_ALIASES`` directly.
+    """
+    return LANGUAGE_ALIASES.get(language, language)
+
+
 def chain_for(language: str) -> tuple[str, tuple[str, ...]] | None:
     """Return the rule-cell ``(family, chain)`` pair for ``language``,
     resolving lexicon-language aliases (e.g. ``welsh`` → ``modern-welsh``)
@@ -853,10 +865,11 @@ def chain_for(language: str) -> tuple[str, tuple[str, ...]] | None:
 
     Stable public API for the chain config — consumers should not
     reach into ``FAMILY_CHAINS`` / ``LANGUAGE_ALIASES`` directly so
-    future refactors of the registry shape stay internal.
+    future refactors of the registry shape stay internal. Pair with
+    ``resolve_language`` when you need the canonical era name for
+    chain-position lookup.
     """
-    resolved = LANGUAGE_ALIASES.get(language, language)
-    return FAMILY_CHAINS.get(resolved)
+    return FAMILY_CHAINS.get(resolve_language(language))
 
 
 def rule_form(
@@ -886,8 +899,8 @@ def rule_form(
     # Resolve bundle aliases ('welsh' → 'modern-welsh') before chain
     # lookup so the alias name doesn't need to appear in the chain
     # tuple itself.
-    from_resolved = LANGUAGE_ALIASES.get(from_language, from_language)
-    to_resolved = LANGUAGE_ALIASES.get(to_language, to_language)
+    from_resolved = resolve_language(from_language)
+    to_resolved = resolve_language(to_language)
     if from_resolved == to_resolved:
         return None
     from_chain_info = FAMILY_CHAINS.get(from_resolved)
