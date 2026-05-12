@@ -160,8 +160,15 @@ def test_parse_etymon_ref_raises_without_colon():
 
 
 def test_parse_etymon_ref_raises_empty_language():
-    with pytest.raises(ValueError, match="empty language"):
+    with pytest.raises(ValueError, match="non-empty"):
         parse_etymon_ref(":cot")
+
+
+def test_parse_etymon_ref_raises_empty_form():
+    """An empty form (e.g. 'old-english:') can't match anything; reject
+    early rather than running a useless query."""
+    with pytest.raises(ValueError, match="non-empty"):
+        parse_etymon_ref("old-english:")
 
 
 def test_parse_toponym_ref_with_region():
@@ -177,6 +184,20 @@ def test_parse_toponym_ref_dash_region_means_null():
     when looking up, '-' should be treated as None (the actual DB
     column value)."""
     assert parse_toponym_ref("Acton@-") == ("Acton", None)
+
+
+def test_parse_toponym_ref_empty_region_means_null():
+    """Empty region after '@' (e.g. 'Acton@') is equivalent to the
+    '-' placeholder — both mean null region in the DB."""
+    assert parse_toponym_ref("Acton@") == ("Acton", None)
+
+
+def test_parse_toponym_ref_raises_empty_name():
+    """Empty name can't match anything; reject early."""
+    with pytest.raises(ValueError, match="empty name"):
+        parse_toponym_ref("@Cheshire")
+    with pytest.raises(ValueError, match="empty name"):
+        parse_toponym_ref("")
 
 
 # ---------------------------------------------------------------------------
@@ -565,6 +586,16 @@ def test_format_etymon_omits_empty_sections():
     assert "Glosses" not in md
     assert "Tags" not in md
     assert "Citations" not in md
+
+
+def test_format_etymon_truncates_long_notes():
+    """Wiktionary-sourced etymon notes can be very long; same 280-char
+    truncation as the toponym formatter applies for grep-friendliness."""
+    conn = _build_fixture_db()
+    _add_etymon(conn, "old-english", "cot", notes="x" * 500)
+    md = format_etymon(fetch_etymon(conn, "old-english:cot"))
+    assert "..." in md
+    assert "x" * 500 not in md
 
 
 def test_format_etymon_shows_lemma_family():

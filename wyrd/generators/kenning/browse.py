@@ -34,23 +34,31 @@ from typing import Any
 
 def parse_etymon_ref(ref: str) -> tuple[str, str]:
     """Split ``"<language>:<canonical_form>"`` into ``(language, form)``.
-    Raises :class:`ValueError` when the ref isn't shaped right."""
+
+    Both sides must be non-empty. The L2 round-trip kernel
+    (:mod:`jsonl_log`) allows empty ``form`` to preserve junk rows for
+    eventual cleanup, but a browser LOOKUP with empty form can't
+    return a useful result — surface the bad input early."""
     if ":" not in ref:
         raise ValueError(f"etymon ref must be 'lang:form', got {ref!r}")
     lang, form = ref.split(":", 1)
-    if not lang:
-        raise ValueError(f"etymon ref has empty language: {ref!r}")
+    if not lang or not form:
+        raise ValueError(f"etymon ref must be 'lang:form' with non-empty parts, got {ref!r}")
     return lang, form
 
 
 def parse_toponym_ref(query: str) -> tuple[str, str | None]:
     """Split ``"<name>@<region>"``. When no ``@`` is present, region is
-    ``None`` (caller treats as "any region"). Region of ``-`` means
-    "null region" — the placeholder our JSONL dumper uses."""
+    ``None`` (caller treats as "any region"). Region of ``-`` or empty
+    string means "null region" — the placeholder our JSONL dumper uses."""
     if "@" not in query:
+        if not query:
+            raise ValueError(f"toponym ref has empty name: {query!r}")
         return query, None
     name, region = query.split("@", 1)
-    if region == "-":
+    if not name:
+        raise ValueError(f"toponym ref has empty name: {query!r}")
+    if region in ("", "-"):
         return name, None
     return name, region
 
@@ -260,6 +268,28 @@ def fetch_toponym_detail(conn: sqlite3.Connection, toponym_id: int) -> dict[str,
         )
     ]
 
+    # Fetch all elements for this toponym's etymologies in a single
+    # join — avoids an N+1 pattern as scholar etymology count grows.
+    elements_by_etymology: dict[int, list[dict[str, Any]]] = {}
+    for el in conn.execute(
+        """SELECT el.toponym_etymology_id AS te_id, el.ordinal, el.inflection,
+                  el.surface_in_modern, e.language, e.canonical_form
+             FROM toponym_etymology_element el
+             JOIN etymon e ON e.id = el.etymon_id
+             JOIN toponym_etymology te ON te.id = el.toponym_etymology_id
+            WHERE te.toponym_id = ?
+            ORDER BY el.toponym_etymology_id, el.ordinal""",
+        (toponym_id,),
+    ):
+        elements_by_etymology.setdefault(el["te_id"], []).append(
+            {
+                "ordinal": el["ordinal"],
+                "etymon_ref": f"{el['language']}:{el['canonical_form']}",
+                "inflection": el["inflection"],
+                "surface_in_modern": el["surface_in_modern"],
+            }
+        )
+
     etymologies: list[dict[str, Any]] = []
     for te in conn.execute(
         """SELECT id, source_id, page, historical_form, confidence, notes, attested_year
@@ -268,23 +298,6 @@ def fetch_toponym_detail(conn: sqlite3.Connection, toponym_id: int) -> dict[str,
             ORDER BY source_id, id""",
         (toponym_id,),
     ):
-        elements = [
-            {
-                "ordinal": el["ordinal"],
-                "etymon_ref": f"{el['language']}:{el['canonical_form']}",
-                "inflection": el["inflection"],
-                "surface_in_modern": el["surface_in_modern"],
-            }
-            for el in conn.execute(
-                """SELECT el.ordinal, el.inflection, el.surface_in_modern,
-                          e.language, e.canonical_form
-                     FROM toponym_etymology_element el
-                     JOIN etymon e ON e.id = el.etymon_id
-                    WHERE el.toponym_etymology_id = ?
-                    ORDER BY el.ordinal""",
-                (te["id"],),
-            )
-        ]
         etymologies.append(
             {
                 "etymology_id": te["id"],
@@ -294,7 +307,7 @@ def fetch_toponym_detail(conn: sqlite3.Connection, toponym_id: int) -> dict[str,
                 "confidence": te["confidence"],
                 "notes": te["notes"],
                 "attested_year": te["attested_year"],
-                "elements": elements,
+                "elements": elements_by_etymology.get(te["id"], []),
             }
         )
 
@@ -422,6 +435,14 @@ def _kv_lines(pairs: list[tuple[str, Any]]) -> list[str]:
     return out
 
 
+def _truncate_for_grep(value: str | None, max_len: int = 280) -> str | None:
+    """Trim very long prose for terminal readability — full text lives
+    in the JSONL file for follow-up. ``None`` passes through."""
+    if value is None or len(value) <= max_len:
+        return value
+    return value[: max_len - 3] + "..."
+
+
 def format_etymon(data: dict[str, Any]) -> str:
     """Render :func:`fetch_etymon` output as grep-friendly markdown."""
     lines: list[str] = [f"## etymon: {data['ref']}", ""]
@@ -437,7 +458,7 @@ def format_etymon(data: dict[str, Any]) -> str:
             ("Original script", data["original_script"]),
             ("Transliteration", data["transliteration"]),
             ("English-shaped", data["english_shaped"]),
-            ("Notes", data["notes"]),
+            ("Notes", _truncate_for_grep(data["notes"])),
         ]
     )
 
@@ -539,12 +560,7 @@ def format_toponym(data: dict[str, Any]) -> str:
             if te["historical_form"]:
                 lines.append(f"  Historical form: `{te['historical_form']}`")
             if te["notes"]:
-                # Trim very long notes for readability — full notes are
-                # in the JSONL file for follow-up.
-                notes = te["notes"]
-                if len(notes) > 280:
-                    notes = notes[:277] + "..."
-                lines.append(f"  Notes: {notes}")
+                lines.append(f"  Notes: {_truncate_for_grep(te['notes'])}")
             if te["elements"]:
                 lines.append("  Elements:")
                 for el in te["elements"]:
@@ -658,7 +674,7 @@ def format_source(data: dict[str, Any], *, list_toponyms: bool = False) -> str:
             ("Year", data["year"]),
             ("Region", data["region"]),
             ("Language focus", data["language_focus"]),
-            ("Notes", data["notes"]),
+            ("Notes", _truncate_for_grep(data["notes"])),
         ]
     )
 
