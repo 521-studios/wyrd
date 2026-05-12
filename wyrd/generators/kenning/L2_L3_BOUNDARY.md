@@ -116,6 +116,29 @@ whose enrichment-pass run isn't recorded in the L2 mining_run set
 fails the build — caught by a validation pass at the end of
 `lexicon rebuild-from-jsonl` (planned, not yet implemented).
 
+## L3 enrichment passes — canonical order
+
+Per wyrd-ilam (Phase 2a), these are the L3 enrichment passes that
+operate against the post-replay DB. Each writes specific columns on
+`etymon`; the column → pass mapping is fixed so `lexicon
+enrichment-status` can report coverage. Order matters where columns
+chain through other columns (link-lemmas needs canonical merged_into_id
+state, project-period-forms needs lemma_id state, etc.).
+
+| Pass | Writes | Method version | Migrated? |
+|------|--------|----------------|-----------|
+| `normalize-ocr` | `merged_into_id` | `cluster-ocr-v1` | ✅ wyrd-ilam |
+| `link-lemmas` | `lemma_id`, `inflection`, `lemma_method` | `link-lemmas-v1` | ✅ wyrd-ilam |
+| `cluster-cognates` | `cognate_id`, `cognate_method` | `cluster-cognates-v1` | ⏳ follow-on |
+| `classify-stratum` | `stratum` | hardcoded heuristics | ⏳ follow-on |
+| `derive-english-shaped` | `english_shaped` | hardcoded rules | ⏳ follow-on |
+| `project-period-forms` | (`etymon_period_form` table) | hardcoded rules | ⏳ follow-on |
+| `decompose` | (`toponym_decomposition` table) | matcher rules | ⏳ follow-on |
+
+**Migrated** passes run via the `lexicon enrich` orchestrator in the
+canonical order. **Follow-on** passes still need their standalone
+commands invoked manually — same operator pattern as before.
+
 ## Operator workflow
 
 ### Editing L2 (the source of truth)
@@ -129,15 +152,28 @@ fails the build — caught by a validation pass at the end of
 
 ### Rebuilding L3 from L2
 
+One-shot rebuild with migrated enrichment passes:
+
 ```bash
-lexicon rebuild-from-jsonl --db ~/.wyrd/lexicon.db --jsonl-dir data/mining
-# Then re-run enrichment passes:
-lexicon link-lemmas --apply
+lexicon rebuild-from-jsonl --db ~/.wyrd/lexicon.db --jsonl-dir data/mining \
+    --with-enrichment
+# Then run the not-yet-migrated passes manually:
 lexicon cluster-cognates --apply
 lexicon classify-stratum --apply
+lexicon derive-english-shaped --apply
+lexicon project-period-forms --apply
 lexicon decompose --apply
 # Then bundle export:
 lexicon export-meanings
+```
+
+Or step-by-step with `lexicon enrich` for the migrated passes:
+
+```bash
+lexicon rebuild-from-jsonl --jsonl-dir data/mining
+lexicon enrich --apply              # normalize-ocr → link-lemmas
+lexicon enrichment-status           # verify coverage
+lexicon cluster-cognates --apply    # ... and so on
 ```
 
 ### Manual curation (post-Phase-3 pattern)
