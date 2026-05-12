@@ -39,6 +39,7 @@ from wyrd.generators.kenning.language_quality import (
     compute_report,
     compute_scorecard,
     load_reference_tags,
+    populate_eligible_etymon_table,
     report_to_json,
     report_to_markdown,
 )
@@ -154,12 +155,17 @@ def _build_fixture_db() -> sqlite3.Connection:
         """
     )
     # cognate cluster: cot ↔ welsh-side 'cwt' (different language,
-    # exercises tier-1).
+    # exercises tier-1). Cited so the wyrd-bfv1 eligible-set restriction
+    # keeps cwt visible in welsh metrics — cognates aren't part of the
+    # eligibility-via-1-hop-descent rule (which is era progression
+    # within a chain, not cross-language cognation), so welsh needs an
+    # own-language citation to register on the dashboard.
     conn.executescript(
         """
         INSERT INTO etymon(id, canonical_form, language, cognate_id)
           VALUES (20, 'cwt', 'welsh', 1);
         UPDATE etymon SET cognate_id = 20 WHERE id = 1;
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (20, 'skeat_1901');
         """
     )
     # period-form for 'tun' (covers tier-3).
@@ -650,6 +656,84 @@ def test_bundle_era_reflex_coverage_combines_sibling_and_reflex_across_words() -
     assert _bundle_era_reflex_coverage(bundle, "modern-english", "modern_english") == 1
 
 
+def test_populate_eligible_etymon_table_includes_cited(_built: None = None) -> None:
+    """The eligible set always includes etymons with at least one
+    ``etymon_citation`` row — that's the primary inclusion rule
+    (rando-port grandfather + scholar place-name attestations).
+    Pinned against the fixture DB which seeds citations for cot
+    (3), ham (1), tun (2), cwt (1)."""
+    conn = _build_fixture_db()
+    n = populate_eligible_etymon_table(conn)
+    assert n >= 4  # cot, ham, tun, cwt all cited
+    ids = {r[0] for r in conn.execute("SELECT id FROM eligible_etymon")}
+    assert 1 in ids and 2 in ids and 3 in ids and 20 in ids
+
+
+def test_populate_eligible_etymon_table_includes_1hop_descent() -> None:
+    """A 1-hop descent neighbor of a cited etymon is eligible. The
+    fixture has cot (cited) → cote (ME) and tun (cited) → tonn (ME)
+    via etymon_descent — both ME entries must be eligible despite
+    having no own-language citation, since they're the 'forward form'
+    of a cited word."""
+    conn = _build_fixture_db()
+    populate_eligible_etymon_table(conn)
+    ids = {r[0] for r in conn.execute("SELECT id FROM eligible_etymon")}
+    assert 10 in ids  # cote (ME, child of cot)
+    assert 11 in ids  # tonn (ME, child of tun)
+
+
+def test_populate_eligible_etymon_table_rolls_lemma_inflections() -> None:
+    """Inflected children whose ``lemma_id`` points at an eligible
+    etymon ride along. The fixture has cotum / cotan / hamum with
+    lemma_id → cot or ham; all three must be eligible."""
+    conn = _build_fixture_db()
+    populate_eligible_etymon_table(conn)
+    ids = {r[0] for r in conn.execute("SELECT id FROM eligible_etymon")}
+    assert 4 in ids  # cotum (lemma_id=cot=1)
+    assert 5 in ids  # cotan (lemma_id=cot=1)
+    assert 6 in ids  # hamum (lemma_id=ham=2)
+
+
+def test_populate_eligible_etymon_table_is_idempotent() -> None:
+    """Re-running drops + repopulates rather than crashing on the
+    pre-existing TEMP TABLE — the helper is idempotent so dashboard
+    runs that share a connection across multiple compute_report
+    invocations don't accumulate stale state."""
+    conn = _build_fixture_db()
+    first = populate_eligible_etymon_table(conn)
+    second = populate_eligible_etymon_table(conn)
+    assert first == second
+    third = populate_eligible_etymon_table(conn, restrict_to_generator_eligible=False)
+    raw_total = conn.execute("SELECT COUNT(*) FROM etymon").fetchone()[0]
+    assert third == raw_total  # restrict=False populates with every etymon ID
+
+
+def test_populate_eligible_etymon_table_handles_minimal_schema() -> None:
+    """Defensive: minimal test fixtures may lack etymon_tag /
+    etymon_descent / etymon_citation. The helper skips those branches
+    gracefully rather than failing with 'no such table'."""
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript(
+        """
+        CREATE TABLE etymon (
+            id INTEGER PRIMARY KEY,
+            canonical_form TEXT NOT NULL,
+            language TEXT NOT NULL,
+            lemma_id INTEGER,
+            merged_into_id INTEGER
+        );
+        INSERT INTO etymon (canonical_form, language) VALUES ('alpha', 'x');
+        """
+    )
+    n = populate_eligible_etymon_table(conn)
+    # No citation / descent / tag tables → eligible set is empty.
+    assert n == 0
+    # Restrict=False still works (populates with every etymon ID).
+    n_unrestricted = populate_eligible_etymon_table(conn, restrict_to_generator_eligible=False)
+    assert n_unrestricted == 1
+
+
 def _seed_tier4_fixture_db() -> sqlite3.Connection:
     """In-memory etymon table seeded with three modern-english forms
     chosen so the wyrd-98cs phonology chain produces a transformed
@@ -668,7 +752,13 @@ def _seed_tier4_fixture_db() -> sqlite3.Connection:
             id INTEGER PRIMARY KEY,
             canonical_form TEXT NOT NULL,
             language TEXT NOT NULL,
+            lemma_id INTEGER REFERENCES etymon(id),
             merged_into_id INTEGER REFERENCES etymon(id)
+        );
+        CREATE TABLE etymon_citation (
+            id INTEGER PRIMARY KEY,
+            etymon_id INTEGER NOT NULL,
+            source_id TEXT NOT NULL
         );
         """
     )
@@ -685,6 +775,15 @@ def _seed_tier4_fixture_db() -> sqlite3.Connection:
     conn.executemany(
         "INSERT INTO etymon (canonical_form, language) VALUES (?, ?)",
         rows,
+    )
+    # wyrd-bfv1: cite every fixture row so the eligible-set filter
+    # in _tier4_phonology_coverage (which restricts the walked
+    # population to generator-eligible etymons) includes them all.
+    # Without these citations the eligible set is empty and the walk
+    # processes zero etymons.
+    conn.executemany(
+        "INSERT INTO etymon_citation (etymon_id, source_id) VALUES (?, 'fixture')",
+        [(i,) for i in range(1, len(rows) + 1)],
     )
     conn.commit()
     return conn
@@ -823,6 +922,11 @@ def test_summary_table_era_cell_renders_na_when_no_bundle_subjects() -> None:
         language="latin",
         total_etymons=100,
         total_lemmas=100,
+        # wyrd-bfv1: eligible denominator drives the percentage. Set
+        # equal to total to mirror a corpus where every etymon is
+        # generator-eligible (so 40 / 100 → 40.0%).
+        eligible_etymons=100,
+        eligible_lemmas=100,
         promotion_threshold=2,
         promotion_eligible=0,
         avg_witnesses=0.0,
@@ -1108,6 +1212,12 @@ def test_scorecard_lexicon_tag_coverage_is_independent_of_bundle() -> None:
           VALUES (101, 'ay', 'klingon');
         INSERT INTO etymon_tag(etymon_id, tag) VALUES (100, 'architecture');
         INSERT INTO etymon_tag(etymon_id, tag) VALUES (101, 'topography');
+        -- wyrd-bfv1: dashboard restricts to generator-eligible etymons
+        -- (cited + 1-hop descent + lemma + fantasy). Tag-coverage
+        -- counts only eligible etymons, so cite both klingon entries
+        -- to make them eligible and verify the lex-side reading.
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (100, 'skeat_1901');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (101, 'skeat_1901');
         """
     )
     bundle = _fixture_bundle()
@@ -1369,6 +1479,9 @@ def test_language_scorecard_dataclass_carries_required_fields() -> None:
         "language",
         "total_etymons",
         "total_lemmas",
+        # A. eligible-set restriction (wyrd-bfv1)
+        "eligible_etymons",
+        "eligible_lemmas",
         "promotion_threshold",
         "promotion_eligible",
         "avg_witnesses",

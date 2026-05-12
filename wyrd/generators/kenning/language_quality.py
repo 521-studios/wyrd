@@ -195,13 +195,24 @@ class LanguageScorecard:
     so JSON snapshots stay self-explanatory."""
 
     language: str
-    # A. Corpus depth
+    # A. Corpus depth (raw + generator-eligible — wyrd-bfv1)
+    #
+    # ``total_etymons`` / ``total_lemmas`` are the raw DB-side counts
+    # (dominated by the wyrd-dxu2 Kaikki wiktextract ingest on
+    # modern-english — 1.4M rows that are mostly common-vocabulary
+    # mining material the kenning generator never uses).
+    # ``eligible_etymons`` / ``eligible_lemmas`` restrict to the
+    # generator-eligible set (cited + 1-hop descent + lemma rollup +
+    # fantasy-tagged) and drive every coverage-rate calculation. See
+    # ``populate_eligible_etymon_table`` for the eligibility definition.
     total_etymons: int
     total_lemmas: int
-    promotion_threshold: int
-    promotion_eligible: int
-    avg_witnesses: float
-    source_count: int
+    eligible_etymons: int = 0
+    eligible_lemmas: int = 0
+    promotion_threshold: int = 0
+    promotion_eligible: int = 0
+    avg_witnesses: float = 0.0
+    source_count: int = 0
     # B. Bundle representation
     bundle_sibling: str | None = None
     bundle_word_count: int = 0
@@ -607,6 +618,145 @@ def _bundle_tag_coverage_for_sibling(
 # --- per-language metric computation -------------------------------------
 
 
+def populate_eligible_etymon_table(
+    conn: sqlite3.Connection,
+    *,
+    restrict_to_generator_eligible: bool = True,
+) -> int:
+    """Create (or recreate) a TEMP TABLE ``eligible_etymon`` that the
+    per-language metric helpers JOIN against to filter their numerators
+    and denominators (wyrd-bfv1).
+
+    Generator-eligible etymon = any of:
+
+    1. Has at least one row in ``etymon_citation`` (any source — rando-
+       port grandfather seeds + scholar place-name attestations).
+    2. Is a 1-hop descent-graph neighbor of a cited etymon (the
+       ``back form`` or ``forward form`` of a cited word — one era
+       step more eldritch or one era step more modern). Only the
+       ``etymon_descent`` parent/child edges are traversed; cognate
+       cluster mates (``etymon.cognate_id``) are NOT included since
+       they're cross-language sibling forms, not era progressions.
+    3. ``lemma_id`` points to an etymon already in (1) or (2) — within-
+       language inflection rollup.
+    4. Tagged ``fantasy`` / ``monster`` / ``creature`` in
+       ``etymon_tag`` — the explicit fiction-vocabulary exception.
+
+    Pre-wyrd-bfv1 the dashboard divided every coverage metric by the
+    raw etymon count, which was denominator-collapsed by the wyrd-dxu2
+    Kaikki wiktextract ingest (1.4M modern-english entries, mostly
+    common vocabulary the kenning generator never uses). Restricting
+    to the eligible set yields the operator-actionable signal:
+    'of the words the generator could actually use, how many have
+    inflection / IPA / variants / etc.'.
+
+    With ``restrict_to_generator_eligible=False`` the table is
+    populated with every etymon ID — useful for diagnostic runs or
+    tests that need to bypass the eligibility gate without modifying
+    the helpers. Returns the row count for caller logging.
+    """
+    conn.executescript("DROP TABLE IF EXISTS eligible_etymon;")
+    if not restrict_to_generator_eligible:
+        conn.executescript(
+            """
+            CREATE TEMP TABLE eligible_etymon (id INTEGER PRIMARY KEY);
+            INSERT INTO eligible_etymon (id) SELECT id FROM etymon;
+            """
+        )
+        return conn.execute("SELECT COUNT(*) FROM eligible_etymon").fetchone()[0]
+
+    # Detect optional tables — minimal test fixtures may not include
+    # etymon_tag / etymon_descent / etymon_citation. Skip those branches
+    # gracefully when they're absent rather than crashing.
+    existing = {
+        r[0]
+        for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' "
+            "AND name IN ('etymon_citation', 'etymon_descent', 'etymon_tag')"
+        )
+    }
+    has_citation = "etymon_citation" in existing
+    has_descent = "etymon_descent" in existing
+    has_tag = "etymon_tag" in existing
+
+    conn.executescript("CREATE TEMP TABLE eligible_etymon (id INTEGER PRIMARY KEY);")
+
+    if has_citation:
+        # (1) directly cited etymons (rando-port + scholar). After this
+        # the eligible_etymon table carries the seed; subsequent steps
+        # read from it instead of re-querying etymon_citation.
+        conn.execute(
+            "INSERT OR IGNORE INTO eligible_etymon (id) "
+            "SELECT DISTINCT etymon_id FROM etymon_citation "
+            "WHERE etymon_id IS NOT NULL"
+        )
+        if has_descent:
+            # (2) 1-hop descent parents + children of the cited seed.
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO eligible_etymon (id)
+                SELECT DISTINCT id FROM (
+                    SELECT ed.parent_id AS id FROM etymon_descent ed
+                     WHERE ed.child_id IN (SELECT id FROM eligible_etymon)
+                       AND ed.parent_id IS NOT NULL
+                    UNION
+                    SELECT ed.child_id AS id FROM etymon_descent ed
+                     WHERE ed.parent_id IN (SELECT id FROM eligible_etymon)
+                       AND ed.child_id IS NOT NULL
+                )
+                """
+            )
+    if has_tag:
+        # (3) fantasy / monster / creature tagged. Run BEFORE the
+        # lemma rollup so inflected children of fantasy-tagged
+        # lemmas (and the lemma of fantasy-tagged inflections) also
+        # ride along — otherwise tag-only-eligible 'Orc' wouldn't
+        # bring 'Orcs' into the eligible set.
+        conn.execute(
+            "INSERT OR IGNORE INTO eligible_etymon (id) "
+            "SELECT etymon_id FROM etymon_tag "
+            "WHERE tag IN ('fantasy', 'monster', 'creature')"
+        )
+    # (4) Lemma rollup: BOTH directions.
+    #   (4a) Upward — promote the lemma of any eligible inflected
+    #        form. Citations on the inflected form (e.g. ``cotum``)
+    #        should make their base lemma (``cot``) eligible too;
+    #        otherwise lemma-based metrics like D undercount
+    #        because the base form isn't in the eligible set.
+    #   (4b) Downward — inflected children of an eligible lemma
+    #        ride along (the within-language inflection
+    #        inheritance the inflection-coverage metric counts).
+    # Order matters: 4a populates more lemmas first so 4b picks
+    # up their inflected children in a single pass.
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO eligible_etymon (id)
+        SELECT e.lemma_id FROM etymon e
+         WHERE e.id IN (SELECT id FROM eligible_etymon)
+           AND e.lemma_id IS NOT NULL
+        """
+    )
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO eligible_etymon (id)
+        SELECT e.id FROM etymon e
+         WHERE e.lemma_id IN (SELECT id FROM eligible_etymon)
+        """
+    )
+    return conn.execute("SELECT COUNT(*) FROM eligible_etymon").fetchone()[0]
+
+
+def _ensure_eligible_etymon_table(conn: sqlite3.Connection) -> None:
+    """Best-effort eligibility-table guard. If the caller hasn't
+    populated ``eligible_etymon`` already, populate it now with the
+    default generator-eligible set. Idempotent — safe to call from
+    every helper, but compute_scorecard fronts it for efficiency."""
+    try:
+        conn.execute("SELECT 1 FROM eligible_etymon LIMIT 1").fetchone()
+    except sqlite3.OperationalError:
+        populate_eligible_etymon_table(conn)
+
+
 def _lexicon_tag_coverage(
     conn: sqlite3.Connection,
     language: str,
@@ -623,11 +773,17 @@ def _lexicon_tag_coverage(
       hits per reference tag.
     - ``hits``: count of reference tags with ≥1 etymon (the M of M/N).
     """
+    _ensure_eligible_etymon_table(conn)
+    # wyrd-bfv1: INNER JOIN against eligible_etymon (much smaller than
+    # the etymon table for languages with bulk wiktextract ingest) lets
+    # SQLite drive from the small side. Replaces an EXISTS subquery
+    # that was scanning the etymon table for each row.
     tagged_total = conn.execute(
         """
         SELECT COUNT(DISTINCT et.etymon_id)
           FROM etymon_tag et
           JOIN etymon e ON e.id = et.etymon_id
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
         """,
@@ -641,6 +797,7 @@ def _lexicon_tag_coverage(
             SELECT et.tag, COUNT(DISTINCT et.etymon_id)
               FROM etymon_tag et
               JOIN etymon e ON e.id = et.etymon_id
+              JOIN eligible_etymon ee ON ee.id = e.id
              WHERE e.language = ?
                AND e.merged_into_id IS NULL
                AND et.tag IN ({placeholders})
@@ -659,7 +816,18 @@ def _lexicon_tag_coverage(
 
 
 def _corpus_depth(conn: sqlite3.Connection, language: str, threshold: int) -> dict[str, Any]:
-    """Metric A. Counts off the etymon table + etymon_consensus view."""
+    """Metric A. Raw + generator-eligible corpus counts.
+
+    Returns both:
+    * ``total_etymons`` / ``total_lemmas`` — raw counts off the etymon
+      table (DB-depth signal, dominated by the wyrd-dxu2 Kaikki
+      wiktextract ingest on modern-english).
+    * ``eligible_etymons`` / ``eligible_lemmas`` — restricted to the
+      generator-eligible set (wyrd-bfv1). The eligible figures drive
+      every coverage percentage so the operator sees 'of the words
+      the generator could use, what % have IPA / inflection / etc.'.
+    """
+    _ensure_eligible_etymon_table(conn)
     total_etymons = conn.execute(
         "SELECT COUNT(*) FROM etymon WHERE language = ? AND merged_into_id IS NULL",
         (language,),
@@ -670,6 +838,25 @@ def _corpus_depth(conn: sqlite3.Connection, language: str, threshold: int) -> di
          WHERE language = ?
            AND merged_into_id IS NULL
            AND lemma_id IS NULL
+        """,
+        (language,),
+    ).fetchone()[0]
+    eligible_etymons = conn.execute(
+        """
+        SELECT COUNT(*) FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
+         WHERE e.language = ?
+           AND e.merged_into_id IS NULL
+        """,
+        (language,),
+    ).fetchone()[0]
+    eligible_lemmas = conn.execute(
+        """
+        SELECT COUNT(*) FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
+         WHERE e.language = ?
+           AND e.merged_into_id IS NULL
+           AND e.lemma_id IS NULL
         """,
         (language,),
     ).fetchone()[0]
@@ -695,6 +882,8 @@ def _corpus_depth(conn: sqlite3.Connection, language: str, threshold: int) -> di
     return {
         "total_etymons": total_etymons,
         "total_lemmas": total_lemmas,
+        "eligible_etymons": eligible_etymons,
+        "eligible_lemmas": eligible_lemmas,
         "promotion_threshold": threshold,
         "promotion_eligible": promotion_eligible,
         "avg_witnesses": round(avg_witnesses, 3),
@@ -703,12 +892,19 @@ def _corpus_depth(conn: sqlite3.Connection, language: str, threshold: int) -> di
 
 
 def _inflection_coverage(conn: sqlite3.Connection, language: str) -> dict[str, Any]:
-    """Metric D. Lemmas with linked inflected children + distinct labels."""
+    """Metric D. Lemmas with linked inflected children + distinct labels.
+
+    Both the numerator (lemmas with children) and denominator (eligible
+    lemmas, computed in ``_corpus_depth``) restrict to the generator-
+    eligible set per wyrd-bfv1.
+    """
+    _ensure_eligible_etymon_table(conn)
     # Lemmas (etymon.lemma_id IS NULL & inflection IS NULL) where another
     # etymon links lemma_id back to this one.
     lemmas_with_children = conn.execute(
         """
         SELECT COUNT(*) FROM etymon parent
+          JOIN eligible_etymon ee ON ee.id = parent.id
          WHERE parent.language = ?
            AND parent.merged_into_id IS NULL
            AND parent.lemma_id IS NULL
@@ -723,11 +919,12 @@ def _inflection_coverage(conn: sqlite3.Connection, language: str) -> dict[str, A
     ).fetchone()[0]
     distinct_labels = conn.execute(
         """
-        SELECT COUNT(DISTINCT inflection)
-          FROM etymon
-         WHERE language = ?
-           AND merged_into_id IS NULL
-           AND inflection IS NOT NULL
+        SELECT COUNT(DISTINCT e.inflection)
+          FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
+         WHERE e.language = ?
+           AND e.merged_into_id IS NULL
+           AND e.inflection IS NOT NULL
         """,
         (language,),
     ).fetchone()[0]
@@ -738,12 +935,15 @@ def _inflection_coverage(conn: sqlite3.Connection, language: str) -> dict[str, A
 
 
 def _variant_coverage(conn: sqlite3.Connection, language: str) -> int:
-    """Metric E. Etymons with at least one matched_form != canonical_form."""
+    """Metric E. Etymons with at least one matched_form != canonical_form.
+    Restricted to the generator-eligible set per wyrd-bfv1."""
+    _ensure_eligible_etymon_table(conn)
     return conn.execute(
         """
         SELECT COUNT(DISTINCT etm.etymon_id)
           FROM etymon_text_match etm
           JOIN etymon e ON e.id = etm.etymon_id
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
            AND etm.matched_form != e.canonical_form
@@ -753,7 +953,9 @@ def _variant_coverage(conn: sqlite3.Connection, language: str) -> int:
 
 
 def _era_reflex_coverage(conn: sqlite3.Connection, language: str) -> dict[str, Any]:
-    """Metric F. Tier 1 / 2-fwd / 2-back / 3 counts per the chain."""
+    """Metric F. Tier 1 / 2-fwd / 2-back / 3 counts per the chain.
+    All counts restricted to the generator-eligible set per wyrd-bfv1."""
+    _ensure_eligible_etymon_table(conn)
     chain = ERA_CHAINS.get(language, {})
     older = chain.get("older", [])
     younger = chain.get("younger", [])
@@ -765,6 +967,7 @@ def _era_reflex_coverage(conn: sqlite3.Connection, language: str) -> dict[str, A
         """
         SELECT COUNT(*)
           FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
           JOIN etymon mate ON mate.id = e.cognate_id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
@@ -783,6 +986,7 @@ def _era_reflex_coverage(conn: sqlite3.Connection, language: str) -> dict[str, A
             SELECT COUNT(DISTINCT ed.parent_id)
               FROM etymon_descent ed
               JOIN etymon parent ON parent.id = ed.parent_id
+              JOIN eligible_etymon ee ON ee.id = parent.id
               JOIN etymon child ON child.id = ed.child_id
              WHERE parent.language = ?
                AND parent.merged_into_id IS NULL
@@ -803,6 +1007,7 @@ def _era_reflex_coverage(conn: sqlite3.Connection, language: str) -> dict[str, A
               FROM etymon_descent ed
               JOIN etymon parent ON parent.id = ed.parent_id
               JOIN etymon child ON child.id = ed.child_id
+              JOIN eligible_etymon ee ON ee.id = child.id
              WHERE child.language = ?
                AND child.merged_into_id IS NULL
                AND parent.language IN ({placeholders})
@@ -818,6 +1023,7 @@ def _era_reflex_coverage(conn: sqlite3.Connection, language: str) -> dict[str, A
         SELECT COUNT(DISTINCT pf.etymon_id)
           FROM etymon_period_form pf
           JOIN etymon e ON e.id = pf.etymon_id
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
         """,
@@ -829,6 +1035,7 @@ def _era_reflex_coverage(conn: sqlite3.Connection, language: str) -> dict[str, A
         f"""
         SELECT COUNT(DISTINCT e.id)
           FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
            AND (
@@ -870,25 +1077,34 @@ def _era_reflex_coverage(conn: sqlite3.Connection, language: str) -> dict[str, A
 
 
 def _stratum_coverage(conn: sqlite3.Connection, language: str) -> int:
-    """Metric G. Etymons with non-NULL stratum (D32 classifier output)."""
+    """Metric G. Etymons with non-NULL stratum (D32 classifier output).
+    Restricted to the generator-eligible set per wyrd-bfv1."""
+    _ensure_eligible_etymon_table(conn)
     return conn.execute(
         """
-        SELECT COUNT(*) FROM etymon
-         WHERE language = ?
-           AND merged_into_id IS NULL
-           AND stratum IS NOT NULL
+        SELECT COUNT(*) FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
+         WHERE e.language = ?
+           AND e.merged_into_id IS NULL
+           AND e.stratum IS NOT NULL
         """,
         (language,),
     ).fetchone()[0]
 
 
 def _citation_depth(conn: sqlite3.Connection, language: str) -> dict[str, Any]:
-    """Metric I. Etymons with ≥1 citation + average citations per etymon."""
+    """Metric I. Etymons with ≥1 citation + average citations per etymon.
+    Restricted to the generator-eligible set per wyrd-bfv1 — note that
+    by construction every cited etymon IS eligible (cited ⊆ eligible),
+    so the restriction primarily affects the denominator at the
+    scorecard level rather than the numerator here."""
+    _ensure_eligible_etymon_table(conn)
     cited_etymons = conn.execute(
         """
         SELECT COUNT(DISTINCT c.etymon_id)
           FROM etymon_citation c
           JOIN etymon e ON e.id = c.etymon_id
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
         """,
@@ -899,6 +1115,7 @@ def _citation_depth(conn: sqlite3.Connection, language: str) -> dict[str, Any]:
         SELECT COUNT(*)
           FROM etymon_citation c
           JOIN etymon e ON e.id = c.etymon_id
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
         """,
@@ -911,19 +1128,22 @@ def _citation_depth(conn: sqlite3.Connection, language: str) -> dict[str, Any]:
 
 
 def _lexicon_ipa_coverage(conn: sqlite3.Connection, language: str) -> int:
-    """Metric H (lexicon side). Count of etymons in this language with
-    non-null ``pronunciation_ipa``. Excludes merged-away rows (consensus
-    view convention). The DB column is populated by
-    ``wiktextract_ingester._process_entry`` and (post-wyrd-69s5)
-    ``wiktextract_corpus_miner._write_one``; absent on languages
-    whose wiktextract slice doesn't carry ``sounds`` arrays."""
+    """Metric H (lexicon side). Count of eligible etymons in this language
+    with non-null ``pronunciation_ipa``. Excludes merged-away rows
+    (consensus view convention) AND non-eligible rows (per wyrd-bfv1).
+    The DB column is populated by ``wiktextract_ingester._process_entry``
+    and (post-wyrd-69s5) ``wiktextract_corpus_miner._write_one``;
+    absent on languages whose wiktextract slice doesn't carry
+    ``sounds`` arrays."""
+    _ensure_eligible_etymon_table(conn)
     return conn.execute(
         """
-        SELECT COUNT(*) FROM etymon
-         WHERE language = ?
-           AND merged_into_id IS NULL
-           AND pronunciation_ipa IS NOT NULL
-           AND pronunciation_ipa != ''
+        SELECT COUNT(*) FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
+         WHERE e.language = ?
+           AND e.merged_into_id IS NULL
+           AND e.pronunciation_ipa IS NOT NULL
+           AND e.pronunciation_ipa != ''
         """,
         (language,),
     ).fetchone()[0]
@@ -983,6 +1203,7 @@ def _tier4_phonology_coverage(
     ``progress_callback(done, total)`` lets the CLI surface progress
     on the long modern-english walk (~3 minutes for 1.4M etymons).
     """
+    _ensure_eligible_etymon_table(conn)
     chain_info = chain_for(language)
     if chain_info is None:
         return -1
@@ -1000,22 +1221,35 @@ def _tier4_phonology_coverage(
     if not other_stops:
         return -1
 
+    # wyrd-bfv1: walk only the eligible-etymon slice — the 1.4M
+    # ModE raw etymon table is dominated by general-vocabulary Kaikki
+    # wiktextract ingest the generator doesn't use. Restricting to
+    # eligible drops modern-english from 1.4M to ~22K (~60x speedup,
+    # ~3 min → ~3 s on the modern-english walk).
     total_in_lang = conn.execute(
-        "SELECT COUNT(*) FROM etymon WHERE language=? AND merged_into_id IS NULL",
+        """
+        SELECT COUNT(*) FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
+         WHERE e.language=? AND e.merged_into_id IS NULL
+        """,
         (language,),
     ).fetchone()[0]
     if total_in_lang == 0:
         return 0
 
     # Throttle to ~20 callback fires per language; clamp floor at 1 so
-    # tiny populations (old-welsh 456) still see a single tick rather
-    # than only the final emission. The CLI callback in turn throttles
-    # to ~10 stderr lines per language for human-paced output.
+    # tiny populations (old-welsh 80 eligible) still see a single tick
+    # rather than only the final emission. The CLI callback in turn
+    # throttles to ~10 stderr lines per language for human-paced output.
     progress_step = max(1, total_in_lang // 20)
     fires = 0
     seen = 0
     for (canonical_form,) in conn.execute(
-        "SELECT canonical_form FROM etymon WHERE language=? AND merged_into_id IS NULL",
+        """
+        SELECT e.canonical_form FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
+         WHERE e.language=? AND e.merged_into_id IS NULL
+        """,
         (language,),
     ):
         seen += 1
@@ -1229,10 +1463,14 @@ def compute_scorecard(
 
     total_lemmas = depth["total_lemmas"]
     total_etymons = depth["total_etymons"]
+    eligible_etymons = depth["eligible_etymons"]
+    eligible_lemmas = depth["eligible_lemmas"]
     return LanguageScorecard(
         language=language,
         total_etymons=total_etymons,
         total_lemmas=total_lemmas,
+        eligible_etymons=eligible_etymons,
+        eligible_lemmas=eligible_lemmas,
         promotion_threshold=threshold,
         promotion_eligible=depth["promotion_eligible"],
         avg_witnesses=depth["avg_witnesses"],
@@ -1247,12 +1485,18 @@ def compute_scorecard(
         bundle_tag_coverage=bundle_tag_counts,
         bundle_tag_hit_rate=round(bundle_tag_hit_rate, 3),
         lemmas_with_inflections=inflect["lemmas_with_inflections"],
+        # wyrd-bfv1: every lex-side rate uses the generator-eligible
+        # denominator instead of the raw count so the dashboard's
+        # coverage numbers reflect 'how useful is the useful slice'
+        # rather than being denominator-collapsed by Kaikki ingest.
         inflection_density=(
-            round(inflect["lemmas_with_inflections"] / total_lemmas, 4) if total_lemmas else 0.0
+            round(inflect["lemmas_with_inflections"] / eligible_lemmas, 4)
+            if eligible_lemmas
+            else 0.0
         ),
         distinct_inflection_labels=inflect["distinct_inflection_labels"],
         etymons_with_variants=variants,
-        variant_density=(round(variants / total_etymons, 4) if total_etymons else 0.0),
+        variant_density=(round(variants / eligible_etymons, 4) if eligible_etymons else 0.0),
         chain_older=era["chain_older"],
         chain_younger=era["chain_younger"],
         chain_known=era["chain_known"],
@@ -1263,14 +1507,14 @@ def compute_scorecard(
         tier4_phonology_count=tier4_count,
         any_reflex_count=era["any_reflex_count"],
         any_reflex_rate=(
-            round(era["any_reflex_count"] / total_etymons, 4) if total_etymons else 0.0
+            round(era["any_reflex_count"] / eligible_etymons, 4) if eligible_etymons else 0.0
         ),
         bundle_subjects_with_reflex=bundle_reflex,
         bundle_reflex_rate=(
             round(bundle_reflex / attestation["total"], 4) if attestation["total"] else 0.0
         ),
         stratum_classified=stratum,
-        stratum_density=(round(stratum / total_etymons, 4) if total_etymons else 0.0),
+        stratum_density=(round(stratum / eligible_etymons, 4) if eligible_etymons else 0.0),
         etymons_with_citations=citations["etymons_with_citations"],
         avg_citations=citations["avg_citations"],
         bundle_attestation_total=attestation["total"],
@@ -1284,7 +1528,7 @@ def compute_scorecard(
             else 0.0
         ),
         lexicon_etymons_with_ipa=lex_ipa,
-        lexicon_ipa_density=(round(lex_ipa / total_etymons, 4) if total_etymons else 0.0),
+        lexicon_ipa_density=(round(lex_ipa / eligible_etymons, 4) if eligible_etymons else 0.0),
         bundle_subjects_with_ipa=bundle_ipa,
         bundle_ipa_rate=(
             round(bundle_ipa / attestation["total"], 4) if attestation["total"] else 0.0
@@ -1405,8 +1649,12 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
     # --- summary table ---
     lines.append("## Summary")
     lines.append("")
+    # wyrd-bfv1: the "Etymons" column shows eligible / raw — eligible
+    # is the load-bearing number (denominator for every coverage %);
+    # raw is shown for DB-depth context. All coverage cells use the
+    # eligible denominator.
     lines.append(
-        "| Language | Etymons | Lemmas | Promo (≥thr) | Bundle | "
+        "| Language | Etymons (elig/raw) | Lemmas (elig/raw) | Promo (≥thr) | Bundle | "
         "Scholar atst | IPA (db / bundle) | Grandfather | Lex tag hit | "
         "Bundle tag hit | Inflect | Variants | Era reflex (lex / bundle) |"
     )
@@ -1418,11 +1666,17 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
         ref_n = len(c.reference_tags)
         lex_hit = f"{int(round(c.lexicon_tag_hit_rate * ref_n))}/{ref_n}"
         bundle_hit = f"{int(round(c.bundle_tag_hit_rate * ref_n))}/{ref_n}"
-        inflect = f"{c.lemmas_with_inflections} ({_format_pct(c.lemmas_with_inflections, c.total_lemmas)})"
-        variants = (
-            f"{c.etymons_with_variants} ({_format_pct(c.etymons_with_variants, c.total_etymons)})"
+        etymons_cell = f"{c.eligible_etymons}/{c.total_etymons}"
+        lemmas_cell = f"{c.eligible_lemmas}/{c.total_lemmas}"
+        inflect = (
+            f"{c.lemmas_with_inflections} "
+            f"({_format_pct(c.lemmas_with_inflections, c.eligible_lemmas)})"
         )
-        lex_era_pct = _format_pct(c.any_reflex_count, c.total_etymons)
+        variants = (
+            f"{c.etymons_with_variants} "
+            f"({_format_pct(c.etymons_with_variants, c.eligible_etymons)})"
+        )
+        lex_era_pct = _format_pct(c.any_reflex_count, c.eligible_etymons)
         if c.bundle_attestation_total == 0:
             bundle_era_pct = "n/a"
         else:
@@ -1443,8 +1697,9 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
         # IPA column: 'db_pct / bundle_pct' so the gap between the
         # two is visible at a glance. A high bundle / 0 db reading
         # flags pure cluster-mate inheritance (modern_english is the
-        # canonical example post-wyrd-69s5).
-        lex_ipa_pct = _format_pct(c.lexicon_etymons_with_ipa, c.total_etymons)
+        # canonical example post-wyrd-69s5). DB pct uses the eligible
+        # denominator (wyrd-bfv1).
+        lex_ipa_pct = _format_pct(c.lexicon_etymons_with_ipa, c.eligible_etymons)
         if c.bundle_attestation_total == 0:
             bundle_ipa_pct = "n/a"
         else:
@@ -1461,7 +1716,7 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
                 f"({_format_pct(c.rando_pure_grandfather_families, c.rando_total_cited_families)})"
             )
         lines.append(
-            f"| {c.language} | {c.total_etymons} | {c.total_lemmas} | {promo} | "
+            f"| {c.language} | {etymons_cell} | {lemmas_cell} | {promo} | "
             f"{bundle_cell} | {scholar_atst} | {ipa_cell} | {grandfather_cell} | "
             f"{lex_hit} | {bundle_hit} | {inflect} | {variants} | {era} |"
         )
@@ -1474,9 +1729,14 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
         lines.append(f"### {c.language}")
         lines.append(f"_chain: {_format_chain(c)}_")
         lines.append("")
+        # A. Corpus depth — eligible counts are the load-bearing
+        # operator signal; the raw counts are shown in parens for
+        # DB-depth context. The eligible denominator is what every
+        # coverage % below divides by (wyrd-bfv1).
         lines.append(
-            f"- **A. Corpus depth:** {c.total_etymons} etymons "
-            f"({c.total_lemmas} lemmas), "
+            f"- **A. Corpus depth:** {c.eligible_etymons} generator-eligible etymons "
+            f"({c.eligible_lemmas} eligible lemmas) of {c.total_etymons} raw etymons "
+            f"({c.total_lemmas} raw lemmas in DB); "
             f"{c.promotion_eligible} promotion-eligible at threshold ≥{c.promotion_threshold}, "
             f"avg {c.avg_witnesses} witnesses across {c.source_count} sources."
         )
@@ -1543,18 +1803,19 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
         # inheritance). The gap between the two is the diagnostic
         # signal — a 0% / 20% reading means the bundle's IPA on this
         # language is entirely inherited from cluster mates.
-        ipa_db_pct = _format_pct(c.lexicon_etymons_with_ipa, c.total_etymons)
+        # Lex-side IPA % uses eligible denominator (wyrd-bfv1).
+        ipa_db_pct = _format_pct(c.lexicon_etymons_with_ipa, c.eligible_etymons)
         if c.bundle_attestation_total == 0:
             ipa_line = (
                 f"- **H. Pronunciation coverage:** lexicon "
-                f"{c.lexicon_etymons_with_ipa}/{c.total_etymons} ({ipa_db_pct}); "
+                f"{c.lexicon_etymons_with_ipa}/{c.eligible_etymons} ({ipa_db_pct}); "
                 f"bundle n/a — no bundle subjects for this language."
             )
         else:
             ipa_bundle_pct = _format_pct(c.bundle_subjects_with_ipa, c.bundle_attestation_total)
             ipa_line = (
                 f"- **H. Pronunciation coverage:** lexicon "
-                f"{c.lexicon_etymons_with_ipa}/{c.total_etymons} ({ipa_db_pct}); "
+                f"{c.lexicon_etymons_with_ipa}/{c.eligible_etymons} ({ipa_db_pct}); "
                 f"bundle {c.bundle_subjects_with_ipa}/{c.bundle_attestation_total} "
                 f"({ipa_bundle_pct})."
             )
@@ -1573,8 +1834,8 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
         lex_miss_str = ", ".join(lex_missing) if lex_missing else "none"
         lines.append(
             f"- **C. Semantic-tag coverage (lexicon):** {c.lexicon_tagged_etymons}/"
-            f"{c.total_etymons} etymons "
-            f"({_format_pct(c.lexicon_tagged_etymons, c.total_etymons)}) "
+            f"{c.eligible_etymons} eligible etymons "
+            f"({_format_pct(c.lexicon_tagged_etymons, c.eligible_etymons)}) "
             f"carry ≥1 tag. Reference-tag hits: {lex_hit}/{len(c.reference_tags)} "
             f"({_format_pct(lex_hit, len(c.reference_tags))}). Missing: {lex_miss_str}."
         )
@@ -1592,13 +1853,13 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
             )
         lines.append(bundle_tag_line)
         lines.append(
-            f"- **D. Inflection coverage:** {c.lemmas_with_inflections}/{c.total_lemmas} "
-            f"lemmas ({_format_pct(c.lemmas_with_inflections, c.total_lemmas)}) "
+            f"- **D. Inflection coverage:** {c.lemmas_with_inflections}/{c.eligible_lemmas} "
+            f"eligible lemmas ({_format_pct(c.lemmas_with_inflections, c.eligible_lemmas)}) "
             f"with linked inflections; {c.distinct_inflection_labels} distinct case labels."
         )
         lines.append(
-            f"- **E. Spelling-variant coverage:** {c.etymons_with_variants}/{c.total_etymons} "
-            f"etymons ({_format_pct(c.etymons_with_variants, c.total_etymons)})."
+            f"- **E. Spelling-variant coverage:** {c.etymons_with_variants}/{c.eligible_etymons} "
+            f"eligible etymons ({_format_pct(c.etymons_with_variants, c.eligible_etymons)})."
         )
         # F. era-reflex
         forward_label = f"{c.tier2_forward_count}" if c.chain_younger else "n/a (terminus-forward)"
@@ -1621,7 +1882,7 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
         else:
             tier4_label = (
                 f"{c.tier4_phonology_count} "
-                f"({_format_pct(c.tier4_phonology_count, c.total_etymons)})"
+                f"({_format_pct(c.tier4_phonology_count, c.eligible_etymons)})"
             )
         lines.append(
             f"- **F. Era-reflex coverage:** Tier 1 cognate {c.tier1_cognate_count}, "
@@ -1629,17 +1890,17 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
             f"Tier 3 period-form {c.tier3_period_form_count}, "
             f"Tier 4 phonology {tier4_label}; "
             f"ANY reflex {c.any_reflex_count} "
-            f"({_format_pct(c.any_reflex_count, c.total_etymons)}). "
+            f"({_format_pct(c.any_reflex_count, c.eligible_etymons)}). "
             f"Bundle subjects with reflex stop targeting this language: "
             f"{bundle_reflex_detail}."
         )
         lines.append(
-            f"- **G. Stratum coverage:** {c.stratum_classified}/{c.total_etymons} "
-            f"({_format_pct(c.stratum_classified, c.total_etymons)})."
+            f"- **G. Stratum coverage:** {c.stratum_classified}/{c.eligible_etymons} "
+            f"({_format_pct(c.stratum_classified, c.eligible_etymons)})."
         )
         lines.append(
-            f"- **I. Citation depth:** {c.etymons_with_citations}/{c.total_etymons} "
-            f"({_format_pct(c.etymons_with_citations, c.total_etymons)}) cited; "
+            f"- **I. Citation depth:** {c.etymons_with_citations}/{c.eligible_etymons} "
+            f"({_format_pct(c.etymons_with_citations, c.eligible_etymons)}) cited; "
             f"avg {c.avg_citations} citations per cited etymon."
         )
         lines.append("")
