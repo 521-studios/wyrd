@@ -2080,9 +2080,13 @@ def lexicon_ingest_domesday(
     See ``domesday_ingester.DOMESDAY_SOURCE_NOTES`` for the full
     attribution recorded in the ``source`` table.
     """
+    from urllib.parse import quote
+
     from wyrd.generators.kenning.domesday_ingester import ingest_domesday
 
-    db_uri = f"file:{db_path}?mode={'rw' if apply_changes else 'ro'}"
+    # URL-quote the path so spaces / reserved chars (?, #) in
+    # operator-supplied paths don't get parsed as URI components.
+    db_uri = f"file:{quote(str(db_path.absolute()))}?mode={'rw' if apply_changes else 'ro'}"
     conn = sqlite3.connect(db_uri, uri=True)
     conn.row_factory = sqlite3.Row
 

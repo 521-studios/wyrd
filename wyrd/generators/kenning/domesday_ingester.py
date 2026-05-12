@@ -231,13 +231,17 @@ def _ingest_from_tables(
     # Pre-populate the attestation existence index so dry-run can
     # also report accurate attestation_inserted vs _existing counts.
     # Keyed by (toponym_id, form, date_year, source_doc) — same shape
-    # as the apply path's existence query, but cached once.
+    # as the apply path's existence query, but cached once. NULL
+    # source_doc values fall back to DOMESDAY_SOURCE_ID so the index
+    # matches what the loop computes for citation-less rows
+    # (otherwise NULL-source_doc DB rows would dedup-miss and produce
+    # duplicate inserts).
     attestation_index: set[tuple[int, str, int, str]] = set()
     for r in conn.execute(
         "SELECT toponym_id, form, date_year, source_doc "
         "FROM toponym_attestation WHERE date_year = 1086"
     ):
-        attestation_index.add((r[0], r[1], r[2] or 0, r[3] or ""))
+        attestation_index.add((r[0], r[1], r[2] or 0, r[3] or DOMESDAY_SOURCE_ID))
 
     n_pf = len(next(iter(placeforms.values()))) if placeforms else 0
     progress_step = max(1, n_pf // 20)
