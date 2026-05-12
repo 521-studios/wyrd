@@ -679,10 +679,12 @@ def populate_eligible_etymon_table(
 
     ``source_filter`` and ``tag_filter`` are mutually exclusive
     in the CLI surface — each defines a different seed shape and
-    composing them would muddy the slice semantics. The function
-    accepts both for testing flexibility; callers passing both get
-    the union (cited-by-source OR tagged-with-tag), which the
-    descent + lemma rollup walks from.
+    composing them would muddy the slice semantics. At the function
+    level, passing both flips OFF both seed steps (no cited rows,
+    no fantasy rows), leaving only the descent + lemma rollup
+    sources empty. The CLI raises ``UsageError`` on the combination
+    so this empty-seed degenerate case isn't reachable through the
+    operator surface.
 
     Returns the row count for caller logging.
     """

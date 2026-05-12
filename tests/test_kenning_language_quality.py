@@ -770,6 +770,81 @@ def test_populate_eligible_etymon_table_tag_filter_restricts_seed() -> None:
     assert 1 not in ids  # cot — cited but not fantasy-related
 
 
+def test_populate_eligible_etymon_table_source_filter_walks_descent_from_seed() -> None:
+    """wyrd-5ecx promise: descent + lemma rollup STILL apply from the
+    restricted seed, so the slice view captures the era-progression
+    context of the seeded words — not just the raw citations.
+
+    Fixture: cot (OE, cited by skeat_1901 + mawer_1920 + charles_1992)
+    is parent of cote (ME, id=10) via etymon_descent. Filtering to
+    ``source_filter='skeat_1901'`` should include the OE seed AND
+    its 1-hop ME descent child cote, even though cote isn't itself
+    cited by skeat_1901."""
+    conn = _build_fixture_db()
+    populate_eligible_etymon_table(conn, source_filter="skeat_1901")
+    ids = {r[0] for r in conn.execute("SELECT id FROM eligible_etymon")}
+    assert 1 in ids  # cot — cited by skeat_1901
+    assert 10 in ids  # cote — 1-hop descent child of cot
+    assert 11 in ids  # tonn — 1-hop descent child of tun (also cited)
+
+
+def test_compute_report_propagates_filter_to_dataclass_and_markdown() -> None:
+    """wyrd-5ecx: ``compute_report`` stores the active filter in the
+    returned ``LanguageQualityReport`` and the markdown formatter
+    surfaces it in the header. Operator-visible contract — pin both
+    the dataclass roundtrip AND the rendered string."""
+    conn = _build_fixture_db()
+    bundle = _fixture_bundle()
+    report = compute_report(
+        conn,
+        bundle,
+        languages=["old-english"],
+        reference_tags=list(FALLBACK_REFERENCE_TAGS[:3]),
+        source_filter="skeat_1901",
+    )
+    assert report.source_filter == "skeat_1901"
+    assert report.tag_filter is None
+    md = report_to_markdown(report)
+    assert "Slice filter: source = `skeat_1901`" in md
+
+
+def test_compute_report_no_filter_omits_header_line() -> None:
+    """When no filter is active, the markdown header MUST NOT emit
+    the slice-filter line. Pin the absence so a future refactor that
+    always renders the line (with None / 'all') doesn't ship."""
+    conn = _build_fixture_db()
+    bundle = _fixture_bundle()
+    report = compute_report(
+        conn,
+        bundle,
+        languages=["old-english"],
+        reference_tags=list(FALLBACK_REFERENCE_TAGS[:3]),
+    )
+    assert report.source_filter is None
+    assert report.tag_filter is None
+    md = report_to_markdown(report)
+    assert "Slice filter:" not in md
+
+
+def test_cli_language_report_source_tag_mutually_exclusive() -> None:
+    """wyrd-5ecx CLI contract: ``--source X --tag Y`` raises a
+    UsageError. The two flags define different seed shapes and
+    composing them produces an empty-seed degenerate case (see
+    ``populate_eligible_etymon_table`` docstring). The CLI rejects
+    the combination so operators don't hit the empty case."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["lexicon", "language-report", "--source", "x", "--tag", "y"],
+    )
+    assert result.exit_code != 0
+    assert "mutually exclusive" in result.output.lower()
+
+
 def test_populate_eligible_etymon_table_handles_minimal_schema() -> None:
     """Defensive: minimal test fixtures may lack etymon_tag /
     etymon_descent / etymon_citation. The helper skips those branches
