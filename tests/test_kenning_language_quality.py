@@ -770,6 +770,33 @@ def test_populate_eligible_etymon_table_tag_filter_restricts_seed() -> None:
     assert 1 not in ids  # cot — cited but not fantasy-related
 
 
+def test_populate_eligible_etymon_table_both_filters_produces_union() -> None:
+    """wyrd-5ecx internal API contract: passing BOTH source_filter
+    and tag_filter produces the union of the two slices (cited by
+    source ∪ tagged with tag), then descent + lemma rollup walk from
+    the combined seed. The CLI rejects this combination, but the
+    function supports it for testing flexibility + future composite
+    consumers.
+
+    Fixture: cot (id=1) cited by skeat_1901; add an orc tagged
+    fantasy. Passing both filters should include BOTH."""
+    conn = _build_fixture_db()
+    conn.executescript(
+        """
+        INSERT INTO etymon(id, canonical_form, language) VALUES (400, 'orc', 'klingon');
+        INSERT INTO etymon_tag(etymon_id, tag) VALUES (400, 'fantasy');
+        """
+    )
+    populate_eligible_etymon_table(
+        conn,
+        source_filter="skeat_1901",
+        tag_filter="fantasy",
+    )
+    ids = {r[0] for r in conn.execute("SELECT id FROM eligible_etymon")}
+    assert 1 in ids  # cot — from source_filter
+    assert 400 in ids  # orc — from tag_filter
+
+
 def test_populate_eligible_etymon_table_source_filter_walks_descent_from_seed() -> None:
     """wyrd-5ecx promise: descent + lemma rollup STILL apply from the
     restricted seed, so the slice view captures the era-progression

@@ -677,14 +677,15 @@ def populate_eligible_etymon_table(
     skipped. Operator answers 'how is the fantasy slice doing on
     variant coverage?'.
 
-    ``source_filter`` and ``tag_filter`` are mutually exclusive
-    in the CLI surface — each defines a different seed shape and
-    composing them would muddy the slice semantics. At the function
-    level, passing both flips OFF both seed steps (no cited rows,
-    no fantasy rows), leaving only the descent + lemma rollup
-    sources empty. The CLI raises ``UsageError`` on the combination
-    so this empty-seed degenerate case isn't reachable through the
-    operator surface.
+    ``source_filter`` and ``tag_filter`` are mutually exclusive in
+    the CLI surface — composing them muddies the per-row "what slice
+    am I looking at?" semantic for an operator-facing dashboard.
+    At the function level, passing both is supported as a union
+    (cited-by-source ∪ tagged-with-tag, with descent + lemma rollup
+    walking from the combined seed) — useful for testing flexibility
+    and for any future internal caller that wants a composite slice.
+    The CLI raises ``UsageError`` on the combination so the operator
+    never has to think about union semantics.
 
     Returns the row count for caller logging.
     """
@@ -714,12 +715,17 @@ def populate_eligible_etymon_table(
 
     conn.executescript("CREATE TEMP TABLE eligible_etymon (id INTEGER PRIMARY KEY);")
 
-    # Filter semantics: when a slice filter is active, ONLY that slice
-    # seeds the eligible set. Tag-filter skips the cited step; source-
-    # filter skips the unrestricted fantasy fallback. Both unset =
-    # original behavior (cited-any-source + fantasy/monster/creature).
-    include_cited = has_citation and tag_filter is None
-    include_fantasy = has_tag and source_filter is None
+    # Filter semantics:
+    #   * Both unset: cited (any source) + fantasy (any of the
+    #     fiction tag set) — default generator-eligible behavior.
+    #   * Only source_filter: cited-by-this-source seed; fantasy
+    #     step skipped (slice is the named source only).
+    #   * Only tag_filter: tagged-with-this-tag seed; cited step
+    #     skipped (slice is the named tag only).
+    #   * Both set (CLI rejects this; internal callers can still
+    #     pass both): union — cited-by-source PLUS tagged-with-tag.
+    include_cited = has_citation and (tag_filter is None or source_filter is not None)
+    include_fantasy = has_tag and (source_filter is None or tag_filter is not None)
 
     if include_cited:
         # (1) cited etymons. When source_filter is set, restrict to
