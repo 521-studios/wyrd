@@ -21,10 +21,8 @@ from wyrd.generators.kenning.jsonl_build import (
 )
 from wyrd.generators.kenning.jsonl_dump import (
     dump_all_sources,
-    dump_source_to_rows,
 )
 from wyrd.generators.kenning.jsonl_log import write_jsonl
-
 
 # ---------------------------------------------------------------------------
 # Fixture: schema matching the L2-touching slice + the build-target columns
@@ -651,8 +649,8 @@ def test_round_trip_dump_rebuild_dump(tmp_path: Path):
     assert files_a == files_b
 
     for fname in files_a:
-        rows_a = sorted((json.dumps(r, sort_keys=True) for r in _read_rows(dump_dir_a / fname)))
-        rows_b = sorted((json.dumps(r, sort_keys=True) for r in _read_rows(dump_dir_b / fname)))
+        rows_a = sorted(json.dumps(r, sort_keys=True) for r in _read_rows(dump_dir_a / fname))
+        rows_b = sorted(json.dumps(r, sort_keys=True) for r in _read_rows(dump_dir_b / fname))
         assert rows_a == rows_b, f"round-trip diff in {fname}"
 
 

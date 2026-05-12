@@ -59,7 +59,6 @@ from typing import Any
 
 from .jsonl_log import write_jsonl
 
-
 # Etymon columns that are L2-attributable facts. Order is significant
 # only for diff stability — the kernel doesn't care about field order.
 _ETYMON_L2_COLUMNS: tuple[str, ...] = (

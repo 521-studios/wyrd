@@ -54,7 +54,6 @@ from pathlib import Path
 from typing import Any
 
 from .jsonl_log import ReplayState, replay_file
-from .jsonl_dump import etymon_ref as _etymon_ref
 
 
 class BuildError(ValueError):
@@ -341,7 +340,7 @@ def build_from_jsonl(
             _merge_toponym(merged_toponyms.setdefault(ref, {}), payload)
 
     # ----- Pass 2: insert sources, etymons, toponyms; build FK maps.
-    for path, source_id, state in file_states:
+    for _path, source_id, state in file_states:
         _upsert_source(conn, source_id, state.keyed["source"][source_id])
         counts["source"] += 1
 

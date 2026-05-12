@@ -16,17 +16,14 @@ from wyrd.generators.kenning.jsonl_dump import (
     dump_all_sources,
     dump_source_to_file,
     dump_source_to_rows,
-    list_source_ids,
     etymon_ref,
+    list_source_ids,
     toponym_ref,
 )
 from wyrd.generators.kenning.jsonl_log import (
-    ReplayState,
-    read_jsonl,
     replay,
     replay_file,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixture helpers

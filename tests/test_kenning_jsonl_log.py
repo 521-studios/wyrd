@@ -34,7 +34,6 @@ from wyrd.generators.kenning.jsonl_log import (
     write_jsonl,
 )
 
-
 # ---------------------------------------------------------------------------
 # Canonical-state rows (no _op): seed the initial state
 # ---------------------------------------------------------------------------
