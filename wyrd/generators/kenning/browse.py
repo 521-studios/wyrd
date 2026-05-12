@@ -74,16 +74,24 @@ def fetch_etymon(conn: sqlite3.Connection, ref: str) -> dict[str, Any] | None:
     Returns a dict with the etymon's facts + joined glosses/tags +
     citations + descent edges + lemma family (inflected variants) +
     OCR-cluster siblings. ``None`` when no etymon matches.
+
+    Resolves the lemma-parent and OCR-merge-target refs in the main
+    query via two ``LEFT JOIN``s on the etymon table itself, sparing
+    the caller two follow-up round trips.
     """
     language, form = parse_etymon_ref(ref)
     row = conn.execute(
         """
-        SELECT id, canonical_form, language, modifier_type, position_pref, notes,
-               lemma_id, inflection, lemma_method, merged_into_id, cognate_id,
-               pronunciation_ipa, pronunciation_dialect, original_script,
-               transliteration, english_shaped, stratum
-          FROM etymon
-         WHERE language = ? AND canonical_form = ?
+        SELECT e.id, e.canonical_form, e.language, e.modifier_type, e.position_pref, e.notes,
+               e.lemma_id, e.inflection, e.lemma_method, e.merged_into_id, e.cognate_id,
+               e.pronunciation_ipa, e.pronunciation_dialect, e.original_script,
+               e.transliteration, e.english_shaped, e.stratum,
+               le.language AS lemma_language, le.canonical_form AS lemma_form,
+               me.language AS merged_into_language, me.canonical_form AS merged_into_form
+          FROM etymon e
+          LEFT JOIN etymon le ON le.id = e.lemma_id
+          LEFT JOIN etymon me ON me.id = e.merged_into_id
+         WHERE e.language = ? AND e.canonical_form = ?
         """,
         (language, form),
     ).fetchone()
@@ -174,23 +182,14 @@ def fetch_etymon(conn: sqlite3.Connection, ref: str) -> dict[str, Any] | None:
             (eid,),
         )
     ]
-    # Lemma parent (if this row is an inflection).
-    lemma_ref = None
-    if row["lemma_id"] is not None:
-        lr = conn.execute(
-            "SELECT language, canonical_form FROM etymon WHERE id=?", (row["lemma_id"],)
-        ).fetchone()
-        if lr is not None:
-            lemma_ref = f"{lr['language']}:{lr['canonical_form']}"
-    # OCR-merge target (if this row was tombstoned).
-    merged_into_ref = None
-    if row["merged_into_id"] is not None:
-        mr = conn.execute(
-            "SELECT language, canonical_form FROM etymon WHERE id=?",
-            (row["merged_into_id"],),
-        ).fetchone()
-        if mr is not None:
-            merged_into_ref = f"{mr['language']}:{mr['canonical_form']}"
+    # Lemma parent + OCR-merge target refs come from the LEFT JOINs
+    # in the main query — no follow-up round trips.
+    lemma_ref = f"{row['lemma_language']}:{row['lemma_form']}" if row["lemma_language"] else None
+    merged_into_ref = (
+        f"{row['merged_into_language']}:{row['merged_into_form']}"
+        if row["merged_into_language"]
+        else None
+    )
 
     return {
         "ref": ref,

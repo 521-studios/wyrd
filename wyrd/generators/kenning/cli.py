@@ -8,7 +8,7 @@ import sys
 import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import partial
@@ -2131,14 +2131,20 @@ def lexicon_browse() -> None:
     """
 
 
-def _open_lexicon_readonly(db_path: Path) -> sqlite3.Connection:
-    """Open the lexicon DB in read-only mode for browse subcommands."""
+@contextmanager
+def _readonly_lexicon(db_path: Path):
+    """Yield a read-only ``sqlite3.Connection`` for browse subcommands,
+    closing it on exit. Used as a context manager so the connection
+    can't leak when a command early-exits via ``raise SystemExit``."""
     from urllib.parse import quote
 
     db_uri = f"file:{quote(str(db_path.absolute()))}?mode=ro"
     conn = sqlite3.connect(db_uri, uri=True)
     conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 @lexicon_browse.command("etymon")
@@ -2157,11 +2163,8 @@ def lexicon_browse_etymon(ref: str, db_path: Path) -> None:
     """
     from wyrd.generators.kenning.browse import fetch_etymon, format_etymon
 
-    conn = _open_lexicon_readonly(db_path)
-    try:
+    with _readonly_lexicon(db_path) as conn:
         data = fetch_etymon(conn, ref)
-    finally:
-        conn.close()
 
     if data is None:
         click.echo(f"No etymon found for ref={ref!r}", err=True)
@@ -2194,8 +2197,7 @@ def lexicon_browse_toponym(query: str, db_path: Path) -> None:
     )
 
     name, region = parse_toponym_ref(query)
-    conn = _open_lexicon_readonly(db_path)
-    try:
+    with _readonly_lexicon(db_path) as conn:
         matches = fetch_toponyms_matching(conn, name, region)
         if not matches:
             click.echo(f"No toponym found for query={query!r}", err=True)
@@ -2204,8 +2206,6 @@ def lexicon_browse_toponym(query: str, db_path: Path) -> None:
             click.echo(format_toponym_list(matches))
             return
         data = fetch_toponym_detail(conn, matches[0]["id"])
-    finally:
-        conn.close()
     click.echo(format_toponym(data))
 
 
@@ -2233,8 +2233,7 @@ def lexicon_browse_decomposition(query: str, db_path: Path) -> None:
     )
 
     name, region = parse_toponym_ref(query)
-    conn = _open_lexicon_readonly(db_path)
-    try:
+    with _readonly_lexicon(db_path) as conn:
         matches = fetch_toponyms_matching(conn, name, region)
         if not matches:
             click.echo(f"No toponym found for query={query!r}", err=True)
@@ -2244,8 +2243,6 @@ def lexicon_browse_decomposition(query: str, db_path: Path) -> None:
             return
         decompositions = fetch_decompositions(conn, matches[0]["id"])
         match = matches[0]
-    finally:
-        conn.close()
     click.echo(format_decompositions(match["modern_name"], match["region"], decompositions))
 
 
@@ -2271,11 +2268,8 @@ def lexicon_browse_source(source_id: str, db_path: Path, list_toponyms: bool) ->
     """
     from wyrd.generators.kenning.browse import fetch_source, format_source
 
-    conn = _open_lexicon_readonly(db_path)
-    try:
+    with _readonly_lexicon(db_path) as conn:
         data = fetch_source(conn, source_id)
-    finally:
-        conn.close()
 
     if data is None:
         click.echo(f"No source found for id={source_id!r}", err=True)
