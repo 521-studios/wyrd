@@ -2205,6 +2205,60 @@ def lexicon_dump_jsonl(
         click.echo(f"  {sid:<40} {n:>6}", err=True)
 
 
+@lexicon.command("rebuild-from-jsonl")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+    help="Target SQLite path. WIPED if it exists.",
+)
+@click.option(
+    "--jsonl-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=Path("data/mining"),
+    show_default=True,
+    help="Directory of <source_id>.jsonl files to replay into the DB.",
+)
+def lexicon_rebuild_from_jsonl(db_path: Path, jsonl_dir: Path) -> None:
+    """Rebuild the lexicon SQLite from per-source JSONL — wyrd-f295.
+
+    Initializes a fresh schema at ``--db`` (wiping any existing DB at
+    that path), then replays every ``<source_id>.jsonl`` under
+    ``--jsonl-dir`` into the new SQLite.
+
+    Each L2 file must contain exactly one ``source`` canonical-state
+    row — its ``ref`` is the source_id for every list-type row in the
+    file. Etymons appearing in multiple files are merged: glosses + tags
+    are unioned; scalar fields follow last-write-wins by file order.
+
+    Does NOT re-run the wiktextract bulk ingest (L1 raw layer) or any
+    L3 derived enrichment passes (decompose, link-lemmas, etc.). Wrap
+    this command with those steps when rebuilding a full DB.
+    """
+    from wyrd.generators.kenning.jsonl_build import (
+        build_from_jsonl,
+        jsonl_paths_in,
+    )
+    from wyrd.generators.kenning.lexicon import init_schema
+
+    init_schema(db_path)
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    try:
+        paths = jsonl_paths_in(jsonl_dir)
+        counts = build_from_jsonl(conn, paths)
+    finally:
+        conn.close()
+
+    click.echo(f"Rebuilt {db_path} from {len(paths)} JSONL files", err=True)
+    click.echo("Inserted:", err=True)
+    for table, n in counts.items():
+        click.echo(f"  {table:<30} {n:>8}", err=True)
+
+
 @lexicon.command("compact-jsonl")
 @click.argument(
     "jsonl_path",

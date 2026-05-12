@@ -126,7 +126,13 @@ def _dump_source_row(conn: sqlite3.Connection, source_id: str) -> dict[str, Any]
 
 
 def _dump_cited_etymons(conn: sqlite3.Connection, source_id: str) -> Iterable[dict[str, Any]]:
-    """One ``etymon`` canonical-state row per etymon cited by source."""
+    """One ``etymon`` canonical-state row per etymon REFERENCED by this
+    source — whether via citation, descent edge, or etymology element.
+
+    Each source's JSONL file is self-contained: every etymon ref it
+    uses (in any list-type row) gets a corresponding canonical-state
+    etymon row in the same file. Build's cross-file merge unifies
+    duplicates across sources."""
     etymons = conn.execute(
         """
         SELECT DISTINCT e.id AS etymon_id, e.canonical_form, e.language,
@@ -134,11 +140,21 @@ def _dump_cited_etymons(conn: sqlite3.Connection, source_id: str) -> Iterable[di
                e.pronunciation_ipa, e.pronunciation_dialect,
                e.original_script, e.transliteration
           FROM etymon e
-          JOIN etymon_citation c ON c.etymon_id = e.id
-         WHERE c.source_id = ?
+         WHERE e.id IN (
+                SELECT etymon_id FROM etymon_citation WHERE source_id = ?
+                UNION
+                SELECT parent_id FROM etymon_descent WHERE source_id = ?
+                UNION
+                SELECT child_id FROM etymon_descent WHERE source_id = ?
+                UNION
+                SELECT el.etymon_id
+                  FROM toponym_etymology_element el
+                  JOIN toponym_etymology te ON te.id = el.toponym_etymology_id
+                 WHERE te.source_id = ?
+         )
          ORDER BY e.language, e.canonical_form
         """,
-        (source_id,),
+        (source_id, source_id, source_id, source_id),
     ).fetchall()
     for e in etymons:
         ref = etymon_ref(e["language"], e["canonical_form"])
