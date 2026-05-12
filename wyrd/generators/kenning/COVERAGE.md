@@ -537,6 +537,74 @@ runtime knob is engaged.
 
 
 
+### 2026-05-12 — wyrd-el93 (Open Domesday corpus ingest)
+
+Per user 2026-05-12: pulling the Domesday Book gives us four
+overlapping wins:
+
+1. **Toponym corpus expansion** — ~17K new English settlements
+   confirmed to exist in 1086, beyond the LLM-mined scholar
+   gazetteers (Mawer 1920, Ekwall 1922, etc.).
+2. **Rando-port validation signal** — when a 1086 Domesday vill
+   decomposes into rando-port morphemes, those morphemes are
+   validated as historically used. (The actual matcher pass to
+   compute this is a follow-up; the ingest lands the toponym data
+   that makes it possible.)
+3. **Period-form attestation backbone** — every Domesday entry is
+   a 1086 attestation; once the matcher cross-references morphemes,
+   the F-row Tier 3 (period-form) count for English rises
+   substantially.
+4. **attested_year=1086 timeline anchor** for the English chain.
+
+**Source**: Hull University's Open Domesday dataset (J.J.N. Palmer
+team), distributed as MS Access .mdb files at
+``digitalcollections.hull.ac.uk``. Licensed **CC-BY-NC-SA 4.0** —
+NC clause is compatible with wyrd's free + OSS posture
+(tip-jar / patreon doesn't constitute commercial use per CC's own
+FAQ; see ``bd memories wyrd-license-posture``).
+
+**Bundle posture**: raw Hull data is NOT redistributed in the
+shipped meanings.json. Only computational derivatives (toponym
+presence, etymon attribution signals) flow downstream. Keeps the
+bundle commerce-friendly for downstream consumers.
+
+**Ingest run** (Places MDB, ~4MB):
+
+| metric | value |
+|--------|------:|
+| PlaceForm rows walked | 20,458 |
+| Skipped (speculative/unknown identifications) | 599 |
+| Skipped (no county data) | 3 |
+| New toponym rows inserted | 17,186 |
+| Toponym rows already existed (from scholar ingests) | 124 |
+| New 1086 attestations | 19,818 |
+
+DB went from 4,783 → 21,969 toponym rows. 19,981 attestations now
+carry ``date_year=1086`` (of which 19,813 from Open Domesday with
+Phillimore-cite source_doc; remainder are scholar-cited Domesday
+references from earlier Mawer/Ekwall/etc. ingests).
+
+**Caveats**:
+
+- Hull's free data carries modern Vill names + OS coords + Phillimore
+  citation, but NOT the raw Latin Domesday spelling (that lives in
+  the copyrighted Phillimore paper volumes). The 1086 attestation
+  ``form`` column holds the modern name; the Latin original would
+  need a separate scan source.
+- Hull's dataset is heavily England-focused. Wales / Scotland /
+  Ireland get marginal coverage (Cumberland, Westmorland,
+  Monmouthshire, Flintshire entries are sparse).
+
+**Follow-up tickets (not in this PR)**:
+
+- Matcher pass: cross-reference Domesday vill names against the
+  morpheme corpus, persist results to ``toponym_decomposition``.
+  Surfaces the live-etymon signal the dashboard needs.
+- Dashboard "Live %" column showing what fraction of cited
+  etymons appear in at least one toponym decomposition.
+
+
+
 ### 2026-05-12 — wyrd-5ecx (dashboard slice filters: --source / --tag)
 
 Builds on wyrd-bfv1. Operators want to view the dashboard
