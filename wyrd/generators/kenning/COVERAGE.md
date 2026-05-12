@@ -547,13 +547,13 @@ phonology wasn't wired even though the bundle ships ~3,000
 1,643 OE + 389 OW + 329 ME, etc.).
 
 Root cause: Tier 4 isn't persisted in DB tables — it's synthesized
-on-demand by ``etymon_era_reflexes()`` via ``_phonology_rule_form()``.
+on-demand by ``etymon_era_reflexes()`` via ``phonology_rules.rule_form()``.
 The dashboard query was reading DB tables only.
 
 Fix: added ``_tier4_phonology_coverage()`` which walks every etymon
 in chain-eligible languages (English chain: OE / ME / EModE / ModE;
 Welsh chain: OW / ModW) and counts those whose ``canonical_form``
-produces a transformed reflex via ``_phonology_rule_form`` for at
+produces a transformed reflex via ``phonology_rules.rule_form`` for at
 least one other era in the chain. Full-population walk is slow on
 the modern-english 1.4M-etymon population (~3 minutes); guarded
 behind ``--tier4 / --no-tier4`` so operators can skip it during

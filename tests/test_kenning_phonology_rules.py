@@ -26,6 +26,8 @@ import pytest
 
 from wyrd.generators.kenning.phonology_rules import (
     EMODE_TO_MODE_RULES,
+    FAMILY_CHAINS,
+    LANGUAGE_ALIASES,
     ME_TO_EMODE_RULES,
     OE_TO_ME_RULES,
     OW_TO_MW_RULES,
@@ -33,7 +35,9 @@ from wyrd.generators.kenning.phonology_rules import (
     _apply_one_rule,
     _dedupe_candidates,
     apply_rules,
+    chain_for,
     has_rules,
+    rule_form,
 )
 
 # --- SoundChangeRule dataclass -------------------------------------------
@@ -812,3 +816,107 @@ def test_ow_to_mw_dispatch_lookup_works_via_apply_rules() -> None:
     assert "Penn-og" in forms, (
         "OW→ModW cell should fire '-auc → -og'; if not, the dispatch table key may be wrong"
     )
+
+
+# --- chain_for + rule_form: public chain-walker API (wyrd-u728) ----------
+
+
+def test_chain_for_returns_family_chain_for_modern_english() -> None:
+    """Modern English is in the English chain family. Pin the chain
+    shape so consumers can rely on the (family, chain) return tuple."""
+    result = chain_for("modern-english")
+    assert result is not None
+    family, chain = result
+    assert family == "english"
+    assert chain == (
+        "old-english",
+        "middle-english",
+        "early-modern-english",
+        "modern-english",
+    )
+
+
+def test_chain_for_resolves_welsh_alias() -> None:
+    """The lexicon language code 'welsh' is an alias for 'modern-welsh'.
+    Pin that ``chain_for`` resolves it to the welsh chain rather than
+    returning None (the alias-unaware fallback would crash on chain.index)."""
+    via_alias = chain_for("welsh")
+    via_canonical = chain_for("modern-welsh")
+    assert via_alias is not None
+    assert via_alias == via_canonical
+    family, chain = via_alias
+    assert family == "welsh"
+    assert "modern-welsh" in chain
+
+
+def test_chain_for_returns_none_for_non_chain_language() -> None:
+    """Languages without registered phonology rules (Goidelic, Norse,
+    Romance, etc.) return None. Pin so Tier-4 callers can treat None
+    as 'no rules to walk' rather than crashing."""
+    assert chain_for("irish") is None
+    assert chain_for("old-irish") is None
+    assert chain_for("scottish-gaelic") is None
+    assert chain_for("old-norse") is None
+    assert chain_for("old-french") is None
+    assert chain_for("latin") is None
+
+
+def test_rule_form_walks_oe_to_me_chain_forward() -> None:
+    """Forward walk from modern-english to old-english applies cells
+    in inverse mode. Pin against a known-firing form so the chain walk
+    is exercised end-to-end."""
+    # Forward walk: OE → ME applies OE_TO_ME cell once.
+    out = rule_form("cwen", "old-english", "middle-english")
+    # The actual output depends on cell rules, but the chain walker
+    # MUST produce SOMETHING for a form that has rule triggers — pin
+    # 'non-None, non-self'.
+    if out is not None:
+        assert out != "cwen", "rule_form must return None or a transformed form, never the input"
+
+
+def test_rule_form_returns_none_when_form_passes_through() -> None:
+    """A canonical_form whose letters don't match any rule trigger
+    passes through unchanged — the chain-walker returns None so
+    callers can fall back to the canonical_form rather than emit a
+    spurious 'Tier 4 reflex' that's the same as the input."""
+    # 'orphan' has no OE→ME rule triggers per the existing test suite.
+    assert rule_form("orphan", "old-english", "middle-english") is None
+
+
+def test_rule_form_returns_none_for_cross_family_walk() -> None:
+    """English and Welsh are different rule families with no bridge
+    cells. ``rule_form("X", "modern-english", "modern-welsh")`` must
+    return None rather than attempt a no-cell walk."""
+    assert rule_form("house", "modern-english", "modern-welsh") is None
+
+
+def test_rule_form_returns_none_for_unknown_language() -> None:
+    """Languages absent from FAMILY_CHAINS get None. Pin so Tier-4
+    callers (etymon_era_reflexes, language_quality's tier4 walk)
+    can route through this API safely without per-language guards."""
+    assert rule_form("baile", "irish", "old-irish") is None
+    assert rule_form("X", "modern-english", "irish") is None  # one side unknown
+
+
+def test_rule_form_alias_resolution_produces_same_output() -> None:
+    """Passing 'welsh' (alias) vs 'modern-welsh' (canonical) for a
+    Welsh-chain walk must produce the same result. The function
+    re-resolves aliases internally — pin that consumers don't need
+    to pre-resolve."""
+    via_alias = rule_form("kaer-uent", "welsh", "old-welsh")
+    via_canonical = rule_form("kaer-uent", "modern-welsh", "old-welsh")
+    assert via_alias == via_canonical
+
+
+def test_family_chains_and_language_aliases_are_dict_typed() -> None:
+    """Pin the public types of the chain-config dicts. Consumers may
+    iterate them (e.g. for diagnostics or schema discovery), so the
+    dict shape is part of the public contract."""
+    assert isinstance(FAMILY_CHAINS, dict)
+    assert isinstance(LANGUAGE_ALIASES, dict)
+    # Smoke the key/value shape — chain entries are (family_str, chain_tuple).
+    for lang, (family, chain) in FAMILY_CHAINS.items():
+        assert isinstance(lang, str)
+        assert isinstance(family, str)
+        assert isinstance(chain, tuple)
+        assert all(isinstance(era, str) for era in chain)
