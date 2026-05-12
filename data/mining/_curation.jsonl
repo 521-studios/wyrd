@@ -1,0 +1,1 @@
+{"_type": "source", "ref": "manual-curation", "title": "Operator curation overrides (wyrd-2jhs)", "notes": "L3 enrichment overrides applied after the auto-clustering passes. Each event records a deliberate operator decision; reverting is appending another event with the cleared value (lemma_ref: '')."}

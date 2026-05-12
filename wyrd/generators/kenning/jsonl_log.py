@@ -60,9 +60,17 @@ from typing import Any
 # Row types that own an immutable ``ref`` identity and support
 # add/patch/set/remove semantics. The kernel keeps a ``dict[ref, state]``
 # for each of these.
+#
+# ``etymon_curation`` rows (wyrd-2jhs) live in ``data/mining/_curation.jsonl``
+# and carry operator-applied overrides to L3 enrichment output. The ``ref``
+# field is the etymon being curated (e.g. ``"old-english:caelf"``); payload
+# fields ``lemma_ref`` / ``merged_into_ref`` / ``inflection`` override the
+# auto-clustering passes' lemma_id / merged_into_id / inflection columns.
+# See L2_L3_BOUNDARY.md for the apply-after-enrichment workflow.
 KEYED_TYPES: frozenset[str] = frozenset(
     {
         "etymon",
+        "etymon_curation",
         "toponym",
         "source",
     }
@@ -131,7 +139,7 @@ class ReplayState:
         writes back to disk.
         """
         out: list[dict[str, Any]] = []
-        for _type in ("etymon", "toponym", "source"):
+        for _type in ("etymon", "etymon_curation", "toponym", "source"):
             entries = self.keyed.get(_type, {})
             for ref in sorted(entries):
                 row = {"_type": _type, "ref": ref}

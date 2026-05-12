@@ -34,23 +34,191 @@ from .lexicon import LexiconDB, cluster_ocr_variants, link_lemmas
 OCR_METHOD_VERSION = "cluster-ocr-v1"
 LEMMA_METHOD_VERSION = "link-lemmas-v1"
 
+# Stamped on etymon rows whose lemma_id was set by a curation override
+# (wyrd-2jhs) rather than the auto-clustering link_lemmas pass. Keeps
+# the L3 provenance distinguishable: a future audit can find every
+# operator-curated row by querying ``lemma_method='manual-curation-v1'``.
+CURATION_METHOD_VERSION = "manual-curation-v1"
 
-def run_ocr_lemma_enrichment(db: LexiconDB, *, apply: bool = False) -> dict[str, Any]:
-    """Run OCR clustering then lemma linkage in canonical order.
 
-    Returns a flat dict combining both passes' result counts plus an
-    explicit ``order`` field so callers can verify nothing got swapped.
+def _resolve_etymon_id(conn: sqlite3.Connection, ref: str) -> int | None:
+    """Resolve ``"<language>:<canonical_form>"`` → etymon.id. Returns
+    None when the ref doesn't match any row."""
+    if ":" not in ref:
+        return None
+    lang, form = ref.split(":", 1)
+    row = conn.execute(
+        "SELECT id FROM etymon WHERE language = ? AND canonical_form = ?",
+        (lang, form),
+    ).fetchone()
+    return row["id"] if row else None
 
-    Dry-run (``apply=False``) walks both passes and reports candidates
-    without writing. Apply mode commits each pass's writes via
-    ``LexiconDB`` before moving to the next — so a partial run leaves
-    the DB in a coherent intermediate state (OCR-merged but not yet
-    lemma-linked is meaningful).
+
+def apply_curation_overrides(
+    db: LexiconDB, curation_state: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    """Apply operator curation overrides to L3 enrichment columns (wyrd-2jhs).
+
+    ``curation_state`` is the merged ``{etymon_ref: payload}`` dict
+    from :func:`jsonl_build.collect_curation_overrides`. For each
+    curated etymon:
+
+    - ``lemma_ref`` set → ``lemma_id`` pointed at that etymon, plus
+      ``lemma_method='manual-curation-v1'``. Also clears
+      ``merged_into_id`` (the etymon stays canonical; its inflection
+      target is the curated lemma, not a tombstone).
+    - ``inflection`` set → written alongside ``lemma_id``. Required
+      when ``lemma_ref`` is set; otherwise the inflection column would
+      lie about what's there.
+    - ``merged_into_ref`` set → ``merged_into_id`` pointed at that
+      etymon (OCR-cluster tombstone). Clears ``lemma_id`` so the
+      tombstone doesn't claim a lemma role.
+    - Explicit ``null`` on any of those refs clears the corresponding
+      column.
+
+    Run AFTER the auto-clustering passes (normalize-ocr + link-lemmas)
+    so curation overrides their output. Curation rows for unknown
+    etymons (ref doesn't match) are logged as ``unresolved`` and
+    skipped — never raise, so a stale ref doesn't block the rebuild.
+
+    Returns a counts dict for telemetry.
+    """
+    counts = {
+        "curations": len(curation_state),
+        "lemma_id_set": 0,
+        "lemma_id_cleared": 0,
+        "merged_into_set": 0,
+        "merged_into_cleared": 0,
+        "unresolved_etymon": 0,
+        "unresolved_lemma_ref": 0,
+        "unresolved_merge_ref": 0,
+    }
+
+    for etymon_ref, payload in curation_state.items():
+        etymon_id = _resolve_etymon_id(db.conn, etymon_ref)
+        if etymon_id is None:
+            counts["unresolved_etymon"] += 1
+            continue
+
+        # lemma_ref handling: present key (even with None value) means
+        # "operator made a decision about lemma_id"; absent key means
+        # "no opinion, leave whatever auto-clustering chose alone".
+        if "lemma_ref" in payload:
+            lemma_ref = payload["lemma_ref"]
+            inflection = payload.get("inflection")
+            if lemma_ref is None:
+                # Explicit clear — revert to NULL.
+                db.conn.execute(
+                    "UPDATE etymon SET lemma_id = NULL, inflection = NULL, "
+                    "lemma_method = NULL WHERE id = ?",
+                    (etymon_id,),
+                )
+                counts["lemma_id_cleared"] += 1
+            else:
+                lemma_id = _resolve_etymon_id(db.conn, lemma_ref)
+                if lemma_id is None:
+                    counts["unresolved_lemma_ref"] += 1
+                    continue
+                # Curation winners stay canonical even if auto-clustering
+                # would have tombstoned them — clear merged_into_id when
+                # lemma_id is operator-set.
+                db.conn.execute(
+                    "UPDATE etymon SET lemma_id = ?, inflection = ?, "
+                    "lemma_method = ?, merged_into_id = NULL WHERE id = ?",
+                    (lemma_id, inflection, CURATION_METHOD_VERSION, etymon_id),
+                )
+                counts["lemma_id_set"] += 1
+
+        if "merged_into_ref" in payload:
+            merge_ref = payload["merged_into_ref"]
+            if merge_ref is None:
+                db.conn.execute(
+                    "UPDATE etymon SET merged_into_id = NULL WHERE id = ?",
+                    (etymon_id,),
+                )
+                counts["merged_into_cleared"] += 1
+            else:
+                merge_id = _resolve_etymon_id(db.conn, merge_ref)
+                if merge_id is None:
+                    counts["unresolved_merge_ref"] += 1
+                    continue
+                # Tombstone target: clear lemma_id (a tombstone shouldn't
+                # double as a lemma parent) and merge into the target.
+                db.conn.execute(
+                    "UPDATE etymon SET merged_into_id = ?, "
+                    "lemma_id = NULL, inflection = NULL, "
+                    "lemma_method = NULL WHERE id = ?",
+                    (merge_id, etymon_id),
+                )
+                counts["merged_into_set"] += 1
+
+    db.commit()
+    return counts
+
+
+def format_curation_run(counts: dict[str, Any]) -> str:
+    """Render :func:`apply_curation_overrides` output as markdown."""
+    lines: list[str] = [
+        "## L3 enrichment: curation overrides",
+        "",
+        f"- Method version: `{CURATION_METHOD_VERSION}`",
+        f"- Curations processed: {counts['curations']}",
+        f"- Lemma overrides set: {counts['lemma_id_set']}",
+        f"- Lemma overrides cleared: {counts['lemma_id_cleared']}",
+        f"- Merge overrides set: {counts['merged_into_set']}",
+        f"- Merge overrides cleared: {counts['merged_into_cleared']}",
+    ]
+    unresolved = (
+        counts["unresolved_etymon"]
+        + counts["unresolved_lemma_ref"]
+        + counts["unresolved_merge_ref"]
+    )
+    if unresolved:
+        lines.append("")
+        lines.append("### Unresolved refs (skipped)")
+        if counts["unresolved_etymon"]:
+            lines.append(f"- Curated etymon not found: {counts['unresolved_etymon']}")
+        if counts["unresolved_lemma_ref"]:
+            lines.append(f"- Lemma target not found: {counts['unresolved_lemma_ref']}")
+        if counts["unresolved_merge_ref"]:
+            lines.append(f"- Merge target not found: {counts['unresolved_merge_ref']}")
+    return "\n".join(lines)
+
+
+def run_ocr_lemma_enrichment(
+    db: LexiconDB,
+    *,
+    apply: bool = False,
+    curation_state: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Run OCR clustering, lemma linkage, and (optional) curation
+    overrides in canonical order.
+
+    Order:
+    1. ``normalize-ocr`` tombstones OCR-variant duplicates.
+    2. ``link-lemmas`` links inflected forms to canonicals (the
+       previous step's tombstones aren't candidate targets).
+    3. ``apply_curation_overrides`` (only when ``curation_state`` is
+       passed AND ``apply=True``) overrides specific lemma/merge
+       assignments where auto-clustering got it wrong.
+
+    Dry-run (``apply=False``) walks the first two passes and reports
+    candidates without writing. Curation overrides require a real DB
+    write to be observable, so they're skipped on dry-run — the
+    returned dict reports ``curation: None`` to signal this.
     """
     ocr_result = cluster_ocr_variants(db, apply=apply)
     lemma_result = link_lemmas(db, apply=apply)
+    curation_counts: dict[str, Any] | None = None
+    if apply and curation_state is not None:
+        curation_counts = apply_curation_overrides(db, curation_state)
+
     return {
-        "order": ["normalize-ocr", "link-lemmas"],
+        "order": (
+            ["normalize-ocr", "link-lemmas", "apply-curation"]
+            if curation_counts is not None
+            else ["normalize-ocr", "link-lemmas"]
+        ),
         "applied": apply,
         "ocr": {
             "method_version": OCR_METHOD_VERSION,
@@ -63,6 +231,7 @@ def run_ocr_lemma_enrichment(db: LexiconDB, *, apply: bool = False) -> dict[str,
             "candidates": lemma_result["candidates"],
             "sample": lemma_result.get("sample", []),
         },
+        "curation": curation_counts,
     }
 
 
@@ -172,7 +341,7 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
     verb_ocr = "merged" if result["applied"] else "mergeable"
     verb_lemmas = "linked" if result["applied"] else "linkable"
     lines: list[str] = [
-        "## L3 enrichment: OCR + lemmas",
+        "## L3 enrichment: OCR + lemmas" + (" + curation" if result.get("curation") else ""),
         "",
         f"- Order: {' → '.join(result['order'])}",
         f"- Applied: {result['applied']}",
@@ -184,4 +353,7 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
         "### Lemma linkage (`" + result["lemmas"]["method_version"] + "`)",
         f"- Inflected etymons {verb_lemmas}: {result['lemmas']['candidates']}",
     ]
+    if result.get("curation"):
+        lines.append("")
+        lines.append(format_curation_run(result["curation"]))
     return "\n".join(lines)

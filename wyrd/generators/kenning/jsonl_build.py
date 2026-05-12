@@ -399,3 +399,38 @@ def jsonl_paths_in(directory: str | Path) -> list[Path]:
     default input set for :func:`build_from_jsonl`."""
     p = Path(directory)
     return sorted(p.glob("*.jsonl"))
+
+
+def collect_curation_overrides(jsonl_paths: Iterable[Path]) -> dict[str, dict[str, Any]]:
+    """Scan ``jsonl_paths`` for ``etymon_curation`` rows and return the
+    merged curation state (wyrd-2jhs).
+
+    Each row is keyed on its etymon ref (``"<language>:<canonical_form>"``);
+    cross-file patches accumulate via the kernel's replay semantics — the
+    latest event wins for each scalar field. ``lemma_ref`` /
+    ``merged_into_ref`` / ``inflection`` set when present; explicit
+    ``null`` clears the override (revert to auto-clustering output).
+
+    Curation rows can live in any file — in practice they cluster in
+    ``data/mining/_curation.jsonl``, but the function doesn't require
+    that convention. Files containing only mining facts contribute
+    nothing to the curation state.
+
+    Build-time integration: this runs SEPARATELY from
+    :func:`build_from_jsonl`. The L2-fact insert (citations, etymologies,
+    descent) shouldn't be entangled with the L3-override application;
+    curation gets applied by ``enrichment.apply_curation_overrides``
+    AFTER the auto-clustering passes have written their initial output.
+    """
+    from .jsonl_log import replay_file
+
+    merged: dict[str, dict[str, Any]] = {}
+    for path in sorted(Path(p) for p in jsonl_paths):
+        state = replay_file(path)
+        for ref, payload in state.keyed["etymon_curation"].items():
+            target = merged.setdefault(ref, {})
+            # Scalar fields: last-write-wins. Explicit None preserved
+            # (means "clear this override") — distinguished from "field
+            # not present" by direct key check.
+            target.update(payload)
+    return merged

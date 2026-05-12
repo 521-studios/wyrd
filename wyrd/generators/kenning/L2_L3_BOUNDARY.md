@@ -129,6 +129,7 @@ state, project-period-forms needs lemma_id state, etc.).
 |------|--------|----------------|-----------|
 | `normalize-ocr` | `merged_into_id` | `cluster-ocr-v1` | ✅ wyrd-ilam |
 | `link-lemmas` | `lemma_id`, `inflection`, `lemma_method` | `link-lemmas-v1` | ✅ wyrd-ilam |
+| `apply-curation` | overrides any of the above per operator decision | `manual-curation-v1` | ✅ wyrd-2jhs |
 | `cluster-cognates` | `cognate_id`, `cognate_method` | `cluster-cognates-v1` | ⏳ follow-on |
 | `classify-stratum` | `stratum` | hardcoded heuristics | ⏳ follow-on |
 | `derive-english-shaped` | `english_shaped` | hardcoded rules | ⏳ follow-on |
@@ -138,6 +139,54 @@ state, project-period-forms needs lemma_id state, etc.).
 **Migrated** passes run via the `lexicon enrich` orchestrator in the
 canonical order. **Follow-on** passes still need their standalone
 commands invoked manually — same operator pattern as before.
+
+## Curation event log (wyrd-2jhs)
+
+`data/mining/_curation.jsonl` holds operator overrides applied AFTER
+the auto-clustering passes. Each row is an `etymon_curation` event
+with `ref` (the curated etymon) plus optional `lemma_ref` /
+`merged_into_ref` / `inflection` / `reason` fields.
+
+### Row semantics
+
+- `lemma_ref: "<language>:<canonical_form>"` — set the curated
+  etymon's `lemma_id` to point at this etymon. Also clears
+  `merged_into_id` (the curated row stays canonical) and stamps
+  `lemma_method='manual-curation-v1'`.
+- `lemma_ref: null` — explicitly clear the curated etymon's
+  lemma_id / inflection / lemma_method. Distinguishes "no override
+  on this column" (key absent) from "operator wants this cleared"
+  (key present with null value).
+- `merged_into_ref: "<language>:<canonical_form>"` — set
+  `merged_into_id` (OCR-cluster tombstone target). Also clears
+  `lemma_id` (a tombstone shouldn't claim a lemma role).
+- `merged_into_ref: null` — clear the merge tombstone.
+- `inflection`, `reason` — informational; ride along with
+  `lemma_ref` when set.
+
+### Operator workflow
+
+```bash
+# Surface what auto-clustering chose for a suspect etymon.
+lexicon browse etymon "old-english:caelf"
+
+# Record the override.
+lexicon curate-etymon "old-english:caelf" \
+  --lemma-ref "old-english:cealf" \
+  --inflection spelling_variant \
+  --reason "scribal æ/ae per dead-rando audit (wyrd-lene)"
+
+# Apply (alongside the auto-clustering passes).
+lexicon enrich --apply
+
+# Verify.
+lexicon browse etymon "old-english:caelf"
+```
+
+Curation events are tracked in git like any other L2 file — `git
+blame data/mining/_curation.jsonl` shows who curated what and when.
+Reverting an event is appending another event with the cleared
+value (`lemma_ref: ''` via the CLI), preserving the audit trail.
 
 ## Operator workflow
 
