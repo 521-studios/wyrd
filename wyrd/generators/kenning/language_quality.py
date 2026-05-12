@@ -682,32 +682,49 @@ def populate_eligible_etymon_table(
     conn.executescript("CREATE TEMP TABLE eligible_etymon (id INTEGER PRIMARY KEY);")
 
     if has_citation:
-        # (1) directly cited etymons (rando-port + scholar)
+        # (1) directly cited etymons (rando-port + scholar). After this
+        # the eligible_etymon table carries the seed; subsequent steps
+        # read from it instead of re-querying etymon_citation.
         conn.execute(
             "INSERT OR IGNORE INTO eligible_etymon (id) "
             "SELECT DISTINCT etymon_id FROM etymon_citation "
             "WHERE etymon_id IS NOT NULL"
         )
         if has_descent:
-            # (2) 1-hop descent parents + children of cited
+            # (2) 1-hop descent parents + children of the cited seed.
             conn.execute(
                 """
                 INSERT OR IGNORE INTO eligible_etymon (id)
                 SELECT DISTINCT id FROM (
                     SELECT ed.parent_id AS id FROM etymon_descent ed
-                     WHERE ed.child_id IN (SELECT etymon_id FROM etymon_citation)
+                     WHERE ed.child_id IN (SELECT id FROM eligible_etymon)
                        AND ed.parent_id IS NOT NULL
                     UNION
                     SELECT ed.child_id AS id FROM etymon_descent ed
-                     WHERE ed.parent_id IN (SELECT etymon_id FROM etymon_citation)
+                     WHERE ed.parent_id IN (SELECT id FROM eligible_etymon)
                        AND ed.child_id IS NOT NULL
                 )
                 """
             )
-        # (3) lemma-inflection-children of any of (1) or (2). Reads
-        # eligible_etymon (already populated above) so the rollup
-        # automatically picks up children of both cited and 1-hop
-        # descent neighbors.
+        # (3) Lemma rollup: BOTH directions.
+        #   (3a) Upward — promote the lemma of any eligible inflected
+        #        form. Citations on the inflected form (e.g. ``cotum``)
+        #        should make their base lemma (``cot``) eligible too;
+        #        otherwise lemma-based metrics like D undercount
+        #        because the base form isn't in the eligible set.
+        #   (3b) Downward — inflected children of an eligible lemma
+        #        ride along (the within-language inflection
+        #        inheritance the inflection-coverage metric counts).
+        # Order matters: 3a populates more lemmas first so 3b picks
+        # up their inflected children in a single pass.
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO eligible_etymon (id)
+            SELECT e.lemma_id FROM etymon e
+             WHERE e.id IN (SELECT id FROM eligible_etymon)
+               AND e.lemma_id IS NOT NULL
+            """
+        )
         conn.execute(
             """
             INSERT OR IGNORE INTO eligible_etymon (id)
@@ -753,14 +770,18 @@ def _lexicon_tag_coverage(
     - ``hits``: count of reference tags with ≥1 etymon (the M of M/N).
     """
     _ensure_eligible_etymon_table(conn)
+    # wyrd-bfv1: INNER JOIN against eligible_etymon (much smaller than
+    # the etymon table for languages with bulk wiktextract ingest) lets
+    # SQLite drive from the small side. Replaces an EXISTS subquery
+    # that was scanning the etymon table for each row.
     tagged_total = conn.execute(
         """
         SELECT COUNT(DISTINCT et.etymon_id)
           FROM etymon_tag et
           JOIN etymon e ON e.id = et.etymon_id
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
-           AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = e.id)
         """,
         (language,),
     ).fetchone()[0]
@@ -772,10 +793,10 @@ def _lexicon_tag_coverage(
             SELECT et.tag, COUNT(DISTINCT et.etymon_id)
               FROM etymon_tag et
               JOIN etymon e ON e.id = et.etymon_id
+              JOIN eligible_etymon ee ON ee.id = e.id
              WHERE e.language = ?
                AND e.merged_into_id IS NULL
                AND et.tag IN ({placeholders})
-               AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = e.id)
              GROUP BY et.tag
             """,
             (language, *reference_tags),
@@ -819,19 +840,19 @@ def _corpus_depth(conn: sqlite3.Connection, language: str, threshold: int) -> di
     eligible_etymons = conn.execute(
         """
         SELECT COUNT(*) FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
-           AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = e.id)
         """,
         (language,),
     ).fetchone()[0]
     eligible_lemmas = conn.execute(
         """
         SELECT COUNT(*) FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
            AND e.lemma_id IS NULL
-           AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = e.id)
         """,
         (language,),
     ).fetchone()[0]
@@ -879,10 +900,10 @@ def _inflection_coverage(conn: sqlite3.Connection, language: str) -> dict[str, A
     lemmas_with_children = conn.execute(
         """
         SELECT COUNT(*) FROM etymon parent
+          JOIN eligible_etymon ee ON ee.id = parent.id
          WHERE parent.language = ?
            AND parent.merged_into_id IS NULL
            AND parent.lemma_id IS NULL
-           AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = parent.id)
            AND EXISTS (
              SELECT 1 FROM etymon child
               WHERE child.lemma_id = parent.id
@@ -896,10 +917,10 @@ def _inflection_coverage(conn: sqlite3.Connection, language: str) -> dict[str, A
         """
         SELECT COUNT(DISTINCT e.inflection)
           FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
            AND e.inflection IS NOT NULL
-           AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = e.id)
         """,
         (language,),
     ).fetchone()[0]
@@ -918,10 +939,10 @@ def _variant_coverage(conn: sqlite3.Connection, language: str) -> int:
         SELECT COUNT(DISTINCT etm.etymon_id)
           FROM etymon_text_match etm
           JOIN etymon e ON e.id = etm.etymon_id
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
            AND etm.matched_form != e.canonical_form
-           AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = e.id)
         """,
         (language,),
     ).fetchone()[0]
@@ -942,11 +963,11 @@ def _era_reflex_coverage(conn: sqlite3.Connection, language: str) -> dict[str, A
         """
         SELECT COUNT(*)
           FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
           JOIN etymon mate ON mate.id = e.cognate_id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
            AND mate.language != e.language
-           AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = e.id)
         """,
         (language,),
     ).fetchone()[0]
@@ -961,11 +982,11 @@ def _era_reflex_coverage(conn: sqlite3.Connection, language: str) -> dict[str, A
             SELECT COUNT(DISTINCT ed.parent_id)
               FROM etymon_descent ed
               JOIN etymon parent ON parent.id = ed.parent_id
+              JOIN eligible_etymon ee ON ee.id = parent.id
               JOIN etymon child ON child.id = ed.child_id
              WHERE parent.language = ?
                AND parent.merged_into_id IS NULL
                AND child.language IN ({placeholders})
-               AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = parent.id)
             """,
             (language, *younger),
         ).fetchone()[0]
@@ -982,10 +1003,10 @@ def _era_reflex_coverage(conn: sqlite3.Connection, language: str) -> dict[str, A
               FROM etymon_descent ed
               JOIN etymon parent ON parent.id = ed.parent_id
               JOIN etymon child ON child.id = ed.child_id
+              JOIN eligible_etymon ee ON ee.id = child.id
              WHERE child.language = ?
                AND child.merged_into_id IS NULL
                AND parent.language IN ({placeholders})
-               AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = child.id)
             """,
             (language, *older),
         ).fetchone()[0]
@@ -998,9 +1019,9 @@ def _era_reflex_coverage(conn: sqlite3.Connection, language: str) -> dict[str, A
         SELECT COUNT(DISTINCT pf.etymon_id)
           FROM etymon_period_form pf
           JOIN etymon e ON e.id = pf.etymon_id
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
-           AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = e.id)
         """,
         (language,),
     ).fetchone()[0]
@@ -1010,9 +1031,9 @@ def _era_reflex_coverage(conn: sqlite3.Connection, language: str) -> dict[str, A
         f"""
         SELECT COUNT(DISTINCT e.id)
           FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
-           AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = e.id)
            AND (
              EXISTS (
                SELECT 1 FROM etymon mate
@@ -1058,10 +1079,10 @@ def _stratum_coverage(conn: sqlite3.Connection, language: str) -> int:
     return conn.execute(
         """
         SELECT COUNT(*) FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
            AND e.stratum IS NOT NULL
-           AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = e.id)
         """,
         (language,),
     ).fetchone()[0]
@@ -1079,9 +1100,9 @@ def _citation_depth(conn: sqlite3.Connection, language: str) -> dict[str, Any]:
         SELECT COUNT(DISTINCT c.etymon_id)
           FROM etymon_citation c
           JOIN etymon e ON e.id = c.etymon_id
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
-           AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = e.id)
         """,
         (language,),
     ).fetchone()[0]
@@ -1090,9 +1111,9 @@ def _citation_depth(conn: sqlite3.Connection, language: str) -> dict[str, Any]:
         SELECT COUNT(*)
           FROM etymon_citation c
           JOIN etymon e ON e.id = c.etymon_id
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
-           AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = e.id)
         """,
         (language,),
     ).fetchone()[0]
@@ -1114,11 +1135,11 @@ def _lexicon_ipa_coverage(conn: sqlite3.Connection, language: str) -> int:
     return conn.execute(
         """
         SELECT COUNT(*) FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language = ?
            AND e.merged_into_id IS NULL
            AND e.pronunciation_ipa IS NOT NULL
            AND e.pronunciation_ipa != ''
-           AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = e.id)
         """,
         (language,),
     ).fetchone()[0]
@@ -1204,8 +1225,8 @@ def _tier4_phonology_coverage(
     total_in_lang = conn.execute(
         """
         SELECT COUNT(*) FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language=? AND e.merged_into_id IS NULL
-           AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = e.id)
         """,
         (language,),
     ).fetchone()[0]
@@ -1222,8 +1243,8 @@ def _tier4_phonology_coverage(
     for (canonical_form,) in conn.execute(
         """
         SELECT e.canonical_form FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
          WHERE e.language=? AND e.merged_into_id IS NULL
-           AND EXISTS (SELECT 1 FROM eligible_etymon WHERE id = e.id)
         """,
         (language,),
     ):
