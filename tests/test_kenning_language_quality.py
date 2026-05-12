@@ -20,6 +20,9 @@ import json
 import sqlite3
 from pathlib import Path
 
+from click.testing import CliRunner
+
+from wyrd.generators.kenning.cli import cli
 from wyrd.generators.kenning.language_quality import (
     _BUNDLE_LANG_KEY,
     DEFAULT_LANGUAGES,
@@ -860,10 +863,6 @@ def test_cli_language_report_source_tag_mutually_exclusive(tmp_path: Path) -> No
     union semantics. Pass an explicit ``--db`` (defaults to a path
     that doesn't exist on CI) so click's parameter validation
     passes BEFORE reaching the mutual-exclusion check."""
-    from click.testing import CliRunner
-
-    from wyrd.generators.kenning.cli import cli
-
     # Create a minimal SQLite file so --db existence check passes.
     db_path = tmp_path / "lexicon.db"
     sqlite3.connect(db_path).close()
