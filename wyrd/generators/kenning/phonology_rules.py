@@ -863,11 +863,13 @@ def chain_for(language: str) -> tuple[str, tuple[str, ...]] | None:
     phonology chain — callers should treat that as 'no Tier-4 reflex
     is reachable from this language'.
 
-    Stable public API for the chain config — consumers should not
-    reach into ``FAMILY_CHAINS`` / ``LANGUAGE_ALIASES`` directly so
-    future refactors of the registry shape stay internal. Pair with
-    ``resolve_language`` when you need the canonical era name for
-    chain-position lookup.
+    Stable public API for the chain config. ``FAMILY_CHAINS`` and
+    ``LANGUAGE_ALIASES`` themselves are exported too (iterable for
+    diagnostics / schema introspection), but the alias-resolution +
+    chain lookup logic should go through this function rather than
+    being replicated at call sites — that keeps future refactors of
+    the registry shape internal. Pair with ``resolve_language`` when
+    you need the canonical era name for chain-position lookup.
     """
     return FAMILY_CHAINS.get(resolve_language(language))
 
@@ -908,8 +910,12 @@ def rule_form(
     if from_chain_info is None or to_chain_info is None:
         return None
     family, chain = from_chain_info
-    # Cross-family (e.g. english → welsh) has no rules path.
-    if family != to_chain_info[0]:
+    to_family, to_chain = to_chain_info
+    # Cross-family (e.g. english → welsh) OR cross-chain within same
+    # family (defensive — current registry has one chain per family,
+    # but a future refactor that adds branching within ``english``
+    # would otherwise hit ValueError on chain.index below).
+    if family != to_family or chain is not to_chain:
         return None
     i_from = chain.index(from_resolved)
     i_to = chain.index(to_resolved)
