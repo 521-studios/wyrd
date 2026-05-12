@@ -81,8 +81,13 @@ def enrichment_status(conn: sqlite3.Connection) -> dict[str, Any]:
     hardcoded column names, never operator input — no SQL injection
     surface.
 
-    Read-only — does not write or modify state.
+    Read-only against the DB itself. Sets ``conn.row_factory =
+    sqlite3.Row`` so column-name access works regardless of how the
+    caller configured the connection (the function accesses results
+    like ``counts['total']``). Callers using a non-default factory
+    should expect this state change.
     """
+    conn.row_factory = sqlite3.Row
     counts = conn.execute(
         """SELECT COUNT(*)              AS total,
                   COUNT(lemma_id)       AS lemma_id_pop,
