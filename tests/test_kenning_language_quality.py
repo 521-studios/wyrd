@@ -709,7 +709,7 @@ def test_tier4_phonology_coverage_returns_zero_for_empty_language() -> None:
 
 def test_tier4_phonology_coverage_counts_firing_etymons() -> None:
     """Etymons whose canonical_form produces a transformed Tier-4
-    reflex (via _phonology_rule_form) for at least one chain stop
+    reflex (via phonology_rules.rule_form) for at least one chain stop
     count. Tests run against the live phonology_rules cells (wyrd-98cs
     et al.), so the count reflects real rule firing rather than a
     fixed expected value — empty canonical_form gets skipped.
@@ -727,9 +727,9 @@ def test_tier4_phonology_coverage_counts_firing_etymons() -> None:
     assert 0 <= count <= 3
     # Skip the strict lower-bound assertion if the rules library has
     # been disabled — fail loud if rules are wired but nothing fires.
-    from wyrd.generators.kenning.lexicon import _phonology_rule_form
+    from wyrd.generators.kenning.phonology_rules import rule_form
 
-    if _phonology_rule_form("house", "modern-english", "old-english") is not None:
+    if rule_form("house", "modern-english", "old-english") is not None:
         assert count >= 1, "phonology rules fire on 'house' but T4 count says 0"
 
 
@@ -746,7 +746,7 @@ def test_compute_scorecard_compute_tier4_false_skips_walk() -> None:
     def cb(done: int, total: int) -> None:
         callbacks.append((done, total))
 
-    # old-english is chain-eligible in _PHONOLOGY_FAMILY_CHAINS, so
+    # old-english is chain-eligible in phonology_rules.FAMILY_CHAINS, so
     # compute_tier4=True WOULD fire. compute_tier4=False must skip.
     card = compute_scorecard(
         conn,

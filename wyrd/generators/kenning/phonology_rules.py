@@ -803,3 +803,156 @@ def _dedupe_candidates(
             order.append(form)
         seen[form] += prob
     return [(form, seen[form]) for form in order]
+
+
+# --- chain registry + iterated walker (wyrd-98cs, exposed publicly by wyrd-u728) --
+#
+# Maps a lexicon-language code to the rule-cell family + era-chain it
+# lives in. Languages absent from this map have no phonology rules
+# registered (Goidelic, Norse, Romance, etc.) — Tier-4 phonology walks
+# silently no-op for them.
+#
+# Rule-cell ``family`` is the first element of the (language, from_era,
+# to_era) tuple keys in ``_RULES`` (``english``, ``welsh``). ``chain``
+# is the era-tuple in timeline order: walking from index i to j>i
+# applies forward cells; j<i applies inverse cells in reverse.
+
+_ENGLISH_CHAIN: tuple[str, ...] = (
+    "old-english",
+    "middle-english",
+    "early-modern-english",
+    "modern-english",
+)
+_WELSH_CHAIN: tuple[str, ...] = ("old-welsh", "modern-welsh")
+
+FAMILY_CHAINS: dict[str, tuple[str, tuple[str, ...]]] = {
+    "old-english": ("english", _ENGLISH_CHAIN),
+    "middle-english": ("english", _ENGLISH_CHAIN),
+    "early-modern-english": ("english", _ENGLISH_CHAIN),
+    "modern-english": ("english", _ENGLISH_CHAIN),
+    "old-welsh": ("welsh", _WELSH_CHAIN),
+    "modern-welsh": ("welsh", _WELSH_CHAIN),
+}
+
+# Bundle / lexicon aliases that share a chain with a canonical era.
+# Resolved before the chain.index lookup so the alias name itself
+# doesn't need to appear in the chain tuple. ``welsh`` as a lexicon
+# language code is conventionally treated as modern-welsh for era
+# purposes (the lexicon mostly stores Welsh forms with this tag).
+LANGUAGE_ALIASES: dict[str, str] = {
+    "welsh": "modern-welsh",
+}
+
+
+def resolve_language(language: str) -> str:
+    """Alias-resolve a lexicon language code (e.g. ``welsh`` →
+    ``modern-welsh``) to its canonical chain-era name. Languages
+    absent from ``LANGUAGE_ALIASES`` pass through unchanged.
+
+    Stable public API alongside ``chain_for`` so consumers can find
+    their own position in a chain (``chain.index(resolve_language(L))``)
+    without reaching into ``LANGUAGE_ALIASES`` directly.
+    """
+    return LANGUAGE_ALIASES.get(language, language)
+
+
+def chain_for(language: str) -> tuple[str, str, tuple[str, ...]] | None:
+    """Return the rule-cell ``(resolved_language, family, chain)``
+    triple for ``language``, resolving lexicon-language aliases
+    (e.g. ``welsh`` → ``modern-welsh``) along the way.
+    ``resolved_language`` is the canonical era name (suitable for
+    ``chain.index()`` lookup). Returns None when the language has no
+    registered phonology chain — callers should treat that as 'no
+    Tier-4 reflex is reachable from this language'.
+
+    Stable public API for the chain config. ``FAMILY_CHAINS`` and
+    ``LANGUAGE_ALIASES`` themselves are exported too (iterable for
+    diagnostics / schema introspection), but the alias-resolution +
+    chain lookup logic should go through this function rather than
+    being replicated at call sites — that keeps future refactors of
+    the registry shape internal.
+    """
+    resolved = resolve_language(language)
+    info = FAMILY_CHAINS.get(resolved)
+    if info is None:
+        return None
+    family, chain = info
+    return resolved, family, chain
+
+
+def rule_form(
+    canonical_form: str,
+    from_language: str,
+    to_language: str,
+) -> str | None:
+    """Derive a ``to_language`` form from ``canonical_form`` (in
+    ``from_language``) by iterating ``apply_rules`` across the family
+    chain that owns both languages.
+
+    Returns None when:
+    - either language is absent from ``FAMILY_CHAINS``
+    - the two languages live in different families (no chain bridges
+      e.g. Goidelic→Brythonic)
+    - both languages map to the same era (no transformation needed;
+      caller should prefer the canonical_form directly)
+    - the chain walk's final form equals the input (no rule fired)
+
+    Walks forward when the target era is later in the family chain,
+    inverse when the target is earlier. At each step picks the
+    highest-probability candidate; downstream consumers wanting
+    multiple readings would need a richer return shape (deferred
+    until KenningRewind explainer surfaces multiple Tier-4 forms —
+    Phase 2).
+    """
+    # Route both languages through ``chain_for`` so alias resolution +
+    # registry lookup share one code path. The resolved era names are
+    # carried in the triple, so we don't re-derive them here.
+    from_info = chain_for(from_language)
+    to_info = chain_for(to_language)
+    if from_info is None or to_info is None:
+        return None
+    from_resolved, family, chain = from_info
+    to_resolved, to_family, to_chain = to_info
+    # No-op when both languages resolve to the same era (covers
+    # alias-equivalent inputs like ('welsh', 'modern-welsh')).
+    if from_resolved == to_resolved:
+        return None
+    # Cross-family (e.g. english → welsh) OR cross-chain within same
+    # family (defensive — current registry has one chain per family,
+    # but a future refactor that adds branching within ``english``
+    # would otherwise hit ValueError on chain.index below).
+    if family != to_family or chain != to_chain:
+        return None
+    i_from = chain.index(from_resolved)
+    i_to = chain.index(to_resolved)
+
+    current = canonical_form
+    # Note: ``apply_rules`` carries its own probability-floor restore
+    # so it never returns []; the ``if not candidates`` branches below
+    # are belt-and-suspenders, defensive against a future change in
+    # the apply_rules API contract.
+    if i_from < i_to:
+        # Forward walk: apply cells (chain[i], chain[i+1]) for i in
+        # [i_from, i_to). Each step picks the highest-probability
+        # candidate produced by the cell.
+        for i in range(i_from, i_to):
+            candidates = apply_rules(current, family, chain[i], chain[i + 1], mode="forward")
+            if not candidates:
+                return None
+            current = max(candidates, key=lambda c: c[1])[0]
+    else:
+        # Inverse walk: apply cells (chain[i-1], chain[i]) for i in
+        # (i_from, i_to], reading them in inverse mode so the input
+        # treated as the to_era form produces the from_era candidate.
+        for i in range(i_from, i_to, -1):
+            candidates = apply_rules(current, family, chain[i - 1], chain[i], mode="inverse")
+            if not candidates:
+                return None
+            current = max(candidates, key=lambda c: c[1])[0]
+    if current == canonical_form:
+        # No rule fired across the walk — the form passed through
+        # unchanged. Downstream consumers don't need a Tier-4 reflex
+        # that's the same as the input; treat as no result so the
+        # caller falls back to the canonical.
+        return None
+    return current

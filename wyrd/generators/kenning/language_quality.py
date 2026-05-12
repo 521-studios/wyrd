@@ -55,6 +55,7 @@ from pathlib import Path
 from typing import Any
 
 from wyrd.generators.kenning.lexicon import RECOMMENDED_LANG_THRESHOLDS
+from wyrd.generators.kenning.phonology_rules import chain_for, rule_form
 
 # --- era chain config -----------------------------------------------------
 #
@@ -238,7 +239,7 @@ class LanguageScorecard:
     # Etymons whose canonical_form would produce a transformed reflex
     # for at least one other era in the same phonology chain when
     # routed through ``phonology_rules.apply_rules`` via
-    # ``_phonology_rule_form``. Not persisted in DB tables — synthesized
+    # ``phonology_rules.rule_form``. Not persisted in DB tables — synthesized
     # at bundle-export / runtime — so this count is computed by walking
     # the rule chain over every etymon in a chain-eligible language at
     # report time. Languages without a registered phonology chain
@@ -966,7 +967,7 @@ def _tier4_phonology_coverage(
     """Metric F Tier-4 (wyrd-pmne). Count of etymons in ``language``
     whose ``canonical_form`` produces a transformed reflex for at
     least one other era in the same phonology chain when routed
-    through ``_phonology_rule_form`` (wyrd-98cs Tier-4 fallback).
+    through ``phonology_rules.rule_form`` (wyrd-98cs Tier-4 fallback).
 
     Returns ``-1`` for languages without a registered phonology chain
     (the LanguageScorecard renders this as 'n/a' to distinguish 'no
@@ -982,18 +983,20 @@ def _tier4_phonology_coverage(
     ``progress_callback(done, total)`` lets the CLI surface progress
     on the long modern-english walk (~3 minutes for 1.4M etymons).
     """
-    from wyrd.generators.kenning.lexicon import (
-        _PHONOLOGY_FAMILY_CHAINS,
-        _PHONOLOGY_LANGUAGE_ALIASES,
-        _phonology_rule_form,
-    )
-
-    resolved = _PHONOLOGY_LANGUAGE_ALIASES.get(language, language)
-    chain_info = _PHONOLOGY_FAMILY_CHAINS.get(resolved)
+    chain_info = chain_for(language)
     if chain_info is None:
         return -1
-    _family, chain = chain_info
-    other_stops = [stop for stop in chain if stop != resolved]
+    resolved, _family, chain = chain_info
+    # Order targets by chain-distance from self ascending so the inner
+    # loop's early-break tries the cheapest walk first. For ModE the
+    # walk to EModE is one cell, to ME two cells, to OE three cells —
+    # at ~99% fire rate the closest target almost always wins, so the
+    # average per-etymon cost drops materially vs. declaration order.
+    i_self = chain.index(resolved)
+    other_stops = sorted(
+        (stop for stop in chain if stop != resolved),
+        key=lambda stop: abs(chain.index(stop) - i_self),
+    )
     if not other_stops:
         return -1
 
@@ -1018,7 +1021,9 @@ def _tier4_phonology_coverage(
         seen += 1
         if canonical_form:
             for target in other_stops:
-                if _phonology_rule_form(canonical_form, language, target) is not None:
+                # Pass the pre-resolved language name to skip the alias
+                # lookup that rule_form would otherwise repeat per call.
+                if rule_form(canonical_form, resolved, target) is not None:
                     fires += 1
                     break
         if progress_callback is not None and seen % progress_step == 0:
