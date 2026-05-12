@@ -20,6 +20,9 @@ import json
 import sqlite3
 from pathlib import Path
 
+from click.testing import CliRunner
+
+from wyrd.generators.kenning.cli import cli
 from wyrd.generators.kenning.language_quality import (
     _BUNDLE_LANG_KEY,
     DEFAULT_LANGUAGES,
@@ -706,6 +709,180 @@ def test_populate_eligible_etymon_table_is_idempotent() -> None:
     third = populate_eligible_etymon_table(conn, restrict_to_generator_eligible=False)
     raw_total = conn.execute("SELECT COUNT(*) FROM etymon").fetchone()[0]
     assert third == raw_total  # restrict=False populates with every etymon ID
+
+
+def test_populate_eligible_etymon_table_source_filter_restricts_seed() -> None:
+    """wyrd-5ecx: ``source_filter`` restricts the cited-step seed to
+    etymons cited by ONLY that source. Descent + lemma rollup walk
+    from the restricted seed but never re-broaden via other sources.
+
+    Fixture has ham (id=2) cited by skeat_1901 ONLY; cot (id=1) cited
+    by skeat_1901 + mawer_1920 + charles_1992. Filtering to
+    ``source_filter='mawer_1920'`` seeds only cot (and tun, which is
+    also cited by mawer_1920) — NOT ham."""
+    conn = _build_fixture_db()
+    populate_eligible_etymon_table(conn, source_filter="mawer_1920")
+    ids = {r[0] for r in conn.execute("SELECT id FROM eligible_etymon")}
+    assert 1 in ids  # cot cited by mawer_1920
+    assert 3 in ids  # tun cited by mawer_1920
+    assert 2 not in ids  # ham cited ONLY by skeat_1901 — excluded
+    # Lemma rollup of cot brings its inflected children along.
+    assert 4 in ids  # cotum (lemma_id=1)
+    assert 5 in ids  # cotan (lemma_id=1)
+
+
+def test_populate_eligible_etymon_table_source_filter_excludes_fantasy() -> None:
+    """When source_filter is set, fantasy/monster/creature-tagged
+    etymons are NOT auto-included. The slice view is the slice the
+    user asked for, not the slice + the fiction exception."""
+    conn = _build_fixture_db()
+    # Add a fantasy-tagged etymon that isn't cited by anything.
+    conn.executescript(
+        """
+        INSERT INTO etymon(id, canonical_form, language) VALUES (200, 'orc', 'klingon');
+        INSERT INTO etymon_tag(etymon_id, tag) VALUES (200, 'fantasy');
+        """
+    )
+    populate_eligible_etymon_table(conn, source_filter="skeat_1901")
+    ids = {r[0] for r in conn.execute("SELECT id FROM eligible_etymon")}
+    assert 200 not in ids
+
+
+def test_populate_eligible_etymon_table_tag_filter_restricts_seed() -> None:
+    """wyrd-5ecx: ``tag_filter`` restricts the seed to etymons with
+    ONLY that tag (e.g. 'fantasy' alone, excluding 'monster' /
+    'creature'). Cited step is skipped — the slice is fiction-only.
+
+    Insert two tagged etymons: 'orc' (fantasy) and 'wyvern' (monster).
+    Filter to tag_filter='fantasy' should seed only orc."""
+    conn = _build_fixture_db()
+    conn.executescript(
+        """
+        INSERT INTO etymon(id, canonical_form, language) VALUES (300, 'orc', 'klingon');
+        INSERT INTO etymon(id, canonical_form, language) VALUES (301, 'wyvern', 'klingon');
+        INSERT INTO etymon_tag(etymon_id, tag) VALUES (300, 'fantasy');
+        INSERT INTO etymon_tag(etymon_id, tag) VALUES (301, 'monster');
+        """
+    )
+    populate_eligible_etymon_table(conn, tag_filter="fantasy")
+    ids = {r[0] for r in conn.execute("SELECT id FROM eligible_etymon")}
+    assert 300 in ids  # tagged fantasy
+    assert 301 not in ids  # tagged monster, NOT fantasy
+    # cited step skipped — fixture's cited rows shouldn't appear
+    # unless they end up in fantasy's lemma-rollup / descent context.
+    assert 1 not in ids  # cot — cited but not fantasy-related
+
+
+def test_populate_eligible_etymon_table_both_filters_produces_union() -> None:
+    """wyrd-5ecx internal API contract: passing BOTH source_filter
+    and tag_filter produces the union of the two slices (cited by
+    source ∪ tagged with tag), then descent + lemma rollup walk from
+    the combined seed. The CLI rejects this combination, but the
+    function supports it for testing flexibility + future composite
+    consumers.
+
+    Fixture: cot (id=1) cited by skeat_1901; add an orc tagged
+    fantasy. Passing both filters should include BOTH."""
+    conn = _build_fixture_db()
+    conn.executescript(
+        """
+        INSERT INTO etymon(id, canonical_form, language) VALUES (400, 'orc', 'klingon');
+        INSERT INTO etymon_tag(etymon_id, tag) VALUES (400, 'fantasy');
+        """
+    )
+    populate_eligible_etymon_table(
+        conn,
+        source_filter="skeat_1901",
+        tag_filter="fantasy",
+    )
+    ids = {r[0] for r in conn.execute("SELECT id FROM eligible_etymon")}
+    assert 1 in ids  # cot — from source_filter
+    assert 400 in ids  # orc — from tag_filter
+
+
+def test_populate_eligible_etymon_table_source_filter_walks_descent_from_seed() -> None:
+    """wyrd-5ecx promise: descent + lemma rollup STILL apply from the
+    restricted seed, so the slice view captures the era-progression
+    context of the seeded words — not just the raw citations.
+
+    Fixture: cot (OE, cited by skeat_1901 + mawer_1920 + charles_1992)
+    is parent of cote (ME, id=10) via etymon_descent. Filtering to
+    ``source_filter='skeat_1901'`` should include the OE seed AND
+    its 1-hop ME descent child cote, even though cote isn't itself
+    cited by skeat_1901."""
+    conn = _build_fixture_db()
+    populate_eligible_etymon_table(conn, source_filter="skeat_1901")
+    ids = {r[0] for r in conn.execute("SELECT id FROM eligible_etymon")}
+    assert 1 in ids  # cot — cited by skeat_1901
+    assert 10 in ids  # cote — 1-hop descent child of cot
+    assert 11 in ids  # tonn — 1-hop descent child of tun (also cited)
+
+
+def test_compute_report_propagates_filter_to_dataclass_and_markdown() -> None:
+    """wyrd-5ecx: ``compute_report`` stores the active filter in the
+    returned ``LanguageQualityReport`` and the markdown formatter
+    surfaces it in the header. Operator-visible contract — pin both
+    the dataclass roundtrip AND the rendered string."""
+    conn = _build_fixture_db()
+    bundle = _fixture_bundle()
+    report = compute_report(
+        conn,
+        bundle,
+        languages=["old-english"],
+        reference_tags=list(FALLBACK_REFERENCE_TAGS[:3]),
+        source_filter="skeat_1901",
+    )
+    assert report.source_filter == "skeat_1901"
+    assert report.tag_filter is None
+    md = report_to_markdown(report)
+    assert "Slice filter: source = `skeat_1901`" in md
+
+
+def test_compute_report_no_filter_omits_header_line() -> None:
+    """When no filter is active, the markdown header MUST NOT emit
+    the slice-filter line. Pin the absence so a future refactor that
+    always renders the line (with None / 'all') doesn't ship."""
+    conn = _build_fixture_db()
+    bundle = _fixture_bundle()
+    report = compute_report(
+        conn,
+        bundle,
+        languages=["old-english"],
+        reference_tags=list(FALLBACK_REFERENCE_TAGS[:3]),
+    )
+    assert report.source_filter is None
+    assert report.tag_filter is None
+    md = report_to_markdown(report)
+    assert "Slice filter:" not in md
+
+
+def test_cli_language_report_source_tag_mutually_exclusive(tmp_path: Path) -> None:
+    """wyrd-5ecx CLI contract: ``--source X --tag Y`` raises a
+    UsageError. The two flags define different seed shapes; the CLI
+    rejects the combination so operators don't have to think about
+    union semantics. Pass an explicit ``--db`` (defaults to a path
+    that doesn't exist on CI) so click's parameter validation
+    passes BEFORE reaching the mutual-exclusion check."""
+    # Create a minimal SQLite file so --db existence check passes.
+    db_path = tmp_path / "lexicon.db"
+    sqlite3.connect(db_path).close()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "lexicon",
+            "language-report",
+            "--db",
+            str(db_path),
+            "--source",
+            "x",
+            "--tag",
+            "y",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "mutually exclusive" in result.output.lower()
 
 
 def test_populate_eligible_etymon_table_handles_minimal_schema() -> None:

@@ -346,6 +346,12 @@ class LanguageQualityReport:
     reference_tags: list[str]
     bundle_total_words: int
     languages: list[LanguageScorecard] = field(default_factory=list)
+    # wyrd-5ecx: active slice filter (source_id or tag) propagated
+    # into the rendered markdown header so the operator can tell
+    # which subset of the corpus is being measured. None = full
+    # generator-eligible set (cited any source + fantasy).
+    source_filter: str | None = None
+    tag_filter: str | None = None
 
 
 # --- reference profile ----------------------------------------------------
@@ -622,6 +628,8 @@ def populate_eligible_etymon_table(
     conn: sqlite3.Connection,
     *,
     restrict_to_generator_eligible: bool = True,
+    source_filter: str | None = None,
+    tag_filter: str | None = None,
 ) -> int:
     """Create (or recreate) a TEMP TABLE ``eligible_etymon`` that the
     per-language metric helpers JOIN against to filter their numerators
@@ -637,10 +645,12 @@ def populate_eligible_etymon_table(
        ``etymon_descent`` parent/child edges are traversed; cognate
        cluster mates (``etymon.cognate_id``) are NOT included since
        they're cross-language sibling forms, not era progressions.
-    3. ``lemma_id`` points to an etymon already in (1) or (2) — within-
-       language inflection rollup.
-    4. Tagged ``fantasy`` / ``monster`` / ``creature`` in
+    3. Tagged ``fantasy`` / ``monster`` / ``creature`` in
        ``etymon_tag`` — the explicit fiction-vocabulary exception.
+    4. ``lemma_id`` rollup: both directions across the above seed —
+       the lemma of any eligible inflection is itself eligible
+       (upward), and every inflection of an eligible lemma rides
+       along (downward).
 
     Pre-wyrd-bfv1 the dashboard divided every coverage metric by the
     raw etymon count, which was denominator-collapsed by the wyrd-dxu2
@@ -653,7 +663,31 @@ def populate_eligible_etymon_table(
     With ``restrict_to_generator_eligible=False`` the table is
     populated with every etymon ID — useful for diagnostic runs or
     tests that need to bypass the eligibility gate without modifying
-    the helpers. Returns the row count for caller logging.
+    the helpers.
+
+    With ``source_filter`` set (wyrd-5ecx) step (1) restricts to
+    etymons cited by that specific source_id (e.g. ``'rando-port'``
+    or ``'mawer_1920_northumberland_durham'``) and step (3)
+    fantasy is skipped. Operator answers questions like 'how are
+    the rando-port grandfather words doing on inflection?' or 'how
+    is the Mawer-1920 attestation slice doing on IPA?'.
+
+    With ``tag_filter`` set step (3) restricts to etymons with that
+    tag (e.g. ``'fantasy'`` or ``'monster'``) and step (1) cited is
+    skipped. Operator answers 'how is the fantasy slice doing on
+    variant coverage?'.
+
+    ``source_filter`` and ``tag_filter`` are mutually exclusive in
+    the CLI surface — composing them muddies the per-row "what slice
+    am I looking at?" semantic for an operator-facing dashboard.
+    At the function level, passing both is supported as a union
+    (cited-by-source ∪ tagged-with-tag, with descent + lemma rollup
+    walking from the combined seed) — useful for testing flexibility
+    and for any future internal caller that wants a composite slice.
+    The CLI raises ``UsageError`` on the combination so the operator
+    never has to think about union semantics.
+
+    Returns the row count for caller logging.
     """
     conn.executescript("DROP TABLE IF EXISTS eligible_etymon;")
     if not restrict_to_generator_eligible:
@@ -681,41 +715,70 @@ def populate_eligible_etymon_table(
 
     conn.executescript("CREATE TEMP TABLE eligible_etymon (id INTEGER PRIMARY KEY);")
 
-    if has_citation:
-        # (1) directly cited etymons (rando-port + scholar). After this
-        # the eligible_etymon table carries the seed; subsequent steps
-        # read from it instead of re-querying etymon_citation.
-        conn.execute(
-            "INSERT OR IGNORE INTO eligible_etymon (id) "
-            "SELECT DISTINCT etymon_id FROM etymon_citation "
-            "WHERE etymon_id IS NOT NULL"
-        )
-        if has_descent:
-            # (2) 1-hop descent parents + children of the cited seed.
+    # Filter semantics:
+    #   * Both unset: cited (any source) + fantasy (any of the
+    #     fiction tag set) — default generator-eligible behavior.
+    #   * Only source_filter: cited-by-this-source seed; fantasy
+    #     step skipped (slice is the named source only).
+    #   * Only tag_filter: tagged-with-this-tag seed; cited step
+    #     skipped (slice is the named tag only).
+    #   * Both set (CLI rejects this; internal callers can still
+    #     pass both): union — cited-by-source PLUS tagged-with-tag.
+    include_cited = has_citation and (tag_filter is None or source_filter is not None)
+    include_fantasy = has_tag and (source_filter is None or tag_filter is not None)
+
+    if include_cited:
+        # (1) cited etymons. When source_filter is set, restrict to
+        # that single source (e.g. 'rando-port'); otherwise any source.
+        if source_filter is not None:
             conn.execute(
-                """
-                INSERT OR IGNORE INTO eligible_etymon (id)
-                SELECT DISTINCT id FROM (
-                    SELECT ed.parent_id AS id FROM etymon_descent ed
-                     WHERE ed.child_id IN (SELECT id FROM eligible_etymon)
-                       AND ed.parent_id IS NOT NULL
-                    UNION
-                    SELECT ed.child_id AS id FROM etymon_descent ed
-                     WHERE ed.parent_id IN (SELECT id FROM eligible_etymon)
-                       AND ed.child_id IS NOT NULL
-                )
-                """
+                "INSERT OR IGNORE INTO eligible_etymon (id) "
+                "SELECT DISTINCT etymon_id FROM etymon_citation "
+                "WHERE source_id = ? AND etymon_id IS NOT NULL",
+                (source_filter,),
             )
-    if has_tag:
-        # (3) fantasy / monster / creature tagged. Run BEFORE the
-        # lemma rollup so inflected children of fantasy-tagged
-        # lemmas (and the lemma of fantasy-tagged inflections) also
-        # ride along — otherwise tag-only-eligible 'Orc' wouldn't
-        # bring 'Orcs' into the eligible set.
+        else:
+            conn.execute(
+                "INSERT OR IGNORE INTO eligible_etymon (id) "
+                "SELECT DISTINCT etymon_id FROM etymon_citation "
+                "WHERE etymon_id IS NOT NULL"
+            )
+    if include_fantasy:
+        # Insert the tag seed BEFORE descent expansion so descent and
+        # lemma rollup walk from BOTH the cited and fantasy seeds.
+        # When tag_filter is set, restrict to that single tag (e.g.
+        # 'fantasy' alone, excluding 'monster' / 'creature');
+        # otherwise include the full fiction-tag set.
+        if tag_filter is not None:
+            conn.execute(
+                "INSERT OR IGNORE INTO eligible_etymon (id) "
+                "SELECT etymon_id FROM etymon_tag WHERE tag = ?",
+                (tag_filter,),
+            )
+        else:
+            conn.execute(
+                "INSERT OR IGNORE INTO eligible_etymon (id) "
+                "SELECT etymon_id FROM etymon_tag "
+                "WHERE tag IN ('fantasy', 'monster', 'creature')"
+            )
+    if has_descent and (include_cited or include_fantasy):
+        # 1-hop descent parents + children of the current seed (cited
+        # + fantasy, whichever are active). Walks from EVERY seed
+        # type uniformly — so e.g. fantasy-tagged 'Orc' picks up its
+        # OE ancestor 'orcneas' via descent.
         conn.execute(
-            "INSERT OR IGNORE INTO eligible_etymon (id) "
-            "SELECT etymon_id FROM etymon_tag "
-            "WHERE tag IN ('fantasy', 'monster', 'creature')"
+            """
+            INSERT OR IGNORE INTO eligible_etymon (id)
+            SELECT DISTINCT id FROM (
+                SELECT ed.parent_id AS id FROM etymon_descent ed
+                 WHERE ed.child_id IN (SELECT id FROM eligible_etymon)
+                   AND ed.parent_id IS NOT NULL
+                UNION
+                SELECT ed.child_id AS id FROM etymon_descent ed
+                 WHERE ed.parent_id IN (SELECT id FROM eligible_etymon)
+                   AND ed.child_id IS NOT NULL
+            )
+            """
         )
     # (4) Lemma rollup: BOTH directions.
     #   (4a) Upward — promote the lemma of any eligible inflected
@@ -1555,6 +1618,8 @@ def compute_report(
     drop_empty: bool = True,
     compute_tier4: bool = True,
     tier4_progress_callback: Any = None,
+    source_filter: str | None = None,
+    tag_filter: str | None = None,
 ) -> LanguageQualityReport:
     """Compute the full multi-language report.
 
@@ -1570,10 +1635,26 @@ def compute_report(
     skipped — same visual rendering as 'no phonology rules registered'.
     ``tier4_progress_callback(language, done, total)`` lets the CLI
     surface a CLAUDE.md-shape progress line on the long English walk.
+
+    ``source_filter`` / ``tag_filter`` (wyrd-5ecx) restrict the
+    eligible-set seed to a specific source_id (e.g. ``'rando-port'``)
+    or tag (e.g. ``'fantasy'``) — operator-facing 'slice views' of
+    the dashboard. See ``populate_eligible_etymon_table`` for the
+    exact seed semantics.
     """
     languages_to_check = list(languages or DEFAULT_LANGUAGES)
     if reference_tags is None:
         reference_tags = list(FALLBACK_REFERENCE_TAGS[:REFERENCE_TAG_COUNT])
+    # wyrd-5ecx: populate the eligible-etymon temp table ONCE up
+    # front with the active filter (if any). Per-language helpers
+    # then JOIN against it. Without this the filter wouldn't be
+    # applied until the first auto-populate inside _ensure_*,
+    # which would use default (unfiltered) semantics.
+    populate_eligible_etymon_table(
+        conn,
+        source_filter=source_filter,
+        tag_filter=tag_filter,
+    )
     # wyrd-vn09: precompute the rando-port grandfather audit ONCE
     # (rollup walks every etymon row, so per-language recomputation
     # would be wasteful). Each scorecard reads its bucket from the
@@ -1607,6 +1688,8 @@ def compute_report(
         reference_tags=list(reference_tags),
         bundle_total_words=_bundle_total_words(bundle),
         languages=cards,
+        source_filter=source_filter,
+        tag_filter=tag_filter,
     )
 
 
@@ -1644,6 +1727,13 @@ def report_to_markdown(report: LanguageQualityReport) -> str:
     lines.append(f"Reference profile (top {len(report.reference_tags)} English tags):")
     lines.append("  " + ", ".join(report.reference_tags))
     lines.append(f"Bundle total words: {report.bundle_total_words}")
+    # wyrd-5ecx: when an active slice filter is in play, surface it in
+    # the header so the operator knows what subset of the corpus is
+    # being measured ('rando-port view', 'fantasy view', etc.).
+    if report.source_filter is not None:
+        lines.append(f"**Slice filter: source = `{report.source_filter}`**")
+    if report.tag_filter is not None:
+        lines.append(f"**Slice filter: tag = `{report.tag_filter}`**")
     lines.append("")
 
     # --- summary table ---

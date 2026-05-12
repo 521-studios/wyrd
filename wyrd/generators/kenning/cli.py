@@ -5751,6 +5751,32 @@ def lexicon_stats(db_path: Path) -> None:
         "the walk and renders the cell as 'n/a' — fast for iteration."
     ),
 )
+@click.option(
+    "--source",
+    "source_filter",
+    type=str,
+    default=None,
+    help=(
+        "wyrd-5ecx: restrict the eligible-set seed to etymons cited "
+        "by this specific source_id (e.g. 'rando-port', "
+        "'mawer_1920_northumberland_durham'). Descent + lemma rollup "
+        "still apply from the restricted seed, so the dashboard shows "
+        "the slice + its era-progression context. Mutually exclusive "
+        "with --tag."
+    ),
+)
+@click.option(
+    "--tag",
+    "tag_filter",
+    type=str,
+    default=None,
+    help=(
+        "wyrd-5ecx: restrict the eligible-set seed to etymons tagged "
+        "with this specific tag (e.g. 'fantasy', 'monster'). Descent "
+        "+ lemma rollup still apply from the restricted seed. "
+        "Mutually exclusive with --source."
+    ),
+)
 def lexicon_language_report(
     db_path: Path,
     bundle_path: Path | None,
@@ -5761,6 +5787,8 @@ def lexicon_language_report(
     json_path: Path | None,
     output_format: str,
     compute_tier4: bool,
+    source_filter: str | None,
+    tag_filter: str | None,
 ) -> None:
     """Per-language quality scorecard (wyrd-wzwa Phase 1).
 
@@ -5810,6 +5838,9 @@ def lexicon_language_report(
             err=True,
         )
 
+    if source_filter is not None and tag_filter is not None:
+        raise click.UsageError("--source and --tag are mutually exclusive")
+
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     try:
@@ -5821,6 +5852,8 @@ def lexicon_language_report(
             drop_empty=not keep_empty,
             compute_tier4=compute_tier4,
             tier4_progress_callback=_tier4_progress if compute_tier4 else None,
+            source_filter=source_filter,
+            tag_filter=tag_filter,
         )
     finally:
         conn.close()
