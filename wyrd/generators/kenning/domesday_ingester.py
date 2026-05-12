@@ -94,6 +94,17 @@ COUNTY_CODE_TO_NAME: dict[str, str] = {
     "FLN": "Flintshire",
 }
 
+# Country attribution per county code. Most Domesday counties are in
+# England; the marginal Welsh entries (Monmouthshire was a debated
+# border region for centuries — sometimes treated as Welsh, sometimes
+# English) get country='Wales'. Hull's dataset doesn't formally label
+# country, but Domesday-historians treat MON / FLN as the Welsh
+# marches. Codes not in this set default to ``'England'``.
+COUNTY_CODE_TO_COUNTRY: dict[str, str] = {
+    "MON": "Wales",
+    "FLN": "Wales",
+}
+
 DOMESDAY_SOURCE_ID = "open_domesday_hull"
 DOMESDAY_SOURCE_TITLE = "Open Domesday (Hull dataset, J.J.N. Palmer team)"
 DOMESDAY_SOURCE_NOTES = (
@@ -206,13 +217,39 @@ def _ingest_from_tables(
     if apply:
         upsert_domesday_source(conn)
 
-    # In-process memo: (modern_name, region) → toponym_id.
-    # Without it each Domesday vill would re-issue a SELECT against
-    # toponym at insertion time on every row.
+    # Pre-populate the (modern_name, region) → toponym_id cache from
+    # the existing toponym table in one query. Avoids ~20K per-row
+    # SELECTs during the walk; also lets dry-run report accurate
+    # toponym_inserted vs toponym_existing counts against the current
+    # DB state (i.e. dry-run is a faithful preview of what apply
+    # would do, not just what the parse would produce).
     toponym_id_cache: dict[tuple[str, str], int] = {}
+    for r in conn.execute("SELECT modern_name, region, id FROM toponym"):
+        if r[0] is not None and r[1] is not None:
+            toponym_id_cache[(r[0], r[1])] = r[2]
+
+    # Pre-populate the attestation existence index so dry-run can
+    # also report accurate attestation_inserted vs _existing counts.
+    # Keyed by (toponym_id, form, date_year, source_doc) — same shape
+    # as the apply path's existence query, but cached once.
+    attestation_index: set[tuple[int, str, int, str]] = set()
+    for r in conn.execute(
+        "SELECT toponym_id, form, date_year, source_doc "
+        "FROM toponym_attestation WHERE date_year = 1086"
+    ):
+        attestation_index.add((r[0], r[1], r[2] or 0, r[3] or ""))
 
     n_pf = len(next(iter(placeforms.values()))) if placeforms else 0
     progress_step = max(1, n_pf // 20)
+    # Sentinel ID for cache slots representing dry-run would-be-inserts
+    # that haven't been committed to the DB yet. Distinct from any
+    # real autoincrement-generated rowid (which start at 1).
+    DRY_RUN_SENTINEL = -1
+    # Tracks (modern_name, region) keys we've already counted in this
+    # run so the toponym_existing tally doesn't multi-count
+    # PlaceFormSub > 1 alternates that map to the same pre-existing
+    # toponym row.
+    seen_this_run: set[tuple[str, str]] = set()
 
     for i in range(n_pf):
         counts["placeform_rows_walked"] += 1
@@ -238,45 +275,11 @@ def _ingest_from_tables(
             continue
 
         region = COUNTY_CODE_TO_NAME.get(county_code, county_code)
+        country = COUNTY_CODE_TO_COUNTRY.get(county_code, "England")
         cache_key = (modern_name, region)
 
-        if not apply:
-            # Dry-count path: tally would-be-inserts using the same
-            # dedupe key the apply path uses so duplicate
-            # (modern_name, region) PlaceForm rows (PlaceFormSub > 1
-            # alternates) don't over-count. Otherwise dry-run reports
-            # a higher toponym count than the apply path would
-            # actually produce.
-            if cache_key not in toponym_id_cache:
-                counts["toponym_inserted"] += 1
-                toponym_id_cache[cache_key] = -1  # dry-run sentinel
-            counts["attestation_inserted"] += 1
-            continue
-
-        toponym_id = toponym_id_cache.get(cache_key)
-        if toponym_id is None:
-            existing = conn.execute(
-                "SELECT id FROM toponym WHERE modern_name = ? AND region = ?",
-                (modern_name, region),
-            ).fetchone()
-            if existing is not None:
-                toponym_id = existing[0]
-                counts["toponym_existing"] += 1
-            else:
-                cur = conn.execute(
-                    "INSERT INTO toponym (modern_name, country, region) VALUES (?, 'England', ?)",
-                    (modern_name, region),
-                )
-                toponym_id = cur.lastrowid
-                counts["toponym_inserted"] += 1
-            toponym_id_cache[cache_key] = toponym_id
-
-        # Attestation: the modern Vill name carries the form (Hull's
-        # data doesn't include the Latin original spelling — that lives
-        # in Phillimore-cited paper volumes the team isn't authorized
-        # to redistribute). The ``form`` field holds the modern name;
-        # ``source_doc`` carries the Phillimore citation + Hundred + OS
-        # ref so downstream readers can trace back to the manor entry.
+        # Compute the source_doc here so both apply and dry-run share
+        # the attestation-dedup logic below.
         philli = phillimore_by_idx.get(idx) or ""
         source_doc_parts = [f"Phillimore {philli}"] if philli else []
         if hundred:
@@ -285,26 +288,48 @@ def _ingest_from_tables(
             source_doc_parts.append(f"OS={os_ref}")
         source_doc = "; ".join(source_doc_parts) or DOMESDAY_SOURCE_ID
 
-        existing_atst = conn.execute(
-            """
-            SELECT id FROM toponym_attestation
-             WHERE toponym_id = ? AND form = ? AND date_year = ?
-               AND source_doc = ?
-            """,
-            (toponym_id, modern_name, 1086, source_doc),
-        ).fetchone()
-        if existing_atst is not None:
+        # Resolve toponym via cache. Three outcomes:
+        #   * absent: truly new — insert (apply) / count once (dry-run)
+        #   * present + real id: pre-existing in DB — count as existing
+        #   * present + sentinel: dry-run repeat of a key already counted
+        toponym_id = toponym_id_cache.get(cache_key)
+        if toponym_id is None:
+            counts["toponym_inserted"] += 1
+            if apply:
+                cur = conn.execute(
+                    "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
+                    (modern_name, country, region),
+                )
+                toponym_id = cur.lastrowid
+            else:
+                toponym_id = DRY_RUN_SENTINEL
+            toponym_id_cache[cache_key] = toponym_id
+        elif cache_key not in seen_this_run:
+            # First encounter in THIS run of a pre-existing
+            # (modern_name, region). Count once — subsequent rows
+            # for the same cache_key are silent in-run dedupes.
+            counts["toponym_existing"] += 1
+        seen_this_run.add(cache_key)
+
+        # Attestation: dedupe against the pre-populated
+        # attestation_index (covers DB-resident attestations and
+        # within-this-run repeats) so both apply + dry-run report
+        # accurate inserted vs existing counts.
+        att_key = (toponym_id, modern_name, 1086, source_doc)
+        if att_key in attestation_index:
             counts["attestation_existing"] += 1
         else:
-            conn.execute(
-                """
-                INSERT INTO toponym_attestation
-                    (toponym_id, form, date_year, source_doc)
-                VALUES (?, ?, ?, ?)
-                """,
-                (toponym_id, modern_name, 1086, source_doc),
-            )
+            attestation_index.add(att_key)
             counts["attestation_inserted"] += 1
+            if apply:
+                conn.execute(
+                    """
+                    INSERT INTO toponym_attestation
+                        (toponym_id, form, date_year, source_doc)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (toponym_id, modern_name, 1086, source_doc),
+                )
 
     if apply:
         conn.commit()

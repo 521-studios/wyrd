@@ -249,6 +249,72 @@ def test_ingest_skips_rows_missing_vill_or_county() -> None:
     assert counts["toponym_inserted"] == 1  # only "Good" survives
 
 
+def test_ingest_attributes_welsh_counties_to_wales() -> None:
+    """wyrd-el93 fix: Monmouthshire (MON) and Flintshire (FLN) are
+    Welsh marches — Hull's dataset lists them but doesn't formally
+    label country. Default 'England' would mis-attribute. Pin that
+    the country column = 'Wales' for those codes."""
+    conn = _build_fixture_db()
+    places = {
+        "PlacesIdx": [1, 2],
+        "County": ["MON", "WOR"],
+        "Phillimore": ["W,1", "15,8"],
+        "Hundred": ["x", "y"],
+        "Vill": ["WelshVill", "EnglishVill"],
+        "Area": [None, None],
+        "XRefs": [None, None],
+        "OSrefs": [None, None],
+        "OScodes": [None, None],
+    }
+    placeforms = {
+        "PlacesIdx": [1, 2],
+        "PlaceFormSub": [1, 1],
+        "County": ["MON", "WOR"],
+        "Hundred": ["x", "y"],
+        "Vill": ["WelshVill", "EnglishVill"],
+        "OSref": [None, None],
+        "OScodes": [None, None],
+    }
+    _ingest_from_tables(conn, places, placeforms, apply=True)
+    rows = list(conn.execute("SELECT modern_name, country FROM toponym ORDER BY modern_name"))
+    by_name = {r["modern_name"]: r["country"] for r in rows}
+    assert by_name["WelshVill"] == "Wales"
+    assert by_name["EnglishVill"] == "England"
+
+
+def test_ingest_dry_run_reports_existing_db_state() -> None:
+    """wyrd-el93 fix: dry-run pre-populates the toponym + attestation
+    caches from the current DB state, so it reports accurate
+    inserted vs existing counts (not just 'every parsed row is new').
+    Pin against a fixture where one toponym is already in the DB
+    before the ingest starts."""
+    conn = _build_fixture_db()
+    # Pre-existing toponym + attestation from an earlier scholar
+    # ingest. Same (modern_name, region) the Domesday ingest will
+    # touch.
+    conn.execute(
+        "INSERT INTO toponym (modern_name, country, region) VALUES ('Abberley', 'England', 'Worcestershire')"
+    )
+    pre_id = conn.execute("SELECT id FROM toponym WHERE modern_name = 'Abberley'").fetchone()["id"]
+    conn.execute(
+        "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+        "VALUES (?, ?, ?, ?)",
+        (pre_id, "Abberley", 1086, "Phillimore 15,8; Hundred=`Doddingtree'; OS=SO7567"),
+    )
+    conn.commit()
+
+    places, placeforms = _fixture_tables()
+    counts = _ingest_from_tables(conn, places, placeforms, apply=False)
+
+    # Of the 2 valid rows (speculative skipped), 1 already exists
+    # in the DB and 1 is new. Dry-run must reflect both.
+    assert counts["toponym_existing"] == 1
+    assert counts["toponym_inserted"] == 1
+    # Same for attestations: 1 already exists, 1 new.
+    assert counts["attestation_existing"] == 1
+    assert counts["attestation_inserted"] == 1
+
+
 def test_ingest_passes_through_unmapped_county_code() -> None:
     """An unknown county code (not in COUNTY_CODE_TO_NAME) passes
     through unchanged rather than raising KeyError. Defensive against
