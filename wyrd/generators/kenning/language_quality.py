@@ -987,7 +987,16 @@ def _tier4_phonology_coverage(
     if chain_info is None:
         return -1
     resolved, _family, chain = chain_info
-    other_stops = [stop for stop in chain if stop != resolved]
+    # Order targets by chain-distance from self ascending so the inner
+    # loop's early-break tries the cheapest walk first. For ModE the
+    # walk to EModE is one cell, to ME two cells, to OE three cells —
+    # at ~99% fire rate the closest target almost always wins, so the
+    # average per-etymon cost drops materially vs. declaration order.
+    i_self = chain.index(resolved)
+    other_stops = sorted(
+        (stop for stop in chain if stop != resolved),
+        key=lambda stop: abs(chain.index(stop) - i_self),
+    )
     if not other_stops:
         return -1
 
@@ -1012,7 +1021,9 @@ def _tier4_phonology_coverage(
         seen += 1
         if canonical_form:
             for target in other_stops:
-                if rule_form(canonical_form, language, target) is not None:
+                # Pass the pre-resolved language name to skip the alias
+                # lookup that rule_form would otherwise repeat per call.
+                if rule_form(canonical_form, resolved, target) is not None:
                     fires += 1
                     break
         if progress_callback is not None and seen % progress_step == 0:

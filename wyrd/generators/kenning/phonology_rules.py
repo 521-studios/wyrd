@@ -921,7 +921,7 @@ def rule_form(
     # family (defensive — current registry has one chain per family,
     # but a future refactor that adds branching within ``english``
     # would otherwise hit ValueError on chain.index below).
-    if family != to_family or chain is not to_chain:
+    if family != to_family or chain != to_chain:
         return None
     i_from = chain.index(from_resolved)
     i_to = chain.index(to_resolved)
