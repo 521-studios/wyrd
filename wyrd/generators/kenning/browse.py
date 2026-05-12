@@ -379,18 +379,19 @@ def fetch_source(conn: sqlite3.Connection, source_id: str) -> dict[str, Any] | N
     if row is None:
         return None
 
-    citation_count = conn.execute(
-        "SELECT COUNT(*) AS n FROM etymon_citation WHERE source_id = ?", (source_id,)
-    ).fetchone()["n"]
-    descent_count = conn.execute(
-        "SELECT COUNT(*) AS n FROM etymon_descent WHERE source_id = ?", (source_id,)
-    ).fetchone()["n"]
-    mining_run_count = conn.execute(
-        "SELECT COUNT(*) AS n FROM mining_run WHERE source_id = ?", (source_id,)
-    ).fetchone()["n"]
-    etymology_count = conn.execute(
-        "SELECT COUNT(*) AS n FROM toponym_etymology WHERE source_id = ?", (source_id,)
-    ).fetchone()["n"]
+    # Single round-trip: four subqueries collapse to one statement.
+    counts = conn.execute(
+        """SELECT
+              (SELECT COUNT(*) FROM etymon_citation WHERE source_id = ?)    AS citations,
+              (SELECT COUNT(*) FROM etymon_descent WHERE source_id = ?)     AS descent,
+              (SELECT COUNT(*) FROM mining_run WHERE source_id = ?)         AS mining_runs,
+              (SELECT COUNT(*) FROM toponym_etymology WHERE source_id = ?)  AS etymologies""",
+        (source_id, source_id, source_id, source_id),
+    ).fetchone()
+    citation_count = counts["citations"]
+    descent_count = counts["descent"]
+    mining_run_count = counts["mining_runs"]
+    etymology_count = counts["etymologies"]
     toponyms = [
         {"modern_name": r["modern_name"], "region": r["region"]}
         for r in conn.execute(
