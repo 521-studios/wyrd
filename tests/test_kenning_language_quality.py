@@ -708,6 +708,68 @@ def test_populate_eligible_etymon_table_is_idempotent() -> None:
     assert third == raw_total  # restrict=False populates with every etymon ID
 
 
+def test_populate_eligible_etymon_table_source_filter_restricts_seed() -> None:
+    """wyrd-5ecx: ``source_filter`` restricts the cited-step seed to
+    etymons cited by ONLY that source. Descent + lemma rollup walk
+    from the restricted seed but never re-broaden via other sources.
+
+    Fixture has ham (id=2) cited by skeat_1901 ONLY; cot (id=1) cited
+    by skeat_1901 + mawer_1920 + charles_1992. Filtering to
+    ``source_filter='mawer_1920'`` seeds only cot (and tun, which is
+    also cited by mawer_1920) — NOT ham."""
+    conn = _build_fixture_db()
+    populate_eligible_etymon_table(conn, source_filter="mawer_1920")
+    ids = {r[0] for r in conn.execute("SELECT id FROM eligible_etymon")}
+    assert 1 in ids  # cot cited by mawer_1920
+    assert 3 in ids  # tun cited by mawer_1920
+    assert 2 not in ids  # ham cited ONLY by skeat_1901 — excluded
+    # Lemma rollup of cot brings its inflected children along.
+    assert 4 in ids  # cotum (lemma_id=1)
+    assert 5 in ids  # cotan (lemma_id=1)
+
+
+def test_populate_eligible_etymon_table_source_filter_excludes_fantasy() -> None:
+    """When source_filter is set, fantasy/monster/creature-tagged
+    etymons are NOT auto-included. The slice view is the slice the
+    user asked for, not the slice + the fiction exception."""
+    conn = _build_fixture_db()
+    # Add a fantasy-tagged etymon that isn't cited by anything.
+    conn.executescript(
+        """
+        INSERT INTO etymon(id, canonical_form, language) VALUES (200, 'orc', 'klingon');
+        INSERT INTO etymon_tag(etymon_id, tag) VALUES (200, 'fantasy');
+        """
+    )
+    populate_eligible_etymon_table(conn, source_filter="skeat_1901")
+    ids = {r[0] for r in conn.execute("SELECT id FROM eligible_etymon")}
+    assert 200 not in ids
+
+
+def test_populate_eligible_etymon_table_tag_filter_restricts_seed() -> None:
+    """wyrd-5ecx: ``tag_filter`` restricts the seed to etymons with
+    ONLY that tag (e.g. 'fantasy' alone, excluding 'monster' /
+    'creature'). Cited step is skipped — the slice is fiction-only.
+
+    Insert two tagged etymons: 'orc' (fantasy) and 'wyvern' (monster).
+    Filter to tag_filter='fantasy' should seed only orc."""
+    conn = _build_fixture_db()
+    conn.executescript(
+        """
+        INSERT INTO etymon(id, canonical_form, language) VALUES (300, 'orc', 'klingon');
+        INSERT INTO etymon(id, canonical_form, language) VALUES (301, 'wyvern', 'klingon');
+        INSERT INTO etymon_tag(etymon_id, tag) VALUES (300, 'fantasy');
+        INSERT INTO etymon_tag(etymon_id, tag) VALUES (301, 'monster');
+        """
+    )
+    populate_eligible_etymon_table(conn, tag_filter="fantasy")
+    ids = {r[0] for r in conn.execute("SELECT id FROM eligible_etymon")}
+    assert 300 in ids  # tagged fantasy
+    assert 301 not in ids  # tagged monster, NOT fantasy
+    # cited step skipped — fixture's cited rows shouldn't appear
+    # unless they end up in fantasy's lemma-rollup / descent context.
+    assert 1 not in ids  # cot — cited but not fantasy-related
+
+
 def test_populate_eligible_etymon_table_handles_minimal_schema() -> None:
     """Defensive: minimal test fixtures may lack etymon_tag /
     etymon_descent / etymon_citation. The helper skips those branches

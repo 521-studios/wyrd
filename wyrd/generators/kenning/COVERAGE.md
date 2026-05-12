@@ -537,6 +537,59 @@ runtime knob is engaged.
 
 
 
+### 2026-05-12 — wyrd-5ecx (dashboard slice filters: --source / --tag)
+
+Builds on wyrd-bfv1. Operators want to view the dashboard
+restricted to a specific seed slice — e.g. "how are the rando-port
+grandfather words doing?" or "how is the fantasy slice doing on
+variant coverage?".
+
+Two CLI flags (mutually exclusive):
+
+* ``--source SOURCE_ID`` — restrict the cited-step seed to etymons
+  cited by that specific ``source_id`` (e.g. ``rando-port``,
+  ``mawer_1920_northumberland_durham``). Fantasy step skipped.
+* ``--tag TAG`` — restrict the seed to etymons tagged ``TAG``
+  (e.g. ``fantasy``, ``monster``). Cited step skipped.
+
+Descent + lemma rollup STILL walk from the restricted seed, so
+the slice view includes the era-progression context of the
+seeded words — not just the raw citations / tags. Header gets
+``**Slice filter: source = ...**`` so the operator knows what
+subset is being measured.
+
+Selected rando-port slice readings:
+
+| language | rando eligible | full eligible | inflect | variants | era reflex (lex/bundle) |
+|----------|---------------:|--------------:|--------:|---------:|------------------------:|
+| modern-english | 1,736 | 22,357 | 6.6% | 72.2% | 29.2% / 66.6% |
+| middle-english | 2,070 | 9,080 | 16.4% | 23.3% | 93.3% / 79.8% |
+| old-english | 4,279 | 14,394 | 37.7% | 67.0% | 25.7% / 63.9% |
+| old-norse | 552 | 2,194 | 16.6% | 54.5% | 40.0% / 52.5% |
+| welsh | 13 | 3,057 | 0.0% | 100.0% | 61.5% / 17.6% |
+| latin | 27 | 937 | 0.0% | 0.0% | 66.7% / 60.0% |
+
+Fantasy slice (top languages):
+
+| language | fantasy eligible | inflect | variants | era reflex |
+|----------|-----------------:|--------:|---------:|-----------:|
+| modern-english | 434 | 10.5% | 68.9% | 52.5% |
+| middle-english | 292 | 18.7% | 30.1% | 90.1% |
+| old-english | 332 | 38.6% | 53.0% | 39.5% |
+
+Implementation: ``populate_eligible_etymon_table`` gains
+``source_filter`` / ``tag_filter`` keyword args. When either is
+set, the cited or fantasy seed step is restricted accordingly;
+descent + lemma rollup still walk from whatever seed is present.
+``compute_report`` accepts the same flags and stores them in
+``LanguageQualityReport`` for the markdown renderer to surface.
+
+CLI flags mutually exclusive (``--source`` AND ``--tag`` together
+raises a usage error) — each defines a different slice shape and
+composing them would muddy the semantic.
+
+
+
 ### 2026-05-12 — wyrd-bfv1 (dashboard denominators restricted to generator-eligible)
 
 Previously the dashboard divided every per-language coverage metric
