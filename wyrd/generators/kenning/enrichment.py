@@ -70,7 +70,10 @@ def _build_ref_resolver(conn: sqlite3.Connection):
 
 
 def apply_curation_overrides(
-    db: LexiconDB, curation_state: dict[str, dict[str, Any]]
+    db: LexiconDB,
+    curation_state: dict[str, dict[str, Any]],
+    *,
+    apply: bool = True,
 ) -> dict[str, Any]:
     """Apply operator curation overrides to L3 enrichment columns (wyrd-2jhs).
 
@@ -92,9 +95,20 @@ def apply_curation_overrides(
       column.
 
     Run AFTER the auto-clustering passes (normalize-ocr + link-lemmas)
-    so curation overrides their output. Curation rows for unknown
-    etymons (ref doesn't match) are logged as ``unresolved`` and
-    skipped — never raise, so a stale ref doesn't block the rebuild.
+    so curation overrides their output. Bad curation events
+    (unresolved refs, self-references) are logged in the counts dict
+    and skipped — never raise, so a stale ref doesn't block the
+    rebuild.
+
+    Validation always runs (resolves refs, counts unresolved /
+    self-references); DB writes only happen when ``apply=True``.
+    Dry-run mode is useful for operators previewing a curation batch
+    before committing.
+
+    Self-reference guard: an etymon can't be its own lemma_id or
+    merged_into_id target. Such curation events would create cycles
+    (e.g. ``find_canonical(x)`` resolving infinitely). Counted under
+    ``self_reference_lemma`` / ``self_reference_merge`` and skipped.
 
     Returns a counts dict for telemetry.
     """
@@ -107,6 +121,9 @@ def apply_curation_overrides(
         "unresolved_etymon": 0,
         "unresolved_lemma_ref": 0,
         "unresolved_merge_ref": 0,
+        "self_reference_lemma": 0,
+        "self_reference_merge": 0,
+        "applied": apply,
     }
     resolve = _build_ref_resolver(db.conn)
 
@@ -126,66 +143,77 @@ def apply_curation_overrides(
             lemma_ref = payload["lemma_ref"]
             inflection = payload.get("inflection")
             if lemma_ref is None:
-                # Explicit clear — revert to NULL.
-                db.conn.execute(
-                    "UPDATE etymon SET lemma_id = NULL, inflection = NULL, "
-                    "lemma_method = NULL WHERE id = ?",
-                    (etymon_id,),
-                )
                 counts["lemma_id_cleared"] += 1
+                if apply:
+                    db.conn.execute(
+                        "UPDATE etymon SET lemma_id = NULL, inflection = NULL, "
+                        "lemma_method = NULL WHERE id = ?",
+                        (etymon_id,),
+                    )
             else:
                 lemma_id = resolve(lemma_ref)
                 if lemma_id is None:
                     counts["unresolved_lemma_ref"] += 1
+                elif lemma_id == etymon_id:
+                    counts["self_reference_lemma"] += 1
                 else:
-                    # Curation winners stay canonical even if auto-clustering
-                    # would have tombstoned them — clear merged_into_id when
-                    # lemma_id is operator-set.
-                    db.conn.execute(
-                        "UPDATE etymon SET lemma_id = ?, inflection = ?, "
-                        "lemma_method = ?, merged_into_id = NULL WHERE id = ?",
-                        (lemma_id, inflection, CURATION_METHOD_VERSION, etymon_id),
-                    )
                     counts["lemma_id_set"] += 1
+                    if apply:
+                        # Curation winners stay canonical even if auto-
+                        # clustering would have tombstoned them — clear
+                        # merged_into_id when lemma_id is operator-set.
+                        db.conn.execute(
+                            "UPDATE etymon SET lemma_id = ?, inflection = ?, "
+                            "lemma_method = ?, merged_into_id = NULL WHERE id = ?",
+                            (lemma_id, inflection, CURATION_METHOD_VERSION, etymon_id),
+                        )
 
         if "merged_into_ref" in payload:
             merge_ref = payload["merged_into_ref"]
             if merge_ref is None:
-                db.conn.execute(
-                    "UPDATE etymon SET merged_into_id = NULL WHERE id = ?",
-                    (etymon_id,),
-                )
                 counts["merged_into_cleared"] += 1
+                if apply:
+                    db.conn.execute(
+                        "UPDATE etymon SET merged_into_id = NULL WHERE id = ?",
+                        (etymon_id,),
+                    )
             else:
                 merge_id = resolve(merge_ref)
                 if merge_id is None:
                     counts["unresolved_merge_ref"] += 1
+                elif merge_id == etymon_id:
+                    counts["self_reference_merge"] += 1
                 else:
-                    # Tombstone target: clear lemma_id (a tombstone shouldn't
-                    # double as a lemma parent) and merge into the target.
-                    db.conn.execute(
-                        "UPDATE etymon SET merged_into_id = ?, "
-                        "lemma_id = NULL, inflection = NULL, "
-                        "lemma_method = NULL WHERE id = ?",
-                        (merge_id, etymon_id),
-                    )
                     counts["merged_into_set"] += 1
+                    if apply:
+                        # Tombstone target: clear lemma_id (a tombstone
+                        # shouldn't double as a lemma parent).
+                        db.conn.execute(
+                            "UPDATE etymon SET merged_into_id = ?, "
+                            "lemma_id = NULL, inflection = NULL, "
+                            "lemma_method = NULL WHERE id = ?",
+                            (merge_id, etymon_id),
+                        )
 
-    db.commit()
+    if apply:
+        db.commit()
     return counts
 
 
 def format_curation_run(counts: dict[str, Any]) -> str:
     """Render :func:`apply_curation_overrides` output as markdown."""
+    applied = counts.get("applied", True)
+    verb_set = "set" if applied else "would set"
+    verb_clear = "cleared" if applied else "would clear"
     lines: list[str] = [
         "## L3 enrichment: curation overrides",
         "",
         f"- Method version: `{CURATION_METHOD_VERSION}`",
         f"- Curations processed: {counts['curations']}",
-        f"- Lemma overrides set: {counts['lemma_id_set']}",
-        f"- Lemma overrides cleared: {counts['lemma_id_cleared']}",
-        f"- Merge overrides set: {counts['merged_into_set']}",
-        f"- Merge overrides cleared: {counts['merged_into_cleared']}",
+        f"- Lemma overrides {verb_set}: {counts['lemma_id_set']}",
+        f"- Lemma overrides {verb_clear}: {counts['lemma_id_cleared']}",
+        f"- Merge overrides {verb_set}: {counts['merged_into_set']}",
+        f"- Merge overrides {verb_clear}: {counts['merged_into_cleared']}",
     ]
     unresolved = (
         counts["unresolved_etymon"]
@@ -201,6 +229,14 @@ def format_curation_run(counts: dict[str, Any]) -> str:
             lines.append(f"- Lemma target not found: {counts['unresolved_lemma_ref']}")
         if counts["unresolved_merge_ref"]:
             lines.append(f"- Merge target not found: {counts['unresolved_merge_ref']}")
+    self_refs = counts.get("self_reference_lemma", 0) + counts.get("self_reference_merge", 0)
+    if self_refs:
+        lines.append("")
+        lines.append("### Self-references (skipped)")
+        if counts.get("self_reference_lemma"):
+            lines.append(f"- Etymon would be its own lemma: {counts['self_reference_lemma']}")
+        if counts.get("self_reference_merge"):
+            lines.append(f"- Etymon would tombstone to itself: {counts['self_reference_merge']}")
     return "\n".join(lines)
 
 
@@ -229,8 +265,11 @@ def run_ocr_lemma_enrichment(
     ocr_result = cluster_ocr_variants(db, apply=apply)
     lemma_result = link_lemmas(db, apply=apply)
     curation_counts: dict[str, Any] | None = None
-    if apply and curation_state is not None:
-        curation_counts = apply_curation_overrides(db, curation_state)
+    if curation_state is not None:
+        # Always run validation + counting; only writes are gated by apply.
+        # Lets `lexicon enrich` (dry-run) preview curation issues without
+        # committing — surfaces unresolved refs / self-references early.
+        curation_counts = apply_curation_overrides(db, curation_state, apply=apply)
 
     return {
         "order": (

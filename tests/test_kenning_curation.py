@@ -312,6 +312,72 @@ def test_apply_lemma_clears_merged_into_id(tmp_path: Path):
     assert row["merged_into_id"] is None
 
 
+def test_apply_self_reference_lemma_skipped(tmp_path: Path):
+    """An etymon can't be its own lemma — would create a cycle in
+    lemma resolution. Counted + skipped."""
+    db_path = _build_db(tmp_path)
+    eid = _add_etymon(db_path, "old-english", "caelf")
+    with LexiconDB(db_path) as db:
+        counts = apply_curation_overrides(
+            db,
+            {"old-english:caelf": {"lemma_ref": "old-english:caelf"}},
+        )
+    assert counts["self_reference_lemma"] == 1
+    assert counts["lemma_id_set"] == 0
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT lemma_id FROM etymon WHERE id=?", (eid,)).fetchone()
+    conn.close()
+    assert row["lemma_id"] is None
+
+
+def test_apply_self_reference_merge_skipped(tmp_path: Path):
+    """Same guard for merged_into_id — a tombstone pointing at itself
+    would infinite-loop find_canonical."""
+    db_path = _build_db(tmp_path)
+    eid = _add_etymon(db_path, "old-english", "vath")
+    with LexiconDB(db_path) as db:
+        counts = apply_curation_overrides(
+            db,
+            {"old-english:vath": {"merged_into_ref": "old-english:vath"}},
+        )
+    assert counts["self_reference_merge"] == 1
+    assert counts["merged_into_set"] == 0
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT merged_into_id FROM etymon WHERE id=?", (eid,)).fetchone()
+    conn.close()
+    assert row["merged_into_id"] is None
+
+
+def test_apply_dry_run_validates_without_writing(tmp_path: Path):
+    """apply=False resolves refs + counts, but performs no DB writes.
+    Lets operators preview a curation batch + spot bad refs before
+    committing."""
+    db_path = _build_db(tmp_path)
+    caelf_id = _add_etymon(db_path, "old-english", "caelf")
+    _add_etymon(db_path, "old-english", "cealf")
+    with LexiconDB(db_path) as db:
+        counts = apply_curation_overrides(
+            db,
+            {
+                "old-english:caelf": {"lemma_ref": "old-english:cealf"},
+                "old-english:nope": {"lemma_ref": "old-english:cealf"},
+            },
+            apply=False,
+        )
+    # Validation counts the good ref + flags the unresolved etymon.
+    assert counts["applied"] is False
+    assert counts["lemma_id_set"] == 1
+    assert counts["unresolved_etymon"] == 1
+    # But no DB write occurred.
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT lemma_id FROM etymon WHERE id=?", (caelf_id,)).fetchone()
+    conn.close()
+    assert row["lemma_id"] is None
+
+
 def test_apply_processes_both_ref_fields_when_one_fails_resolution(tmp_path: Path):
     """A payload with both lemma_ref and merged_into_ref shouldn't
     skip the merge handling just because lemma_ref didn't resolve.
@@ -426,20 +492,29 @@ def test_orchestrator_curation_overrides_auto_clustering(tmp_path: Path):
     assert row["lemma_method"] == CURATION_METHOD_VERSION
 
 
-def test_orchestrator_dry_run_skips_curation(tmp_path: Path):
-    """Dry-run reports the OCR + lemma counts but doesn't touch
-    curation (which requires real DB writes to be observable)."""
+def test_orchestrator_dry_run_validates_curation_without_writing(tmp_path: Path):
+    """Dry-run resolves refs + counts the would-apply changes — gives
+    operators a preview before committing without the DB write."""
     db_path = _build_db(tmp_path)
     _add_etymon(db_path, "old-english", "cæt")
-    _add_etymon(db_path, "old-english", "cætan")
+    catan_id = _add_etymon(db_path, "old-english", "cætan")
     with LexiconDB(db_path) as db:
         result = run_ocr_lemma_enrichment(
             db,
             apply=False,
             curation_state={"old-english:cætan": {"lemma_ref": "old-english:cæt"}},
         )
-    assert result["curation"] is None
-    assert result["order"] == ["normalize-ocr", "link-lemmas"]
+    # Curation is reported even on dry-run, but with no writes.
+    assert result["curation"] is not None
+    assert result["curation"]["applied"] is False
+    assert result["curation"]["lemma_id_set"] == 1
+    assert result["order"] == ["normalize-ocr", "link-lemmas", "apply-curation"]
+    # DB is untouched.
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT lemma_id FROM etymon WHERE id=?", (catan_id,)).fetchone()
+    conn.close()
+    assert row["lemma_id"] is None
 
 
 def test_orchestrator_without_curation_state_unchanged(tmp_path: Path):
@@ -468,14 +543,40 @@ def test_format_curation_includes_method_version_and_counts():
         "unresolved_etymon": 0,
         "unresolved_lemma_ref": 0,
         "unresolved_merge_ref": 0,
+        "self_reference_lemma": 0,
+        "self_reference_merge": 0,
+        "applied": True,
     }
     md = format_curation_run(counts)
     assert CURATION_METHOD_VERSION in md
     assert "Curations processed: 5" in md
     assert "Lemma overrides set: 3" in md
     assert "Merge overrides set: 1" in md
-    # No unresolved section when all are zero.
+    # No unresolved / self-ref sections when all are zero.
     assert "Unresolved" not in md
+    assert "Self-references" not in md
+
+
+def test_format_curation_dry_run_uses_would_phrasing():
+    """applied=False switches verbs to 'would set' / 'would clear'
+    so dry-run output reads predictively."""
+    counts = {
+        "curations": 2,
+        "lemma_id_set": 1,
+        "lemma_id_cleared": 1,
+        "merged_into_set": 0,
+        "merged_into_cleared": 0,
+        "unresolved_etymon": 0,
+        "unresolved_lemma_ref": 0,
+        "unresolved_merge_ref": 0,
+        "self_reference_lemma": 0,
+        "self_reference_merge": 0,
+        "applied": False,
+    }
+    md = format_curation_run(counts)
+    assert "would set: 1" in md
+    assert "would clear: 1" in md
+    assert " set: " not in md.replace("would set", "")  # no past-tense set
 
 
 def test_format_curation_reports_unresolved():
@@ -488,8 +589,31 @@ def test_format_curation_reports_unresolved():
         "unresolved_etymon": 1,
         "unresolved_lemma_ref": 1,
         "unresolved_merge_ref": 0,
+        "self_reference_lemma": 0,
+        "self_reference_merge": 0,
+        "applied": True,
     }
     md = format_curation_run(counts)
     assert "Unresolved refs (skipped)" in md
     assert "Curated etymon not found: 1" in md
     assert "Lemma target not found: 1" in md
+
+
+def test_format_curation_reports_self_references():
+    counts = {
+        "curations": 2,
+        "lemma_id_set": 0,
+        "lemma_id_cleared": 0,
+        "merged_into_set": 0,
+        "merged_into_cleared": 0,
+        "unresolved_etymon": 0,
+        "unresolved_lemma_ref": 0,
+        "unresolved_merge_ref": 0,
+        "self_reference_lemma": 1,
+        "self_reference_merge": 1,
+        "applied": True,
+    }
+    md = format_curation_run(counts)
+    assert "Self-references (skipped)" in md
+    assert "own lemma: 1" in md
+    assert "tombstone to itself: 1" in md
