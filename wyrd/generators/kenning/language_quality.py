@@ -706,39 +706,43 @@ def populate_eligible_etymon_table(
                 )
                 """
             )
-        # (3) Lemma rollup: BOTH directions.
-        #   (3a) Upward — promote the lemma of any eligible inflected
-        #        form. Citations on the inflected form (e.g. ``cotum``)
-        #        should make their base lemma (``cot``) eligible too;
-        #        otherwise lemma-based metrics like D undercount
-        #        because the base form isn't in the eligible set.
-        #   (3b) Downward — inflected children of an eligible lemma
-        #        ride along (the within-language inflection
-        #        inheritance the inflection-coverage metric counts).
-        # Order matters: 3a populates more lemmas first so 3b picks
-        # up their inflected children in a single pass.
-        conn.execute(
-            """
-            INSERT OR IGNORE INTO eligible_etymon (id)
-            SELECT e.lemma_id FROM etymon e
-             WHERE e.id IN (SELECT id FROM eligible_etymon)
-               AND e.lemma_id IS NOT NULL
-            """
-        )
-        conn.execute(
-            """
-            INSERT OR IGNORE INTO eligible_etymon (id)
-            SELECT e.id FROM etymon e
-             WHERE e.lemma_id IN (SELECT id FROM eligible_etymon)
-            """
-        )
     if has_tag:
-        # (4) fantasy / monster / creature tagged
+        # (3) fantasy / monster / creature tagged. Run BEFORE the
+        # lemma rollup so inflected children of fantasy-tagged
+        # lemmas (and the lemma of fantasy-tagged inflections) also
+        # ride along — otherwise tag-only-eligible 'Orc' wouldn't
+        # bring 'Orcs' into the eligible set.
         conn.execute(
             "INSERT OR IGNORE INTO eligible_etymon (id) "
             "SELECT etymon_id FROM etymon_tag "
             "WHERE tag IN ('fantasy', 'monster', 'creature')"
         )
+    # (4) Lemma rollup: BOTH directions.
+    #   (4a) Upward — promote the lemma of any eligible inflected
+    #        form. Citations on the inflected form (e.g. ``cotum``)
+    #        should make their base lemma (``cot``) eligible too;
+    #        otherwise lemma-based metrics like D undercount
+    #        because the base form isn't in the eligible set.
+    #   (4b) Downward — inflected children of an eligible lemma
+    #        ride along (the within-language inflection
+    #        inheritance the inflection-coverage metric counts).
+    # Order matters: 4a populates more lemmas first so 4b picks
+    # up their inflected children in a single pass.
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO eligible_etymon (id)
+        SELECT e.lemma_id FROM etymon e
+         WHERE e.id IN (SELECT id FROM eligible_etymon)
+           AND e.lemma_id IS NOT NULL
+        """
+    )
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO eligible_etymon (id)
+        SELECT e.id FROM etymon e
+         WHERE e.lemma_id IN (SELECT id FROM eligible_etymon)
+        """
+    )
     return conn.execute("SELECT COUNT(*) FROM eligible_etymon").fetchone()[0]
 
 
