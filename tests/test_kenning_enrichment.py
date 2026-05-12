@@ -169,6 +169,35 @@ def test_status_reports_zero_coverage_on_fresh_db(tmp_path: Path):
         assert status["columns"][column]["populated"] == 0
 
 
+def test_status_restores_caller_row_factory(tmp_path: Path):
+    """enrichment_status swaps row_factory to sqlite3.Row internally
+    but must restore the original on return — the caller's connection
+    state shouldn't leak. Verifies the try/finally guard."""
+    db_path = _build_db(tmp_path)
+    _seed_for_enrichment(db_path)
+    conn = sqlite3.connect(db_path)
+    # Default factory returns tuples — NOT sqlite3.Row.
+    assert conn.row_factory is None
+    enrichment_status(conn)
+    # After call, factory is back to the original.
+    assert conn.row_factory is None
+    conn.close()
+
+
+def test_status_works_without_row_factory_set(tmp_path: Path):
+    """A caller with the default tuple factory should still get the
+    structured dict back — the function doesn't depend on the caller's
+    factory."""
+    db_path = _build_db(tmp_path)
+    _seed_for_enrichment(db_path)
+    conn = sqlite3.connect(db_path)
+    # No row_factory set — default tuples.
+    status = enrichment_status(conn)
+    conn.close()
+    assert status["total_etymons"] == 3
+    assert "lemma_id" in status["columns"]
+
+
 def test_status_reports_coverage_after_enrichment(tmp_path: Path):
     db_path = _build_db(tmp_path)
     _seed_for_enrichment(db_path)

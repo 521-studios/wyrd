@@ -81,39 +81,42 @@ def enrichment_status(conn: sqlite3.Connection) -> dict[str, Any]:
     hardcoded column names, never operator input — no SQL injection
     surface.
 
-    Read-only against the DB itself. Sets ``conn.row_factory =
-    sqlite3.Row`` so column-name access works regardless of how the
-    caller configured the connection (the function accesses results
-    like ``counts['total']``). Callers using a non-default factory
-    should expect this state change.
+    Read-only against the DB. Temporarily swaps ``conn.row_factory``
+    to ``sqlite3.Row`` so column-name access works regardless of the
+    caller's factory, then restores the original via try/finally —
+    the connection's state is preserved across the call.
     """
+    original_factory = conn.row_factory
     conn.row_factory = sqlite3.Row
-    counts = conn.execute(
-        """SELECT COUNT(*)              AS total,
-                  COUNT(lemma_id)       AS lemma_id_pop,
-                  COUNT(merged_into_id) AS merged_into_id_pop,
-                  COUNT(cognate_id)     AS cognate_id_pop,
-                  COUNT(stratum)        AS stratum_pop,
-                  COUNT(english_shaped) AS english_shaped_pop
-             FROM etymon"""
-    ).fetchone()
+    try:
+        counts = conn.execute(
+            """SELECT COUNT(*)              AS total,
+                      COUNT(lemma_id)       AS lemma_id_pop,
+                      COUNT(merged_into_id) AS merged_into_id_pop,
+                      COUNT(cognate_id)     AS cognate_id_pop,
+                      COUNT(stratum)        AS stratum_pop,
+                      COUNT(english_shaped) AS english_shaped_pop
+                 FROM etymon"""
+        ).fetchone()
 
-    lemma_methods = [
-        {"method": r["lemma_method"], "count": r["count"]}
-        for r in conn.execute(
-            "SELECT lemma_method, COUNT(*) AS count FROM etymon "
-            "WHERE lemma_method IS NOT NULL "
-            "GROUP BY lemma_method ORDER BY count DESC"
-        )
-    ]
-    cognate_methods = [
-        {"method": r["cognate_method"], "count": r["count"]}
-        for r in conn.execute(
-            "SELECT cognate_method, COUNT(*) AS count FROM etymon "
-            "WHERE cognate_method IS NOT NULL "
-            "GROUP BY cognate_method ORDER BY count DESC"
-        )
-    ]
+        lemma_methods = [
+            {"method": r["lemma_method"], "count": r["count"]}
+            for r in conn.execute(
+                "SELECT lemma_method, COUNT(*) AS count FROM etymon "
+                "WHERE lemma_method IS NOT NULL "
+                "GROUP BY lemma_method ORDER BY count DESC"
+            )
+        ]
+        cognate_methods = [
+            {"method": r["cognate_method"], "count": r["count"]}
+            for r in conn.execute(
+                "SELECT cognate_method, COUNT(*) AS count FROM etymon "
+                "WHERE cognate_method IS NOT NULL "
+                "GROUP BY cognate_method ORDER BY count DESC"
+            )
+        ]
+    finally:
+        conn.row_factory = original_factory
 
     return {
         "total_etymons": counts["total"],
