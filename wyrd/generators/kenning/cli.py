@@ -2086,13 +2086,14 @@ def lexicon_ingest_domesday(
     conn = sqlite3.connect(db_uri, uri=True)
     conn.row_factory = sqlite3.Row
 
-    last_pct = [-1]
+    last_pct = -1
 
     def _progress(done: int, total: int) -> None:
+        nonlocal last_pct
         pct = int(done / total * 100.0) if total else 100
         # Throttle stderr to once per percent-tick.
-        if pct != last_pct[0]:
-            last_pct[0] = pct
+        if pct != last_pct:
+            last_pct = pct
             click.echo(
                 f"  domesday-ingest: {done}/{total} ({pct}%)",
                 err=True,
