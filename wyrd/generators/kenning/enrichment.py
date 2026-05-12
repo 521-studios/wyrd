@@ -70,51 +70,70 @@ def enrichment_status(conn: sqlite3.Connection) -> dict[str, Any]:
     """Report which L3 enrichment columns are populated on ``etymon``.
 
     Per-column coverage: how many rows have the column set vs total
-    etymon rows. Pulls method-version distributions where they're
-    stored (lemma_method, cognate_method).
+    etymon rows. Pulls method-version distributions for the two
+    columns that carry one (``lemma_method``, ``cognate_method``).
+
+    All counts come from a single aggregated SELECT — one table scan
+    on a 2M+ row table instead of six. ``COUNT(col)`` in SQLite
+    counts only non-NULL values, so each ``populated`` figure is one
+    column in the same aggregate. The GROUP BY method-distribution
+    queries are separate (one per method-bearing column) but use
+    hardcoded column names, never operator input — no SQL injection
+    surface.
 
     Read-only — does not write or modify state.
     """
-    total = conn.execute("SELECT COUNT(*) AS n FROM etymon").fetchone()["n"]
+    counts = conn.execute(
+        """SELECT COUNT(*)              AS total,
+                  COUNT(lemma_id)       AS lemma_id_pop,
+                  COUNT(merged_into_id) AS merged_into_id_pop,
+                  COUNT(cognate_id)     AS cognate_id_pop,
+                  COUNT(stratum)        AS stratum_pop,
+                  COUNT(english_shaped) AS english_shaped_pop
+             FROM etymon"""
+    ).fetchone()
 
-    def _populated(column: str) -> int:
-        return conn.execute(
-            f"SELECT COUNT(*) AS n FROM etymon WHERE {column} IS NOT NULL"
-        ).fetchone()["n"]
-
-    def _method_distribution(column: str) -> list[dict[str, Any]]:
-        return [
-            {"method": r[column], "count": r["count"]}
-            for r in conn.execute(
-                f"SELECT {column}, COUNT(*) AS count FROM etymon "
-                f"WHERE {column} IS NOT NULL GROUP BY {column} ORDER BY count DESC"
-            )
-        ]
+    lemma_methods = [
+        {"method": r["lemma_method"], "count": r["count"]}
+        for r in conn.execute(
+            "SELECT lemma_method, COUNT(*) AS count FROM etymon "
+            "WHERE lemma_method IS NOT NULL "
+            "GROUP BY lemma_method ORDER BY count DESC"
+        )
+    ]
+    cognate_methods = [
+        {"method": r["cognate_method"], "count": r["count"]}
+        for r in conn.execute(
+            "SELECT cognate_method, COUNT(*) AS count FROM etymon "
+            "WHERE cognate_method IS NOT NULL "
+            "GROUP BY cognate_method ORDER BY count DESC"
+        )
+    ]
 
     return {
-        "total_etymons": total,
+        "total_etymons": counts["total"],
         "columns": {
             "lemma_id": {
-                "populated": _populated("lemma_id"),
-                "methods": _method_distribution("lemma_method"),
+                "populated": counts["lemma_id_pop"],
+                "methods": lemma_methods,
             },
             "merged_into_id": {
-                "populated": _populated("merged_into_id"),
+                "populated": counts["merged_into_id_pop"],
                 # cluster_ocr_variants doesn't write a per-row method
                 # version (the 'cluster-ocr-v1' string is implicit in
                 # the writer). When that changes the methods list grows.
                 "methods": [],
             },
             "cognate_id": {
-                "populated": _populated("cognate_id"),
-                "methods": _method_distribution("cognate_method"),
+                "populated": counts["cognate_id_pop"],
+                "methods": cognate_methods,
             },
             "stratum": {
-                "populated": _populated("stratum"),
+                "populated": counts["stratum_pop"],
                 "methods": [],
             },
             "english_shaped": {
-                "populated": _populated("english_shaped"),
+                "populated": counts["english_shaped_pop"],
                 "methods": [],
             },
         },
