@@ -1,0 +1,33 @@
+{"_type": "source", "ref": "etymonline", "author": "Douglas Harper", "title": "Etymonline (Online Etymology Dictionary)"}
+{"_type": "etymon", "ref": "ancient-greek:Harpyia", "canonical_form": "Harpyia", "language": "ancient-greek"}
+{"_type": "etymon", "ref": "ancient-greek:drakon", "canonical_form": "drakon", "language": "ancient-greek"}
+{"_type": "etymon", "ref": "ancient-greek:kobalos", "canonical_form": "kobalos", "language": "ancient-greek", "glosses": ["impudent rogue, knave"]}
+{"_type": "etymon", "ref": "latin:draconem", "canonical_form": "draconem", "language": "latin"}
+{"_type": "etymon", "ref": "latin:harpyia", "canonical_form": "harpyia", "language": "latin"}
+{"_type": "etymon", "ref": "medieval-latin:cabalus", "canonical_form": "cabalus", "language": "medieval-latin"}
+{"_type": "etymon", "ref": "modern-english:dragon", "canonical_form": "dragon", "language": "modern-english", "pronunciation_ipa": "/ˈdɹæɡən/"}
+{"_type": "etymon", "ref": "modern-english:goblin", "canonical_form": "goblin", "language": "modern-english", "pronunciation_ipa": "/ˈɡɒb.lɪn/", "pronunciation_dialect": "Received-Pronunciation"}
+{"_type": "etymon", "ref": "modern-english:harpy", "canonical_form": "harpy", "language": "modern-english", "pronunciation_ipa": "/ˈhɑɹpi/", "pronunciation_dialect": "General-American", "tags": ["animal", "bird"]}
+{"_type": "etymon", "ref": "modern-english:troll", "canonical_form": "troll", "language": "modern-english", "pronunciation_ipa": "/tɹɒl/", "pronunciation_dialect": "Received-Pronunciation"}
+{"_type": "etymon", "ref": "old-french:dragon", "canonical_form": "dragon", "language": "old-french", "glosses": ["dragon (mythical animal)"]}
+{"_type": "etymon", "ref": "old-french:gobelin", "canonical_form": "gobelin", "language": "old-french", "tags": ["fantasy", "monster"]}
+{"_type": "etymon", "ref": "old-french:harpie", "canonical_form": "harpie", "language": "old-french"}
+{"_type": "etymon", "ref": "old-french:troller", "canonical_form": "troller", "language": "old-french"}
+{"_type": "etymon", "ref": "old-norse:troll", "canonical_form": "troll", "language": "old-norse", "glosses": ["giant being not of the human race, evil spirit, monster"]}
+{"_type": "etymon", "ref": "proto-germanic:*truzlan", "canonical_form": "*truzlan", "language": "proto-germanic"}
+{"_type": "etymon", "ref": "proto-germanic:*truzlanan", "canonical_form": "*truzlanan", "language": "proto-germanic"}
+{"_type": "etymon", "ref": "proto-indo-european:*derk-", "canonical_form": "*derk-", "language": "proto-indo-european", "glosses": ["to see"]}
+{"_type": "etymon_descent", "parent_ref": "latin:harpyia", "child_ref": "old-french:harpie", "edge_type": "inheritance", "confidence": "high"}
+{"_type": "etymon_descent", "parent_ref": "ancient-greek:Harpyia", "child_ref": "latin:harpyia", "edge_type": "inheritance", "confidence": "high"}
+{"_type": "etymon_descent", "parent_ref": "old-french:harpie", "child_ref": "modern-english:harpy", "edge_type": "inheritance", "confidence": "high"}
+{"_type": "etymon_descent", "parent_ref": "proto-germanic:*truzlanan", "child_ref": "old-french:troller", "edge_type": "inheritance", "confidence": "medium"}
+{"_type": "etymon_descent", "parent_ref": "old-french:troller", "child_ref": "modern-english:troll", "edge_type": "inheritance", "confidence": "medium"}
+{"_type": "etymon_descent", "parent_ref": "proto-germanic:*truzlan", "child_ref": "old-norse:troll", "edge_type": "inheritance", "confidence": "high"}
+{"_type": "etymon_descent", "parent_ref": "old-norse:troll", "child_ref": "modern-english:troll", "edge_type": "inheritance", "confidence": "high"}
+{"_type": "etymon_descent", "parent_ref": "medieval-latin:cabalus", "child_ref": "old-french:gobelin", "edge_type": "inheritance", "confidence": "high"}
+{"_type": "etymon_descent", "parent_ref": "ancient-greek:kobalos", "child_ref": "medieval-latin:cabalus", "edge_type": "inheritance", "confidence": "high"}
+{"_type": "etymon_descent", "parent_ref": "old-french:gobelin", "child_ref": "modern-english:goblin", "edge_type": "inheritance", "confidence": "high"}
+{"_type": "etymon_descent", "parent_ref": "latin:draconem", "child_ref": "old-french:dragon", "edge_type": "inheritance", "confidence": "high"}
+{"_type": "etymon_descent", "parent_ref": "ancient-greek:drakon", "child_ref": "latin:draconem", "edge_type": "inheritance", "confidence": "high"}
+{"_type": "etymon_descent", "parent_ref": "proto-indo-european:*derk-", "child_ref": "ancient-greek:drakon", "edge_type": "inheritance", "confidence": "high"}
+{"_type": "etymon_descent", "parent_ref": "old-french:dragon", "child_ref": "modern-english:dragon", "edge_type": "inheritance", "confidence": "high"}

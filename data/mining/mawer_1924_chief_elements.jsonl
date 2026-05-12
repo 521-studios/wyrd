@@ -1,0 +1,2 @@
+{"_type": "source", "ref": "mawer_1924_chief_elements", "title": "Mawer 1924 Chief Elements", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "mining_run", "provider": "ollama", "model": "qwen3.5:35b-a3b", "mode": "mine", "completed_at": "2026-05-01T00:22:53.543Z", "parsed_count": 8, "accepted": 1, "declined": 6, "rejected": 1, "notes": "english-tier batch"}

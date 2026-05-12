@@ -2120,6 +2120,169 @@ def lexicon_ingest_domesday(
         click.echo("(dry-run; pass --apply to write)", err=True)
 
 
+@lexicon.command("dump-jsonl")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+    help="Source SQLite DB to read from.",
+)
+@click.option(
+    "--out-dir",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=Path("data/mining"),
+    show_default=True,
+    help="Directory to write <source_id>.jsonl files into.",
+)
+@click.option(
+    "--source-id",
+    default=None,
+    help=(
+        "Dump just one source's file. Without this, every source row is "
+        "dumped to its own JSONL file."
+    ),
+)
+@click.option(
+    "--include-bulk",
+    is_flag=True,
+    default=False,
+    help=(
+        "Also dump bulk wiktextract-derived sources (wiktionary, "
+        "wiktionary-empirical, wiktionary-forms). Default skips them — "
+        "their rows are re-derivable from L1 raw inputs and the "
+        "wiktionary dump file alone is ~200MB+."
+    ),
+)
+def lexicon_dump_jsonl(
+    db_path: Path,
+    out_dir: Path,
+    source_id: str | None,
+    include_bulk: bool,
+) -> None:
+    """Dump per-source L2 facts from the lexicon DB to JSONL (wyrd-f295).
+
+    Reads the current SQLite lexicon and emits one
+    ``<source_id>.jsonl`` per ``source`` row, containing canonical-state
+    rows for the source itself + every etymon it cites, plus list rows
+    for citations, descent edges, mining-run audits, and the source's
+    toponym etymologies (with element lists inline).
+
+    Output is the "first compaction" — pure canonical-state rows that
+    replay back to the same DB state via ``lexicon rebuild`` (when that
+    lands). Once committed to git, ``data/mining/<source>.jsonl`` becomes
+    the source of truth and the SQLite DB becomes a rebuildable build
+    artifact.
+    """
+    from urllib.parse import quote
+
+    from wyrd.generators.kenning.jsonl_dump import (
+        DEFAULT_BULK_EXCLUDED_SOURCES,
+        dump_all_sources,
+        dump_source_to_file,
+    )
+
+    # Read-only DB access — dump never writes.
+    db_uri = f"file:{quote(str(db_path.absolute()))}?mode=ro"
+    conn = sqlite3.connect(db_uri, uri=True)
+    conn.row_factory = sqlite3.Row
+
+    exclude = () if include_bulk else DEFAULT_BULK_EXCLUDED_SOURCES
+
+    try:
+        if source_id is not None:
+            path, count = dump_source_to_file(conn, source_id, out_dir)
+            click.echo(f"Wrote {count} rows → {path}", err=True)
+            return
+        counts = dump_all_sources(conn, out_dir, exclude=exclude)
+    finally:
+        conn.close()
+
+    total_rows = sum(counts.values())
+    click.echo(f"Dumped {len(counts)} sources, {total_rows} rows → {out_dir}", err=True)
+    for sid, n in sorted(counts.items()):
+        click.echo(f"  {sid:<40} {n:>6}", err=True)
+
+
+@lexicon.command("rebuild-from-jsonl")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+    help="Target SQLite path. WIPED if it exists.",
+)
+@click.option(
+    "--jsonl-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=Path("data/mining"),
+    show_default=True,
+    help="Directory of <source_id>.jsonl files to replay into the DB.",
+)
+def lexicon_rebuild_from_jsonl(db_path: Path, jsonl_dir: Path) -> None:
+    """Rebuild the lexicon SQLite from per-source JSONL — wyrd-f295.
+
+    Initializes a fresh schema at ``--db`` (wiping any existing DB at
+    that path), then replays every ``<source_id>.jsonl`` under
+    ``--jsonl-dir`` into the new SQLite.
+
+    Each L2 file must contain exactly one ``source`` canonical-state
+    row — its ``ref`` is the source_id for every list-type row in the
+    file. Etymons appearing in multiple files are merged: glosses + tags
+    are unioned; scalar fields follow last-write-wins by file order.
+
+    Does NOT re-run the wiktextract bulk ingest (L1 raw layer) or any
+    L3 derived enrichment passes (decompose, link-lemmas, etc.). Wrap
+    this command with those steps when rebuilding a full DB.
+    """
+    from wyrd.generators.kenning.jsonl_build import (
+        build_from_jsonl,
+        jsonl_paths_in,
+    )
+    from wyrd.generators.kenning.lexicon import init_schema
+
+    init_schema(db_path)
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    try:
+        paths = jsonl_paths_in(jsonl_dir)
+        counts = build_from_jsonl(conn, paths)
+    finally:
+        conn.close()
+
+    click.echo(f"Rebuilt {db_path} from {len(paths)} JSONL files", err=True)
+    click.echo("Inserted:", err=True)
+    for table, n in counts.items():
+        click.echo(f"  {table:<30} {n:>8}", err=True)
+
+
+@lexicon.command("compact-jsonl")
+@click.argument(
+    "jsonl_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
+def lexicon_compact_jsonl(jsonl_path: Path) -> None:
+    """Compact a JSONL event-log into canonical-state rows in place (wyrd-f295).
+
+    Reads ``JSONL_PATH``, replays every row (canonical seed + add/set/
+    patch/remove events) into final state, and writes back as canonical-
+    state rows only. Idempotent — running on an already-compacted file
+    is a no-op.
+
+    Useful after a curation pass appends a batch of events (e.g.
+    dead-rando prune, lemma normalization corrections) — once review
+    is complete, compaction folds the events back into a clean canonical
+    state for diff readability.
+    """
+    from wyrd.generators.kenning.jsonl_log import compact_file
+
+    n = compact_file(jsonl_path)
+    click.echo(f"Compacted {jsonl_path} → {n} canonical rows", err=True)
+
+
 @lexicon.command("ingest-etymonline")
 @click.argument(
     "source_dir",
