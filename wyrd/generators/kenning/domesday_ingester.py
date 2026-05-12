@@ -132,7 +132,13 @@ def upsert_domesday_source(conn: sqlite3.Connection) -> None:
             DOMESDAY_SOURCE_TITLE,
             1086,
             "England",
-            "old-english / latin / norman-french (Domesday Latin text)",
+            # The Domesday text itself is Latin / OE / Norman-French, but
+            # the ``form`` values we write are MODERN English names
+            # (Hull's identification, not the Latin original). Tag the
+            # source as modern-english so downstream phonology /
+            # period-form consumers don't treat the forms as
+            # historical Latin spellings.
+            "modern-english (modern identifications of 1086 Latin entries)",
             DOMESDAY_SOURCE_NOTES,
         ),
     )
@@ -245,10 +251,12 @@ def _ingest_from_tables(
 
     n_pf = len(next(iter(placeforms.values()))) if placeforms else 0
     progress_step = max(1, n_pf // 20)
-    # Sentinel ID for cache slots representing dry-run would-be-inserts
-    # that haven't been committed to the DB yet. Distinct from any
-    # real autoincrement-generated rowid (which start at 1).
-    DRY_RUN_SENTINEL = -1
+    # Counter for dry-run would-be-insert IDs. Decrements per new
+    # toponym so each gets a UNIQUE negative ID — keeps the
+    # attestation_index dedupe semantic correct even when two
+    # would-be-inserted toponyms share the same modern_name +
+    # source_doc (rare but possible across counties).
+    dry_run_id_counter = 0
     # Tracks (modern_name, region) keys we've already counted in this
     # run so the toponym_existing tally doesn't multi-count
     # PlaceFormSub > 1 alternates that map to the same pre-existing
@@ -293,9 +301,11 @@ def _ingest_from_tables(
         source_doc = "; ".join(source_doc_parts) or DOMESDAY_SOURCE_ID
 
         # Resolve toponym via cache. Three outcomes:
-        #   * absent: truly new — insert (apply) / count once (dry-run)
+        #   * absent: truly new — insert (apply) / assign unique
+        #     negative ID (dry-run)
         #   * present + real id: pre-existing in DB — count as existing
-        #   * present + sentinel: dry-run repeat of a key already counted
+        #   * present + negative id: dry-run repeat of a key already
+        #     counted; reuse the assigned negative ID
         toponym_id = toponym_id_cache.get(cache_key)
         if toponym_id is None:
             counts["toponym_inserted"] += 1
@@ -306,7 +316,8 @@ def _ingest_from_tables(
                 )
                 toponym_id = cur.lastrowid
             else:
-                toponym_id = DRY_RUN_SENTINEL
+                dry_run_id_counter -= 1
+                toponym_id = dry_run_id_counter
             toponym_id_cache[cache_key] = toponym_id
         elif cache_key not in seen_this_run:
             # First encounter in THIS run of a pre-existing
