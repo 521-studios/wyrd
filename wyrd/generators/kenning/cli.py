@@ -2584,6 +2584,17 @@ def lexicon_curate_etymon(
         raise click.UsageError(
             "Need at least one of --lemma-ref / --merged-into-ref to record a curation."
         )
+    if lemma_ref is not None and merged_into_ref is not None:
+        # Conceptually mutually exclusive: lemma_ref makes the row a
+        # canonical inflection (lemma_id set, merged_into_id cleared);
+        # merged_into_ref makes the row an OCR tombstone (merged_into_id
+        # set, lemma_id cleared). Both in one event would force the
+        # applier into the contradiction; surface it at the CLI.
+        raise click.UsageError(
+            "--lemma-ref and --merged-into-ref are mutually exclusive — "
+            "an etymon is either a canonical inflection (lemma) or an "
+            "OCR-cluster tombstone, not both."
+        )
 
     payload: dict[str, str | None] = {"_type": "etymon_curation", "ref": etymon_ref}
     # CLI '' → explicit null (clear column). Absent flag → key omitted.

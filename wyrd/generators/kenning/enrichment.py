@@ -54,6 +54,21 @@ def _resolve_etymon_id(conn: sqlite3.Connection, ref: str) -> int | None:
     return row["id"] if row else None
 
 
+def _build_ref_resolver(conn: sqlite3.Connection):
+    """Memoized ref → etymon_id resolver. Multiple curation events
+    often target the same lemma (e.g. dozens of inflected forms
+    pointing at a single canonical lemma), so caching saves the
+    redundant SELECT round-trips."""
+    cache: dict[str, int | None] = {}
+
+    def resolve(ref: str) -> int | None:
+        if ref not in cache:
+            cache[ref] = _resolve_etymon_id(conn, ref)
+        return cache[ref]
+
+    return resolve
+
+
 def apply_curation_overrides(
     db: LexiconDB, curation_state: dict[str, dict[str, Any]]
 ) -> dict[str, Any]:
@@ -93,9 +108,10 @@ def apply_curation_overrides(
         "unresolved_lemma_ref": 0,
         "unresolved_merge_ref": 0,
     }
+    resolve = _build_ref_resolver(db.conn)
 
     for etymon_ref, payload in curation_state.items():
-        etymon_id = _resolve_etymon_id(db.conn, etymon_ref)
+        etymon_id = resolve(etymon_ref)
         if etymon_id is None:
             counts["unresolved_etymon"] += 1
             continue
@@ -103,6 +119,9 @@ def apply_curation_overrides(
         # lemma_ref handling: present key (even with None value) means
         # "operator made a decision about lemma_id"; absent key means
         # "no opinion, leave whatever auto-clustering chose alone".
+        # Both ref fields process independently within a payload — a
+        # failed lemma_ref resolution shouldn't skip merged_into_ref
+        # in the same event.
         if "lemma_ref" in payload:
             lemma_ref = payload["lemma_ref"]
             inflection = payload.get("inflection")
@@ -115,19 +134,19 @@ def apply_curation_overrides(
                 )
                 counts["lemma_id_cleared"] += 1
             else:
-                lemma_id = _resolve_etymon_id(db.conn, lemma_ref)
+                lemma_id = resolve(lemma_ref)
                 if lemma_id is None:
                     counts["unresolved_lemma_ref"] += 1
-                    continue
-                # Curation winners stay canonical even if auto-clustering
-                # would have tombstoned them — clear merged_into_id when
-                # lemma_id is operator-set.
-                db.conn.execute(
-                    "UPDATE etymon SET lemma_id = ?, inflection = ?, "
-                    "lemma_method = ?, merged_into_id = NULL WHERE id = ?",
-                    (lemma_id, inflection, CURATION_METHOD_VERSION, etymon_id),
-                )
-                counts["lemma_id_set"] += 1
+                else:
+                    # Curation winners stay canonical even if auto-clustering
+                    # would have tombstoned them — clear merged_into_id when
+                    # lemma_id is operator-set.
+                    db.conn.execute(
+                        "UPDATE etymon SET lemma_id = ?, inflection = ?, "
+                        "lemma_method = ?, merged_into_id = NULL WHERE id = ?",
+                        (lemma_id, inflection, CURATION_METHOD_VERSION, etymon_id),
+                    )
+                    counts["lemma_id_set"] += 1
 
         if "merged_into_ref" in payload:
             merge_ref = payload["merged_into_ref"]
@@ -138,19 +157,19 @@ def apply_curation_overrides(
                 )
                 counts["merged_into_cleared"] += 1
             else:
-                merge_id = _resolve_etymon_id(db.conn, merge_ref)
+                merge_id = resolve(merge_ref)
                 if merge_id is None:
                     counts["unresolved_merge_ref"] += 1
-                    continue
-                # Tombstone target: clear lemma_id (a tombstone shouldn't
-                # double as a lemma parent) and merge into the target.
-                db.conn.execute(
-                    "UPDATE etymon SET merged_into_id = ?, "
-                    "lemma_id = NULL, inflection = NULL, "
-                    "lemma_method = NULL WHERE id = ?",
-                    (merge_id, etymon_id),
-                )
-                counts["merged_into_set"] += 1
+                else:
+                    # Tombstone target: clear lemma_id (a tombstone shouldn't
+                    # double as a lemma parent) and merge into the target.
+                    db.conn.execute(
+                        "UPDATE etymon SET merged_into_id = ?, "
+                        "lemma_id = NULL, inflection = NULL, "
+                        "lemma_method = NULL WHERE id = ?",
+                        (merge_id, etymon_id),
+                    )
+                    counts["merged_into_set"] += 1
 
     db.commit()
     return counts

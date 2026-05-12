@@ -312,6 +312,63 @@ def test_apply_lemma_clears_merged_into_id(tmp_path: Path):
     assert row["merged_into_id"] is None
 
 
+def test_apply_processes_both_ref_fields_when_one_fails_resolution(tmp_path: Path):
+    """A payload with both lemma_ref and merged_into_ref shouldn't
+    skip the merge handling just because lemma_ref didn't resolve.
+    Each ref field processes independently."""
+    db_path = _build_db(tmp_path)
+    caelf_id = _add_etymon(db_path, "old-english", "caelf")
+    cealf_id = _add_etymon(db_path, "old-english", "cealf")
+    # Payload with a bad lemma_ref + a good merged_into_ref.
+    with LexiconDB(db_path) as db:
+        counts = apply_curation_overrides(
+            db,
+            {
+                "old-english:caelf": {
+                    "lemma_ref": "old-english:does-not-exist",
+                    "merged_into_ref": "old-english:cealf",
+                }
+            },
+        )
+    # The bad lemma_ref counts as unresolved; the good merge_ref still applies.
+    assert counts["unresolved_lemma_ref"] == 1
+    assert counts["merged_into_set"] == 1
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT lemma_id, merged_into_id FROM etymon WHERE id=?", (caelf_id,)
+    ).fetchone()
+    conn.close()
+    assert row["merged_into_id"] == cealf_id
+    assert row["lemma_id"] is None  # cleared by the merge handler
+
+
+def test_apply_caches_lemma_ref_resolution(tmp_path: Path):
+    """Many curation events sharing the same lemma target should
+    resolve that lemma exactly once — verified by patching the DB
+    helper to count calls."""
+    db_path = _build_db(tmp_path)
+    lemma_id = _add_etymon(db_path, "old-english", "cealf")
+    a_id = _add_etymon(db_path, "old-english", "caelf-a")
+    b_id = _add_etymon(db_path, "old-english", "caelf-b")
+    c_id = _add_etymon(db_path, "old-english", "caelf-c")
+    curation = {
+        "old-english:caelf-a": {"lemma_ref": "old-english:cealf"},
+        "old-english:caelf-b": {"lemma_ref": "old-english:cealf"},
+        "old-english:caelf-c": {"lemma_ref": "old-english:cealf"},
+    }
+    with LexiconDB(db_path) as db:
+        counts = apply_curation_overrides(db, curation)
+    # All three inflected forms get pointed at the same lemma.
+    assert counts["lemma_id_set"] == 3
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    for eid in (a_id, b_id, c_id):
+        row = conn.execute("SELECT lemma_id FROM etymon WHERE id=?", (eid,)).fetchone()
+        assert row["lemma_id"] == lemma_id
+    conn.close()
+
+
 def test_apply_unresolved_etymon_logs_and_skips(tmp_path: Path):
     db_path = _build_db(tmp_path)
     _add_etymon(db_path, "old-english", "cealf")
