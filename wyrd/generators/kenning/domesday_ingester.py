@@ -238,16 +238,21 @@ def _ingest_from_tables(
             continue
 
         region = COUNTY_CODE_TO_NAME.get(county_code, county_code)
+        cache_key = (modern_name, region)
 
         if not apply:
-            # Dry-count path: still tally everything for the report,
-            # but never touch the DB. Don't bother caching since we're
-            # not actually inserting.
-            counts["toponym_inserted"] += 1  # would-be-inserted
+            # Dry-count path: tally would-be-inserts using the same
+            # dedupe key the apply path uses so duplicate
+            # (modern_name, region) PlaceForm rows (PlaceFormSub > 1
+            # alternates) don't over-count. Otherwise dry-run reports
+            # a higher toponym count than the apply path would
+            # actually produce.
+            if cache_key not in toponym_id_cache:
+                counts["toponym_inserted"] += 1
+                toponym_id_cache[cache_key] = -1  # dry-run sentinel
             counts["attestation_inserted"] += 1
             continue
 
-        cache_key = (modern_name, region)
         toponym_id = toponym_id_cache.get(cache_key)
         if toponym_id is None:
             existing = conn.execute(

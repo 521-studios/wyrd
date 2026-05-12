@@ -217,6 +217,116 @@ def test_ingest_progress_callback_fires() -> None:
     assert callbacks[-1] == (3, 3)
 
 
+def test_ingest_skips_rows_missing_vill_or_county() -> None:
+    """Rows without ``Vill`` or ``County`` are counted into separate
+    skip buckets so operators can spot data-quality issues in source
+    MDB files (e.g. Hull's marginal Welsh entries with malformed
+    rows). Neither bucket triggers an insert."""
+    conn = _build_fixture_db()
+    places = {
+        "PlacesIdx": [1, 2, 3],
+        "County": ["WOR", None, "ESS"],
+        "Phillimore": ["15,8", "9,9", "20,20"],
+        "Hundred": ["A", "B", "C"],
+        "Vill": ["Good", "NoCounty", None],  # row 2 missing Vill
+        "Area": [None, None, None],
+        "XRefs": [None, None, None],
+        "OSrefs": [None, None, None],
+        "OScodes": [None, None, None],
+    }
+    placeforms = {
+        "PlacesIdx": [1, 2, 3],
+        "PlaceFormSub": [1, 1, 1],
+        "County": ["WOR", None, "ESS"],
+        "Hundred": ["A", "B", "C"],
+        "Vill": ["Good", "NoCounty", None],
+        "OSref": [None, None, None],
+        "OScodes": [None, None, None],
+    }
+    counts = _ingest_from_tables(conn, places, placeforms, apply=True)
+    assert counts["skipped_no_county"] == 1  # row 2 (None county)
+    assert counts["skipped_no_vill"] == 1  # row 3 (None vill)
+    assert counts["toponym_inserted"] == 1  # only "Good" survives
+
+
+def test_ingest_passes_through_unmapped_county_code() -> None:
+    """An unknown county code (not in COUNTY_CODE_TO_NAME) passes
+    through unchanged rather than raising KeyError. Defensive against
+    Hull adding a new code in a future dataset version."""
+    conn = _build_fixture_db()
+    places = {
+        "PlacesIdx": [1],
+        "County": ["ZZZ"],
+        "Phillimore": ["1,1"],
+        "Hundred": ["x"],
+        "Vill": ["Xville"],
+        "Area": [None],
+        "XRefs": [None],
+        "OSrefs": [None],
+        "OScodes": [None],
+    }
+    placeforms = {
+        "PlacesIdx": [1],
+        "PlaceFormSub": [1],
+        "County": ["ZZZ"],
+        "Hundred": ["x"],
+        "Vill": ["Xville"],
+        "OSref": [None],
+        "OScodes": [None],
+    }
+    _ingest_from_tables(conn, places, placeforms, apply=True)
+    region = conn.execute("SELECT region FROM toponym").fetchone()["region"]
+    assert region == "ZZZ"  # unmapped code passes through
+
+
+def test_ingest_dry_run_matches_apply_with_duplicate_vill_county_pairs() -> None:
+    """wyrd-el93 dry-run bug regression: when PlaceForm has multiple
+    rows pointing at the same (Vill, county) (PlaceFormSub > 1
+    modern-name alternates), the apply path dedupes to ONE toponym
+    row, and the dry-run report must match — otherwise operators
+    over-estimate the insert volume before committing.
+
+    Fixture: 'Abbotskerswell' appears with PlaceFormSub=1 AND
+    PlaceFormSub=2; both for the same Devon county code. apply
+    inserts 1 toponym, attests 2 times; dry-run must report the
+    same."""
+    places = {
+        "PlacesIdx": [26],
+        "County": ["DEV"],
+        "Phillimore": ["5,1"],
+        "Hundred": ["Kerswell"],
+        "Vill": ["Abbotskerswell"],
+        "Area": [None],
+        "XRefs": [None],
+        "OSrefs": ["SX8568"],
+        "OScodes": [None],
+    }
+    # Use distinct OSrefs so the apply path's
+    # (toponym_id, form, year, source_doc) attestation dedupe doesn't
+    # collapse the two rows — mirrors real Hull data where
+    # PlaceFormSub variants are distinct manor entries at different
+    # OS grid refs (e.g. Great/Little Abington).
+    placeforms = {
+        "PlacesIdx": [26, 26],
+        "PlaceFormSub": [1, 2],
+        "County": ["DEV", "DEV"],
+        "Hundred": ["Kerswell", "Kerswell"],
+        "Vill": ["Abbotskerswell", "Abbotskerswell"],
+        "OSref": ["SX8568", "SX8569"],
+        "OScodes": [None, None],
+    }
+    # Apply pass.
+    conn_apply = _build_fixture_db()
+    apply_counts = _ingest_from_tables(conn_apply, places, placeforms, apply=True)
+    # Dry-run pass.
+    conn_dry = _build_fixture_db()
+    dry_counts = _ingest_from_tables(conn_dry, places, placeforms, apply=False)
+    # The would-be-toponym count and attestation count must match
+    # between dry-run and apply so dry-run is a faithful preview.
+    assert dry_counts["toponym_inserted"] == apply_counts["toponym_inserted"] == 1
+    assert dry_counts["attestation_inserted"] == apply_counts["attestation_inserted"] == 2
+
+
 def test_ingest_writes_source_row_on_apply() -> None:
     """The first apply pass auto-inserts the open_domesday_hull source
     row so subsequent FK references resolve. Verifies the source row
