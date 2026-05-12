@@ -633,7 +633,10 @@ def populate_eligible_etymon_table(
        port grandfather seeds + scholar place-name attestations).
     2. Is a 1-hop descent-graph neighbor of a cited etymon (the
        ``back form`` or ``forward form`` of a cited word — one era
-       step more eldritch or one era step more modern).
+       step more eldritch or one era step more modern). Only the
+       ``etymon_descent`` parent/child edges are traversed; cognate
+       cluster mates (``etymon.cognate_id``) are NOT included since
+       they're cross-language sibling forms, not era progressions.
     3. ``lemma_id`` points to an etymon already in (1) or (2) — within-
        language inflection rollup.
     4. Tagged ``fantasy`` / ``monster`` / ``creature`` in

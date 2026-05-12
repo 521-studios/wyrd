@@ -564,9 +564,9 @@ to the **generator-eligible set**:
 
 1-hop only (not transitive) because Kaikki's wiktextract ingest
 built lateral descent edges connecting ~70% of the corpus to some
-cited node somewhere via transitive closure, which defeats the
-intent. 1-hop captures "one era step more modern / more eldritch"
-— the user-stated grain.
+cited node via transitive closure, which defeats the restriction.
+1-hop captures "one era step more modern / more eldritch" — the
+user-stated grain.
 
 | language | eligible | raw | reduction |
 |----------|---------:|----:|----------:|
