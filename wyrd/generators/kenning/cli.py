@@ -2378,7 +2378,17 @@ def lexicon_dump_jsonl(
     show_default=True,
     help="Directory of <source_id>.jsonl files to replay into the DB.",
 )
-def lexicon_rebuild_from_jsonl(db_path: Path, jsonl_dir: Path) -> None:
+@click.option(
+    "--with-enrichment",
+    is_flag=True,
+    default=False,
+    help=(
+        "After replay, run the L3 enrichment passes (normalize-ocr + "
+        "link-lemmas) in canonical order. Without this flag the rebuild "
+        "stops at L2 and operators run the enrichment commands manually."
+    ),
+)
+def lexicon_rebuild_from_jsonl(db_path: Path, jsonl_dir: Path, with_enrichment: bool) -> None:
     """Rebuild the lexicon SQLite from per-source JSONL — wyrd-f295.
 
     Initializes a fresh schema at ``--db`` (wiping any existing DB at
@@ -2390,9 +2400,14 @@ def lexicon_rebuild_from_jsonl(db_path: Path, jsonl_dir: Path) -> None:
     file. Etymons appearing in multiple files are merged: glosses + tags
     are unioned; scalar fields follow last-write-wins by file order.
 
-    Does NOT re-run the wiktextract bulk ingest (L1 raw layer) or any
-    L3 derived enrichment passes (decompose, link-lemmas, etc.). Wrap
-    this command with those steps when rebuilding a full DB.
+    Pass ``--with-enrichment`` to run normalize-ocr + link-lemmas as
+    post-replay L3 derivations (the wyrd-ilam orchestrator).
+
+    Does NOT re-run the wiktextract bulk ingest (L1 raw layer) or the
+    L3 enrichment passes that haven't been migrated yet — decompose,
+    cluster-cognates, classify-stratum, derive-english-shaped,
+    project-period-forms. Operators still run those manually post-
+    rebuild.
     """
     from wyrd.generators.kenning.jsonl_build import (
         build_from_jsonl,
@@ -2414,6 +2429,96 @@ def lexicon_rebuild_from_jsonl(db_path: Path, jsonl_dir: Path) -> None:
     click.echo("Inserted:", err=True)
     for table, n in counts.items():
         click.echo(f"  {table:<30} {n:>8}", err=True)
+
+    if with_enrichment:
+        from wyrd.generators.kenning.enrichment import (
+            format_enrichment_run,
+            run_ocr_lemma_enrichment,
+        )
+
+        click.echo("", err=True)
+        with LexiconDB(db_path) as db:
+            result = run_ocr_lemma_enrichment(db, apply=True)
+        click.echo(format_enrichment_run(result), err=True)
+
+
+@lexicon.command("enrich")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+@click.option(
+    "--apply",
+    "apply_changes",
+    is_flag=True,
+    default=False,
+    help=(
+        "Actually write merged_into_id + lemma_id. Without this flag the "
+        "command runs both passes as a dry-run and reports counts."
+    ),
+)
+def lexicon_enrich(db_path: Path, apply_changes: bool) -> None:
+    """Run L3 enrichment passes in canonical order (wyrd-ilam).
+
+    Today this is normalize-ocr → link-lemmas — the FIRST L3 enrichment
+    migration per the wyrd-eni4 plan. Follow-on PRs extend the
+    orchestrator to cluster-cognates, classify-stratum,
+    derive-english-shaped, project-period-forms, etc.
+
+    Order matters: normalize-ocr writes merged_into_id (OCR tombstones)
+    before link-lemmas's lemma_id targets are picked, so inflected
+    forms can only link to canonical etymons, never to tombstones.
+
+    Standalone-pass commands (`lexicon normalize-ocr`,
+    `lexicon link-lemmas`) stay available for fine-grained operator
+    control; this orchestrator is the canonical one-shot.
+    """
+    from wyrd.generators.kenning.enrichment import (
+        format_enrichment_run,
+        run_ocr_lemma_enrichment,
+    )
+
+    with LexiconDB(db_path) as db:
+        result = run_ocr_lemma_enrichment(db, apply=apply_changes)
+    click.echo(format_enrichment_run(result), err=True)
+    if not apply_changes:
+        click.echo("\n(dry-run; pass --apply to commit)", err=True)
+
+
+@lexicon.command("enrichment-status")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+def lexicon_enrichment_status(db_path: Path) -> None:
+    """Report L3 enrichment coverage on the current DB (wyrd-ilam).
+
+    Read-only: shows per-column populated/total counts and method-
+    version distributions where available. Useful BEFORE running
+    `lexicon enrich --apply` to see what's already done, and AFTER to
+    verify the passes populated what was expected.
+    """
+    from urllib.parse import quote
+
+    from wyrd.generators.kenning.enrichment import (
+        enrichment_status,
+        format_enrichment_status,
+    )
+
+    db_uri = f"file:{quote(str(db_path.absolute()))}?mode=ro"
+    conn = sqlite3.connect(db_uri, uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        status = enrichment_status(conn)
+    finally:
+        conn.close()
+    click.echo(format_enrichment_status(status))
 
 
 @lexicon.command("compact-jsonl")
