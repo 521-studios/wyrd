@@ -537,6 +537,98 @@ runtime knob is engaged.
 
 
 
+### 2026-05-12 — wyrd-bfv1 (dashboard denominators restricted to generator-eligible)
+
+Previously the dashboard divided every per-language coverage metric
+by the raw etymon count — for modern-english that meant a 1.4M
+denominator dominated by the wyrd-dxu2 Kaikki wiktextract ingest of
+common-vocabulary words the kenning name generator never uses. The
+result was denominator-collapsed coverage readings (ModE D 3.3%,
+F lex 2.0%, H 7.1%, E 35.3%) that didn't tell the operator anything
+actionable about the slice the generator actually consumes.
+
+Per user 2026-05-12: *"the dashboard should be about us figuring
+out how to get the words we used maximally useful. the goal isn't
+to create a language project that lets us do arbitrary word things.
+the dashboard needs to be a tool that helps us make the useful part
+of the corpus maximally useful."* So the dashboard now restricts
+to the **generator-eligible set**:
+
+1. Etymons with ≥1 ``etymon_citation`` row (rando-port grandfather
+   seeds + scholar place-name attestations)
+2. 1-hop descent neighbors of cited (the back-form or forward-form
+   — one era step more eldritch or one era step more modern)
+3. ``lemma_id`` rolls eligible inflections in
+4. Etymons tagged ``fantasy`` / ``monster`` / ``creature`` (the
+   explicit fiction-vocabulary exception)
+
+1-hop only (not transitive) because Kaikki's wiktextract ingest
+built lateral descent edges connecting ~70% of the corpus to some
+cited node somewhere via transitive closure, which defeats the
+intent. 1-hop captures "one era step more modern / more eldritch"
+— the user-stated grain.
+
+| language | eligible | raw | reduction |
+|----------|---------:|----:|----------:|
+| modern-english | **22,108** | 1,376,099 | -98.4% |
+| middle-english | 9,019 | 62,367 | -85.5% |
+| old-english | 13,831 | 72,382 | -80.9% |
+| welsh | 3,034 | 26,859 | -88.7% |
+| irish | 2,275 | 34,449 | -93.4% |
+| scottish-gaelic | 854 | 17,477 | -95.1% |
+| breton | 177 | 2,855 | -93.8% |
+| old-welsh | 82 | 456 | -82.0% |
+| old-french | 1,389 | 13,572 | -89.8% |
+| old-norse | 2,087 | 14,679 | -85.8% |
+| latin | 937 | 28,959 | -96.8% |
+| norman-french | 70 | 70 | 0% (already curated) |
+| celtic | 1,026 | 1,026 | 0% (already curated) |
+
+Modern-english dashboard rows, before and after:
+
+| metric | before (raw denom) | after (eligible denom) |
+|--------|-------------------:|-----------------------:|
+| D (Inflection) | 3.3% | **15.2%** |
+| E (Variants) | 35.3% | **59.7%** |
+| F lex (Era reflex) | 2.0% | **18.9%** |
+| F Tier 4 (phonology) | 97.9% | **99.7%** |
+| H (IPA, lex side) | 7.1% | **23.7%** |
+
+Every percentage rose because the denominator dropped from 1.4M to
+22K. These are the actionable signals: "of the 22K modern-english
+etymons the generator could use, 59.7% have spelling variants" is
+operator-relevant; "of the 1.4M etymon rows in the DB, 35.3% have
+variants" was not.
+
+Implementation:
+
+* New helper ``populate_eligible_etymon_table(conn)`` builds a
+  TEMP TABLE ``eligible_etymon`` with the eligible IDs (single
+  CREATE TABLE + INSERTs, defensive against missing tables in
+  minimal test fixtures).
+* Every per-language metric helper joins against
+  ``eligible_etymon`` to filter both numerator and denominator.
+* ``LanguageScorecard`` gets ``eligible_etymons`` /
+  ``eligible_lemmas`` fields; ``total_etymons`` / ``total_lemmas``
+  remain for DB-depth context. Coverage-rate fields divide by the
+  eligible counts.
+* Summary table column renamed ``Etymons (elig/raw)`` /
+  ``Lemmas (elig/raw)``. Per-language A row shows "N generator-
+  eligible etymons of M raw" so the gap is visible.
+* Tier-4 phonology walk restricted to eligible — also a massive
+  speedup (modern-english walk drops from 1.4M to 22K, ~17x).
+
+**Bundle-side metrics (B, B₂, C₂, F₂ bundle, H bundle) are
+unchanged** — those already use bundle-side denominators which are
+correct by construction (only what's actually shipped is counted).
+
+**Total dashboard run time**: 43 seconds for full report including
+Tier-4 walk (vs 12 minutes pre-wyrd-bfv1, since the walk now
+processes ~22K eligible modern-english etymons instead of 1.4M raw
+ones).
+
+
+
 ### 2026-05-11 — wyrd-pmne (F Tier 4: count synthesized phonology-rule reflexes)
 
 Companion to wyrd-h5it. F's lex-side breakdown listed Tier 1 / Tier 2
