@@ -42,8 +42,10 @@ Out of scope for this v0
   convert that ingester to read from L1 + emit JSONL events directly.
 - Re-running L3 derived enrichment passes (decompose, link-lemmas,
   normalize-ocr, etc.). Same operator-wrapping pattern.
-- ``toponym_attestation`` rows (the dumper currently skips them too;
-  ``source_doc`` is free-text and needs a parser to bucket per source).
+- Re-dumping ``toponym_attestation`` rows from the DB. Currently the
+  attestation flow is one-way (ingester → JSONL → build); operators
+  who want the rows back out of the DB need a follow-on dump-side
+  implementation that buckets the free-text ``source_doc`` per source.
 """
 
 from __future__ import annotations
@@ -246,6 +248,32 @@ def _insert_mining_run(conn: sqlite3.Connection, source_id: str, row: dict[str, 
     )
 
 
+def _insert_attestation(
+    conn: sqlite3.Connection,
+    toponym_id: int,
+    row: dict[str, Any],
+) -> None:
+    """Insert one ``toponym_attestation`` row (wyrd-3ypp).
+
+    The schema has no ``source_id`` FK — the only source attribution
+    is the free-text ``source_doc`` column. Build callers stamp a
+    source-identifying prefix (e.g. ``"OS Open Names {NAMES_URI}"``)
+    into ``source_doc`` so dump-time bucketing can route the rows
+    back to a per-source JSONL file later.
+    """
+    conn.execute(
+        """INSERT INTO toponym_attestation
+           (toponym_id, form, date_year, source_doc)
+           VALUES (?, ?, ?, ?)""",
+        (
+            toponym_id,
+            row["form"],
+            row.get("date_year"),
+            row.get("source_doc"),
+        ),
+    )
+
+
 def _insert_etymology_element(
     conn: sqlite3.Connection,
     toponym_id: int,
@@ -404,6 +432,33 @@ def _insert_etymology_element_rows(
         counts["etymology_element"] += 1
 
 
+def _insert_attestation_rows(
+    conn: sqlite3.Connection,
+    rows: list[dict[str, Any]],
+    toponym_id_by_ref: dict[str, int],
+    counts: dict[str, Any],
+) -> None:
+    """Insert ``toponym_attestation`` rows for one source (wyrd-3ypp).
+    Unknown ``toponym_ref`` → counted in ``attestation_orphans`` +
+    skipped, same orphan pattern as the other fact-row helpers.
+
+    No ``source_id`` parameter — the schema has no source FK; row's
+    ``source_doc`` carries the (free-text) attribution. The build's
+    per-file dispatch loop already scopes per source, but the source
+    information lives in the row itself.
+    """
+    for row in rows:
+        tref = row["toponym_ref"]
+        tid = toponym_id_by_ref.get(tref)
+        if tid is None:
+            counts["attestation_orphans"] += 1
+            if len(counts["attestation_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
+                counts["attestation_orphan_refs"].append(tref)
+            continue
+        _insert_attestation(conn, tid, row)
+        counts["attestation"] += 1
+
+
 def _extract_source_id(path: Path, state: ReplayState) -> str:
     """Validate the contract: exactly one ``source`` row per file.
     Returns its ref (= the source_id)."""
@@ -451,6 +506,9 @@ def build_from_jsonl(
         "etymon_descent_orphan_refs": [],
         "etymology_element_orphans": 0,
         "etymology_element_orphan_refs": [],
+        "attestation": 0,
+        "attestation_orphans": 0,
+        "attestation_orphan_refs": [],
     }
 
     # ----- Pass 1: replay every file, accumulate merged state.
@@ -503,6 +561,7 @@ def build_from_jsonl(
             etymon_id_by_ref,
             counts,
         )
+        _insert_attestation_rows(conn, state.lists["attestation"], toponym_id_by_ref, counts)
 
     conn.commit()
     return counts

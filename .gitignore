@@ -31,6 +31,10 @@ wyrd/generators/kenning/data/lexicon.db
 sources/*
 !sources/MANIFEST.md
 
+# OS Open Names L2 dump (wyrd-3ypp) — regenerated from sources/ CSV;
+# too large for git (~30-50MB after filtering to populated places).
+data/mining/os_open_names.jsonl
+
 # Beads / Dolt files (added by bd init)
 .dolt/
 *.db

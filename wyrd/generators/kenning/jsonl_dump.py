@@ -370,6 +370,10 @@ DEFAULT_BULK_EXCLUDED_SOURCES: frozenset[str] = frozenset(
         "wiktionary-empirical",
         "wiktionary-forms",
         "manual-curation",
+        # wyrd-3ypp: OS Open Names data product. ~200K populated-place
+        # rows regenerated on demand from the L1 CSV in sources/;
+        # dump-jsonl would produce a competing 30+MB file otherwise.
+        "os_open_names",
     }
 )
 
