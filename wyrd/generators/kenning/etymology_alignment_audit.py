@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -35,8 +36,6 @@ def _normalize(text: str) -> str:
     misses) plus a small fixup for OE/OF ligatures."""
     if not text:
         return ""
-    import unicodedata
-
     decomposed = unicodedata.normalize("NFKD", text)
     # NFKD doesn't split ligatures (æ, œ); do that explicitly.
     decomposed = (
