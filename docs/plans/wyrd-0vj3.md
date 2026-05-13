@@ -53,18 +53,26 @@ slices) keeps working unchanged.
 
 ### 1. Terraform module — `infra/terraform/modules/wyrd-lexicon-bulk/`
 
-Mirror of `pfsrd2-data/main.tf`. Same shape:
+Smaller than `pfsrd2-data` — no IAM policy resource. Per the
+operator decision (it's a single-user dev asset; contributors who
+need access get it via their own IAM role), the bucket is created
+with default-deny resource perms and access flows through whatever
+admin/role the AWS profile assumes.
+
+Resources:
 
 - `aws_s3_bucket` named `521studios-${var.environment}-wyrd-lexicon-bulk`
   with `lifecycle { prevent_destroy = true }`.
-- `aws_s3_bucket_versioning` enabled (recover from accidental delete).
+- `aws_s3_bucket_versioning` enabled — S3 is the version source of
+  truth (per operator decision; manifest does not snapshot
+  historical sha256s).
 - `aws_s3_bucket_public_access_block` — fully blocked.
 - `aws_s3_bucket_server_side_encryption_configuration` — AES256.
-- `aws_iam_policy` `wyrd-lexicon-bulk-rw` — read/write to bucket.
 - `aws_s3_bucket_lifecycle_configuration` — noncurrent versions
-  expire after 90 days (keeps versioning useful without bloat).
+  expire after 90 days (versioning is for accident recovery, not
+  long-term archival).
 
-Outputs: `bucket_name`, `bucket_arn`, `rw_iam_policy_arn`.
+Outputs: `bucket_name`, `bucket_arn`.
 
 ### 2. Staging-only environment wiring
 
@@ -84,7 +92,7 @@ module README that production wiring would be a separate decision.
 
 ```json
 {
-  "version": 1,
+  "schema_version": 1,
   "bucket": "521studios-staging-wyrd-lexicon-bulk",
   "region": "us-east-2",
   "s3_prefix": "wiktextract/v1",
@@ -101,9 +109,15 @@ module README that production wiring would be a separate decision.
 }
 ```
 
-Manifest in git, data in S3. The bucket name + prefix here is the
+Manifest in git, data in S3. The bucket name + prefix is the
 default; can be overridden in `~/.wyrd/config.toml` for forks /
 non-521 contributors.
+
+`sha256` is an integrity-check (did the download land bytes
+matching the manifest?), not a version-history tracker — S3
+versioning handles history (resolution #2). `schema_version` bumps
+only when the manifest's own JSON shape changes; re-uploads of
+slices update the manifest in place.
 
 ### 4. Local config — `~/.wyrd/config.toml`
 
@@ -189,12 +203,12 @@ Backwards compatible: existing `.jsonl` files still work.
 ### 9. `.gitignore` additions
 
 ```
-# wyrd-0vj3 bulk-sources transient state
+# wyrd-0vj3 bulk-sources transient lockfile
 data/mining/_bulk_manifest.json.lock
 ```
 
-(`~/.wyrd/sources/` and `~/.wyrd/config.toml` are already outside
-the repo, no change needed.)
+Anything under `~/.wyrd/` (sources, config.toml) is outside the
+repo's working tree — no .gitignore entry needed (or possible).
 
 ### 10. Docs — `wyrd/generators/kenning/L2_L3_BOUNDARY.md`
 
@@ -230,23 +244,14 @@ PR A is mostly mechanical / infra. PR B closes the loop. Keeping
 them separate makes review easier and lets the bucket + upload
 settle before depending on it.
 
-## Open questions
+## Open-question resolutions
 
-1. **IAM granularity** — read-only for contributors, read-write for
-   ops? Or single rw policy? For dev-only this is probably fine as
-   single rw since the AWS profile is the dev's own admin role.
-2. **Versioning vs snapshot** — per-slice sha256 in the manifest
-   covers content versioning; bump the manifest `version` field
-   only on schema changes to the manifest itself.
-3. **CI integration** — should CI run `verify-bulk-sources` and
-   fail on mismatch? Or skip (bulk sources aren't needed for unit
-   tests)? Recommend: skip in unit-test CI; gate only the
-   rebuild/deploy workflow on it.
-4. **Migration of existing slices** — `sources/` has 4.6 GB
-   locally right now. The one-time upload is the seed; future
-   operators (incl. fresh checkout) `fetch-bulk-sources`. Worth a
-   single-line note in PR A's commit message: "after merging,
-   operator runs `push-bulk-sources` once to seed."
+| # | Question | Decision |
+|---|---|---|
+| 1 | IAM granularity | Single-user dev asset. No IAM policy in the terraform module — contributors who need access get it via their own admin/role, not via a bucket-attached policy. |
+| 2 | Versioning approach | Rely on S3 bucket versioning for history. Manifest tracks sha256 for **integrity-check on download** (did we get the right bytes?), not for snapshot/rollback (S3's job). |
+| 3 | CI integration | None. `verify-bulk-sources` is operator-on-demand, not gated. Unit-test CI never needs the bulk sources. |
+| 4 | Migration of existing slices | Operator runs `push-bulk-sources` once after PR A merges to seed the bucket from the current local `sources/` (4.6 GB). Commit message of PR A notes this step. |
 
 ## Risks
 
