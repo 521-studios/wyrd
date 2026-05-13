@@ -429,7 +429,9 @@ def _etymology_element_fingerprint(row: dict[str, Any]) -> tuple:
             el.get("inflection"),
             el.get("surface_in_modern"),
         )
-        for el in row.get("elements", [])
+        # `or []` handles an explicit ``"elements": null`` in JSONL —
+        # ``get("elements", [])`` would still return None in that case.
+        for el in (row.get("elements") or [])
     )
     return (
         row.get("toponym_ref"),
