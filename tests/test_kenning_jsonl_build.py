@@ -360,7 +360,7 @@ def test_diff_table_counts_signed_delta(tmp_path: Path):
 
 def test_diff_table_counts_unions_tables(tmp_path: Path):
     """A table present only in one snapshot still shows up (with the
-    missing side as 0). Catches schema-evolution drift."""
+    missing side as -1). Catches schema-evolution drift."""
     from wyrd.generators.kenning.jsonl_build import diff_table_counts
 
     before = {"etymon": 100}
@@ -369,13 +369,30 @@ def test_diff_table_counts_unions_tables(tmp_path: Path):
     new_row = next(r for r in rows if r["table"] == "new_table")
     assert new_row["before"] == -1
     assert new_row["after"] == 5
+    # Sentinel -1 must NOT poison the delta arithmetic — mixing it
+    # with a real count would produce misleading deltas like
+    # 5 - (-1) = 6 when the truth is "missing on one side".
+    assert new_row["delta"] is None
 
 
-def test_has_any_delta(tmp_path: Path):
+def test_diff_table_counts_missing_table_yields_none_delta():
+    """When a table is missing (-1) on the source side but present on
+    the rebuild side, delta is None (explicit "can't compare") rather
+    than the misleading after - (-1)."""
+    from wyrd.generators.kenning.jsonl_build import diff_table_counts
+
+    rows = diff_table_counts({"etymon": -1}, {"etymon": 100})
+    assert rows[0]["delta"] is None
+
+
+def test_has_any_delta():
     from wyrd.generators.kenning.jsonl_build import has_any_delta
 
     assert not has_any_delta([{"table": "x", "before": 5, "after": 5, "delta": 0}])
     assert has_any_delta([{"table": "x", "before": 5, "after": 6, "delta": 1}])
+    # None delta (missing table) counts as a delta — schema mismatch
+    # shouldn't pass the CI gate.
+    assert has_any_delta([{"table": "x", "before": -1, "after": 5, "delta": None}])
 
 
 def test_format_diff_rebuild_shows_signed_deltas():
@@ -387,10 +404,72 @@ def test_format_diff_rebuild_shows_signed_deltas():
         {"table": "source", "before": 5, "after": 5, "delta": 0},
     ]
     md = format_diff_rebuild(rows)
-    assert "etymon" in md and "+     2" in md
-    assert "toponym" in md and "-     2" in md
-    # No-change rows render with a space sign, not a plus.
-    assert "|       0 |" in md or "|      0 |" in md
+    assert "etymon" in md and "+2" in md
+    assert "toponym" in md and "-2" in md
+    # No-change rows render as plain '0' (no sign).
+    zero_lines = [ln for ln in md.split("\n") if "source" in ln]
+    assert "+" not in zero_lines[0].split("|")[-2]
+    assert "-" not in zero_lines[0].split("|")[-2]
+
+
+def test_format_diff_rebuild_handles_wiktionary_scale_counts():
+    """Number columns sized for 9-digit counts so the live wiktionary
+    slice (2.37M etymons, 1.76M descent edges) renders without
+    overflowing the column and corrupting the markdown table."""
+    from wyrd.generators.kenning.jsonl_build import format_diff_rebuild
+
+    rows = [{"table": "etymon", "before": 2373985, "after": 6318, "delta": -2367667}]
+    md = format_diff_rebuild(rows)
+    # Number stays in its cell — pipe before/after should still align.
+    line = [ln for ln in md.split("\n") if "etymon" in ln][0]
+    # 4 pipes + 5 cells (table + before + after + delta + trailing)
+    assert line.count("|") == 5
+    assert "2373985" in line
+    assert "-2367667" in line
+
+
+def test_rebuild_from_jsonl_summary_handles_list_valued_counts(tmp_path: Path, monkeypatch):
+    """Regression test for wyrd-f4nl: rebuild-from-jsonl summary used
+    to crash with `TypeError: unsupported format string passed to
+    list.__format__` because the counts dict picked up list-valued
+    fields (orphan_refs from wyrd-lene) but the summary loop used
+    `{n:>8}` which only works on numbers.
+
+    The fix renders list fields as `(N samples)` and scalar fields as
+    right-aligned numbers. This test verifies the CLI runs to
+    completion when the counts dict contains both kinds."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import cli as cli_mod
+
+    # Minimal JSONL that builds without errors but produces empty
+    # orphan_refs lists in the counts dict.
+    src = tmp_path / "skeat.jsonl"
+    src.write_text('{"_type": "source", "ref": "skeat", "title": "X"}\n')
+
+    db_path = tmp_path / "test.db"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_mod.cli,
+        ["lexicon", "rebuild-from-jsonl", "--db", str(db_path), "--jsonl-dir", str(tmp_path)],
+    )
+    # The fix: command runs to completion without TypeError. Pre-fix
+    # this raised the format error and exit code 1.
+    assert result.exit_code == 0, f"rebuild crashed:\n{result.output}"
+    # List-handling renders as "(N samples)".
+    assert "samples" in result.output or "samples" in (result.stderr_bytes or b"").decode()
+
+
+def test_format_diff_rebuild_renders_missing_and_none_delta():
+    """When a table is missing on one side, the count column shows
+    '(missing)' and the delta column shows '—' so neither can be
+    mistaken for zero."""
+    from wyrd.generators.kenning.jsonl_build import format_diff_rebuild
+
+    rows = [{"table": "new_table", "before": -1, "after": 5, "delta": None}]
+    md = format_diff_rebuild(rows)
+    assert "(missing)" in md
+    assert "—" in md
 
 
 def test_build_dedupes_content_equal_etymology_element_rows(tmp_path: Path):

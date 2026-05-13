@@ -2704,9 +2704,14 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
     finally:
         current_conn.close()
 
-    # Rebuild into a temp file so the live DB is never touched.
-    with tempfile.NamedTemporaryFile(suffix=".db", prefix="wyrd-diff-rebuild-") as tmp:
-        rebuilt_path = Path(tmp.name)
+    # Rebuild into a temp directory so the WAL sidecars (-wal, -shm
+    # that init_schema creates because of journal_mode=WAL) get
+    # cleaned up alongside the main DB file. NamedTemporaryFile
+    # would only track the main file and leak the sidecars in /tmp.
+    # Directory also dodges the init_schema-unlinks-the-tempfile
+    # ownership confusion.
+    with tempfile.TemporaryDirectory(prefix="wyrd-diff-rebuild-") as tmpdir:
+        rebuilt_path = Path(tmpdir) / "rebuilt.db"
         init_schema(rebuilt_path)
         rebuilt_conn = sqlite3.connect(rebuilt_path)
         rebuilt_conn.row_factory = sqlite3.Row

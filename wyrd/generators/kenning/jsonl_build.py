@@ -535,40 +535,61 @@ def diff_table_counts(before: dict[str, int], after: dict[str, int]) -> list[dic
     union of both sides, sorted by table name. Each row is
     ``{table, before, after, delta}``.
 
-    A delta of zero means the table round-trips cleanly. Positive
-    delta = rebuild has MORE rows than current (suspicious — possible
-    fixture difference). Negative delta = rebuild has FEWER (typical
-    regression: build silently drops rows)."""
+    Delta semantics:
+    - Both sides ≥ 0: ``after - before``. Zero means clean round-trip;
+      positive means rebuild has MORE rows (suspicious); negative
+      means rebuild has FEWER (typical regression).
+    - Either side is ``-1`` (table missing/inaccessible per
+      :func:`table_counts`): delta is ``None``. Arithmetic mixing
+      missing-sentinel and real counts would be misleading; the
+      formatter renders ``None`` as an explicit marker.
+    """
     tables = sorted(set(before) | set(after))
-    return [
-        {
-            "table": t,
-            "before": before.get(t, -1),
-            "after": after.get(t, -1),
-            "delta": after.get(t, 0) - before.get(t, 0),
-        }
-        for t in tables
-    ]
+    rows: list[dict[str, Any]] = []
+    for t in tables:
+        b = before.get(t, -1)
+        a = after.get(t, -1)
+        delta: int | None
+        if b < 0 or a < 0:
+            delta = None
+        else:
+            delta = a - b
+        rows.append({"table": t, "before": b, "after": a, "delta": delta})
+    return rows
 
 
 def format_diff_rebuild(rows: list[dict[str, Any]]) -> str:
     """Render :func:`diff_table_counts` output as a fixed-width
-    markdown-friendly table.  Drops trailing whitespace; ``∆`` column
-    is signed for easy grep (``grep '∆.*-' ...``)."""
+    markdown-friendly table. Number columns sized for 9 digits so
+    wiktionary-scale rows (~2M+) fit without wrapping. ``∆`` column
+    is signed for easy grep (``grep '∆.*-' ...``); ``None`` delta
+    (one side missing) renders as ``—`` so it can't be mistaken for
+    zero; ``-1`` count renders as ``(missing)`` for the same reason."""
     lines = [
-        "| Table                           |   Before |    After |       ∆ |",
-        "|---------------------------------|----------|----------|---------|",
+        "| Table                           |    Before |     After |         ∆ |",
+        "|---------------------------------|-----------|-----------|-----------|",
     ]
     for r in rows:
-        sign = "+" if r["delta"] > 0 else ("-" if r["delta"] < 0 else " ")
-        delta_str = f"{sign}{abs(r['delta']):>6}"
-        lines.append(f"| {r['table']:<31} | {r['before']:>8} | {r['after']:>8} | {delta_str:>7} |")
+        before_str = "(missing)" if r["before"] < 0 else f"{r['before']:>9}"
+        after_str = "(missing)" if r["after"] < 0 else f"{r['after']:>9}"
+        if r["delta"] is None:
+            delta_str = "        —"
+        elif r["delta"] == 0:
+            delta_str = f"{0:>9}"
+        else:
+            # ``+`` flag forces sign on positives; negatives carry
+            # their own. Keeps sign + magnitude contiguous (e.g.
+            # ``-2367667`` not ``- 2367667``) so grep '∆.*-' works.
+            delta_str = f"{r['delta']:>+9d}"
+        lines.append(f"| {r['table']:<31} | {before_str:>9} | {after_str:>9} | {delta_str:>9} |")
     return "\n".join(lines)
 
 
 def has_any_delta(rows: list[dict[str, Any]]) -> bool:
     """True when at least one table's row count changed across the
-    rebuild. Drives the CLI exit code so CI can gate regressions."""
+    rebuild. Drives the CLI exit code so CI can gate regressions.
+    ``None`` delta (table missing on one side) counts as a delta too —
+    schema mismatch shouldn't pass silently."""
     return any(r["delta"] != 0 for r in rows)
 
 
