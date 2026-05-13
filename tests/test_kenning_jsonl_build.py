@@ -317,6 +317,82 @@ def test_build_inserts_toponym_and_etymology_elements(tmp_path: Path):
 # ---------------------------------------------------------------------------
 
 
+def test_table_counts_returns_zero_for_empty_table(tmp_path: Path):
+    """table_counts reports 0 for empty tables (distinct from missing)."""
+    from wyrd.generators.kenning.jsonl_build import table_counts
+
+    conn = _build_fixture_db()
+    # Empty schema — every L2 table is present but empty.
+    counts = table_counts(conn, ["source", "etymon", "toponym"])
+    assert counts == {"source": 0, "etymon": 0, "toponym": 0}
+
+
+def test_table_counts_returns_negative_one_for_missing_table(tmp_path: Path):
+    """Missing tables surface as -1 so schema mismatch shows up clearly
+    instead of conflating with zero."""
+    from wyrd.generators.kenning.jsonl_build import table_counts
+
+    conn = _build_fixture_db()
+    counts = table_counts(conn, ["source", "does_not_exist"])
+    assert counts["source"] == 0
+    assert counts["does_not_exist"] == -1
+
+
+def test_diff_table_counts_zero_delta_for_identical(tmp_path: Path):
+    from wyrd.generators.kenning.jsonl_build import diff_table_counts
+
+    before = {"source": 5, "etymon": 100}
+    after = {"source": 5, "etymon": 100}
+    rows = diff_table_counts(before, after)
+    assert all(r["delta"] == 0 for r in rows)
+
+
+def test_diff_table_counts_signed_delta(tmp_path: Path):
+    from wyrd.generators.kenning.jsonl_build import diff_table_counts
+
+    before = {"etymon": 100, "toponym": 50}
+    after = {"etymon": 102, "toponym": 48}
+    rows = diff_table_counts(before, after)
+    rows_by_table = {r["table"]: r for r in rows}
+    assert rows_by_table["etymon"]["delta"] == 2
+    assert rows_by_table["toponym"]["delta"] == -2
+
+
+def test_diff_table_counts_unions_tables(tmp_path: Path):
+    """A table present only in one snapshot still shows up (with the
+    missing side as 0). Catches schema-evolution drift."""
+    from wyrd.generators.kenning.jsonl_build import diff_table_counts
+
+    before = {"etymon": 100}
+    after = {"etymon": 100, "new_table": 5}
+    rows = diff_table_counts(before, after)
+    new_row = next(r for r in rows if r["table"] == "new_table")
+    assert new_row["before"] == -1
+    assert new_row["after"] == 5
+
+
+def test_has_any_delta(tmp_path: Path):
+    from wyrd.generators.kenning.jsonl_build import has_any_delta
+
+    assert not has_any_delta([{"table": "x", "before": 5, "after": 5, "delta": 0}])
+    assert has_any_delta([{"table": "x", "before": 5, "after": 6, "delta": 1}])
+
+
+def test_format_diff_rebuild_shows_signed_deltas():
+    from wyrd.generators.kenning.jsonl_build import format_diff_rebuild
+
+    rows = [
+        {"table": "etymon", "before": 100, "after": 102, "delta": 2},
+        {"table": "toponym", "before": 50, "after": 48, "delta": -2},
+        {"table": "source", "before": 5, "after": 5, "delta": 0},
+    ]
+    md = format_diff_rebuild(rows)
+    assert "etymon" in md and "+     2" in md
+    assert "toponym" in md and "-     2" in md
+    # No-change rows render with a space sign, not a plus.
+    assert "|       0 |" in md or "|      0 |" in md
+
+
 def test_build_dedupes_content_equal_etymology_element_rows(tmp_path: Path):
     """Per wyrd-tzf2: a content-equal etymology_element row in the same
     file inserts ONCE. Re-run LLM mining used to leave byte-identical

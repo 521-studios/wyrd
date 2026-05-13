@@ -495,6 +495,83 @@ def jsonl_paths_in(directory: str | Path) -> list[Path]:
     return sorted(p.glob("*.jsonl"))
 
 
+# Tables the diff-rebuild check compares (wyrd-f4nl). Scoped to the L2
+# rows the build pass inserts; L3-derived tables (reflex,
+# toponym_decomposition, etymon_meaning_synset, etc.) are expected to
+# be empty in a fresh rebuild without enrichment passes, so comparing
+# them would flag everything as a delta and drown out real regressions.
+DIFF_REBUILD_TABLES: tuple[str, ...] = (
+    "source",
+    "etymon",
+    "etymon_gloss",
+    "etymon_tag",
+    "etymon_citation",
+    "etymon_descent",
+    "mining_run",
+    "toponym",
+    "toponym_etymology",
+    "toponym_etymology_element",
+)
+
+
+def table_counts(
+    conn: sqlite3.Connection, table_names: Iterable[str] = DIFF_REBUILD_TABLES
+) -> dict[str, int]:
+    """Return ``{table: row_count}`` for each named table. Missing
+    tables are reported as ``-1`` (distinct from ``0`` = present but
+    empty) so a schema-mismatch case shows up clearly."""
+    counts: dict[str, int] = {}
+    for table in table_names:
+        try:
+            row = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
+            counts[table] = row[0]
+        except sqlite3.OperationalError:
+            counts[table] = -1
+    return counts
+
+
+def diff_table_counts(before: dict[str, int], after: dict[str, int]) -> list[dict[str, Any]]:
+    """Side-by-side count comparison. Returns one row per table in the
+    union of both sides, sorted by table name. Each row is
+    ``{table, before, after, delta}``.
+
+    A delta of zero means the table round-trips cleanly. Positive
+    delta = rebuild has MORE rows than current (suspicious — possible
+    fixture difference). Negative delta = rebuild has FEWER (typical
+    regression: build silently drops rows)."""
+    tables = sorted(set(before) | set(after))
+    return [
+        {
+            "table": t,
+            "before": before.get(t, -1),
+            "after": after.get(t, -1),
+            "delta": after.get(t, 0) - before.get(t, 0),
+        }
+        for t in tables
+    ]
+
+
+def format_diff_rebuild(rows: list[dict[str, Any]]) -> str:
+    """Render :func:`diff_table_counts` output as a fixed-width
+    markdown-friendly table.  Drops trailing whitespace; ``∆`` column
+    is signed for easy grep (``grep '∆.*-' ...``)."""
+    lines = [
+        "| Table                           |   Before |    After |       ∆ |",
+        "|---------------------------------|----------|----------|---------|",
+    ]
+    for r in rows:
+        sign = "+" if r["delta"] > 0 else ("-" if r["delta"] < 0 else " ")
+        delta_str = f"{sign}{abs(r['delta']):>6}"
+        lines.append(f"| {r['table']:<31} | {r['before']:>8} | {r['after']:>8} | {delta_str:>7} |")
+    return "\n".join(lines)
+
+
+def has_any_delta(rows: list[dict[str, Any]]) -> bool:
+    """True when at least one table's row count changed across the
+    rebuild. Drives the CLI exit code so CI can gate regressions."""
+    return any(r["delta"] != 0 for r in rows)
+
+
 def collect_curation_overrides(jsonl_paths: Iterable[Path]) -> dict[str, dict[str, Any]]:
     """Scan ``jsonl_paths`` for ``etymon_curation`` rows and return the
     merged curation state (wyrd-2jhs).
