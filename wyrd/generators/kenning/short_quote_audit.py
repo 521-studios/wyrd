@@ -91,8 +91,14 @@ def looks_truncated(short_quote: str | None) -> bool:
         return False
     if _PIPE_TAIL_RE.search(stripped):
         return True
-    last_tok = stripped.rsplit(maxsplit=1)[-1] if " " in stripped else stripped
-    return bool(_SHORT_TAIL_RE.fullmatch(last_tok)) or bool(_SHORT_TAIL_RE.search(" " + last_tok))
+    # A no-whitespace single-token blob can't end in a "short trailing
+    # fragment" — the whole quote IS the token. Bail before the regex
+    # so the short-tail logic only runs on multi-word quotes where the
+    # last whitespace-bounded token might be the truncation point.
+    if " " not in stripped:
+        return False
+    last_tok = stripped.rsplit(maxsplit=1)[-1]
+    return bool(_SHORT_TAIL_RE.fullmatch(" " + last_tok))
 
 
 @dataclass

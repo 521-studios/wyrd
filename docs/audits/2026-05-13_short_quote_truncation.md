@@ -1,5 +1,7 @@
 # Truncated-short_quote audit (wyrd-bd68)
 
+> Point-in-time snapshot. Regenerate via `lexicon audit-short-quotes > docs/audits/<date>_short_quote_truncation.md` after a re-mining or curation pass.
+
 - Sources scanned: 51
 - Total citations: 8,471
 - Probably truncated: 2,038 (24.1%)

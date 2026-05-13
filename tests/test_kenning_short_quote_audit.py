@@ -10,6 +10,7 @@ from click.testing import CliRunner
 from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.short_quote_audit import (
     MIN_TRUNCATION_LENGTH,
+    _truncate_sample,
     audit_jsonl_dir,
     audit_jsonl_file,
     format_audit_report,
@@ -237,6 +238,22 @@ def test_format_audit_report_clean_corpus_message(tmp_path: Path):
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
+
+def test_truncate_sample_ellipses_over_max_len():
+    """Long samples get an ellipsis suffix exactly at max_len. The
+    full quote is the flag — printing >200 chars in a report row
+    wastes screen space without adding information."""
+    long_sample = "x" * 500
+    out = _truncate_sample(long_sample, max_len=200)
+    assert len(out) == 200
+    assert out.endswith("...")
+
+
+def test_truncate_sample_short_passthrough():
+    """Samples under max_len pass through unchanged — no spurious
+    ellipses on already-short rows."""
+    assert _truncate_sample("short", max_len=200) == "short"
 
 
 def test_cli_audit_short_quotes(tmp_path: Path):
