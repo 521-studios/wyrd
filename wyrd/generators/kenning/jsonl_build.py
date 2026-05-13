@@ -293,13 +293,19 @@ def _insert_etymology_element(
 
 
 # ---------------------------------------------------------------------------
-# Pass-3 per-row-type helpers — wyrd-3vh3
+# Pass-3 per-row-type helpers
 #
 # Each helper consumes one fact-row list from a single source's replay
 # state, mutates the shared ``counts`` dict in place, and handles its
 # own orphan-skip + dedup conventions. Symmetric signature shape across
-# helpers keeps the build pipeline easy to extend with new row types
-# (e.g. toponym_attestation when wyrd-f295 closes its deferred slot).
+# helpers keeps the build pipeline easy to extend with new row types.
+#
+# Orphan-skip rationale (wyrd-lene contract): unresolved refs count
+# into ``*_orphans`` + sampled ``*_orphan_refs`` and skip the insert
+# rather than raising. Operators get telemetry so unexpected orphans
+# (typos, stale refs) are still visible — they just don't abort the
+# build. This makes ``_op: remove`` events on toponyms / etymons safe
+# to apply without manually cleaning every referencing fact-row first.
 # ---------------------------------------------------------------------------
 
 
@@ -481,9 +487,8 @@ def build_from_jsonl(
 
     # ----- Pass 3: source-attributed list rows.
     #
-    # Each row-type loop runs through its own helper for clarity
-    # (wyrd-3vh3). Orphan-skip + dedup semantics live in those helpers;
-    # this loop is now just the per-source dispatch.
+    # Per-row-type helpers carry the orphan-skip + dedup semantics; this
+    # loop is the per-source dispatch.
     for _path, source_id, state in file_states:
         _insert_citation_rows(conn, source_id, state.lists["citation"], etymon_id_by_ref, counts)
         _insert_descent_rows(
