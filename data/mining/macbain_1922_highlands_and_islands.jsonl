@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "macbain_1922_highlands_and_islands", "author": "Alexander Macbain", "title": "Place-Names: Highlands and Islands of Scotland", "year": 1922, "region": "Scottish Highlands and Islands", "language_focus": "celtic"}
+{"_type": "source", "ref": "macbain_1922_highlands_and_islands", "author": "Alexander Macbain", "title": "Place-Names: Highlands and Islands of Scotland", "year": 1922, "region": "Scottish Highlands and Islands", "language_focus": "mixed"}
 {"_type": "etymon", "ref": "celtic:-aigh", "canonical_form": "-aigh", "language": "celtic"}
 {"_type": "etymon", "ref": "celtic:aber", "canonical_form": "aber", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Estuary", "River confluence", "River mouth", "confluence", "junction, confluence", "mouth", "mouth (of a river)", "mouth of a river", "mouth of river", "mouth, confluence", "river mouth, confluence", "river mouth; confluence"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:ach", "canonical_form": "ach", "language": "celtic", "glosses": ["abounding in", "field", "marshy land", "place", "place abounding in"]}

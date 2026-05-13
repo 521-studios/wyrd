@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "taylor_1893_words_and_places", "title": "Taylor 1893 Words And Places", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "taylor_1893_words_and_places", "author": "Isaac Taylor", "title": "Words and Places: or Etymological Illustrations of History, Ethnology, and Geography", "year": 1893, "region": "Britain", "language_focus": "mixed"}
 {"_type": "etymon", "ref": "celtic:avon", "canonical_form": "avon", "language": "celtic", "modifier_type": "Topographical", "glosses": ["Brook", "River", "Stream"], "tags": ["topography", "water"]}
 {"_type": "etymon", "ref": "celtic:caer", "canonical_form": "caer", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Fortified town", "Walled town", "berry", "fort", "fortress", "military station", "stronghold"], "tags": ["architecture"]}
 {"_type": "etymon", "ref": "celtic:dun", "canonical_form": "dun", "language": "celtic", "glosses": ["fort", "fortress", "hill", "hill or fort", "hill or hill fort", "lull or hill-fort", "peel"]}
