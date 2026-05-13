@@ -1166,13 +1166,24 @@ def ingest_wiktextract_path(
     limit: int | None = None,
     since_line: int = 0,
 ) -> dict[str, int]:
-    """Convenience wrapper: open `path` (gzipped or plain) and feed
-    it to `ingest_wiktextract_stream`. Wiktextract dumps from
-    kaikki.org are typically `.jsonl.gz`; we sniff the suffix."""
+    """Convenience wrapper: open ``path`` (gzipped, zstd, or plain) and
+    feed it to ``ingest_wiktextract_stream``. Wiktextract dumps from
+    kaikki.org are typically ``.jsonl.gz``; the wyrd-0vj3 bulk-source
+    pipeline stores them as ``.jsonl.zst`` in ~/.wyrd/sources/.
+    """
     if path.suffix == ".gz":
         import gzip
 
         with gzip.open(path, "rt", encoding="utf-8") as f:
+            return ingest_wiktextract_stream(db, f, apply=apply, limit=limit, since_line=since_line)
+    if path.suffix == ".zst":
+        # wyrd-0vj3: bulk-source slices live in ~/.wyrd/sources/ as
+        # zstd-compressed jsonl. Delegate to the shared opener so
+        # both ingest paths and any future jsonl reader pick up
+        # transparent decompression.
+        from wyrd.generators.kenning.bulk_sources import open_jsonl
+
+        with open_jsonl(path) as f:
             return ingest_wiktextract_stream(db, f, apply=apply, limit=limit, since_line=since_line)
     with path.open("r", encoding="utf-8") as f:
         return ingest_wiktextract_stream(db, f, apply=apply, limit=limit, since_line=since_line)

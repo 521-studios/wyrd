@@ -12,12 +12,20 @@ dependencies = [
     # so the import is deferred to that command — other commands pay no
     # startup cost.
     "access_parser>=0.0.6",
+    # wyrd-0vj3: S3 + zstd handling for bulk-source sync. Both imports
+    # live behind ``lexicon fetch-bulk-sources`` / ``push-bulk-sources``
+    # / ``verify-bulk-sources`` and the ``.jsonl.zst`` reader in
+    # ``ingest-wiktionary``, so other CLI paths pay no startup cost.
+    "boto3>=1.34",
+    "zstandard>=0.22",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "ruff>=0.4",
+    # wyrd-0vj3: moto for offline S3 testing in bulk_sources tests.
+    "moto[s3]>=5.0",
     "black>=24.0",
 ]
 
