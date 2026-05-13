@@ -418,6 +418,127 @@ def test_prune_toponym_jsonl_dir_default_data_mining(tmp_path: Path, monkeypatch
 
 
 # ---------------------------------------------------------------------------
+# lexicon prune-etymon (wyrd-8wgr)
+#
+# Mirrors prune-toponym (wyrd-lene) for etymon rows. Shared helper
+# `_append_remove_event` in cli.py handles validation + append; these
+# tests verify the CLI wiring + the per-row-type message format.
+# ---------------------------------------------------------------------------
+
+
+def _source_with_etymon(tmp_path: Path, source_id: str, etymons: list[tuple[str, str]]) -> Path:
+    """Source file seeded with N etymons. Each etymon is a (language,
+    canonical_form) tuple."""
+    rows = [
+        {
+            "_type": "etymon",
+            "ref": f"{lang}:{form}",
+            "language": lang,
+            "canonical_form": form,
+        }
+        for lang, form in etymons
+    ]
+    return _source_file_with(tmp_path, source_id, rows)
+
+
+def test_prune_etymon_appends_remove_event(tmp_path: Path):
+    """Happy path: prune-etymon appends a remove event with the
+    operator's reason captured as _reason."""
+    _source_with_etymon(tmp_path, "rando-port", [("old-english", "pīe")])
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "prune-etymon",
+            "old-english:pīe",
+            "rando-port",
+            "--reason",
+            "wyrd-8wgr: BT says peach-tree, not gnat",
+            "--jsonl-dir",
+            str(tmp_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    lines = (tmp_path / "rando-port.jsonl").read_text().splitlines()
+    # Source + etymon + remove event = 3 lines.
+    assert len(lines) == 3
+    event = json.loads(lines[-1])
+    assert event == {
+        "_op": "remove",
+        "_type": "etymon",
+        "ref": "old-english:pīe",
+        "_reason": "wyrd-8wgr: BT says peach-tree, not gnat",
+    }
+
+
+def test_prune_etymon_rejects_unknown_ref(tmp_path: Path):
+    """Ref-validation guard (same shape as prune-toponym): typo'd ref
+    → UsageError + no file mutation."""
+    _source_with_etymon(tmp_path, "rando-port", [("old-english", "pīe")])
+    pre_lines = len((tmp_path / "rando-port.jsonl").read_text().splitlines())
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "prune-etymon",
+            "old-english:typo",
+            "rando-port",
+            "--jsonl-dir",
+            str(tmp_path),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "not found" in result.output.lower()
+    # Error message hints at the etymon-specific format.
+    assert "language" in result.output.lower() or "canonical_form" in result.output.lower()
+    # File unchanged on rejection.
+    post_lines = len((tmp_path / "rando-port.jsonl").read_text().splitlines())
+    assert pre_lines == post_lines
+
+
+def test_prune_etymon_rejects_missing_source_file(tmp_path: Path):
+    """Missing source file → fail fast."""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "prune-etymon",
+            "old-english:pīe",
+            "nonexistent",
+            "--jsonl-dir",
+            str(tmp_path),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "not found" in result.output.lower() or "no such" in result.output.lower()
+
+
+def test_prune_etymon_without_reason_omits_reason_field(tmp_path: Path):
+    """When --reason is absent, the appended event has no _reason key."""
+    _source_with_etymon(tmp_path, "rando-port", [("old-english", "pīe")])
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "prune-etymon",
+            "old-english:pīe",
+            "rando-port",
+            "--jsonl-dir",
+            str(tmp_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    event = json.loads((tmp_path / "rando-port.jsonl").read_text().splitlines()[-1])
+    assert event["_op"] == "remove"
+    assert event["_type"] == "etymon"
+    assert "_reason" not in event
+
+
+# ---------------------------------------------------------------------------
 # lexicon diff-rebuild
 # ---------------------------------------------------------------------------
 

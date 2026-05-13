@@ -2747,6 +2747,57 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
     click.echo("\n✓ No row-count deltas.", err=True)
 
 
+def _append_remove_event(
+    jsonl_dir: Path,
+    source_id: str,
+    row_type: str,
+    ref: str,
+    reason: str | None,
+    ref_format_hint: str,
+) -> Path:
+    """Shared implementation for `lexicon prune-toponym` and
+    `lexicon prune-etymon`. Validates that the source file exists and
+    that the named ref actually resolves inside it before appending
+    a remove event. Returns the target file path.
+
+    The validation step matters because the kernel's
+    `bucket.pop(ref, None)` silently swallows missing refs; combined
+    with orphan-skip a typo would produce a successful-looking rebuild
+    that doesn't actually prune anything.
+
+    ``ref_format_hint`` is per-row-type guidance for the error message
+    (etymon: ``lang:form``; toponym: ``name@region``).
+    """
+    target_file = jsonl_dir / f"{source_id}.jsonl"
+    if not target_file.exists():
+        raise click.UsageError(
+            f"Source file not found: {target_file}. "
+            f"Use --jsonl-dir to point at the right directory."
+        )
+
+    from wyrd.generators.kenning.jsonl_log import replay_file
+
+    state = replay_file(target_file)
+    if ref not in state.keyed[row_type]:
+        raise click.UsageError(
+            f"{row_type.capitalize()} ref {ref!r} not found in {target_file}. "
+            f"Check spelling ({ref_format_hint}) and confirm the source "
+            f"owns this row."
+        )
+
+    payload: dict[str, str] = {"_op": "remove", "_type": row_type, "ref": ref}
+    if reason is not None:
+        # Carried as a JSON key but ignored by the kernel (remove ops
+        # discard payload beyond _type + ref); useful for git blame.
+        payload["_reason"] = reason
+
+    with target_file.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(payload, ensure_ascii=False))
+        fh.write("\n")
+
+    return target_file
+
+
 @lexicon.command("prune-toponym")
 @click.argument("toponym_ref")
 @click.argument("source_id")
@@ -2775,43 +2826,58 @@ def lexicon_prune_toponym(
     counted as orphans + skipped. Operator commits the JSONL change in
     git; reverting is appending an 'add' event with the original data.
     """
-    target_file = jsonl_dir / f"{source_id}.jsonl"
-    if not target_file.exists():
-        raise click.UsageError(
-            f"Source file not found: {target_file}. Use --jsonl-dir to point at the right directory."
-        )
-
-    # Verify the toponym ref actually exists in the file before
-    # appending the remove event. The kernel's bucket.pop(ref, None)
-    # silently swallows missing refs, and combined with orphan-skip a
-    # typo would produce a successful-looking rebuild that doesn't
-    # actually prune anything. Replay the file and check the resolved
-    # state.
-    from wyrd.generators.kenning.jsonl_log import replay_file
-
-    state = replay_file(target_file)
-    if toponym_ref not in state.keyed["toponym"]:
-        raise click.UsageError(
-            f"Toponym ref {toponym_ref!r} not found in {target_file}. "
-            f"Check spelling (note the `name@region` format; `@-` is null region) "
-            f"and confirm the source owns this row."
-        )
-
-    payload: dict[str, str | None] = {
-        "_op": "remove",
-        "_type": "toponym",
-        "ref": toponym_ref,
-    }
-    if reason is not None:
-        # Carried as a JSON key but ignored by the kernel (remove ops
-        # discard payload beyond _type + ref); useful for git blame.
-        payload["_reason"] = reason
-
-    with target_file.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(payload, ensure_ascii=False))
-        fh.write("\n")
-
+    target_file = _append_remove_event(
+        jsonl_dir,
+        source_id,
+        "toponym",
+        toponym_ref,
+        reason,
+        ref_format_hint="`name@region` format; `@-` is null region",
+    )
     click.echo(f"Appended remove event for toponym `{toponym_ref}` → {target_file}", err=True)
+
+
+@lexicon.command("prune-etymon")
+@click.argument("etymon_ref")
+@click.argument("source_id")
+@click.option(
+    "--reason",
+    default=None,
+    help=("Operator note. Doesn't affect the DB; recorded in the JSONL event for git-blame audit."),
+)
+@click.option(
+    "--jsonl-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=Path("data/mining"),
+    show_default=True,
+)
+def lexicon_prune_etymon(
+    etymon_ref: str, source_id: str, reason: str | None, jsonl_dir: Path
+) -> None:
+    """Append a 'remove' event for an etymon to its source's L2 file (wyrd-8wgr).
+
+    ETYMON_REF is the etymon to prune ('old-english:pīe'). SOURCE_ID
+    is the source whose JSONL file owns the etymon row (must already
+    exist as <jsonl-dir>/<source_id>.jsonl).
+
+    On the next `lexicon rebuild-from-jsonl`, the etymon row is dropped
+    from the DB and any referencing fact-rows (citations, descent edges
+    in this source, etymology elements that name it) are counted as
+    orphans and skipped. Operator commits the JSONL change in git;
+    reverting is appending an 'add' event with the original data.
+
+    Typical use: dead-rando audit prunes (spurious morphemes the LLM
+    hallucinated or scribal variants the operator wants removed).
+    """
+    target_file = _append_remove_event(
+        jsonl_dir,
+        source_id,
+        "etymon",
+        etymon_ref,
+        reason,
+        ref_format_hint="`<language>:<canonical_form>` format",
+    )
+    click.echo(f"Appended remove event for etymon `{etymon_ref}` → {target_file}", err=True)
 
 
 @lexicon.command("enrichment-status")
