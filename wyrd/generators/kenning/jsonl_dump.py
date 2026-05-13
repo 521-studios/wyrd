@@ -389,6 +389,14 @@ DEFAULT_BULK_EXCLUDED_SOURCES: frozenset[str] = frozenset(
         # provenance. Re-include this source in dumps only after
         # attestation dump-side is in scope of build_from_jsonl.
         "rotuli_hundredorum",
+        # wyrd-myh1: Speed 1611 / Hearth Tax operator-CSV ingesters.
+        # Same CAVEAT as Hundred Rolls / OS Open Names — each
+        # attestation carries per-row source_doc provenance (parish,
+        # year_specific) that the current dump-jsonl attestation path
+        # would drop. Re-include only after attestation dump-side is
+        # in scope.
+        "speed_1611",
+        "hearth_tax_1660s",
     }
 )
 
