@@ -397,6 +397,15 @@ DEFAULT_BULK_EXCLUDED_SOURCES: frozenset[str] = frozenset(
         # in scope.
         "speed_1611",
         "hearth_tax_1660s",
+        # wyrd-j2bv: Retired rando-port etymons tombstone. Lives at
+        # data/mining/retired/rando-retired.jsonl — outside the
+        # non-recursive *.jsonl glob, so it's NOT loaded by the build
+        # pipeline. Excluded from dump-jsonl too in case a future
+        # rebuild somehow imports the source ID (would write to the
+        # wrong path). If you ever need to re-examine retired
+        # etymons, read the tombstone file directly rather than
+        # round-tripping through dump-jsonl.
+        "rando-retired",
     }
 )
 
