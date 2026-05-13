@@ -2277,6 +2277,64 @@ def lexicon_browse_source(source_id: str, db_path: Path, list_toponyms: bool) ->
     click.echo(format_source(data, list_toponyms=list_toponyms))
 
 
+@lexicon.command("era-timeline")
+@click.argument("query")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+def lexicon_era_timeline(query: str, db_path: Path) -> None:
+    """Show one toponym's attestations bucketed by era (wyrd-ub76).
+
+    QUERY is either a bare modern name ('Acton') or 'name@region'
+    ('Acton@Cheshire'). For ambiguous bare names the first region in
+    ASCII order is shown — disambiguate with @region.
+
+    Era buckets: Anglo-Saxon (<1100), Middle English (1100-1500),
+    Early Modern (1500-1800), Modern (>=1800), Undated.
+    """
+    from wyrd.generators.kenning.era_timeline import (
+        fetch_era_timeline,
+        format_era_timeline,
+    )
+
+    with _readonly_lexicon(db_path) as conn:
+        timeline = fetch_era_timeline(conn, query)
+
+    if timeline is None:
+        click.echo(f"No toponym found for query={query!r}", err=True)
+        raise SystemExit(1)
+    click.echo(format_era_timeline(timeline))
+
+
+@lexicon.command("era-coverage")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+def lexicon_era_coverage(db_path: Path) -> None:
+    """Aggregate cross-era coverage across the toponym corpus (wyrd-ub76).
+
+    Reports per-era toponym counts, the histogram of how many eras
+    each toponym is attested in, and the percent with >=3 dated eras
+    — the headline 'is the cross-era story landing' number.
+    """
+    from wyrd.generators.kenning.era_timeline import (
+        fetch_era_coverage,
+        format_era_coverage,
+    )
+
+    with _readonly_lexicon(db_path) as conn:
+        report = fetch_era_coverage(conn)
+    click.echo(format_era_coverage(report))
+
+
 @lexicon.command("dump-jsonl")
 @click.option(
     "--db",
