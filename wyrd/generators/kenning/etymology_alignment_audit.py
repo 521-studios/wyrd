@@ -1,0 +1,267 @@
+"""Toponym/etymology cross-misalignment audit — wyrd-8upf.
+
+Walks ``data/mining/*.jsonl`` looking at every ``etymology_element``
+row (LLM-extracted scholar etymologies for toponyms) and flags rows
+where the ``elements[]`` list doesn't appear supported by the
+``historical_form`` reconstruction. The misalignment pattern showed
+up in PR #175 review (the ``DownLanp Woop`` example —
+old-english:hoh proposed but citation prose says ``William ater
+Dune`` pointing at dun + land).
+
+Like the short_quote audit (wyrd-bd68), this is a recall sieve:
+high-precision heuristics that operator eyeballs and decides
+whether to emit ``remove`` / ``set`` curation events on the
+flagged rows. The audit can't perfectly classify alignment without
+re-running the LLM — but mechanizable signals catch the bulk.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import unicodedata
+from collections.abc import Iterable
+from dataclasses import dataclass, field
+from pathlib import Path
+
+
+def _normalize(text: str) -> str:
+    """Lowercase + strip diacritics + collapse non-alphanumeric to
+    a single space. Substring matching works on the normalized form,
+    so ``Céolwig`` ↔ ``ceolwig`` succeeds, ``tūn`` ↔ ``tun``,
+    ``æ`` ↔ ``ae``, and trailing punctuation doesn't break alignment.
+
+    Uses ``unicodedata.normalize("NFKD")`` to decompose combining
+    diacritics (covering OE long-vowel macrons that hand-mapping
+    misses) plus a small fixup for OE/OF ligatures."""
+    if not text:
+        return ""
+    decomposed = unicodedata.normalize("NFKD", text)
+    # NFKD doesn't split ligatures (æ, œ); do that explicitly.
+    decomposed = (
+        decomposed.replace("æ", "ae").replace("Æ", "AE").replace("œ", "oe").replace("Œ", "OE")
+    )
+    # Drop combining marks (the decomposed accents).
+    stripped = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+    return re.sub(r"[^a-z0-9]+", " ", stripped.lower()).strip()
+
+
+# Morphemes that are too short / common to carry signal. Latinate
+# inflections (-es genitive, -ing patronymic) and frequent OE/ON
+# endings (-a, -e, -u) would otherwise flag false alignment-misses
+# when they're absent from the historical_form (they're often
+# elided in attested spellings).
+_STOP_MORPHEMES: frozenset[str] = frozenset(
+    {"a", "e", "i", "o", "u", "es", "ing", "an", "en", "s", "n", "r"}
+)
+
+
+def _etymon_canonical_form(etymon_ref: str) -> str:
+    """Strip the ``language:`` prefix from an etymon ref. ``old-english:cot``
+    → ``cot``."""
+    return etymon_ref.rsplit(":", 1)[-1]
+
+
+def _missing_morphemes(elements: list[dict], historical_form: str) -> list[str]:
+    """Return the etymon canonical_forms that don't appear (as a
+    substring) anywhere in the historical_form. Skips stop-morphemes
+    (single letters, common inflections) where absence isn't signal."""
+    norm_form = _normalize(historical_form)
+    missing: list[str] = []
+    for el in elements:
+        ref = el.get("etymon_ref") or ""
+        if not ref:
+            continue
+        canonical = _etymon_canonical_form(ref)
+        norm_canonical = _normalize(canonical)
+        if norm_canonical in _STOP_MORPHEMES:
+            continue
+        if not norm_canonical:
+            continue
+        if norm_canonical not in norm_form:
+            missing.append(canonical)
+    return missing
+
+
+@dataclass(frozen=True)
+class MisalignmentFinding:
+    """One flagged etymology_element row."""
+
+    toponym_ref: str
+    historical_form: str
+    elements: list[str]
+    missing_morphemes: list[str]
+    confidence: str | None
+    notes_preview: str
+
+
+def looks_misaligned(row: dict) -> MisalignmentFinding | None:
+    """Apply the heuristic to one ``etymology_element`` row. Returns
+    a finding when the alignment looks suspect, ``None`` otherwise.
+
+    Rules (high-precision; operator eyeballs the report):
+
+    - At least one element AND historical_form is empty → flag.
+      The LLM proposed morphemes but no reconstruction; the prose
+      may not actually support those morphemes.
+    - At least one element's canonical_form doesn't appear as a
+      substring of the normalized historical_form (skipping
+      stop-morphemes) → flag. The element wasn't pinned to the
+      reconstruction; might be hallucinated.
+    """
+    elements = row.get("elements") or []
+    historical_form = (row.get("historical_form") or "").strip()
+    if not elements:
+        return None
+    norm_form = _normalize(historical_form)
+    if not norm_form:
+        # Has elements but no reconstruction — suspect on its own.
+        missing = [_etymon_canonical_form(el.get("etymon_ref") or "") for el in elements]
+    else:
+        missing = _missing_morphemes(elements, historical_form)
+        if not missing:
+            return None
+    return MisalignmentFinding(
+        toponym_ref=row.get("toponym_ref") or "<missing>",
+        historical_form=historical_form,
+        elements=[_etymon_canonical_form(el.get("etymon_ref") or "") for el in elements],
+        missing_morphemes=missing,
+        confidence=row.get("confidence"),
+        notes_preview=_preview_notes(row.get("notes") or ""),
+    )
+
+
+def _preview_notes(notes: str, max_len: int = 200) -> str:
+    """Keep the report rows tight — long notes are the SIGNAL, not
+    useful in a sample line. The operator can open the file to see
+    full context."""
+    notes = notes.replace("\n", " ").strip()
+    if len(notes) <= max_len:
+        return notes
+    return notes[: max_len - 3] + "..."
+
+
+@dataclass
+class SourceAuditResult:
+    """Per-source audit summary."""
+
+    source_id: str
+    total_etymologies: int = 0
+    flagged_count: int = 0
+    samples: list[MisalignmentFinding] = field(default_factory=list)
+
+    @property
+    def flag_rate(self) -> float:
+        if self.total_etymologies == 0:
+            return 0.0
+        return 100.0 * self.flagged_count / self.total_etymologies
+
+
+@dataclass
+class AuditReport:
+    """Aggregate over all sources."""
+
+    sources: list[SourceAuditResult]
+    sample_limit_per_source: int
+
+    @property
+    def total_etymologies(self) -> int:
+        return sum(s.total_etymologies for s in self.sources)
+
+    @property
+    def total_flagged(self) -> int:
+        return sum(s.flagged_count for s in self.sources)
+
+    @property
+    def overall_rate(self) -> float:
+        if self.total_etymologies == 0:
+            return 0.0
+        return 100.0 * self.total_flagged / self.total_etymologies
+
+
+def _source_id_from_path(path: Path) -> str:
+    return path.stem
+
+
+def audit_jsonl_file(path: Path, sample_limit: int = 3) -> SourceAuditResult:
+    """Scan one source file for misaligned etymology_element rows."""
+    result = SourceAuditResult(source_id=_source_id_from_path(path))
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if row.get("_type") != "etymology_element":
+                continue
+            if row.get("_op") == "remove":
+                continue
+            result.total_etymologies += 1
+            finding = looks_misaligned(row)
+            if finding is not None:
+                result.flagged_count += 1
+                if len(result.samples) < sample_limit:
+                    result.samples.append(finding)
+    return result
+
+
+def audit_jsonl_dir(
+    directory: Path, *, sample_limit: int = 3, sources: Iterable[str] | None = None
+) -> AuditReport:
+    """Walk every ``*.jsonl`` in ``directory``. Skips ``_curation.jsonl``
+    (operator event log, not source data)."""
+    wanted: set[str] | None = set(sources) if sources is not None else None
+    results: list[SourceAuditResult] = []
+    for path in sorted(directory.glob("*.jsonl")):
+        if path.stem.startswith("_"):
+            continue
+        if wanted is not None and path.stem not in wanted:
+            continue
+        results.append(audit_jsonl_file(path, sample_limit=sample_limit))
+    return AuditReport(sources=results, sample_limit_per_source=sample_limit)
+
+
+def format_audit_report(report: AuditReport, *, top_n: int = 20) -> str:
+    """Markdown rendering. Ranks by absolute flag count (volume
+    drives where operator work has highest payoff)."""
+    sorted_sources = sorted(
+        report.sources,
+        key=lambda s: (-s.flagged_count, -s.total_etymologies, s.source_id),
+    )
+    lines: list[str] = ["# Toponym/etymology alignment audit (wyrd-8upf)", ""]
+    lines.append(f"- Sources scanned: {len(report.sources)}")
+    lines.append(f"- Total etymology rows: {report.total_etymologies:,}")
+    lines.append(f"- Probably misaligned: {report.total_flagged:,} ({report.overall_rate:.1f}%)")
+    lines.append("")
+    lines.append("## Top sources by flag count")
+    lines.append("")
+    lines.append("| Source | Flagged / Total | Rate |")
+    lines.append("| --- | ---: | ---: |")
+    for s in sorted_sources[:top_n]:
+        if s.flagged_count == 0:
+            continue
+        lines.append(
+            f"| `{s.source_id}` | {s.flagged_count} / {s.total_etymologies} | {s.flag_rate:.1f}% |"
+        )
+    lines.append("")
+    affected = [s for s in sorted_sources if s.flagged_count > 0]
+    if affected:
+        lines.append(f"## Samples (up to {report.sample_limit_per_source} per source)")
+        lines.append("")
+        for s in affected[:top_n]:
+            lines.append(f"### `{s.source_id}` ({s.flagged_count} flagged)")
+            for f in s.samples:
+                lines.append(
+                    f"- `{f.toponym_ref}` — historical_form=`{f.historical_form or '∅'}`, "
+                    f"elements=[{', '.join(f.elements)}], "
+                    f"missing=[{', '.join(f.missing_morphemes)}]"
+                )
+                if f.notes_preview:
+                    lines.append(f"  - notes: `{f.notes_preview}`")
+            lines.append("")
+    else:
+        lines.append("_No alignment misses detected._")
+    return "\n".join(lines).rstrip() + "\n"
