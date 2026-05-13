@@ -141,14 +141,17 @@ def apply_curation_overrides(
         # in the same event.
         if "lemma_ref" in payload:
             lemma_ref = payload["lemma_ref"]
-            inflection = payload.get("inflection")
             if lemma_ref is None:
                 counts["lemma_id_cleared"] += 1
                 if apply:
+                    # Stamp manual-curation-v1 even on clear so audit
+                    # queries (WHERE lemma_method = 'manual-curation-v1')
+                    # find the operator decision. lemma_id=NULL with a
+                    # method version means "operator decided no lemma".
                     db.conn.execute(
                         "UPDATE etymon SET lemma_id = NULL, inflection = NULL, "
-                        "lemma_method = NULL WHERE id = ?",
-                        (etymon_id,),
+                        "lemma_method = ? WHERE id = ?",
+                        (CURATION_METHOD_VERSION, etymon_id),
                     )
             else:
                 lemma_id = resolve(lemma_ref)
@@ -159,13 +162,24 @@ def apply_curation_overrides(
                 else:
                     counts["lemma_id_set"] += 1
                     if apply:
-                        # Curation winners stay canonical even if auto-
-                        # clustering would have tombstoned them — clear
-                        # merged_into_id when lemma_id is operator-set.
+                        # "Absent inflection key = no opinion": only touch
+                        # the column when the operator explicitly provided
+                        # it. Otherwise an auto-detected inflection from
+                        # link-lemmas survives the curation. Dynamic SET
+                        # list keeps the semantic clean.
+                        set_clauses = [
+                            "lemma_id = ?",
+                            "lemma_method = ?",
+                            "merged_into_id = NULL",
+                        ]
+                        values: list[Any] = [lemma_id, CURATION_METHOD_VERSION]
+                        if "inflection" in payload:
+                            set_clauses.append("inflection = ?")
+                            values.append(payload["inflection"])
+                        values.append(etymon_id)
                         db.conn.execute(
-                            "UPDATE etymon SET lemma_id = ?, inflection = ?, "
-                            "lemma_method = ?, merged_into_id = NULL WHERE id = ?",
-                            (lemma_id, inflection, CURATION_METHOD_VERSION, etymon_id),
+                            f"UPDATE etymon SET {', '.join(set_clauses)} WHERE id = ?",
+                            tuple(values),
                         )
 
         if "merged_into_ref" in payload:
@@ -173,9 +187,13 @@ def apply_curation_overrides(
             if merge_ref is None:
                 counts["merged_into_cleared"] += 1
                 if apply:
+                    # Stamp method on clear so the operator decision is
+                    # findable via the same WHERE lemma_method query
+                    # used for lemma curations.
                     db.conn.execute(
-                        "UPDATE etymon SET merged_into_id = NULL WHERE id = ?",
-                        (etymon_id,),
+                        "UPDATE etymon SET merged_into_id = NULL, "
+                        "lemma_method = ? WHERE id = ?",
+                        (CURATION_METHOD_VERSION, etymon_id),
                     )
             else:
                 merge_id = resolve(merge_ref)
@@ -187,12 +205,13 @@ def apply_curation_overrides(
                     counts["merged_into_set"] += 1
                     if apply:
                         # Tombstone target: clear lemma_id (a tombstone
-                        # shouldn't double as a lemma parent).
+                        # shouldn't double as a lemma parent). Stamp the
+                        # method so curation-tombstones are auditable.
                         db.conn.execute(
                             "UPDATE etymon SET merged_into_id = ?, "
                             "lemma_id = NULL, inflection = NULL, "
-                            "lemma_method = NULL WHERE id = ?",
-                            (merge_id, etymon_id),
+                            "lemma_method = ? WHERE id = ?",
+                            (merge_id, CURATION_METHOD_VERSION, etymon_id),
                         )
 
     if apply:

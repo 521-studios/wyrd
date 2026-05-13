@@ -214,7 +214,10 @@ def test_apply_sets_lemma_id_and_method_version(tmp_path: Path):
 
 
 def test_apply_null_lemma_ref_clears_existing_link(tmp_path: Path):
-    """A previous auto-link gets cleared when curation says null."""
+    """A previous auto-link gets cleared when curation says null. The
+    method version is stamped manual-curation-v1 so audit queries
+    (WHERE lemma_method = ...) find the operator decision; lemma_id=
+    NULL + manual-curation-v1 reads as 'operator decided no lemma'."""
     db_path = _build_db(tmp_path)
     caelf_id = _add_etymon(db_path, "old-english", "caelf")
     cealf_id = _add_etymon(db_path, "old-english", "cealf")
@@ -238,7 +241,52 @@ def test_apply_null_lemma_ref_clears_existing_link(tmp_path: Path):
     conn.close()
     assert row["lemma_id"] is None
     assert row["inflection"] is None
-    assert row["lemma_method"] is None
+    assert row["lemma_method"] == CURATION_METHOD_VERSION
+
+
+def test_apply_lemma_ref_without_inflection_preserves_existing_inflection(tmp_path: Path):
+    """Absent inflection key = no opinion: the auto-detected
+    inflection from link-lemmas should survive a lemma-only curation."""
+    db_path = _build_db(tmp_path)
+    caelf_id = _add_etymon(db_path, "old-english", "caelf")
+    cealf_id = _add_etymon(db_path, "old-english", "cealf")
+    # Simulate prior auto-clustering output with an inflection.
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        "UPDATE etymon SET inflection = 'preserved_inflection' WHERE id = ?",
+        (caelf_id,),
+    )
+    conn.commit()
+    conn.close()
+    with LexiconDB(db_path) as db:
+        # Curation event with lemma_ref but NO inflection key.
+        apply_curation_overrides(db, {"old-english:caelf": {"lemma_ref": "old-english:cealf"}})
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT lemma_id, inflection FROM etymon WHERE id=?", (caelf_id,)
+    ).fetchone()
+    conn.close()
+    assert row["lemma_id"] == cealf_id
+    # Inflection NOT touched — operator didn't mention it.
+    assert row["inflection"] == "preserved_inflection"
+
+
+def test_apply_merge_curation_stamps_method_version(tmp_path: Path):
+    """Curation tombstones get lemma_method='manual-curation-v1' so
+    they're findable in the same audit query as lemma curations."""
+    db_path = _build_db(tmp_path)
+    vath_id = _add_etymon(db_path, "old-norse", "vath")
+    _add_etymon(db_path, "old-norse", "vað")
+    with LexiconDB(db_path) as db:
+        apply_curation_overrides(db, {"old-norse:vath": {"merged_into_ref": "old-norse:vað"}})
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT lemma_method FROM etymon WHERE id=?", (vath_id,)
+    ).fetchone()
+    conn.close()
+    assert row["lemma_method"] == CURATION_METHOD_VERSION
 
 
 def test_apply_sets_merged_into_id(tmp_path: Path):
