@@ -187,45 +187,44 @@ class EraCoverageReport:
 def fetch_era_coverage(conn: sqlite3.Connection) -> EraCoverageReport:
     """Aggregate era-coverage metrics across the whole toponym table.
 
-    A single SQL pass groups attestations by toponym_id + era bucket;
-    Python folds the counts. Suitable for the ~tens-of-thousands-scale
-    toponym corpus the Phase-3 ingesters produce."""
+    Streams ``toponym_attestation`` rows in toponym_id order and folds
+    per-toponym era sets in Python. One SQL pass; no GROUP_CONCAT
+    string-parsing (which would be fragile for date_year values that
+    aren't simple integers).
+
+    Suitable for the ~tens-of-thousands-scale toponym corpus the
+    Phase-3 ingesters produce.
+    """
     total = conn.execute("SELECT COUNT(*) AS n FROM toponym").fetchone()["n"]
 
     per_era: dict[str, int] = dict.fromkeys(ERA_ORDER, 0)
     era_count_dist: dict[int, int] = {}
     toponyms_with_attestations = 0
 
-    # Group attestations per toponym; emit one row per toponym with
-    # an aggregated set of eras.
-    rows = conn.execute(
-        """SELECT toponym_id, GROUP_CONCAT(DISTINCT date_year) AS years
-             FROM toponym_attestation
-            GROUP BY toponym_id"""
-    ).fetchall()
+    current_id: int | None = None
+    current_eras: set[str] = set()
 
-    toponyms_with_attestations = len(rows)
-
-    for r in rows:
-        years_raw = r["years"] or ""
-        eras: set[str] = set()
-        for y in years_raw.split(","):
-            y = y.strip()
-            year_int: int | None
-            if y == "" or y.lower() == "none":
-                year_int = None
-            else:
-                try:
-                    year_int = int(y)
-                except ValueError:
-                    year_int = None
-            eras.add(bucket_year(year_int))
-        # Coverage count excludes UNDATED — we want chronological
-        # spread, not "had any attestation."
-        dated_eras = {e for e in eras if e != ERA_UNDATED}
+    def _flush() -> None:
+        nonlocal toponyms_with_attestations
+        if current_id is None:
+            return
+        toponyms_with_attestations += 1
+        dated_eras = {e for e in current_eras if e != ERA_UNDATED}
         era_count_dist[len(dated_eras)] = era_count_dist.get(len(dated_eras), 0) + 1
-        for e in eras:
+        for e in current_eras:
             per_era[e] += 1
+
+    for r in conn.execute(
+        """SELECT toponym_id, date_year
+             FROM toponym_attestation
+            ORDER BY toponym_id"""
+    ):
+        if r["toponym_id"] != current_id:
+            _flush()
+            current_id = r["toponym_id"]
+            current_eras = set()
+        current_eras.add(bucket_year(r["date_year"]))
+    _flush()
 
     # Toponyms with zero attestations are 0-era too — fold them in.
     zero_era_toponyms = total - toponyms_with_attestations

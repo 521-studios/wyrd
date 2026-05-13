@@ -187,6 +187,29 @@ def test_fetch_era_timeline_null_region_sentinel(conn):
     assert timeline.region is None
 
 
+def test_fetch_era_timeline_bare_name_regional_beats_null_region(conn):
+    """Bare-name lookup matching one null-region + one regional row:
+    the regional row wins. The ORDER BY in _resolve_toponym_id puts
+    non-null regions before nulls, so this is the documented
+    preference — bare-name lookup is "any region, prefer specific
+    over null." Operator who wants the null-region row uses @-."""
+    _insert_toponym(conn, "Acton", region=None)
+    _insert_toponym(conn, "Acton", region="Cheshire")
+    timeline = fetch_era_timeline(conn, "Acton")
+    assert timeline is not None
+    assert timeline.region == "Cheshire"  # regional, not None
+
+
+def test_fetch_era_timeline_bare_name_only_null_region(conn):
+    """When the only matching row IS the null-region one, bare-name
+    lookup still finds it (the IS NULL ordering pushes it to last
+    but it's the sole candidate)."""
+    _insert_toponym(conn, "Solo", region=None)
+    timeline = fetch_era_timeline(conn, "Solo")
+    assert timeline is not None
+    assert timeline.region is None
+
+
 # ---------------------------------------------------------------------------
 # fetch_era_coverage
 # ---------------------------------------------------------------------------
