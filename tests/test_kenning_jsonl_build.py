@@ -317,6 +317,108 @@ def test_build_inserts_toponym_and_etymology_elements(tmp_path: Path):
 # ---------------------------------------------------------------------------
 
 
+def test_build_dedupes_content_equal_etymology_element_rows(tmp_path: Path):
+    """Per wyrd-tzf2: a content-equal etymology_element row in the same
+    file inserts ONCE. Re-run LLM mining used to leave byte-identical
+    dupes (toponym_etymology has no UNIQUE constraint); the build now
+    fingerprints + dedupes per source."""
+    _write_jsonl(
+        tmp_path,
+        "mawer",
+        [
+            {"_type": "source", "ref": "mawer", "title": "N&D"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:cot",
+                "language": "old-english",
+                "canonical_form": "cot",
+            },
+            {
+                "_type": "etymon",
+                "ref": "old-english:tun",
+                "language": "old-english",
+                "canonical_form": "tun",
+            },
+            {
+                "_type": "toponym",
+                "ref": "Cotton@Norfolk",
+                "modern_name": "Cotton",
+                "country": "England",
+                "region": "Norfolk",
+            },
+            {
+                "_type": "etymology_element",
+                "toponym_ref": "Cotton@Norfolk",
+                "historical_form": "Cotuna",
+                "confidence": "high",
+                "elements": [
+                    {"ordinal": 1, "etymon_ref": "old-english:cot"},
+                    {"ordinal": 2, "etymon_ref": "old-english:tun"},
+                ],
+            },
+            # Byte-identical duplicate row.
+            {
+                "_type": "etymology_element",
+                "toponym_ref": "Cotton@Norfolk",
+                "historical_form": "Cotuna",
+                "confidence": "high",
+                "elements": [
+                    {"ordinal": 1, "etymon_ref": "old-english:cot"},
+                    {"ordinal": 2, "etymon_ref": "old-english:tun"},
+                ],
+            },
+        ],
+    )
+    conn = _build_fixture_db()
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    assert counts["etymology_element"] == 1
+    assert counts["etymology_element_dupes_skipped"] == 1
+    n_te = conn.execute("SELECT COUNT(*) FROM toponym_etymology").fetchone()[0]
+    assert n_te == 1
+    n_el = conn.execute("SELECT COUNT(*) FROM toponym_etymology_element").fetchone()[0]
+    assert n_el == 2  # the two element children of the one etymology
+
+
+def test_build_dedup_scope_is_per_source_file(tmp_path: Path):
+    """Two source files with content-equal etymology_element rows
+    each insert their row — that's scholarly agreement, not a dupe."""
+    cot_row = {
+        "_type": "etymon",
+        "ref": "old-english:cot",
+        "language": "old-english",
+        "canonical_form": "cot",
+    }
+    topo_row = {
+        "_type": "toponym",
+        "ref": "Cotton@Norfolk",
+        "modern_name": "Cotton",
+        "country": "England",
+        "region": "Norfolk",
+    }
+    element_row = {
+        "_type": "etymology_element",
+        "toponym_ref": "Cotton@Norfolk",
+        "historical_form": "Cotuna",
+        "confidence": "high",
+        "elements": [{"ordinal": 1, "etymon_ref": "old-english:cot"}],
+    }
+    _write_jsonl(
+        tmp_path,
+        "skeat",
+        [{"_type": "source", "ref": "skeat", "title": "Skeat"}, cot_row, topo_row, element_row],
+    )
+    _write_jsonl(
+        tmp_path,
+        "mawer",
+        [{"_type": "source", "ref": "mawer", "title": "Mawer"}, cot_row, topo_row, element_row],
+    )
+    conn = _build_fixture_db()
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    # Both sources contribute their row — no cross-source dedup.
+    assert counts["etymology_element"] == 2
+    assert counts["etymology_element_dupes_skipped"] == 0
+
+
 def test_build_merges_etymon_across_files(tmp_path: Path):
     """Same etymon ref in two files = ONE etymon row, with union of
     glosses + tags. Scalar fields (notes) follow last-write-wins by

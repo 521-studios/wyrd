@@ -323,6 +323,7 @@ def build_from_jsonl(
         "etymon_descent": 0,
         "mining_run": 0,
         "etymology_element": 0,
+        "etymology_element_dupes_skipped": 0,
     }
 
     # ----- Pass 1: replay every file, accumulate merged state.
@@ -382,16 +383,65 @@ def build_from_jsonl(
             _insert_mining_run(conn, source_id, row)
             counts["mining_run"] += 1
 
+        # Per-source dedup: a content-equal etymology_element row that
+        # appears twice in the same file (LLM mining re-run artifact —
+        # wyrd-tzf2) inserts once. Cross-source content matches are
+        # legitimate scholar agreement and still produce distinct rows
+        # because each goes into a different source_id, so the dedup
+        # set is scoped per file.
+        seen_etymology_fingerprints: set[tuple] = set()
         for row in state.lists["etymology_element"]:
             tref = row["toponym_ref"]
             tid = toponym_id_by_ref.get(tref)
             if tid is None:
                 raise BuildError(f"{path}: etymology_element references unknown toponym {tref!r}")
+            fingerprint = _etymology_element_fingerprint(row)
+            if fingerprint in seen_etymology_fingerprints:
+                counts["etymology_element_dupes_skipped"] += 1
+                continue
+            seen_etymology_fingerprints.add(fingerprint)
             _insert_etymology_element(conn, tid, source_id, row, etymon_id_by_ref)
             counts["etymology_element"] += 1
 
     conn.commit()
     return counts
+
+
+def _etymology_element_fingerprint(row: dict[str, Any]) -> tuple:
+    """Stable content-fingerprint for an ``etymology_element`` row
+    (wyrd-tzf2). Two rows with the same fingerprint are content-
+    duplicates that an idempotent INSERT should skip.
+
+    Includes every field that influences the inserted
+    ``toponym_etymology`` + ``toponym_etymology_element`` rows:
+    toponym ref, ordered element list (ordinal + etymon_ref +
+    inflection + surface_in_modern per element), historical_form,
+    confidence, notes, attested_year, page.
+
+    Lists become tuples so the result is hashable. Element ordering
+    is preserved as-is (ordinal IS the order; sorting would change
+    semantics for any badly-formed input).
+    """
+    elements_key = tuple(
+        (
+            el.get("ordinal"),
+            el.get("etymon_ref"),
+            el.get("inflection"),
+            el.get("surface_in_modern"),
+        )
+        # `or []` handles an explicit ``"elements": null`` in JSONL —
+        # ``get("elements", [])`` would still return None in that case.
+        for el in (row.get("elements") or [])
+    )
+    return (
+        row.get("toponym_ref"),
+        elements_key,
+        row.get("historical_form"),
+        row.get("confidence"),
+        row.get("notes"),
+        row.get("attested_year"),
+        row.get("page"),
+    )
 
 
 def jsonl_paths_in(directory: str | Path) -> list[Path]:
