@@ -130,13 +130,9 @@ def test_curate_etymon_appends_to_existing_file_without_dupe_source(tmp_path: Pa
     assert result.exit_code == 0, result.output
     lines = curation_file.read_text().splitlines()
     # Exactly one source row + two events.
-    sources = [
-        line for line in lines if json.loads(line).get("_type") == "source"
-    ]
+    sources = [line for line in lines if json.loads(line).get("_type") == "source"]
     assert len(sources) == 1
-    events = [
-        line for line in lines if json.loads(line).get("_type") == "etymon_curation"
-    ]
+    events = [line for line in lines if json.loads(line).get("_type") == "etymon_curation"]
     assert len(events) == 2
 
 
