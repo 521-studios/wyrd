@@ -2954,10 +2954,10 @@ def lexicon_ingest_hearth_tax(csv_path: Path, out_path: Path, apply_changes: boo
     """Ingest a Hearth-Tax-returns CSV → JSONL events (wyrd-myh1).
 
     Expected CSV columns (named header row):
-      place_name (required), county, year_specific, country, modern_name
+      place_name (required), parish, county, year_specific, country, modern_name
 
     year_specific captures the actual collection year (1662-1674);
-    blank/unparseable falls back to 1665.
+    blank/unparseable falls back to 1665. Out-of-range integers warn.
     """
     from wyrd.generators.kenning.hearth_tax_ingester import ingest
 

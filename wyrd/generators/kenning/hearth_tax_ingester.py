@@ -15,11 +15,16 @@ specific year of the return when known.
 Same operator-CSV template as Hundred Rolls (wyrd-3atv) and Speed
 (this PR). CSV columns the ingester reads:
 
-- ``place_name`` (required) — parish or township name as in the
-  return.
+- ``place_name`` (required) — taxed settlement as it appears in
+  the return (parish, township, or hamlet).
+- ``parish`` — parish container when ``place_name`` is a township
+  or hamlet (optional; adds richer ``source_doc`` provenance).
 - ``county`` — modern county.
 - ``year_specific`` — actual collection year (1662-1674); falls
-  back to ``DEFAULT_HEARTH_TAX_YEAR`` (1665) when blank.
+  back to ``DEFAULT_HEARTH_TAX_YEAR`` (1665) when blank or
+  unparseable. Out-of-range integers warn via
+  :class:`OutOfRangeYearWarning` so transcription errors surface
+  to the operator without aborting the ingest.
 - ``country`` — defaults to England (Hearth Tax was English-only).
 - ``modern_name`` — present-day form when different; falls back
   to ``place_name``.
@@ -31,6 +36,7 @@ Rolls or Speed modern_name attaches all attestations to one toponym.
 from __future__ import annotations
 
 import csv
+import warnings
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
@@ -42,7 +48,14 @@ DEFAULT_HEARTH_TAX_YEAR = 1665
 HEARTH_TAX_YEAR_RANGE = (1662, 1674)
 
 _REQUIRED_COLUMNS = ("place_name",)
-_OPTIONAL_COLUMNS = ("county", "year_specific", "country", "modern_name")
+_OPTIONAL_COLUMNS = ("county", "parish", "year_specific", "country", "modern_name")
+
+
+class OutOfRangeYearWarning(UserWarning):
+    """A ``year_specific`` cell parsed as a valid int but fell outside
+    the Hearth Tax collection window (1662-1674). Emitted at warning
+    level (not raised) so the ingest completes, but the operator gets
+    a signal that a transcription value is suspect."""
 
 
 class CsvSchemaError(ValueError):
@@ -63,8 +76,9 @@ _SOURCE_ROW = {
         "editions per county (Yorkshire, Essex, Surrey, Wiltshire, "
         "etc.) by county record societies. Operator extracts "
         "settlement-level entries into a CSV (columns: place_name, "
-        "county, year_specific, country, modern_name) and feeds via "
-        "`lexicon ingest-hearth-tax`. Finer-grained than Speed 1611 "
+        "parish, county, year_specific, country, modern_name) and "
+        "feeds via `lexicon ingest-hearth-tax`. Finer-grained than "
+        "Speed 1611 "
         "because every taxable township appears, not just map-scale "
         "places. Fills early-modern attestation gap alongside Speed."
     ),
@@ -80,7 +94,8 @@ def _parse_year(raw: str) -> int:
     blank or unparseable. Strict-mode (raise on garbage) was
     rejected: operator-supplied transcriptions sometimes have
     'c.1665' / '1662?' that we'd rather accept-with-default than
-    abort on."""
+    abort on. Out-of-range integers DO emit a warning — the operator
+    likely has a transcription error to investigate."""
     raw = (raw or "").strip()
     if not raw:
         return DEFAULT_HEARTH_TAX_YEAR
@@ -91,6 +106,13 @@ def _parse_year(raw: str) -> int:
     low, high = HEARTH_TAX_YEAR_RANGE
     if low <= year <= high:
         return year
+    warnings.warn(
+        f"year_specific={year} outside Hearth Tax collection window "
+        f"{low}-{high}; using default {DEFAULT_HEARTH_TAX_YEAR}. "
+        f"Likely a transcription error in the operator CSV.",
+        OutOfRangeYearWarning,
+        stacklevel=2,
+    )
     return DEFAULT_HEARTH_TAX_YEAR
 
 
@@ -103,6 +125,7 @@ def _normalize_row(row: dict[str, str]) -> tuple[dict[str, Any], dict[str, Any]]
     modern_name = (row.get("modern_name") or "").strip() or place_name
     region = (row.get("county") or "").strip() or None
     country = (row.get("country") or "").strip() or "England"
+    parish = (row.get("parish") or "").strip() or None
     year = _parse_year(row.get("year_specific") or "")
 
     ref = _toponym_ref(modern_name, region)
@@ -116,6 +139,8 @@ def _normalize_row(row: dict[str, str]) -> tuple[dict[str, Any], dict[str, Any]]
         toponym_event["region"] = region
 
     parts = [f"Hearth Tax {year}"]
+    if parish:
+        parts.append(f"Parish of {parish}")
     if region:
         parts.append(region)
     source_doc = "; ".join(parts)

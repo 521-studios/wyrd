@@ -13,6 +13,7 @@ from wyrd.generators.kenning.hearth_tax_ingester import (
     DEFAULT_HEARTH_TAX_YEAR,
     HEARTH_TAX_SOURCE_ID,
     CsvSchemaError,
+    OutOfRangeYearWarning,
     _normalize_row,
     _parse_year,
     build_events,
@@ -50,11 +51,26 @@ def test_parse_year_unparseable_uses_default():
     assert _parse_year("1662?") == DEFAULT_HEARTH_TAX_YEAR
 
 
-def test_parse_year_out_of_range_uses_default():
+def test_parse_year_out_of_range_uses_default_and_warns():
     """Hearth Tax was collected 1662-1674; anything outside is
-    transcription error, not a meaningful per-row year."""
-    assert _parse_year("1600") == DEFAULT_HEARTH_TAX_YEAR
-    assert _parse_year("1700") == DEFAULT_HEARTH_TAX_YEAR
+    transcription error, not a meaningful per-row year. Emit a
+    warning so the operator notices — but don't raise."""
+    with pytest.warns(OutOfRangeYearWarning, match="outside Hearth Tax collection window"):
+        assert _parse_year("1600") == DEFAULT_HEARTH_TAX_YEAR
+    with pytest.warns(OutOfRangeYearWarning):
+        assert _parse_year("1700") == DEFAULT_HEARTH_TAX_YEAR
+
+
+def test_parse_year_unparseable_does_not_warn():
+    """Unparseable cells (c.1665, 1662?) are common transcription
+    artifacts — silent fallback only. Reserve the warning for cases
+    where the operator likely has a bad year integer."""
+    import warnings as _w
+
+    with _w.catch_warnings():
+        _w.simplefilter("error")  # any warning would raise
+        assert _parse_year("c.1665") == DEFAULT_HEARTH_TAX_YEAR
+        assert _parse_year("") == DEFAULT_HEARTH_TAX_YEAR
 
 
 # ---------------------------------------------------------------------------
@@ -65,6 +81,7 @@ def test_parse_year_out_of_range_uses_default():
 def test_normalize_row_full():
     row = {
         "place_name": "Hagley",
+        "parish": "Hagley",
         "county": "Worcestershire",
         "country": "England",
         "year_specific": "1664",
@@ -83,8 +100,35 @@ def test_normalize_row_full():
         "toponym_ref": "Hagley@Worcestershire",
         "form": "Hagley",
         "date_year": 1664,
-        "source_doc": "Hearth Tax 1664; Worcestershire",
+        "source_doc": "Hearth Tax 1664; Parish of Hagley; Worcestershire",
     }
+
+
+def test_normalize_row_township_with_parish_container():
+    """A township carrying a different parish: source_doc records
+    both. The toponym ref is still keyed by the township's own
+    modern_name + region, not the parish — townships are distinct
+    settlement entities."""
+    row = {
+        "place_name": "Pedmore",
+        "parish": "Hagley",
+        "county": "Worcestershire",
+        "year_specific": "1664",
+    }
+    toponym, attestation = _normalize_row(row)
+    assert toponym["ref"] == "Pedmore@Worcestershire"
+    assert attestation["source_doc"] == "Hearth Tax 1664; Parish of Hagley; Worcestershire"
+
+
+def test_normalize_row_parish_omitted_falls_back():
+    """When parish is blank, source_doc skips that segment."""
+    row = {
+        "place_name": "Hagley",
+        "county": "Worcestershire",
+        "year_specific": "1664",
+    }
+    _, attestation = _normalize_row(row)
+    assert attestation["source_doc"] == "Hearth Tax 1664; Worcestershire"
 
 
 def test_normalize_row_year_specific_blank_uses_default():
