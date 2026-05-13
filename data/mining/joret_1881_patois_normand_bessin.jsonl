@@ -1,1 +1,1 @@
-{"_type": "source", "ref": "joret_1881_patois_normand_bessin", "title": "Joret 1881 Patois Normand Bessin", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "joret_1881_patois_normand_bessin", "author": "Charles Joret", "title": "Essai sur le patois Normand du Bessin", "year": 1881, "region": "Normandy", "language_focus": "old-french"}

@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "duignan_1902_staffordshire", "title": "Duignan 1902 Staffordshire", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "duignan_1902_staffordshire", "author": "William Henry Duignan", "title": "Notes on Staffordshire Place Names", "year": 1902, "region": "Staffordshire", "language_focus": "old-english"}
 {"_type": "etymon", "ref": "celtic:cill", "canonical_form": "cill", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Abbey", "Chapel", "Church", "Monastery", "Temple", "cell belonging to a hermit or monastery, small church", "church", "church or wood", "church, cell"], "tags": ["architecture", "religious"]}
 {"_type": "etymon", "ref": "celtic:cric", "canonical_form": "cric", "language": "celtic", "glosses": ["boundary, end, limit, frontier"]}
 {"_type": "etymon", "ref": "celtic:mon", "canonical_form": "mon", "language": "celtic", "glosses": ["bog", "cow"]}

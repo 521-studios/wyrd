@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "johnston_1904_stirlingshire", "title": "Johnston 1904 Stirlingshire", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "johnston_1904_stirlingshire", "author": "James B. Johnston", "title": "The Place-Names of Stirlingshire", "year": 1904, "region": "Stirlingshire", "language_focus": "celtic"}
 {"_type": "etymon", "ref": "biblical:drostan", "canonical_form": "drostan", "language": "biblical", "glosses": ["Saint Drostan, pupil of Columba"]}
 {"_type": "etymon", "ref": "celtic:-yn", "canonical_form": "-yn", "language": "celtic"}
 {"_type": "etymon", "ref": "celtic:abhuinn", "canonical_form": "abhuinn", "language": "celtic", "glosses": ["river"]}

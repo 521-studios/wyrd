@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "joyce_1875_irish_names_vol1", "title": "Joyce 1875 Irish Names Vol1", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "joyce_1875_irish_names_vol1", "author": "Patrick Weston Joyce", "title": "The Origin and History of Irish Names of Places, Volume 1", "year": 1875, "region": "Ireland", "language_focus": "irish"}
 {"_type": "etymon", "ref": "biblical:james", "canonical_form": "james", "language": "biblical", "glosses": ["James (personal name)"]}
 {"_type": "etymon", "ref": "celtic:agreana", "canonical_form": "agreana", "language": "celtic", "glosses": ["sunny"]}
 {"_type": "etymon", "ref": "celtic:airgeat", "canonical_form": "airgeat", "language": "celtic", "glosses": ["silver; money"]}

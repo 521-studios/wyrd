@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "watson_1904_ross_and_cromarty", "title": "Watson 1904 Ross And Cromarty", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "watson_1904_ross_and_cromarty", "author": "W.J. Watson", "title": "Place-Names of Ross and Cromarty", "year": 1904, "region": "Ross and Cromarty", "language_focus": "celtic"}
 {"_type": "etymon", "ref": "celtic:achaidh", "canonical_form": "achaidh", "language": "celtic", "glosses": ["field"]}
 {"_type": "etymon", "ref": "celtic:con", "canonical_form": "con", "language": "celtic", "modifier_type": "Habitative", "glosses": ["Dog", "Hound", "collection", "high", "hounds", "together"], "tags": ["animal", "mammal"]}
 {"_type": "etymon", "ref": "celtic:con-", "canonical_form": "con-", "language": "celtic", "glosses": ["high"]}

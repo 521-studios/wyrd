@@ -1,2 +1,2 @@
-{"_type": "source", "ref": "mawer_1922_place_names_and_history", "title": "Mawer 1922 Place Names And History", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "mawer_1922_place_names_and_history", "author": "Allen Mawer", "title": "Place-Names and History", "year": 1922, "region": "England", "language_focus": "old-english"}
 {"_type": "mining_run", "provider": "ollama", "model": "qwen3.5:35b-a3b", "mode": "mine", "completed_at": "2026-04-30T23:29:11.192Z", "parsed_count": 5, "accepted": 0, "declined": 5, "rejected": 0, "notes": "english-tier batch"}

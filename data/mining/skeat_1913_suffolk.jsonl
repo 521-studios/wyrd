@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "skeat_1913_suffolk", "title": "Skeat 1913 Suffolk", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "skeat_1913_suffolk", "author": "Walter W. Skeat", "title": "The Place-Names of Suffolk", "year": 1913, "region": "Suffolk", "language_focus": "old-english"}
 {"_type": "etymon", "ref": "modern-english:babllings", "canonical_form": "babllings", "language": "modern-english", "glosses": ["BaBllings"]}
 {"_type": "etymon", "ref": "modern-english:blithe", "canonical_form": "blithe", "language": "modern-english", "pronunciation_ipa": "/blaɪð/", "pronunciation_dialect": "General-American", "glosses": ["river Blithe"]}
 {"_type": "etymon", "ref": "modern-english:bridge", "canonical_form": "bridge", "language": "modern-english", "pronunciation_ipa": "/bɹɪd͡ʒ/", "glosses": ["a structure spanning water", "bridge"]}

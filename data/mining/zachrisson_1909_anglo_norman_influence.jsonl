@@ -1,2 +1,2 @@
-{"_type": "source", "ref": "zachrisson_1909_anglo_norman_influence", "title": "Zachrisson 1909 Anglo Norman Influence", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "zachrisson_1909_anglo_norman_influence", "author": "R.E. Zachrisson", "title": "A Contribution to the Study of Anglo-Norman Influence on English Place-Names", "year": 1909, "region": "England", "language_focus": "old-french"}
 {"_type": "mining_run", "provider": "ollama", "model": "qwen3.5:35b-a3b", "mode": "mine", "completed_at": "2026-04-30T23:32:06.079Z", "parsed_count": 2, "accepted": 1, "declined": 1, "rejected": 0, "notes": "ad hoc smoke run"}

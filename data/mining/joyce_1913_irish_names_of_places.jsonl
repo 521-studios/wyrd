@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "joyce_1913_irish_names_of_places", "title": "Joyce 1913 Irish Names Of Places", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "joyce_1913_irish_names_of_places", "author": "Patrick Weston Joyce", "title": "Irish Names of Places", "year": 1913, "region": "Ireland", "language_focus": "irish"}
 {"_type": "etymon", "ref": "celtic:-ach", "canonical_form": "-ach", "language": "celtic", "glosses": ["abounding in", "one with an abundance of (hair)"]}
 {"_type": "etymon", "ref": "celtic:-an", "canonical_form": "-an", "language": "celtic", "glosses": ["diminutive suffix"]}
 {"_type": "etymon", "ref": "celtic:-in", "canonical_form": "-in", "language": "celtic", "glosses": ["diminutive suffix"]}

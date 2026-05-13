@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "johnston_1915_place_names_of_england_and_wales", "title": "Johnston 1915 Place Names Of England And Wales", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "johnston_1915_place_names_of_england_and_wales", "author": "James B. Johnston", "title": "The Place-Names of England and Wales", "year": 1915, "region": "England and Wales", "language_focus": "mixed"}
 {"_type": "etymon", "ref": "biblical:asaph", "canonical_form": "asaph", "language": "biblical", "modifier_type": "Habitative", "glosses": ["Asaph (Name)"], "tags": ["male name", "saint"]}
 {"_type": "etymon", "ref": "biblical:brigada", "canonical_form": "brigada", "language": "biblical", "glosses": ["Saint Brigid of Kildare"]}
 {"_type": "etymon", "ref": "biblical:mihaeles", "canonical_form": "mihaeles", "language": "biblical", "glosses": ["Michael (the archangel)"]}

@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "skeat_1901_cambridgeshire", "title": "Skeat 1901 Cambridgeshire", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "skeat_1901_cambridgeshire", "author": "Walter W. Skeat", "title": "The Place-Names of Cambridgeshire", "year": 1901, "region": "Cambridgeshire", "language_focus": "old-english"}
 {"_type": "etymon", "ref": "latin:ceaster", "canonical_form": "ceaster", "language": "latin", "glosses": ["camp", "fort, Roman settlement", "fortified place"]}
 {"_type": "etymon", "ref": "latin:market", "canonical_form": "market", "language": "latin", "glosses": ["market"]}
 {"_type": "etymon", "ref": "latin:spinetum", "canonical_form": "spinetum", "language": "latin", "glosses": ["thorn-thicket"]}
