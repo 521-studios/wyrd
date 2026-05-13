@@ -2785,7 +2785,7 @@ def _append_remove_event(
             f"owns this row."
         )
 
-    payload: dict[str, str | None] = {"_op": "remove", "_type": row_type, "ref": ref}
+    payload: dict[str, str] = {"_op": "remove", "_type": row_type, "ref": ref}
     if reason is not None:
         # Carried as a JSON key but ignored by the kernel (remove ops
         # discard payload beyond _type + ref); useful for git blame.
