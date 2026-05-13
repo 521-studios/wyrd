@@ -580,7 +580,7 @@ def test_diff_rebuild_zero_deltas_on_self_rebuild(tmp_path: Path):
 
 
 def test_diff_rebuild_with_enrichment_runs_orchestrator(tmp_path: Path):
-    """--with-enrichment triggers run_ocr_lemma_enrichment on the
+    """--with-enrichment triggers run_full_enrichment on the
     temp rebuild DB. Verify the flag wires through by seeding two
     OCR-mergeable etymons; without enrichment merged_into_id stays
     NULL on the rebuild and the diff would flag a delta from the
@@ -615,10 +615,10 @@ def test_diff_rebuild_with_enrichment_runs_orchestrator(tmp_path: Path):
         cli_root,
         ["lexicon", "rebuild-from-jsonl", "--db", str(db_path), "--jsonl-dir", str(tmp_path)],
     )
-    from wyrd.generators.kenning.enrichment import run_ocr_lemma_enrichment
+    from wyrd.generators.kenning.enrichment import run_full_enrichment
 
     with LexiconDB(db_path) as db:
-        run_ocr_lemma_enrichment(db, apply=True)
+        run_full_enrichment(db, apply=True)
     # diff-rebuild WITH enrichment should produce zero deltas because
     # the temp rebuild also runs the orchestrator and ends up at the
     # same state.

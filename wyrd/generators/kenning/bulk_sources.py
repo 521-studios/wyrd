@@ -103,9 +103,16 @@ class Config:
 # ---------------------------------------------------------------------------
 
 
-def load_manifest(manifest_path: Path = MANIFEST_PATH) -> Manifest:
+def load_manifest(manifest_path: Path | None = None) -> Manifest:
     """Read ``_bulk_manifest.json``. Raises :class:`ManifestError`
-    on missing file / parse failure / unknown schema_version."""
+    on missing file / parse failure / unknown schema_version.
+
+    ``manifest_path=None`` reads the module-level :data:`MANIFEST_PATH`
+    at call time (not bind time), so a test conftest's monkeypatch
+    of MANIFEST_PATH takes effect on every fresh call.
+    """
+    if manifest_path is None:
+        manifest_path = MANIFEST_PATH
     if not manifest_path.exists():
         raise ManifestError(f"manifest not found at {manifest_path}")
     try:
@@ -178,14 +185,20 @@ def manifest_to_json(manifest: Manifest) -> str:
 
 def load_config(
     manifest: Manifest,
-    config_path: Path = DEFAULT_CONFIG_PATH,
+    config_path: Path | None = None,
     env: dict[str, str] | None = None,
 ) -> Config:
     """Resolve effective config in precedence: env > config.toml > manifest.
 
     The default-manifest values are the 521 Studios staging bucket;
     forks / non-521 contributors override via config.toml or env vars.
+
+    ``config_path=None`` reads :data:`DEFAULT_CONFIG_PATH` at call
+    time (not bind time), so tests can monkeypatch the module
+    constant to redirect from ``~/.wyrd/config.toml``.
     """
+    if config_path is None:
+        config_path = DEFAULT_CONFIG_PATH
     env = env if env is not None else dict(os.environ)
 
     bucket = manifest.bucket
@@ -527,3 +540,91 @@ def open_jsonl(path: Path) -> TextIO:
             encoding="utf-8",
         )
     return path.open(encoding="utf-8")
+
+
+@dataclass
+class IngestAllResult:
+    """Outcome of :func:`ingest_all_slices`. ``per_slice`` is the
+    raw counts dict from each ``ingest_wiktextract_path`` call,
+    keyed by slice name. ``totals`` sums the scalar fields across
+    slices for a one-line summary."""
+
+    per_slice: dict[str, dict[str, int]]
+    fetched: list[str]
+    failed: list[tuple[str, str]]
+
+    @property
+    def totals(self) -> dict[str, int]:
+        sums: dict[str, int] = {}
+        for slice_counts in self.per_slice.values():
+            for k, v in slice_counts.items():
+                if isinstance(v, int):
+                    sums[k] = sums.get(k, 0) + v
+        return sums
+
+
+def ingest_all_slices(
+    db: Any,  # LexiconDB — forward-ref to avoid the lexicon import cost
+    *,
+    apply: bool = True,
+    fetch: bool = False,
+    manifest_path: Path | None = None,
+    config_path: Path | None = None,
+    s3_client: Any | None = None,
+) -> IngestAllResult:
+    """Walk the bulk-source manifest and ingest each slice into the
+    lexicon DB (wyrd-hidb Phase 1).
+
+    For each slice in :func:`load_manifest`:
+
+    1. If the local cache file is missing or sha-mismatched:
+       * with ``fetch=True``: download from S3 first (via
+         :func:`fetch_missing_slices`).
+       * with ``fetch=False``: append to ``failed`` with a hint to
+         run ``lexicon fetch-bulk-sources`` and skip the slice.
+    2. Delegate to :func:`ingest_wiktextract_path` for the actual
+       wiktextract ingest — same code path as
+       ``lexicon ingest-wiktionary`` against an individual slice.
+
+    The ``ingest_wiktextract_path`` import is deferred inside the
+    function body to avoid a top-of-module circular reference: the
+    ingester transitively imports ``bulk_sources.open_jsonl`` for
+    .zst handling.
+    """
+    from wyrd.generators.kenning.wiktextract_ingester import (
+        ingest_wiktextract_path,
+    )
+
+    manifest = load_manifest(manifest_path)
+    config = load_config(manifest, config_path=config_path)
+
+    fetched: list[str] = []
+    failed: list[tuple[str, str]] = []
+
+    if fetch:
+        # Single batched fetch up front rather than per-slice — boto3
+        # client reuse + parallel S3 ops are cheap inside the helper.
+        fetch_result = fetch_missing_slices(manifest, config, s3_client=s3_client)
+        fetched = list(fetch_result.fetched)
+        failed.extend(fetch_result.failed)
+
+    per_slice: dict[str, dict[str, int]] = {}
+    for slice_ in manifest.slices:
+        cache_path = expected_slice_path(config, slice_)
+        if not cache_path.exists():
+            failed.append(
+                (
+                    slice_.name,
+                    f"local cache miss at {cache_path}; "
+                    f"run `lexicon fetch-bulk-sources` first "
+                    f"(or pass --fetch-bulk to rebuild-from-jsonl).",
+                )
+            )
+            continue
+        try:
+            counts = ingest_wiktextract_path(db, cache_path, apply=apply)
+            per_slice[slice_.name] = counts
+        except Exception as e:  # noqa: BLE001 — surface as failure
+            failed.append((slice_.name, str(e)))
+
+    return IngestAllResult(per_slice=per_slice, fetched=fetched, failed=failed)
