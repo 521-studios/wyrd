@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "bucket": "521studios-staging-wyrd-lexicon-bulk",
+  "region": "us-east-2",
+  "s3_prefix": "wiktextract/v1",
+  "compression": "zstd",
+  "slices": []
+}

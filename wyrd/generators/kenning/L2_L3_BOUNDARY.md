@@ -269,6 +269,47 @@ lexicon compact-jsonl data/mining/skeat.jsonl
 lexicon rebuild-from-jsonl
 ```
 
+## Bulk sources (wyrd-0vj3)
+
+The L1 wiktextract slices live OUTSIDE the L2 JSONL pattern — they
+are too large to commit to git and too noisy to round-trip through
+the per-source dump path. Storage workflow:
+
+* **Manifest:** `data/mining/_bulk_manifest.json` in git. Tiny —
+  lists each slice with its `s3_key`, `sha256` (integrity check),
+  and size metadata.
+* **S3 bucket:** `s3://521studios-staging-wyrd-lexicon-bulk/`,
+  region `us-east-2`. Versioning enabled — S3 history is the
+  rollback source-of-truth. See
+  `infra/terraform/modules/wyrd-lexicon-bulk` for the terraform
+  module.
+* **Local cache:** `~/.wyrd/sources/`. Lives outside the repo's
+  working tree, so no .gitignore entry. Mirrors the bucket's key
+  prefix; holds zstd-compressed `.jsonl.zst` slices.
+* **Config:** `~/.wyrd/config.toml`. Bucket / region / AWS profile
+  / local cache dir; env vars (`WYRD_BULK_BUCKET` etc.) override.
+
+Operator workflow:
+
+```bash
+# First run on a fresh checkout — populate local cache from S3:
+lexicon fetch-bulk-sources
+
+# After mining a new slice locally — push to S3 + update manifest:
+lexicon push-bulk-sources
+
+# Check whether local cache matches the manifest:
+lexicon verify-bulk-sources
+```
+
+`lexicon ingest-wiktionary` reads `.jsonl`, `.jsonl.gz`, and
+`.jsonl.zst` transparently — the bulk cache form is `.jsonl.zst`.
+
+Per the wyrd-0vj3 plan (`docs/plans/wyrd-0vj3.md`): staging-only,
+single-user dev asset, no IAM policy in the terraform module. The
+companion ticket `wyrd-hidb` wires this into a single-command
+`rebuild-from-jsonl` flow.
+
 ## Updating this doc
 
 Per-PR: when a table or column shifts between L2 and L3, update the

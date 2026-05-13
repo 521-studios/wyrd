@@ -2499,6 +2499,155 @@ def lexicon_rando_port_readiness(
         raise SystemExit(1)
 
 
+@lexicon.command("fetch-bulk-sources")
+@click.option(
+    "--slice",
+    "slice_names",
+    multiple=True,
+    help="Restrict to named slices (repeatable). Default: all slices in manifest.",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Re-download even when local cache sha256 matches the manifest.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Report what would happen; don't touch S3 or the local cache.",
+)
+def lexicon_fetch_bulk_sources(slice_names: tuple[str, ...], force: bool, dry_run: bool) -> None:
+    """Populate ~/.wyrd/sources/ from S3 (wyrd-0vj3).
+
+    Reads data/mining/_bulk_manifest.json, downloads any slice whose
+    local cache file is missing or whose sha256 doesn't match.
+    """
+    from wyrd.generators.kenning.bulk_sources import (
+        fetch_missing_slices,
+        load_config,
+        load_manifest,
+    )
+
+    manifest = load_manifest()
+    config = load_config(manifest)
+    result = fetch_missing_slices(
+        manifest,
+        config,
+        slice_names=list(slice_names) if slice_names else None,
+        force=force,
+        dry_run=dry_run,
+    )
+    if dry_run:
+        click.echo("(dry-run; nothing written)", err=True)
+    click.echo(f"Fetched: {len(result.fetched)}", err=True)
+    for name in result.fetched:
+        click.echo(f"  + {name}", err=True)
+    click.echo(f"Skipped: {len(result.skipped)}  (already current)", err=True)
+    if result.failed:
+        click.echo(f"FAILED:  {len(result.failed)}", err=True)
+        for name, reason in result.failed:
+            click.echo(f"  ! {name}: {reason}", err=True)
+        raise SystemExit(1)
+
+
+@lexicon.command("push-bulk-sources")
+@click.option(
+    "--slice",
+    "slice_names",
+    multiple=True,
+    help="Restrict to named slices (repeatable). Default: every slice in manifest.",
+)
+@click.option(
+    "--manifest",
+    "manifest_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=Path("data/mining/_bulk_manifest.json"),
+    show_default=True,
+)
+def lexicon_push_bulk_sources(slice_names: tuple[str, ...], manifest_path: Path) -> None:
+    """Upload ~/.wyrd/sources/ slices to S3 and rewrite the manifest
+    (wyrd-0vj3).
+
+    For each manifest slice: if a <slice>.jsonl.zst exists locally,
+    upload it; else if <slice>.jsonl exists, compress + upload;
+    else skip (slice not mined locally). The manifest file is
+    overwritten with new sha256s + sizes; operator commits the
+    manifest change to git.
+    """
+    from wyrd.generators.kenning.bulk_sources import (
+        load_config,
+        load_manifest,
+        manifest_to_json,
+        upload_slices,
+    )
+
+    manifest = load_manifest(manifest_path)
+    config = load_config(manifest)
+    result = upload_slices(
+        manifest,
+        config,
+        slice_names=list(slice_names) if slice_names else None,
+    )
+
+    click.echo(f"Uploaded: {len(result.uploaded)}", err=True)
+    for name in result.uploaded:
+        click.echo(f"  + {name}", err=True)
+    click.echo(f"Skipped:  {len(result.skipped)}  (no local file)", err=True)
+    if result.failed:
+        click.echo(f"FAILED:   {len(result.failed)}", err=True)
+        for name, reason in result.failed:
+            click.echo(f"  ! {name}: {reason}", err=True)
+        raise SystemExit(1)
+
+    manifest_path.write_text(manifest_to_json(result.new_manifest), encoding="utf-8")
+    click.echo(f"\nWrote {manifest_path}", err=True)
+
+
+@lexicon.command("verify-bulk-sources")
+def lexicon_verify_bulk_sources() -> None:
+    """Verify ~/.wyrd/sources/ matches the manifest (wyrd-0vj3).
+
+    Walks each manifest slice, checks the local cache for presence
+    + sha256 match, and exits 1 if any are missing or mismatched.
+    Operator-on-demand only — not gated in CI.
+    """
+    from wyrd.generators.kenning.bulk_sources import (
+        load_config,
+        load_manifest,
+        verify_local_cache,
+    )
+
+    manifest = load_manifest()
+    config = load_config(manifest)
+    statuses = verify_local_cache(manifest, config)
+
+    ok = 0
+    missing = 0
+    mismatch = 0
+    for status in statuses:
+        if not status.present:
+            click.echo(f"  ! {status.slice_name}: MISSING ({status.cache_path})", err=True)
+            missing += 1
+        elif not status.sha256_matches:
+            click.echo(
+                f"  ! {status.slice_name}: SHA256 MISMATCH ({status.cache_path})",
+                err=True,
+            )
+            mismatch += 1
+        else:
+            ok += 1
+
+    click.echo(f"\nOK: {ok}   Missing: {missing}   Mismatch: {mismatch}", err=True)
+    if missing or mismatch:
+        click.echo(
+            "\nRun `lexicon fetch-bulk-sources` to repair the local cache.",
+            err=True,
+        )
+        raise SystemExit(1)
+
+
 @lexicon.command("dump-jsonl")
 @click.option(
     "--db",
