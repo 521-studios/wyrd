@@ -315,7 +315,7 @@ def build_from_jsonl(
     ``{table: rows_inserted}``.
     """
     paths_sorted: list[Path] = sorted(Path(p) for p in jsonl_paths)
-    counts: dict[str, int] = {
+    counts: dict[str, Any] = {
         "source": 0,
         "etymon": 0,
         "toponym": 0,
@@ -327,10 +327,18 @@ def build_from_jsonl(
         # Orphan counts (wyrd-lene): when a fact-row references an
         # entity that was removed via a kernel ``remove`` event, the
         # row is skipped rather than raising. Operators get telemetry
-        # so unexpected orphans are still visible.
+        # so unexpected orphans are still visible — the lists capture
+        # the specific orphan refs (capped) so operators can tell
+        # "expected post-remove orphans" from "unexpected typos in
+        # mined data" without a separate diff pass. Lists are capped
+        # at ORPHAN_SAMPLE_LIMIT entries each to keep the result dict
+        # bounded on large prunes.
         "citation_orphans": 0,
+        "citation_orphan_refs": [],
         "etymon_descent_orphans": 0,
+        "etymon_descent_orphan_refs": [],
         "etymology_element_orphans": 0,
+        "etymology_element_orphan_refs": [],
     }
 
     # ----- Pass 1: replay every file, accumulate merged state.
@@ -380,6 +388,8 @@ def build_from_jsonl(
             eid = etymon_id_by_ref.get(eref)
             if eid is None:
                 counts["citation_orphans"] += 1
+                if len(counts["citation_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
+                    counts["citation_orphan_refs"].append(eref)
                 continue
             _insert_citation(conn, eid, source_id, row)
             counts["citation"] += 1
@@ -389,6 +399,10 @@ def build_from_jsonl(
             cid = etymon_id_by_ref.get(row["child_ref"])
             if pid is None or cid is None:
                 counts["etymon_descent_orphans"] += 1
+                if len(counts["etymon_descent_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
+                    counts["etymon_descent_orphan_refs"].append(
+                        f"{row['parent_ref']} → {row['child_ref']}"
+                    )
                 continue
             _insert_descent(conn, pid, cid, source_id, row)
             counts["etymon_descent"] += 1
@@ -409,6 +423,8 @@ def build_from_jsonl(
             tid = toponym_id_by_ref.get(tref)
             if tid is None:
                 counts["etymology_element_orphans"] += 1
+                if len(counts["etymology_element_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
+                    counts["etymology_element_orphan_refs"].append(tref)
                 continue
             # Element-list etymon_refs are validated inside
             # _insert_etymology_element (raises BuildError on a missing
@@ -427,6 +443,12 @@ def build_from_jsonl(
 
     conn.commit()
     return counts
+
+
+# Cap on how many orphan refs the build retains in its result dict.
+# Counts (citation_orphans, etc.) are unbounded; the ref-list samples
+# stop at this limit to keep the dict size predictable on bulk prunes.
+ORPHAN_SAMPLE_LIMIT = 50
 
 
 def _etymology_element_fingerprint(row: dict[str, Any]) -> tuple:

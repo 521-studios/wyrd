@@ -566,6 +566,50 @@ def test_build_orphan_etymology_element_skipped_not_raised(tmp_path: Path):
     assert counts["etymology_element_orphans"] == 1
 
 
+def test_build_etymology_element_with_missing_etymon_ref_still_raises(tmp_path: Path):
+    """Coverage for the still-raising path: an etymology_element with
+    a known toponym but an element pointing at a missing etymon. The
+    toponym-level orphan check above doesn't catch this — the build
+    proceeds to _insert_etymology_element which raises BuildError.
+    Deliberate inversion of the orphan-skip change."""
+    _write_jsonl(
+        tmp_path,
+        "x",
+        [
+            {"_type": "source", "ref": "x", "title": "X"},
+            {"_type": "toponym", "ref": "Foo@-", "modern_name": "Foo"},
+            {
+                "_type": "etymology_element",
+                "toponym_ref": "Foo@-",
+                "elements": [{"ordinal": 1, "etymon_ref": "old-english:ghost"}],
+            },
+        ],
+    )
+    conn = _build_fixture_db()
+    with pytest.raises(BuildError, match="unknown etymon"):
+        build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+
+
+def test_build_orphan_refs_captured_as_sample(tmp_path: Path):
+    """Orphan-skip records the specific orphaned refs (not just counts)
+    so operators can spot LLM typos vs expected post-remove orphans
+    without diffing the JSONL."""
+    _write_jsonl(
+        tmp_path,
+        "x",
+        [
+            {"_type": "source", "ref": "x", "title": "X"},
+            {"_type": "citation", "etymon_ref": "old-english:typo1"},
+            {"_type": "citation", "etymon_ref": "old-english:typo2"},
+        ],
+    )
+    conn = _build_fixture_db()
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    assert counts["citation_orphans"] == 2
+    assert "old-english:typo1" in counts["citation_orphan_refs"]
+    assert "old-english:typo2" in counts["citation_orphan_refs"]
+
+
 def test_build_remove_event_drops_etymon_and_skips_citation_orphan(tmp_path: Path):
     """End-to-end: add an etymon + citation, then a 'remove' event on
     the etymon. After replay+build the etymon is gone and the citation

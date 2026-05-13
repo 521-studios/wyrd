@@ -2673,6 +2673,22 @@ def lexicon_prune_toponym(
             f"Source file not found: {target_file}. Use --jsonl-dir to point at the right directory."
         )
 
+    # Verify the toponym ref actually exists in the file before
+    # appending the remove event. The kernel's bucket.pop(ref, None)
+    # silently swallows missing refs, and combined with orphan-skip a
+    # typo would produce a successful-looking rebuild that doesn't
+    # actually prune anything. Replay the file and check the resolved
+    # state.
+    from wyrd.generators.kenning.jsonl_log import replay_file
+
+    state = replay_file(target_file)
+    if toponym_ref not in state.keyed["toponym"]:
+        raise click.UsageError(
+            f"Toponym ref {toponym_ref!r} not found in {target_file}. "
+            f"Check spelling (note the `name@region` format; `@-` is null region) "
+            f"and confirm the source owns this row."
+        )
+
     payload: dict[str, str | None] = {
         "_op": "remove",
         "_type": "toponym",
