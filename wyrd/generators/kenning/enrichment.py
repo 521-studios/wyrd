@@ -9,7 +9,7 @@ re-derive them by running the enrichment passes documented in
 ``L2_L3_BOUNDARY.md``.
 
 This module ships the first migration in that pattern: an orchestrator
-:func:`run_ocr_lemma_enrichment` that runs ``normalize-ocr`` (OCR
+:func:`run_full_enrichment` that runs ``normalize-ocr`` (OCR
 variant clustering) followed by ``link-lemmas`` (inflected → lemma
 linkage) in the canonical order. Order matters: link-lemmas needs
 canonical etymons as targets, so OCR-cluster has to tombstone the
@@ -258,16 +258,20 @@ def format_curation_run(counts: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def run_ocr_lemma_enrichment(
+def run_full_enrichment(
     db: LexiconDB,
     *,
     apply: bool = False,
     curation_state: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Run OCR clustering, lemma linkage, and (optional) curation
-    overrides in canonical order.
+    """Run the canonical L3 enrichment chain.
 
-    Order:
+    Order (wyrd-hidb phase 1 — OCR + lemma + curation are wired here;
+    the remaining L3 passes — decompose / cluster-cognates /
+    classify-stratum / derive-english-shaped / project-period-forms —
+    land in a follow-up PR that adds uniform ``<pass>_all(db, apply)``
+    wrappers and extends this function to call them):
+
     1. ``normalize-ocr`` tombstones OCR-variant duplicates.
     2. ``link-lemmas`` links inflected forms to canonicals (the
        previous step's tombstones aren't candidate targets).
@@ -420,7 +424,7 @@ def format_enrichment_status(status: dict[str, Any]) -> str:
 
 
 def format_enrichment_run(result: dict[str, Any]) -> str:
-    """Render :func:`run_ocr_lemma_enrichment` output as markdown."""
+    """Render :func:`run_full_enrichment` output as markdown."""
     verb_ocr = "merged" if result["applied"] else "mergeable"
     verb_lemmas = "linked" if result["applied"] else "linkable"
     lines: list[str] = [

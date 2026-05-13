@@ -24,8 +24,10 @@ guards, not behavioural pins.
 from __future__ import annotations
 
 import functools
+import json
 from collections.abc import Iterator
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
@@ -38,6 +40,79 @@ from wyrd.generators.kenning.meaning import (
     load_joiners,
     load_meanings,
 )
+
+
+# ---------------------------------------------------------------------------
+# Isolation autouses
+#
+# Two autouse fixtures keep tests off the operator's live environment:
+#
+# 1. ``_isolate_default_lexicon_db`` — redirects ``_DEFAULT_LEXICON_PATH``
+#    to a per-test ``tmp_path/test.db``. Tests that need a populated DB
+#    create their own schema inside ``test.db`` (or pass ``--db`` to a
+#    different tmp file). Tests that don't touch the DB don't care.
+#
+# 2. ``_isolate_bulk_manifest`` — redirects the bulk-source manifest
+#    path to a per-test empty file. Without this, ``rebuild-from-jsonl``
+#    tests would trigger the L1 wiktextract ingest against the
+#    operator's full ``~/.wyrd/sources/`` (~5GB) — minutes-long locally
+#    and broken on CI (no local cache).
+#
+# A test that needs the real lexicon DB or real bulk manifest can opt
+# out via ``@pytest.mark.no_lexicon_isolation`` (defined below).
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _isolate_default_lexicon_db(request, tmp_path, monkeypatch):
+    """Point ``_DEFAULT_LEXICON_PATH`` at a per-test ``test.db``."""
+    if request.node.get_closest_marker("no_lexicon_isolation") is not None:
+        yield
+        return
+    test_db = tmp_path / "test.db"
+    from wyrd.generators.kenning import cli as cli_mod
+
+    monkeypatch.setattr(cli_mod, "_DEFAULT_LEXICON_PATH", test_db, raising=False)
+    yield test_db
+
+
+@pytest.fixture(autouse=True)
+def _isolate_bulk_manifest(request, tmp_path, monkeypatch):
+    """Point ``bulk_sources.MANIFEST_PATH`` at a per-test empty
+    manifest so the L1 wiktextract ingest path in
+    ``rebuild-from-jsonl`` is a no-op unless a test deliberately
+    populates the manifest. Mirrors the production manifest's
+    schema_version=1 + zero slices."""
+    if request.node.get_closest_marker("no_lexicon_isolation") is not None:
+        yield
+        return
+    manifest = tmp_path / "_bulk_manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "bucket": "test-bucket",
+                "region": "us-east-2",
+                "s3_prefix": "wiktextract/v1",
+                "compression": "zstd",
+                "slices": [],
+            }
+        )
+    )
+    from wyrd.generators.kenning import bulk_sources as bs
+
+    monkeypatch.setattr(bs, "MANIFEST_PATH", manifest, raising=False)
+    yield manifest
+
+
+def pytest_configure(config):
+    """Register the opt-out marker so pytest doesn't warn on it."""
+    config.addinivalue_line(
+        "markers",
+        "no_lexicon_isolation: opt out of the autouse default-DB and "
+        "bulk-manifest isolation fixtures. Use sparingly — tests that "
+        "need this almost always have a better fixture-based design.",
+    )
 
 
 @contextmanager

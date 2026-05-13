@@ -19,7 +19,7 @@ from wyrd.generators.kenning.enrichment import (
     enrichment_status,
     format_enrichment_run,
     format_enrichment_status,
-    run_ocr_lemma_enrichment,
+    run_full_enrichment,
 )
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 
@@ -72,7 +72,7 @@ def test_orchestrator_runs_passes_in_canonical_order(tmp_path: Path):
     db_path = _build_db(tmp_path)
     _seed_for_enrichment(db_path)
     with LexiconDB(db_path) as db:
-        result = run_ocr_lemma_enrichment(db, apply=False)
+        result = run_full_enrichment(db, apply=False)
     # Order pins normalize-ocr first so lemma linkage targets canonicals
     # not tombstones.
     assert result["order"] == ["normalize-ocr", "link-lemmas"]
@@ -85,7 +85,7 @@ def test_orchestrator_dry_run_does_not_write(tmp_path: Path):
     db_path = _build_db(tmp_path)
     ids = _seed_for_enrichment(db_path)
     with LexiconDB(db_path) as db:
-        run_ocr_lemma_enrichment(db, apply=False)
+        run_full_enrichment(db, apply=False)
     # No writes happened — merged_into_id + lemma_id still NULL.
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -104,7 +104,7 @@ def test_orchestrator_apply_writes_merge_and_lemma(tmp_path: Path):
     db_path = _build_db(tmp_path)
     ids = _seed_for_enrichment(db_path)
     with LexiconDB(db_path) as db:
-        result = run_ocr_lemma_enrichment(db, apply=True)
+        result = run_full_enrichment(db, apply=True)
     assert result["applied"] is True
     # OCR-merge tombstoned one of the (cæt, caet) pair.
     assert result["ocr"]["etymons_merged"] >= 1
@@ -131,7 +131,7 @@ def test_orchestrator_lemma_link_resolves_against_canonical_after_ocr_merge(tmp_
     db_path = _build_db(tmp_path)
     ids = _seed_for_enrichment(db_path)
     with LexiconDB(db_path) as db:
-        run_ocr_lemma_enrichment(db, apply=True)
+        run_full_enrichment(db, apply=True)
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     inflected_row = conn.execute(
@@ -202,7 +202,7 @@ def test_status_reports_coverage_after_enrichment(tmp_path: Path):
     db_path = _build_db(tmp_path)
     _seed_for_enrichment(db_path)
     with LexiconDB(db_path) as db:
-        run_ocr_lemma_enrichment(db, apply=True)
+        run_full_enrichment(db, apply=True)
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     status = enrichment_status(conn)

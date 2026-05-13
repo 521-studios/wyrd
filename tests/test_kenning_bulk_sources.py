@@ -811,3 +811,196 @@ def test_cli_verify_bulk_sources_clean_exits_zero(tmp_path: Path, monkeypatch):
 
     result = runner.invoke(cli_root, ["lexicon", "verify-bulk-sources"])
     assert result.exit_code == 0, result.output
+
+
+# ---------------------------------------------------------------------------
+# ingest_all_slices — wyrd-hidb Phase 1
+# ---------------------------------------------------------------------------
+
+
+def test_ingest_all_slices_calls_ingester_per_slice(tmp_path: Path, monkeypatch):
+    """Each manifest slice with a present cache file triggers exactly
+    one ``ingest_wiktextract_path`` call. The IngestAllResult.per_slice
+    map keys by slice name; totals sum scalars across slices."""
+    from wyrd.generators.kenning.bulk_sources import (
+        IngestAllResult,
+        Slice,
+        ingest_all_slices,
+    )
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    # Two slices, both present locally
+    (cache / "a.jsonl.zst").write_bytes(b"slice-a")
+    (cache / "b.jsonl.zst").write_bytes(b"slice-b")
+
+    manifest = Manifest(
+        schema_version=1,
+        bucket="b",
+        region="us-east-2",
+        s3_prefix="wiktextract/v1",
+        compression="zstd",
+        slices=(
+            Slice("slice_a", "wiktextract/v1/a.jsonl.zst", "a" * 64, 10, 7),
+            Slice("slice_b", "wiktextract/v1/b.jsonl.zst", "b" * 64, 10, 7),
+        ),
+    )
+
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.bulk_sources.load_manifest",
+        lambda *a, **kw: manifest,
+    )
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.bulk_sources.load_config",
+        lambda *a, **kw: Config(
+            bucket="b", region="us-east-2", profile=None, local_cache_dir=cache
+        ),
+    )
+
+    calls: list[Path] = []
+
+    def fake_ingest(db, path, *, apply=False, limit=None, since_line=0):
+        calls.append(path)
+        return {"lines_read": 100, "entries_parsed": 50}
+
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.wiktextract_ingester.ingest_wiktextract_path",
+        fake_ingest,
+    )
+
+    result: IngestAllResult = ingest_all_slices(db=None, apply=True)
+    assert len(calls) == 2
+    assert {p.name for p in calls} == {"a.jsonl.zst", "b.jsonl.zst"}
+    assert set(result.per_slice.keys()) == {"slice_a", "slice_b"}
+    assert result.totals == {"lines_read": 200, "entries_parsed": 100}
+    assert result.failed == []
+
+
+def test_ingest_all_slices_missing_cache_without_fetch_reports_failure(tmp_path: Path, monkeypatch):
+    """Slice absent locally + fetch=False → land in failed[] with a
+    pointer to fetch-bulk-sources. Operator gets a clear next step
+    instead of a stack trace."""
+    from wyrd.generators.kenning.bulk_sources import Slice, ingest_all_slices
+
+    cache = tmp_path / "cache"
+    cache.mkdir()  # empty
+
+    manifest = Manifest(
+        schema_version=1,
+        bucket="b",
+        region="us-east-2",
+        s3_prefix="wiktextract/v1",
+        compression="zstd",
+        slices=(Slice("slice_a", "wiktextract/v1/a.jsonl.zst", "a" * 64, 10, 7),),
+    )
+
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.bulk_sources.load_manifest",
+        lambda *a, **kw: manifest,
+    )
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.bulk_sources.load_config",
+        lambda *a, **kw: Config(
+            bucket="b", region="us-east-2", profile=None, local_cache_dir=cache
+        ),
+    )
+
+    result = ingest_all_slices(db=None, apply=True, fetch=False)
+    assert result.per_slice == {}
+    assert len(result.failed) == 1
+    assert "local cache miss" in result.failed[0][1]
+    assert "fetch-bulk-sources" in result.failed[0][1]
+
+
+def test_ingest_all_slices_with_fetch_downloads_first(tmp_path: Path, monkeypatch):
+    """fetch=True → call fetch_missing_slices before iterating.
+    Mocked S3 client materializes the cache file; ingester then runs."""
+    from wyrd.generators.kenning.bulk_sources import Slice, ingest_all_slices
+
+    payload = b"compressed-slice"
+    sha = hash_file_sha256(_tmp_write(tmp_path / "_seed.bin", payload))
+    cache = tmp_path / "cache"
+    cache.mkdir()
+
+    slice_ = Slice("slice_a", "wiktextract/v1/a.jsonl.zst", sha, 10, len(payload))
+    manifest = Manifest(
+        schema_version=1,
+        bucket="b",
+        region="us-east-2",
+        s3_prefix="wiktextract/v1",
+        compression="zstd",
+        slices=(slice_,),
+    )
+
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.bulk_sources.load_manifest",
+        lambda *a, **kw: manifest,
+    )
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.bulk_sources.load_config",
+        lambda *a, **kw: Config(
+            bucket="b", region="us-east-2", profile=None, local_cache_dir=cache
+        ),
+    )
+
+    fake = _FakeS3Client({slice_.s3_key: payload})
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.wiktextract_ingester.ingest_wiktextract_path",
+        lambda db, path, **kw: {"lines_read": 1},
+    )
+
+    result = ingest_all_slices(db=None, apply=True, fetch=True, s3_client=fake)
+    assert result.fetched == ["slice_a"]
+    assert (cache / "a.jsonl.zst").exists()
+    assert result.per_slice == {"slice_a": {"lines_read": 1}}
+
+
+def test_ingest_all_slices_ingester_exception_routes_to_failed(tmp_path: Path, monkeypatch):
+    """Ingester raising mid-slice → slice lands in failed[]; later
+    slices still run. Defensive isolation so one bad slice doesn't
+    abort the whole rebuild."""
+    from wyrd.generators.kenning.bulk_sources import Slice, ingest_all_slices
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    (cache / "a.jsonl.zst").write_bytes(b"a")
+    (cache / "b.jsonl.zst").write_bytes(b"b")
+
+    manifest = Manifest(
+        schema_version=1,
+        bucket="b",
+        region="us-east-2",
+        s3_prefix="wiktextract/v1",
+        compression="zstd",
+        slices=(
+            Slice("bad", "wiktextract/v1/a.jsonl.zst", "a" * 64, 1, 1),
+            Slice("good", "wiktextract/v1/b.jsonl.zst", "b" * 64, 1, 1),
+        ),
+    )
+
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.bulk_sources.load_manifest",
+        lambda *a, **kw: manifest,
+    )
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.bulk_sources.load_config",
+        lambda *a, **kw: Config(
+            bucket="b", region="us-east-2", profile=None, local_cache_dir=cache
+        ),
+    )
+
+    def fake_ingest(db, path, *, apply=False, limit=None, since_line=0):
+        if path.name == "a.jsonl.zst":
+            raise RuntimeError("simulated parser crash")
+        return {"lines_read": 5}
+
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.wiktextract_ingester.ingest_wiktextract_path",
+        fake_ingest,
+    )
+
+    result = ingest_all_slices(db=None, apply=True)
+    assert result.per_slice == {"good": {"lines_read": 5}}
+    assert len(result.failed) == 1
+    assert result.failed[0][0] == "bad"
+    assert "simulated parser crash" in result.failed[0][1]

@@ -22,7 +22,7 @@ from wyrd.generators.kenning.enrichment import (
     CURATION_METHOD_VERSION,
     apply_curation_overrides,
     format_curation_run,
-    run_ocr_lemma_enrichment,
+    run_full_enrichment,
 )
 from wyrd.generators.kenning.jsonl_build import collect_curation_overrides
 from wyrd.generators.kenning.jsonl_log import write_jsonl
@@ -520,7 +520,7 @@ def test_orchestrator_curation_overrides_auto_clustering(tmp_path: Path):
         }
     }
     with LexiconDB(db_path) as db:
-        result = run_ocr_lemma_enrichment(db, apply=True, curation_state=curation)
+        result = run_full_enrichment(db, apply=True, curation_state=curation)
     assert result["curation"] is not None
     assert result["order"] == ["normalize-ocr", "link-lemmas", "apply-curation"]
     assert result["curation"]["lemma_id_set"] == 1
@@ -543,7 +543,7 @@ def test_orchestrator_dry_run_validates_curation_without_writing(tmp_path: Path)
     _add_etymon(db_path, "old-english", "cæt")
     catan_id = _add_etymon(db_path, "old-english", "cætan")
     with LexiconDB(db_path) as db:
-        result = run_ocr_lemma_enrichment(
+        result = run_full_enrichment(
             db,
             apply=False,
             curation_state={"old-english:cætan": {"lemma_ref": "old-english:cæt"}},
@@ -567,7 +567,7 @@ def test_orchestrator_without_curation_state_unchanged(tmp_path: Path):
     _add_etymon(db_path, "old-english", "cæt")
     _add_etymon(db_path, "old-english", "cætan")
     with LexiconDB(db_path) as db:
-        result = run_ocr_lemma_enrichment(db, apply=True)
+        result = run_full_enrichment(db, apply=True)
     assert result["curation"] is None
     assert result["order"] == ["normalize-ocr", "link-lemmas"]
 

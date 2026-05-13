@@ -2759,26 +2759,58 @@ def lexicon_dump_jsonl(
         "stops at L2 and operators run the enrichment commands manually."
     ),
 )
-def lexicon_rebuild_from_jsonl(db_path: Path, jsonl_dir: Path, with_enrichment: bool) -> None:
-    """Rebuild the lexicon SQLite from per-source JSONL — wyrd-f295.
+@click.option(
+    "--skip-bulk",
+    is_flag=True,
+    default=False,
+    help=(
+        "Skip L1 wiktextract bulk ingest. By default rebuild-from-jsonl "
+        "ingests every slice listed in data/mining/_bulk_manifest.json "
+        "from ~/.wyrd/sources/. --skip-bulk produces an L2-only DB — "
+        "useful for fast iteration on a single curated source file or "
+        "for debugging without paying the multi-minute wiktextract cost."
+    ),
+)
+@click.option(
+    "--fetch-bulk",
+    is_flag=True,
+    default=False,
+    help=(
+        "Download missing/mismatched bulk slices from S3 to "
+        "~/.wyrd/sources/ before ingesting. Without this flag, missing "
+        "slices fail loud with a hint to run `lexicon fetch-bulk-sources` "
+        "separately. Opt-in to keep CI / offline operators from silently "
+        "fetching."
+    ),
+)
+def lexicon_rebuild_from_jsonl(
+    db_path: Path,
+    jsonl_dir: Path,
+    with_enrichment: bool,
+    skip_bulk: bool,
+    fetch_bulk: bool,
+) -> None:
+    """Rebuild the lexicon SQLite from per-source JSONL + L1 bulk
+    wiktextract slices — wyrd-f295 + wyrd-hidb.
 
     Initializes a fresh schema at ``--db`` (wiping any existing DB at
-    that path), then replays every ``<source_id>.jsonl`` under
-    ``--jsonl-dir`` into the new SQLite.
+    that path), then:
 
-    Each L2 file must contain exactly one ``source`` canonical-state
-    row — its ``ref`` is the source_id for every list-type row in the
-    file. Etymons appearing in multiple files are merged: glosses + tags
-    are unioned; scalar fields follow last-write-wins by file order.
-
-    Pass ``--with-enrichment`` to run normalize-ocr + link-lemmas as
-    post-replay L3 derivations (the wyrd-ilam orchestrator).
-
-    Does NOT re-run the wiktextract bulk ingest (L1 raw layer) or the
-    L3 enrichment passes that haven't been migrated yet — decompose,
-    cluster-cognates, classify-stratum, derive-english-shaped,
-    project-period-forms. Operators still run those manually post-
-    rebuild.
+    1. (default) Ingests each L1 wiktextract slice listed in
+       ``data/mining/_bulk_manifest.json`` from ``~/.wyrd/sources/``.
+       Pass ``--skip-bulk`` for an L2-only debug rebuild; pass
+       ``--fetch-bulk`` to auto-download missing slices from S3.
+    2. Replays every ``<source_id>.jsonl`` under ``--jsonl-dir`` into
+       the SQLite. Each L2 file must contain exactly one ``source``
+       canonical-state row — its ``ref`` is the source_id for every
+       list-type row in the file. Etymons appearing in multiple files
+       are merged: glosses + tags are unioned; scalar fields follow
+       last-write-wins by file order.
+    3. (with ``--with-enrichment``) Runs the L3 enrichment chain
+       (normalize-ocr + link-lemmas + apply-curation). The remaining
+       L3 passes (decompose, cluster-cognates, classify-stratum,
+       derive-english-shaped, project-period-forms) ship in a
+       follow-up PR; operators still run those manually for now.
     """
     from wyrd.generators.kenning.jsonl_build import (
         build_from_jsonl,
@@ -2787,6 +2819,28 @@ def lexicon_rebuild_from_jsonl(db_path: Path, jsonl_dir: Path, with_enrichment: 
     from wyrd.generators.kenning.lexicon import init_schema
 
     init_schema(db_path)
+
+    # L1 bulk ingest first — its rows are inputs for the L2 replay
+    # (citations + descent edges referencing wiktionary-empirical
+    # etymons would orphan-skip otherwise).
+    if not skip_bulk:
+        from wyrd.generators.kenning.bulk_sources import ingest_all_slices
+
+        click.echo("Bulk ingest (L1):", err=True)
+        with LexiconDB(db_path) as db:
+            bulk_result = ingest_all_slices(db, apply=True, fetch=fetch_bulk)
+        if bulk_result.fetched:
+            click.echo(f"  fetched from S3:   {len(bulk_result.fetched)}", err=True)
+        click.echo(f"  slices ingested:   {len(bulk_result.per_slice)}", err=True)
+        for k, v in bulk_result.totals.items():
+            click.echo(f"  {k:<35} {v:>10,}", err=True)
+        if bulk_result.failed:
+            click.echo(f"  FAILED: {len(bulk_result.failed)}", err=True)
+            for name, reason in bulk_result.failed:
+                click.echo(f"    ! {name}: {reason}", err=True)
+            raise SystemExit(1)
+        click.echo("", err=True)
+
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
@@ -2811,14 +2865,14 @@ def lexicon_rebuild_from_jsonl(db_path: Path, jsonl_dir: Path, with_enrichment: 
     if with_enrichment:
         from wyrd.generators.kenning.enrichment import (
             format_enrichment_run,
-            run_ocr_lemma_enrichment,
+            run_full_enrichment,
         )
         from wyrd.generators.kenning.jsonl_build import collect_curation_overrides
 
         curation_state = collect_curation_overrides(paths)
         click.echo("", err=True)
         with LexiconDB(db_path) as db:
-            result = run_ocr_lemma_enrichment(db, apply=True, curation_state=curation_state or None)
+            result = run_full_enrichment(db, apply=True, curation_state=curation_state or None)
         click.echo(format_enrichment_run(result), err=True)
 
 
@@ -2884,7 +2938,7 @@ def lexicon_enrich(
     """
     from wyrd.generators.kenning.enrichment import (
         format_enrichment_run,
-        run_ocr_lemma_enrichment,
+        run_full_enrichment,
     )
     from wyrd.generators.kenning.jsonl_build import (
         collect_curation_overrides,
@@ -2895,7 +2949,7 @@ def lexicon_enrich(
     if with_curation:
         curation_state = collect_curation_overrides(jsonl_paths_in(jsonl_dir)) or None
     with LexiconDB(db_path) as db:
-        result = run_ocr_lemma_enrichment(db, apply=apply_changes, curation_state=curation_state)
+        result = run_full_enrichment(db, apply=apply_changes, curation_state=curation_state)
     click.echo(format_enrichment_run(result), err=True)
     if not apply_changes:
         click.echo("\n(dry-run; pass --apply to commit)", err=True)
@@ -3093,12 +3147,12 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
             rebuilt_conn.close()
 
         if with_enrichment:
-            from wyrd.generators.kenning.enrichment import run_ocr_lemma_enrichment
+            from wyrd.generators.kenning.enrichment import run_full_enrichment
             from wyrd.generators.kenning.jsonl_build import collect_curation_overrides
 
             curation = collect_curation_overrides(paths) or None
             with LexiconDB(rebuilt_path) as db:
-                run_ocr_lemma_enrichment(db, apply=True, curation_state=curation)
+                run_full_enrichment(db, apply=True, curation_state=curation)
 
         rebuilt_conn = sqlite3.connect(rebuilt_path)
         rebuilt_conn.row_factory = sqlite3.Row
