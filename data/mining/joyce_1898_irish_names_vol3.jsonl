@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "joyce_1898_irish_names_vol3", "title": "Joyce 1898 Irish Names Vol3", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "joyce_1898_irish_names_vol3", "author": "Patrick Weston Joyce", "title": "The Origin and History of Irish Names of Places, Volume 3", "year": 1898, "region": "Ireland", "language_focus": "irish"}
 {"_type": "etymon", "ref": "celtic:-ach", "canonical_form": "-ach", "language": "celtic", "glosses": ["abounding in", "one with an abundance of (hair)"]}
 {"_type": "etymon", "ref": "celtic:-an", "canonical_form": "-an", "language": "celtic", "glosses": ["diminutive suffix"]}
 {"_type": "etymon", "ref": "celtic:-in", "canonical_form": "-in", "language": "celtic", "glosses": ["diminutive suffix"]}

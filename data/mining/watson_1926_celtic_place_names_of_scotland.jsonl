@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "watson_1926_celtic_place_names_of_scotland", "title": "Watson 1926 Celtic Place Names Of Scotland", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "watson_1926_celtic_place_names_of_scotland", "author": "W.J. Watson", "title": "The History of the Celtic Place-Names of Scotland", "year": 1926, "region": "Scotland", "language_focus": "celtic"}
 {"_type": "etymon", "ref": "biblical:blaan", "canonical_form": "blaan", "language": "biblical"}
 {"_type": "etymon", "ref": "biblical:cyrict", "canonical_form": "cyrict", "language": "biblical", "glosses": ["St. Cyric (martyr saint)"]}
 {"_type": "etymon", "ref": "biblical:hoin", "canonical_form": "hoin", "language": "biblical", "glosses": ["St. John"]}

@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "johnston_1892_place_names_of_scotland", "title": "Johnston 1892 Place Names Of Scotland", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "johnston_1892_place_names_of_scotland", "author": "James B. Johnston", "title": "The Place-Names of Scotland", "year": 1892, "region": "Scotland", "language_focus": "celtic"}
 {"_type": "etymon", "ref": "biblical:kessog", "canonical_form": "kessog", "language": "biblical", "glosses": ["St Kessog (personal name)"]}
 {"_type": "etymon", "ref": "biblical:patrick", "canonical_form": "patrick", "language": "biblical", "glosses": ["St Patrick, Irish missionary of the 5th century"]}
 {"_type": "etymon", "ref": "celtic:achaidh", "canonical_form": "achaidh", "language": "celtic", "glosses": ["field"]}

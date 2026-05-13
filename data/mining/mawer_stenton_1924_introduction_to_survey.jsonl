@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "mawer_stenton_1924_introduction_to_survey", "title": "Mawer Stenton 1924 Introduction To Survey", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "mawer_stenton_1924_introduction_to_survey", "author": "A. Mawer and F.M. Stenton (eds)", "title": "Introduction to the Survey of English Place-Names (EPNS Vol. 1)", "year": 1924, "region": "England", "language_focus": "old-english"}
 {"_type": "etymon", "ref": "celtic:cymry", "canonical_form": "cymry", "language": "celtic", "glosses": ["Britons"]}
 {"_type": "etymon", "ref": "norman-french:fraunche", "canonical_form": "fraunche", "language": "norman-french", "glosses": ["free"]}
 {"_type": "etymon", "ref": "norman-french:ville", "canonical_form": "ville", "language": "norman-french", "modifier_type": "Habitative", "glosses": ["Estate", "Farmstead", "Homestead", "Manor", "Village", "town"], "tags": ["architecture", "social"]}

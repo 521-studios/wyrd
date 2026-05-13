@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "morgan_1887_wales_monmouthshire", "title": "Morgan 1887 Wales Monmouthshire", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "morgan_1887_wales_monmouthshire", "author": "Thomas Morgan", "title": "The Place-Names of Wales and Monmouthshire", "year": 1887, "region": "Wales and Monmouthshire", "language_focus": "welsh"}
 {"_type": "etymon", "ref": "biblical:asa", "canonical_form": "asa", "language": "biblical", "glosses": ["Asaph (saint's name, abbreviated)", "abbreviation of Asaph (saint's name)"]}
 {"_type": "etymon", "ref": "celtic:afon", "canonical_form": "afon", "language": "celtic", "glosses": ["river"]}
 {"_type": "etymon", "ref": "celtic:ar", "canonical_form": "ar", "language": "celtic", "glosses": ["behind, back of; west", "collective suffix", "on", "on, near", "on, upon", "place of", "tillage"]}

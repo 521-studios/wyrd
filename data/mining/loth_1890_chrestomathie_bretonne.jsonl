@@ -1,1 +1,1 @@
-{"_type": "source", "ref": "loth_1890_chrestomathie_bretonne", "title": "Loth 1890 Chrestomathie Bretonne", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "loth_1890_chrestomathie_bretonne", "author": "Joseph Loth", "title": "Chrestomathie bretonne (armoricain, gallois, cornique)", "year": 1890, "region": "Brittany", "language_focus": "breton"}

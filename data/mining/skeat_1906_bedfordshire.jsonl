@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "skeat_1906_bedfordshire", "title": "Skeat 1906 Bedfordshire", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "skeat_1906_bedfordshire", "author": "Walter W. Skeat", "title": "The Place-Names of Bedfordshire", "year": 1906, "region": "Bedfordshire", "language_focus": "old-english"}
 {"_type": "etymon", "ref": "modern-english:east", "canonical_form": "east", "language": "modern-english", "pronunciation_ipa": "/iːst/", "glosses": ["east"]}
 {"_type": "etymon", "ref": "modern-english:hale", "canonical_form": "hale", "language": "modern-english", "pronunciation_ipa": "/heɪl/", "glosses": ["nook"]}
 {"_type": "etymon", "ref": "modern-english:hanger", "canonical_form": "hanger", "language": "modern-english", "pronunciation_ipa": "/ˈhæŋ.ɚ/", "glosses": ["hanging place"]}

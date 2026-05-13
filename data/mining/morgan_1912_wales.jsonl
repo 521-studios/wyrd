@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "morgan_1912_wales", "title": "Morgan 1912 Wales", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "morgan_1912_wales", "author": "Thomas Morgan", "title": "The Place-Names of Wales", "year": 1912, "region": "Wales", "language_focus": "welsh"}
 {"_type": "etymon", "ref": "biblical:armon", "canonical_form": "armon", "language": "biblical", "glosses": ["Garmon (St. Garmon, bishop of Auxerre)"]}
 {"_type": "etymon", "ref": "biblical:asa", "canonical_form": "asa", "language": "biblical", "glosses": ["Asaph (saint's name, abbreviated)", "abbreviation of Asaph (saint's name)"]}
 {"_type": "etymon", "ref": "biblical:magdalen", "canonical_form": "magdalen", "language": "biblical"}

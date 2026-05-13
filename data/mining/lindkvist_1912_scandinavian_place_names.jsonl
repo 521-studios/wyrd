@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "lindkvist_1912_scandinavian_place_names", "title": "Lindkvist 1912 Scandinavian Place Names", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "lindkvist_1912_scandinavian_place_names", "author": "Harald Lindkvist", "title": "Middle-English Place-Names of Scandinavian Origin", "year": 1912, "region": "Danelaw", "language_focus": "old-norse"}
 {"_type": "etymon", "ref": "germanic:as ford", "canonical_form": "as ford", "language": "germanic", "glosses": ["man's name"]}
 {"_type": "etymon", "ref": "modern-english:chepman", "canonical_form": "chepman", "language": "modern-english", "glosses": ["chapman"]}
 {"_type": "etymon", "ref": "modern-english:hunt", "canonical_form": "hunt", "language": "modern-english", "pronunciation_ipa": "/hʌnt/"}

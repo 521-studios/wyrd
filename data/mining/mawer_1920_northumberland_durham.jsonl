@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "mawer_1920_northumberland_durham", "title": "Mawer 1920 Northumberland Durham", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "mawer_1920_northumberland_durham", "author": "Allen Mawer", "title": "The Place-Names of Northumberland and Durham", "year": 1920, "region": "Northumberland and Durham", "language_focus": "old-english"}
 {"_type": "etymon", "ref": "biblical:johan", "canonical_form": "johan", "language": "biblical", "glosses": ["John"]}
 {"_type": "etymon", "ref": "biblical:john", "canonical_form": "john", "language": "biblical"}
 {"_type": "etymon", "ref": "celtic:*albanto", "canonical_form": "*albanto", "language": "celtic", "glosses": ["shining white"]}

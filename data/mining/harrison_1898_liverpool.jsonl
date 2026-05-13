@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "harrison_1898_liverpool", "title": "Harrison 1898 Liverpool", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "harrison_1898_liverpool", "author": "Henry Harrison", "title": "The Place-Names of the Liverpool District", "year": 1898, "region": "Liverpool", "language_focus": "old-english"}
 {"_type": "etymon", "ref": "celtic:ceard", "canonical_form": "ceard", "language": "celtic", "glosses": ["smith"]}
 {"_type": "etymon", "ref": "celtic:deva", "canonical_form": "deva", "language": "celtic", "glosses": ["goddess of the river", "goddess of the river, river"]}
 {"_type": "etymon", "ref": "celtic:dubh", "canonical_form": "dubh", "language": "celtic", "glosses": ["black", "black, dark", "blackish", "dark", "dark, black"]}

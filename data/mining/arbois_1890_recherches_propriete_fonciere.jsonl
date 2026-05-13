@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "arbois_1890_recherches_propriete_fonciere", "title": "Arbois 1890 Recherches Propriete Fonciere", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "arbois_1890_recherches_propriete_fonciere", "author": "Henri d'Arbois de Jubainville", "title": "Recherches sur l'origine de la propriété foncière et des noms de lieux habités en France", "year": 1890, "region": "France", "language_focus": "old-french"}
 {"_type": "etymon", "ref": "biblical:ammon", "canonical_form": "ammon", "language": "biblical", "glosses": ["Egyptian deity"]}
 {"_type": "etymon", "ref": "celtic:-oscus", "canonical_form": "-oscus", "language": "celtic"}
 {"_type": "etymon", "ref": "celtic:-ssa", "canonical_form": "-ssa", "language": "celtic", "glosses": ["Gaulish suffix forming place-names, nominative singular feminine"]}

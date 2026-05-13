@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "moorman_1910_west_riding_yorkshire", "title": "Moorman 1910 West Riding Yorkshire", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "moorman_1910_west_riding_yorkshire", "author": "Frederic W. Moorman", "title": "The Place-Names of the West Riding of Yorkshire", "year": 1910, "region": "West Riding of Yorkshire", "language_focus": "old-english"}
 {"_type": "etymon", "ref": "celtic:olic-", "canonical_form": "olic-", "language": "celtic"}
 {"_type": "etymon", "ref": "celtic:olicana", "canonical_form": "olicana", "language": "celtic"}
 {"_type": "etymon", "ref": "germanic:kip", "canonical_form": "kip", "language": "germanic", "glosses": ["a sharp-pointed hill or a jutting point on the side of a hill"]}

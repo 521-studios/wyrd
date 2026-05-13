@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "longnon_1920_noms_de_lieu_france_v1", "title": "Longnon 1920 Noms De Lieu France V1", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "longnon_1920_noms_de_lieu_france_v1", "author": "Auguste Longnon", "title": "Les Noms de Lieu de la France, Volume 1", "year": 1920, "region": "France", "language_focus": "old-french"}
 {"_type": "etymon", "ref": "celtic:ahès", "canonical_form": "ahès", "language": "celtic"}
 {"_type": "etymon", "ref": "celtic:cache", "canonical_form": "cache", "language": "celtic"}
 {"_type": "etymon", "ref": "celtic:huiernim", "canonical_form": "huiernim", "language": "celtic"}

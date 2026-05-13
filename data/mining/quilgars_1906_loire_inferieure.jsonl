@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "quilgars_1906_loire_inferieure", "title": "Quilgars 1906 Loire Inferieure", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
+{"_type": "source", "ref": "quilgars_1906_loire_inferieure", "author": "Henri Quilgars", "title": "Toponymie du département de la Loire-Inférieure", "year": 1906, "region": "Loire-Inférieure", "language_focus": "old-french"}
 {"_type": "etymon", "ref": "celtic:ker", "canonical_form": "ker", "language": "celtic", "glosses": ["village, house", "village, settlement"]}
 {"_type": "etymon", "ref": "celtic:vallec", "canonical_form": "vallec", "language": "celtic"}
 {"_type": "citation", "etymon_ref": "celtic:ker", "short_quote": "extracted_by:anthropic:claude-haiku-4-5; Breton form Kervalek attested; vallec element meaning uncertain | Kervalet, vill. c n ® de Batz, — Kervallec, 1494 (Arch. L.-Inf., B 1484) ; — Kervalek en bret"}
