@@ -188,6 +188,36 @@ blame data/mining/_curation.jsonl` shows who curated what and when.
 Reverting an event is appending another event with the cleared
 value (`lemma_ref: ''` via the CLI), preserving the audit trail.
 
+## Prune commands — toponym + etymon row removal
+
+`lexicon prune-toponym` (wyrd-lene) and `lexicon prune-etymon`
+(wyrd-8wgr) append `_op: remove` events to a source's L2 JSONL file
+for the named row. Each validates that the ref actually resolves in
+the source file before writing (typo-safe) and stamps an optional
+operator `_reason` for git-blame audit.
+
+```bash
+# Audit first — confirm the row is actually wrong:
+lexicon browse toponym "Cart@Herefordshire"
+lexicon browse etymon "old-english:pīe"
+
+# Prune:
+lexicon prune-toponym "Cart@Herefordshire" bannister_1916_herefordshire \
+    --reason "wyrd-lene: 'Cart.' is the Cartulary abbreviation"
+lexicon prune-etymon "old-english:pīe" rando-port \
+    --reason "wyrd-8wgr: BT says peach-tree, not gnat"
+
+# Rebuild — orphaned fact-rows skip + count in the build telemetry:
+lexicon rebuild-from-jsonl
+```
+
+On rebuild, fact-rows referencing the pruned entity (citations,
+descent edges, etymology elements naming a removed etymon; etymology
+elements naming a removed toponym) count into `*_orphans` /
+`*_orphan_refs` and skip the insert rather than raising. Operators
+see the orphan counts in the rebuild summary so unexpected typos
+(vs. expected post-prune orphans) are still visible.
+
 ## Operator workflow
 
 ### Editing L2 (the source of truth)
