@@ -191,8 +191,7 @@ def apply_curation_overrides(
                     # findable via the same WHERE lemma_method query
                     # used for lemma curations.
                     db.conn.execute(
-                        "UPDATE etymon SET merged_into_id = NULL, "
-                        "lemma_method = ? WHERE id = ?",
+                        "UPDATE etymon SET merged_into_id = NULL, lemma_method = ? WHERE id = ?",
                         (CURATION_METHOD_VERSION, etymon_id),
                     )
             else:

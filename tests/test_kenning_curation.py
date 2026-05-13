@@ -263,9 +263,7 @@ def test_apply_lemma_ref_without_inflection_preserves_existing_inflection(tmp_pa
         apply_curation_overrides(db, {"old-english:caelf": {"lemma_ref": "old-english:cealf"}})
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-    row = conn.execute(
-        "SELECT lemma_id, inflection FROM etymon WHERE id=?", (caelf_id,)
-    ).fetchone()
+    row = conn.execute("SELECT lemma_id, inflection FROM etymon WHERE id=?", (caelf_id,)).fetchone()
     conn.close()
     assert row["lemma_id"] == cealf_id
     # Inflection NOT touched — operator didn't mention it.
@@ -282,9 +280,7 @@ def test_apply_merge_curation_stamps_method_version(tmp_path: Path):
         apply_curation_overrides(db, {"old-norse:vath": {"merged_into_ref": "old-norse:vað"}})
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-    row = conn.execute(
-        "SELECT lemma_method FROM etymon WHERE id=?", (vath_id,)
-    ).fetchone()
+    row = conn.execute("SELECT lemma_method FROM etymon WHERE id=?", (vath_id,)).fetchone()
     conn.close()
     assert row["lemma_method"] == CURATION_METHOD_VERSION
 
