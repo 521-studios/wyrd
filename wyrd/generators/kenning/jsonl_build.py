@@ -292,6 +292,118 @@ def _insert_etymology_element(
         )
 
 
+# ---------------------------------------------------------------------------
+# Pass-3 per-row-type helpers
+#
+# Each helper consumes one fact-row list from a single source's replay
+# state, mutates the shared ``counts`` dict in place, and handles its
+# own orphan-skip + dedup conventions. Symmetric signature shape across
+# helpers keeps the build pipeline easy to extend with new row types.
+#
+# Orphan-skip rationale (wyrd-lene contract): unresolved refs count
+# into ``*_orphans`` + sampled ``*_orphan_refs`` and skip the insert
+# rather than raising. Operators get telemetry so unexpected orphans
+# (typos, stale refs) are still visible — they just don't abort the
+# build. This makes ``_op: remove`` events on toponyms / etymons safe
+# to apply without manually cleaning every referencing fact-row first.
+# ---------------------------------------------------------------------------
+
+
+def _insert_citation_rows(
+    conn: sqlite3.Connection,
+    source_id: str,
+    rows: list[dict[str, Any]],
+    etymon_id_by_ref: dict[str, int],
+    counts: dict[str, Any],
+) -> None:
+    """Insert ``citation`` rows for one source. Unknown ``etymon_ref``
+    → counted in ``citation_orphans`` and skipped (wyrd-lene)."""
+    for row in rows:
+        eref = row["etymon_ref"]
+        eid = etymon_id_by_ref.get(eref)
+        if eid is None:
+            counts["citation_orphans"] += 1
+            if len(counts["citation_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
+                counts["citation_orphan_refs"].append(eref)
+            continue
+        _insert_citation(conn, eid, source_id, row)
+        counts["citation"] += 1
+
+
+def _insert_descent_rows(
+    conn: sqlite3.Connection,
+    source_id: str,
+    rows: list[dict[str, Any]],
+    etymon_id_by_ref: dict[str, int],
+    counts: dict[str, Any],
+) -> None:
+    """Insert ``etymon_descent`` rows for one source. Either endpoint
+    unresolved → counted in ``etymon_descent_orphans`` + skipped."""
+    for row in rows:
+        pid = etymon_id_by_ref.get(row["parent_ref"])
+        cid = etymon_id_by_ref.get(row["child_ref"])
+        if pid is None or cid is None:
+            counts["etymon_descent_orphans"] += 1
+            if len(counts["etymon_descent_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
+                counts["etymon_descent_orphan_refs"].append(
+                    f"{row['parent_ref']} → {row['child_ref']}"
+                )
+            continue
+        _insert_descent(conn, pid, cid, source_id, row)
+        counts["etymon_descent"] += 1
+
+
+def _insert_mining_run_rows(
+    conn: sqlite3.Connection,
+    source_id: str,
+    rows: list[dict[str, Any]],
+    counts: dict[str, Any],
+) -> None:
+    """Insert ``mining_run`` audit rows for one source. No orphan path
+    (mining_run has no FK refs — every row is self-contained)."""
+    for row in rows:
+        _insert_mining_run(conn, source_id, row)
+        counts["mining_run"] += 1
+
+
+def _insert_etymology_element_rows(
+    conn: sqlite3.Connection,
+    source_id: str,
+    rows: list[dict[str, Any]],
+    toponym_id_by_ref: dict[str, int],
+    etymon_id_by_ref: dict[str, int],
+    counts: dict[str, Any],
+) -> None:
+    """Insert ``etymology_element`` rows for one source. Two skip
+    conditions:
+
+    - Unknown ``toponym_ref`` → ``etymology_element_orphans`` (wyrd-lene)
+    - Byte-identical content fingerprint already seen in this source →
+      ``etymology_element_dupes_skipped`` (wyrd-tzf2). Dedup is per-
+      source: same content across sources is scholar agreement.
+
+    Element-list etymon_refs are still validated inside
+    :func:`_insert_etymology_element` and raise ``BuildError`` on
+    missing — coarse orphan check at the toponym level only.
+    """
+    seen_fingerprints: set[tuple] = set()
+    for row in rows:
+        tref = row["toponym_ref"]
+        tid = toponym_id_by_ref.get(tref)
+        if tid is None:
+            counts["etymology_element_orphans"] += 1
+            if len(counts["etymology_element_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
+                counts["etymology_element_orphan_refs"].append(tref)
+            continue
+        fingerprint = _etymology_element_fingerprint(row)
+        if fingerprint in seen_fingerprints:
+            counts["etymology_element_dupes_skipped"] += 1
+            continue
+        seen_fingerprints.add(fingerprint)
+        _insert_etymology_element(conn, tid, source_id, row, etymon_id_by_ref)
+        counts["etymology_element"] += 1
+
+
 def _extract_source_id(path: Path, state: ReplayState) -> str:
     """Validate the contract: exactly one ``source`` row per file.
     Returns its ref (= the source_id)."""
@@ -375,71 +487,22 @@ def build_from_jsonl(
 
     # ----- Pass 3: source-attributed list rows.
     #
-    # Refs that don't resolve (the referenced entity was removed via a
-    # kernel ``remove`` event — wyrd-lene) are counted as orphans and
-    # skipped, not raised. Operators get the counts in the result dict
-    # so unexpected orphans (typos, stale refs) are still visible —
-    # they just don't abort the build. This makes ``remove`` events on
-    # toponyms / etymons safe to apply without manually cleaning up
-    # every referencing fact-row first.
+    # Per-row-type helpers carry the orphan-skip + dedup semantics; this
+    # loop is the per-source dispatch.
     for _path, source_id, state in file_states:
-        for row in state.lists["citation"]:
-            eref = row["etymon_ref"]
-            eid = etymon_id_by_ref.get(eref)
-            if eid is None:
-                counts["citation_orphans"] += 1
-                if len(counts["citation_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
-                    counts["citation_orphan_refs"].append(eref)
-                continue
-            _insert_citation(conn, eid, source_id, row)
-            counts["citation"] += 1
-
-        for row in state.lists["etymon_descent"]:
-            pid = etymon_id_by_ref.get(row["parent_ref"])
-            cid = etymon_id_by_ref.get(row["child_ref"])
-            if pid is None or cid is None:
-                counts["etymon_descent_orphans"] += 1
-                if len(counts["etymon_descent_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
-                    counts["etymon_descent_orphan_refs"].append(
-                        f"{row['parent_ref']} → {row['child_ref']}"
-                    )
-                continue
-            _insert_descent(conn, pid, cid, source_id, row)
-            counts["etymon_descent"] += 1
-
-        for row in state.lists["mining_run"]:
-            _insert_mining_run(conn, source_id, row)
-            counts["mining_run"] += 1
-
-        # Per-source dedup: a content-equal etymology_element row that
-        # appears twice in the same file (LLM mining re-run artifact —
-        # wyrd-tzf2) inserts once. Cross-source content matches are
-        # legitimate scholar agreement and still produce distinct rows
-        # because each goes into a different source_id, so the dedup
-        # set is scoped per file.
-        seen_etymology_fingerprints: set[tuple] = set()
-        for row in state.lists["etymology_element"]:
-            tref = row["toponym_ref"]
-            tid = toponym_id_by_ref.get(tref)
-            if tid is None:
-                counts["etymology_element_orphans"] += 1
-                if len(counts["etymology_element_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
-                    counts["etymology_element_orphan_refs"].append(tref)
-                continue
-            # Element-list etymon_refs are validated inside
-            # _insert_etymology_element (raises BuildError on a missing
-            # ref). When etymons are removed, the elements that name them
-            # need their parent toponym_etymology row removed too — but
-            # the orphan check is currently coarse (skip on bad toponym
-            # only). A future change can also count + skip on bad
-            # element etymon_refs if operator workflow demands.
-            fingerprint = _etymology_element_fingerprint(row)
-            if fingerprint in seen_etymology_fingerprints:
-                counts["etymology_element_dupes_skipped"] += 1
-                continue
-            seen_etymology_fingerprints.add(fingerprint)
-            _insert_etymology_element(conn, tid, source_id, row, etymon_id_by_ref)
-            counts["etymology_element"] += 1
+        _insert_citation_rows(conn, source_id, state.lists["citation"], etymon_id_by_ref, counts)
+        _insert_descent_rows(
+            conn, source_id, state.lists["etymon_descent"], etymon_id_by_ref, counts
+        )
+        _insert_mining_run_rows(conn, source_id, state.lists["mining_run"], counts)
+        _insert_etymology_element_rows(
+            conn,
+            source_id,
+            state.lists["etymology_element"],
+            toponym_id_by_ref,
+            etymon_id_by_ref,
+            counts,
+        )
 
     conn.commit()
     return counts

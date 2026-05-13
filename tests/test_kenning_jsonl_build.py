@@ -460,6 +460,162 @@ def test_rebuild_from_jsonl_summary_handles_list_valued_counts(tmp_path: Path, m
     assert "samples" in result.output or "samples" in (result.stderr_bytes or b"").decode()
 
 
+# ---------------------------------------------------------------------------
+# Per-row-type helper tests (wyrd-3vh3)
+#
+# build_from_jsonl Pass 3 was extracted into four helpers. They share
+# a signature shape (conn, source_id, rows, [maps], counts) so the test
+# fixtures are reusable. Each helper owns its orphan-skip + dedup rules,
+# so the tests target those semantics directly without rebuilding the
+# full pipeline.
+# ---------------------------------------------------------------------------
+
+
+def _empty_counts() -> dict:
+    """Counts dict shape that the helpers mutate. Mirrors the dict
+    build_from_jsonl initializes."""
+    return {
+        "citation": 0,
+        "citation_orphans": 0,
+        "citation_orphan_refs": [],
+        "etymon_descent": 0,
+        "etymon_descent_orphans": 0,
+        "etymon_descent_orphan_refs": [],
+        "mining_run": 0,
+        "etymology_element": 0,
+        "etymology_element_dupes_skipped": 0,
+        "etymology_element_orphans": 0,
+        "etymology_element_orphan_refs": [],
+    }
+
+
+def _seed_etymon(conn, language: str, canonical_form: str) -> int:
+    cur = conn.execute(
+        "INSERT INTO etymon (language, canonical_form) VALUES (?, ?)",
+        (language, canonical_form),
+    )
+    return cur.lastrowid
+
+
+def _seed_source(conn, source_id: str) -> None:
+    conn.execute("INSERT INTO source (id, title) VALUES (?, ?)", (source_id, "X"))
+
+
+def _seed_toponym(conn, name: str, region: str | None = None) -> int:
+    cur = conn.execute("INSERT INTO toponym (modern_name, region) VALUES (?, ?)", (name, region))
+    return cur.lastrowid
+
+
+def test_insert_citation_rows_skips_unknown_etymon_ref():
+    """Orphan citation → counted in citation_orphans + ref captured."""
+    from wyrd.generators.kenning.jsonl_build import _insert_citation_rows
+
+    conn = _build_fixture_db()
+    _seed_source(conn, "skeat")
+    cot_id = _seed_etymon(conn, "old-english", "cot")
+    counts = _empty_counts()
+    rows = [
+        {"etymon_ref": "old-english:cot", "page": "15"},
+        {"etymon_ref": "old-english:ghost", "page": "99"},
+    ]
+    _insert_citation_rows(conn, "skeat", rows, {"old-english:cot": cot_id}, counts)
+    assert counts["citation"] == 1
+    assert counts["citation_orphans"] == 1
+    assert counts["citation_orphan_refs"] == ["old-english:ghost"]
+
+
+def test_insert_descent_rows_skips_either_endpoint_missing():
+    """Orphan descent edge → counted + ref pair captured."""
+    from wyrd.generators.kenning.jsonl_build import _insert_descent_rows
+
+    conn = _build_fixture_db()
+    _seed_source(conn, "wiki")
+    proto_id = _seed_etymon(conn, "proto-germanic", "*tunaz")
+    oe_id = _seed_etymon(conn, "old-english", "tun")
+    counts = _empty_counts()
+    rows = [
+        {
+            "parent_ref": "proto-germanic:*tunaz",
+            "child_ref": "old-english:tun",
+            "edge_type": "inheritance",
+        },
+        {
+            "parent_ref": "old-english:ghost-a",
+            "child_ref": "old-english:tun",
+            "edge_type": "inheritance",
+        },
+    ]
+    _insert_descent_rows(
+        conn,
+        "wiki",
+        rows,
+        {"proto-germanic:*tunaz": proto_id, "old-english:tun": oe_id},
+        counts,
+    )
+    assert counts["etymon_descent"] == 1
+    assert counts["etymon_descent_orphans"] == 1
+    assert counts["etymon_descent_orphan_refs"] == ["old-english:ghost-a → old-english:tun"]
+
+
+def test_insert_mining_run_rows_no_orphan_path():
+    """mining_run has no FK refs — every row inserts unconditionally."""
+    from wyrd.generators.kenning.jsonl_build import _insert_mining_run_rows
+
+    conn = _build_fixture_db()
+    _seed_source(conn, "skeat")
+    counts = _empty_counts()
+    rows = [
+        {"provider": "anthropic", "model": "claude", "mode": "mine"},
+        {"provider": "gemini", "model": "flash", "mode": "review"},
+    ]
+    _insert_mining_run_rows(conn, "skeat", rows, counts)
+    assert counts["mining_run"] == 2
+
+
+def test_insert_etymology_element_rows_per_source_dedup_and_orphan():
+    """Helper handles BOTH dedup (wyrd-tzf2) and toponym-orphan skip
+    (wyrd-lene) in one place."""
+    from wyrd.generators.kenning.jsonl_build import _insert_etymology_element_rows
+
+    conn = _build_fixture_db()
+    _seed_source(conn, "mawer")
+    cot_id = _seed_etymon(conn, "old-english", "cot")
+    cotton_id = _seed_toponym(conn, "Cotton", "Norfolk")
+    counts = _empty_counts()
+    element = {"ordinal": 1, "etymon_ref": "old-english:cot"}
+    rows = [
+        {
+            "toponym_ref": "Cotton@Norfolk",
+            "elements": [element],
+            "historical_form": "Cotuna",
+            "confidence": "high",
+        },
+        # Byte-identical dupe
+        {
+            "toponym_ref": "Cotton@Norfolk",
+            "elements": [element],
+            "historical_form": "Cotuna",
+            "confidence": "high",
+        },
+        # Orphan: unknown toponym
+        {
+            "toponym_ref": "Ghost@-",
+            "elements": [element],
+        },
+    ]
+    _insert_etymology_element_rows(
+        conn,
+        "mawer",
+        rows,
+        {"Cotton@Norfolk": cotton_id},
+        {"old-english:cot": cot_id},
+        counts,
+    )
+    assert counts["etymology_element"] == 1
+    assert counts["etymology_element_dupes_skipped"] == 1
+    assert counts["etymology_element_orphans"] == 1
+
+
 def test_format_diff_rebuild_renders_missing_and_none_delta():
     """When a table is missing on one side, the count column shows
     '(missing)' and the delta column shows '—' so neither can be
