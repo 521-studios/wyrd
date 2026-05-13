@@ -8,268 +8,268 @@
     {
       "name": "wiktextract_akkadian",
       "s3_key": "wiktextract/v1/wiktextract_akkadian.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "a84852594c02891e8f5fbf58b88ae4bde567ce249e470260d211dbc8c16d8d99",
       "raw_size_bytes": 2797257,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 266353
     },
     {
       "name": "wiktextract_ancient_greek",
       "s3_key": "wiktextract/v1/wiktextract_ancient_greek.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "64b79803c3419e6c65b4457e5ef709f63e867140c02bed7403e939bd4a81eb51",
       "raw_size_bytes": 290370531,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 17619758
     },
     {
       "name": "wiktextract_arabic",
       "s3_key": "wiktextract/v1/wiktextract_arabic.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "ef8b1d4199b94688e92932130ca50749b8a41eab7f7c586ad426b4896e72aae7",
       "raw_size_bytes": 498264544,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 25646992
     },
     {
       "name": "wiktextract_aramaic",
       "s3_key": "wiktextract/v1/wiktextract_aramaic.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "526b65784328379150c18ad8f69e978b633b8e8703cec6b5645b9170114fdc03",
       "raw_size_bytes": 3480333,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 280027
     },
     {
       "name": "wiktextract_breton",
       "s3_key": "wiktextract/v1/wiktextract_breton.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "87ca5d030bc5842f0eb2695ed297d1a46c1fbb5f873940305daa23b32f9cc829",
       "raw_size_bytes": 3339308,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 246615
     },
     {
       "name": "wiktextract_cornish",
       "s3_key": "wiktextract/v1/wiktextract_cornish.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "39429886e9b8bb3299a881778d44c03d1dc7718e48ae1c4da5fd51f3726c5cad",
       "raw_size_bytes": 12463969,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 828920
     },
     {
       "name": "wiktextract_egyptian",
       "s3_key": "wiktextract/v1/wiktextract_egyptian.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "f69d55339a801a77a2d88936fee2c42a8f9cec41919d6ae4ec160a8e32dd2a2b",
       "raw_size_bytes": 16829662,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 1042465
     },
     {
       "name": "wiktextract_english",
       "s3_key": "wiktextract/v1/wiktextract_english.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "a1063ba5a7f2be14851c02d737015f3c12fbf787496e39675a29451d36eb7479",
       "raw_size_bytes": 2999747874,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 293303394
     },
     {
       "name": "wiktextract_faroese",
       "s3_key": "wiktextract/v1/wiktextract_faroese.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "77f8507c452a9d8445549e1f8ae6fb8dd1a29440183cd01e9277eacfa394bd48",
       "raw_size_bytes": 23702520,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 1461525
     },
     {
       "name": "wiktextract_gothic",
       "s3_key": "wiktextract/v1/wiktextract_gothic.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "515cefd52368284dd9094c7cbb51e22ea70e92f85a2587764f4f5e841b984340",
       "raw_size_bytes": 46284545,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 2502372
     },
     {
       "name": "wiktextract_hebrew",
       "s3_key": "wiktextract/v1/wiktextract_hebrew.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "7a9d06606d8f829b714c9a48daadf908caac4e6602d6e60dab00239c87681ed8",
       "raw_size_bytes": 53922930,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 4488642
     },
     {
       "name": "wiktextract_icelandic",
       "s3_key": "wiktextract/v1/wiktextract_icelandic.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "3e0c7a02ceb7b6fb98df1e25f1cab506f2f7c72b9368642e2a930772e0e94fcf",
       "raw_size_bytes": 68959601,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 4340866
     },
     {
       "name": "wiktextract_irish",
       "s3_key": "wiktextract/v1/wiktextract_irish.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "62721cbe90103af94f4fcca2f8fe5ae373e08293d89429c64e522c2f682ac460",
       "raw_size_bytes": 116714309,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 6810003
     },
     {
       "name": "wiktextract_manx",
       "s3_key": "wiktextract/v1/wiktextract_manx.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "e3c8b6812cee2947d658f0935fb882bf2e40b550e04440ef226d09a8dc71d2aa",
       "raw_size_bytes": 5685483,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 483165
     },
     {
       "name": "wiktextract_middle_english",
       "s3_key": "wiktextract/v1/wiktextract_middle_english.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "9bc23cf794d319661ddbf5eb299465aa920754a588c12f5441f3dac506f8cf71",
       "raw_size_bytes": 59566503,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 3896987
     },
     {
       "name": "wiktextract_middle_high_german",
       "s3_key": "wiktextract/v1/wiktextract_middle_high_german.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "00d1f36e31de7ea622afef9f2600f9425231459f4d7212795931fdca24114fdf",
       "raw_size_bytes": 6108328,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 281740
     },
     {
       "name": "wiktextract_middle_irish",
       "s3_key": "wiktextract/v1/wiktextract_middle_irish.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "ce7f4cce395b586e264ee92d14c82c01e7840f44621f872d56612ba9f469ee2d",
       "raw_size_bytes": 1213299,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 109546
     },
     {
       "name": "wiktextract_old_armenian",
       "s3_key": "wiktextract/v1/wiktextract_old_armenian.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "20d91a0891f7bea5c3abf7a18e483f222e099e55cd4b644df20662c32ba98142",
       "raw_size_bytes": 44631652,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 3605328
     },
     {
       "name": "wiktextract_old_church_slavonic",
       "s3_key": "wiktextract/v1/wiktextract_old_church_slavonic.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "efcf61311b7d0fecbaca97bd44f6ac74d96dd088e161e69dce63d4f9534cf1a9",
       "raw_size_bytes": 45373346,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 2275932
     },
     {
       "name": "wiktextract_old_dutch",
       "s3_key": "wiktextract/v1/wiktextract_old_dutch.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "69f2e6bdab872d9e6762373ecec1402be03a89a119c12bd68222fd4fb3f2eea2",
       "raw_size_bytes": 6837953,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 353558
     },
     {
       "name": "wiktextract_old_english",
       "s3_key": "wiktextract/v1/wiktextract_old_english.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "c887200ee946704c8ac7ac61d4a5928642b3de00c0c0bf6564f6ab1b003814ce",
       "raw_size_bytes": 116883612,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 7009710
     },
     {
       "name": "wiktextract_old_french",
       "s3_key": "wiktextract/v1/wiktextract_old_french.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "875e3bee033cc4d60cac66607dd57265773e7532fde36f8bc0800160407e5e12",
       "raw_size_bytes": 33899914,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 1634223
     },
     {
       "name": "wiktextract_old_frisian",
       "s3_key": "wiktextract/v1/wiktextract_old_frisian.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "aa9d25ab07e33c337d29c52e3a8a90f20d4f44f3430e32b993593fc7fe840782",
       "raw_size_bytes": 1157921,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 80324
     },
     {
       "name": "wiktextract_old_high_german",
       "s3_key": "wiktextract/v1/wiktextract_old_high_german.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "10804de90eade3dcb8ac134e4eb30c131c66adeef573d3781cc0d6cf667cdbc4",
       "raw_size_bytes": 7604736,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 445100
     },
     {
       "name": "wiktextract_old_irish",
       "s3_key": "wiktextract/v1/wiktextract_old_irish.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "5a431d00a72dbf7f93f901fe951895affb056b36c02aea7c5ec3806dba4b818a",
       "raw_size_bytes": 18341153,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 1304820
     },
     {
       "name": "wiktextract_old_norse",
       "s3_key": "wiktextract/v1/wiktextract_old_norse.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "b1ce10e34ece961cb99347d745c84872310ffbfc0cf88d89af0166f7b133fa26",
       "raw_size_bytes": 36632326,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 2210789
     },
     {
       "name": "wiktextract_old_persian",
       "s3_key": "wiktextract/v1/wiktextract_old_persian.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "62e1d08cb1b9d15dd5fea7a42c9cab28c7a95a0139ba3247fffa6e573952b538",
       "raw_size_bytes": 1331195,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 122708
     },
     {
       "name": "wiktextract_old_saxon",
       "s3_key": "wiktextract/v1/wiktextract_old_saxon.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "38ecc4617306321fc16962207b383373b3d3d41078204ce16653652c4144b4fe",
       "raw_size_bytes": 6998477,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 364385
     },
     {
       "name": "wiktextract_persian",
       "s3_key": "wiktextract/v1/wiktextract_persian.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "436eecc2cd2d6f3b84f57d1d3856a378260c1320908f68ede9d50ec9c18ce4e4",
       "raw_size_bytes": 79109798,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 6295217
     },
     {
       "name": "wiktextract_proto_celtic",
       "s3_key": "wiktextract/v1/wiktextract_proto_celtic.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "9135eb1e70bfe8322243704359bea0ac6f1e74fd604dda89d6d85b5621927948",
       "raw_size_bytes": 11355778,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 589393
     },
     {
       "name": "wiktextract_proto_germanic",
       "s3_key": "wiktextract/v1/wiktextract_proto_germanic.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "525aa89dc26671e995bed8e15483b0aec42b6a6038ea13663bbc4a951bd7045d",
       "raw_size_bytes": 63086551,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 2417372
     },
     {
       "name": "wiktextract_proto_indo_european",
       "s3_key": "wiktextract/v1/wiktextract_proto_indo_european.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "07e2a6eb4200a37200dd53367b58f2197b43e1c8469b4812aec601c356e79ced",
       "raw_size_bytes": 11456873,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 777379
     },
     {
       "name": "wiktextract_proto_west_germanic",
       "s3_key": "wiktextract/v1/wiktextract_proto_west_germanic.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "61c76facc596acb2a7466752b2d6b189ce513e9e80fe217685d714dac8d3d5b0",
       "raw_size_bytes": 47487372,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 1677231
     },
     {
       "name": "wiktextract_sanskrit",
       "s3_key": "wiktextract/v1/wiktextract_sanskrit.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "b11c691be5eff89919c23ed27c73242cc93ff4478b673a79ce10d1a4d6f1f084",
       "raw_size_bytes": 101711010,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 6532160
     },
     {
       "name": "wiktextract_scottish_gaelic",
       "s3_key": "wiktextract/v1/wiktextract_scottish_gaelic.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "fea0fd1466d3d7fd2aeeab05028fcf35033397028429618ad220047de91ac3e6",
       "raw_size_bytes": 30186107,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 2041881
     },
     {
       "name": "wiktextract_tocharian_a",
       "s3_key": "wiktextract/v1/wiktextract_tocharian_a.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "3146b328a2267264d8edcdd19f11bbb547fc578917a337f768de2bd5156f05f0",
       "raw_size_bytes": 559533,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 55135
     },
     {
       "name": "wiktextract_tocharian_b",
       "s3_key": "wiktextract/v1/wiktextract_tocharian_b.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "1d44bb7a4896e73b1efa2df241c5107855cd6dda0b88aae784e2dbb86c161eb1",
       "raw_size_bytes": 2490697,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 206295
     },
     {
       "name": "wiktextract_welsh",
       "s3_key": "wiktextract/v1/wiktextract_welsh.jsonl.zst",
-      "sha256": "pending-first-upload",
+      "sha256": "4092eaa5df5625943c472ff031537b22f777fe94dc06d2ae193ba1c5c65f08d5",
       "raw_size_bytes": 59568679,
-      "compressed_size_bytes": 0
+      "compressed_size_bytes": 4142149
     }
   ]
 }
