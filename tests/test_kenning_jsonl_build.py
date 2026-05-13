@@ -572,6 +572,52 @@ def test_insert_mining_run_rows_no_orphan_path():
     assert counts["mining_run"] == 2
 
 
+def test_insert_attestation_rows_basic(tmp_path: Path):
+    """Per wyrd-3ypp: attestation rows from OS Open Names + future
+    historical sources resolve their toponym_ref and insert into
+    toponym_attestation. Unknown ref → orphan-skip pattern."""
+    from wyrd.generators.kenning.jsonl_build import _insert_attestation_rows
+
+    # Extended fixture with the toponym_attestation table.
+    conn = _build_fixture_db()
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS toponym_attestation (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            toponym_id INTEGER NOT NULL,
+            form TEXT NOT NULL,
+            date_year INTEGER,
+            source_doc TEXT
+        )"""
+    )
+    cotton_id = _seed_toponym(conn, "Cotton", "Norfolk")
+    counts = _empty_counts()
+    counts["attestation"] = 0
+    counts["attestation_orphans"] = 0
+    counts["attestation_orphan_refs"] = []
+    rows = [
+        {
+            "toponym_ref": "Cotton@Norfolk",
+            "form": "Cotuna",
+            "date_year": 1086,
+            "source_doc": "Domesday Book",
+        },
+        {
+            "toponym_ref": "Ghost@Nowhere",  # orphan
+            "form": "Ghost",
+            "date_year": 2024,
+        },
+    ]
+    _insert_attestation_rows(conn, rows, {"Cotton@Norfolk": cotton_id}, counts)
+    assert counts["attestation"] == 1
+    assert counts["attestation_orphans"] == 1
+    assert counts["attestation_orphan_refs"] == ["Ghost@Nowhere"]
+    # DB has the one attestation
+    row = conn.execute(
+        "SELECT toponym_id, form, date_year, source_doc FROM toponym_attestation"
+    ).fetchone()
+    assert (row["form"], row["date_year"]) == ("Cotuna", 1086)
+
+
 def test_insert_etymology_element_rows_per_source_dedup_and_orphan():
     """Helper handles BOTH dedup (wyrd-tzf2) and toponym-orphan skip
     (wyrd-lene) in one place."""
