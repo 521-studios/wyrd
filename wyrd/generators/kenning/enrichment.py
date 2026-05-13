@@ -263,34 +263,47 @@ def run_full_enrichment(
     *,
     apply: bool = False,
     curation_state: dict[str, dict[str, Any]] | None = None,
+    skip_l3_derivations: bool = False,
 ) -> dict[str, Any]:
-    """Run the canonical L3 enrichment chain.
+    """Run the canonical L3 enrichment chain (wyrd-hidb Phase 2).
 
-    Order (wyrd-hidb phase 1 — OCR + lemma + curation are wired here;
-    the remaining L3 passes — decompose / cluster-cognates /
-    classify-stratum / derive-english-shaped / project-period-forms —
-    land in a follow-up PR that adds uniform ``<pass>_all(db, apply)``
-    wrappers and extends this function to call them):
+    Order (with dependency rationale per the wyrd-hidb plan):
 
-    1. ``normalize-ocr`` tombstones OCR-variant duplicates.
-    2. ``link-lemmas`` links inflected forms to canonicals (the
-       previous step's tombstones aren't candidate targets).
-    3. ``apply_curation_overrides`` (when ``curation_state`` is passed)
-       overrides specific lemma/merge assignments where auto-clustering
-       got it wrong.
+    1. ``cluster_ocr_variants`` — tombstone OCR-variant duplicates so
+       later passes don't waste work on dead rows.
+    2. ``link_lemmas`` — inflected → canonical-lemma linkage. Must
+       follow OCR (lemma candidates can't be tombstoned variants).
+    3. ``apply_curation_overrides`` (when ``curation_state`` passed)
+       — overlay operator decisions on lemma / merge assignments.
+    4. ``decompose_all`` — matcher-derived toponym decompositions.
+       Needs OCR + lemma + curation settled (else matches against
+       tombstoned / wrong-canonical rows).
+    5. ``cluster_cognates`` — etymon_descent → cognate_id. Needs
+       lemma assignment (cognates flow through canonical lemmas).
+    6. ``classify_stratum_all`` — per-language stratum buckets. Needs
+       etymon inventory + descent edges settled.
+    7. ``derive_english_shaped_all`` — non-Latin-script
+       transliteration. Independent of stratum but logically after
+       cognates (stable canonical_form).
+    8. ``project_period_forms`` — Tier-3 period-form fallback.
+       Depends on stratum + cognate assignments for period
+       bucketing.
 
-    Dry-run (``apply=False``) walks the enrichment passes and reports
-    candidates without writing. Curation overrides, when
-    ``curation_state`` is passed, ARE validated on dry-run — refs
-    resolve, unresolved/self-reference cases get counted — but no DB
-    writes occur. Lets operators preview a curation batch before
-    committing.
+    Dry-run (``apply=False``) walks every pass and reports
+    candidates without writing. Curation overrides ARE validated on
+    dry-run; the per-pass dry-run behavior is delegated to each
+    helper.
 
-    When ``curation_state`` is None, the returned dict carries
-    ``curation: None`` (the apply-curation step didn't run). When it's
-    a dict, the returned ``curation`` value is the counts dict from
-    :func:`apply_curation_overrides` regardless of ``apply``.
+    ``skip_l3_derivations=True`` stops the chain after the
+    OCR+lemma+curation prefix — useful for tests that don't care
+    about the derived columns + for fast iteration on curation
+    work. Defaults to False (Phase 2 default is "run everything").
     """
+    from wyrd.generators.kenning.decomposition import decompose_all
+    from wyrd.generators.kenning.english_shaping import derive_english_shaped_all
+    from wyrd.generators.kenning.lexicon import cluster_cognates, project_period_forms
+    from wyrd.generators.kenning.strata import classify_stratum_all
+
     ocr_result = cluster_ocr_variants(db, apply=apply)
     lemma_result = link_lemmas(db, apply=apply)
     curation_counts: dict[str, Any] | None = None
@@ -300,12 +313,30 @@ def run_full_enrichment(
         # committing — surfaces unresolved refs / self-references early.
         curation_counts = apply_curation_overrides(db, curation_state, apply=apply)
 
+    order: list[str] = ["normalize-ocr", "link-lemmas"]
+    if curation_counts is not None:
+        order.append("apply-curation")
+
+    decompose_result: dict[str, Any] | None = None
+    cognate_result: dict[str, Any] | None = None
+    stratum_result: dict[str, Any] | None = None
+    english_shaped_result: dict[str, Any] | None = None
+    period_form_result: dict[str, Any] | None = None
+
+    if not skip_l3_derivations:
+        decompose_result = decompose_all(db, apply=apply)
+        order.append("decompose")
+        cognate_result = cluster_cognates(db, apply=apply)
+        order.append("cluster-cognates")
+        stratum_result = classify_stratum_all(db, apply=apply)
+        order.append("classify-stratum")
+        english_shaped_result = derive_english_shaped_all(db, apply=apply)
+        order.append("derive-english-shaped")
+        period_form_result = project_period_forms(db, apply=apply)
+        order.append("project-period-forms")
+
     return {
-        "order": (
-            ["normalize-ocr", "link-lemmas", "apply-curation"]
-            if curation_counts is not None
-            else ["normalize-ocr", "link-lemmas"]
-        ),
+        "order": order,
         "applied": apply,
         "ocr": {
             "method_version": OCR_METHOD_VERSION,
@@ -319,6 +350,11 @@ def run_full_enrichment(
             "sample": lemma_result.get("sample", []),
         },
         "curation": curation_counts,
+        "decompose": decompose_result,
+        "cognates": cognate_result,
+        "stratum": stratum_result,
+        "english_shaped": english_shaped_result,
+        "period_forms": period_form_result,
     }
 
 
@@ -428,7 +464,7 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
     verb_ocr = "merged" if result["applied"] else "mergeable"
     verb_lemmas = "linked" if result["applied"] else "linkable"
     lines: list[str] = [
-        "## L3 enrichment: OCR + lemmas" + (" + curation" if result.get("curation") else ""),
+        "## L3 enrichment chain",
         "",
         f"- Order: {' → '.join(result['order'])}",
         f"- Applied: {result['applied']}",
@@ -443,4 +479,63 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
     if result.get("curation"):
         lines.append("")
         lines.append(format_curation_run(result["curation"]))
+
+    if result.get("decompose") is not None:
+        d = result["decompose"]
+        lines.extend(
+            [
+                "",
+                "### Decomposition",
+                f"- Toponyms scanned: {d['toponyms_scanned']}",
+                f"- Decompositions written: {d['decompositions']}",
+                f"- Rule firings: scholar={d.get('scholar', 0)}, "
+                f"scholar-disagreement={d.get('scholar-disagreement', 0)}, "
+                f"unique-zero={d.get('unique-zero-unaccounted', 0)}, "
+                f"tiebreaker={d.get('tiebreaker', 0)}, "
+                f"no-canonical={d.get('no-canonical', 0)}",
+            ]
+        )
+    if result.get("cognates") is not None:
+        c = result["cognates"]
+        lines.extend(
+            [
+                "",
+                "### Cognate clustering",
+                f"- Roots walked: {c.get('roots', 0)}",
+                f"- Cognate_id assignments: {c.get('candidates', 0)}",
+            ]
+        )
+    if result.get("stratum") is not None:
+        s = result["stratum"]
+        lines.append("")
+        lines.append("### Stratum classification")
+        for lang, counts in s["languages"].items():
+            lines.append(
+                f"- {lang}: proposed={counts['proposed']}, "
+                f"written={counts.get('written', 0)}, "
+                f"skipped={counts.get('skipped', 0)}"
+            )
+    if result.get("english_shaped") is not None:
+        e = result["english_shaped"]
+        lines.extend(
+            [
+                "",
+                "### English-shaped derivation",
+                f"- Candidates: {e['candidates']}",
+                f"- Written: {e['written']}",
+                f"- Skipped (no input): {e['skipped_no_input']}",
+            ]
+        )
+    if result.get("period_forms") is not None:
+        p = result["period_forms"]
+        lines.extend(
+            [
+                "",
+                "### Period-form projection",
+                f"- Rows scanned: {p.get('rows_scanned', 0)}",
+                f"- Projected: {p.get('rows_projected', 0)}",
+                f"- Candidates: {p.get('candidates', 0)}",
+                f"- Rows written: {p.get('rows_written', 0)}",
+            ]
+        )
     return "\n".join(lines)

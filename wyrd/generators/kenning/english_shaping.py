@@ -494,3 +494,98 @@ def derive_english_shaped(
         return _ipa_to_english_fallback(pronunciation_ipa, language=language)
 
     return None
+
+
+# Languages targeted by the english_shaped derivation. Latin-script
+# source languages would yield None anyway (the function short-circuits
+# on Latin-script input), so we filter the candidate SELECT to the
+# wave-2 non-Latin set to avoid sweeping millions of OE / latin / etc.
+# rows that wouldn't yield anything. Mirror of cli.py's existing tuple
+# of the same name; the CLI command imports from here in Phase 2.
+PHASE2A_NON_LATIN_LANGS: tuple[str, ...] = (
+    "he",
+    "ar",
+    "fa",
+    "sa",
+    "akk",
+    "egy",
+    "arc",
+    "pal",
+    "hbo",
+    "peo",
+    "fa-cls",
+    "xpr",
+    "syc",
+    "cop",
+    "axm",
+    "pra",
+    "pi",
+)
+
+
+def derive_english_shaped_all(
+    db,  # LexiconDB — string-forward-ref via untyped to avoid circular
+    *,
+    apply: bool = True,
+    languages: tuple[str, ...] | None = None,
+    reshape: bool = False,
+) -> dict[str, int | dict[str, int]]:
+    """Uniform L3 wrapper for the ``derive-english-shaped`` pass —
+    walks etymon rows whose ``english_shaped`` is NULL (or all rows
+    when ``reshape=True``) and UPDATEs the row when
+    :func:`derive_english_shaped` produces a non-None result.
+
+    Wyrd-hidb Phase 2 plumbs this into ``run_full_enrichment``.
+
+    ``languages``: restrict to a tuple of source-language codes.
+    Defaults to :data:`PHASE2A_NON_LATIN_LANGS`. Passing ``("he",)``
+    etc. lets the CLI's ``--language`` filter reuse this wrapper.
+
+    Dry-run (``apply=False``) walks candidates but skips the UPDATE.
+    """
+    if languages is None:
+        languages = PHASE2A_NON_LATIN_LANGS
+
+    placeholders = ",".join("?" * len(languages))
+    where = f"language IN ({placeholders})"
+    if not reshape:
+        where += " AND english_shaped IS NULL"
+    rows = db.conn.execute(
+        f"""SELECT id, canonical_form, language,
+                   transliteration, pronunciation_ipa
+              FROM etymon
+             WHERE {where}
+             ORDER BY language, id""",  # noqa: S608 — fixed template, parameterized
+        languages,
+    ).fetchall()
+
+    written = 0
+    skipped_no_input = 0
+    by_language: dict[str, int] = {}
+    for row in rows:
+        shaped = derive_english_shaped(
+            canonical_form=row["canonical_form"],
+            language=row["language"],
+            transliteration=row["transliteration"],
+            pronunciation_ipa=row["pronunciation_ipa"],
+        )
+        if shaped is None:
+            skipped_no_input += 1
+            continue
+        written += 1
+        by_language[row["language"]] = by_language.get(row["language"], 0) + 1
+        if apply:
+            db.conn.execute(
+                "UPDATE etymon SET english_shaped = ? WHERE id = ?",
+                (shaped, row["id"]),
+            )
+    if apply:
+        db.commit()
+
+    return {
+        "applied": int(apply),
+        "candidates": len(rows),
+        "written": written,
+        "skipped_no_input": skipped_no_input,
+        "by_language": by_language,
+    }

@@ -27,7 +27,6 @@ import functools
 import json
 from collections.abc import Iterator
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
@@ -40,7 +39,6 @@ from wyrd.generators.kenning.meaning import (
     load_joiners,
     load_meanings,
 )
-
 
 # ---------------------------------------------------------------------------
 # Isolation autouses

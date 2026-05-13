@@ -634,6 +634,65 @@ def populate_and_pick(
     return pick_canonical_decomposition(db, toponym_id, word_db)
 
 
+def decompose_all(
+    db: LexiconDB,
+    *,
+    apply: bool = True,
+    word_db: dict | None = None,
+) -> dict[str, int]:
+    """Uniform L3 wrapper for the ``decompose`` pass — runs
+    :func:`populate_and_pick` against every toponym in ``db`` and
+    rolls up the rule-firing counts.
+
+    Wyrd-hidb Phase 2 plumbs this into ``run_full_enrichment``.
+    Dry-run (``apply=False``) rolls back the per-toponym writes so the
+    caller sees the rule-firing distribution without committing.
+
+    ``word_db`` is the matcher's word dictionary (loaded from the
+    runtime ``meanings.json`` bundle). Passing it explicitly keeps
+    this function pure relative to bundle resolution — tests inject
+    a synthetic word_db; the CLI / enrichment chain load the live
+    bundle at the call site.
+    """
+    if word_db is None:
+        import json
+        from importlib import resources
+
+        from wyrd.generators.kenning.meaning import load_meanings
+
+        bundle_text = (
+            resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
+        )
+        word_db, _ = load_meanings(json.loads(bundle_text))
+
+    rule_counts: dict[str, int] = {
+        "scholar": 0,
+        "scholar-disagreement": 0,
+        "unique-zero-unaccounted": 0,
+        "tiebreaker": 0,
+        "no-canonical": 0,
+    }
+    decompositions = 0
+    rows = db.conn.execute("SELECT id, modern_name FROM toponym ORDER BY id").fetchall()
+    for row in rows:
+        summary = populate_and_pick(db, row["id"], row["modern_name"], word_db)
+        decompositions += int(summary["decomposition_count"] or 0)
+        rule_key = summary["rule"] or "no-canonical"
+        rule_counts[rule_key] = rule_counts.get(rule_key, 0) + 1
+
+    if apply:
+        db.commit()
+    else:
+        db.conn.rollback()
+
+    return {
+        "applied": int(apply),
+        "toponyms_scanned": len(rows),
+        "decompositions": decompositions,
+        **rule_counts,
+    }
+
+
 # --- Phase 3 consumer integration -----------------------------------------
 #
 # Phase 1 stored every plausible decomposition + tagged a canonical pick;

@@ -687,6 +687,73 @@ def family_for_language(language: str) -> str | None:
     return LANGUAGE_TO_FAMILY.get(language)
 
 
+def classify_stratum_all(db, *, apply: bool = True) -> dict[str, dict[str, int]]:
+    """Uniform L3 wrapper for the ``classify-stratum`` pass — runs
+    the per-language classifiers (welsh, french, old-english,
+    old-norse) and persists the stratum assignments.
+
+    Wyrd-hidb Phase 2 plumbs this into ``run_full_enrichment``.
+
+    Returns per-language counts: how many etymons gained a stratum,
+    how many were skipped (already had one), and which strata fired
+    (sample counts per stratum label). Stratum overwrite is gated by
+    ``stratum IS NULL`` — re-running is idempotent. Operators who
+    need to reclassify a populated row use the standalone
+    ``lexicon classify-stratum --force`` path.
+
+    Dry-run (``apply=False``) runs the classifiers but skips the
+    UPDATE — useful for previewing how many rows would be tagged
+    before committing.
+    """
+    counts_by_language: dict[str, dict[str, int]] = {}
+    for language, classifier in (
+        ("welsh", classify_welsh),
+        ("french", classify_french),
+        ("old-english", classify_old_english),
+        ("old-norse", classify_old_norse),
+    ):
+        proposals = classifier(db)
+        if not proposals:
+            counts_by_language[language] = {"proposed": 0, "written": 0, "skipped": 0}
+            continue
+        written = 0
+        skipped = 0
+        # Stratum distribution counter for the per-language report
+        by_stratum: dict[str, int] = {}
+        if apply:
+            # Per-row UPDATE — simpler than the CLI's CASE-batched path
+            # because the enrichment chain commits at the end of the
+            # whole run rather than per-stratum-pass. The CASE-batched
+            # optimization matters at 100k+ rows / standalone CLI runs;
+            # within run_full_enrichment we're already on one
+            # transaction and only paying the syscall cost.
+            for etymon_id, stratum in proposals.items():
+                cur = db.conn.execute(
+                    "UPDATE etymon SET stratum = ? WHERE id = ? AND stratum IS NULL",
+                    (stratum, etymon_id),
+                )
+                if cur.rowcount:
+                    written += 1
+                    by_stratum[stratum] = by_stratum.get(stratum, 0) + 1
+                else:
+                    skipped += 1
+        else:
+            # Dry-run: count proposals without checking stratum-IS-NULL
+            # gate (operators preview what classifiers would assign;
+            # the gate's filtering effect is reported on real run).
+            for stratum in proposals.values():
+                by_stratum[stratum] = by_stratum.get(stratum, 0) + 1
+        counts_by_language[language] = {
+            "proposed": len(proposals),
+            "written": written,
+            "skipped": skipped,
+            "by_stratum": by_stratum,
+        }
+    if apply:
+        db.commit()
+    return {"applied": int(apply), "languages": counts_by_language}
+
+
 __all__ = [
     "ALL_STRATA",
     "FRENCH_STRATA",
@@ -698,6 +765,7 @@ __all__ = [
     "classify_french",
     "classify_old_english",
     "classify_old_norse",
+    "classify_stratum_all",
     "classify_welsh",
     "family_for_language",
     "valid_strata_for_culture",

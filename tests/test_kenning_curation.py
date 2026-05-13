@@ -520,7 +520,9 @@ def test_orchestrator_curation_overrides_auto_clustering(tmp_path: Path):
         }
     }
     with LexiconDB(db_path) as db:
-        result = run_full_enrichment(db, apply=True, curation_state=curation)
+        result = run_full_enrichment(
+            db, apply=True, curation_state=curation, skip_l3_derivations=True
+        )
     assert result["curation"] is not None
     assert result["order"] == ["normalize-ocr", "link-lemmas", "apply-curation"]
     assert result["curation"]["lemma_id_set"] == 1
@@ -547,6 +549,7 @@ def test_orchestrator_dry_run_validates_curation_without_writing(tmp_path: Path)
             db,
             apply=False,
             curation_state={"old-english:cætan": {"lemma_ref": "old-english:cæt"}},
+            skip_l3_derivations=True,
         )
     # Curation is reported even on dry-run, but with no writes.
     assert result["curation"] is not None
@@ -567,7 +570,7 @@ def test_orchestrator_without_curation_state_unchanged(tmp_path: Path):
     _add_etymon(db_path, "old-english", "cæt")
     _add_etymon(db_path, "old-english", "cætan")
     with LexiconDB(db_path) as db:
-        result = run_full_enrichment(db, apply=True)
+        result = run_full_enrichment(db, apply=True, skip_l3_derivations=True)
     assert result["curation"] is None
     assert result["order"] == ["normalize-ocr", "link-lemmas"]
 
