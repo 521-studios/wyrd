@@ -610,6 +610,24 @@ def test_build_orphan_refs_captured_as_sample(tmp_path: Path):
     assert "old-english:typo2" in counts["citation_orphan_refs"]
 
 
+def test_build_orphan_refs_capped_at_sample_limit(tmp_path: Path):
+    """Orphan-ref lists cap at ORPHAN_SAMPLE_LIMIT (50) so a bulk
+    prune with hundreds of orphans doesn't bloat the result dict.
+    Count remains accurate; only the ref-sample is bounded."""
+    from wyrd.generators.kenning.jsonl_build import ORPHAN_SAMPLE_LIMIT
+
+    rows: list[dict] = [{"_type": "source", "ref": "x", "title": "X"}]
+    n_orphans = ORPHAN_SAMPLE_LIMIT + 10
+    for i in range(n_orphans):
+        rows.append({"_type": "citation", "etymon_ref": f"old-english:typo{i}"})
+    _write_jsonl(tmp_path, "x", rows)
+    conn = _build_fixture_db()
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    assert counts["citation_orphans"] == n_orphans
+    # Sample size capped; count unaffected.
+    assert len(counts["citation_orphan_refs"]) == ORPHAN_SAMPLE_LIMIT
+
+
 def test_build_remove_event_drops_etymon_and_skips_citation_orphan(tmp_path: Path):
     """End-to-end: add an etymon + citation, then a 'remove' event on
     the etymon. After replay+build the etymon is gone and the citation
