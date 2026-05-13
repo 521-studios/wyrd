@@ -2462,8 +2462,10 @@ def lexicon_audit_etymology_alignment(
     "--language",
     "languages",
     multiple=True,
-    help="Restrict to named target languages (repeat for multiple). "
-    "Default: old-english, welsh, irish, old-french, latin.",
+    help="Restrict to named target bundle siblings (repeat for multiple). "
+    "Default: old_english, old_french, old_scandinavian, celtic_mix, latin. "
+    "Names use the bundle's underscore form (Welsh/Irish are conflated under "
+    "celtic_mix in the current bundle).",
 )
 def lexicon_rando_port_readiness(
     bundle_path: Path,

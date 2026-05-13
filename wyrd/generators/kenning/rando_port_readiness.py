@@ -31,6 +31,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .language_quality import _bundle_attestation_breakdown
+
 # Bundle-sibling keys this gate cares about. These are the runtime
 # bundle's column names (underscore-separated), not the DB's
 # language refs (hyphen-separated). Modern English isn't
@@ -120,23 +122,6 @@ def _sibling_for_language(language: str) -> str:
     return language.replace("-", "_")
 
 
-def _bundle_target_languages_present(bundle: Any, target_languages: Iterable[str]) -> list[str]:
-    """Return the subset of ``target_languages`` that have any
-    sibling appearance in the bundle. Languages with zero presence
-    are dropped silently — there's no rando-port story to gate on."""
-    from .language_quality import _bundle_subjects
-
-    subjects = _bundle_subjects(bundle)
-    present: list[str] = []
-    for lang in target_languages:
-        sibling = _sibling_for_language(lang)
-        for subj in subjects:
-            if any(w.get(sibling) for w in (subj.get("words") or [])):
-                present.append(lang)
-                break
-    return present
-
-
 def compute_readiness(
     bundle: Any,
     *,
@@ -144,8 +129,6 @@ def compute_readiness(
     coverage_threshold: float = DEFAULT_COVERAGE_THRESHOLD,
 ) -> ReadinessReport:
     """Score the readiness criteria against a loaded bundle."""
-    from .language_quality import _bundle_attestation_breakdown
-
     per_lang: list[LanguageCriterion] = []
     for lang in target_languages:
         breakdown = _bundle_attestation_breakdown(bundle, _sibling_for_language(lang))
