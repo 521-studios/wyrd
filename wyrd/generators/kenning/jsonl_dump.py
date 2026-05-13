@@ -380,6 +380,15 @@ DEFAULT_BULK_EXCLUDED_SOURCES: frozenset[str] = frozenset(
         # OS-URI provenance — the rebuild would resurrect a partial
         # source.
         "os_open_names",
+        # wyrd-3atv: Hundred Rolls (1279-80) ingester output.
+        # Operator-transcribed CSV → JSONL via lexicon
+        # ingest-hundred-rolls. Same CAVEAT as os_open_names: every
+        # attestation row carries source_doc provenance (hundred +
+        # county) that the current dump-jsonl path doesn't preserve,
+        # so a dump→rebuild cycle would silently drop the per-Roll
+        # provenance. Re-include this source in dumps only after
+        # attestation dump-side is in scope of build_from_jsonl.
+        "rotuli_hundredorum",
     }
 )
 
