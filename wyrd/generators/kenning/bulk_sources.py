@@ -24,13 +24,14 @@ actually need them so CLI startup stays fast for non-bulk paths.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 MANIFEST_PATH = Path("data/mining/_bulk_manifest.json")
 DEFAULT_CONFIG_PATH = Path.home() / ".wyrd" / "config.toml"
@@ -45,6 +46,12 @@ ENV_SOURCES_DIR = "WYRD_SOURCES_DIR"
 # Number of bytes per sha256 hashing chunk. 1 MiB is a good balance
 # between syscall overhead and memory pressure for ~100MB-3GB files.
 _HASH_CHUNK_SIZE = 1024 * 1024
+
+# zstd compression level for raw → .jsonl.zst conversion. Level 19
+# was the wyrd-0vj3-plan-sampled sweet spot for jsonl: ~7.4% ratio,
+# encode cost still tractable for the once-per-mine workflow. Decode
+# cost is constant-time regardless of level.
+_ZSTD_LEVEL = 19
 
 
 class ManifestError(ValueError):
@@ -337,7 +344,11 @@ def fetch_missing_slices(
     failed: list[tuple[str, str]] = []
     client = None
 
-    for slice_, status in zip(manifest.slices, statuses, strict=True):
+    # verify_local_cache builds statuses parallel to manifest.slices in
+    # order, so indexing-by-position is structurally safe — no need
+    # for zip strict-mode acrobatics.
+    for idx, slice_ in enumerate(manifest.slices):
+        status = statuses[idx]
         if wanted is not None and slice_.name not in wanted:
             continue
         if not force and not status.needs_fetch:
@@ -353,6 +364,11 @@ def fetch_missing_slices(
             client.download_file(config.bucket, slice_.s3_key, str(status.cache_path))
             actual = hash_file_sha256(status.cache_path)
             if actual != slice_.sha256:
+                # Remove the bad bytes so verify-bulk-sources doesn't
+                # report a stale present-but-mismatched state and a
+                # follow-up fetch starts from a clean slot.
+                with contextlib.suppress(OSError):
+                    status.cache_path.unlink()
                 failed.append(
                     (
                         slice_.name,
@@ -374,6 +390,36 @@ class UploadResult:
     skipped: list[str]
     failed: list[tuple[str, str]]
     new_manifest: Manifest
+
+
+def _resolve_local_form(slice_: Slice, config: Config) -> tuple[Path | None, int, str | None]:
+    """Decide which local file (if any) to upload for ``slice_``.
+
+    Returns ``(local_path, raw_size_bytes, fail_reason)``:
+
+    * ``(<.zst path>, raw_size, None)`` — pre-compressed cache hit;
+      ``raw_size`` is the .jsonl size if available, else the manifest's
+      ``raw_size_bytes`` (best available estimate).
+    * ``(<.zst path>, raw_size, None)`` — raw .jsonl present, was
+      successfully compressed to the .zst path as a side effect.
+    * ``(None, 0, "compression failed: ...")`` — raw .jsonl present but
+      compression raised. ``fail_reason`` carries the error message.
+    * ``(None, 0, None)`` — neither form present locally; not a failure,
+      just nothing to upload.
+    """
+    compressed_path = expected_slice_path(config, slice_)
+    raw_path = compressed_path.with_suffix("")  # strip .zst -> .jsonl
+
+    if compressed_path.exists():
+        raw_size = raw_path.stat().st_size if raw_path.exists() else slice_.raw_size_bytes
+        return compressed_path, raw_size, None
+    if raw_path.exists():
+        try:
+            _compress_raw_to_zst(raw_path, compressed_path)
+        except Exception as e:  # noqa: BLE001 — surface to caller
+            return None, 0, f"compression failed: {e}"
+        return compressed_path, raw_path.stat().st_size, None
+    return None, 0, None
 
 
 def upload_slices(
@@ -405,22 +451,13 @@ def upload_slices(
         if wanted is not None and slice_.name not in wanted:
             new_slices.append(slice_)
             continue
-        compressed_path = expected_slice_path(config, slice_)
-        raw_path = compressed_path.with_suffix("")  # strip .zst -> .jsonl
 
-        if compressed_path.exists():
-            local = compressed_path
-            raw_size = raw_path.stat().st_size if raw_path.exists() else slice_.raw_size_bytes
-        elif raw_path.exists():
-            try:
-                _compress_raw_to_zst(raw_path, compressed_path)
-            except Exception as e:  # noqa: BLE001
-                failed.append((slice_.name, f"compression failed: {e}"))
-                new_slices.append(slice_)
-                continue
-            local = compressed_path
-            raw_size = raw_path.stat().st_size
-        else:
+        local, raw_size, fail_reason = _resolve_local_form(slice_, config)
+        if fail_reason is not None:
+            failed.append((slice_.name, fail_reason))
+            new_slices.append(slice_)
+            continue
+        if local is None:
             skipped.append(slice_.name)
             new_slices.append(slice_)
             continue
@@ -466,12 +503,12 @@ def _compress_raw_to_zst(raw_path: Path, compressed_path: Path) -> None:
     deferred to keep CLI startup fast."""
     import zstandard
 
-    cctx = zstandard.ZstdCompressor(level=19)
+    cctx = zstandard.ZstdCompressor(level=_ZSTD_LEVEL)
     with raw_path.open("rb") as src, compressed_path.open("wb") as dst:
         cctx.copy_stream(src, dst)
 
 
-def open_jsonl(path: Path) -> Any:
+def open_jsonl(path: Path) -> TextIO:
     """Open a ``.jsonl`` or ``.jsonl.zst`` file for text reading.
 
     Used by ``ingest-wiktionary`` so a .jsonl.zst slice from the

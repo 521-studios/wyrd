@@ -395,6 +395,37 @@ def test_fetch_missing_slices_sha_mismatch_after_download_fails(tmp_path: Path):
     assert result.fetched == []
     assert len(result.failed) == 1
     assert "sha256 mismatch" in result.failed[0][1]
+    # The corrupt bytes are unlinked so verify-bulk-sources doesn't
+    # report a stale present-but-mismatched state on the next run.
+    assert not (tmp_path / "cache" / "xx.jsonl.zst").exists()
+
+
+class _RaisingS3Client:
+    """Stand-in that raises a generic exception on ``download_file``
+    — exercises the ``except Exception`` boto3-error path."""
+
+    def download_file(self, bucket: str, key: str, dest: str) -> None:
+        raise RuntimeError(f"simulated S3 failure on {key}")
+
+
+def test_fetch_missing_slices_generic_boto3_exception_routes_to_failed(tmp_path: Path):
+    """A boto3 download failure (network, NoSuchKey, AccessDenied,
+    anything) lands the slice in failed[] with the error message,
+    not in fetched[]. Keeps the bare-except path covered."""
+    slice_ = _make_slice()
+    m = Manifest(
+        schema_version=1,
+        bucket="b",
+        region="us-east-2",
+        s3_prefix="wiktextract/v1",
+        compression="zstd",
+        slices=(slice_,),
+    )
+    cfg = Config(bucket="b", region="us-east-2", profile=None, local_cache_dir=tmp_path)
+    result = fetch_missing_slices(m, cfg, s3_client=_RaisingS3Client())
+    assert result.fetched == []
+    assert len(result.failed) == 1
+    assert "simulated S3 failure" in result.failed[0][1]
 
 
 def test_fetch_missing_slices_skips_when_sha_matches(tmp_path: Path):
@@ -617,3 +648,166 @@ def test_open_jsonl_zstd(tmp_path: Path):
     with open_jsonl(p) as fh:
         out = fh.read()
     assert out == raw
+
+
+# ---------------------------------------------------------------------------
+# CLI smoke tests
+#
+# The bulk-source CLI commands wrap library helpers that are
+# thoroughly unit-tested above; these tests only exercise the CLI
+# wiring (Click option parsing, manifest path resolution, exit
+# codes, push-side manifest write-back). Each test patches
+# load_manifest / load_config / fetch / upload / verify on the
+# bulk_sources module so no real S3 or filesystem chatter happens.
+# ---------------------------------------------------------------------------
+
+
+def _patched_cli_test(monkeypatch, **overrides):
+    """Wire monkeypatch overrides onto wyrd.generators.kenning.bulk_sources.
+    Returns a CliRunner ready to invoke `cli`."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning import bulk_sources as bs
+
+    for name, value in overrides.items():
+        monkeypatch.setattr(bs, name, value)
+    return CliRunner()
+
+
+def test_cli_fetch_bulk_sources_dry_run_exits_zero(tmp_path: Path, monkeypatch):
+    """fetch-bulk-sources --dry-run: helper returns clean FetchResult,
+    CLI prints 'dry-run' marker and exits 0."""
+    from wyrd.generators.kenning.bulk_sources import FetchResult
+
+    manifest = _basic_manifest()
+    config = Config(bucket="b", region="us-east-2", profile=None, local_cache_dir=tmp_path)
+    calls: dict[str, object] = {}
+
+    def fake_fetch(m, c, *, slice_names=None, force=False, dry_run=False, s3_client=None):
+        calls.update(manifest_=m, config_=c, slice_names=slice_names, force=force, dry_run=dry_run)
+        return FetchResult(fetched=["wiktextract_xx"], skipped=[], failed=[])
+
+    runner = _patched_cli_test(
+        monkeypatch,
+        load_manifest=lambda *a, **kw: manifest,
+        load_config=lambda *a, **kw: config,
+        fetch_missing_slices=fake_fetch,
+    )
+    from wyrd.generators.kenning.cli import cli as cli_root
+
+    result = runner.invoke(cli_root, ["lexicon", "fetch-bulk-sources", "--dry-run"])
+    assert result.exit_code == 0, result.output
+    assert "dry-run" in result.output
+    assert calls["dry_run"] is True
+
+
+def test_cli_fetch_bulk_sources_failure_exits_one(tmp_path: Path, monkeypatch):
+    """A populated FetchResult.failed list → exit 1 + the reason
+    prints in the output. Lets CI / wrapper scripts detect the
+    fetch-broke condition without parsing markdown."""
+    from wyrd.generators.kenning.bulk_sources import FetchResult
+
+    runner = _patched_cli_test(
+        monkeypatch,
+        load_manifest=lambda *a, **kw: _basic_manifest(),
+        load_config=lambda *a, **kw: Config(
+            bucket="b", region="us-east-2", profile=None, local_cache_dir=tmp_path
+        ),
+        fetch_missing_slices=lambda *a, **kw: FetchResult(
+            fetched=[], skipped=[], failed=[("slice_a", "AccessDenied")]
+        ),
+    )
+    from wyrd.generators.kenning.cli import cli as cli_root
+
+    result = runner.invoke(cli_root, ["lexicon", "fetch-bulk-sources"])
+    assert result.exit_code == 1
+    assert "AccessDenied" in result.output
+
+
+def test_cli_push_bulk_sources_writes_new_manifest(tmp_path: Path, monkeypatch):
+    """push-bulk-sources success path: the upload helper's
+    new_manifest is written to the --manifest path on disk."""
+    from wyrd.generators.kenning.bulk_sources import Slice, UploadResult
+
+    manifest_path = tmp_path / "out_manifest.json"
+    starting_manifest = _basic_manifest()
+    updated = Manifest(
+        schema_version=1,
+        bucket="b",
+        region="us-east-2",
+        s3_prefix="wiktextract/v1",
+        compression="zstd",
+        slices=(Slice("wiktextract_xx", "wiktextract/v1/xx.jsonl.zst", "a" * 64, 100, 50),),
+    )
+
+    runner = _patched_cli_test(
+        monkeypatch,
+        load_manifest=lambda *a, **kw: starting_manifest,
+        load_config=lambda *a, **kw: Config(
+            bucket="b", region="us-east-2", profile=None, local_cache_dir=tmp_path
+        ),
+        upload_slices=lambda *a, **kw: UploadResult(
+            uploaded=["wiktextract_xx"], skipped=[], failed=[], new_manifest=updated
+        ),
+    )
+    from wyrd.generators.kenning.cli import cli as cli_root
+
+    result = runner.invoke(
+        cli_root, ["lexicon", "push-bulk-sources", "--manifest", str(manifest_path)]
+    )
+    assert result.exit_code == 0, result.output
+    assert manifest_path.exists()
+    written = json.loads(manifest_path.read_text())
+    assert written["slices"][0]["name"] == "wiktextract_xx"
+
+
+def test_cli_verify_bulk_sources_missing_exits_one(tmp_path: Path, monkeypatch):
+    """verify-bulk-sources reports mismatches + missing slices and
+    exits 1 so a wrapper script can detect drift."""
+    from wyrd.generators.kenning.bulk_sources import SliceStatus
+
+    runner = _patched_cli_test(
+        monkeypatch,
+        load_manifest=lambda *a, **kw: _basic_manifest(),
+        load_config=lambda *a, **kw: Config(
+            bucket="b", region="us-east-2", profile=None, local_cache_dir=tmp_path
+        ),
+        verify_local_cache=lambda *a, **kw: [
+            SliceStatus(
+                slice_name="wiktextract_xx",
+                cache_path=tmp_path / "xx.jsonl.zst",
+                present=False,
+                sha256_matches=False,
+            )
+        ],
+    )
+    from wyrd.generators.kenning.cli import cli as cli_root
+
+    result = runner.invoke(cli_root, ["lexicon", "verify-bulk-sources"])
+    assert result.exit_code == 1
+    assert "MISSING" in result.output
+
+
+def test_cli_verify_bulk_sources_clean_exits_zero(tmp_path: Path, monkeypatch):
+    """All slices present + sha-matched → exit 0."""
+    from wyrd.generators.kenning.bulk_sources import SliceStatus
+
+    runner = _patched_cli_test(
+        monkeypatch,
+        load_manifest=lambda *a, **kw: _basic_manifest(),
+        load_config=lambda *a, **kw: Config(
+            bucket="b", region="us-east-2", profile=None, local_cache_dir=tmp_path
+        ),
+        verify_local_cache=lambda *a, **kw: [
+            SliceStatus(
+                slice_name="wiktextract_xx",
+                cache_path=tmp_path / "xx.jsonl.zst",
+                present=True,
+                sha256_matches=True,
+            )
+        ],
+    )
+    from wyrd.generators.kenning.cli import cli as cli_root
+
+    result = runner.invoke(cli_root, ["lexicon", "verify-bulk-sources"])
+    assert result.exit_code == 0, result.output
