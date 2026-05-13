@@ -349,16 +349,27 @@ def dump_source_to_rows(conn: sqlite3.Connection, source_id: str) -> list[dict[s
     return rows
 
 
-# Sources whose contribution is entirely re-derivable from L1 raw inputs
-# (Wiktextract dumps in ``sources/``). Their dump would produce huge files
-# that don't belong in git — instead the build pipeline re-runs the
-# wiktextract ingester to recreate their rows. Operators can override this
-# default to dump them anyway (for one-off diffing, archival, etc.).
+# Sources skipped by ``dump-jsonl`` by default, for two reasons:
+#
+# 1. Bulk wiktextract-derived sources whose contribution is re-derivable
+#    from L1 raw inputs (``sources/wiktextract_*.jsonl``). Their dump
+#    would produce huge files that don't belong in git — the build
+#    pipeline re-runs the wiktextract ingester to recreate their rows.
+# 2. The synthetic ``manual-curation`` source (wyrd-2jhs / wyrd-tzf2)
+#    whose JSONL file is operator-maintained at
+#    ``data/mining/_curation.jsonl``. Dumping it would create a competing
+#    ``manual-curation.jsonl`` and overwrite-by-accident the hand-
+#    authored curation events that don't survive as DB rows.
+#
+# Operators can override this default (``--include-bulk`` CLI flag, or
+# pass ``exclude=()`` to :func:`dump_all_sources`) for one-off diffing
+# or archival.
 DEFAULT_BULK_EXCLUDED_SOURCES: frozenset[str] = frozenset(
     {
         "wiktionary",
         "wiktionary-empirical",
         "wiktionary-forms",
+        "manual-curation",
     }
 )
 
