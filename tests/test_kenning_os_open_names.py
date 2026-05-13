@@ -136,6 +136,22 @@ def test_normalize_row_handles_null_region():
     assert "region" not in toponym
 
 
+def test_iter_csv_rows_detects_column_drift(tmp_path: Path):
+    """OS Open Names schema has evolved across releases (e.g. CENSUS_CODE
+    added). A CSV with surplus columns triggers ColumnDriftError instead
+    of silently misaligning every column after the drift point."""
+    from wyrd.generators.kenning.os_open_names_ingester import ColumnDriftError
+
+    # 36 fields where _COLUMNS expects 34. csv.DictReader will put the
+    # 2 extra values under the None key, which the guard checks for.
+    csv_path = tmp_path / "drifted.csv"
+    csv_path.write_text(",".join(f'"v{i}"' for i in range(36)) + "\n")
+    import pytest
+
+    with pytest.raises(ColumnDriftError, match="more columns than expected"):
+        list(iter_csv_rows(csv_path))
+
+
 def test_normalize_row_skips_empty_name():
     """A blank NAME1 isn't a place, even if all other fields are valid."""
     row = {

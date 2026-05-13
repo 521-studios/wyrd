@@ -178,15 +178,45 @@ def _normalize_row(row: dict[str, str]) -> tuple[dict[str, Any], dict[str, Any]]
     return toponym_event, attestation_event
 
 
+class ColumnDriftError(ValueError):
+    """Raised when the OS Open Names CSV's column count doesn't match
+    :data:`_COLUMNS`. Per OS release notes, the layout has evolved
+    across data product versions (e.g. ``CENSUS_CODE`` added in one
+    revision), so we fail loudly rather than letting csv.DictReader
+    silently misalign the surplus columns under the ``None`` key."""
+
+
 def iter_csv_rows(csv_path: str | Path) -> Iterable[dict[str, str]]:
     """Yield CSV rows as dicts. Yields raw rows — caller filters.
 
     OS Open Names CSVs ship WITHOUT a header line (header lives in a
     separate doc spec), so the reader supplies column names explicitly
-    from :data:`_COLUMNS`."""
+    from :data:`_COLUMNS`.
+
+    Guards against silent column-count drift: if the first row has a
+    different field count than ``_COLUMNS``, raises
+    :class:`ColumnDriftError`. Without this check, a new OS release
+    that adds a column (e.g. ``CENSUS_CODE``) would silently
+    misalign every column after the drift point.
+    """
     with open(csv_path, encoding="utf-8", newline="") as fh:
         reader = csv.DictReader(fh, fieldnames=list(_COLUMNS))
-        yield from reader
+        first = True
+        for row in reader:
+            if first:
+                first = False
+                # The "extra columns" key DictReader uses to capture
+                # surplus values is the literal None — checking for
+                # its presence catches drift cheaply.
+                extras = row.get(None)
+                if extras:
+                    raise ColumnDriftError(
+                        f"OS Open Names CSV has more columns than expected "
+                        f"({len(_COLUMNS) + len(extras)} vs {len(_COLUMNS)}). "
+                        f"Schema may have drifted in a new OS release — "
+                        f"update _COLUMNS in os_open_names_ingester.py."
+                    )
+            yield row
 
 
 def build_events(

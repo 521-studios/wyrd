@@ -373,6 +373,12 @@ DEFAULT_BULK_EXCLUDED_SOURCES: frozenset[str] = frozenset(
         # wyrd-3ypp: OS Open Names data product. ~200K populated-place
         # rows regenerated on demand from the L1 CSV in sources/;
         # dump-jsonl would produce a competing 30+MB file otherwise.
+        # CAVEAT: before removing from this list, implement
+        # attestation dump-side (build_from_jsonl's "Out of scope"
+        # section). Without it, dump-jsonl would emit toponym rows
+        # but silently drop the per-row attestations that carry the
+        # OS-URI provenance — the rebuild would resurrect a partial
+        # source.
         "os_open_names",
     }
 )
