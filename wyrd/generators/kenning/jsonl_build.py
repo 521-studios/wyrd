@@ -324,6 +324,13 @@ def build_from_jsonl(
         "mining_run": 0,
         "etymology_element": 0,
         "etymology_element_dupes_skipped": 0,
+        # Orphan counts (wyrd-lene): when a fact-row references an
+        # entity that was removed via a kernel ``remove`` event, the
+        # row is skipped rather than raising. Operators get telemetry
+        # so unexpected orphans are still visible.
+        "citation_orphans": 0,
+        "etymon_descent_orphans": 0,
+        "etymology_element_orphans": 0,
     }
 
     # ----- Pass 1: replay every file, accumulate merged state.
@@ -359,12 +366,21 @@ def build_from_jsonl(
         counts["toponym"] += 1
 
     # ----- Pass 3: source-attributed list rows.
-    for path, source_id, state in file_states:
+    #
+    # Refs that don't resolve (the referenced entity was removed via a
+    # kernel ``remove`` event — wyrd-lene) are counted as orphans and
+    # skipped, not raised. Operators get the counts in the result dict
+    # so unexpected orphans (typos, stale refs) are still visible —
+    # they just don't abort the build. This makes ``remove`` events on
+    # toponyms / etymons safe to apply without manually cleaning up
+    # every referencing fact-row first.
+    for _path, source_id, state in file_states:
         for row in state.lists["citation"]:
             eref = row["etymon_ref"]
             eid = etymon_id_by_ref.get(eref)
             if eid is None:
-                raise BuildError(f"{path}: citation references unknown etymon {eref!r}")
+                counts["citation_orphans"] += 1
+                continue
             _insert_citation(conn, eid, source_id, row)
             counts["citation"] += 1
 
@@ -372,10 +388,8 @@ def build_from_jsonl(
             pid = etymon_id_by_ref.get(row["parent_ref"])
             cid = etymon_id_by_ref.get(row["child_ref"])
             if pid is None or cid is None:
-                raise BuildError(
-                    f"{path}: etymon_descent references unknown etymon "
-                    f"(parent={row['parent_ref']!r}, child={row['child_ref']!r})"
-                )
+                counts["etymon_descent_orphans"] += 1
+                continue
             _insert_descent(conn, pid, cid, source_id, row)
             counts["etymon_descent"] += 1
 
@@ -394,7 +408,15 @@ def build_from_jsonl(
             tref = row["toponym_ref"]
             tid = toponym_id_by_ref.get(tref)
             if tid is None:
-                raise BuildError(f"{path}: etymology_element references unknown toponym {tref!r}")
+                counts["etymology_element_orphans"] += 1
+                continue
+            # Element-list etymon_refs are validated inside
+            # _insert_etymology_element (raises BuildError on a missing
+            # ref). When etymons are removed, the elements that name them
+            # need their parent toponym_etymology row removed too — but
+            # the orphan check is currently coarse (skip on bad toponym
+            # only). A future change can also count + skip on bad
+            # element etymon_refs if operator workflow demands.
             fingerprint = _etymology_element_fingerprint(row)
             if fingerprint in seen_etymology_fingerprints:
                 counts["etymology_element_dupes_skipped"] += 1

@@ -2639,6 +2639,57 @@ def lexicon_curate_etymon(
     click.echo(f"Appended curation event for `{etymon_ref}` → {curation_file}", err=True)
 
 
+@lexicon.command("prune-toponym")
+@click.argument("toponym_ref")
+@click.argument("source_id")
+@click.option(
+    "--reason",
+    default=None,
+    help=("Operator note. Doesn't affect the DB; recorded in the JSONL event for git-blame audit."),
+)
+@click.option(
+    "--jsonl-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=Path("data/mining"),
+    show_default=True,
+)
+def lexicon_prune_toponym(
+    toponym_ref: str, source_id: str, reason: str | None, jsonl_dir: Path
+) -> None:
+    """Append a 'remove' event for a toponym to its source's L2 file (wyrd-lene).
+
+    TOPONYM_REF is the toponym to prune ('Cart@Herefordshire'). SOURCE_ID
+    is the source whose JSONL file owns the toponym row (must already
+    exist as <jsonl-dir>/<source_id>.jsonl).
+
+    On the next `lexicon rebuild-from-jsonl`, the toponym row is dropped
+    from the DB and any etymology_element rows referencing it are
+    counted as orphans + skipped. Operator commits the JSONL change in
+    git; reverting is appending an 'add' event with the original data.
+    """
+    target_file = jsonl_dir / f"{source_id}.jsonl"
+    if not target_file.exists():
+        raise click.UsageError(
+            f"Source file not found: {target_file}. Use --jsonl-dir to point at the right directory."
+        )
+
+    payload: dict[str, str | None] = {
+        "_op": "remove",
+        "_type": "toponym",
+        "ref": toponym_ref,
+    }
+    if reason is not None:
+        # Carried as a JSON key but ignored by the kernel (remove ops
+        # discard payload beyond _type + ref); useful for git blame.
+        payload["_reason"] = reason
+
+    with target_file.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(payload, ensure_ascii=False))
+        fh.write("\n")
+
+    click.echo(f"Appended remove event for toponym `{toponym_ref}` → {target_file}", err=True)
+
+
 @lexicon.command("enrichment-status")
 @click.option(
     "--db",

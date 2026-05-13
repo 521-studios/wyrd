@@ -504,7 +504,11 @@ def test_build_rejects_file_with_multiple_sources(tmp_path: Path):
         build_from_jsonl(conn, jsonl_paths_in(tmp_path))
 
 
-def test_build_rejects_citation_to_unknown_etymon(tmp_path: Path):
+def test_build_orphan_citation_skipped_not_raised(tmp_path: Path):
+    """Per wyrd-lene: a citation referencing a removed etymon is
+    counted as an orphan and skipped, not raised. Lets ``remove``
+    events on etymons be applied without manually cleaning every
+    referencing fact-row first."""
     _write_jsonl(
         tmp_path,
         "x",
@@ -514,11 +518,12 @@ def test_build_rejects_citation_to_unknown_etymon(tmp_path: Path):
         ],
     )
     conn = _build_fixture_db()
-    with pytest.raises(BuildError, match="unknown etymon"):
-        build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    assert counts["citation"] == 0
+    assert counts["citation_orphans"] == 1
 
 
-def test_build_rejects_descent_to_unknown_etymon(tmp_path: Path):
+def test_build_orphan_descent_skipped_not_raised(tmp_path: Path):
     _write_jsonl(
         tmp_path,
         "x",
@@ -533,27 +538,58 @@ def test_build_rejects_descent_to_unknown_etymon(tmp_path: Path):
         ],
     )
     conn = _build_fixture_db()
-    with pytest.raises(BuildError, match="unknown etymon"):
-        build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    assert counts["etymon_descent"] == 0
+    assert counts["etymon_descent_orphans"] == 1
 
 
-def test_build_rejects_element_ref_to_unknown_etymon(tmp_path: Path):
+def test_build_orphan_etymology_element_skipped_not_raised(tmp_path: Path):
+    """An etymology_element referencing a REMOVED toponym is skipped
+    + counted. (Element-ref to a missing etymon is still a BuildError
+    because that path runs inside _insert_etymology_element; coarse
+    orphan check at the toponym level only.)"""
     _write_jsonl(
         tmp_path,
         "x",
         [
             {"_type": "source", "ref": "x", "title": "X"},
-            {"_type": "toponym", "ref": "Foo@-", "modern_name": "Foo"},
             {
                 "_type": "etymology_element",
-                "toponym_ref": "Foo@-",
-                "elements": [{"ordinal": 1, "etymon_ref": "old-english:ghost"}],
+                "toponym_ref": "Ghost@-",
+                "elements": [],
             },
         ],
     )
     conn = _build_fixture_db()
-    with pytest.raises(BuildError, match="unknown etymon"):
-        build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    assert counts["etymology_element"] == 0
+    assert counts["etymology_element_orphans"] == 1
+
+
+def test_build_remove_event_drops_etymon_and_skips_citation_orphan(tmp_path: Path):
+    """End-to-end: add an etymon + citation, then a 'remove' event on
+    the etymon. After replay+build the etymon is gone and the citation
+    is counted as an orphan."""
+    _write_jsonl(
+        tmp_path,
+        "x",
+        [
+            {"_type": "source", "ref": "x", "title": "X"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:ghost",
+                "language": "old-english",
+                "canonical_form": "ghost",
+            },
+            {"_type": "citation", "etymon_ref": "old-english:ghost"},
+            {"_op": "remove", "_type": "etymon", "ref": "old-english:ghost"},
+        ],
+    )
+    conn = _build_fixture_db()
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    # Etymon removed at replay; citation orphaned at insert.
+    assert counts["etymon"] == 0
+    assert counts["citation_orphans"] == 1
 
 
 # ---------------------------------------------------------------------------
