@@ -251,6 +251,22 @@ lexicon enrichment-status           # verify coverage
 lexicon classify-stratum --apply --force
 ```
 
+### Pre-release drift check (wyrd-w3x0)
+
+Before re-exporting the committed `wyrd/generators/kenning/data/meanings.json`,
+run `diff-bundle` to see what the rebuild would change:
+
+```bash
+lexicon diff-bundle           # uses defaults: data/mining/ + committed bundle
+# Exit 0 = byte-identical.
+# Exit 1 = drift → structured summary names added/removed/changed
+#          subjects + first byte divergence window.
+```
+
+Pairs with `diff-rebuild` (which compares L2 row counts only):
+`diff-rebuild` catches JSONL pipeline regressions; `diff-bundle`
+catches export-side drift those counts miss.
+
 ### Manual curation (post-Phase-3 pattern)
 
 When ingesters emit events (Phase 3 work), curation flows as:
