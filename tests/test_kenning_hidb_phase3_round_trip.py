@@ -27,7 +27,6 @@ apply-curation).
 from __future__ import annotations
 
 import json
-import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -218,22 +217,14 @@ def test_round_trip_rebuild_enrich_export_byte_identical(tmp_path: Path) -> None
     # tables (per L2_L3_BOUNDARY); L3 columns are NOT in the dump.
     dump_dir = tmp_path / "dumped"
     dump_dir.mkdir()
-    conn = sqlite3.connect(pre_db_path)
-    conn.row_factory = sqlite3.Row
-    try:
-        dump_all_sources(conn, dump_dir, exclude=())
-    finally:
-        conn.close()
+    with LexiconDB(pre_db_path) as db:
+        dump_all_sources(db.conn, dump_dir, exclude=())
 
     # Wipe + rebuild from the dumped JSONL set.
     rebuilt_db_path = tmp_path / "rebuilt.db"
     init_schema(rebuilt_db_path)
-    rebuilt_conn = sqlite3.connect(rebuilt_db_path)
-    rebuilt_conn.row_factory = sqlite3.Row
-    try:
-        build_from_jsonl(rebuilt_conn, jsonl_paths_in(dump_dir))
-    finally:
-        rebuilt_conn.close()
+    with LexiconDB(rebuilt_db_path) as db:
+        build_from_jsonl(db.conn, jsonl_paths_in(dump_dir))
 
     bundle_rebuilt = _enrich_and_export_bundle(rebuilt_db_path)
 
@@ -251,12 +242,8 @@ def test_round_trip_dump_directory_is_jsonl_only(tmp_path: Path) -> None:
 
     dump_dir = tmp_path / "dumped"
     dump_dir.mkdir()
-    conn = sqlite3.connect(pre_db_path)
-    conn.row_factory = sqlite3.Row
-    try:
-        dump_all_sources(conn, dump_dir, exclude=())
-    finally:
-        conn.close()
+    with LexiconDB(pre_db_path) as db:
+        dump_all_sources(db.conn, dump_dir, exclude=())
 
     files = sorted(p.name for p in dump_dir.iterdir())
     # One JSONL per source. _curation.jsonl is dumped too (always emitted by
