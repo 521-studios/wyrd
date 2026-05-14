@@ -543,6 +543,16 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
                 f"written={counts.get('written', 0)}, "
                 f"skipped={counts.get('skipped', 0)}"
             )
+            # Stratum distribution: same shape as the rule-firings line
+            # in the decomposition section. Sorted for deterministic
+            # report output (the underlying dict is built by
+            # classify_stratum_all in proposal-iteration order).
+            by_stratum = counts.get("by_stratum") or {}
+            if by_stratum:
+                breakdown = ", ".join(
+                    f"{stratum}={n}" for stratum, n in sorted(by_stratum.items())
+                )
+                lines.append(f"  - by stratum: {breakdown}")
     if result.get("english_shaped") is not None:
         e = result["english_shaped"]
         lines.extend(

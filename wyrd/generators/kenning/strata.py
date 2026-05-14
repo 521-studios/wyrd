@@ -744,11 +744,31 @@ def classify_stratum_all(db, *, apply: bool = True) -> dict[str, dict[str, int]]
                 else:
                     skipped += 1
         else:
-            # Dry-run: count proposals without checking stratum-IS-NULL
-            # gate (operators preview what classifiers would assign;
-            # the gate's filtering effect is reported on real run).
-            for stratum in proposals.values():
-                by_stratum[stratum] = by_stratum.get(stratum, 0) + 1
+            # Dry-run: model the apply-true behavior by applying the same
+            # stratum-IS-NULL gate (review finding on PR #199). Without
+            # this, by_stratum/written/skipped over-report by the count
+            # of etymons already classified, which is exactly the gap
+            # operators rely on dry-run to predict before committing.
+            # Single batched SELECT keeps this fast: one query instead of
+            # one per proposed etymon.
+            proposal_ids = list(proposals.keys())
+            null_stratum_ids: set[int] = set()
+            for chunk_start in range(0, len(proposal_ids), 500):
+                chunk = proposal_ids[chunk_start : chunk_start + 500]
+                placeholders = ",".join("?" * len(chunk))
+                null_stratum_ids.update(
+                    row["id"]
+                    for row in db.conn.execute(
+                        f"SELECT id FROM etymon WHERE stratum IS NULL AND id IN ({placeholders})",
+                        chunk,
+                    )
+                )
+            for etymon_id, stratum in proposals.items():
+                if etymon_id in null_stratum_ids:
+                    written += 1
+                    by_stratum[stratum] = by_stratum.get(stratum, 0) + 1
+                else:
+                    skipped += 1
         counts_by_language[language] = {
             "proposed": len(proposals),
             "written": written,
