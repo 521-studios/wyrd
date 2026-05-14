@@ -59,19 +59,45 @@ _FIXTURE_LANGUAGES = ["old-english", "welsh"]
 def _populate_fixture(db_path: Path) -> None:
     """Same shape as the Phase 3 round-trip fixture — minimum content
     needed to produce a non-empty dashboard for old-english + welsh
-    AND exercise each L3 pass (cluster-ocr, link-lemmas, decompose,
-    cluster-cognates, classify-stratum, derive-english-shaped,
-    project-period-forms, apply-curation)."""
+    AND exercise each L3 pass in the canonical orchestrator order
+    (normalize-ocr → link-lemmas → apply-curation → decompose →
+    cluster-cognates → classify-stratum → derive-english-shaped →
+    project-period-forms).
+
+    Also seeds a rando-port-only etymon (``ham``) so the bundle's
+    attestation breakdown has a non-zero ``uncited`` bin: the export
+    filters ``rando-port`` from the per-word citation list (per
+    ``_NON_SCHOLAR_SOURCES`` in lexicon.py), so a rando-only family
+    ships with an empty citation list and the classifier bins it as
+    ``uncited`` (the ``rando_only`` bin only fires on legacy bundles
+    that didn't apply that filter). Without this etymon the four-bin
+    equality assertion would pass vacuously on three of the four bins
+    — only ``scholar_attested`` would have a non-zero value to
+    compare."""
     init_schema(db_path)
     with LexiconDB(db_path) as db:
         db.upsert_source(id="skeat", title="Skeat — Cambridgeshire", year=1901)
         db.upsert_source(id="mawer", title="Mawer — N&D", year=1920)
         db.upsert_source(id="ekwall", title="Ekwall — Lancashire", year=1922)
+        # rando-port is the legacy hand-curated seed source. Cited
+        # etymons admitted via this source land in the bundle as
+        # ``rando_only`` (no scholar witnesses) — needed below so the
+        # attestation breakdown test has a non-zero count to compare.
+        db.upsert_source(id="rando-port", title="Rando-port legacy seed", year=2020)
 
         cot_id = db.upsert_etymon("cot", "old-english")
         tun_id = db.upsert_etymon("tun", "old-english")
         proto_id = db.upsert_etymon("*tunaz", "proto-germanic")
         brae_id = db.upsert_etymon("brae", "welsh")
+        # rando-only etymon: cited solely by 'rando-port', no scholar
+        # witnesses → admitted via include_rando=True, then the bundle
+        # export drops 'rando-port' from the per-word citation list
+        # (lexicon.py:_NON_SCHOLAR_SOURCES). The dashboard's
+        # _bundle_attestation_breakdown then bins this as ``uncited``
+        # (empty citation list, language sibling present) — not
+        # ``rando_only`` (which only fires on legacy bundles without
+        # the rando-port filter).
+        ham_id = db.upsert_etymon("ham", "old-english")
 
         for gloss in ("cottage", "hut"):
             db.conn.execute(
@@ -85,6 +111,10 @@ def _populate_fixture(db_path: Path) -> None:
         db.conn.execute(
             "INSERT INTO etymon_gloss (etymon_id, gloss) VALUES (?, 'hill')",
             (brae_id,),
+        )
+        db.conn.execute(
+            "INSERT INTO etymon_gloss (etymon_id, gloss) VALUES (?, 'homestead')",
+            (ham_id,),
         )
         for tag in ("architecture", "settlement"):
             db.conn.execute(
@@ -103,6 +133,14 @@ def _populate_fixture(db_path: Path) -> None:
             (cot_id, {"skeat": "15", "mawer": "7", "ekwall": "201"}),
             (tun_id, {"skeat": "20", "mawer": "8", "ekwall": "202"}),
             (brae_id, {"skeat": "33", "mawer": "9"}),
+            # ham_id intentionally gets ONLY a rando-port citation so the
+            # bundle attestation breakdown's ``uncited`` bin is non-zero
+            # in both pre and rebuilt reports. The bundle export filters
+            # rando-port out of citation lists (lexicon.py:
+            # _NON_SCHOLAR_SOURCES), so ham ships with no citations and
+            # bins as ``uncited`` — without this etymon the four-bin
+            # equality would pass vacuously on three bins.
+            (ham_id, {"rando-port": "1"}),
         ):
             for source_id, page in page_map.items():
                 db.conn.execute(
@@ -153,6 +191,16 @@ def _enrich_and_export_bundle(db_path: Path, jsonl_dir: Path) -> dict[str, Any]:
     ``collect_curation_overrides`` so curation_state matches what the
     CLI rebuild path uses."""
     paths = jsonl_paths_in(jsonl_dir)
+    # ``or None`` mirrors the CLI's ``lexicon rebuild-from-jsonl`` path
+    # (cli.py:lexicon_rebuild_from_jsonl). Note the silent semantic:
+    # an empty curation dict coerces to None, which makes
+    # run_full_enrichment skip apply_curation_overrides entirely (vs
+    # running it as a no-op). For the round-trip dashboard test this
+    # doesn't matter — both pre and rebuilt go through the same
+    # coercion, so the dashboard's scorecards stay symmetric. The
+    # alternative (always pass {} so apply-curation runs as no-op)
+    # would be a stronger test of pass-exercise but would diverge
+    # from what the production CLI actually does.
     curation_state = collect_curation_overrides(paths) or None
     with LexiconDB(db_path) as db:
         run_full_enrichment(db, apply=True, curation_state=curation_state)
@@ -168,9 +216,10 @@ def _enrich_and_export_bundle(db_path: Path, jsonl_dir: Path) -> dict[str, Any]:
 
 
 def _compute_dashboard(db_path: Path, bundle: dict[str, Any]) -> LanguageQualityReport:
-    """Run ``compute_report`` against an open connection to ``db_path``.
-    Restricts to the fixture's languages so we don't waste cycles on
-    every DEFAULT_LANGUAGE entry the report would otherwise touch."""
+    """Open ``db_path`` and run ``compute_report`` against its
+    connection. Restricts to the fixture's languages so we don't waste
+    cycles on every DEFAULT_LANGUAGE entry the report would otherwise
+    touch."""
     with LexiconDB(db_path) as db:
         return compute_report(
             db.conn,
@@ -261,8 +310,10 @@ def _setup_pre_state(tmp_path: Path) -> tuple[Path, dict[str, Any], Path]:
 
 
 def _rebuild_from_jsonl(target_db: Path, jsonl_dir: Path) -> None:
-    """Init a fresh schema at ``target_db``, replay the JSONL set, run
-    enrichment. Mirrors ``lexicon rebuild-from-jsonl --with-enrichment``."""
+    """Init a fresh schema at ``target_db`` and replay the JSONL set.
+    L2 only — callers must follow with ``_enrich_and_export_bundle``
+    to run the L3 chain. (Split this way so a future negative test
+    can mutate the rebuilt L2 state between rebuild and enrich.)"""
     init_schema(target_db)
     with LexiconDB(target_db) as db:
         build_from_jsonl(db.conn, jsonl_paths_in(jsonl_dir))
@@ -300,12 +351,29 @@ def test_dashboard_scorecards_byte_match_across_round_trip(tmp_path: Path) -> No
 
 def test_dashboard_attestation_breakdown_specifically_byte_matches(tmp_path: Path) -> None:
     """Narrower version of the round-trip test focused on the four bin
-    counts wyrd-hidb's acceptance criterion names by name:
-    scholar_attested / empirical_only / rando_only / uncited. Pins these
-    even if a future change loosens the broader scorecard equality
-    above (e.g. adds a non-deterministic field)."""
+    counts wyrd-hidb's acceptance criterion names by name —
+    ``scholar_attested`` / ``empirical_only`` / ``rando_only`` /
+    ``uncited`` — plus the ``bundle_attestation_total`` denominator
+    they're rates of. Pins these even if a future change loosens the
+    broader scorecard equality above (e.g. adds a new
+    non-deterministic field)."""
     pre_db, pre_bundle, jsonl_dir = _setup_pre_state(tmp_path)
     pre_report = _compute_dashboard(pre_db, pre_bundle)
+
+    # Sanity: the fixture's bundle attestation is non-degenerate AND
+    # at least two of the four named bins (scholar_attested, uncited)
+    # are non-zero — otherwise the bin-equality assertion would pass
+    # vacuously on the all-zero bins. _populate_fixture seeds a
+    # rando-port-only etymon specifically so the uncited bin fires.
+    pre_totals = sum(card.bundle_attestation_total for card in pre_report.languages)
+    pre_scholar = sum(card.bundle_scholar_attested for card in pre_report.languages)
+    pre_uncited = sum(card.bundle_uncited for card in pre_report.languages)
+    assert pre_totals > 0, "fixture's attestation total is zero — bin equality is vacuous"
+    assert pre_scholar > 0, "fixture has no scholar_attested subjects"
+    assert pre_uncited > 0, (
+        "fixture has no uncited subjects — the rando-port-only ham etymon should "
+        "have produced one; check _NON_SCHOLAR_SOURCES filter still applies"
+    )
 
     rebuilt_db = tmp_path / "rebuilt.db"
     _rebuild_from_jsonl(rebuilt_db, jsonl_dir)
@@ -367,12 +435,17 @@ def test_dashboard_drift_detector_catches_dropped_citations(tmp_path: Path) -> N
     assert pre_dict != rebuilt_dict, "dropping citations should produce dashboard drift"
 
     # The diff formatter must surface the change. The exact field that
-    # diverges depends on which metrics read citation_count; the broad
-    # 'etymons_with_citations' is the most direct signal.
+    # diverges depends on which metrics read citation_count;
+    # ``avg_citations`` sorts to the top of the alphabetical field
+    # list ('a' prefix) so the default ``max_diffs`` cap can't push
+    # it out of the rendered summary — pin that field specifically.
+    # Using max_diffs=None (effectively uncapped) when calling the
+    # formatter would also work, but pinning a fixed-position field
+    # exercises the default rendering operators actually see.
     formatted = _format_dashboard_drift(pre_dict, rebuilt_dict)
     assert "Dashboard drift detected" in formatted
-    assert "etymons_with_citations" in formatted or "avg_citations" in formatted, (
-        "drift formatter should name a citation-related field on this scenario"
+    assert "avg_citations" in formatted, (
+        "drift formatter should name avg_citations on a dropped-citations scenario"
     )
 
 
@@ -391,6 +464,54 @@ def test_report_to_comparable_strips_generated_at(tmp_path: Path) -> None:
     full_blob = asdict(report)
     expected_keys = set(full_blob.keys()) - {"generated_at"}
     assert set(blob.keys()) == expected_keys
+
+
+def test_format_dashboard_drift_no_drift_returns_marker() -> None:
+    """Early-return path: two identical dicts produce '(no drift)'.
+    Load-bearing for the test-pass case — if the formatter ever
+    started reporting something else for matching reports, the
+    integration tests' assertion messages would degrade."""
+    same = {"schema_version": "1.0", "languages": []}
+    assert _format_dashboard_drift(same, same) == "(no drift)"
+
+
+def test_format_dashboard_drift_reports_top_level_scalar_change() -> None:
+    """Top-level scalar field changes (not 'languages') are surfaced
+    in the rendered summary. Pinned because the integration-level
+    negative test only exercises per-language field drift; this
+    branch would otherwise go untested."""
+    pre = {"schema_version": "1.0", "bundle_total_words": 100, "languages": []}
+    rebuilt = {"schema_version": "1.0", "bundle_total_words": 150, "languages": []}
+    rendered = _format_dashboard_drift(pre, rebuilt)
+    assert "top-level bundle_total_words" in rendered
+    assert "pre=100" in rendered
+    assert "rebuilt=150" in rendered
+
+
+def test_format_dashboard_drift_truncates_at_max_diffs() -> None:
+    """When the diff list exceeds ``max_diffs``, the renderer caps
+    output with '... and N more' so the failure message doesn't dump
+    every per-field drift on a wholesale rewrite. Pin the truncation
+    so a future change to the cap doesn't silently bloat the report."""
+    # 20 languages each contributing a single field-level diff →
+    # max_diffs=5 should keep the first 5 and append the cap line.
+    pre = {
+        "schema_version": "1.0",
+        "languages": [
+            {"language": f"lang_{i:02d}", "total_etymons": i, "bundle_attestation_total": 0}
+            for i in range(20)
+        ],
+    }
+    rebuilt = {
+        "schema_version": "1.0",
+        "languages": [
+            {"language": f"lang_{i:02d}", "total_etymons": i + 1, "bundle_attestation_total": 0}
+            for i in range(20)
+        ],
+    }
+    rendered = _format_dashboard_drift(pre, rebuilt, max_diffs=5)
+    assert "Dashboard drift detected" in rendered
+    assert "... and 15 more" in rendered
 
 
 def test_format_dashboard_drift_classifies_added_and_removed_languages() -> None:
