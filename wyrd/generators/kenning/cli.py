@@ -3347,7 +3347,7 @@ def lexicon_diff_bundle(
         bundle["fantasy_morphemes"] = fantasy_morphemes
 
     rebuilt_text = json.dumps(bundle, ensure_ascii=False, indent=2) + "\n"
-    committed_text = bundle_path.read_text()
+    committed_text = bundle_path.read_text(encoding="utf-8")
 
     diff = compute_bundle_diff(committed_text, rebuilt_text)
     click.echo(format_bundle_diff(diff))

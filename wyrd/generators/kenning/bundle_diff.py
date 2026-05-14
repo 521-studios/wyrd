@@ -83,23 +83,28 @@ def _identity_str(identity: tuple) -> str:
 
 def _diff_subject_payloads(a: dict[str, Any], b: dict[str, Any]) -> list[str]:
     """Per-changed-subject narrow notes. Returns a list of short strings
-    describing which top-level subject fields diverge. Empty list means
-    no observed difference (subjects equal at the field level — should
-    not happen for paired-as-changed entries, but kept for safety)."""
+    pointing at which ``words[i]`` slots diverge.
+
+    Paired-as-changed subjects already agree on the identity tuple
+    ``(modifier_type, meaning, modifier_tags, [w.modern_usage for w in
+    words])`` — so divergence by definition lives inside the per-word
+    payload (the per-language form lists like ``old_english``,
+    ``old_norse``, the etymology metadata, etc.). The note format
+    ``words[i]`` lets operators jump straight to the diverging slot in
+    the bundle file without scanning the whole subject."""
     notes: list[str] = []
     a_words = a.get("words") or []
     b_words = b.get("words") or []
-    if len(a_words) != len(b_words):
-        notes.append(f"word count {len(a_words)} → {len(b_words)}")
-    # Sense list differences are common when a citation count crosses
-    # the witness gate.
-    if (a.get("meaning") or []) != (b.get("meaning") or []):
-        notes.append("meaning list changed")
-    if (a.get("modifier_tags") or []) != (b.get("modifier_tags") or []):
-        notes.append("modifier_tags changed")
+    # Length is implicit in the identity tuple (zipped via modern_usage
+    # tuple), so a_words and b_words are guaranteed-same-length here.
+    for i, (a_word, b_word) in enumerate(zip(a_words, b_words, strict=False)):
+        if a_word != b_word:
+            notes.append(f"words[{i}] differs")
     if not notes:
-        # Catch-all when the structural fields match but a nested
-        # payload differs (e.g. word.old_english list reshuffled).
+        # Belt-and-braces: the identity-tuple invariant should ensure
+        # at least one word differs, but if a future identity-tuple
+        # change makes some non-word field free-variable, surface that
+        # instead of returning an empty notes list.
         notes.append("payload differs (see byte window)")
     return notes
 

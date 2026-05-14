@@ -156,6 +156,45 @@ def test_changed_subject_classified_as_changed_with_notes() -> None:
     assert notes  # at least one note — exact wording is "payload differs"
 
 
+def test_changed_subject_notes_name_diverging_word_slot() -> None:
+    """When two paired subjects have multiple words and one of them
+    differs (e.g. word[1] gets a new old_english form), the per-subject
+    notes name the diverging slot — operators jump straight to it in
+    the bundle file without scanning all words."""
+    a = _bundle(
+        subjects=[
+            {
+                "modifier_type": "Topographical",
+                "meaning": ["cottage"],
+                "modifier_tags": ["architecture"],
+                "words": [
+                    {"modern_usage": "-ton", "old_english": ["tun"]},
+                    {"modern_usage": "-cot", "old_english": ["cot"]},
+                ],
+            }
+        ]
+    )
+    b = _bundle(
+        subjects=[
+            {
+                "modifier_type": "Topographical",
+                "meaning": ["cottage"],
+                "modifier_tags": ["architecture"],
+                "words": [
+                    {"modern_usage": "-ton", "old_english": ["tun"]},
+                    {"modern_usage": "-cot", "old_english": ["cot", "kot"]},  # +kot
+                ],
+            }
+        ]
+    )
+    diff = compute_bundle_diff(a, b)
+    assert len(diff.subjects_changed) == 1
+    _ident, notes = diff.subjects_changed[0]
+    assert "words[1] differs" in notes
+    # word[0] is identical between a and b — must NOT be flagged.
+    assert "words[0] differs" not in notes
+
+
 def test_subject_meaning_change_is_reported_in_notes() -> None:
     a = _bundle(
         subjects=[
