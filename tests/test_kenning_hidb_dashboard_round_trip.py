@@ -262,10 +262,28 @@ def _format_dashboard_drift(
         if pre.get(key) != rebuilt.get(key):
             diffs.append(f"  top-level {key}: pre={pre.get(key)!r}, rebuilt={rebuilt.get(key)!r}")
 
-    # Pair languages by their ``language`` field — order is canonical
-    # via DEFAULT_LANGUAGES, but defending against future changes.
-    pre_langs = {card["language"]: card for card in pre.get("languages", [])}
-    rebuilt_langs = {card["language"]: card for card in rebuilt.get("languages", [])}
+    # Pair languages by their ``language`` field. Currently a LanguageQualityReport
+    # has exactly one scorecard per language (per compute_report's loop in
+    # language_quality.py). The .get-from-list-comprehension below silently
+    # collapses duplicates if that invariant ever breaks — guard against
+    # the silent data loss with an explicit check so a future schema
+    # change fails loudly here instead of producing a misleading drift
+    # report.
+    def _index_by_language(blob: dict[str, Any], side: str) -> dict[str, dict[str, Any]]:
+        cards = blob.get("languages", [])
+        indexed: dict[str, dict[str, Any]] = {}
+        for card in cards:
+            lang = card["language"]
+            if lang in indexed:
+                raise ValueError(
+                    f"{side} report has duplicate scorecard for language {lang!r}; "
+                    f"LanguageQualityReport schema assumes one card per language"
+                )
+            indexed[lang] = card
+        return indexed
+
+    pre_langs = _index_by_language(pre, "pre")
+    rebuilt_langs = _index_by_language(rebuilt, "rebuilt")
     for lang in sorted(pre_langs.keys() | rebuilt_langs.keys()):
         pre_card = pre_langs.get(lang)
         rebuilt_card = rebuilt_langs.get(lang)
@@ -280,10 +298,29 @@ def _format_dashboard_drift(
             diffs.append(f"  language {lang!r}: removed from rebuilt report")
             continue
         for field_name in sorted(pre_card.keys() | rebuilt_card.keys()):
-            if pre_card.get(field_name) != rebuilt_card.get(field_name):
+            pre_val = pre_card.get(field_name)
+            rebuilt_val = rebuilt_card.get(field_name)
+            if pre_val == rebuilt_val:
+                continue
+            # For dict-typed scorecard fields (lexicon_tag_coverage,
+            # bundle_tag_coverage, etc. — `dict[str, int]` per the
+            # LanguageScorecard dataclass) repr-ing the entire dict
+            # on a single drifting key is noisy. Surface the
+            # symmetric difference at the key level instead so the
+            # failure message points at the actual diverging tags /
+            # categories, not the whole map.
+            if isinstance(pre_val, dict) and isinstance(rebuilt_val, dict):
+                for sub_key in sorted(pre_val.keys() | rebuilt_val.keys()):
+                    if pre_val.get(sub_key) != rebuilt_val.get(sub_key):
+                        diffs.append(
+                            f"  language {lang!r}: field {field_name!r}[{sub_key!r}] "
+                            f"pre={pre_val.get(sub_key)!r}, "
+                            f"rebuilt={rebuilt_val.get(sub_key)!r}"
+                        )
+            else:
                 diffs.append(
                     f"  language {lang!r}: field {field_name!r} "
-                    f"pre={pre_card.get(field_name)!r}, rebuilt={rebuilt_card.get(field_name)!r}"
+                    f"pre={pre_val!r}, rebuilt={rebuilt_val!r}"
                 )
 
     head = ["Dashboard drift detected — round-trip changed scorecard fields."]
@@ -512,6 +549,63 @@ def test_format_dashboard_drift_truncates_at_max_diffs() -> None:
     rendered = _format_dashboard_drift(pre, rebuilt, max_diffs=5)
     assert "Dashboard drift detected" in rendered
     assert "... and 15 more" in rendered
+
+
+def test_format_dashboard_drift_rejects_duplicate_languages() -> None:
+    """LanguageQualityReport.languages is one-card-per-language by
+    schema. If a future change introduces duplicates, the drift
+    helper's dict-by-language indexing would silently collapse them.
+    Pin the explicit ValueError so the failure mode is loud instead."""
+    import pytest
+
+    duplicate_pre = {
+        "schema_version": "1.0",
+        "languages": [
+            {"language": "old-english", "total_etymons": 3},
+            {"language": "old-english", "total_etymons": 5},  # duplicate
+        ],
+    }
+    rebuilt = {"schema_version": "1.0", "languages": []}
+    with pytest.raises(ValueError, match="duplicate scorecard for language 'old-english'"):
+        _format_dashboard_drift(duplicate_pre, rebuilt)
+
+
+def test_format_dashboard_drift_dict_field_surfaces_per_key_diff() -> None:
+    """When a scorecard field is dict-typed (e.g. lexicon_tag_coverage,
+    bundle_tag_coverage), the formatter should surface per-key
+    differences rather than re-printing the whole dict. Pin this so a
+    future change doesn't regress the rendering — operators debugging
+    a tag-coverage drift would otherwise see hundreds of unchanged
+    entries crowding out the actually-diverging keys."""
+    pre = {
+        "schema_version": "1.0",
+        "languages": [
+            {
+                "language": "old-english",
+                "lexicon_tag_coverage": {"architecture": 3, "settlement": 2, "water": 5},
+            }
+        ],
+    }
+    rebuilt = {
+        "schema_version": "1.0",
+        "languages": [
+            {
+                "language": "old-english",
+                # Only 'water' differs; 'architecture' + 'settlement' match.
+                "lexicon_tag_coverage": {"architecture": 3, "settlement": 2, "water": 6},
+            }
+        ],
+    }
+    rendered = _format_dashboard_drift(pre, rebuilt)
+    # The drifting key is named in the output.
+    assert "lexicon_tag_coverage" in rendered
+    assert "'water'" in rendered
+    assert "pre=5" in rendered
+    assert "rebuilt=6" in rendered
+    # The non-drifting keys are NOT mentioned — that's the win over
+    # the old whole-dict-repr behavior.
+    assert "architecture" not in rendered
+    assert "settlement" not in rendered
 
 
 def test_format_dashboard_drift_classifies_added_and_removed_languages() -> None:
