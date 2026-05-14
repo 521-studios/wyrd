@@ -36,6 +36,7 @@ import hashlib
 import itertools
 import json
 import logging
+from importlib import resources
 from typing import TYPE_CHECKING
 
 from wyrd.generators.kenning.lexicon import _LANG_CODE_TO_JSON_FIELD
@@ -650,11 +651,11 @@ def decompose_all(
     transaction's eventual implicit rollback (CLI exit) or the
     orchestrator's outer transaction handling is what unwinds them.
     Decompose_all does NOT call ``rollback()`` itself: that would wipe
-    uncommitted writes from earlier passes in the enrichment chain
-    (review finding on PR #199). The other L3 wrappers all use the
-    "if apply: write+commit; else: no-op" pattern; decompose_all is
-    the outlier because compute_decompositions/pick_canonical_decomposition
-    write unconditionally and would be too invasive to split.
+    uncommitted writes from earlier passes in the enrichment chain. The
+    other L3 wrappers all use the "if apply: write+commit; else: no-op"
+    pattern; decompose_all is the outlier because
+    compute_decompositions/pick_canonical_decomposition write
+    unconditionally and would be too invasive to split.
 
     ``word_db`` is the matcher's word dictionary (loaded from the
     runtime ``meanings.json`` bundle). Passing it explicitly keeps
@@ -674,9 +675,7 @@ def decompose_all(
         "no-canonical": 0,
     }
     decompositions = 0
-    # Cheap pre-check so we can skip the bundle load on schema-only DBs.
-    # SELECT 1 LIMIT 1 returns at most one row and never materializes the
-    # full toponym table — safe at any scale.
+    # Cheap pre-check before the bundle load on schema-only DBs.
     has_rows = db.conn.execute("SELECT 1 FROM toponym LIMIT 1").fetchone() is not None
     if not has_rows:
         return {
@@ -687,8 +686,6 @@ def decompose_all(
         }
 
     if word_db is None:
-        from importlib import resources
-
         bundle_text = (
             resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
         )

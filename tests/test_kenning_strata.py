@@ -38,6 +38,7 @@ from wyrd.generators.kenning.strata import (
     classify_french,
     classify_old_english,
     classify_old_norse,
+    classify_stratum_all,
     classify_welsh,
 )
 
@@ -2519,3 +2520,55 @@ def test_cli_classify_stratum_batched_apply_is_idempotent(fresh_db: Path) -> Non
     second_combined = second.output + (second.stderr or "")
     assert "Wrote 0 rows" in second_combined
     assert "Skipped 350" in second_combined
+
+
+# --- classify_stratum_all wrapper (L3 enrichment chain entry point) -------
+#
+# The CLI tests above exercise the per-language dispatcher with --apply
+# bookkeeping. classify_stratum_all is the wrapper used by
+# run_full_enrichment, and its dry-run gate (added in PR #199 round 2)
+# needs its own coverage because the orchestrator dry-run test seeds an
+# empty DB, so the gate's filtering effect is never observed there.
+
+
+def test_classify_stratum_all_dry_run_excludes_already_classified(
+    fresh_db: Path,
+) -> None:
+    """A welsh etymon whose stratum is already set must be skipped, not
+    counted in by_stratum/written. Pins the dry-run gate parity with the
+    apply=True branch."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        # Two welsh etymons, neither has a descent row → both classifier
+        # proposals will be 'native-welsh'.
+        eid_blank = db.upsert_etymon("rhydoldfoel", "welsh")
+        eid_preset = db.upsert_etymon("aberystwyth", "welsh")
+        # Manually pre-classify the second one. The gate should now
+        # exclude it from the dry-run preview.
+        db.conn.execute(
+            "UPDATE etymon SET stratum = 'native-welsh' WHERE id = ?",
+            (eid_preset,),
+        )
+        db.commit()
+
+        result = classify_stratum_all(db, apply=False)
+
+        # Eid_blank's stratum is still NULL (dry-run) — no actual UPDATE.
+        rows = {
+            row["id"]: row["stratum"]
+            for row in db.conn.execute(
+                "SELECT id, stratum FROM etymon WHERE id IN (?, ?)",
+                (eid_blank, eid_preset),
+            )
+        }
+
+    welsh = result["languages"]["welsh"]
+    assert welsh["proposed"] == 2, "both etymons matched the welsh classifier"
+    assert welsh["written"] == 1, "only the NULL-stratum row would be written"
+    assert welsh["skipped"] == 1, "the pre-classified row is skipped"
+    assert welsh["by_stratum"] == {"native-welsh": 1}, (
+        "by_stratum must reflect would-be-written rows only"
+    )
+    # Dry-run didn't touch the DB.
+    assert rows[eid_blank] is None
+    assert rows[eid_preset] == "native-welsh"

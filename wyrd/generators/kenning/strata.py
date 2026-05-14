@@ -693,6 +693,33 @@ def family_for_language(language: str) -> str | None:
     return LANGUAGE_TO_FAMILY.get(language)
 
 
+# SQLite's default `SQLITE_MAX_VARIABLE_NUMBER` is 999; chunk at 500 to leave
+# headroom for any additional placeholders a caller might splice in.
+_NULL_STRATUM_LOOKUP_CHUNK = 500
+
+
+def _fetch_null_stratum_ids(db, etymon_ids) -> set[int]:
+    """Return the subset of ``etymon_ids`` whose ``stratum`` column is NULL.
+
+    Used by the dry-run path of :func:`classify_stratum_all` to model the
+    apply-true gate without writing. Chunked to stay under SQLite's
+    parameterized-IN limit.
+    """
+    ids = list(etymon_ids)
+    found: set[int] = set()
+    for start in range(0, len(ids), _NULL_STRATUM_LOOKUP_CHUNK):
+        chunk = ids[start : start + _NULL_STRATUM_LOOKUP_CHUNK]
+        placeholders = ",".join("?" * len(chunk))
+        found.update(
+            row["id"]
+            for row in db.conn.execute(
+                f"SELECT id FROM etymon WHERE stratum IS NULL AND id IN ({placeholders})",
+                chunk,
+            )
+        )
+    return found
+
+
 def classify_stratum_all(db, *, apply: bool = True) -> dict[str, dict[str, int]]:
     """Uniform L3 wrapper for the ``classify-stratum`` pass — runs
     the per-language classifiers (welsh, french, old-english,
@@ -744,25 +771,11 @@ def classify_stratum_all(db, *, apply: bool = True) -> dict[str, dict[str, int]]
                 else:
                     skipped += 1
         else:
-            # Dry-run: model the apply-true behavior by applying the same
-            # stratum-IS-NULL gate (review finding on PR #199). Without
-            # this, by_stratum/written/skipped over-report by the count
-            # of etymons already classified, which is exactly the gap
-            # operators rely on dry-run to predict before committing.
-            # Single batched SELECT keeps this fast: one query instead of
-            # one per proposed etymon.
-            proposal_ids = list(proposals.keys())
-            null_stratum_ids: set[int] = set()
-            for chunk_start in range(0, len(proposal_ids), 500):
-                chunk = proposal_ids[chunk_start : chunk_start + 500]
-                placeholders = ",".join("?" * len(chunk))
-                null_stratum_ids.update(
-                    row["id"]
-                    for row in db.conn.execute(
-                        f"SELECT id FROM etymon WHERE stratum IS NULL AND id IN ({placeholders})",
-                        chunk,
-                    )
-                )
+            # Dry-run: apply the same stratum-IS-NULL gate as the
+            # apply-true branch so written/skipped/by_stratum predict the
+            # real write counts. Without this, the dry-run over-reports
+            # by the count of etymons already classified.
+            null_stratum_ids = _fetch_null_stratum_ids(db, proposals.keys())
             for etymon_id, stratum in proposals.items():
                 if etymon_id in null_stratum_ids:
                     written += 1

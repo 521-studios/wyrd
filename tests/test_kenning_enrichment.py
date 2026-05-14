@@ -257,6 +257,46 @@ def test_format_run_apply_mode_uses_past_tense_verbs():
     assert "linked: 2" in md
 
 
+def test_format_run_renders_by_stratum_breakdown():
+    """The stratum section must render the per-language by_stratum
+    distribution (PR #199 round 2). Without this assertion the breakdown
+    block has no test coverage."""
+    result = {
+        "order": ["normalize-ocr", "link-lemmas", "classify-stratum"],
+        "applied": True,
+        "ocr": {"method_version": OCR_METHOD_VERSION, "groups": 0, "etymons_merged": 0},
+        "lemmas": {"method_version": LEMMA_METHOD_VERSION, "candidates": 0},
+        "stratum": {
+            "applied": 1,
+            "languages": {
+                "welsh": {
+                    "proposed": 7,
+                    "written": 5,
+                    "skipped": 2,
+                    "by_stratum": {"native-welsh": 3, "latin-loan": 2},
+                },
+                "french": {
+                    "proposed": 0,
+                    "written": 0,
+                    "skipped": 0,
+                },
+            },
+        },
+    }
+    md = format_enrichment_run(result)
+    # Per-language line still rendered.
+    assert "welsh: proposed=7" in md and "written=5" in md and "skipped=2" in md
+    # New: by_stratum breakdown is sorted alphabetically, deterministic output.
+    assert "by stratum: latin-loan=2, native-welsh=3" in md
+    # When by_stratum is absent (french line above), no breakdown line follows.
+    welsh_idx = md.index("welsh:")
+    french_idx = md.index("french:")
+    welsh_section = md[welsh_idx:french_idx]
+    assert "by stratum:" in welsh_section
+    french_section = md[french_idx:]
+    assert "by stratum:" not in french_section
+
+
 def test_format_status_shows_per_column_coverage():
     status = {
         "total_etymons": 100,
