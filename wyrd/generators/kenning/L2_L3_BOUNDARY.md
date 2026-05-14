@@ -138,8 +138,8 @@ state, project-period-forms needs lemma_id state, etc.).
 
 All eight passes run via `run_full_enrichment` in canonical order
 (`lexicon enrich` and `lexicon rebuild-from-jsonl --with-enrichment`).
-Each pass keeps its standalone CLI command for operators who want
-fine-grained control or to re-run a single pass (e.g. with `--force`).
+Each pass keeps its standalone CLI command for targeted reruns
+(e.g. with `--force`).
 
 ## Curation event log (wyrd-2jhs)
 
@@ -241,7 +241,7 @@ lexicon rebuild-from-jsonl --db ~/.wyrd/lexicon.db --jsonl-dir data/mining \
 lexicon export-meanings --output wyrd/generators/kenning/data/meanings.json
 ```
 
-Or step-by-step when you want to inspect coverage between passes:
+Or step-by-step:
 
 ```bash
 lexicon rebuild-from-jsonl --jsonl-dir data/mining

@@ -15,13 +15,14 @@ Any pass that introduces non-determinism (iteration order leaks,
 unstamped datetime, RNG without a fixed seed) breaks this test. The
 test is the CI signal for that whole class of regression.
 
-Test uses a small in-memory-shaped synthetic fixture rather than the live
-``data/mining/`` JSONLs because (a) the live data depends on bulk
-wiktextract slices that aren't on CI runners and (b) the fixture is fast
-enough to run on every push (sub-second) while still exercising every L3
-pass (decompose, classify-stratum, derive-english-shaped,
-project-period-forms, link-lemmas, cluster-ocr, cluster-cognates,
-apply-curation).
+Test uses a small synthetic fixture rather than the live ``data/mining/``
+JSONLs because the live data depends on bulk wiktextract slices that
+aren't on CI runners. The fixture is sized to keep the test under a few
+seconds while genuinely exercising each L3 pass — the apply-curation
+pass via an empty ``curation_state={}`` (the wrapper still runs its
+validation), derive-english-shaped via a Hebrew etymon, and
+project-period-forms via a ``toponym_attestation`` row with a date_year.
+Coverage assertions guard against any pass vacuously passing on no input.
 """
 
 from __future__ import annotations
@@ -54,13 +55,19 @@ def _populate_round_trip_fixture(db_path: Path) -> None:
         db.upsert_source(id="mawer", title="Mawer — Northumberland & Durham", year=1920)
         db.upsert_source(id="ekwall", title="Ekwall — Lancashire", year=1922)
 
-        # Etymons spanning two languages so classify-stratum has work
-        # in the welsh path (default native-welsh, no ancestors) and the
-        # OE path (descent edge → proto-germanic).
+        # Etymons spanning four languages. Each pulls in a different L3 pass:
+        # - cot/tun (old-english): classify-stratum native-english path,
+        #   link-lemmas via the inflected 'tun' element below.
+        # - *tunaz (proto-germanic): descent edge feeds classify-stratum +
+        #   cluster-cognates (proto-* root walking).
+        # - brae (welsh): classify-stratum welsh path.
+        # - bayit (he): derive-english-shaped non-Latin-script transliteration.
+        #   PHASE2A_NON_LATIN_LANGS in english_shaping.py includes "he".
         cot_id = db.upsert_etymon("cot", "old-english")
         tun_id = db.upsert_etymon("tun", "old-english")
         proto_id = db.upsert_etymon("*tunaz", "proto-germanic")
         brae_id = db.upsert_etymon("brae", "welsh")
+        bayit_id = db.upsert_etymon("bayit", "he")
 
         # Glosses + tags for export's modifier-type/meaning signature
         # (subjects are grouped by (modifier_type, glosses, tags)).
@@ -77,6 +84,10 @@ def _populate_round_trip_fixture(db_path: Path) -> None:
             "INSERT INTO etymon_gloss (etymon_id, gloss) VALUES (?, 'hill')",
             (brae_id,),
         )
+        db.conn.execute(
+            "INSERT INTO etymon_gloss (etymon_id, gloss) VALUES (?, 'house')",
+            (bayit_id,),
+        )
         for tag in ("architecture", "settlement"):
             db.conn.execute(
                 "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)",
@@ -92,11 +103,16 @@ def _populate_round_trip_fixture(db_path: Path) -> None:
         )
 
         # ≥2 distinct-witness citations per etymon so they survive the
-        # promotion gate without relying on rando-port carve-outs.
+        # promotion gate without relying on rando-port carve-outs. The
+        # Hebrew etymon (bayit) deliberately gets two witnesses too so it
+        # passes the gate and reaches the bundle output — otherwise the
+        # round-trip wouldn't observe whether english_shaped survived the
+        # round trip.
         for etymon_id, page_map in (
             (cot_id, {"skeat": "15", "mawer": "7", "ekwall": "201"}),
             (tun_id, {"skeat": "20", "mawer": "8", "ekwall": "202"}),
             (brae_id, {"skeat": "33", "mawer": "9"}),
+            (bayit_id, {"skeat": "44", "mawer": "10"}),
         ):
             for source_id, page in page_map.items():
                 db.conn.execute(
@@ -135,16 +151,30 @@ def _populate_round_trip_fixture(db_path: Path) -> None:
             "(toponym_etymology_id, ordinal, etymon_id, inflection) VALUES (?, 2, ?, 'oblique')",
             (ety_id, tun_id),
         )
+        # Attested historical form with a date_year so project_period_forms
+        # has a row to scan (wyrd-unuo Phase 3.3 — projects period-keyed
+        # surface forms from toponym_attestation rows).
+        db.conn.execute(
+            "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+            "VALUES (?, 'Cotuna', 1086, 'Domesday Book')",
+            (topo_id,),
+        )
         db.commit()
 
 
-def _enrich_and_export_bundle(db_path: Path) -> str:
+def _enrich_and_export_bundle(db_path: Path) -> tuple[str, dict[str, Any]]:
     """Run the canonical L3 chain + emit the bundle JSON the runtime would
-    consume. Returns the rendered JSON string exactly as
-    ``lexicon export-meanings --output ...`` would write it (modulo the
-    trailing newline the CLI appends — we omit it for cleaner comparison)."""
+    consume. Returns ``(bundle_json, enrichment_result)`` — the caller uses
+    the result dict to assert non-vacuous coverage (otherwise passes that
+    do no work would silently pass the byte-diff assertion).
+
+    ``curation_state={}`` is passed (instead of the default None) so the
+    apply-curation pass actually runs — with zero events it's a no-op, but
+    the wrapper executes its validation + counting path. Without this,
+    apply-curation is skipped entirely and the round-trip never observes
+    whether the pass round-trips cleanly."""
     with LexiconDB(db_path) as db:
-        run_full_enrichment(db, apply=True)
+        result = run_full_enrichment(db, apply=True, curation_state={})
         # min_witnesses=2 + empty lang_thresholds bypasses the per-language
         # preset for the fixture's small witness pool. Production code uses
         # the preset (RECOMMENDED_LANG_THRESHOLDS); we're testing the
@@ -157,14 +187,17 @@ def _enrich_and_export_bundle(db_path: Path) -> str:
         canonical_decompositions = collect_canonical_decompositions(db)
         fantasy_morphemes = collect_fantasy_morphemes(db)
 
-    # Same shape as cli.py:1354-1360 (the export-meanings command). Optional
-    # fields are only present when non-empty — keeps empty-dict noise out.
+    # Mirrors the dict-building block in cli.py's lexicon_export_meanings
+    # (around cli.py:1354). Optional fields are only present when non-empty
+    # — keeps empty-dict noise out. The CLI also conditionally adds a
+    # ``joiners`` key sourced from --joiners-from; the test doesn't use a
+    # sidecar so that branch is intentionally absent here.
     bundle: dict[str, Any] = {"subjects": subjects}
     if canonical_decompositions:
         bundle["canonical_decompositions"] = canonical_decompositions
     if fantasy_morphemes:
         bundle["fantasy_morphemes"] = fantasy_morphemes
-    return json.dumps(bundle, ensure_ascii=False, indent=2)
+    return json.dumps(bundle, ensure_ascii=False, indent=2), result
 
 
 def _format_bundle_drift(pre: str, rebuilt: str, max_window: int = 200) -> str:
@@ -206,11 +239,47 @@ def test_round_trip_rebuild_enrich_export_byte_identical(tmp_path: Path) -> None
     pre_db_path = tmp_path / "pre.db"
     _populate_round_trip_fixture(pre_db_path)
 
-    bundle_pre = _enrich_and_export_bundle(pre_db_path)
+    bundle_pre, pre_result = _enrich_and_export_bundle(pre_db_path)
     # Sanity: the fixture is non-degenerate; bundle has actual content.
     parsed = json.loads(bundle_pre)
     assert parsed["subjects"], (
         "fixture promoted zero subjects — witness gate misconfigured for the test"
+    )
+
+    # Coverage assertions: each L3 pass must report non-trivial work,
+    # otherwise the byte-diff would still pass on two empty results and
+    # the round-trip test would be lying about what it pins. The numeric
+    # thresholds are loose (>0) — exact counts shift when the fixture or
+    # passes change; the test cares only that something happened.
+    assert pre_result["order"] == [
+        "normalize-ocr",
+        "link-lemmas",
+        "apply-curation",
+        "decompose",
+        "cluster-cognates",
+        "classify-stratum",
+        "derive-english-shaped",
+        "project-period-forms",
+    ], "orchestrator skipped a pass — fixture doesn't exercise the full chain"
+    assert pre_result["curation"] is not None, "apply-curation pass didn't run"
+    # decompose: at least one canonical pick (otherwise the matcher couldn't
+    # account for any toponym fragment and we're not exercising the pass).
+    assert pre_result["decompose"]["toponyms_scanned"] >= 1
+    # classify-stratum: at least one language got non-empty by_stratum.
+    stratum_langs = pre_result["stratum"]["languages"]
+    assert any(lang["by_stratum"] for lang in stratum_langs.values()), (
+        "classify-stratum produced no by_stratum entries — fixture has no classifiable etymons"
+    )
+    # derive-english-shaped: candidates>=1 means a Hebrew-or-similar row
+    # was scanned. The fixture seeds bayit/he so this must be >0.
+    assert pre_result["english_shaped"]["candidates"] >= 1, (
+        "derive-english-shaped scanned zero rows — fixture must include "
+        "at least one PHASE2A_NON_LATIN_LANGS etymon"
+    )
+    # project-period-forms: must have observed the toponym_attestation row.
+    assert pre_result["period_forms"]["rows_scanned"] >= 1, (
+        "project-period-forms scanned zero rows — fixture must seed a "
+        "toponym_attestation row with date_year"
     )
 
     # Dump JSONL from the enriched-pre DB. dump_all_sources walks the L2
@@ -226,7 +295,7 @@ def test_round_trip_rebuild_enrich_export_byte_identical(tmp_path: Path) -> None
     with LexiconDB(rebuilt_db_path) as db:
         build_from_jsonl(db.conn, jsonl_paths_in(dump_dir))
 
-    bundle_rebuilt = _enrich_and_export_bundle(rebuilt_db_path)
+    bundle_rebuilt, _ = _enrich_and_export_bundle(rebuilt_db_path)
 
     assert bundle_pre == bundle_rebuilt, _format_bundle_drift(bundle_pre, bundle_rebuilt)
 
@@ -246,9 +315,9 @@ def test_round_trip_dump_directory_is_jsonl_only(tmp_path: Path) -> None:
         dump_all_sources(db.conn, dump_dir, exclude=())
 
     files = sorted(p.name for p in dump_dir.iterdir())
-    # One JSONL per source. _curation.jsonl is dumped too (always emitted by
-    # dump_all_sources, even when empty) — that's the curation event-log
-    # contract from wyrd-2jhs.
+    # One JSONL per source in the source table. The fixture seeds no
+    # manual-curation source so _curation.jsonl isn't expected here;
+    # the shape check below stays language-agnostic.
     assert "skeat.jsonl" in files
     assert "mawer.jsonl" in files
     assert "ekwall.jsonl" in files
