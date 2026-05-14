@@ -125,20 +125,21 @@ enrichment-status` can report coverage. Order matters where columns
 chain through other columns (link-lemmas needs canonical merged_into_id
 state, project-period-forms needs lemma_id state, etc.).
 
-| Pass | Writes | Method version | Migrated? |
+| Pass | Writes | Method version | Migrated |
 |------|--------|----------------|-----------|
 | `normalize-ocr` | `merged_into_id` | `cluster-ocr-v1` | ✅ wyrd-ilam |
 | `link-lemmas` | `lemma_id`, `inflection`, `lemma_method` | `link-lemmas-v1` | ✅ wyrd-ilam |
 | `apply-curation` | overrides any of the above per operator decision | `manual-curation-v1` | ✅ wyrd-2jhs |
-| `cluster-cognates` | `cognate_id`, `cognate_method` | `cluster-cognates-v1` | ⏳ follow-on |
-| `classify-stratum` | `stratum` | hardcoded heuristics | ⏳ follow-on |
-| `derive-english-shaped` | `english_shaped` | hardcoded rules | ⏳ follow-on |
-| `project-period-forms` | (`etymon_period_form` table) | hardcoded rules | ⏳ follow-on |
-| `decompose` | (`toponym_decomposition` table) | matcher rules | ⏳ follow-on |
+| `decompose` | (`toponym_decomposition` table) | matcher rules | ✅ wyrd-hidb |
+| `cluster-cognates` | `cognate_id`, `cognate_method` | `cluster-cognates-v1` | ✅ wyrd-hidb |
+| `classify-stratum` | `stratum` | hardcoded heuristics | ✅ wyrd-hidb |
+| `derive-english-shaped` | `english_shaped` | hardcoded rules | ✅ wyrd-hidb |
+| `project-period-forms` | (`etymon_period_form` table) | hardcoded rules | ✅ wyrd-hidb |
 
-**Migrated** passes run via the `lexicon enrich` orchestrator in the
-canonical order. **Follow-on** passes still need their standalone
-commands invoked manually — same operator pattern as before.
+All eight passes run via `run_full_enrichment` in canonical order
+(`lexicon enrich` and `lexicon rebuild-from-jsonl --with-enrichment`).
+Each pass keeps its standalone CLI command for targeted reruns
+(e.g. with `--force`).
 
 ## Curation event log (wyrd-2jhs)
 
@@ -231,28 +232,23 @@ see the orphan counts in the rebuild summary so unexpected typos
 
 ### Rebuilding L3 from L2
 
-One-shot rebuild with migrated enrichment passes:
+One-shot rebuild — `--with-enrichment` runs the full 8-pass chain
+(wyrd-hidb):
 
 ```bash
 lexicon rebuild-from-jsonl --db ~/.wyrd/lexicon.db --jsonl-dir data/mining \
     --with-enrichment
-# Then run the not-yet-migrated passes manually:
-lexicon cluster-cognates --apply
-lexicon classify-stratum --apply
-lexicon derive-english-shaped --apply
-lexicon project-period-forms --apply
-lexicon decompose --apply
-# Then bundle export:
-lexicon export-meanings
+lexicon export-meanings --output wyrd/generators/kenning/data/meanings.json
 ```
 
-Or step-by-step with `lexicon enrich` for the migrated passes:
+Or step-by-step:
 
 ```bash
 lexicon rebuild-from-jsonl --jsonl-dir data/mining
-lexicon enrich --apply              # normalize-ocr → link-lemmas
+lexicon enrich --apply              # runs the full chain by default
 lexicon enrichment-status           # verify coverage
-lexicon cluster-cognates --apply    # ... and so on
+# Or invoke individual passes (e.g. to re-run with --force):
+lexicon classify-stratum --apply --force
 ```
 
 ### Manual curation (post-Phase-3 pattern)
