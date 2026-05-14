@@ -1,23 +1,32 @@
-"""L3 enrichment orchestrator — wyrd-ilam (Phase 2a).
+"""L3 enrichment orchestrator — wyrd-ilam → wyrd-hidb.
 
 After ``lexicon rebuild-from-jsonl`` produces a fresh SQLite from the
 L2 JSONL source-of-truth, the derived columns on ``etymon``
 (``lemma_id``, ``inflection``, ``lemma_method``, ``merged_into_id``,
-``cognate_id``, ``stratum``, ``english_shaped``) are NULL — the dump
-explicitly excludes them per the L2/L3 boundary contract. Operators
-re-derive them by running the enrichment passes documented in
-``L2_L3_BOUNDARY.md``.
+``cognate_id``, ``stratum``, ``english_shaped``) plus the derived
+tables (``toponym_decomposition``, ``etymon_period_form``) are empty
+— the dump explicitly excludes them per the L2/L3 boundary contract.
+Operators re-derive them by running the enrichment passes documented
+in ``L2_L3_BOUNDARY.md``.
 
-This module ships the first migration in that pattern: an orchestrator
-:func:`run_full_enrichment` that runs ``normalize-ocr`` (OCR
-variant clustering) followed by ``link-lemmas`` (inflected → lemma
-linkage) in the canonical order. Order matters: link-lemmas needs
-canonical etymons as targets, so OCR-cluster has to tombstone the
-losers first.
+:func:`run_full_enrichment` is the canonical orchestrator. It walks
+the L3 chain in dependency order:
 
-Future PRs extend this to cluster-cognates, classify-stratum, etc.;
-each pass keeps its existing standalone CLI command for operators who
-want fine-grained control.
+    cluster-ocr → link-lemmas → apply-curation → decompose →
+    cluster-cognates → classify-stratum → derive-english-shaped →
+    project-period-forms
+
+Each pass keeps its existing standalone CLI command for operators
+who want fine-grained control; the wrappers
+(:func:`decomposition.decompose_all`,
+:func:`english_shaping.derive_english_shaped_all`,
+:func:`strata.classify_stratum_all`) are the uniform
+``(db, *, apply)`` shape this module's orchestrator can call directly.
+
+``skip_l3_derivations=True`` stops after the OCR+lemma+curation
+prefix — useful for fast curation iteration + for the focused
+synthetic-DB enrichment / curation tests that don't seed the
+toponym / descent rows the downstream passes scan.
 """
 
 from __future__ import annotations
@@ -25,7 +34,16 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from .lexicon import LexiconDB, cluster_ocr_variants, link_lemmas
+from .decomposition import decompose_all
+from .english_shaping import derive_english_shaped_all
+from .lexicon import (
+    LexiconDB,
+    cluster_cognates,
+    cluster_ocr_variants,
+    link_lemmas,
+    project_period_forms,
+)
+from .strata import classify_stratum_all
 
 # Method-version provenance currently lives in code (the writer-side
 # UPDATE statements stamp these strings). Surfacing them here in one
@@ -263,33 +281,56 @@ def run_full_enrichment(
     *,
     apply: bool = False,
     curation_state: dict[str, dict[str, Any]] | None = None,
+    skip_l3_derivations: bool = False,
 ) -> dict[str, Any]:
-    """Run the canonical L3 enrichment chain.
+    """Run the canonical L3 enrichment chain (wyrd-hidb Phase 2).
 
-    Order (wyrd-hidb phase 1 — OCR + lemma + curation are wired here;
-    the remaining L3 passes — decompose / cluster-cognates /
-    classify-stratum / derive-english-shaped / project-period-forms —
-    land in a follow-up PR that adds uniform ``<pass>_all(db, apply)``
-    wrappers and extends this function to call them):
+    Order (with dependency rationale per the wyrd-hidb plan):
 
-    1. ``normalize-ocr`` tombstones OCR-variant duplicates.
-    2. ``link-lemmas`` links inflected forms to canonicals (the
-       previous step's tombstones aren't candidate targets).
-    3. ``apply_curation_overrides`` (when ``curation_state`` is passed)
-       overrides specific lemma/merge assignments where auto-clustering
-       got it wrong.
+    1. ``cluster_ocr_variants`` — tombstone OCR-variant duplicates so
+       later passes don't waste work on dead rows.
+    2. ``link_lemmas`` — inflected → canonical-lemma linkage. Must
+       follow OCR (lemma candidates can't be tombstoned variants).
+    3. ``apply_curation_overrides`` (when ``curation_state`` passed)
+       — overlay operator decisions on lemma / merge assignments.
+    4. ``decompose_all`` — matcher-derived toponym decompositions.
+       Matches the toponym's modern_name against the live
+       ``meanings.json`` bundle, so it doesn't strictly need OCR /
+       lemma settled — but running it after the auto-clustering +
+       curation passes means the etymon ids the canonical breakdowns
+       reference correspond to the post-cluster canonical rows, not
+       tombstoned ones.
+    5. ``cluster_cognates`` — walks the ``etymon_descent`` graph
+       from each Proto-* root and assigns ``cognate_id`` to every
+       reachable descendant. The OCR pass populates
+       ``merged_into_id`` (tombstone pointer), which cluster_cognates
+       respects when picking the canonical etymon for each cluster;
+       so OCR must precede this step.
+    6. ``classify_stratum_all`` — per-language stratum buckets. Reads
+       ``etymon.language`` + the ``etymon_descent`` parent edges
+       populated by L2 replay; idempotent under the
+       ``stratum IS NULL`` gate.
+    7. ``derive_english_shaped_all`` — non-Latin-script
+       transliteration. Reads ``etymon.canonical_form`` +
+       ``transliteration`` + ``pronunciation_ipa``; independent of the
+       earlier passes' column writes, but placed after them so a
+       round-trip rebuild has stable canonical_form values by the
+       time english_shaped derivation runs.
+    8. ``project_period_forms`` — wyrd-unuo Phase 3.3: Tier-3
+       period-form fallback. Reads ``toponym_attestation`` rows + the
+       cognate_id assignments from step 5 (cluster mates contribute
+       suffix candidates), so cluster_cognates must precede this
+       step.
 
-    Dry-run (``apply=False``) walks the enrichment passes and reports
-    candidates without writing. Curation overrides, when
-    ``curation_state`` is passed, ARE validated on dry-run — refs
-    resolve, unresolved/self-reference cases get counted — but no DB
-    writes occur. Lets operators preview a curation batch before
-    committing.
+    Dry-run (``apply=False``) walks every pass and reports
+    candidates without writing. Curation overrides ARE validated on
+    dry-run; the per-pass dry-run behavior is delegated to each
+    helper.
 
-    When ``curation_state`` is None, the returned dict carries
-    ``curation: None`` (the apply-curation step didn't run). When it's
-    a dict, the returned ``curation`` value is the counts dict from
-    :func:`apply_curation_overrides` regardless of ``apply``.
+    ``skip_l3_derivations=True`` stops the chain after the
+    OCR+lemma+curation prefix — useful for tests that don't care
+    about the derived columns + for fast iteration on curation
+    work. Defaults to False (Phase 2 default is "run everything").
     """
     ocr_result = cluster_ocr_variants(db, apply=apply)
     lemma_result = link_lemmas(db, apply=apply)
@@ -300,12 +341,30 @@ def run_full_enrichment(
         # committing — surfaces unresolved refs / self-references early.
         curation_counts = apply_curation_overrides(db, curation_state, apply=apply)
 
+    order: list[str] = ["normalize-ocr", "link-lemmas"]
+    if curation_counts is not None:
+        order.append("apply-curation")
+
+    decompose_result: dict[str, Any] | None = None
+    cognate_result: dict[str, Any] | None = None
+    stratum_result: dict[str, Any] | None = None
+    english_shaped_result: dict[str, Any] | None = None
+    period_form_result: dict[str, Any] | None = None
+
+    if not skip_l3_derivations:
+        decompose_result = decompose_all(db, apply=apply)
+        order.append("decompose")
+        cognate_result = cluster_cognates(db, apply=apply)
+        order.append("cluster-cognates")
+        stratum_result = classify_stratum_all(db, apply=apply)
+        order.append("classify-stratum")
+        english_shaped_result = derive_english_shaped_all(db, apply=apply)
+        order.append("derive-english-shaped")
+        period_form_result = project_period_forms(db, apply=apply)
+        order.append("project-period-forms")
+
     return {
-        "order": (
-            ["normalize-ocr", "link-lemmas", "apply-curation"]
-            if curation_counts is not None
-            else ["normalize-ocr", "link-lemmas"]
-        ),
+        "order": order,
         "applied": apply,
         "ocr": {
             "method_version": OCR_METHOD_VERSION,
@@ -319,6 +378,11 @@ def run_full_enrichment(
             "sample": lemma_result.get("sample", []),
         },
         "curation": curation_counts,
+        "decompose": decompose_result,
+        "cognates": cognate_result,
+        "stratum": stratum_result,
+        "english_shaped": english_shaped_result,
+        "period_forms": period_form_result,
     }
 
 
@@ -428,7 +492,7 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
     verb_ocr = "merged" if result["applied"] else "mergeable"
     verb_lemmas = "linked" if result["applied"] else "linkable"
     lines: list[str] = [
-        "## L3 enrichment: OCR + lemmas" + (" + curation" if result.get("curation") else ""),
+        "## L3 enrichment chain",
         "",
         f"- Order: {' → '.join(result['order'])}",
         f"- Applied: {result['applied']}",
@@ -443,4 +507,71 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
     if result.get("curation"):
         lines.append("")
         lines.append(format_curation_run(result["curation"]))
+
+    if result.get("decompose") is not None:
+        d = result["decompose"]
+        lines.extend(
+            [
+                "",
+                "### Decomposition",
+                f"- Toponyms scanned: {d['toponyms_scanned']}",
+                f"- Decompositions written: {d['decompositions']}",
+                f"- Rule firings: scholar={d.get('scholar', 0)}, "
+                f"scholar-disagreement={d.get('scholar-disagreement', 0)}, "
+                f"unique-zero={d.get('unique-zero-unaccounted', 0)}, "
+                f"tiebreaker={d.get('tiebreaker', 0)}, "
+                f"no-canonical={d.get('no-canonical', 0)}",
+            ]
+        )
+    if result.get("cognates") is not None:
+        c = result["cognates"]
+        lines.extend(
+            [
+                "",
+                "### Cognate clustering",
+                f"- Roots walked: {c.get('roots', 0)}",
+                f"- Cognate_id assignments: {c.get('candidates', 0)}",
+            ]
+        )
+    if result.get("stratum") is not None:
+        s = result["stratum"]
+        lines.append("")
+        lines.append("### Stratum classification")
+        for lang, counts in s["languages"].items():
+            lines.append(
+                f"- {lang}: proposed={counts['proposed']}, "
+                f"written={counts.get('written', 0)}, "
+                f"skipped={counts.get('skipped', 0)}"
+            )
+            # Stratum distribution: same shape as the rule-firings line
+            # in the decomposition section. Sorted for deterministic
+            # report output (the underlying dict is built by
+            # classify_stratum_all in proposal-iteration order).
+            by_stratum = counts.get("by_stratum") or {}
+            if by_stratum:
+                breakdown = ", ".join(f"{stratum}={n}" for stratum, n in sorted(by_stratum.items()))
+                lines.append(f"  - by stratum: {breakdown}")
+    if result.get("english_shaped") is not None:
+        e = result["english_shaped"]
+        lines.extend(
+            [
+                "",
+                "### English-shaped derivation",
+                f"- Candidates: {e['candidates']}",
+                f"- Written: {e['written']}",
+                f"- Skipped (no input): {e['skipped_no_input']}",
+            ]
+        )
+    if result.get("period_forms") is not None:
+        p = result["period_forms"]
+        lines.extend(
+            [
+                "",
+                "### Period-form projection",
+                f"- Rows scanned: {p.get('rows_scanned', 0)}",
+                f"- Projected: {p.get('rows_projected', 0)}",
+                f"- Candidates: {p.get('candidates', 0)}",
+                f"- Rows written: {p.get('rows_written', 0)}",
+            ]
+        )
     return "\n".join(lines)

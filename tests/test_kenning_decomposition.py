@@ -40,6 +40,7 @@ from wyrd.generators.kenning.decomposition import (
     _signature_for_payload,
     apply_canonical_to_name,
     compute_decompositions,
+    decompose_all,
     decompose_with_canonical,
     lookup_canonical_signature,
     pick_canonical_decomposition,
@@ -2741,3 +2742,61 @@ def test_cli_decompose_summary_includes_tiebreaker_count(tmp_path: Path) -> None
     )
     assert result.exit_code == 0, result.output
     assert "tiebreaker=" in result.stderr
+
+
+# --- decompose_all dry-run contract ---------------------------------------
+#
+# Pin the round-2 fix: decompose_all(apply=False) writes per-toponym
+# decompositions into the open transaction but skips db.commit(). The
+# transaction's eventual implicit rollback (connection close without
+# commit) is what unwinds the writes. The older explicit
+# db.conn.rollback() was removed because, inside run_full_enrichment, it
+# would wipe uncommitted state from earlier passes.
+
+
+def test_decompose_all_dry_run_does_not_persist(fresh_db: Path) -> None:
+    """Decompose_all(apply=False) must leave toponym_decomposition empty
+    once the LexiconDB context closes without an outer commit. Pins the
+    'no explicit rollback, rely on transaction unwind' contract."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        topo_id = _insert_toponym(db, "Stratford")
+        # _insert_toponym commits, so we know there's a toponym row to scan.
+        result = decompose_all(db, apply=False, word_db=word_db)
+        # Inside the same connection the dry-run writes are visible — that's
+        # the dry-run preview contract.
+        in_flight = db.conn.execute(
+            "SELECT COUNT(*) AS c FROM toponym_decomposition WHERE toponym_id = ?",
+            (topo_id,),
+        ).fetchone()["c"]
+        assert in_flight >= 1, "dry-run should populate decompositions in the open txn"
+    assert result["applied"] == 0
+    assert result["toponyms_scanned"] == 1
+
+    # Connection has closed without commit. A fresh connection must see
+    # zero decompositions — uncommitted writes were unwound implicitly.
+    with LexiconDB(fresh_db) as db2:
+        persisted = db2.conn.execute(
+            "SELECT COUNT(*) AS c FROM toponym_decomposition WHERE toponym_id = ?",
+            (topo_id,),
+        ).fetchone()["c"]
+    assert persisted == 0, "dry-run writes leaked to disk"
+
+
+def test_decompose_all_empty_db_fast_path(fresh_db: Path) -> None:
+    """No toponym rows → return zero counts without loading the bundle.
+    Pins the cheap SELECT 1 LIMIT 1 short-circuit."""
+    with LexiconDB(fresh_db) as db:
+        result = decompose_all(db, apply=True)
+    assert result["toponyms_scanned"] == 0
+    assert result["decompositions"] == 0
+    # All rule-firing counters present (so the dict shape is stable for
+    # format_enrichment_run regardless of fast-path taken).
+    for key in (
+        "scholar",
+        "scholar-disagreement",
+        "unique-zero-unaccounted",
+        "tiebreaker",
+        "no-canonical",
+    ):
+        assert result[key] == 0

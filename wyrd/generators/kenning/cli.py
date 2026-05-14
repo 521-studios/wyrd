@@ -37,7 +37,10 @@ from wyrd.generators.kenning.dictionary_parser import (
     parse_alphabetical_text,
     parse_numbered_list_text,
 )
-from wyrd.generators.kenning.english_shaping import derive_english_shaped
+from wyrd.generators.kenning.english_shaping import (
+    PHASE2A_NON_LATIN_LANGS,
+    derive_english_shaped,
+)
 from wyrd.generators.kenning.era import (
     era_cell,
     era_cell_for_input,
@@ -99,30 +102,10 @@ from wyrd.generators.kenning.wiktextract_corpus_miner import (
 from wyrd.generators.kenning.wiktextract_ingester import ingest_wiktextract_path
 from wyrd.seed import resolve_seed, rng_for
 
-# Wave-2 non-Latin source languages eligible for english_shaped derivation
-# (wyrd-ha9q Phase 2b). Used by `lexicon derive-english-shaped` to filter
-# the rows it walks. Hardcoded to match the canonical wave-2 + precursor
-# /postcursor stack of `english_shaping._LATIN_SCRIPT_LANGS` (its inverse
-# within the approved set).
-_PHASE2A_NON_LATIN_LANGS: tuple[str, ...] = (
-    "he",
-    "ar",
-    "fa",
-    "sa",
-    "akk",
-    "egy",
-    "arc",
-    "pal",
-    "hbo",
-    "peo",
-    "fa-cls",
-    "xpr",
-    "syc",
-    "cop",
-    "axm",
-    "pra",
-    "pi",
-)
+# wyrd-hidb Phase 2: PHASE2A_NON_LATIN_LANGS lives in
+# english_shaping.py (the wrapper that consumes it lives there too).
+# The CLI imports it for the SELECT-filter on `lexicon derive-english-shaped`.
+_PHASE2A_NON_LATIN_LANGS = PHASE2A_NON_LATIN_LANGS
 
 
 def _select_parser_and_run(

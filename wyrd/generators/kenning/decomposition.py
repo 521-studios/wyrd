@@ -36,10 +36,11 @@ import hashlib
 import itertools
 import json
 import logging
+from importlib import resources
 from typing import TYPE_CHECKING
 
 from wyrd.generators.kenning.lexicon import _LANG_CODE_TO_JSON_FIELD
-from wyrd.generators.kenning.meaning import Meaning
+from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.name import Name
 
 if TYPE_CHECKING:
@@ -632,6 +633,86 @@ def populate_and_pick(
     """
     compute_decompositions(db, toponym_id, modern_name, word_db)
     return pick_canonical_decomposition(db, toponym_id, word_db)
+
+
+def decompose_all(
+    db: LexiconDB,
+    *,
+    apply: bool = True,
+    word_db: dict | None = None,
+) -> dict[str, int]:
+    """Uniform L3 wrapper for the ``decompose`` pass — runs
+    :func:`populate_and_pick` against every toponym in ``db`` and
+    rolls up the rule-firing counts.
+
+    Wyrd-hidb Phase 2 plumbs this into ``run_full_enrichment``.
+    Dry-run (``apply=False``) writes per-toponym decompositions into the
+    open transaction but skips the final ``db.commit()`` — the
+    transaction's eventual implicit rollback (CLI exit) or the
+    orchestrator's outer transaction handling is what unwinds them.
+    Decompose_all does NOT call ``rollback()`` itself: that would wipe
+    uncommitted writes from earlier passes in the enrichment chain. The
+    other L3 wrappers all use the "if apply: write+commit; else: no-op"
+    pattern; decompose_all is the outlier because
+    compute_decompositions/pick_canonical_decomposition write
+    unconditionally and would be too invasive to split.
+
+    ``word_db`` is the matcher's word dictionary (loaded from the
+    runtime ``meanings.json`` bundle). Passing it explicitly keeps
+    this function pure relative to bundle resolution — tests inject
+    a synthetic word_db; the CLI / enrichment chain load the live
+    bundle at the call site.
+
+    Empty-DB fast path: when the toponym table has no rows the
+    bundle load (~34 MB of JSON) is skipped entirely. Speeds up
+    schema-only rebuild smokes from ~1 s to ~10 ms.
+    """
+    rule_counts: dict[str, int] = {
+        "scholar": 0,
+        "scholar-disagreement": 0,
+        "unique-zero-unaccounted": 0,
+        "tiebreaker": 0,
+        "no-canonical": 0,
+    }
+    decompositions = 0
+    # Cheap pre-check before the bundle load on schema-only DBs.
+    has_rows = db.conn.execute("SELECT 1 FROM toponym LIMIT 1").fetchone() is not None
+    if not has_rows:
+        return {
+            "applied": int(apply),
+            "toponyms_scanned": 0,
+            "decompositions": 0,
+            **rule_counts,
+        }
+
+    if word_db is None:
+        bundle_text = (
+            resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
+        )
+        word_db, _ = load_meanings(json.loads(bundle_text))
+
+    # Iterate the cursor directly instead of fetchall() so the toponym
+    # table never has to fit in memory in one shot. populate_and_pick
+    # writes to toponym_decomposition (not toponym), so the outer cursor
+    # is not invalidated by per-row INSERTs.
+    toponyms_scanned = 0
+    cursor = db.conn.execute("SELECT id, modern_name FROM toponym ORDER BY id")
+    for row in cursor:
+        summary = populate_and_pick(db, row["id"], row["modern_name"], word_db)
+        decompositions += int(summary["decomposition_count"] or 0)
+        rule_key = summary["rule"] or "no-canonical"
+        rule_counts[rule_key] = rule_counts.get(rule_key, 0) + 1
+        toponyms_scanned += 1
+
+    if apply:
+        db.commit()
+
+    return {
+        "applied": int(apply),
+        "toponyms_scanned": toponyms_scanned,
+        "decompositions": decompositions,
+        **rule_counts,
+    }
 
 
 # --- Phase 3 consumer integration -----------------------------------------

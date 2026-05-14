@@ -72,7 +72,7 @@ def test_orchestrator_runs_passes_in_canonical_order(tmp_path: Path):
     db_path = _build_db(tmp_path)
     _seed_for_enrichment(db_path)
     with LexiconDB(db_path) as db:
-        result = run_full_enrichment(db, apply=False)
+        result = run_full_enrichment(db, apply=False, skip_l3_derivations=True)
     # Order pins normalize-ocr first so lemma linkage targets canonicals
     # not tombstones.
     assert result["order"] == ["normalize-ocr", "link-lemmas"]
@@ -85,7 +85,7 @@ def test_orchestrator_dry_run_does_not_write(tmp_path: Path):
     db_path = _build_db(tmp_path)
     ids = _seed_for_enrichment(db_path)
     with LexiconDB(db_path) as db:
-        run_full_enrichment(db, apply=False)
+        run_full_enrichment(db, apply=False, skip_l3_derivations=True)
     # No writes happened — merged_into_id + lemma_id still NULL.
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -104,7 +104,7 @@ def test_orchestrator_apply_writes_merge_and_lemma(tmp_path: Path):
     db_path = _build_db(tmp_path)
     ids = _seed_for_enrichment(db_path)
     with LexiconDB(db_path) as db:
-        result = run_full_enrichment(db, apply=True)
+        result = run_full_enrichment(db, apply=True, skip_l3_derivations=True)
     assert result["applied"] is True
     # OCR-merge tombstoned one of the (cæt, caet) pair.
     assert result["ocr"]["etymons_merged"] >= 1
@@ -131,7 +131,7 @@ def test_orchestrator_lemma_link_resolves_against_canonical_after_ocr_merge(tmp_
     db_path = _build_db(tmp_path)
     ids = _seed_for_enrichment(db_path)
     with LexiconDB(db_path) as db:
-        run_full_enrichment(db, apply=True)
+        run_full_enrichment(db, apply=True, skip_l3_derivations=True)
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     inflected_row = conn.execute(
@@ -202,7 +202,7 @@ def test_status_reports_coverage_after_enrichment(tmp_path: Path):
     db_path = _build_db(tmp_path)
     _seed_for_enrichment(db_path)
     with LexiconDB(db_path) as db:
-        run_full_enrichment(db, apply=True)
+        run_full_enrichment(db, apply=True, skip_l3_derivations=True)
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     status = enrichment_status(conn)
@@ -255,6 +255,45 @@ def test_format_run_apply_mode_uses_past_tense_verbs():
     md = format_enrichment_run(result)
     assert "merged: 1" in md
     assert "linked: 2" in md
+
+
+def test_format_run_renders_by_stratum_breakdown():
+    """The stratum section renders the per-language by_stratum distribution
+    when present, and omits the breakdown line when absent."""
+    result = {
+        "order": ["normalize-ocr", "link-lemmas", "classify-stratum"],
+        "applied": True,
+        "ocr": {"method_version": OCR_METHOD_VERSION, "groups": 0, "etymons_merged": 0},
+        "lemmas": {"method_version": LEMMA_METHOD_VERSION, "candidates": 0},
+        "stratum": {
+            "applied": 1,
+            "languages": {
+                "welsh": {
+                    "proposed": 7,
+                    "written": 5,
+                    "skipped": 2,
+                    "by_stratum": {"native-welsh": 3, "latin-loan": 2},
+                },
+                "french": {
+                    "proposed": 0,
+                    "written": 0,
+                    "skipped": 0,
+                },
+            },
+        },
+    }
+    md = format_enrichment_run(result)
+    # Per-language line still rendered.
+    assert "welsh: proposed=7" in md and "written=5" in md and "skipped=2" in md
+    # New: by_stratum breakdown is sorted alphabetically, deterministic output.
+    assert "by stratum: latin-loan=2, native-welsh=3" in md
+    # When by_stratum is absent (french line above), no breakdown line follows.
+    welsh_idx = md.index("welsh:")
+    french_idx = md.index("french:")
+    welsh_section = md[welsh_idx:french_idx]
+    assert "by stratum:" in welsh_section
+    french_section = md[french_idx:]
+    assert "by stratum:" not in french_section
 
 
 def test_format_status_shows_per_column_coverage():

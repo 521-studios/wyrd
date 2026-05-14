@@ -23,7 +23,7 @@ Norse follow.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from wyrd.generators.kenning.lexicon import LexiconDB
@@ -397,16 +397,22 @@ def _classify_family(
     """
     proposals: dict[int, str] = {}
 
+    # ORDER BY id pins the proposals-dict insertion order to a
+    # stable rebuild-independent sequence. Without it, the dict's
+    # iteration order downstream (the by_stratum counters in
+    # classify_stratum_all, the format_enrichment_run sections)
+    # would drift across rebuilds with different physical row
+    # orderings — Phase 3 byte-diff risk on the enrichment report.
     for lang, stratum in self_lang_to_stratum.items():
         rows = db.conn.execute(
-            "SELECT id FROM etymon WHERE language = ? AND merged_into_id IS NULL",
+            "SELECT id FROM etymon WHERE language = ? AND merged_into_id IS NULL ORDER BY id",
             (lang,),
         )
         for r in rows:
             proposals[r["id"]] = stratum
 
     modern_rows = db.conn.execute(
-        "SELECT id FROM etymon WHERE language = ? AND merged_into_id IS NULL",
+        "SELECT id FROM etymon WHERE language = ? AND merged_into_id IS NULL ORDER BY id",
         (modern_lang,),
     ).fetchall()
     if not modern_rows:
@@ -687,6 +693,106 @@ def family_for_language(language: str) -> str | None:
     return LANGUAGE_TO_FAMILY.get(language)
 
 
+# SQLite's default `SQLITE_MAX_VARIABLE_NUMBER` is 999; chunk at 500 to leave
+# headroom for any additional placeholders a caller might splice in.
+_NULL_STRATUM_LOOKUP_CHUNK = 500
+
+
+def _fetch_null_stratum_ids(db, etymon_ids) -> set[int]:
+    """Return the subset of ``etymon_ids`` whose ``stratum`` column is NULL.
+
+    Used by the dry-run path of :func:`classify_stratum_all` to model the
+    apply-true gate without writing. Chunked to stay under SQLite's
+    parameterized-IN limit.
+    """
+    ids = list(etymon_ids)
+    found: set[int] = set()
+    for start in range(0, len(ids), _NULL_STRATUM_LOOKUP_CHUNK):
+        chunk = ids[start : start + _NULL_STRATUM_LOOKUP_CHUNK]
+        placeholders = ",".join("?" * len(chunk))
+        found.update(
+            row["id"]
+            for row in db.conn.execute(
+                f"SELECT id FROM etymon WHERE stratum IS NULL AND id IN ({placeholders})",
+                chunk,
+            )
+        )
+    return found
+
+
+def classify_stratum_all(db: LexiconDB, *, apply: bool = True) -> dict[str, Any]:
+    """Uniform L3 wrapper for the ``classify-stratum`` pass — runs
+    the per-language classifiers (welsh, french, old-english,
+    old-norse) and persists the stratum assignments.
+
+    Wyrd-hidb Phase 2 plumbs this into ``run_full_enrichment``.
+
+    Returns per-language counts: how many etymons gained a stratum,
+    how many were skipped (already had one), and which strata fired
+    (sample counts per stratum label). Stratum overwrite is gated by
+    ``stratum IS NULL`` — re-running is idempotent. Operators who
+    need to reclassify a populated row use the standalone
+    ``lexicon classify-stratum --force`` path.
+
+    Dry-run (``apply=False``) runs the classifiers but skips the
+    UPDATE — useful for previewing how many rows would be tagged
+    before committing.
+    """
+    counts_by_language: dict[str, dict[str, int]] = {}
+    for language, classifier in (
+        ("welsh", classify_welsh),
+        ("french", classify_french),
+        ("old-english", classify_old_english),
+        ("old-norse", classify_old_norse),
+    ):
+        proposals = classifier(db)
+        if not proposals:
+            counts_by_language[language] = {"proposed": 0, "written": 0, "skipped": 0}
+            continue
+        written = 0
+        skipped = 0
+        # Stratum distribution counter for the per-language report
+        by_stratum: dict[str, int] = {}
+        if apply:
+            # Per-row UPDATE — simpler than the CLI's CASE-batched path
+            # because the enrichment chain commits at the end of the
+            # whole run rather than per-stratum-pass. The CASE-batched
+            # optimization matters at 100k+ rows / standalone CLI runs;
+            # within run_full_enrichment we're already on one
+            # transaction and only paying the syscall cost.
+            for etymon_id, stratum in proposals.items():
+                cur = db.conn.execute(
+                    "UPDATE etymon SET stratum = ? WHERE id = ? AND stratum IS NULL",
+                    (stratum, etymon_id),
+                )
+                if cur.rowcount:
+                    written += 1
+                    by_stratum[stratum] = by_stratum.get(stratum, 0) + 1
+                else:
+                    skipped += 1
+        else:
+            # Dry-run: apply the same stratum-IS-NULL gate as the
+            # apply-true branch so written/skipped/by_stratum predict the
+            # real write counts. Without this, the dry-run over-reports
+            # by the count of etymons already classified.
+            null_stratum_ids = _fetch_null_stratum_ids(db, proposals.keys())
+            for etymon_id, stratum in proposals.items():
+                if etymon_id in null_stratum_ids:
+                    written += 1
+                    by_stratum[stratum] = by_stratum.get(stratum, 0) + 1
+                else:
+                    skipped += 1
+        counts_by_language[language] = {
+            "proposed": len(proposals),
+            "written": written,
+            "skipped": skipped,
+            "by_stratum": by_stratum,
+        }
+    if apply:
+        db.commit()
+    return {"applied": int(apply), "languages": counts_by_language}
+
+
 __all__ = [
     "ALL_STRATA",
     "FRENCH_STRATA",
@@ -698,6 +804,7 @@ __all__ = [
     "classify_french",
     "classify_old_english",
     "classify_old_norse",
+    "classify_stratum_all",
     "classify_welsh",
     "family_for_language",
     "valid_strata_for_culture",
