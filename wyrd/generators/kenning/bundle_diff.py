@@ -97,7 +97,10 @@ def _diff_subject_payloads(a: dict[str, Any], b: dict[str, Any]) -> list[str]:
     b_words = b.get("words") or []
     # Length is implicit in the identity tuple (zipped via modern_usage
     # tuple), so a_words and b_words are guaranteed-same-length here.
-    for i, (a_word, b_word) in enumerate(zip(a_words, b_words, strict=False)):
+    # strict=True turns that invariant into an assertion: a future change
+    # that broke the identity-tuple contract would fail loudly with a
+    # ValueError instead of silently truncating per-word diff notes.
+    for i, (a_word, b_word) in enumerate(zip(a_words, b_words, strict=True)):
         if a_word != b_word:
             notes.append(f"words[{i}] differs")
     if not notes:
