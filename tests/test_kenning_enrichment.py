@@ -258,9 +258,8 @@ def test_format_run_apply_mode_uses_past_tense_verbs():
 
 
 def test_format_run_renders_by_stratum_breakdown():
-    """The stratum section must render the per-language by_stratum
-    distribution (PR #199 round 2). Without this assertion the breakdown
-    block has no test coverage."""
+    """The stratum section renders the per-language by_stratum distribution
+    when present, and omits the breakdown line when absent."""
     result = {
         "order": ["normalize-ocr", "link-lemmas", "classify-stratum"],
         "applied": True,
