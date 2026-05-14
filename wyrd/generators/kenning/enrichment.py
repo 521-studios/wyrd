@@ -1,23 +1,32 @@
-"""L3 enrichment orchestrator — wyrd-ilam (Phase 2a).
+"""L3 enrichment orchestrator — wyrd-ilam → wyrd-hidb.
 
 After ``lexicon rebuild-from-jsonl`` produces a fresh SQLite from the
 L2 JSONL source-of-truth, the derived columns on ``etymon``
 (``lemma_id``, ``inflection``, ``lemma_method``, ``merged_into_id``,
-``cognate_id``, ``stratum``, ``english_shaped``) are NULL — the dump
-explicitly excludes them per the L2/L3 boundary contract. Operators
-re-derive them by running the enrichment passes documented in
-``L2_L3_BOUNDARY.md``.
+``cognate_id``, ``stratum``, ``english_shaped``) plus the derived
+tables (``toponym_decomposition``, ``etymon_period_form``) are empty
+— the dump explicitly excludes them per the L2/L3 boundary contract.
+Operators re-derive them by running the enrichment passes documented
+in ``L2_L3_BOUNDARY.md``.
 
-This module ships the first migration in that pattern: an orchestrator
-:func:`run_full_enrichment` that runs ``normalize-ocr`` (OCR
-variant clustering) followed by ``link-lemmas`` (inflected → lemma
-linkage) in the canonical order. Order matters: link-lemmas needs
-canonical etymons as targets, so OCR-cluster has to tombstone the
-losers first.
+:func:`run_full_enrichment` is the canonical orchestrator. It walks
+the L3 chain in dependency order:
 
-Future PRs extend this to cluster-cognates, classify-stratum, etc.;
-each pass keeps its existing standalone CLI command for operators who
-want fine-grained control.
+    cluster-ocr → link-lemmas → apply-curation → decompose →
+    cluster-cognates → classify-stratum → derive-english-shaped →
+    project-period-forms
+
+Each pass keeps its existing standalone CLI command for operators
+who want fine-grained control; the wrappers
+(:func:`decomposition.decompose_all`,
+:func:`english_shaping.derive_english_shaped_all`,
+:func:`strata.classify_stratum_all`) are the uniform
+``(db, *, apply)`` shape this module's orchestrator can call directly.
+
+``skip_l3_derivations=True`` stops after the OCR+lemma+curation
+prefix — useful for fast curation iteration + for the focused
+synthetic-DB enrichment / curation tests that don't seed the
+toponym / descent rows the downstream passes scan.
 """
 
 from __future__ import annotations
@@ -25,7 +34,16 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from .lexicon import LexiconDB, cluster_ocr_variants, link_lemmas
+from .decomposition import decompose_all
+from .english_shaping import derive_english_shaped_all
+from .lexicon import (
+    LexiconDB,
+    cluster_cognates,
+    cluster_ocr_variants,
+    link_lemmas,
+    project_period_forms,
+)
+from .strata import classify_stratum_all
 
 # Method-version provenance currently lives in code (the writer-side
 # UPDATE statements stamp these strings). Surfacing them here in one
@@ -276,18 +294,33 @@ def run_full_enrichment(
     3. ``apply_curation_overrides`` (when ``curation_state`` passed)
        — overlay operator decisions on lemma / merge assignments.
     4. ``decompose_all`` — matcher-derived toponym decompositions.
-       Needs OCR + lemma + curation settled (else matches against
-       tombstoned / wrong-canonical rows).
-    5. ``cluster_cognates`` — etymon_descent → cognate_id. Needs
-       lemma assignment (cognates flow through canonical lemmas).
-    6. ``classify_stratum_all`` — per-language stratum buckets. Needs
-       etymon inventory + descent edges settled.
+       Matches the toponym's modern_name against the live
+       ``meanings.json`` bundle, so it doesn't strictly need OCR /
+       lemma settled — but running it after the auto-clustering +
+       curation passes means the etymon ids the canonical breakdowns
+       reference correspond to the post-cluster canonical rows, not
+       tombstoned ones.
+    5. ``cluster_cognates`` — walks the ``etymon_descent`` graph
+       from each Proto-* root and assigns ``cognate_id`` to every
+       reachable descendant. The OCR pass populates
+       ``merged_into_id`` (tombstone pointer), which cluster_cognates
+       respects when picking the canonical etymon for each cluster;
+       so OCR must precede this step.
+    6. ``classify_stratum_all`` — per-language stratum buckets. Reads
+       ``etymon.language`` + the ``etymon_descent`` parent edges
+       populated by L2 replay; idempotent under the
+       ``stratum IS NULL`` gate.
     7. ``derive_english_shaped_all`` — non-Latin-script
-       transliteration. Independent of stratum but logically after
-       cognates (stable canonical_form).
-    8. ``project_period_forms`` — Tier-3 period-form fallback.
-       Depends on stratum + cognate assignments for period
-       bucketing.
+       transliteration. Reads ``etymon.canonical_form`` +
+       ``transliteration`` + ``pronunciation_ipa``; independent of the
+       earlier passes' column writes, but placed after them so a
+       round-trip rebuild has stable canonical_form values by the
+       time english_shaped derivation runs.
+    8. ``project_period_forms`` — wyrd-unuo Phase 3.3: Tier-3
+       period-form fallback. Reads ``toponym_attestation`` rows + the
+       cognate_id assignments from step 5 (cluster mates contribute
+       suffix candidates), so cluster_cognates must precede this
+       step.
 
     Dry-run (``apply=False``) walks every pass and reports
     candidates without writing. Curation overrides ARE validated on
@@ -299,11 +332,6 @@ def run_full_enrichment(
     about the derived columns + for fast iteration on curation
     work. Defaults to False (Phase 2 default is "run everything").
     """
-    from wyrd.generators.kenning.decomposition import decompose_all
-    from wyrd.generators.kenning.english_shaping import derive_english_shaped_all
-    from wyrd.generators.kenning.lexicon import cluster_cognates, project_period_forms
-    from wyrd.generators.kenning.strata import classify_stratum_all
-
     ocr_result = cluster_ocr_variants(db, apply=apply)
     lemma_result = link_lemmas(db, apply=apply)
     curation_counts: dict[str, Any] | None = None

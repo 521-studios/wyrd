@@ -39,7 +39,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from wyrd.generators.kenning.lexicon import _LANG_CODE_TO_JSON_FIELD
-from wyrd.generators.kenning.meaning import Meaning
+from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.name import Name
 
 if TYPE_CHECKING:
@@ -653,18 +653,11 @@ def decompose_all(
     this function pure relative to bundle resolution — tests inject
     a synthetic word_db; the CLI / enrichment chain load the live
     bundle at the call site.
+
+    Empty-DB fast path: when the toponym table has no rows the
+    bundle load (~34 MB of JSON) is skipped entirely. Speeds up
+    schema-only rebuild smokes from ~1 s to ~10 ms.
     """
-    if word_db is None:
-        import json
-        from importlib import resources
-
-        from wyrd.generators.kenning.meaning import load_meanings
-
-        bundle_text = (
-            resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
-        )
-        word_db, _ = load_meanings(json.loads(bundle_text))
-
     rule_counts: dict[str, int] = {
         "scholar": 0,
         "scholar-disagreement": 0,
@@ -674,6 +667,23 @@ def decompose_all(
     }
     decompositions = 0
     rows = db.conn.execute("SELECT id, modern_name FROM toponym ORDER BY id").fetchall()
+    if not rows:
+        # Nothing to decompose — short-circuit before the bundle load.
+        return {
+            "applied": int(apply),
+            "toponyms_scanned": 0,
+            "decompositions": 0,
+            **rule_counts,
+        }
+
+    if word_db is None:
+        from importlib import resources
+
+        bundle_text = (
+            resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
+        )
+        word_db, _ = load_meanings(json.loads(bundle_text))
+
     for row in rows:
         summary = populate_and_pick(db, row["id"], row["modern_name"], word_db)
         decompositions += int(summary["decomposition_count"] or 0)

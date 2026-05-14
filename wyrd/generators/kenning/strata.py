@@ -397,16 +397,22 @@ def _classify_family(
     """
     proposals: dict[int, str] = {}
 
+    # ORDER BY id pins the proposals-dict insertion order to a
+    # stable rebuild-independent sequence. Without it, the dict's
+    # iteration order downstream (the by_stratum counters in
+    # classify_stratum_all, the format_enrichment_run sections)
+    # would drift across rebuilds with different physical row
+    # orderings — Phase 3 byte-diff risk on the enrichment report.
     for lang, stratum in self_lang_to_stratum.items():
         rows = db.conn.execute(
-            "SELECT id FROM etymon WHERE language = ? AND merged_into_id IS NULL",
+            "SELECT id FROM etymon WHERE language = ? AND merged_into_id IS NULL ORDER BY id",
             (lang,),
         )
         for r in rows:
             proposals[r["id"]] = stratum
 
     modern_rows = db.conn.execute(
-        "SELECT id FROM etymon WHERE language = ? AND merged_into_id IS NULL",
+        "SELECT id FROM etymon WHERE language = ? AND merged_into_id IS NULL ORDER BY id",
         (modern_lang,),
     ).fetchall()
     if not modern_rows:
