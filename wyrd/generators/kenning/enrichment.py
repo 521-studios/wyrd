@@ -549,9 +549,7 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
             # classify_stratum_all in proposal-iteration order).
             by_stratum = counts.get("by_stratum") or {}
             if by_stratum:
-                breakdown = ", ".join(
-                    f"{stratum}={n}" for stratum, n in sorted(by_stratum.items())
-                )
+                breakdown = ", ".join(f"{stratum}={n}" for stratum, n in sorted(by_stratum.items()))
                 lines.append(f"  - by stratum: {breakdown}")
     if result.get("english_shaped") is not None:
         e = result["english_shaped"]
