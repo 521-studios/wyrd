@@ -249,8 +249,8 @@ def test_round_trip_rebuild_enrich_export_byte_identical(tmp_path: Path) -> None
     # Coverage assertions: each L3 pass must report non-trivial work,
     # otherwise the byte-diff would still pass on two empty results and
     # the round-trip test would be lying about what it pins. The numeric
-    # thresholds are loose (>0) — exact counts shift when the fixture or
-    # passes change; the test cares only that something happened.
+    # thresholds are loose (>= 1) — exact counts shift as the fixture or
+    # passes evolve.
     assert pre_result["order"] == [
         "normalize-ocr",
         "link-lemmas",
