@@ -23,7 +23,7 @@ Norse follow.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from wyrd.generators.kenning.lexicon import LexiconDB
@@ -720,7 +720,7 @@ def _fetch_null_stratum_ids(db, etymon_ids) -> set[int]:
     return found
 
 
-def classify_stratum_all(db, *, apply: bool = True) -> dict[str, dict[str, int]]:
+def classify_stratum_all(db: LexiconDB, *, apply: bool = True) -> dict[str, Any]:
     """Uniform L3 wrapper for the ``classify-stratum`` pass — runs
     the per-language classifiers (welsh, french, old-english,
     old-norse) and persists the stratum assignments.
