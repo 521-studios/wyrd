@@ -113,8 +113,16 @@ def _find_first_divergence(
     committed: str, rebuilt: str, window_chars: int = 100
 ) -> tuple[int | None, tuple[str, str] | None]:
     """Return ``(byte_offset, (committed_window, rebuilt_window))`` for
-    the first character-level difference. ``window_chars`` controls
-    the size of the diagnostic window on each side of the divergence."""
+    the first character-level difference. ``byte_offset`` is the UTF-8
+    byte offset (matches ``wc -c`` / a hex editor's view of the file on
+    disk), not the Python ``str`` character index — the bundle is
+    written with ``ensure_ascii=False`` so non-ASCII etymological forms
+    (æ, þ, ŵ, ...) make those two views diverge.
+
+    ``window_chars`` controls the size of the diagnostic window on each
+    side of the divergence. The window itself stays in character units;
+    operators reading the report don't care about byte alignment for
+    the surrounding context."""
     if committed == rebuilt:
         return None, None
     # zip's truncate semantics are intentional here — we only iterate to
@@ -122,14 +130,17 @@ def _find_first_divergence(
     # caller via byte_size_* fields.
     for i, (a, b) in enumerate(zip(committed, rebuilt, strict=False)):
         if a != b:
+            byte_offset = len(committed[:i].encode("utf-8"))
             start = max(0, i - window_chars // 2)
             end = i + window_chars // 2
-            return i, (committed[start:end], rebuilt[start:end])
-    # No mid-string divergence → one is a prefix of the other.
+            return byte_offset, (committed[start:end], rebuilt[start:end])
+    # No mid-string divergence → one is a prefix of the other. The
+    # divergence "offset" is the byte length of the shorter text.
     shorter = min(len(committed), len(rebuilt))
+    byte_offset = len(committed[:shorter].encode("utf-8"))
     longer_text = committed if len(committed) > len(rebuilt) else rebuilt
     trailing = longer_text[shorter : shorter + window_chars]
-    return shorter, (
+    return byte_offset, (
         "<end>" if len(committed) <= shorter else trailing,
         "<end>" if len(rebuilt) <= shorter else trailing,
     )
@@ -158,10 +169,15 @@ def compute_bundle_diff(committed_text: str, rebuilt_text: str) -> BundleDiff:
     caller should fall back to the byte window for diagnosis.
     """
     bytes_match = committed_text == rebuilt_text
+    # Encode to UTF-8 for sizing because the bundle is written with
+    # ensure_ascii=False (per export-meanings); the on-disk byte count
+    # (what `wc -c` and a hex editor see) is the UTF-8 length, not the
+    # Python ``str`` character length. Pure-ASCII content makes the
+    # two equal; non-ASCII (æ, þ, ŵ, ...) makes them diverge.
     diff = BundleDiff(
         bytes_match=bytes_match,
-        byte_size_committed=len(committed_text),
-        byte_size_rebuilt=len(rebuilt_text),
+        byte_size_committed=len(committed_text.encode("utf-8")),
+        byte_size_rebuilt=len(rebuilt_text.encode("utf-8")),
     )
     if bytes_match:
         return diff

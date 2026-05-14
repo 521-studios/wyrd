@@ -22,6 +22,7 @@ from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.enrichment import run_full_enrichment
+from wyrd.generators.kenning.jsonl_build import collect_curation_overrides, jsonl_paths_in
 from wyrd.generators.kenning.jsonl_dump import dump_all_sources
 from wyrd.generators.kenning.lexicon import (
     LexiconDB,
@@ -95,13 +96,21 @@ def _populate_fixture(db_path: Path) -> None:
         db.commit()
 
 
-def _build_committed_bundle(db_path: Path) -> str:
+def _build_committed_bundle(db_path: Path, jsonl_dir: Path) -> str:
     """Emit a bundle JSON string in exactly the format
     ``lexicon export-meanings --output`` would write — payload + trailing
-    newline. Used to produce the "committed" fixture file the diff-bundle
-    command reads from disk."""
+    newline.
+
+    ``jsonl_dir`` is required because ``run_full_enrichment``'s
+    ``curation_state`` arg must mirror what ``diff-bundle`` does (it
+    calls ``collect_curation_overrides(paths) or None``). With the
+    current fixture this is a no-op (no curation events), but pinning
+    the symmetry here prevents a silent false-no-drift if a future
+    fixture grows curation rows."""
+    paths = jsonl_paths_in(jsonl_dir)
+    curation_state = collect_curation_overrides(paths) or None
     with LexiconDB(db_path) as db:
-        run_full_enrichment(db, apply=True, curation_state={})
+        run_full_enrichment(db, apply=True, curation_state=curation_state)
         subjects = export_meanings(db, min_witnesses=2, lang_thresholds={})
         canonical_decompositions = collect_canonical_decompositions(db)
         fantasy_morphemes = collect_fantasy_morphemes(db)
@@ -114,19 +123,25 @@ def _build_committed_bundle(db_path: Path) -> str:
 
 
 def _setup_committed_and_jsonl(tmp_path: Path) -> tuple[Path, Path]:
-    """Build a fixture DB, emit the committed bundle to disk, and dump
-    JSONL into a directory. Returns ``(committed_bundle_path, jsonl_dir)``
-    — both arguments diff-bundle would consume on a real operator run."""
+    """Build a fixture DB, dump JSONL into a directory, then build the
+    committed bundle using the dumped paths (so curation-state resolution
+    matches what diff-bundle does internally). Returns
+    ``(committed_bundle_path, jsonl_dir)`` — both arguments diff-bundle
+    would consume on a real operator run.
+
+    The dump-before-build order matters: ``_build_committed_bundle``
+    resolves ``curation_state`` via ``collect_curation_overrides`` over
+    the JSONL paths, so the JSONL files must exist first."""
     pre_db = tmp_path / "pre.db"
     _populate_fixture(pre_db)
-
-    committed_bundle = tmp_path / "committed.json"
-    committed_bundle.write_text(_build_committed_bundle(pre_db))
 
     jsonl_dir = tmp_path / "dumped"
     jsonl_dir.mkdir()
     with LexiconDB(pre_db) as db:
         dump_all_sources(db.conn, jsonl_dir, exclude=())
+
+    committed_bundle = tmp_path / "committed.json"
+    committed_bundle.write_text(_build_committed_bundle(pre_db, jsonl_dir))
 
     return committed_bundle, jsonl_dir
 
@@ -234,3 +249,65 @@ def test_diff_bundle_reports_drift_summary_uses_structural_classification(
     assert "First byte-level divergence" in result.output
     # Structural lines for the meaning-change case.
     assert "Subjects:" in result.output
+
+
+# --- --lang-threshold parser error branches -----------------------------
+#
+# Three click.BadParameter paths cover the malformed --lang-threshold
+# spec cases. These don't need the rebuild fixture — Click raises on
+# argument-parse before we get to the rebuild — so we point at a
+# minimal valid --jsonl-dir + --bundle just to satisfy the existing
+# (already-validated) options.
+
+
+def _common_args_for_parser_error(tmp_path: Path) -> list[str]:
+    """Minimal args the parser-error tests share. Both files exist
+    (Click validates exists=True) but the rebuild never runs because
+    --lang-threshold parsing raises first."""
+    jsonl_dir = tmp_path / "jsonl"
+    jsonl_dir.mkdir()
+    bundle = tmp_path / "bundle.json"
+    bundle.write_text('{"subjects": []}\n', encoding="utf-8")
+    return [
+        "lexicon",
+        "diff-bundle",
+        "--jsonl-dir",
+        str(jsonl_dir),
+        "--bundle",
+        str(bundle),
+        "--skip-bulk",
+    ]
+
+
+def test_diff_bundle_rejects_lang_threshold_without_equals(tmp_path: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [*_common_args_for_parser_error(tmp_path), "--lang-threshold", "old-english"],
+    )
+    assert result.exit_code != 0
+    assert "LANG=N" in result.output + (result.stderr or "")
+
+
+def test_diff_bundle_rejects_lang_threshold_empty_side(tmp_path: Path) -> None:
+    """``=3`` (empty LANG) and ``old-english=`` (empty N) both fall under
+    the second BadParameter branch."""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [*_common_args_for_parser_error(tmp_path), "--lang-threshold", "=3"],
+    )
+    assert result.exit_code != 0
+    combined = result.output + (result.stderr or "")
+    assert "non-empty" in combined
+
+
+def test_diff_bundle_rejects_lang_threshold_with_non_integer(tmp_path: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [*_common_args_for_parser_error(tmp_path), "--lang-threshold", "old-english=many"],
+    )
+    assert result.exit_code != 0
+    combined = result.output + (result.stderr or "")
+    assert "integer" in combined

@@ -292,6 +292,128 @@ def test_format_truncates_long_subject_lists() -> None:
     assert "... and 45 more" in rendered
 
 
+def test_same_size_content_differs_branch_is_reported() -> None:
+    """Two equal-length strings with differing content should hit the
+    'Byte size: N (matches; content differs)' branch in the renderer
+    instead of the size-delta branch."""
+    a = _bundle(subjects=[_subject(meaning=["cottage"])])
+    b = a.replace("cottage", "cabbage", 1)  # same length, different content
+    assert len(a) == len(b), "test setup: lengths must match for this branch"
+    diff = compute_bundle_diff(a, b)
+    assert diff.byte_size_committed == diff.byte_size_rebuilt
+    rendered = format_bundle_diff(diff)
+    assert "matches; content differs" in rendered
+
+
+def test_non_dict_optional_field_is_silently_skipped() -> None:
+    """When canonical_decompositions, joiners, or fantasy_morphemes is
+    malformed (e.g. a list or None where a dict is expected), the diff
+    helper must not crash and must leave the corresponding counter at 0
+    — the byte-window covers the underlying drift."""
+    a = _bundle(subjects=[_subject()], canonical_decompositions={"Cotton": {"source": "scholar"}})
+    # Build malformed b directly via json.dumps (the _bundle helper would
+    # accept the wrong type silently, but we want to inject deliberately).
+    b = json.dumps(
+        {
+            "subjects": [_subject()],
+            "canonical_decompositions": ["malformed-list-not-dict"],
+        },
+        ensure_ascii=False,
+        indent=2,
+    )
+    diff = compute_bundle_diff(a, b)
+    # Counter stays at 0 because the malformed shape was skipped.
+    assert diff.canonical_decompositions_changed == 0
+    # No crash, parse_error stays None (both parsed fine).
+    assert diff.parse_error is None
+
+
+def test_format_renders_joiners_and_fantasy_morpheme_counters() -> None:
+    """The format helper must surface joiners_changed and
+    fantasy_morphemes_changed in the 'Other top-level fields with
+    churn' section — operators rely on it to know which sub-field
+    moved."""
+    diff = BundleDiff(
+        bytes_match=False,
+        byte_size_committed=200,
+        byte_size_rebuilt=210,
+        joiners_changed=3,
+        fantasy_morphemes_changed=7,
+    )
+    rendered = format_bundle_diff(diff)
+    assert "joiners: 3 changed" in rendered
+    assert "fantasy_morphemes: 7 changed" in rendered
+
+
+def test_format_truncates_subjects_changed_section() -> None:
+    """The 'Changed (sample):' section should truncate the same way as
+    Added/Removed — flagged by test-coverage-reviewer on round 1."""
+    # Build a bundle with many paired-but-changed subjects.
+    a_subjects = [
+        {
+            "modifier_type": "Topographical",
+            "meaning": [f"sense_{i}"],
+            "modifier_tags": ["architecture"],
+            "words": [{"modern_usage": f"-{i}", "old_english": [f"oe_{i}_a"]}],
+        }
+        for i in range(20)
+    ]
+    b_subjects = [
+        {
+            "modifier_type": "Topographical",
+            "meaning": [f"sense_{i}"],
+            "modifier_tags": ["architecture"],
+            # Same identity tuple, different old_english payload → paired-as-changed.
+            "words": [{"modern_usage": f"-{i}", "old_english": [f"oe_{i}_b"]}],
+        }
+        for i in range(20)
+    ]
+    diff = compute_bundle_diff(_bundle(subjects=a_subjects), _bundle(subjects=b_subjects))
+    assert len(diff.subjects_changed) == 20
+    rendered = format_bundle_diff(diff, max_subjects_per_section=3)
+    assert "Changed (sample):" in rendered
+    assert "... and 17 more" in rendered
+
+
+def test_first_divergence_prefix_branch_committed_longer() -> None:
+    """Symmetric to the test where rebuilt is longer: when COMMITTED is
+    the longer text and rebuilt is a strict prefix, the diff helper
+    should still produce a sensible byte offset + window pair."""
+    rebuilt = _bundle(subjects=[_subject()])
+    committed = rebuilt + "extra trailing bytes for the test"
+    diff = compute_bundle_diff(committed, rebuilt)
+    assert not diff.bytes_match
+    assert diff.byte_size_committed > diff.byte_size_rebuilt
+    assert diff.first_divergence_byte == diff.byte_size_rebuilt  # divergence at rebuilt's end
+    # Window: committed side shows the trailing bytes; rebuilt side
+    # shows "<end>" because we ran out of rebuilt content.
+    assert diff.first_divergence_window is not None
+    committed_win, rebuilt_win = diff.first_divergence_window
+    assert "extra trailing" in committed_win
+    assert rebuilt_win == "<end>"
+
+
+def test_byte_size_counts_utf8_not_python_chars() -> None:
+    """``byte_size_*`` and ``first_divergence_byte`` are UTF-8 byte
+    counts (matching `wc -c` / the on-disk bundle size), not Python
+    ``str`` character counts. Pin this with a non-ASCII etymological
+    form — 'þ' is one ``str`` char but two UTF-8 bytes, so the same
+    character-length strings get different byte counts."""
+    pure_ascii = '{"x": "t"}'  # 10 chars, 10 UTF-8 bytes
+    with_thorn = '{"x": "þ"}'  # 10 chars, 11 UTF-8 bytes (þ is 2 bytes)
+    assert len(pure_ascii) == len(with_thorn) == 10, "test setup: char lengths must match"
+    assert len(pure_ascii.encode("utf-8")) == 10
+    assert len(with_thorn.encode("utf-8")) == 11, "test setup: þ must be 2 UTF-8 bytes"
+    diff = compute_bundle_diff(pure_ascii, with_thorn)
+    # byte_size_* must reflect UTF-8 bytes, not character counts.
+    assert diff.byte_size_committed == 10
+    assert diff.byte_size_rebuilt == 11
+    # And first_divergence_byte is also UTF-8 byte offset, not char offset.
+    # The 't' vs 'þ' chars sit at character index 7 in both strings —
+    # which is also byte offset 7 because everything before them is ASCII.
+    assert diff.first_divergence_byte == 7
+
+
 def test_format_first_divergence_window_strips_newlines_for_readability() -> None:
     a = _bundle(subjects=[_subject(meaning=["cottage"])])
     # Construct b by replacing the meaning value in a string-level way.

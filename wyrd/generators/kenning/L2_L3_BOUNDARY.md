@@ -258,15 +258,14 @@ run `diff-bundle` to see what the rebuild would change:
 
 ```bash
 lexicon diff-bundle           # uses defaults: data/mining/ + committed bundle
-# Exit 0 = byte-identical (safe re-export, or no re-export needed).
+# Exit 0 = byte-identical.
 # Exit 1 = drift → structured summary names added/removed/changed
 #          subjects + first byte divergence window.
 ```
 
-`diff-bundle` rebuilds into a temp DB, exports, and diffs. It pairs with
-`diff-rebuild` (which compares L2 row counts only): `diff-rebuild`
-catches JSONL pipeline regressions; `diff-bundle` catches export-side
-drift the row counts wouldn't surface.
+Pairs with `diff-rebuild` (which compares L2 row counts only):
+`diff-rebuild` catches JSONL pipeline regressions; `diff-bundle`
+catches export-side drift those counts miss.
 
 ### Manual curation (post-Phase-3 pattern)
 
