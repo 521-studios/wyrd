@@ -203,8 +203,11 @@ def _format_dashboard_drift(
 
     diffs: list[str] = []
 
-    # Compare the top-level scalar fields first.
-    for key in pre.keys() | rebuilt.keys():
+    # Compare the top-level scalar fields first. sorted() on the key
+    # union keeps the failure report deterministic across runs — set
+    # iteration order otherwise depends on hash randomization, which
+    # would shuffle diagnostic output between runs.
+    for key in sorted(pre.keys() | rebuilt.keys()):
         if key == "languages":
             continue
         if pre.get(key) != rebuilt.get(key):
@@ -214,16 +217,20 @@ def _format_dashboard_drift(
     # via DEFAULT_LANGUAGES, but defending against future changes.
     pre_langs = {card["language"]: card for card in pre.get("languages", [])}
     rebuilt_langs = {card["language"]: card for card in rebuilt.get("languages", [])}
-    for lang in pre_langs.keys() | rebuilt_langs.keys():
+    for lang in sorted(pre_langs.keys() | rebuilt_langs.keys()):
         pre_card = pre_langs.get(lang)
         rebuilt_card = rebuilt_langs.get(lang)
+        # pre_card is None → the language only appears in the REBUILT
+        # report → it was added during the round-trip.
         if pre_card is None:
-            diffs.append(f"  language {lang!r}: removed from rebuilt report")
-            continue
-        if rebuilt_card is None:
             diffs.append(f"  language {lang!r}: added in rebuilt report")
             continue
-        for field_name in pre_card.keys() | rebuilt_card.keys():
+        # rebuilt_card is None → the language only appears in the PRE
+        # report → it was removed during the round-trip.
+        if rebuilt_card is None:
+            diffs.append(f"  language {lang!r}: removed from rebuilt report")
+            continue
+        for field_name in sorted(pre_card.keys() | rebuilt_card.keys()):
             if pre_card.get(field_name) != rebuilt_card.get(field_name):
                 diffs.append(
                     f"  language {lang!r}: field {field_name!r} "
@@ -384,6 +391,36 @@ def test_report_to_comparable_strips_generated_at(tmp_path: Path) -> None:
     full_blob = asdict(report)
     expected_keys = set(full_blob.keys()) - {"generated_at"}
     assert set(blob.keys()) == expected_keys
+
+
+def test_format_dashboard_drift_classifies_added_and_removed_languages() -> None:
+    """Pin the add/removed direction in ``_format_dashboard_drift`` —
+    pre_card is None means the language appears in REBUILT only (added),
+    rebuilt_card is None means it appears in PRE only (removed). The
+    set-union iteration is also sorted so the failure report is stable
+    across runs."""
+    pre = {
+        "schema_version": "1.0",
+        "bundle_total_words": 100,
+        "languages": [
+            {"language": "old-english", "total_etymons": 3, "bundle_attestation_total": 1},
+        ],
+    }
+    rebuilt = {
+        "schema_version": "1.0",
+        "bundle_total_words": 100,
+        "languages": [
+            {"language": "welsh", "total_etymons": 1, "bundle_attestation_total": 0},
+        ],
+    }
+    rendered = _format_dashboard_drift(pre, rebuilt)
+    # old-english is in pre only → REMOVED.
+    assert "language 'old-english': removed from rebuilt report" in rendered
+    # welsh is in rebuilt only → ADDED.
+    assert "language 'welsh': added in rebuilt report" in rendered
+    # And deterministic order — old-english sorts before welsh, so
+    # 'old-english: removed' must appear before 'welsh: added'.
+    assert rendered.index("'old-english'") < rendered.index("'welsh'")
 
 
 def test_dashboard_report_is_json_serializable(tmp_path: Path) -> None:
