@@ -241,6 +241,16 @@ lexicon rebuild-from-jsonl --db ~/.wyrd/lexicon.db --jsonl-dir data/mining \
 lexicon export-meanings --output wyrd/generators/kenning/data/meanings.json
 ```
 
+Fresh checkout (no `~/.wyrd/sources/` cache yet)? Add `--fetch-bulk` so
+the L1 wiktextract slices auto-download from S3 before ingest:
+
+```bash
+lexicon rebuild-from-jsonl --db ~/.wyrd/lexicon.db --jsonl-dir data/mining \
+    --with-enrichment --fetch-bulk
+```
+
+See the "Bulk sources" section below for the S3 / local-cache layout.
+
 Or step-by-step:
 
 ```bash
@@ -316,11 +326,30 @@ lexicon verify-bulk-sources
 
 `lexicon ingest-wiktionary` reads `.jsonl`, `.jsonl.gz`, and
 `.jsonl.zst` transparently — the bulk cache form is `.jsonl.zst`.
+`lexicon rebuild-from-jsonl --fetch-bulk` invokes the same fetch path
+inline so a fresh checkout can rebuild in one command without a
+separate `fetch-bulk-sources` step.
 
-Per the wyrd-0vj3 plan (`docs/plans/wyrd-0vj3.md`): staging-only,
-single-user dev asset, no IAM policy in the terraform module. The
-companion ticket `wyrd-hidb` wires this into a single-command
-`rebuild-from-jsonl` flow.
+Design choices (from `docs/plans/wyrd-0vj3.md`):
+
+* **IAM**: staging-only, single-user dev asset; no IAM policy in the
+  terraform module — contributors get access via their own admin
+  role.
+* **Versioning**: S3 bucket versioning carries history; the manifest's
+  sha256 is an integrity check on download (not a snapshot/rollback
+  mechanism — S3 does that job).
+* **CI**: `verify-bulk-sources` is operator-on-demand. Unit-test CI
+  never needs the bulk sources; the synthetic-fixture round-trip
+  tests (wyrd-xrnw, wyrd-alzd) cover the pipeline shape without them.
+
+**Out of scope for the bulk-sources path**: the `wyrd/sources/os_opennames/`
+CSV corpus (~1.8 GB, UK Ordnance Survey OpenNames). It's gitignored
+and follows a separate operator-CSV pattern (CSV layout per
+`os_opennames/Doc/`, not the JSONL slice shape the manifest tracks).
+If hosting it in S3 alongside the wiktextract slices ever becomes
+worthwhile, that's a follow-up ticket — the schema in
+`_bulk_manifest.json` would need to grow to express the per-file CSV
+shape.
 
 ## Updating this doc
 
