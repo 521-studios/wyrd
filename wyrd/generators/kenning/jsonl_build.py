@@ -180,12 +180,18 @@ def _insert_etymon(conn: sqlite3.Connection, payload: dict[str, Any]) -> int:
             "SELECT id FROM etymon WHERE canonical_form = ? AND language = ?",
             (payload["canonical_form"], payload["language"]),
         ).fetchone()
-        # INSERT OR IGNORE only suppresses UNIQUE/PRIMARY KEY conflicts; the
-        # etymon table's only UNIQUE constraint is (canonical_form, language),
-        # so rowcount=0 implies exactly one matching row exists for this
-        # (canonical_form, language) pair — the SELECT can't legitimately
-        # miss. A None here means the schema/state diverged from what
-        # _insert_etymon assumes; raise loudly with the offending payload.
+        # INSERT OR IGNORE swallows constraint failures of every kind
+        # (UNIQUE, NOT NULL, CHECK, FK), so rowcount=0 doesn't strictly
+        # prove the cause was a UNIQUE conflict. But here it does in
+        # practice: canonical_form and language were validated non-null
+        # above; etymon has no CHECK constraints; and AUTOINCREMENT id
+        # makes PK conflict impossible without an explicit id (we never
+        # supply one). The only constraint left that can trigger
+        # rowcount=0 is the (canonical_form, language) UNIQUE — so the
+        # SELECT below is guaranteed to find the row. The None check
+        # is belt-and-braces: a future schema change that introduced a
+        # new constraint would fail loudly here rather than TypeError
+        # on the missing row.
         if row is None:
             raise BuildError(
                 "etymon INSERT OR IGNORE was rejected but the "
