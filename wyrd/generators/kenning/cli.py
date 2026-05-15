@@ -2433,6 +2433,10 @@ def lexicon_refill_short_quotes(
     After --apply, run `lexicon dump-jsonl` to propagate the refilled
     short_quotes into the committed `data/mining/*.jsonl` files.
     """
+    # Deferred for CLI help-snappiness — the refill module imports
+    # short_quote_audit (re + regex compilation), and we only want
+    # to pay that cost when the command actually runs. Pattern
+    # documented in wyrd-xz6l.
     from wyrd.generators.kenning.short_quote_refill import refill_source
 
     total_truncated = 0
