@@ -1090,3 +1090,24 @@ def test_dump_fantasy_morphemes_orders_by_input_name_then_approach(tmp_path: Pat
     rows = dump_fantasy_morphemes_to_rows(conn)
     morphemes = rows[1:]
     assert [m["approach_version"] for m in morphemes] == ["fantasy-v1", "fantasy-v2"]
+
+
+def test_default_bulk_excluded_sources_excludes_fantasy_mining_from_dump_all():
+    """A rebuilt DB carries a ``fantasy-mining`` row in the ``source``
+    table (inserted by build_from_jsonl from the synthetic source
+    declaration in ``_fantasy_morphemes.jsonl``). Without the
+    DEFAULT_BULK_EXCLUDED_SOURCES entry, dump_all_sources would emit
+    a competing per-source ``fantasy-mining.jsonl`` alongside the
+    real ``_fantasy_morphemes.jsonl`` — pins the wyrd-2thc exclusion
+    against accidental removal."""
+    from wyrd.generators.kenning.jsonl_dump import DEFAULT_BULK_EXCLUDED_SOURCES
+
+    assert "fantasy-mining" in DEFAULT_BULK_EXCLUDED_SOURCES
+
+    conn = _build_fixture_db()
+    _add_source(conn, id="fantasy-mining", title="Fantasy morpheme mining (rebuilt DB)")
+    _add_source(conn, id="skeat", title="Skeat")
+
+    sids = list_source_ids(conn, exclude=DEFAULT_BULK_EXCLUDED_SOURCES)
+    assert "fantasy-mining" not in sids
+    assert "skeat" in sids

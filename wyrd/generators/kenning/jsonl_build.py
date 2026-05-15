@@ -524,32 +524,50 @@ _FANTASY_MORPHEME_INSERT_COLUMNS: tuple[str, ...] = (
 )
 
 
+# Columns the schema declares NOT NULL on ``fantasy_morpheme``. The
+# insert helper validates these explicitly before issuing the
+# ``INSERT OR IGNORE`` — see ``_insert_fantasy_morpheme``.
+_FANTASY_MORPHEME_REQUIRED_COLUMNS: frozenset[str] = frozenset(
+    {"input_name", "usable", "resolution_method", "approach_version", "processed_at"}
+)
+
+
 def _insert_fantasy_morpheme(
     conn: sqlite3.Connection,
     etymon_id: int | None,
     row: dict[str, Any],
-) -> None:
+) -> bool:
     """Insert one ``fantasy_morpheme`` row (wyrd-2thc).
 
-    ``etymon_id`` may be None — barred rows (``usable=0``) often have
-    no resolved etymon. Other NOT NULL columns (``input_name``,
-    ``usable``, ``resolution_method``, ``approach_version``,
-    ``processed_at``) are validated by the schema; missing fields
-    surface as ``IntegrityError`` rather than a defensive guard here.
+    Returns ``True`` if a new row was inserted, ``False`` if INSERT OR
+    IGNORE skipped a duplicate ``(input_name, approach_version)``
+    UNIQUE conflict — idempotent re-replay against a populated DB.
 
-    Uses INSERT OR IGNORE on the ``(input_name, approach_version)``
-    UNIQUE so a re-mine that overlaps an existing row is a no-op
-    rather than a hard failure. Matches the wyrd-pcsj pattern for L1+L2
-    idempotency.
+    ``etymon_id`` may be None — barred rows (``usable=0``) often have
+    no resolved etymon. NOT NULL columns (``input_name``, ``usable``,
+    ``resolution_method``, ``approach_version``, ``processed_at``) are
+    pre-validated here because ``INSERT OR IGNORE`` would otherwise
+    swallow the IntegrityError and the caller would count a phantom
+    insert. Missing required fields raise ``BuildError`` with the
+    field name so operators get an actionable diagnostic instead of a
+    silent count discrepancy.
     """
+    missing = [c for c in _FANTASY_MORPHEME_REQUIRED_COLUMNS if row.get(c) is None]
+    if missing:
+        raise BuildError(
+            f"fantasy_morpheme row missing required NOT NULL field(s) {sorted(missing)}: "
+            f"input_name={row.get('input_name')!r} "
+            f"approach_version={row.get('approach_version')!r}"
+        )
     columns = ("etymon_id", *_FANTASY_MORPHEME_INSERT_COLUMNS)
     placeholders = ", ".join("?" * len(columns))
     values = (etymon_id, *(row.get(c) for c in _FANTASY_MORPHEME_INSERT_COLUMNS))
-    conn.execute(
+    cur = conn.execute(
         f"INSERT OR IGNORE INTO fantasy_morpheme ({', '.join(columns)}) "  # noqa: S608
         f"VALUES ({placeholders})",
         values,
     )
+    return cur.rowcount == 1
 
 
 def _insert_fantasy_morpheme_rows(
@@ -576,8 +594,8 @@ def _insert_fantasy_morpheme_rows(
         eref = row.get("etymon_ref")
         if eref is None:
             # Originally NULL etymon_id — barred row, valid state.
-            _insert_fantasy_morpheme(conn, None, row)
-            counts["fantasy_morpheme"] += 1
+            if _insert_fantasy_morpheme(conn, None, row):
+                counts["fantasy_morpheme"] += 1
             continue
         eid = etymon_id_by_ref.get(eref)
         if eid is None:
@@ -585,8 +603,8 @@ def _insert_fantasy_morpheme_rows(
             if len(counts["fantasy_morpheme_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
                 counts["fantasy_morpheme_orphan_refs"].append(eref)
             continue
-        _insert_fantasy_morpheme(conn, eid, row)
-        counts["fantasy_morpheme"] += 1
+        if _insert_fantasy_morpheme(conn, eid, row):
+            counts["fantasy_morpheme"] += 1
 
 
 def _extract_source_id(path: Path, state: ReplayState) -> str:

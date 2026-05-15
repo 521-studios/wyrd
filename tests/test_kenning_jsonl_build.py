@@ -1568,8 +1568,8 @@ def test_build_fantasy_morpheme_uses_insert_or_ignore_on_duplicate_key(tmp_path:
     """The (input_name, approach_version) UNIQUE means a re-replay
     against an already-populated DB shouldn't fail. INSERT OR IGNORE
     means the existing row wins; the duplicate is silently skipped
-    (still counted as fantasy_morpheme since the INSERT statement
-    completes without error)."""
+    (idempotent re-replay). Counter increments only on actual inserts —
+    see test_build_fantasy_morpheme_counter_reflects_inserts_only."""
     _write_jsonl(
         tmp_path,
         "skeat",
@@ -1617,8 +1617,9 @@ def test_build_fantasy_morpheme_uses_insert_or_ignore_on_duplicate_key(tmp_path:
         "SELECT processed_at FROM fantasy_morpheme WHERE input_name='Angel'"
     ).fetchone()
     assert row["processed_at"] == "2026-05-01T00:00:00+00:00"
-    # Counter still increments because the INSERT statement didn't raise.
-    assert counts["fantasy_morpheme"] == 1
+    # Counter does NOT increment — the IGNORE'd row was not actually
+    # inserted, and counting it would inflate operator-facing telemetry.
+    assert counts["fantasy_morpheme"] == 0
 
 
 def test_fantasy_morpheme_round_trips_through_dump_and_build(tmp_path: Path):
@@ -1640,22 +1641,32 @@ def test_fantasy_morpheme_round_trips_through_dump_and_build(tmp_path: Path):
         "INSERT INTO etymon_citation (etymon_id, source_id, page) VALUES (?, 'skeat', '12')",
         (eid_engel,),
     )
+    # Fully populate every nullable column so the round-trip exercises
+    # the entire scalar surface. Missing any column from either
+    # _FANTASY_MORPHEME_SCALAR_COLUMNS (dump) or
+    # _FANTASY_MORPHEME_INSERT_COLUMNS (build) makes this test fail.
     pre.execute(
         "INSERT INTO fantasy_morpheme "
         "(input_name, input_description, usable, etymon_id, "
-        " resolution_method, approach_version, confidence, citation, "
-        " reasoning, processed_at) "
-        "VALUES (?, ?, 1, ?, 'descent_lookup', 'fantasy-v1', 'high', "
-        " 'wiktionary', 'matched OE engel', '2026-05-15T00:00:00+00:00')",
-        ("Angel", "celestial host", eid_engel),
+        " bar_reason, resolution_method, approach_version, "
+        " confidence, citation, reasoning, "
+        " unapproved_language, unapproved_form, processed_at) "
+        "VALUES (?, ?, 1, ?, NULL, 'descent_lookup', 'fantasy-v1', "
+        " 'high', 'wiktionary', 'matched OE engel via direct', "
+        " NULL, NULL, '2026-05-15T00:00:00+00:00')",
+        ("Angel", "celestial host of divine messengers", eid_engel),
     )
     pre.execute(
         "INSERT INTO fantasy_morpheme "
-        "(input_name, usable, resolution_method, approach_version, "
-        " bar_reason, unapproved_language, unapproved_form, processed_at) "
-        "VALUES ('Military', 0, 'llm_full_research', 'fantasy-v1', "
-        "        'attested_but_not_in_corpus', 'latin', 'mīlitārius', "
-        "        '2026-05-15T00:00:00+00:00')",
+        "(input_name, input_description, usable, etymon_id, "
+        " bar_reason, resolution_method, approach_version, "
+        " confidence, citation, reasoning, "
+        " unapproved_language, unapproved_form, processed_at) "
+        "VALUES ('Military', 'soldiers and warriors', 0, NULL, "
+        "        'attested_but_not_in_corpus', 'llm_full_research', "
+        "        'fantasy-v1', 'high', 'Etymonline', "
+        "        'attested in latin as mīlitārius', "
+        "        'latin', 'mīlitārius', '2026-05-15T00:00:00+00:00')",
     )
     pre.commit()
 
@@ -1670,18 +1681,123 @@ def test_fantasy_morpheme_round_trips_through_dump_and_build(tmp_path: Path):
     assert counts["fantasy_morpheme_orphans"] == 0
 
     rows = rebuilt.execute(
-        "SELECT fm.input_name, fm.usable, fm.bar_reason, "
-        "       fm.unapproved_language, e.canonical_form "
+        "SELECT fm.input_name, fm.input_description, fm.usable, "
+        "       fm.bar_reason, fm.resolution_method, fm.approach_version, "
+        "       fm.confidence, fm.citation, fm.reasoning, "
+        "       fm.unapproved_language, fm.unapproved_form, "
+        "       fm.processed_at, e.canonical_form "
         "  FROM fantasy_morpheme fm "
         "  LEFT JOIN etymon e ON e.id = fm.etymon_id "
         " ORDER BY fm.input_name"
     ).fetchall()
     angel, military = rows[0], rows[1]
-    assert angel["input_name"] == "Angel"
-    assert angel["usable"] == 1
-    assert angel["canonical_form"] == "engel"
-    assert military["input_name"] == "Military"
-    assert military["usable"] == 0
-    assert military["canonical_form"] is None  # null etymon_id preserved
-    assert military["bar_reason"] == "attested_but_not_in_corpus"
-    assert military["unapproved_language"] == "latin"
+    assert dict(angel) == {
+        "input_name": "Angel",
+        "input_description": "celestial host of divine messengers",
+        "usable": 1,
+        "bar_reason": None,
+        "resolution_method": "descent_lookup",
+        "approach_version": "fantasy-v1",
+        "confidence": "high",
+        "citation": "wiktionary",
+        "reasoning": "matched OE engel via direct",
+        "unapproved_language": None,
+        "unapproved_form": None,
+        "processed_at": "2026-05-15T00:00:00+00:00",
+        "canonical_form": "engel",
+    }
+    assert dict(military) == {
+        "input_name": "Military",
+        "input_description": "soldiers and warriors",
+        "usable": 0,
+        "bar_reason": "attested_but_not_in_corpus",
+        "resolution_method": "llm_full_research",
+        "approach_version": "fantasy-v1",
+        "confidence": "high",
+        "citation": "Etymonline",
+        "reasoning": "attested in latin as mīlitārius",
+        "unapproved_language": "latin",
+        "unapproved_form": "mīlitārius",
+        "processed_at": "2026-05-15T00:00:00+00:00",
+        "canonical_form": None,  # NULL etymon_id preserved
+    }
+
+
+def test_build_fantasy_morpheme_raises_on_missing_required_field(tmp_path: Path):
+    """Required NOT NULL fields (input_name, usable, resolution_method,
+    approach_version, processed_at) are pre-validated by
+    _insert_fantasy_morpheme — INSERT OR IGNORE would otherwise swallow
+    the IntegrityError and let the caller count a phantom row. A
+    missing field surfaces as BuildError so operators get an actionable
+    diagnostic, not a silent count discrepancy."""
+    _write_jsonl(
+        tmp_path,
+        "_fantasy_morphemes",
+        [
+            {"_type": "source", "ref": "fantasy-mining", "title": "Fantasy mining"},
+            {
+                "_type": "fantasy_morpheme",
+                "input_name": "Phoenix",
+                # usable missing — NOT NULL violation if we didn't pre-validate
+                "resolution_method": "descent_lookup",
+                "approach_version": "fantasy-v1",
+                "processed_at": "2026-05-15T00:00:00+00:00",
+            },
+        ],
+    )
+    conn = _build_fixture_db()
+    import pytest
+
+    with pytest.raises(BuildError, match=r"missing required NOT NULL field.*usable"):
+        build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+
+
+def test_build_fantasy_morpheme_counter_reflects_inserts_only(tmp_path: Path):
+    """Per silent-failure-hunter on PR #206: when INSERT OR IGNORE
+    skips a UNIQUE-conflict duplicate, the counter must NOT increment
+    — otherwise a re-replay against a populated DB inflates the
+    fantasy_morpheme count by the number of duplicates and the dump
+    summary lies to operators.
+
+    Distinct from test_build_fantasy_morpheme_uses_insert_or_ignore_on_duplicate_key
+    above (which checks no IntegrityError fires); this test pins the
+    counter semantics."""
+    _write_jsonl(
+        tmp_path,
+        "skeat",
+        [
+            {"_type": "source", "ref": "skeat", "title": "X"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:engel",
+                "canonical_form": "engel",
+                "language": "old-english",
+            },
+        ],
+    )
+    _write_jsonl(
+        tmp_path,
+        "_fantasy_morphemes",
+        [
+            {"_type": "source", "ref": "fantasy-mining", "title": "Fantasy mining"},
+            {
+                "_type": "fantasy_morpheme",
+                "input_name": "Angel",
+                "usable": 1,
+                "resolution_method": "descent_lookup",
+                "approach_version": "fantasy-v1",
+                "processed_at": "2026-05-15T00:00:00+00:00",
+                "etymon_ref": "old-english:engel",
+            },
+        ],
+    )
+    conn = _build_fixture_db()
+    conn.execute(
+        "INSERT INTO fantasy_morpheme "
+        "(input_name, usable, resolution_method, approach_version, processed_at) "
+        "VALUES ('Angel', 1, 'descent_lookup', 'fantasy-v1', '2026-05-01T00:00:00+00:00')",
+    )
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    assert counts["fantasy_morpheme"] == 0, (
+        "duplicate UNIQUE conflict was IGNORE'd; counter must not double-count"
+    )

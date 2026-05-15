@@ -2702,6 +2702,12 @@ def lexicon_dump_jsonl(
 
     exclude = () if include_bulk else DEFAULT_BULK_EXCLUDED_SOURCES
 
+    # Pre-initialize so the post-try summary doesn't UnboundLocalError
+    # if dump_all_sources raises (the finally still runs; control then
+    # jumps past the summary lines, but a future maintainer reorganizing
+    # this block won't trip on a phantom name binding).
+    counts: dict[str, int] = {}
+    fm_count = 0
     try:
         if source_id is not None:
             path, count = dump_source_to_file(conn, source_id, out_dir)
@@ -2710,7 +2716,7 @@ def lexicon_dump_jsonl(
         counts = dump_all_sources(conn, out_dir, exclude=exclude)
         # wyrd-2thc: fantasy_morpheme has no source attribution — emit
         # to the synthetic ``_fantasy_morphemes.jsonl`` file.
-        fm_path, fm_count = dump_fantasy_morphemes_to_file(conn, out_dir)
+        _, fm_count = dump_fantasy_morphemes_to_file(conn, out_dir)
     finally:
         conn.close()
 

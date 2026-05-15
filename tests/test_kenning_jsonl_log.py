@@ -460,13 +460,22 @@ def test_to_canonical_rows_order_is_stable():
         {"_type": "etymon", "ref": "oe:a", "x": 1},
         {"_type": "citation", "etymon_ref": "oe:a", "page": 2},
         {"_type": "citation", "etymon_ref": "oe:b", "page": 1},
+        {"_type": "fantasy_morpheme", "input_name": "Angel", "usable": 1},
+        {"_type": "mining_run", "started_at": "2026-05-15"},
     ]
     canonical = replay(rows).to_canonical_rows()
     # Keyed types come first (alphabetical by ref within type);
-    # list types preserve insertion order.
-    assert [(r["_type"], r.get("ref") or r.get("page")) for r in canonical] == [
-        ("etymon", "oe:a"),
-        ("etymon", "oe:b"),
-        ("citation", 2),
-        ("citation", 1),
+    # list types preserve insertion order AND list-type declaration
+    # order in to_canonical_rows (citation, attestation,
+    # etymology_element, etymon_descent, mining_run, fantasy_morpheme).
+    # mining_run must appear before fantasy_morpheme regardless of the
+    # input row order; pins the wyrd-2thc addition's position.
+    types_in_order = [r["_type"] for r in canonical]
+    assert types_in_order == [
+        "etymon",
+        "etymon",
+        "citation",
+        "citation",
+        "mining_run",
+        "fantasy_morpheme",
     ]
