@@ -146,18 +146,48 @@ def _upsert_source(conn: sqlite3.Connection, source_id: str, payload: dict[str, 
 
 
 def _insert_etymon(conn: sqlite3.Connection, payload: dict[str, Any]) -> int:
-    """Insert an etymon row. Returns the new row id. Assumes
-    (canonical_form, language) is unique — caller is responsible for
-    pre-merging across files so this is the first insert for the pair."""
+    """Insert (or merge into) an etymon row. Returns the row id.
+
+    L2 replay walks files that may reference etymons the L1 wiktextract
+    bulk ingest already wrote — e.g. wyrd-4hx7 wiktionary-empirical
+    citations name canonical forms shipped by the L1 slices. On
+    conflict against the ``(canonical_form, language)`` UNIQUE index,
+    SELECT the existing row's id and UPDATE the non-key scalar columns
+    the L2 payload specifies. Glosses + tags use INSERT OR IGNORE so
+    the merge is a set-union (matches ``_merge_etymon``'s in-memory
+    semantics across multiple L2 files; here we just extend it to
+    handle the L1-already-wrote-this-row case)."""
     cols = [c for c in _ETYMON_INSERT_COLUMNS if c in payload]
     if "canonical_form" not in cols or "language" not in cols:
         raise BuildError(f"etymon row missing canonical_form or language: {payload}")
     vals = [payload[c] for c in cols]
     placeholders = ", ".join("?" * len(cols))
     cur = conn.execute(
-        f"INSERT INTO etymon ({', '.join(cols)}) VALUES ({placeholders})", tuple(vals)
+        f"INSERT OR IGNORE INTO etymon ({', '.join(cols)}) VALUES ({placeholders})",
+        tuple(vals),
     )
-    eid = cur.lastrowid
+    if cur.rowcount > 0:
+        # Fresh insert — no existing row to merge against.
+        eid = cur.lastrowid
+    else:
+        # Conflict on (canonical_form, language). Look up the existing
+        # row's id, then UPDATE the non-key scalar columns the L2
+        # payload specifies. Fields the L2 payload doesn't touch
+        # (omitted from ``cols``) are left at whatever the prior write
+        # left them — typically L1's value, matching the
+        # "L2 explicitly overrides; L1 wins when L2 is silent" model.
+        row = conn.execute(
+            "SELECT id FROM etymon WHERE canonical_form = ? AND language = ?",
+            (payload["canonical_form"], payload["language"]),
+        ).fetchone()
+        eid = row["id"] if hasattr(row, "keys") else row[0]
+        update_cols = [c for c in cols if c not in ("canonical_form", "language")]
+        if update_cols:
+            set_clause = ", ".join(f"{c} = ?" for c in update_cols)
+            conn.execute(
+                f"UPDATE etymon SET {set_clause} WHERE id = ?",
+                tuple(payload[c] for c in update_cols) + (eid,),
+            )
     for gloss in payload.get("glosses", []):
         conn.execute(
             "INSERT OR IGNORE INTO etymon_gloss (etymon_id, gloss) VALUES (?, ?)",

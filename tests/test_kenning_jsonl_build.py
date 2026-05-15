@@ -182,6 +182,103 @@ def test_build_inserts_etymon_with_glosses_and_tags(tmp_path: Path):
     assert tags == ["architecture"]
 
 
+def test_build_merges_etymon_when_row_already_exists(tmp_path: Path):
+    """L1 wiktextract bulk ingest writes etymon rows BEFORE the L2 JSONL
+    replay runs (when ``rebuild-from-jsonl`` is invoked without
+    ``--skip-bulk``). L2 JSONL files often reference those etymons by
+    ref (the wyrd-4hx7 wiktionary-empirical mining path is the obvious
+    source), so the replay hits ``UNIQUE constraint failed:
+    etymon.canonical_form, etymon.language`` on the plain INSERT.
+
+    Regression test for wyrd-pcsj: pre-populate an etymon (simulating
+    L1 ingest), then run ``build_from_jsonl`` with a JSONL referencing
+    the same (canonical_form, language). Must not raise, must merge
+    glosses + tags onto the existing row, and must keep the L1 row's
+    id stable so downstream citations / descent edges resolve."""
+    conn = _build_fixture_db()
+    # Simulate L1: pre-populate one etymon with an L1-shaped payload
+    # (canonical_form + language + pronunciation_ipa, but no glosses
+    # or tags yet — those are L2's contribution).
+    cur = conn.execute(
+        "INSERT INTO etymon (canonical_form, language, pronunciation_ipa) VALUES (?, ?, ?)",
+        ("cot", "old-english", "/kɒt/"),
+    )
+    pre_eid = cur.lastrowid
+    conn.commit()
+
+    # Now run L2 replay against a JSONL that names the same etymon.
+    _write_jsonl(
+        tmp_path,
+        "skeat",
+        [
+            {"_type": "source", "ref": "skeat", "title": "X"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:cot",
+                "language": "old-english",
+                "canonical_form": "cot",
+                "glosses": ["cottage", "hut"],
+                "tags": ["architecture"],
+            },
+        ],
+    )
+    # Must not raise.
+    build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+
+    # Exactly one etymon row (merged, not duplicated).
+    rows = list(conn.execute("SELECT id, canonical_form, language, pronunciation_ipa FROM etymon"))
+    assert len(rows) == 1
+    row = rows[0]
+    # L1 row's id stays stable so anything that references it via FK still works.
+    assert row["id"] == pre_eid
+    # L1's pronunciation_ipa survives (L2 didn't set it).
+    assert row["pronunciation_ipa"] == "/kɒt/"
+
+    # L2's glosses + tags landed on the existing row.
+    glosses = sorted(
+        r["gloss"]
+        for r in conn.execute("SELECT gloss FROM etymon_gloss WHERE etymon_id=?", (pre_eid,))
+    )
+    assert glosses == ["cottage", "hut"]
+    tags = [
+        r["tag"] for r in conn.execute("SELECT tag FROM etymon_tag WHERE etymon_id=?", (pre_eid,))
+    ]
+    assert tags == ["architecture"]
+
+
+def test_build_merge_overwrites_scalar_when_l2_specifies_it(tmp_path: Path):
+    """When the existing (L1) row has a non-NULL scalar value AND the
+    L2 payload explicitly sets the same field, L2 wins (matches the
+    existing _merge_etymon last-write-wins semantics for scalars).
+
+    Pinned separately from the basic merge test so a future change
+    that swapped the precedence (e.g. preserve-L1-when-non-null)
+    would be caught immediately."""
+    conn = _build_fixture_db()
+    conn.execute(
+        "INSERT INTO etymon (canonical_form, language, notes) VALUES (?, ?, ?)",
+        ("cot", "old-english", "L1 note"),
+    )
+    conn.commit()
+    _write_jsonl(
+        tmp_path,
+        "skeat",
+        [
+            {"_type": "source", "ref": "skeat", "title": "X"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:cot",
+                "language": "old-english",
+                "canonical_form": "cot",
+                "notes": "L2 override",  # explicit override
+            },
+        ],
+    )
+    build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    row = conn.execute("SELECT notes FROM etymon WHERE canonical_form='cot'").fetchone()
+    assert row["notes"] == "L2 override"
+
+
 def test_build_inserts_citation_with_source_fk(tmp_path: Path):
     _write_jsonl(
         tmp_path,
