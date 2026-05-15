@@ -42,10 +42,6 @@ Out of scope for this v0
   convert that ingester to read from L1 + emit JSONL events directly.
 - Re-running L3 derived enrichment passes (decompose, link-lemmas,
   normalize-ocr, etc.). Same operator-wrapping pattern.
-- Re-dumping ``toponym_attestation`` rows from the DB. Currently the
-  attestation flow is one-way (ingester → JSONL → build); operators
-  who want the rows back out of the DB need a follow-on dump-side
-  implementation that buckets the free-text ``source_doc`` per source.
 """
 
 from __future__ import annotations
