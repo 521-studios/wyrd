@@ -59,10 +59,19 @@ Deferred from v0
 - ``etymon_text_match`` and ``etymon_variant``: classified as L3 for
   v0; revisit when text-match has scholar-only filter and variant
   ingest is itself JSONL-driven.
-- ``fantasy_morpheme``: 1,308 rows in the live DB with no dump path
-  + no build path. Tracked separately (wyrd-2thc) — the table has no
-  source attribution so it'd dump as a non-per-source file similar
-  to ``_curation.jsonl``.
+Fantasy morpheme dump (wyrd-2thc)
+=================================
+
+The ``fantasy_morpheme`` table has no source attribution column —
+rows are written by ``lexicon mine-fantasy-name`` and link to an
+existing ``etymon`` row by FK. Per-source dumping doesn't apply.
+Instead, :func:`dump_fantasy_morphemes_to_file` writes a single
+synthetic file at ``data/mining/_fantasy_morphemes.jsonl`` with a
+``fantasy-mining`` synthetic source declaration + one
+``fantasy_morpheme`` list row per DB row (etymon FK projected to
+``etymon_ref``). Mirrors the ``_curation.jsonl`` pattern of a
+leading-underscore synthetic-source file with a non-per-source
+contract.
 - Uncited bulk etymons (wiktextract import): handled separately by
   L1 re-ingest path, not this dump.
 """
@@ -554,6 +563,15 @@ DEFAULT_BULK_EXCLUDED_SOURCES: frozenset[str] = frozenset(
         "wiktionary-empirical",
         "wiktionary-forms",
         "manual-curation",
+        # wyrd-2thc: synthetic source declared inline by
+        # :func:`dump_fantasy_morphemes_to_file` at
+        # ``data/mining/_fantasy_morphemes.jsonl``. The live DB
+        # doesn't carry it in the ``source`` table, but a post-rebuild
+        # DB does (the synthetic source row from the JSONL is inserted
+        # by build_from_jsonl). Excluding here prevents ``dump_all_sources``
+        # from emitting a competing per-source ``fantasy-mining.jsonl``
+        # on a rebuilt DB.
+        "fantasy-mining",
         # wyrd-3ypp: OS Open Names data product. ~200K populated-place
         # rows regenerated on demand from the L1 CSV in sources/;
         # dump-jsonl would produce a competing 30+MB file otherwise.
@@ -641,3 +659,113 @@ def dump_all_sources(
         _, n = dump_source_to_file(conn, sid, out_dir)
         counts[sid] = n
     return counts
+
+
+# --- fantasy_morpheme dump (wyrd-2thc) ---------------------------------
+
+# Synthetic source declared at the head of ``_fantasy_morphemes.jsonl``.
+# The live DB has no ``fantasy-mining`` row in ``source`` — fantasy
+# morphemes are written by ``lexicon mine-fantasy-name`` without source
+# attribution. This synthetic row exists only in the JSONL output (and
+# is inserted into the rebuilt DB by ``build_from_jsonl``). Same
+# asymmetry as ``manual-curation`` (declared only in
+# ``_curation.jsonl``); accepted because the rebuild's downstream
+# bundle export (``collect_fantasy_morphemes``) reads from the table,
+# not from ``source``, so the synthetic source has no runtime effect.
+_FANTASY_MINING_SOURCE_ID = "fantasy-mining"
+_FANTASY_MINING_FILENAME = "_fantasy_morphemes.jsonl"
+_FANTASY_MINING_SOURCE_ROW = {
+    "_type": "source",
+    "ref": _FANTASY_MINING_SOURCE_ID,
+    "title": "Fantasy morpheme mining (wyrd-vz7f)",
+    "notes": (
+        "Synthetic source for fantasy_morpheme L2 round-trip (wyrd-2thc). "
+        "Rows are written by `lexicon mine-fantasy-name` against the "
+        "DB's fantasy_morpheme table — etymon FK resolved on dump via "
+        "etymon_ref. This source declaration is JSONL-only; the live "
+        "DB has no fantasy-mining row in source."
+    ),
+}
+
+# Fantasy morpheme L2 columns dumped to ``_fantasy_morphemes.jsonl``.
+# ``id`` is omitted (autoincrement; redundant under the
+# (input_name, approach_version) UNIQUE on rebuild). ``etymon_id`` is
+# resolved to ``etymon_ref`` for cross-rebuild stability — etymon ids
+# aren't stable across rebuilds but (language, canonical_form) is.
+_FANTASY_MORPHEME_SCALAR_COLUMNS: tuple[str, ...] = (
+    "input_name",
+    "input_description",
+    "usable",
+    "bar_reason",
+    "resolution_method",
+    "approach_version",
+    "confidence",
+    "citation",
+    "reasoning",
+    "unapproved_language",
+    "unapproved_form",
+    "processed_at",
+)
+
+
+def _dump_fantasy_morpheme_rows(conn: sqlite3.Connection) -> Iterable[dict[str, Any]]:
+    """Yield one ``fantasy_morpheme`` list row per DB row, ordered by
+    ``input_name`` for diff stability. Joins ``etymon`` to project
+    ``etymon_id`` → ``etymon_ref``; rows with NULL etymon_id (barred
+    morphemes that never resolved a corpus etymon) emit no
+    ``etymon_ref`` field — replaying skips the JOIN on build."""
+    rows = conn.execute(
+        f"""
+        SELECT {", ".join("fm." + c for c in _FANTASY_MORPHEME_SCALAR_COLUMNS)},
+               e.language AS _etymon_language,
+               e.canonical_form AS _etymon_canonical_form
+          FROM fantasy_morpheme fm
+          LEFT JOIN etymon e ON e.id = fm.etymon_id
+         ORDER BY fm.input_name, fm.approach_version
+        """  # noqa: S608 — column names are hand-written module constants
+    ).fetchall()
+    for row in rows:
+        out: dict[str, Any] = {"_type": "fantasy_morpheme"}
+        for col in _FANTASY_MORPHEME_SCALAR_COLUMNS:
+            v = row[col]
+            if v is not None:
+                out[col] = v
+        if row["_etymon_language"] is not None:
+            out["etymon_ref"] = etymon_ref(row["_etymon_language"], row["_etymon_canonical_form"])
+        yield out
+
+
+def dump_fantasy_morphemes_to_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """Yield the rows that ``_fantasy_morphemes.jsonl`` carries: the
+    synthetic ``fantasy-mining`` source declaration followed by one
+    ``fantasy_morpheme`` row per DB row.
+
+    Returns an empty list if the ``fantasy_morpheme`` table does not
+    exist (older DBs predate wyrd-ami) or carries zero rows. Skipping
+    the file entirely keeps the source-row contract from creating an
+    empty-but-meaningful artifact on DBs that never ran fantasy
+    mining."""
+    table_exists = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='fantasy_morpheme'"
+    ).fetchone()
+    if not table_exists:
+        return []
+    morphemes = list(_dump_fantasy_morpheme_rows(conn))
+    if not morphemes:
+        return []
+    return [_FANTASY_MINING_SOURCE_ROW, *morphemes]
+
+
+def dump_fantasy_morphemes_to_file(
+    conn: sqlite3.Connection,
+    out_dir: str | Path,
+) -> tuple[Path, int]:
+    """Write ``<out_dir>/_fantasy_morphemes.jsonl``. Returns ``(path,
+    row_count)``; row_count is 0 (file not written) when the DB has
+    no fantasy_morpheme rows."""
+    rows = dump_fantasy_morphemes_to_rows(conn)
+    path = Path(out_dir) / _FANTASY_MINING_FILENAME
+    if not rows:
+        return path, 0
+    n = write_jsonl(path, rows)
+    return path, n

@@ -87,6 +87,7 @@ LIST_TYPES: frozenset[str] = frozenset(
         "etymology_element",
         "etymon_descent",
         "mining_run",
+        "fantasy_morpheme",
     }
 )
 
@@ -151,6 +152,7 @@ class ReplayState:
             "etymology_element",
             "etymon_descent",
             "mining_run",
+            "fantasy_morpheme",
         ):
             for fact in self.lists.get(_type, []):
                 row = {"_type": _type}

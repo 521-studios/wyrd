@@ -129,6 +129,23 @@ def _build_fixture_db() -> sqlite3.Connection:
             date_year INTEGER,
             source_doc TEXT
         );
+        CREATE TABLE fantasy_morpheme (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            input_name          TEXT NOT NULL COLLATE NOCASE,
+            input_description   TEXT,
+            usable              INTEGER NOT NULL CHECK (usable IN (0, 1)),
+            etymon_id           INTEGER REFERENCES etymon(id) ON DELETE SET NULL,
+            bar_reason          TEXT,
+            resolution_method   TEXT NOT NULL,
+            approach_version    TEXT NOT NULL,
+            confidence          TEXT,
+            citation            TEXT,
+            reasoning           TEXT,
+            unapproved_language TEXT,
+            unapproved_form     TEXT,
+            processed_at        TEXT NOT NULL,
+            UNIQUE (input_name, approach_version)
+        );
         """
     )
     return conn
@@ -1411,3 +1428,260 @@ def test_round_trip_dump_rebuild_dump(tmp_path: Path):
 
 def _read_rows(path: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+# ---------------------------------------------------------------------------
+# fantasy_morpheme build (wyrd-2thc)
+# ---------------------------------------------------------------------------
+
+
+def test_build_inserts_fantasy_morpheme_row_with_etymon_resolved(tmp_path: Path):
+    """A standard usable=1 row with etymon_ref resolving to a known
+    etymon inserts with the resolved etymon_id."""
+    _write_jsonl(
+        tmp_path,
+        "skeat",
+        [
+            {"_type": "source", "ref": "skeat", "title": "Place-Names of Cambs"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:engel",
+                "canonical_form": "engel",
+                "language": "old-english",
+            },
+        ],
+    )
+    _write_jsonl(
+        tmp_path,
+        "_fantasy_morphemes",
+        [
+            {
+                "_type": "source",
+                "ref": "fantasy-mining",
+                "title": "Fantasy morpheme mining",
+            },
+            {
+                "_type": "fantasy_morpheme",
+                "input_name": "Angel",
+                "input_description": "celestial host",
+                "usable": 1,
+                "resolution_method": "descent_lookup",
+                "approach_version": "fantasy-v1",
+                "confidence": "high",
+                "citation": "wiktionary",
+                "reasoning": "matched OE engel",
+                "processed_at": "2026-05-15T00:00:00+00:00",
+                "etymon_ref": "old-english:engel",
+            },
+        ],
+    )
+
+    conn = _build_fixture_db()
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    assert counts["fantasy_morpheme"] == 1
+    assert counts["fantasy_morpheme_orphans"] == 0
+
+    row = conn.execute(
+        "SELECT fm.input_name, fm.input_description, fm.usable, "
+        "       fm.resolution_method, fm.approach_version, fm.confidence, "
+        "       e.canonical_form, e.language "
+        "  FROM fantasy_morpheme fm JOIN etymon e ON e.id = fm.etymon_id"
+    ).fetchone()
+    assert row["input_name"] == "Angel"
+    assert row["input_description"] == "celestial host"
+    assert row["canonical_form"] == "engel"
+    assert row["language"] == "old-english"
+
+
+def test_build_inserts_fantasy_morpheme_with_null_etymon_id_when_no_ref(tmp_path: Path):
+    """A barred row (usable=0, no etymon_ref field) inserts with
+    etymon_id=NULL and is counted as a normal fantasy_morpheme row,
+    not an orphan."""
+    _write_jsonl(
+        tmp_path,
+        "_fantasy_morphemes",
+        [
+            {"_type": "source", "ref": "fantasy-mining", "title": "Fantasy morpheme mining"},
+            {
+                "_type": "fantasy_morpheme",
+                "input_name": "Military",
+                "usable": 0,
+                "bar_reason": "attested_but_not_in_corpus",
+                "resolution_method": "llm_full_research",
+                "approach_version": "fantasy-v1",
+                "processed_at": "2026-05-15T00:00:00+00:00",
+                "unapproved_language": "latin",
+                "unapproved_form": "mīlitārius",
+            },
+        ],
+    )
+
+    conn = _build_fixture_db()
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    assert counts["fantasy_morpheme"] == 1
+    assert counts["fantasy_morpheme_orphans"] == 0
+
+    row = conn.execute(
+        "SELECT input_name, usable, etymon_id, bar_reason, unapproved_language "
+        "FROM fantasy_morpheme"
+    ).fetchone()
+    assert row["input_name"] == "Military"
+    assert row["etymon_id"] is None
+    assert row["bar_reason"] == "attested_but_not_in_corpus"
+    assert row["unapproved_language"] == "latin"
+
+
+def test_build_orphans_fantasy_morpheme_when_etymon_ref_unknown(tmp_path: Path):
+    """A row whose etymon_ref doesn't resolve (the cited etymon was
+    removed via a kernel ``remove`` event, or never dumped) is
+    counted as an orphan and skipped rather than inserted with
+    etymon_id=NULL — silently nulling the FK would lose the operator's
+    intent."""
+    _write_jsonl(
+        tmp_path,
+        "_fantasy_morphemes",
+        [
+            {"_type": "source", "ref": "fantasy-mining", "title": "Fantasy morpheme mining"},
+            {
+                "_type": "fantasy_morpheme",
+                "input_name": "Phoenix",
+                "usable": 1,
+                "resolution_method": "descent_lookup",
+                "approach_version": "fantasy-v1",
+                "processed_at": "2026-05-15T00:00:00+00:00",
+                "etymon_ref": "ancient-greek:phoinix",  # not dumped anywhere
+            },
+        ],
+    )
+
+    conn = _build_fixture_db()
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    assert counts["fantasy_morpheme"] == 0
+    assert counts["fantasy_morpheme_orphans"] == 1
+    assert counts["fantasy_morpheme_orphan_refs"] == ["ancient-greek:phoinix"]
+
+    nrows = conn.execute("SELECT COUNT(*) FROM fantasy_morpheme").fetchone()[0]
+    assert nrows == 0
+
+
+def test_build_fantasy_morpheme_uses_insert_or_ignore_on_duplicate_key(tmp_path: Path):
+    """The (input_name, approach_version) UNIQUE means a re-replay
+    against an already-populated DB shouldn't fail. INSERT OR IGNORE
+    means the existing row wins; the duplicate is silently skipped
+    (still counted as fantasy_morpheme since the INSERT statement
+    completes without error)."""
+    _write_jsonl(
+        tmp_path,
+        "skeat",
+        [
+            {"_type": "source", "ref": "skeat", "title": "X"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:engel",
+                "canonical_form": "engel",
+                "language": "old-english",
+            },
+        ],
+    )
+    _write_jsonl(
+        tmp_path,
+        "_fantasy_morphemes",
+        [
+            {"_type": "source", "ref": "fantasy-mining", "title": "Fantasy mining"},
+            {
+                "_type": "fantasy_morpheme",
+                "input_name": "Angel",
+                "usable": 1,
+                "resolution_method": "descent_lookup",
+                "approach_version": "fantasy-v1",
+                "processed_at": "2026-05-15T00:00:00+00:00",
+                "etymon_ref": "old-english:engel",
+            },
+        ],
+    )
+
+    conn = _build_fixture_db()
+    # Pre-populate the same row.
+    conn.execute(
+        "INSERT INTO fantasy_morpheme "
+        "(input_name, usable, resolution_method, approach_version, processed_at) "
+        "VALUES (?, ?, ?, ?, ?)",
+        ("Angel", 1, "descent_lookup", "fantasy-v1", "2026-05-01T00:00:00+00:00"),
+    )
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    # No IntegrityError; INSERT OR IGNORE skipped the duplicate.
+    nrows = conn.execute("SELECT COUNT(*) FROM fantasy_morpheme").fetchone()[0]
+    assert nrows == 1
+    # The pre-existing processed_at is preserved (INSERT OR IGNORE).
+    row = conn.execute(
+        "SELECT processed_at FROM fantasy_morpheme WHERE input_name='Angel'"
+    ).fetchone()
+    assert row["processed_at"] == "2026-05-01T00:00:00+00:00"
+    # Counter still increments because the INSERT statement didn't raise.
+    assert counts["fantasy_morpheme"] == 1
+
+
+def test_fantasy_morpheme_round_trips_through_dump_and_build(tmp_path: Path):
+    """End-to-end: seed DB → dump → build into fresh DB → assert
+    fantasy_morpheme rows round-trip with etymon attribution
+    preserved. Load-bearing test for wyrd-2thc."""
+    from wyrd.generators.kenning.jsonl_dump import (
+        dump_fantasy_morphemes_to_file,
+        dump_source_to_file,
+    )
+
+    pre = _build_fixture_db()
+    pre.execute("INSERT INTO source (id, title) VALUES ('skeat', 'Skeat')")
+    cur = pre.execute(
+        "INSERT INTO etymon (canonical_form, language) VALUES ('engel', 'old-english')"
+    )
+    eid_engel = cur.lastrowid
+    pre.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, page) VALUES (?, 'skeat', '12')",
+        (eid_engel,),
+    )
+    pre.execute(
+        "INSERT INTO fantasy_morpheme "
+        "(input_name, input_description, usable, etymon_id, "
+        " resolution_method, approach_version, confidence, citation, "
+        " reasoning, processed_at) "
+        "VALUES (?, ?, 1, ?, 'descent_lookup', 'fantasy-v1', 'high', "
+        " 'wiktionary', 'matched OE engel', '2026-05-15T00:00:00+00:00')",
+        ("Angel", "celestial host", eid_engel),
+    )
+    pre.execute(
+        "INSERT INTO fantasy_morpheme "
+        "(input_name, usable, resolution_method, approach_version, "
+        " bar_reason, unapproved_language, unapproved_form, processed_at) "
+        "VALUES ('Military', 0, 'llm_full_research', 'fantasy-v1', "
+        "        'attested_but_not_in_corpus', 'latin', 'mīlitārius', "
+        "        '2026-05-15T00:00:00+00:00')",
+    )
+    pre.commit()
+
+    # Dump both the etymon-owning source AND the fantasy_morpheme file.
+    dump_source_to_file(pre, "skeat", tmp_path)
+    dump_fantasy_morphemes_to_file(pre, tmp_path)
+    pre.close()
+
+    rebuilt = _build_fixture_db()
+    counts = build_from_jsonl(rebuilt, jsonl_paths_in(tmp_path))
+    assert counts["fantasy_morpheme"] == 2
+    assert counts["fantasy_morpheme_orphans"] == 0
+
+    rows = rebuilt.execute(
+        "SELECT fm.input_name, fm.usable, fm.bar_reason, "
+        "       fm.unapproved_language, e.canonical_form "
+        "  FROM fantasy_morpheme fm "
+        "  LEFT JOIN etymon e ON e.id = fm.etymon_id "
+        " ORDER BY fm.input_name"
+    ).fetchall()
+    angel, military = rows[0], rows[1]
+    assert angel["input_name"] == "Angel"
+    assert angel["usable"] == 1
+    assert angel["canonical_form"] == "engel"
+    assert military["input_name"] == "Military"
+    assert military["usable"] == 0
+    assert military["canonical_form"] is None  # null etymon_id preserved
+    assert military["bar_reason"] == "attested_but_not_in_corpus"
+    assert military["unapproved_language"] == "latin"
