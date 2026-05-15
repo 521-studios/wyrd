@@ -7,11 +7,6 @@ dependencies = [
     "flask>=3.0",
     "click>=8.1",
     "apig-wsgi>=2.18",
-    # wyrd-el93: pure-Python reader for Hull's Domesday MDB files
-    # (Microsoft Access format). Used only by ``lexicon ingest-domesday``
-    # so the import is deferred to that command — other commands pay no
-    # startup cost.
-    "access_parser>=0.0.6",
     # wyrd-0vj3: S3 + zstd handling for bulk-source sync. Both imports
     # live behind ``lexicon fetch-bulk-sources`` / ``push-bulk-sources``
     # / ``verify-bulk-sources`` and the ``.jsonl.zst`` reader in
@@ -21,6 +16,20 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# wyrd-el93: pure-Python reader for Hull's Domesday MDB files
+# (Microsoft Access format). Used only by ``lexicon ingest-domesday``,
+# which is an operator-only command — not needed at Lambda runtime.
+# Kept out of base ``dependencies`` because the published wheels for
+# >=0.0.5 ship sdist-only / non-aarch64 binaries, breaking the
+# Lambda build pipeline's ``--only-binary=:all: --platform
+# manylinux2014_aarch64 --python-version 3.12`` constraint (caught
+# at wyrd-j43l deploy-gate; all deploys had silently failed since
+# wyrd-el93 PR #174 landed access_parser as a required dep).
+# Operators running ingest-domesday install via
+# ``pip install -e '.[ingest]'``.
+ingest = [
+    "access_parser>=0.0.6",
+]
 dev = [
     "pytest>=8.0",
     "ruff>=0.4",
