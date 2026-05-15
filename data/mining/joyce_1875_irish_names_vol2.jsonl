@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "joyce_1875_irish_names_vol2", "author": "Patrick Weston Joyce", "title": "The Origin and History of Irish Names of Places, Volume 2", "year": 1875, "region": "Ireland", "language_focus": "irish"}
+{"_type": "source", "ref": "joyce_1875_irish_names_vol2", "title": "Joyce 1875 Irish Names Vol2", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
 {"_type": "etymon", "ref": "celtic:airgeat", "canonical_form": "airgeat", "language": "celtic", "glosses": ["silver; money"]}
 {"_type": "etymon", "ref": "celtic:ait", "canonical_form": "ait", "language": "celtic", "glosses": ["place", "site"]}
 {"_type": "etymon", "ref": "celtic:amuir", "canonical_form": "amuir", "language": "celtic", "glosses": ["trough or font; a hollow place"]}

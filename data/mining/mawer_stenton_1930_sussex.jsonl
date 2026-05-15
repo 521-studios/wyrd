@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "mawer_stenton_1930_sussex", "author": "A. Mawer, F.M. Stenton, and J.E.B. Gover", "title": "The Place-Names of Sussex (EPNS Vols. 6-7)", "year": 1930, "region": "Sussex", "language_focus": "old-english"}
+{"_type": "source", "ref": "mawer_stenton_1930_sussex", "author": "unknown", "title": "Mawer Stenton 1930 Sussex"}
 {"_type": "etymon", "ref": "modern-english:almonry", "canonical_form": "almonry", "language": "modern-english", "glosses": ["office or endowment of the abbey almoner"]}
 {"_type": "etymon", "ref": "modern-english:nether", "canonical_form": "nether", "language": "modern-english", "pronunciation_ipa": "/nɛð.ə/", "pronunciation_dialect": "Received-Pronunciation", "glosses": ["lower"]}
 {"_type": "etymon", "ref": "old-english:becca", "canonical_form": "becca", "language": "old-english", "pronunciation_ipa": "/ˈbek.kɑ/", "glosses": ["Becca", "personal name"]}
@@ -157,4 +157,11 @@
 {"_type": "etymology_element", "toponym_ref": "Wainway WALL@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:iw"}, {"ordinal": 1, "etymon_ref": "old-english:denn"}], "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Wainway WALL (6”), cf. Waynwaye Chanel 1610 Speed, Wan- way 1823 G. The Wainway was on the earthen wall by the channel. The wall came to be named after it and i", "attested_year": 1610}
 {"_type": "etymology_element", "toponym_ref": "Whatlingetune@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:hwetel"}, {"ordinal": 1, "etymon_ref": "old-english:ing"}, {"ordinal": 2, "etymon_ref": "old-english:tun"}], "historical_form": "Hwetel-ing-tun", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Whatlingetune, -y- 1195 Pens, 1342 Ipm, 1535 VE, Hwat- lington 1320 Misc Whartlington 1724 B Hwet- is a common and early OE pers. name element and Hwetel would ", "attested_year": 1195}
 {"_type": "etymology_element", "toponym_ref": "Ykelesham@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:icel", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:ham"}], "historical_form": "Icel's-ham", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Ykelesham, Ikeles- c. 1197 Pens et passim to 1494 AD vi, -hamme 1379 Ct, Ickelesham 1195 FF Hykelingesham 1288 Ass * Upper Snailham is in Icklesham, Lower in Gu", "attested_year": 1195}
-{"_type": "citation", "etymon_ref": "latin:katharina", "short_quote": "extracted_by:manual:wyrd-j2bv-latin-lift | Katerina de Bampton (1296 SR), Banton (1327, 1332 ib.) — Latin Katharina / Catharina recorded as the personal name underlying 14th-c. Sussex subsidy-roll personae attached to Bampton/Banton."}
+{"_type": "attestation", "toponym_ref": "Atmonry@-", "form": "Bello", "date_year": 1248, "source_doc": "mawer_stenton_1930_sussex"}
+{"_type": "attestation", "toponym_ref": "Beckele@-", "form": "MarL", "date_year": 1617, "source_doc": "mawer_stenton_1930_sussex"}
+{"_type": "attestation", "toponym_ref": "Cc@-", "form": "Pens", "date_year": 1279, "source_doc": "mawer_stenton_1930_sussex"}
+{"_type": "attestation", "toponym_ref": "Cc@-", "form": "Norden", "date_year": 1634, "source_doc": "mawer_stenton_1930_sussex"}
+{"_type": "attestation", "toponym_ref": "Cross Fm@-", "form": "Knelstone", "date_year": 1509, "source_doc": "mawer_stenton_1930_sussex"}
+{"_type": "attestation", "toponym_ref": "Hasting@-", "form": "IpmR", "date_year": 1535, "source_doc": "mawer_stenton_1930_sussex"}
+{"_type": "attestation", "toponym_ref": "SR Neddresfeld@-", "form": "Misc", "date_year": 1342, "source_doc": "mawer_stenton_1930_sussex"}
+{"_type": "attestation", "toponym_ref": "Whatlingetune@-", "form": "Pens", "date_year": 1342, "source_doc": "mawer_stenton_1930_sussex"}

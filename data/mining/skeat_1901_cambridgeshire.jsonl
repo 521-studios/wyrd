@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "skeat_1901_cambridgeshire", "author": "Walter W. Skeat", "title": "The Place-Names of Cambridgeshire", "year": 1901, "region": "Cambridgeshire", "language_focus": "old-english"}
+{"_type": "source", "ref": "skeat_1901_cambridgeshire", "title": "Skeat 1901 Cambridgeshire", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
 {"_type": "etymon", "ref": "latin:ceaster", "canonical_form": "ceaster", "language": "latin", "glosses": ["camp", "fort, Roman settlement", "fortified place"]}
 {"_type": "etymon", "ref": "latin:market", "canonical_form": "market", "language": "latin", "glosses": ["market"]}
 {"_type": "etymon", "ref": "latin:spinetum", "canonical_form": "spinetum", "language": "latin", "glosses": ["thorn-thicket"]}
@@ -386,6 +386,7 @@
 {"_type": "etymology_element", "toponym_ref": "Kneesworth@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:cneo"}, {"ordinal": 1, "etymon_ref": "old-english:cneo"}, {"ordinal": 2, "etymon_ref": "old-english:worþe"}], "historical_form": "cneo-worþe", "confidence": "medium", "notes": "extracted_by:llm:qwen3.5:9b; Scholar notes that 'cneo' is not recorded as a proper name, suggesting the etymology relies on the common noun meaning 'knee' or 'generation' combined with '-worth'. | Kne"}
 {"_type": "etymology_element", "toponym_ref": "Kneesworth@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:cneo"}, {"ordinal": 1, "etymon_ref": "old-english:worth"}], "historical_form": "cneo-worth", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar notes that cneo is not recorded as a personal name; the compound meaning is uncertain but cneo carries both literal ('knee') and metaphorical "}
 {"_type": "etymology_element", "toponym_ref": "Kneesworth@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:cneo"}], "historical_form": "cneo-worth", "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash | Kneesworth. Spelt Knesworthe in 1316, and Kneesworthe in 1346 (F.A.); Knesworth in 1276 (Rot. Hund. p. 51). Knee (A.S. cneo) is not recorded as a name. The A.S. cneo means not only \" knee,\" but \" a generation.\"", "attested_year": 1276}
+{"_type": "etymology_element", "toponym_ref": "Kneesworth@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:cneo"}], "historical_form": "cneo-worth", "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash | Kneesworth. Spelt Knesworthe in 1316, and Kneesworthe in 1346 (F.A.); Knesworth in 1276 (Rot. Hund. p. 51). Knee (A.S. cneo) is not recorded as a name. The A.S. cneo means not only \" knee,\" but \" a generation.\"", "attested_year": 1276}
 {"_type": "etymology_element", "toponym_ref": "Linton@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:lin"}, {"ordinal": 1, "etymon_ref": "old-english:tūn"}], "historical_form": "lin-tun", "confidence": "medium", "notes": "extracted_by:llm:qwen3.5:9b; Scholar suggests 'lin-tun' is probable but notes 'allusion to A.S. lind' is just possible; rejects Welsh 'llyn'. | Linton. This corresponds to the form Lin-tan in Kemble, "}
 {"_type": "etymology_element", "toponym_ref": "Linton@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:lin"}, {"ordinal": 1, "etymon_ref": "old-english:tun"}], "historical_form": "lin-tun", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Skeat: 'may very well be' the same as lin- in lin-seed; also notes lind (lime-tree) is 'just possible' but prefers flax etymology based on parallel co"}
 {"_type": "etymology_element", "toponym_ref": "Linton@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:ivn"}, {"ordinal": 1, "etymon_ref": "old-english:tun"}], "historical_form": "Ivn-tun", "confidence": "medium", "notes": "extracted_by:gemini:gemini-2.5-flash; Scholar states 'Lin- may very well be' from A.S. Ivn (flax), but 'allusion to A.S. lind (lime-tree) is just possible'. Welsh llyn (lake) is considered 'highly improbable'. | Linton. This corresponds to the form Lin-tan in Kemble, Cod. Dipl. iii. 368. Lin- may very well be the same as lin- in lin-seed, representing the A.S. Ivn, early borrowed from Lat. linum, flax. If so, the sense is ' flax-enclosure.' Any allusion to the Welsh llyn, a lake, is highly impro"}
@@ -431,3 +432,56 @@
 {"_type": "etymology_element", "toponym_ref": "Wentworth@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wintan", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:worth"}], "historical_form": "Wintan-wurth", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:9b | Wentworth. Spelt Wyntewurthe in 1428 (F.A.), Wynte- wortk in 1291 (Taxatio Ecclesiastica) ; and Winteworde in Domesday Book. Winte answers to A.S. Wintan, gen. ", "attested_year": 1291}
 {"_type": "etymology_element", "toponym_ref": "Wentworth@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:winta"}, {"ordinal": 1, "etymon_ref": "old-english:wintan", "inflection": "genitive"}, {"ordinal": 2, "etymon_ref": "old-english:worth"}], "historical_form": "Winta-worth", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Winta identified as a son of Woden (Odin) in Old English genealogies; the genitive form Wintan appears in Domesday spelling Winteworde. | Wentworth. S"}
 {"_type": "etymology_element", "toponym_ref": "Wicken@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wicxim", "inflection": "dative plural"}], "historical_form": "wicxim", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:9b; Scholar identifies the form as the dative plural of A.S. wlc (village), noting the suffix -im prevents palatalisation. | Wicken. Apparently the same as Wykes, mentioned in"}
+{"_type": "attestation", "toponym_ref": "Balsham@Cambridgeshire", "form": "Belesham", "date_year": 1170, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Bartlow@Cambridgeshire", "form": "Berkelowe", "date_year": 1316, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Bartlow@Cambridgeshire", "form": "Berklowe", "date_year": 1428, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Bottisham@Cambridgeshire", "form": "Bodekesham", "date_year": 1210, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Bottisham@Cambridgeshire", "form": "BodJcesham", "date_year": 1372, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Bottisham@Cambridgeshire", "form": "Botkesham", "date_year": 1400, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Bottisham@Cambridgeshire", "form": "Bottesham", "date_year": 1428, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Bourn@Cambridgeshire", "form": "Brunne", "date_year": 1171, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Bourn@Cambridgeshire", "form": "Brum", "date_year": 1171, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Bourn@Cambridgeshire", "form": "Burne", "date_year": 1210, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Boxworth@Cambridgeshire", "form": "Bokesiuorth", "date_year": 1284, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Burwell@Cambridgeshire", "form": "Burewelle", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Carlton@Cambridgeshire", "form": "Carleton", "date_year": 1302, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Chesterton@Cambridgeshire", "form": "Cestretone", "date_year": 1210, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Chippenham@Cambridgeshire", "form": "Chipeham", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Croxton@Cambridgeshire", "form": "Crochestone", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Croxton@Cambridgeshire", "form": "Croxtone", "date_year": 1302, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Croxton@Cambridgeshire", "form": "Crokeston", "date_year": 1303, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Dullingham@Cambridgeshire", "form": "Dullingeham", "date_year": 1210, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Fordham@Cambridgeshire", "form": "Fordeham", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Haddenham@Cambridgeshire", "form": "Hadreham", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Haddenham@Cambridgeshire", "form": "Hadenham", "date_year": 1300, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Harston@Cambridgeshire", "form": "Hardeleston", "date_year": 1291, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Harston@Cambridgeshire", "form": "Hardlistone", "date_year": 1298, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Hauxton@Cambridgeshire", "form": "Haukestone", "date_year": 1316, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Isleham@Cambridgeshire", "form": "Gisleham", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Isleham@Cambridgeshire", "form": "Isilham", "date_year": 1284, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Isleham@Cambridgeshire", "form": "Iselham", "date_year": 1302, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Isleham@Cambridgeshire", "form": "Yeselham", "date_year": 1321, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Kingston@Cambridgeshire", "form": "Chingestone", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Kingston@Cambridgeshire", "form": "Kingestone", "date_year": 1210, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Knapwell@Cambridgeshire", "form": "Chenepewelle", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Knapwell@Cambridgeshire", "form": "Cnapivelle", "date_year": 1330, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Kneesworth@Cambridgeshire", "form": "Knesworth", "date_year": 1276, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Kneesworth@Cambridgeshire", "form": "Knesworthe", "date_year": 1316, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Kneesworth@Cambridgeshire", "form": "Kneesworthe", "date_year": 1346, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Lolworth@Cambridgeshire", "form": "Lolesuuorde", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Lolworth@Cambridgeshire", "form": "Lulleworth", "date_year": 1284, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "March@Cambridgeshire", "form": "Merch", "date_year": 1169, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Newmarket@Cambridgeshire", "form": "Mercatus", "date_year": 1276, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Newmarket@Cambridgeshire", "form": "Newemarket", "date_year": 1383, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Over@Cambridgeshire", "form": "Oure", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Over@Cambridgeshire", "form": "Overe", "date_year": 1210, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Papworth@Cambridgeshire", "form": "Papeworde", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Rampton@Cambridgeshire", "form": "Ramptone", "date_year": 1210, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Staplow@Cambridgeshire", "form": "Staplehou", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Staplow@Cambridgeshire", "form": "Stapelho", "date_year": 1284, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Staplow@Cambridgeshire", "form": "Stapilho", "date_year": 1401, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Staplow@Cambridgeshire", "form": "Stapulho", "date_year": 1428, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Tadlow@Cambridgeshire", "form": "Tadelai", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Tadlow@Cambridgeshire", "form": "Tadelowe", "date_year": 1302, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Wentworth@Cambridgeshire", "form": "Winteworde", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Wentworth@Cambridgeshire", "form": "Wyntewurthe", "date_year": 1428, "source_doc": "skeat_1901_cambridgeshire"}

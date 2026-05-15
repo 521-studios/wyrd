@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "watson_1926_celtic_place_names_of_scotland", "author": "W.J. Watson", "title": "The History of the Celtic Place-Names of Scotland", "year": 1926, "region": "Scotland", "language_focus": "celtic"}
+{"_type": "source", "ref": "watson_1926_celtic_place_names_of_scotland", "title": "Watson 1926 Celtic Place Names Of Scotland", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
 {"_type": "etymon", "ref": "biblical:blaan", "canonical_form": "blaan", "language": "biblical"}
 {"_type": "etymon", "ref": "biblical:cyrict", "canonical_form": "cyrict", "language": "biblical", "glosses": ["St. Cyric (martyr saint)"]}
 {"_type": "etymon", "ref": "biblical:hoin", "canonical_form": "hoin", "language": "biblical", "glosses": ["St. John"]}
@@ -904,3 +904,16 @@
 {"_type": "etymology_element", "toponym_ref": "Teamhair@Scotland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:teamhair"}], "historical_form": "Teamhair", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar provides explicit gloss of the Irish term. Genitive forms Teamhra and Teamhrach are attested in historical records. | Teamhair, gen. Teamhra, "}
 {"_type": "etymology_element", "toponym_ref": "Tillymorgan@Scotland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:rath"}, {"ordinal": 1, "etymon_ref": "celtic:morganaigh", "inflection": "genitive"}], "historical_form": "Rath-Morganaigh", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Tillymorgan, Aberdeen; Ramornie, Ramorgany 1512 (RMS), in Fife, seems to be for Rath Morganaigh, ‘rath of (the) Morganach,’ i.e. of a man of Clan Mor", "attested_year": 1512}
 {"_type": "etymology_element", "toponym_ref": "Virvedrum@Scotland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:ver"}, {"ordinal": 1, "etymon_ref": "celtic:vedros", "inflection": "neuter"}], "historical_form": "Ver-vedron", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar divides as Vir-vedron; vedron is neuter of E.Celt. *vedros; feminine form Vedra attested in Ptolemy's Wear; meaning 'very clear (cape)' based "}
+{"_type": "attestation", "toponym_ref": "Abertarff@Scotland", "form": "Abirtarf", "date_year": 1208, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Dolcorachy@Scotland", "form": "Dolcorachy", "date_year": 1313, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Dolcorachy@Scotland", "form": "Dalhorochquhi", "date_year": 1445, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Dulchreg@Scotland", "form": "Dulchreg", "date_year": 1655, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Echline@Scotland", "form": "Kchlinge", "date_year": 1449, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Falkirk@Scotland", "form": "Calantair", "date_year": 1296, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Falkirk@Scotland", "form": "Kalentar", "date_year": 1362, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Kinmont in Annandale@Scotland", "form": "Kynmund", "date_year": 1529, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Manor@Scotland", "form": "Mainavre", "date_year": 1086, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Maol-domhnaich@Scotland", "form": "Petmuldonych", "date_year": 1504, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Petblane@Scotland", "form": "Petblane", "date_year": 1643, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Pourie@Scotland", "form": "Pethfoure", "date_year": 1358, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Prescoly@Scotland", "form": "Prescoly", "date_year": 1390, "source_doc": "watson_1926_celtic_place_names_of_scotland"}

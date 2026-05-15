@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "mawer_stenton_1927_worcestershire", "author": "A. Mawer, F.M. Stenton, and F.T.S. Houghton", "title": "The Place-Names of Worcestershire (EPNS Vol. 4)", "year": 1927, "region": "Worcestershire", "language_focus": "old-english"}
+{"_type": "source", "ref": "mawer_stenton_1927_worcestershire", "author": "unknown", "title": "Mawer Stenton 1927 Worcestershire"}
 {"_type": "etymon", "ref": "celtic:wealh", "canonical_form": "wealh", "language": "celtic", "glosses": ["foreigner"]}
 {"_type": "etymon", "ref": "germanic:i(s)nard", "canonical_form": "i(s)nard", "language": "germanic", "glosses": ["personal name"]}
 {"_type": "etymon", "ref": "latin:prioris", "canonical_form": "prioris", "language": "latin", "glosses": ["of the prior"]}
@@ -556,3 +556,30 @@
 {"_type": "etymology_element", "toponym_ref": "Ymeneia@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:imma"}, {"ordinal": 1, "etymon_ref": "old-english:holigne"}], "historical_form": "Imma-holigne", "confidence": "medium", "notes": "extracted_by:llm:qwen3.5:35b-a3b; Scholar compares to 'ymman holigne' and interprets as 'Imma's low-lying well-watered ground'. | Ymeneia, Imenea, Imeneye, Ymeneye 1176 P, 1210 RBE, 1212 Fees 140, 127", "attested_year": 1176}
 {"_type": "etymology_element", "toponym_ref": "Ymeneia@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:imma", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:eg"}], "historical_form": "Imman-eg", "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash | Ymeneia, Imenea, Imeneye, Ymeneye 1176 P, 1210 RBE, 1212 Fees 140, 1271 For Impney 1658 FF ‘Imma’s low-lying well-watered ground,’ v. eg. For this name cf. Immi", "attested_year": 1176}
 {"_type": "etymology_element", "toponym_ref": "Zerdeleye@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:gyrd"}, {"ordinal": 1, "etymon_ref": "old-english:leah"}], "historical_form": "gyrd-leah", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar notes difficulty in determining exact sense of gyrd ('twig, stick' or 'boundary-mark' most likely); comparison to Yardley and Staveley variants supports the etymology. | Zerdeleye, Gerdeley 1291 Tax Yerdeleye c. 1300 BM, 1478 Pat Erdeley 1478 Pat Yardeley 1541 BM This name must be a compound of OE gyrd, ‘yard, rod, twig and leah. It is difficult to say in what sense gyrd can be used in this compound, perhaps that of ‘twig, stick’ is the l", "attested_year": 1291}
+{"_type": "attestation", "toponym_ref": "Ausclif@-", "form": "Wills", "date_year": 1649, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Beckenoure@-", "form": "IpmR", "date_year": 1392, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Buxson@-", "form": "Wills", "date_year": 1700, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Chevyngton@-", "form": "Wills", "date_year": 1544, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Clivelade@-", "form": "EveA", "date_year": 1237, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Clivelade@-", "form": "Wigorn", "date_year": 1275, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Culleclive@-", "form": "Heming", "date_year": 1166, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Dunklyn@-", "form": "Saxton", "date_year": 1675, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Hiddeley@-", "form": "Misc", "date_year": 1311, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Leykhull@-", "form": "Wills", "date_year": 1659, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Lincumbe@-", "form": "Wills", "date_year": 1676, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Lotteleye@-", "form": "Nash", "date_year": 1535, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Parshior@-", "form": "Speed", "date_year": 1675, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Puriton@-", "form": "Puher", "date_year": 1176, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Reddich@-", "form": "StratGild", "date_year": 1535, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Russoc@-", "form": "Wigorn", "date_year": 1327, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Sandford@-", "form": "EveA", "date_year": 1275, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Sandford@-", "form": "Wigorn", "date_year": 1428, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Sticheford@-", "form": "Wigorn", "date_year": 1410, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Thorndune@-", "form": "Wulst", "date_year": 1271, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "UPpHAMPTON@-", "form": "WoCh", "date_year": 1570, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Uffenam@-", "form": "Marr", "date_year": 1590, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Uffenam@-", "form": "Wills", "date_year": 1677, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Welegh@-", "form": "Misc", "date_year": 1300, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Worc@-", "form": "Worc", "date_year": 1229, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Worc@-", "form": "Wigorn", "date_year": 1327, "source_doc": "mawer_stenton_1927_worcestershire"}
+{"_type": "attestation", "toponym_ref": "Worneleigh@-", "form": "Nash", "date_year": 1521, "source_doc": "mawer_stenton_1927_worcestershire"}

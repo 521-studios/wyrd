@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "ekwall_1928_river_names", "author": "Eilert Ekwall", "title": "English River-Names", "year": 1928, "region": "England", "language_focus": "old-english"}
+{"_type": "source", "ref": "ekwall_1928_river_names", "author": "unknown", "title": "Ekwall 1928 River Names"}
 {"_type": "etymon", "ref": "celtic:*losca", "canonical_form": "*losca", "language": "celtic", "glosses": ["winding stream"]}
 {"_type": "etymon", "ref": "celtic:*weluo-", "canonical_form": "*weluo-", "language": "celtic", "glosses": ["that has turned"]}
 {"_type": "etymon", "ref": "celtic:-ar-", "canonical_form": "-ar-", "language": "celtic"}
@@ -459,3 +459,20 @@
 {"_type": "etymology_element", "toponym_ref": "Writel@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:writol"}], "historical_form": "writol", "confidence": "medium", "notes": "extracted_by:llm:qwen3.5:35b-a3b; Ekwall notes the suggestion is better than his own and cites Weyhe and Holthausen | Writel. 1249, 1251 BM; Writel 1254-5 Ass 233 m 52, 1274 RH. The river-name is a su", "attested_year": 1249}
 {"_type": "etymology_element", "toponym_ref": "Writel@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:writol"}], "historical_form": "writol", "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash | Writel. 1249, 1251 BM; Writel 1254-5 Ass 233 m 52, 1274 RH. The river-name is a substantivation of an OE adj writol, derived from OE writian, wreotian ‘ to chir", "attested_year": 1249}
 {"_type": "etymology_element", "toponym_ref": "Zachrisson@-", "elements": [{"ordinal": 0, "etymon_ref": "celtic:gablo"}, {"ordinal": 1, "etymon_ref": "celtic:iuo"}], "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Entry discusses multiple river names (Ivel, Iwerne, Keasden Beck, Keekle Beck). The Ivel etymology is disputed; the author rejects Zachrisson's gifel theory and favors McClure's pre-English fork/confluence hypothesis based on Brit *gablo-. Iwerne is derived from Celtic *iuo- 'yew' + suffix -erno. Keasden Beck etymology is uncertain ('possible' that Keas- is Scandinavianized form of ches). Keekle Beck etymology unclear from text. | Zachrisson, NoB"}
+{"_type": "attestation", "toponym_ref": "Foc@-", "form": "Usabrunna", "date_year": 1148, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gariannonor@-", "form": "Gernemutha", "date_year": 1086, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "HUMBERSTONE Li@-", "form": "Humberstein", "date_year": 1115, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Ivel@-", "form": "Giuela", "date_year": 1086, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Ivel@-", "form": "Ivell", "date_year": 1586, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "LECK La@-", "form": "Leec", "date_year": 1196, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "LINDRICK Nt@-", "form": "Lyndryk", "date_year": 1291, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Mes@-", "form": "Coldemes", "date_year": 1272, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Niderd@-", "form": "Nidderdale", "date_year": 1279, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Niderd@-", "form": "Nederdayle", "date_year": 1474, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Niderd@-", "form": "Netherdale", "date_year": 1577, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Rother Db@-", "form": "Nostell", "date_year": 1276, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Tamirac@-", "form": "Worc", "date_year": 1586, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Temedebur@-", "form": "Temdebury", "date_year": 1414, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Tinac@-", "form": "Regesta", "date_year": 1104, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Tinac@-", "form": "Symeon", "date_year": 1256, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Writel@-", "form": "Writel", "date_year": 1254, "source_doc": "ekwall_1928_river_names"}

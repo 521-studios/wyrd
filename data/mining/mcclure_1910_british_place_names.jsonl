@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "mcclure_1910_british_place_names", "author": "Edmund McClure", "title": "British Place-Names in their Historical Setting", "year": 1910, "region": "Britain", "language_focus": "mixed"}
+{"_type": "source", "ref": "mcclure_1910_british_place_names", "title": "Mcclure 1910 British Place Names", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
 {"_type": "etymon", "ref": "old-english:lceck-r", "canonical_form": "lceck-r", "language": "old-english", "glosses": ["brook"]}
 {"_type": "citation", "etymon_ref": "old-english:lceck-r", "short_quote": "extracted_by:llm:qwen3.5:35b-a3b; Scholar notes cognates and Latin equivalent 'lacu' for 'lake'. | Kindle. Law; Lceck-r (= brook: in northern place-names, as Leek: the cognate English Leach, Lech, Let"}
 {"_type": "mining_run", "provider": "ollama", "model": "qwen3.5:35b-a3b", "mode": "mine", "completed_at": "2026-05-01T00:21:17.375Z", "parsed_count": 35, "accepted": 10, "declined": 22, "rejected": 3, "notes": "english-tier batch"}
