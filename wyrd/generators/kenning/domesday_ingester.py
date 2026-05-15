@@ -159,8 +159,19 @@ def ingest_domesday(
     tests can construct fixture table dicts directly without needing a
     real MDB on disk.
     """
-    # Deferred import — access_parser is a heavy dep used only here.
-    from access_parser import AccessParser
+    # Deferred import — access_parser is an optional ingest-only
+    # dependency (lives in [project.optional-dependencies].ingest,
+    # not base deps; see pyproject.toml). Operators running this
+    # command install via ``pip install -e '.[ingest]'``. The Lambda
+    # bundle build skips it because its sdist-only / non-aarch64
+    # wheels break the build pipeline.
+    try:
+        from access_parser import AccessParser
+    except ImportError as exc:
+        raise ImportError(
+            "access_parser is required for ingest-domesday. Install with: "
+            "pip install -e '.[ingest]'"
+        ) from exc
 
     apdb = AccessParser(str(mdb_path))
     places = apdb.parse_table("Places")
