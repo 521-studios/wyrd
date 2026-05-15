@@ -2513,7 +2513,11 @@ def lexicon_refill_short_quotes(
             # sources where the operator actually has a refill
             # surface to fix.
             if report.refilled == 0 and report.hallucinated == 0:
-                txt = sources_dir / f"{source_id}.txt"
+                # Use the same Path(...).name strip as _load_source_body
+                # (Gemini PR #211 round-7 hardening) so the warning's
+                # reported path matches the path the refill logic
+                # actually looked at. Round-8 consistency fix.
+                txt = sources_dir / f"{Path(source_id).name}.txt"
                 if not txt.exists():
                     click.echo(f"    warning: {txt} not found — refill needs the source body")
                 else:
