@@ -2372,6 +2372,98 @@ def lexicon_audit_short_quotes(
     click.echo(format_audit_report(report, top_n=top_n))
 
 
+@lexicon.command("refill-short-quotes")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+    help="Lexicon SQLite DB to read + (with --apply) write.",
+)
+@click.option(
+    "--sources-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=Path("sources"),
+    show_default=True,
+    help="Directory of <source_id>.txt source bodies for refill lookup.",
+)
+@click.option(
+    "--source",
+    "sources",
+    multiple=True,
+    help="Restrict to named source_ids (repeat for multiple).",
+)
+@click.option(
+    "--apply",
+    is_flag=True,
+    default=False,
+    help="Actually UPDATE etymon_citation.short_quote rows. Without this, dry-run.",
+)
+@click.option(
+    "--window",
+    type=int,
+    default=200,
+    show_default=True,
+    help="Forward chars of recovered context past the matched tail.",
+)
+def lexicon_refill_short_quotes(
+    db_path: Path,
+    sources_dir: Path,
+    sources: tuple[str, ...],
+    apply: bool,
+    window: int,
+) -> None:
+    """Refill truncated short_quotes from source body text (wyrd-1hpc).
+
+    For each citation whose short_quote is flagged by
+    `audit-short-quotes`, locates the tail in `sources/<source_id>.txt`
+    and extends forward by --window chars to recover the
+    LLM-truncated continuation. Non-locatable cases (LLM-hallucinated
+    commentary that was never in the source body) are reported as
+    `hallucinated`; those need an LLM re-mine, not refill.
+
+    After --apply, run `lexicon dump-jsonl` to propagate the refilled
+    short_quotes into the committed `data/mining/*.jsonl` files.
+    """
+    from wyrd.generators.kenning.short_quote_refill import refill_source
+
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+
+    if sources:
+        target_sources = list(sources)
+    else:
+        target_sources = [r["id"] for r in conn.execute("SELECT id FROM source ORDER BY id")]
+
+    total_truncated = 0
+    total_refilled = 0
+    total_hallucinated = 0
+    try:
+        for source_id in target_sources:
+            report = refill_source(conn, source_id, sources_dir, apply=apply, window=window)
+            if report.total_truncated == 0:
+                continue
+            total_truncated += report.total_truncated
+            total_refilled += report.refilled
+            total_hallucinated += report.hallucinated
+            click.echo(
+                f"{source_id:<55} truncated={report.total_truncated:>4} "
+                f"refilled={report.refilled:>4} "
+                f"hallucinated={report.hallucinated:>4}",
+                err=True,
+            )
+    finally:
+        conn.close()
+    click.echo("", err=True)
+    click.echo(
+        f"TOTAL: truncated={total_truncated} refilled={total_refilled} "
+        f"hallucinated={total_hallucinated} "
+        f"({'APPLIED' if apply else 'dry-run'})",
+        err=True,
+    )
+
+
 @lexicon.command("audit-etymology-alignment")
 @click.option(
     "--dir",
