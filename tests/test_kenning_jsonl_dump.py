@@ -763,11 +763,20 @@ def test_attestation_source_doc_filter_with_prefix_uses_glob_for_case_sensitivit
     ASCII-case-INsensitive by default, and COLLATE BINARY doesn't
     override that — LIKE's case rule is separate. GLOB is
     case-sensitive by default, matching the Python resolver's
-    ``str.startswith()`` semantics."""
+    ``str.startswith()`` semantics.
+
+    Also pins the ``NOT IN (SELECT id FROM source)`` guard which
+    enforces the Python oracle's exact-match-wins priority in SQL —
+    without it, a future invariant-violating registration would
+    silently double-route rows whose source_doc both equals a
+    source.id and matches a prefix."""
     clause, params = _attestation_source_doc_filter("open_domesday_hull")
     assert "ta.source_doc = ?" in clause
     assert "ta.source_doc GLOB ?" in clause
     assert "LIKE" not in clause, "LIKE has case-insensitive default — use GLOB instead"
+    assert "NOT IN (SELECT id FROM source)" in clause, (
+        "prefix clause must enforce exact-match-wins priority in SQL"
+    )
     assert params[0] == "open_domesday_hull"
     assert "Phillimore*" in params
 
@@ -824,11 +833,11 @@ def test_attestation_source_doc_filter_resolver_parity():
 
 
 def test_attestation_source_doc_filter_is_case_sensitive():
-    """COLLATE BINARY on the LIKE makes the SQL filter case-sensitive
-    so lowercase 'phillimore' DOES NOT route to open_domesday_hull.
-    Pins the wyrd-6gpy round-1 fix — without COLLATE BINARY the
-    production SQL would silently accept what the Python oracle
-    orphans."""
+    """GLOB (case-sensitive by default) makes the SQL filter accept
+    only ``Phillimore``, not ``phillimore`` — matching the Python
+    resolver's str.startswith() semantics. Pins the wyrd-6gpy round-1
+    fix — LIKE (the previous attempt) is ASCII-case-INsensitive and
+    would silently accept what the Python oracle orphans."""
     conn = _build_fixture_db()
     _add_source(conn, id="open_domesday_hull", title="ODH")
     tid = _add_toponym(conn, "Anywhere", region=None)
@@ -839,6 +848,55 @@ def test_attestation_source_doc_filter_is_case_sensitive():
     forms = [r["form"] for r in rows if r["_type"] == "attestation"]
     assert forms == ["Caps"], (
         f"case-sensitive filter should accept only the capitalized prefix; got {forms!r}"
+    )
+
+
+def test_attestation_source_doc_filter_enforces_exact_match_wins_priority(monkeypatch):
+    """If a future operator violates the
+    _ATTESTATION_DOC_PREFIX_TO_SOURCE invariant by registering a
+    prefix that equals an actual source.id, the SQL filter must
+    still route per the Python resolver's exact-match-wins priority.
+
+    Without the ``NOT IN (SELECT id FROM source)`` guard on the
+    prefix clause, the row ``source_doc='Mawer'`` would be double-
+    routed: once via the ``Mawer`` source's exact-match clause and
+    once via the ``mawer_volumes`` source's prefix clause. The build
+    side would then see two emit paths.
+
+    Pins Gemini round-2 finding."""
+    from wyrd.generators.kenning import jsonl_dump
+
+    # Inject the invariant-violating registration: source.id 'Mawer'
+    # exists AND it's also a registered prefix routing to a different
+    # source ('mawer_volumes').
+    monkeypatch.setattr(
+        jsonl_dump,
+        "_ATTESTATION_DOC_PREFIX_TO_SOURCE",
+        (("Phillimore", "open_domesday_hull"), ("Mawer", "mawer_volumes")),
+    )
+
+    conn = _build_fixture_db()
+    _add_source(conn, id="Mawer", title="Mawer's volumes")
+    _add_source(conn, id="mawer_volumes", title="Mawer volumes index")
+    _add_source(conn, id="open_domesday_hull", title="ODH")
+    tid = _add_toponym(conn, "Anywhere", region=None)
+    # The collision row: exact match for 'Mawer', also matches 'Mawer*' prefix.
+    _add_attestation(conn, tid, "Form-A", source_doc="Mawer")
+    # A clean prefix match — should still route to mawer_volumes.
+    _add_attestation(conn, tid, "Form-B", source_doc="Mawer page 12")
+
+    # mawer_volumes must NOT claim the 'Mawer' row (exact match wins for Mawer).
+    mawer_volumes_rows = dump_source_to_rows(conn, "mawer_volumes")
+    mawer_volumes_forms = [r["form"] for r in mawer_volumes_rows if r["_type"] == "attestation"]
+    assert mawer_volumes_forms == ["Form-B"], (
+        f"prefix clause must not hijack source_doc='Mawer' (its source.id); got {mawer_volumes_forms!r}"
+    )
+
+    # 'Mawer' source should claim its own exact-match row only.
+    mawer_rows = dump_source_to_rows(conn, "Mawer")
+    mawer_forms = [r["form"] for r in mawer_rows if r["_type"] == "attestation"]
+    assert mawer_forms == ["Form-A"], (
+        f"exact-match clause must claim source_doc='Mawer'; got {mawer_forms!r}"
     )
 
 

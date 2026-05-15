@@ -429,7 +429,18 @@ def _attestation_source_doc_filter(source_id: str) -> tuple[str, list[Any]]:
         # so the SQL filter matches the Python resolver's
         # ``str.startswith()`` semantics — a lowercase ``phillimore 1L1``
         # is orphaned by both rather than routed by only one.
-        clauses.append("ta.source_doc GLOB ?")
+        #
+        # The ``NOT IN (SELECT id FROM source)`` guard enforces the
+        # Python oracle's exact-match-wins priority directly in SQL.
+        # Without it, a future entry that violates the
+        # _ATTESTATION_DOC_PREFIX_TO_SOURCE invariant — say
+        # ``("Mawer", "mawer_volumes")`` when a source.id ``Mawer``
+        # exists — would silently double-route the row matching
+        # ``source_doc = 'Mawer'`` (it satisfies both the exact-match
+        # clause of one source and the prefix clause of another). The
+        # subquery is a one-shot SELECT against the ``source`` table
+        # (< 100 rows in production) and SQLite caches it.
+        clauses.append("(ta.source_doc GLOB ? AND ta.source_doc NOT IN (SELECT id FROM source))")
         # Registered prefixes are hand-written constants — no glob
         # metacharacters in them today, but if a future prefix needs
         # `[`/`?`/`*` the caller must escape per SQLite GLOB rules.
