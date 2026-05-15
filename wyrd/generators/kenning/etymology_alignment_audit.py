@@ -72,25 +72,12 @@ def _etymon_canonical_form(etymon_ref: str) -> str:
     return etymon_ref.rsplit(":", 1)[-1]
 
 
-def _missing_morphemes(elements: list[dict], historical_form: str) -> list[str]:
-    """Return the etymon canonical_forms that don't appear (as a
-    substring) anywhere in the historical_form. Skips stop-morphemes
-    (single letters, common inflections) where absence isn't signal."""
-    norm_form = _normalize(historical_form)
-    missing: list[str] = []
-    for el in elements:
-        ref = el.get("etymon_ref") or ""
-        if not ref:
-            continue
-        canonical = _etymon_canonical_form(ref)
-        norm_canonical = _normalize(canonical)
-        if norm_canonical in _STOP_MORPHEMES:
-            continue
-        if not norm_canonical:
-            continue
-        if norm_canonical not in norm_form:
-            missing.append(canonical)
-    return missing
+# NOTE: the per-element single-pass walk lives inline in
+# :func:`looks_misaligned` (wyrd-j6co Gemini round 3 — was an extracted
+# ``_missing_morphemes`` helper, but inlining the loop lets us share
+# ``canonical_forms`` between the missing-list and the finding's
+# elements field without re-iterating, and lets ``_normalize(historical_form)``
+# run once instead of twice).
 
 
 # wyrd-j6co: categorize MisalignmentFinding by reason so the operator
@@ -147,25 +134,34 @@ def looks_misaligned(row: dict) -> MisalignmentFinding | None:
     historical_form = (row.get("historical_form") or "").strip()
     if not elements:
         return None
-    # Pre-compute canonical forms once + drop any element with a
-    # missing/empty etymon_ref (wyrd-j6co robustness: those produce
-    # empty strings in the report's elements list otherwise).
-    canonical_forms = [
-        _etymon_canonical_form(el.get("etymon_ref") or "")
-        for el in elements
-        if el.get("etymon_ref")
-    ]
+    # Single pass over elements (wyrd-j6co Gemini round 3 perf): collect
+    # canonical_forms (for the finding) and missing entries (for the
+    # alignment check) in one loop, with _normalize(historical_form)
+    # computed once outside.
+    #
+    # Skip elements with no etymon_ref (wyrd-j6co round 1 robustness:
+    # they'd produce empty strings in the report otherwise).
+    # Stop-morphemes (single letters, common inflections) are
+    # excluded from `missing` since their absence isn't signal — same
+    # rule applies whether or not historical_form is populated.
+    norm_form = _normalize(historical_form)
+    canonical_forms: list[str] = []
+    missing: list[str] = []
+    for el in elements:
+        ref = el.get("etymon_ref")
+        if not ref:
+            continue
+        canonical = _etymon_canonical_form(ref)
+        canonical_forms.append(canonical)
+        norm_canonical = _normalize(canonical)
+        if not norm_canonical or norm_canonical in _STOP_MORPHEMES:
+            continue
+        if norm_canonical not in norm_form:
+            missing.append(canonical)
     if not canonical_forms:
         return None
-    # wyrd-j6co Gemini round 2: use _missing_morphemes uniformly so
-    # stop-morphemes are filtered identically in both code paths. A
-    # row whose only elements are stop-morphemes (e.g. ``old-english:es``)
-    # is under-extraction, not misalignment, and shouldn't flag — even
-    # when the historical_form is empty.
-    missing = _missing_morphemes(elements, historical_form)
     if not missing:
         return None
-    norm_form = _normalize(historical_form)
     reason = MISALIGNMENT_REASON_EMPTY_FORM if not norm_form else MISALIGNMENT_REASON_HALLUCINATED
     return MisalignmentFinding(
         toponym_ref=row.get("toponym_ref") or "<missing>",
