@@ -295,9 +295,11 @@ def test_refill_short_quote_trims_to_terminal_char(tmp_path: Path):
     """The recovered forward window is trimmed back to the last
     terminal character (.!?'")]}) so subsequent audit runs don't
     re-flag the refilled row as truncated."""
-    quote = "commentary | early citation Ab"
+    # Anchor must be ≥ _MIN_ANCHOR_LEN (20 chars) — use a long-enough tail.
+    quote = "commentary | the early scholar citation about Ab"
     source = (
-        "irrelevant. early citation Abber 1086 Akum. Then much more prose without terminal punct"
+        "irrelevant. the early scholar citation about Abber 1086 Akum. "
+        "Then much more prose without terminal punct"
     )
     new, recovered = refill_short_quote(quote, _normalize_whitespace(source), window=80)
     assert new is not None
@@ -655,16 +657,87 @@ def test_cli_refill_short_quotes_verbose_surfaces_samples(tmp_path: Path):
 # ---------------------------------------------------------------------------
 
 
+def test_refill_source_sql_filters_below_truncation_floor(tmp_path: Path):
+    """Gemini PR #211 round-3 perf: short_quotes shorter than
+    MIN_TRUNCATION_LENGTH (200 chars) are guaranteed not flagged
+    by looks_truncated. The SQL filter ``length(short_quote) >= 200``
+    skips them at the DB layer rather than fetching+Python-filtering.
+
+    This test seeds 2 short citations + 1 truncated citation and
+    asserts only the truncated one shows up in total_truncated."""
+    conn = _build_fixture_db()
+    conn.execute("INSERT INTO source (id, title) VALUES ('book', 'Book')")
+    eid = conn.execute(
+        "INSERT INTO etymon (canonical_form, language) VALUES ('acum', 'old-english')"
+    ).lastrowid
+    # 2 short healthy quotes (below 200 chars) — would be filtered by
+    # looks_truncated in Python anyway, but the SQL filter skips them
+    # without round-trip.
+    conn.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, short_quote) VALUES (?, ?, ?)",
+        (eid, "book", "Short healthy citation that ends in a period."),
+    )
+    conn.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, short_quote) VALUES (?, ?, ?)",
+        (eid, "book", "Another short clean citation. 42 chars."),
+    )
+    # 1 truncated citation (>= 200 chars).
+    conn.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, short_quote) VALUES (?, ?, ?)",
+        (eid, "book", _TRUNCATED),
+    )
+    conn.commit()
+    (tmp_path / "book.txt").write_text(
+        "history. Acomb (Bywell St Peter) 1268 Ipm Akum. More prose."
+    )
+
+    report = refill_source(conn, "book", tmp_path, apply=True)
+    # Only the one above-floor citation is considered.
+    assert report.total_truncated == 1
+    assert report.refilled == 1
+
+
+def test_refill_short_quote_rejects_too_short_anchor():
+    """Gemini PR #211 round-3: an anchor shorter than _MIN_ANCHOR_LEN
+    (20 chars) is too unspecific in typical scholar prose — could match
+    in indexes, running headers, cross-references. Rejected with None
+    rather than risk a wrong-location refill that silently writes
+    incorrect forward context."""
+    # Tail is 10 chars; whole quote is 10 chars (no pipe). Anchor would
+    # be the whole quote — below the 20-char threshold.
+    quote = "by 12 Akum"
+    source = "by 12 Akum is here and elsewhere also by 12 Akum appears."
+    new, recovered = refill_short_quote(quote, _normalize_whitespace(source), window=80)
+    assert new is None, (
+        "10-char anchor must be rejected as too short — could match wrong occurrence"
+    )
+    assert recovered == 0
+
+
+def test_refill_short_quote_post_pipe_anchor_at_minimum_length():
+    """Anchor exactly at the minimum (20 chars) refills successfully —
+    pin the boundary."""
+    # 20-char anchor — at the threshold, should succeed.
+    quote = "commentary | abcdefghij12345_anchor"  # post-pipe is 22 chars
+    source = "irrelevant abcdefghij12345_anchor and then more content here."
+    new, recovered = refill_short_quote(quote, _normalize_whitespace(source), window=80)
+    assert new is not None
+    assert "content here." in new
+
+
 def test_refill_short_quote_multi_pipe_uses_last_segment(tmp_path: Path):
     """A short_quote with multiple `|` delimiters uses the LAST
     segment as the anchor (per rsplit('|', 1)). pr-test-analyzer
     PR #211 finding: realistic nested-commentary shapes can produce
     multiple pipes."""
-    quote = "first commentary | nested commentary | final tail anchor"
-    source = "irrelevant. final tail anchor extends with more content here."
+    # Anchor must be ≥ _MIN_ANCHOR_LEN (20 chars) — use a long-enough final tail.
+    quote = "first commentary | nested commentary | the final-segment tail anchor"
+    source = "irrelevant. the final-segment tail anchor extends with more content here."
     new, recovered = refill_short_quote(quote, _normalize_whitespace(source), window=80)
     assert new is not None
     # The full original quote prefix is preserved (including both pipes).
-    assert new.startswith("first commentary | nested commentary | final tail anchor")
+    assert new.startswith(
+        "first commentary | nested commentary | the final-segment tail anchor"
+    )
     # The recovered portion came from after the LAST pipe's anchor.
     assert "content here." in new

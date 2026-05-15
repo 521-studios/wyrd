@@ -68,12 +68,27 @@ _SEARCH_TAIL_LEN = 80
 # positives.
 _SEARCH_TAIL_FALLBACK_LEN = 40
 
+# Below this length, the anchor isn't unique enough in typical
+# scholar-book prose to trust the .find() result — a 5-10 char tail
+# could match in an index, a running header, a cross-reference, or
+# any incidental occurrence. Set conservatively at 20 chars; at this
+# length, the false-positive rate against Mawer/Joyce/Ekwall-style
+# prose is empirically near zero. Gemini PR #211 round-3 finding.
+_MIN_ANCHOR_LEN = 20
+
 # Characters that satisfy :func:`short_quote_audit.looks_truncated`'s
 # terminal-character check. Forward chunks must end at one of these
 # so the audit doesn't re-flag the extended row on subsequent runs
 # (= idempotency). Mirrors the same constant in short_quote_audit
 # rather than importing it because the audit's set is module-private.
 _TERMINAL_CHARS: frozenset[str] = frozenset(".!?\"')]}")
+
+# looks_truncated's length floor — short_quotes below this length
+# are guaranteed not flagged, so pushing the filter into SQL strictly
+# reduces the row count refill_source walks. Kept in sync with
+# short_quote_audit.MIN_TRUNCATION_LENGTH; not imported directly to
+# avoid coupling refill code to the audit module's constants.
+_TRUNCATION_LENGTH_FLOOR = 200
 
 
 def _normalize_whitespace(text: str) -> str:
@@ -159,6 +174,12 @@ def refill_short_quote(
         return None, 0
     # Long anchor first.
     anchor = tail[-_SEARCH_TAIL_LEN:].strip() if len(tail) > _SEARCH_TAIL_LEN else tail
+    # Reject anchors below the minimum length — they're too short to
+    # be unique in typical scholar prose (Gemini PR #211 round-3
+    # finding). An anchor of e.g. " 1268" would match dozens of
+    # places in a Mawer-style gazetteer.
+    if len(anchor) < _MIN_ANCHOR_LEN:
+        return None, 0
     idx = source_text_norm.find(anchor)
     if idx == -1 and len(tail) > _SEARCH_TAIL_FALLBACK_LEN:
         anchor = tail[-_SEARCH_TAIL_FALLBACK_LEN:].strip()
@@ -241,14 +262,22 @@ def refill_source(
     # row to report.samples (sample_limit caps at 3 by default), so
     # defer that lookup to :func:`_etymon_ref_for`. The bulk-path
     # scan over hundreds of citations doesn't pay the JOIN cost.
+    # Length filter pushed into SQL (Gemini PR #211 round-3 perf):
+    # looks_truncated requires length >= MIN_TRUNCATION_LENGTH (200),
+    # so anything below that is guaranteed not flagged. Filtering at
+    # the DB cuts the row count refill_source walks on sources with
+    # many short / healthy citations. The Python-side
+    # ``looks_truncated`` call below still runs as the authoritative
+    # check (length is necessary but not sufficient for truncation).
     rows = conn.execute(
         """
         SELECT id, etymon_id, short_quote
           FROM etymon_citation
          WHERE source_id = ?
            AND short_quote IS NOT NULL
+           AND length(short_quote) >= ?
         """,
-        (source_id,),
+        (source_id, _TRUNCATION_LENGTH_FLOOR),
     ).fetchall()
     # Load source body LATE so we can still count truncated rows even
     # when the .txt is missing (Gemini PR #211 round-2): operator sees
