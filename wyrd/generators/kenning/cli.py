@@ -2462,7 +2462,18 @@ def lexicon_refill_short_quotes(
                 )
             target_sources = list(sources)
         else:
-            target_sources = [r["id"] for r in db.conn.execute("SELECT id FROM source ORDER BY id")]
+            # Only iterate sources that actually have citations
+            # (Gemini PR #211 round-7 efficiency). Many sources in
+            # the source table have zero citations (placeholder rows
+            # for not-yet-mined books, retired sources, etc.) —
+            # skipping them avoids per-source refill_source calls
+            # that would return empty reports anyway.
+            target_sources = [
+                r[0]
+                for r in db.conn.execute(
+                    "SELECT DISTINCT source_id FROM etymon_citation ORDER BY source_id"
+                )
+            ]
 
         for source_id in target_sources:
             report = refill_source(db.conn, source_id, sources_dir, apply=apply, window=window)

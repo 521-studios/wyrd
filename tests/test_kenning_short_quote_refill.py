@@ -933,6 +933,79 @@ def test_cli_refill_short_quotes_apply_round_trips(tmp_path: Path):
     assert "Akum" in row[0]
 
 
+def test_load_source_body_strips_path_components_from_source_id(tmp_path: Path):
+    """Gemini PR #211 round-7 (security-high): if a source_id ever
+    contains path separators (slashes, ../, etc.), _load_source_body
+    must not traverse outside sources_dir. Path(source_id).name
+    strips directory components, leaving only the basename."""
+    from wyrd.generators.kenning.short_quote_refill import _load_source_body
+
+    # Put a benign file at sources_dir/legit.txt and a sensitive file
+    # OUTSIDE sources_dir. A malicious source_id ../sensitive must
+    # NOT reach outside.
+    sensitive = tmp_path / "sensitive.txt"
+    sensitive.write_text("should-not-be-readable")
+    inner = tmp_path / "sources"
+    inner.mkdir()
+    (inner / "legit.txt").write_text("legitimate source body content here.")
+
+    # A source_id with traversal — Path(source_id).name → 'sensitive',
+    # so we look for sources/sensitive.txt, which doesn't exist.
+    # Result: None, not the contents of ../sensitive.txt.
+    result = _load_source_body(inner, "../sensitive")
+    assert result is None, "path traversal must not return file outside sources_dir"
+
+
+def test_cli_refill_short_quotes_default_mode_uses_distinct_source_ids(tmp_path: Path):
+    """Gemini PR #211 round-7 (efficiency): when no --source is given,
+    the CLI iterates only sources that have at least one citation.
+    Sources in the source table with zero citations are skipped."""
+    from click.testing import CliRunner
+
+    db_path = tmp_path / "lex.db"
+    conn = sqlite3.connect(str(db_path))
+    conn.executescript(
+        """
+        CREATE TABLE source (id TEXT PRIMARY KEY, title TEXT NOT NULL);
+        CREATE TABLE etymon (id INTEGER PRIMARY KEY AUTOINCREMENT,
+            canonical_form TEXT NOT NULL, language TEXT NOT NULL,
+            UNIQUE(canonical_form, language));
+        CREATE TABLE etymon_citation (id INTEGER PRIMARY KEY AUTOINCREMENT,
+            etymon_id INTEGER NOT NULL, source_id TEXT NOT NULL, page TEXT,
+            short_quote TEXT, context_snippet TEXT);
+        -- Two sources, only one has citations.
+        INSERT INTO source (id, title) VALUES ('with_cites', 'Has cites');
+        INSERT INTO source (id, title) VALUES ('empty_source', 'No cites');
+        INSERT INTO etymon (canonical_form, language) VALUES ('acum', 'old-english');
+        """
+    )
+    conn.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, short_quote) VALUES (1, 'with_cites', ?)",
+        (_TRUNCATED,),
+    )
+    conn.commit()
+    conn.close()
+    (tmp_path / "with_cites.txt").write_text(
+        "history. Acomb (Bywell St Peter) 1268 Ipm Akum. More prose."
+    )
+    # NB: deliberately not creating empty_source.txt — if the CLI
+    # were iterating ALL sources it would log a missing-body warning
+    # for empty_source. With the DISTINCT-citations filter, it skips.
+
+    from wyrd.generators.kenning.cli import cli as cli_root
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        ["lexicon", "refill-short-quotes", "--db", str(db_path), "--sources-dir", str(tmp_path)],
+    )
+    assert result.exit_code == 0, result.output
+    # with_cites is processed.
+    assert "with_cites" in result.output
+    # empty_source is NOT processed (no warning, no progress line).
+    assert "empty_source" not in result.output
+
+
 def test_cli_refill_short_quotes_warns_on_unreadable_source_body(tmp_path: Path):
     """test-coverage-reviewer round-5: the 'file exists but unreadable'
     branch of the missing-source warning was untested. Covers the

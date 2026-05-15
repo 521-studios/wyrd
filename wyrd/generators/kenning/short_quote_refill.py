@@ -265,7 +265,13 @@ def _load_source_body(sources_dir: Path, source_id: str) -> str | None:
       to missing for refill purposes; treat the same so the CLI's
       missing-source warning triggers (Gemini PR #211 round-4).
     """
-    path = sources_dir / f"{source_id}.txt"
+    # Strip any directory components from source_id to prevent
+    # path traversal even if a future ingester (or operator) writes
+    # a source_id containing slashes. Currently source_id is derived
+    # from filenames + handwritten ingesters' SOURCE_ROW constants
+    # (all safe), but defense-in-depth: don't let a malformed
+    # source_id reach outside sources_dir. Gemini PR #211 round-7.
+    path = sources_dir / f"{Path(source_id).name}.txt"
     if not path.exists():
         return None
     try:
