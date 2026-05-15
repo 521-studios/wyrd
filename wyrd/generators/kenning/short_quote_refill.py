@@ -21,8 +21,24 @@ Pilot results (PR #211 baseline, before refill ran):
 The non-locatable residual is LLM-hallucinated commentary that was
 never in the source body — refill can't fix it. File a separate
 LLM re-mine ticket for those (the audit module still flags them;
-this module's `refill_count` vs `hallucinated_count` split tracks
-the two failure modes explicitly).
+this module's :class:`RefillReport` ``refilled`` vs ``hallucinated``
+counters track the two failure modes explicitly).
+
+Idempotency:
+  Refilled short_quotes are post-processed to end at a terminal
+  character (``.``, ``!``, ``?``, ``"``, ``'``, ``)``, ``]``, ``}``)
+  via :func:`_trim_to_terminal_char` so :func:`short_quote_audit.looks_truncated`
+  doesn't re-flag them on subsequent audit runs. A re-run of
+  ``lexicon refill-short-quotes`` against an already-refilled DB
+  is therefore a no-op (looks_truncated returns False on the
+  extended rows, so they're skipped before the anchor search runs).
+
+  Forward chunks that contain no terminal character within the
+  configured window are NOT applied — the chunk is too fragmentary
+  to safely extend the citation with, and the row is counted as
+  ``hallucinated`` so operators can investigate (typically the
+  source body's prose runs unusually punctuation-light in that
+  region).
 """
 
 from __future__ import annotations
@@ -52,6 +68,13 @@ _SEARCH_TAIL_LEN = 80
 # positives.
 _SEARCH_TAIL_FALLBACK_LEN = 40
 
+# Characters that satisfy :func:`short_quote_audit.looks_truncated`'s
+# terminal-character check. Forward chunks must end at one of these
+# so the audit doesn't re-flag the extended row on subsequent runs
+# (= idempotency). Mirrors the same constant in short_quote_audit
+# rather than importing it because the audit's set is module-private.
+_TERMINAL_CHARS: frozenset[str] = frozenset(".!?\"')]}")
+
 
 def _normalize_whitespace(text: str) -> str:
     """Collapse all whitespace runs to single spaces. Used both for
@@ -60,14 +83,35 @@ def _normalize_whitespace(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _trim_to_terminal_char(chunk: str) -> str | None:
+    """Trim ``chunk`` so its last character is in :data:`_TERMINAL_CHARS`.
+    Returns the trimmed prefix, or ``None`` if no terminal character
+    exists anywhere in the chunk.
+
+    Used to ensure refilled short_quotes don't trip
+    :func:`short_quote_audit.looks_truncated`'s terminal-char rule on
+    re-audit (= idempotency). Scholar place-name prose has frequent
+    terminal characters (citation periods like ``Ipm.``, semicolons
+    between attestations, closing quotes/brackets), so most
+    forward-windows have a usable trim point well before the
+    arbitrary character cap.
+    """
+    for i in range(len(chunk) - 1, -1, -1):
+        if chunk[i] in _TERMINAL_CHARS:
+            return chunk[: i + 1]
+    return None
+
+
 @dataclass(frozen=True)
 class RefillResult:
     """Per-citation outcome.
 
     Status is one of:
-      * "refilled" — tail located, short_quote extended
-      * "hallucinated" — tail not found in source (LLM made it up)
-      * "not_truncated" — looks_truncated() returned False; skipped
+      * ``"refilled"`` — tail located, forward chunk had a terminal
+        character, short_quote extended.
+      * ``"hallucinated"`` — tail not found in source body (LLM
+        invented prose) OR forward chunk had no terminal character
+        within the window (too fragmentary to safely extend).
     """
 
     citation_id: int
@@ -125,22 +169,51 @@ def refill_short_quote(
     forward = source_text_norm[end_pos : end_pos + window]
     if not forward.strip():
         return None, 0
-    # The new short_quote is the original (preserving any pipe-prefixed
-    # commentary) plus the recovered forward context appended. Trim
-    # leading whitespace on the recovered chunk since the anchor often
-    # ends mid-word.
-    new_quote = short_quote.rstrip() + forward
-    return new_quote, len(forward)
+    # Trim to the last terminal character within the recovered window
+    # so the new short_quote ends cleanly and won't re-trip the audit's
+    # truncation heuristic on the next run (idempotency).
+    trimmed = _trim_to_terminal_char(forward)
+    if trimmed is None:
+        # Forward chunk has no terminal character anywhere — too
+        # fragmentary to safely extend the citation. Caller counts as
+        # hallucinated so operators can investigate (rare case;
+        # typically source body's prose runs unusually
+        # punctuation-light here).
+        return None, 0
+    new_quote = short_quote.rstrip() + trimmed
+    return new_quote, len(trimmed)
 
 
 def _load_source_body(sources_dir: Path, source_id: str) -> str | None:
     """Read ``sources/<source_id>.txt`` and return its normalized
-    body. Returns None when the file doesn't exist (audits that span
-    sources without bundled .txt files just skip those)."""
+    body. Returns None when:
+
+    * the file doesn't exist — audits that span sources without
+      bundled .txt files just skip those.
+    * the file isn't valid UTF-8 — some OCR-produced source bodies
+      have stray non-UTF-8 bytes; surface as None rather than
+      crashing the whole refill run mid-source.
+    """
     path = sources_dir / f"{source_id}.txt"
     if not path.exists():
         return None
-    return _normalize_whitespace(path.read_text(encoding="utf-8"))
+    try:
+        body = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return None
+    return _normalize_whitespace(body)
+
+
+def _etymon_ref_for(conn: sqlite3.Connection, etymon_id: int) -> str:
+    """Lazy lookup: only called when constructing a sample row, so
+    the per-citation hot path doesn't pay for a JOIN it usually
+    doesn't need (samples cap at ``sample_limit``, default 3, while
+    a source may have hundreds of refilled rows)."""
+    row = conn.execute(
+        "SELECT language || ':' || canonical_form AS ref FROM etymon WHERE id = ?",
+        (etymon_id,),
+    ).fetchone()
+    return row["ref"] if row else f"<unknown-etymon-id:{etymon_id}>"
 
 
 def refill_source(
@@ -158,23 +231,25 @@ def refill_source(
     the counts.
 
     The DB write is a single UPDATE per refilled row, scoped to
-    ``etymon_citation.id``. Re-running is safe — the audit's
-    :func:`looks_truncated` returns False on already-refilled rows
-    (they now end in terminal punctuation or are too long), so
-    refilled rows skip on subsequent runs.
+    ``etymon_citation.id``. Re-running is safe — refilled rows end
+    at a terminal character (per :func:`_trim_to_terminal_char`), so
+    :func:`looks_truncated` returns False for them and the row
+    skips the anchor search on subsequent runs.
     """
     report = RefillReport(source_id=source_id)
     src_body = _load_source_body(sources_dir, source_id)
     if src_body is None:
         return report
+    # No JOIN to etymon — the etymon_ref is only needed when we add a
+    # row to report.samples (sample_limit caps at 3 by default), so
+    # defer that lookup to :func:`_etymon_ref_for`. The bulk-path
+    # scan over hundreds of citations doesn't pay the JOIN cost.
     rows = conn.execute(
         """
-        SELECT ec.id, ec.short_quote,
-               e.language || ':' || e.canonical_form AS etymon_ref
-          FROM etymon_citation ec
-          JOIN etymon e ON e.id = ec.etymon_id
-         WHERE ec.source_id = ?
-           AND ec.short_quote IS NOT NULL
+        SELECT id, etymon_id, short_quote
+          FROM etymon_citation
+         WHERE source_id = ?
+           AND short_quote IS NOT NULL
         """,
         (source_id,),
     ).fetchall()
@@ -190,7 +265,7 @@ def refill_source(
                 report.samples.append(
                     RefillResult(
                         citation_id=row["id"],
-                        etymon_ref=row["etymon_ref"],
+                        etymon_ref=_etymon_ref_for(conn, row["etymon_id"]),
                         status="hallucinated",
                         old_short_quote=sq,
                     )
@@ -206,7 +281,7 @@ def refill_source(
             report.samples.append(
                 RefillResult(
                     citation_id=row["id"],
-                    etymon_ref=row["etymon_ref"],
+                    etymon_ref=_etymon_ref_for(conn, row["etymon_id"]),
                     status="refilled",
                     old_short_quote=sq,
                     new_short_quote=new_quote,

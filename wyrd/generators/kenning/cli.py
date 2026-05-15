@@ -2407,12 +2407,19 @@ def lexicon_audit_short_quotes(
     show_default=True,
     help="Forward chars of recovered context past the matched tail.",
 )
+@click.option(
+    "--verbose",
+    is_flag=True,
+    default=False,
+    help="Print before/after samples per source so operators can spot-check the refill quality.",
+)
 def lexicon_refill_short_quotes(
     db_path: Path,
     sources_dir: Path,
     sources: tuple[str, ...],
     apply: bool,
     window: int,
+    verbose: bool,
 ) -> None:
     """Refill truncated short_quotes from source body text (wyrd-1hpc).
 
@@ -2431,15 +2438,26 @@ def lexicon_refill_short_quotes(
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
 
-    if sources:
-        target_sources = list(sources)
-    else:
-        target_sources = [r["id"] for r in conn.execute("SELECT id FROM source ORDER BY id")]
-
-    total_truncated = 0
-    total_refilled = 0
-    total_hallucinated = 0
     try:
+        # Validate --source values up front (silent-failure-hunter
+        # PR #211 finding): a misspelled source id used to silently
+        # produce zero output, masking operator intent. Surface as a
+        # ClickException with the list of unknown ids.
+        if sources:
+            known = {r["id"] for r in conn.execute("SELECT id FROM source")}
+            unknown = sorted(set(sources) - known)
+            if unknown:
+                raise click.ClickException(
+                    f"unknown source_id(s): {', '.join(unknown)}. "
+                    f"Check spelling against `lexicon report --sources` output."
+                )
+            target_sources = list(sources)
+        else:
+            target_sources = [r["id"] for r in conn.execute("SELECT id FROM source ORDER BY id")]
+
+        total_truncated = 0
+        total_refilled = 0
+        total_hallucinated = 0
         for source_id in target_sources:
             report = refill_source(conn, source_id, sources_dir, apply=apply, window=window)
             if report.total_truncated == 0:
@@ -2453,6 +2471,23 @@ def lexicon_refill_short_quotes(
                 f"hallucinated={report.hallucinated:>4}",
                 err=True,
             )
+            if verbose:
+                # Surface RefillReport.samples so operators can
+                # spot-check before/after quality without manual DB
+                # inspection (Gemini PR #211 round-1 finding).
+                for sample in report.samples:
+                    click.echo(f"    [{sample.status}] {sample.etymon_ref}", err=True)
+                    if sample.old_short_quote:
+                        click.echo(
+                            f"      old (...{sample.old_short_quote[-60:]!r})",
+                            err=True,
+                        )
+                    if sample.new_short_quote:
+                        click.echo(
+                            f"      new (+{sample.recovered_chars}c: "
+                            f"...{sample.new_short_quote[-100:]!r})",
+                            err=True,
+                        )
     finally:
         conn.close()
     click.echo("", err=True)
