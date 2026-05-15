@@ -247,15 +247,43 @@ def test_refill_source_skips_non_truncated(tmp_path: Path):
 
 
 def test_refill_source_missing_source_txt_returns_empty(tmp_path: Path):
-    """When sources/<source_id>.txt doesn't exist, refill_source
-    returns an empty report rather than crashing (operator may have
-    audits across sources whose .txt isn't on disk)."""
+    """When sources/<source_id>.txt doesn't exist AND the source has
+    no citations either, refill_source returns an empty report
+    rather than crashing."""
     conn = _build_fixture_db()
     conn.execute("INSERT INTO source (id, title) VALUES ('missing', 'M')")
     conn.commit()
     report = refill_source(conn, "missing", tmp_path, apply=True)
     assert report.total_truncated == 0
     assert report.refilled == 0
+
+
+def test_refill_source_missing_source_txt_still_counts_truncated(tmp_path: Path):
+    """Gemini PR #211 round-2: when the .txt is missing but the source
+    has truncated citations in the DB, refill_source still reports
+    total_truncated so the operator sees the gap. Without this, a
+    missing source body would mask the existence of truncations.
+
+    refilled=0 and hallucinated=0 (can't classify without the body
+    to search against)."""
+    conn = _build_fixture_db()
+    conn.execute("INSERT INTO source (id, title) VALUES ('book', 'Book')")
+    eid = conn.execute(
+        "INSERT INTO etymon (canonical_form, language) VALUES ('acum', 'old-english')"
+    ).lastrowid
+    conn.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, short_quote) VALUES (?, ?, ?)",
+        (eid, "book", _TRUNCATED),
+    )
+    conn.commit()
+    # tmp_path has no book.txt — source body missing
+    report = refill_source(conn, "book", tmp_path, apply=True)
+    assert report.total_truncated == 1, "missing source body must not hide truncation count"
+    assert report.refilled == 0
+    assert report.hallucinated == 0
+    # DB unchanged.
+    row = conn.execute("SELECT short_quote FROM etymon_citation").fetchone()
+    assert row["short_quote"] == _TRUNCATED
 
 
 # ---------------------------------------------------------------------------
@@ -516,6 +544,59 @@ def test_cli_refill_short_quotes_dry_run_emits_total_line(tmp_path: Path):
     assert "(dry-run)" in result.output
     assert "truncated=1" in result.output
     assert "refilled=1" in result.output
+
+
+def test_cli_refill_short_quotes_warns_on_missing_source_body(tmp_path: Path):
+    """Gemini PR #211 round-2: with explicit --source AND truncated
+    rows AND a missing source .txt, the CLI emits a warning line so
+    the operator understands why refilled+hallucinated are zero."""
+    from click.testing import CliRunner
+
+    db_path = tmp_path / "lex.db"
+    conn = sqlite3.connect(str(db_path))
+    conn.executescript(
+        """
+        CREATE TABLE source (id TEXT PRIMARY KEY, author TEXT, title TEXT NOT NULL,
+            year INTEGER, region TEXT, language_focus TEXT, notes TEXT);
+        CREATE TABLE etymon (id INTEGER PRIMARY KEY AUTOINCREMENT,
+            canonical_form TEXT NOT NULL, language TEXT NOT NULL,
+            UNIQUE(canonical_form, language));
+        CREATE TABLE etymon_citation (id INTEGER PRIMARY KEY AUTOINCREMENT,
+            etymon_id INTEGER NOT NULL, source_id TEXT NOT NULL, page TEXT,
+            short_quote TEXT, context_snippet TEXT);
+        INSERT INTO source (id, title) VALUES ('book', 'Book');
+        INSERT INTO etymon (canonical_form, language) VALUES ('acum', 'old-english');
+        """
+    )
+    conn.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, short_quote) VALUES (1, 'book', ?)",
+        (_TRUNCATED,),
+    )
+    conn.commit()
+    conn.close()
+    # NB: deliberately NOT writing book.txt — that's the test condition.
+
+    from wyrd.generators.kenning.cli import cli as cli_root
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "refill-short-quotes",
+            "--db",
+            str(db_path),
+            "--sources-dir",
+            str(tmp_path),
+            "--source",
+            "book",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "truncated=   1" in result.output
+    assert "refilled=   0" in result.output
+    assert "warning" in result.output.lower()
+    assert "book.txt" in result.output
 
 
 def test_cli_refill_short_quotes_verbose_surfaces_samples(tmp_path: Path):

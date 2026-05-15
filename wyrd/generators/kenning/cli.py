@@ -2435,16 +2435,21 @@ def lexicon_refill_short_quotes(
     """
     from wyrd.generators.kenning.short_quote_refill import refill_source
 
-    conn = sqlite3.connect(str(db_path))
-    conn.row_factory = sqlite3.Row
+    total_truncated = 0
+    total_refilled = 0
+    total_hallucinated = 0
 
-    try:
+    # Use LexiconDB context manager for consistency with other lexicon
+    # commands (Gemini PR #211 round-2): the wrapper sets PRAGMA
+    # foreign_keys=ON + synchronous=NORMAL on every open, which the
+    # bare sqlite3.connect skipped.
+    with LexiconDB(db_path) as db:
         # Validate --source values up front (silent-failure-hunter
-        # PR #211 finding): a misspelled source id used to silently
+        # round-1 finding): a misspelled source id used to silently
         # produce zero output, masking operator intent. Surface as a
         # ClickException with the list of unknown ids.
         if sources:
-            known = {r["id"] for r in conn.execute("SELECT id FROM source")}
+            known = {r["id"] for r in db.conn.execute("SELECT id FROM source")}
             unknown = sorted(set(sources) - known)
             if unknown:
                 raise click.ClickException(
@@ -2453,13 +2458,10 @@ def lexicon_refill_short_quotes(
                 )
             target_sources = list(sources)
         else:
-            target_sources = [r["id"] for r in conn.execute("SELECT id FROM source ORDER BY id")]
+            target_sources = [r["id"] for r in db.conn.execute("SELECT id FROM source ORDER BY id")]
 
-        total_truncated = 0
-        total_refilled = 0
-        total_hallucinated = 0
         for source_id in target_sources:
-            report = refill_source(conn, source_id, sources_dir, apply=apply, window=window)
+            report = refill_source(db.conn, source_id, sources_dir, apply=apply, window=window)
             if report.total_truncated == 0:
                 continue
             total_truncated += report.total_truncated
@@ -2471,10 +2473,30 @@ def lexicon_refill_short_quotes(
                 f"hallucinated={report.hallucinated:>4}",
                 err=True,
             )
+            # Gemini PR #211 round-2 visibility fix: when an explicit
+            # --source has truncated rows but zero refills + zero
+            # hallucinations, the most common cause is a missing
+            # source body .txt. Without this warning the operator
+            # sees `truncated=N refilled=0` and might assume the data
+            # is unrefillable, missing the obvious 'source body is
+            # absent/unreadable' explanation.
+            if sources and report.refilled == 0 and report.hallucinated == 0:
+                txt = sources_dir / f"{source_id}.txt"
+                if not txt.exists():
+                    click.echo(
+                        f"    warning: {txt} not found — refill needs the source body",
+                        err=True,
+                    )
+                else:
+                    click.echo(
+                        f"    warning: {txt} exists but read returned empty/unreadable content "
+                        f"(non-UTF8 bytes?) — refill needs a readable source body",
+                        err=True,
+                    )
             if verbose:
                 # Surface RefillReport.samples so operators can
                 # spot-check before/after quality without manual DB
-                # inspection (Gemini PR #211 round-1 finding).
+                # inspection (Gemini round-1 finding).
                 for sample in report.samples:
                     click.echo(f"    [{sample.status}] {sample.etymon_ref}", err=True)
                     if sample.old_short_quote:
@@ -2488,8 +2510,6 @@ def lexicon_refill_short_quotes(
                             f"...{sample.new_short_quote[-100:]!r})",
                             err=True,
                         )
-    finally:
-        conn.close()
     click.echo("", err=True)
     click.echo(
         f"TOTAL: truncated={total_truncated} refilled={total_refilled} "

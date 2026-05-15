@@ -237,9 +237,6 @@ def refill_source(
     skips the anchor search on subsequent runs.
     """
     report = RefillReport(source_id=source_id)
-    src_body = _load_source_body(sources_dir, source_id)
-    if src_body is None:
-        return report
     # No JOIN to etymon — the etymon_ref is only needed when we add a
     # row to report.samples (sample_limit caps at 3 by default), so
     # defer that lookup to :func:`_etymon_ref_for`. The bulk-path
@@ -253,11 +250,24 @@ def refill_source(
         """,
         (source_id,),
     ).fetchall()
+    # Load source body LATE so we can still count truncated rows even
+    # when the .txt is missing (Gemini PR #211 round-2): operator sees
+    # `truncated=N refilled=0 hallucinated=0` and the CLI's warning
+    # tells them the source body is the missing piece. Without this
+    # ordering, missing-source returns an empty report and the
+    # truncated-count is invisible.
+    src_body = _load_source_body(sources_dir, source_id)
     for row in rows:
         sq = row["short_quote"]
         if not looks_truncated(sq):
             continue
         report.total_truncated += 1
+        if src_body is None:
+            # No source body → can't refill or classify as
+            # hallucination (we don't know if it would have located
+            # in the missing source). Counted under total_truncated
+            # only so the operator sees the gap.
+            continue
         new_quote, recovered = refill_short_quote(sq, src_body, window=window)
         if new_quote is None:
             report.hallucinated += 1
