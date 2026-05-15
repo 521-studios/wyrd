@@ -484,6 +484,10 @@ def test_format_audit_report_breakdown_by_reason():
             reason=MISALIGNMENT_REASON_HALLUCINATED,
         ),
     ]
+    src.reason_counts = {
+        MISALIGNMENT_REASON_EMPTY_FORM: 1,
+        MISALIGNMENT_REASON_HALLUCINATED: 2,
+    }
     report = AuditReport(sources=[src], sample_limit_per_source=3)
     output = format_audit_report(report)
     # Header summary line includes a by-reason breakdown.
@@ -494,3 +498,50 @@ def test_format_audit_report_breakdown_by_reason():
     # while scanning the report.
     assert "[empty_form]" in output
     assert "[hallucinated]" in output
+
+
+def test_format_audit_report_breakdown_reflects_full_scan_not_samples(tmp_path: Path):
+    """wyrd-j6co Gemini round 2: with sample_limit smaller than the
+    flagged_count, the report's reason breakdown MUST reflect every
+    flagged row's reason — not just the truncated samples list.
+    Otherwise the operator sees a misleading distribution on large
+    scans where samples are heavily capped."""
+    rows = []
+    # 5 empty_form findings (no historical_form) + 1 hallucinated
+    for i in range(5):
+        rows.append(
+            _row(
+                toponym_ref=f"E{i}@-",
+                elements=[{"etymon_ref": f"old-english:beorg{i}"}],
+                historical_form="",
+            )
+        )
+    rows.append(
+        _row(
+            toponym_ref="H1@-",
+            elements=[{"etymon_ref": "old-english:hoh"}],
+            historical_form="Dune",
+        )
+    )
+    path = tmp_path / "src.jsonl"
+    with open(path, "w") as fh:
+        for r in rows:
+            fh.write(json.dumps(r) + "\n")
+
+    # sample_limit=2 — only 2 of the 5 empty_form rows make it into
+    # samples; the breakdown must still report 5 empty_form + 1 hallucinated.
+    result = audit_jsonl_file(path, sample_limit=2)
+    assert result.flagged_count == 6
+    assert result.reason_counts == {
+        MISALIGNMENT_REASON_EMPTY_FORM: 5,
+        MISALIGNMENT_REASON_HALLUCINATED: 1,
+    }
+    assert len(result.samples) == 2  # capped
+
+    from wyrd.generators.kenning.etymology_alignment_audit import AuditReport
+
+    report = AuditReport(sources=[result], sample_limit_per_source=2)
+    output = format_audit_report(report)
+    # Breakdown uses reason_counts (full), not samples (capped).
+    assert "5 empty_form" in output
+    assert "1 hallucinated" in output

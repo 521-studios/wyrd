@@ -157,16 +157,16 @@ def looks_misaligned(row: dict) -> MisalignmentFinding | None:
     ]
     if not canonical_forms:
         return None
+    # wyrd-j6co Gemini round 2: use _missing_morphemes uniformly so
+    # stop-morphemes are filtered identically in both code paths. A
+    # row whose only elements are stop-morphemes (e.g. ``old-english:es``)
+    # is under-extraction, not misalignment, and shouldn't flag — even
+    # when the historical_form is empty.
+    missing = _missing_morphemes(elements, historical_form)
+    if not missing:
+        return None
     norm_form = _normalize(historical_form)
-    if not norm_form:
-        # Has elements but no reconstruction — suspect on its own.
-        missing = list(canonical_forms)
-        reason = MISALIGNMENT_REASON_EMPTY_FORM
-    else:
-        missing = _missing_morphemes(elements, historical_form)
-        if not missing:
-            return None
-        reason = MISALIGNMENT_REASON_HALLUCINATED
+    reason = MISALIGNMENT_REASON_EMPTY_FORM if not norm_form else MISALIGNMENT_REASON_HALLUCINATED
     return MisalignmentFinding(
         toponym_ref=row.get("toponym_ref") or "<missing>",
         historical_form=historical_form,
@@ -190,12 +190,18 @@ def _preview_notes(notes: str, max_len: int = 200) -> str:
 
 @dataclass
 class SourceAuditResult:
-    """Per-source audit summary."""
+    """Per-source audit summary.
+
+    ``reason_counts`` tracks every flagged row's reason (not just the
+    capped ``samples`` list), so :func:`format_audit_report`'s header
+    breakdown accurately reflects the full scan rather than the
+    capped sample. wyrd-j6co Gemini round 2."""
 
     source_id: str
     total_etymologies: int = 0
     flagged_count: int = 0
     samples: list[MisalignmentFinding] = field(default_factory=list)
+    reason_counts: dict[str, int] = field(default_factory=dict)
 
     @property
     def flag_rate(self) -> float:
@@ -250,6 +256,9 @@ def audit_jsonl_file(path: Path, sample_limit: int = 3) -> SourceAuditResult:
             finding = looks_misaligned(row)
             if finding is not None:
                 result.flagged_count += 1
+                result.reason_counts[finding.reason] = (
+                    result.reason_counts.get(finding.reason, 0) + 1
+                )
                 if len(result.samples) < sample_limit:
                     result.samples.append(finding)
     return result
@@ -284,17 +293,18 @@ def format_audit_report(report: AuditReport, *, top_n: int = 20) -> str:
     lines.append(f"- Probably misaligned: {report.total_flagged:,} ({report.overall_rate:.1f}%)")
     # wyrd-j6co: split the flag count by reason so operators can pick
     # one failure mode at a time (empty_form needs a re-mine; hallucinated
-    # needs a prune/curate). Counts are global across sources; per-source
-    # rates appear in the table below.
+    # needs a prune/curate). Counts are global across sources, drawn
+    # from per-source reason_counts (every flagged row, not just the
+    # capped samples list — wyrd-j6co Gemini round 2).
     reason_counts: dict[str, int] = {}
     for s in report.sources:
-        for f in s.samples:
-            reason_counts[f.reason] = reason_counts.get(f.reason, 0) + 1
+        for reason, count in s.reason_counts.items():
+            reason_counts[reason] = reason_counts.get(reason, 0) + count
     if reason_counts:
         breakdown = ", ".join(
             f"{count} {reason}" for reason, count in sorted(reason_counts.items())
         )
-        lines.append(f"- By reason (in samples): {breakdown}")
+        lines.append(f"- By reason: {breakdown}")
     lines.append("")
     lines.append("## Top sources by flag count")
     lines.append("")
