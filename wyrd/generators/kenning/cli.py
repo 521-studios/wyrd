@@ -2477,19 +2477,22 @@ def lexicon_refill_short_quotes(
                 f"refilled={report.refilled:>4} "
                 f"hallucinated={report.hallucinated:>4}"
             )
-            # Gemini PR #211 round-2 visibility fix + round-4
-            # reachability fix: trigger when an explicit --source has
-            # truncated rows but zero refills, regardless of how the
-            # un-refilled rows were classified. The earlier narrower
-            # check (refilled==0 AND hallucinated==0) was unreachable
-            # for empty-body files because every row got classified
-            # as hallucinated. The broader 'refilled==0 with truncated
-            # rows' covers missing-file, unreadable-file, AND
-            # empty-file. (Empty source bodies are also now
-            # normalized to None in _load_source_body for defensive
-            # consistency, but this CLI check is still the visible
-            # surface to the operator.)
-            if sources and report.refilled == 0 and report.total_truncated > 0:
+            # Gemini PR #211 round-2 visibility fix (kept narrow per
+            # round-5 reconsideration): warning fires only when
+            # `refilled == 0 AND hallucinated == 0`. That combination
+            # means refill_source returned without ever consulting
+            # the source body — which only happens when
+            # _load_source_body returned None (missing file,
+            # UnicodeDecodeError, or empty/whitespace-only body, all
+            # normalized to None in round-4). When the source body
+            # IS readable and the LLM hallucinated every row,
+            # hallucinated > 0 and the warning does NOT fire — that's
+            # the correct behavior (the source body isn't the
+            # problem). Earlier round-4 broadening to total_truncated>0
+            # introduced a false positive in the all-hallucinated
+            # case; reverted per silent-failure-hunter +
+            # code-reviewer + comment-analyzer round-5 findings.
+            if sources and report.refilled == 0 and report.hallucinated == 0:
                 txt = sources_dir / f"{source_id}.txt"
                 if not txt.exists():
                     click.echo(f"    warning: {txt} not found — refill needs the source body")

@@ -134,10 +134,11 @@ def _trim_to_terminal_char(chunk: str) -> str | None:
     Used to ensure refilled short_quotes don't trip
     :func:`short_quote_audit.looks_truncated`'s terminal-char rule on
     re-audit (= idempotency). Scholar place-name prose has frequent
-    terminal characters (citation periods like ``Ipm.``, semicolons
-    between attestations, closing quotes/brackets), so most
-    forward-windows have a usable trim point well before the
-    arbitrary character cap.
+    terminal characters (citation periods like ``Ipm.``, closing
+    quotes/brackets), so most forward-windows have a usable trim
+    point well before the arbitrary character cap. (Semicolons are
+    NOT in the terminal set — they're attestation separators in this
+    corpus, not sentence ends.)
     """
     for i in range(len(chunk) - 1, -1, -1):
         if chunk[i] in _TERMINAL_CHARS:
@@ -215,7 +216,16 @@ def refill_short_quote(
         # more likely than the 80-char primary anchor to match in
         # multiple places, but ambiguous matches still need to be
         # rejected for correctness.
+        #
+        # AND re-check the minimum-length guard — `.strip()` can
+        # collapse a 40-char trailing window to 1-2 chars if the
+        # original tail ended in mostly-whitespace (silent-failure-hunter
+        # PR #211 round-5 finding). Without this guard, a stripped
+        # 2-char anchor like ", " could match uniquely in the source
+        # body and silently write wrong forward context.
         anchor = tail[-_SEARCH_TAIL_FALLBACK_LEN:].strip()
+        if len(anchor) < _MIN_ANCHOR_LEN:
+            return None, 0
         idx = _unique_find(source_text_norm, anchor)
     if idx is None:
         return None, 0
@@ -247,18 +257,22 @@ def _load_source_body(sources_dir: Path, source_id: str) -> str | None:
     * the file isn't valid UTF-8 — some OCR-produced source bodies
       have stray non-UTF-8 bytes; surface as None rather than
       crashing the whole refill run mid-source.
+    * the file exists but can't be opened (e.g. PermissionError, or
+      a directory-where-a-file-should-be) — same rationale; we
+      don't want one corrupt entry to halt a batch run
+      (code-reviewer PR #211 round-5 finding).
+    * the file is empty or whitespace-only — functionally equivalent
+      to missing for refill purposes; treat the same so the CLI's
+      missing-source warning triggers (Gemini PR #211 round-4).
     """
     path = sources_dir / f"{source_id}.txt"
     if not path.exists():
         return None
     try:
         body = path.read_text(encoding="utf-8")
-    except UnicodeDecodeError:
+    except (UnicodeDecodeError, OSError):
         return None
     normalized = _normalize_whitespace(body)
-    # Empty / whitespace-only source body is functionally equivalent
-    # to missing — treat the same way so the CLI's missing-source
-    # warning triggers (Gemini PR #211 round-4 visibility).
     if not normalized:
         return None
     return normalized

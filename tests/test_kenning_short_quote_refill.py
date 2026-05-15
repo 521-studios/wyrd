@@ -95,9 +95,14 @@ def test_refill_short_quote_returns_none_on_empty_tail():
 def test_refill_short_quote_returns_none_when_forward_is_blank():
     """Anchor matches at the END of the source body — no forward
     context to recover. Return None rather than appending whitespace
-    or empty content."""
-    quote = "commentary | The end of source"
-    source = "complete prose. The end of source"  # anchor matches at the very end
+    or empty content.
+
+    Anchor must be ≥ _MIN_ANCHOR_LEN (20 chars) — otherwise the test
+    short-circuits at the length guard and never exercises the
+    actual blank-forward branch (round-5 fix)."""
+    quote = "commentary | this twenty-plus char anchor exactly at the end"
+    # Anchor literally at the end of source — forward window is empty.
+    source = "complete prose then this twenty-plus char anchor exactly at the end"
     new, recovered = refill_short_quote(quote, _normalize_whitespace(source), window=200)
     assert new is None  # nothing to recover
     assert recovered == 0
@@ -291,7 +296,7 @@ def test_refill_source_missing_source_txt_still_counts_truncated(tmp_path: Path)
 # ---------------------------------------------------------------------------
 
 
-def test_refill_short_quote_trims_to_terminal_char(tmp_path: Path):
+def test_refill_short_quote_trims_to_terminal_char():
     """The recovered forward window is trimmed back to the last
     terminal character (.!?'")]}) so subsequent audit runs don't
     re-flag the refilled row as truncated."""
@@ -310,13 +315,23 @@ def test_refill_short_quote_trims_to_terminal_char(tmp_path: Path):
     assert new.endswith("Akum.")
 
 
-def test_refill_short_quote_returns_none_when_no_terminal_in_window(tmp_path: Path):
+def test_refill_short_quote_returns_none_when_no_terminal_in_window():
     """If the forward window has no terminal character, the chunk is
     too fragmentary to safely extend the citation. Return None
     rather than emit a partial refill that would itself look
-    truncated on the next audit run."""
-    quote = "commentary | anchor"
-    source = "irrelevant anchor then a long stream of words without any terminal punctuation at all"
+    truncated on the next audit run.
+
+    Anchor must be ≥ _MIN_ANCHOR_LEN (20 chars) — otherwise the test
+    short-circuits at the length guard and never exercises the
+    no-terminal-char branch (round-5 fix)."""
+    # 20-char anchor that appears uniquely in source.
+    quote = "commentary | this is a long enough anchor here"
+    # Source has the anchor exactly once, followed by 80+ chars with
+    # no terminal char at all (just words and a comma).
+    source = (
+        "irrelevant this is a long enough anchor here then a long "
+        "stream of words without any terminal punctuation at all not even one"
+    )
     new, recovered = refill_short_quote(quote, _normalize_whitespace(source), window=80)
     assert new is None
     assert recovered == 0
@@ -441,8 +456,6 @@ def test_cli_refill_short_quotes_validates_unknown_source(tmp_path: Path):
     """A misspelled --source raises a ClickException rather than
     silently producing zero output. silent-failure-hunter PR #211
     finding."""
-    import subprocess
-
     from click.testing import CliRunner
 
     # Build a tiny DB the CLI can hit.
@@ -493,8 +506,6 @@ def test_cli_refill_short_quotes_validates_unknown_source(tmp_path: Path):
     assert result.exit_code != 0
     assert "unknown source_id" in result.output
     assert "doesnotexist" in result.output
-
-    _ = subprocess  # silence unused-import lint
 
 
 def test_cli_refill_short_quotes_dry_run_emits_total_line(tmp_path: Path):
@@ -753,7 +764,7 @@ def test_refill_short_quote_post_pipe_anchor_at_minimum_length():
     assert "content here." in new
 
 
-def test_refill_short_quote_multi_pipe_uses_last_segment(tmp_path: Path):
+def test_refill_short_quote_multi_pipe_uses_last_segment():
     """A short_quote with multiple `|` delimiters uses the LAST
     segment as the anchor (per rsplit('|', 1)). pr-test-analyzer
     PR #211 finding: realistic nested-commentary shapes can produce
@@ -767,3 +778,213 @@ def test_refill_short_quote_multi_pipe_uses_last_segment(tmp_path: Path):
     assert new.startswith("first commentary | nested commentary | the final-segment tail anchor")
     # The recovered portion came from after the LAST pipe's anchor.
     assert "content here." in new
+
+
+# ---------------------------------------------------------------------------
+# Round-5 fanout coverage additions
+# ---------------------------------------------------------------------------
+
+
+def test_load_source_body_unicode_decode_error_returns_none(tmp_path: Path):
+    """Some OCR-produced source bodies have stray non-UTF-8 bytes;
+    _load_source_body must surface as None rather than crashing the
+    refill run. test-coverage-reviewer round-5 gap."""
+    from wyrd.generators.kenning.short_quote_refill import _load_source_body
+
+    (tmp_path / "bad.txt").write_bytes(b"valid utf-8 prefix \xff\xfe invalid bytes")
+    assert _load_source_body(tmp_path, "bad") is None
+
+
+def test_load_source_body_permission_error_returns_none(tmp_path: Path):
+    """code-reviewer round-5: a file we can't open (PermissionError
+    or other OSError subclass) must not crash the refill run."""
+    import os
+
+    from wyrd.generators.kenning.short_quote_refill import _load_source_body
+
+    p = tmp_path / "locked.txt"
+    p.write_text("body")
+    os.chmod(p, 0)  # no read permission
+    try:
+        assert _load_source_body(tmp_path, "locked") is None
+    finally:
+        os.chmod(p, 0o644)  # restore for cleanup
+
+
+def test_refill_short_quote_fallback_anchor_respects_min_length():
+    """silent-failure-hunter round-5 round-2: the fallback path
+    (40-char anchor) ALSO checks _MIN_ANCHOR_LEN after .strip().
+    Without this guard, a 40-char tail ending in mostly whitespace
+    could collapse to a 1-2 char anchor that bypasses the safety
+    rail."""
+    # Construct a tail >80 chars so the long anchor fires.
+    # The long anchor (last 80 chars) has no match in source.
+    # The fallback last-40 with .strip() collapses to a too-short string.
+    long_pad = "a" * 60  # paraphrased prefix
+    # Last 40 chars of tail are mostly whitespace; after .strip() it's "x"
+    short_strip_segment = "                                       x"  # 40 chars
+    quote = f"commentary | {long_pad}{short_strip_segment}"
+    # Source contains the stripped fragment but the function should
+    # reject because the stripped anchor is below _MIN_ANCHOR_LEN.
+    source = "irrelevant prose x and then more content here."
+    new, recovered = refill_short_quote(quote, _normalize_whitespace(source), window=80)
+    assert new is None, "stripped fallback anchor below _MIN_ANCHOR_LEN must be rejected"
+    assert recovered == 0
+
+
+def test_refill_source_apply_actually_commits(tmp_path: Path):
+    """pr-test-analyzer round-5: the apply test was reading back the
+    updated row on the SAME connection, which sees uncommitted data.
+    Verify the SQL UPDATE actually commits by opening a SECOND
+    connection to the same DB file."""
+    db_path = tmp_path / "lex.db"
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    conn.executescript(
+        """
+        CREATE TABLE source (id TEXT PRIMARY KEY, title TEXT NOT NULL);
+        CREATE TABLE etymon (id INTEGER PRIMARY KEY AUTOINCREMENT,
+            canonical_form TEXT NOT NULL, language TEXT NOT NULL,
+            UNIQUE(canonical_form, language));
+        CREATE TABLE etymon_citation (id INTEGER PRIMARY KEY AUTOINCREMENT,
+            etymon_id INTEGER NOT NULL, source_id TEXT NOT NULL, page TEXT,
+            short_quote TEXT, context_snippet TEXT);
+        INSERT INTO source (id, title) VALUES ('book', 'Book');
+        """
+    )
+    eid = conn.execute(
+        "INSERT INTO etymon (canonical_form, language) VALUES ('acum', 'old-english')"
+    ).lastrowid
+    conn.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, short_quote) VALUES (?, ?, ?)",
+        (eid, "book", _TRUNCATED),
+    )
+    conn.commit()
+    (tmp_path / "book.txt").write_text(
+        "history. Acomb (Bywell St Peter) 1268 Ipm Akum. More prose follows here."
+    )
+
+    refill_source(conn, "book", tmp_path, apply=True)
+    conn.close()
+
+    # Open a fresh connection: only committed data is visible.
+    fresh = sqlite3.connect(str(db_path))
+    row = fresh.execute("SELECT short_quote FROM etymon_citation").fetchone()
+    fresh.close()
+    assert row[0] != _TRUNCATED, "refill_source did not commit the SQL UPDATE"
+    assert "Akum" in row[0]
+
+
+def test_cli_refill_short_quotes_apply_round_trips(tmp_path: Path):
+    """test-coverage-reviewer round-5: every CLI test was dry-run.
+    Exercise the --apply path end-to-end: verify the APPLIED marker
+    appears in stdout AND the DB row was actually changed."""
+    from click.testing import CliRunner
+
+    db_path = tmp_path / "lex.db"
+    conn = sqlite3.connect(str(db_path))
+    conn.executescript(
+        """
+        CREATE TABLE source (id TEXT PRIMARY KEY, title TEXT NOT NULL);
+        CREATE TABLE etymon (id INTEGER PRIMARY KEY AUTOINCREMENT,
+            canonical_form TEXT NOT NULL, language TEXT NOT NULL,
+            UNIQUE(canonical_form, language));
+        CREATE TABLE etymon_citation (id INTEGER PRIMARY KEY AUTOINCREMENT,
+            etymon_id INTEGER NOT NULL, source_id TEXT NOT NULL, page TEXT,
+            short_quote TEXT, context_snippet TEXT);
+        INSERT INTO source (id, title) VALUES ('book', 'Book');
+        """
+    )
+    eid = conn.execute(
+        "INSERT INTO etymon (canonical_form, language) VALUES ('acum', 'old-english')"
+    ).lastrowid
+    conn.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, short_quote) VALUES (?, ?, ?)",
+        (eid, "book", _TRUNCATED),
+    )
+    conn.commit()
+    conn.close()
+    (tmp_path / "book.txt").write_text(
+        "history. Acomb (Bywell St Peter) 1268 Ipm Akum. More prose follows here."
+    )
+
+    from wyrd.generators.kenning.cli import cli as cli_root
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "refill-short-quotes",
+            "--db",
+            str(db_path),
+            "--sources-dir",
+            str(tmp_path),
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "(APPLIED)" in result.stdout
+    # Verify the DB row was actually changed.
+    fresh = sqlite3.connect(str(db_path))
+    row = fresh.execute("SELECT short_quote FROM etymon_citation").fetchone()
+    fresh.close()
+    assert row[0] != _TRUNCATED
+    assert "Akum" in row[0]
+
+
+def test_cli_refill_short_quotes_warns_on_unreadable_source_body(tmp_path: Path):
+    """test-coverage-reviewer round-5: the 'file exists but unreadable'
+    branch of the missing-source warning was untested. Covers the
+    empty-body case (after round-4, _load_source_body normalizes
+    empty/whitespace-only bodies to None, so the warning fires)."""
+    from click.testing import CliRunner
+
+    db_path = tmp_path / "lex.db"
+    conn = sqlite3.connect(str(db_path))
+    conn.executescript(
+        """
+        CREATE TABLE source (id TEXT PRIMARY KEY, title TEXT NOT NULL);
+        CREATE TABLE etymon (id INTEGER PRIMARY KEY AUTOINCREMENT,
+            canonical_form TEXT NOT NULL, language TEXT NOT NULL,
+            UNIQUE(canonical_form, language));
+        CREATE TABLE etymon_citation (id INTEGER PRIMARY KEY AUTOINCREMENT,
+            etymon_id INTEGER NOT NULL, source_id TEXT NOT NULL, page TEXT,
+            short_quote TEXT, context_snippet TEXT);
+        INSERT INTO source (id, title) VALUES ('book', 'Book');
+        """
+    )
+    eid = conn.execute(
+        "INSERT INTO etymon (canonical_form, language) VALUES ('acum', 'old-english')"
+    ).lastrowid
+    conn.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id, short_quote) VALUES (?, ?, ?)",
+        (eid, "book", _TRUNCATED),
+    )
+    conn.commit()
+    conn.close()
+    # File exists but is whitespace-only — _load_source_body returns None.
+    (tmp_path / "book.txt").write_text("   \n\n   ")
+
+    from wyrd.generators.kenning.cli import cli as cli_root
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "refill-short-quotes",
+            "--db",
+            str(db_path),
+            "--sources-dir",
+            str(tmp_path),
+            "--source",
+            "book",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "warning" in result.output.lower()
+    # File exists, so we should NOT see "not found".
+    assert "not found" not in result.output
+    # Should see the "exists but empty/unreadable" branch.
+    assert "empty/unreadable" in result.output
