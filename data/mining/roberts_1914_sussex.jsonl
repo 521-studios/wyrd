@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "roberts_1914_sussex", "author": "R.G. Roberts", "title": "The Place-Names of Sussex", "year": 1914, "region": "Sussex", "language_focus": "old-english"}
+{"_type": "source", "ref": "roberts_1914_sussex", "author": "unknown", "title": "Roberts 1914 Sussex"}
 {"_type": "etymon", "ref": "biblical:leo", "canonical_form": "leo", "language": "biblical", "glosses": ["Leo"]}
 {"_type": "etymon", "ref": "biblical:magdalene", "canonical_form": "magdalene", "language": "biblical", "glosses": ["Magdalene", "saint's name"]}
 {"_type": "etymon", "ref": "celtic:arun", "canonical_form": "arun", "language": "celtic", "glosses": ["river name"]}
@@ -1244,6 +1244,7 @@
 {"_type": "etymology_element", "toponym_ref": "No@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:fraca"}, {"ordinal": 1, "etymon_ref": "old-english:ham"}], "historical_form": "fraca-ham", "confidence": "medium", "notes": "extracted_by:llm:qwen3.5:35b-a3b; Scholar rejects 'thatch' in favor of agent noun 'fraca' (thatcher) with suffix -a. | No. 1130, p. 405. 1085 Taceha, D.B. i. 29 a. circa 1320 Techam, T. de N. p. 222. ", "attested_year": 1085}
 {"_type": "etymology_element", "toponym_ref": "No@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:tota"}, {"ordinal": 1, "etymon_ref": "old-english:tun"}], "historical_form": "Tota-tun", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | No. 1130, p. 405. 1085 Totintune, D.B. i. 28 a. Totintone, D.B. i. 24 b. 1278 Totyngton, Plac. de quo War. p. 758. 1316 Totington, F.A. v. p. 142. The first ele", "attested_year": 1085}
 {"_type": "etymology_element", "toponym_ref": "No@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:worfrig"}, {"ordinal": 1, "etymon_ref": "old-english:worpign"}, {"ordinal": 2, "etymon_ref": "old-english:worfrine", "inflection": "dative"}, {"ordinal": 3, "etymon_ref": "old-english:worjyine"}], "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash; The entry discusses the etymology of Old English forms that are roots for suffixes like 'wardine' and 'worthy', rather than providing an etymology for the modern name 'No'. | No. 262). B.-T. cites also the O.E. forms worfrig, worpign, dat. worfrine, \"close,\" \"enclosed place.\" Duignan, Staffs. Pl.-Ns. p. xix, says that \"the latter forms (i.e. worpign, worjyine) have frequently, especially in Salop, hardened into wardine, e.g. Shrawardine, Belswardine> Pedward"}
+{"_type": "etymology_element", "toponym_ref": "No@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:worfrig"}, {"ordinal": 1, "etymon_ref": "old-english:worpign"}, {"ordinal": 2, "etymon_ref": "old-english:worfrine", "inflection": "dative"}, {"ordinal": 3, "etymon_ref": "old-english:worjyine"}], "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash; The entry discusses the etymology of Old English forms that are roots for suffixes like 'wardine' and 'worthy', rather than providing an etymology for the modern name 'No'. | No. 262). B.-T. cites also the O.E. forms worfrig, worpign, dat. worfrine, \"close,\" \"enclosed place.\" Duignan, Staffs. Pl.-Ns. p. xix, says that \"the latter forms (i.e. worpign, worjyine) have frequently, especially in Salop, hardened into wardine, e.g. Shrawardine, Belswardine> Pedward"}
 {"_type": "etymology_element", "toponym_ref": "North and South@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:beorga"}, {"ordinal": 1, "etymon_ref": "old-english:stede"}], "historical_form": "Beorga-stede", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar identifies first element as OE personal name Beorga ('the protector'). Kemble's identification of Berkamystede with Sussex Bersted marked as 'seems incorrect'; scholar offers alternative that it may represent Berkhampstead (Herts.). Development traced through phonological loss of interconsonantal -h-. | North and South. 680? Beorganstede, C.D. i. p. 23. 696 Berkamystede (?), C.D. i. p. 45. 988 to Beorganstedinga mearce, C.D. iii. p. 236. ", "attested_year": 988}
 {"_type": "etymology_element", "toponym_ref": "North and South@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:beorga"}, {"ordinal": 1, "etymon_ref": "old-english:stede"}], "historical_form": "Beorgan-stede", "confidence": "medium", "notes": "extracted_by:gemini:gemini-2.5-flash; Kemble's identification of the C.D. form Berkamystede with the Sussex Bersted seems incorrect; possibly it represents Berkhampstead (Herts.). | North and South. 680? Beorganstede, C.D. i. p. 23. 696 Berkamystede (?), C.D. i. p. 45. 988 to Beorganstedinga mearce, C.D. iii. p. 236. 141 1-2 Berkstede, Subs. Roll, Hen. IV, Ssx. Arch. Soc. x. p. 136. R. s. 2 1 8 BERSTED, NORTH AND SOUTH 1428 Berghstede, F.A. v. p. 171. 1576 North Barsted, Ind. Ch. and Rolls, p. 6", "attested_year": 988}
 {"_type": "etymology_element", "toponym_ref": "Northiam@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:norþ"}, {"ordinal": 1, "etymon_ref": "old-english:ham"}], "historical_form": "norþ-ham", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; The medial -y- represents the remnant of OE -an- in the original compound. | Northiam (nodzam). 1274 Northyham, H.R. ii. p. 218. 1303 Northihame, Cal. Inq. P.M. vol. i. p. 195. 1320 Northyham, Cal. Inq. ad quod D. p. 263. 1411-2 Northyhame, Subs. Roll, Hen. IV, Ssx. Arch. Soc. x. p. 142. 1578 Northyham, Ind. Ch. and Rolls, p. 551. The medial -y- in the above forms is all that remains of the O.E. -an- in at fr&rn norjyan hdme. See O.E. norp and ha", "attested_year": 1274}
@@ -1385,3 +1386,90 @@
 {"_type": "etymology_element", "toponym_ref": "Worthe@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:weorp"}], "historical_form": "weorp", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Worthe, Cal. Inq. P.M. vol. i. p. 328. 1327 Wourth, ibid. ii. p. 3. 1439 Worthe, ibid. iv. p. 198. O.E. weorp, \"enclosed land.\" Strictly speaking, Type I repres", "attested_year": 1327}
 {"_type": "etymology_element", "toponym_ref": "Worthing@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:weorfr"}, {"ordinal": 1, "etymon_ref": "old-english:ing"}], "historical_form": "weorfr-ing", "confidence": "medium", "notes": "extracted_by:llm:qwen3.5:35b-a3b; Scholar notes the form is 'practically synonymous' with OE weorfr, implying a derivation but not stating it as a definitive etymological breakdown. | Worthing. 1328 W", "attested_year": 1328}
 {"_type": "etymology_element", "toponym_ref": "Wyseberg@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wlsa"}, {"ordinal": 1, "etymon_ref": "old-english:beorg"}], "historical_form": "wlsa-beorg", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; First element 'probably' O.E. wlsa, possibly used as a personal name or shortened form of names like Wlsldc, Wisgdr; second element certainly O.E. beorg/beorh. Modern forms show confusion between M.E. -bergh and -burgh. | Wyseberg, Wisborough Green. 1287 Wyberg, Abbr. Plac. p. 214. 1306 Wiseberg, Cal. Rot. Ch. p. 138. WtfS ** 04^, K*. «- 12 — 2 / v > 180 WYSEBERG, WISBOROUGH GREEN 1409 Wysburgh, Ind. Ch. and Rolls, p. 826. 1411-2 Wisebergh, Subs.", "attested_year": 1287}
+{"_type": "attestation", "toponym_ref": "Aldingbourne@-", "form": "Aldingeborne", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Aldrington@-", "form": "Eldretun", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Alfriston@-", "form": "Alvricestone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Angmering@-", "form": "Angemare", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Arlington@-", "form": "Herlintone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Ashburnham@-", "form": "Esseborne", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Barlavington@-", "form": "Berleventune", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Barnham@-", "form": "Berneha", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Beddingham@-", "form": "Beddingha", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Berwick@-", "form": "Berewice", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Bilsham@-", "form": "Bilesham", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Binsted@-", "form": "Benestede", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Bishopstone@-", "form": "Biscopestone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Bodiam@-", "form": "Bodeha", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Boseham@-", "form": "Boseham", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Boxgrove@-", "form": "Bosgrave", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Brightling@-", "form": "Brislinga", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Broadwater@-", "form": "Bradewatre", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Chalvington@-", "form": "Calvintone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Charlton@-", "form": "Cerletone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Chiltington@-", "form": "Cilletone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Chiltington@-", "form": "Cilletune", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Clapham@-", "form": "Clopeha", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Clayton@-", "form": "Claitune", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Cokeham@-", "form": "Cocheha", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Dallington@-", "form": "Dalintone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Dean@-", "form": "Dene", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Denton@-", "form": "Dentune", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Durrington@-", "form": "Derentune", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Eastdean@-", "form": "Esdene", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Easton@-", "form": "Estone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Fairlight@-", "form": "Ferlega", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Faulking@-", "form": "Fochinges", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Felpham@-", "form": "Falcheham", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Fishbourne@-", "form": "Fiseborne", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Folkington@-", "form": "Fochintone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Goring@-", "form": "Garinges", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Gretha@-", "form": "Gretha", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Ham Manor@-", "form": "Hame", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Hankham@-", "form": "Henecha", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Hartfield@-", "form": "Hertevel", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Hastings@-", "form": "Hastinges", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Hollington@-", "form": "Holintun", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Horsey@-", "form": "Horselie", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Iden@-", "form": "Idene", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Iford@-", "form": "Ifewerit", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Iford@-", "form": "Ifiwirde", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Keymer@-", "form": "Chemere", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Lancing@-", "form": "Lancinges", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Lewes@-", "form": "Lewes", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Middleton@-", "form": "Middeltone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Mountfield@-", "form": "Montifelle", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "No@-", "form": "Eschintone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "No@-", "form": "Taceha", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "No@-", "form": "Totintone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "No@-", "form": "Totintune", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Nyetimber@-", "form": "Nitmbreha", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Offham@-", "form": "Offha", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Offington House@-", "form": "Ofintune", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Pagham@-", "form": "Pageham", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Palmer@-", "form": "Falemere", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Palmer@-", "form": "Felesmere", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Parham@-", "form": "Perham", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Patching@-", "form": "Petchinges", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Penhurst@-", "form": "Penehest", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Playden@-", "form": "Pleidena", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Plumpton@-", "form": "Pluntune", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Preston@-", "form": "Presteton", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Racton@-", "form": "Rachetone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Ripe@-", "form": "Ripe", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Selsey@-", "form": "Seleisie", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Stanmer@-", "form": "Stamere", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Stedham@-", "form": "Stedeha", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Stoke@-", "form": "Stoches", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Streat@-", "form": "Estrat", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Tangmere@-", "form": "Tangemere", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Thorney Island@-", "form": "Tornei", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Tortington@-", "form": "Tortintone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Trotton@-", "form": "Traitone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Walderton@-", "form": "Waldere", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Waldron@-", "form": "Waldrene", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Wannock@-", "form": "Walnoch", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Warningcamp@-", "form": "Warnecha", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Washington@-", "form": "VVasingetune", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Whatlington@-", "form": "Watlingetone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Wick@-", "form": "Viche", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Wodmancote@-", "form": "Odemanscote", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
