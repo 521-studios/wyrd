@@ -5644,6 +5644,27 @@ RECOMMENDED_LANG_THRESHOLDS: dict[str, int] = {
 }
 
 
+def _load_norman_manorial_family_tokens() -> frozenset[str]:
+    """Return the surname-only tokens of Anglo-Norman manorial families
+    (e.g. 'Cary', 'Lacy', 'Mandeville', 'Zouche'). Loaded from the
+    canonical JSON at ``data/norman_manorial_families.json``.
+
+    Used by :func:`collect_canonical_decompositions` to skip canonical
+    picks for toponyms whose final whitespace-split token matches a
+    known manorial family — those names get a runtime-synthesized
+    decomposition by ``_norman_manorial_subjects`` in ``__init__.py``
+    that the build-time tiebreaker shouldn't pre-empt.
+
+    The token is the last whitespace-split word (matches the
+    surname-only matching policy that ``_norman_manorial_subjects``
+    documents).
+    """
+    path = Path(__file__).parent / "data" / "norman_manorial_families.json"
+    with path.open() as f:
+        families = json.load(f)
+    return frozenset(family.split()[-1] for family in families)
+
+
 def collect_canonical_decompositions(db: LexiconDB) -> dict[str, dict[str, str]]:
     """Project the lexicon's canonical decomposition picks into a
     bundle-shaped lookup keyed by toponym ``modern_name``.
@@ -5662,6 +5683,18 @@ def collect_canonical_decompositions(db: LexiconDB) -> dict[str, dict[str, str]]
     matches ``load_names_with_regions``'s dedup policy: deterministic,
     same-name entries get the same canonical pick across re-runs.
 
+    Toponyms whose final whitespace-split token matches a known
+    Anglo-Norman manorial family ('Castle Cary', 'Stoke Mandeville',
+    'Newton Lacy') are SKIPPED — the runtime manorial-affix detector
+    in ``_norman_manorial_subjects`` synthesizes a more specific
+    decomposition (e.g. ``castle + Cary (Norman manorial family)``)
+    than the build-time tiebreaker can produce against DB-only
+    morphemes. Without this guard, an enrichment pass that adds
+    short morphemes (``ca``, ``ry``) lets the matcher perfectly
+    decompose these names at export time, the canonical pick wins
+    the rank-0 sort at runtime, and the manorial UX silently
+    regresses. wyrd-j43l deploy-gate caught this on 'Castle Cary'.
+
     Returns an empty dict when the ``toponym_decomposition`` table
     doesn't exist yet — older DBs predate the wyrd-08m Phase 1 migration
     and shouldn't crash the bundle export. Run ``lexicon migrate`` to
@@ -5673,6 +5706,7 @@ def collect_canonical_decompositions(db: LexiconDB) -> dict[str, dict[str, str]]
     ).fetchone()
     if not table_exists:
         return {}
+    manorial_tokens = _load_norman_manorial_family_tokens()
     rows = db.conn.execute(
         """
         SELECT t.modern_name,
@@ -5693,6 +5727,13 @@ def collect_canonical_decompositions(db: LexiconDB) -> dict[str, dict[str, str]]
         if name in out:
             # Same-name multi-region collisions collapse to the
             # lex-first row's canonical; later rows skipped.
+            continue
+        tokens = name.split()
+        if len(tokens) >= 2 and tokens[-1] in manorial_tokens:
+            # Skip — runtime manorial-affix detector wins for these.
+            # Requires ≥2 tokens because the manorial-affix shape is
+            # ``<base> <family>``; a solo "Lacy" toponym would still
+            # legitimately need a build-time canonical pick.
             continue
         out[name] = {
             "signature": row["decomposition_signature"],

@@ -988,6 +988,93 @@ Sample of new links: impending→impend, neighing→neigh, bemused→
 bemuse, dejeunered→dejeuner, beshivered→beshiver. Real morphology.
 
 
+### 2026-05-15 — wyrd-j43l (post-epic deploy refresh)
+
+Full pre-deploy enrichment chain rerun against the live DB before
+re-exporting the bundle for production deploy:
+
+* `mine-attestations --apply` — 1943 candidates, 0 new (idempotent)
+* `project-period-forms --apply` — 1232 candidates, 97 new rows
+* `link-lemmas --apply` — 0 new (idempotent — last big lift was
+  wyrd-gf28 modern-english silent-e restore)
+* `cluster-cognates --apply` — walked 139,044 roots, assigned
+  cognate_id on 656,939 etymons (154,260 rows written)
+* `classify-stratum --apply` per language:
+  - welsh: 289 new, 31,067 skipped (already classified)
+  - french: 14,975 new, 21,782 skipped (largest delta — most
+    French etymons hadn't been stratum-tagged before)
+  - old-english: 2,231 new, 70,151 skipped
+  - old-norse: 328 new, 18,977 skipped
+* `mine-wiktextract-forms <slice> --apply` for 8 slices:
+  - welsh: 37,770 forms
+  - irish: 242,972 forms (biggest single slice — Irish
+    inflection-rich)
+  - middle_english: 52,521
+  - old_french: 22,515
+  - scottish_gaelic: 22,529
+  - breton: 2,511
+  - cornish: 7,560
+  - middle_irish: 689
+  - **Total**: 389,067 form rows across non-OE/ON languages
+
+**Bundle**: 34MB → 39MB (+5MB / +14.7%). 8,668 subjects
+(unchanged), 10,187 canonical_decompositions, 244 fantasy_morphemes.
+The enrichment payload is the new fields:
+
+| field                       | subjects-with-this-field |
+|-----------------------------|-------------------------:|
+| era_reflexes                |                   13,964 |
+| old_english_stratum         |                    4,453 |
+| old_french_stratum          |                    1,351 |
+| old_scandinavian_stratum    |                    1,218 |
+| celtic_mix_stratum          |                    1,473 |
+| old_english_original_script |                    1,957 |
+| old_english_pronunciation   |                    3,774 |
+
+Per-culture proportions vs prior snapshot (2026-05-09 wyrd-69s5):
+
+| culture  | perfect | total  | rate    | Δ pp vs prior | Δ pp vs baseline |
+|----------|--------:|-------:|--------:|--------------:|-----------------:|
+| english  |   12383 | 17876  | 69.3%   |           0.0 |            +41.0 |
+| scottish |    1452 |  2321  | 62.6%   |           0.0 |            +44.3 |
+| welsh    |    1265 |  1916  | 66.0%   |           0.0 |            +50.9 |
+| irish    |   16417 | 34041  | 48.2%   |           0.0 |            +38.2 |
+| breton   |     183 |  1208  | 15.1%   |          -0.1 |              n/a |
+
+(2026-04-29 Rando-port baseline: english 28.3%, scottish 18.3%,
+welsh 15.1%, irish 10.0%, breton n/a.)
+
+Perfect-rate flat is the right outcome: this epic enriched
+existing morpheme subjects (era_reflexes, stratum tags,
+multi-script renderings, variant forms) rather than adding new
+subjects. The single_usages distribution within each proportions
+JSON did shift — many fragments (Cliffe-, Letton-, Magna-) dropped
+in count as more place names decompose via the canonical scholar
+or canonical heuristic paths. Trend is canonical-pick density up,
+single-usage fallback density down.
+
+**Flagged for follow-up**: bundle has 0 `<lang>_english_shaped` and
+`<lang>_transliteration` sibling fields despite 48,070 etymon rows
+carrying english_shaped values and emission code present at
+lexicon.py:6997. wyrd-vsrn Phase 2c was supposed to wire this up;
+the bucket-population path is short-circuiting somewhere. Filing
+as a separate ticket — does not block deploy.
+
+**Caught at deploy-gate**: `test_explainer_decomposes_single_word_manorial_affix`
+failed on the first re-export because the enrichment added enough
+short morphemes (`Ca-` OE derivational + `-ry` general) that
+"Castle Cary" now perfectly decomposed at export time, the
+tiebreaker emitted a canonical pick (`castle + Ca + ry`), and the
+canonical pick was overriding the runtime Norman-manorial-affix
+detector's `castle + Cary (Norman manorial family)` synthesis.
+Fixed in `collect_canonical_decompositions` by skipping picks for
+toponyms whose final whitespace-split token matches a known Norman
+family name (39 surnames in `norman_manorial_families.json`) and
+the name has ≥2 tokens. Bundle's canonical_decompositions count
+dropped 10,187 → 10,168 (-19) — the manorial-shape skips. All 8
+manorial-affix tests pass; all 2,753 tests in the suite pass.
+
+
 ## How to record a new snapshot
 
 After a bundle re-emit (`wyrd kenning lexicon export-meanings` →
