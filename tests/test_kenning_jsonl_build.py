@@ -182,6 +182,197 @@ def test_build_inserts_etymon_with_glosses_and_tags(tmp_path: Path):
     assert tags == ["architecture"]
 
 
+def test_build_merges_etymon_when_row_already_exists(tmp_path: Path):
+    """L1 wiktextract bulk ingest writes etymon rows BEFORE the L2 JSONL
+    replay runs (when ``rebuild-from-jsonl`` is invoked without
+    ``--skip-bulk``). L2 JSONL files often reference those etymons by
+    ref (the wyrd-4hx7 wiktionary-empirical mining path is the obvious
+    source), so the replay hits ``UNIQUE constraint failed:
+    etymon.canonical_form, etymon.language`` on the plain INSERT.
+
+    Regression test for wyrd-pcsj: pre-populate an etymon (simulating
+    L1 ingest), then run ``build_from_jsonl`` with a JSONL referencing
+    the same (canonical_form, language). Must not raise, must merge
+    glosses + tags onto the existing row, and must keep the L1 row's
+    id stable so downstream citations / descent edges resolve."""
+    conn = _build_fixture_db()
+    # Simulate L1: pre-populate one etymon with an L1-shaped payload
+    # (canonical_form + language + pronunciation_ipa, but no glosses
+    # or tags yet — those are L2's contribution).
+    cur = conn.execute(
+        "INSERT INTO etymon (canonical_form, language, pronunciation_ipa) VALUES (?, ?, ?)",
+        ("cot", "old-english", "/kɒt/"),
+    )
+    pre_eid = cur.lastrowid
+    conn.commit()
+
+    # Now run L2 replay against a JSONL that names the same etymon.
+    _write_jsonl(
+        tmp_path,
+        "skeat",
+        [
+            {"_type": "source", "ref": "skeat", "title": "X"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:cot",
+                "language": "old-english",
+                "canonical_form": "cot",
+                "glosses": ["cottage", "hut"],
+                "tags": ["architecture"],
+            },
+        ],
+    )
+    # Must not raise.
+    build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+
+    # Exactly one etymon row (merged, not duplicated).
+    rows = list(conn.execute("SELECT id, canonical_form, language, pronunciation_ipa FROM etymon"))
+    assert len(rows) == 1
+    row = rows[0]
+    # L1 row's id stays stable so anything that references it via FK still works.
+    assert row["id"] == pre_eid
+    # L1's pronunciation_ipa survives (L2 didn't set it).
+    assert row["pronunciation_ipa"] == "/kɒt/"
+
+    # L2's glosses + tags landed on the existing row.
+    glosses = sorted(
+        r["gloss"]
+        for r in conn.execute("SELECT gloss FROM etymon_gloss WHERE etymon_id=?", (pre_eid,))
+    )
+    assert glosses == ["cottage", "hut"]
+    tags = [
+        r["tag"] for r in conn.execute("SELECT tag FROM etymon_tag WHERE etymon_id=?", (pre_eid,))
+    ]
+    assert tags == ["architecture"]
+
+
+def test_build_merge_dedupes_glosses_and_tags_on_l1_overlap(tmp_path: Path):
+    """When L1 pre-populated the etymon AND its glosses/tags, and L2
+    JSONL has overlapping glosses/tags, the post-merge state must be
+    set-union (no duplicates). This is the gloss/tag side of the
+    L1+L2 merge contract — separate from the test that exercises
+    L1-with-no-glosses + L2-adds-glosses.
+
+    Without ``INSERT OR IGNORE`` on the (etymon_id, gloss) PK, an L1
+    row that already had ``barn`` would conflict when L2 also tries
+    to write ``barn``. Pinned here so a future change can't regress
+    the dedup."""
+    conn = _build_fixture_db()
+    cur = conn.execute(
+        "INSERT INTO etymon (canonical_form, language) VALUES (?, ?)",
+        ("cot", "old-english"),
+    )
+    pre_eid = cur.lastrowid
+    # L1-style pre-population: a couple of glosses + a tag already on disk.
+    for g in ("barn", "shed"):
+        conn.execute(
+            "INSERT INTO etymon_gloss (etymon_id, gloss) VALUES (?, ?)",
+            (pre_eid, g),
+        )
+    conn.execute("INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)", (pre_eid, "architecture"))
+    conn.commit()
+
+    _write_jsonl(
+        tmp_path,
+        "skeat",
+        [
+            {"_type": "source", "ref": "skeat", "title": "X"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:cot",
+                "language": "old-english",
+                "canonical_form": "cot",
+                # ``barn`` overlaps with L1; ``cottage`` is new.
+                "glosses": ["barn", "cottage"],
+                # ``architecture`` overlaps with L1; ``settlement`` is new.
+                "tags": ["architecture", "settlement"],
+            },
+        ],
+    )
+    build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+
+    glosses = sorted(
+        r["gloss"]
+        for r in conn.execute("SELECT gloss FROM etymon_gloss WHERE etymon_id=?", (pre_eid,))
+    )
+    # Set-union: barn (L1) + cottage (L2) + shed (L1). No duplicate barn.
+    assert glosses == ["barn", "cottage", "shed"]
+    tags = sorted(
+        r["tag"] for r in conn.execute("SELECT tag FROM etymon_tag WHERE etymon_id=?", (pre_eid,))
+    )
+    # Set-union: architecture (L1+L2 overlap) + settlement (L2).
+    assert tags == ["architecture", "settlement"]
+
+
+def test_insert_etymon_raises_build_error_when_select_misses_after_conflict():
+    """Defensive branch in _insert_etymon: when ``INSERT OR IGNORE``
+    fails AND the subsequent SELECT can't find the matching row,
+    raise a clear ``BuildError`` rather than letting None propagate
+    to TypeError on row indexing.
+
+    SQLite's ``INSERT OR IGNORE`` suppresses every constraint failure
+    (UNIQUE, NOT NULL, CHECK, FK), not just UNIQUE conflicts. The
+    docstring on _insert_etymon explains that for the etymon table
+    only the UNIQUE constraint can fire in practice (canonical_form +
+    language are validated non-null above), but a NOT NULL failure
+    here is the cheapest way to exercise the defensive branch
+    deterministically: feed an explicit ``None`` past the early
+    validation guard, watch INSERT OR IGNORE swallow it, then assert
+    the BuildError pins the offending payload context."""
+    from wyrd.generators.kenning.jsonl_build import BuildError, _insert_etymon
+
+    conn = _build_fixture_db()
+    # Payload satisfies the early ``key in payload`` validation but
+    # carries None values — INSERT OR IGNORE swallows the NOT NULL
+    # violation, no row is created, and the SELECT for the (None, None)
+    # pair returns None.
+    with pytest.raises(BuildError) as exc_info:
+        _insert_etymon(
+            conn,
+            {
+                "canonical_form": None,
+                "language": None,
+            },
+        )
+    # The error message must include enough payload context to find
+    # the offending row in the JSONL.
+    msg = str(exc_info.value)
+    assert "could not be located" in msg
+
+
+def test_build_merge_overwrites_scalar_when_l2_specifies_it(tmp_path: Path):
+    """When the existing (L1) row has a non-NULL scalar value AND the
+    L2 payload explicitly sets the same field, L2 wins (matches the
+    existing _merge_etymon last-write-wins semantics for scalars).
+
+    Pinned separately from the basic merge test so a future change
+    that swapped the precedence (e.g. preserve-L1-when-non-null)
+    would be caught immediately."""
+    conn = _build_fixture_db()
+    conn.execute(
+        "INSERT INTO etymon (canonical_form, language, notes) VALUES (?, ?, ?)",
+        ("cot", "old-english", "L1 note"),
+    )
+    conn.commit()
+    _write_jsonl(
+        tmp_path,
+        "skeat",
+        [
+            {"_type": "source", "ref": "skeat", "title": "X"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:cot",
+                "language": "old-english",
+                "canonical_form": "cot",
+                "notes": "L2 override",  # explicit override
+            },
+        ],
+    )
+    build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    row = conn.execute("SELECT notes FROM etymon WHERE canonical_form='cot'").fetchone()
+    assert row["notes"] == "L2 override"
+
+
 def test_build_inserts_citation_with_source_fk(tmp_path: Path):
     _write_jsonl(
         tmp_path,
