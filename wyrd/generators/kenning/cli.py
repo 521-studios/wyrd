@@ -2478,21 +2478,26 @@ def lexicon_refill_short_quotes(
                 f"hallucinated={report.hallucinated:>4}"
             )
             # Gemini PR #211 round-2 visibility fix (kept narrow per
-            # round-5 reconsideration): warning fires only when
-            # `refilled == 0 AND hallucinated == 0`. That combination
-            # means refill_source returned without ever consulting
-            # the source body — which only happens when
-            # _load_source_body returned None (missing file,
-            # UnicodeDecodeError, or empty/whitespace-only body, all
-            # normalized to None in round-4). When the source body
-            # IS readable and the LLM hallucinated every row,
-            # hallucinated > 0 and the warning does NOT fire — that's
-            # the correct behavior (the source body isn't the
-            # problem). Earlier round-4 broadening to total_truncated>0
-            # introduced a false positive in the all-hallucinated
-            # case; reverted per silent-failure-hunter +
-            # code-reviewer + comment-analyzer round-5 findings.
-            if sources and report.refilled == 0 and report.hallucinated == 0:
+            # round-5 reconsideration on hallucinated false-positives,
+            # broadened scope per Gemini round-5b on default-mode
+            # visibility): warning fires when refill_source returned
+            # without ever consulting the source body — which only
+            # happens when _load_source_body returned None (missing
+            # file, UnicodeDecodeError, OSError, or empty/whitespace-
+            # only body). The narrow condition (refilled==0 AND
+            # hallucinated==0) correctly distinguishes 'source body
+            # unavailable' from 'source body fine but LLM
+            # hallucinated everything'.
+            #
+            # No longer gated on `sources` (explicit --source) per
+            # Gemini round-5b: default-mode runs across all sources
+            # should ALSO surface missing-body gaps. The narrow
+            # condition keeps the noise floor low (only fires for
+            # sources that have truncated rows but no consulted
+            # source body), so default-mode runs only warn for
+            # sources where the operator actually has a refill
+            # surface to fix.
+            if report.refilled == 0 and report.hallucinated == 0:
                 txt = sources_dir / f"{source_id}.txt"
                 if not txt.exists():
                     click.echo(f"    warning: {txt} not found — refill needs the source body")

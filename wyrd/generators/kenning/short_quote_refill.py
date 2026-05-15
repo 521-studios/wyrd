@@ -322,7 +322,21 @@ def refill_source(
     # many short / healthy citations. The Python-side
     # ``looks_truncated`` call below still runs as the authoritative
     # check (length is necessary but not sufficient for truncation).
-    rows = conn.execute(
+    # Load source body LATE so we can still count truncated rows even
+    # when the .txt is missing (Gemini PR #211 round-2): operator sees
+    # `truncated=N refilled=0 hallucinated=0` and the CLI's warning
+    # tells them the source body is the missing piece. Without this
+    # ordering, missing-source returns an empty report and the
+    # truncated-count is invisible.
+    src_body = _load_source_body(sources_dir, source_id)
+    # Stream rows via direct cursor iteration rather than fetchall()
+    # to bound memory on sources with very large citation counts
+    # (Gemini PR #211 round-5). UPDATE writes are deferred into
+    # ``updates`` and applied via executemany() AFTER the SELECT
+    # cursor closes — sqlite3 can invalidate the iterator if writes
+    # happen on the same connection mid-iteration.
+    updates: list[tuple[str, int]] = []
+    cursor = conn.execute(
         """
         SELECT id, etymon_id, short_quote
           FROM etymon_citation
@@ -331,15 +345,8 @@ def refill_source(
            AND length(short_quote) >= ?
         """,
         (source_id, _TRUNCATION_LENGTH_FLOOR),
-    ).fetchall()
-    # Load source body LATE so we can still count truncated rows even
-    # when the .txt is missing (Gemini PR #211 round-2): operator sees
-    # `truncated=N refilled=0 hallucinated=0` and the CLI's warning
-    # tells them the source body is the missing piece. Without this
-    # ordering, missing-source returns an empty report and the
-    # truncated-count is invisible.
-    src_body = _load_source_body(sources_dir, source_id)
-    for row in rows:
+    )
+    for row in cursor:
         sq = row["short_quote"]
         if not looks_truncated(sq):
             continue
@@ -365,10 +372,7 @@ def refill_source(
             continue
         report.refilled += 1
         if apply:
-            conn.execute(
-                "UPDATE etymon_citation SET short_quote = ? WHERE id = ?",
-                (new_quote, row["id"]),
-            )
+            updates.append((new_quote, row["id"]))
         if len(report.samples) < sample_limit:
             report.samples.append(
                 RefillResult(
@@ -380,6 +384,10 @@ def refill_source(
                     recovered_chars=recovered,
                 )
             )
-    if apply:
+    if apply and updates:
+        conn.executemany(
+            "UPDATE etymon_citation SET short_quote = ? WHERE id = ?",
+            updates,
+        )
         conn.commit()
     return report
