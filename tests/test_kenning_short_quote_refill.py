@@ -736,8 +736,6 @@ def test_refill_short_quote_multi_pipe_uses_last_segment(tmp_path: Path):
     new, recovered = refill_short_quote(quote, _normalize_whitespace(source), window=80)
     assert new is not None
     # The full original quote prefix is preserved (including both pipes).
-    assert new.startswith(
-        "first commentary | nested commentary | the final-segment tail anchor"
-    )
+    assert new.startswith("first commentary | nested commentary | the final-segment tail anchor")
     # The recovered portion came from after the LAST pipe's anchor.
     assert "content here." in new
