@@ -180,7 +180,21 @@ def _insert_etymon(conn: sqlite3.Connection, payload: dict[str, Any]) -> int:
             "SELECT id FROM etymon WHERE canonical_form = ? AND language = ?",
             (payload["canonical_form"], payload["language"]),
         ).fetchone()
-        eid = row["id"] if hasattr(row, "keys") else row[0]
+        # INSERT OR IGNORE only suppresses UNIQUE/PRIMARY KEY conflicts; the
+        # etymon table's only UNIQUE constraint is (canonical_form, language),
+        # so rowcount=0 implies exactly one matching row exists for this
+        # (canonical_form, language) pair — the SELECT can't legitimately
+        # miss. A None here means the schema/state diverged from what
+        # _insert_etymon assumes; raise loudly with the offending payload.
+        if row is None:
+            raise BuildError(
+                "etymon INSERT OR IGNORE was rejected but the "
+                f"(canonical_form, language) row could not be located: "
+                f"{payload['canonical_form']!r} / {payload['language']!r}"
+            )
+        # row[0] works whether the connection has sqlite3.Row row_factory
+        # set or returns plain tuples — sidesteps a hasattr check.
+        eid = row[0]
         update_cols = [c for c in cols if c not in ("canonical_form", "language")]
         if update_cols:
             set_clause = ", ".join(f"{c} = ?" for c in update_cols)
