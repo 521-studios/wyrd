@@ -13,6 +13,7 @@ import sqlite3
 from pathlib import Path
 
 from wyrd.generators.kenning.jsonl_dump import (
+    _source_for_attestation_doc,
     dump_all_sources,
     dump_source_to_file,
     dump_source_to_rows,
@@ -133,6 +134,13 @@ def _build_fixture_db() -> sqlite3.Connection:
             inflection TEXT,
             surface_in_modern TEXT,
             PRIMARY KEY (toponym_etymology_id, ordinal)
+        );
+        CREATE TABLE toponym_attestation (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            toponym_id INTEGER NOT NULL,
+            form TEXT NOT NULL,
+            date_year INTEGER,
+            source_doc TEXT
         );
         """
     )
@@ -421,6 +429,69 @@ def test_dump_round_trips_through_replay():
     assert len(state.lists["citation"]) == 1
 
 
+def test_attestation_round_trips_through_dump_and_build(tmp_path: Path):
+    """End-to-end pin for wyrd-6gpy: a Domesday-shaped fixture (toponym
+    with attestation but no etymology) survives the full dump-jsonl →
+    rebuild-from-jsonl cycle. Pre-wyrd-6gpy the attestation rows AND
+    the orphan toponyms were silently lost — this test guards against
+    regression of either gap."""
+    from wyrd.generators.kenning.jsonl_build import (
+        build_from_jsonl,
+        jsonl_paths_in,
+    )
+    from wyrd.generators.kenning.jsonl_log import write_jsonl
+
+    # PRE: dump-source DB has the Domesday shape — a source row, two
+    # toponyms attested via Phillimore source_doc, NO etymology rows.
+    pre = _build_fixture_db()
+    _add_source(pre, id="open_domesday_hull", title="Open Domesday Hull")
+    lincoln_id = _add_toponym(pre, "Lincoln", country="England", region="Lincolnshire")
+    york_id = _add_toponym(pre, "York", country="England", region=None)
+    _add_attestation(pre, lincoln_id, "Lindum", date_year=1086, source_doc="Phillimore 1L1.")
+    _add_attestation(pre, lincoln_id, "Lindum colonia", date_year=900, source_doc="Phillimore 1L2.")
+    _add_attestation(pre, york_id, "Eboracum", date_year=1086, source_doc="Phillimore 2L1.")
+
+    # Dump
+    dump_path = tmp_path / "open_domesday_hull.jsonl"
+    rows = dump_source_to_rows(pre, "open_domesday_hull")
+    write_jsonl(dump_path, rows)
+    pre.close()
+
+    # Build into a fresh DB (same schema)
+    rebuilt = _build_fixture_db()
+    counts = build_from_jsonl(rebuilt, jsonl_paths_in(tmp_path))
+    assert counts.get("attestation_orphans", 0) == 0, (
+        "attestation rows orphaned — toponym rows must round-trip first"
+    )
+    assert counts["toponym"] == 2
+    assert counts["attestation"] == 3
+
+    # Toponyms survive
+    topo_rows = list(
+        rebuilt.execute("SELECT modern_name, region FROM toponym ORDER BY modern_name")
+    )
+    assert [(r["modern_name"], r["region"]) for r in topo_rows] == [
+        ("Lincoln", "Lincolnshire"),
+        ("York", None),
+    ]
+
+    # Attestations survive with full metadata
+    att_rows = list(
+        rebuilt.execute(
+            "SELECT t.modern_name, ta.form, ta.date_year, ta.source_doc "
+            "FROM toponym_attestation ta JOIN toponym t ON t.id = ta.toponym_id "
+            "ORDER BY t.modern_name, ta.date_year"
+        )
+    )
+    assert (att_rows[0]["modern_name"], att_rows[0]["form"], att_rows[0]["date_year"]) == (
+        "Lincoln",
+        "Lindum colonia",
+        900,
+    )
+    assert att_rows[0]["source_doc"] == "Phillimore 1L2."
+    assert (att_rows[2]["modern_name"], att_rows[2]["form"]) == ("York", "Eboracum")
+
+
 # ---------------------------------------------------------------------------
 # File-level dump
 # ---------------------------------------------------------------------------
@@ -484,3 +555,182 @@ def test_list_source_ids_honors_exclude():
     _add_source(conn, id="b", title="B")
     _add_source(conn, id="c", title="C")
     assert list_source_ids(conn, exclude={"b"}) == ["a", "c"]
+
+
+# ---------------------------------------------------------------------------
+# Attestation dump (wyrd-6gpy)
+# ---------------------------------------------------------------------------
+
+
+def _add_toponym(
+    conn: sqlite3.Connection,
+    modern_name: str,
+    country: str | None = None,
+    region: str | None = None,
+) -> int:
+    cur = conn.execute(
+        "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
+        (modern_name, country, region),
+    )
+    return cur.lastrowid
+
+
+def _add_attestation(
+    conn: sqlite3.Connection,
+    toponym_id: int,
+    form: str,
+    date_year: int | None = None,
+    source_doc: str | None = None,
+) -> None:
+    conn.execute(
+        "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+        "VALUES (?, ?, ?, ?)",
+        (toponym_id, form, date_year, source_doc),
+    )
+
+
+# --- _source_for_attestation_doc resolver --------------------------------
+
+
+def test_source_for_attestation_doc_returns_none_for_null():
+    assert _source_for_attestation_doc(None, {"open_domesday_hull"}) is None
+
+
+def test_source_for_attestation_doc_direct_source_id_match():
+    """Most scholar ingesters write source_doc = '<source.id>' directly."""
+    known = {"mawer_1920_northumberland_durham", "open_domesday_hull"}
+    assert (
+        _source_for_attestation_doc("mawer_1920_northumberland_durham", known)
+        == "mawer_1920_northumberland_durham"
+    )
+
+
+def test_source_for_attestation_doc_phillimore_prefix_routes_to_open_domesday():
+    """Open Domesday Hull ingester stamps 'Phillimore <citation>' into
+    source_doc; the dumper must route it back to open_domesday_hull."""
+    known = {"open_domesday_hull"}
+    assert (
+        _source_for_attestation_doc("Phillimore 1L1. See also CHS Y2; Hundred=Amounderness", known)
+        == "open_domesday_hull"
+    )
+    assert (
+        _source_for_attestation_doc("Phillimore 3,105. 6,298. 13,6.", known) == "open_domesday_hull"
+    )
+
+
+def test_source_for_attestation_doc_unknown_returns_none():
+    """Free-text source_doc that doesn't match a known source id AND
+    doesn't match a registered prefix → None → silently skipped by the
+    per-source dump (operator surfaces orphans separately if needed)."""
+    known = {"open_domesday_hull"}
+    assert _source_for_attestation_doc("Hundred=Toseland; OS=TL1860", known) is None
+
+
+# --- _dump_attestations_for_source --------------------------------------
+
+
+def test_dump_emits_attestations_for_direct_source_id_match():
+    """Attestation with source_doc == 'mawer_1920...' lands in that
+    source's dump under _type=attestation."""
+    conn = _build_fixture_db()
+    _add_source(conn, id="mawer", title="Northumberland and Durham")
+    tid = _add_toponym(conn, "Acton", country="England", region="Northumberland")
+    # Etymology so toponym_etymology JOIN includes the row (separate
+    # from the attestation-only path tested below).
+    conn.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) "
+        "VALUES (?, 'mawer', 'high')",
+        (tid,),
+    )
+    _add_attestation(conn, tid, "Actone", date_year=1245, source_doc="mawer")
+
+    rows = dump_source_to_rows(conn, "mawer")
+    attestations = [r for r in rows if r["_type"] == "attestation"]
+    assert len(attestations) == 1
+    assert attestations[0] == {
+        "_type": "attestation",
+        "toponym_ref": "Acton@Northumberland",
+        "form": "Actone",
+        "date_year": 1245,
+        "source_doc": "mawer",
+    }
+
+
+def test_dump_emits_attestations_for_phillimore_prefix():
+    """Open Domesday's Phillimore-prefixed attestations route to
+    open_domesday_hull's JSONL even though source_doc is free-text."""
+    conn = _build_fixture_db()
+    _add_source(conn, id="open_domesday_hull", title="Open Domesday")
+    tid = _add_toponym(conn, "Lincoln", country="England", region="Lincolnshire")
+    _add_attestation(conn, tid, "Lindum", date_year=1086, source_doc="Phillimore 1L1.")
+
+    rows = dump_source_to_rows(conn, "open_domesday_hull")
+    attestations = [r for r in rows if r["_type"] == "attestation"]
+    assert len(attestations) == 1
+    assert attestations[0]["source_doc"] == "Phillimore 1L1."
+    assert attestations[0]["toponym_ref"] == "Lincoln@Lincolnshire"
+
+
+def test_dump_orphans_attestation_with_unknown_source_doc():
+    """An attestation with no known source_id match and no recognized
+    prefix doesn't show up in ANY source's dump — silently filtered."""
+    conn = _build_fixture_db()
+    _add_source(conn, id="open_domesday_hull", title="ODH")
+    _add_source(conn, id="mawer", title="Mawer")
+    tid = _add_toponym(conn, "Somewhere", region="Cheshire")
+    _add_attestation(conn, tid, "Sumare", source_doc="Hundred=Toseland; OS=TL1860")
+
+    for sid in ("open_domesday_hull", "mawer"):
+        rows = dump_source_to_rows(conn, sid)
+        assert all(r["_type"] != "attestation" for r in rows), (
+            f"orphan attestation leaked into {sid} dump"
+        )
+
+
+def test_dump_emits_attestation_only_toponym_row():
+    """A toponym referenced ONLY by attestations (no toponym_etymology
+    row) must STILL appear in the source's dump — otherwise the
+    rebuild's _insert_attestation_rows would orphan-skip the
+    attestation since no toponym_ref resolves."""
+    conn = _build_fixture_db()
+    _add_source(conn, id="open_domesday_hull", title="ODH")
+    tid = _add_toponym(conn, "Wessex", country="England", region=None)
+    _add_attestation(conn, tid, "Wessax", date_year=1086, source_doc="Phillimore 1L1.")
+
+    rows = dump_source_to_rows(conn, "open_domesday_hull")
+    toponyms = [r for r in rows if r["_type"] == "toponym"]
+    assert len(toponyms) == 1
+    assert toponyms[0]["modern_name"] == "Wessex"
+    assert toponyms[0]["ref"] == "Wessex@-"
+    # And the attestation that referenced it appears below.
+    attestations = [r for r in rows if r["_type"] == "attestation"]
+    assert len(attestations) == 1
+
+
+def test_dump_does_not_double_emit_toponym_with_etymology_and_attestation():
+    """A toponym with BOTH an etymology AND an attestation that route
+    to the same source must appear at most twice in the dump (once
+    via the etymology path, once via the attestation-only path)
+    — and the build's _merge_toponym handles cross-emit dedup.
+
+    Pinned at the dump layer so a future refactor can't accidentally
+    triple-emit (the dedup happens on dump-side too via the seen set
+    in _dump_attestation_only_toponyms)."""
+    conn = _build_fixture_db()
+    _add_source(conn, id="open_domesday_hull", title="ODH")
+    tid = _add_toponym(conn, "York", country="England", region=None)
+    # Etymology side → emits one toponym row via _dump_toponyms_and_etymologies
+    conn.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) "
+        "VALUES (?, 'open_domesday_hull', 'high')",
+        (tid,),
+    )
+    # Attestation side: routes to same source via Phillimore prefix
+    _add_attestation(conn, tid, "Eboracum", source_doc="Phillimore 2L1.")
+
+    rows = dump_source_to_rows(conn, "open_domesday_hull")
+    yorks = [r for r in rows if r["_type"] == "toponym" and r["modern_name"] == "York"]
+    # The etymology path emits it; the attestation-only-toponyms path
+    # skips it because the etymology JOIN catches it first. So exactly
+    # one toponym row.
+    assert len(yorks) == 1

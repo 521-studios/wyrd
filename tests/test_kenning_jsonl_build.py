@@ -122,6 +122,13 @@ def _build_fixture_db() -> sqlite3.Connection:
             surface_in_modern TEXT,
             PRIMARY KEY (toponym_etymology_id, ordinal)
         );
+        CREATE TABLE toponym_attestation (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            toponym_id INTEGER NOT NULL,
+            form TEXT NOT NULL,
+            date_year INTEGER,
+            source_doc TEXT
+        );
         """
     )
     return conn
