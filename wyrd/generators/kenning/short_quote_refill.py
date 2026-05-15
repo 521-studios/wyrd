@@ -248,6 +248,18 @@ def refill_short_quote(
     return new_quote, len(trimmed)
 
 
+def source_body_path(sources_dir: Path, source_id: str) -> Path:
+    """Return the expected source-body .txt path for ``source_id`` under
+    ``sources_dir``. Centralizes the naming convention so callers (the
+    CLI's missing-source warning, _load_source_body, future
+    rebuild-from-source tools) all agree on where to look.
+
+    Strips directory components from ``source_id`` via
+    ``Path(source_id).name`` so a malformed identifier can't escape
+    ``sources_dir`` (Gemini PR #211 round-7 path-traversal hardening)."""
+    return sources_dir / f"{Path(source_id).name}.txt"
+
+
 def _load_source_body(sources_dir: Path, source_id: str) -> str | None:
     """Read ``sources/<source_id>.txt`` and return its normalized
     body. Returns None when:
@@ -265,13 +277,7 @@ def _load_source_body(sources_dir: Path, source_id: str) -> str | None:
       to missing for refill purposes; treat the same so the CLI's
       missing-source warning triggers (Gemini PR #211 round-4).
     """
-    # Strip any directory components from source_id to prevent
-    # path traversal even if a future ingester (or operator) writes
-    # a source_id containing slashes. Currently source_id is derived
-    # from filenames + handwritten ingesters' SOURCE_ROW constants
-    # (all safe), but defense-in-depth: don't let a malformed
-    # source_id reach outside sources_dir. Gemini PR #211 round-7.
-    path = sources_dir / f"{Path(source_id).name}.txt"
+    path = source_body_path(sources_dir, source_id)
     if not path.exists():
         return None
     try:

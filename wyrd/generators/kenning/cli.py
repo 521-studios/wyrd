@@ -2513,11 +2513,14 @@ def lexicon_refill_short_quotes(
             # sources where the operator actually has a refill
             # surface to fix.
             if report.refilled == 0 and report.hallucinated == 0:
-                # Use the same Path(...).name strip as _load_source_body
-                # (Gemini PR #211 round-7 hardening) so the warning's
-                # reported path matches the path the refill logic
-                # actually looked at. Round-8 consistency fix.
-                txt = sources_dir / f"{Path(source_id).name}.txt"
+                # Use the centralized helper so this warning's reported
+                # path is guaranteed to match what _load_source_body
+                # looked at (Gemini PR #211 round-9 DRY fix; the
+                # round-7 path-traversal hardening + round-8
+                # consistency fix now live in one place).
+                from wyrd.generators.kenning.short_quote_refill import source_body_path
+
+                txt = source_body_path(sources_dir, source_id)
                 if not txt.exists():
                     click.echo(f"    warning: {txt} not found — refill needs the source body")
                 else:
