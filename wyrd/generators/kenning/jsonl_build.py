@@ -505,6 +505,108 @@ def _insert_attestation_rows(
         counts["attestation"] += 1
 
 
+# wyrd-2thc: fantasy_morpheme scalar columns inserted as-is from the
+# JSONL row. ``etymon_id`` is resolved separately from ``etymon_ref``
+# below; the schema's autoincrement ``id`` is allocated by SQLite.
+_FANTASY_MORPHEME_INSERT_COLUMNS: tuple[str, ...] = (
+    "input_name",
+    "input_description",
+    "usable",
+    "bar_reason",
+    "resolution_method",
+    "approach_version",
+    "confidence",
+    "citation",
+    "reasoning",
+    "unapproved_language",
+    "unapproved_form",
+    "processed_at",
+)
+
+
+# Columns the schema declares NOT NULL on ``fantasy_morpheme``. The
+# insert helper validates these explicitly before issuing the
+# ``INSERT OR IGNORE`` — see ``_insert_fantasy_morpheme``.
+_FANTASY_MORPHEME_REQUIRED_COLUMNS: frozenset[str] = frozenset(
+    {"input_name", "usable", "resolution_method", "approach_version", "processed_at"}
+)
+
+
+def _insert_fantasy_morpheme(
+    conn: sqlite3.Connection,
+    etymon_id: int | None,
+    row: dict[str, Any],
+) -> bool:
+    """Insert one ``fantasy_morpheme`` row (wyrd-2thc).
+
+    Returns ``True`` if a new row was inserted, ``False`` if INSERT OR
+    IGNORE skipped a duplicate ``(input_name, approach_version)``
+    UNIQUE conflict — idempotent re-replay against a populated DB.
+
+    ``etymon_id`` may be None — barred rows (``usable=0``) often have
+    no resolved etymon. NOT NULL columns (``input_name``, ``usable``,
+    ``resolution_method``, ``approach_version``, ``processed_at``) are
+    pre-validated here because ``INSERT OR IGNORE`` would otherwise
+    swallow the IntegrityError and the caller would count a phantom
+    insert. Missing required fields raise ``BuildError`` with the
+    field name so operators get an actionable diagnostic instead of a
+    silent count discrepancy.
+    """
+    missing = [c for c in _FANTASY_MORPHEME_REQUIRED_COLUMNS if row.get(c) is None]
+    if missing:
+        raise BuildError(
+            f"fantasy_morpheme row missing required NOT NULL field(s) {sorted(missing)}: "
+            f"input_name={row.get('input_name')!r} "
+            f"approach_version={row.get('approach_version')!r}"
+        )
+    columns = ("etymon_id", *_FANTASY_MORPHEME_INSERT_COLUMNS)
+    placeholders = ", ".join("?" * len(columns))
+    values = (etymon_id, *(row.get(c) for c in _FANTASY_MORPHEME_INSERT_COLUMNS))
+    cur = conn.execute(
+        f"INSERT OR IGNORE INTO fantasy_morpheme ({', '.join(columns)}) "  # noqa: S608
+        f"VALUES ({placeholders})",
+        values,
+    )
+    return cur.rowcount == 1
+
+
+def _insert_fantasy_morpheme_rows(
+    conn: sqlite3.Connection,
+    rows: list[dict[str, Any]],
+    etymon_id_by_ref: dict[str, int],
+    counts: dict[str, Any],
+) -> None:
+    """Insert ``fantasy_morpheme`` rows (wyrd-2thc). Orphan = a row
+    whose ``etymon_ref`` doesn't resolve in ``etymon_id_by_ref``.
+    Orphaned rows are skipped (counted in
+    ``fantasy_morpheme_orphans``) rather than inserted with NULL
+    etymon_id, because the dump emits ``etymon_ref`` only when the
+    DB had a real etymon — a missing ref on rebuild means the cited
+    etymon was deliberately removed via a kernel ``remove`` event,
+    and silently nulling the FK would lose the operator's intent.
+
+    Rows that legitimately have no ``etymon_ref`` field (barred
+    morphemes whose etymon_id was NULL at dump time) insert with
+    etymon_id=NULL and are counted as normal ``fantasy_morpheme``
+    rows — not orphans.
+    """
+    for row in rows:
+        eref = row.get("etymon_ref")
+        if eref is None:
+            # Originally NULL etymon_id — barred row, valid state.
+            if _insert_fantasy_morpheme(conn, None, row):
+                counts["fantasy_morpheme"] += 1
+            continue
+        eid = etymon_id_by_ref.get(eref)
+        if eid is None:
+            counts["fantasy_morpheme_orphans"] += 1
+            if len(counts["fantasy_morpheme_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
+                counts["fantasy_morpheme_orphan_refs"].append(eref)
+            continue
+        if _insert_fantasy_morpheme(conn, eid, row):
+            counts["fantasy_morpheme"] += 1
+
+
 def _extract_source_id(path: Path, state: ReplayState) -> str:
     """Validate the contract: exactly one ``source`` row per file.
     Returns its ref (= the source_id)."""
@@ -555,6 +657,15 @@ def build_from_jsonl(
         "attestation": 0,
         "attestation_orphans": 0,
         "attestation_orphan_refs": [],
+        # wyrd-2thc: fantasy_morpheme round-trip. Orphan = a row whose
+        # etymon_ref doesn't resolve in the rebuilt etymon table (the
+        # cited etymon was removed via a kernel ``remove`` event, or
+        # the JSONL claims an etymon that was never dumped). Rows with
+        # no ``etymon_ref`` field at all (barred morphemes with NULL
+        # etymon_id) are NOT orphans — they insert with etymon_id=NULL.
+        "fantasy_morpheme": 0,
+        "fantasy_morpheme_orphans": 0,
+        "fantasy_morpheme_orphan_refs": [],
     }
 
     # ----- Pass 1: replay every file, accumulate merged state.
@@ -608,6 +719,9 @@ def build_from_jsonl(
             counts,
         )
         _insert_attestation_rows(conn, state.lists["attestation"], toponym_id_by_ref, counts)
+        _insert_fantasy_morpheme_rows(
+            conn, state.lists["fantasy_morpheme"], etymon_id_by_ref, counts
+        )
 
     conn.commit()
     return counts

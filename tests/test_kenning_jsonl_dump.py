@@ -16,6 +16,8 @@ from wyrd.generators.kenning.jsonl_dump import (
     _attestation_source_doc_filter,
     _source_for_attestation_doc,
     dump_all_sources,
+    dump_fantasy_morphemes_to_file,
+    dump_fantasy_morphemes_to_rows,
     dump_source_to_file,
     dump_source_to_rows,
     etymon_ref,
@@ -142,6 +144,23 @@ def _build_fixture_db() -> sqlite3.Connection:
             form TEXT NOT NULL,
             date_year INTEGER,
             source_doc TEXT
+        );
+        CREATE TABLE fantasy_morpheme (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            input_name          TEXT NOT NULL COLLATE NOCASE,
+            input_description   TEXT,
+            usable              INTEGER NOT NULL CHECK (usable IN (0, 1)),
+            etymon_id           INTEGER REFERENCES etymon(id) ON DELETE SET NULL,
+            bar_reason          TEXT,
+            resolution_method   TEXT NOT NULL,
+            approach_version    TEXT NOT NULL,
+            confidence          TEXT,
+            citation            TEXT,
+            reasoning           TEXT,
+            unapproved_language TEXT,
+            unapproved_form     TEXT,
+            processed_at        TEXT NOT NULL,
+            UNIQUE (input_name, approach_version)
         );
         """
     )
@@ -943,3 +962,152 @@ def test_attestation_round_trips_through_dump_and_build_direct_source_id(tmp_pat
         1245,
         "mawer",
     )
+
+
+# ---------------------------------------------------------------------------
+# fantasy_morpheme dump (wyrd-2thc)
+# ---------------------------------------------------------------------------
+
+
+def _add_fantasy_morpheme(conn: sqlite3.Connection, **kwargs) -> int:
+    """Insert one fantasy_morpheme row with required NOT NULL defaults
+    pre-populated; caller overrides via kwargs."""
+    defaults: dict[str, object] = {
+        "input_name": "Default",
+        "input_description": None,
+        "usable": 1,
+        "etymon_id": None,
+        "bar_reason": None,
+        "resolution_method": "descent_lookup",
+        "approach_version": "fantasy-v1",
+        "confidence": "high",
+        "citation": None,
+        "reasoning": None,
+        "unapproved_language": None,
+        "unapproved_form": None,
+        "processed_at": "2026-05-15T00:00:00+00:00",
+    }
+    defaults.update(kwargs)
+    cols = ", ".join(defaults.keys())
+    placeholders = ", ".join("?" * len(defaults))
+    cur = conn.execute(
+        f"INSERT INTO fantasy_morpheme ({cols}) VALUES ({placeholders})",
+        tuple(defaults.values()),
+    )
+    return cur.lastrowid
+
+
+def test_dump_fantasy_morphemes_returns_empty_when_no_rows():
+    """No rows → no source declaration emitted (file shouldn't be
+    written). Keeps the source-row contract from creating an
+    empty-but-meaningful artifact on DBs that never ran fantasy
+    mining."""
+    conn = _build_fixture_db()
+    assert dump_fantasy_morphemes_to_rows(conn) == []
+
+
+def test_dump_fantasy_morphemes_emits_source_declaration_and_rows():
+    """The synthetic ``fantasy-mining`` source row is emitted first,
+    followed by one ``fantasy_morpheme`` list row per DB row, ordered
+    by input_name."""
+    conn = _build_fixture_db()
+    angel = _add_etymon(conn, "old-english", "engel")
+    _add_fantasy_morpheme(
+        conn,
+        input_name="Angel",
+        input_description="celestial host",
+        etymon_id=angel,
+        citation="wiktionary-descent-chain",
+        reasoning="matched OE engel via direct",
+    )
+    _add_fantasy_morpheme(
+        conn,
+        input_name="Military",
+        usable=0,
+        bar_reason="attested_but_not_in_corpus",
+        resolution_method="llm_full_research",
+        unapproved_language="latin",
+        unapproved_form="mīlitārius",
+    )
+
+    rows = dump_fantasy_morphemes_to_rows(conn)
+    assert rows[0]["_type"] == "source"
+    assert rows[0]["ref"] == "fantasy-mining"
+    morphemes = rows[1:]
+    assert len(morphemes) == 2
+    # Ordered by input_name (case-insensitive collation collapses, but
+    # ORDER BY is text — "Angel" < "Military" still).
+    assert morphemes[0]["input_name"] == "Angel"
+    assert morphemes[0]["etymon_ref"] == "old-english:engel"
+    assert morphemes[0]["usable"] == 1
+    # Null fields are omitted, not emitted as null.
+    assert "bar_reason" not in morphemes[0]
+    assert "unapproved_language" not in morphemes[0]
+    # Barred row carries no etymon_ref (etymon_id was NULL).
+    assert morphemes[1]["input_name"] == "Military"
+    assert "etymon_ref" not in morphemes[1]
+    assert morphemes[1]["usable"] == 0
+    assert morphemes[1]["bar_reason"] == "attested_but_not_in_corpus"
+    assert morphemes[1]["unapproved_language"] == "latin"
+
+
+def test_dump_fantasy_morphemes_handles_missing_table():
+    """A DB without the fantasy_morpheme table (older DBs predating
+    wyrd-ami) yields an empty list rather than raising."""
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    # Bare DB, no fantasy_morpheme table.
+    assert dump_fantasy_morphemes_to_rows(conn) == []
+
+
+def test_dump_fantasy_morphemes_to_file_writes_no_file_when_empty(tmp_path: Path):
+    """Don't create a 0-byte file when there's nothing to dump."""
+    conn = _build_fixture_db()
+    path, count = dump_fantasy_morphemes_to_file(conn, tmp_path)
+    assert count == 0
+    assert not path.exists()
+
+
+def test_dump_fantasy_morphemes_to_file_writes_file_when_populated(tmp_path: Path):
+    conn = _build_fixture_db()
+    angel = _add_etymon(conn, "old-english", "engel")
+    _add_fantasy_morpheme(conn, input_name="Angel", etymon_id=angel)
+
+    path, count = dump_fantasy_morphemes_to_file(conn, tmp_path)
+    assert path.name == "_fantasy_morphemes.jsonl"
+    assert path.exists()
+    assert count == 2  # 1 source row + 1 fantasy_morpheme row
+
+
+def test_dump_fantasy_morphemes_orders_by_input_name_then_approach(tmp_path: Path):
+    """Diff-stable ordering — two rows with the same input_name but
+    different approach_versions appear in approach_version order."""
+    conn = _build_fixture_db()
+    eid = _add_etymon(conn, "old-english", "engel")
+    _add_fantasy_morpheme(conn, input_name="Angel", approach_version="fantasy-v2", etymon_id=eid)
+    _add_fantasy_morpheme(conn, input_name="Angel", approach_version="fantasy-v1", etymon_id=eid)
+
+    rows = dump_fantasy_morphemes_to_rows(conn)
+    morphemes = rows[1:]
+    assert [m["approach_version"] for m in morphemes] == ["fantasy-v1", "fantasy-v2"]
+
+
+def test_default_bulk_excluded_sources_excludes_fantasy_mining_from_dump_all():
+    """A rebuilt DB carries a ``fantasy-mining`` row in the ``source``
+    table (inserted by build_from_jsonl from the synthetic source
+    declaration in ``_fantasy_morphemes.jsonl``). Without the
+    DEFAULT_BULK_EXCLUDED_SOURCES entry, dump_all_sources would emit
+    a competing per-source ``fantasy-mining.jsonl`` alongside the
+    real ``_fantasy_morphemes.jsonl`` — pins the wyrd-2thc exclusion
+    against accidental removal."""
+    from wyrd.generators.kenning.jsonl_dump import DEFAULT_BULK_EXCLUDED_SOURCES
+
+    assert "fantasy-mining" in DEFAULT_BULK_EXCLUDED_SOURCES
+
+    conn = _build_fixture_db()
+    _add_source(conn, id="fantasy-mining", title="Fantasy morpheme mining (rebuilt DB)")
+    _add_source(conn, id="skeat", title="Skeat")
+
+    sids = list_source_ids(conn, exclude=DEFAULT_BULK_EXCLUDED_SOURCES)
+    assert "fantasy-mining" not in sids
+    assert "skeat" in sids

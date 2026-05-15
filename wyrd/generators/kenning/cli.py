@@ -2691,6 +2691,7 @@ def lexicon_dump_jsonl(
     from wyrd.generators.kenning.jsonl_dump import (
         DEFAULT_BULK_EXCLUDED_SOURCES,
         dump_all_sources,
+        dump_fantasy_morphemes_to_file,
         dump_source_to_file,
     )
 
@@ -2701,19 +2702,31 @@ def lexicon_dump_jsonl(
 
     exclude = () if include_bulk else DEFAULT_BULK_EXCLUDED_SOURCES
 
+    # Pre-initialize so the post-try summary doesn't UnboundLocalError
+    # if dump_all_sources raises (the finally still runs; control then
+    # jumps past the summary lines, but a future maintainer reorganizing
+    # this block won't trip on a phantom name binding).
+    counts: dict[str, int] = {}
+    fm_count = 0
     try:
         if source_id is not None:
             path, count = dump_source_to_file(conn, source_id, out_dir)
             click.echo(f"Wrote {count} rows → {path}", err=True)
             return
         counts = dump_all_sources(conn, out_dir, exclude=exclude)
+        # wyrd-2thc: fantasy_morpheme has no source attribution — emit
+        # to the synthetic ``_fantasy_morphemes.jsonl`` file.
+        _, fm_count = dump_fantasy_morphemes_to_file(conn, out_dir)
     finally:
         conn.close()
 
-    total_rows = sum(counts.values())
-    click.echo(f"Dumped {len(counts)} sources, {total_rows} rows → {out_dir}", err=True)
+    total_rows = sum(counts.values()) + fm_count
+    sources_dumped = len(counts) + (1 if fm_count else 0)
+    click.echo(f"Dumped {sources_dumped} sources, {total_rows} rows → {out_dir}", err=True)
     for sid, n in sorted(counts.items()):
         click.echo(f"  {sid:<40} {n:>6}", err=True)
+    if fm_count:
+        click.echo(f"  {'fantasy-mining':<40} {fm_count:>6}", err=True)
 
 
 @lexicon.command("rebuild-from-jsonl")
