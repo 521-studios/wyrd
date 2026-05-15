@@ -9,10 +9,10 @@ from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.etymology_alignment_audit import (
+    _STOP_MORPHEMES,
     MISALIGNMENT_REASON_EMPTY_FORM,
     MISALIGNMENT_REASON_HALLUCINATED,
     _normalize,
-    _STOP_MORPHEMES,
     audit_jsonl_dir,
     audit_jsonl_file,
     format_audit_report,
