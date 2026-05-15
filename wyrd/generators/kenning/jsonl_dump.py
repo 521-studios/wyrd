@@ -391,15 +391,33 @@ def _source_for_attestation_doc(source_doc: str | None, known_source_ids: set[st
     return None
 
 
+def _attestation_source_doc_filter(source_id: str) -> tuple[str, list[Any]]:
+    """Build a SQL WHERE-clause fragment + bind params selecting
+    ``toponym_attestation`` rows whose ``source_doc`` routes to
+    ``source_id`` per :func:`_source_for_attestation_doc`.
+
+    Pushes the bucketing into SQL so per-source dumps don't do an
+    O(N×M) scan when ``dump_all_sources`` iterates N sources over
+    M attestations (the live DB has 21K attestations × 50+ sources,
+    so the Python-side filter was a 1M-row hot loop)."""
+    prefixes = [p for p, sid in _ATTESTATION_DOC_PREFIX_TO_SOURCE if sid == source_id]
+    clauses = ["ta.source_doc = ?"]
+    params: list[Any] = [source_id]
+    for prefix in prefixes:
+        clauses.append("ta.source_doc LIKE ?")
+        # ESCAPE-less LIKE is fine — registered prefixes are
+        # hand-written constants in this module, not user input.
+        params.append(prefix + "%")
+    return "(" + " OR ".join(clauses) + ")", params
+
+
 def _dump_attestation_only_toponyms(
     conn: sqlite3.Connection,
     source_id: str,
-    known_source_ids: set[str],
 ) -> Iterable[dict[str, Any]]:
     """Yield ``toponym`` canonical-state rows for toponyms that have
-    at least one ``toponym_attestation`` routing to ``source_id`` via
-    :func:`_source_for_attestation_doc` AND have no
-    ``toponym_etymology`` row for this source.
+    at least one ``toponym_attestation`` routing to ``source_id`` AND
+    have no ``toponym_etymology`` row for this source.
 
     Without this path, attestation-only toponyms (e.g. the ~17K
     Domesday settlements that carry Phillimore attestations but no
@@ -408,31 +426,21 @@ def _dump_attestation_only_toponyms(
     ``_dump_toponyms_and_etymologies``'s emit shape so the build's
     :func:`_merge_toponym` dedupes any cross-emit overlap silently.
     """
+    where_clause, params = _attestation_source_doc_filter(source_id)
     rows = conn.execute(
-        """
-        SELECT DISTINCT t.id, t.modern_name, t.country, t.region,
-                        ta.source_doc
+        f"""
+        SELECT DISTINCT t.id, t.modern_name, t.country, t.region
           FROM toponym t
           JOIN toponym_attestation ta ON ta.toponym_id = t.id
          WHERE t.id NOT IN (
              SELECT toponym_id FROM toponym_etymology WHERE source_id = ?
          )
+           AND {where_clause}
          ORDER BY t.modern_name, t.region, t.country, t.id
-        """,
-        (source_id,),
+        """,  # noqa: S608 — where_clause built from registered constants
+        [source_id, *params],
     ).fetchall()
-    seen: set[tuple[str, str | None]] = set()
     for r in rows:
-        if _source_for_attestation_doc(r["source_doc"], known_source_ids) != source_id:
-            continue
-        # DISTINCT in the SELECT dedupes on (id, name, country, region,
-        # source_doc) — a toponym with multiple attestations under
-        # different source_docs still comes through once per source_doc.
-        # Collapse to one yield per toponym at this layer.
-        key = (r["modern_name"], r["region"])
-        if key in seen:
-            continue
-        seen.add(key)
         row: dict[str, Any] = {
             "_type": "toponym",
             "ref": toponym_ref(r["modern_name"], r["region"]),
@@ -445,7 +453,6 @@ def _dump_attestation_only_toponyms(
 def _dump_attestations_for_source(
     conn: sqlite3.Connection,
     source_id: str,
-    known_source_ids: set[str],
 ) -> Iterable[dict[str, Any]]:
     """Yield ``attestation`` rows for every ``toponym_attestation``
     whose ``source_doc`` routes to ``source_id``. Build side already
@@ -453,17 +460,18 @@ def _dump_attestations_for_source(
     :func:`jsonl_build._insert_attestation_rows` (wyrd-3ypp); this
     closes the documented one-way gap (ingester → JSONL → build but
     not back out of the DB)."""
+    where_clause, params = _attestation_source_doc_filter(source_id)
     rows = conn.execute(
-        """
+        f"""
         SELECT t.modern_name, t.region, ta.form, ta.date_year, ta.source_doc
           FROM toponym_attestation ta
           JOIN toponym t ON t.id = ta.toponym_id
+         WHERE {where_clause}
          ORDER BY t.modern_name, t.region, ta.date_year, ta.id
-        """
+        """,  # noqa: S608 — where_clause built from registered constants
+        params,
     ).fetchall()
     for r in rows:
-        if _source_for_attestation_doc(r["source_doc"], known_source_ids) != source_id:
-            continue
         row: dict[str, Any] = {
             "_type": "attestation",
             "toponym_ref": toponym_ref(r["modern_name"], r["region"]),
@@ -476,10 +484,6 @@ def _dump_attestations_for_source(
 def dump_source_to_rows(conn: sqlite3.Connection, source_id: str) -> list[dict[str, Any]]:
     """Return the full canonical-state row list for one source. Useful
     for tests + for stream-then-write workflows."""
-    # Snapshot all source.id values once so the attestation routing
-    # can do a single dict-set membership check per row regardless of
-    # how many sources are involved.
-    known_source_ids = {r["id"] for r in conn.execute("SELECT id FROM source")}
     rows: list[dict[str, Any]] = []
     rows.append(_dump_source_row(conn, source_id))
     rows.extend(_dump_cited_etymons(conn, source_id))
@@ -487,8 +491,8 @@ def dump_source_to_rows(conn: sqlite3.Connection, source_id: str) -> list[dict[s
     rows.extend(_dump_descent_edges(conn, source_id))
     rows.extend(_dump_mining_runs(conn, source_id))
     rows.extend(_dump_toponyms_and_etymologies(conn, source_id))
-    rows.extend(_dump_attestation_only_toponyms(conn, source_id, known_source_ids))
-    rows.extend(_dump_attestations_for_source(conn, source_id, known_source_ids))
+    rows.extend(_dump_attestation_only_toponyms(conn, source_id))
+    rows.extend(_dump_attestations_for_source(conn, source_id))
     return rows
 
 
