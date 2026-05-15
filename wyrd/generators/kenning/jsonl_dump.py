@@ -361,6 +361,17 @@ def _dump_toponyms_and_etymologies(
 # match. The most prominent example today is Open Domesday Hull
 # (wyrd-el93), whose ingester stamps "Phillimore <citation>" into
 # every attestation's source_doc.
+#
+# INVARIANT: no prefix here may be (or be a prefix of) any actual
+# source.id in the DB. _attestation_source_doc_filter generates SQL
+# that OR's the exact source_id match with the LIKE-prefix matches;
+# if a prefix collided with a source.id, that source's attestations
+# would be double-routed (emitted to both source dumps). The
+# resolver in :func:`_source_for_attestation_doc` checks exact match
+# first, so the Python oracle hides the ambiguity — but the SQL
+# filter doesn't, and divergence would silently double-emit. Add
+# only ingester-specific brand names that no source.id will ever
+# legitimately match.
 _ATTESTATION_DOC_PREFIX_TO_SOURCE: tuple[tuple[str, str], ...] = (
     ("Phillimore", "open_domesday_hull"),
 )
@@ -404,10 +415,17 @@ def _attestation_source_doc_filter(source_id: str) -> tuple[str, list[Any]]:
     clauses = ["ta.source_doc = ?"]
     params: list[Any] = [source_id]
     for prefix in prefixes:
-        clauses.append("ta.source_doc LIKE ?")
-        # ESCAPE-less LIKE is fine — registered prefixes are
-        # hand-written constants in this module, not user input.
-        params.append(prefix + "%")
+        # GLOB is case-sensitive by default; LIKE is ASCII-case-INsensitive
+        # in SQLite (and COLLATE BINARY doesn't override that — LIKE's
+        # case rule is separate from the comparison collation). Use GLOB
+        # so the SQL filter matches the Python resolver's
+        # ``str.startswith()`` semantics — a lowercase ``phillimore 1L1``
+        # is orphaned by both rather than routed by only one.
+        clauses.append("ta.source_doc GLOB ?")
+        # Registered prefixes are hand-written constants — no glob
+        # metacharacters in them today, but if a future prefix needs
+        # `[`/`?`/`*` the caller must escape per SQLite GLOB rules.
+        params.append(prefix + "*")
     return "(" + " OR ".join(clauses) + ")", params
 
 

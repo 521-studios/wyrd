@@ -13,6 +13,7 @@ import sqlite3
 from pathlib import Path
 
 from wyrd.generators.kenning.jsonl_dump import (
+    _attestation_source_doc_filter,
     _source_for_attestation_doc,
     dump_all_sources,
     dump_source_to_file,
@@ -709,13 +710,17 @@ def test_dump_emits_attestation_only_toponym_row():
 
 def test_dump_does_not_double_emit_toponym_with_etymology_and_attestation():
     """A toponym with BOTH an etymology AND an attestation that route
-    to the same source must appear at most twice in the dump (once
-    via the etymology path, once via the attestation-only path)
-    — and the build's _merge_toponym handles cross-emit dedup.
+    to the same source must appear exactly once in the dump. The
+    etymology path emits it via _dump_toponyms_and_etymologies; the
+    attestation-only path excludes it via its ``NOT IN (SELECT
+    toponym_id FROM toponym_etymology WHERE source_id = ?)`` clause
+    so the same toponym doesn't get re-emitted.
 
-    Pinned at the dump layer so a future refactor can't accidentally
-    triple-emit (the dedup happens on dump-side too via the seen set
-    in _dump_attestation_only_toponyms)."""
+    Pinned at the dump layer so a future refactor that drops the
+    NOT IN guard can't silently start double-emitting (the build's
+    _merge_toponym handles cross-row dedup so a double would be
+    invisible at the JSONL replay level — only the row-count
+    assertion below catches it)."""
     conn = _build_fixture_db()
     _add_source(conn, id="open_domesday_hull", title="ODH")
     tid = _add_toponym(conn, "York", country="England", region=None)
@@ -734,3 +739,144 @@ def test_dump_does_not_double_emit_toponym_with_etymology_and_attestation():
     # skips it because the etymology JOIN catches it first. So exactly
     # one toponym row.
     assert len(yorks) == 1
+
+
+# --- _attestation_source_doc_filter — direct unit tests --------------
+
+
+def test_attestation_source_doc_filter_no_prefixes_uses_direct_match_only():
+    """A source with no registered prefix in _ATTESTATION_DOC_PREFIX_TO_SOURCE
+    gets a single-clause filter (the direct source_id match)."""
+    clause, params = _attestation_source_doc_filter("mawer_1920_northumberland_durham")
+    assert clause == "(ta.source_doc = ?)"
+    assert params == ["mawer_1920_northumberland_durham"]
+
+
+def test_attestation_source_doc_filter_with_prefix_uses_glob_for_case_sensitivity():
+    """A source with a registered prefix gets a ``GLOB`` clause (not
+    ``LIKE``) so the SQL filter is case-sensitive. SQLite's LIKE is
+    ASCII-case-INsensitive by default, and COLLATE BINARY doesn't
+    override that — LIKE's case rule is separate. GLOB is
+    case-sensitive by default, matching the Python resolver's
+    ``str.startswith()`` semantics."""
+    clause, params = _attestation_source_doc_filter("open_domesday_hull")
+    assert "ta.source_doc = ?" in clause
+    assert "ta.source_doc GLOB ?" in clause
+    assert "LIKE" not in clause, "LIKE has case-insensitive default — use GLOB instead"
+    assert params[0] == "open_domesday_hull"
+    assert "Phillimore*" in params
+
+
+def test_attestation_source_doc_filter_resolver_parity():
+    """The SQL filter and the Python resolver must agree on which
+    source_doc values bucket to a given source_id. If a future change
+    drifts them — e.g. the SQL gains case-insensitivity without the
+    resolver, or the resolver gains a precedence rule the SQL skips —
+    the test oracle (the Python resolver) and production behavior
+    (the SQL filter) diverge silently. Pin them with a small fixture
+    DB so the parity is exercised end-to-end."""
+    conn = _build_fixture_db()
+    known = {"open_domesday_hull", "mawer_1920_northumberland_durham"}
+    samples = [
+        "open_domesday_hull",  # direct source_id match
+        "mawer_1920_northumberland_durham",  # direct match — different source
+        "Phillimore 1L1.",  # prefix match → open_domesday_hull
+        "Phillimore 3,105.",  # prefix match — same source
+        "phillimore 1L1.",  # lowercase — Python orphans (case-sensitive)
+        "PhillimoreCompany Ltd.",  # technically starts with prefix → routes
+        "Hundred=Toseland",  # orphan
+        None,  # NULL orphan
+    ]
+
+    # Seed: one toponym, all sample attestations attached to it.
+    cur = conn.execute(
+        "INSERT INTO toponym (modern_name, region) VALUES (?, ?)",
+        ("Anywhere", None),
+    )
+    tid = cur.lastrowid
+    for doc in samples:
+        conn.execute(
+            "INSERT INTO toponym_attestation (toponym_id, form, source_doc) VALUES (?, ?, ?)",
+            (tid, "Forma", doc),
+        )
+
+    for source_id in ("open_domesday_hull", "mawer_1920_northumberland_durham"):
+        # SQL filter — what production sees
+        clause, params = _attestation_source_doc_filter(source_id)
+        sql_routed = {
+            r["source_doc"]
+            for r in conn.execute(
+                f"SELECT source_doc FROM toponym_attestation ta WHERE {clause}",  # noqa: S608
+                params,
+            )
+        }
+        # Python resolver — what the test oracle says
+        py_routed = {doc for doc in samples if _source_for_attestation_doc(doc, known) == source_id}
+        assert sql_routed == py_routed, (
+            f"resolver/SQL drift for {source_id!r}: "
+            f"SQL routed {sql_routed!r}, Python routed {py_routed!r}"
+        )
+
+
+def test_attestation_source_doc_filter_is_case_sensitive():
+    """COLLATE BINARY on the LIKE makes the SQL filter case-sensitive
+    so lowercase 'phillimore' DOES NOT route to open_domesday_hull.
+    Pins the wyrd-6gpy round-1 fix — without COLLATE BINARY the
+    production SQL would silently accept what the Python oracle
+    orphans."""
+    conn = _build_fixture_db()
+    _add_source(conn, id="open_domesday_hull", title="ODH")
+    tid = _add_toponym(conn, "Anywhere", region=None)
+    _add_attestation(conn, tid, "Caps", source_doc="Phillimore 1L1.")  # routes
+    _add_attestation(conn, tid, "Lower", source_doc="phillimore 1L1.")  # orphan
+
+    rows = dump_source_to_rows(conn, "open_domesday_hull")
+    forms = [r["form"] for r in rows if r["_type"] == "attestation"]
+    assert forms == ["Caps"], (
+        f"case-sensitive filter should accept only the capitalized prefix; got {forms!r}"
+    )
+
+
+# --- E2E round-trip for direct source_id match (was untested) ---------
+
+
+def test_attestation_round_trips_through_dump_and_build_direct_source_id(tmp_path: Path):
+    """Sibling of test_attestation_round_trips_through_dump_and_build —
+    that one exercises the Phillimore prefix branch; this one exercises
+    the direct-source_id-match branch (most scholar ingesters write
+    source_doc = '<source_id>' directly). Without this test the
+    direct-match SQL clause could be broken silently while the
+    prefix-branch round-trip continues to pass."""
+    from wyrd.generators.kenning.jsonl_build import build_from_jsonl, jsonl_paths_in
+    from wyrd.generators.kenning.jsonl_log import write_jsonl
+
+    pre = _build_fixture_db()
+    _add_source(pre, id="mawer", title="Mawer — Northumberland and Durham")
+    acton = _add_toponym(pre, "Acton", country="England", region="Northumberland")
+    # Etymology + attestation, both attributed to mawer via direct source_id
+    pre.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) "
+        "VALUES (?, 'mawer', 'high')",
+        (acton,),
+    )
+    _add_attestation(pre, acton, "Actone", date_year=1245, source_doc="mawer")
+
+    dump_path = tmp_path / "mawer.jsonl"
+    write_jsonl(dump_path, dump_source_to_rows(pre, "mawer"))
+    pre.close()
+
+    rebuilt = _build_fixture_db()
+    counts = build_from_jsonl(rebuilt, jsonl_paths_in(tmp_path))
+    assert counts.get("attestation_orphans", 0) == 0
+    assert counts["attestation"] == 1
+
+    row = rebuilt.execute(
+        "SELECT t.modern_name, ta.form, ta.date_year, ta.source_doc "
+        "FROM toponym_attestation ta JOIN toponym t ON t.id = ta.toponym_id"
+    ).fetchone()
+    assert (row["modern_name"], row["form"], row["date_year"], row["source_doc"]) == (
+        "Acton",
+        "Actone",
+        1245,
+        "mawer",
+    )
