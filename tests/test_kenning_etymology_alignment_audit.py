@@ -411,6 +411,40 @@ def test_on_plural_ar_not_flagged_when_missing():
     assert finding is None, "ON -ar should be in _STOP_MORPHEMES; absence shouldn't flag"
 
 
+def test_looks_misaligned_filters_empty_etymon_refs():
+    """wyrd-j6co Gemini round-1 robustness: an element row with a
+    missing/empty etymon_ref shouldn't produce an empty string in
+    the report's elements list. Such elements are dropped before
+    the alignment check runs."""
+    finding = looks_misaligned(
+        _row(
+            elements=[
+                {"etymon_ref": "old-english:beorg"},
+                {"etymon_ref": ""},  # malformed
+                {"etymon_ref": None},  # malformed
+            ],
+            historical_form="Dune",  # beorg not in form → flag
+        )
+    )
+    assert finding is not None
+    assert finding.elements == ["beorg"], (
+        "empty refs should be filtered before being placed in elements"
+    )
+    assert "" not in finding.missing_morphemes
+
+
+def test_looks_misaligned_returns_none_when_all_etymon_refs_empty():
+    """If every element has a missing etymon_ref, the audit can't
+    say anything meaningful — return None rather than flag noise."""
+    finding = looks_misaligned(
+        _row(
+            elements=[{"etymon_ref": ""}, {"etymon_ref": None}],
+            historical_form="Anything",
+        )
+    )
+    assert finding is None
+
+
 def test_format_audit_report_breakdown_by_reason():
     """The report header includes a per-reason breakdown so operators
     can pick a failure mode to triage first."""

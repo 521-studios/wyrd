@@ -147,10 +147,20 @@ def looks_misaligned(row: dict) -> MisalignmentFinding | None:
     historical_form = (row.get("historical_form") or "").strip()
     if not elements:
         return None
+    # Pre-compute canonical forms once + drop any element with a
+    # missing/empty etymon_ref (wyrd-j6co robustness: those produce
+    # empty strings in the report's elements list otherwise).
+    canonical_forms = [
+        _etymon_canonical_form(el.get("etymon_ref") or "")
+        for el in elements
+        if el.get("etymon_ref")
+    ]
+    if not canonical_forms:
+        return None
     norm_form = _normalize(historical_form)
     if not norm_form:
         # Has elements but no reconstruction — suspect on its own.
-        missing = [_etymon_canonical_form(el.get("etymon_ref") or "") for el in elements]
+        missing = list(canonical_forms)
         reason = MISALIGNMENT_REASON_EMPTY_FORM
     else:
         missing = _missing_morphemes(elements, historical_form)
@@ -160,7 +170,7 @@ def looks_misaligned(row: dict) -> MisalignmentFinding | None:
     return MisalignmentFinding(
         toponym_ref=row.get("toponym_ref") or "<missing>",
         historical_form=historical_form,
-        elements=[_etymon_canonical_form(el.get("etymon_ref") or "") for el in elements],
+        elements=canonical_forms,
         missing_morphemes=missing,
         confidence=row.get("confidence"),
         notes_preview=_preview_notes(row.get("notes") or ""),

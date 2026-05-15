@@ -35,9 +35,14 @@ done
 
 ```bash
 diff \
-  <(jq -r '._type + ":" + (.ref // (.etymon_ref + ":cite") // "_unknown_")' data/mining/source_a.jsonl | sort) \
-  <(jq -r '._type + ":" + (.ref // (.etymon_ref + ":cite") // "_unknown_")' data/mining/source_b.jsonl | sort)
+  <(jq -r '._type + ":" + (.ref // .etymon_ref // .toponym_ref // "_unknown_")' data/mining/source_a.jsonl | sort) \
+  <(jq -r '._type + ":" + (.ref // .etymon_ref // .toponym_ref // "_unknown_")' data/mining/source_b.jsonl | sort)
 ```
+
+The `_type:` prefix already distinguishes row types, so no need to
+suffix the etymon_ref / toponym_ref differently from `.ref`. Falls
+through to `.toponym_ref` for attestation and etymology_element rows
+that don't carry a top-level `.ref`.
 
 ## Show every row touching a specific etymon ref (replay-style walk)
 
@@ -56,13 +61,13 @@ jq -c --arg ref "$REF" '
 ## Count attestations per source
 
 ```bash
-for f in data/mining/*.jsonl; do
-  n=$(jq -r 'select(._type == "attestation") | 1' "$f" | wc -l)
-  if [[ $n -gt 0 ]]; then
-    printf "%-50s  %d\n" "$(basename "$f" .jsonl)" "$n"
-  fi
-done | sort -k2 -n -r | head -10
+jq -r 'select(._type == "attestation") | input_filename' data/mining/*.jsonl \
+  | sort | uniq -c | sort -rn | head -10
 ```
+
+Single-process `jq` pass using `input_filename` — counts and groups
+attestations in one walk rather than spawning a `jq + wc` pair per
+file. On large dump dirs this is ~10× faster.
 
 ## Find attestations within a year range
 
