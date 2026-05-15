@@ -2149,6 +2149,47 @@ def test_collect_canonical_decompositions_dedupes_multi_region_collision(
     assert list(out.keys()) == ["Stratford"]
 
 
+def test_collect_canonical_decompositions_skips_manorial_affix_toponyms(
+    fresh_db: Path,
+) -> None:
+    """Toponyms whose final whitespace-split token matches a Norman
+    manorial family name (Cary, Lacy, Mandeville, ...) are SKIPPED
+    from the canonical_decompositions map even when the DB has a
+    canonical pick — the runtime manorial-affix detector synthesizes
+    a more specific decomposition that the build-time tiebreaker
+    shouldn't pre-empt.
+
+    Pin from wyrd-j43l deploy-gate: a 'Castle Cary' toponym with a
+    DB-side canonical pick (e.g. castle + Ca + ry) was hijacking the
+    runtime 'castle + Cary (Norman manorial family)' synthesis.
+    Without this skip, every enrichment pass that adds short morphemes
+    silently regresses the manorial-affix UX on a handful of names."""
+    from wyrd.generators.kenning.lexicon import collect_canonical_decompositions
+
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        # A non-manorial-shape name — should be in the map.
+        topo_keep = _insert_toponym(db, "Stratford")
+        populate_and_pick(db, topo_keep, "Stratford", word_db)
+        # A manorial-shape name — should NOT be in the map.
+        topo_skip = _insert_toponym(db, "Castle Cary")
+        populate_and_pick(db, topo_skip, "Castle Cary", word_db)
+        # Another manorial-shape — pin three of the families just in case
+        # one of the families gets removed in a future curation pass.
+        topo_skip2 = _insert_toponym(db, "Newton Lacy")
+        populate_and_pick(db, topo_skip2, "Newton Lacy", word_db)
+        db.commit()
+        out = collect_canonical_decompositions(db)
+
+    assert "Stratford" in out
+    assert "Castle Cary" not in out, (
+        "manorial-shape toponym must not get a build-time canonical pick — "
+        "would override the runtime Norman-manorial-affix detector"
+    )
+    assert "Newton Lacy" not in out
+
+
 def test_load_canonical_decompositions_dict_shape() -> None:
     """``load_canonical_decompositions`` reads the dict-shape bundle's
     ``canonical_decompositions`` field and skips malformed entries."""
