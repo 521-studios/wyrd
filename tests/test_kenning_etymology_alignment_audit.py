@@ -9,6 +9,9 @@ from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.etymology_alignment_audit import (
+    _STOP_MORPHEMES,
+    MISALIGNMENT_REASON_EMPTY_FORM,
+    MISALIGNMENT_REASON_HALLUCINATED,
     _normalize,
     audit_jsonl_dir,
     audit_jsonl_file,
@@ -347,3 +350,198 @@ def test_cli_audit_etymology_alignment(tmp_path: Path):
     assert result.exit_code == 0, result.output
     assert "alignment audit" in result.output
     assert "src" in result.output
+
+
+# ---------------------------------------------------------------------------
+# wyrd-j6co: finding.reason categorization + extended _STOP_MORPHEMES
+# ---------------------------------------------------------------------------
+
+
+def test_misalignment_finding_reason_empty_form():
+    """When historical_form is empty, the finding's reason is
+    'empty_form' — operator should re-mine, not prune."""
+    finding = looks_misaligned(
+        _row(
+            elements=[{"etymon_ref": "old-english:beorg"}],
+            historical_form="",
+        )
+    )
+    assert finding is not None
+    assert finding.reason == MISALIGNMENT_REASON_EMPTY_FORM
+
+
+def test_misalignment_finding_reason_hallucinated():
+    """When elements don't substring-match the historical_form,
+    reason is 'hallucinated' — operator should prune/curate."""
+    finding = looks_misaligned(
+        _row(
+            elements=[{"etymon_ref": "old-english:beorg"}],
+            historical_form="Tuneham",  # 'beorg' not in form
+        )
+    )
+    assert finding is not None
+    assert finding.reason == MISALIGNMENT_REASON_HALLUCINATED
+
+
+def test_stop_morphemes_includes_non_oe_inflections():
+    """wyrd-j6co: _STOP_MORPHEMES extended for OE/ON/Irish/OF
+    inflections that elide in attested forms. Verifies the new
+    additions are present (regression-pin against accidental removal)."""
+    for stop in ("um", "on", "ar", "ir"):
+        assert stop in _STOP_MORPHEMES, f"{stop!r} should be a stop-morpheme"
+    # Confirms pre-existing entries are still there (no accidental clobber).
+    for legacy in ("a", "e", "es", "ing"):
+        assert legacy in _STOP_MORPHEMES
+
+
+def test_on_plural_ar_not_flagged_when_missing():
+    """ON nom/acc plural -ar is now a stop morpheme. A reconstruction
+    that elides it shouldn't flag as misaligned. Concrete case: a
+    toponym whose elements include an ON 'ar' suffix marker that
+    doesn't appear in the singular-form historical_form."""
+    finding = looks_misaligned(
+        _row(
+            elements=[
+                {"etymon_ref": "old-norse:steinn"},
+                {"etymon_ref": "old-norse:ar"},  # plural marker
+            ],
+            historical_form="Steinn",
+        )
+    )
+    assert finding is None, "ON -ar should be in _STOP_MORPHEMES; absence shouldn't flag"
+
+
+def test_looks_misaligned_filters_empty_etymon_refs():
+    """wyrd-j6co Gemini round-1 robustness: an element row with a
+    missing/empty etymon_ref shouldn't produce an empty string in
+    the report's elements list. Such elements are dropped before
+    the alignment check runs."""
+    finding = looks_misaligned(
+        _row(
+            elements=[
+                {"etymon_ref": "old-english:beorg"},
+                {"etymon_ref": ""},  # malformed
+                {"etymon_ref": None},  # malformed
+            ],
+            historical_form="Dune",  # beorg not in form → flag
+        )
+    )
+    assert finding is not None
+    assert finding.elements == ["beorg"], (
+        "empty refs should be filtered before being placed in elements"
+    )
+    assert "" not in finding.missing_morphemes
+
+
+def test_looks_misaligned_returns_none_when_all_etymon_refs_empty():
+    """If every element has a missing etymon_ref, the audit can't
+    say anything meaningful — return None rather than flag noise."""
+    finding = looks_misaligned(
+        _row(
+            elements=[{"etymon_ref": ""}, {"etymon_ref": None}],
+            historical_form="Anything",
+        )
+    )
+    assert finding is None
+
+
+def test_format_audit_report_breakdown_by_reason():
+    """The report header includes a per-reason breakdown so operators
+    can pick a failure mode to triage first."""
+    from wyrd.generators.kenning.etymology_alignment_audit import (
+        AuditReport,
+        MisalignmentFinding,
+        SourceAuditResult,
+    )
+
+    src = SourceAuditResult(source_id="test", total_etymologies=10, flagged_count=3)
+    src.samples = [
+        MisalignmentFinding(
+            toponym_ref="A@-",
+            historical_form="",
+            elements=["x"],
+            missing_morphemes=["x"],
+            confidence="medium",
+            notes_preview="",
+            reason=MISALIGNMENT_REASON_EMPTY_FORM,
+        ),
+        MisalignmentFinding(
+            toponym_ref="B@-",
+            historical_form="Other",
+            elements=["y"],
+            missing_morphemes=["y"],
+            confidence="high",
+            notes_preview="",
+            reason=MISALIGNMENT_REASON_HALLUCINATED,
+        ),
+        MisalignmentFinding(
+            toponym_ref="C@-",
+            historical_form="Different",
+            elements=["z"],
+            missing_morphemes=["z"],
+            confidence="low",
+            notes_preview="",
+            reason=MISALIGNMENT_REASON_HALLUCINATED,
+        ),
+    ]
+    src.reason_counts = {
+        MISALIGNMENT_REASON_EMPTY_FORM: 1,
+        MISALIGNMENT_REASON_HALLUCINATED: 2,
+    }
+    report = AuditReport(sources=[src], sample_limit_per_source=3)
+    output = format_audit_report(report)
+    # Header summary line includes a by-reason breakdown.
+    assert "By reason" in output
+    assert "1 empty_form" in output
+    assert "2 hallucinated" in output
+    # Per-sample lines tag the reason inline so operators see it
+    # while scanning the report.
+    assert "[empty_form]" in output
+    assert "[hallucinated]" in output
+
+
+def test_format_audit_report_breakdown_reflects_full_scan_not_samples(tmp_path: Path):
+    """wyrd-j6co Gemini round 2: with sample_limit smaller than the
+    flagged_count, the report's reason breakdown MUST reflect every
+    flagged row's reason — not just the truncated samples list.
+    Otherwise the operator sees a misleading distribution on large
+    scans where samples are heavily capped."""
+    rows = []
+    # 5 empty_form findings (no historical_form) + 1 hallucinated
+    for i in range(5):
+        rows.append(
+            _row(
+                toponym_ref=f"E{i}@-",
+                elements=[{"etymon_ref": f"old-english:beorg{i}"}],
+                historical_form="",
+            )
+        )
+    rows.append(
+        _row(
+            toponym_ref="H1@-",
+            elements=[{"etymon_ref": "old-english:hoh"}],
+            historical_form="Dune",
+        )
+    )
+    path = tmp_path / "src.jsonl"
+    with open(path, "w") as fh:
+        for r in rows:
+            fh.write(json.dumps(r) + "\n")
+
+    # sample_limit=2 — only 2 of the 5 empty_form rows make it into
+    # samples; the breakdown must still report 5 empty_form + 1 hallucinated.
+    result = audit_jsonl_file(path, sample_limit=2)
+    assert result.flagged_count == 6
+    assert result.reason_counts == {
+        MISALIGNMENT_REASON_EMPTY_FORM: 5,
+        MISALIGNMENT_REASON_HALLUCINATED: 1,
+    }
+    assert len(result.samples) == 2  # capped
+
+    from wyrd.generators.kenning.etymology_alignment_audit import AuditReport
+
+    report = AuditReport(sources=[result], sample_limit_per_source=2)
+    output = format_audit_report(report)
+    # Breakdown uses reason_counts (full), not samples (capped).
+    assert "5 empty_form" in output
+    assert "1 hallucinated" in output

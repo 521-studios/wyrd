@@ -51,8 +51,18 @@ def _normalize(text: str) -> str:
 # endings (-a, -e, -u) would otherwise flag false alignment-misses
 # when they're absent from the historical_form (they're often
 # elided in attested spellings).
+#
+# wyrd-j6co extension: added non-OE inflections that elide in scholar
+# reconstructions of Irish / Norse / French place-names:
+#   - OE  -um  dative/accusative plural
+#   - OE  -on  variant of -an (already present), found in older
+#               attestations
+#   - ON  -ar  nominative/accusative plural
+#   - ON  -ir  nominative/accusative plural
+# Already covered for non-OE: "a" (Irish gen sing), "e" (OF silent
+# endings), "es" (OF/OE -es genitive/plural).
 _STOP_MORPHEMES: frozenset[str] = frozenset(
-    {"a", "e", "i", "o", "u", "es", "ing", "an", "en", "s", "n", "r"}
+    {"a", "e", "i", "o", "u", "es", "ing", "an", "en", "s", "n", "r", "um", "on", "ar", "ir"}
 )
 
 
@@ -62,30 +72,38 @@ def _etymon_canonical_form(etymon_ref: str) -> str:
     return etymon_ref.rsplit(":", 1)[-1]
 
 
-def _missing_morphemes(elements: list[dict], historical_form: str) -> list[str]:
-    """Return the etymon canonical_forms that don't appear (as a
-    substring) anywhere in the historical_form. Skips stop-morphemes
-    (single letters, common inflections) where absence isn't signal."""
-    norm_form = _normalize(historical_form)
-    missing: list[str] = []
-    for el in elements:
-        ref = el.get("etymon_ref") or ""
-        if not ref:
-            continue
-        canonical = _etymon_canonical_form(ref)
-        norm_canonical = _normalize(canonical)
-        if norm_canonical in _STOP_MORPHEMES:
-            continue
-        if not norm_canonical:
-            continue
-        if norm_canonical not in norm_form:
-            missing.append(canonical)
-    return missing
+# NOTE: the per-element single-pass walk lives inline in
+# :func:`looks_misaligned` (wyrd-j6co Gemini round 3 — was an extracted
+# ``_missing_morphemes`` helper, but inlining the loop lets us share
+# ``canonical_forms`` between the missing-list and the finding's
+# elements field without re-iterating, and lets ``_normalize(historical_form)``
+# run once instead of twice).
+
+
+# wyrd-j6co: categorize MisalignmentFinding by reason so the operator
+# can triage one failure mode at a time. The two flag paths in
+# :func:`looks_misaligned` produce different evidence kinds and
+# warrant different reactions:
+#
+# * ``empty_form`` — elements exist but the LLM emitted no
+#   reconstruction. The morphemes may have been over-confidently
+#   posited without prose support. Operator may want to retry with
+#   ``mine-llm`` at higher reasoning effort.
+# * ``hallucinated`` — elements exist, reconstruction exists, but
+#   one or more element canonical_forms don't appear as substrings
+#   of the reconstruction. The LLM probably fabricated those
+#   morphemes (or the wrong inflection). Operator targets these for
+#   manual prune via ``lexicon prune-etymon`` or curation.
+MISALIGNMENT_REASON_EMPTY_FORM = "empty_form"
+MISALIGNMENT_REASON_HALLUCINATED = "hallucinated"
 
 
 @dataclass(frozen=True)
 class MisalignmentFinding:
-    """One flagged etymology_element row."""
+    """One flagged etymology_element row.
+
+    ``reason`` is one of ``MISALIGNMENT_REASON_*`` and tells the
+    operator which heuristic branch tripped (wyrd-j6co)."""
 
     toponym_ref: str
     historical_form: str
@@ -93,6 +111,7 @@ class MisalignmentFinding:
     missing_morphemes: list[str]
     confidence: str | None
     notes_preview: str
+    reason: str = MISALIGNMENT_REASON_HALLUCINATED
 
 
 def looks_misaligned(row: dict) -> MisalignmentFinding | None:
@@ -101,33 +120,57 @@ def looks_misaligned(row: dict) -> MisalignmentFinding | None:
 
     Rules (high-precision; operator eyeballs the report):
 
-    - At least one element AND historical_form is empty → flag.
-      The LLM proposed morphemes but no reconstruction; the prose
-      may not actually support those morphemes.
+    - At least one element AND historical_form is empty → flag with
+      ``reason="empty_form"``. The LLM proposed morphemes but no
+      reconstruction; the prose may not actually support those
+      morphemes.
     - At least one element's canonical_form doesn't appear as a
       substring of the normalized historical_form (skipping
-      stop-morphemes) → flag. The element wasn't pinned to the
-      reconstruction; might be hallucinated.
+      stop-morphemes) → flag with ``reason="hallucinated"``. The
+      element wasn't pinned to the reconstruction; might be
+      hallucinated.
     """
     elements = row.get("elements") or []
     historical_form = (row.get("historical_form") or "").strip()
     if not elements:
         return None
+    # Single pass over elements (wyrd-j6co Gemini round 3 perf): collect
+    # canonical_forms (for the finding) and missing entries (for the
+    # alignment check) in one loop, with _normalize(historical_form)
+    # computed once outside.
+    #
+    # Skip elements with no etymon_ref (wyrd-j6co round 1 robustness:
+    # they'd produce empty strings in the report otherwise).
+    # Stop-morphemes (single letters, common inflections) are
+    # excluded from `missing` since their absence isn't signal — same
+    # rule applies whether or not historical_form is populated.
     norm_form = _normalize(historical_form)
-    if not norm_form:
-        # Has elements but no reconstruction — suspect on its own.
-        missing = [_etymon_canonical_form(el.get("etymon_ref") or "") for el in elements]
-    else:
-        missing = _missing_morphemes(elements, historical_form)
-        if not missing:
-            return None
+    canonical_forms: list[str] = []
+    missing: list[str] = []
+    for el in elements:
+        ref = el.get("etymon_ref")
+        if not ref:
+            continue
+        canonical = _etymon_canonical_form(ref)
+        canonical_forms.append(canonical)
+        norm_canonical = _normalize(canonical)
+        if not norm_canonical or norm_canonical in _STOP_MORPHEMES:
+            continue
+        if norm_canonical not in norm_form:
+            missing.append(canonical)
+    if not canonical_forms:
+        return None
+    if not missing:
+        return None
+    reason = MISALIGNMENT_REASON_EMPTY_FORM if not norm_form else MISALIGNMENT_REASON_HALLUCINATED
     return MisalignmentFinding(
         toponym_ref=row.get("toponym_ref") or "<missing>",
         historical_form=historical_form,
-        elements=[_etymon_canonical_form(el.get("etymon_ref") or "") for el in elements],
+        elements=canonical_forms,
         missing_morphemes=missing,
         confidence=row.get("confidence"),
         notes_preview=_preview_notes(row.get("notes") or ""),
+        reason=reason,
     )
 
 
@@ -143,12 +186,18 @@ def _preview_notes(notes: str, max_len: int = 200) -> str:
 
 @dataclass
 class SourceAuditResult:
-    """Per-source audit summary."""
+    """Per-source audit summary.
+
+    ``reason_counts`` tracks every flagged row's reason (not just the
+    capped ``samples`` list), so :func:`format_audit_report`'s header
+    breakdown accurately reflects the full scan rather than the
+    capped sample. wyrd-j6co Gemini round 2."""
 
     source_id: str
     total_etymologies: int = 0
     flagged_count: int = 0
     samples: list[MisalignmentFinding] = field(default_factory=list)
+    reason_counts: dict[str, int] = field(default_factory=dict)
 
     @property
     def flag_rate(self) -> float:
@@ -203,6 +252,9 @@ def audit_jsonl_file(path: Path, sample_limit: int = 3) -> SourceAuditResult:
             finding = looks_misaligned(row)
             if finding is not None:
                 result.flagged_count += 1
+                result.reason_counts[finding.reason] = (
+                    result.reason_counts.get(finding.reason, 0) + 1
+                )
                 if len(result.samples) < sample_limit:
                     result.samples.append(finding)
     return result
@@ -235,6 +287,20 @@ def format_audit_report(report: AuditReport, *, top_n: int = 20) -> str:
     lines.append(f"- Sources scanned: {len(report.sources)}")
     lines.append(f"- Total etymology rows: {report.total_etymologies:,}")
     lines.append(f"- Probably misaligned: {report.total_flagged:,} ({report.overall_rate:.1f}%)")
+    # wyrd-j6co: split the flag count by reason so operators can pick
+    # one failure mode at a time (empty_form needs a re-mine; hallucinated
+    # needs a prune/curate). Counts are global across sources, drawn
+    # from per-source reason_counts (every flagged row, not just the
+    # capped samples list — wyrd-j6co Gemini round 2).
+    reason_counts: dict[str, int] = {}
+    for s in report.sources:
+        for reason, count in s.reason_counts.items():
+            reason_counts[reason] = reason_counts.get(reason, 0) + count
+    if reason_counts:
+        breakdown = ", ".join(
+            f"{count} {reason}" for reason, count in sorted(reason_counts.items())
+        )
+        lines.append(f"- By reason: {breakdown}")
     lines.append("")
     lines.append("## Top sources by flag count")
     lines.append("")
@@ -255,7 +321,7 @@ def format_audit_report(report: AuditReport, *, top_n: int = 20) -> str:
             lines.append(f"### `{s.source_id}` ({s.flagged_count} flagged)")
             for f in s.samples:
                 lines.append(
-                    f"- `{f.toponym_ref}` — historical_form=`{f.historical_form or '∅'}`, "
+                    f"- `{f.toponym_ref}` [{f.reason}] — historical_form=`{f.historical_form or '∅'}`, "
                     f"elements=[{', '.join(f.elements)}], "
                     f"missing=[{', '.join(f.missing_morphemes)}]"
                 )
