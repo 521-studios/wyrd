@@ -490,7 +490,12 @@ def test_attestation_round_trips_through_dump_and_build(tmp_path: Path):
         900,
     )
     assert att_rows[0]["source_doc"] == "Phillimore 1L2."
-    assert (att_rows[2]["modern_name"], att_rows[2]["form"]) == ("York", "Eboracum")
+    assert (
+        att_rows[2]["modern_name"],
+        att_rows[2]["form"],
+        att_rows[2]["date_year"],
+        att_rows[2]["source_doc"],
+    ) == ("York", "Eboracum", 1086, "Phillimore 2L1.")
 
 
 # ---------------------------------------------------------------------------

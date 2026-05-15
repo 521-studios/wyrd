@@ -391,6 +391,14 @@ def _source_for_attestation_doc(source_doc: str | None, known_source_ids: set[st
     4. No match → ``None`` (orphan; will be silently skipped by the
        per-source dump — operator workflow is responsible for
        extending the prefix map when new ingesters land).
+
+    NOTE: this is the parity oracle for
+    :func:`_attestation_source_doc_filter`. Production dump code uses
+    the SQL filter directly (O(M) per source). The Python resolver is
+    kept as the human-readable definition of bucketing semantics and
+    is exercised by ``test_attestation_source_doc_filter_resolver_parity``
+    to ensure the SQL filter selects the same set of rows for every
+    sample ``source_doc``. Do not delete as dead code.
     """
     if source_doc is None:
         return None
