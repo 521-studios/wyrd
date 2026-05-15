@@ -543,9 +543,10 @@ def test_cli_refill_short_quotes_dry_run_emits_total_line(tmp_path: Path):
         ],
     )
     assert result.exit_code == 0, result.output
-    assert "(dry-run)" in result.output
-    assert "truncated=1" in result.output
-    assert "refilled=1" in result.output
+    # Report goes to stdout (Gemini PR #211 round-4 finding).
+    assert "(dry-run)" in result.stdout
+    assert "truncated=   1" in result.stdout
+    assert "refilled=   1" in result.stdout
 
 
 def test_cli_refill_short_quotes_warns_on_missing_source_body(tmp_path: Path):
@@ -695,6 +696,33 @@ def test_refill_source_sql_filters_below_truncation_floor(tmp_path: Path):
     # Only the one above-floor citation is considered.
     assert report.total_truncated == 1
     assert report.refilled == 1
+
+
+def test_refill_short_quote_rejects_ambiguous_anchor():
+    """Gemini PR #211 round-4: when the anchor appears in multiple
+    places in the source body, `find()` returns the FIRST match —
+    which may not be the citation's actual location. A wrong-location
+    match would silently write incorrect forward context. Refuse to
+    refill rather than risk corruption."""
+    quote = "commentary | a common scholarly phrase here"
+    # Source has the same anchor in two distinct places.
+    source = (
+        "First occurrence. a common scholarly phrase here is one place. "
+        "Later text. a common scholarly phrase here appears again."
+    )
+    new, recovered = refill_short_quote(quote, _normalize_whitespace(source), window=80)
+    assert new is None, "ambiguous anchor (multiple matches) must be rejected"
+    assert recovered == 0
+
+
+def test_refill_short_quote_accepts_unique_anchor():
+    """Boundary: an anchor that appears EXACTLY once is accepted
+    (the success path of _unique_find)."""
+    quote = "commentary | a unique scholarly phrase here"
+    source = "First text. a unique scholarly phrase here is the only occurrence."
+    new, recovered = refill_short_quote(quote, _normalize_whitespace(source), window=80)
+    assert new is not None
+    assert recovered > 0
 
 
 def test_refill_short_quote_rejects_too_short_anchor():

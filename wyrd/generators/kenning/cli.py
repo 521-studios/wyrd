@@ -2467,55 +2467,56 @@ def lexicon_refill_short_quotes(
             total_truncated += report.total_truncated
             total_refilled += report.refilled
             total_hallucinated += report.hallucinated
+            # Report content goes to stdout so operators can redirect
+            # cleanly (`refill-short-quotes > report.txt`) while genuine
+            # errors stay on stderr. Matches sibling report-generating
+            # CLIs (audit-short-quotes, audit-etymology-alignment).
+            # Gemini PR #211 round-4.
             click.echo(
                 f"{source_id:<55} truncated={report.total_truncated:>4} "
                 f"refilled={report.refilled:>4} "
-                f"hallucinated={report.hallucinated:>4}",
-                err=True,
+                f"hallucinated={report.hallucinated:>4}"
             )
-            # Gemini PR #211 round-2 visibility fix: when an explicit
-            # --source has truncated rows but zero refills + zero
-            # hallucinations, the most common cause is a missing
-            # source body .txt. Without this warning the operator
-            # sees `truncated=N refilled=0` and might assume the data
-            # is unrefillable, missing the obvious 'source body is
-            # absent/unreadable' explanation.
-            if sources and report.refilled == 0 and report.hallucinated == 0:
+            # Gemini PR #211 round-2 visibility fix + round-4
+            # reachability fix: trigger when an explicit --source has
+            # truncated rows but zero refills, regardless of how the
+            # un-refilled rows were classified. The earlier narrower
+            # check (refilled==0 AND hallucinated==0) was unreachable
+            # for empty-body files because every row got classified
+            # as hallucinated. The broader 'refilled==0 with truncated
+            # rows' covers missing-file, unreadable-file, AND
+            # empty-file. (Empty source bodies are also now
+            # normalized to None in _load_source_body for defensive
+            # consistency, but this CLI check is still the visible
+            # surface to the operator.)
+            if sources and report.refilled == 0 and report.total_truncated > 0:
                 txt = sources_dir / f"{source_id}.txt"
                 if not txt.exists():
-                    click.echo(
-                        f"    warning: {txt} not found — refill needs the source body",
-                        err=True,
-                    )
+                    click.echo(f"    warning: {txt} not found — refill needs the source body")
                 else:
                     click.echo(
-                        f"    warning: {txt} exists but read returned empty/unreadable content "
-                        f"(non-UTF8 bytes?) — refill needs a readable source body",
-                        err=True,
+                        f"    warning: {txt} exists but read returned empty/unreadable "
+                        f"content (non-UTF8 bytes? whitespace-only?) — refill needs a "
+                        f"readable source body"
                     )
             if verbose:
                 # Surface RefillReport.samples so operators can
                 # spot-check before/after quality without manual DB
                 # inspection (Gemini round-1 finding).
                 for sample in report.samples:
-                    click.echo(f"    [{sample.status}] {sample.etymon_ref}", err=True)
+                    click.echo(f"    [{sample.status}] {sample.etymon_ref}")
                     if sample.old_short_quote:
-                        click.echo(
-                            f"      old (...{sample.old_short_quote[-60:]!r})",
-                            err=True,
-                        )
+                        click.echo(f"      old (...{sample.old_short_quote[-60:]!r})")
                     if sample.new_short_quote:
                         click.echo(
                             f"      new (+{sample.recovered_chars}c: "
-                            f"...{sample.new_short_quote[-100:]!r})",
-                            err=True,
+                            f"...{sample.new_short_quote[-100:]!r})"
                         )
-    click.echo("", err=True)
+    click.echo("")
     click.echo(
         f"TOTAL: truncated={total_truncated} refilled={total_refilled} "
         f"hallucinated={total_hallucinated} "
-        f"({'APPLIED' if apply else 'dry-run'})",
-        err=True,
+        f"({'APPLIED' if apply else 'dry-run'})"
     )
 
 

@@ -98,6 +98,34 @@ def _normalize_whitespace(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _unique_find(source_text: str, anchor: str) -> int | None:
+    """Return the position of ``anchor`` in ``source_text`` if it
+    occurs exactly once, else ``None``.
+
+    Rejecting ambiguous matches is the safer default (Gemini PR #211
+    round-4 finding): if a 20-40 char anchor appears in multiple
+    places in the source body, ``str.find`` returns the first match,
+    which may not be the citation's actual location. A wrong-location
+    match writes incorrect forward context to the citation. Refusing
+    to refill is the right tradeoff — that row counts as
+    hallucinated and surfaces for operator review rather than being
+    silently corrupted.
+
+    For the 80-char primary anchor, ambiguity is rare. For the
+    40-char fallback, it's plausible in repetitive academic prose
+    (Mawer/Joyce reuse formulaic phrases). Either way, uniqueness is
+    cheap to verify (one extra ``find`` call) and bounds the false-
+    positive rate to zero.
+    """
+    first = source_text.find(anchor)
+    if first == -1:
+        return None
+    second = source_text.find(anchor, first + 1)
+    if second != -1:
+        return None
+    return first
+
+
 def _trim_to_terminal_char(chunk: str) -> str | None:
     """Trim ``chunk`` so its last character is in :data:`_TERMINAL_CHARS`.
     Returns the trimmed prefix, or ``None`` if no terminal character
@@ -180,11 +208,16 @@ def refill_short_quote(
     # places in a Mawer-style gazetteer.
     if len(anchor) < _MIN_ANCHOR_LEN:
         return None, 0
-    idx = source_text_norm.find(anchor)
-    if idx == -1 and len(tail) > _SEARCH_TAIL_FALLBACK_LEN:
+    idx = _unique_find(source_text_norm, anchor)
+    if idx is None and len(tail) > _SEARCH_TAIL_FALLBACK_LEN:
+        # Fallback: shorter anchor for LLM-paraphrased early tails.
+        # Re-check uniqueness here too — the 40-char fallback is
+        # more likely than the 80-char primary anchor to match in
+        # multiple places, but ambiguous matches still need to be
+        # rejected for correctness.
         anchor = tail[-_SEARCH_TAIL_FALLBACK_LEN:].strip()
-        idx = source_text_norm.find(anchor)
-    if idx == -1:
+        idx = _unique_find(source_text_norm, anchor)
+    if idx is None:
         return None, 0
     end_pos = idx + len(anchor)
     forward = source_text_norm[end_pos : end_pos + window]
@@ -222,7 +255,13 @@ def _load_source_body(sources_dir: Path, source_id: str) -> str | None:
         body = path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
         return None
-    return _normalize_whitespace(body)
+    normalized = _normalize_whitespace(body)
+    # Empty / whitespace-only source body is functionally equivalent
+    # to missing — treat the same way so the CLI's missing-source
+    # warning triggers (Gemini PR #211 round-4 visibility).
+    if not normalized:
+        return None
+    return normalized
 
 
 def _etymon_ref_for(conn: sqlite3.Connection, etymon_id: int) -> str:
