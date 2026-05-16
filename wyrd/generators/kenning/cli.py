@@ -2642,7 +2642,8 @@ def lexicon_reverse_search_toponyms(
             ]
 
         # Build the form→toponym lookup ONCE up front. 21,969+ toponyms
-        # in the live DB; rebuilding per-source would be wasteful.
+        # in the live DB; rebuilding per-source would re-execute two
+        # full-table scans per source.
         click.echo("Building form→toponym lookup...", err=True)
         form_to_toponym = _build_form_to_toponym_lookup(db.conn)
         click.echo(f"  {len(form_to_toponym):,} normalized forms indexed", err=True)
@@ -2658,18 +2659,29 @@ def lexicon_reverse_search_toponyms(
             totals["unmatched"] += report.unmatched
             totals["inserted"] += report.inserted
             totals["already_present"] += report.already_present
+            # Per-source progress goes to stderr — diagnostic output;
+            # operators redirecting to a report file want the TOTAL
+            # tally on stdout (set after the loop).
             click.echo(
                 f"{source_id:<55} pairs={report.pairs_extracted:>5} "
                 f"matched={report.matched:>5} unmatched={report.unmatched:>5} "
-                f"inserted={report.inserted:>5} dup={report.already_present:>5}"
+                f"inserted={report.inserted:>5} dup={report.already_present:>5}",
+                err=True,
             )
             if verbose and report.unmatched_samples:
                 # Unmatched forms are the prime candidates for Phase 2's
-                # LLM-driven new-toponym discovery. Surface a sample so
-                # operators can eyeball whether the form filter is
-                # missing legitimate toponyms or just catching noise.
-                for form, year in report.unmatched_samples[:5]:
-                    click.echo(f"    unmatched: {form!r} ({year})")
+                # LLM-driven new-toponym discovery. Display ALL samples
+                # the module collected (default cap is 10); operators
+                # shouldn't see a smaller slice than the data the report
+                # exposes.
+                for form, year in report.unmatched_samples:
+                    click.echo(f"    unmatched: {form!r} ({year})", err=True)
+        # Commit once after walking all sources — the function-level
+        # commit was removed for caller transaction control; this is
+        # the natural commit point with partial-failure rollback
+        # semantics if a later source raises.
+        if apply:
+            db.conn.commit()
     click.echo("")
     click.echo(
         f"TOTAL: pairs={totals['pairs']} matched={totals['matched']} "

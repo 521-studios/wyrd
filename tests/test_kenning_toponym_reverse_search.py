@@ -12,32 +12,36 @@ from wyrd.generators.kenning.toponym_reverse_search import (
     reverse_search_source,
 )
 
+# Shared fixture DDL so both in-memory and on-disk tests use the
+# SAME schema (fixture-data-reviewer PR #212 finding: an inline
+# duplicate in a single test was at risk of silent drift if the
+# main fixture helper changes).
+_FIXTURE_DDL = """
+    CREATE TABLE source (id TEXT PRIMARY KEY, title TEXT NOT NULL);
+    CREATE TABLE toponym (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        modern_name TEXT NOT NULL,
+        country     TEXT,
+        region      TEXT
+    );
+    CREATE TABLE toponym_attestation (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        toponym_id  INTEGER NOT NULL,
+        form        TEXT NOT NULL,
+        date_year   INTEGER,
+        source_doc  TEXT
+    );
+    CREATE UNIQUE INDEX idx_attestation_unique
+        ON toponym_attestation(toponym_id, form, date_year, source_doc);
+"""
+
 
 def _build_fixture_db() -> sqlite3.Connection:
-    """Minimal schema covering toponym + toponym_attestation. Mirrors
-    the columns reverse_search_source queries."""
+    """In-memory fixture DB. Schema lives in :data:`_FIXTURE_DDL` so
+    on-disk tests can mirror it without copy-pasting."""
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
-    conn.executescript(
-        """
-        CREATE TABLE source (id TEXT PRIMARY KEY, title TEXT NOT NULL);
-        CREATE TABLE toponym (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            modern_name TEXT NOT NULL,
-            country     TEXT,
-            region      TEXT
-        );
-        CREATE TABLE toponym_attestation (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            toponym_id  INTEGER NOT NULL,
-            form        TEXT NOT NULL,
-            date_year   INTEGER,
-            source_doc  TEXT
-        );
-        CREATE UNIQUE INDEX idx_attestation_unique
-            ON toponym_attestation(toponym_id, form, date_year, source_doc);
-        """
-    )
+    conn.executescript(_FIXTURE_DDL)
     return conn
 
 
@@ -152,9 +156,12 @@ def test_reverse_search_source_matches_modern_name(tmp_path: Path):
     )
 
 
-def test_reverse_search_source_dry_run_does_not_insert(tmp_path: Path):
-    """Without --apply, the report counters increment but the DB
-    isn't touched."""
+def test_reverse_search_source_dry_run_predicts_apply_accurately(tmp_path: Path):
+    """Without --apply, the DB isn't touched but the report's
+    inserted/already_present counts ACCURATELY predict what
+    apply=True would do (preflight uniqueness check via SELECT).
+    silent-failure-hunter PR #212 finding: dry-run with always-zero
+    already_present masks the all-dupes case from operators."""
     conn = _build_fixture_db()
     conn.execute("INSERT INTO source (id, title) VALUES ('mawer', 'Mawer')")
     conn.execute("INSERT INTO toponym (id, modern_name) VALUES (1, 'Birmingham')")
@@ -165,9 +172,38 @@ def test_reverse_search_source_dry_run_does_not_insert(tmp_path: Path):
     report = reverse_search_source(conn, "mawer", tmp_path, lookup, apply=False)
 
     assert report.matched == 1
-    assert report.inserted == 0  # dry-run
+    # Predicted: this row would be a new insert (not in DB yet).
+    assert report.inserted == 1
+    assert report.already_present == 0
+    # But the DB is still unchanged — dry-run is read-only.
     nrows = conn.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0]
     assert nrows == 0
+
+
+def test_reverse_search_source_dry_run_predicts_all_dupes(tmp_path: Path):
+    """Dry-run on a source whose matched rows ALREADY exist in the DB
+    correctly shows inserted=0, already_present=N — so operators can
+    tell 'all rows are already there, applying is a no-op' before
+    spending --apply time. Pin for the round-1 silent-failure-hunter
+    'dry-run dup=0 always' finding."""
+    conn = _build_fixture_db()
+    conn.execute("INSERT INTO source (id, title) VALUES ('mawer', 'Mawer')")
+    conn.execute("INSERT INTO toponym (id, modern_name) VALUES (1, 'Birmingham')")
+    # Pre-populate the attestation row that the source body would produce.
+    conn.execute(
+        "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+        "VALUES (1, 'Birmingham', 1086, 'mawer')"
+    )
+    conn.commit()
+    (tmp_path / "mawer.txt").write_text("As found in Birmingham, 1086, the name is...")
+
+    lookup = _build_form_to_toponym_lookup(conn)
+    report = reverse_search_source(conn, "mawer", tmp_path, lookup, apply=False)
+
+    assert report.matched == 1
+    # Predicted: all dupes; applying would be a no-op.
+    assert report.inserted == 0
+    assert report.already_present == 1
 
 
 def test_reverse_search_source_idempotent_on_rerun(tmp_path: Path):
@@ -212,22 +248,153 @@ def test_reverse_search_source_unmatched_form_skipped(tmp_path: Path):
     assert len(report.unmatched_samples) == 3
 
 
-def test_reverse_search_source_case_insensitive_match(tmp_path: Path):
-    """Match is case-insensitive: source prose uses lowercase, modern
-    name is capitalized, they should still join."""
+def test_reverse_search_source_normalized_lookup_join(tmp_path: Path):
+    """The form→toponym join is case-insensitive via
+    _normalize_for_match. The mine-attestations regex requires the
+    form to start with a capital, so the only case-folding that's
+    exercised here is the trailing-comma trim — but pin both
+    explicitly so a future regex change doesn't silently break
+    the normalization invariant. Renamed from
+    test_reverse_search_source_case_insensitive_match per
+    pr-test-analyzer + fixture-data-reviewer PR #212 findings
+    (the original name overstated the test's reach)."""
     conn = _build_fixture_db()
     conn.execute("INSERT INTO source (id, title) VALUES ('src', 'Src')")
+    # Modern name stored title-case; source mentions exact title-case
+    # form with trailing comma.
     conn.execute("INSERT INTO toponym (id, modern_name) VALUES (1, 'Birmingham')")
     conn.commit()
-    # Real source prose may have form in lower or upper case depending
-    # on context — the regex requires capitalization, so we test
-    # the trailing-punct normalization specifically.
     (tmp_path / "src.txt").write_text("Birmingham, 1086 — important place.")
+
+    lookup = _build_form_to_toponym_lookup(conn)
+    # Sanity: lookup key is the lowercased form.
+    assert "birmingham" in lookup
+    report = reverse_search_source(conn, "src", tmp_path, lookup, apply=True)
+    assert report.matched == 1
+    assert report.inserted == 1
+
+
+def test_reverse_search_source_matches_via_existing_historical_form(tmp_path: Path):
+    """The lookup admits BOTH ``toponym.modern_name`` AND existing
+    ``toponym_attestation.form``. A scholar source body that mentions
+    a historical form (Cestretone) with a year should map to the
+    correct toponym (Chester), even though Chester's modern_name
+    doesn't appear anywhere in the source body — pr-test-analyzer
+    PR #212 finding."""
+    conn = _build_fixture_db()
+    conn.execute("INSERT INTO source (id, title) VALUES ('src', 'Src')")
+    conn.execute("INSERT INTO toponym (id, modern_name) VALUES (5, 'Chester')")
+    conn.execute(
+        "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+        "VALUES (5, 'Cestretone', 1086, 'prior_source')"
+    )
+    conn.commit()
+    (tmp_path / "src.txt").write_text("And Cestretone, 1210 — see also Domesday entry.")
 
     lookup = _build_form_to_toponym_lookup(conn)
     report = reverse_search_source(conn, "src", tmp_path, lookup, apply=True)
     assert report.matched == 1
-    assert report.inserted == 1
+    row = conn.execute(
+        "SELECT toponym_id, form, date_year FROM toponym_attestation WHERE source_doc = 'src'"
+    ).fetchone()
+    assert (row["toponym_id"], row["form"], row["date_year"]) == (5, "Cestretone", 1210)
+
+
+def test_reverse_search_source_mixed_matched_and_unmatched(tmp_path: Path):
+    """A single source body produces both matched and unmatched
+    pairs in one call — verify per-pair branching works correctly
+    (test-coverage-reviewer PR #212 finding)."""
+    conn = _build_fixture_db()
+    conn.execute("INSERT INTO source (id, title) VALUES ('src', 'Src')")
+    conn.execute("INSERT INTO toponym (id, modern_name) VALUES (1, 'Birmingham')")
+    conn.execute("INSERT INTO toponym (id, modern_name) VALUES (2, 'Coventry')")
+    conn.commit()
+    (tmp_path / "src.txt").write_text(
+        "Birmingham, 1086 is known. So is Coventry, 1100. "
+        "But Glasshamburton, 1150 is fictional and Snorklewick, 1086 is too."
+    )
+
+    lookup = _build_form_to_toponym_lookup(conn)
+    report = reverse_search_source(conn, "src", tmp_path, lookup, apply=True)
+    assert report.pairs_extracted == 4
+    assert report.matched == 2  # Birmingham, Coventry
+    assert report.unmatched == 2  # Glasshamburton, Snorklewick
+    assert report.inserted == 2
+    assert len(report.unmatched_samples) == 2
+
+
+def test_reverse_search_source_unmatched_samples_capped(tmp_path: Path):
+    """When unmatched count exceeds _UNMATCHED_SAMPLE_LIMIT (10),
+    the samples list is capped but the counter is accurate
+    (test-coverage-reviewer PR #212 finding).
+
+    Form-pattern requires letters only (no digits) so the fake
+    place names use letter-suffix differentiators."""
+    conn = _build_fixture_db()
+    conn.execute("INSERT INTO source (id, title) VALUES ('src', 'Src')")
+    conn.commit()
+    suffixes = ["aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh", "ii", "jj", "kk", "ll"]
+    pairs = " ".join(f"Foozz{s}berg, {1000 + i * 10} is a place." for i, s in enumerate(suffixes))
+    (tmp_path / "src.txt").write_text(pairs)
+
+    lookup = _build_form_to_toponym_lookup(conn)
+    report = reverse_search_source(conn, "src", tmp_path, lookup, apply=False)
+    assert report.unmatched == 12
+    assert len(report.unmatched_samples) == 10  # capped
+
+
+def test_build_lookup_attestation_collision_first_id_wins():
+    """Among attestation-vs-attestation form collisions, the lower
+    attestation.id wins (silent-failure-hunter PR #212 finding:
+    the docstring claimed this; the test suite didn't cover it).
+    """
+    conn = _build_fixture_db()
+    conn.execute("INSERT INTO toponym (id, modern_name) VALUES (1, 'Older')")
+    conn.execute("INSERT INTO toponym (id, modern_name) VALUES (2, 'Newer')")
+    # Both toponyms claim 'Grenewic'. Earlier insert (id=1) is
+    # attestation row 1 → toponym 2.
+    conn.execute(
+        "INSERT INTO toponym_attestation (id, toponym_id, form, date_year, source_doc) "
+        "VALUES (1, 2, 'Grenewic', 900, 'src')"
+    )
+    conn.execute(
+        "INSERT INTO toponym_attestation (id, toponym_id, form, date_year, source_doc) "
+        "VALUES (2, 1, 'Grenewic', 1086, 'src')"
+    )
+    conn.commit()
+    lookup = _build_form_to_toponym_lookup(conn)
+    assert lookup["grenewic"] == 2  # earlier attestation wins
+
+
+def test_build_lookup_empty_db():
+    """Empty DB → empty lookup (test-coverage-reviewer PR #212)."""
+    conn = _build_fixture_db()
+    assert _build_form_to_toponym_lookup(conn) == {}
+
+
+def test_normalize_for_match_empty_string():
+    """Empty input is the falsy-key gate's invariant (test-coverage-reviewer)."""
+    assert _normalize_for_match("") == ""
+    assert _normalize_for_match("   ") == ""
+    assert _normalize_for_match(",.;:") == ""
+
+
+def test_reverse_search_source_body_with_no_attestation_patterns(tmp_path: Path):
+    """A non-empty source body that contains zero (form, year)
+    patterns returns pairs_extracted=0 — exercises the CLI's
+    early-continue path (test-coverage-reviewer PR #212)."""
+    conn = _build_fixture_db()
+    conn.execute("INSERT INTO toponym (id, modern_name) VALUES (1, 'Birmingham')")
+    conn.commit()
+    (tmp_path / "narrative.txt").write_text(
+        "This is a narrative passage with no place name attestation patterns. "
+        "Just words and clauses without the FORM-followed-by-year shape."
+    )
+    lookup = _build_form_to_toponym_lookup(conn)
+    report = reverse_search_source(conn, "narrative", tmp_path, lookup, apply=True)
+    assert report.pairs_extracted == 0
+    assert report.matched == 0
+    assert report.unmatched == 0
 
 
 def test_reverse_search_source_missing_body_returns_empty_report(tmp_path: Path):
@@ -241,32 +408,203 @@ def test_reverse_search_source_missing_body_returns_empty_report(tmp_path: Path)
     assert report.matched == 0
 
 
-def test_reverse_search_source_apply_actually_commits(tmp_path: Path):
-    """The SQL INSERT OR IGNORE actually commits — verified by
-    opening a fresh connection to the same DB."""
+def test_reverse_search_source_does_not_commit_internally(tmp_path: Path):
+    """code-reviewer PR #212 finding: reverse_search_source must
+    NOT call conn.commit() internally — caller owns transaction
+    granularity. Verify the INSERT is uncommitted by reading via
+    a fresh second connection: the new attestation should NOT be
+    visible until caller calls commit() explicitly."""
     db_path = tmp_path / "lex.db"
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
-    conn.executescript(
-        """
-        CREATE TABLE source (id TEXT PRIMARY KEY, title TEXT NOT NULL);
-        CREATE TABLE toponym (id INTEGER PRIMARY KEY AUTOINCREMENT, modern_name TEXT NOT NULL,
-            country TEXT, region TEXT);
-        CREATE TABLE toponym_attestation (id INTEGER PRIMARY KEY AUTOINCREMENT,
-            toponym_id INTEGER NOT NULL, form TEXT NOT NULL, date_year INTEGER, source_doc TEXT);
-        CREATE UNIQUE INDEX idx_attestation_unique
-            ON toponym_attestation(toponym_id, form, date_year, source_doc);
-        INSERT INTO source (id, title) VALUES ('src', 'Src');
-        INSERT INTO toponym (modern_name) VALUES ('Cestretone');
-        """
-    )
+    # Reuse the fixture schema by attaching the in-memory copy's
+    # DDL — keeps schema drift from the helper in check.
+    conn.executescript(_FIXTURE_DDL)
+    conn.execute("INSERT INTO source (id, title) VALUES ('src', 'Src')")
+    conn.execute("INSERT INTO toponym (modern_name) VALUES ('Cestretone')")
     conn.commit()
     (tmp_path / "src.txt").write_text("Cestretone in 1210.")
     lookup = _build_form_to_toponym_lookup(conn)
     reverse_search_source(conn, "src", tmp_path, lookup, apply=True)
+
+    # Fresh connection: only committed data visible. The function
+    # didn't commit, so 0 rows visible from a parallel session.
+    fresh = sqlite3.connect(str(db_path))
+    nrows_pre_commit = fresh.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0]
+    fresh.close()
+    assert nrows_pre_commit == 0, (
+        "reverse_search_source must NOT commit internally; caller owns transaction control"
+    )
+
+    # Now have the caller commit and verify the row IS visible.
+    conn.commit()
+    fresh = sqlite3.connect(str(db_path))
+    nrows_post_commit = fresh.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0]
+    fresh.close()
+    assert nrows_post_commit == 1
+
+
+# ---------------------------------------------------------------------------
+# CLI tests (per multiple agent PR #212 findings: zero CLI coverage)
+# ---------------------------------------------------------------------------
+
+
+def _build_on_disk_db(tmp_path: Path) -> Path:
+    """Build a fresh on-disk DB using the shared schema. Used by
+    CLI tests that need to hit the CLI as a black box."""
+    db_path = tmp_path / "lex.db"
+    conn = sqlite3.connect(str(db_path))
+    conn.executescript(_FIXTURE_DDL)
+    conn.commit()
     conn.close()
+    return db_path
+
+
+def test_cli_reverse_search_toponyms_validates_unknown_source(tmp_path: Path):
+    """A misspelled --source raises ClickException with the unknown
+    list (silent-failure-hunter PR #212 pattern; same as wyrd-1hpc
+    CLI). Pin the user-facing error contract."""
+    from click.testing import CliRunner
+
+    db_path = _build_on_disk_db(tmp_path)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("INSERT INTO source (id, title) VALUES ('legit', 'Legit')")
+    conn.commit()
+    conn.close()
+
+    from wyrd.generators.kenning.cli import cli as cli_root
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "reverse-search-toponyms",
+            "--db",
+            str(db_path),
+            "--sources-dir",
+            str(tmp_path),
+            "--source",
+            "legit",
+            "--source",
+            "doesnotexist",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "unknown source_id" in result.output
+    assert "doesnotexist" in result.output
+
+
+def test_cli_reverse_search_toponyms_dry_run_emits_total(tmp_path: Path):
+    """Smoke test the dry-run end-to-end: TOTAL line shows '(dry-run)'
+    marker, predicted inserts visible. Explicit --source so we
+    don't need etymon_citation in the fixture schema."""
+    from click.testing import CliRunner
+
+    db_path = _build_on_disk_db(tmp_path)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("INSERT INTO source (id, title) VALUES ('src', 'Src')")
+    conn.execute("INSERT INTO toponym (id, modern_name) VALUES (1, 'Birmingham')")
+    conn.commit()
+    conn.close()
+    (tmp_path / "src.txt").write_text("Birmingham, 1086 was recorded.")
+
+    from wyrd.generators.kenning.cli import cli as cli_root
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "reverse-search-toponyms",
+            "--db",
+            str(db_path),
+            "--sources-dir",
+            str(tmp_path),
+            "--source",
+            "src",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "(dry-run)" in result.stdout
+    assert "matched=    1" in result.output
+
+
+def test_cli_reverse_search_toponyms_apply_round_trips(tmp_path: Path):
+    """--apply round-trip: the row appears in the DB after the CLI
+    exits (verifies the CLI commits — function no longer does)."""
+    from click.testing import CliRunner
+
+    db_path = _build_on_disk_db(tmp_path)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("INSERT INTO source (id, title) VALUES ('src', 'Src')")
+    conn.execute("INSERT INTO toponym (modern_name) VALUES ('Birmingham')")
+    conn.commit()
+    conn.close()
+    (tmp_path / "src.txt").write_text("Birmingham, 1086 was recorded.")
+
+    from wyrd.generators.kenning.cli import cli as cli_root
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "reverse-search-toponyms",
+            "--db",
+            str(db_path),
+            "--sources-dir",
+            str(tmp_path),
+            "--source",
+            "src",
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "(APPLIED)" in result.stdout
 
     fresh = sqlite3.connect(str(db_path))
     nrows = fresh.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0]
     fresh.close()
-    assert nrows == 1, "INSERT must persist after refill_source returns"
+    assert nrows == 1, "CLI must commit after walking all sources"
+
+
+def test_cli_reverse_search_toponyms_verbose_shows_all_samples(tmp_path: Path):
+    """--verbose surfaces the unmatched samples per source — the
+    module collects up to 10, and the CLI displays ALL of them (not
+    a smaller [:5] slice — fixed per code-reviewer + comment-analyzer
+    PR #212)."""
+    from click.testing import CliRunner
+
+    db_path = _build_on_disk_db(tmp_path)
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("INSERT INTO source (id, title) VALUES ('src', 'Src')")
+    conn.commit()
+    conn.close()
+    # 8 unmatched pairs — below the 10-cap so we expect all 8 in
+    # output. FORM regex requires letters only.
+    suffixes = ["aa", "bb", "cc", "dd", "ee", "ff", "gg", "hh"]
+    body = " ".join(f"Bozzz{s}berg, {1000 + i * 10} hi." for i, s in enumerate(suffixes))
+    (tmp_path / "src.txt").write_text(body)
+
+    from wyrd.generators.kenning.cli import cli as cli_root
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "reverse-search-toponyms",
+            "--db",
+            str(db_path),
+            "--sources-dir",
+            str(tmp_path),
+            "--source",
+            "src",
+            "--verbose",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # All 8 unmatched should appear (CLI no longer slices to 5).
+    for s in suffixes:
+        assert f"Bozzz{s}berg" in result.output
