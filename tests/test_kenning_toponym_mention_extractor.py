@@ -22,6 +22,8 @@ from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.toponym_mention_extractor import (
     _DATE_YEAR_MAX,
     _DATE_YEAR_MIN,
+    RESPONSE_SCHEMA,
+    RESPONSE_SCHEMA_GEMINI,
     SYSTEM_PROMPT,
     MineToponymMentionsReport,
     ToponymMention,
@@ -526,6 +528,109 @@ def test_extract_one_chunk_happy_path_passes_chunk_and_schema_through():
     assert schema_arg is not None  # RESPONSE_SCHEMA was passed
     assert schema_arg["type"] == "object"
     assert "mentions" in schema_arg["properties"]
+
+
+def test_extract_one_chunk_dispatches_gemini_dialect_to_geminiclient():
+    """wyrd-pe4g: GeminiClient (recognized by class name) must receive
+    the OpenAPI-3.0 dialect schema (RESPONSE_SCHEMA_GEMINI), not the
+    JSON Schema dialect. Direct-test against Gemini's API confirmed
+    that the JSON Schema variant returns HTTP 400 on every chunk
+    (rejected `additionalProperties` and `type: [..., "null"]` union)."""
+
+    class GeminiClient:  # noqa: N801 — name-matching is the dispatch contract
+        model = "gemini-2.5-flash"
+        calls: list[dict | None] = []
+
+        def chat_json(self, system, user, schema=None):
+            type(self).calls.append(schema)
+            return {"mentions": [{"form": "Edlingham", "context": "Edlingham mentioned"}]}
+
+    out = extract_toponym_mentions_from_chunk(GeminiClient(), "Edlingham mentioned")
+    assert [m.form for m in out] == ["Edlingham"]
+    assert len(GeminiClient.calls) == 1
+    assert GeminiClient.calls[0] is RESPONSE_SCHEMA_GEMINI
+
+
+def test_extract_one_chunk_dispatches_jsonschema_to_non_gemini_clients():
+    """Anthropic + Ollama (and any other named provider) get the
+    standard JSON Schema variant. Dispatch is by class name, so a
+    FakeClient or an AnthropicClient gets RESPONSE_SCHEMA verbatim."""
+    client = FakeClient([{"mentions": [{"form": "Edlingham", "context": "Edlingham mentioned"}]}])
+    out = extract_toponym_mentions_from_chunk(client, "Edlingham mentioned")
+    assert [m.form for m in out] == ["Edlingham"]
+    assert len(client.calls) == 1
+    _, _, schema_arg = client.calls[0]
+    assert schema_arg is RESPONSE_SCHEMA
+
+
+def test_response_schema_gemini_uses_openapi_dialect():
+    """wyrd-pe4g: structural anchors so a future schema edit can't
+    silently re-introduce JSON-Schema constructs that Gemini rejects.
+
+    Gemini's responseSchema is OpenAPI-3.0-ish: uppercase type names,
+    no `additionalProperties`, no `type: ["X", "null"]` unions
+    (use `nullable: true` instead). Each anchor below corresponds to
+    a specific HTTP-400 mode observed in the direct test against
+    Gemini's API."""
+    schema = RESPONSE_SCHEMA_GEMINI
+
+    def walk(node, *, path="$"):
+        if isinstance(node, dict):
+            assert "additionalProperties" not in node, (
+                f"Gemini rejects additionalProperties (at {path})"
+            )
+            t = node.get("type")
+            if isinstance(t, str):
+                assert t.isupper(), f"Gemini wants uppercase types (got {t!r} at {path})"
+            assert not isinstance(t, list), (
+                f"Gemini rejects type unions; use nullable:true (at {path})"
+            )
+            for k, v in node.items():
+                walk(v, path=f"{path}.{k}")
+        elif isinstance(node, list):
+            for i, item in enumerate(node):
+                walk(item, path=f"{path}[{i}]")
+
+    walk(schema)
+    # Confirm the affirmative shape too — types are present and uppercase
+    # where expected.
+    assert schema["type"] == "OBJECT"
+    assert schema["properties"]["mentions"]["type"] == "ARRAY"
+
+
+def test_response_schema_gemini_nullable_fields_in_required():
+    """Gemini convention (matches GEMINI_RESPONSE_SCHEMA in
+    gemini_extractor.py for etymology): nullable fields must also
+    appear in `required` so the model emits an explicit null rather
+    than silently omitting the key. Without this, downstream
+    consumers can't tell 'model declined to cite' from 'schema
+    optional, model skipped.'"""
+    item = RESPONSE_SCHEMA_GEMINI["properties"]["mentions"]["items"]
+    nullable_fields = {
+        name for name, spec in item["properties"].items() if spec.get("nullable") is True
+    }
+    assert {"date_year", "region_hint"}.issubset(nullable_fields)
+    # The contract: every nullable field is in required.
+    missing = nullable_fields - set(item["required"])
+    assert not missing, f"nullable fields not in required: {missing}"
+
+
+def test_response_schemas_have_matching_logical_shape():
+    """The two schema variants describe the SAME logical output. A
+    future field added to one but not the other (e.g. a new
+    `confidence` slot landing only in the JSON Schema variant) would
+    silently produce divergent outputs across providers. Anchor the
+    fields + required set so a one-sided edit fails CI."""
+    json_props = set(RESPONSE_SCHEMA["properties"]["mentions"]["items"]["properties"].keys())
+    gem_props = set(RESPONSE_SCHEMA_GEMINI["properties"]["mentions"]["items"]["properties"].keys())
+    assert json_props == gem_props, (
+        f"schemas have different mention fields: json={json_props} gemini={gem_props}"
+    )
+    # Both must require the non-nullable fields (form + context).
+    json_required = set(RESPONSE_SCHEMA["properties"]["mentions"]["items"]["required"])
+    gem_required = set(RESPONSE_SCHEMA_GEMINI["properties"]["mentions"]["items"]["required"])
+    assert {"form", "context"}.issubset(json_required)
+    assert {"form", "context"}.issubset(gem_required)
 
 
 @pytest.mark.parametrize(

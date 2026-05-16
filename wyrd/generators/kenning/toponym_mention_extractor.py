@@ -155,8 +155,9 @@ Return only the JSON object. No other text.
 """
 
 # JSON schema for providers that support schema-constrained output
-# (Ollama, Gemini). Anthropic doesn't support this; for Anthropic the
-# SYSTEM_PROMPT's strict-JSON instruction + post-hoc parse handles it.
+# in standard JSON-Schema dialect (Ollama). Anthropic doesn't support
+# this; for Anthropic the SYSTEM_PROMPT's strict-JSON instruction +
+# post-hoc parse handles it.
 RESPONSE_SCHEMA: dict = {
     "type": "object",
     "additionalProperties": False,
@@ -173,6 +174,37 @@ RESPONSE_SCHEMA: dict = {
                     "context": {"type": "string"},
                 },
                 "required": ["form", "context"],
+            },
+        }
+    },
+    "required": ["mentions"],
+}
+
+
+# Gemini's responseSchema is OpenAPI-3.0-ish, NOT standard JSON
+# Schema. Differences vs RESPONSE_SCHEMA above:
+#   * uppercase type names ("OBJECT", "ARRAY", "STRING", "INTEGER")
+#   * no `additionalProperties` (Gemini rejects unknown keys)
+#   * no `type: ["X", "null"]` unions — use `nullable: true` instead
+#   * nullable fields must appear in `required` so the model emits
+#     null explicitly rather than omitting the key (matches the
+#     etymology extractor's GEMINI_RESPONSE_SCHEMA convention).
+# Passing RESPONSE_SCHEMA (JSON-Schema dialect) directly to Gemini
+# fails with HTTP 400 on every chunk — confirmed wyrd-pe4g.
+RESPONSE_SCHEMA_GEMINI: dict = {
+    "type": "OBJECT",
+    "properties": {
+        "mentions": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "form": {"type": "STRING"},
+                    "date_year": {"type": "INTEGER", "nullable": True},
+                    "region_hint": {"type": "STRING", "nullable": True},
+                    "context": {"type": "STRING"},
+                },
+                "required": ["form", "date_year", "region_hint", "context"],
             },
         }
     },
@@ -362,7 +394,14 @@ def extract_toponym_mentions_from_chunk(
     # the schema kwarg name (AnthropicClient: `schema`, GeminiClient:
     # `response_schema`, OllamaClient: `schema`). Using positional
     # avoids a TypeError under --provider gemini.
-    response = client.chat_json(SYSTEM_PROMPT, user, RESPONSE_SCHEMA)
+    #
+    # Schema dialect dispatch: Gemini's responseSchema is OpenAPI-3.0,
+    # not JSON Schema (see wyrd-pe4g + comment on RESPONSE_SCHEMA_GEMINI
+    # above). Other providers take standard JSON Schema. Lazy isinstance
+    # check by class name avoids importing GeminiClient at module load
+    # time so test fakes don't need to subclass it.
+    schema = RESPONSE_SCHEMA_GEMINI if type(client).__name__ == "GeminiClient" else RESPONSE_SCHEMA
+    response = client.chat_json(SYSTEM_PROMPT, user, schema)
     if not isinstance(response, dict):
         raise RuntimeError(f"LLM returned non-dict envelope: {type(response).__name__}")
     raw = response.get("mentions")
