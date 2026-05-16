@@ -181,17 +181,55 @@ def test_resolve_mention_region_hint_longer_than_region_matches():
     assert resolve_mention("Newton", "co. Northumberland, England", indexes) == 1
 
 
-def test_resolve_mention_region_hint_shorter_than_region_matches():
-    """The OTHER direction of substring containment: LLM emits the short
-    canonical ``"Yorkshire"``, the toponym is in ``"West Yorkshire"``.
-    The region tokens contain the hint tokens. (The previous test only
-    exercised one direction.)"""
+def test_resolve_mention_region_hint_shorter_than_region_does_NOT_match():
+    """Asymmetric region match: LLM hint ``"Yorkshire"`` must NOT
+    match a toponym whose region is ``"West Yorkshire"``. The LLM
+    was being imprecise; promoting the match to "West Yorkshire"
+    would silently fill in detail the LLM didn't provide. The same
+    mechanism would otherwise let hint=``"Sussex"`` match region=
+    ``"East Sussex"``, which is the real-world failure mode that
+    round-2 review caught.
+
+    The reverse direction (hint longer than region, e.g. hint=
+    ``"West Yorkshire"`` + region=``"yorkshire"``) IS a match: the
+    LLM is being more specific than the canonical region; pulling
+    out the shared substring is safe."""
     indexes = ResolverIndexes(
         form_to_ids={"newton": {1, 2}},
         toponym_regions={1: "west yorkshire", 2: "berkshire"},
     )
-    # Hint "Yorkshire" appears as a token inside the region "west yorkshire".
-    assert resolve_mention("Newton", "Yorkshire", indexes) == 1
+    # Defer to operator review when the LLM is vague.
+    assert resolve_mention("Newton", "Yorkshire", indexes) is None
+
+
+def test_resolve_mention_vague_hint_does_not_match_compound_region():
+    """A vague hint like ``"Sussex"`` must NOT match toponyms in
+    compound regions like ``"East Sussex"`` or ``"West Sussex"``.
+    Real British-county pairs we cannot silently merge:
+    Sussex/East-Sussex/West-Sussex, Yorkshire/{East,West,North,South}-
+    Yorkshire, Anglia/East-Anglia, Riding/{East,West,North}-Riding."""
+    indexes = ResolverIndexes(
+        form_to_ids={"newton": {1, 2}},
+        toponym_regions={1: "east sussex", 2: "west sussex"},
+    )
+    # Neither candidate region contains the hint AS A TOKEN STREAM —
+    # the hint "sussex" is too vague.
+    assert resolve_mention("Newton", "Sussex", indexes) is None
+
+
+def test_resolve_mention_specific_hint_matches_canonical_region():
+    """LLM emits a specific compound name + the toponym's region is
+    the bare canonical: hint=``"East Sussex"`` matches region=
+    ``"sussex"``. This is the reverse direction of the vague-hint
+    case — the LLM is being MORE specific than the toponym's
+    canonical region column, which is fine to merge."""
+    indexes = ResolverIndexes(
+        form_to_ids={"newton": {1, 2}},
+        toponym_regions={1: "sussex", 2: "berkshire"},
+    )
+    # The hint "East Sussex" contains the canonical region token
+    # "sussex" — a match.
+    assert resolve_mention("Newton", "East Sussex", indexes) == 1
 
 
 def test_resolve_mention_region_substring_does_not_overmatch_distinct_counties():
@@ -793,10 +831,13 @@ def test_cli_non_dict_jsonl_row_errors(tmp_path):
 
 
 def test_cli_verbose_shows_unresolved_samples(tmp_path):
-    """--verbose surfaces a few unresolved-mention samples per source
-    so the operator can sense-check the failure mode without opening
-    the candidates file. Without this flag, the per-source line just
-    shows counters."""
+    """--verbose surfaces unresolved-form repr (`'Yorkville'`) per
+    source. Without --verbose, the form repr stays out of stdout
+    (counters only). Asserts on the form repr specifically rather
+    than a generic "unresolved" substring — the summary lines
+    already say `unresolved=N` (with `=` not `:`), but a future
+    formatting tweak that introduced a colon would silently flip a
+    generic test."""
     db = tmp_path / "lex.db"
     _make_db(db, [])  # empty toponyms → everything unresolved
     jsonl = tmp_path / "mentions.jsonl"
@@ -807,14 +848,14 @@ def test_cli_verbose_shows_unresolved_samples(tmp_path):
         ],
     )
     runner = CliRunner()
-    # Without --verbose: counters but no sample line.
+    # Without --verbose: form repr NOT in output.
     result_quiet = runner.invoke(
         cli_root,
         ["lexicon", "ingest-toponym-mentions", "--jsonl", str(jsonl), "--db", str(db)],
     )
-    assert "unresolved:" not in result_quiet.output
+    assert "'Yorkville'" not in result_quiet.output
 
-    # With --verbose: sample line surfaces.
+    # With --verbose: form repr surfaces in the sample line.
     result_verbose = runner.invoke(
         cli_root,
         [
@@ -827,21 +868,41 @@ def test_cli_verbose_shows_unresolved_samples(tmp_path):
             "--verbose",
         ],
     )
-    assert "unresolved:" in result_verbose.output
-    assert "Yorkville" in result_verbose.output
+    assert "'Yorkville'" in result_verbose.output
 
 
-def test_cli_walks_multiple_sources_in_one_jsonl(tmp_path):
+def test_cli_walks_multiple_sources_with_per_source_dedup_isolation(tmp_path):
     """A single JSONL with rows from two different source_ids must
-    produce two separate per-source progress lines and write attestations
-    with the correct source_doc for each row."""
+    produce two separate per-source progress lines AND the dedup
+    preflight must be SCOPED PER SOURCE — a pre-existing attestation
+    under src_a must NOT prevent the same (toponym, form, year) from
+    landing under src_b.
+
+    Pre-seeds src_a then ingests two mentions of the same form. If
+    the preflight loaded all attestations regardless of source, the
+    src_b mention would also dedup, and we'd see only one row.
+    pr-test-analyzer round-2 finding."""
     db = tmp_path / "lex.db"
     _make_db(db, [{"modern_name": "Edlingham", "region": "Northumberland"}])
+    # Pre-seed: src_a already has an attestation for Edlingham@1086.
+    conn = sqlite3.connect(db)
+    edlingham_id = conn.execute("SELECT id FROM toponym WHERE modern_name='Edlingham'").fetchone()[
+        0
+    ]
+    conn.execute(
+        "INSERT INTO toponym_attestation(toponym_id, form, date_year, source_doc) "
+        "VALUES (?, ?, ?, ?)",
+        (edlingham_id, "Edlingham", 1086, "src_a"),
+    )
+    conn.commit()
+    conn.close()
     jsonl = tmp_path / "mixed.jsonl"
     _write_jsonl(
         jsonl,
         [
+            # src_a: same form/year as the pre-seed → dedup.
             {"source_id": "src_a", "form": "Edlingham", "date_year": 1086},
+            # src_b: same form/year but DIFFERENT source → must insert.
             {"source_id": "src_b", "form": "Edlingham", "date_year": 1086},
         ],
     )
@@ -859,10 +920,12 @@ def test_cli_walks_multiple_sources_in_one_jsonl(tmp_path):
         ],
     )
     assert result.exit_code == 0, result.output
-    # Two separate source-progress lines.
+    # Two separate per-source progress lines.
     assert "src_a" in result.output
     assert "src_b" in result.output
-    # Two rows in DB, distinguished by source_doc.
+    # DB has TWO rows: pre-seeded src_a + newly-inserted src_b.
+    # If the preflight had loaded ALL attestations (not source-scoped),
+    # src_b would have dedup'd against src_a's pre-seed → only 1 row.
     conn = sqlite3.connect(db)
     rows = conn.execute("SELECT source_doc FROM toponym_attestation ORDER BY source_doc").fetchall()
     conn.close()
@@ -1041,6 +1104,44 @@ def test_ingest_mentions_uses_bulk_existing_load_not_n_plus_one():
     # Exactly one preflight SELECT (the bulk load) for this function.
     # build_resolver_indexes ran BEFORE the trace callback was set,
     # so its SELECTs don't count here.
+    assert select_count == 1, f"expected 1 SELECT, got {select_count}; statements: {statements}"
+
+
+def test_ingest_mentions_single_select_across_mixed_paths():
+    """Tightens the N+1 contract: exactly one SELECT regardless of
+    whether mentions resolve, dedup, or fail to resolve — and
+    regardless of apply mode. The previous test used 100 identical
+    mentions that all dedup; this one mixes resolved/dup/unresolved
+    in dry-run mode so a regression that put the preflight inside
+    the loop on any of those paths would still get caught.
+
+    pr-test-analyzer round-2 M1: the previous test's all-dedup +
+    apply=True shape would pass even if a future refactor moved
+    the preflight inside the `apply=True` branch only."""
+    conn = _make_conn()
+    name_to_id = _seed_toponyms(conn, [{"modern_name": "Edlingham", "region": "Northumberland"}])
+    # Pre-seed one row so SOME mentions dedup.
+    conn.execute(
+        "INSERT INTO toponym_attestation(toponym_id, form, date_year, source_doc) "
+        "VALUES (?, ?, ?, ?)",
+        (name_to_id["Edlingham"], "Edlingham", 1086, "source-1"),
+    )
+    indexes = build_resolver_indexes(conn)
+    # Mix of: (a) new resolved, (b) dedup against pre-seed,
+    # (c) unresolved form.
+    mentions = [
+        {"form": "Edlingham", "date_year": 1200},  # resolved + new
+        {"form": "Edlingham", "date_year": 1086},  # resolved + dedup
+        {"form": "Unknown", "date_year": 1086},  # unresolved
+    ]
+    statements: list[str] = []
+    conn.set_trace_callback(statements.append)
+    try:
+        # Dry-run: NO apply path taken at all.
+        ingest_mentions(conn, "source-1", mentions, indexes, apply=False)
+    finally:
+        conn.set_trace_callback(None)
+    select_count = sum(1 for s in statements if s.lstrip().upper().startswith("SELECT"))
     assert select_count == 1, (
-        f"expected 1 SELECT, got {select_count}; statements: {statements}"
+        f"dry-run with mixed paths emitted {select_count} SELECTs; statements: {statements}"
     )

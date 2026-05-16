@@ -28,12 +28,13 @@ unambiguous lookup would fail:
 * Multiple candidates + region_hint matches zero or many: unresolved.
 * No candidates: unresolved (new-toponym candidate for Phase 2b.3).
 
-Region matching pads with single spaces before substring search so
-``"Sussex"`` does not match ``"Essex"`` and ``"Ham"`` does not match
-``"Hampshire"``. Country is intentionally NOT consulted by the
-resolver — the wyrd corpus is British-place-name-focused and almost
-every toponym has the same country; adding country-disambiguation
-would be follow-up work (Phase 2b.4 if the data shape changes).
+Region matching is asymmetric: the toponym's canonical region must
+appear inside the LLM's hint after tokenization, NOT the reverse.
+``"Sussex"`` does not match ``"East Sussex"`` (LLM was imprecise),
+and ``"Sussex"`` does not match ``"Essex"`` (word boundary).
+Country is not consulted by the resolver — the wyrd corpus is
+British-place-name-focused and almost every toponym has the same
+country.
 
 What this module does NOT do
 ----------------------------
@@ -111,16 +112,25 @@ def _tokenize_for_region(text: str) -> str:
 
 
 def _region_matches(hint_norm: str, region_norm: str) -> bool:
-    """Word-boundary-aware substring match. Tokenize both sides
-    (lowercase + punctuation-to-space) and pad with spaces, then
-    substring-search. ``"Sussex"`` does NOT match ``"Essex"`` and
-    ``"Ham"`` does NOT match ``"Hampshire"`` (the pad prevents the
-    silent over-match), but ``"co. Northumberland, England"`` DOES
-    match ``"northumberland"`` (tokenization handles the punctuation
-    around the region name)."""
+    """Asymmetric word-boundary match: the toponym's canonical region
+    must appear as a token sequence INSIDE the LLM's hint. The
+    reverse direction (hint inside region) is NOT a match — a hint
+    of ``"Sussex"`` should not silently match a region of
+    ``"East Sussex"`` (the LLM was imprecise; we should not fill in
+    detail it didn't provide).
+
+    Examples:
+    * hint=``"Northumberland"`` region=``"northumberland"`` → match (equal)
+    * hint=``"co. Northumberland, England"`` region=``"northumberland"`` → match
+      (region is contained in tokenized hint)
+    * hint=``"Sussex"`` region=``"east sussex"`` → no match (LLM vague)
+    * hint=``"Sussex"`` region=``"essex"`` → no match (word boundary;
+      "essex" is not a token-bounded substring of "sussex" after pad)
+    * hint=``"Ham"`` region=``"hampshire"`` → no match (word boundary)
+    """
     hint_padded = _tokenize_for_region(hint_norm)
     region_padded = _tokenize_for_region(region_norm)
-    return hint_padded in region_padded or region_padded in hint_padded
+    return region_padded in hint_padded
 
 
 def resolve_mention(
@@ -136,11 +146,20 @@ def resolve_mention(
     * Multiple candidates without a usable region_hint: None.
     * No candidates: None.
 
-    Region matching uses **word-boundary substring containment** —
-    the LLM may emit "Northumberland", "co. Northumberland", or
-    "Northumberland, England", any of which should match a toponym
-    whose region column is "northumberland". But "Sussex" must NOT
-    match "Essex" (naive substring would, padded-with-spaces won't).
+    Region matching is **asymmetric**: the toponym's canonical
+    region must appear inside the LLM's hint (after tokenization on
+    non-alphanumerics + space-padding for word boundaries). The
+    reverse — hint inside region — is NOT a match: an LLM hint of
+    "Sussex" should not silently match a toponym in "East Sussex",
+    because the LLM was being imprecise and we should not fill in
+    detail it didn't provide.
+
+    The LLM may emit "Northumberland", "co. Northumberland", or
+    "Northumberland, England" — all match a toponym whose region
+    is "northumberland". But "Sussex" must NOT match "Essex" (word
+    boundary), and "Sussex" must NOT match "East Sussex"
+    (asymmetric direction).
+
     A toponym whose region is None can never be selected by
     region_hint — we don't know what region it's in.
     """
