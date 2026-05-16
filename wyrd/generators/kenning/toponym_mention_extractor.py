@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -236,8 +237,8 @@ def _form_in_chunk(form: str, chunk_collapsed: str) -> bool:
     """Whitespace-tolerant word-boundary match. ``chunk_collapsed``
     is the once-per-chunk pre-collapsed view; this function collapses
     the candidate form the same way and then searches with regex
-    ``\\b...\\b`` so a partial like ``"on Ty"`` does NOT match
-    ``"...upon Tyne..."``.
+    ``(?<!\\w)...(?!\\w)`` (lookaround) so a partial like ``"on Ty"``
+    does NOT match ``"...upon Tyne..."``.
 
     Catches the soft-wrap case (chunk has ``"Newcastle upon\\nTyne"``
     but the LLM correctly emits ``"Newcastle upon Tyne"``) AND the
@@ -301,25 +302,31 @@ def _validated_mentions(
         if not context:
             # Synthesize a context window from the chunk if the LLM
             # left it empty — gives operators something to inspect.
-            # The substring check above guarantees the collapsed form
-            # appears in the collapsed chunk, but the raw chunk may
-            # not contain `form` verbatim (soft-wrap case). Search the
-            # raw chunk first and fall back to the collapsed view.
-            idx = chunk.find(form)
-            if idx >= 0:
-                start = max(0, idx - 40)
-                end = min(len(chunk), idx + len(form) + 40)
+            # The form-in-chunk check above already passed (regex with
+            # lookaround word-boundaries), so we know the form appears
+            # at SOME boundary in the collapsed chunk. Search the raw
+            # chunk first with word-boundary regex; fall back to the
+            # collapsed view if soft-wrap means the form's whitespace
+            # isn't literal in the raw chunk. Substring find() here
+            # would risk locating a fragment INSIDE a longer word
+            # (e.g. "on" inside "upon"/"Northampton") — the same
+            # hazard the form-in-chunk guard prevents.
+            form_collapsed = _collapse_whitespace(form)
+            pattern = r"(?<!\w)" + re.escape(form_collapsed) + r"(?!\w)"
+            raw_match = re.search(pattern, chunk)
+            if raw_match is not None:
+                start = max(0, raw_match.start() - 40)
+                end = min(len(chunk), raw_match.end() + 40)
                 context = _WHITESPACE_RUN.sub(" ", chunk[start:end]).strip()
             else:
-                # Fall back: locate the form in the collapsed chunk and
-                # use that window (still useful for operator review).
-                collapsed_idx = chunk_collapsed.find(_collapse_whitespace(form))
-                if collapsed_idx >= 0:
-                    start = max(0, collapsed_idx - 40)
-                    end = min(
-                        len(chunk_collapsed),
-                        collapsed_idx + len(_collapse_whitespace(form)) + 40,
-                    )
+                # Soft-wrap fallback: form spans a line break in raw
+                # chunk so it's not found verbatim. The collapsed chunk
+                # has it; locate it there with the same word-boundary
+                # check to avoid in-word matches.
+                collapsed_match = re.search(pattern, chunk_collapsed)
+                if collapsed_match is not None:
+                    start = max(0, collapsed_match.start() - 40)
+                    end = min(len(chunk_collapsed), collapsed_match.end() + 40)
                     context = chunk_collapsed[start:end]
         out.append(
             ToponymMention(
@@ -461,9 +468,13 @@ class MineToponymMentionsReport:
     hallucinations_dropped: int = 0
     years_clamped: int = 0
     mentions: list[ToponymMention] = field(default_factory=list)
-    # First _FAILED_CHUNKS_CAP failures; the actual count is
-    # ``chunks_failed`` (may exceed this list's length when many
-    # chunks fail in a single run).
+    # First _FAILED_CHUNKS_HEAD failures concatenated with the most-
+    # recent _FAILED_CHUNKS_TAIL failures (half-and-half retention so
+    # operators see both the auth/schema-mismatch errors that surface
+    # at run start AND the rate-limit/mid-run transients at the tail).
+    # When more than (HEAD + TAIL) chunks fail, the middle is elided
+    # — ``chunks_failed`` counter remains the authoritative total;
+    # the CLI surfaces the gap via ``chunks_failed - len(failed_chunks)``.
     failed_chunks: list[FailedChunk] = field(default_factory=list)
 
 
@@ -492,8 +503,6 @@ def mine_toponym_mentions(
       (oversize paragraph, etc.). Defaults to silent; the CLI wires
       ``click.echo(..., err=True)``.
     """
-    from collections import deque
-
     report = MineToponymMentionsReport(source_id=source_id)
     chunks = chunk_source_body(body, target_chunk_size=target_chunk_size)
     if limit is not None:

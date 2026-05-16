@@ -1160,6 +1160,30 @@ def test_mine_toponym_mentions_failed_chunks_cap_keeps_head_and_tail(monkeypatch
     assert [fc.index for fc in report.failed_chunks] == [0, 3, 4]
 
 
+def test_mine_toponym_mentions_failed_chunks_first_goes_to_head(monkeypatch):
+    """Pins the head/tail dispatch invariant: the FIRST failure must
+    land in the head bucket regardless of tail capacity. A `<=` for `<`
+    flip at the dispatch site would silently push the first failure
+    to the tail and re-shape the retention pattern."""
+    from wyrd.generators.kenning import toponym_mention_extractor as tme
+
+    # head=2, tail=2 — exactly 4 failures fits without elision; the
+    # head must hold the first 2 (indices 0, 1) not the last 2.
+    monkeypatch.setattr(tme, "_FAILED_CHUNKS_HEAD", 2)
+    monkeypatch.setattr(tme, "_FAILED_CHUNKS_TAIL", 2)
+
+    paragraphs = [("X" * 7995 + f" Park{i}") for i in range(4)]
+    body = "\n\n".join(paragraphs)
+    assert len(chunk_source_body(body, target_chunk_size=10000)) == 4
+
+    client = FakeClient([RuntimeError(f"chunk-{i}") for i in range(4)])
+    report = mine_toponym_mentions(client, "test_source", body, target_chunk_size=10000)
+
+    assert report.chunks_failed == 4
+    # All 4 fit (head 2 + tail 2 = exactly 4) — no elision.
+    assert [fc.index for fc in report.failed_chunks] == [0, 1, 2, 3]
+
+
 def test_mine_toponym_mentions_oversized_paragraph_no_warning_when_safe():
     """Negative control: a body whose paragraphs are well below the
     1.5× target should produce ZERO oversize warnings. Without this
@@ -1181,9 +1205,8 @@ def test_mine_toponym_mentions_oversized_paragraph_no_warning_when_safe():
 def test_validated_mentions_synthesizes_context_for_softwrap_fallback():
     """When the LLM emits a soft-wrap-joined form (e.g. "Newcastle upon
     Tyne" for chunk "Newcastle upon\\nTyne") with empty context, the
-    raw chunk.find(form) returns -1 — we must fall back to the
-    collapsed-chunk window so operators get useful context. test-
-    coverage round-2 finding."""
+    raw-chunk lookup fails — we must fall back to the collapsed-chunk
+    window so operators get useful context."""
     chunk = "the borough of Newcastle upon\nTyne is found in early records"
     raw = [{"form": "Newcastle upon Tyne", "context": ""}]
     out = _validated_mentions(raw, chunk)
@@ -1193,6 +1216,36 @@ def test_validated_mentions_synthesizes_context_for_softwrap_fallback():
     assert out[0].context
     assert "Newcastle upon Tyne" in out[0].context
     assert out[0].context != "Newcastle upon Tyne"  # has neighbors
+
+
+def test_validated_mentions_synthesized_context_respects_word_boundary():
+    """Context synthesis must use word-boundary matching (not raw
+    substring find) — otherwise a form like "on" emitted with empty
+    context could be located INSIDE "upon" or "Northampton", giving
+    the operator a misleading window centered on the wrong position.
+    Same hallucination hazard the form-in-chunk guard prevents."""
+    # Position "on" inside "upon" far from the standalone "on" word —
+    # so the ±40-char window on each location is disjoint. If the
+    # synthesizer used substring find(), the window would center on
+    # the FIRST "on" (inside "upon") and contain "upon"+surrounding.
+    # With word-boundary matching it lands on the standalone "on" word,
+    # whose window is "river bend"-centric.
+    prefix = "x" * 100  # pad so the two "on"s are far apart
+    chunk = (
+        prefix
+        + "Hexham upon a hill, "
+        + "y" * 100  # more padding
+        + "north of camp, on the river bend, with shrines."
+    )
+    raw = [{"form": "on", "context": ""}]
+    out = _validated_mentions(raw, chunk)
+    assert len(out) == 1
+    # Synthesized context must center on the STANDALONE "on" (near "river"),
+    # not the in-word "on" inside "upon" (near "Hexham"/"hill").
+    assert "river" in out[0].context
+    # The "upon" portion of the chunk is now 100+ chars away — would
+    # only appear in the context if the synthesizer matched there.
+    assert "upon" not in out[0].context
 
 
 def test_cli_model_override_flows_to_client_factory(tmp_path, monkeypatch):
