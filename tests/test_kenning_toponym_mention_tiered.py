@@ -1047,6 +1047,48 @@ def test_tiered_both_tiers_non_runtime_exception_failed_chunk_recorded():
     assert "OSError" in fc.error
 
 
+def test_cli_ollama_url_flows_to_ollama_client(tmp_path, monkeypatch):
+    """--ollama-url overrides the OllamaClient base URL (matches the
+    `mine-llm` flag pattern — Gemini round-3 consistency finding)."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text("Edlingham.", encoding="utf-8")
+
+    captured: list[dict] = []
+    fake = FakeClient([{"mentions": []}])
+
+    def recording_factory(**kw):
+        captured.append(kw)
+        return fake
+
+    import wyrd.generators.kenning.llm_extractor as llm_module
+
+    monkeypatch.setattr(llm_module, "OllamaClient", recording_factory)
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.anthropic_extractor.AnthropicClient",
+        lambda **kw: FakeClient([]),
+    )
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--ollama-url",
+            "http://hades:11434",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert len(captured) == 1
+    assert captured[0]["base_url"] == "http://hades:11434"
+
+
 def test_tiered_reraises_programmer_errors_from_primary():
     """AttributeError / TypeError / NameError / ImportError from the
     primary client are NOT silently logged as per-chunk failures —

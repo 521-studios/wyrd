@@ -2922,12 +2922,16 @@ def lexicon_mine_toponym_mentions(
 _ANTHROPIC_MAX_TOKENS_FOR_MENTION_EXTRACTION = 8192
 
 
-def _build_extractor_client(provider: str, model: str | None):
+def _build_extractor_client(provider: str, model: str | None, ollama_url: str | None = None):
     """Construct an extractor client for the named provider. Used by
     the tiered CLI to instantiate two clients (primary + fallback).
     The single-tier `mine-toponym-mentions` command has an inline
     copy of this dispatch — consider unifying when a third caller
-    appears."""
+    appears.
+
+    ``ollama_url`` is forwarded to OllamaClient when provider=="ollama";
+    None falls back to DEFAULT_OLLAMA_URL ($WYRD_OLLAMA_URL or
+    localhost). Other providers ignore it."""
     if provider == "anthropic":
         from wyrd.generators.kenning.anthropic_extractor import (
             DEFAULT_ANTHROPIC_MODEL,
@@ -2953,7 +2957,7 @@ def _build_extractor_client(provider: str, model: str | None):
         )
 
         return OllamaClient(
-            base_url=DEFAULT_OLLAMA_URL,
+            base_url=ollama_url or DEFAULT_OLLAMA_URL,
             model=model or DEFAULT_OLLAMA_MODEL,
         )
     # Unreachable in practice — click.Choice gates the option. The
@@ -3012,6 +3016,13 @@ def _build_extractor_client(provider: str, model: str | None):
     help="Override fallback model id (defaults to the provider's default).",
 )
 @click.option(
+    "--ollama-url",
+    default=None,
+    help="Override Ollama base URL when either tier is `ollama` (default: "
+    "$WYRD_OLLAMA_URL or localhost). Used for both primary and fallback if "
+    "either is set to ollama.",
+)
+@click.option(
     "--chunk-size",
     type=int,
     default=20000,
@@ -3046,6 +3057,7 @@ def lexicon_mine_toponym_mentions_tiered(
     primary_model: str | None,
     fallback_provider: str,
     fallback_model: str | None,
+    ollama_url: str | None,
     chunk_size: int,
     limit: int | None,
     skip_existing: bool,
@@ -3117,8 +3129,12 @@ def lexicon_mine_toponym_mentions_tiered(
     def _ensure_clients():
         nonlocal primary_client, fallback_client
         if primary_client is None:
-            primary_client = _build_extractor_client(primary_provider, primary_model)
-            fallback_client = _build_extractor_client(fallback_provider, fallback_model)
+            primary_client = _build_extractor_client(
+                primary_provider, primary_model, ollama_url=ollama_url
+            )
+            fallback_client = _build_extractor_client(
+                fallback_provider, fallback_model, ollama_url=ollama_url
+            )
 
     def _line(source_id: str, m: ToponymMention) -> str:
         return json.dumps(
