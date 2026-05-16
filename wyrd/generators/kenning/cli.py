@@ -3155,8 +3155,13 @@ def lexicon_mine_toponym_mentions_tiered(
 
         start_ts = time.monotonic()
 
-        def progress(done: int, total: int, mentions: int) -> None:
-            elapsed = time.monotonic() - start_ts
+        def progress(
+            done: int, total: int, mentions: int, _start_ts: float = start_ts
+        ) -> None:
+            # Bind start_ts via default arg — B023: a closure reference
+            # to the loop variable would all share the LAST iteration's
+            # start_ts when this function is later invoked.
+            elapsed = time.monotonic() - _start_ts
             rate = elapsed / done if done else 0.0
             click.echo(
                 f"    chunk [{done}/{total}] mentions={mentions} ({rate:.1f}s/chunk)",
