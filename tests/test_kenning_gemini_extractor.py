@@ -114,6 +114,37 @@ def test_default_model_picks_up_env_override(monkeypatch: pytest.MonkeyPatch) ->
 # --- 429 retry wiring (wyrd-cfa) ------------------------------------------
 
 
+def test_chat_json_malformed_envelope_raises_runtimeerror(monkeypatch: pytest.MonkeyPatch) -> None:
+    """wyrd-pe4g round-4: a 2xx response with non-JSON body (CDN/proxy
+    HTML error page, truncated body on a dropped connection) must
+    surface as RuntimeError so the toponym mining chunk loop buckets
+    it into chunks_failed. Without the outer envelope-parse wrap in
+    gemini_extractor.py, json.JSONDecodeError (a ValueError subclass)
+    would propagate through _PROGRAMMER_ERROR_EXCEPTIONS (which lists
+    ValueError to surface schema_dialect typos) and abort the whole
+    multi-source run."""
+    from unittest.mock import patch
+
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    client = GeminiClient()
+
+    class _MalformedResp:
+        def read(self) -> bytes:
+            return b"<html><body>503 Service Unavailable</body></html>"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            pass
+
+    with (
+        patch("urllib.request.urlopen", lambda req, timeout=None: _MalformedResp()),
+        pytest.raises(RuntimeError, match="non-JSON envelope"),
+    ):
+        client.chat_json("sys", "usr")
+
+
 def test_chat_json_retries_through_provider_retry_helper(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

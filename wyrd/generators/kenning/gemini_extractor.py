@@ -183,7 +183,17 @@ class GeminiClient:
             # so a single slow Gemini call doesn't crash the review loop.
             raise RuntimeError(f"Gemini unreachable at {url}: {e}") from e
 
-        envelope = json.loads(body)
+        try:
+            envelope = json.loads(body)
+        except json.JSONDecodeError as e:
+            # 2xx response with malformed body — CDN/proxy HTML error page,
+            # truncated body on a dropped connection, etc. JSONDecodeError
+            # is a ValueError subclass; without this wrap it would propagate
+            # through the chunk loop's _PROGRAMMER_ERROR_EXCEPTIONS re-raise
+            # (which lists ValueError to surface schema_dialect typos —
+            # wyrd-pe4g) and abort the whole multi-source run. As a transport
+            # hiccup it should bucket into chunks_failed instead.
+            raise RuntimeError(f"Gemini returned non-JSON envelope: {body[:500]}") from e
         # Standard Gemini response shape: candidates[0].content.parts[0].text
         try:
             candidate = envelope["candidates"][0]

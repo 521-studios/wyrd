@@ -110,7 +110,17 @@ class AnthropicClient:
         except (TimeoutError, urllib.error.URLError) as e:
             raise RuntimeError(f"Anthropic unreachable at {url}: {e}") from e
 
-        envelope = json.loads(body)
+        try:
+            envelope = json.loads(body)
+        except json.JSONDecodeError as e:
+            # 2xx response with malformed body — CDN/proxy HTML error page,
+            # truncated body on a dropped connection, etc. JSONDecodeError
+            # is a ValueError subclass; without this wrap it would propagate
+            # through the chunk loop's _PROGRAMMER_ERROR_EXCEPTIONS re-raise
+            # (which lists ValueError to surface schema_dialect typos —
+            # wyrd-pe4g) and abort the whole multi-source run. As a transport
+            # hiccup it should bucket into chunks_failed instead.
+            raise RuntimeError(f"Anthropic returned non-JSON envelope: {body[:500]}") from e
         # Standard Messages-API response shape: content[0].text
         try:
             blocks = envelope["content"]

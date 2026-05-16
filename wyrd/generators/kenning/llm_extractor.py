@@ -331,7 +331,17 @@ class OllamaClient:
             # URLError, so it needs explicit handling.
             raise RuntimeError(f"Ollama unreachable at {url}: {e}") from e
 
-        envelope = json.loads(body)
+        try:
+            envelope = json.loads(body)
+        except json.JSONDecodeError as e:
+            # 2xx response with malformed body — proxy HTML error page,
+            # truncated body on a dropped connection, etc. JSONDecodeError
+            # is a ValueError subclass; without this wrap it would propagate
+            # through the chunk loop's _PROGRAMMER_ERROR_EXCEPTIONS re-raise
+            # (which lists ValueError to surface schema_dialect typos —
+            # wyrd-pe4g) and abort the whole multi-source run. As a transport
+            # hiccup it should bucket into chunks_failed instead.
+            raise RuntimeError(f"Ollama returned non-JSON envelope: {body[:500]}") from e
         content = envelope.get("message", {}).get("content")
         if not content:
             raise RuntimeError(f"Ollama returned empty content. Raw: {body[:500]}")

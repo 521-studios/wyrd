@@ -461,9 +461,19 @@ _OVERSIZED_PARAGRAPH_MULTIPLIER = 1.5
 # class, not a per-chunk transport hiccup; without re-raising, a
 # typo'd dialect would silently produce 100% chunks_failed and
 # (in tiered mode) the fallback would mask the misconfiguration
-# entirely. None of the existing transport-layer paths raise bare
-# ValueError — JSON parse failures all go through RuntimeError —
-# so this re-raise is scoped to configuration errors.
+# entirely.
+#
+# For this carve-out to stay scoped to configuration errors, every
+# transport-layer JSON parse path must funnel JSONDecodeError (a
+# ValueError subclass) into RuntimeError. Both the inner content
+# parses (anthropic_extractor.py / gemini_extractor.py /
+# llm_extractor.py `json.loads(content)` blocks) AND the outer
+# envelope parses (`json.loads(body)`) are wrapped to maintain
+# this invariant — without wrapping the envelope parse, a CDN/proxy
+# HTML error page on a 2xx response or a truncated body would
+# leak ValueError into this re-raise and abort the run.
+# wyrd-pe4g round-4: code-reviewer + silent-failure-hunter +
+# comment-analyzer all converged on the missing envelope wrap.
 _PROGRAMMER_ERROR_EXCEPTIONS: tuple[type[Exception], ...] = (
     AttributeError,
     TypeError,
