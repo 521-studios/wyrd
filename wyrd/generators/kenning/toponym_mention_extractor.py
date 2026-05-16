@@ -32,9 +32,9 @@ mismatch.
 Provider choice: the module accepts any client with the
 ``chat_json(system, user, schema=None) -> dict`` interface — same
 contract as :class:`AnthropicClient` / Ollama / Gemini wrappers in
-``llm_extractor.py``. The tiered-extraction pattern from the
-project's wyrd-l0r infrastructure (Qwen bulk → Anthropic on the
-residual) is implemented in the CLI orchestrator, not here.
+``llm_extractor.py``. The tiered-extraction pattern (Qwen bulk →
+Anthropic on the residual) is implemented inline as
+:func:`mine_toponym_mentions_tiered` below.
 
 Chunking limit: ``chunk_source_body`` does NOT overlap chunks; a
 mention whose year/region hint falls on the OTHER side of a
@@ -46,7 +46,6 @@ chunking is a documented follow-up (DECISIONS.md if pursued).
 
 from __future__ import annotations
 
-import json
 import re
 from collections import deque
 from collections.abc import Callable
@@ -383,6 +382,20 @@ def extract_toponym_mentions_from_chunk(
 _OVERSIZED_PARAGRAPH_MULTIPLIER = 1.5
 
 
+# Programmer-error exception types — re-raised before the generic
+# per-chunk Exception catch so a typo or missing-method bug surfaces
+# as a Python traceback rather than a silent 100%-failed run. These
+# are not the kind of errors that should ever happen at runtime in a
+# correct deployment; if they do, something is broken at the code
+# level and the operator needs to see the stack.
+_PROGRAMMER_ERROR_EXCEPTIONS: tuple[type[Exception], ...] = (
+    AttributeError,
+    TypeError,
+    NameError,
+    ImportError,
+)
+
+
 def chunk_source_body(body: str, *, target_chunk_size: int = 20000) -> list[str]:
     """Split a source body into chunks of roughly ``target_chunk_size``
     characters, snapping to paragraph boundaries (blank lines).
@@ -465,6 +478,11 @@ class MineToponymMentionsReport:
     source_id: str
     chunks_processed: int = 0
     chunks_failed: int = 0
+    # Chunks the PRIMARY client failed AND the fallback client
+    # subsequently rescued (tiered extraction only — stays 0 for
+    # single-tier runs). Subtract from chunks_processed to learn
+    # how many chunks the primary handled on its own.
+    chunks_recovered_by_fallback: int = 0
     hallucinations_dropped: int = 0
     years_clamped: int = 0
     mentions: list[ToponymMention] = field(default_factory=list)
@@ -508,29 +526,43 @@ def mine_toponym_mentions(
     if limit is not None:
         chunks = chunks[:limit]
     total = len(chunks)
-    if log_warning is not None:
-        oversize_threshold = target_chunk_size * _OVERSIZED_PARAGRAPH_MULTIPLIER
-        for i, c in enumerate(chunks):
-            if len(c) > oversize_threshold:
-                log_warning(
-                    f"chunk {i}: oversized paragraph "
-                    f"({len(c):,} chars > {int(oversize_threshold):,} threshold) — "
-                    f"LLM output may truncate; consider lowering --chunk-size"
-                )
+    oversize_threshold = target_chunk_size * _OVERSIZED_PARAGRAPH_MULTIPLIER
     # head_failures: first N/2 captured directly. tail_failures: bounded
     # ring buffer of the most recent N/2. Merged at end before returning.
     head_failures: list[FailedChunk] = []
     tail_failures: deque[FailedChunk] = deque(maxlen=_FAILED_CHUNKS_TAIL)
     for i, chunk in enumerate(chunks):
+        # Inline oversize warning — folded into the main loop to
+        # avoid a separate pre-pass over the chunk list. Fires
+        # BEFORE the LLM call so operators see the warning
+        # interleaved with progress.
+        if log_warning is not None and len(chunk) > oversize_threshold:
+            log_warning(
+                f"chunk {i}: oversized paragraph "
+                f"({len(chunk):,} chars > {int(oversize_threshold):,} threshold) — "
+                f"LLM output may truncate; consider lowering --chunk-size"
+            )
         chunk_counters = ValidationCounters()
         try:
             mentions = extract_toponym_mentions_from_chunk(client, chunk, counters=chunk_counters)
-        except (RuntimeError, json.JSONDecodeError) as e:
-            # Per-chunk failure (transport, JSON-parse, schema mismatch)
-            # is logged + skipped — don't poison the whole source's
-            # output. Operator gets the chunk index + exception type
-            # so they can re-run a targeted subset later or pivot to a
-            # different provider.
+        except _PROGRAMMER_ERROR_EXCEPTIONS:
+            # Re-raise: AttributeError / TypeError / NameError /
+            # ImportError are our bugs, not the LLM's. Letting them
+            # propagate as tracebacks beats counting them as
+            # per-chunk failures across every chunk in a 100%-failed
+            # run with no diagnostic.
+            raise
+        except Exception as e:
+            # Per-chunk failure (transport, JSON-parse, schema mismatch,
+            # provider SDK exceptions like anthropic.APIError /
+            # httpx.HTTPError / TimeoutError) is logged + skipped —
+            # don't poison the whole source's output. Catching bare
+            # Exception is intentional: a real run will see provider-
+            # SDK error classes that don't derive from RuntimeError,
+            # and we'd rather degrade gracefully per-chunk than abort
+            # the whole multi-source run. Programmer-error types are
+            # re-raised in the prior clause; KeyboardInterrupt and
+            # SystemExit (BaseException) still propagate naturally.
             report.chunks_failed += 1
             failure = FailedChunk(index=i, error=f"{type(e).__name__}: {e}")
             if len(head_failures) < _FAILED_CHUNKS_HEAD:
@@ -549,6 +581,126 @@ def mine_toponym_mentions(
     # Merge head + tail. List shape preserves indices for the CLI's
     # display loop; the gap between head and tail (if any) is implicit
     # via the chunks_failed counter minus len(failed_chunks).
+    report.failed_chunks.extend(head_failures)
+    report.failed_chunks.extend(tail_failures)
+    return report
+
+
+def mine_toponym_mentions_tiered(
+    primary_client,
+    fallback_client,
+    source_id: str,
+    body: str,
+    *,
+    target_chunk_size: int = 20000,
+    limit: int | None = None,
+    on_chunk_done: Callable[[int, int, int], None] | None = None,
+    log_warning: Callable[[str], None] | None = None,
+) -> MineToponymMentionsReport:
+    """Two-tier extraction: try ``primary_client`` on every chunk;
+    when the primary fails (transport, JSON parse, schema mismatch),
+    retry with ``fallback_client``. Built for the wyrd-l0r tiered
+    pattern: Qwen-on-Hades for bulk first-pass (free, fast on
+    GPU-hosted Ollama), Anthropic on the residual (better quality
+    on the tricky chunks the small model couldn't parse).
+
+    A chunk is counted as ``chunks_recovered_by_fallback`` when the
+    primary raised AND the fallback succeeded. A chunk where BOTH
+    tiers fail counts as a ``failed_chunk`` with BOTH errors recorded
+    as ``primary=...; fallback=...`` so operators can see whether
+    the chunk is genuinely hard (both quality tiers failed) vs. a
+    transient issue (one tier transient-failed, the other timed out
+    differently).
+
+    Both client calls catch bare ``Exception`` so provider-SDK error
+    classes (``anthropic.APIError``, ``httpx.HTTPError``,
+    ``TimeoutError``) trigger the fallback rather than aborting the
+    whole multi-source run. ``KeyboardInterrupt`` / ``SystemExit``
+    still propagate.
+
+    Resolved-mention counters (``hallucinations_dropped``,
+    ``years_clamped``) reflect ONLY the tier that succeeded — the
+    losing tier's per-chunk counters are discarded so a partial-
+    populate from a primary that raised mid-validation can't double-
+    count. ``extract_toponym_mentions_from_chunk`` does not currently
+    populate counters partially before raising, so the discarded-
+    state is defensive against future refactors.
+
+    The report shape matches :class:`MineToponymMentionsReport` so
+    the CLI's summary line and the Phase 2b.1 ingester both work
+    unchanged.
+    """
+    report = MineToponymMentionsReport(source_id=source_id)
+    chunks = chunk_source_body(body, target_chunk_size=target_chunk_size)
+    if limit is not None:
+        chunks = chunks[:limit]
+    total = len(chunks)
+    oversize_threshold = target_chunk_size * _OVERSIZED_PARAGRAPH_MULTIPLIER
+    head_failures: list[FailedChunk] = []
+    tail_failures: deque[FailedChunk] = deque(maxlen=_FAILED_CHUNKS_TAIL)
+    for i, chunk in enumerate(chunks):
+        # Inline oversize warning (matches the single-tier shape).
+        # Fires before either LLM call so the operator sees the
+        # warning interleaved with progress.
+        if log_warning is not None and len(chunk) > oversize_threshold:
+            log_warning(
+                f"chunk {i}: oversized paragraph "
+                f"({len(chunk):,} chars > {int(oversize_threshold):,} threshold) — "
+                f"LLM output may truncate; consider lowering --chunk-size"
+            )
+        chunk_counters = ValidationCounters()
+        primary_error: str | None = None
+        mentions: list[ToponymMention] | None = None
+        try:
+            mentions = extract_toponym_mentions_from_chunk(
+                primary_client, chunk, counters=chunk_counters
+            )
+        except _PROGRAMMER_ERROR_EXCEPTIONS:
+            raise  # Our bug — let it surface as a traceback.
+        except Exception as e:
+            # Bare Exception (not RuntimeError) so provider-SDK error
+            # classes (anthropic.APIError, httpx.HTTPError, TimeoutError)
+            # trigger fallback rather than aborting the whole source.
+            primary_error = f"{type(e).__name__}: {e}"
+            if log_warning is not None:
+                log_warning(f"chunk {i} primary failed: {primary_error} — retrying with fallback")
+        if mentions is None:
+            # Primary failed. Try fallback. Reset counters defensively
+            # — extract_toponym_mentions_from_chunk doesn't populate
+            # counters partially before raising today, but a future
+            # refactor could. Keeping the discard explicit prevents
+            # double-counting drift if that contract changes.
+            chunk_counters = ValidationCounters()
+            try:
+                mentions = extract_toponym_mentions_from_chunk(
+                    fallback_client, chunk, counters=chunk_counters
+                )
+                report.chunks_recovered_by_fallback += 1
+            except _PROGRAMMER_ERROR_EXCEPTIONS:
+                raise  # Our bug — let it surface as a traceback.
+            except Exception as e:
+                # BOTH tiers failed — record BOTH errors so operators
+                # see the full failure chain (transient vs. genuinely-
+                # hard chunk are distinguishable from the pair).
+                fallback_error = f"{type(e).__name__}: {e}"
+                report.chunks_failed += 1
+                failure = FailedChunk(
+                    index=i,
+                    error=f"primary={primary_error}; fallback={fallback_error}",
+                )
+                if len(head_failures) < _FAILED_CHUNKS_HEAD:
+                    head_failures.append(failure)
+                else:
+                    tail_failures.append(failure)
+                if log_warning is not None:
+                    log_warning(f"chunk {i} both tiers failed: {fallback_error}")
+                continue
+        report.mentions.extend(mentions)
+        report.chunks_processed += 1
+        report.hallucinations_dropped += chunk_counters.hallucinations_dropped
+        report.years_clamped += chunk_counters.years_clamped
+        if on_chunk_done is not None:
+            on_chunk_done(i + 1, total, len(report.mentions))
     report.failed_chunks.extend(head_failures)
     report.failed_chunks.extend(tail_failures)
     return report

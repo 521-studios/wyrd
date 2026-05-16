@@ -2746,6 +2746,12 @@ def lexicon_reverse_search_toponyms(
     default=False,
     help="Overwrite --output if it exists. Without this flag, an existing path errors.",
 )
+@click.option(
+    "--ollama-url",
+    default=None,
+    help="Override Ollama base URL when --provider ollama (default: "
+    "$WYRD_OLLAMA_URL or localhost). Same shape as the mine-llm flag.",
+)
 def lexicon_mine_toponym_mentions(
     source_id: str,
     sources_dir: Path,
@@ -2755,6 +2761,7 @@ def lexicon_mine_toponym_mentions(
     limit: int | None,
     output: Path | None,
     force: bool,
+    ollama_url: str | None,
 ) -> None:
     """LLM-mine a scholar source body for place-name mentions (wyrd-x82p Phase 2).
 
@@ -2802,43 +2809,12 @@ def lexicon_mine_toponym_mentions(
             err=True,
         )
 
-    if provider == "anthropic":
-        from wyrd.generators.kenning.anthropic_extractor import (
-            DEFAULT_ANTHROPIC_MODEL,
-            AnthropicClient,
-        )
-
-        # 8192-token cap fits ~100-150 mentions per chunk comfortably;
-        # the AnthropicClient's 1024 default truncates mid-JSON on
-        # dense chunks. Sonnet supports much more headroom; this is
-        # the smallest safe ceiling.
-        client = AnthropicClient(
-            model=model or DEFAULT_ANTHROPIC_MODEL,
-            max_tokens=8192,
-        )
-    elif provider == "gemini":
-        from wyrd.generators.kenning.gemini_extractor import (
-            DEFAULT_GEMINI_MODEL,
-            GeminiClient,
-        )
-
-        client = GeminiClient(model=model or DEFAULT_GEMINI_MODEL)
-    elif provider == "ollama":
-        from wyrd.generators.kenning.llm_extractor import (
-            DEFAULT_OLLAMA_MODEL,
-            DEFAULT_OLLAMA_URL,
-            OllamaClient,
-        )
-
-        client = OllamaClient(
-            base_url=DEFAULT_OLLAMA_URL,
-            model=model or DEFAULT_OLLAMA_MODEL,
-        )
-    else:
-        # Unreachable in practice — click.Choice gates the option. The
-        # explicit raise keeps the type-checker happy and surfaces a
-        # clear error if the Choice list and this dispatch drift apart.
-        raise click.ClickException(f"unknown provider: {provider}")
+    # Route through the shared _build_extractor_client helper (same
+    # dispatch as mine-toponym-mentions-tiered) so both commands use
+    # the same provider/model/ollama-url contract. The helper is
+    # defined later in this module — Python looks up names at call
+    # time so the forward reference works.
+    client = _build_extractor_client(provider, model, ollama_url=ollama_url)
 
     click.echo(f"Using {provider} model={client.model}", err=True)
 
@@ -2912,6 +2888,346 @@ def lexicon_mine_toponym_mentions(
     else:
         for m in report.mentions:
             click.echo(_line(m))
+
+
+# 8192-token max-tokens for Anthropic — fits ~100-150 mentions per
+# chunk comfortably; the SDK default of 1024 truncates mid-JSON on
+# dense chunks. Single source-of-truth used by both single-tier
+# (mine-toponym-mentions) and tiered (mine-toponym-mentions-tiered)
+# Anthropic client construction.
+_ANTHROPIC_MAX_TOKENS_FOR_MENTION_EXTRACTION = 8192
+
+
+def _build_extractor_client(provider: str, model: str | None, ollama_url: str | None = None):
+    """Construct an extractor client for the named provider. Shared
+    by both `mine-toponym-mentions` (single-tier) and
+    `mine-toponym-mentions-tiered` (primary + fallback) so the
+    provider/model/ollama-url contract is identical across the two
+    CLI commands.
+
+    ``ollama_url`` is forwarded to OllamaClient when provider=="ollama";
+    None falls back to DEFAULT_OLLAMA_URL ($WYRD_OLLAMA_URL or
+    localhost). Other providers ignore the kwarg."""
+    if provider == "anthropic":
+        from wyrd.generators.kenning.anthropic_extractor import (
+            DEFAULT_ANTHROPIC_MODEL,
+            AnthropicClient,
+        )
+
+        return AnthropicClient(
+            model=model or DEFAULT_ANTHROPIC_MODEL,
+            max_tokens=_ANTHROPIC_MAX_TOKENS_FOR_MENTION_EXTRACTION,
+        )
+    if provider == "gemini":
+        from wyrd.generators.kenning.gemini_extractor import (
+            DEFAULT_GEMINI_MODEL,
+            GeminiClient,
+        )
+
+        return GeminiClient(model=model or DEFAULT_GEMINI_MODEL)
+    if provider == "ollama":
+        from wyrd.generators.kenning.llm_extractor import (
+            DEFAULT_OLLAMA_MODEL,
+            DEFAULT_OLLAMA_URL,
+            OllamaClient,
+        )
+
+        return OllamaClient(
+            base_url=ollama_url or DEFAULT_OLLAMA_URL,
+            model=model or DEFAULT_OLLAMA_MODEL,
+        )
+    # Unreachable in practice — click.Choice gates the option. The
+    # explicit raise keeps the type-checker happy and surfaces a
+    # clear error if the Choice list and this dispatch drift apart.
+    raise click.ClickException(f"unknown provider: {provider}")
+
+
+@lexicon.command("mine-toponym-mentions-tiered")
+@click.option(
+    "--sources-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=Path("sources"),
+    show_default=True,
+    help="Directory of <source_id>.txt scholar bodies.",
+)
+@click.option(
+    "--source",
+    "sources",
+    multiple=True,
+    help="Restrict to named source_ids (repeat for multiple). Default: every "
+    "*.txt under --sources-dir.",
+)
+@click.option(
+    "--output-dir",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=Path("data/mining/phase2"),
+    show_default=True,
+    help="Directory to write <source_id>.jsonl extraction output. Created if missing.",
+)
+@click.option(
+    "--primary-provider",
+    type=click.Choice(["anthropic", "gemini", "ollama"]),
+    default="ollama",
+    show_default=True,
+    help="Primary client — runs first on every chunk. Ollama (Qwen on Hades) "
+    "is the cost-efficient default; the fallback client only fires on chunks "
+    "the primary failed.",
+)
+@click.option(
+    "--primary-model",
+    default=None,
+    help="Override primary model id (defaults to the provider's default).",
+)
+@click.option(
+    "--fallback-provider",
+    type=click.Choice(["anthropic", "gemini", "ollama"]),
+    default="anthropic",
+    show_default=True,
+    help="Fallback client — retries chunks the primary failed. Anthropic is the "
+    "default (highest quality on hard chunks).",
+)
+@click.option(
+    "--fallback-model",
+    default=None,
+    help="Override fallback model id (defaults to the provider's default).",
+)
+@click.option(
+    "--ollama-url",
+    default=None,
+    help="Override Ollama base URL when either tier is `ollama` (default: "
+    "$WYRD_OLLAMA_URL or localhost). Used for both primary and fallback if "
+    "either is set to ollama.",
+)
+@click.option(
+    "--chunk-size",
+    type=int,
+    default=20000,
+    show_default=True,
+    help="Target chunk size in characters (snaps to paragraph boundaries).",
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=None,
+    help="Process only the first N chunks per source (smoke testing).",
+)
+@click.option(
+    "--skip-existing",
+    is_flag=True,
+    default=False,
+    help="Skip sources whose output JSONL already exists in --output-dir. "
+    "Idempotent multi-source resume — sources you've already run stay untouched.",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Overwrite existing per-source output files (default: error). "
+    "Mutually-exclusive with --skip-existing.",
+)
+def lexicon_mine_toponym_mentions_tiered(
+    sources_dir: Path,
+    sources: tuple[str, ...],
+    output_dir: Path,
+    primary_provider: str,
+    primary_model: str | None,
+    fallback_provider: str,
+    fallback_model: str | None,
+    ollama_url: str | None,
+    chunk_size: int,
+    limit: int | None,
+    skip_existing: bool,
+    force: bool,
+) -> None:
+    """Two-tier LLM mention extraction across one or many sources
+    (wyrd-x82p Phase 2b.2).
+
+    Runs the primary client first on every chunk; retries chunks that
+    failed (transport, JSON parse, schema mismatch) with the fallback
+    client. Designed for the wyrd-l0r tiered pattern: Qwen on Hades
+    for bulk first-pass (free, fast), Anthropic on the residual (best
+    quality on hard chunks).
+
+    Walks every source_id given via --source (or every *.txt under
+    --sources-dir when --source is omitted). Writes one JSONL per
+    source to --output-dir/<source_id>.jsonl, ready to feed into
+    ``lexicon ingest-toponym-mentions``.
+
+    Idempotent resume: --skip-existing lets you re-run after an
+    interrupt without re-processing already-extracted sources.
+    """
+    import time
+
+    from wyrd.generators.kenning.toponym_mention_extractor import (
+        ToponymMention,
+        mine_toponym_mentions_tiered,
+    )
+
+    if skip_existing and force:
+        raise click.ClickException("--skip-existing and --force are mutually exclusive")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Resolve source list. If --source isn't given, walk *.txt under
+    # the sources dir; sort for deterministic ordering across runs.
+    if sources:
+        # Validate each requested source exists as a .txt under sources_dir.
+        source_ids = []
+        for sid in sources:
+            txt = sources_dir / f"{Path(sid).name}.txt"
+            if not txt.exists():
+                raise click.ClickException(f"source body not found: {txt}")
+            source_ids.append(Path(sid).name)
+    else:
+        source_ids = sorted(p.stem for p in sources_dir.glob("*.txt") if p.name != "MANIFEST.md")
+
+    if not source_ids:
+        raise click.ClickException(f"no sources under {sources_dir}")
+
+    click.echo(f"Sources to process: {len(source_ids)}", err=True)
+    click.echo(
+        f"Primary: {primary_provider} (model={primary_model or 'default'})",
+        err=True,
+    )
+    click.echo(
+        f"Fallback: {fallback_provider} (model={fallback_model or 'default'})",
+        err=True,
+    )
+
+    # Lazy client construction — only instantiate when we have an
+    # actual source to extract. For a 200-source resume where every
+    # source is --skip-existing'd, this avoids unnecessary ANTHROPIC_
+    # API_KEY validation and Ollama-URL probing. The pair is built
+    # once on the first real extraction and cached for the remainder.
+    primary_client = None
+    fallback_client = None
+
+    def _ensure_clients():
+        nonlocal primary_client, fallback_client
+        if primary_client is None:
+            primary_client = _build_extractor_client(
+                primary_provider, primary_model, ollama_url=ollama_url
+            )
+            fallback_client = _build_extractor_client(
+                fallback_provider, fallback_model, ollama_url=ollama_url
+            )
+
+    def _line(source_id: str, m: ToponymMention) -> str:
+        return json.dumps(
+            {
+                "source_id": source_id,
+                "form": m.form,
+                "date_year": m.date_year,
+                "region_hint": m.region_hint,
+                "context": m.context,
+            },
+            ensure_ascii=False,
+        )
+
+    totals = {
+        "sources_processed": 0,
+        "sources_skipped": 0,
+        "chunks_processed": 0,
+        "chunks_recovered": 0,
+        "chunks_failed": 0,
+        "mentions": 0,
+    }
+
+    for src_i, source_id in enumerate(source_ids, start=1):
+        out_path = output_dir / f"{source_id}.jsonl"
+        if out_path.exists():
+            if skip_existing:
+                click.echo(
+                    f"[{src_i}/{len(source_ids)}] {source_id}: SKIP (output exists)",
+                    err=True,
+                )
+                totals["sources_skipped"] += 1
+                continue
+            if not force:
+                raise click.ClickException(
+                    f"output {out_path} exists; pass --skip-existing to resume or "
+                    f"--force to overwrite"
+                )
+
+        txt_path = sources_dir / f"{source_id}.txt"
+        body = txt_path.read_text(encoding="utf-8", errors="replace")
+        if "�" in body:
+            click.echo(
+                f"  warning: {source_id} contained invalid UTF-8 sequences; some "
+                f"mentions may be silently rejected",
+                err=True,
+            )
+
+        click.echo(
+            f"[{src_i}/{len(source_ids)}] {source_id}: {len(body):,} chars",
+            err=True,
+        )
+
+        # Defer client construction to first real extraction —
+        # --skip-existing resume runs where every source is skipped
+        # don't need either client.
+        _ensure_clients()
+
+        start_ts = time.monotonic()
+
+        def progress(done: int, total: int, mentions: int, _start_ts: float = start_ts) -> None:
+            # Bind start_ts via default arg — B023: a closure reference
+            # to the loop variable would all share the LAST iteration's
+            # start_ts when this function is later invoked.
+            elapsed = time.monotonic() - _start_ts
+            rate = elapsed / done if done else 0.0
+            click.echo(
+                f"    chunk [{done}/{total}] mentions={mentions} ({rate:.1f}s/chunk)",
+                err=True,
+            )
+
+        def warn(msg: str) -> None:
+            click.echo(f"    warning: {msg}", err=True)
+
+        report = mine_toponym_mentions_tiered(
+            primary_client,
+            fallback_client,
+            source_id,
+            body,
+            target_chunk_size=chunk_size,
+            limit=limit,
+            on_chunk_done=progress,
+            log_warning=warn,
+        )
+
+        # Atomic write: temp file + rename so an interrupt mid-write
+        # leaves the previous output (if any) intact rather than
+        # truncated. Same pattern as Phase 2b.1's candidates-out.
+        tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+        with tmp_path.open("w", encoding="utf-8") as sink:
+            for m in report.mentions:
+                sink.write(_line(source_id, m) + "\n")
+        tmp_path.replace(out_path)
+
+        click.echo(
+            f"  → {out_path} | chunks={report.chunks_processed} "
+            f"(recovered={report.chunks_recovered_by_fallback} "
+            f"failed={report.chunks_failed}) mentions={len(report.mentions)} "
+            f"halluc={report.hallucinations_dropped}",
+            err=True,
+        )
+
+        totals["sources_processed"] += 1
+        totals["chunks_processed"] += report.chunks_processed
+        totals["chunks_recovered"] += report.chunks_recovered_by_fallback
+        totals["chunks_failed"] += report.chunks_failed
+        totals["mentions"] += len(report.mentions)
+
+    click.echo("", err=True)
+    click.echo(
+        f"TOTAL sources={totals['sources_processed']} "
+        f"(skipped={totals['sources_skipped']}) "
+        f"chunks={totals['chunks_processed']} "
+        f"recovered_by_fallback={totals['chunks_recovered']} "
+        f"failed={totals['chunks_failed']} "
+        f"mentions={totals['mentions']}",
+        err=True,
+    )
 
 
 @lexicon.command("ingest-toponym-mentions")
