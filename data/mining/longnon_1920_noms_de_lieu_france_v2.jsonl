@@ -10,3 +10,29 @@
 {"_type": "toponym", "ref": "Saint-Cirac@-", "modern_name": "Saint-Cirac"}
 {"_type": "etymology_element", "toponym_ref": "Laroche@-", "elements": [{"ordinal": 0, "etymon_ref": "latin:roche"}], "historical_form": "roche", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5; The scholar identifies 'roche' as derived from Latin 'rocca', meaning 'fortress'. The text discusses various French place-names formed with this element, noting that medieval clerks used the Latin 'rupes' to translate the French 'roche'. | Laroche, Roque, la Roque, Laroque, Larroque. (^es dernières loriues se renconti'ent à peu prés exclusivcnient tlans le nndi de la l''ranee ; mais l'injue se disait, tout aussi liien (ju'eu lanyue I. Mon. (ici-nt. hisL, "}
 {"_type": "etymology_element", "toponym_ref": "Saint-Cirac@-", "elements": [{"ordinal": 0, "etymon_ref": "greek:cyriacus"}], "historical_form": "Cyriacus", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Greek Cyriacus with medieval variant Quiriacus; multiple regional forms attested (Saint-Ciriac, Saint-Cirac, Saint-Créac, Saint-Quiriace) | Cyriacus  —du  g-rec  -/.upiaxôç,  écjuivalent  de  domini- cus  —  et  sa  variante  médiévale  Quiriacus  :  Saillt-Ciriac (Tarn),  Saint-Cirac  (Arié-e),  Saint-Créac  (Gers,  Hautes-Pyré- nées);  Saint-Quiriace,  ég-lise  a  Provins."}
+{"_type": "toponym", "ref": "Baginton@Warwickshire", "modern_name": "Baginton", "country": "England", "region": "Warwickshire"}
+{"_type": "toponym", "ref": "Barnard Castle@Northumberland and Durham", "modern_name": "Barnard Castle", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Collington@Herefordshire", "modern_name": "Collington", "country": "England", "region": "Herefordshire"}
+{"_type": "toponym", "ref": "Gavell@Stirlingshire", "modern_name": "Gavell", "region": "Stirlingshire"}
+{"_type": "toponym", "ref": "Hardington@Somerset", "modern_name": "Hardington", "country": "England", "region": "Somerset"}
+{"_type": "toponym", "ref": "Kempsey@Worcestershire", "modern_name": "Kempsey", "country": "England", "region": "Worcestershire"}
+{"_type": "toponym", "ref": "Lambert@Devon", "modern_name": "Lambert", "country": "England", "region": "Devon"}
+{"_type": "toponym", "ref": "Locmariaquer@-", "modern_name": "Locmariaquer"}
+{"_type": "toponym", "ref": "Orkney@Scotland", "modern_name": "Orkney", "region": "Scotland"}
+{"_type": "toponym", "ref": "Plescop@-", "modern_name": "Plescop"}
+{"_type": "toponym", "ref": "Sandwich@Kent", "modern_name": "Sandwich", "country": "England", "region": "Kent"}
+{"_type": "toponym", "ref": "Thornby@Northamptonshire", "modern_name": "Thornby", "country": "England", "region": "Northamptonshire"}
+{"_type": "toponym", "ref": "Waddingworth@Lincolnshire", "modern_name": "Waddingworth", "country": "England", "region": "Lincolnshire"}
+{"_type": "attestation", "toponym_ref": "Baginton@Warwickshire", "form": "Baginton", "date_year": 763, "source_doc": "longnon_1920_noms_de_lieu_france_v2"}
+{"_type": "attestation", "toponym_ref": "Barnard Castle@Northumberland and Durham", "form": "Bernard", "date_year": 1107, "source_doc": "longnon_1920_noms_de_lieu_france_v2"}
+{"_type": "attestation", "toponym_ref": "Collington@Herefordshire", "form": "Collington", "date_year": 765, "source_doc": "longnon_1920_noms_de_lieu_france_v2"}
+{"_type": "attestation", "toponym_ref": "Gavell@Stirlingshire", "form": "Pont", "date_year": 731, "source_doc": "longnon_1920_noms_de_lieu_france_v2"}
+{"_type": "attestation", "toponym_ref": "Hardington@Somerset", "form": "Hardington", "date_year": 771, "source_doc": "longnon_1920_noms_de_lieu_france_v2"}
+{"_type": "attestation", "toponym_ref": "Kempsey@Worcestershire", "form": "Kempsey", "date_year": 750, "source_doc": "longnon_1920_noms_de_lieu_france_v2"}
+{"_type": "attestation", "toponym_ref": "Lambert@Devon", "form": "Lambert", "date_year": 967, "source_doc": "longnon_1920_noms_de_lieu_france_v2"}
+{"_type": "attestation", "toponym_ref": "Locmariaquer@-", "form": "Locmariaquer", "date_year": 1306, "source_doc": "longnon_1920_noms_de_lieu_france_v2"}
+{"_type": "attestation", "toponym_ref": "Orkney@Scotland", "form": "Orkney", "date_year": 750, "source_doc": "longnon_1920_noms_de_lieu_france_v2"}
+{"_type": "attestation", "toponym_ref": "Plescop@-", "form": "Plescop", "date_year": 1294, "source_doc": "longnon_1920_noms_de_lieu_france_v2"}
+{"_type": "attestation", "toponym_ref": "Sandwich@Kent", "form": "Sandwich", "date_year": 1220, "source_doc": "longnon_1920_noms_de_lieu_france_v2"}
+{"_type": "attestation", "toponym_ref": "Thornby@Northamptonshire", "form": "Thornby", "date_year": 1179, "source_doc": "longnon_1920_noms_de_lieu_france_v2"}
+{"_type": "attestation", "toponym_ref": "Waddingworth@Lincolnshire", "form": "Waddingworth", "date_year": 739, "source_doc": "longnon_1920_noms_de_lieu_france_v2"}

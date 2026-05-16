@@ -252,3 +252,17 @@
 {"_type": "etymology_element", "toponym_ref": "Type III@Lancashire", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:scharis"}, {"ordinal": 1, "etymon_ref": "old-norse:brec"}], "historical_form": "Scharis-brec", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Type III. 1200. Scharisbrec : Scar. Ch., 5, 261. c. 1260. Scharesbrec : Scar. Ch., 16, 264. ' The slope from the scar.' See 0. N. Skjer and 0. N. brekka in Pt. ", "attested_year": 1200}
 {"_type": "etymology_element", "toponym_ref": "Type IV@Lancashire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:clac"}, {"ordinal": 1, "etymon_ref": "old-english:tun"}], "historical_form": "Clac-tun", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar notes 'no evidence produced by B. for believing this to be a Scand. name' despite Bjorkman's suggestion. The entry conflates multiple place-names (Clatton, Clegg, Cleveley, Clifton, Clitheroe, Cliviger); the etymology given ('tun of Clac') applies specifically to Clatton/Clayton. | Type IV. Clatton : T. de N., 404. Type V. Ante 1372. Cloghtona : Fum. Ch., p. 225. The ' tun of Clac,\" on which pers. n. see Bjorkman, p. 81. There is, however", "attested_year": 1372}
 {"_type": "etymology_element", "toponym_ref": "Wardle@Lancashire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:weard"}, {"ordinal": 1, "etymon_ref": "old-english:hyll"}], "historical_form": "weard-hyll", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Wardle, Wuerdle-with- (Rochdale) [widl, E. A. H.] ? 13th. \"I „ , , „ f^. „ ^, /T. iv. p. 157. o 1 -lA^i. r Wordehull : ■{ Whall. Ch., ■{„ . ,«« ? early 14th. J "}
+{"_type": "toponym", "ref": "Babraham@Cambridgeshire", "modern_name": "Babraham", "country": "England", "region": "Cambridgeshire"}
+{"_type": "toponym", "ref": "Berks@Lancashire", "modern_name": "Berks", "region": "Lancashire"}
+{"_type": "toponym", "ref": "Huddersfield@Yorkshire", "modern_name": "Huddersfield", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Lancaster@Yorkshire", "modern_name": "Lancaster", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Ricstorp@Yorkshire", "modern_name": "Ricstorp", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Wagneia@England and Wales", "modern_name": "Wagneia", "region": "England and Wales"}
+{"_type": "toponym", "ref": "Will@Hampshire", "modern_name": "Will", "country": "England", "region": "Hampshire"}
+{"_type": "attestation", "toponym_ref": "Babraham@Cambridgeshire", "form": "Babraham", "date_year": 1086, "source_doc": "wyld_hirst_1911_lancashire"}
+{"_type": "attestation", "toponym_ref": "Berks@Lancashire", "form": "Berks", "date_year": 952, "source_doc": "wyld_hirst_1911_lancashire"}
+{"_type": "attestation", "toponym_ref": "Huddersfield@Yorkshire", "form": "Huddersfield", "date_year": 1086, "source_doc": "wyld_hirst_1911_lancashire"}
+{"_type": "attestation", "toponym_ref": "Lancaster@Yorkshire", "form": "Lancaster", "date_year": 1509, "source_doc": "wyld_hirst_1911_lancashire"}
+{"_type": "attestation", "toponym_ref": "Ricstorp@Yorkshire", "form": "Ricstorp", "date_year": 1086, "source_doc": "wyld_hirst_1911_lancashire"}
+{"_type": "attestation", "toponym_ref": "Wagneia@England and Wales", "form": "Wagneia", "date_year": 1127, "source_doc": "wyld_hirst_1911_lancashire"}
+{"_type": "attestation", "toponym_ref": "Will@Hampshire", "form": "Will", "date_year": 1002, "source_doc": "wyld_hirst_1911_lancashire"}

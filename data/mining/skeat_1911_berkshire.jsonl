@@ -145,9 +145,23 @@
 {"_type": "etymology_element", "toponym_ref": "Wasing@Berkshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:waelsinga", "inflection": "genitive plural"}, {"ordinal": 1, "etymon_ref": "old-english:ham"}], "historical_form": "Waelsinga-ham", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Wasing. Between the Emborne and the county boundary. Spelt Wausijnge,F.A.(l3l6); Wawesenge, T.N. We usually find that au represents an older al; indeed, D.B. ha"}
 {"_type": "etymology_element", "toponym_ref": "Wisseleia@Berkshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wisce"}, {"ordinal": 1, "etymon_ref": "old-english:lea"}], "historical_form": "Wisce-lea", "confidence": "medium", "notes": "extracted_by:llm:qwen3.5:35b-a3b; Scholar links 'Wisce' to Friesian 'wiske' and Old High German 'wisa', noting a gradation connection to 'wase' (ooze/mud). | Wisseleia, Wisckeleia in the Chronicle of "}
 {"_type": "etymology_element", "toponym_ref": "Wisseleia@Berkshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wisce"}, {"ordinal": 1, "etymon_ref": "old-english:lea"}], "historical_form": "Wisce-lea", "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash | Wisseleia, Wisckeleia in the Chronicle of Abingdon, ii. 196, 306. The A.S. form is Wiscelea, in a Hui'st charter; Birch, C.S. hi. 511, 1. 1. Cf. Wise-lea, id. i"}
+{"_type": "toponym", "ref": "Chiltington@-", "modern_name": "Chiltington"}
+{"_type": "toponym", "ref": "Ham Manor@-", "modern_name": "Ham Manor"}
+{"_type": "toponym", "ref": "Lach@Cheshire", "modern_name": "Lach", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Offentone@England and Wales", "modern_name": "Offentone", "region": "England and Wales"}
+{"_type": "toponym", "ref": "Optone@Warwickshire", "modern_name": "Optone", "country": "England", "region": "Warwickshire"}
+{"_type": "toponym", "ref": "Redding@England and Wales", "modern_name": "Redding", "region": "England and Wales"}
+{"_type": "toponym", "ref": "Sudtone@Lincolnshire", "modern_name": "Sudtone", "country": "England", "region": "Lincolnshire"}
 {"_type": "attestation", "toponym_ref": "Bagnor@Berkshire", "form": "Bagenore", "date_year": 1086, "source_doc": "skeat_1911_berkshire"}
 {"_type": "attestation", "toponym_ref": "Buckland@Berkshire", "form": "Bocheland", "date_year": 1086, "source_doc": "skeat_1911_berkshire"}
+{"_type": "attestation", "toponym_ref": "Chiltington@-", "form": "Cilletone", "date_year": 1086, "source_doc": "skeat_1911_berkshire"}
+{"_type": "attestation", "toponym_ref": "Ham Manor@-", "form": "Hame", "date_year": 1086, "source_doc": "skeat_1911_berkshire"}
 {"_type": "attestation", "toponym_ref": "Hormer@Berkshire", "form": "Hornimere", "date_year": 1086, "source_doc": "skeat_1911_berkshire"}
+{"_type": "attestation", "toponym_ref": "Lach@Cheshire", "form": "Lach", "date_year": 1086, "source_doc": "skeat_1911_berkshire"}
+{"_type": "attestation", "toponym_ref": "Offentone@England and Wales", "form": "Offentone", "date_year": 1086, "source_doc": "skeat_1911_berkshire"}
+{"_type": "attestation", "toponym_ref": "Optone@Warwickshire", "form": "Optone", "date_year": 1086, "source_doc": "skeat_1911_berkshire"}
 {"_type": "attestation", "toponym_ref": "Purley@Berkshire", "form": "Porlei", "date_year": 1086, "source_doc": "skeat_1911_berkshire"}
+{"_type": "attestation", "toponym_ref": "Redding@England and Wales", "form": "Redinges", "date_year": 1086, "source_doc": "skeat_1911_berkshire"}
 {"_type": "attestation", "toponym_ref": "Sparsholt@Berkshire", "form": "Spersolt", "date_year": 1086, "source_doc": "skeat_1911_berkshire"}
+{"_type": "attestation", "toponym_ref": "Sudtone@Lincolnshire", "form": "Sudtone", "date_year": 1086, "source_doc": "skeat_1911_berkshire"}
 {"_type": "attestation", "toponym_ref": "Wantage@Berkshire", "form": "Wanetinz", "date_year": 1086, "source_doc": "skeat_1911_berkshire"}

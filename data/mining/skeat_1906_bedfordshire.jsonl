@@ -192,6 +192,10 @@
 {"_type": "etymology_element", "toponym_ref": "Stotfold@Bedfordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:stot"}, {"ordinal": 1, "etymon_ref": "old-english:fold"}], "historical_form": "stot-fold", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Stotfold.— Spelt Stotfalt, D.B.; Stotfold, F.A.; Stotefold, E.T. Compare also Stotfoldeslade, R.C. It can hardly be a mistake for stod-fald, an enclo"}
 {"_type": "etymology_element", "toponym_ref": "Tilbrook@Bedfordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:tilan", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:brōc"}], "historical_form": "Tilan-broc", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:9b; Scholar identifies 'Tilan' as a pet-name for Tilbeorht and explicitly states the construction is 'Tila's brook'. | Tilbrook.— Spelt Tilebroc, D.B.; Tylebrok, F.A. Here the"}
 {"_type": "etymology_element", "toponym_ref": "Tilbrook@Bedfordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:tilan", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:broc"}], "historical_form": "Tilan-broc", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Tilbrook.— Spelt Tilebroc, D.B.; Tylebrok, F.A. Here the -e, as usual, represents an A.S. genitive suffix -an ; and Tilebroc answers to A.S. Tilan br"}
+{"_type": "toponym", "ref": "Elstow@Bedfordshire", "modern_name": "Elstow", "country": "England", "region": "Bedfordshire"}
+{"_type": "toponym", "ref": "Etone@West Riding of Yorkshire", "modern_name": "Etone", "region": "West Riding of Yorkshire"}
+{"_type": "toponym", "ref": "Merstone@Hampshire", "modern_name": "Merstone", "country": "England", "region": "Hampshire"}
+{"_type": "toponym", "ref": "Mildentone@West Riding of Yorkshire", "modern_name": "Mildentone", "region": "West Riding of Yorkshire"}
 {"_type": "attestation", "toponym_ref": "Astwick@Bedfordshire", "form": "Estuuiche", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
 {"_type": "attestation", "toponym_ref": "Battlesden@Bedfordshire", "form": "Badelestone", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
 {"_type": "attestation", "toponym_ref": "Biddenham@Bedfordshire", "form": "Bidenham", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
@@ -200,7 +204,11 @@
 {"_type": "attestation", "toponym_ref": "Bromham@Bedfordshire", "form": "Bruneham", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
 {"_type": "attestation", "toponym_ref": "Colmworth@Bedfordshire", "form": "Culmeuuorde", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
 {"_type": "attestation", "toponym_ref": "Dean@Bedfordshire", "form": "Dene", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
+{"_type": "attestation", "toponym_ref": "Elstow@Bedfordshire", "form": "Elstow", "date_year": 1078, "source_doc": "skeat_1906_bedfordshire"}
+{"_type": "attestation", "toponym_ref": "Etone@West Riding of Yorkshire", "form": "Etone", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
 {"_type": "attestation", "toponym_ref": "Meppershall@Bedfordshire", "form": "Malpertesselle", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
+{"_type": "attestation", "toponym_ref": "Merstone@Hampshire", "form": "Merstone", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
+{"_type": "attestation", "toponym_ref": "Mildentone@West Riding of Yorkshire", "form": "Mildentone", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
 {"_type": "attestation", "toponym_ref": "Sharnbrook@Bedfordshire", "form": "Sernebvoc", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
 {"_type": "attestation", "toponym_ref": "Stotfold@Bedfordshire", "form": "Stotfalt", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}
 {"_type": "attestation", "toponym_ref": "Tilbrook@Bedfordshire", "form": "Tilebroc", "date_year": 1086, "source_doc": "skeat_1906_bedfordshire"}

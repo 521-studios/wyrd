@@ -1,2 +1,15 @@
 {"_type": "source", "ref": "skeat_1904_huntingdonshire", "title": "Skeat 1904 Huntingdonshire", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
 {"_type": "mining_run", "provider": "ollama", "model": "qwen3.5:35b-a3b", "mode": "mine", "completed_at": "2026-05-01T00:48:57.835Z", "parsed_count": 108, "accepted": 0, "declined": 108, "rejected": 0, "notes": "english-tier-2 batch"}
+{"_type": "toponym", "ref": "Canterbury@Kent", "modern_name": "Canterbury", "country": "England", "region": "Kent"}
+{"_type": "toponym", "ref": "Ebchester@Northumberland and Durham", "modern_name": "Ebchester", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Fulbourn@Cambridgeshire", "modern_name": "Fulbourn", "country": "England", "region": "Cambridgeshire"}
+{"_type": "toponym", "ref": "Hall@Northumberland and Durham", "modern_name": "Hall", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Lincoln@Lincolnshire", "modern_name": "Lincoln", "country": "England", "region": "Lincolnshire"}
+{"_type": "toponym", "ref": "Westminster@Middlesex", "modern_name": "Westminster", "country": "England", "region": "Middlesex"}
+{"_type": "attestation", "toponym_ref": "Canterbury@Kent", "form": "Canterbury", "date_year": 1080, "source_doc": "skeat_1904_huntingdonshire"}
+{"_type": "attestation", "toponym_ref": "Ebchester@Northumberland and Durham", "form": "Ebchester", "date_year": 1464, "source_doc": "skeat_1904_huntingdonshire"}
+{"_type": "attestation", "toponym_ref": "Fulbourn@Cambridgeshire", "form": "Fulbourn", "date_year": 1389, "source_doc": "skeat_1904_huntingdonshire"}
+{"_type": "attestation", "toponym_ref": "Hall@Northumberland and Durham", "form": "Hall", "date_year": 1475, "source_doc": "skeat_1904_huntingdonshire"}
+{"_type": "attestation", "toponym_ref": "Lincoln@Lincolnshire", "form": "Lincoln", "date_year": 1141, "source_doc": "skeat_1904_huntingdonshire"}
+{"_type": "attestation", "toponym_ref": "Lincoln@Lincolnshire", "form": "Lincoln", "date_year": 1217, "source_doc": "skeat_1904_huntingdonshire"}
+{"_type": "attestation", "toponym_ref": "Westminster@Middlesex", "form": "Westminster", "date_year": 1522, "source_doc": "skeat_1904_huntingdonshire"}
