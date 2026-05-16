@@ -19,9 +19,13 @@ Captures the cases Phase 1 missed:
   behind operator review (Phase 2b).
 
 Anti-hallucination: every extracted form is validated against the
-chunk text (substring match). Forms the LLM emits that don't appear
-in the source are dropped silently. Same guard the etymology
-extractor uses (DECISIONS.md D3).
+chunk text. The check normalizes both form and chunk to a single-
+space-collapsed view before substring-matching, so a form the LLM
+emits as "Newcastle upon Tyne" still matches a soft-wrapped
+"Newcastle upon\\nTyne" in the source — that was a silent-data-loss
+hazard in the round-1 review (whitespace-fragile substring check).
+Forms that still fail to match are counted (not silently dropped)
+so operators can spot a systemic prompt/encoding mismatch.
 
 Provider choice: the module accepts any client with the
 ``chat_json(system, user, schema=None) -> dict`` interface — same
@@ -29,12 +33,21 @@ contract as :class:`AnthropicClient` / Ollama / Gemini wrappers in
 ``llm_extractor.py``. The tiered-extraction pattern from the
 project's wyrd-l0r infrastructure (Qwen bulk → Anthropic on the
 residual) is implemented in the CLI orchestrator, not here.
+
+Chunking limit: ``chunk_source_body`` does NOT overlap chunks; a
+mention whose year/region hint falls on the OTHER side of a
+paragraph boundary will be split, and the LLM will see only one
+side of the pair. Paragraph boundaries are the strongest signal we
+have for keeping each chunk's view coherent — sentence-overlap
+chunking is a documented follow-up (DECISIONS.md if pursued).
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+import re
+from collections.abc import Callable
+from dataclasses import dataclass, field
 
 # Year-citation range — same bounds as mine-attestations
 # (_ATTESTED_YEAR_MIN_LOOKUP / _MAX_LOOKUP). 700-1700 covers
@@ -45,6 +58,20 @@ _DATE_YEAR_MIN = 700
 _DATE_YEAR_MAX = 1700
 
 
+# Single-source-of-truth whitespace collapser for the
+# anti-hallucination check. Keeping this at module scope avoids
+# re-compiling the pattern on every mention.
+_WHITESPACE_RUN = re.compile(r"\s+")
+
+
+def _collapse_whitespace(text: str) -> str:
+    """Collapse every whitespace run (spaces, tabs, newlines,
+    soft-wrap hyphen + newline) to a single space. Used to make the
+    form-in-chunk check tolerant of OCR/typesetter line breaks that
+    the LLM correctly emits as bare-form mentions."""
+    return _WHITESPACE_RUN.sub(" ", text).strip()
+
+
 @dataclass(frozen=True)
 class ToponymMention:
     """One place-name mention extracted from a scholar source body.
@@ -53,12 +80,13 @@ class ToponymMention:
       (preserves capitalization, diacritics, internal punctuation).
       Validated to appear in the source chunk before construction;
       the assembler drops mentions whose form doesn't substring-
-      match (anti-hallucination guard).
+      match the whitespace-normalized chunk (anti-hallucination
+      guard).
     * ``date_year`` — a year in [700, 1700] from immediately
       surrounding context, if any. Out-of-range or unparseable
-      values resolve to None. None means "the LLM didn't find a
-      nearby year"; downstream code can treat None as an undated
-      attestation (vs. a dated-attestation Phase 1 would emit).
+      values resolve to None and bump ``years_clamped`` on the
+      run's report so operators can distinguish "LLM declined to
+      cite a year" from "LLM cited but I rejected it."
     * ``region_hint`` — county / country name the LLM saw in the
       surrounding prose (Northumberland, Durham, England, etc.).
       Used downstream to disambiguate homonyms. None when the
@@ -150,17 +178,82 @@ RESPONSE_SCHEMA: dict = {
 }
 
 
-def _validated_mentions(raw: list[dict], chunk: str) -> list[ToponymMention]:
-    """Convert LLM-emitted dicts to ``ToponymMention`` instances,
-    dropping any whose form doesn't substring-match the chunk
-    (anti-hallucination).
+@dataclass
+class ValidationCounters:
+    """Per-call counters for what ``_validated_mentions`` rejected.
+
+    Used by the orchestrator to roll up across all chunks, so
+    operators can see the failure-mode breakdown (vs. an opaque
+    "0 mentions admitted" result that silent-failure-hunter flagged
+    as a load-bearing UX gap in round 1).
+    """
+
+    admitted: int = 0
+    hallucinations_dropped: int = 0
+    years_clamped: int = 0  # any year value the LLM emitted that we coerced to None
+
+
+def _coerce_year(raw: object) -> tuple[int | None, bool]:
+    """Return ``(year_or_None, was_clamped)``. ``was_clamped`` is True
+    iff the LLM emitted a non-null value we rejected — so the caller
+    can distinguish "LLM declined" (raw is None, was_clamped False)
+    from "LLM emitted nonsense" (was_clamped True). Strings that
+    parse cleanly (``"1086"``) are accepted; strings that don't
+    (``"ten eighty-six"``, ``"1066 AD"``) become None+clamped."""
+    if raw is None:
+        return None, False
+    if isinstance(raw, bool):
+        # Python's bool is a subclass of int; treat True/False as nonsense
+        # rather than year 0/1.
+        return None, True
+    if isinstance(raw, int):
+        if _DATE_YEAR_MIN <= raw <= _DATE_YEAR_MAX:
+            return raw, False
+        return None, True
+    if isinstance(raw, str):
+        try:
+            n = int(raw.strip())
+        except (ValueError, TypeError):
+            return None, True
+        if _DATE_YEAR_MIN <= n <= _DATE_YEAR_MAX:
+            return n, False
+        return None, True
+    return None, True
+
+
+def _form_in_chunk(form: str, chunk_collapsed: str) -> bool:
+    """Whitespace-tolerant substring check. ``chunk_collapsed`` is the
+    once-per-chunk pre-collapsed view; this function collapses the
+    candidate form the same way before searching.
+
+    Catches the case where the LLM emits a mention spanning a soft-
+    wrap line break (chunk has ``"Newcastle upon\\nTyne"`` but the
+    LLM correctly emits ``"Newcastle upon Tyne"``) — the naive
+    ``form in chunk`` check would silently reject these.
+    """
+    return _collapse_whitespace(form) in chunk_collapsed
+
+
+def _validated_mentions(
+    raw: list[dict],
+    chunk: str,
+    counters: ValidationCounters | None = None,
+) -> list[ToponymMention]:
+    """Convert LLM-emitted dicts to ``ToponymMention`` instances.
+
+    Drops mentions whose form doesn't match the whitespace-normalized
+    chunk (anti-hallucination). When ``counters`` is supplied, records
+    the breakdown of rejections (hallucinations, year clamps) — used
+    by the orchestrator to surface failure modes in the run report.
 
     Form-in-chunk is the bare-minimum guard. Stronger guards (form
     starts with capital, isn't a known blacklist word like Domesday,
     etc.) are downstream — the operator-review tool / the
-    form→toponym resolver can apply those. Here we only filter the
-    structural anti-hallucination case.
+    form→toponym resolver can apply those.
     """
+    if counters is None:
+        counters = ValidationCounters()
+    chunk_collapsed = _collapse_whitespace(chunk)
     out: list[ToponymMention] = []
     for m in raw:
         if not isinstance(m, dict):
@@ -168,31 +261,41 @@ def _validated_mentions(raw: list[dict], chunk: str) -> list[ToponymMention]:
         form = (m.get("form") or "").strip()
         if not form:
             continue
-        if form not in chunk:
-            # Hallucinated form — drop silently.
+        if not _form_in_chunk(form, chunk_collapsed):
+            counters.hallucinations_dropped += 1
             continue
-        # Clamp date_year to the expected range; out-of-range → None.
-        date_year = m.get("date_year")
-        if isinstance(date_year, int) and not (_DATE_YEAR_MIN <= date_year <= _DATE_YEAR_MAX):
-            date_year = None
-        elif not isinstance(date_year, int):
-            date_year = None
-        # region_hint: keep as-is when non-empty string, else None.
+        date_year, was_clamped = _coerce_year(m.get("date_year"))
+        if was_clamped:
+            counters.years_clamped += 1
         region_hint = m.get("region_hint")
         if isinstance(region_hint, str):
             region_hint = region_hint.strip() or None
         else:
             region_hint = None
-        # context: trim whitespace; collapse newlines.
-        context = (m.get("context") or "").strip().replace("\n", " ")
+        context = _WHITESPACE_RUN.sub(" ", (m.get("context") or "")).strip()
         if not context:
             # Synthesize a context window from the chunk if the LLM
             # left it empty — gives operators something to inspect.
+            # The substring check above guarantees the collapsed form
+            # appears in the collapsed chunk, but the raw chunk may
+            # not contain `form` verbatim (soft-wrap case). Search the
+            # raw chunk first and fall back to the collapsed view.
             idx = chunk.find(form)
             if idx >= 0:
                 start = max(0, idx - 40)
                 end = min(len(chunk), idx + len(form) + 40)
-                context = chunk[start:end].replace("\n", " ").strip()
+                context = _WHITESPACE_RUN.sub(" ", chunk[start:end]).strip()
+            else:
+                # Fall back: locate the form in the collapsed chunk and
+                # use that window (still useful for operator review).
+                collapsed_idx = chunk_collapsed.find(_collapse_whitespace(form))
+                if collapsed_idx >= 0:
+                    start = max(0, collapsed_idx - 40)
+                    end = min(
+                        len(chunk_collapsed),
+                        collapsed_idx + len(_collapse_whitespace(form)) + 40,
+                    )
+                    context = chunk_collapsed[start:end]
         out.append(
             ToponymMention(
                 form=form,
@@ -201,10 +304,15 @@ def _validated_mentions(raw: list[dict], chunk: str) -> list[ToponymMention]:
                 context=context,
             )
         )
+        counters.admitted += 1
     return out
 
 
-def extract_toponym_mentions_from_chunk(client, chunk: str) -> list[ToponymMention]:
+def extract_toponym_mentions_from_chunk(
+    client,
+    chunk: str,
+    counters: ValidationCounters | None = None,
+) -> list[ToponymMention]:
     """Run one LLM call against ``chunk`` and return validated
     mentions. ``client`` must have a ``chat_json(system, user,
     schema=None) -> dict`` method — same contract as
@@ -213,16 +321,31 @@ def extract_toponym_mentions_from_chunk(client, chunk: str) -> list[ToponymMenti
 
     Network / JSON-parse errors propagate as ``RuntimeError`` — the
     caller (per-source orchestrator) decides whether to skip the
-    chunk and continue or abort the run.
+    chunk and continue or abort the run. Structurally-malformed
+    responses (non-dict envelope, non-list ``mentions``) also raise
+    ``RuntimeError`` so the orchestrator can count them as failed
+    chunks rather than silently producing zero mentions (silent-
+    failure-hunter round-1 finding).
     """
     user = USER_TEMPLATE.format(chunk=chunk)
     response = client.chat_json(SYSTEM_PROMPT, user, schema=RESPONSE_SCHEMA)
     if not isinstance(response, dict):
-        return []
+        raise RuntimeError(f"LLM returned non-dict envelope: {type(response).__name__}")
     raw = response.get("mentions")
+    if raw is None:
+        raise RuntimeError("LLM response missing 'mentions' key")
     if not isinstance(raw, list):
-        return []
-    return _validated_mentions(raw, chunk)
+        raise RuntimeError(f"LLM response 'mentions' was {type(raw).__name__}, expected list")
+    return _validated_mentions(raw, chunk, counters=counters)
+
+
+# When a single paragraph exceeds this multiple of the target chunk
+# size, ``mine_toponym_mentions`` warns to stderr — output truncation
+# on an 8K-token-cap LLM response was a silent-failure mode in the
+# round-1 pilot (a 30K-char single paragraph kept whole by snap-to-
+# paragraph + Anthropic's 8192-token cap = mid-JSON truncation that
+# bubbled up as chunks_failed with no diagnostic).
+_OVERSIZED_PARAGRAPH_MULTIPLIER = 1.5
 
 
 def chunk_source_body(body: str, *, target_chunk_size: int = 20000) -> list[str]:
@@ -236,16 +359,18 @@ def chunk_source_body(body: str, *, target_chunk_size: int = 20000) -> list[str]
 
     For a 600KB source body and ``target_chunk_size=20000``, this
     yields ~30 chunks. Anthropic at ~3s per chunk = ~90s per source.
+
+    A single paragraph larger than ``target_chunk_size`` is kept as
+    one chunk (the snap-to-paragraph invariant). If that single
+    paragraph is very large, the LLM's output cap may truncate the
+    response — see ``mine_toponym_mentions``'s oversize warning.
     """
     if not body.strip():
         return []
-    # Split on blank-line boundaries (one or more blank lines).
     paragraphs = body.split("\n\n")
     chunks: list[str] = []
     current = ""
     for para in paragraphs:
-        # If adding this paragraph would exceed the target AND we
-        # already have content, flush the current chunk.
         if current and len(current) + len(para) + 2 > target_chunk_size:
             chunks.append(current.strip())
             current = para
@@ -261,16 +386,26 @@ def chunk_source_body(body: str, *, target_chunk_size: int = 20000) -> list[str]
 
 @dataclass
 class MineToponymMentionsReport:
-    """Aggregate result of mining one source body for mentions."""
+    """Aggregate result of mining one source body for mentions.
+
+    Beyond raw counts, this captures the rejection breakdown so an
+    operator reading "0 mentions, 5 chunks processed" can tell
+    whether the LLM was producing nothing (``mentions`` empty,
+    rejections zero) or producing junk (``mentions`` empty,
+    ``hallucinations_dropped`` non-zero). silent-failure-hunter
+    round-1 finding."""
 
     source_id: str
     chunks_processed: int = 0
     chunks_failed: int = 0
-    mentions: list[ToponymMention] = None  # type: ignore[assignment]
-
-    def __post_init__(self) -> None:
-        if self.mentions is None:
-            self.mentions = []
+    hallucinations_dropped: int = 0
+    years_clamped: int = 0
+    mentions: list[ToponymMention] = field(default_factory=list)
+    # (chunk_index, exception_summary) for each failed chunk —
+    # lets operators see _which_ chunk failed and _what kind_ of
+    # error (rate-limit vs. JSON-truncation vs. schema-mismatch)
+    # rather than just a count.
+    failed_chunks: list[tuple[int, str]] = field(default_factory=list)
 
 
 def mine_toponym_mentions(
@@ -279,31 +414,59 @@ def mine_toponym_mentions(
     body: str,
     *,
     target_chunk_size: int = 20000,
-    on_chunk_done: callable = None,  # type: ignore[type-arg]
+    limit: int | None = None,
+    on_chunk_done: Callable[[int, int, int], None] | None = None,
+    log_warning: Callable[[str], None] | None = None,
 ) -> MineToponymMentionsReport:
     """Walk a source body chunk-by-chunk, accumulating extracted
     mentions. Returns the aggregate report.
 
-    ``on_chunk_done`` is an optional progress callback called with
-    ``(chunks_done, total_chunks, mentions_so_far)`` after each chunk
-    succeeds — lets the CLI emit per-chunk progress to stderr without
-    forcing this module to know about click.
+    Parameters
+    * ``limit`` — if set, process only the first N chunks. Slicing
+      happens AFTER chunking, so the caller can't accidentally split
+      paragraphs (caller previously did ``"\\n\\n".join(chunks[:N])``
+      and re-chunked, which lied about the resulting chunk count —
+      code-reviewer round-1 finding).
+    * ``on_chunk_done`` — invoked after each SUCCESSFUL chunk with
+      ``(chunks_done, total_chunks, mentions_so_far)``. The total is
+      the post-limit count, so progress lines display correctly.
+    * ``log_warning`` — optional sink for diagnostic warnings
+      (oversize paragraph, etc.). Defaults to silent; the CLI wires
+      ``click.echo(..., err=True)``.
     """
     report = MineToponymMentionsReport(source_id=source_id)
     chunks = chunk_source_body(body, target_chunk_size=target_chunk_size)
+    if limit is not None:
+        chunks = chunks[:limit]
     total = len(chunks)
+    if log_warning is not None:
+        oversize_threshold = target_chunk_size * _OVERSIZED_PARAGRAPH_MULTIPLIER
+        for i, c in enumerate(chunks):
+            if len(c) > oversize_threshold:
+                log_warning(
+                    f"chunk {i}: oversized paragraph "
+                    f"({len(c):,} chars > {int(oversize_threshold):,} threshold) — "
+                    f"LLM output may truncate; consider lowering --chunk-size"
+                )
     for i, chunk in enumerate(chunks):
+        chunk_counters = ValidationCounters()
         try:
-            mentions = extract_toponym_mentions_from_chunk(client, chunk)
-        except (RuntimeError, json.JSONDecodeError):
+            mentions = extract_toponym_mentions_from_chunk(client, chunk, counters=chunk_counters)
+        except (RuntimeError, json.JSONDecodeError) as e:
             # Per-chunk failure (transport, JSON-parse, schema mismatch)
             # is logged + skipped — don't poison the whole source's
-            # output. Operator can re-run the source later or pivot to
-            # a different provider for the failed chunks.
+            # output. Operator gets the chunk index + exception type
+            # in the report so they can re-run a targeted subset later
+            # or pivot to a different provider.
             report.chunks_failed += 1
+            report.failed_chunks.append((i, f"{type(e).__name__}: {e}"))
+            if log_warning is not None:
+                log_warning(f"chunk {i} failed: {type(e).__name__}: {e}")
             continue
         report.mentions.extend(mentions)
         report.chunks_processed += 1
+        report.hallucinations_dropped += chunk_counters.hallucinations_dropped
+        report.years_clamped += chunk_counters.years_clamped
         if on_chunk_done is not None:
             on_chunk_done(i + 1, total, len(report.mentions))
     return report

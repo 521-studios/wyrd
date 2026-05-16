@@ -2740,6 +2740,12 @@ def lexicon_reverse_search_toponyms(
     default=None,
     help="Write extracted mentions to this JSONL file. Default: stdout.",
 )
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Overwrite --output if it exists. Without this flag, an existing path errors.",
+)
 def lexicon_mine_toponym_mentions(
     source_id: str,
     sources_dir: Path,
@@ -2748,6 +2754,7 @@ def lexicon_mine_toponym_mentions(
     chunk_size: int,
     limit: int | None,
     output: Path | None,
+    force: bool,
 ) -> None:
     """LLM-mine a scholar source body for place-name mentions (wyrd-x82p Phase 2).
 
@@ -2761,10 +2768,9 @@ def lexicon_mine_toponym_mentions(
     to existing toponyms (via the form→toponym lookup from Phase 1)
     OR creates new toponym rows for unresolved mentions.
     """
-    import sys
+    import time
 
     from wyrd.generators.kenning.toponym_mention_extractor import (
-        chunk_source_body,
         mine_toponym_mentions,
     )
 
@@ -2772,7 +2778,21 @@ def lexicon_mine_toponym_mentions(
     if not txt_path.exists():
         raise click.ClickException(f"source body not found: {txt_path}")
     body = txt_path.read_text(encoding="utf-8", errors="replace")
+    if "�" in body:
+        # errors="replace" silently mapped invalid bytes to U+FFFD.
+        # The form-in-chunk validator will then drop any mention
+        # containing those characters, with no visible signal.
+        # OE/ME place-name texts genuinely use æ/þ/ð — surface a
+        # warning so the operator can fix the encoding upstream.
+        click.echo(
+            f"warning: {txt_path} contained invalid UTF-8 sequences "
+            f"(now U+FFFD); some mentions may be silently rejected",
+            err=True,
+        )
     click.echo(f"Loaded {len(body):,} chars from {txt_path}", err=True)
+
+    if output is not None and output.exists() and not force:
+        raise click.ClickException(f"--output {output} already exists; pass --force to overwrite")
 
     if provider == "anthropic":
         from wyrd.generators.kenning.anthropic_extractor import (
@@ -2780,9 +2800,9 @@ def lexicon_mine_toponym_mentions(
             AnthropicClient,
         )
 
-        # 8192 cap fits ~100-150 mentions per chunk comfortably; the
-        # 4096 default truncated mid-JSON on dense chunks during the
-        # pilot smoke. Sonnet supports much more headroom; this is
+        # 8192-token cap fits ~100-150 mentions per chunk comfortably;
+        # the AnthropicClient's 1024 default truncates mid-JSON on
+        # dense chunks. Sonnet supports much more headroom; this is
         # the smallest safe ceiling.
         client = AnthropicClient(
             model=model or DEFAULT_ANTHROPIC_MODEL,
@@ -2807,19 +2827,12 @@ def lexicon_mine_toponym_mentions(
             model=model or DEFAULT_OLLAMA_MODEL,
         )
     else:
+        # Unreachable in practice — click.Choice gates the option. The
+        # explicit raise keeps the type-checker happy and surfaces a
+        # clear error if the Choice list and this dispatch drift apart.
         raise click.ClickException(f"unknown provider: {provider}")
 
     click.echo(f"Using {provider} model={client.model}", err=True)
-
-    if limit is not None:
-        all_chunks = chunk_source_body(body, target_chunk_size=chunk_size)
-        body = "\n\n".join(all_chunks[:limit])
-        click.echo(
-            f"--limit {limit}: processing first {limit} of {len(all_chunks)} chunks",
-            err=True,
-        )
-
-    import time
 
     start_ts = time.monotonic()
 
@@ -2832,21 +2845,39 @@ def lexicon_mine_toponym_mentions(
             err=True,
         )
 
+    def warn(msg: str) -> None:
+        click.echo(f"  warning: {msg}", err=True)
+
     report = mine_toponym_mentions(
-        client, source_id, body, target_chunk_size=chunk_size, on_chunk_done=progress
+        client,
+        source_id,
+        body,
+        target_chunk_size=chunk_size,
+        limit=limit,
+        on_chunk_done=progress,
+        log_warning=warn,
     )
 
     click.echo("", err=True)
     click.echo(
         f"TOTAL chunks_processed={report.chunks_processed} "
         f"chunks_failed={report.chunks_failed} "
-        f"mentions={len(report.mentions)}",
+        f"mentions={len(report.mentions)} "
+        f"hallucinations_dropped={report.hallucinations_dropped} "
+        f"years_clamped={report.years_clamped}",
         err=True,
     )
+    if report.failed_chunks:
+        click.echo("Failed chunks:", err=True)
+        for idx, msg in report.failed_chunks:
+            click.echo(f"  chunk {idx}: {msg}", err=True)
 
-    sink = open(output, "w", encoding="utf-8") if output else sys.stdout
-    try:
+    sink_ctx = output.open("w", encoding="utf-8") if output is not None else nullcontext(sys.stdout)
+    with sink_ctx as sink:
         for m in report.mentions:
+            # ensure_ascii=False preserves Old/Middle English diacritics
+            # (æ, þ, ð) in the JSONL output — project convention used by
+            # the existing diff/export commands.
             sink.write(
                 json.dumps(
                     {
@@ -2855,15 +2886,13 @@ def lexicon_mine_toponym_mentions(
                         "date_year": m.date_year,
                         "region_hint": m.region_hint,
                         "context": m.context,
-                    }
+                    },
+                    ensure_ascii=False,
                 )
                 + "\n"
             )
-        if output:
-            click.echo(f"Wrote {len(report.mentions)} mentions → {output}", err=True)
-    finally:
-        if output:
-            sink.close()
+    if output is not None:
+        click.echo(f"Wrote {len(report.mentions)} mentions → {output}", err=True)
 
 
 @lexicon.command("audit-etymology-alignment")
