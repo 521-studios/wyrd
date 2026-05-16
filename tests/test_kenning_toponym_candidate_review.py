@@ -625,6 +625,104 @@ def test_toponym_rows_pre_normalizes_name_and_region():
     assert region_norm == "northumberland"
 
 
+def test_fuzzy_match_sort_does_not_TypeError_on_tied_scores():
+    """When two suggestions have the same effective score (e.g. two
+    same-name toponyms with no region hint to break the tie), the
+    sort must NOT raise TypeError. FuzzyToponymSuggestion is a
+    plain dataclass with no ordering, so a sort key of just the
+    score would fall back to comparing the suggestion objects and
+    crash. Tiebreaker on toponym_id keeps the sort deterministic.
+    Gemini round-3 HIGH finding."""
+    conn = _make_conn()
+    # Two identical-name toponyms — same fuzzy ratio against the form.
+    _seed_toponyms(
+        conn,
+        [
+            {"modern_name": "Newton", "region": "Berkshire"},
+            {"modern_name": "Newton", "region": "Northumberland"},
+        ],
+    )
+    toponyms = _toponym_rows(conn)
+    # No region hint — both will tie on effective score.
+    suggestions = fuzzy_match_toponyms("Newton", toponyms)
+    # Must not crash; deterministic order.
+    assert len(suggestions) == 2
+
+
+def test_fuzzy_match_length_bound_does_not_drop_marginal_matches():
+    """The length-bound gate uses the theoretical max ratio:
+    2 * min(L1, L2) / (L1 + L2). The naive (1 - min_ratio) length-
+    delta would drop pairs that could legitimately ratio above the
+    threshold. Gemini round-3 MEDIUM finding: with min_ratio=0.6,
+    L1=10, L2=5, the theoretical max is 2*5/15 ≈ 0.667 (above
+    threshold), but the naive delta gate would reject. Use a
+    string pair that demonstrably can ratio above the threshold."""
+    conn = _make_conn()
+    _seed_toponyms(
+        conn,
+        [
+            # "Edlinghamington" is 15 chars; "Edlingham" is 9 chars.
+            # 2 * 9 / 24 = 0.75, max ratio for the pair. Real ratio
+            # of "Edlingham" vs the prefix portion is well above 0.6.
+            {"modern_name": "Edlinghamington", "region": "X"},
+        ],
+    )
+    toponyms = _toponym_rows(conn)
+    # form is "Edlingham" — the matching 9 chars are a prefix
+    # of the toponym name; real ratio ≈ 0.75.
+    suggestions = fuzzy_match_toponyms("Edlingham", toponyms)
+    assert len(suggestions) == 1
+    assert suggestions[0].fuzzy_score >= 0.6
+
+
+def test_commit_non_str_field_does_not_crash():
+    """If the operator's hand-edited JSONL has a non-string value
+    where a string is expected (number, list, None), the code must
+    NOT crash on `.strip()` — coerce to empty and let the
+    downstream "missing field" error path handle it. Gemini round-3
+    MEDIUM finding."""
+    conn = _make_conn()
+    _seed_toponyms(conn, [{"modern_name": "Edlingham"}])
+    rows = [
+        # Non-string action — coerces to "" and falls through to
+        # "unknown action" error (NOT AttributeError on .strip()).
+        {"source_id": "x", "form": "y", "action": 42},
+        # Non-string form on map — coerces to "" → "missing form" error.
+        {"source_id": "x", "form": [1, 2], "action": "map", "toponym_id": 1},
+        # Non-string create_modern_name on create.
+        {
+            "source_id": "x",
+            "form": "y",
+            "action": "create",
+            "create_modern_name": 99,
+        },
+    ]
+    # Must not raise.
+    report = commit_triage_decisions(conn, rows, apply=True)
+    # All three rows recorded as errors (process didn't crash).
+    assert report.errors == 3
+
+
+def test_prepare_non_str_field_does_not_crash():
+    """Same coercion applies to prepare_candidate — non-string
+    form/source_id/context must not crash on .strip()."""
+    conn = _make_conn()
+    toponyms = _toponym_rows(conn)
+    raw = {
+        "source_id": 99,  # int, not str
+        "form": [1, 2],  # list
+        "region_hint": 42,  # int
+        "context": None,  # None
+    }
+    # Must not raise.
+    prepared = prepare_candidate(raw, toponyms)
+    # All non-string inputs coerced to empty/None.
+    assert prepared.source_id == ""
+    assert prepared.form == ""
+    assert prepared.region_hint is None
+    assert prepared.context == ""
+
+
 def test_toponym_rows_pre_normalizes_null_region_as_none():
     """A toponym with no region must have name_norm AND
     region_norm=None (not empty string) so the fuzzy-match region

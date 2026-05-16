@@ -146,12 +146,16 @@ def fuzzy_match_toponyms(
     for tid, modern_name, region, country, name_norm, region_norm in toponyms:
         if not name_norm:
             continue
-        # Fast length-delta gate: if the strings differ in length by
-        # more than (1 - min_ratio) * max(len), no possible ratio
-        # could reach min_ratio. Avoids the O(N*M) ratio() call for
-        # obvious non-matches (the bulk of any production lookup).
-        max_len = max(form_len, len(name_norm))
-        if max_len > 0 and abs(form_len - len(name_norm)) / max_len > (1 - min_ratio):
+        # Fast length-bound gate using the theoretical max ratio:
+        # SequenceMatcher.ratio() returns 2 * matched_chars / total_chars,
+        # so the upper bound is 2 * min(L1, L2) / (L1 + L2) when every
+        # character of the shorter string matches. If that ceiling
+        # already falls below min_ratio, no real ratio() call can
+        # reach the threshold. Cheaper than quick_ratio() and a
+        # tighter bound than the naive (1 - min_ratio) length-delta.
+        name_len = len(name_norm)
+        total_len = form_len + name_len
+        if total_len > 0 and 2.0 * min(form_len, name_len) / total_len < min_ratio:
             continue
         matcher.set_seq1(name_norm)
         # real_quick_ratio + quick_ratio are documented upper bounds
@@ -184,7 +188,12 @@ def fuzzy_match_toponyms(
                 ),
             )
         )
-    scored.sort(key=lambda x: x[0], reverse=True)
+    # Sort by effective score descending. Tiebreaker is toponym_id
+    # — without it, Python falls back to comparing the second tuple
+    # element (the FuzzyToponymSuggestion dataclass), which doesn't
+    # define ordering and would raise TypeError on ties. Stable +
+    # deterministic across runs.
+    scored.sort(key=lambda x: (x[0], x[1].toponym_id), reverse=True)
     return [sugg for _, sugg in scored[:limit]]
 
 
@@ -226,10 +235,17 @@ def prepare_candidate(
     """Convert a raw candidate dict (one row from Phase 2b.1's
     ``--candidates-out`` JSONL) into a ``PreparedCandidate`` with
     fuzzy suggestions attached. Tolerates missing optional fields
-    in the raw input (``date_year`` etc. may be absent or null)."""
-    form = (raw.get("form") or "").strip()
-    region_hint = raw.get("region_hint")
-    if not isinstance(region_hint, str):
+    in the raw input (``date_year`` etc. may be absent or null).
+    Non-string values for string fields (``form``, ``source_id``,
+    ``region_hint``, ``context``) get coerced rather than crashing
+    on ``.strip()`` — defensive for hand-edited or upstream-malformed
+    JSONL rows."""
+    form = _coerce_text(raw.get("form"))
+    region_hint_raw = raw.get("region_hint")
+    region_hint: str | None
+    if isinstance(region_hint_raw, str) and region_hint_raw.strip():
+        region_hint = region_hint_raw
+    else:
         region_hint = None
     suggestions = fuzzy_match_toponyms(form, toponyms, region_hint=region_hint)
     # Use the same coercion as the commit layer so the triage JSONL
@@ -237,10 +253,8 @@ def prepare_candidate(
     # avoids surprise data loss between prepare and commit when the
     # upstream candidates carry e.g. an integer-valued float year.
     date_year = _coerce_date_year(raw.get("date_year"))
-    context = raw.get("context")
-    if not isinstance(context, str):
-        context = ""
-    source_id = raw.get("source_id") or ""
+    context = _coerce_text(raw.get("context"))
+    source_id = _coerce_text(raw.get("source_id"))
     return PreparedCandidate(
         source_id=source_id,
         form=form,
@@ -292,6 +306,23 @@ class CommitReport:
     # ``_DEMOTED_RECORDS_CAP``; the counter ``demoted_count``
     # stays accurate beyond the cap.
     demoted_records: list[tuple[int, int, str]] = field(default_factory=list)
+
+
+def _coerce_text(raw: object) -> str:
+    """Defensive ``str.strip()`` for operator-edited JSONL fields.
+    Operators occasionally produce non-string values (a number, a
+    null, a list) for what should be a string field. Coercing
+    instead of crashing on ``.strip()`` lets the downstream
+    validation logic (e.g. "form missing" error) catch the bad
+    value with a useful message rather than the process aborting
+    on a raw AttributeError.
+
+    Returns an empty string for None, non-string types, and
+    whitespace-only inputs — downstream truthiness checks treat
+    these as missing."""
+    if raw is None or not isinstance(raw, str):
+        return ""
+    return raw.strip()
 
 
 def _coerce_date_year(raw: object) -> int | None:
@@ -377,9 +408,9 @@ def commit_triage_decisions(
         if not isinstance(row, dict):
             _record_error(idx, f"row is not a dict: {type(row).__name__}")
             continue
-        action = (row.get("action") or "").strip().lower()
-        form = (row.get("form") or "").strip()
-        source_id = (row.get("source_id") or "").strip()
+        action = _coerce_text(row.get("action")).lower()
+        form = _coerce_text(row.get("form"))
+        source_id = _coerce_text(row.get("source_id"))
         date_year = _coerce_date_year(row.get("date_year"))
         if action == "skip":
             report.skipped += 1
@@ -411,7 +442,7 @@ def commit_triage_decisions(
             report.mapped += 1
             continue
         if action == "create":
-            modern_name = (row.get("create_modern_name") or "").strip()
+            modern_name = _coerce_text(row.get("create_modern_name"))
             if not modern_name:
                 _record_error(idx, "action=create but create_modern_name missing")
                 continue
