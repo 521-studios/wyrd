@@ -2532,7 +2532,7 @@ def lexicon_refill_short_quotes(
             if verbose:
                 # Surface RefillReport.samples so operators can
                 # spot-check before/after quality without manual DB
-                # inspection (Gemini round-1 finding).
+                # inspection .
                 for sample in report.samples:
                     click.echo(f"    [{sample.status}] {sample.etymon_ref}")
                     if sample.old_short_quote:
@@ -2887,7 +2887,7 @@ def lexicon_mine_toponym_mentions(
     # ensure_ascii=False preserves Old/Middle English diacritics
     # (æ, þ, ð) in the JSONL output — project convention used by the
     # existing diff/export commands. For stdout we use click.echo
-    # (Gemini round-2): it handles terminal-encoding edge cases
+    # : it handles terminal-encoding edge cases
     # (Latin-1 PYTHONIOENCODING, stdout=non-UTF-8 device) by re-
     # encoding via UTF-8 or replacement, where a bare sys.stdout.write
     # would raise UnicodeEncodeError. For --output we write the file

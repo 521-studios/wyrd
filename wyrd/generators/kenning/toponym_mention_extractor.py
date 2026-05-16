@@ -186,8 +186,7 @@ class ValidationCounters:
 
     Used by the orchestrator to roll up across all chunks, so
     operators can see the failure-mode breakdown (vs. an opaque
-    "0 mentions admitted" result that silent-failure-hunter flagged
-    as a load-bearing UX gap in round 1).
+    "0 mentions admitted" result is a load-bearing UX gap).
     """
 
     admitted: int = 0
@@ -250,7 +249,13 @@ def _form_in_chunk(form: str, chunk_collapsed: str) -> bool:
     form_collapsed = _collapse_whitespace(form)
     if not form_collapsed:
         return False
-    pattern = r"\b" + re.escape(form_collapsed) + r"\b"
+    # Lookbehind/lookahead instead of \b — \b requires a word-class
+    # transition, which fails for forms whose first/last character is
+    # already a non-word char (an LLM-emitted "F." for an abbreviation,
+    # "St." for "Saint", or "Stoke-" with a trailing hyphen). The
+    # lookaround flavor only requires the IMMEDIATE neighbor to be
+    # non-word, regardless of what the form's own edge character is.
+    pattern = r"(?<!\w)" + re.escape(form_collapsed) + r"(?!\w)"
     return re.search(pattern, chunk_collapsed) is not None
 
 
@@ -344,15 +349,13 @@ def extract_toponym_mentions_from_chunk(
     chunk and continue or abort the run. Structurally-malformed
     responses (non-dict envelope, non-list ``mentions``) also raise
     ``RuntimeError`` so the orchestrator can count them as failed
-    chunks rather than silently producing zero mentions (silent-
-    failure-hunter round-1 finding).
+    chunks rather than silently producing zero mentions.
     """
     user = USER_TEMPLATE.format(chunk=chunk)
     # Positional schema arg — the three provider clients diverge on
     # the schema kwarg name (AnthropicClient: `schema`, GeminiClient:
     # `response_schema`, OllamaClient: `schema`). Using positional
-    # avoids a TypeError under --provider gemini. Gemini PR-#213
-    # round-2 finding (load-bearing bug — gemini route would crash).
+    # avoids a TypeError under --provider gemini.
     response = client.chat_json(SYSTEM_PROMPT, user, RESPONSE_SCHEMA)
     if not isinstance(response, dict):
         raise RuntimeError(f"LLM returned non-dict envelope: {type(response).__name__}")
@@ -365,11 +368,11 @@ def extract_toponym_mentions_from_chunk(
 
 
 # When a single paragraph exceeds this multiple of the target chunk
-# size, ``mine_toponym_mentions`` warns to stderr — output truncation
-# on an 8K-token-cap LLM response was a silent-failure mode in the
-# round-1 pilot (a 30K-char single paragraph kept whole by snap-to-
-# paragraph + Anthropic's 8192-token cap = mid-JSON truncation that
-# bubbled up as chunks_failed with no diagnostic).
+# size, ``mine_toponym_mentions`` warns to stderr — without the
+# warning, a 30K-char single paragraph (kept whole by snap-to-
+# paragraph) + Anthropic's 8192-token output cap silently truncates
+# the JSON response, surfacing only as chunks_failed with no
+# diagnostic hint that the cause is chunk size.
 _OVERSIZED_PARAGRAPH_MULTIPLIER = 1.5
 
 
@@ -392,11 +395,13 @@ def chunk_source_body(body: str, *, target_chunk_size: int = 20000) -> list[str]
     """
     if not body.strip():
         return []
-    # Regex split tolerates blank lines with arbitrary whitespace
-    # (single spaces / tabs between the newlines) — OCR-derived
-    # scholar prose often has \n\s*\n where \n\n would expect tight
-    # blank-line boundaries.
-    paragraphs = re.split(r"\n\s*\n", body)
+    # Regex split tolerates blank lines with horizontal whitespace
+    # (spaces/tabs) between the newlines — OCR-derived scholar prose
+    # often has "\n  \n" where a tight \n\n would miss the boundary.
+    # Restricted to [ \t] (not \s) so the middle of the blank line
+    # can't itself contain another \n that a greedy \s* would consume,
+    # falsely merging real content into a paragraph separator.
+    paragraphs = re.split(r"\n[ \t]*\n", body)
     chunks: list[str] = []
     current = ""
     for para in paragraphs:
@@ -426,7 +431,18 @@ class FailedChunk:
 # Memory ceiling for ``failed_chunks`` on a single source's report.
 # A pathological rate-limit storm could otherwise accumulate thousands
 # of records, blowing memory and flooding stderr.
+#
+# Two halves: keep the first N/2 failures (catches deterministic
+# config errors that surface at run start — auth misconfig, schema
+# mismatch, wrong endpoint) AND the last N/2 (catches transient mid-
+# run failures the operator most wants to see — rate-limit storms,
+# model deprecation kicking in, JSON-truncation on a deep oversized
+# paragraph). Keeping only the first N would silently drop the
+# diagnostic-rich tail; keeping only the last N would erase the
+# auth/config errors at the head. Half-and-half is the right shape.
 _FAILED_CHUNKS_CAP = 100
+_FAILED_CHUNKS_HEAD = _FAILED_CHUNKS_CAP // 2
+_FAILED_CHUNKS_TAIL = _FAILED_CHUNKS_CAP - _FAILED_CHUNKS_HEAD
 
 
 @dataclass
@@ -468,8 +484,7 @@ def mine_toponym_mentions(
     * ``limit`` — if set, process only the first N chunks. Slicing
       happens AFTER chunking, so the caller can't accidentally split
       paragraphs (caller previously did ``"\\n\\n".join(chunks[:N])``
-      and re-chunked, which lied about the resulting chunk count —
-      code-reviewer round-1 finding).
+      and re-chunked, which lied about the resulting chunk count).
     * ``on_chunk_done`` — invoked after each SUCCESSFUL chunk with
       ``(chunks_done, total_chunks, mentions_so_far)``. The total is
       the post-limit count, so progress lines display correctly.
@@ -477,6 +492,8 @@ def mine_toponym_mentions(
       (oversize paragraph, etc.). Defaults to silent; the CLI wires
       ``click.echo(..., err=True)``.
     """
+    from collections import deque
+
     report = MineToponymMentionsReport(source_id=source_id)
     chunks = chunk_source_body(body, target_chunk_size=target_chunk_size)
     if limit is not None:
@@ -491,6 +508,10 @@ def mine_toponym_mentions(
                     f"({len(c):,} chars > {int(oversize_threshold):,} threshold) — "
                     f"LLM output may truncate; consider lowering --chunk-size"
                 )
+    # head_failures: first N/2 captured directly. tail_failures: bounded
+    # ring buffer of the most recent N/2. Merged at end before returning.
+    head_failures: list[FailedChunk] = []
+    tail_failures: deque[FailedChunk] = deque(maxlen=_FAILED_CHUNKS_TAIL)
     for i, chunk in enumerate(chunks):
         chunk_counters = ValidationCounters()
         try:
@@ -499,11 +520,14 @@ def mine_toponym_mentions(
             # Per-chunk failure (transport, JSON-parse, schema mismatch)
             # is logged + skipped — don't poison the whole source's
             # output. Operator gets the chunk index + exception type
-            # in the report so they can re-run a targeted subset later
-            # or pivot to a different provider.
+            # so they can re-run a targeted subset later or pivot to a
+            # different provider.
             report.chunks_failed += 1
-            if len(report.failed_chunks) < _FAILED_CHUNKS_CAP:
-                report.failed_chunks.append(FailedChunk(index=i, error=f"{type(e).__name__}: {e}"))
+            failure = FailedChunk(index=i, error=f"{type(e).__name__}: {e}")
+            if len(head_failures) < _FAILED_CHUNKS_HEAD:
+                head_failures.append(failure)
+            else:
+                tail_failures.append(failure)
             if log_warning is not None:
                 log_warning(f"chunk {i} failed: {type(e).__name__}: {e}")
             continue
@@ -513,4 +537,9 @@ def mine_toponym_mentions(
         report.years_clamped += chunk_counters.years_clamped
         if on_chunk_done is not None:
             on_chunk_done(i + 1, total, len(report.mentions))
+    # Merge head + tail. List shape preserves indices for the CLI's
+    # display loop; the gap between head and tail (if any) is implicit
+    # via the chunks_failed counter minus len(failed_chunks).
+    report.failed_chunks.extend(head_failures)
+    report.failed_chunks.extend(tail_failures)
     return report

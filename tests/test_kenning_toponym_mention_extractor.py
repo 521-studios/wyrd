@@ -115,6 +115,38 @@ def test_form_in_chunk_rejects_empty_form():
     assert not _form_in_chunk("   ", "anything")
 
 
+def test_form_in_chunk_matches_form_ending_in_non_word_char():
+    """Lookbehind/lookahead instead of \\b allows forms whose first or
+    last character is non-word (period, hyphen, apostrophe). The
+    previous \\b-based check required word-class transition on both
+    edges, silently rejecting abbreviated-form mentions like "F." or
+    "St." emitted by the LLM verbatim."""
+    chunk_collapsed = _collapse_whitespace("St. Bees is on the coast")
+    assert _form_in_chunk("St.", chunk_collapsed)
+
+    chunk_collapsed = _collapse_whitespace("notable forms: F. Eccleshall")
+    assert _form_in_chunk("F.", chunk_collapsed)
+
+    # And a form ending in a hyphen ("Stoke-") followed by a non-word
+    # neighbor in the chunk.
+    chunk_collapsed = _collapse_whitespace("the cluster Stoke- and -ton suffixes")
+    assert _form_in_chunk("Stoke-", chunk_collapsed)
+
+
+def test_form_in_chunk_lookbehind_still_rejects_word_boundary_violation():
+    """The lookaround neighbor-is-non-word check must still reject a
+    fragment landing INSIDE a longer word: "on" must not match in
+    "upon", "Tyne" must not match in "Tyneside" if it would land
+    mid-word — only at proper boundaries."""
+    chunk_collapsed = _collapse_whitespace("upon the Tyneside")
+    # "on" is at the END of "upon" — the next char is space (non-word),
+    # but the previous char "p" is word — lookbehind (?<!\w) rejects.
+    assert not _form_in_chunk("on", chunk_collapsed)
+    # "Tyne" appears at START of "Tyneside" — previous char " " is
+    # non-word, but the next char "s" is word — lookahead (?!\w) rejects.
+    assert not _form_in_chunk("Tyne", chunk_collapsed)
+
+
 # ---------- _coerce_year -------------------------------------------------
 
 
@@ -126,7 +158,7 @@ def test_coerce_year_accepts_in_range_int():
 def test_coerce_year_accepts_exact_boundaries(year):
     """Both inclusive endpoints (700, 1700) must be accepted. A regression
     that flipped <= to < would slip past a test that only used midpoint
-    values. fixture-data-reviewer round-1 finding."""
+    values."""
     assert _coerce_year(year) == (year, False)
 
 
@@ -177,7 +209,7 @@ def test_coerce_year_strict_rejects_non_canonical_string(raw):
 def test_coerce_year_rejects_float():
     """JSON allows numeric values without subtype info — a provider
     that returns 1086.0 (json.loads on `"1086.0"` gives float) must
-    not silently admit a non-integer year. test-coverage round-2."""
+    not silently admit a non-integer year."""
     assert _coerce_year(1086.0) == (None, True)
     assert _coerce_year(float("nan")) == (None, True)
     assert _coerce_year(float("inf")) == (None, True)
@@ -218,8 +250,7 @@ def test_validated_mentions_keeps_form_present_in_chunk():
 def test_validated_mentions_drops_near_neighbor_hallucination():
     """A real failure mode the operator should care about: LLM emits a
     plausible-LOOKING form (similar charset, plausible OE pattern) that
-    isn't actually in the chunk. fixture-data-reviewer round-1: the
-    earlier test used 'Birmingham' which shares zero domain overlap and
+    isn't actually in the chunk. earlier test used 'Birmingham' which shares zero domain overlap and
     only proves the substring-check works on a trivial miss."""
     chunk = "Edlingham is the homestead of the sons of Eadwulf."
     raw = [
@@ -236,7 +267,7 @@ def test_validated_mentions_drops_near_neighbor_hallucination():
 def test_validated_mentions_admits_soft_wrapped_form():
     """LLM correctly emits a hyphen-free / single-line form for a
     multi-line chunk source. Without whitespace-normalized matching,
-    this drops silently. silent-failure-hunter round-1 finding."""
+    this drops silently."""
     chunk = "the borough of Newcastle upon\nTyne is found in"
     raw = [{"form": "Newcastle upon Tyne", "context": "Newcastle upon Tyne is found"}]
     out = _validated_mentions(raw, chunk)
@@ -246,7 +277,7 @@ def test_validated_mentions_admits_soft_wrapped_form():
 def test_validated_mentions_in_range_year_survives():
     """Positive control — the year-clamping test must also confirm that
     an in-range year is preserved, otherwise a bug that nulls EVERY
-    year passes the test. pr-test-analyzer round-1 finding."""
+    year passes the test."""
     chunk = "Edlingham in 1086"
     raw = [{"form": "Edlingham", "date_year": 1086, "context": "valid"}]
     counters = ValidationCounters()
@@ -295,7 +326,7 @@ def test_validated_mentions_empty_region_hint_becomes_none():
 def test_validated_mentions_synthesizes_missing_context_with_neighbors():
     """Synthesized context must include surrounding prose, not just the
     form itself — the operator's job is to verify the mention in
-    context. pr-test-analyzer round-1: the earlier assertion
+    context. earlier assertion
     (just 'Edlingham' in context) passed trivially because the form
     was already in the chunk by the substring check."""
     chunk = "the village of Edlingham was first attested in 1086 as a small homestead"
@@ -370,8 +401,7 @@ def test_chunk_source_body_chunks_end_at_paragraph_boundaries():
     """Strong invariant: each emitted chunk must be a sequence of
     complete paragraphs (no chunk ends mid-paragraph). The earlier
     assertion ('rejoined contains substrings') passed even if the
-    splitter returned the whole body as one chunk. pr-test-analyzer
-    + test-coverage-reviewer round-1 finding."""
+    splitter returned the whole body as one chunk."""
     body = "para one is short.\n\npara two is also short.\n\npara three completes."
     chunks = chunk_source_body(body, target_chunk_size=30)
     # No chunk should be a fragment of a paragraph — each chunk should
@@ -399,21 +429,34 @@ def test_chunk_source_body_single_long_paragraph_kept_as_one_chunk():
 
 
 def test_chunk_source_body_tolerates_whitespace_in_paragraph_boundaries():
-    """OCR-derived scholar prose sometimes has \\n \\n or \\n\\t\\n
-    between paragraphs (whitespace on the blank line). The regex
-    split must still recognize these as paragraph boundaries.
-    Gemini round-2 finding."""
+    """OCR-derived scholar prose sometimes has "\\n  \\n" or "\\n\\t\\n"
+    between paragraphs (horizontal whitespace on the blank line). The
+    regex split must recognize these as paragraph boundaries. Exact
+    count pinned — a regression that over-splits (e.g. on every
+    whitespace character) would produce many tiny chunks, which a
+    >=2 assertion wouldn't catch."""
     body = "para one.\n  \npara two.\n\t\npara three."
     chunks = chunk_source_body(body, target_chunk_size=15)
-    # All three paragraphs must be present and chunked correctly.
-    rejoined = " ".join(chunks)
-    assert "para one" in rejoined
-    assert "para two" in rejoined
-    assert "para three" in rejoined
-    # And the split must have produced multiple chunks (would be 1
-    # if the regex failed and the splitter treated the whole body
-    # as a single paragraph).
-    assert len(chunks) >= 2
+    assert len(chunks) == 3
+    assert chunks[0] == "para one."
+    assert chunks[1] == "para two."
+    assert chunks[2] == "para three."
+
+
+def test_chunk_source_body_does_not_split_on_single_newline():
+    """A single newline (mid-paragraph soft-wrap) must NOT be a
+    paragraph boundary — the regex requires \\n[ \\t]*\\n. The two
+    halves of "para one" connected by a single \\n must end up in
+    the SAME chunk (the soft-wrap didn't split them)."""
+    body = "para one continues\nover two lines.\n\npara two."
+    # target=15 forces flush after each paragraph; "para one continues..."
+    # is one paragraph regardless of internal \n.
+    chunks = chunk_source_body(body, target_chunk_size=15)
+    assert len(chunks) == 2  # two real paragraphs
+    # Both halves of para one in the same chunk: the soft-wrap was NOT
+    # treated as a paragraph boundary.
+    assert "continues" in chunks[0] and "two lines" in chunks[0]
+    assert chunks[1] == "para two."
 
 
 def test_chunk_source_body_packs_paragraphs_up_to_target():
@@ -436,8 +479,7 @@ def test_extract_one_chunk_passes_schema_positionally():
     """Schema MUST be passed positionally, not as a kwarg. The three
     provider clients disagree on the kwarg name (AnthropicClient and
     OllamaClient use `schema`; GeminiClient uses `response_schema`) —
-    passing as `schema=` would TypeError under --provider gemini.
-    Gemini PR-#213 round-2 finding."""
+    passing as `schema=` would TypeError under --provider gemini."""
 
     class StrictPositionalClient:
         """Verifies that the call uses 3 positional args (not kwarg)."""
@@ -611,8 +653,7 @@ def test_mine_toponym_mentions_continues_past_chunk_failure():
 
 
 def test_mine_toponym_mentions_empty_body_makes_no_llm_calls():
-    """Cost-guard: empty body must not trigger a single LLM call.
-    test-coverage-reviewer round-1 finding."""
+    """Cost-guard: empty body must not trigger a single LLM call."""
     client = FakeClient([{"mentions": []}])  # would crash if called
     report = mine_toponym_mentions(client, "test_source", "")
     assert report.source_id == "test_source"
@@ -623,7 +664,7 @@ def test_mine_toponym_mentions_empty_body_makes_no_llm_calls():
 
 def test_mine_toponym_mentions_progress_callback_fires_exact_count():
     """Callback fires exactly once per SUCCESSFUL chunk (not per failed
-    chunk). pr-test-analyzer round-1: earlier assertion was len >= 1
+    chunk). earlier assertion was len >= 1
     which a bug firing once outside the loop would pass."""
     body = _three_chunk_body()
     client = FakeClient(
@@ -652,7 +693,7 @@ def test_mine_toponym_mentions_progress_callback_fires_exact_count():
 def test_mine_toponym_mentions_limit_pass_through():
     """``limit`` must slice chunks AFTER chunking — without
     re-joining + re-chunking that could merge limited chunks back
-    together. code-reviewer + silent-failure-hunter round-1 finding."""
+    together."""
     body = _three_chunk_body()
     # Only the first canned response will be consumed.
     client = FakeClient([{"mentions": [{"form": "Edlin", "context": "Edlin"}]}])
@@ -664,7 +705,7 @@ def test_mine_toponym_mentions_limit_pass_through():
 
 def test_mine_toponym_mentions_oversized_paragraph_warns():
     """A single paragraph exceeding 1.5× target should emit a warning
-    via ``log_warning``. silent-failure-hunter round-1: previously the
+    via ``log_warning``. previously the
     8192-token cap silently truncated and the operator only saw
     'chunks_failed' with no diagnostic."""
     body = "Z" * 20000  # one huge paragraph, no \n\n
@@ -696,7 +737,7 @@ def test_mine_toponym_mentions_report_has_independent_mentions_list():
 def test_mine_toponym_mentions_rolls_up_validation_counters():
     """Per-chunk hallucinations + clamps must aggregate to the report
     so operators see the total failure mode breakdown across the
-    source. silent-failure-hunter round-1 finding."""
+    source."""
     body = _three_chunk_body()
     client = FakeClient(
         [
@@ -746,7 +787,7 @@ def test_cli_path_traversal_is_neutralized_against_planted_file(tmp_path, monkey
     """Strong path-traversal test: plant a sensitive file OUTSIDE the
     sources_dir and confirm that ``--source ../planted`` doesn't read
     it. Path(...).name strips the traversal to bare 'planted', which
-    doesn't exist inside sources_dir. code-reviewer round-1: earlier
+    doesn't exist inside sources_dir. earlier
     test couldn't distinguish neutralized-traversal from missing-file."""
     runner = CliRunner()
     sources_dir = tmp_path / "sources"
@@ -801,8 +842,7 @@ def _stub_anthropic_for_cli(monkeypatch, fake_client: FakeClient) -> None:
 
 def test_cli_jsonl_output_multiple_mentions(tmp_path, monkeypatch):
     """End-to-end CLI test: 2 mentions across the JSONL output, with the
-    expected key set on each line. fixture-data-reviewer round-1: the
-    earlier single-mention test didn't verify line-per-mention shape."""
+    expected key set on each line. earlier single-mention test didn't verify line-per-mention shape."""
     runner = CliRunner()
     sources_dir = tmp_path / "sources"
     sources_dir.mkdir()
@@ -1062,7 +1102,7 @@ def test_cli_invalid_utf8_warns_about_replacement_chars(tmp_path, monkeypatch):
     """If the source body contains invalid UTF-8 (replaced by U+FFFD),
     the CLI must warn — without the warning, mentions containing
     those characters get silently rejected by the form-in-chunk
-    validator. silent-failure-hunter round-1 finding."""
+    validator."""
     runner = CliRunner()
     sources_dir = tmp_path / "sources"
     sources_dir.mkdir()
@@ -1090,36 +1130,41 @@ def test_cli_invalid_utf8_warns_about_replacement_chars(tmp_path, monkeypatch):
 # ---------- additional round-2/3 hardening -------------------------------
 
 
-def test_mine_toponym_mentions_failed_chunks_cap(monkeypatch):
-    """The failed_chunks list must cap at _FAILED_CHUNKS_CAP to avoid
-    unbounded memory growth on a rate-limit storm — but ``chunks_failed``
-    counter remains accurate. silent-failure-hunter round-2 finding."""
+def test_mine_toponym_mentions_failed_chunks_cap_keeps_head_and_tail(monkeypatch):
+    """failed_chunks caps via head+tail retention. chunks_failed stays
+    accurate; only the detail list is bounded. Half-and-half keeps the
+    deterministic config errors at run start (auth, schema mismatch)
+    AND the most recent transient failures (rate-limit storm, mid-run
+    model deprecation, deep-paragraph JSON truncation). Pure keep-
+    first would drop the diagnostic-rich tail; pure keep-last would
+    erase the auth/config head."""
     from wyrd.generators.kenning import toponym_mention_extractor as tme
 
-    # Lower the cap for test determinism.
-    monkeypatch.setattr(tme, "_FAILED_CHUNKS_CAP", 3)
+    # Lower head + tail for test determinism. head=1 + tail=2 = cap 3.
+    monkeypatch.setattr(tme, "_FAILED_CHUNKS_HEAD", 1)
+    monkeypatch.setattr(tme, "_FAILED_CHUNKS_TAIL", 2)
 
-    # Construct a 5-chunk body so we exceed the cap.
+    # 5-chunk body — 2 more failures than head+tail capacity.
     paragraphs = [("X" * 7995 + f" Park{i}") for i in range(5)]
     body = "\n\n".join(paragraphs)
-    # Verify the splitter actually produces 5 chunks.
     assert len(chunk_source_body(body, target_chunk_size=10000)) == 5
 
-    # Every chunk fails.
+    # Every chunk fails with a distinguishable error string.
     client = FakeClient([RuntimeError(f"chunk-{i}") for i in range(5)])
     report = mine_toponym_mentions(client, "test_source", body, target_chunk_size=10000)
-    # All 5 failures counted, but only 3 detail records kept.
-    assert report.chunks_failed == 5
-    assert len(report.failed_chunks) == 3
-    # Indices of kept failures are the FIRST 3 (oldest = most actionable).
-    assert [fc.index for fc in report.failed_chunks] == [0, 1, 2]
+
+    assert report.chunks_failed == 5  # counter accurate
+    assert len(report.failed_chunks) == 3  # head + tail capacity
+    # Head: first failure (index 0). Tail: last 2 (indices 3 and 4).
+    # Middle failure (index 2) is elided.
+    assert [fc.index for fc in report.failed_chunks] == [0, 3, 4]
 
 
 def test_mine_toponym_mentions_oversized_paragraph_no_warning_when_safe():
     """Negative control: a body whose paragraphs are well below the
     1.5× target should produce ZERO oversize warnings. Without this
     test, a bug emitting the warning for ALL chunks would still pass
-    the existing positive-control test. pr-test-analyzer round-2."""
+    the existing positive-control test."""
     safe_body = "Edlingham mentioned.\n\nTynemouth on the coast.\n\nWear river."
     client = FakeClient([{"mentions": []}])
     warnings: list[str] = []
@@ -1191,9 +1236,12 @@ def test_cli_model_override_flows_to_client_factory(tmp_path, monkeypatch):
 
 
 def test_cli_force_overwrite_warns_to_stderr(tmp_path, monkeypatch):
-    """With --force, the overwrite must produce a stderr warning so a
-    typo'd re-run doesn't silently destroy a multi-hour pilot output.
-    silent-failure-hunter round-2 finding."""
+    """With --force, the overwrite warning must appear on STDERR
+    specifically (per project convention: progress lines go to stderr;
+    JSONL data goes to stdout). A regression that wrote the warning to
+    stdout would still satisfy the combined-output check, but it would
+    pollute the operator's JSONL pipeline silently."""
+    # mix_stderr=False keeps result.stdout / result.stderr separate.
     runner = CliRunner()
     sources_dir = tmp_path / "sources"
     sources_dir.mkdir()
@@ -1217,8 +1265,42 @@ def test_cli_force_overwrite_warns_to_stderr(tmp_path, monkeypatch):
             "--force",
         ],
     )
-    assert result.exit_code == 0, result.output
-    assert "overwriting" in result.output
+    assert result.exit_code == 0, result.stderr
+    # Warning specifically on stderr — would be on stdout if regression.
+    assert "overwriting" in result.stderr
+    assert "overwriting" not in result.stdout
+
+
+def test_cli_force_without_existing_output_does_not_warn(tmp_path, monkeypatch):
+    """Negative control: --force on a path that DOESN'T exist must
+    NOT emit an "overwriting" warning. Without this, a regression
+    that fires the warning unconditionally would pass the positive
+    test."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "stub.txt").write_text("Edlingham.", encoding="utf-8")
+    fresh_output = tmp_path / "fresh.jsonl"  # does NOT exist yet
+    assert not fresh_output.exists()
+
+    _stub_anthropic_for_cli(monkeypatch, FakeClient([{"mentions": []}]))
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions",
+            "--source",
+            "stub",
+            "--sources-dir",
+            str(sources_dir),
+            "--output",
+            str(fresh_output),
+            "--force",  # specified, but file doesn't exist
+        ],
+    )
+    assert result.exit_code == 0, result.stderr
+    assert "overwriting" not in result.stderr
 
 
 def test_chunk_source_body_chunks_are_complete_paragraphs():
