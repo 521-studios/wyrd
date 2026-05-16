@@ -806,6 +806,27 @@ def test_mine_toponym_mentions_continues_past_chunk_failure():
     assert "503" in fc.error
 
 
+def test_mine_toponym_mentions_propagates_unknown_dialect_value_error():
+    """wyrd-pe4g round-3 silent-failure-hunter: the dispatch-time
+    whitelist guard raises ValueError on a typo'd ``schema_dialect``,
+    but the per-chunk bare-Exception catch in ``mine_toponym_mentions``
+    would silently bucket every chunk into ``chunks_failed`` if
+    ValueError weren't in ``_PROGRAMMER_ERROR_EXCEPTIONS``. The whole
+    point of the round-2 guard is to make the misconfiguration loud;
+    if a typo silently produced ``chunks_failed=N, chunks_processed=0,
+    exit 0`` the guard would be a no-op in production (and the tiered
+    fallback would mask it entirely). This test pins the propagation."""
+
+    class TypoClient:
+        schema_dialect = "Openapi"  # capitalization typo
+
+        def chat_json(self, system, user, response_schema=None):
+            raise AssertionError("guard should fire before chat_json is reached")
+
+    with pytest.raises(ValueError, match=r"unknown schema_dialect 'Openapi'"):
+        mine_toponym_mentions(TypoClient(), "test_source", _three_chunk_body())
+
+
 def test_mine_toponym_mentions_empty_body_makes_no_llm_calls():
     """Cost-guard: empty body must not trigger a single LLM call."""
     client = FakeClient([{"mentions": []}])  # would crash if called

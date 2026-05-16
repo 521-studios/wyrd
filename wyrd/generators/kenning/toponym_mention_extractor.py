@@ -453,11 +453,23 @@ _OVERSIZED_PARAGRAPH_MULTIPLIER = 1.5
 # are not the kind of errors that should ever happen at runtime in a
 # correct deployment; if they do, something is broken at the code
 # level and the operator needs to see the stack.
+#
+# ValueError is in this tuple because the only source of ValueError
+# on the chunk path is the dispatch-time whitelist guard for an
+# unknown ``schema_dialect`` value (wyrd-pe4g round-2 + round-3:
+# silent-failure-hunter). That's a misconfiguration on the client
+# class, not a per-chunk transport hiccup; without re-raising, a
+# typo'd dialect would silently produce 100% chunks_failed and
+# (in tiered mode) the fallback would mask the misconfiguration
+# entirely. None of the existing transport-layer paths raise bare
+# ValueError — JSON parse failures all go through RuntimeError —
+# so this re-raise is scoped to configuration errors.
 _PROGRAMMER_ERROR_EXCEPTIONS: tuple[type[Exception], ...] = (
     AttributeError,
     TypeError,
     NameError,
     ImportError,
+    ValueError,
 )
 
 
