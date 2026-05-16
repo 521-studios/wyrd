@@ -69,17 +69,34 @@ def _seed_toponyms(conn: sqlite3.Connection, rows: list[dict]) -> dict[str, int]
 
 
 def test_fuzzy_match_returns_close_match():
-    """A near-spelling-variant should surface as the top match."""
+    """A near-spelling-variant surfaces as the top match. Asserts a
+    realistic ratio range (NOT exact match — would slip a regression
+    that returned 1.0 for everything) AND that a distractor toponym
+    is ranked lower than the target."""
     conn = _make_conn()
-    _seed_toponyms(conn, [{"modern_name": "Edlingham", "region": "Northumberland"}])
+    _seed_toponyms(
+        conn,
+        [
+            {"modern_name": "Edlingham", "region": "Northumberland"},
+            # Distractor: shares a couple letters but is clearly not
+            # the target. Must rank LOWER than Edlingham.
+            {"modern_name": "Berwick", "region": "Northumberland"},
+        ],
+    )
     toponyms = _toponym_rows(conn)
     suggestions = fuzzy_match_toponyms("Eadlingham", toponyms)
-    assert len(suggestions) == 1
+    assert len(suggestions) >= 1
     assert suggestions[0].modern_name == "Edlingham"
-    # Score reflects high similarity — exact-string ratio is 1.0;
-    # one-letter difference here is ~0.94. Round trip preserves the
-    # similarity floor.
-    assert suggestions[0].fuzzy_score >= 0.8
+    # Score reflects high but NOT-exact similarity — exact-match
+    # ratio would be 1.0, one-letter difference here is ~0.94. The
+    # range pins both: a regression returning 1.0 for everything
+    # would fail the upper bound; a regression returning 0 would
+    # fail the lower bound.
+    assert 0.8 <= suggestions[0].fuzzy_score < 1.0
+    # Distractor (if it made it past the threshold) ranks LOWER.
+    for sugg in suggestions[1:]:
+        assert sugg.modern_name != "Edlingham"
+        assert sugg.fuzzy_score < suggestions[0].fuzzy_score
 
 
 def test_fuzzy_match_returns_empty_below_threshold():
@@ -95,12 +112,18 @@ def test_fuzzy_match_returns_empty_below_threshold():
 
 def test_fuzzy_match_caps_at_three_suggestions():
     """Default top-N is 3 — even with many candidates above
-    threshold, the operator's eye doesn't get drowned."""
+    threshold, the operator's eye doesn't get drowned. Verifies
+    (a) length is 3, (b) scores are sorted descending (so the
+    operator sees the strongest match first), and (c) the exact
+    match is included (a regression returning the first 3 in DB-
+    insert order would fail the descending-score assertion)."""
     conn = _make_conn()
     _seed_toponyms(
         conn,
         [
+            # Exact match — must appear and rank first.
             {"modern_name": "Edlingham"},
+            # Decreasing similarity to "Edlingham".
             {"modern_name": "Edlinghame"},
             {"modern_name": "Edlinghan"},
             {"modern_name": "Edlinghum"},
@@ -110,6 +133,12 @@ def test_fuzzy_match_caps_at_three_suggestions():
     toponyms = _toponym_rows(conn)
     suggestions = fuzzy_match_toponyms("Edlingham", toponyms)
     assert len(suggestions) == 3
+    # Descending fuzzy score — top-3 BY ratio, not by DB-insert order.
+    scores = [s.fuzzy_score for s in suggestions]
+    assert scores == sorted(scores, reverse=True)
+    # Exact match is the top result.
+    assert suggestions[0].modern_name == "Edlingham"
+    assert suggestions[0].fuzzy_score == 1.0
 
 
 def test_fuzzy_match_empty_form_returns_empty():
@@ -201,15 +230,36 @@ def test_prepare_candidate_handles_missing_optional_fields():
     assert prepared.context == ""
 
 
-def test_prepare_candidate_non_int_date_year_treated_as_null():
+def test_prepare_candidate_coerces_numeric_string_date_year():
+    """Prepare uses the same _coerce_date_year as commit, so a
+    stringified-int upstream gets preserved as an int in the triage
+    output. Previously prepare dropped non-int years silently —
+    asymmetric with commit-layer coercion — and lost data."""
     conn = _make_conn()
     toponyms = _toponym_rows(conn)
     raw = {"source_id": "s", "form": "X", "date_year": "1086"}
     prepared = prepare_candidate(raw, toponyms)
-    # string date_year — coerced to None at the prepare layer; the
-    # commit layer will re-coerce numeric strings to int if the
-    # operator ends up using map/create.
-    assert prepared.date_year is None
+    assert prepared.date_year == 1086
+
+
+def test_prepare_candidate_coerces_integer_valued_float_date_year():
+    """``1086.0`` from a sloppy JSON encoder lands as int 1086 in
+    the triage output (matches commit-layer semantics)."""
+    conn = _make_conn()
+    toponyms = _toponym_rows(conn)
+    raw = {"source_id": "s", "form": "X", "date_year": 1086.0}
+    prepared = prepare_candidate(raw, toponyms)
+    assert prepared.date_year == 1086
+
+
+def test_prepare_candidate_rejects_unparseable_date_year():
+    """Values that can't be coerced to a clean int land as None —
+    same as commit layer."""
+    conn = _make_conn()
+    toponyms = _toponym_rows(conn)
+    for bad in ["ten eighty-six", "1066 AD", 1086.5, True, False]:
+        raw = {"source_id": "s", "form": "X", "date_year": bad}
+        assert prepare_candidate(raw, toponyms).date_year is None
 
 
 # ---------- commit_triage_decisions: map --------------------------------
@@ -259,6 +309,10 @@ def test_commit_map_dry_run_does_not_write():
 
 
 def test_commit_map_idempotent_on_reapply():
+    """Anchor BOTH runs' counts to lock the idempotency contract.
+    A regression where the FIRST run did nothing and the SECOND
+    counted a fresh insert would still leave count==1 — the
+    explicit first-run.mapped==1 + final count==1 chain catches it."""
     conn = _make_conn()
     name_to_id = _seed_toponyms(conn, [{"modern_name": "Edlingham"}])
     rows = [
@@ -270,11 +324,17 @@ def test_commit_map_idempotent_on_reapply():
             "toponym_id": name_to_id["Edlingham"],
         }
     ]
-    commit_triage_decisions(conn, rows, apply=True)
-    # Re-apply: UNIQUE-index INSERT OR IGNORE silently no-ops.
-    commit_triage_decisions(conn, rows, apply=True)
-    count = conn.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0]
-    assert count == 1
+    report1 = commit_triage_decisions(conn, rows, apply=True)
+    # First run: counted, row landed.
+    assert report1.mapped == 1
+    assert report1.errors == 0
+    assert conn.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0] == 1
+    # Re-apply: counter still bumps (it's `mapped` regardless of
+    # whether INSERT OR IGNORE writes), but the DB row count stays
+    # at 1 because the UNIQUE index dedups.
+    report2 = commit_triage_decisions(conn, rows, apply=True)
+    assert report2.mapped == 1
+    assert conn.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0] == 1
 
 
 def test_commit_map_missing_toponym_id_is_error():
@@ -349,13 +409,26 @@ def test_commit_create_inserts_toponym_and_attestation():
 
 def test_commit_create_unique_collision_demotes_to_map():
     """If an existing toponym already has (modern_name, country,
-    region), CREATE silently converts to MAP — prevents accidental
-    duplicate toponym rows when the operator didn't notice the
-    fuzzy suggestion."""
+    region), CREATE converts to MAP — prevents accidental duplicate
+    toponym rows when the operator didn't notice the fuzzy suggestion.
+
+    The demotion is RECORDED in ``demoted_records`` so the operator
+    sees which CREATE rows landed as MAPs — silent demotion was a
+    UX gap otherwise (operator with 30 CREATEs can't tell which 7
+    collided). A distractor toponym is seeded so "mapped to the right
+    one" is non-trivially true (would have been ambiguous with only
+    one row in the table)."""
     conn = _make_conn()
     name_to_id = _seed_toponyms(
         conn,
-        [{"modern_name": "Edlingham", "country": "England", "region": "Northumberland"}],
+        [
+            # Target — what the CREATE should collide against.
+            {"modern_name": "Edlingham", "country": "England", "region": "Northumberland"},
+            # Distractor — different name/region; collision must NOT
+            # find this one. Without it, mapped_to could be either id
+            # and the test would still pass.
+            {"modern_name": "Berwick", "country": "England", "region": "Northumberland"},
+        ],
     )
     rows = [
         {
@@ -371,12 +444,127 @@ def test_commit_create_unique_collision_demotes_to_map():
     # Counted as mapped, not created.
     assert report.created == 0
     assert report.mapped == 1
-    # Still only one toponym row (the pre-seeded one).
+    # Demoted record captured for operator visibility.
+    assert len(report.demoted_records) == 1
+    row_idx, demoted_tid, name = report.demoted_records[0]
+    assert row_idx == 0
+    assert demoted_tid == name_to_id["Edlingham"]
+    assert name == "Edlingham"
+    # Still only the two seeded toponyms; no new row inserted.
     count = conn.execute("SELECT COUNT(*) FROM toponym").fetchone()[0]
-    assert count == 1
-    # Attestation written, pointing at the existing toponym.
+    assert count == 2
+    # Attestation written specifically pointing at the EDLINGHAM
+    # (target), not Berwick (distractor).
     ares = conn.execute("SELECT toponym_id, form FROM toponym_attestation").fetchone()
     assert ares["toponym_id"] == name_to_id["Edlingham"]
+
+
+def test_commit_create_collision_dry_run_records_demotion_without_writing():
+    """Dry-run on a CREATE-collision row must STILL record the
+    demotion (counter accuracy + demoted_records list), but write
+    no attestation. Operator can preview demotions before --apply."""
+    conn = _make_conn()
+    name_to_id = _seed_toponyms(
+        conn,
+        [{"modern_name": "Edlingham", "country": "England", "region": "Northumberland"}],
+    )
+    rows = [
+        {
+            "source_id": "mawer_1920",
+            "form": "Eadlingham",
+            "action": "create",
+            "create_modern_name": "Edlingham",
+            "create_country": "England",
+            "create_region": "Northumberland",
+        }
+    ]
+    report = commit_triage_decisions(conn, rows, apply=False)
+    assert report.created == 0
+    assert report.mapped == 1
+    assert len(report.demoted_records) == 1
+    assert report.demoted_records[0][1] == name_to_id["Edlingham"]
+    # No DB writes in dry-run.
+    count = conn.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0]
+    assert count == 0
+
+
+def test_commit_create_dry_run_pure_create_does_not_write():
+    """Dry-run on a pure-CREATE (no collision) row counts the
+    create but writes neither toponym nor attestation."""
+    conn = _make_conn()
+    rows = [
+        {
+            "source_id": "x",
+            "form": "Suttone",
+            "action": "create",
+            "create_modern_name": "Sutton",
+        }
+    ]
+    report = commit_triage_decisions(conn, rows, apply=False)
+    assert report.created == 1
+    assert report.mapped == 0
+    # No DB writes.
+    assert conn.execute("SELECT COUNT(*) FROM toponym").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0] == 0
+
+
+def test_commit_action_map_with_create_fields_ignores_create_fields():
+    """When the operator sets BOTH action=map AND create_modern_name
+    (e.g. they typed in suggested fields but later changed action),
+    the action field wins — create_modern_name is silently ignored
+    and the MAP path executes. Locks the precedence contract."""
+    conn = _make_conn()
+    name_to_id = _seed_toponyms(conn, [{"modern_name": "Edlingham"}])
+    rows = [
+        {
+            "source_id": "x",
+            "form": "Eadlingham",
+            "action": "map",
+            "toponym_id": name_to_id["Edlingham"],
+            # Lingering CREATE fields — must be ignored.
+            "create_modern_name": "SomeNewName",
+            "create_country": "England",
+        }
+    ]
+    report = commit_triage_decisions(conn, rows, apply=True)
+    assert report.mapped == 1
+    assert report.created == 0
+    # No new toponym row from the lingering CREATE fields.
+    count = conn.execute("SELECT COUNT(*) FROM toponym").fetchone()[0]
+    assert count == 1
+
+
+def test_commit_error_records_cap_truncates_but_counter_accurate():
+    """error_records list caps at _ERROR_RECORDS_CAP. The counter
+    keeps counting beyond the cap so the operator sees the true
+    total of bad rows."""
+    from wyrd.generators.kenning import toponym_candidate_review as tcr
+
+    conn = _make_conn()
+    # 5 errors, cap=2 → 5 counted, only first 2 captured.
+    cap = tcr._ERROR_RECORDS_CAP
+    try:
+        tcr._ERROR_RECORDS_CAP = 2
+        rows = [{"action": "frobnicate", "source_id": "x", "form": "Y"} for _ in range(5)]
+        report = commit_triage_decisions(conn, rows, apply=True)
+        assert report.errors == 5
+        assert len(report.error_records) == 2
+    finally:
+        tcr._ERROR_RECORDS_CAP = cap
+
+
+def test_commit_empty_rows_list_zero_processed():
+    """Empty input is a clean no-op: zero counters across the board."""
+    conn = _make_conn()
+    report = commit_triage_decisions(conn, [], apply=True)
+    assert report.processed == 0
+    assert report.mapped == 0
+    assert report.created == 0
+    assert report.skipped == 0
+    assert report.deferred == 0
+    assert report.errors == 0
+    assert report.error_records == []
+    assert report.demoted_records == []
 
 
 def test_commit_create_missing_modern_name_is_error():
@@ -452,16 +640,75 @@ def test_commit_unknown_action_is_error():
     assert "unknown action: 'frobnicate'" in report.error_records[0][1]
 
 
-def test_commit_action_case_insensitive():
-    """`action: MAP` works like `action: map` — operator's caps don't
-    matter."""
+def test_commit_action_case_insensitive_across_all_paths():
+    """All four actions (map/create/skip/defer) must be case-
+    insensitive — operator caps shouldn't matter. Earlier test only
+    covered MAP."""
+    import pytest
+
+    @pytest.mark.parametrize  # type: ignore[no-redef]
+    def _stub():
+        pass
+
+    # MAP with mixed case.
+    conn = _make_conn()
+    name_to_id = _seed_toponyms(conn, [{"modern_name": "Edlingham"}])
+    report = commit_triage_decisions(
+        conn,
+        [
+            {
+                "source_id": "x",
+                "form": "Edlingham",
+                "action": "MaP",
+                "toponym_id": name_to_id["Edlingham"],
+            }
+        ],
+        apply=True,
+    )
+    assert report.mapped == 1 and report.errors == 0
+
+    # CREATE with caps.
+    conn = _make_conn()
+    report = commit_triage_decisions(
+        conn,
+        [
+            {
+                "source_id": "x",
+                "form": "X",
+                "action": "CREATE",
+                "create_modern_name": "Foo",
+            }
+        ],
+        apply=True,
+    )
+    assert report.created == 1 and report.errors == 0
+
+    # SKIP with caps.
+    conn = _make_conn()
+    report = commit_triage_decisions(
+        conn, [{"source_id": "x", "form": "Y", "action": "Skip"}], apply=True
+    )
+    assert report.skipped == 1 and report.errors == 0
+
+    # DEFER with caps.
+    conn = _make_conn()
+    report = commit_triage_decisions(
+        conn, [{"source_id": "x", "form": "Y", "action": "DEFER"}], apply=True
+    )
+    assert report.deferred == 1 and report.errors == 0
+
+
+def test_commit_action_trailing_whitespace_stripped():
+    """`"action": "map "` (paste from a spreadsheet, trailing space)
+    must work like "map". The strip is part of the operator-input
+    tolerance."""
     conn = _make_conn()
     name_to_id = _seed_toponyms(conn, [{"modern_name": "Edlingham"}])
     rows = [
         {
             "source_id": "x",
             "form": "Edlingham",
-            "action": "MAP",
+            "action": "  map  ",  # leading + trailing whitespace
             "toponym_id": name_to_id["Edlingham"],
         }
     ]

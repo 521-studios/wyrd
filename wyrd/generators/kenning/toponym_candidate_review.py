@@ -50,6 +50,20 @@ _FUZZY_SUGGESTION_LIMIT = 3
 # empirical but conservative.
 _FUZZY_MIN_RATIO = 0.6
 
+# Score bump applied to candidates whose toponym region matches
+# the operator's region_hint. Small enough not to override a
+# genuinely higher ratio; large enough to break ties toward the
+# regionally-correct homonym (Newton@Northumberland over
+# Newton@Berkshire when hint is Northumberland).
+_REGION_HINT_BOOST = 0.10
+
+# Cap on per-run error_records list. Unbounded growth on a
+# malformed multi-million-row triage file would balloon memory.
+# 100 captured + accurate `errors` counter is enough to diagnose
+# without the operator scrolling forever; the CLI surfaces the
+# elided count.
+_ERROR_RECORDS_CAP = 100
+
 
 @dataclass(frozen=True)
 class FuzzyToponymSuggestion:
@@ -96,22 +110,43 @@ def fuzzy_match_toponyms(
     if not form_norm:
         return []
     hint_norm = _normalize_for_match(region_hint) if region_hint else None
+    # Hoist SequenceMatcher outside the loop so the b2j cache on
+    # ``form_norm`` is built once and reused for every toponym
+    # comparison — at production scale (~22K toponyms) this is the
+    # dominant cost otherwise.
+    matcher = SequenceMatcher(autojunk=False)
+    matcher.set_seq2(form_norm)
+    form_len = len(form_norm)
     scored: list[tuple[float, FuzzyToponymSuggestion]] = []
     for tid, modern_name, region, country in toponyms:
         name_norm = _normalize_for_match(modern_name)
         if not name_norm:
             continue
-        ratio = SequenceMatcher(None, form_norm, name_norm).ratio()
+        # Fast length-delta gate: if the strings differ in length by
+        # more than (1 - min_ratio) * max(len), no possible ratio
+        # could reach min_ratio. Avoids the O(N*M) ratio() call for
+        # obvious non-matches (the bulk of any production lookup).
+        max_len = max(form_len, len(name_norm))
+        if max_len > 0 and abs(form_len - len(name_norm)) / max_len > (1 - min_ratio):
+            continue
+        matcher.set_seq1(name_norm)
+        # quick_ratio is a cheap upper bound on the real ratio. If it
+        # already falls short of min_ratio, skip the full O(N*M)
+        # computation. Production-scale prep runs over thousands of
+        # candidates × 22K toponyms benefit substantially.
+        if matcher.quick_ratio() < min_ratio:
+            continue
+        ratio = matcher.ratio()
         if ratio < min_ratio:
             continue
-        # Region-hint boost: small bump (+0.10) for toponyms whose
-        # region contains the hint. Keeps regular ratios comparable
-        # but breaks ties in favor of the regional match.
+        # Region-hint boost: tiny bump for toponyms whose region
+        # contains the hint. Keeps regular ratios comparable but
+        # breaks ties in favor of the regional match.
         effective = ratio
         if hint_norm and region:
             region_norm = _normalize_for_match(region)
             if region_norm and (hint_norm in region_norm or region_norm in hint_norm):
-                effective += 0.10
+                effective += _REGION_HINT_BOOST
         scored.append(
             (
                 effective,
@@ -172,9 +207,11 @@ def prepare_candidate(
     if not isinstance(region_hint, str):
         region_hint = None
     suggestions = fuzzy_match_toponyms(form, toponyms, region_hint=region_hint)
-    date_year = raw.get("date_year")
-    if not isinstance(date_year, int) or isinstance(date_year, bool):
-        date_year = None
+    # Use the same coercion as the commit layer so the triage JSONL
+    # carries the same year-value the commit phase would compute —
+    # avoids surprise data loss between prepare and commit when the
+    # upstream candidates carry e.g. an integer-valued float year.
+    date_year = _coerce_date_year(raw.get("date_year"))
     context = raw.get("context")
     if not isinstance(context, str):
         context = ""
@@ -194,15 +231,23 @@ class CommitReport:
     """Per-run counters for a triage-commit pass.
 
     * ``processed`` — total triage rows considered.
-    * ``mapped`` — `action: map` decisions executed.
-    * ``created`` — `action: create` decisions executed (new
-      toponym + attestation).
+    * ``mapped`` — `action: map` decisions executed, PLUS any
+      `action: create` rows that collided with an existing
+      (modern_name, country, region) tuple and were demoted to MAP
+      against the colliding id.
+    * ``created`` — `action: create` decisions that actually
+      inserted a new toponym row (no collision).
+    * ``demoted_records`` — per-row capture of CREATE rows that
+      collided into a MAP. Surfaces to the operator via --verbose
+      so they see WHICH of their CREATEs hit an existing toponym
+      (silent demotion was a load-bearing UX gap otherwise).
     * ``skipped`` — `action: skip` decisions (no DB write).
     * ``deferred`` — `action: defer` decisions left for later.
     * ``errors`` — rows whose action was malformed or whose
       operator-supplied fields were missing/invalid. Counted but
-      NOT applied; collected in ``error_records`` for the CLI to
-      surface.
+      NOT applied; first ``_ERROR_RECORDS_CAP`` collected in
+      ``error_records`` for the CLI to surface (counter remains
+      accurate beyond the cap).
     """
 
     processed: int = 0
@@ -212,6 +257,10 @@ class CommitReport:
     deferred: int = 0
     errors: int = 0
     error_records: list[tuple[int, str]] = field(default_factory=list)
+    # CREATE → MAP collisions: (row_index, existing_toponym_id,
+    # modern_name) so the operator sees which of their CREATEs hit
+    # an existing toponym at apply time.
+    demoted_records: list[tuple[int, int, str]] = field(default_factory=list)
 
 
 def _coerce_date_year(raw: object) -> int | None:
@@ -284,11 +333,18 @@ def commit_triage_decisions(
     counted as an error with the row's index + reason recorded.
     """
     report = CommitReport()
+
+    def _record_error(row_idx: int, reason: str) -> None:
+        # Cap-bounded append. Counter remains accurate past the cap;
+        # only the per-row detail list stops growing.
+        report.errors += 1
+        if len(report.error_records) < _ERROR_RECORDS_CAP:
+            report.error_records.append((row_idx, reason))
+
     for idx, row in enumerate(rows):
         report.processed += 1
         if not isinstance(row, dict):
-            report.errors += 1
-            report.error_records.append((idx, f"row is not a dict: {type(row).__name__}"))
+            _record_error(idx, f"row is not a dict: {type(row).__name__}")
             continue
         action = (row.get("action") or "").strip().lower()
         form = (row.get("form") or "").strip()
@@ -301,23 +357,19 @@ def commit_triage_decisions(
             report.deferred += 1
             continue
         if not form or not source_id:
-            report.errors += 1
-            report.error_records.append(
-                (idx, f"missing form or source_id (form={form!r}, source_id={source_id!r})")
+            _record_error(
+                idx,
+                f"missing form or source_id (form={form!r}, source_id={source_id!r})",
             )
             continue
         if action == "map":
             tid = row.get("toponym_id")
             if not isinstance(tid, int) or isinstance(tid, bool):
-                report.errors += 1
-                report.error_records.append(
-                    (idx, f"action=map but toponym_id missing/invalid: {tid!r}")
-                )
+                _record_error(idx, f"action=map but toponym_id missing/invalid: {tid!r}")
                 continue
             existing = conn.execute("SELECT 1 FROM toponym WHERE id = ? LIMIT 1", (tid,)).fetchone()
             if existing is None:
-                report.errors += 1
-                report.error_records.append((idx, f"action=map but toponym_id {tid} doesn't exist"))
+                _record_error(idx, f"action=map but toponym_id {tid} doesn't exist")
                 continue
             if apply:
                 conn.execute(
@@ -330,8 +382,7 @@ def commit_triage_decisions(
         if action == "create":
             modern_name = (row.get("create_modern_name") or "").strip()
             if not modern_name:
-                report.errors += 1
-                report.error_records.append((idx, "action=create but create_modern_name missing"))
+                _record_error(idx, "action=create but create_modern_name missing")
                 continue
             country = row.get("create_country")
             if isinstance(country, str):
@@ -344,10 +395,13 @@ def commit_triage_decisions(
             else:
                 region = None
             # Collision detect — if a toponym with this (name, country,
-            # region) already exists, treat as map-to-existing (which
-            # is what the UNIQUE index would silently do anyway under
-            # INSERT OR IGNORE, but we want to update the counter so
-            # the operator sees "create" turned into "mapped").
+            # region) already exists, treat as map-to-existing. The
+            # UNIQUE index would silently no-op under INSERT OR IGNORE,
+            # but we count the demotion AND record (row_idx, existing
+            # toponym_id, modern_name) so --verbose surfaces which of
+            # the operator's CREATEs hit a collision. Without that
+            # record the operator can't tell which 7 of their 30
+            # CREATEs landed as MAPs.
             existing_tid = _existing_toponym_id_for_create(conn, modern_name, country, region)
             if existing_tid is not None:
                 if apply:
@@ -358,6 +412,7 @@ def commit_triage_decisions(
                         (existing_tid, form, date_year, source_id),
                     )
                 report.mapped += 1
+                report.demoted_records.append((idx, existing_tid, modern_name))
                 continue
             if apply:
                 cursor = conn.execute(
@@ -373,6 +428,5 @@ def commit_triage_decisions(
             report.created += 1
             continue
         # Unknown action.
-        report.errors += 1
-        report.error_records.append((idx, f"unknown action: {action!r}"))
+        _record_error(idx, f"unknown action: {action!r}")
     return report

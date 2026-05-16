@@ -3640,12 +3640,34 @@ def lexicon_commit_toponym_candidates(
     if verbose:
         for idx, msg in report.error_records:
             click.echo(f"  row {idx}: ERROR — {msg}", err=True)
+        # Surface CREATE → MAP demotions per row so the operator
+        # sees which of their CREATEs collided with an existing
+        # toponym (silently demoting was a load-bearing UX gap
+        # otherwise).
+        for idx, tid, name in report.demoted_records:
+            click.echo(
+                f"  row {idx}: CREATE→MAP — {name!r} collides with existing toponym {tid}",
+                err=True,
+            )
+
+    # Warn when most rows are still at the default-defer placeholder:
+    # the operator may have run commit on an unedited triage file.
+    if report.deferred > 0 and report.processed > 0:
+        defer_ratio = report.deferred / report.processed
+        if defer_ratio >= 0.8:
+            click.echo(
+                f"warning: {report.deferred}/{report.processed} "
+                f"({defer_ratio:.0%}) rows are still at action=defer — "
+                f"if this is unintended, the triage file may not have been edited yet",
+                err=True,
+            )
 
     click.echo("", err=True)
     click.echo(
         f"TOTAL processed={report.processed} "
         f"mapped={report.mapped} "
         f"created={report.created} "
+        f"demoted={len(report.demoted_records)} "
         f"skipped={report.skipped} "
         f"deferred={report.deferred} "
         f"errors={report.errors} "
