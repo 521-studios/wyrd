@@ -2914,6 +2914,177 @@ def lexicon_mine_toponym_mentions(
             click.echo(_line(m))
 
 
+@lexicon.command("ingest-toponym-mentions")
+@click.option(
+    "--jsonl",
+    "jsonl_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=True,
+    help="JSONL file of mentions (output of mine-toponym-mentions).",
+)
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+    help="Lexicon SQLite DB.",
+)
+@click.option(
+    "--source",
+    "source_id_override",
+    default=None,
+    help="Override the source_id used for attestation rows. Default: read "
+    "the source_id field from each JSONL row.",
+)
+@click.option(
+    "--apply",
+    is_flag=True,
+    default=False,
+    help="Write to DB. Without this flag, runs in dry-run mode and prints "
+    "the predicted insert/dup counts.",
+)
+@click.option(
+    "--candidates-out",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Write unresolved mentions to this JSONL for Phase 2b.3 operator "
+    "review. Default: omit (counted but not persisted).",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Overwrite --candidates-out if it exists.",
+)
+@click.option(
+    "--verbose",
+    is_flag=True,
+    default=False,
+    help="Print per-source breakdown to stderr.",
+)
+def lexicon_ingest_toponym_mentions(
+    jsonl_path: Path,
+    db_path: Path,
+    source_id_override: str | None,
+    apply: bool,
+    candidates_out: Path | None,
+    force: bool,
+    verbose: bool,
+) -> None:
+    """Ingest LLM-extracted mentions (wyrd-x82p Phase 2b.1).
+
+    Consumes the JSONL emitted by ``mine-toponym-mentions`` and writes
+    ``toponym_attestation`` rows for mentions that resolve to a known
+    toponym. Unresolved mentions are tallied (and optionally written
+    to ``--candidates-out``) for the Phase 2b.3 review tool to
+    triage.
+
+    Resolver: matches form to toponym via Phase 1's form-to-toponym
+    lookup, using ``region_hint`` to disambiguate homonyms when the
+    bare form maps to multiple toponyms. Mentions that don't resolve
+    are NOT inserted — Phase 2b.1 only emits attestations for
+    toponyms that already exist; new-toponym creation is Phase 2b.3.
+
+    Idempotent: re-running against the same JSONL is a no-op.
+    """
+    from wyrd.generators.kenning.toponym_mention_ingest import (
+        build_resolver_indexes,
+        ingest_mentions,
+    )
+
+    click.echo(f"Using DB {db_path}", err=True)
+
+    if candidates_out is not None and candidates_out.exists() and not force:
+        raise click.ClickException(
+            f"--candidates-out {candidates_out} already exists; pass --force to overwrite"
+        )
+    if candidates_out is not None and candidates_out.exists() and force:
+        click.echo(
+            f"warning: --force overwriting existing {candidates_out}",
+            err=True,
+        )
+
+    # Read all mentions up front and group by source_id. Most pilots
+    # are single-source, but the JSONL format permits mixed sources
+    # (each row carries its own source_id field).
+    mentions_by_source: dict[str, list[dict]] = {}
+    with jsonl_path.open("r", encoding="utf-8") as f:
+        for line_no, line in enumerate(f, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as e:
+                raise click.ClickException(f"{jsonl_path}:{line_no}: invalid JSON: {e}") from e
+            sid = source_id_override or row.get("source_id")
+            if not sid:
+                raise click.ClickException(
+                    f"{jsonl_path}:{line_no}: mention missing source_id "
+                    f"and no --source override given"
+                )
+            mentions_by_source.setdefault(sid, []).append(row)
+
+    click.echo(
+        f"Loaded {sum(len(v) for v in mentions_by_source.values()):,} "
+        f"mentions across {len(mentions_by_source)} source(s)",
+        err=True,
+    )
+
+    totals = {
+        "mentions_processed": 0,
+        "resolved": 0,
+        "unresolved": 0,
+        "inserted": 0,
+        "already_present": 0,
+    }
+    all_unresolved: list[dict] = []
+
+    with LexiconDB(db_path) as db:
+        indexes = build_resolver_indexes(db.conn)
+        click.echo(
+            f"Built resolver indexes: {len(indexes.form_to_ids):,} forms, "
+            f"{sum(1 for r in indexes.toponym_regions.values() if r):,} "
+            f"toponyms with region",
+            err=True,
+        )
+        for sid, mentions in sorted(mentions_by_source.items()):
+            report = ingest_mentions(db.conn, sid, mentions, indexes, apply=apply)
+            for key in totals:
+                totals[key] += getattr(report, key)
+            all_unresolved.extend(report.unresolved_records)
+            if verbose:
+                click.echo(
+                    f"  {sid}: processed={report.mentions_processed} "
+                    f"resolved={report.resolved} unresolved={report.unresolved} "
+                    f"inserted={report.inserted} dup={report.already_present}",
+                    err=True,
+                )
+        if apply:
+            db.conn.commit()
+
+    click.echo("", err=True)
+    click.echo(
+        f"TOTAL processed={totals['mentions_processed']} "
+        f"resolved={totals['resolved']} "
+        f"unresolved={totals['unresolved']} "
+        f"inserted={totals['inserted']} "
+        f"dup={totals['already_present']} "
+        f"({'APPLIED' if apply else 'dry-run'})",
+        err=True,
+    )
+
+    if candidates_out is not None:
+        with candidates_out.open("w", encoding="utf-8") as sink:
+            for rec in all_unresolved:
+                sink.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        click.echo(
+            f"Wrote {len(all_unresolved)} unresolved → {candidates_out}",
+            err=True,
+        )
+
+
 @lexicon.command("audit-etymology-alignment")
 @click.option(
     "--dir",
