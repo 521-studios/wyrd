@@ -61,6 +61,19 @@ def test_normalize_for_match_preserves_internal_punctuation():
     assert _normalize_for_match("St. Albans") == "st. albans"
 
 
+def test_normalize_for_match_strips_leading_punctuation():
+    """Gemini PR #212 round-2: scholar prose often quotes / brackets /
+    parenthesizes a form (``"Birmingham``, ``(Birmingham``,
+    ``[Birmingham``). Leading-punct strip catches these so the
+    form-to-toponym join still works."""
+    assert _normalize_for_match('"Birmingham"') == "birmingham"
+    assert _normalize_for_match("(Birmingham)") == "birmingham"
+    assert _normalize_for_match("[Birmingham]") == "birmingham"
+    assert _normalize_for_match("'Stratford'") == "stratford"
+    # Mixed leading + trailing.
+    assert _normalize_for_match("(Birmingham,") == "birmingham"
+
+
 def test_build_lookup_includes_modern_names_and_attestation_forms():
     """Lookup contains modern_name entries AND historical forms
     from existing attestations."""
@@ -79,15 +92,17 @@ def test_build_lookup_includes_modern_names_and_attestation_forms():
     assert lookup["stretford"] == 2  # historical form maps to same toponym
 
 
-def test_build_lookup_modern_name_wins_on_collision():
-    """When the same form is both a modern_name AND an attestation
-    form for a different toponym, the modern_name wins (canonical
-    identity preference)."""
+def test_build_lookup_ambiguous_form_excluded_from_lookup():
+    """Gemini PR #212 round-2 (HIGH): when the same form maps to
+    MULTIPLE toponym_ids (homonyms — Newton across counties; OR
+    cross-source collision: 'Newton' as both a modern_name and an
+    attestation form for a different toponym), the form is EXCLUDED
+    from the lookup. Phase 1 pattern-based search has no context to
+    disambiguate; Phase 2's LLM extraction uses surrounding text."""
     conn = _build_fixture_db()
     conn.execute("INSERT INTO toponym (id, modern_name) VALUES (1, 'Newton')")
     conn.execute("INSERT INTO toponym (id, modern_name) VALUES (2, 'Sutton')")
-    # An attestation labels Sutton (id=2) as 'Newton' — pathological
-    # but possible if scholar mining had cross-references.
+    # Cross-source collision: attestation labels Sutton (id=2) as 'Newton'.
     conn.execute(
         "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
         "VALUES (2, 'Newton', 1086, 'src')"
@@ -95,7 +110,25 @@ def test_build_lookup_modern_name_wins_on_collision():
     conn.commit()
 
     lookup = _build_form_to_toponym_lookup(conn)
-    assert lookup["newton"] == 1, "modern_name (id=1) wins over attestation-form collision"
+    assert "newton" not in lookup, "ambiguous form must be excluded; Phase 2 LLM disambiguates"
+    # Sutton is unambiguous (only its own modern_name).
+    assert lookup["sutton"] == 2
+
+
+def test_build_lookup_homonym_modern_names_excluded():
+    """Two distinct toponym rows with the SAME modern_name (Newton
+    across counties is the canonical scholar-prose homonym) are
+    excluded from the lookup. Phase 1 can't tell from prose alone
+    which Newton the source means; Phase 2 LLM gets the surrounding
+    context."""
+    conn = _build_fixture_db()
+    conn.execute(
+        "INSERT INTO toponym (id, modern_name, region) VALUES (1, 'Newton', 'Northumberland')"
+    )
+    conn.execute("INSERT INTO toponym (id, modern_name, region) VALUES (2, 'Newton', 'Yorkshire')")
+    conn.commit()
+    lookup = _build_form_to_toponym_lookup(conn)
+    assert "newton" not in lookup, "homonym modern_names must be excluded as ambiguous"
 
 
 def test_load_source_body_returns_text(tmp_path: Path):
@@ -343,27 +376,27 @@ def test_reverse_search_source_unmatched_samples_capped(tmp_path: Path):
     assert len(report.unmatched_samples) == 10  # capped
 
 
-def test_build_lookup_attestation_collision_first_id_wins():
-    """Among attestation-vs-attestation form collisions, the lower
-    attestation.id wins (silent-failure-hunter PR #212 finding:
-    the docstring claimed this; the test suite didn't cover it).
-    """
+def test_build_lookup_attestation_homonym_excluded():
+    """Two toponyms each claiming the same attestation form is the
+    cross-source-homonym shape — same form across two distinct
+    toponym ids. Gemini PR #212 round-2 fix: excluded from lookup."""
     conn = _build_fixture_db()
     conn.execute("INSERT INTO toponym (id, modern_name) VALUES (1, 'Older')")
     conn.execute("INSERT INTO toponym (id, modern_name) VALUES (2, 'Newer')")
-    # Both toponyms claim 'Grenewic'. Earlier insert (id=1) is
-    # attestation row 1 → toponym 2.
+    # Both toponyms claim 'Grenewic' as an attestation form.
     conn.execute(
-        "INSERT INTO toponym_attestation (id, toponym_id, form, date_year, source_doc) "
-        "VALUES (1, 2, 'Grenewic', 900, 'src')"
+        "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+        "VALUES (2, 'Grenewic', 900, 'src')"
     )
     conn.execute(
-        "INSERT INTO toponym_attestation (id, toponym_id, form, date_year, source_doc) "
-        "VALUES (2, 1, 'Grenewic', 1086, 'src')"
+        "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+        "VALUES (1, 'Grenewic', 1086, 'src')"
     )
     conn.commit()
     lookup = _build_form_to_toponym_lookup(conn)
-    assert lookup["grenewic"] == 2  # earlier attestation wins
+    assert "grenewic" not in lookup, (
+        "ambiguous attestation-form must be excluded; both 'Older' and 'Newer' claim it"
+    )
 
 
 def test_build_lookup_empty_db():

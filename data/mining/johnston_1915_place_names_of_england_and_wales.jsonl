@@ -520,54 +520,35 @@
 {"_type": "etymology_element", "toponym_ref": "Yekkm@England and Wales", "elements": [{"ordinal": 0, "etymon_ref": "old-english:ōc"}, {"ordinal": 1, "etymon_ref": "old-english:hām"}], "historical_form": "Ōc-hām", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Yekkm. 1298 Okham. This will prob. mean ' home, house built of oak.' OAKHAMPTON (Astley, Wstrsh.) is 1275 Okhamtone. OAKHANGER (Berkeley, Alton, and ", "attested_year": 1275}
 {"_type": "toponym", "ref": "Aisthorpe@Lincolnshire", "modern_name": "Aisthorpe", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Alfriston@-", "modern_name": "Alfriston"}
-{"_type": "toponym", "ref": "Alton@Hampshire", "modern_name": "Alton", "country": "England", "region": "Hampshire"}
 {"_type": "toponym", "ref": "Alvechurch@Worcestershire", "modern_name": "Alvechurch", "country": "England", "region": "Worcestershire"}
 {"_type": "toponym", "ref": "Andrebi@Yorkshire", "modern_name": "Andrebi", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Appleby@Lincolnshire", "modern_name": "Appleby", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Arden@Yorkshire", "modern_name": "Arden", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Athelney@Somerset", "modern_name": "Athelney", "country": "England", "region": "Somerset"}
 {"_type": "toponym", "ref": "Barnard Castle@Northumberland and Durham", "modern_name": "Barnard Castle", "region": "Northumberland and Durham"}
-{"_type": "toponym", "ref": "Beck@Northumberland and Durham", "modern_name": "Beck", "region": "Northumberland and Durham"}
 {"_type": "toponym", "ref": "Bericote@Warwickshire", "modern_name": "Bericote", "country": "England", "region": "Warwickshire"}
 {"_type": "toponym", "ref": "Binsted@-", "modern_name": "Binsted"}
 {"_type": "toponym", "ref": "Blafelda@England (Danelaw)", "modern_name": "Blafelda", "region": "England (Danelaw)"}
 {"_type": "toponym", "ref": "Bodicote@Oxfordshire", "modern_name": "Bodicote", "country": "England", "region": "Oxfordshire"}
-{"_type": "toponym", "ref": "Bridgwater@Somerset", "modern_name": "Bridgwater", "country": "England", "region": "Somerset"}
-{"_type": "toponym", "ref": "Bromsgrove@Warwickshire", "modern_name": "Bromsgrove", "country": "England", "region": "Warwickshire"}
-{"_type": "toponym", "ref": "Bromwich@Northamptonshire", "modern_name": "Bromwich", "country": "England", "region": "Northamptonshire"}
-{"_type": "toponym", "ref": "Broughton@BUK", "modern_name": "Broughton", "country": "England", "region": "BUK"}
 {"_type": "toponym", "ref": "Burden@Northumberland and Durham", "modern_name": "Burden", "region": "Northumberland and Durham"}
 {"_type": "toponym", "ref": "Burlei@Berkshire", "modern_name": "Burlei", "country": "England", "region": "Berkshire"}
 {"_type": "toponym", "ref": "Burwell@Cambridgeshire", "modern_name": "Burwell", "region": "Cambridgeshire"}
 {"_type": "toponym", "ref": "Cambridge@Cambridgeshire", "modern_name": "Cambridge", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Castle@Northumberland and Durham", "modern_name": "Castle", "region": "Northumberland and Durham"}
 {"_type": "toponym", "ref": "Caton@Yorkshire", "modern_name": "Caton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Caxton@Cambridgeshire", "modern_name": "Caxton", "country": "England", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Chester@Cheshire", "modern_name": "Chester", "country": "England", "region": "Cheshire"}
-{"_type": "toponym", "ref": "Chichester@-", "modern_name": "Chichester"}
 {"_type": "toponym", "ref": "Condicote@Gloucestershire", "modern_name": "Condicote", "country": "England", "region": "Gloucestershire"}
 {"_type": "toponym", "ref": "Coventry@Warwickshire", "modern_name": "Coventry", "country": "England", "region": "Warwickshire"}
-{"_type": "toponym", "ref": "Crediton@British Isles", "modern_name": "Crediton", "region": "British Isles"}
 {"_type": "toponym", "ref": "Croxden@Staffordshire", "modern_name": "Croxden", "country": "England", "region": "Staffordshire"}
 {"_type": "toponym", "ref": "Croxton@Cambridgeshire", "modern_name": "Croxton", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Dean@Bedfordshire", "modern_name": "Dean", "region": "Bedfordshire"}
-{"_type": "toponym", "ref": "Dene@Northumberland and Durham", "modern_name": "Dene", "region": "Northumberland and Durham"}
 {"_type": "toponym", "ref": "Derte@Devon", "modern_name": "Derte", "country": "England", "region": "Devon"}
 {"_type": "toponym", "ref": "Ditchburn@Northumberland and Durham", "modern_name": "Ditchburn", "region": "Northumberland and Durham"}
-{"_type": "toponym", "ref": "Droitwich@BUK", "modern_name": "Droitwich", "country": "England", "region": "BUK"}
-{"_type": "toponym", "ref": "Evenlode@Gloucestershire", "modern_name": "Evenlode", "country": "England", "region": "Gloucestershire"}
 {"_type": "toponym", "ref": "Frith@Cheshire", "modern_name": "Frith", "country": "England", "region": "Cheshire"}
 {"_type": "toponym", "ref": "Gariannonor@-", "modern_name": "Gariannonor"}
 {"_type": "toponym", "ref": "Gelligaer@Wales", "modern_name": "Gelligaer", "region": "Wales"}
 {"_type": "toponym", "ref": "Gerlei@Hampshire", "modern_name": "Gerlei", "country": "England", "region": "Hampshire"}
-{"_type": "toponym", "ref": "Gillingham@Dorset", "modern_name": "Gillingham", "country": "England", "region": "Dorset"}
-{"_type": "toponym", "ref": "Gisleham@SUF", "modern_name": "Gisleham", "country": "England", "region": "SUF"}
 {"_type": "toponym", "ref": "Grimesbi@Yorkshire", "modern_name": "Grimesbi", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Haddenham@Cambridgeshire", "modern_name": "Haddenham", "region": "Cambridgeshire"}
 {"_type": "toponym", "ref": "Halesowen@Worcestershire", "modern_name": "Halesowen", "country": "England", "region": "Worcestershire"}
-{"_type": "toponym", "ref": "Henbury@Cheshire", "modern_name": "Henbury", "country": "England", "region": "Cheshire"}
 {"_type": "toponym", "ref": "Henry@Northumberland and Durham", "modern_name": "Henry", "region": "Northumberland and Durham"}
-{"_type": "toponym", "ref": "Hereford@Cheshire", "modern_name": "Hereford", "country": "England", "region": "Cheshire"}
 {"_type": "toponym", "ref": "Heugh@Northumberland and Durham", "modern_name": "Heugh", "region": "Northumberland and Durham"}
 {"_type": "toponym", "ref": "Ho@-", "modern_name": "Ho"}
 {"_type": "toponym", "ref": "Hornebi@-", "modern_name": "Hornebi"}
@@ -580,12 +561,10 @@
 {"_type": "toponym", "ref": "Later@-", "modern_name": "Later"}
 {"_type": "toponym", "ref": "Leamington@Warwickshire", "modern_name": "Leamington", "country": "England", "region": "Warwickshire"}
 {"_type": "toponym", "ref": "Leisingbi@England (Danelaw)", "modern_name": "Leisingbi", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Lichfield@Staffordshire", "modern_name": "Lichfield", "region": "Staffordshire"}
 {"_type": "toponym", "ref": "Lizard@Cornwall", "modern_name": "Lizard", "country": "England", "region": "Cornwall"}
 {"_type": "toponym", "ref": "Lolworth@Cambridgeshire", "modern_name": "Lolworth", "region": "Cambridgeshire"}
 {"_type": "toponym", "ref": "Longnor@Staffordshire", "modern_name": "Longnor", "region": "Staffordshire"}
 {"_type": "toponym", "ref": "Maltebi@-", "modern_name": "Maltebi"}
-{"_type": "toponym", "ref": "Merston@-", "modern_name": "Merston"}
 {"_type": "toponym", "ref": "Mindrum@Northumberland and Durham", "modern_name": "Mindrum", "region": "Northumberland and Durham"}
 {"_type": "toponym", "ref": "Montgomery@Shropshire", "modern_name": "Montgomery", "country": "England", "region": "Shropshire"}
 {"_type": "toponym", "ref": "Newmarket@Cambridgeshire", "modern_name": "Newmarket", "region": "Cambridgeshire"}
@@ -596,88 +575,60 @@
 {"_type": "toponym", "ref": "Rollestone@Wiltshire", "modern_name": "Rollestone", "country": "England", "region": "Wiltshire"}
 {"_type": "toponym", "ref": "Shrewsbury@Shropshire", "modern_name": "Shrewsbury", "country": "England", "region": "Shropshire"}
 {"_type": "toponym", "ref": "Snodsbury@Worcestershire", "modern_name": "Snodsbury", "country": "England", "region": "Worcestershire"}
-{"_type": "toponym", "ref": "Stafford@Staffordshire", "modern_name": "Stafford", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Stanford@Bedfordshire", "modern_name": "Stanford", "country": "England", "region": "Bedfordshire"}
 {"_type": "toponym", "ref": "Staplow@Cambridgeshire", "modern_name": "Staplow", "region": "Cambridgeshire"}
 {"_type": "toponym", "ref": "Steintun Wm@England (Danelaw)", "modern_name": "Steintun Wm", "region": "England (Danelaw)"}
-{"_type": "toponym", "ref": "Stockton@Herefordshire", "modern_name": "Stockton", "country": "England", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Stow@Suffolk", "modern_name": "Stow", "region": "Suffolk"}
 {"_type": "toponym", "ref": "Survey@Herefordshire", "modern_name": "Survey", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Tewkesbury@Gloucestershire", "modern_name": "Tewkesbury", "country": "England", "region": "Gloucestershire"}
-{"_type": "toponym", "ref": "Tong@Shropshire", "modern_name": "Tong", "country": "England", "region": "Shropshire"}
 {"_type": "toponym", "ref": "Torentun@-", "modern_name": "Torentun"}
 {"_type": "toponym", "ref": "Ulsitone@West Riding of Yorkshire", "modern_name": "Ulsitone", "region": "West Riding of Yorkshire"}
 {"_type": "toponym", "ref": "Waddon@Dorset", "modern_name": "Waddon", "country": "England", "region": "Dorset"}
-{"_type": "toponym", "ref": "Waltham@Lincolnshire", "modern_name": "Waltham", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Warwick@Warwickshire", "modern_name": "Warwick", "country": "England", "region": "Warwickshire"}
 {"_type": "toponym", "ref": "Watton@-", "modern_name": "Watton"}
 {"_type": "toponym", "ref": "Wentworth@Cambridgeshire", "modern_name": "Wentworth", "region": "Cambridgeshire"}
 {"_type": "toponym", "ref": "Wolverhampton@Staffordshire", "modern_name": "Wolverhampton", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Worcester@Herefordshire", "modern_name": "Worcester", "country": "England", "region": "Herefordshire"}
 {"_type": "attestation", "toponym_ref": "Aisthorpe@Lincolnshire", "form": "Aisthorpe", "date_year": 1233, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Alfriston@-", "form": "Alvricestone", "date_year": 1288, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Alton@Hampshire", "form": "Alton", "date_year": 1179, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Alvechurch@Worcestershire", "form": "Alvechurch", "date_year": 1275, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Andrebi@Yorkshire", "form": "Andrebi", "date_year": 1208, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Appleby@Lincolnshire", "form": "Appleby", "date_year": 1131, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Arden@Yorkshire", "form": "Arden", "date_year": 1150, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Athelney@Somerset", "form": "Athelney", "date_year": 1009, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Barnard Castle@Northumberland and Durham", "form": "Bernardi", "date_year": 1305, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Beck@Northumberland and Durham", "form": "Beck", "date_year": 1225, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Bericote@Warwickshire", "form": "Bericote", "date_year": 1275, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Binsted@-", "form": "Benestede", "date_year": 1280, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Bishop's Wilton@England and Wales", "form": "Wiltunscir", "date_year": 1298, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Blafelda@England (Danelaw)", "form": "Blafelda", "date_year": 1157, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Bodicote@Oxfordshire", "form": "Bodicote", "date_year": 1216, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Bridgwater@Somerset", "form": "Bridgwater", "date_year": 1257, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Bromsgrove@Warwickshire", "form": "Bromsgrove", "date_year": 1552, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Bromwich@Northamptonshire", "form": "Bromwich", "date_year": 1278, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Broughton@BUK", "form": "Broughton", "date_year": 1128, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Burden@Northumberland and Durham", "form": "Byrdene", "date_year": 1197, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Burlei@Berkshire", "form": "Burlei", "date_year": 1327, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Burwell@Cambridgeshire", "form": "Burewelle", "date_year": 1346, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "CTiron@England and Wales", "form": "Ottaforda", "date_year": 1160, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Cainesham@England and Wales", "form": "Cainesham", "date_year": 1223, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Cambridge@Cambridgeshire", "form": "Cambridge", "date_year": 1447, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Castle@Northumberland and Durham", "form": "Castle", "date_year": 975, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Caton@Yorkshire", "form": "Caton", "date_year": 1179, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Caxton@Cambridgeshire", "form": "Caxton", "date_year": 1480, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Chedzoy@England and Wales", "form": "Bridgwater", "date_year": 1257, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Chester@Cheshire", "form": "Chester", "date_year": 1180, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Chester@Cheshire", "form": "Chester", "date_year": 1183, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Chichester@-", "form": "Chichester", "date_year": 956, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Chron@England and Wales", "form": "Wincelcumba", "date_year": 1053, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Chron@England and Wales", "form": "Sudlege", "date_year": 1250, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Chron@England and Wales", "form": "Sudbiri", "date_year": 1471, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Condicote@Gloucestershire", "form": "Condicote", "date_year": 1294, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Coventry@Warwickshire", "form": "Coventry", "date_year": 1327, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Coventry@Warwickshire", "form": "Coventry", "date_year": 1344, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Crediton@British Isles", "form": "Crediton", "date_year": 1026, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Croxden@Staffordshire", "form": "Croxden", "date_year": 1237, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Croxton@Cambridgeshire", "form": "Crochestone", "date_year": 1302, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Dean@Bedfordshire", "form": "Dean", "date_year": 1263, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Dene@Northumberland and Durham", "form": "Dene", "date_year": 1160, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Derte@Devon", "form": "Derte", "date_year": 1250, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Ditchburn@Northumberland and Durham", "form": "Dodinton", "date_year": 1202, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Ditchburn@Northumberland and Durham", "form": "Dodinton", "date_year": 1302, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Dom@England and Wales", "form": "Scheneston", "date_year": 1327, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Droitwich@BUK", "form": "Droitwich", "date_year": 706, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "East Anglia@England and Wales", "form": "Sufolke", "date_year": 1478, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Erdbury@England and Wales", "form": "Erdbury", "date_year": 1235, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Evenlode@Gloucestershire", "form": "Evenlode", "date_year": 1330, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Frith@Cheshire", "form": "Frith", "date_year": 1512, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Gariannonor@-", "form": "Gernemutha", "date_year": 1223, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Gelligaer@Wales", "form": "Owen", "date_year": 1603, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Gerlei@Hampshire", "form": "Gerlei", "date_year": 1275, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Gillingham@Dorset", "form": "Gillingham", "date_year": 1016, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Gisleham@SUF", "form": "Gisleham", "date_year": 1284, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Grimesbi@Yorkshire", "form": "Grimesbi", "date_year": 1296, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Haddenham@Cambridgeshire", "form": "Hadreham", "date_year": 1300, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Halesowen@Worcestershire", "form": "Halesowen", "date_year": 1327, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Henbury@Cheshire", "form": "Henbury", "date_year": 1221, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Henry@Northumberland and Durham", "form": "Hotun", "date_year": 1183, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Henry@Northumberland and Durham", "form": "Hotun", "date_year": 1203, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Hereford@Cheshire", "form": "Hereford", "date_year": 1149, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Heugh@Northumberland and Durham", "form": "Hogh", "date_year": 1602, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "HinsrcoAT@England and Wales", "form": "Hunecote", "date_year": 1124, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Ho@-", "form": "John", "date_year": 1253, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
@@ -696,12 +647,10 @@
 {"_type": "attestation", "toponym_ref": "Later@-", "form": "Later", "date_year": 1255, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Leamington@Warwickshire", "form": "Leamington", "date_year": 1327, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Leisingbi@England (Danelaw)", "form": "Leisingbi", "date_year": 1179, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Lichfield@Staffordshire", "form": "Lichfield", "date_year": 773, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Lizard@Cornwall", "form": "Lizard", "date_year": 1219, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Lolworth@Cambridgeshire", "form": "Lolesuuorde", "date_year": 1284, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Longnor@Staffordshire", "form": "Longenalre", "date_year": 1223, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Maltebi@-", "form": "Maltebi", "date_year": 1442, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Merston@-", "form": "Merston", "date_year": 1573, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Mindrum@Northumberland and Durham", "form": "Minethrum", "date_year": 1324, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Montgomery@Shropshire", "form": "Montgomery", "date_year": 893, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Newmarket@Cambridgeshire", "form": "Mercatus", "date_year": 1383, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
@@ -725,16 +674,10 @@
 {"_type": "attestation", "toponym_ref": "SHENBORO' and SHENINGTON@England and Wales", "form": "Sceningei", "date_year": 1276, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Shrewsbury@Shropshire", "form": "Shrewsbury", "date_year": 1071, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Snodsbury@Worcestershire", "form": "Snodsbury", "date_year": 840, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Stafford@Staffordshire", "form": "Stafford", "date_year": 740, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Stanford@Bedfordshire", "form": "Stanford", "date_year": 922, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Staplow@Cambridgeshire", "form": "Staplehou", "date_year": 1428, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Steintun Wm@England (Danelaw)", "form": "Steynton", "date_year": 1302, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Stockton@Herefordshire", "form": "Stockton", "date_year": 1189, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Stow@Suffolk", "form": "Stow", "date_year": 1598, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Survey@Herefordshire", "form": "Survey", "date_year": 1598, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Tewkesbury@Gloucestershire", "form": "Tewkesbury", "date_year": 875, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "TlBTHORP@England and Wales", "form": "Tyrle", "date_year": 785, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Tong@Shropshire", "form": "Tong", "date_year": 1551, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Tooter@England and Wales", "form": "Wyclif", "date_year": 1382, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Torentun@-", "form": "Torentun", "date_year": 1219, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Ulsitone@West Riding of Yorkshire", "form": "Ulsitone", "date_year": 1179, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
@@ -742,14 +685,10 @@
 {"_type": "attestation", "toponym_ref": "WESENHAM Heath@England and Wales", "form": "Westhus", "date_year": 1262, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "WESENHAM Heath@England and Wales", "form": "Westesham", "date_year": 1524, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Waddon@Dorset", "form": "Waddon", "date_year": 1302, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Waltham@Lincolnshire", "form": "Waltham", "date_year": 1001, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Warwick@Warwickshire", "form": "Warwick", "date_year": 710, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Watton@-", "form": "Watone", "date_year": 1210, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Wentworth@Cambridgeshire", "form": "Winteworde", "date_year": 1291, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Wolverhampton@Staffordshire", "form": "Wolverhampton", "date_year": 1286, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Worcester@Herefordshire", "form": "Worcester", "date_year": 974, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Worcester@Herefordshire", "form": "Worcester", "date_year": 991, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
-{"_type": "attestation", "toponym_ref": "Worcester@Herefordshire", "form": "Worcester", "date_year": 1275, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Wore@England and Wales", "form": "Maluerna", "date_year": 1362, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Wrsettincge@England and Wales", "form": "Wrsettincge", "date_year": 1167, "source_doc": "johnston_1915_place_names_of_england_and_wales"}
 {"_type": "attestation", "toponym_ref": "Wrsettincge@England and Wales", "form": "Wreting", "date_year": 1210, "source_doc": "johnston_1915_place_names_of_england_and_wales"}

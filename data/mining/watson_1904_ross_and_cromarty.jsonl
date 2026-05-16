@@ -86,7 +86,5 @@
 {"_type": "etymology_element", "toponym_ref": "Tao'udal@Ross and Cromarty", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:haga"}, {"ordinal": 1, "etymon_ref": "old-norse:dalr"}], "historical_form": "haga-dalr", "confidence": "medium", "notes": "extracted_by:llm:qwen3.5:9b; Scholar proposes Norse origin with prefixed 't' (taodail) and notes the birch/fir copses; alternative Gaelic 'doire' mentioned but Norse hypothesis is the primary etymolog"}
 {"_type": "toponym", "ref": "Findon@SUS", "modern_name": "Findon", "country": "England", "region": "SUS"}
 {"_type": "toponym", "ref": "Kinkell@Stirlingshire", "modern_name": "Kinkell", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Ross@England and Wales", "modern_name": "Ross", "region": "England and Wales"}
 {"_type": "attestation", "toponym_ref": "Findon@SUS", "form": "Findon", "date_year": 1608, "source_doc": "watson_1904_ross_and_cromarty"}
 {"_type": "attestation", "toponym_ref": "Kinkell@Stirlingshire", "form": "Kinkell", "date_year": 1527, "source_doc": "watson_1904_ross_and_cromarty"}
-{"_type": "attestation", "toponym_ref": "Ross@England and Wales", "form": "Ross", "date_year": 1366, "source_doc": "watson_1904_ross_and_cromarty"}

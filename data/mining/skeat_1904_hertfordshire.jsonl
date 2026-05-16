@@ -312,22 +312,16 @@
 {"_type": "etymology_element", "toponym_ref": "West Hyde@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:west"}, {"ordinal": 1, "etymon_ref": "old-english:hide"}], "historical_form": "west-hyde", "confidence": "medium", "notes": "extracted_by:llm:qwen3.5:35b-a3b; Scholar derives from A.S. 'hide' as a measure of land. | West Hyde. — This is from A.S. Mgid, *a hide,' or a certain measure of land. See hid$y sb. (2) in the N.E.D. "}
 {"_type": "etymology_element", "toponym_ref": "West Hyde@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:west"}, {"ordinal": 1, "etymon_ref": "old-english:mgid"}], "historical_form": "West-Mgid", "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash; The form 'Mgid' is likely a typo for Old English 'hīd'. | West Hyde. — This is from A.S. Mgid, *a hide,' or a certain measure of land. See hid$y sb. (2) in the N."}
 {"_type": "etymology_element", "toponym_ref": "WooLMEE Geeek@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wulf"}, {"ordinal": 1, "etymon_ref": "old-english:mar"}], "historical_form": "Wulf-mar", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | WooLMEE Geeek. — Woolmer represents the common A.S. name Wulf-mar; where wul/meana * wolf,' and mar means * illustrious.' It may be observed that, in the list of hamlets last discussed, some new suffixes have been found which have not been mentioned before. These may be enumerated as foUows : — Brook, * a stream ' ; as in Ash-brook, Spel-brook. Hanger^ * a wooded slope * ; as in Pans-hanger, Titten-hanger. Surst, * a copse ' ; as in Holm-hurst. "}
-{"_type": "toponym", "ref": "Charlton@-", "modern_name": "Charlton"}
-{"_type": "toponym", "ref": "London@Essex", "modern_name": "London", "country": "England", "region": "Essex"}
-{"_type": "toponym", "ref": "Waltham@Lincolnshire", "modern_name": "Waltham", "country": "England", "region": "Lincolnshire"}
 {"_type": "attestation", "toponym_ref": "Ansibt@-", "form": "Anestei", "date_year": 1086, "source_doc": "skeat_1904_hertfordshire"}
 {"_type": "attestation", "toponym_ref": "Ansibt@-", "form": "Anestigef", "date_year": 1086, "source_doc": "skeat_1904_hertfordshire"}
 {"_type": "attestation", "toponym_ref": "BENNiNGToir@-", "form": "BeUnUme", "date_year": 1086, "source_doc": "skeat_1904_hertfordshire"}
 {"_type": "attestation", "toponym_ref": "Box@-", "form": "Boxe", "date_year": 1086, "source_doc": "skeat_1904_hertfordshire"}
 {"_type": "attestation", "toponym_ref": "Chablton@-", "form": "Cerletone", "date_year": 1086, "source_doc": "skeat_1904_hertfordshire"}
-{"_type": "attestation", "toponym_ref": "Charlton@-", "form": "Cerletone", "date_year": 1086, "source_doc": "skeat_1904_hertfordshire"}
 {"_type": "attestation", "toponym_ref": "Flamstkad@-", "form": "FlamesUde", "date_year": 1086, "source_doc": "skeat_1904_hertfordshire"}
 {"_type": "attestation", "toponym_ref": "HszToir@-", "form": "Hegestanestone", "date_year": 1086, "source_doc": "skeat_1904_hertfordshire"}
-{"_type": "attestation", "toponym_ref": "London@Essex", "form": "London", "date_year": 1700, "source_doc": "skeat_1904_hertfordshire"}
 {"_type": "attestation", "toponym_ref": "MiHMS@-", "form": "Mtmmine", "date_year": 1086, "source_doc": "skeat_1904_hertfordshire"}
 {"_type": "attestation", "toponym_ref": "PiBTOir@-", "form": "Peritonei", "date_year": 1086, "source_doc": "skeat_1904_hertfordshire"}
 {"_type": "attestation", "toponym_ref": "Stanstead@-", "form": "StanesUde", "date_year": 1086, "source_doc": "skeat_1904_hertfordshire"}
 {"_type": "attestation", "toponym_ref": "Waeb@-", "form": "Warae", "date_year": 1086, "source_doc": "skeat_1904_hertfordshire"}
-{"_type": "attestation", "toponym_ref": "Waltham@Lincolnshire", "form": "Waltham", "date_year": 1086, "source_doc": "skeat_1904_hertfordshire"}
 {"_type": "attestation", "toponym_ref": "Watton@-", "form": "Watone", "date_year": 1086, "source_doc": "skeat_1904_hertfordshire"}
 {"_type": "attestation", "toponym_ref": "Waxungton@-", "form": "JTalltngtone", "date_year": 1086, "source_doc": "skeat_1904_hertfordshire"}

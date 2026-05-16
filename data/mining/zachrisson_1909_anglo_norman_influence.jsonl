@@ -1,2 +1,32 @@
 {"_type": "source", "ref": "zachrisson_1909_anglo_norman_influence", "title": "Zachrisson 1909 Anglo Norman Influence", "notes": "Source row created by reverse-search; the book exists in sources/ but may not have been LLM-mined yet. Full metadata fills in when the book is formally mined."}
 {"_type": "mining_run", "provider": "ollama", "model": "qwen3.5:35b-a3b", "mode": "mine", "completed_at": "2026-04-30T23:32:06.079Z", "parsed_count": 2, "accepted": 1, "declined": 1, "rejected": 0, "notes": "ad hoc smoke run"}
+{"_type": "toponym", "ref": "Anne@Hampshire", "modern_name": "Anne", "country": "England", "region": "Hampshire"}
+{"_type": "toponym", "ref": "Cressingham@Norfolk", "modern_name": "Cressingham", "country": "England", "region": "Norfolk"}
+{"_type": "toponym", "ref": "Crucheslaga@West Riding of Yorkshire", "modern_name": "Crucheslaga", "region": "West Riding of Yorkshire"}
+{"_type": "toponym", "ref": "Ditchburn@Northumberland and Durham", "modern_name": "Ditchburn", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Etone@West Riding of Yorkshire", "modern_name": "Etone", "region": "West Riding of Yorkshire"}
+{"_type": "toponym", "ref": "Haddenham@Cambridgeshire", "modern_name": "Haddenham", "region": "Cambridgeshire"}
+{"_type": "toponym", "ref": "Ladone@Hampshire", "modern_name": "Ladone", "country": "England", "region": "Hampshire"}
+{"_type": "toponym", "ref": "Ledemare@Yorkshire", "modern_name": "Ledemare", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Lolworth@Cambridgeshire", "modern_name": "Lolworth", "region": "Cambridgeshire"}
+{"_type": "toponym", "ref": "Nymet@Devon", "modern_name": "Nymet", "country": "England", "region": "Devon"}
+{"_type": "toponym", "ref": "Palmer@-", "modern_name": "Palmer"}
+{"_type": "toponym", "ref": "Penkridge@Staffordshire", "modern_name": "Penkridge", "region": "Staffordshire"}
+{"_type": "toponym", "ref": "Pidele@Dorset", "modern_name": "Pidele", "country": "England", "region": "Dorset"}
+{"_type": "toponym", "ref": "Wich@Cheshire", "modern_name": "Wich", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Zachrisson@-", "modern_name": "Zachrisson"}
+{"_type": "attestation", "toponym_ref": "Anne@Hampshire", "form": "Anne", "date_year": 1086, "source_doc": "zachrisson_1909_anglo_norman_influence"}
+{"_type": "attestation", "toponym_ref": "Cressingham@Norfolk", "form": "Cressingham", "date_year": 1086, "source_doc": "zachrisson_1909_anglo_norman_influence"}
+{"_type": "attestation", "toponym_ref": "Crucheslaga@West Riding of Yorkshire", "form": "Crucheslaga", "date_year": 1086, "source_doc": "zachrisson_1909_anglo_norman_influence"}
+{"_type": "attestation", "toponym_ref": "Ditchburn@Northumberland and Durham", "form": "Dodinton", "date_year": 1086, "source_doc": "zachrisson_1909_anglo_norman_influence"}
+{"_type": "attestation", "toponym_ref": "Etone@West Riding of Yorkshire", "form": "Etone", "date_year": 1086, "source_doc": "zachrisson_1909_anglo_norman_influence"}
+{"_type": "attestation", "toponym_ref": "Haddenham@Cambridgeshire", "form": "Hadreham", "date_year": 1086, "source_doc": "zachrisson_1909_anglo_norman_influence"}
+{"_type": "attestation", "toponym_ref": "Ladone@Hampshire", "form": "Ladone", "date_year": 1086, "source_doc": "zachrisson_1909_anglo_norman_influence"}
+{"_type": "attestation", "toponym_ref": "Ledemare@Yorkshire", "form": "Ledemare", "date_year": 1086, "source_doc": "zachrisson_1909_anglo_norman_influence"}
+{"_type": "attestation", "toponym_ref": "Lolworth@Cambridgeshire", "form": "Lolesuuorde", "date_year": 1086, "source_doc": "zachrisson_1909_anglo_norman_influence"}
+{"_type": "attestation", "toponym_ref": "Nymet@Devon", "form": "Nymet", "date_year": 1086, "source_doc": "zachrisson_1909_anglo_norman_influence"}
+{"_type": "attestation", "toponym_ref": "Palmer@-", "form": "Falemere", "date_year": 1086, "source_doc": "zachrisson_1909_anglo_norman_influence"}
+{"_type": "attestation", "toponym_ref": "Penkridge@Staffordshire", "form": "Chenwardestone", "date_year": 1086, "source_doc": "zachrisson_1909_anglo_norman_influence"}
+{"_type": "attestation", "toponym_ref": "Pidele@Dorset", "form": "Pidele", "date_year": 1086, "source_doc": "zachrisson_1909_anglo_norman_influence"}
+{"_type": "attestation", "toponym_ref": "Wich@Cheshire", "form": "Wich", "date_year": 1086, "source_doc": "zachrisson_1909_anglo_norman_influence"}
+{"_type": "attestation", "toponym_ref": "Zachrisson@-", "form": "Zachrisson", "date_year": 1086, "source_doc": "zachrisson_1909_anglo_norman_influence"}

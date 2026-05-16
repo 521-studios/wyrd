@@ -227,11 +227,9 @@
 {"_type": "etymology_element", "toponym_ref": "YsTRAD Owen@Wales and Monmouthshire", "elements": [{"ordinal": 0, "etymon_ref": "celtic:owen"}], "historical_form": "YsTRAD-Owen", "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash | YsTRAD Owen. — Prince Owen, the son of Morgan Hen, the king of Glamorgan, took up his abode in this parish, and his remains were consigned to their last resting-place here in the year 987 ; hence the name, English name — Owenston.", "attested_year": 987}
 {"_type": "toponym", "ref": "Garthen@Wales", "modern_name": "Garthen", "region": "Wales"}
 {"_type": "toponym", "ref": "Gelligaer@Wales", "modern_name": "Gelligaer", "region": "Wales"}
-{"_type": "toponym", "ref": "Penrice@Wales", "modern_name": "Penrice", "region": "Wales"}
 {"_type": "toponym", "ref": "Wales@Yorkshire", "modern_name": "Wales", "country": "England", "region": "Yorkshire"}
 {"_type": "attestation", "toponym_ref": "Abbey Cwm Hir@Wales and Monmouthshire", "form": "Madoc", "date_year": 1143, "source_doc": "morgan_1887_wales_monmouthshire"}
 {"_type": "attestation", "toponym_ref": "Garthen@Wales", "form": "Saxons", "date_year": 1161, "source_doc": "morgan_1887_wales_monmouthshire"}
 {"_type": "attestation", "toponym_ref": "Gelligaer@Wales", "form": "Owen", "date_year": 1140, "source_doc": "morgan_1887_wales_monmouthshire"}
 {"_type": "attestation", "toponym_ref": "Pen RICE@Wales and Monmouthshire", "form": "Normans", "date_year": 1099, "source_doc": "morgan_1887_wales_monmouthshire"}
-{"_type": "attestation", "toponym_ref": "Penrice@Wales", "form": "Normans", "date_year": 1099, "source_doc": "morgan_1887_wales_monmouthshire"}
 {"_type": "attestation", "toponym_ref": "Wales@Yorkshire", "form": "Wales", "date_year": 1283, "source_doc": "morgan_1887_wales_monmouthshire"}

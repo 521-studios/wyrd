@@ -64,11 +64,12 @@ class ReverseSearchReport:
       that landed in ``toponym_attestation``. Idempotent re-runs
       produce 0 inserts and the matched count flows to
       ``already_present`` instead.
-    * ``already_present`` — under ``apply=True``, matched pairs
-      whose ``(toponym_id, form, date_year, source_doc)`` tuple
-      was already in the DB (UNIQUE-index dedup). Always 0 in
-      dry-run mode — see :func:`reverse_search_source` docstring
-      for the rationale and the operator-facing implication.
+    * ``already_present`` — matched pairs whose
+      ``(toponym_id, form, date_year, source_doc)`` tuple was
+      already in the DB (UNIQUE-index dedup). Accurate in BOTH
+      dry-run and apply modes — the preflight uniqueness SELECT
+      computes this regardless of the apply flag so operators
+      can predict --apply's effect from dry-run output.
     """
 
     source_id: str
@@ -81,13 +82,23 @@ class ReverseSearchReport:
 
 
 def _normalize_for_match(form: str) -> str:
-    """Lowercase + strip surrounding whitespace + drop trailing
-    punctuation. Mirrors the lightweight normalization the matching
-    side of mine-attestations already applies; toponym.modern_name
-    values in the DB are mixed-case (Birmingham, Castle Cary), so a
-    case-insensitive lookup is what makes the form-to-toponym join
-    practical."""
-    return form.strip().rstrip(",.;:").lower()
+    """Lowercase + strip surrounding whitespace + drop both LEADING
+    and TRAILING punctuation. Mirrors the lightweight normalization
+    the matching side of mine-attestations already applies; toponym
+    .modern_name values in the DB are mixed-case (Birmingham, Castle
+    Cary), so a case-insensitive lookup is what makes the
+    form-to-toponym join practical.
+
+    Leading-punctuation strip catches scholar-prose shapes like
+    ``"Birmingham`` (opening quote), ``(Birmingham`` (parenthetical
+    intro), or ``[Birmingham`` (editor bracket). Without this strip,
+    these forms would silently never match a known toponym
+    (Gemini PR #212 round-2 finding).
+    """
+    # Both leading and trailing punctuation strip. Including the
+    # paired quote/bracket characters on both ends so a form quoted
+    # both before and after still normalizes to bare text.
+    return form.strip().strip("\"'([{<~").rstrip(",.;:!?)'\"]}>~").lower()
 
 
 def _build_form_to_toponym_lookup(conn: sqlite3.Connection) -> dict[str, int]:
@@ -95,45 +106,36 @@ def _build_form_to_toponym_lookup(conn: sqlite3.Connection) -> dict[str, int]:
     toponym_id, drawn from both ``toponym.modern_name`` and any
     existing ``toponym_attestation.form``.
 
-    Collision precedence (deterministic):
+    **Ambiguity handling**: forms that map to MULTIPLE toponym_ids
+    (homonyms — Newton across counties, Hereford the city vs. other
+    Herefords, etc.) are EXCLUDED from the returned lookup, so
+    :func:`reverse_search_source` counts them as ``unmatched``
+    rather than guessing which homonym the scholar prose meant.
+    Phase 2's LLM extraction with surrounding-context understanding
+    is the right place to disambiguate; Phase 1 should not silently
+    pick the wrong one (Gemini PR #212 round-2 finding: the earlier
+    "lowest id wins" rule produced wrong assignments — Hereford in
+    a Herefordshire source body was mapping to Hereford@Cheshire).
 
-    1. **modern_name always beats attestation_form** — when the same
-       normalized form appears as both a ``toponym.modern_name`` and
-       a ``toponym_attestation.form`` for a different toponym, the
-       modern_name's toponym wins regardless of id. The first loop
-       populates the dict before the second loop runs, and the
-       second loop uses ``if key not in lookup``.
-    2. **Among modern_name collisions, lowest toponym_id wins** —
-       ``ORDER BY id`` + first-insert-wins. Multiple "Newton"
-       toponyms across counties collapse to the lowest-id Newton.
-    3. **Among attestation collisions, lowest attestation.id wins** —
-       same ORDER-BY-id-and-first-insert mechanism applied to the
-       attestation loop.
-
-    Operator implication: when a passing scholar prose mention
-    matches a form that resolves to a Newton, the lookup may map
-    to a different Newton than the operator-expected one. The
-    insert is still high-precision (it's a real attestation in
-    that source's prose) but the toponym_id may not match the
-    operator's "main" Newton. Curation pipeline + operator review
-    catch this case-by-case.
+    Modern names AND attestation forms both contribute to the set
+    of ids per form. The ambiguity check fires when the union has
+    more than one id, regardless of which source layer contributed.
     """
-    lookup: dict[str, int] = {}
-    # Modern names first — these are the authoritative forms.
-    for row in conn.execute("SELECT id, modern_name FROM toponym ORDER BY id"):
+    form_to_ids: dict[str, set[int]] = {}
+    for row in conn.execute("SELECT id, modern_name FROM toponym"):
         key = _normalize_for_match(row["modern_name"])
-        if key and key not in lookup:
-            lookup[key] = row["id"]
-    # Then historical forms from existing attestations — these
-    # supplement the lookup with already-known variant spellings
-    # (Cestretone, Eboracum, etc.). Modern names take precedence
-    # when there's a collision because they're the canonical
-    # identity.
-    for row in conn.execute("SELECT toponym_id, form FROM toponym_attestation ORDER BY id"):
+        if key:
+            form_to_ids.setdefault(key, set()).add(row["id"])
+    for row in conn.execute("SELECT toponym_id, form FROM toponym_attestation"):
         key = _normalize_for_match(row["form"])
-        if key and key not in lookup:
-            lookup[key] = row["toponym_id"]
-    return lookup
+        if key:
+            form_to_ids.setdefault(key, set()).add(row["toponym_id"])
+    # Only include unambiguous matches (exactly one toponym id).
+    # Multi-id collisions become "unmatched" downstream — Phase 2's
+    # LLM extraction can use surrounding source-body context to
+    # disambiguate; Phase 1's pattern-based search cannot, so it
+    # defers rather than guess.
+    return {key: next(iter(ids)) for key, ids in form_to_ids.items() if len(ids) == 1}
 
 
 def _load_source_body(sources_dir: Path, source_id: str) -> str | None:

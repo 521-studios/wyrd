@@ -2632,14 +2632,18 @@ def lexicon_reverse_search_toponyms(
                 )
             target_sources = list(sources)
         else:
-            # Only iterate sources that have actual citations — empty
-            # sources won't produce matches anyway.
-            target_sources = [
-                r[0]
-                for r in db.conn.execute(
-                    "SELECT DISTINCT source_id FROM etymon_citation ORDER BY source_id"
-                )
-            ]
+            # Iterate the source table — every registered scholar
+            # source is a candidate for body-text reverse-search
+            # regardless of whether it has citations yet. Earlier
+            # version used `DISTINCT source_id FROM etymon_citation`
+            # (mirroring wyrd-1hpc); Gemini PR #212 round-2 finding
+            # corrected: a source can have toponym attestations
+            # without etymons (operator-uploaded source body before
+            # the etymon mining pass runs, or a source that's
+            # toponym-only by design). Sources without a committed
+            # .txt body skip via _load_source_body returning None;
+            # no harm in iterating them.
+            target_sources = [r["id"] for r in db.conn.execute("SELECT id FROM source ORDER BY id")]
 
         # Build the form→toponym lookup ONCE up front. 21,969+ toponyms
         # in the live DB; rebuilding per-source would re-execute two

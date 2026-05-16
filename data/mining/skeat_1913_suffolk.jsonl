@@ -394,29 +394,20 @@
 {"_type": "etymology_element", "toponym_ref": "Stow@Suffolk", "elements": [{"ordinal": 0, "etymon_ref": "old-english:stow"}], "historical_form": "stow", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Stow is the A.S. stow, a place ; whence the phrase to stow aiuay. There is a hundred named Stow ; West Stow, two and a half miles W. of Ingham (N. of"}
 {"_type": "etymology_element", "toponym_ref": "Stow@Suffolk", "elements": [{"ordinal": 0, "etymon_ref": "old-english:stow"}], "historical_form": "stow", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Stow is the A.S. stow, a place ; whence the phrase to stow aiuay. There is a hundred named Stow ; West Stow, two and a half miles W. of Ingham (N. of"}
 {"_type": "etymology_element", "toponym_ref": "Thorpe@Suffolk", "elements": [{"ordinal": 0, "etymon_ref": "old-english:thorp"}], "historical_form": "thorp", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Thorpe, more correctly thorp, is the O. Frisian and A.S. thorp, 'a village'; cognate with Du. dorp, G. dorf. We find (in Suffolk) Thorpe-Morieux, a h"}
-{"_type": "toponym", "ref": "Bare@Lancashire", "modern_name": "Bare", "region": "Lancashire"}
 {"_type": "toponym", "ref": "Barnaby@Yorkshire", "modern_name": "Barnaby", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Benhala@-", "modern_name": "Benhala"}
-{"_type": "toponym", "ref": "Farnham@Northumberland and Durham", "modern_name": "Farnham", "region": "Northumberland and Durham"}
-{"_type": "toponym", "ref": "Gisleham@SUF", "modern_name": "Gisleham", "country": "England", "region": "SUF"}
-{"_type": "toponym", "ref": "Ingham@Lincolnshire", "modern_name": "Ingham", "country": "England", "region": "Lincolnshire"}
-{"_type": "toponym", "ref": "Langham@Essex", "modern_name": "Langham", "country": "England", "region": "Essex"}
 {"_type": "toponym", "ref": "Leiston@SUF", "modern_name": "Leiston", "country": "England", "region": "SUF"}
 {"_type": "toponym", "ref": "Meltuna@England and Wales", "modern_name": "Meltuna", "region": "England and Wales"}
 {"_type": "toponym", "ref": "Old and New@Northumberland and Durham", "modern_name": "Old and New", "region": "Northumberland and Durham"}
 {"_type": "toponym", "ref": "Saxham@SUF", "modern_name": "Saxham", "country": "England", "region": "SUF"}
-{"_type": "toponym", "ref": "Thornham@Norfolk", "modern_name": "Thornham", "country": "England", "region": "Norfolk"}
 {"_type": "toponym", "ref": "Wortham@SUF", "modern_name": "Wortham", "country": "England", "region": "SUF"}
 {"_type": "attestation", "toponym_ref": "Aldham@Suffolk", "form": "Aldeham", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Aspall@Suffolk", "form": "Aspala", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Aspall@Suffolk", "form": "Aspella", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Aspall@Suffolk", "form": "Espala", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Badley@Suffolk", "form": "Badelea", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
-{"_type": "attestation", "toponym_ref": "Bare@Lancashire", "form": "Bare", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Barnaby@Yorkshire", "form": "Barnaby", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Bedingfield@Suffolk", "form": "Badingafelda", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Benacre@Suffolk", "form": "Benagra", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
-{"_type": "attestation", "toponym_ref": "Benhala@-", "form": "Benhala", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Benhall@Suffolk", "form": "Benhala", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Blaxhall@Suffolk", "form": "Blaccheshala", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Blaxhall@Suffolk", "form": "Blaches", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
@@ -428,19 +419,14 @@
 {"_type": "attestation", "toponym_ref": "Cornard@Suffolk", "form": "Gornerda", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Cornard@Suffolk", "form": "Gornierda", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Depden@Suffolk", "form": "Depdana", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
-{"_type": "attestation", "toponym_ref": "Farnham@Northumberland and Durham", "form": "Farnham", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Gedgrave@Suffolk", "form": "Gategraua", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
-{"_type": "attestation", "toponym_ref": "Gisleham@SUF", "form": "Gisleham", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Hargrave@Suffolk", "form": "Haragraua", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Hartest@Suffolk", "form": "Herterst", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Hartest@Suffolk", "form": "Hertest", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
-{"_type": "attestation", "toponym_ref": "Ingham@Lincolnshire", "form": "Ingham", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
-{"_type": "attestation", "toponym_ref": "Langham@Essex", "form": "Langham", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Leiston@SUF", "form": "Leiston", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Meltuna@England and Wales", "form": "Meltuna", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Occold@Suffolk", "form": "Acolt", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Old and New@Northumberland and Durham", "form": "Vetus", "date_year": 1278, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Saxham@SUF", "form": "Saxham", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Shipmeadow@Suffolk", "form": "Scipmedu", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
-{"_type": "attestation", "toponym_ref": "Thornham@Norfolk", "form": "Thornham", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}
 {"_type": "attestation", "toponym_ref": "Wortham@SUF", "form": "Wortham", "date_year": 1086, "source_doc": "skeat_1913_suffolk"}

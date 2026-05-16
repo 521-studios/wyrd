@@ -596,7 +596,6 @@
 {"_type": "toponym", "ref": "Berks@Lancashire", "modern_name": "Berks", "region": "Lancashire"}
 {"_type": "toponym", "ref": "Falkirk@Scotland", "modern_name": "Falkirk", "region": "Scotland"}
 {"_type": "toponym", "ref": "Kilsyth@Stirlingshire", "modern_name": "Kilsyth", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Seal@Kent", "modern_name": "Seal", "country": "England", "region": "Kent"}
 {"_type": "toponym", "ref": "Wales@Yorkshire", "modern_name": "Wales", "country": "England", "region": "Yorkshire"}
 {"_type": "attestation", "toponym_ref": "Berks@Lancashire", "form": "Berks", "date_year": 871, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Craigforth@Stirlingshire", "form": "Oraighorth", "date_year": 1327, "source_doc": "johnston_1904_stirlingshire"}
@@ -626,7 +625,6 @@
 {"_type": "attestation", "toponym_ref": "Port of Menteith@Stirlingshire", "form": "Meneted", "date_year": 1234, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Queenzieburn@Stirlingshire", "form": "Goyny", "date_year": 1694, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Sauchie@Stirlingshire", "form": "Alloa", "date_year": 1208, "source_doc": "johnston_1904_stirlingshire"}
-{"_type": "attestation", "toponym_ref": "Seal@Kent", "form": "Seal", "date_year": 1451, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Skeogh@Stirlingshire", "form": "Skewok", "date_year": 1329, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Stirling@Stirlingshire", "form": "Strivelin", "date_year": 1225, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Stirling@Stirlingshire", "form": "Estriuelin", "date_year": 1295, "source_doc": "johnston_1904_stirlingshire"}

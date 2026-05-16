@@ -11,25 +11,12 @@
 {"_type": "toponym", "ref": "Garthen@Wales", "modern_name": "Garthen", "region": "Wales"}
 {"_type": "toponym", "ref": "Glastonbury@Somerset", "modern_name": "Glastonbury", "country": "England", "region": "Somerset"}
 {"_type": "toponym", "ref": "Kimble@BUK", "modern_name": "Kimble", "country": "England", "region": "BUK"}
-{"_type": "toponym", "ref": "London@Essex", "modern_name": "London", "country": "England", "region": "Essex"}
 {"_type": "toponym", "ref": "Ludham@Norfolk", "modern_name": "Ludham", "country": "England", "region": "Norfolk"}
-{"_type": "toponym", "ref": "Oxford@Berkshire", "modern_name": "Oxford", "country": "England", "region": "Berkshire"}
-{"_type": "toponym", "ref": "Sherborne@Dorset", "modern_name": "Sherborne", "country": "England", "region": "Dorset"}
 {"_type": "toponym", "ref": "Tanshelf@Yorkshire", "modern_name": "Tanshelf", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Wales@Yorkshire", "modern_name": "Wales", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Winchester@Devon", "modern_name": "Winchester", "country": "England", "region": "Devon"}
-{"_type": "toponym", "ref": "York@Devon", "modern_name": "York", "country": "England", "region": "Devon"}
 {"_type": "attestation", "toponym_ref": "Garthen@Wales", "form": "Saxons", "date_year": 711, "source_doc": "mcclure_1910_british_place_names"}
 {"_type": "attestation", "toponym_ref": "Glastonbury@Somerset", "form": "Glastonbury", "date_year": 971, "source_doc": "mcclure_1910_british_place_names"}
 {"_type": "attestation", "toponym_ref": "Kimble@BUK", "form": "Kimble", "date_year": 1086, "source_doc": "mcclure_1910_british_place_names"}
-{"_type": "attestation", "toponym_ref": "London@Essex", "form": "London", "date_year": 994, "source_doc": "mcclure_1910_british_place_names"}
-{"_type": "attestation", "toponym_ref": "London@Essex", "form": "London", "date_year": 1015, "source_doc": "mcclure_1910_british_place_names"}
-{"_type": "attestation", "toponym_ref": "London@Essex", "form": "London", "date_year": 1516, "source_doc": "mcclure_1910_british_place_names"}
 {"_type": "attestation", "toponym_ref": "Ludham@Norfolk", "form": "Ludham", "date_year": 1086, "source_doc": "mcclure_1910_british_place_names"}
-{"_type": "attestation", "toponym_ref": "Oxford@Berkshire", "form": "Oxford", "date_year": 1675, "source_doc": "mcclure_1910_british_place_names"}
-{"_type": "attestation", "toponym_ref": "Sherborne@Dorset", "form": "Sherborne", "date_year": 909, "source_doc": "mcclure_1910_british_place_names"}
 {"_type": "attestation", "toponym_ref": "Tanshelf@Yorkshire", "form": "Tanshelf", "date_year": 1257, "source_doc": "mcclure_1910_british_place_names"}
 {"_type": "attestation", "toponym_ref": "Wales@Yorkshire", "form": "Wales", "date_year": 1062, "source_doc": "mcclure_1910_british_place_names"}
-{"_type": "attestation", "toponym_ref": "Winchester@Devon", "form": "Winchester", "date_year": 1043, "source_doc": "mcclure_1910_british_place_names"}
-{"_type": "attestation", "toponym_ref": "York@Devon", "form": "York", "date_year": 795, "source_doc": "mcclure_1910_british_place_names"}
-{"_type": "attestation", "toponym_ref": "York@Devon", "form": "York", "date_year": 869, "source_doc": "mcclure_1910_british_place_names"}

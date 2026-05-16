@@ -406,46 +406,25 @@
 {"_type": "etymology_element", "toponym_ref": "Wolverhampton@Staffordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:northan"}, {"ordinal": 1, "etymon_ref": "old-english:cot"}], "historical_form": "northan-cot", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Wolverhampton. 1255 Worthincote; 1271 Northicote; 1327 Nordicote. This is ‘Northern cot’; the z is the remains of the terminal in A.S. northan. The h", "attested_year": 1255}
 {"_type": "etymology_element", "toponym_ref": "Wolverhampton@Staffordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:secg"}, {"ordinal": 1, "etymon_ref": "old-english:leah"}], "historical_form": "Secg-es-leah", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Secg identified as a personal name attested in charters; genitive es marks possessive construction. | Wolverhampton. c. 1006 Secges lea; D. Segleslei;", "attested_year": 1006}
 {"_type": "etymology_element", "toponym_ref": "Wolverhampton@Staffordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wodnes", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:feld"}], "historical_form": "Wodnes-feld", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar marks as uncertain with '?' — 'Woden's field?' | Wolverhampton. 994 Wodnes- Seid; D. Wodnesfeld. ‘Woden’s field? V.Wednesbury. In gio a battle", "attested_year": 994}
-{"_type": "toponym", "ref": "Aston@Cheshire", "modern_name": "Aston", "country": "England", "region": "Cheshire"}
-{"_type": "toponym", "ref": "Barton@Cambridgeshire", "modern_name": "Barton", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Dodington@Gloucestershire", "modern_name": "Dodington", "country": "England", "region": "Gloucestershire"}
-{"_type": "toponym", "ref": "Dudley@Worcestershire", "modern_name": "Dudley", "country": "England", "region": "Worcestershire"}
 {"_type": "toponym", "ref": "Garthen@Wales", "modern_name": "Garthen", "region": "Wales"}
-{"_type": "toponym", "ref": "Hampton@Cheshire", "modern_name": "Hampton", "country": "England", "region": "Cheshire"}
-{"_type": "toponym", "ref": "Hilton@Cornwall", "modern_name": "Hilton", "country": "England", "region": "Cornwall"}
 {"_type": "toponym", "ref": "Hunts@Essex", "modern_name": "Hunts", "country": "England", "region": "Essex"}
 {"_type": "toponym", "ref": "Lowe@Shropshire", "modern_name": "Lowe", "country": "England", "region": "Shropshire"}
-{"_type": "toponym", "ref": "Roads@-", "modern_name": "Roads"}
 {"_type": "toponym", "ref": "Sedgley@Staffordshire", "modern_name": "Sedgley", "country": "England", "region": "Staffordshire"}
 {"_type": "toponym", "ref": "Silverton@Devon", "modern_name": "Silverton", "country": "England", "region": "Devon"}
-{"_type": "toponym", "ref": "Stretton@Derbyshire", "modern_name": "Stretton", "country": "England", "region": "Derbyshire"}
-{"_type": "toponym", "ref": "Swinford@Staffordshire", "modern_name": "Swinford", "country": "England", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Tongue@-", "modern_name": "Tongue"}
-{"_type": "attestation", "toponym_ref": "Aston@Cheshire", "form": "Aston", "date_year": 1362, "source_doc": "duignan_1902_staffordshire"}
-{"_type": "attestation", "toponym_ref": "Barton@Cambridgeshire", "form": "Barton", "date_year": 1337, "source_doc": "duignan_1902_staffordshire"}
 {"_type": "attestation", "toponym_ref": "Burton-on-Trent@Staffordshire", "form": "Stretton", "date_year": 1004, "source_doc": "duignan_1902_staffordshire"}
 {"_type": "attestation", "toponym_ref": "Burton-on-Trent@Staffordshire", "form": "Burton-on-Trent", "date_year": 1272, "source_doc": "duignan_1902_staffordshire"}
-{"_type": "attestation", "toponym_ref": "Dodington@Gloucestershire", "form": "Dodington", "date_year": 1318, "source_doc": "duignan_1902_staffordshire"}
-{"_type": "attestation", "toponym_ref": "Dudley@Worcestershire", "form": "Dudley", "date_year": 1330, "source_doc": "duignan_1902_staffordshire"}
 {"_type": "attestation", "toponym_ref": "Garthen@Wales", "form": "Saxons", "date_year": 740, "source_doc": "duignan_1902_staffordshire"}
-{"_type": "attestation", "toponym_ref": "Hampton@Cheshire", "form": "Hampton", "date_year": 1450, "source_doc": "duignan_1902_staffordshire"}
-{"_type": "attestation", "toponym_ref": "Hilton@Cornwall", "form": "Hilton", "date_year": 1271, "source_doc": "duignan_1902_staffordshire"}
 {"_type": "attestation", "toponym_ref": "Hunts@Essex", "form": "Hunts", "date_year": 1610, "source_doc": "duignan_1902_staffordshire"}
 {"_type": "attestation", "toponym_ref": "Hunts@Essex", "form": "Hunts", "date_year": 1673, "source_doc": "duignan_1902_staffordshire"}
 {"_type": "attestation", "toponym_ref": "Leek@Staffordshire", "form": "Anecote", "date_year": 1285, "source_doc": "duignan_1902_staffordshire"}
 {"_type": "attestation", "toponym_ref": "Lichfield@Staffordshire", "form": "Ordgrave", "date_year": 1262, "source_doc": "duignan_1902_staffordshire"}
-{"_type": "attestation", "toponym_ref": "Lichfield@Staffordshire", "form": "Lichfield", "date_year": 1379, "source_doc": "duignan_1902_staffordshire"}
 {"_type": "attestation", "toponym_ref": "Longnor@Staffordshire", "form": "Longenalre", "date_year": 1223, "source_doc": "duignan_1902_staffordshire"}
 {"_type": "attestation", "toponym_ref": "Lowe@Shropshire", "form": "Lowe", "date_year": 1545, "source_doc": "duignan_1902_staffordshire"}
 {"_type": "attestation", "toponym_ref": "Ogley Hay@Staffordshire", "form": "Wulfrun", "date_year": 996, "source_doc": "duignan_1902_staffordshire"}
 {"_type": "attestation", "toponym_ref": "Penkridge@Staffordshire", "form": "Chenwardestone", "date_year": 1224, "source_doc": "duignan_1902_staffordshire"}
-{"_type": "attestation", "toponym_ref": "Roads@-", "form": "Roads", "date_year": 1674, "source_doc": "duignan_1902_staffordshire"}
 {"_type": "attestation", "toponym_ref": "Sedgley@Staffordshire", "form": "Sedgley", "date_year": 1272, "source_doc": "duignan_1902_staffordshire"}
 {"_type": "attestation", "toponym_ref": "Silverton@Devon", "form": "Silverton", "date_year": 1206, "source_doc": "duignan_1902_staffordshire"}
 {"_type": "attestation", "toponym_ref": "Stourton@Staffordshire", "form": "Smethestall", "date_year": 1361, "source_doc": "duignan_1902_staffordshire"}
-{"_type": "attestation", "toponym_ref": "Stretton@Derbyshire", "form": "Stretton", "date_year": 1004, "source_doc": "duignan_1902_staffordshire"}
-{"_type": "attestation", "toponym_ref": "Swinford@Staffordshire", "form": "Swinford", "date_year": 1023, "source_doc": "duignan_1902_staffordshire"}
-{"_type": "attestation", "toponym_ref": "Tongue@-", "form": "Tongue", "date_year": 1580, "source_doc": "duignan_1902_staffordshire"}
 {"_type": "attestation", "toponym_ref": "Uttoxeter@Staffordshire", "form": "Marchanton-sub-Nedwode", "date_year": 1004, "source_doc": "duignan_1902_staffordshire"}
 {"_type": "attestation", "toponym_ref": "Wall Heath@Staffordshire", "form": "Dudley", "date_year": 1330, "source_doc": "duignan_1902_staffordshire"}
 {"_type": "attestation", "toponym_ref": "Wolverhampton@Staffordshire", "form": "Worthincote", "date_year": 1271, "source_doc": "duignan_1902_staffordshire"}

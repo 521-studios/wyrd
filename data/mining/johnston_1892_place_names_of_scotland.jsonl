@@ -225,29 +225,23 @@
 {"_type": "toponym", "ref": "Aros@Argyll", "modern_name": "Aros", "region": "Argyll"}
 {"_type": "toponym", "ref": "Bewley@Northumberland and Durham", "modern_name": "Bewley", "region": "Northumberland and Durham"}
 {"_type": "toponym", "ref": "Burghill@Herefordshire", "modern_name": "Burghill", "country": "England", "region": "Herefordshire"}
-{"_type": "toponym", "ref": "Castle@Northumberland and Durham", "modern_name": "Castle", "region": "Northumberland and Durham"}
 {"_type": "toponym", "ref": "Crostorfin@Scotland", "modern_name": "Crostorfin", "region": "Scotland"}
 {"_type": "toponym", "ref": "Douglas@Argyll", "modern_name": "Douglas", "region": "Argyll"}
 {"_type": "toponym", "ref": "Falkirk@Scotland", "modern_name": "Falkirk", "region": "Scotland"}
-{"_type": "toponym", "ref": "Gloucester@Gloucestershire", "modern_name": "Gloucester", "country": "England", "region": "Gloucestershire"}
 {"_type": "toponym", "ref": "Lennoxtown@Stirlingshire", "modern_name": "Lennoxtown", "region": "Stirlingshire"}
 {"_type": "toponym", "ref": "Perth@Scotland", "modern_name": "Perth", "region": "Scotland"}
 {"_type": "toponym", "ref": "Sand@-", "modern_name": "Sand"}
-{"_type": "toponym", "ref": "Seaton@Devon", "modern_name": "Seaton", "country": "England", "region": "Devon"}
 {"_type": "toponym", "ref": "Stirling@Stirlingshire", "modern_name": "Stirling", "region": "Stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Aros@Argyll", "form": "Aros", "date_year": 1449, "source_doc": "johnston_1892_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Bewley@Northumberland and Durham", "form": "Beaulieu", "date_year": 1497, "source_doc": "johnston_1892_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Burghill@Herefordshire", "form": "Burghill", "date_year": 1574, "source_doc": "johnston_1892_place_names_of_scotland"}
-{"_type": "attestation", "toponym_ref": "Castle@Northumberland and Durham", "form": "Castle", "date_year": 1160, "source_doc": "johnston_1892_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Crostorfin@Scotland", "form": "Crostorfin", "date_year": 1508, "source_doc": "johnston_1892_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Douglas@Argyll", "form": "Douglas", "date_year": 1513, "source_doc": "johnston_1892_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "EWES and EWESDALE@Scotland", "form": "Ewycedale", "date_year": 1296, "source_doc": "johnston_1892_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Falkirk@Scotland", "form": "Falkirk", "date_year": 1298, "source_doc": "johnston_1892_place_names_of_scotland"}
-{"_type": "attestation", "toponym_ref": "Gloucester@Gloucestershire", "form": "Gloucester", "date_year": 1299, "source_doc": "johnston_1892_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "LARGO and LARGO WARD@Scotland", "form": "Largauch", "date_year": 1279, "source_doc": "johnston_1892_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Lennoxtown@Stirlingshire", "form": "Lenox", "date_year": 1296, "source_doc": "johnston_1892_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Perth@Scotland", "form": "Perth", "date_year": 1220, "source_doc": "johnston_1892_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Sand@-", "form": "Sand", "date_year": 1576, "source_doc": "johnston_1892_place_names_of_scotland"}
-{"_type": "attestation", "toponym_ref": "Seaton@Devon", "form": "Seaton", "date_year": 1296, "source_doc": "johnston_1892_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Stirling@Stirlingshire", "form": "Estriuelin", "date_year": 1295, "source_doc": "johnston_1892_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "WriNDY GOUL@Scotland", "form": "Wicestun", "date_year": 1159, "source_doc": "johnston_1892_place_names_of_scotland"}

@@ -4209,47 +4209,18 @@
 {"_type": "etymology_element", "toponym_ref": "Wood@Northumberland and Durham", "elements": [{"ordinal": 0, "etymon_ref": "old-english:hlinc"}, {"ordinal": 1, "etymon_ref": "old-english:wudu"}], "historical_form": "hlinc-wudu", "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash | Wood (Brinkburn). 1200 R.C. Linchwiteburne ; 1248 Brkb. Linchewood. O.E. hlinc-wudu= ridge- wood. Cf. Lintz Ford supra.", "attested_year": 1200}
 {"_type": "toponym", "ref": "Acle@Norfolk", "modern_name": "Acle", "country": "England", "region": "Norfolk"}
 {"_type": "toponym", "ref": "Akeley@BUK", "modern_name": "Akeley", "country": "England", "region": "BUK"}
-{"_type": "toponym", "ref": "Babington@Somerset", "modern_name": "Babington", "country": "England", "region": "Somerset"}
-{"_type": "toponym", "ref": "Barton@Cambridgeshire", "modern_name": "Barton", "region": "Cambridgeshire"}
-{"_type": "toponym", "ref": "Bellington@Worcestershire", "modern_name": "Bellington", "country": "England", "region": "Worcestershire"}
 {"_type": "toponym", "ref": "Bewick@Yorkshire", "modern_name": "Bewick", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Birling@Kent", "modern_name": "Birling", "country": "England", "region": "Kent"}
-{"_type": "toponym", "ref": "Bodelton@-", "modern_name": "Bodelton"}
-{"_type": "toponym", "ref": "Boulton@Derbyshire", "modern_name": "Boulton", "country": "England", "region": "Derbyshire"}
-{"_type": "toponym", "ref": "Brandon@Suffolk", "modern_name": "Brandon", "region": "Suffolk"}
 {"_type": "toponym", "ref": "Braunton@Devon", "modern_name": "Braunton", "country": "England", "region": "Devon"}
-{"_type": "toponym", "ref": "Bromley@Kent", "modern_name": "Bromley", "country": "England", "region": "Kent"}
-{"_type": "toponym", "ref": "Bulmer@Essex", "modern_name": "Bulmer", "country": "England", "region": "Essex"}
-{"_type": "toponym", "ref": "Caldewell@Yorkshire", "modern_name": "Caldewell", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Calverton@BUK", "modern_name": "Calverton", "country": "England", "region": "BUK"}
 {"_type": "toponym", "ref": "Carswell@Berkshire", "modern_name": "Carswell", "country": "England", "region": "Berkshire"}
-{"_type": "toponym", "ref": "Chetton@Shropshire", "modern_name": "Chetton", "country": "England", "region": "Shropshire"}
-{"_type": "toponym", "ref": "Chevyngton@-", "modern_name": "Chevyngton"}
 {"_type": "toponym", "ref": "Colwell@Devon", "modern_name": "Colwell", "country": "England", "region": "Devon"}
-{"_type": "toponym", "ref": "Cotes@Derbyshire", "modern_name": "Cotes", "country": "England", "region": "Derbyshire"}
-{"_type": "toponym", "ref": "Crawley@Hampshire", "modern_name": "Crawley", "country": "England", "region": "Hampshire"}
-{"_type": "toponym", "ref": "Dalton@Cheshire", "modern_name": "Dalton", "country": "England", "region": "Cheshire"}
-{"_type": "toponym", "ref": "Duddington@Northamptonshire", "modern_name": "Duddington", "country": "England", "region": "Northamptonshire"}
 {"_type": "toponym", "ref": "Durh@Lancashire", "modern_name": "Durh", "region": "Lancashire"}
-{"_type": "toponym", "ref": "Edington@Somerset", "modern_name": "Edington", "country": "England", "region": "Somerset"}
-{"_type": "toponym", "ref": "Ellington@Northumberland and Durham", "modern_name": "Ellington", "region": "Northumberland and Durham"}
 {"_type": "toponym", "ref": "Elsford@Devon", "modern_name": "Elsford", "country": "England", "region": "Devon"}
 {"_type": "toponym", "ref": "Forth@Stirlingshire", "modern_name": "Forth", "region": "Stirlingshire"}
-{"_type": "toponym", "ref": "Fulford@Staffordshire", "modern_name": "Fulford", "country": "England", "region": "Staffordshire"}
-{"_type": "toponym", "ref": "Grendon@Herefordshire", "modern_name": "Grendon", "country": "England", "region": "Herefordshire"}
 {"_type": "toponym", "ref": "Hayden@Gloucestershire", "modern_name": "Hayden", "country": "England", "region": "Gloucestershire"}
-{"_type": "toponym", "ref": "Heddon@Northumberland and Durham", "modern_name": "Heddon", "region": "Northumberland and Durham"}
-{"_type": "toponym", "ref": "Highley@Shropshire", "modern_name": "Highley", "country": "England", "region": "Shropshire"}
-{"_type": "toponym", "ref": "Hilton@Cornwall", "modern_name": "Hilton", "country": "England", "region": "Cornwall"}
 {"_type": "toponym", "ref": "Holford@Somerset", "modern_name": "Holford", "country": "England", "region": "Somerset"}
-{"_type": "toponym", "ref": "Holne@Devon", "modern_name": "Holne", "country": "England", "region": "Devon"}
-{"_type": "toponym", "ref": "Hough@Lincolnshire", "modern_name": "Hough", "country": "England", "region": "Lincolnshire"}
 {"_type": "toponym", "ref": "Humbleton@Yorkshire", "modern_name": "Humbleton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Kyneton@-", "modern_name": "Kyneton"}
-{"_type": "toponym", "ref": "Lidgate@SUF", "modern_name": "Lidgate", "country": "England", "region": "SUF"}
 {"_type": "toponym", "ref": "Manor@Scotland", "modern_name": "Manor", "region": "Scotland"}
-{"_type": "toponym", "ref": "Morton@LEC", "modern_name": "Morton", "country": "England", "region": "LEC"}
-{"_type": "toponym", "ref": "Newtown@Lancashire", "modern_name": "Newtown", "region": "Lancashire"}
 {"_type": "toponym", "ref": "Northam@Devon", "modern_name": "Northam", "country": "England", "region": "Devon"}
 {"_type": "toponym", "ref": "Paxton@Huntingdonshire", "modern_name": "Paxton", "country": "England", "region": "Huntingdonshire"}
 {"_type": "toponym", "ref": "Roden@-", "modern_name": "Roden"}
@@ -4258,21 +4229,14 @@
 {"_type": "toponym", "ref": "Scackleton@Yorkshire", "modern_name": "Scackleton", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Shepley@Yorkshire", "modern_name": "Shepley", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Smale@-", "modern_name": "Smale"}
-{"_type": "toponym", "ref": "Stanley@Derbyshire", "modern_name": "Stanley", "country": "England", "region": "Derbyshire"}
 {"_type": "toponym", "ref": "Steintona@England (Danelaw)", "modern_name": "Steintona", "region": "England (Danelaw)"}
 {"_type": "toponym", "ref": "Sunderland@Cheshire", "modern_name": "Sunderland", "country": "England", "region": "Cheshire"}
 {"_type": "toponym", "ref": "Thame@Oxfordshire", "modern_name": "Thame", "country": "England", "region": "Oxfordshire"}
-{"_type": "toponym", "ref": "Thornton@Lancashire", "modern_name": "Thornton", "region": "Lancashire"}
 {"_type": "toponym", "ref": "Tolland@Somerset", "modern_name": "Tolland", "country": "England", "region": "Somerset"}
-{"_type": "toponym", "ref": "Torp@Yorkshire", "modern_name": "Torp", "country": "England", "region": "Yorkshire"}
-{"_type": "toponym", "ref": "Walton@Staffordshire", "modern_name": "Walton", "region": "Staffordshire"}
 {"_type": "toponym", "ref": "Walworth@SUR", "modern_name": "Walworth", "country": "England", "region": "SUR"}
-{"_type": "toponym", "ref": "Wellington@Herefordshire", "modern_name": "Wellington", "country": "England", "region": "Herefordshire"}
 {"_type": "toponym", "ref": "Werceworde@England and Wales", "modern_name": "Werceworde", "region": "England and Wales"}
 {"_type": "toponym", "ref": "Wessington@Derbyshire", "modern_name": "Wessington", "country": "England", "region": "Derbyshire"}
-{"_type": "toponym", "ref": "Witton@Cheshire", "modern_name": "Witton", "country": "England", "region": "Cheshire"}
 {"_type": "toponym", "ref": "YChant@-", "modern_name": "YChant"}
-{"_type": "toponym", "ref": "Yate@Gloucestershire", "modern_name": "Yate", "country": "England", "region": "Gloucestershire"}
 {"_type": "toponym", "ref": "Yattendon@Berkshire", "modern_name": "Yattendon", "country": "England", "region": "Berkshire"}
 {"_type": "toponym", "ref": "Yeadon@Yorkshire", "modern_name": "Yeadon", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Yealmpton@Devon", "modern_name": "Yealmpton", "country": "England", "region": "Devon"}
@@ -4328,7 +4292,6 @@
 {"_type": "attestation", "toponym_ref": "Aycliffe@Northumberland and Durham", "form": "Scolakley", "date_year": 1382, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Aycliffe@Northumberland and Durham", "form": "Scolakliff", "date_year": 1410, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Aycliffe@Northumberland and Durham", "form": "Skulacley", "date_year": 1440, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Babington@Somerset", "form": "Babington", "date_year": 1257, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bagraw@Northumberland and Durham", "form": "Bagraw", "date_year": 1663, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bamburgh@Northumberland and Durham", "form": "Bebbanburch", "date_year": 1129, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bamburgh@Northumberland and Durham", "form": "Baenburg", "date_year": 1165, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4353,7 +4316,6 @@
 {"_type": "attestation", "toponym_ref": "Barrasford@Northumberland and Durham", "form": "Barwisforth", "date_year": 1298, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Barrasford@Northumberland and Durham", "form": "Barweford", "date_year": 1324, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Barrow Law@Northumberland and Durham", "form": "Brerylawe", "date_year": 1307, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Barton@Cambridgeshire", "form": "Barton", "date_year": 1253, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bavington@Northumberland and Durham", "form": "Babington", "date_year": 1257, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bavington@Northumberland and Durham", "form": "Babbinton", "date_year": 1479, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bavington@Northumberland and Durham", "form": "Bauinton", "date_year": 1677, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4400,8 +4362,6 @@
 {"_type": "attestation", "toponym_ref": "Bellasis@Northumberland and Durham", "form": "Beleassis", "date_year": 1377, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bellingham@Northumberland and Durham", "form": "Bellingham", "date_year": 1279, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bellingham@Northumberland and Durham", "form": "Bellingham", "date_year": 1524, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Bellington@Worcestershire", "form": "Bellington", "date_year": 1291, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Bellington@Worcestershire", "form": "Bellington", "date_year": 1507, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bellister@Northumberland and Durham", "form": "Belester", "date_year": 1305, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bellister@Northumberland and Durham", "form": "Belestre", "date_year": 1355, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bellister@Northumberland and Durham", "form": "Belecestre", "date_year": 1405, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4441,7 +4401,6 @@
 {"_type": "attestation", "toponym_ref": "Bingfield@Northumberland and Durham", "form": "Bingefeld", "date_year": 1290, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bingfield@Northumberland and Durham", "form": "Bingefeud", "date_year": 1298, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Birkenside@Northumberland and Durham", "form": "Byrkinside", "date_year": 1454, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Birling@Kent", "form": "Birling", "date_year": 1346, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Birtwell@Northumberland and Durham", "form": "Bartewell", "date_year": 1569, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bitchfield@Northumberland and Durham", "form": "Bechefeud", "date_year": 1268, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bitchfield@Northumberland and Durham", "form": "Bechefeld", "date_year": 1421, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4460,7 +4419,6 @@
 {"_type": "attestation", "toponym_ref": "Bockenfield@Northumberland and Durham", "form": "Bokenfeld", "date_year": 1244, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bockenfield@Northumberland and Durham", "form": "Bockinfeld", "date_year": 1340, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bockenfield@Northumberland and Durham", "form": "Bokenfeld", "date_year": 1346, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Bodelton@-", "form": "Bodelton", "date_year": 1227, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bolam@Northumberland and Durham", "form": "Boolon", "date_year": 1166, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bolam@Northumberland and Durham", "form": "Bolum", "date_year": 1167, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bolam@Northumberland and Durham", "form": "Boolun", "date_year": 1270, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4478,13 +4436,11 @@
 {"_type": "attestation", "toponym_ref": "Bothal@Northumberland and Durham", "form": "Bottett", "date_year": 1507, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bothal@Northumberland and Durham", "form": "Bulmer", "date_year": 1579, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bothal@Northumberland and Durham", "form": "Bowmer", "date_year": 1663, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Boulton@Derbyshire", "form": "Boulton", "date_year": 1227, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bradford@Northumberland and Durham", "form": "Bradeford", "date_year": 1377, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Bradford@Northumberland and Durham", "form": "Bradeford", "date_year": 1460, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Brainshaugh@Northumberland and Durham", "form": "Brainshaugh", "date_year": 1676, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Brancepeth@Northumberland and Durham", "form": "Brentespethe", "date_year": 1155, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Brancepeth@Northumberland and Durham", "form": "Brenspad", "date_year": 1254, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Brandon@Suffolk", "form": "Brandon", "date_year": 1428, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Branxton@Northumberland and Durham", "form": "Branxston", "date_year": 1343, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Branxton@Northumberland and Durham", "form": "Brankeston", "date_year": 1346, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Braunton@Devon", "form": "Braunton", "date_year": 1498, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4496,7 +4452,6 @@
 {"_type": "attestation", "toponym_ref": "Brenkley@Northumberland and Durham", "form": "Brerden", "date_year": 1596, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Brenkley@Northumberland and Durham", "form": "Brinkley", "date_year": 1638, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Broadwood@Northumberland and Durham", "form": "Bradwode", "date_year": 1382, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Bromley@Kent", "form": "Bromley", "date_year": 1425, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Broom@Northumberland and Durham", "form": "Bromehalwe", "date_year": 1268, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Broom@Northumberland and Durham", "form": "Bromhalgh", "date_year": 1346, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Brotherwick@Northumberland and Durham", "form": "Brothirwike", "date_year": 1273, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4510,7 +4465,6 @@
 {"_type": "attestation", "toponym_ref": "Buckton@Northumberland and Durham", "form": "Bodil", "date_year": 1428, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Buckton@Northumberland and Durham", "form": "Budill", "date_year": 1538, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Buckton@Northumberland and Durham", "form": "Bukton", "date_year": 1560, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Bulmer@Essex", "form": "Bulmer", "date_year": 1579, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Burden@Northumberland and Durham", "form": "Burdune", "date_year": 1335, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Burden@Northumberland and Durham", "form": "Byrdene", "date_year": 1390, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Burden@Northumberland and Durham", "form": "Byrden", "date_year": 1433, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4548,8 +4502,6 @@
 {"_type": "attestation", "toponym_ref": "Caistron@Northumberland and Durham", "form": "Kerstern", "date_year": 1428, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Caistron@Northumberland and Durham", "form": "Kestryn", "date_year": 1538, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Caistron@Northumberland and Durham", "form": "Krestron", "date_year": 1663, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Caldewell@Yorkshire", "form": "Caldewell", "date_year": 1663, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Calverton@BUK", "form": "Calverton", "date_year": 1346, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Carham-on-Tweed@Northumberland and Durham", "form": "Carrum", "date_year": 1104, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Carham-on-Tweed@Northumberland and Durham", "form": "Karram", "date_year": 1252, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Carham-on-Tweed@Northumberland and Durham", "form": "Karrum", "date_year": 1255, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4573,7 +4525,6 @@
 {"_type": "attestation", "toponym_ref": "Catcherside@Northumberland and Durham", "form": "Calcherside", "date_year": 1401, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Catcherside@Northumberland and Durham", "form": "Calchersyde", "date_year": 1595, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Catcherside@Northumberland and Durham", "form": "Cachersyde", "date_year": 1650, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Catton@Northumberland and Durham", "form": "Catton", "date_year": 1547, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Caw Burn@Northumberland and Durham", "form": "Cauleche", "date_year": 1270, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Caw Burn@Northumberland and Durham", "form": "Caulathe", "date_year": 1352, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Caw Burn@Northumberland and Durham", "form": "Cauleg", "date_year": 1479, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4584,14 +4535,11 @@
 {"_type": "attestation", "toponym_ref": "Chatton@Northumberland and Durham", "form": "Chatton", "date_year": 1323, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Chatton@Northumberland and Durham", "form": "Chattoun", "date_year": 1342, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Chatton@Northumberland and Durham", "form": "Chetton", "date_year": 1663, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Chetton@Shropshire", "form": "Chetton", "date_year": 1253, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Chetton@Shropshire", "form": "Chetton", "date_year": 1663, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Cheveley@Northumberland and Durham", "form": "Cebbingtun", "date_year": 1230, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Cheveley@Northumberland and Durham", "form": "Chyvington", "date_year": 1335, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Cheveley@Northumberland and Durham", "form": "Chiveleye", "date_year": 1341, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Cheveley@Northumberland and Durham", "form": "Chevyngton", "date_year": 1428, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Cheveley@Northumberland and Durham", "form": "Cheveleye", "date_year": 1597, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Chevyngton@-", "form": "Chevyngton", "date_year": 1428, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Chibburn@Northumberland and Durham", "form": "Chibrnemue", "date_year": 1292, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Chibburn@Northumberland and Durham", "form": "Chilburne", "date_year": 1404, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Chibburn@Northumberland and Durham", "form": "Chibburne", "date_year": 1574, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4674,7 +4622,6 @@
 {"_type": "attestation", "toponym_ref": "Cornsay@Northumberland and Durham", "form": "Cornesowe", "date_year": 1547, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Corsenside@Northumberland and Durham", "form": "Cressenset", "date_year": 1291, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Corsenside@Northumberland and Durham", "form": "Crossenset", "date_year": 1306, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Cotes@Derbyshire", "form": "Cotes", "date_year": 1539, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Cottonshope@Northumberland and Durham", "form": "Cotteneshopp", "date_year": 1278, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Cottonshope@Northumberland and Durham", "form": "Cotnesop", "date_year": 1324, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Cottonshope@Northumberland and Durham", "form": "Cotynghopp", "date_year": 1331, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4695,8 +4642,6 @@
 {"_type": "attestation", "toponym_ref": "Crawcrook@Northumberland and Durham", "form": "Crawley", "date_year": 1670, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Crawcrook@Northumberland and Durham", "form": "Cralla", "date_year": 1685, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Crawcrook@Northumberland and Durham", "form": "Cralaye", "date_year": 1697, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Crawley@Hampshire", "form": "Crawley", "date_year": 1628, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Crawley@Hampshire", "form": "Crawley", "date_year": 1670, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Cronkley@Northumberland and Durham", "form": "Crombeclyve", "date_year": 1296, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Cronkley@Northumberland and Durham", "form": "Crumclef", "date_year": 1298, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Cronkley@Northumberland and Durham", "form": "Crommedive", "date_year": 1306, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4704,7 +4649,6 @@
 {"_type": "attestation", "toponym_ref": "Crook@Northumberland and Durham", "form": "Copecrokes", "date_year": 1420, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Croxdale@Northumberland and Durham", "form": "Crokestail", "date_year": 1214, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Croxdale@Northumberland and Durham", "form": "Croxtayl", "date_year": 1335, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Dalton@Cheshire", "form": "Dalton", "date_year": 1436, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Darncrook@Northumberland and Durham", "form": "Araynis", "date_year": 1346, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Darncrook@Northumberland and Durham", "form": "Arreyns", "date_year": 1360, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Denwick@Northumberland and Durham", "form": "Denewick", "date_year": 1538, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4739,7 +4683,6 @@
 {"_type": "attestation", "toponym_ref": "Druridge@Northumberland and Durham", "form": "Dryrige", "date_year": 1346, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Druridge@Northumberland and Durham", "form": "Dririg", "date_year": 1428, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Druridge@Northumberland and Durham", "form": "Drurigg", "date_year": 1663, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Duddington@Northamptonshire", "form": "Duddington", "date_year": 1346, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Duddoe@Northumberland and Durham", "form": "Dekesfeud", "date_year": 1296, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Duddoe@Northumberland and Durham", "form": "Dudden", "date_year": 1316, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Duddoe@Northumberland and Durham", "form": "Dukesfeld", "date_year": 1322, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4757,7 +4700,6 @@
 {"_type": "attestation", "toponym_ref": "Earsdon@Northumberland and Durham", "form": "Eresdon", "date_year": 1663, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Eastgate@Northumberland and Durham", "form": "Estyatshele", "date_year": 1637, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Ebchester@Northumberland and Durham", "form": "Edredakers", "date_year": 1382, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Edington@Somerset", "form": "Edington", "date_year": 1377, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Edmondhills@Northumberland and Durham", "form": "Emotehill", "date_year": 1539, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Edmondhills@Northumberland and Durham", "form": "Emodhille", "date_year": 1584, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Egglescliffe@Northumberland and Durham", "form": "Egglescliff", "date_year": 1162, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4770,7 +4712,6 @@
 {"_type": "attestation", "toponym_ref": "Elilaw@Northumberland and Durham", "form": "Illeschawe", "date_year": 1291, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Elilaw@Northumberland and Durham", "form": "Illeschay", "date_year": 1411, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Elilaw@Northumberland and Durham", "form": "Illeshawe", "date_year": 1534, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Ellington@Northumberland and Durham", "form": "Ellington", "date_year": 1265, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Elrington@Northumberland and Durham", "form": "Elrington", "date_year": 1371, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Elsdon@Northumberland and Durham", "form": "Hellesden", "date_year": 1244, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Elsdon@Northumberland and Durham", "form": "Ellesden", "date_year": 1278, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4823,7 +4764,6 @@
 {"_type": "attestation", "toponym_ref": "Flotterton@Northumberland and Durham", "form": "Flotwayton", "date_year": 1304, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Flotterton@Northumberland and Durham", "form": "Flotteweyton", "date_year": 1331, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Font@Northumberland and Durham", "form": "Funt", "date_year": 1261, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Ford@Northumberland and Durham", "form": "Ford", "date_year": 1596, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Forth@Stirlingshire", "form": "Forth", "date_year": 1643, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Fortherley@Northumberland and Durham", "form": "Fauderleg", "date_year": 1346, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Fortherley@Northumberland and Durham", "form": "Falderley", "date_year": 1538, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4843,7 +4783,6 @@
 {"_type": "attestation", "toponym_ref": "Fugar House@Northumberland and Durham", "form": "Furgers", "date_year": 1351, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Fugar House@Northumberland and Durham", "form": "Feugerhouses", "date_year": 1382, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Fugar House@Northumberland and Durham", "form": "Fugerhous", "date_year": 1440, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Fulford@Staffordshire", "form": "Fulford", "date_year": 1382, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Gate@Northumberland and Durham", "form": "Huckergaite", "date_year": 1596, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Gate@Northumberland and Durham", "form": "Hookegate", "date_year": 1602, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Gate@Northumberland and Durham", "form": "Hmkergayte", "date_year": 1611, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4869,7 +4808,6 @@
 {"_type": "attestation", "toponym_ref": "Goswick@Northumberland and Durham", "form": "Gosewic", "date_year": 1323, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Grange@Northumberland and Durham", "form": "Cheseburgh", "date_year": 1292, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Greatham@Northumberland and Durham", "form": "Gretham", "date_year": 1693, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Grendon@Herefordshire", "form": "Grendon", "date_year": 1403, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Grindon@Northumberland and Durham", "form": "Grendon", "date_year": 1403, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Grindon@Northumberland and Durham", "form": "Grendune", "date_year": 1507, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Grottington@Northumberland and Durham", "form": "Salop", "date_year": 1086, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4889,8 +4827,6 @@
 {"_type": "attestation", "toponym_ref": "Hallington@Northumberland and Durham", "form": "Haledon", "date_year": 1663, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Halton@Northumberland and Durham", "form": "Haultone", "date_year": 1177, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Halton@Northumberland and Durham", "form": "Hawilton", "date_year": 1254, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Halton@Northumberland and Durham", "form": "Halton", "date_year": 1273, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Halton@Northumberland and Durham", "form": "Halton", "date_year": 1377, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Haltwhistle@Northumberland and Durham", "form": "Hautwysel", "date_year": 1278, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Haltwhistle@Northumberland and Durham", "form": "Hautwisel", "date_year": 1279, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Haltwhistle@Northumberland and Durham", "form": "Hawtetwysill", "date_year": 1291, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4928,7 +4864,6 @@
 {"_type": "attestation", "toponym_ref": "Harraton@Northumberland and Durham", "form": "Herverton", "date_year": 1447, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Harsondale@Northumberland and Durham", "form": "Harestanesden", "date_year": 1368, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Harsondale@Northumberland and Durham", "form": "Harsenden", "date_year": 1663, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Hart@Northumberland and Durham", "form": "Hart", "date_year": 1312, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Hartburn@Northumberland and Durham", "form": "Herteburne", "date_year": 1284, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Hartburn@Northumberland and Durham", "form": "Hertburgh", "date_year": 1507, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Hartburn@Northumberland and Durham", "form": "Hertburn", "date_year": 1663, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4954,7 +4889,6 @@
 {"_type": "attestation", "toponym_ref": "Haswell@Northumberland and Durham", "form": "Hesewell", "date_year": 1180, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Hauxley@Northumberland and Durham", "form": "Hauekeslowe", "date_year": 1428, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Hauxley@Northumberland and Durham", "form": "Hauxley", "date_year": 1697, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Hawick@Northumberland and Durham", "form": "Hawic", "date_year": 1278, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Hawick@Northumberland and Durham", "form": "Hauechil", "date_year": 1288, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Hawick@Northumberland and Durham", "form": "Hawik", "date_year": 1296, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Hawick@Northumberland and Durham", "form": "Hauckill", "date_year": 1346, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4985,7 +4919,6 @@
 {"_type": "attestation", "toponym_ref": "Healey@Northumberland and Durham", "form": "Heley", "date_year": 1570, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Heathpool@Northumberland and Durham", "form": "Hethpdl", "date_year": 1290, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Heaton@Northumberland and Durham", "form": "Hactonam", "date_year": 1296, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Heaton@Northumberland and Durham", "form": "Heaton", "date_year": 1428, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Hebron@Northumberland and Durham", "form": "Heburn", "date_year": 1264, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Hebron@Northumberland and Durham", "form": "Heborin", "date_year": 1346, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Hebron@Northumberland and Durham", "form": "Heburnne", "date_year": 1663, "source_doc": "mawer_1920_northumberland_durham"}
@@ -4993,7 +4926,6 @@
 {"_type": "attestation", "toponym_ref": "Heckley@Northumberland and Durham", "form": "Hecclif", "date_year": 1307, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Heckley@Northumberland and Durham", "form": "Heckelive", "date_year": 1346, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Heckley@Northumberland and Durham", "form": "Hecley", "date_year": 1353, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Heddon@Northumberland and Durham", "form": "Heddon", "date_year": 1346, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Helme Park@Northumberland and Durham", "form": "Healme", "date_year": 1104, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Helme Park@Northumberland and Durham", "form": "Helme", "date_year": 1299, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Helme Park@Northumberland and Durham", "form": "Helme", "date_year": 1663, "source_doc": "mawer_1920_northumberland_durham"}
@@ -5024,24 +4956,18 @@
 {"_type": "attestation", "toponym_ref": "Highlaws@Northumberland and Durham", "form": "Heghelawe", "date_year": 1489, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Highlaws@Northumberland and Durham", "form": "Heghlawe", "date_year": 1637, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Highlaws@Northumberland and Durham", "form": "Highley", "date_year": 1663, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Highley@Shropshire", "form": "Highley", "date_year": 1663, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Hill@Northumberland and Durham", "form": "Birlawe", "date_year": 1230, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Hill@Northumberland and Durham", "form": "Hyrlawe", "date_year": 1278, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Hill@Northumberland and Durham", "form": "Hirlawe", "date_year": 1329, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Hill@Northumberland and Durham", "form": "Berewic", "date_year": 1428, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Hill@Northumberland and Durham", "form": "Herlawe", "date_year": 1428, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Hill@Northumberland and Durham", "form": "Herlow", "date_year": 1538, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Hill@Northumberland and Durham", "form": "Hill", "date_year": 1637, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Hill@Northumberland and Durham", "form": "Hill", "date_year": 1646, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Hilton@Cornwall", "form": "Hilton", "date_year": 1335, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Holam@Northumberland and Durham", "form": "Holne", "date_year": 1288, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Holam@Northumberland and Durham", "form": "Holin", "date_year": 1295, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Holam@Northumberland and Durham", "form": "Holne", "date_year": 1296, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Holam@Northumberland and Durham", "form": "Holen", "date_year": 1334, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Holam@Northumberland and Durham", "form": "Holum", "date_year": 1339, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Holford@Somerset", "form": "Holford", "date_year": 1379, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Holne@Devon", "form": "Holne", "date_year": 1288, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Holne@Devon", "form": "Holne", "date_year": 1296, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Holy Island@Northumberland and Durham", "form": "Haliceland", "date_year": 1255, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Holy Island@Northumberland and Durham", "form": "Halieland", "date_year": 1273, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Holystone@Northumberland and Durham", "form": "Halistane", "date_year": 1314, "source_doc": "mawer_1920_northumberland_durham"}
@@ -5053,7 +4979,6 @@
 {"_type": "attestation", "toponym_ref": "Horden@Northumberland and Durham", "form": "Harkley", "date_year": 1639, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Horton@Northumberland and Durham", "form": "Shirreve", "date_year": 1300, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Horton@Northumberland and Durham", "form": "Turbervill", "date_year": 1346, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Hough@Lincolnshire", "form": "Hough", "date_year": 1298, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "House@Northumberland and Durham", "form": "Copland", "date_year": 1313, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "House@Northumberland and Durham", "form": "House", "date_year": 1693, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Houtley@Northumberland and Durham", "form": "Holtolaye", "date_year": 1296, "source_doc": "mawer_1920_northumberland_durham"}
@@ -5171,7 +5096,6 @@
 {"_type": "attestation", "toponym_ref": "Leighton@Northumberland and Durham", "form": "Lutedon", "date_year": 1268, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Leighton@Northumberland and Durham", "form": "Lythedun", "date_year": 1273, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Leighton@Northumberland and Durham", "form": "Litendon", "date_year": 1307, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Lidgate@SUF", "form": "Lidgate", "date_year": 1605, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Lilswood@Northumberland and Durham", "form": "Lilleswrth", "date_year": 1233, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Linnolds@Northumberland and Durham", "form": "Linelis", "date_year": 1269, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Linnolds@Northumberland and Durham", "form": "Lynel", "date_year": 1334, "source_doc": "mawer_1920_northumberland_durham"}
@@ -5249,8 +5173,6 @@
 {"_type": "attestation", "toponym_ref": "Morralee@Northumberland and Durham", "form": "Moryly", "date_year": 1327, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Morralee@Northumberland and Durham", "form": "Moryleye", "date_year": 1368, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Morralee@Northumberland and Durham", "form": "Morele", "date_year": 1542, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Morton@LEC", "form": "Morton", "date_year": 1380, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Morton@LEC", "form": "Morton", "date_year": 1384, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Morton Tinmouth@Northumberland and Durham", "form": "Mortun", "date_year": 1271, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Morton Tinmouth@Northumberland and Durham", "form": "Morewic", "date_year": 1278, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Morton Tinmouth@Northumberland and Durham", "form": "Morwick", "date_year": 1628, "source_doc": "mawer_1920_northumberland_durham"}
@@ -5283,7 +5205,6 @@
 {"_type": "attestation", "toponym_ref": "Newland@Northumberland and Durham", "form": "Novalanda", "date_year": 1345, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Newstead@Northumberland and Durham", "form": "Neubigginge", "date_year": 1377, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Newstead@Northumberland and Durham", "form": "Neowatun", "date_year": 1382, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Newtown@Lancashire", "form": "Newtown", "date_year": 1309, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Newtown@Northumberland and Durham", "form": "Newtown", "date_year": 1309, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Newtown@Northumberland and Durham", "form": "Warneth", "date_year": 1484, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Northam@Devon", "form": "Northam", "date_year": 1252, "source_doc": "mawer_1920_northumberland_durham"}
@@ -5305,7 +5226,6 @@
 {"_type": "attestation", "toponym_ref": "Park@Northumberland and Durham", "form": "Chauce", "date_year": 1455, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Park@Northumberland and Durham", "form": "Cawse", "date_year": 1491, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Park@Northumberland and Durham", "form": "Calcekyrke", "date_year": 1517, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Park@Northumberland and Durham", "form": "Park", "date_year": 1628, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Paxton@Huntingdonshire", "form": "Paxton", "date_year": 1334, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Possibly@Northumberland and Durham", "form": "Heldringeham", "date_year": 1255, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Possibly@Northumberland and Durham", "form": "Heltringham", "date_year": 1268, "source_doc": "mawer_1920_northumberland_durham"}
@@ -5325,7 +5245,6 @@
 {"_type": "attestation", "toponym_ref": "Shield@Northumberland and Durham", "form": "Garpschele", "date_year": 1380, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Shields@Northumberland and Durham", "form": "Frewythescheles", "date_year": 1636, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Smale@-", "form": "Smale", "date_year": 1329, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Stanley@Derbyshire", "form": "Stanley", "date_year": 1340, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Steintona@England (Danelaw)", "form": "Steintona", "date_year": 1312, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Sunderland@Cheshire", "form": "Sunderland", "date_year": 1236, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Sunderland@Cheshire", "form": "Sunderland", "date_year": 1383, "source_doc": "mawer_1920_northumberland_durham"}
@@ -5333,23 +5252,14 @@
 {"_type": "attestation", "toponym_ref": "Tate II@Northumberland and Durham", "form": "Heffordlawe", "date_year": 1353, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Tate II@Northumberland and Durham", "form": "Heforthlawe", "date_year": 1649, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Thame@Oxfordshire", "form": "Thame", "date_year": 1349, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Thornton@Lancashire", "form": "Thornton", "date_year": 1316, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Tolland@Somerset", "form": "Tolland", "date_year": 1296, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Torp@Yorkshire", "form": "Torp", "date_year": 1539, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Tyne@Northumberland and Durham", "form": "Biguell", "date_year": 1174, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Walton@Staffordshire", "form": "Walton", "date_year": 1205, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Walton@Staffordshire", "form": "Walton", "date_year": 1268, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Walton@Staffordshire", "form": "Walton", "date_year": 1298, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Walton@Staffordshire", "form": "Walton", "date_year": 1346, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Walworth@SUR", "form": "Walworth", "date_year": 1345, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Wellington@Herefordshire", "form": "Wellington", "date_year": 1346, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Werceworde@England and Wales", "form": "Werceworde", "date_year": 1160, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Wessington@Derbyshire", "form": "Wessington", "date_year": 1314, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Wessington@Derbyshire", "form": "Wessington", "date_year": 1400, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Witton@Cheshire", "form": "Witton", "date_year": 1275, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Wood@Northumberland and Durham", "form": "Linchwiteburne", "date_year": 1248, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "YChant@-", "form": "Percy", "date_year": 1086, "source_doc": "mawer_1920_northumberland_durham"}
-{"_type": "attestation", "toponym_ref": "Yate@Gloucestershire", "form": "Yate", "date_year": 1612, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Yattendon@Berkshire", "form": "Yattendon", "date_year": 1086, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Yeadon@Yorkshire", "form": "Yeadon", "date_year": 1086, "source_doc": "mawer_1920_northumberland_durham"}
 {"_type": "attestation", "toponym_ref": "Yealmpton@Devon", "form": "Yealmpton", "date_year": 1309, "source_doc": "mawer_1920_northumberland_durham"}

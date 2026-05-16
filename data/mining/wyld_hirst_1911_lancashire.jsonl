@@ -259,7 +259,6 @@
 {"_type": "toponym", "ref": "Ricstorp@Yorkshire", "modern_name": "Ricstorp", "country": "England", "region": "Yorkshire"}
 {"_type": "toponym", "ref": "Wagneia@England and Wales", "modern_name": "Wagneia", "region": "England and Wales"}
 {"_type": "toponym", "ref": "Will@Hampshire", "modern_name": "Will", "country": "England", "region": "Hampshire"}
-{"_type": "toponym", "ref": "Worcester@Herefordshire", "modern_name": "Worcester", "country": "England", "region": "Herefordshire"}
 {"_type": "attestation", "toponym_ref": "Babraham@Cambridgeshire", "form": "Babraham", "date_year": 1086, "source_doc": "wyld_hirst_1911_lancashire"}
 {"_type": "attestation", "toponym_ref": "Berks@Lancashire", "form": "Berks", "date_year": 952, "source_doc": "wyld_hirst_1911_lancashire"}
 {"_type": "attestation", "toponym_ref": "Huddersfield@Yorkshire", "form": "Huddersfield", "date_year": 1086, "source_doc": "wyld_hirst_1911_lancashire"}
@@ -267,4 +266,3 @@
 {"_type": "attestation", "toponym_ref": "Ricstorp@Yorkshire", "form": "Ricstorp", "date_year": 1086, "source_doc": "wyld_hirst_1911_lancashire"}
 {"_type": "attestation", "toponym_ref": "Wagneia@England and Wales", "form": "Wagneia", "date_year": 1127, "source_doc": "wyld_hirst_1911_lancashire"}
 {"_type": "attestation", "toponym_ref": "Will@Hampshire", "form": "Will", "date_year": 1002, "source_doc": "wyld_hirst_1911_lancashire"}
-{"_type": "attestation", "toponym_ref": "Worcester@Herefordshire", "form": "Worcester", "date_year": 1041, "source_doc": "wyld_hirst_1911_lancashire"}
