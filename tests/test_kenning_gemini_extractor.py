@@ -82,6 +82,17 @@ def test_response_schema_includes_attested_forms() -> None:
     assert set(item_schema["required"]) == {"form", "year"}
 
 
+def test_schema_dialect_classvar_declares_openapi() -> None:
+    """wyrd-pe4g: the toponym mention extractor dispatches its schema
+    dialect by reading ``client.schema_dialect`` via ``getattr``. The
+    real GeminiClient must declare ``schema_dialect = "openapi"`` —
+    if removed, dispatch silently falls through to RESPONSE_SCHEMA
+    (JSON Schema) and Gemini's API returns HTTP 400 on every chunk
+    (rejected additionalProperties + nullable union). Pin the literal
+    here so a regression in gemini_extractor.py trips CI."""
+    assert GeminiClient.schema_dialect == "openapi"
+
+
 def test_base_url_includes_model_name() -> None:
     """Logging in `mine-llm` reads `client.base_url` — make sure the
     Gemini implementation provides a useful one (incorporates the model

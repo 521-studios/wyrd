@@ -545,9 +545,11 @@ def test_extract_one_chunk_dispatches_openapi_dialect_to_openapi_clients():
         calls: list[dict | None] = []
 
         def chat_json(self, system, user, response_schema=None):
-            # Matches real GeminiClient.chat_json signature (kwarg
-            # `response_schema`, not `schema`) so positional dispatch
-            # in production stays accurate.
+            # Param name matches real GeminiClient.chat_json (kwarg
+            # `response_schema`, not `schema`) so the stub stays a
+            # faithful fake — positional dispatch in production isn't
+            # what motivates the parity; keyword-call compatibility
+            # would be, if a future caller switched to kwargs.
             type(self).calls.append(response_schema)
             return {"mentions": [{"form": "Edlingham", "context": "Edlingham mentioned"}]}
 
@@ -568,6 +570,24 @@ def test_extract_one_chunk_dispatches_jsonschema_to_unmarked_clients():
     assert len(client.calls) == 1
     _, _, schema_arg = client.calls[0]
     assert schema_arg is RESPONSE_SCHEMA
+
+
+def test_extract_one_chunk_raises_on_unknown_schema_dialect():
+    """wyrd-pe4g round-2: silent-failure-hunter finding. A typo'd
+    ``schema_dialect`` value (e.g. "OpenAPI" instead of "openapi") on
+    a Gemini-talking client would otherwise fall through to the
+    default JSON Schema branch and ship the wrong dialect to Gemini's
+    API, surfacing only as a generic HTTP 400. The whitelist guard
+    raises ValueError at the dispatch site so the cause is obvious."""
+
+    class TypoClient:
+        schema_dialect = "OpenAPI"  # capitalization typo — Gemini wants lowercase
+
+        def chat_json(self, system, user, response_schema=None):
+            raise AssertionError("guard should fire before chat_json is reached")
+
+    with pytest.raises(ValueError, match=r"unknown schema_dialect 'OpenAPI'"):
+        extract_toponym_mentions_from_chunk(TypoClient(), "Edlingham mentioned")
 
 
 def test_extract_one_chunk_dispatches_to_openapi_subclass():

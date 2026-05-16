@@ -184,13 +184,24 @@ RESPONSE_SCHEMA: dict = {
 # Gemini's responseSchema is OpenAPI-3.0-ish, NOT standard JSON
 # Schema. Differences vs RESPONSE_SCHEMA above:
 #   * uppercase type names ("OBJECT", "ARRAY", "STRING", "INTEGER")
-#   * no `additionalProperties` (Gemini rejects unknown keys)
+#   * no `additionalProperties` keyword (Gemini's schema validator
+#     rejects the keyword itself at schema-submit time with HTTP 400
+#     `Unknown name "additionalProperties"`, NOT an enforcement of
+#     "no unknown keys at response time")
 #   * no `type: ["X", "null"]` unions — use `nullable: true` instead
 #   * nullable fields must appear in `required` so the model emits
 #     null explicitly rather than omitting the key (matches the
 #     etymology extractor's GEMINI_RESPONSE_SCHEMA convention).
 # Passing RESPONSE_SCHEMA (JSON-Schema dialect) directly to Gemini
 # fails with HTTP 400 on every chunk — confirmed wyrd-pe4g.
+# Closed set of dialect strings accepted by the dispatch in
+# ``extract_toponym_mentions_from_chunk``. A client declaring any
+# other value (typo, future provider that hasn't been added yet)
+# raises rather than silently falling through to JSON Schema —
+# silent-failure-hunter wyrd-pe4g round-2 finding.
+_KNOWN_SCHEMA_DIALECTS = frozenset({"openapi", "json-schema"})
+
+
 RESPONSE_SCHEMA_GEMINI: dict = {
     "type": "OBJECT",
     "properties": {
@@ -402,11 +413,20 @@ def extract_toponym_mentions_from_chunk(
     # based contract survives renames + subclasses (inherited via MRO)
     # and lets new providers declare their dialect without editing this
     # dispatch site.
-    schema = (
-        RESPONSE_SCHEMA_GEMINI
-        if getattr(client, "schema_dialect", "json-schema") == "openapi"
-        else RESPONSE_SCHEMA
-    )
+    #
+    # Whitelist guard: a typo like "Openapi"/"OpenAPI"/"openapi " on a
+    # Gemini-talking client would otherwise silently fall through to
+    # RESPONSE_SCHEMA (the default-on-mismatch path) and ship JSON Schema
+    # to Gemini's API → HTTP 400 on every chunk with no dispatch-level
+    # diagnostic. Raise loudly here so the cause surfaces at the call
+    # site instead.
+    dialect = getattr(client, "schema_dialect", "json-schema")
+    if dialect not in _KNOWN_SCHEMA_DIALECTS:
+        raise ValueError(
+            f"unknown schema_dialect {dialect!r} on {type(client).__name__}; "
+            f"expected one of {sorted(_KNOWN_SCHEMA_DIALECTS)}"
+        )
+    schema = RESPONSE_SCHEMA_GEMINI if dialect == "openapi" else RESPONSE_SCHEMA
     response = client.chat_json(SYSTEM_PROMPT, user, schema)
     if not isinstance(response, dict):
         raise RuntimeError(f"LLM returned non-dict envelope: {type(response).__name__}")
