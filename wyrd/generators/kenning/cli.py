@@ -2695,6 +2695,177 @@ def lexicon_reverse_search_toponyms(
     )
 
 
+@lexicon.command("mine-toponym-mentions")
+@click.option(
+    "--source",
+    "source_id",
+    required=True,
+    help="Source id (e.g. mawer_1920_northumberland_durham) to mine.",
+)
+@click.option(
+    "--sources-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=Path("sources"),
+    show_default=True,
+    help="Directory of <source_id>.txt source bodies.",
+)
+@click.option(
+    "--provider",
+    type=click.Choice(["anthropic", "gemini", "ollama"]),
+    default="anthropic",
+    show_default=True,
+    help="LLM backend to use.",
+)
+@click.option(
+    "--model",
+    default=None,
+    help="Override model id (provider-specific default if omitted).",
+)
+@click.option(
+    "--chunk-size",
+    type=int,
+    default=20000,
+    show_default=True,
+    help="Target chunk size in characters (snaps to paragraph boundaries).",
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=None,
+    help="Process only the first N chunks (smoke testing).",
+)
+@click.option(
+    "--output",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Write extracted mentions to this JSONL file. Default: stdout.",
+)
+def lexicon_mine_toponym_mentions(
+    source_id: str,
+    sources_dir: Path,
+    provider: str,
+    model: str | None,
+    chunk_size: int,
+    limit: int | None,
+    output: Path | None,
+) -> None:
+    """LLM-mine a scholar source body for place-name mentions (wyrd-x82p Phase 2).
+
+    Pilot tool: walks one source's .txt body in chunks, calls an LLM to
+    extract every place-name mention with optional date_year + region_hint
+    + surrounding context, emits results as JSONL (one mention per line)
+    to stdout or ``--output``.
+
+    Does NOT touch the DB — the pilot output is for operator review.
+    Phase 2b will add DB persistence + a resolver that maps mentions
+    to existing toponyms (via the form→toponym lookup from Phase 1)
+    OR creates new toponym rows for unresolved mentions.
+    """
+    import sys
+
+    from wyrd.generators.kenning.toponym_mention_extractor import (
+        chunk_source_body,
+        mine_toponym_mentions,
+    )
+
+    txt_path = sources_dir / f"{Path(source_id).name}.txt"
+    if not txt_path.exists():
+        raise click.ClickException(f"source body not found: {txt_path}")
+    body = txt_path.read_text(encoding="utf-8", errors="replace")
+    click.echo(f"Loaded {len(body):,} chars from {txt_path}", err=True)
+
+    if provider == "anthropic":
+        from wyrd.generators.kenning.anthropic_extractor import (
+            DEFAULT_ANTHROPIC_MODEL,
+            AnthropicClient,
+        )
+
+        # 8192 cap fits ~100-150 mentions per chunk comfortably; the
+        # 4096 default truncated mid-JSON on dense chunks during the
+        # pilot smoke. Sonnet supports much more headroom; this is
+        # the smallest safe ceiling.
+        client = AnthropicClient(
+            model=model or DEFAULT_ANTHROPIC_MODEL,
+            max_tokens=8192,
+        )
+    elif provider == "gemini":
+        from wyrd.generators.kenning.gemini_extractor import (
+            DEFAULT_GEMINI_MODEL,
+            GeminiClient,
+        )
+
+        client = GeminiClient(model=model or DEFAULT_GEMINI_MODEL)
+    elif provider == "ollama":
+        from wyrd.generators.kenning.llm_extractor import (
+            DEFAULT_OLLAMA_MODEL,
+            DEFAULT_OLLAMA_URL,
+            OllamaClient,
+        )
+
+        client = OllamaClient(
+            base_url=DEFAULT_OLLAMA_URL,
+            model=model or DEFAULT_OLLAMA_MODEL,
+        )
+    else:
+        raise click.ClickException(f"unknown provider: {provider}")
+
+    click.echo(f"Using {provider} model={client.model}", err=True)
+
+    if limit is not None:
+        all_chunks = chunk_source_body(body, target_chunk_size=chunk_size)
+        body = "\n\n".join(all_chunks[:limit])
+        click.echo(
+            f"--limit {limit}: processing first {limit} of {len(all_chunks)} chunks",
+            err=True,
+        )
+
+    import time
+
+    start_ts = time.monotonic()
+
+    def progress(done: int, total: int, mentions: int) -> None:
+        # Project convention (CLAUDE.md): "[done/total] mentions=N (Xs/chunk)"
+        elapsed = time.monotonic() - start_ts
+        rate = elapsed / done if done else 0.0
+        click.echo(
+            f"  [{done}/{total}] mentions={mentions} ({rate:.1f}s/chunk)",
+            err=True,
+        )
+
+    report = mine_toponym_mentions(
+        client, source_id, body, target_chunk_size=chunk_size, on_chunk_done=progress
+    )
+
+    click.echo("", err=True)
+    click.echo(
+        f"TOTAL chunks_processed={report.chunks_processed} "
+        f"chunks_failed={report.chunks_failed} "
+        f"mentions={len(report.mentions)}",
+        err=True,
+    )
+
+    sink = open(output, "w", encoding="utf-8") if output else sys.stdout
+    try:
+        for m in report.mentions:
+            sink.write(
+                json.dumps(
+                    {
+                        "source_id": source_id,
+                        "form": m.form,
+                        "date_year": m.date_year,
+                        "region_hint": m.region_hint,
+                        "context": m.context,
+                    }
+                )
+                + "\n"
+            )
+        if output:
+            click.echo(f"Wrote {len(report.mentions)} mentions → {output}", err=True)
+    finally:
+        if output:
+            sink.close()
+
+
 @lexicon.command("audit-etymology-alignment")
 @click.option(
     "--dir",
