@@ -64,6 +64,12 @@ _REGION_HINT_BOOST = 0.10
 # elided count.
 _ERROR_RECORDS_CAP = 100
 
+# Same cap shape for demoted_records: a pathological triage file
+# where every CREATE collides could otherwise accumulate thousands
+# of records. The accurate count flows through ``demoted_count``;
+# only the per-row detail list stops growing.
+_DEMOTED_RECORDS_CAP = 100
+
 
 @dataclass(frozen=True)
 class FuzzyToponymSuggestion:
@@ -78,20 +84,39 @@ class FuzzyToponymSuggestion:
     fuzzy_score: float
 
 
-def _toponym_rows(conn: sqlite3.Connection) -> list[tuple[int, str, str | None, str | None]]:
+# Row shape returned by ``_toponym_rows`` and consumed by
+# ``fuzzy_match_toponyms``: (id, modern_name, region, country,
+# name_norm, region_norm). Pre-normalizing at scan time means a
+# single fuzzy_match_toponyms run over thousands of candidates does
+# the normalization work ONCE per toponym, not once per (candidate,
+# toponym) pair — at ~22K toponyms × hundreds of candidates the
+# saved work is millions of redundant strip+lowercase ops.
+ToponymRow = tuple[int, str, str | None, str | None, str, str | None]
+
+
+def _toponym_rows(conn: sqlite3.Connection) -> list[ToponymRow]:
     """Single full-table scan of ``toponym`` — caller builds once
     per prepare-run and reuses across candidates. Returns rows as
-    ``(id, modern_name, region, country)`` tuples (lighter than
-    sqlite3.Row for the hot fuzzy-loop)."""
+    ``(id, modern_name, region, country, name_norm, region_norm)``
+    tuples; the trailing two are pre-normalized via
+    ``_normalize_for_match`` so the fuzzy-match hot loop reads
+    them directly instead of recomputing per candidate."""
     return [
-        (row["id"], row["modern_name"], row["region"], row["country"])
+        (
+            row["id"],
+            row["modern_name"],
+            row["region"],
+            row["country"],
+            _normalize_for_match(row["modern_name"]),
+            _normalize_for_match(row["region"]) if row["region"] else None,
+        )
         for row in conn.execute("SELECT id, modern_name, region, country FROM toponym")
     ]
 
 
 def fuzzy_match_toponyms(
     form: str,
-    toponyms: list[tuple[int, str, str | None, str | None]],
+    toponyms: list[ToponymRow],
     *,
     region_hint: str | None = None,
     limit: int = _FUZZY_SUGGESTION_LIMIT,
@@ -118,8 +143,7 @@ def fuzzy_match_toponyms(
     matcher.set_seq2(form_norm)
     form_len = len(form_norm)
     scored: list[tuple[float, FuzzyToponymSuggestion]] = []
-    for tid, modern_name, region, country in toponyms:
-        name_norm = _normalize_for_match(modern_name)
+    for tid, modern_name, region, country, name_norm, region_norm in toponyms:
         if not name_norm:
             continue
         # Fast length-delta gate: if the strings differ in length by
@@ -130,23 +154,24 @@ def fuzzy_match_toponyms(
         if max_len > 0 and abs(form_len - len(name_norm)) / max_len > (1 - min_ratio):
             continue
         matcher.set_seq1(name_norm)
-        # quick_ratio is a cheap upper bound on the real ratio. If it
-        # already falls short of min_ratio, skip the full O(N*M)
-        # computation. Production-scale prep runs over thousands of
-        # candidates × 22K toponyms benefit substantially.
+        # real_quick_ratio + quick_ratio are documented upper bounds
+        # on the real ratio. real_quick_ratio() is cheapest (just
+        # min-count overlap); quick_ratio() is sharper. Two-stage
+        # gate skips the full O(N*M) ratio() for the vast majority
+        # of toponyms at production scale.
+        if matcher.real_quick_ratio() < min_ratio:
+            continue
         if matcher.quick_ratio() < min_ratio:
             continue
         ratio = matcher.ratio()
         if ratio < min_ratio:
             continue
         # Region-hint boost: tiny bump for toponyms whose region
-        # contains the hint. Keeps regular ratios comparable but
-        # breaks ties in favor of the regional match.
+        # contains the hint. Region_norm is pre-computed at scan
+        # time so this is a cheap substring-in test.
         effective = ratio
-        if hint_norm and region:
-            region_norm = _normalize_for_match(region)
-            if region_norm and (hint_norm in region_norm or region_norm in hint_norm):
-                effective += _REGION_HINT_BOOST
+        if hint_norm and region_norm and (hint_norm in region_norm or region_norm in hint_norm):
+            effective += _REGION_HINT_BOOST
         scored.append(
             (
                 effective,
@@ -196,7 +221,7 @@ class PreparedCandidate:
 
 def prepare_candidate(
     raw: dict,
-    toponyms: list[tuple[int, str, str | None, str | None]],
+    toponyms: list[ToponymRow],
 ) -> PreparedCandidate:
     """Convert a raw candidate dict (one row from Phase 2b.1's
     ``--candidates-out`` JSONL) into a ``PreparedCandidate`` with
@@ -256,10 +281,16 @@ class CommitReport:
     skipped: int = 0
     deferred: int = 0
     errors: int = 0
+    # demoted_count is the authoritative total of CREATE → MAP
+    # collisions; demoted_records is the first
+    # ``_DEMOTED_RECORDS_CAP`` entries (operator visibility).
+    demoted_count: int = 0
     error_records: list[tuple[int, str]] = field(default_factory=list)
     # CREATE → MAP collisions: (row_index, existing_toponym_id,
     # modern_name) so the operator sees which of their CREATEs hit
-    # an existing toponym at apply time.
+    # an existing toponym at apply time. Capped via
+    # ``_DEMOTED_RECORDS_CAP``; the counter ``demoted_count``
+    # stays accurate beyond the cap.
     demoted_records: list[tuple[int, int, str]] = field(default_factory=list)
 
 
@@ -412,7 +443,9 @@ def commit_triage_decisions(
                         (existing_tid, form, date_year, source_id),
                     )
                 report.mapped += 1
-                report.demoted_records.append((idx, existing_tid, modern_name))
+                report.demoted_count += 1
+                if len(report.demoted_records) < _DEMOTED_RECORDS_CAP:
+                    report.demoted_records.append((idx, existing_tid, modern_name))
                 continue
             if apply:
                 cursor = conn.execute(

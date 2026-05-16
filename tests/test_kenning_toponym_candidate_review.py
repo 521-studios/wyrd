@@ -445,6 +445,7 @@ def test_commit_create_unique_collision_demotes_to_map():
     assert report.created == 0
     assert report.mapped == 1
     # Demoted record captured for operator visibility.
+    assert report.demoted_count == 1
     assert len(report.demoted_records) == 1
     row_idx, demoted_tid, name = report.demoted_records[0]
     assert row_idx == 0
@@ -563,8 +564,78 @@ def test_commit_empty_rows_list_zero_processed():
     assert report.skipped == 0
     assert report.deferred == 0
     assert report.errors == 0
+    assert report.demoted_count == 0
     assert report.error_records == []
     assert report.demoted_records == []
+
+
+def test_commit_demoted_records_cap_truncates_but_counter_accurate():
+    """demoted_records caps at _DEMOTED_RECORDS_CAP; demoted_count
+    counter stays accurate past the cap. Mirrors the error_records
+    cap pattern (Gemini round-2 + combined-agent finding)."""
+    from wyrd.generators.kenning import toponym_candidate_review as tcr
+
+    conn = _make_conn()
+    _seed_toponyms(
+        conn,
+        [{"modern_name": "Edlingham", "country": "England", "region": "Northumberland"}],
+    )
+    cap = tcr._DEMOTED_RECORDS_CAP
+    try:
+        tcr._DEMOTED_RECORDS_CAP = 2
+        # 4 CREATEs that all collide → 4 demoted, cap=2.
+        rows = [
+            {
+                "source_id": f"s{i}",
+                "form": f"Eadlingham{i}",
+                "action": "create",
+                "create_modern_name": "Edlingham",
+                "create_country": "England",
+                "create_region": "Northumberland",
+            }
+            for i in range(4)
+        ]
+        report = commit_triage_decisions(conn, rows, apply=True)
+        assert report.demoted_count == 4
+        assert len(report.demoted_records) == 2
+        # All 4 still counted as mapped (the operator-visible total).
+        assert report.mapped == 4
+    finally:
+        tcr._DEMOTED_RECORDS_CAP = cap
+
+
+def test_toponym_rows_pre_normalizes_name_and_region():
+    """``_toponym_rows`` returns 6-tuples with pre-normalized name +
+    region so the fuzzy-match hot loop doesn't re-normalize per
+    candidate. Gemini round-2 perf finding."""
+    conn = _make_conn()
+    _seed_toponyms(
+        conn,
+        [{"modern_name": "Edlingham", "country": "England", "region": "Northumberland"}],
+    )
+    rows = _toponym_rows(conn)
+    assert len(rows) == 1
+    tid, modern_name, region, country, name_norm, region_norm = rows[0]
+    # Raw values preserved.
+    assert modern_name == "Edlingham"
+    assert region == "Northumberland"
+    assert country == "England"
+    # Pre-normalized fields are present and lowercase.
+    assert name_norm == "edlingham"
+    assert region_norm == "northumberland"
+
+
+def test_toponym_rows_pre_normalizes_null_region_as_none():
+    """A toponym with no region must have name_norm AND
+    region_norm=None (not empty string) so the fuzzy-match region
+    boost correctly skips it."""
+    conn = _make_conn()
+    _seed_toponyms(conn, [{"modern_name": "Atlantis", "region": None}])
+    rows = _toponym_rows(conn)
+    _, _, region, _, name_norm, region_norm = rows[0]
+    assert region is None
+    assert region_norm is None
+    assert name_norm == "atlantis"
 
 
 def test_commit_create_missing_modern_name_is_error():
@@ -644,12 +715,6 @@ def test_commit_action_case_insensitive_across_all_paths():
     """All four actions (map/create/skip/defer) must be case-
     insensitive — operator caps shouldn't matter. Earlier test only
     covered MAP."""
-    import pytest
-
-    @pytest.mark.parametrize  # type: ignore[no-redef]
-    def _stub():
-        pass
-
     # MAP with mixed case.
     conn = _make_conn()
     name_to_id = _seed_toponyms(conn, [{"modern_name": "Edlingham"}])

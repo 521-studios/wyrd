@@ -3651,8 +3651,10 @@ def lexicon_commit_toponym_candidates(
             )
 
     # Warn when most rows are still at the default-defer placeholder:
-    # the operator may have run commit on an unedited triage file.
-    if report.deferred > 0 and report.processed > 0:
+    # operator may have run commit on an unedited triage file. Gated
+    # on processed >= 5 so a single-row "I deferred this on purpose"
+    # invocation doesn't get a noisy 100% warning.
+    if report.deferred > 0 and report.processed >= 5:
         defer_ratio = report.deferred / report.processed
         if defer_ratio >= 0.8:
             click.echo(
@@ -3667,7 +3669,7 @@ def lexicon_commit_toponym_candidates(
         f"TOTAL processed={report.processed} "
         f"mapped={report.mapped} "
         f"created={report.created} "
-        f"demoted={len(report.demoted_records)} "
+        f"demoted={report.demoted_count} "
         f"skipped={report.skipped} "
         f"deferred={report.deferred} "
         f"errors={report.errors} "
