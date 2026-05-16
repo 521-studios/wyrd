@@ -330,8 +330,25 @@ class OllamaClient:
             # socket.timeout to TimeoutError) and isn't a subclass of
             # URLError, so it needs explicit handling.
             raise RuntimeError(f"Ollama unreachable at {url}: {e}") from e
+        except UnicodeDecodeError as e:
+            # Non-UTF-8 body on a 2xx response — corrupted upstream,
+            # proxy injecting binary content, etc. UnicodeDecodeError is
+            # a ValueError subclass; without this wrap it would propagate
+            # through the chunk loop's _PROGRAMMER_ERROR_EXCEPTIONS
+            # re-raise (wyrd-pe4g) and abort the whole multi-source run.
+            raise RuntimeError(f"Ollama returned non-UTF-8 body: {e}") from e
 
-        envelope = json.loads(body)
+        try:
+            envelope = json.loads(body)
+        except json.JSONDecodeError as e:
+            # 2xx response with malformed body — proxy HTML error page,
+            # truncated body on a dropped connection, etc. JSONDecodeError
+            # is a ValueError subclass; without this wrap it would propagate
+            # through the chunk loop's _PROGRAMMER_ERROR_EXCEPTIONS re-raise
+            # (which lists ValueError to surface schema_dialect typos —
+            # wyrd-pe4g) and abort the whole multi-source run. As a transport
+            # hiccup it should bucket into chunks_failed instead.
+            raise RuntimeError(f"Ollama returned non-JSON envelope: {body[:500]}") from e
         content = envelope.get("message", {}).get("content")
         if not content:
             raise RuntimeError(f"Ollama returned empty content. Raw: {body[:500]}")

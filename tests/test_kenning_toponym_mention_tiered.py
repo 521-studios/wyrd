@@ -997,11 +997,13 @@ def test_cli_skip_existing_defers_client_construction(tmp_path, monkeypatch):
 
 def test_tiered_propagates_non_runtime_exception_to_fallback():
     """Non-RuntimeError exceptions from the primary (TimeoutError,
-    ValueError, OSError — provider-SDK exception classes are
-    similar) must trigger the fallback rather than abort the source.
-    Round-1 silent-failure finding: bare 'except Exception' is
-    intentional precisely because anthropic.APIError, httpx.HTTPError,
-    etc. don't derive from RuntimeError."""
+    OSError — provider-SDK transport exception classes are similar)
+    must trigger the fallback rather than abort the source. Round-1
+    silent-failure finding: bare 'except Exception' is intentional
+    precisely because anthropic.APIError, httpx.HTTPError, etc. don't
+    derive from RuntimeError. ValueError is excluded from this list
+    as of wyrd-pe4g round 3 — see the test below pinning that
+    behavior."""
     primary = FakeClient(
         [
             TimeoutError("primary timeout"),  # NOT a RuntimeError
@@ -1024,6 +1026,41 @@ def test_tiered_propagates_non_runtime_exception_to_fallback():
     assert report.chunks_recovered_by_fallback == 1
     assert report.chunks_failed == 0
     assert [m.form for m in report.mentions] == ["Edlin"]
+
+
+def test_tiered_propagates_unknown_dialect_value_error_does_not_mask_via_fallback():
+    """wyrd-pe4g round-4 pr-test-analyzer + silent-failure-hunter:
+    a ValueError from the dispatch-time schema_dialect guard on the
+    PRIMARY client must propagate as a configuration error rather
+    than being silently rescued by the fallback. The whole point of
+    the round-2 guard is that a typo'd schema_dialect on the primary
+    is a misconfiguration the operator needs to see — masking it via
+    a healthy fallback would defeat the design entirely (the run
+    "succeeds" via 100% fallback recovery while the primary stays
+    broken forever)."""
+
+    class TypoPrimary:
+        schema_dialect = "Openapi"  # capitalization typo
+
+        def chat_json(self, system, user, response_schema=None):
+            raise AssertionError("guard should fire before chat_json is reached")
+
+    healthy_fallback = FakeClient(
+        [
+            {"mentions": [{"form": "Edlin", "context": "Edlin"}]},
+        ]
+    )
+    body = "A" * 7995 + " Edlin"
+    import pytest
+
+    from wyrd.generators.kenning.toponym_mention_extractor import (
+        mine_toponym_mentions_tiered,
+    )
+
+    with pytest.raises(ValueError, match=r"unknown schema_dialect 'Openapi'"):
+        mine_toponym_mentions_tiered(
+            TypoPrimary(), healthy_fallback, "test_source", body, target_chunk_size=10000
+        )
 
 
 def test_tiered_both_tiers_non_runtime_exception_failed_chunk_recorded():

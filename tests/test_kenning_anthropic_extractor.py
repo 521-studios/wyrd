@@ -118,6 +118,62 @@ def test_chat_json_strips_bare_backtick_fence(monkeypatch: pytest.MonkeyPatch) -
     assert out == {"found": False}
 
 
+def test_chat_json_non_utf8_body_raises_runtimeerror(monkeypatch: pytest.MonkeyPatch) -> None:
+    """wyrd-pe4g round-5 silent-failure-hunter: a 2xx response whose
+    body isn't valid UTF-8 (binary blob, corrupted upstream, proxy
+    injection) must surface as RuntimeError. UnicodeDecodeError is a
+    ValueError subclass — without the `.decode("utf-8")` wrap on the
+    success path it leaks through _PROGRAMMER_ERROR_EXCEPTIONS and
+    aborts the run identically to the round-4 envelope-parse leak."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    client = AnthropicClient()
+
+    class _NonUtf8Resp:
+        def read(self) -> bytes:
+            return b"\xff\xfe\xfd binary garbage"  # 0xff is invalid UTF-8 leading byte
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            pass
+
+    with (
+        patch("urllib.request.urlopen", lambda req, timeout=None: _NonUtf8Resp()),
+        pytest.raises(RuntimeError, match="non-UTF-8 body"),
+    ):
+        client.chat_json("sys", "usr")
+
+
+def test_chat_json_malformed_envelope_raises_runtimeerror(monkeypatch: pytest.MonkeyPatch) -> None:
+    """wyrd-pe4g round-4: a 2xx response with non-JSON body (CDN/proxy
+    HTML error page, truncated body on a dropped connection) must
+    surface as RuntimeError so the toponym mining chunk loop buckets
+    it into chunks_failed. Without the outer envelope-parse wrap in
+    anthropic_extractor.py, json.JSONDecodeError (a ValueError
+    subclass) would propagate through _PROGRAMMER_ERROR_EXCEPTIONS
+    (which lists ValueError to surface schema_dialect typos) and
+    abort the whole multi-source run."""
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "k")
+    client = AnthropicClient()
+
+    class _MalformedResp:
+        def read(self) -> bytes:
+            return b"<html><body>503 Service Unavailable</body></html>"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            pass
+
+    with (
+        patch("urllib.request.urlopen", lambda req, timeout=None: _MalformedResp()),
+        pytest.raises(RuntimeError, match="non-JSON envelope"),
+    ):
+        client.chat_json("sys", "usr")
+
+
 def test_chat_json_unexpected_envelope_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     """If Anthropic returns content blocks with no text block at all, surface
     a clean RuntimeError instead of letting a KeyError leak through."""

@@ -18,6 +18,7 @@ import os
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from typing import ClassVar
 
 from wyrd.generators.kenning.llm_extractor import (
     SYSTEM_PROMPT,
@@ -115,6 +116,12 @@ GEMINI_RESPONSE_SCHEMA: dict = {
 class GeminiClient:
     """Minimal Gemini generateContent client. Single-shot, no streaming."""
 
+    # Dispatch marker read by callers (e.g. toponym_mention_extractor) that
+    # need to pick between JSON Schema and Gemini's OpenAPI-3.0-ish
+    # responseSchema dialect. ClassVar so dataclass treats this as a
+    # class-level attribute, not a field on instances. wyrd-pe4g.
+    schema_dialect: ClassVar[str] = "openapi"
+
     api_key: str | None = None  # falls back to GEMINI_API_KEY at call time
     model: str = DEFAULT_GEMINI_MODEL
     timeout_s: float = 120.0
@@ -175,8 +182,25 @@ class GeminiClient:
             # TimeoutError isn't a URLError subclass; needs separate catch
             # so a single slow Gemini call doesn't crash the review loop.
             raise RuntimeError(f"Gemini unreachable at {url}: {e}") from e
+        except UnicodeDecodeError as e:
+            # Non-UTF-8 body on a 2xx response — corrupted upstream,
+            # CDN/proxy injecting binary content, etc. UnicodeDecodeError
+            # is a ValueError subclass; without this wrap it would
+            # propagate through the chunk loop's _PROGRAMMER_ERROR_EXCEPTIONS
+            # re-raise (wyrd-pe4g) and abort the whole multi-source run.
+            raise RuntimeError(f"Gemini returned non-UTF-8 body: {e}") from e
 
-        envelope = json.loads(body)
+        try:
+            envelope = json.loads(body)
+        except json.JSONDecodeError as e:
+            # 2xx response with malformed body — CDN/proxy HTML error page,
+            # truncated body on a dropped connection, etc. JSONDecodeError
+            # is a ValueError subclass; without this wrap it would propagate
+            # through the chunk loop's _PROGRAMMER_ERROR_EXCEPTIONS re-raise
+            # (which lists ValueError to surface schema_dialect typos —
+            # wyrd-pe4g) and abort the whole multi-source run. As a transport
+            # hiccup it should bucket into chunks_failed instead.
+            raise RuntimeError(f"Gemini returned non-JSON envelope: {body[:500]}") from e
         # Standard Gemini response shape: candidates[0].content.parts[0].text
         try:
             candidate = envelope["candidates"][0]

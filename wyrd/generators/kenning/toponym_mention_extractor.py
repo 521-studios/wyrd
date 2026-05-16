@@ -155,8 +155,9 @@ Return only the JSON object. No other text.
 """
 
 # JSON schema for providers that support schema-constrained output
-# (Ollama, Gemini). Anthropic doesn't support this; for Anthropic the
-# SYSTEM_PROMPT's strict-JSON instruction + post-hoc parse handles it.
+# in standard JSON-Schema dialect (Ollama). Anthropic doesn't support
+# this; for Anthropic the SYSTEM_PROMPT's strict-JSON instruction +
+# post-hoc parse handles it.
 RESPONSE_SCHEMA: dict = {
     "type": "object",
     "additionalProperties": False,
@@ -177,6 +178,55 @@ RESPONSE_SCHEMA: dict = {
         }
     },
     "required": ["mentions"],
+}
+
+
+# Gemini's responseSchema is OpenAPI-3.0-ish, NOT standard JSON
+# Schema. Differences vs RESPONSE_SCHEMA above:
+#   * uppercase type names ("OBJECT", "ARRAY", "STRING", "INTEGER")
+#   * no `additionalProperties` keyword (Gemini's schema validator
+#     rejects the keyword itself at schema-submit time with HTTP 400
+#     `Unknown name "additionalProperties"`, NOT an enforcement of
+#     "no unknown keys at response time")
+#   * no `type: ["X", "null"]` unions — use `nullable: true` instead
+#   * nullable fields must appear in `required` so the model emits
+#     null explicitly rather than omitting the key (matches the
+#     etymology extractor's GEMINI_RESPONSE_SCHEMA convention).
+# Passing RESPONSE_SCHEMA (JSON-Schema dialect) directly to Gemini
+# fails with HTTP 400 on every chunk — confirmed wyrd-pe4g.
+RESPONSE_SCHEMA_GEMINI: dict = {
+    "type": "OBJECT",
+    "properties": {
+        "mentions": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "form": {"type": "STRING"},
+                    "date_year": {"type": "INTEGER", "nullable": True},
+                    "region_hint": {"type": "STRING", "nullable": True},
+                    "context": {"type": "STRING"},
+                },
+                "required": ["form", "date_year", "region_hint", "context"],
+            },
+        }
+    },
+    "required": ["mentions"],
+}
+
+
+# Single source of truth for the closed set of dialects + which
+# RESPONSE_SCHEMA each one selects. The dict's keys serve as the
+# whitelist for ``extract_toponym_mentions_from_chunk``'s guard;
+# its values are the dispatch targets. Keeping the two coupled
+# in one structure means adding a new dialect can't silently fall
+# through to JSON Schema by accident — the whitelist update and
+# the dispatch update are the same edit. wyrd-pe4g round-2
+# (silent-failure-hunter: typo guard) + round-6 (Gemini bot +
+# type-design-analyzer: collapse to one structure).
+_DIALECT_TO_SCHEMA: dict[str, dict] = {
+    "openapi": RESPONSE_SCHEMA_GEMINI,
+    "json-schema": RESPONSE_SCHEMA,
 }
 
 
@@ -362,7 +412,32 @@ def extract_toponym_mentions_from_chunk(
     # the schema kwarg name (AnthropicClient: `schema`, GeminiClient:
     # `response_schema`, OllamaClient: `schema`). Using positional
     # avoids a TypeError under --provider gemini.
-    response = client.chat_json(SYSTEM_PROMPT, user, RESPONSE_SCHEMA)
+    #
+    # Schema dialect dispatch: Gemini's responseSchema is OpenAPI-3.0,
+    # not JSON Schema (see wyrd-pe4g + comment on RESPONSE_SCHEMA_GEMINI
+    # above). Each client declares its dialect via a ``schema_dialect``
+    # class attribute; absence defaults to "json-schema". The attribute-
+    # based contract survives renames + subclasses (inherited via MRO)
+    # and lets new providers declare their dialect without editing this
+    # dispatch site.
+    #
+    # Whitelist guard: a typo like "Openapi"/"OpenAPI"/"openapi " on a
+    # Gemini-talking client would otherwise produce a KeyError from the
+    # dict lookup, which the chunk loop's bare-Exception catch would
+    # silently bucket into chunks_failed (and in tiered mode, the
+    # fallback would mask the misconfiguration). Raise ValueError with
+    # the offending value + class name so the dispatch-level cause
+    # surfaces immediately. _DIALECT_TO_SCHEMA is the single source of
+    # truth for both the whitelist and the dispatch — adding a new
+    # dialect is one edit, no two-place sync.
+    dialect = getattr(client, "schema_dialect", "json-schema")
+    if dialect not in _DIALECT_TO_SCHEMA:
+        raise ValueError(
+            f"unknown schema_dialect {dialect!r} on {type(client).__name__}; "
+            f"expected one of {sorted(_DIALECT_TO_SCHEMA)}"
+        )
+    schema = _DIALECT_TO_SCHEMA[dialect]
+    response = client.chat_json(SYSTEM_PROMPT, user, schema)
     if not isinstance(response, dict):
         raise RuntimeError(f"LLM returned non-dict envelope: {type(response).__name__}")
     raw = response.get("mentions")
@@ -388,11 +463,40 @@ _OVERSIZED_PARAGRAPH_MULTIPLIER = 1.5
 # are not the kind of errors that should ever happen at runtime in a
 # correct deployment; if they do, something is broken at the code
 # level and the operator needs to see the stack.
+#
+# ValueError is in this tuple because the only source of ValueError
+# on the chunk path is the dispatch-time whitelist guard for an
+# unknown ``schema_dialect`` value (wyrd-pe4g round-2 + round-3:
+# silent-failure-hunter). That's a misconfiguration on the client
+# class, not a per-chunk transport hiccup; without re-raising, a
+# typo'd dialect would silently produce 100% chunks_failed and
+# (in tiered mode) the fallback would mask the misconfiguration
+# entirely.
+#
+# For this carve-out to stay scoped to configuration errors, every
+# transport-layer path that produces a ValueError-subclass must
+# funnel it into RuntimeError. Three classes to keep in sync across
+# all three clients (anthropic_extractor.py / gemini_extractor.py /
+# llm_extractor.py):
+#   1. UnicodeDecodeError from `.decode("utf-8")` on the success
+#      response body (wyrd-pe4g round-5: silent-failure-hunter)
+#   2. JSONDecodeError from outer `json.loads(body)` envelope parse
+#      (wyrd-pe4g round-4: code-reviewer + silent-failure-hunter +
+#      comment-analyzer)
+#   3. JSONDecodeError from inner `json.loads(text/content)` parse
+#      of the model-produced JSON (pre-existing)
+# All nine call sites — for each of the 3 clients: outer
+# envelope parse, inner content/text parse, and success-path decode
+# — are wrapped to maintain this invariant. Without each wrap, a
+# CDN/proxy HTML error page, a truncated 2xx body, or a binary blob
+# on the success path would leak ValueError into this re-raise and
+# abort the multi-source run.
 _PROGRAMMER_ERROR_EXCEPTIONS: tuple[type[Exception], ...] = (
     AttributeError,
     TypeError,
     NameError,
     ImportError,
+    ValueError,
 )
 
 

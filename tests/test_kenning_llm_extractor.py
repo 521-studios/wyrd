@@ -1,20 +1,32 @@
-"""Tests for the LLM extractor's validation guard.
+"""Tests for the LLM extractor's validation guard + OllamaClient
+transport safety wraps.
 
-The Ollama transport itself isn't tested here (would need a live endpoint or
-a mock layer). We focus on `validate_response`, the safety check that
-prevents hallucinated etymons from being ingested. That guard is the
-load-bearing piece of the LLM pipeline — if it ever silently breaks,
-garbage flows into the lexicon.
+`validate_response` is the safety check that prevents hallucinated
+etymons from being ingested — load-bearing piece of the LLM pipeline.
+If it ever silently breaks, garbage flows into the lexicon.
+
+OllamaClient transport: the dispatch-time and parse-time ValueError
+re-raise path in `_PROGRAMMER_ERROR_EXCEPTIONS` (toponym_mention_
+extractor.py) requires every transport-layer ValueError-subclass to
+be wrapped into RuntimeError or chunks_failed gets bypassed in favour
+of full-run abort. Tests below pin the OllamaClient envelope-parse
+and decode wraps so a future refactor can't silently regress the
+contract (Ollama is the default `--provider` — losing coverage here
+is the worst direction). wyrd-pe4g rounds 4-5.
 """
 
 from __future__ import annotations
 
 import re
+from unittest.mock import patch
+
+import pytest
 
 from wyrd.generators.kenning.llm_extractor import (
     RESPONSE_SCHEMA,
     SOURCE_QUOTE_BUDGET,
     SYSTEM_PROMPT,
+    OllamaClient,
     _form_in_body,
     _normalize_for_match,
     validate_response,
@@ -833,3 +845,64 @@ def test_assemble_extraction_result_short_total_preserves_full_body():
     # Full body is present; no truncation kicked in.
     assert result.entry.source_quote.endswith(body)
     assert result.entry.source_quote == short_prefix + " | " + body
+
+
+# --- OllamaClient transport-layer wraps (wyrd-pe4g rounds 4-5) -----------
+#
+# Ollama is the default --provider; the JSONDecodeError + UnicodeDecodeError
+# wraps on its chat_json path are load-bearing for the
+# _PROGRAMMER_ERROR_EXCEPTIONS contract in toponym_mention_extractor.py.
+# Tests below mirror the Anthropic/Gemini patterns so a future refactor
+# can't silently regress the most-used client.
+
+
+class _RawBytesResp:
+    """Minimal context-manager-shaped urlopen response that returns raw bytes."""
+
+    def __init__(self, raw: bytes) -> None:
+        self._raw = raw
+
+    def read(self) -> bytes:
+        return self._raw
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args) -> None:
+        pass
+
+
+def test_ollama_chat_json_malformed_envelope_raises_runtimeerror() -> None:
+    """wyrd-pe4g round-4: a 2xx response with non-JSON body (proxy HTML
+    error page, truncated body on a dropped connection) must surface as
+    RuntimeError so the toponym mining chunk loop buckets it into
+    chunks_failed. Without the outer envelope-parse wrap in
+    llm_extractor.py, json.JSONDecodeError (a ValueError subclass) would
+    propagate through _PROGRAMMER_ERROR_EXCEPTIONS (which lists
+    ValueError to surface schema_dialect typos) and abort the whole
+    multi-source run. Ollama is the default --provider; this is the
+    most-used client to keep covered."""
+    client = OllamaClient()
+    malformed = b"<html><body>503 Service Unavailable</body></html>"
+    with (
+        patch("urllib.request.urlopen", lambda req, timeout=None: _RawBytesResp(malformed)),
+        pytest.raises(RuntimeError, match="non-JSON envelope"),
+    ):
+        client.chat_json("sys", "usr", {})
+
+
+def test_ollama_chat_json_non_utf8_body_raises_runtimeerror() -> None:
+    """wyrd-pe4g round-5 silent-failure-hunter: a 2xx response whose
+    body isn't valid UTF-8 (binary blob, corrupted upstream, proxy
+    injection) must also surface as RuntimeError. UnicodeDecodeError
+    is a ValueError subclass — without the `.decode("utf-8")` wrap on
+    the success path it leaks through _PROGRAMMER_ERROR_EXCEPTIONS and
+    aborts the run identically to the round-4 envelope-parse leak."""
+    client = OllamaClient()
+    # 0xff is invalid as a UTF-8 leading byte.
+    non_utf8 = b"\xff\xfe\xfd binary garbage"
+    with (
+        patch("urllib.request.urlopen", lambda req, timeout=None: _RawBytesResp(non_utf8)),
+        pytest.raises(RuntimeError, match="non-UTF-8 body"),
+    ):
+        client.chat_json("sys", "usr", {})
