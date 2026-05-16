@@ -162,11 +162,17 @@ def test_tiered_both_tiers_fail_records_failed_chunk():
     assert "429" in fc.error
 
 
-def test_tiered_counters_use_fallback_only_when_rescued():
-    """When the fallback rescues a chunk, the validation counters
-    (hallucinations_dropped, years_clamped) reflect the FALLBACK's
-    output — not the primary's (which was discarded). Prevents
-    double-counting."""
+def test_tiered_counters_from_successful_tier_only():
+    """When the fallback rescues a chunk, the report counters reflect
+    the FALLBACK's validation (hallucinations_dropped, years_clamped),
+    not the primary's. Today this property is trivially satisfied
+    because ``extract_toponym_mentions_from_chunk`` only updates
+    counters after the LLM call returns — a raise means counters
+    stay at their default zero. The explicit reset in
+    ``mine_toponym_mentions_tiered`` is defensive against a future
+    refactor that might validate-as-it-parses. Test pins the
+    observable contract; the reset's necessity is implementation-
+    detail (preserved by the docstring)."""
     primary = FakeClient(
         [
             # Primary fails on this chunk before counters could accumulate.
@@ -559,13 +565,69 @@ def test_cli_unknown_source_errors_clearly(tmp_path, monkeypatch):
 
 
 def test_cli_path_traversal_is_neutralized(tmp_path, monkeypatch):
-    """--source ../etc/passwd should be neutralized via Path(...).name.
-    The bare 'passwd' won't exist under --sources-dir, producing the
-    standard 'source body not found' error rather than reading outside."""
+    """--source "../planted" should be neutralized via Path(...).name
+    to "planted". Both files (one outside sources_dir with secret
+    content, one inside with safe content named "planted.txt") are
+    planted: the test verifies the INSIDE file is read (proving the
+    traversal collapsed to a bare filename, not just failing because
+    the outside file didn't exist)."""
     runner = CliRunner()
     sources_dir = tmp_path / "sources"
     sources_dir.mkdir()
-    # File outside sources_dir that we DON'T want to read.
+    # File OUTSIDE sources_dir — must not be reachable.
+    planted_outside = tmp_path / "planted.txt"
+    planted_outside.write_text("SECRET PLAINTEXT", encoding="utf-8")
+    # File INSIDE sources_dir with the same basename — Path("../planted").name
+    # is "planted", so the .txt suffix appended lands on this one.
+    planted_inside = sources_dir / "planted.txt"
+    planted_inside.write_text("INSIDE PROSE Edlingham mentioned.", encoding="utf-8")
+
+    primary_calls: list[tuple[str, str, dict | None]] = []
+
+    class _CapturingClient:
+        model = "fake"
+
+        def chat_json(self, system: str, user: str, schema: dict | None = None) -> dict:
+            primary_calls.append((system, user, schema))
+            return {"mentions": []}
+
+    _stub_ollama_for_cli(monkeypatch, _CapturingClient())
+    _stub_anthropic_for_cli(monkeypatch, FakeClient([]))
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--source",
+            "../planted",
+        ],
+    )
+    # The CLI succeeded — Path(...).name reduced "../planted" to
+    # "planted" and read sources_dir/planted.txt (the INSIDE file).
+    assert result.exit_code == 0, result.output
+    # The chunk passed to the LLM is the INSIDE file's content, NOT
+    # the outside one. If traversal had succeeded, "SECRET PLAINTEXT"
+    # would have reached the prompt.
+    assert len(primary_calls) == 1
+    user_arg = primary_calls[0][1]
+    assert "INSIDE PROSE" in user_arg
+    assert "SECRET PLAINTEXT" not in user_arg
+
+
+def test_cli_path_traversal_missing_basename_still_errors(tmp_path, monkeypatch):
+    """When --source is a path-traversal expression AND no file with
+    the stripped basename exists in --sources-dir, error clearly
+    (rather than reading some other file by accident)."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    # File outside sources_dir with secret content; NO file at
+    # sources_dir/planted.txt.
     planted = tmp_path / "planted.txt"
     planted.write_text("SECRET PLAINTEXT", encoding="utf-8")
 
@@ -677,3 +739,362 @@ def test_cli_summary_reports_recovery_count(tmp_path, monkeypatch):
     )
     assert result.exit_code == 0, result.output
     assert "recovered_by_fallback=1" in result.output
+
+
+# ---------- round-2 additions: CLI flag pass-through coverage -----------
+
+
+def test_cli_primary_model_flows_to_client_factory(tmp_path, monkeypatch):
+    """--primary-model must reach the primary client factory's
+    `model=` kwarg. A regression that dropped the kwarg would land
+    the default model and never be caught by the existing tests
+    (which all use `lambda **kw: fake_client` and discard kwargs)."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text("Edlingham.", encoding="utf-8")
+
+    captured: list[dict] = []
+    fake = FakeClient([{"mentions": []}])
+
+    def recording_factory(**kw):
+        captured.append(kw)
+        return fake
+
+    import wyrd.generators.kenning.llm_extractor as llm_module
+
+    monkeypatch.setattr(llm_module, "OllamaClient", recording_factory)
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.anthropic_extractor.AnthropicClient",
+        lambda **kw: FakeClient([]),
+    )
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--primary-model",
+            "qwen-test-override",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert len(captured) == 1
+    assert captured[0]["model"] == "qwen-test-override"
+
+
+def test_cli_fallback_model_flows_to_client_factory(tmp_path, monkeypatch):
+    """--fallback-model reaches the fallback factory. Same shape as
+    primary-model test but for the second-tier client."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text("Edlingham.", encoding="utf-8")
+
+    captured: list[dict] = []
+    fake = FakeClient([{"mentions": []}])
+
+    def recording_factory(**kw):
+        captured.append(kw)
+        return fake
+
+    import wyrd.generators.kenning.anthropic_extractor as ae_module
+
+    monkeypatch.setattr(ae_module, "AnthropicClient", recording_factory)
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.llm_extractor.OllamaClient",
+        lambda **kw: FakeClient([{"mentions": []}]),
+    )
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--fallback-model",
+            "claude-test-override-v9",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert len(captured) == 1
+    assert captured[0]["model"] == "claude-test-override-v9"
+
+
+def test_cli_chunk_size_flows_through(tmp_path, monkeypatch):
+    """--chunk-size must affect the number of chunks the extractor
+    sees. Without explicit coverage, a regression that ignored the
+    flag and used the default 20000 would silently pass every
+    existing test (all of them implicitly rely on the default)."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    # Two paragraphs that pack into 1 chunk at default 20000 chars but
+    # need 2 chunks at --chunk-size 50.
+    body = "First paragraph here.\n\nSecond paragraph follows."
+    (sources_dir / "src_a.txt").write_text(body, encoding="utf-8")
+
+    primary = FakeClient([{"mentions": []}, {"mentions": []}])
+    fallback = FakeClient([])
+    _stub_ollama_for_cli(monkeypatch, primary)
+    _stub_anthropic_for_cli(monkeypatch, fallback)
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(tmp_path / "out"),
+            # target_chunk_size=25 forces flush after the first
+            # paragraph (21 chars + 2 + 25 = 48 > 25). Default 20000
+            # would pack both paragraphs into one chunk.
+            "--chunk-size",
+            "25",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Primary called twice — once per chunk. If --chunk-size were
+    # ignored, the body would pack into 1 chunk and the primary
+    # would be called once.
+    assert len(primary.calls) == 2
+
+
+def test_cli_limit_flows_through(tmp_path, monkeypatch):
+    """--limit caps the number of chunks processed per source. A
+    regression that dropped the flag would process all chunks
+    (the existing tests don't pin this — all use defaults)."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    body = "A" * 7990 + " Edlin\n\n" + "B" * 7990 + " Wear\n\n" + "C" * 7990 + " Tyne"
+    (sources_dir / "src_a.txt").write_text(body, encoding="utf-8")
+
+    primary = FakeClient([{"mentions": []}])  # only 1 prepared
+    fallback = FakeClient([])
+    _stub_ollama_for_cli(monkeypatch, primary)
+    _stub_anthropic_for_cli(monkeypatch, fallback)
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--chunk-size",
+            "10000",  # 3 chunks total at this size
+            "--limit",
+            "1",  # process only 1
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Primary called ONCE — limit=1 cap honored.
+    assert len(primary.calls) == 1
+
+
+def test_cli_gemini_primary_provider_routes_to_gemini_client(tmp_path, monkeypatch):
+    """--primary-provider gemini must construct a GeminiClient and
+    use it. Without this test, a regression in _build_extractor_client
+    that mis-dispatched 'gemini' to AnthropicClient would silently
+    pass the ollama+anthropic tests."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text("Edlingham.", encoding="utf-8")
+
+    gemini_fake = FakeClient([{"mentions": []}])
+    import wyrd.generators.kenning.gemini_extractor as gemini_module
+
+    monkeypatch.setattr(gemini_module, "GeminiClient", lambda **kw: gemini_fake)
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.anthropic_extractor.AnthropicClient",
+        lambda **kw: FakeClient([]),
+    )
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--primary-provider",
+            "gemini",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # GeminiClient was called once (one chunk).
+    assert len(gemini_fake.calls) == 1
+
+
+def test_cli_skip_existing_defers_client_construction(tmp_path, monkeypatch):
+    """Client construction must be deferred past --skip-existing. If
+    every source is skipped, neither client factory should be
+    invoked (no ANTHROPIC_API_KEY validation, no Ollama-URL probe).
+    Enables 'dry-run resume verification' without needing API keys."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text("Edlingham.", encoding="utf-8")
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    # Pre-existing output → will be skipped under --skip-existing.
+    (output_dir / "src_a.jsonl").write_text('{"source_id":"src_a","form":"x"}\n', encoding="utf-8")
+
+    ollama_built = {"n": 0}
+    anthropic_built = {"n": 0}
+
+    def ollama_factory(**kw):
+        ollama_built["n"] += 1
+        return FakeClient([])
+
+    def anthropic_factory(**kw):
+        anthropic_built["n"] += 1
+        return FakeClient([])
+
+    monkeypatch.setattr("wyrd.generators.kenning.llm_extractor.OllamaClient", ollama_factory)
+    monkeypatch.setattr(
+        "wyrd.generators.kenning.anthropic_extractor.AnthropicClient",
+        anthropic_factory,
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--skip-existing",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # No client factory was called — every source skipped, deferred
+    # construction never triggered.
+    assert ollama_built["n"] == 0
+    assert anthropic_built["n"] == 0
+
+
+def test_tiered_propagates_non_runtime_exception_to_fallback():
+    """Non-RuntimeError exceptions from the primary (TimeoutError,
+    ValueError, OSError — provider-SDK exception classes are
+    similar) must trigger the fallback rather than abort the source.
+    Round-1 silent-failure finding: bare 'except Exception' is
+    intentional precisely because anthropic.APIError, httpx.HTTPError,
+    etc. don't derive from RuntimeError."""
+    primary = FakeClient(
+        [
+            TimeoutError("primary timeout"),  # NOT a RuntimeError
+        ]
+    )
+    fallback = FakeClient(
+        [
+            {"mentions": [{"form": "Edlin", "context": "Edlin"}]},
+        ]
+    )
+    body = "A" * 7995 + " Edlin"
+    from wyrd.generators.kenning.toponym_mention_extractor import (
+        mine_toponym_mentions_tiered,
+    )
+
+    report = mine_toponym_mentions_tiered(
+        primary, fallback, "test_source", body, target_chunk_size=10000
+    )
+    # Fallback rescued the chunk; chunks_failed stayed 0.
+    assert report.chunks_recovered_by_fallback == 1
+    assert report.chunks_failed == 0
+    assert [m.form for m in report.mentions] == ["Edlin"]
+
+
+def test_tiered_both_tiers_non_runtime_exception_failed_chunk_recorded():
+    """When both tiers raise NON-RuntimeError exceptions, the chunk
+    is still recorded as failed (with both error types) — not
+    propagated as an unhandled exception."""
+    primary = FakeClient([TimeoutError("primary timeout")])
+    fallback = FakeClient([OSError("disk full")])
+    body = "A" * 7995 + " Edlin"
+    from wyrd.generators.kenning.toponym_mention_extractor import (
+        mine_toponym_mentions_tiered,
+    )
+
+    report = mine_toponym_mentions_tiered(
+        primary, fallback, "test_source", body, target_chunk_size=10000
+    )
+    assert report.chunks_failed == 1
+    assert len(report.failed_chunks) == 1
+    fc = report.failed_chunks[0]
+    assert "TimeoutError" in fc.error
+    assert "OSError" in fc.error
+
+
+def test_cli_realistic_mention_shape_preserves_all_fields(tmp_path, monkeypatch):
+    """A regression that dropped date_year or region_hint from the
+    JSONL output would not be caught by the existing tests (their
+    FakeClient responses omit those fields, so the synthesized
+    fixture context never has them either). This test feeds a
+    realistic shape and verifies all fields make it to the file."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text(
+        "Edlingham in Northumberland was attested in 1086.",
+        encoding="utf-8",
+    )
+    output_dir = tmp_path / "out"
+
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {
+                        "form": "Edlingham",
+                        "date_year": 1086,
+                        "region_hint": "Northumberland",
+                        "context": "Edlingham in Northumberland was attested in 1086.",
+                    }
+                ]
+            }
+        ]
+    )
+    fallback = FakeClient([])
+    _stub_ollama_for_cli(monkeypatch, primary)
+    _stub_anthropic_for_cli(monkeypatch, fallback)
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    line = json.loads((output_dir / "src_a.jsonl").read_text().strip())
+    assert line["source_id"] == "src_a"
+    assert line["form"] == "Edlingham"
+    assert line["date_year"] == 1086
+    assert line["region_hint"] == "Northumberland"
+    assert "Edlingham in Northumberland" in line["context"]

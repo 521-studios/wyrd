@@ -32,9 +32,9 @@ mismatch.
 Provider choice: the module accepts any client with the
 ``chat_json(system, user, schema=None) -> dict`` interface — same
 contract as :class:`AnthropicClient` / Ollama / Gemini wrappers in
-``llm_extractor.py``. The tiered-extraction pattern from the
-project's wyrd-l0r infrastructure (Qwen bulk → Anthropic on the
-residual) is implemented in the CLI orchestrator, not here.
+``llm_extractor.py``. The tiered-extraction pattern (Qwen bulk →
+Anthropic on the residual) is implemented inline as
+:func:`mine_toponym_mentions_tiered` below.
 
 Chunking limit: ``chunk_source_body`` does NOT overlap chunks; a
 mention whose year/region hint falls on the OTHER side of a
@@ -46,7 +46,6 @@ chunking is a documented follow-up (DECISIONS.md if pursued).
 
 from __future__ import annotations
 
-import json
 import re
 from collections import deque
 from collections.abc import Callable
@@ -530,12 +529,16 @@ def mine_toponym_mentions(
         chunk_counters = ValidationCounters()
         try:
             mentions = extract_toponym_mentions_from_chunk(client, chunk, counters=chunk_counters)
-        except (RuntimeError, json.JSONDecodeError) as e:
-            # Per-chunk failure (transport, JSON-parse, schema mismatch)
-            # is logged + skipped — don't poison the whole source's
-            # output. Operator gets the chunk index + exception type
-            # so they can re-run a targeted subset later or pivot to a
-            # different provider.
+        except Exception as e:
+            # Per-chunk failure (transport, JSON-parse, schema mismatch,
+            # provider SDK exceptions like anthropic.APIError /
+            # httpx.HTTPError / TimeoutError) is logged + skipped —
+            # don't poison the whole source's output. Catching bare
+            # Exception is intentional: a real run will see provider-
+            # SDK error classes that don't derive from RuntimeError,
+            # and we'd rather degrade gracefully per-chunk than abort
+            # the whole multi-source run. KeyboardInterrupt and
+            # SystemExit (derived from BaseException) still propagate.
             report.chunks_failed += 1
             failure = FailedChunk(index=i, error=f"{type(e).__name__}: {e}")
             if len(head_failures) < _FAILED_CHUNKS_HEAD:
@@ -579,9 +582,25 @@ def mine_toponym_mentions_tiered(
 
     A chunk is counted as ``chunks_recovered_by_fallback`` when the
     primary raised AND the fallback succeeded. A chunk where BOTH
-    tiers fail counts as a ``failed_chunk`` (with the fallback's
-    error as the recorded message — the more diagnostic of the two,
-    since the fallback is the higher-quality provider).
+    tiers fail counts as a ``failed_chunk`` with BOTH errors recorded
+    as ``primary=...; fallback=...`` so operators can see whether
+    the chunk is genuinely hard (both quality tiers failed) vs. a
+    transient issue (one tier transient-failed, the other timed out
+    differently).
+
+    Both client calls catch bare ``Exception`` so provider-SDK error
+    classes (``anthropic.APIError``, ``httpx.HTTPError``,
+    ``TimeoutError``) trigger the fallback rather than aborting the
+    whole multi-source run. ``KeyboardInterrupt`` / ``SystemExit``
+    still propagate.
+
+    Resolved-mention counters (``hallucinations_dropped``,
+    ``years_clamped``) reflect ONLY the tier that succeeded — the
+    losing tier's per-chunk counters are discarded so a partial-
+    populate from a primary that raised mid-validation can't double-
+    count. ``extract_toponym_mentions_from_chunk`` does not currently
+    populate counters partially before raising, so the discarded-
+    state is defensive against future refactors.
 
     The report shape matches :class:`MineToponymMentionsReport` so
     the CLI's summary line and the Phase 2b.1 ingester both work
@@ -611,25 +630,29 @@ def mine_toponym_mentions_tiered(
             mentions = extract_toponym_mentions_from_chunk(
                 primary_client, chunk, counters=chunk_counters
             )
-        except (RuntimeError, json.JSONDecodeError) as e:
+        except Exception as e:
+            # Bare Exception (not RuntimeError) so provider-SDK error
+            # classes (anthropic.APIError, httpx.HTTPError, TimeoutError)
+            # trigger fallback rather than aborting the whole source.
             primary_error = f"{type(e).__name__}: {e}"
             if log_warning is not None:
                 log_warning(f"chunk {i} primary failed: {primary_error} — retrying with fallback")
         if mentions is None:
-            # Primary failed. Try fallback. Reset counters so the
-            # fallback's hallucination/clamp tallies don't double-
-            # count the primary's (counters never updated because
-            # we discarded its result).
+            # Primary failed. Try fallback. Reset counters defensively
+            # — extract_toponym_mentions_from_chunk doesn't populate
+            # counters partially before raising today, but a future
+            # refactor could. Keeping the discard explicit prevents
+            # double-counting drift if that contract changes.
             chunk_counters = ValidationCounters()
             try:
                 mentions = extract_toponym_mentions_from_chunk(
                     fallback_client, chunk, counters=chunk_counters
                 )
                 report.chunks_recovered_by_fallback += 1
-            except (RuntimeError, json.JSONDecodeError) as e:
-                # BOTH tiers failed — surface the FALLBACK error
-                # (higher-quality provider; if it failed, the chunk
-                # is genuinely hard, not a Qwen flake).
+            except Exception as e:
+                # BOTH tiers failed — record BOTH errors so operators
+                # see the full failure chain (transient vs. genuinely-
+                # hard chunk are distinguishable from the pair).
                 fallback_error = f"{type(e).__name__}: {e}"
                 report.chunks_failed += 1
                 failure = FailedChunk(

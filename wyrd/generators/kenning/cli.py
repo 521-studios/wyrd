@@ -2914,11 +2914,20 @@ def lexicon_mine_toponym_mentions(
             click.echo(_line(m))
 
 
+# 8192-token max-tokens for Anthropic — fits ~100-150 mentions per
+# chunk comfortably; the SDK default of 1024 truncates mid-JSON on
+# dense chunks. Single source-of-truth used by both single-tier
+# (mine-toponym-mentions) and tiered (mine-toponym-mentions-tiered)
+# Anthropic client construction.
+_ANTHROPIC_MAX_TOKENS_FOR_MENTION_EXTRACTION = 8192
+
+
 def _build_extractor_client(provider: str, model: str | None):
     """Construct an extractor client for the named provider. Used by
     the tiered CLI to instantiate two clients (primary + fallback).
-    Identical dispatch shape to single-provider mine-toponym-mentions
-    — only the import side is shared."""
+    The single-tier `mine-toponym-mentions` command has an inline
+    copy of this dispatch — consider unifying when a third caller
+    appears."""
     if provider == "anthropic":
         from wyrd.generators.kenning.anthropic_extractor import (
             DEFAULT_ANTHROPIC_MODEL,
@@ -2927,7 +2936,7 @@ def _build_extractor_client(provider: str, model: str | None):
 
         return AnthropicClient(
             model=model or DEFAULT_ANTHROPIC_MODEL,
-            max_tokens=8192,
+            max_tokens=_ANTHROPIC_MAX_TOKENS_FOR_MENTION_EXTRACTION,
         )
     if provider == "gemini":
         from wyrd.generators.kenning.gemini_extractor import (
@@ -3097,10 +3106,19 @@ def lexicon_mine_toponym_mentions_tiered(
         err=True,
     )
 
-    # Build clients ONCE up front. Per-source instantiation would
-    # re-import provider modules per source — cheap but wasteful.
-    primary_client = _build_extractor_client(primary_provider, primary_model)
-    fallback_client = _build_extractor_client(fallback_provider, fallback_model)
+    # Lazy client construction — only instantiate when we have an
+    # actual source to extract. For a 200-source resume where every
+    # source is --skip-existing'd, this avoids unnecessary ANTHROPIC_
+    # API_KEY validation and Ollama-URL probing. The pair is built
+    # once on the first real extraction and cached for the remainder.
+    primary_client = None
+    fallback_client = None
+
+    def _ensure_clients():
+        nonlocal primary_client, fallback_client
+        if primary_client is None:
+            primary_client = _build_extractor_client(primary_provider, primary_model)
+            fallback_client = _build_extractor_client(fallback_provider, fallback_model)
 
     def _line(source_id: str, m: ToponymMention) -> str:
         return json.dumps(
@@ -3153,11 +3171,14 @@ def lexicon_mine_toponym_mentions_tiered(
             err=True,
         )
 
+        # Defer client construction to first real extraction —
+        # --skip-existing resume runs where every source is skipped
+        # don't need either client.
+        _ensure_clients()
+
         start_ts = time.monotonic()
 
-        def progress(
-            done: int, total: int, mentions: int, _start_ts: float = start_ts
-        ) -> None:
+        def progress(done: int, total: int, mentions: int, _start_ts: float = start_ts) -> None:
             # Bind start_ts via default arg — B023: a closure reference
             # to the loop variable would all share the LAST iteration's
             # start_ts when this function is later invoked.
