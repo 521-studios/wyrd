@@ -465,6 +465,11 @@ class MineToponymMentionsReport:
     source_id: str
     chunks_processed: int = 0
     chunks_failed: int = 0
+    # Chunks the PRIMARY client failed AND the fallback client
+    # subsequently rescued (tiered extraction only — stays 0 for
+    # single-tier runs). Subtract from chunks_processed to learn
+    # how many chunks the primary handled on its own.
+    chunks_recovered_by_fallback: int = 0
     hallucinations_dropped: int = 0
     years_clamped: int = 0
     mentions: list[ToponymMention] = field(default_factory=list)
@@ -549,6 +554,101 @@ def mine_toponym_mentions(
     # Merge head + tail. List shape preserves indices for the CLI's
     # display loop; the gap between head and tail (if any) is implicit
     # via the chunks_failed counter minus len(failed_chunks).
+    report.failed_chunks.extend(head_failures)
+    report.failed_chunks.extend(tail_failures)
+    return report
+
+
+def mine_toponym_mentions_tiered(
+    primary_client,
+    fallback_client,
+    source_id: str,
+    body: str,
+    *,
+    target_chunk_size: int = 20000,
+    limit: int | None = None,
+    on_chunk_done: Callable[[int, int, int], None] | None = None,
+    log_warning: Callable[[str], None] | None = None,
+) -> MineToponymMentionsReport:
+    """Two-tier extraction: try ``primary_client`` on every chunk;
+    when the primary fails (transport, JSON parse, schema mismatch),
+    retry with ``fallback_client``. Built for the wyrd-l0r tiered
+    pattern: Qwen-on-Hades for bulk first-pass (free, fast on
+    GPU-hosted Ollama), Anthropic on the residual (better quality
+    on the tricky chunks the small model couldn't parse).
+
+    A chunk is counted as ``chunks_recovered_by_fallback`` when the
+    primary raised AND the fallback succeeded. A chunk where BOTH
+    tiers fail counts as a ``failed_chunk`` (with the fallback's
+    error as the recorded message — the more diagnostic of the two,
+    since the fallback is the higher-quality provider).
+
+    The report shape matches :class:`MineToponymMentionsReport` so
+    the CLI's summary line and the Phase 2b.1 ingester both work
+    unchanged.
+    """
+    report = MineToponymMentionsReport(source_id=source_id)
+    chunks = chunk_source_body(body, target_chunk_size=target_chunk_size)
+    if limit is not None:
+        chunks = chunks[:limit]
+    total = len(chunks)
+    if log_warning is not None:
+        oversize_threshold = target_chunk_size * _OVERSIZED_PARAGRAPH_MULTIPLIER
+        for i, c in enumerate(chunks):
+            if len(c) > oversize_threshold:
+                log_warning(
+                    f"chunk {i}: oversized paragraph "
+                    f"({len(c):,} chars > {int(oversize_threshold):,} threshold) — "
+                    f"LLM output may truncate; consider lowering --chunk-size"
+                )
+    head_failures: list[FailedChunk] = []
+    tail_failures: deque[FailedChunk] = deque(maxlen=_FAILED_CHUNKS_TAIL)
+    for i, chunk in enumerate(chunks):
+        chunk_counters = ValidationCounters()
+        primary_error: str | None = None
+        mentions: list[ToponymMention] | None = None
+        try:
+            mentions = extract_toponym_mentions_from_chunk(
+                primary_client, chunk, counters=chunk_counters
+            )
+        except (RuntimeError, json.JSONDecodeError) as e:
+            primary_error = f"{type(e).__name__}: {e}"
+            if log_warning is not None:
+                log_warning(f"chunk {i} primary failed: {primary_error} — retrying with fallback")
+        if mentions is None:
+            # Primary failed. Try fallback. Reset counters so the
+            # fallback's hallucination/clamp tallies don't double-
+            # count the primary's (counters never updated because
+            # we discarded its result).
+            chunk_counters = ValidationCounters()
+            try:
+                mentions = extract_toponym_mentions_from_chunk(
+                    fallback_client, chunk, counters=chunk_counters
+                )
+                report.chunks_recovered_by_fallback += 1
+            except (RuntimeError, json.JSONDecodeError) as e:
+                # BOTH tiers failed — surface the FALLBACK error
+                # (higher-quality provider; if it failed, the chunk
+                # is genuinely hard, not a Qwen flake).
+                fallback_error = f"{type(e).__name__}: {e}"
+                report.chunks_failed += 1
+                failure = FailedChunk(
+                    index=i,
+                    error=f"primary={primary_error}; fallback={fallback_error}",
+                )
+                if len(head_failures) < _FAILED_CHUNKS_HEAD:
+                    head_failures.append(failure)
+                else:
+                    tail_failures.append(failure)
+                if log_warning is not None:
+                    log_warning(f"chunk {i} both tiers failed: {fallback_error}")
+                continue
+        report.mentions.extend(mentions)
+        report.chunks_processed += 1
+        report.hallucinations_dropped += chunk_counters.hallucinations_dropped
+        report.years_clamped += chunk_counters.years_clamped
+        if on_chunk_done is not None:
+            on_chunk_done(i + 1, total, len(report.mentions))
     report.failed_chunks.extend(head_failures)
     report.failed_chunks.extend(tail_failures)
     return report
