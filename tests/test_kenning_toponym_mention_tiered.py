@@ -1047,6 +1047,93 @@ def test_tiered_both_tiers_non_runtime_exception_failed_chunk_recorded():
     assert "OSError" in fc.error
 
 
+def test_tiered_reraises_programmer_errors_from_primary():
+    """AttributeError / TypeError / NameError / ImportError from the
+    primary client are NOT silently logged as per-chunk failures —
+    they propagate as tracebacks so a real bug (typo, missing
+    method) doesn't masquerade as a 100%-failed extraction run.
+
+    Without this re-raise the bare `except Exception` would catch
+    these alongside legitimate SDK errors. Combined-agent round-2
+    HIGH finding."""
+    import pytest
+
+    class _BrokenClient:
+        model = "broken"
+
+        def chat_json(self, system, user, schema=None):
+            raise AttributeError("missing method (simulated programmer bug)")
+
+    body = "A" * 7995 + " Edlin"
+    from wyrd.generators.kenning.toponym_mention_extractor import (
+        mine_toponym_mentions_tiered,
+    )
+
+    # AttributeError must propagate, NOT be swallowed into chunks_failed.
+    with pytest.raises(AttributeError, match="missing method"):
+        mine_toponym_mentions_tiered(
+            _BrokenClient(),
+            FakeClient([{"mentions": []}]),
+            "test_source",
+            body,
+            target_chunk_size=10000,
+        )
+
+
+def test_tiered_reraises_programmer_errors_from_fallback():
+    """Same as above but the bug lives in the FALLBACK client. When
+    the primary fails with a transport error and the fallback then
+    raises a programmer error, the programmer error wins — operator
+    sees the traceback."""
+    import pytest
+
+    class _BrokenFallback:
+        model = "broken"
+
+        def chat_json(self, system, user, schema=None):
+            raise TypeError("bad argument (simulated programmer bug)")
+
+    primary = FakeClient([RuntimeError("primary transport fail")])
+    body = "A" * 7995 + " Edlin"
+    from wyrd.generators.kenning.toponym_mention_extractor import (
+        mine_toponym_mentions_tiered,
+    )
+
+    with pytest.raises(TypeError, match="bad argument"):
+        mine_toponym_mentions_tiered(
+            primary,
+            _BrokenFallback(),
+            "test_source",
+            body,
+            target_chunk_size=10000,
+        )
+
+
+def test_single_tier_reraises_programmer_errors():
+    """Mirror of the tiered re-raise contract for the single-tier
+    function — exact same widened-exception-with-whitelist policy."""
+    import pytest
+
+    class _BrokenClient:
+        model = "broken"
+
+        def chat_json(self, system, user, schema=None):
+            raise NameError("undefined variable (simulated programmer bug)")
+
+    body = "A" * 7995 + " Edlin"
+    from wyrd.generators.kenning.toponym_mention_extractor import (
+        mine_toponym_mentions,
+    )
+
+    with pytest.raises(NameError):
+        mine_toponym_mentions(
+            _BrokenClient(),
+            "test_source",
+            body,
+            target_chunk_size=10000,
+        )
+
+
 def test_cli_realistic_mention_shape_preserves_all_fields(tmp_path, monkeypatch):
     """A regression that dropped date_year or region_hint from the
     JSONL output would not be caught by the existing tests (their

@@ -382,6 +382,20 @@ def extract_toponym_mentions_from_chunk(
 _OVERSIZED_PARAGRAPH_MULTIPLIER = 1.5
 
 
+# Programmer-error exception types — re-raised before the generic
+# per-chunk Exception catch so a typo or missing-method bug surfaces
+# as a Python traceback rather than a silent 100%-failed run. These
+# are not the kind of errors that should ever happen at runtime in a
+# correct deployment; if they do, something is broken at the code
+# level and the operator needs to see the stack.
+_PROGRAMMER_ERROR_EXCEPTIONS: tuple[type[Exception], ...] = (
+    AttributeError,
+    TypeError,
+    NameError,
+    ImportError,
+)
+
+
 def chunk_source_body(body: str, *, target_chunk_size: int = 20000) -> list[str]:
     """Split a source body into chunks of roughly ``target_chunk_size``
     characters, snapping to paragraph boundaries (blank lines).
@@ -529,6 +543,13 @@ def mine_toponym_mentions(
         chunk_counters = ValidationCounters()
         try:
             mentions = extract_toponym_mentions_from_chunk(client, chunk, counters=chunk_counters)
+        except _PROGRAMMER_ERROR_EXCEPTIONS:
+            # Re-raise: AttributeError / TypeError / NameError /
+            # ImportError are our bugs, not the LLM's. Letting them
+            # propagate as tracebacks beats counting them as
+            # per-chunk failures across every chunk in a 100%-failed
+            # run with no diagnostic.
+            raise
         except Exception as e:
             # Per-chunk failure (transport, JSON-parse, schema mismatch,
             # provider SDK exceptions like anthropic.APIError /
@@ -537,8 +558,9 @@ def mine_toponym_mentions(
             # Exception is intentional: a real run will see provider-
             # SDK error classes that don't derive from RuntimeError,
             # and we'd rather degrade gracefully per-chunk than abort
-            # the whole multi-source run. KeyboardInterrupt and
-            # SystemExit (derived from BaseException) still propagate.
+            # the whole multi-source run. Programmer-error types are
+            # re-raised in the prior clause; KeyboardInterrupt and
+            # SystemExit (BaseException) still propagate naturally.
             report.chunks_failed += 1
             failure = FailedChunk(index=i, error=f"{type(e).__name__}: {e}")
             if len(head_failures) < _FAILED_CHUNKS_HEAD:
@@ -630,6 +652,8 @@ def mine_toponym_mentions_tiered(
             mentions = extract_toponym_mentions_from_chunk(
                 primary_client, chunk, counters=chunk_counters
             )
+        except _PROGRAMMER_ERROR_EXCEPTIONS:
+            raise  # Our bug — let it surface as a traceback.
         except Exception as e:
             # Bare Exception (not RuntimeError) so provider-SDK error
             # classes (anthropic.APIError, httpx.HTTPError, TimeoutError)
@@ -649,6 +673,8 @@ def mine_toponym_mentions_tiered(
                     fallback_client, chunk, counters=chunk_counters
                 )
                 report.chunks_recovered_by_fallback += 1
+            except _PROGRAMMER_ERROR_EXCEPTIONS:
+                raise  # Our bug — let it surface as a traceback.
             except Exception as e:
                 # BOTH tiers failed — record BOTH errors so operators
                 # see the full failure chain (transient vs. genuinely-
