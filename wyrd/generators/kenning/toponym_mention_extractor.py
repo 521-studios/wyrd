@@ -526,20 +526,22 @@ def mine_toponym_mentions(
     if limit is not None:
         chunks = chunks[:limit]
     total = len(chunks)
-    if log_warning is not None:
-        oversize_threshold = target_chunk_size * _OVERSIZED_PARAGRAPH_MULTIPLIER
-        for i, c in enumerate(chunks):
-            if len(c) > oversize_threshold:
-                log_warning(
-                    f"chunk {i}: oversized paragraph "
-                    f"({len(c):,} chars > {int(oversize_threshold):,} threshold) — "
-                    f"LLM output may truncate; consider lowering --chunk-size"
-                )
+    oversize_threshold = target_chunk_size * _OVERSIZED_PARAGRAPH_MULTIPLIER
     # head_failures: first N/2 captured directly. tail_failures: bounded
     # ring buffer of the most recent N/2. Merged at end before returning.
     head_failures: list[FailedChunk] = []
     tail_failures: deque[FailedChunk] = deque(maxlen=_FAILED_CHUNKS_TAIL)
     for i, chunk in enumerate(chunks):
+        # Inline oversize warning — folded into the main loop to
+        # avoid a separate pre-pass over the chunk list. Fires
+        # BEFORE the LLM call so operators see the warning
+        # interleaved with progress.
+        if log_warning is not None and len(chunk) > oversize_threshold:
+            log_warning(
+                f"chunk {i}: oversized paragraph "
+                f"({len(chunk):,} chars > {int(oversize_threshold):,} threshold) — "
+                f"LLM output may truncate; consider lowering --chunk-size"
+            )
         chunk_counters = ValidationCounters()
         try:
             mentions = extract_toponym_mentions_from_chunk(client, chunk, counters=chunk_counters)
@@ -633,18 +635,19 @@ def mine_toponym_mentions_tiered(
     if limit is not None:
         chunks = chunks[:limit]
     total = len(chunks)
-    if log_warning is not None:
-        oversize_threshold = target_chunk_size * _OVERSIZED_PARAGRAPH_MULTIPLIER
-        for i, c in enumerate(chunks):
-            if len(c) > oversize_threshold:
-                log_warning(
-                    f"chunk {i}: oversized paragraph "
-                    f"({len(c):,} chars > {int(oversize_threshold):,} threshold) — "
-                    f"LLM output may truncate; consider lowering --chunk-size"
-                )
+    oversize_threshold = target_chunk_size * _OVERSIZED_PARAGRAPH_MULTIPLIER
     head_failures: list[FailedChunk] = []
     tail_failures: deque[FailedChunk] = deque(maxlen=_FAILED_CHUNKS_TAIL)
     for i, chunk in enumerate(chunks):
+        # Inline oversize warning (matches the single-tier shape).
+        # Fires before either LLM call so the operator sees the
+        # warning interleaved with progress.
+        if log_warning is not None and len(chunk) > oversize_threshold:
+            log_warning(
+                f"chunk {i}: oversized paragraph "
+                f"({len(chunk):,} chars > {int(oversize_threshold):,} threshold) — "
+                f"LLM output may truncate; consider lowering --chunk-size"
+            )
         chunk_counters = ValidationCounters()
         primary_error: str | None = None
         mentions: list[ToponymMention] | None = None

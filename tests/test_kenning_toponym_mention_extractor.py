@@ -1288,6 +1288,47 @@ def test_cli_model_override_flows_to_client_factory(tmp_path, monkeypatch):
     assert captured_kwargs[0]["model"] == "claude-test-override-v9"
 
 
+def test_cli_ollama_url_flows_to_client_factory(tmp_path, monkeypatch):
+    """--ollama-url reaches the OllamaClient base_url kwarg. Matches
+    the tiered command's flag for operator consistency: same syntax
+    works in both `mine-toponym-mentions` and
+    `mine-toponym-mentions-tiered`."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "stub.txt").write_text("Edlingham.", encoding="utf-8")
+
+    captured: list[dict] = []
+    fake = FakeClient([{"mentions": []}])
+
+    def recording_factory(**kw):
+        captured.append(kw)
+        return fake
+
+    import wyrd.generators.kenning.llm_extractor as llm_module
+
+    monkeypatch.setattr(llm_module, "OllamaClient", recording_factory)
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions",
+            "--source",
+            "stub",
+            "--sources-dir",
+            str(sources_dir),
+            "--provider",
+            "ollama",
+            "--ollama-url",
+            "http://hades:11434",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert len(captured) == 1
+    assert captured[0]["base_url"] == "http://hades:11434"
+
+
 def test_cli_force_overwrite_warns_to_stderr(tmp_path, monkeypatch):
     """With --force, the overwrite warning must appear on STDERR
     specifically (per project convention: progress lines go to stderr;

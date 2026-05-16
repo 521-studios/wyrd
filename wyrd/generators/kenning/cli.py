@@ -2746,6 +2746,12 @@ def lexicon_reverse_search_toponyms(
     default=False,
     help="Overwrite --output if it exists. Without this flag, an existing path errors.",
 )
+@click.option(
+    "--ollama-url",
+    default=None,
+    help="Override Ollama base URL when --provider ollama (default: "
+    "$WYRD_OLLAMA_URL or localhost). Same shape as the mine-llm flag.",
+)
 def lexicon_mine_toponym_mentions(
     source_id: str,
     sources_dir: Path,
@@ -2755,6 +2761,7 @@ def lexicon_mine_toponym_mentions(
     limit: int | None,
     output: Path | None,
     force: bool,
+    ollama_url: str | None,
 ) -> None:
     """LLM-mine a scholar source body for place-name mentions (wyrd-x82p Phase 2).
 
@@ -2802,43 +2809,12 @@ def lexicon_mine_toponym_mentions(
             err=True,
         )
 
-    if provider == "anthropic":
-        from wyrd.generators.kenning.anthropic_extractor import (
-            DEFAULT_ANTHROPIC_MODEL,
-            AnthropicClient,
-        )
-
-        # 8192-token cap fits ~100-150 mentions per chunk comfortably;
-        # the AnthropicClient's 1024 default truncates mid-JSON on
-        # dense chunks. Sonnet supports much more headroom; this is
-        # the smallest safe ceiling.
-        client = AnthropicClient(
-            model=model or DEFAULT_ANTHROPIC_MODEL,
-            max_tokens=8192,
-        )
-    elif provider == "gemini":
-        from wyrd.generators.kenning.gemini_extractor import (
-            DEFAULT_GEMINI_MODEL,
-            GeminiClient,
-        )
-
-        client = GeminiClient(model=model or DEFAULT_GEMINI_MODEL)
-    elif provider == "ollama":
-        from wyrd.generators.kenning.llm_extractor import (
-            DEFAULT_OLLAMA_MODEL,
-            DEFAULT_OLLAMA_URL,
-            OllamaClient,
-        )
-
-        client = OllamaClient(
-            base_url=DEFAULT_OLLAMA_URL,
-            model=model or DEFAULT_OLLAMA_MODEL,
-        )
-    else:
-        # Unreachable in practice — click.Choice gates the option. The
-        # explicit raise keeps the type-checker happy and surfaces a
-        # clear error if the Choice list and this dispatch drift apart.
-        raise click.ClickException(f"unknown provider: {provider}")
+    # Route through the shared _build_extractor_client helper (same
+    # dispatch as mine-toponym-mentions-tiered) so both commands use
+    # the same provider/model/ollama-url contract. The helper is
+    # defined later in this module — Python looks up names at call
+    # time so the forward reference works.
+    client = _build_extractor_client(provider, model, ollama_url=ollama_url)
 
     click.echo(f"Using {provider} model={client.model}", err=True)
 
@@ -2923,15 +2899,15 @@ _ANTHROPIC_MAX_TOKENS_FOR_MENTION_EXTRACTION = 8192
 
 
 def _build_extractor_client(provider: str, model: str | None, ollama_url: str | None = None):
-    """Construct an extractor client for the named provider. Used by
-    the tiered CLI to instantiate two clients (primary + fallback).
-    The single-tier `mine-toponym-mentions` command has an inline
-    copy of this dispatch — consider unifying when a third caller
-    appears.
+    """Construct an extractor client for the named provider. Shared
+    by both `mine-toponym-mentions` (single-tier) and
+    `mine-toponym-mentions-tiered` (primary + fallback) so the
+    provider/model/ollama-url contract is identical across the two
+    CLI commands.
 
     ``ollama_url`` is forwarded to OllamaClient when provider=="ollama";
     None falls back to DEFAULT_OLLAMA_URL ($WYRD_OLLAMA_URL or
-    localhost). Other providers ignore it."""
+    localhost). Other providers ignore the kwarg."""
     if provider == "anthropic":
         from wyrd.generators.kenning.anthropic_extractor import (
             DEFAULT_ANTHROPIC_MODEL,
