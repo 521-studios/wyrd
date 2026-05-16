@@ -99,15 +99,22 @@ def build_resolver_indexes(conn: sqlite3.Connection) -> ResolverIndexes:
     )
 
 
-_NON_WORD_TO_SPACE = re.compile(r"[^a-z0-9]+")
+# Unicode-aware word-character class: [\W_] matches non-word and
+# underscore, where `\w` includes Unicode letters by default in
+# Python 3 str patterns. Critical for OE/ME data: ``æ`` / ``þ`` /
+# ``ð`` are Unicode letters that would otherwise be replaced with
+# spaces and break region matching for forms like ``"Æthelney"``
+# or ``"Eyþórsstaðir"``.
+_NON_WORD_TO_SPACE = re.compile(r"[\W_]+")
 
 
 def _tokenize_for_region(text: str) -> str:
-    """Lower-case + replace any non-alphanumeric run with a single
-    space, with surrounding spaces. Lets the padded-substring check
-    work across punctuation: ``"co. Northumberland, England"`` →
+    """Lower-case + replace any non-word run with a single space,
+    with surrounding spaces. Lets the padded-substring check work
+    across punctuation: ``"co. Northumberland, England"`` →
     ``" co northumberland england "``, which contains the padded
-    region ``" northumberland "``."""
+    region ``" northumberland "``. Unicode-aware: ``"Æthelney"``
+    stays intact through tokenization rather than getting split."""
     return " " + _NON_WORD_TO_SPACE.sub(" ", text.lower()).strip() + " "
 
 
@@ -309,6 +316,10 @@ def ingest_mentions(
     # N+1 SELECT-per-mention. Also gets updated in-loop so two
     # identical mentions in the same batch dedup correctly.
     existing: set[tuple[int, str, int | None]] = _load_existing_attestations(conn, source_id)
+    # Bulk inserts via executemany after the loop — one round-trip
+    # to SQLite for the whole batch beats per-mention INSERT at
+    # scale. Stays empty under dry-run or all-dedup.
+    to_insert: list[tuple[int, str, int | None, str]] = []
     for m in mentions:
         if not isinstance(m, dict):
             # JSONL row that's valid JSON but not an object (e.g.
@@ -348,15 +359,17 @@ def ingest_mentions(
             report.already_present += 1
             continue
         if apply:
-            conn.execute(
-                """INSERT OR IGNORE INTO toponym_attestation
-                   (toponym_id, form, date_year, source_doc)
-                   VALUES (?, ?, ?, ?)""",
-                (toponym_id, form, date_year, source_id),
-            )
+            to_insert.append((toponym_id, form, date_year, source_id))
         # Add to the in-loop set so a second identical mention in
         # the same batch dedups correctly (idempotency for repeated
         # rows within a single source's JSONL).
         existing.add(key)
         report.inserted += 1
+    if apply and to_insert:
+        conn.executemany(
+            """INSERT OR IGNORE INTO toponym_attestation
+               (toponym_id, form, date_year, source_doc)
+               VALUES (?, ?, ?, ?)""",
+            to_insert,
+        )
     return report

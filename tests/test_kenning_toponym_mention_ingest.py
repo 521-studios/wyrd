@@ -217,6 +217,26 @@ def test_resolve_mention_vague_hint_does_not_match_compound_region():
     assert resolve_mention("Newton", "Sussex", indexes) is None
 
 
+def test_resolve_mention_unicode_diacritics_match_through_tokenization():
+    """OE/ME region names contain Unicode letters (æ, þ, ð). The
+    tokenizer must preserve them as word characters — an ASCII-only
+    [^a-z0-9] tokenizer would replace them with spaces and silently
+    break matching for forms like ``Æthelney`` or place names in
+    historical regions. Gemini round-3 finding."""
+    indexes = ResolverIndexes(
+        form_to_ids={"newton": {1, 2}},
+        # "Æthelingaland" is a synthetic OE-styled region name; the
+        # specific value isn't important — what matters is that the
+        # æ ligature survives tokenization rather than getting split.
+        toponym_regions={1: "æthelingaland", 2: "berkshire"},
+    )
+    # Hint must contain the canonical region as a token. With the
+    # ASCII-only regex, "æthelingaland" would tokenize to
+    # " thelingaland " (æ replaced with space) and the match would
+    # fail. With the Unicode [\W_]+ pattern, the token stays intact.
+    assert resolve_mention("Newton", "Æthelingaland", indexes) == 1
+
+
 def test_resolve_mention_specific_hint_matches_canonical_region():
     """LLM emits a specific compound name + the toponym's region is
     the bare canonical: hint=``"East Sussex"`` matches region=
@@ -1105,6 +1125,76 @@ def test_ingest_mentions_uses_bulk_existing_load_not_n_plus_one():
     # build_resolver_indexes ran BEFORE the trace callback was set,
     # so its SELECTs don't count here.
     assert select_count == 1, f"expected 1 SELECT, got {select_count}; statements: {statements}"
+
+
+def test_ingest_mentions_uses_executemany_for_bulk_insert():
+    """Bulk insert via executemany — collecting tuples and writing in
+    one round-trip beats per-mention INSERT at scale. Wraps the
+    connection's `execute` and `executemany` to count calls; a
+    regression that reverted to per-mention execute would fail the
+    assertion. Gemini round-3 finding.
+
+    Note: sqlite3's trace_callback expands executemany into one
+    callback per row, so we count Python-side method invocations
+    instead of statement traces."""
+
+    class _SpyConn:
+        """Delegates everything to the wrapped connection; counts
+        Python-side execute/executemany calls. Pragmatic spy since
+        sqlite3.Connection's methods are read-only."""
+
+        def __init__(self, conn):
+            self._conn = conn
+            self.execute_calls = 0
+            self.executemany_calls = 0
+            self.executemany_row_counts: list[int] = []
+
+        def execute(self, sql, *args, **kwargs):
+            self.execute_calls += 1
+            return self._conn.execute(sql, *args, **kwargs)
+
+        def executemany(self, sql, params):
+            self.executemany_calls += 1
+            params_list = list(params)
+            self.executemany_row_counts.append(len(params_list))
+            return self._conn.executemany(sql, params_list)
+
+        def __getattr__(self, name):
+            return getattr(self._conn, name)
+
+    real_conn = _make_conn()
+    _seed_toponyms(real_conn, [{"modern_name": "Edlingham", "region": "Northumberland"}])
+    indexes = build_resolver_indexes(real_conn)
+    spy = _SpyConn(real_conn)
+    # 100 distinct mentions (different years) — all resolve, none dedup.
+    mentions = [{"form": "Edlingham", "date_year": 1000 + i} for i in range(100)]
+    report = ingest_mentions(spy, "source-1", mentions, indexes, apply=True)
+    assert report.inserted == 100
+    # The 100 INSERTs went through executemany ONCE, not 100 execute() calls.
+    assert spy.executemany_calls == 1
+    assert spy.executemany_row_counts == [100]
+    # The only execute() call is the bulk preflight SELECT (1).
+    assert spy.execute_calls == 1
+    # All 100 rows landed in the real DB.
+    count = real_conn.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0]
+    assert count == 100
+
+
+def test_ingest_mentions_executemany_skipped_on_dry_run():
+    """No INSERT at all under dry-run, even with resolvable mentions.
+    Negative control for the executemany path."""
+    conn = _make_conn()
+    _seed_toponyms(conn, [{"modern_name": "Edlingham", "region": "Northumberland"}])
+    indexes = build_resolver_indexes(conn)
+    mentions = [{"form": "Edlingham", "date_year": 1086}]
+    statements: list[str] = []
+    conn.set_trace_callback(statements.append)
+    try:
+        ingest_mentions(conn, "source-1", mentions, indexes, apply=False)
+    finally:
+        conn.set_trace_callback(None)
+    insert_count = sum(1 for s in statements if s.lstrip().upper().startswith("INSERT"))
+    assert insert_count == 0
 
 
 def test_ingest_mentions_single_select_across_mixed_paths():
