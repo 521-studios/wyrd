@@ -180,21 +180,62 @@ Per-language phonology integration (using the IPA tables in
 ## D7. Sensitivity heuristic for non-European corpora.
 
 Active living communities with sovereignty, land, or revitalization
-stakes get **framework-only** treatment: we provide the language-pack
-format and let community members supply the data. The PD-1900s
-literature doesn't override this just because the books are out of
-copyright.
+stakes get **framework-only** treatment for **user-facing culture
+options**: we provide the language-pack format and let community
+members supply the data. The PD-1900s literature doesn't override
+this just because the books are out of copyright.
 
-- **Mine and bundle** (ancient-civilization frame, no living-community
-  veto): Mayan, Nahuatl, Egyptian, Sumerian, Greek, Roman, all European.
-- **Framework only** (active sovereignty / revitalization): Native
-  American, Aboriginal Australian, Maori, Hawaiian, Khoisan.
+- **Mine and bundle as a user-facing culture** (ancient-civilization
+  frame, no living-community veto): Mayan, Nahuatl, Egyptian, Sumerian,
+  Greek, Roman, all European.
+- **Framework-only as a user-facing culture** (active sovereignty /
+  revitalization): Native American, Aboriginal Australian, Maori,
+  Hawaiian, Khoisan.
 - **Edge cases**: Hebrew (biblical-strata = bundle; modern political =
   caution), Bantu (varies by community size and politics).
 
 Why: PD status is a legal property, not an ethical one. The line is
 about whether a living community has a stake in how their language is
-used.
+used as **a feature of our shipped product**.
+
+### Refinement (2026-05-16): inspiration vs. bundling
+
+The framework-only rule applies to **shipping a real-world language as
+a culture the user selects**. It does NOT apply to **using a
+real-world language's empirical loan-adaptation patterns as inspiration
+research for a constructed/fictional pack** that is itself the shipped
+artifact.
+
+Example: a Na'vi pack (Paul Frommer's constructed language, shipped as
+the user-facing artifact) can use Hawaiian / Polynesian → English
+toponym adaptation patterns as the empirical template for how its
+phonology lands in English. The Hawaiian corpus lives internally as
+research input (mining-time, not bundle-time); the Na'vi pack is what
+ships. Distinct from "bundle Hawaiian as a culture option," which would
+still be framework-only.
+
+The test for whether the refinement applies:
+1. Is the shipped artifact a real-world language pack the user
+   selects? → D7 framework-only rules apply.
+2. Is the shipped artifact a constructed/fictional pack that used
+   real-world data only as research input? → fair game; cite
+   research sources in pack metadata for transparency.
+
+Composes with D11 (no bundled IP): both rules block bundling — D7
+on ethical grounds, D11 on legal. The inspiration carve-out applies
+to both: real-world *patterns* are not IP, and using them to inform
+new constructed work is research, not redistribution.
+
+Operational guardrails for inspiration-research work:
+- Cite the source-language scholarly references (e.g., Pukui & Elbert
+  for Hawaiian, Bright 1979 for Algonquian) in pack metadata so the
+  research lineage is transparent.
+- Maintain phonological dignity in output. Don't generate
+  comic-book-mockery output — adaptation rules should preserve the
+  source language's coherent phoneme inventory rather than caricature
+  it.
+- The internal-research corpus stays on the authoring side
+  (`~/.wyrd/lexicon.db`), never in the shipped `meanings.json` bundle.
 
 ## D8. Lemma + inflection schema.
 
