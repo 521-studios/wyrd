@@ -89,9 +89,30 @@ def test_form_in_chunk_matches_across_soft_wrap():
 def test_form_in_chunk_still_rejects_real_hallucination():
     chunk_collapsed = _collapse_whitespace("Edlingham was first attested in 1086")
     # Near-neighbor confabulation (LLM might emit a plausible-looking
-    # form not actually present): "Eadulfham" sounds like it could be
-    # in the chunk but isn't.
+    # form not actually present).
     assert not _form_in_chunk("Eadulfham", chunk_collapsed)
+
+
+def test_form_in_chunk_rejects_substring_fragment_inside_real_form():
+    """Word-boundary check: a partial like "on Ty" must NOT match
+    "Newcastle upon Tyne" even though those letters appear in
+    sequence. Without word-boundary anchoring, the round-2 whitespace-
+    normalized substring check would silently admit fragments of
+    legitimate forms."""
+    chunk_collapsed = _collapse_whitespace("the city of Newcastle upon Tyne is on the coast")
+    assert not _form_in_chunk("on Ty", chunk_collapsed)
+    assert not _form_in_chunk("upo", chunk_collapsed)
+    # But the full form must still match.
+    assert _form_in_chunk("Newcastle upon Tyne", chunk_collapsed)
+    # And a form bounded by punctuation/whitespace also matches.
+    assert _form_in_chunk("Tyne", chunk_collapsed)
+
+
+def test_form_in_chunk_rejects_empty_form():
+    """An empty form (after collapse) must not match — without this
+    guard the regex would match every position in the chunk."""
+    assert not _form_in_chunk("", "anything")
+    assert not _form_in_chunk("   ", "anything")
 
 
 # ---------- _coerce_year -------------------------------------------------
@@ -126,6 +147,40 @@ def test_coerce_year_rejects_unparseable_string():
     assert _coerce_year("ten eighty-six") == (None, True)
     assert _coerce_year("1066 AD") == (None, True)
     assert _coerce_year("c. 1086") == (None, True)
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "+1086",  # Python int() accepts leading +
+        "-1086",  # negatives parse but are out of range — still strict-reject the format
+        "1_086",  # underscore separator (Python 3 numeric literals)
+        "01086",  # leading zero
+        "1086.0",  # decimal point
+        "1086 ",  # trailing junk (after strip)
+    ],
+)
+def test_coerce_year_strict_rejects_non_canonical_string(raw):
+    """Python's int() is permissive: int('1_086') → 1086. The LLM
+    wouldn't emit non-canonical year strings, so admitting them is
+    silent semantic drift. Strict digit-only match guards against it."""
+    # The stripped versions of "1086 " and "+1086" would parse to 1086,
+    # which IS in range — but the FORMAT is wrong. The strict pattern
+    # rejects them.
+    if raw == "1086 ":
+        # After strip(), this is plain "1086" — should accept.
+        assert _coerce_year(raw) == (1086, False)
+    else:
+        assert _coerce_year(raw) == (None, True)
+
+
+def test_coerce_year_rejects_float():
+    """JSON allows numeric values without subtype info — a provider
+    that returns 1086.0 (json.loads on `"1086.0"` gives float) must
+    not silently admit a non-integer year. test-coverage round-2."""
+    assert _coerce_year(1086.0) == (None, True)
+    assert _coerce_year(float("nan")) == (None, True)
+    assert _coerce_year(float("inf")) == (None, True)
 
 
 def test_coerce_year_none_is_not_clamped():
@@ -343,6 +398,24 @@ def test_chunk_source_body_single_long_paragraph_kept_as_one_chunk():
     assert chunks == [body]
 
 
+def test_chunk_source_body_tolerates_whitespace_in_paragraph_boundaries():
+    """OCR-derived scholar prose sometimes has \\n \\n or \\n\\t\\n
+    between paragraphs (whitespace on the blank line). The regex
+    split must still recognize these as paragraph boundaries.
+    Gemini round-2 finding."""
+    body = "para one.\n  \npara two.\n\t\npara three."
+    chunks = chunk_source_body(body, target_chunk_size=15)
+    # All three paragraphs must be present and chunked correctly.
+    rejoined = " ".join(chunks)
+    assert "para one" in rejoined
+    assert "para two" in rejoined
+    assert "para three" in rejoined
+    # And the split must have produced multiple chunks (would be 1
+    # if the regex failed and the splitter treated the whole body
+    # as a single paragraph).
+    assert len(chunks) >= 2
+
+
 def test_chunk_source_body_packs_paragraphs_up_to_target():
     p_short = "short."
     body = "\n\n".join([p_short] * 100)
@@ -359,11 +432,33 @@ def test_chunk_source_body_packs_paragraphs_up_to_target():
 # ---------- extract_toponym_mentions_from_chunk --------------------------
 
 
+def test_extract_one_chunk_passes_schema_positionally():
+    """Schema MUST be passed positionally, not as a kwarg. The three
+    provider clients disagree on the kwarg name (AnthropicClient and
+    OllamaClient use `schema`; GeminiClient uses `response_schema`) —
+    passing as `schema=` would TypeError under --provider gemini.
+    Gemini PR-#213 round-2 finding."""
+
+    class StrictPositionalClient:
+        """Verifies that the call uses 3 positional args (not kwarg)."""
+
+        model = "strict-positional"
+
+        def chat_json(self, *args, **kwargs):
+            assert kwargs == {}, f"schema must be positional, got kwargs: {kwargs}"
+            assert len(args) == 3, f"expected 3 positional args, got {len(args)}"
+            system, user, schema = args
+            assert isinstance(schema, dict), f"expected dict schema, got {type(schema)}"
+            return {"mentions": [{"form": "Edlingham", "context": "x"}]}
+
+    out = extract_toponym_mentions_from_chunk(StrictPositionalClient(), "Edlingham mentioned")
+    assert [m.form for m in out] == ["Edlingham"]
+
+
 def test_extract_one_chunk_happy_path_passes_chunk_and_schema_through():
     """The LLM call must receive (a) the chunk text embedded in the user
     prompt and (b) the RESPONSE_SCHEMA — a regression that swapped chunk
-    for empty-string or dropped the schema arg would otherwise pass.
-    test-coverage-reviewer round-1 finding."""
+    for empty-string or dropped the schema arg would otherwise pass."""
     chunk = "Edlingham is in Northumberland."
     client = FakeClient(
         [
@@ -509,10 +604,10 @@ def test_mine_toponym_mentions_continues_past_chunk_failure():
     assert "Tyne" in forms
     # Failed-chunk detail surfaces the index + exception type.
     assert len(report.failed_chunks) == 1
-    idx, msg = report.failed_chunks[0]
-    assert idx == 1
-    assert "RuntimeError" in msg
-    assert "503" in msg
+    fc = report.failed_chunks[0]
+    assert fc.index == 1
+    assert "RuntimeError" in fc.error
+    assert "503" in fc.error
 
 
 def test_mine_toponym_mentions_empty_body_makes_no_llm_calls():
@@ -803,10 +898,12 @@ def test_cli_preserves_diacritics_in_output(tmp_path, monkeypatch):
     )
     assert result.exit_code == 0, result.output
     raw_text = output_path.read_text(encoding="utf-8")
-    # ensure_ascii=False keeps æ/þ as bytes; ensure_ascii=True would
-    # write æ / þ.
+    # ensure_ascii=False keeps the diacritics as bytes. With
+    # ensure_ascii=True these would be escaped as \uXXXX. Check the
+    # actual codepoints present in the form: Æ=U+00C6, þ=U+00FE.
     assert "Æþelstanham" in raw_text
-    assert "\\u00e6" not in raw_text
+    assert "\\u00c6" not in raw_text  # uppercase Æ escape
+    assert "\\u00fe" not in raw_text  # thorn (þ) escape
 
 
 def test_cli_refuses_to_overwrite_existing_output(tmp_path, monkeypatch):
@@ -988,3 +1085,153 @@ def test_cli_invalid_utf8_warns_about_replacement_chars(tmp_path, monkeypatch):
     )
     assert result.exit_code == 0, result.output
     assert "invalid UTF-8" in result.output
+
+
+# ---------- additional round-2/3 hardening -------------------------------
+
+
+def test_mine_toponym_mentions_failed_chunks_cap(monkeypatch):
+    """The failed_chunks list must cap at _FAILED_CHUNKS_CAP to avoid
+    unbounded memory growth on a rate-limit storm — but ``chunks_failed``
+    counter remains accurate. silent-failure-hunter round-2 finding."""
+    from wyrd.generators.kenning import toponym_mention_extractor as tme
+
+    # Lower the cap for test determinism.
+    monkeypatch.setattr(tme, "_FAILED_CHUNKS_CAP", 3)
+
+    # Construct a 5-chunk body so we exceed the cap.
+    paragraphs = [("X" * 7995 + f" Park{i}") for i in range(5)]
+    body = "\n\n".join(paragraphs)
+    # Verify the splitter actually produces 5 chunks.
+    assert len(chunk_source_body(body, target_chunk_size=10000)) == 5
+
+    # Every chunk fails.
+    client = FakeClient([RuntimeError(f"chunk-{i}") for i in range(5)])
+    report = mine_toponym_mentions(client, "test_source", body, target_chunk_size=10000)
+    # All 5 failures counted, but only 3 detail records kept.
+    assert report.chunks_failed == 5
+    assert len(report.failed_chunks) == 3
+    # Indices of kept failures are the FIRST 3 (oldest = most actionable).
+    assert [fc.index for fc in report.failed_chunks] == [0, 1, 2]
+
+
+def test_mine_toponym_mentions_oversized_paragraph_no_warning_when_safe():
+    """Negative control: a body whose paragraphs are well below the
+    1.5× target should produce ZERO oversize warnings. Without this
+    test, a bug emitting the warning for ALL chunks would still pass
+    the existing positive-control test. pr-test-analyzer round-2."""
+    safe_body = "Edlingham mentioned.\n\nTynemouth on the coast.\n\nWear river."
+    client = FakeClient([{"mentions": []}])
+    warnings: list[str] = []
+    mine_toponym_mentions(
+        client,
+        "test_source",
+        safe_body,
+        target_chunk_size=10000,
+        log_warning=warnings.append,
+    )
+    assert not any("oversized" in w for w in warnings)
+
+
+def test_validated_mentions_synthesizes_context_for_softwrap_fallback():
+    """When the LLM emits a soft-wrap-joined form (e.g. "Newcastle upon
+    Tyne" for chunk "Newcastle upon\\nTyne") with empty context, the
+    raw chunk.find(form) returns -1 — we must fall back to the
+    collapsed-chunk window so operators get useful context. test-
+    coverage round-2 finding."""
+    chunk = "the borough of Newcastle upon\nTyne is found in early records"
+    raw = [{"form": "Newcastle upon Tyne", "context": ""}]
+    out = _validated_mentions(raw, chunk)
+    assert len(out) == 1
+    # Synthesized context comes from the COLLAPSED chunk view, so it
+    # includes neighbors and is non-empty.
+    assert out[0].context
+    assert "Newcastle upon Tyne" in out[0].context
+    assert out[0].context != "Newcastle upon Tyne"  # has neighbors
+
+
+def test_cli_model_override_flows_to_client_factory(tmp_path, monkeypatch):
+    """--model override must reach the AnthropicClient/GeminiClient/
+    OllamaClient factory. test-coverage round-2: earlier provider-
+    routing tests used `lambda **kw: fake` which silently discarded
+    the model kwarg."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "stub.txt").write_text("Edlingham.", encoding="utf-8")
+
+    captured_kwargs: list[dict] = []
+    fake = FakeClient([{"mentions": []}])
+
+    def recording_factory(**kw):
+        captured_kwargs.append(kw)
+        return fake
+
+    import wyrd.generators.kenning.anthropic_extractor as ae_module
+
+    monkeypatch.setattr(ae_module, "AnthropicClient", recording_factory)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-not-used")
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions",
+            "--source",
+            "stub",
+            "--sources-dir",
+            str(sources_dir),
+            "--model",
+            "claude-test-override-v9",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert len(captured_kwargs) == 1
+    assert captured_kwargs[0]["model"] == "claude-test-override-v9"
+
+
+def test_cli_force_overwrite_warns_to_stderr(tmp_path, monkeypatch):
+    """With --force, the overwrite must produce a stderr warning so a
+    typo'd re-run doesn't silently destroy a multi-hour pilot output.
+    silent-failure-hunter round-2 finding."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "stub.txt").write_text("Edlingham.", encoding="utf-8")
+    existing = tmp_path / "out.jsonl"
+    existing.write_text("PREVIOUS\n", encoding="utf-8")
+
+    _stub_anthropic_for_cli(monkeypatch, FakeClient([{"mentions": []}]))
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions",
+            "--source",
+            "stub",
+            "--sources-dir",
+            str(sources_dir),
+            "--output",
+            str(existing),
+            "--force",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "overwriting" in result.output
+
+
+def test_chunk_source_body_chunks_are_complete_paragraphs():
+    """Stronger version of the paragraph-boundary test: each emitted
+    chunk's constituent pieces (split by \\n\\n) must each appear as
+    a complete paragraph in the body's split, not just as a substring.
+    pr-test-analyzer round-2 finding: the earlier `piece in body`
+    check would pass for any prefix of a paragraph."""
+    body = "para one is short.\n\npara two is also short.\n\npara three completes."
+    chunks = chunk_source_body(body, target_chunk_size=30)
+    original_paragraphs = body.split("\n\n")
+    for c in chunks:
+        for piece in c.split("\n\n"):
+            assert piece in original_paragraphs, (
+                f"chunk fragment {piece!r} is not a complete paragraph"
+            )

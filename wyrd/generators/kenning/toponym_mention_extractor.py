@@ -20,12 +20,14 @@ Captures the cases Phase 1 missed:
 
 Anti-hallucination: every extracted form is validated against the
 chunk text. The check normalizes both form and chunk to a single-
-space-collapsed view before substring-matching, so a form the LLM
-emits as "Newcastle upon Tyne" still matches a soft-wrapped
-"Newcastle upon\\nTyne" in the source — that was a silent-data-loss
-hazard in the round-1 review (whitespace-fragile substring check).
-Forms that still fail to match are counted (not silently dropped)
-so operators can spot a systemic prompt/encoding mismatch.
+space-collapsed view before matching, so a form the LLM emits as
+"Newcastle upon Tyne" still matches a soft-wrapped "Newcastle
+upon\\nTyne" in the source. The match also requires word-boundary
+alignment on both sides — substring-only matching would silently
+admit a partial like "on Ty" because "...up**on Ty**ne..." contains
+those letters. Forms that fail either check are counted (not
+silently dropped) so operators can spot a systemic prompt/encoding
+mismatch.
 
 Provider choice: the module accepts any client with the
 ``chat_json(system, user, schema=None) -> dict`` interface — same
@@ -193,6 +195,13 @@ class ValidationCounters:
     years_clamped: int = 0  # any year value the LLM emitted that we coerced to None
 
 
+# Strict digit-only match for year strings — Python's int() accepts
+# underscore separators ("1_086"), leading "+/-", and leading zeros
+# ("01086"), all of which would silently admit non-canonical years
+# from the LLM. Module-level for compile-once.
+_YEAR_STRING_PATTERN = re.compile(r"\d{3,4}")
+
+
 def _coerce_year(raw: object) -> tuple[int | None, bool]:
     """Return ``(year_or_None, was_clamped)``. ``was_clamped`` is True
     iff the LLM emitted a non-null value we rejected — so the caller
@@ -211,10 +220,13 @@ def _coerce_year(raw: object) -> tuple[int | None, bool]:
             return raw, False
         return None, True
     if isinstance(raw, str):
-        try:
-            n = int(raw.strip())
-        except (ValueError, TypeError):
+        # Strict digit-only match — int() in Python 3 accepts "1_086",
+        # "+1086", "01086" which are silent-semantic-drift admissions
+        # (the LLM would be emitting non-canonical years). Restrict to
+        # 3-4 ASCII digits.
+        if not _YEAR_STRING_PATTERN.fullmatch(raw.strip()):
             return None, True
+        n = int(raw.strip())
         if _DATE_YEAR_MIN <= n <= _DATE_YEAR_MAX:
             return n, False
         return None, True
@@ -222,16 +234,24 @@ def _coerce_year(raw: object) -> tuple[int | None, bool]:
 
 
 def _form_in_chunk(form: str, chunk_collapsed: str) -> bool:
-    """Whitespace-tolerant substring check. ``chunk_collapsed`` is the
-    once-per-chunk pre-collapsed view; this function collapses the
-    candidate form the same way before searching.
+    """Whitespace-tolerant word-boundary match. ``chunk_collapsed``
+    is the once-per-chunk pre-collapsed view; this function collapses
+    the candidate form the same way and then searches with regex
+    ``\\b...\\b`` so a partial like ``"on Ty"`` does NOT match
+    ``"...upon Tyne..."``.
 
-    Catches the case where the LLM emits a mention spanning a soft-
-    wrap line break (chunk has ``"Newcastle upon\\nTyne"`` but the
-    LLM correctly emits ``"Newcastle upon Tyne"``) — the naive
-    ``form in chunk`` check would silently reject these.
+    Catches the soft-wrap case (chunk has ``"Newcastle upon\\nTyne"``
+    but the LLM correctly emits ``"Newcastle upon Tyne"``) AND the
+    substring-fragment case (LLM emits a partial that happens to be a
+    letter run inside a longer real form). Both were silent-data-loss
+    hazards: substring-only matching rejected soft-wraps; whitespace-
+    normalized substring matching accepted fragments.
     """
-    return _collapse_whitespace(form) in chunk_collapsed
+    form_collapsed = _collapse_whitespace(form)
+    if not form_collapsed:
+        return False
+    pattern = r"\b" + re.escape(form_collapsed) + r"\b"
+    return re.search(pattern, chunk_collapsed) is not None
 
 
 def _validated_mentions(
@@ -328,7 +348,12 @@ def extract_toponym_mentions_from_chunk(
     failure-hunter round-1 finding).
     """
     user = USER_TEMPLATE.format(chunk=chunk)
-    response = client.chat_json(SYSTEM_PROMPT, user, schema=RESPONSE_SCHEMA)
+    # Positional schema arg — the three provider clients diverge on
+    # the schema kwarg name (AnthropicClient: `schema`, GeminiClient:
+    # `response_schema`, OllamaClient: `schema`). Using positional
+    # avoids a TypeError under --provider gemini. Gemini PR-#213
+    # round-2 finding (load-bearing bug — gemini route would crash).
+    response = client.chat_json(SYSTEM_PROMPT, user, RESPONSE_SCHEMA)
     if not isinstance(response, dict):
         raise RuntimeError(f"LLM returned non-dict envelope: {type(response).__name__}")
     raw = response.get("mentions")
@@ -367,7 +392,11 @@ def chunk_source_body(body: str, *, target_chunk_size: int = 20000) -> list[str]
     """
     if not body.strip():
         return []
-    paragraphs = body.split("\n\n")
+    # Regex split tolerates blank lines with arbitrary whitespace
+    # (single spaces / tabs between the newlines) — OCR-derived
+    # scholar prose often has \n\s*\n where \n\n would expect tight
+    # blank-line boundaries.
+    paragraphs = re.split(r"\n\s*\n", body)
     chunks: list[str] = []
     current = ""
     for para in paragraphs:
@@ -384,6 +413,22 @@ def chunk_source_body(body: str, *, target_chunk_size: int = 20000) -> list[str]
     return chunks
 
 
+@dataclass(frozen=True)
+class FailedChunk:
+    """Per-chunk failure record. Carried on the run report so operators
+    see *which* chunk failed and *what kind* of error (rate-limit,
+    JSON-truncation, schema-mismatch) — vs. an opaque count."""
+
+    index: int
+    error: str
+
+
+# Memory ceiling for ``failed_chunks`` on a single source's report.
+# A pathological rate-limit storm could otherwise accumulate thousands
+# of records, blowing memory and flooding stderr.
+_FAILED_CHUNKS_CAP = 100
+
+
 @dataclass
 class MineToponymMentionsReport:
     """Aggregate result of mining one source body for mentions.
@@ -392,8 +437,7 @@ class MineToponymMentionsReport:
     operator reading "0 mentions, 5 chunks processed" can tell
     whether the LLM was producing nothing (``mentions`` empty,
     rejections zero) or producing junk (``mentions`` empty,
-    ``hallucinations_dropped`` non-zero). silent-failure-hunter
-    round-1 finding."""
+    ``hallucinations_dropped`` non-zero)."""
 
     source_id: str
     chunks_processed: int = 0
@@ -401,11 +445,10 @@ class MineToponymMentionsReport:
     hallucinations_dropped: int = 0
     years_clamped: int = 0
     mentions: list[ToponymMention] = field(default_factory=list)
-    # (chunk_index, exception_summary) for each failed chunk —
-    # lets operators see _which_ chunk failed and _what kind_ of
-    # error (rate-limit vs. JSON-truncation vs. schema-mismatch)
-    # rather than just a count.
-    failed_chunks: list[tuple[int, str]] = field(default_factory=list)
+    # First _FAILED_CHUNKS_CAP failures; the actual count is
+    # ``chunks_failed`` (may exceed this list's length when many
+    # chunks fail in a single run).
+    failed_chunks: list[FailedChunk] = field(default_factory=list)
 
 
 def mine_toponym_mentions(
@@ -459,7 +502,8 @@ def mine_toponym_mentions(
             # in the report so they can re-run a targeted subset later
             # or pivot to a different provider.
             report.chunks_failed += 1
-            report.failed_chunks.append((i, f"{type(e).__name__}: {e}"))
+            if len(report.failed_chunks) < _FAILED_CHUNKS_CAP:
+                report.failed_chunks.append(FailedChunk(index=i, error=f"{type(e).__name__}: {e}"))
             if log_warning is not None:
                 log_warning(f"chunk {i} failed: {type(e).__name__}: {e}")
             continue

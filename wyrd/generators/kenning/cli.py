@@ -2768,9 +2768,8 @@ def lexicon_mine_toponym_mentions(
     to existing toponyms (via the form→toponym lookup from Phase 1)
     OR creates new toponym rows for unresolved mentions.
     """
-    import time
-
     from wyrd.generators.kenning.toponym_mention_extractor import (
+        ToponymMention,
         mine_toponym_mentions,
     )
 
@@ -2791,8 +2790,17 @@ def lexicon_mine_toponym_mentions(
         )
     click.echo(f"Loaded {len(body):,} chars from {txt_path}", err=True)
 
-    if output is not None and output.exists() and not force:
-        raise click.ClickException(f"--output {output} already exists; pass --force to overwrite")
+    if output is not None and output.exists():
+        if not force:
+            raise click.ClickException(
+                f"--output {output} already exists; pass --force to overwrite"
+            )
+        # --force was passed; warn the operator so a multi-hour pilot
+        # run doesn't get silently obliterated by a typo'd re-run.
+        click.echo(
+            f"warning: --force overwriting existing {output}",
+            err=True,
+        )
 
     if provider == "anthropic":
         from wyrd.generators.kenning.anthropic_extractor import (
@@ -2869,30 +2877,41 @@ def lexicon_mine_toponym_mentions(
     )
     if report.failed_chunks:
         click.echo("Failed chunks:", err=True)
-        for idx, msg in report.failed_chunks:
-            click.echo(f"  chunk {idx}: {msg}", err=True)
+        for fc in report.failed_chunks:
+            click.echo(f"  chunk {fc.index}: {fc.error}", err=True)
+        # When the cap truncates the list, mention how many were elided.
+        elided = report.chunks_failed - len(report.failed_chunks)
+        if elided > 0:
+            click.echo(f"  ... and {elided} more failures (cap reached)", err=True)
 
-    sink_ctx = output.open("w", encoding="utf-8") if output is not None else nullcontext(sys.stdout)
-    with sink_ctx as sink:
-        for m in report.mentions:
-            # ensure_ascii=False preserves Old/Middle English diacritics
-            # (æ, þ, ð) in the JSONL output — project convention used by
-            # the existing diff/export commands.
-            sink.write(
-                json.dumps(
-                    {
-                        "source_id": source_id,
-                        "form": m.form,
-                        "date_year": m.date_year,
-                        "region_hint": m.region_hint,
-                        "context": m.context,
-                    },
-                    ensure_ascii=False,
-                )
-                + "\n"
-            )
+    # ensure_ascii=False preserves Old/Middle English diacritics
+    # (æ, þ, ð) in the JSONL output — project convention used by the
+    # existing diff/export commands. For stdout we use click.echo
+    # (Gemini round-2): it handles terminal-encoding edge cases
+    # (Latin-1 PYTHONIOENCODING, stdout=non-UTF-8 device) by re-
+    # encoding via UTF-8 or replacement, where a bare sys.stdout.write
+    # would raise UnicodeEncodeError. For --output we write the file
+    # directly with explicit UTF-8 encoding.
+    def _line(m: ToponymMention) -> str:
+        return json.dumps(
+            {
+                "source_id": source_id,
+                "form": m.form,
+                "date_year": m.date_year,
+                "region_hint": m.region_hint,
+                "context": m.context,
+            },
+            ensure_ascii=False,
+        )
+
     if output is not None:
+        with output.open("w", encoding="utf-8") as sink:
+            for m in report.mentions:
+                sink.write(_line(m) + "\n")
         click.echo(f"Wrote {len(report.mentions)} mentions → {output}", err=True)
+    else:
+        for m in report.mentions:
+            click.echo(_line(m))
 
 
 @lexicon.command("audit-etymology-alignment")
