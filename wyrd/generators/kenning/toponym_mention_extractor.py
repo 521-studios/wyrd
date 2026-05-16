@@ -194,14 +194,6 @@ RESPONSE_SCHEMA: dict = {
 #     etymology extractor's GEMINI_RESPONSE_SCHEMA convention).
 # Passing RESPONSE_SCHEMA (JSON-Schema dialect) directly to Gemini
 # fails with HTTP 400 on every chunk — confirmed wyrd-pe4g.
-# Closed set of dialect strings accepted by the dispatch in
-# ``extract_toponym_mentions_from_chunk``. A client declaring any
-# other value (typo, future provider that hasn't been added yet)
-# raises rather than silently falling through to JSON Schema —
-# silent-failure-hunter wyrd-pe4g round-2 finding.
-_KNOWN_SCHEMA_DIALECTS = frozenset({"openapi", "json-schema"})
-
-
 RESPONSE_SCHEMA_GEMINI: dict = {
     "type": "OBJECT",
     "properties": {
@@ -220,6 +212,21 @@ RESPONSE_SCHEMA_GEMINI: dict = {
         }
     },
     "required": ["mentions"],
+}
+
+
+# Single source of truth for the closed set of dialects + which
+# RESPONSE_SCHEMA each one selects. The dict's keys serve as the
+# whitelist for ``extract_toponym_mentions_from_chunk``'s guard;
+# its values are the dispatch targets. Keeping the two coupled
+# in one structure means adding a new dialect can't silently fall
+# through to JSON Schema by accident — the whitelist update and
+# the dispatch update are the same edit. wyrd-pe4g round-2
+# (silent-failure-hunter: typo guard) + round-6 (Gemini bot +
+# type-design-analyzer: collapse to one structure).
+_DIALECT_TO_SCHEMA: dict[str, dict] = {
+    "openapi": RESPONSE_SCHEMA_GEMINI,
+    "json-schema": RESPONSE_SCHEMA,
 }
 
 
@@ -415,18 +422,21 @@ def extract_toponym_mentions_from_chunk(
     # dispatch site.
     #
     # Whitelist guard: a typo like "Openapi"/"OpenAPI"/"openapi " on a
-    # Gemini-talking client would otherwise silently fall through to
-    # RESPONSE_SCHEMA (the default-on-mismatch path) and ship JSON Schema
-    # to Gemini's API → HTTP 400 on every chunk with no dispatch-level
-    # diagnostic. Raise loudly here so the cause surfaces at the call
-    # site instead.
+    # Gemini-talking client would otherwise produce a KeyError from the
+    # dict lookup, which the chunk loop's bare-Exception catch would
+    # silently bucket into chunks_failed (and in tiered mode, the
+    # fallback would mask the misconfiguration). Raise ValueError with
+    # the offending value + class name so the dispatch-level cause
+    # surfaces immediately. _DIALECT_TO_SCHEMA is the single source of
+    # truth for both the whitelist and the dispatch — adding a new
+    # dialect is one edit, no two-place sync.
     dialect = getattr(client, "schema_dialect", "json-schema")
-    if dialect not in _KNOWN_SCHEMA_DIALECTS:
+    if dialect not in _DIALECT_TO_SCHEMA:
         raise ValueError(
             f"unknown schema_dialect {dialect!r} on {type(client).__name__}; "
-            f"expected one of {sorted(_KNOWN_SCHEMA_DIALECTS)}"
+            f"expected one of {sorted(_DIALECT_TO_SCHEMA)}"
         )
-    schema = RESPONSE_SCHEMA_GEMINI if dialect == "openapi" else RESPONSE_SCHEMA
+    schema = _DIALECT_TO_SCHEMA[dialect]
     response = client.chat_json(SYSTEM_PROMPT, user, schema)
     if not isinstance(response, dict):
         raise RuntimeError(f"LLM returned non-dict envelope: {type(response).__name__}")
@@ -475,11 +485,12 @@ _OVERSIZED_PARAGRAPH_MULTIPLIER = 1.5
 #      comment-analyzer)
 #   3. JSONDecodeError from inner `json.loads(text/content)` parse
 #      of the model-produced JSON (pre-existing)
-# All six call sites (3 clients × 2 inner+outer JSON parses, plus
-# 3 clients × decode-on-success) are wrapped to maintain this
-# invariant. Without each wrap, a CDN/proxy HTML error page, a
-# truncated 2xx body, or a binary blob on the success path would
-# leak ValueError into this re-raise and abort the multi-source run.
+# All nine call sites — for each of the 3 clients: outer
+# envelope parse, inner content/text parse, and success-path decode
+# — are wrapped to maintain this invariant. Without each wrap, a
+# CDN/proxy HTML error page, a truncated 2xx body, or a binary blob
+# on the success path would leak ValueError into this re-raise and
+# abort the multi-source run.
 _PROGRAMMER_ERROR_EXCEPTIONS: tuple[type[Exception], ...] = (
     AttributeError,
     TypeError,
