@@ -2989,6 +2989,7 @@ def lexicon_ingest_toponym_mentions(
     Idempotent: re-running against the same JSONL is a no-op.
     """
     from wyrd.generators.kenning.toponym_mention_ingest import (
+        IngestReport,
         build_resolver_indexes,
         ingest_mentions,
     )
@@ -3005,10 +3006,16 @@ def lexicon_ingest_toponym_mentions(
             err=True,
         )
 
-    # Read all mentions up front and group by source_id. Most pilots
-    # are single-source, but the JSONL format permits mixed sources
-    # (each row carries its own source_id field).
+    # Parse JSONL once and group by source. Each row carries its own
+    # source_id (the JSONL format permits mixed sources), so we have
+    # to read the whole file before dispatching per-source. The
+    # groupings stay in memory; for the pilot scope (~thousands of
+    # mentions) that's bounded, and the per-source SELECT bulk-load
+    # downstream amortizes the parse cost. A future streaming
+    # rewrite (Phase 2b.2 full-scope) would emit per-source
+    # sub-batches and avoid the upfront groupby.
     mentions_by_source: dict[str, list[dict]] = {}
+    total_lines = 0
     with jsonl_path.open("r", encoding="utf-8") as f:
         for line_no, line in enumerate(f, start=1):
             line = line.strip()
@@ -3018,6 +3025,10 @@ def lexicon_ingest_toponym_mentions(
                 row = json.loads(line)
             except json.JSONDecodeError as e:
                 raise click.ClickException(f"{jsonl_path}:{line_no}: invalid JSON: {e}") from e
+            if not isinstance(row, dict):
+                raise click.ClickException(
+                    f"{jsonl_path}:{line_no}: row is not a JSON object ({type(row).__name__})"
+                )
             sid = source_id_override or row.get("source_id")
             if not sid:
                 raise click.ClickException(
@@ -3025,20 +3036,21 @@ def lexicon_ingest_toponym_mentions(
                     f"and no --source override given"
                 )
             mentions_by_source.setdefault(sid, []).append(row)
+            total_lines += 1
+            if total_lines % 10000 == 0:
+                # Project mining-progress convention from CLAUDE.md —
+                # surface load progress for large files.
+                click.echo(
+                    f"  loaded {total_lines:,} mentions...",
+                    err=True,
+                )
 
     click.echo(
-        f"Loaded {sum(len(v) for v in mentions_by_source.values()):,} "
-        f"mentions across {len(mentions_by_source)} source(s)",
+        f"Loaded {total_lines:,} mentions across {len(mentions_by_source)} source(s)",
         err=True,
     )
 
-    totals = {
-        "mentions_processed": 0,
-        "resolved": 0,
-        "unresolved": 0,
-        "inserted": 0,
-        "already_present": 0,
-    }
+    totals = IngestReport(source_id="TOTAL")
     all_unresolved: list[dict] = []
 
     with LexiconDB(db_path) as db:
@@ -3049,36 +3061,59 @@ def lexicon_ingest_toponym_mentions(
             f"toponyms with region",
             err=True,
         )
-        for sid, mentions in sorted(mentions_by_source.items()):
+        source_count = len(mentions_by_source)
+        for src_i, (sid, mentions) in enumerate(sorted(mentions_by_source.items()), start=1):
             report = ingest_mentions(db.conn, sid, mentions, indexes, apply=apply)
-            for key in totals:
-                totals[key] += getattr(report, key)
+            totals.mentions_processed += report.mentions_processed
+            totals.resolved += report.resolved
+            totals.unresolved += report.unresolved
+            totals.inserted += report.inserted
+            totals.already_present += report.already_present
             all_unresolved.extend(report.unresolved_records)
-            if verbose:
-                click.echo(
-                    f"  {sid}: processed={report.mentions_processed} "
-                    f"resolved={report.resolved} unresolved={report.unresolved} "
-                    f"inserted={report.inserted} dup={report.already_present}",
-                    err=True,
-                )
+            # Project mining-progress convention: per-source line to
+            # stderr (always, not only --verbose) so a multi-source
+            # run shows progress.
+            click.echo(
+                f"  [{src_i}/{source_count}] {sid}: "
+                f"processed={report.mentions_processed} "
+                f"resolved={report.resolved} unresolved={report.unresolved} "
+                f"inserted={report.inserted} dup={report.already_present}",
+                err=True,
+            )
+            if verbose and report.unresolved_records:
+                # In verbose mode, show a few unresolved samples per
+                # source so the operator can sense-check the failure
+                # mode without opening the candidates file.
+                for rec in report.unresolved_records[:5]:
+                    click.echo(
+                        f"      unresolved: {rec['form']!r} region_hint={rec['region_hint']!r}",
+                        err=True,
+                    )
         if apply:
             db.conn.commit()
 
     click.echo("", err=True)
     click.echo(
-        f"TOTAL processed={totals['mentions_processed']} "
-        f"resolved={totals['resolved']} "
-        f"unresolved={totals['unresolved']} "
-        f"inserted={totals['inserted']} "
-        f"dup={totals['already_present']} "
+        f"TOTAL processed={totals.mentions_processed} "
+        f"resolved={totals.resolved} "
+        f"unresolved={totals.unresolved} "
+        f"inserted={totals.inserted} "
+        f"dup={totals.already_present} "
         f"({'APPLIED' if apply else 'dry-run'})",
         err=True,
     )
 
     if candidates_out is not None:
-        with candidates_out.open("w", encoding="utf-8") as sink:
+        # Atomic write: write to a sibling tempfile then rename, so a
+        # mid-write crash leaves the prior file intact rather than
+        # truncated. silent-failure round-1 finding (the JSONL is the
+        # only artifact of the unresolved set; an interrupted write
+        # under --force was a real foot-gun).
+        tmp_path = candidates_out.with_suffix(candidates_out.suffix + ".tmp")
+        with tmp_path.open("w", encoding="utf-8") as sink:
             for rec in all_unresolved:
                 sink.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        tmp_path.replace(candidates_out)
         click.echo(
             f"Wrote {len(all_unresolved)} unresolved → {candidates_out}",
             err=True,

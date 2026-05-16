@@ -2,16 +2,17 @@
 wyrd-x82p Phase 2b.1.
 
 Consumes the JSONL emitted by ``lexicon mine-toponym-mentions``
-(Phase 2 pilot, PR #213) and turns each resolvable mention into a
+(Phase 2 pilot) and turns each resolvable mention into a
 ``toponym_attestation`` row. Mirrors the conventions established by
-Phase 1's pattern-based reverse-search (PR #212):
+Phase 1's pattern-based reverse-search:
 
 * Idempotent re-runs via UNIQUE-index dedup (INSERT OR IGNORE).
-* Preflight uniqueness SELECT so dry-run mode accurately predicts
-  ``--apply``.
+* Preflight uniqueness SET so dry-run mode accurately predicts
+  ``--apply``. The check loads the existing attestations for the
+  source once into an in-memory set (rather than per-mention
+  SELECT), so a 10K-mention source costs one query, not 10K.
 * Caller-owned transaction control (function does NOT commit; CLI
   commits once after walking all sources).
-* Path-traversal hardening via ``Path(source_id).name``.
 
 Resolver
 --------
@@ -27,8 +28,12 @@ unambiguous lookup would fail:
 * Multiple candidates + region_hint matches zero or many: unresolved.
 * No candidates: unresolved (new-toponym candidate for Phase 2b.3).
 
-Unresolved mentions are written to a candidate JSONL for the
-Phase 2b.3 operator-review tool to triage.
+Region matching pads with single spaces before substring search so
+``"Sussex"`` does not match ``"Essex"`` and ``"Ham"`` does not match
+``"Hampshire"``. Country is intentionally NOT consulted by the
+resolver — the wyrd corpus is British-place-name-focused and almost
+every toponym has the same country; adding country-disambiguation
+would be follow-up work (Phase 2b.4 if the data shape changes).
 
 What this module does NOT do
 ----------------------------
@@ -42,6 +47,7 @@ What this module does NOT do
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from dataclasses import dataclass, field
 
@@ -92,6 +98,31 @@ def build_resolver_indexes(conn: sqlite3.Connection) -> ResolverIndexes:
     )
 
 
+_NON_WORD_TO_SPACE = re.compile(r"[^a-z0-9]+")
+
+
+def _tokenize_for_region(text: str) -> str:
+    """Lower-case + replace any non-alphanumeric run with a single
+    space, with surrounding spaces. Lets the padded-substring check
+    work across punctuation: ``"co. Northumberland, England"`` →
+    ``" co northumberland england "``, which contains the padded
+    region ``" northumberland "``."""
+    return " " + _NON_WORD_TO_SPACE.sub(" ", text.lower()).strip() + " "
+
+
+def _region_matches(hint_norm: str, region_norm: str) -> bool:
+    """Word-boundary-aware substring match. Tokenize both sides
+    (lowercase + punctuation-to-space) and pad with spaces, then
+    substring-search. ``"Sussex"`` does NOT match ``"Essex"`` and
+    ``"Ham"`` does NOT match ``"Hampshire"`` (the pad prevents the
+    silent over-match), but ``"co. Northumberland, England"`` DOES
+    match ``"northumberland"`` (tokenization handles the punctuation
+    around the region name)."""
+    hint_padded = _tokenize_for_region(hint_norm)
+    region_padded = _tokenize_for_region(region_norm)
+    return hint_padded in region_padded or region_padded in hint_padded
+
+
 def resolve_mention(
     form: str,
     region_hint: str | None,
@@ -105,12 +136,14 @@ def resolve_mention(
     * Multiple candidates without a usable region_hint: None.
     * No candidates: None.
 
-    Region matching uses normalized substring containment — the LLM
-    may emit "Northumberland", "co. Northumberland", or "Northumber-
-    land, England", any of which should match a toponym whose region
-    column is "northumberland". A toponym whose region is None can
-    never be selected by region_hint (we don't know what region it's
-    in, so we can't confirm a match)."""
+    Region matching uses **word-boundary substring containment** —
+    the LLM may emit "Northumberland", "co. Northumberland", or
+    "Northumberland, England", any of which should match a toponym
+    whose region column is "northumberland". But "Sussex" must NOT
+    match "Essex" (naive substring would, padded-with-spaces won't).
+    A toponym whose region is None can never be selected by
+    region_hint — we don't know what region it's in.
+    """
     key = _normalize_for_match(form)
     if not key:
         return None
@@ -128,7 +161,7 @@ def resolve_mention(
     matched: list[int] = []
     for tid in candidates:
         region = indexes.toponym_regions.get(tid)
-        if region and (hint_norm in region or region in hint_norm):
+        if region and _region_matches(hint_norm, region):
             matched.append(tid)
     if len(matched) == 1:
         return matched[0]
@@ -151,13 +184,14 @@ class IngestReport:
       ``already_present`` instead.
     * ``already_present`` — resolved mentions whose
       ``(toponym_id, form, date_year, source_doc)`` tuple was
-      already in the DB. Accurate in BOTH dry-run and apply modes —
-      the preflight uniqueness SELECT computes this regardless of
-      the apply flag.
+      already in the DB. Accurate in BOTH dry-run and apply modes
+      — the preflight uniqueness set is computed regardless of the
+      apply flag.
     * ``unresolved_records`` — full record of unresolved mentions
-      (form, year, region_hint, context, source_id) for the
-      candidate-JSONL sink. Bounded by ``_UNRESOLVED_SAMPLE_LIMIT``
-      in memory; the caller is expected to stream this out.
+      (form, year, region_hint, context, source_id). The caller
+      (CLI) streams this out to a candidate-JSONL file. Currently
+      unbounded; large unresolved sets surface a memory concern at
+      multi-million-mention scale (Phase 2b.2 follow-up).
     """
 
     source_id: str
@@ -166,7 +200,56 @@ class IngestReport:
     unresolved: int = 0
     inserted: int = 0
     already_present: int = 0
-    unresolved_records: list[dict] = field(default_factory=list)
+    unresolved_records: list[dict[str, object]] = field(default_factory=list)
+
+
+def _coerce_form(raw: object) -> str:
+    """Return a stripped form string for any input shape. LLM/JSONL
+    sloppiness can yield ``None``, an integer, a list, etc.; we treat
+    all non-string values as 'no form' rather than crash on
+    ``.strip()``. (silent-failure round-1 finding)."""
+    if isinstance(raw, str):
+        return raw.strip()
+    return ""
+
+
+def _coerce_date_year(raw: object) -> int | None:
+    """Normalize a date_year field from the JSONL to int-or-None.
+    Accepts ints, integer-valued floats (``1086.0`` from a sloppy
+    JSON encoder), and parseable digit strings. Rejects bools,
+    fractional floats, NaN/inf, and non-numeric strings."""
+    if raw is None or isinstance(raw, bool):
+        return None
+    if isinstance(raw, int):
+        return raw
+    if isinstance(raw, float):
+        # Accept integer-valued floats (1086.0) — they're a JSON
+        # encoder artifact, not a precision loss. Reject NaN/inf
+        # (is_integer is False for those).
+        if raw == raw and raw not in (float("inf"), float("-inf")) and raw.is_integer():
+            return int(raw)
+        return None
+    if isinstance(raw, str):
+        s = raw.strip()
+        if s.isdigit():
+            return int(s)
+        return None
+    return None
+
+
+def _load_existing_attestations(
+    conn: sqlite3.Connection, source_id: str
+) -> set[tuple[int, str, int | None]]:
+    """Return the set of ``(toponym_id, form, date_year)`` tuples
+    already attested for ``source_id``. Single bulk SELECT replaces
+    the per-mention preflight SELECT (Gemini round-1 N+1 finding).
+    For a source with 10K existing attestations this is one round-
+    trip; for an in-memory check it's O(1) per mention."""
+    rows = conn.execute(
+        "SELECT toponym_id, form, date_year FROM toponym_attestation WHERE source_doc = ?",
+        (source_id,),
+    ).fetchall()
+    return {(r["toponym_id"], r["form"], r["date_year"]) for r in rows}
 
 
 def ingest_mentions(
@@ -181,13 +264,13 @@ def ingest_mentions(
     (with ``apply=True``) INSERT OR IGNORE the corresponding
     ``toponym_attestation`` rows.
 
-    Each mention dict must have ``form`` (str). Optional keys:
-    ``date_year`` (int|None), ``region_hint`` (str|None), ``context``
-    (str). The function tolerates extra keys (e.g. ``source_id``)
-    silently.
+    Each mention dict may have ``form`` (str), ``date_year``
+    (int|float|str|None), ``region_hint`` (str|None), ``context``
+    (str). The function tolerates extra keys silently and treats
+    non-string forms as empty.
 
     Dry-run semantics: with ``apply=False``, the preflight uniqueness
-    SELECT still runs so ``inserted`` and ``already_present``
+    set still gets consulted so ``inserted`` and ``already_present``
     accurately predict ``apply=True``'s effect.
 
     Transaction control: this function does NOT commit. Callers own
@@ -199,53 +282,50 @@ def ingest_mentions(
     catch). The UNIQUE index on ``toponym_attestation`` treats NULL
     as distinct in SQLite, so two undated mentions of the same form
     for the same toponym in the same source would both insert. We
-    explicitly skip the insert if date_year is None and a matching
-    null-year row already exists — IS NULL comparison rather than
-    the default NULL-as-distinct semantics."""
+    keep the preflight in memory as a set of
+    ``(toponym_id, form, date_year)`` tuples (where None stays None)
+    so dedup uses set-membership semantics, treating NULL as equal."""
     report = IngestReport(source_id=source_id)
+    # Single bulk SELECT into a set — O(1) membership instead of an
+    # N+1 SELECT-per-mention. Also gets updated in-loop so two
+    # identical mentions in the same batch dedup correctly.
+    existing: set[tuple[int, str, int | None]] = _load_existing_attestations(conn, source_id)
     for m in mentions:
+        if not isinstance(m, dict):
+            # JSONL row that's valid JSON but not an object (e.g.
+            # ``42``, ``"string"``, ``[1,2,3]``). Count toward
+            # mentions_processed so the operator sees the malformed
+            # rows; can't resolve, can't write to candidates list
+            # (no fields to capture).
+            report.mentions_processed += 1
+            report.unresolved += 1
+            continue
         report.mentions_processed += 1
-        form = (m.get("form") or "").strip()
+        form = _coerce_form(m.get("form"))
         if not form:
             report.unresolved += 1
             continue
-        date_year = m.get("date_year")
-        if isinstance(date_year, bool) or not isinstance(date_year, (int, type(None))):
-            date_year = None
+        date_year = _coerce_date_year(m.get("date_year"))
         region_hint = m.get("region_hint")
+        if not isinstance(region_hint, str):
+            region_hint = None
         toponym_id = resolve_mention(form, region_hint, indexes)
         if toponym_id is None:
             report.unresolved += 1
+            ctx = m.get("context")
             report.unresolved_records.append(
                 {
                     "source_id": source_id,
                     "form": form,
                     "date_year": date_year,
                     "region_hint": region_hint,
-                    "context": (m.get("context") or "").strip(),
+                    "context": ctx.strip() if isinstance(ctx, str) else "",
                 }
             )
             continue
         report.resolved += 1
-        # Preflight uniqueness check — same shape as Phase 1.
-        # IS NULL vs = NULL: SQLite's UNIQUE index treats NULL as
-        # distinct, so we use IS-NULL semantics explicitly to dedup
-        # undated mentions of the same form on the same toponym/source.
-        if date_year is None:
-            existing = conn.execute(
-                """SELECT 1 FROM toponym_attestation
-                    WHERE toponym_id = ? AND form = ? AND date_year IS NULL
-                      AND source_doc = ? LIMIT 1""",
-                (toponym_id, form, source_id),
-            ).fetchone()
-        else:
-            existing = conn.execute(
-                """SELECT 1 FROM toponym_attestation
-                    WHERE toponym_id = ? AND form = ? AND date_year = ?
-                      AND source_doc = ? LIMIT 1""",
-                (toponym_id, form, date_year, source_id),
-            ).fetchone()
-        if existing is not None:
+        key = (toponym_id, form, date_year)
+        if key in existing:
             report.already_present += 1
             continue
         if apply:
@@ -255,5 +335,9 @@ def ingest_mentions(
                    VALUES (?, ?, ?, ?)""",
                 (toponym_id, form, date_year, source_id),
             )
+        # Add to the in-loop set so a second identical mention in
+        # the same batch dedups correctly (idempotency for repeated
+        # rows within a single source's JSONL).
+        existing.add(key)
         report.inserted += 1
     return report

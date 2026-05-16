@@ -169,16 +169,49 @@ def test_resolve_mention_ambiguous_with_matching_region_hint_resolves():
     assert resolve_mention("Newton", "Berkshire", indexes) == 2
 
 
-def test_resolve_mention_region_hint_matches_substring_either_direction():
-    """The LLM may emit "Northumberland" (matches) or "co. Northumberland"
-    (toponym region is shorter — must still match via the longer-hint
-    substring direction). Both directions of substring containment
-    succeed."""
+def test_resolve_mention_region_hint_longer_than_region_matches():
+    """LLM emits long hint with surrounding context: ``"co. Northumberland,
+    England"``. Toponym region is the short canonical ``"northumberland"``.
+    Tokenization handles the punctuation; the padded substring check
+    finds the region within the hint."""
     indexes = ResolverIndexes(
         form_to_ids={"newton": {1, 2}},
         toponym_regions={1: "northumberland", 2: "berkshire"},
     )
     assert resolve_mention("Newton", "co. Northumberland, England", indexes) == 1
+
+
+def test_resolve_mention_region_hint_shorter_than_region_matches():
+    """The OTHER direction of substring containment: LLM emits the short
+    canonical ``"Yorkshire"``, the toponym is in ``"West Yorkshire"``.
+    The region tokens contain the hint tokens. (The previous test only
+    exercised one direction.)"""
+    indexes = ResolverIndexes(
+        form_to_ids={"newton": {1, 2}},
+        toponym_regions={1: "west yorkshire", 2: "berkshire"},
+    )
+    # Hint "Yorkshire" appears as a token inside the region "west yorkshire".
+    assert resolve_mention("Newton", "Yorkshire", indexes) == 1
+
+
+def test_resolve_mention_region_substring_does_not_overmatch_distinct_counties():
+    """Word-boundary protection: ``"Sussex"`` must NOT match ``"Essex"``
+    even though "essex" is a substring of "sussex". Same for
+    ``"Ham"`` not matching ``"Hampshire"``. silent-failure-hunter +
+    Gemini both flagged this as the load-bearing fix."""
+    indexes = ResolverIndexes(
+        form_to_ids={"newton": {1, 2}},
+        toponym_regions={1: "essex", 2: "berkshire"},
+    )
+    # Naive substring matching would have wrongly picked id 1 here.
+    assert resolve_mention("Newton", "Sussex", indexes) is None
+
+    indexes2 = ResolverIndexes(
+        form_to_ids={"newton": {1, 2}},
+        toponym_regions={1: "hampshire", 2: "berkshire"},
+    )
+    # "Ham" must not match "Hampshire".
+    assert resolve_mention("Newton", "Ham", indexes2) is None
 
 
 def test_resolve_mention_ambiguous_with_matching_multiple_regions_returns_none():
@@ -731,3 +764,283 @@ def test_cli_missing_source_id_errors_with_line_number(tmp_path):
     assert result.exit_code != 0
     assert "missing source_id" in result.output
     assert ":2:" in result.output  # line number cited
+
+
+def test_cli_non_dict_jsonl_row_errors(tmp_path):
+    """A JSONL row that's valid JSON but not an object (a number, a
+    list, etc.) must error with a clear message — without this guard
+    `row.get(...)` would AttributeError mid-stream and the operator
+    couldn't tell whether the file was corrupt or the code crashed."""
+    db = tmp_path / "lex.db"
+    _make_db(db, [])
+    jsonl = tmp_path / "mentions.jsonl"
+    jsonl.write_text('{"source_id":"src1","form":"X"}\n[1, 2, 3]\n', encoding="utf-8")
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "ingest-toponym-mentions",
+            "--jsonl",
+            str(jsonl),
+            "--db",
+            str(db),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "not a JSON object" in result.output
+    assert ":2:" in result.output
+
+
+def test_cli_verbose_shows_unresolved_samples(tmp_path):
+    """--verbose surfaces a few unresolved-mention samples per source
+    so the operator can sense-check the failure mode without opening
+    the candidates file. Without this flag, the per-source line just
+    shows counters."""
+    db = tmp_path / "lex.db"
+    _make_db(db, [])  # empty toponyms → everything unresolved
+    jsonl = tmp_path / "mentions.jsonl"
+    _write_jsonl(
+        jsonl,
+        [
+            {"source_id": "src1", "form": "Yorkville", "region_hint": "Toronto"},
+        ],
+    )
+    runner = CliRunner()
+    # Without --verbose: counters but no sample line.
+    result_quiet = runner.invoke(
+        cli_root,
+        ["lexicon", "ingest-toponym-mentions", "--jsonl", str(jsonl), "--db", str(db)],
+    )
+    assert "unresolved:" not in result_quiet.output
+
+    # With --verbose: sample line surfaces.
+    result_verbose = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "ingest-toponym-mentions",
+            "--jsonl",
+            str(jsonl),
+            "--db",
+            str(db),
+            "--verbose",
+        ],
+    )
+    assert "unresolved:" in result_verbose.output
+    assert "Yorkville" in result_verbose.output
+
+
+def test_cli_walks_multiple_sources_in_one_jsonl(tmp_path):
+    """A single JSONL with rows from two different source_ids must
+    produce two separate per-source progress lines and write attestations
+    with the correct source_doc for each row."""
+    db = tmp_path / "lex.db"
+    _make_db(db, [{"modern_name": "Edlingham", "region": "Northumberland"}])
+    jsonl = tmp_path / "mixed.jsonl"
+    _write_jsonl(
+        jsonl,
+        [
+            {"source_id": "src_a", "form": "Edlingham", "date_year": 1086},
+            {"source_id": "src_b", "form": "Edlingham", "date_year": 1086},
+        ],
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "ingest-toponym-mentions",
+            "--jsonl",
+            str(jsonl),
+            "--db",
+            str(db),
+            "--apply",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Two separate source-progress lines.
+    assert "src_a" in result.output
+    assert "src_b" in result.output
+    # Two rows in DB, distinguished by source_doc.
+    conn = sqlite3.connect(db)
+    rows = conn.execute("SELECT source_doc FROM toponym_attestation ORDER BY source_doc").fetchall()
+    conn.close()
+    assert [r[0] for r in rows] == ["src_a", "src_b"]
+
+
+def test_cli_summary_includes_unresolved_count_without_candidates_out(tmp_path):
+    """Even without --candidates-out, the TOTAL summary line must
+    report unresolved=N so the operator can see they have outstanding
+    work to triage. Negative control for the --candidates-out
+    optional sink."""
+    db = tmp_path / "lex.db"
+    _make_db(db, [])
+    jsonl = tmp_path / "mentions.jsonl"
+    _write_jsonl(jsonl, [{"source_id": "src1", "form": "UnknownPlace"}])
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "ingest-toponym-mentions",
+            "--jsonl",
+            str(jsonl),
+            "--db",
+            str(db),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "unresolved=1" in result.output
+
+
+def test_cli_candidates_atomic_write_leaves_no_tmp_file(tmp_path):
+    """The atomic-rename write pattern must remove the .tmp file on
+    successful completion (rename consumes it) — verify no .tmp
+    artifact pollutes the operator's directory after a clean run."""
+    db = tmp_path / "lex.db"
+    _make_db(db, [])
+    jsonl = tmp_path / "mentions.jsonl"
+    _write_jsonl(jsonl, [{"source_id": "src1", "form": "UnknownPlace"}])
+    candidates = tmp_path / "candidates.jsonl"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "ingest-toponym-mentions",
+            "--jsonl",
+            str(jsonl),
+            "--db",
+            str(db),
+            "--candidates-out",
+            str(candidates),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert candidates.exists()
+    # Tempfile must have been renamed away.
+    tmp_path_candidates = candidates.with_suffix(candidates.suffix + ".tmp")
+    assert not tmp_path_candidates.exists()
+
+
+def test_ingest_mentions_first_run_anchors_inserted_count():
+    """Idempotent-reapply test should bracket the first run's
+    inserted count too — otherwise a regression that silently inserts
+    zero on the first run would also pass the 'second run = dup'
+    check. pr-test-analyzer round-1 finding."""
+    conn = _make_conn()
+    _seed_toponyms(conn, [{"modern_name": "Edlingham", "region": "Northumberland"}])
+    indexes = build_resolver_indexes(conn)
+    mentions = [{"form": "Edlingham", "date_year": 1086, "context": "x"}]
+    report1 = ingest_mentions(conn, "source-1", mentions, indexes, apply=True)
+    # First run anchored.
+    assert report1.inserted == 1
+    assert report1.already_present == 0
+    # Row count anchored before re-apply.
+    count = conn.execute("SELECT COUNT(*) FROM toponym_attestation").fetchone()[0]
+    assert count == 1
+    report2 = ingest_mentions(conn, "source-1", mentions, indexes, apply=True)
+    assert report2.inserted == 0
+    assert report2.already_present == 1
+
+
+def test_ingest_mentions_non_int_year_lands_with_null_date():
+    """Verify the single landed row when the LLM emits non-int years —
+    the row's date_year column must literally be NULL, not 0 or a
+    coerced int. Earlier test only checked counts."""
+    conn = _make_conn()
+    _seed_toponyms(conn, [{"modern_name": "Edlingham", "region": "Northumberland"}])
+    indexes = build_resolver_indexes(conn)
+    mentions = [
+        {"form": "Edlingham", "date_year": "not a year"},
+        {"form": "Edlingham", "date_year": True},
+    ]
+    ingest_mentions(conn, "source-1", mentions, indexes, apply=True)
+    row = conn.execute(
+        "SELECT date_year FROM toponym_attestation WHERE form='Edlingham'"
+    ).fetchone()
+    assert row["date_year"] is None
+
+
+def test_ingest_mentions_integer_valued_float_year_kept():
+    """`1086.0` from a sloppy JSON encoder should land as 1086, not be
+    silently dropped to NULL. Fractional floats (1086.5) and NaN/inf
+    still go to NULL."""
+    conn = _make_conn()
+    _seed_toponyms(conn, [{"modern_name": "Edlingham", "region": "Northumberland"}])
+    indexes = build_resolver_indexes(conn)
+    mentions = [
+        {"form": "Edlingham", "date_year": 1086.0, "context": "integer-float"},
+    ]
+    ingest_mentions(conn, "source-1", mentions, indexes, apply=True)
+    row = conn.execute(
+        "SELECT date_year FROM toponym_attestation WHERE form='Edlingham'"
+    ).fetchone()
+    assert row["date_year"] == 1086
+
+
+def test_ingest_mentions_skips_non_dict_mention():
+    """A non-dict mention (a stray int/list slipped into the list) is
+    counted in mentions_processed + unresolved but does NOT crash on
+    `.get()`. silent-failure-hunter round-1 finding."""
+    conn = _make_conn()
+    _seed_toponyms(conn, [{"modern_name": "Edlingham", "region": "Northumberland"}])
+    indexes = build_resolver_indexes(conn)
+    mentions = [
+        {"form": "Edlingham", "date_year": 1086},
+        "not a dict",  # type: ignore[list-item]
+        42,  # type: ignore[list-item]
+        [1, 2],  # type: ignore[list-item]
+    ]
+    report = ingest_mentions(conn, "source-1", mentions, indexes, apply=True)
+    assert report.mentions_processed == 4
+    assert report.resolved == 1
+    assert report.unresolved == 3
+
+
+def test_ingest_mentions_non_str_form_treated_as_empty():
+    """Mention with form=int/list/None — coerce to empty, treat as
+    unresolved, don't crash. silent-failure-hunter round-1 finding."""
+    conn = _make_conn()
+    _seed_toponyms(conn, [{"modern_name": "Edlingham", "region": "Northumberland"}])
+    indexes = build_resolver_indexes(conn)
+    mentions = [
+        {"form": 123, "date_year": 1086},
+        {"form": ["Edlingham"], "date_year": 1086},
+        {"form": None, "date_year": 1086},
+    ]
+    report = ingest_mentions(conn, "source-1", mentions, indexes, apply=True)
+    assert report.resolved == 0
+    assert report.unresolved == 3
+    assert report.inserted == 0
+
+
+def test_ingest_mentions_uses_bulk_existing_load_not_n_plus_one():
+    """Performance contract: each ``ingest_mentions`` call should
+    execute ONE preflight SELECT regardless of how many mentions it
+    processes. A regression to per-mention SELECT would balloon
+    queries at full scope. Gemini round-1 N+1 finding.
+
+    Uses sqlite3's set_trace_callback to count SQL statements
+    (Connection.execute is read-only, can't monkeypatch directly)."""
+    conn = _make_conn()
+    _seed_toponyms(conn, [{"modern_name": "Edlingham", "region": "Northumberland"}])
+    indexes = build_resolver_indexes(conn)
+    # 100 identical mentions — under N+1, would issue 100 SELECTs.
+    mentions = [{"form": "Edlingham", "date_year": 1086} for _ in range(100)]
+
+    statements: list[str] = []
+    conn.set_trace_callback(statements.append)
+    try:
+        ingest_mentions(conn, "source-1", mentions, indexes, apply=True)
+    finally:
+        conn.set_trace_callback(None)
+
+    select_count = sum(1 for s in statements if s.lstrip().upper().startswith("SELECT"))
+    # Exactly one preflight SELECT (the bulk load) for this function.
+    # build_resolver_indexes ran BEFORE the trace callback was set,
+    # so its SELECTs don't count here.
+    assert select_count == 1, (
+        f"expected 1 SELECT, got {select_count}; statements: {statements}"
+    )
