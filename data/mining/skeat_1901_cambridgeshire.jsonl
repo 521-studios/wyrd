@@ -432,6 +432,15 @@
 {"_type": "etymology_element", "toponym_ref": "Wentworth@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wintan", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:worth"}], "historical_form": "Wintan-wurth", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:9b | Wentworth. Spelt Wyntewurthe in 1428 (F.A.), Wynte- wortk in 1291 (Taxatio Ecclesiastica) ; and Winteworde in Domesday Book. Winte answers to A.S. Wintan, gen. ", "attested_year": 1291}
 {"_type": "etymology_element", "toponym_ref": "Wentworth@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:winta"}, {"ordinal": 1, "etymon_ref": "old-english:wintan", "inflection": "genitive"}, {"ordinal": 2, "etymon_ref": "old-english:worth"}], "historical_form": "Winta-worth", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Winta identified as a son of Woden (Odin) in Old English genealogies; the genitive form Wintan appears in Domesday spelling Winteworde. | Wentworth. S"}
 {"_type": "etymology_element", "toponym_ref": "Wicken@Cambridgeshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wicxim", "inflection": "dative plural"}], "historical_form": "wicxim", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:9b; Scholar identifies the form as the dative plural of A.S. wlc (village), noting the suffix -im prevents palatalisation. | Wicken. Apparently the same as Wykes, mentioned in"}
+{"_type": "toponym", "ref": "Carleton@Yorkshire", "modern_name": "Carleton", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Cotes@Derbyshire", "modern_name": "Cotes", "country": "England", "region": "Derbyshire"}
+{"_type": "toponym", "ref": "Ditchburn@Northumberland and Durham", "modern_name": "Ditchburn", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Gisleham@SUF", "modern_name": "Gisleham", "country": "England", "region": "SUF"}
+{"_type": "toponym", "ref": "Gretton@Northamptonshire", "modern_name": "Gretton", "country": "England", "region": "Northamptonshire"}
+{"_type": "toponym", "ref": "Hall@Northumberland and Durham", "modern_name": "Hall", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Stapleford@Cambridgeshire", "modern_name": "Stapleford", "country": "England", "region": "Cambridgeshire"}
+{"_type": "toponym", "ref": "Waddon@Dorset", "modern_name": "Waddon", "country": "England", "region": "Dorset"}
+{"_type": "toponym", "ref": "Wrsettincge@England and Wales", "modern_name": "Wrsettincge", "region": "England and Wales"}
 {"_type": "attestation", "toponym_ref": "Balsham@Cambridgeshire", "form": "Belesham", "date_year": 1170, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Bartlow@Cambridgeshire", "form": "Berkelowe", "date_year": 1316, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Bartlow@Cambridgeshire", "form": "Berklowe", "date_year": 1428, "source_doc": "skeat_1901_cambridgeshire"}
@@ -439,21 +448,29 @@
 {"_type": "attestation", "toponym_ref": "Bottisham@Cambridgeshire", "form": "BodJcesham", "date_year": 1372, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Bottisham@Cambridgeshire", "form": "Botkesham", "date_year": 1400, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Bottisham@Cambridgeshire", "form": "Bottesham", "date_year": 1428, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Bourn@Cambridgeshire", "form": "Brum", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Bourn@Cambridgeshire", "form": "Brunne", "date_year": 1171, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Bourn@Cambridgeshire", "form": "Brum", "date_year": 1171, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Bourn@Cambridgeshire", "form": "Burne", "date_year": 1210, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Boxworth@Cambridgeshire", "form": "Bokesiuorth", "date_year": 1284, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Burwell@Cambridgeshire", "form": "Burewelle", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Carleton@Yorkshire", "form": "Carleton", "date_year": 1302, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Carlton@Cambridgeshire", "form": "Carleton", "date_year": 1302, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Chesterton@Cambridgeshire", "form": "Cestretone", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Chesterton@Cambridgeshire", "form": "Cestretone", "date_year": 1210, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Chippenham@Cambridgeshire", "form": "Chipeham", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Cotes@Derbyshire", "form": "Cotes", "date_year": 1291, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Croxton@Cambridgeshire", "form": "Crochestone", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Croxton@Cambridgeshire", "form": "Croxtone", "date_year": 1302, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Croxton@Cambridgeshire", "form": "Crokeston", "date_year": 1303, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Ditchburn@Northumberland and Durham", "form": "Dodinton", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Dullingham@Cambridgeshire", "form": "Dullingeham", "date_year": 1210, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Fordham@Cambridgeshire", "form": "Fordeham", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Gisleham@SUF", "form": "Gisleham", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Gretton@Northamptonshire", "form": "Gretton", "date_year": 1236, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Haddenham@Cambridgeshire", "form": "Hadreham", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Haddenham@Cambridgeshire", "form": "Hadenham", "date_year": 1300, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Hall@Northumberland and Durham", "form": "Hall", "date_year": 1475, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Harston@Cambridgeshire", "form": "Hardeleston", "date_year": 1291, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Harston@Cambridgeshire", "form": "Hardlistone", "date_year": 1298, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Hauxton@Cambridgeshire", "form": "Haukestone", "date_year": 1316, "source_doc": "skeat_1901_cambridgeshire"}
@@ -477,11 +494,15 @@
 {"_type": "attestation", "toponym_ref": "Over@Cambridgeshire", "form": "Overe", "date_year": 1210, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Papworth@Cambridgeshire", "form": "Papeworde", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Rampton@Cambridgeshire", "form": "Ramptone", "date_year": 1210, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Stapleford@Cambridgeshire", "form": "Stapleford", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Staplow@Cambridgeshire", "form": "Staplehou", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Staplow@Cambridgeshire", "form": "Stapelho", "date_year": 1284, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Staplow@Cambridgeshire", "form": "Stapilho", "date_year": 1401, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Staplow@Cambridgeshire", "form": "Stapulho", "date_year": 1428, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Sturbridge@Cambridgeshire", "form": "Sturbridge", "date_year": 1589, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Tadlow@Cambridgeshire", "form": "Tadelai", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Tadlow@Cambridgeshire", "form": "Tadelowe", "date_year": 1302, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Waddon@Dorset", "form": "Waddon", "date_year": 1210, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Wentworth@Cambridgeshire", "form": "Winteworde", "date_year": 1086, "source_doc": "skeat_1901_cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Wentworth@Cambridgeshire", "form": "Wyntewurthe", "date_year": 1428, "source_doc": "skeat_1901_cambridgeshire"}
+{"_type": "attestation", "toponym_ref": "Wrsettincge@England and Wales", "form": "Wrotinge", "date_year": 1210, "source_doc": "skeat_1901_cambridgeshire"}

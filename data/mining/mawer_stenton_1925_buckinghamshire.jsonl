@@ -90,13 +90,67 @@
 {"_type": "etymology_element", "toponym_ref": "WellsR@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:denu"}, {"ordinal": 1, "etymon_ref": "old-english:ham"}], "historical_form": "denu-ham", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | WellsR, 1227 Ch Daneham 1086 DB Denham 1233 WellsR Denom 1336 Pat Denham Durdent 1362 Cl ‘Valley homestead’ v. denu, ham. The Durdent family had a holding here ", "attested_year": 1086}
 {"_type": "etymology_element", "toponym_ref": "Woo@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wylfena", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:hamm"}], "historical_form": "wylfena-hamm", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Woo.tman’s Woop Wulneneham (sic) Miss 93 (VCH) Wolmans 1509 LP Probably OE wylfena-hamm, ‘she-wolves’ enclosure.’ The s is a modern corruption. 1 This is not on", "attested_year": 1509}
 {"_type": "etymology_element", "toponym_ref": "XV@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:bledda", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:hlaw"}], "historical_form": "Bledda-hlaw", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar notes the first element is an OE personal name Bledda, 'not actually found but a regular pet-form for an OE name in Bléd-'. The settlement took its name from the hill above it or possibly from a tumulus. | XV. RISBOROUGH HUNDRED Ris(e)berg 1086 DB, 1155 P, 1247 Ass Risemberge 1130 PR Rysebergh, Rysenberg 1262 Ass The site of the Hundred meeting-place is unknown. For the etymology of the name w. infra. Bledlow BLEDLOW 105 C13 | Bleddanhlew", "attested_year": 1086}
+{"_type": "toponym", "ref": "Amersham@BUK", "modern_name": "Amersham", "country": "England", "region": "BUK"}
+{"_type": "toponym", "ref": "Aston@Cheshire", "modern_name": "Aston", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Bucks@Devon", "modern_name": "Bucks", "country": "England", "region": "Devon"}
+{"_type": "toponym", "ref": "Canterbury@Kent", "modern_name": "Canterbury", "country": "England", "region": "Kent"}
+{"_type": "toponym", "ref": "Chalfont@BUK", "modern_name": "Chalfont", "country": "England", "region": "BUK"}
+{"_type": "toponym", "ref": "Cublington@BUK", "modern_name": "Cublington", "country": "England", "region": "BUK"}
+{"_type": "toponym", "ref": "Ellesborough@BUK", "modern_name": "Ellesborough", "country": "England", "region": "BUK"}
+{"_type": "toponym", "ref": "Eston@Yorkshire", "modern_name": "Eston", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Hasting@-", "modern_name": "Hasting"}
+{"_type": "toponym", "ref": "Heybridge@Essex", "modern_name": "Heybridge", "country": "England", "region": "Essex"}
+{"_type": "toponym", "ref": "Hogram@-", "modern_name": "Hogram"}
+{"_type": "toponym", "ref": "Holcombe@Devon", "modern_name": "Holcombe", "country": "England", "region": "Devon"}
+{"_type": "toponym", "ref": "Iver@BUK", "modern_name": "Iver", "country": "England", "region": "BUK"}
+{"_type": "toponym", "ref": "Langley@Berkshire", "modern_name": "Langley", "country": "England", "region": "Berkshire"}
+{"_type": "toponym", "ref": "Marlow@BUK", "modern_name": "Marlow", "country": "England", "region": "BUK"}
+{"_type": "toponym", "ref": "Medmenham@BUK", "modern_name": "Medmenham", "country": "England", "region": "BUK"}
+{"_type": "toponym", "ref": "Norton@Essex", "modern_name": "Norton", "country": "England", "region": "Essex"}
+{"_type": "toponym", "ref": "Penn@Staffordshire", "modern_name": "Penn", "country": "England", "region": "Staffordshire"}
+{"_type": "toponym", "ref": "Tickford@BUK", "modern_name": "Tickford", "country": "England", "region": "BUK"}
+{"_type": "toponym", "ref": "Westbury@BUK", "modern_name": "Westbury", "country": "England", "region": "BUK"}
+{"_type": "toponym", "ref": "Wraysbury@BUK", "modern_name": "Wraysbury", "country": "England", "region": "BUK"}
+{"_type": "toponym", "ref": "Wycombe@BUK", "modern_name": "Wycombe", "country": "England", "region": "BUK"}
+{"_type": "attestation", "toponym_ref": "Amersham@BUK", "form": "Amersham", "date_year": 1235, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Ass@-", "form": "Gross", "date_year": 1255, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Ass@-", "form": "Gross", "date_year": 1262, "source_doc": "mawer_stenton_1925_buckinghamshire"}
 {"_type": "attestation", "toponym_ref": "Ass@-", "form": "Gross", "date_year": 1265, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Aston@Cheshire", "form": "Aston", "date_year": 1199, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Bucks@Devon", "form": "Bucks", "date_year": 1262, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Canterbury@Kent", "form": "Canterbury", "date_year": 1262, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Chalfont@BUK", "form": "Chalfont", "date_year": 1166, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Chalfont@BUK", "form": "Chalfont", "date_year": 1340, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Cublington@BUK", "form": "Cublington", "date_year": 1680, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Ellesborough@BUK", "form": "Ellesborough", "date_year": 1242, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Eston@Yorkshire", "form": "Eston", "date_year": 1208, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Hasting@-", "form": "IpmR", "date_year": 1357, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Heybridge@Essex", "form": "Heybridge", "date_year": 1222, "source_doc": "mawer_stenton_1925_buckinghamshire"}
 {"_type": "attestation", "toponym_ref": "Ho@-", "form": "Beaconsfield", "date_year": 1370, "source_doc": "mawer_stenton_1925_buckinghamshire"}
 {"_type": "attestation", "toponym_ref": "Ho@-", "form": "John", "date_year": 1408, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Hogram@-", "form": "Fees", "date_year": 1241, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Holcombe@Devon", "form": "Holcombe", "date_year": 1680, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Iver@BUK", "form": "Iver", "date_year": 1327, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Langley@Berkshire", "form": "Langley", "date_year": 1247, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Marlow@BUK", "form": "Marlow", "date_year": 1230, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Medmenham@BUK", "form": "Medmenham", "date_year": 1535, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Norton@Essex", "form": "Norton", "date_year": 1572, "source_doc": "mawer_stenton_1925_buckinghamshire"}
 {"_type": "attestation", "toponym_ref": "Orig@-", "form": "Orig", "date_year": 1325, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Orig@-", "form": "Fine", "date_year": 1368, "source_doc": "mawer_stenton_1925_buckinghamshire"}
 {"_type": "attestation", "toponym_ref": "Orig@-", "form": "Fine", "date_year": 1535, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Penn@Staffordshire", "form": "Penn", "date_year": 1230, "source_doc": "mawer_stenton_1925_buckinghamshire"}
 {"_type": "attestation", "toponym_ref": "Roya@-", "form": "Fines", "date_year": 1230, "source_doc": "mawer_stenton_1925_buckinghamshire"}
 {"_type": "attestation", "toponym_ref": "Roya@-", "form": "WellsR", "date_year": 1235, "source_doc": "mawer_stenton_1925_buckinghamshire"}
 {"_type": "attestation", "toponym_ref": "Roya@-", "form": "WellsR", "date_year": 1237, "source_doc": "mawer_stenton_1925_buckinghamshire"}
 {"_type": "attestation", "toponym_ref": "Roya@-", "form": "Gross", "date_year": 1241, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Tickford@BUK", "form": "Tickford", "date_year": 1200, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "WellsR@-", "form": "WellsR", "date_year": 1220, "source_doc": "mawer_stenton_1925_buckinghamshire"}
 {"_type": "attestation", "toponym_ref": "WellsR@-", "form": "WellsR", "date_year": 1227, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "WellsR@-", "form": "WellsR", "date_year": 1235, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "WellsR@-", "form": "WellsR", "date_year": 1237, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Westbury@BUK", "form": "Westbury", "date_year": 1280, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Wraysbury@BUK", "form": "Wraysbury", "date_year": 1289, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Wycombe@BUK", "form": "Wycombe", "date_year": 1157, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Wycombe@BUK", "form": "Wycombe", "date_year": 1235, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Wycombe@BUK", "form": "Wycombe", "date_year": 1283, "source_doc": "mawer_stenton_1925_buckinghamshire"}
+{"_type": "attestation", "toponym_ref": "Wycombe@BUK", "form": "Wycombe", "date_year": 1451, "source_doc": "mawer_stenton_1925_buckinghamshire"}

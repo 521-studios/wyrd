@@ -2210,8 +2210,34 @@
 {"_type": "etymology_element", "toponym_ref": "Wrea@Lancashire", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:vrd"}], "historical_form": "vrd", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:9b | Wrea (W. of Ribby ; Wrea Green, h.) : Wra 1201 LPR, 1226 LI, c 1200 CO, Wraa 1324 LI, 1380 LF, le Wra 1323 LI, le Wraa 1327 LS ; Wro 1322 LI. O.N. (v)rd \" corne", "attested_year": 1200}
 {"_type": "etymology_element", "toponym_ref": "Wrynose Hawse@Lancashire", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:(v)reini"}, {"ordinal": 1, "etymon_ref": "old-norse:hals"}], "historical_form": "(v)reini-hals", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; First element etymology hedged: 'I find it at least as probable that the first el. is simply the O.N. (v)reini'. Scholar notes alternative explanation involving 'vrein-hest-shals' (strong horse) but considers direct stallion etymology more likely. Second element hals clearly identified as O.N. or O.E. hals meaning a mountain pass or col. | Wrynose Hawse (on the border between Lane, and Cumb.) : Wreineshals, Wraineshals 1157-63 Ch (orig.), Wrenhal", "attested_year": 1157}
 {"_type": "etymology_element", "toponym_ref": "Yewdale Beck@Lancashire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:iw"}, {"ordinal": 1, "etymon_ref": "old-english:dale"}, {"ordinal": 2, "etymon_ref": "old-english:bec"}], "historical_form": "Ywedalebec", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:9b | Yewdale Beck (falls into Coniston Water) : Ywedalebec 1196 LF. Yew is, of course, O.E. iw \" yew.\" Names of Lakes No sufficiently early forms have been found of ", "attested_year": 1196}
+{"_type": "toponym", "ref": "Adlington@Cheshire", "modern_name": "Adlington", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Brome@SUF", "modern_name": "Brome", "country": "England", "region": "SUF"}
+{"_type": "toponym", "ref": "Burton@Northumberland and Durham", "modern_name": "Burton", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Chester@Cheshire", "modern_name": "Chester", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Chorley@Cheshire", "modern_name": "Chorley", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Colne@Huntingdonshire", "modern_name": "Colne", "country": "England", "region": "Huntingdonshire"}
+{"_type": "toponym", "ref": "Dutton@Cheshire", "modern_name": "Dutton", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Gressingham@Yorkshire", "modern_name": "Gressingham", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Howick@Northumberland and Durham", "modern_name": "Howick", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "London@Essex", "modern_name": "London", "country": "England", "region": "Essex"}
+{"_type": "toponym", "ref": "Richmond@Yorkshire", "modern_name": "Richmond", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Whalley@Cheshire", "modern_name": "Whalley", "country": "England", "region": "Cheshire"}
+{"_type": "attestation", "toponym_ref": "Adlington@Cheshire", "form": "Adlington", "date_year": 1288, "source_doc": "ekwall_1922_lancashire"}
 {"_type": "attestation", "toponym_ref": "Botton@Lancashire", "form": "Botnebek", "date_year": 1235, "source_doc": "ekwall_1922_lancashire"}
+{"_type": "attestation", "toponym_ref": "Bradkirk@Lancashire", "form": "Bradkirk", "date_year": 1189, "source_doc": "ekwall_1922_lancashire"}
+{"_type": "attestation", "toponym_ref": "Brome@SUF", "form": "Brome", "date_year": 1200, "source_doc": "ekwall_1922_lancashire"}
+{"_type": "attestation", "toponym_ref": "Burton@Northumberland and Durham", "form": "Burton", "date_year": 1266, "source_doc": "ekwall_1922_lancashire"}
+{"_type": "attestation", "toponym_ref": "Chester@Cheshire", "form": "Chester", "date_year": 1545, "source_doc": "ekwall_1922_lancashire"}
+{"_type": "attestation", "toponym_ref": "Chorley@Cheshire", "form": "Chorley", "date_year": 1257, "source_doc": "ekwall_1922_lancashire"}
+{"_type": "attestation", "toponym_ref": "Colne@Huntingdonshire", "form": "Colne", "date_year": 1296, "source_doc": "ekwall_1922_lancashire"}
+{"_type": "attestation", "toponym_ref": "Docker@Lancashire", "form": "Docker", "date_year": 1577, "source_doc": "ekwall_1922_lancashire"}
+{"_type": "attestation", "toponym_ref": "Dutton@Cheshire", "form": "Dutton", "date_year": 1202, "source_doc": "ekwall_1922_lancashire"}
+{"_type": "attestation", "toponym_ref": "Gressingham@Yorkshire", "form": "Gressingham", "date_year": 1206, "source_doc": "ekwall_1922_lancashire"}
+{"_type": "attestation", "toponym_ref": "Howick@Northumberland and Durham", "form": "Houwyk", "date_year": 1246, "source_doc": "ekwall_1922_lancashire"}
 {"_type": "attestation", "toponym_ref": "LI@Lancashire", "form": "Bolrum", "date_year": 1226, "source_doc": "ekwall_1922_lancashire"}
 {"_type": "attestation", "toponym_ref": "Lanesdale DB@Lancashire", "form": "Landesdale", "date_year": 1220, "source_doc": "ekwall_1922_lancashire"}
+{"_type": "attestation", "toponym_ref": "London@Essex", "form": "London", "date_year": 1586, "source_doc": "ekwall_1922_lancashire"}
+{"_type": "attestation", "toponym_ref": "Richmond@Yorkshire", "form": "Richmond", "date_year": 1457, "source_doc": "ekwall_1922_lancashire"}
 {"_type": "attestation", "toponym_ref": "Stalmin@Lancashire", "form": "Stalmyn", "date_year": 1262, "source_doc": "ekwall_1922_lancashire"}
 {"_type": "attestation", "toponym_ref": "Wesham@Lancashire", "form": "Westhus", "date_year": 1204, "source_doc": "ekwall_1922_lancashire"}
+{"_type": "attestation", "toponym_ref": "Whalley@Cheshire", "form": "Whalley", "date_year": 798, "source_doc": "ekwall_1922_lancashire"}

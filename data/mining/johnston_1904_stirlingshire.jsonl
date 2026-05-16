@@ -593,22 +593,32 @@
 {"_type": "etymology_element", "toponym_ref": "Village@Stirlingshire", "elements": [{"ordinal": 0, "etymon_ref": "celtic:glcann"}], "historical_form": "glcann", "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash | Village (Palkirk). 1458 Le Glen. Just above a deep glen, G. glcann.", "attested_year": 1458}
 {"_type": "etymology_element", "toponym_ref": "Wallacerigg and Wallacestone@Stirlingshire", "elements": [{"ordinal": 0, "etymon_ref": "modern-english:wallace"}, {"ordinal": 1, "etymon_ref": "modern-english:rigg"}, {"ordinal": 2, "etymon_ref": "modern-english:wallace"}, {"ordinal": 3, "etymon_ref": "modern-english:stone"}], "historical_form": "Wallace-rigg and Wallace-stone", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Both place names are commemorative, named after Sir William Wallace's battle of Falkirk (1298). The stone was erected in 1810. | Wallacerigg and Walla", "attested_year": 1298}
 {"_type": "etymology_element", "toponym_ref": "Wyndford@Stirlingshire", "elements": [{"ordinal": 0, "etymon_ref": "modern-english:wynd"}, {"ordinal": 1, "etymon_ref": "old-english:ford"}], "historical_form": "wynd-ford", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar notes 'ford' here means 'burn or brook' (obsolete sense), not a water crossing. Etymology depends on whether name is modern or older. | Wyndfo"}
+{"_type": "toponym", "ref": "Berks@Lancashire", "modern_name": "Berks", "region": "Lancashire"}
+{"_type": "toponym", "ref": "Falkirk@Scotland", "modern_name": "Falkirk", "region": "Scotland"}
+{"_type": "toponym", "ref": "Kilsyth@Stirlingshire", "modern_name": "Kilsyth", "region": "Stirlingshire"}
+{"_type": "toponym", "ref": "Seal@Kent", "modern_name": "Seal", "country": "England", "region": "Kent"}
+{"_type": "toponym", "ref": "Wales@Yorkshire", "modern_name": "Wales", "country": "England", "region": "Yorkshire"}
+{"_type": "attestation", "toponym_ref": "Berks@Lancashire", "form": "Berks", "date_year": 871, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Craigforth@Stirlingshire", "form": "Oraighorth", "date_year": 1327, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Culcreuch@Stirlingshire", "form": "Oulcrewch", "date_year": 1680, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Dalfoil@Stirlingshire", "form": "Aberfoyle", "date_year": 1489, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Denovan@Stirlingshire", "form": "Denovane", "date_year": 1510, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Drumwhassle@Stirlingshire", "form": "Drumcastell", "date_year": 1540, "source_doc": "johnston_1904_stirlingshire"}
+{"_type": "attestation", "toponym_ref": "Dundaff@Stirlingshire", "form": "Dundaff", "date_year": 1445, "source_doc": "johnston_1904_stirlingshire"}
+{"_type": "attestation", "toponym_ref": "Falkirk@Scotland", "form": "Falkirk", "date_year": 1298, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Gavell@Stirlingshire", "form": "Pont", "date_year": 1694, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Glen@Stirlingshire", "form": "Fennach", "date_year": 1496, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Guthrie@Stirlingshire", "form": "Arbroath", "date_year": 1359, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Inchcailloch@Stirlingshire", "form": "Inchcalleoch", "date_year": 1405, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Kersie@Stirlingshire", "form": "Karsy", "date_year": 1195, "source_doc": "johnston_1904_stirlingshire"}
+{"_type": "attestation", "toponym_ref": "Kilsyth@Stirlingshire", "form": "Kilsyth", "date_year": 1645, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Kincaid@Stirlingshire", "form": "Kincaith", "date_year": 1550, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Lennoxtown@Stirlingshire", "form": "Levenach", "date_year": 1234, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Lennoxtown@Stirlingshire", "form": "Lenox", "date_year": 1296, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Monyabroch@Stirlingshire", "form": "Mouiabrocd", "date_year": 1457, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Monyabroch@Stirlingshire", "form": "Monyabro", "date_year": 1690, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Muckcroft@Stirlingshire", "form": "Muncrath", "date_year": 1238, "source_doc": "johnston_1904_stirlingshire"}
+{"_type": "attestation", "toponym_ref": "Muir@Stirlingshire", "form": "Muir", "date_year": 1627, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Pendreich@Stirlingshire", "form": "Petendreich", "date_year": 1503, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Polmaise@Stirlingshire", "form": "Pollemase", "date_year": 1164, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Polmaise@Stirlingshire", "form": "Polmase", "date_year": 1483, "source_doc": "johnston_1904_stirlingshire"}
@@ -616,8 +626,10 @@
 {"_type": "attestation", "toponym_ref": "Port of Menteith@Stirlingshire", "form": "Meneted", "date_year": 1234, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Queenzieburn@Stirlingshire", "form": "Goyny", "date_year": 1694, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Sauchie@Stirlingshire", "form": "Alloa", "date_year": 1208, "source_doc": "johnston_1904_stirlingshire"}
+{"_type": "attestation", "toponym_ref": "Seal@Kent", "form": "Seal", "date_year": 1451, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Skeogh@Stirlingshire", "form": "Skewok", "date_year": 1329, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Stirling@Stirlingshire", "form": "Strivelin", "date_year": 1225, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Stirling@Stirlingshire", "form": "Estriuelin", "date_year": 1295, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Stirling@Stirlingshire", "form": "Bstrevelyn", "date_year": 1455, "source_doc": "johnston_1904_stirlingshire"}
 {"_type": "attestation", "toponym_ref": "Stirling@Stirlingshire", "form": "Sterling", "date_year": 1682, "source_doc": "johnston_1904_stirlingshire"}
+{"_type": "attestation", "toponym_ref": "Wales@Yorkshire", "form": "Wales", "date_year": 1087, "source_doc": "johnston_1904_stirlingshire"}

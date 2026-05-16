@@ -459,20 +459,203 @@
 {"_type": "etymology_element", "toponym_ref": "Writel@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:writol"}], "historical_form": "writol", "confidence": "medium", "notes": "extracted_by:llm:qwen3.5:35b-a3b; Ekwall notes the suggestion is better than his own and cites Weyhe and Holthausen | Writel. 1249, 1251 BM; Writel 1254-5 Ass 233 m 52, 1274 RH. The river-name is a su", "attested_year": 1249}
 {"_type": "etymology_element", "toponym_ref": "Writel@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:writol"}], "historical_form": "writol", "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash | Writel. 1249, 1251 BM; Writel 1254-5 Ass 233 m 52, 1274 RH. The river-name is a substantivation of an OE adj writol, derived from OE writian, wreotian ‘ to chir", "attested_year": 1249}
 {"_type": "etymology_element", "toponym_ref": "Zachrisson@-", "elements": [{"ordinal": 0, "etymon_ref": "celtic:gablo"}, {"ordinal": 1, "etymon_ref": "celtic:iuo"}], "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Entry discusses multiple river names (Ivel, Iwerne, Keasden Beck, Keekle Beck). The Ivel etymology is disputed; the author rejects Zachrisson's gifel theory and favors McClure's pre-English fork/confluence hypothesis based on Brit *gablo-. Iwerne is derived from Celtic *iuo- 'yew' + suffix -erno. Keasden Beck etymology is uncertain ('possible' that Keas- is Scandinavianized form of ches). Keekle Beck etymology unclear from text. | Zachrisson, NoB"}
+{"_type": "toponym", "ref": "Abingdon@Berkshire", "modern_name": "Abingdon", "country": "England", "region": "Berkshire"}
+{"_type": "toponym", "ref": "Airton@Yorkshire", "modern_name": "Airton", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Alwent@Northumberland and Durham", "modern_name": "Alwent", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Arundel@-", "modern_name": "Arundel"}
+{"_type": "toponym", "ref": "Asser@British Isles", "modern_name": "Asser", "region": "British Isles"}
+{"_type": "toponym", "ref": "Banco@-", "modern_name": "Banco"}
+{"_type": "toponym", "ref": "Bath@Gloucestershire", "modern_name": "Bath", "country": "England", "region": "Gloucestershire"}
+{"_type": "toponym", "ref": "Bede@Scotland", "modern_name": "Bede", "region": "Scotland"}
+{"_type": "toponym", "ref": "Blakoumore@-", "modern_name": "Blakoumore"}
+{"_type": "toponym", "ref": "Brandon@Suffolk", "modern_name": "Brandon", "region": "Suffolk"}
+{"_type": "toponym", "ref": "Brede@-", "modern_name": "Brede"}
+{"_type": "toponym", "ref": "Buckfast@Devon", "modern_name": "Buckfast", "country": "England", "region": "Devon"}
+{"_type": "toponym", "ref": "Burnham@BUK", "modern_name": "Burnham", "country": "England", "region": "BUK"}
+{"_type": "toponym", "ref": "Cerne@Dorset", "modern_name": "Cerne", "country": "England", "region": "Dorset"}
+{"_type": "toponym", "ref": "Chedgrave@Norfolk", "modern_name": "Chedgrave", "country": "England", "region": "Norfolk"}
+{"_type": "toponym", "ref": "Chester@Cheshire", "modern_name": "Chester", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Christchurch@Hampshire", "modern_name": "Christchurch", "country": "England", "region": "Hampshire"}
+{"_type": "toponym", "ref": "Colne@Huntingdonshire", "modern_name": "Colne", "country": "England", "region": "Huntingdonshire"}
+{"_type": "toponym", "ref": "Colton@Norfolk", "modern_name": "Colton", "country": "England", "region": "Norfolk"}
+{"_type": "toponym", "ref": "Consett@Northumberland and Durham", "modern_name": "Consett", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Corfton@Shropshire", "modern_name": "Corfton", "country": "England", "region": "Shropshire"}
+{"_type": "toponym", "ref": "Corsham@Wiltshire", "modern_name": "Corsham", "country": "England", "region": "Wiltshire"}
+{"_type": "toponym", "ref": "Coryton@Devon", "modern_name": "Coryton", "country": "England", "region": "Devon"}
+{"_type": "toponym", "ref": "Crawford@Dorset", "modern_name": "Crawford", "country": "England", "region": "Dorset"}
+{"_type": "toponym", "ref": "Dacre@Yorkshire", "modern_name": "Dacre", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Davenham@Cheshire", "modern_name": "Davenham", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Derte@Devon", "modern_name": "Derte", "country": "England", "region": "Devon"}
+{"_type": "toponym", "ref": "Enyham@-", "modern_name": "Enyham"}
+{"_type": "toponym", "ref": "Exeter@Devon", "modern_name": "Exeter", "country": "England", "region": "Devon"}
+{"_type": "toponym", "ref": "Frampton@Gloucestershire", "modern_name": "Frampton", "country": "England", "region": "Gloucestershire"}
+{"_type": "toponym", "ref": "Frome@Somerset", "modern_name": "Frome", "country": "England", "region": "Somerset"}
+{"_type": "toponym", "ref": "Gavell@Stirlingshire", "modern_name": "Gavell", "region": "Stirlingshire"}
+{"_type": "toponym", "ref": "Gervase@-", "modern_name": "Gervase"}
+{"_type": "toponym", "ref": "Glen@Northumberland and Durham", "modern_name": "Glen", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Glendale@Northumberland and Durham", "modern_name": "Glendale", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Glympton@Northamptonshire", "modern_name": "Glympton", "country": "England", "region": "Northamptonshire"}
+{"_type": "toponym", "ref": "Ho@-", "modern_name": "Ho"}
+{"_type": "toponym", "ref": "Hunt@England (Danelaw)", "modern_name": "Hunt", "region": "England (Danelaw)"}
+{"_type": "toponym", "ref": "Ilchester@Somerset", "modern_name": "Ilchester", "country": "England", "region": "Somerset"}
+{"_type": "toponym", "ref": "Irewelc@-", "modern_name": "Irewelc"}
+{"_type": "toponym", "ref": "Isham@Northamptonshire", "modern_name": "Isham", "country": "England", "region": "Northamptonshire"}
+{"_type": "toponym", "ref": "Iwerne@Dorset", "modern_name": "Iwerne", "country": "England", "region": "Dorset"}
+{"_type": "toponym", "ref": "Jesmond@Northumberland and Durham", "modern_name": "Jesmond", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Kendal@Yorkshire", "modern_name": "Kendal", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Kenton@Northumberland and Durham", "modern_name": "Kenton", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Lenham@Kent", "modern_name": "Lenham", "country": "England", "region": "Kent"}
+{"_type": "toponym", "ref": "Lenton@Lincolnshire", "modern_name": "Lenton", "country": "England", "region": "Lincolnshire"}
+{"_type": "toponym", "ref": "Leven@Lancashire", "modern_name": "Leven", "region": "Lancashire"}
+{"_type": "toponym", "ref": "Lodbroc@England and Wales", "modern_name": "Lodbroc", "region": "England and Wales"}
+{"_type": "toponym", "ref": "London@Essex", "modern_name": "London", "country": "England", "region": "Essex"}
+{"_type": "toponym", "ref": "Lonton@Yorkshire", "modern_name": "Lonton", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Lynton@Devon", "modern_name": "Lynton", "country": "England", "region": "Devon"}
+{"_type": "toponym", "ref": "Malm@-", "modern_name": "Malm"}
+{"_type": "toponym", "ref": "Montacute@Somerset", "modern_name": "Montacute", "country": "England", "region": "Somerset"}
+{"_type": "toponym", "ref": "Nostell@Yorkshire", "modern_name": "Nostell", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Orwell@Cambridgeshire", "modern_name": "Orwell", "region": "Cambridgeshire"}
+{"_type": "toponym", "ref": "Plumpton@Lancashire", "modern_name": "Plumpton", "region": "Lancashire"}
+{"_type": "toponym", "ref": "Ramsey@Essex", "modern_name": "Ramsey", "country": "England", "region": "Essex"}
+{"_type": "toponym", "ref": "Sowe@Warwickshire", "modern_name": "Sowe", "country": "England", "region": "Warwickshire"}
+{"_type": "toponym", "ref": "Tamerton@Devon", "modern_name": "Tamerton", "country": "England", "region": "Devon"}
+{"_type": "toponym", "ref": "Tarente@Dorset", "modern_name": "Tarente", "country": "England", "region": "Dorset"}
+{"_type": "toponym", "ref": "Trentham@Staffordshire", "modern_name": "Trentham", "country": "England", "region": "Staffordshire"}
+{"_type": "toponym", "ref": "Tyne@Northumberland and Durham", "modern_name": "Tyne", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Wantage@Berkshire", "modern_name": "Wantage", "region": "Berkshire"}
+{"_type": "toponym", "ref": "Waverton@Cheshire", "modern_name": "Waverton", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Whalley@Cheshire", "modern_name": "Whalley", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Whitby@Yorkshire", "modern_name": "Whitby", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Worc@-", "modern_name": "Worc"}
+{"_type": "toponym", "ref": "YChant@-", "modern_name": "YChant"}
+{"_type": "attestation", "toponym_ref": "Abingdon@Berkshire", "form": "Abingdon", "date_year": 1203, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Airton@Yorkshire", "form": "Airton", "date_year": 1314, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Alwent@Northumberland and Durham", "form": "Alwent", "date_year": 1317, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Arundel@-", "form": "Arundel", "date_year": 1097, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Asser@British Isles", "form": "Asser", "date_year": 939, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Banco@-", "form": "Banco", "date_year": 1575, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Bath@Gloucestershire", "form": "Bath", "date_year": 1274, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Bede@Scotland", "form": "Bede", "date_year": 1147, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Blakoumore@-", "form": "Riev", "date_year": 1201, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Blakoumore@-", "form": "Riev", "date_year": 1325, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Brandon@Suffolk", "form": "Brandon", "date_year": 1275, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Brede@-", "form": "Brede", "date_year": 1275, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Buckfast@Devon", "form": "Buckfast", "date_year": 1238, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Burnham@BUK", "form": "Burnham", "date_year": 1226, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Cerne@Dorset", "form": "Cerne", "date_year": 1202, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Chedgrave@Norfolk", "form": "Chedgrave", "date_year": 1396, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Chester@Cheshire", "form": "Chester", "date_year": 1276, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Christchurch@Hampshire", "form": "Christchurch", "date_year": 1304, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Colne@Huntingdonshire", "form": "Colne", "date_year": 1295, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Colne@Huntingdonshire", "form": "Colne", "date_year": 1371, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Colton@Norfolk", "form": "Colton", "date_year": 1336, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Consett@Northumberland and Durham", "form": "Conekesheued", "date_year": 1228, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Corfton@Shropshire", "form": "Corfton", "date_year": 1264, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Corsham@Wiltshire", "form": "Corsham", "date_year": 1226, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Coryton@Devon", "form": "Coryton", "date_year": 1355, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Crawford@Dorset", "form": "Crawford", "date_year": 1301, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Dacre@Yorkshire", "form": "Dacre", "date_year": 1211, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Davenham@Cheshire", "form": "Davenham", "date_year": 1278, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Derte@Devon", "form": "Derte", "date_year": 1086, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Enyham@-", "form": "Enyham", "date_year": 1467, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Exeter@Devon", "form": "Exeter", "date_year": 1327, "source_doc": "ekwall_1928_river_names"}
 {"_type": "attestation", "toponym_ref": "Foc@-", "form": "Usabrunna", "date_year": 1148, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Frampton@Gloucestershire", "form": "Frampton", "date_year": 1276, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Frome@Somerset", "form": "Frome", "date_year": 1086, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Frome@Somerset", "form": "Frome", "date_year": 1256, "source_doc": "ekwall_1928_river_names"}
 {"_type": "attestation", "toponym_ref": "Gariannonor@-", "form": "Gernemutha", "date_year": 1086, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gavell@Stirlingshire", "form": "Pont", "date_year": 1155, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gavell@Stirlingshire", "form": "Pont", "date_year": 1230, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gavell@Stirlingshire", "form": "Pont", "date_year": 1276, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gavell@Stirlingshire", "form": "Pont", "date_year": 1300, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gervase@-", "form": "Gervase", "date_year": 1208, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gervase@-", "form": "Gervase", "date_year": 1223, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gervase@-", "form": "Gervase", "date_year": 1227, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gervase@-", "form": "Gervase", "date_year": 1228, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gervase@-", "form": "Gervase", "date_year": 1230, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gervase@-", "form": "Gervase", "date_year": 1232, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gervase@-", "form": "Gervase", "date_year": 1244, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gervase@-", "form": "Gervase", "date_year": 1246, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gervase@-", "form": "Gervase", "date_year": 1249, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gervase@-", "form": "Gervase", "date_year": 1263, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gervase@-", "form": "Gervase", "date_year": 1268, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gervase@-", "form": "Gervase", "date_year": 1276, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gervase@-", "form": "Gervase", "date_year": 1280, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gervase@-", "form": "Gervase", "date_year": 1291, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gervase@-", "form": "Gervase", "date_year": 1307, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gervase@-", "form": "Gervase", "date_year": 1401, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Gervase@-", "form": "Gervase", "date_year": 1586, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Glen@Northumberland and Durham", "form": "Glen", "date_year": 1086, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Glen@Northumberland and Durham", "form": "Glen", "date_year": 1365, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Glendale@Northumberland and Durham", "form": "Glendale", "date_year": 1275, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Glympton@Northamptonshire", "form": "Glympton", "date_year": 1334, "source_doc": "ekwall_1928_river_names"}
 {"_type": "attestation", "toponym_ref": "HUMBERSTONE Li@-", "form": "Humberstein", "date_year": 1115, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Ho@-", "form": "John", "date_year": 1279, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Hunt@England (Danelaw)", "form": "Hunt", "date_year": 1228, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Hunt@England (Danelaw)", "form": "Hunt", "date_year": 1297, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Hunt@England (Danelaw)", "form": "Hunt", "date_year": 1393, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Ilchester@Somerset", "form": "Ilchester", "date_year": 1586, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Irewelc@-", "form": "Irewelc", "date_year": 1200, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Isham@Northamptonshire", "form": "Isham", "date_year": 974, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Isham@Northamptonshire", "form": "Isham", "date_year": 1086, "source_doc": "ekwall_1928_river_names"}
 {"_type": "attestation", "toponym_ref": "Ivel@-", "form": "Giuela", "date_year": 1086, "source_doc": "ekwall_1928_river_names"}
 {"_type": "attestation", "toponym_ref": "Ivel@-", "form": "Ivell", "date_year": 1586, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Iwerne@Dorset", "form": "Iwerne", "date_year": 1086, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Jesmond@Northumberland and Durham", "form": "Gesemue", "date_year": 1205, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Kendal@Yorkshire", "form": "Kendal", "date_year": 1225, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Kenton@Northumberland and Durham", "form": "Kenton", "date_year": 1300, "source_doc": "ekwall_1928_river_names"}
 {"_type": "attestation", "toponym_ref": "LECK La@-", "form": "Leec", "date_year": 1196, "source_doc": "ekwall_1928_river_names"}
 {"_type": "attestation", "toponym_ref": "LINDRICK Nt@-", "form": "Lyndryk", "date_year": 1291, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Lenham@Kent", "form": "Lenham", "date_year": 1275, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Lenton@Lincolnshire", "form": "Lenton", "date_year": 1232, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Leven@Lancashire", "form": "Leven", "date_year": 1304, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Lodbroc@England and Wales", "form": "Lodbroc", "date_year": 1086, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "London@Essex", "form": "London", "date_year": 1508, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "London@Essex", "form": "London", "date_year": 1576, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "London@Essex", "form": "London", "date_year": 1586, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "London@Essex", "form": "London", "date_year": 1602, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "London@Essex", "form": "London", "date_year": 1612, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "London@Essex", "form": "London", "date_year": 1653, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "London@Essex", "form": "London", "date_year": 1662, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Lonton@Yorkshire", "form": "Lonton", "date_year": 1284, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Lynton@Devon", "form": "Lynton", "date_year": 1275, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Malm@-", "form": "Malm", "date_year": 1310, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Malm@-", "form": "Malm", "date_year": 1312, "source_doc": "ekwall_1928_river_names"}
 {"_type": "attestation", "toponym_ref": "Mes@-", "form": "Coldemes", "date_year": 1272, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Montacute@Somerset", "form": "Montacute", "date_year": 1223, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Montacute@Somerset", "form": "Montacute", "date_year": 1228, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Montacute@Somerset", "form": "Montacute", "date_year": 1280, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Montacute@Somerset", "form": "Montacute", "date_year": 1284, "source_doc": "ekwall_1928_river_names"}
 {"_type": "attestation", "toponym_ref": "Niderd@-", "form": "Nidderdale", "date_year": 1279, "source_doc": "ekwall_1928_river_names"}
 {"_type": "attestation", "toponym_ref": "Niderd@-", "form": "Nederdayle", "date_year": 1474, "source_doc": "ekwall_1928_river_names"}
 {"_type": "attestation", "toponym_ref": "Niderd@-", "form": "Netherdale", "date_year": 1577, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Nostell@Yorkshire", "form": "Nostell", "date_year": 1276, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Orwell@Cambridgeshire", "form": "Orwell", "date_year": 1370, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Plumpton@Lancashire", "form": "Plumpton", "date_year": 1250, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Ramsey@Essex", "form": "Ramsey", "date_year": 1255, "source_doc": "ekwall_1928_river_names"}
 {"_type": "attestation", "toponym_ref": "Rother Db@-", "form": "Nostell", "date_year": 1276, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Sowe@Warwickshire", "form": "Sowe", "date_year": 1200, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Tamerton@Devon", "form": "Tamerton", "date_year": 1212, "source_doc": "ekwall_1928_river_names"}
 {"_type": "attestation", "toponym_ref": "Tamirac@-", "form": "Worc", "date_year": 1586, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Tarente@Dorset", "form": "Tarente", "date_year": 1199, "source_doc": "ekwall_1928_river_names"}
 {"_type": "attestation", "toponym_ref": "Temedebur@-", "form": "Temdebury", "date_year": 1414, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Tinac@-", "form": "Regesta", "date_year": 1089, "source_doc": "ekwall_1928_river_names"}
 {"_type": "attestation", "toponym_ref": "Tinac@-", "form": "Regesta", "date_year": 1104, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Tinac@-", "form": "Symeon", "date_year": 1155, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Tinac@-", "form": "Symeon", "date_year": 1203, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Tinac@-", "form": "Symeon", "date_year": 1246, "source_doc": "ekwall_1928_river_names"}
 {"_type": "attestation", "toponym_ref": "Tinac@-", "form": "Symeon", "date_year": 1256, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Trentham@Staffordshire", "form": "Trentham", "date_year": 1190, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Tyne@Northumberland and Durham", "form": "Tyne", "date_year": 1345, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Wantage@Berkshire", "form": "Wanetinz", "date_year": 1086, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Waverton@Cheshire", "form": "Waverton", "date_year": 1227, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Whalley@Cheshire", "form": "Whalley", "date_year": 1209, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Whalley@Cheshire", "form": "Whalley", "date_year": 1229, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Whitby@Yorkshire", "form": "Whitby", "date_year": 1204, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Whitby@Yorkshire", "form": "Whitby", "date_year": 1280, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "Worc@-", "form": "Worc", "date_year": 1586, "source_doc": "ekwall_1928_river_names"}
 {"_type": "attestation", "toponym_ref": "Writel@-", "form": "Writel", "date_year": 1254, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "YChant@-", "form": "Percy", "date_year": 1226, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "YChant@-", "form": "Percy", "date_year": 1311, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "YChant@-", "form": "Percy", "date_year": 1314, "source_doc": "ekwall_1928_river_names"}
+{"_type": "attestation", "toponym_ref": "YChant@-", "form": "Percy", "date_year": 1334, "source_doc": "ekwall_1928_river_names"}

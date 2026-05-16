@@ -379,8 +379,84 @@
 {"_type": "etymology_element", "toponym_ref": "WoRSBOROUGH@South-West Yorkshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:weorc", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:burg"}], "historical_form": "Weorc-burg", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | WoRSBOROUGH, Barnsley. WORTLEY, Leeds. WORTLEY, Sheffield. DB 1086 Wircesburg KC 1189 Wirkeleia DB 1086 VVirtleie, Wirlei YS 1297 Wortelay NV 1 3 16 ", "attested_year": 1086}
 {"_type": "etymology_element", "toponym_ref": "Wudelesford@South-West Yorkshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wodel"}, {"ordinal": 1, "etymon_ref": "old-english:ford"}], "historical_form": "Wodel-ford", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar identifies first element as personal name Wodel (from Searle); second element is ford. Early forms show variation (Wodelesford, Wridelesford, "}
 {"_type": "etymology_element", "toponym_ref": "Wyke@South-West Yorkshire", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:vlk"}], "historical_form": "vlk", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar states 'very probable' and 'most probably' from ON vlk, but the specific gloss of vlk is not provided in the entry. | Wyke, Bradford, DB Wich,"}
+{"_type": "toponym", "ref": "Barnsley@Gloucestershire", "modern_name": "Barnsley", "country": "England", "region": "Gloucestershire"}
+{"_type": "toponym", "ref": "Bedale@Yorkshire", "modern_name": "Bedale", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Bentham@Yorkshire", "modern_name": "Bentham", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Bericote@Warwickshire", "modern_name": "Bericote", "country": "England", "region": "Warwickshire"}
+{"_type": "toponym", "ref": "Berwick@-", "modern_name": "Berwick"}
+{"_type": "toponym", "ref": "Blackburn@Cheshire", "modern_name": "Blackburn", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Childwall@Cheshire", "modern_name": "Childwall", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Chorley@Cheshire", "modern_name": "Chorley", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Common@Northumberland and Durham", "modern_name": "Common", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Coniston@Yorkshire", "modern_name": "Coniston", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Fetternear@Scotland", "modern_name": "Fetternear", "region": "Scotland"}
+{"_type": "toponym", "ref": "Formby@Cheshire", "modern_name": "Formby", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Gisburn@Yorkshire", "modern_name": "Gisburn", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Grassington@Yorkshire", "modern_name": "Grassington", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Hemsworth@Dorset", "modern_name": "Hemsworth", "country": "England", "region": "Dorset"}
+{"_type": "toponym", "ref": "Holmfirth@South-West Yorkshire", "modern_name": "Holmfirth", "region": "South-West Yorkshire"}
+{"_type": "toponym", "ref": "Huddersfield@Yorkshire", "modern_name": "Huddersfield", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Kendal@Yorkshire", "modern_name": "Kendal", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Kirkham@Yorkshire", "modern_name": "Kirkham", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Later@-", "modern_name": "Later"}
+{"_type": "toponym", "ref": "Leeds@Kent", "modern_name": "Leeds", "country": "England", "region": "Kent"}
+{"_type": "toponym", "ref": "Maltby@Lincolnshire", "modern_name": "Maltby", "country": "England", "region": "Lincolnshire"}
+{"_type": "toponym", "ref": "Malton@Yorkshire", "modern_name": "Malton", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Olaf@Argyll", "modern_name": "Olaf", "region": "Argyll"}
+{"_type": "toponym", "ref": "Park@Northumberland and Durham", "modern_name": "Park", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Penistone@Yorkshire", "modern_name": "Penistone", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Preston@-", "modern_name": "Preston"}
+{"_type": "toponym", "ref": "Sandal@Yorkshire", "modern_name": "Sandal", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Settle@Yorkshire", "modern_name": "Settle", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Sheffield@Berkshire", "modern_name": "Sheffield", "country": "England", "region": "Berkshire"}
+{"_type": "toponym", "ref": "Stafford@Staffordshire", "modern_name": "Stafford", "region": "Staffordshire"}
+{"_type": "toponym", "ref": "Thingwall@Lancashire", "modern_name": "Thingwall", "region": "Lancashire"}
+{"_type": "toponym", "ref": "Thorp@Yorkshire", "modern_name": "Thorp", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Wakefield@Northamptonshire", "modern_name": "Wakefield", "country": "England", "region": "Northamptonshire"}
+{"_type": "toponym", "ref": "Wennington@Essex", "modern_name": "Wennington", "country": "England", "region": "Essex"}
+{"_type": "attestation", "toponym_ref": "Barnsley@Gloucestershire", "form": "Barnsley", "date_year": 1297, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Bedale@Yorkshire", "form": "Bedale", "date_year": 1086, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Bentham@Yorkshire", "form": "Bentham", "date_year": 1260, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Bericote@Warwickshire", "form": "Bericote", "date_year": 1275, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Berwick@-", "form": "Berwick", "date_year": 1297, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Blackburn@Cheshire", "form": "Blackburn", "date_year": 1321, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Childwall@Cheshire", "form": "Childwall", "date_year": 1224, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Chorley@Cheshire", "form": "Chorley", "date_year": 1208, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Common@Northumberland and Durham", "form": "Common", "date_year": 1607, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Coniston@Yorkshire", "form": "Coniston", "date_year": 1202, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Fetternear@Scotland", "form": "Fetternear", "date_year": 1157, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Formby@Cheshire", "form": "Formby", "date_year": 1213, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Gisburn@Yorkshire", "form": "Gisburn", "date_year": 1086, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Grassington@Yorkshire", "form": "Grassington", "date_year": 1259, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Hemsworth@Dorset", "form": "Hemsworth", "date_year": 1230, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Holmfirth@South-West Yorkshire", "form": "Holmfirth", "date_year": 1514, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Huddersfield@Yorkshire", "form": "Huddersfield", "date_year": 1086, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Kendal@Yorkshire", "form": "Kendal", "date_year": 1301, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Kirkham@Yorkshire", "form": "Kirkham", "date_year": 1235, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Later@-", "form": "Later", "date_year": 1275, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Leeds@Kent", "form": "Leeds", "date_year": 1086, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Maltby@Lincolnshire", "form": "Maltby", "date_year": 1324, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Malton@Yorkshire", "form": "Malton", "date_year": 1086, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Morthen@South-West Yorkshire", "form": "Morthen", "date_year": 1305, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "MosCAR@South-West Yorkshire", "form": "Moskarr", "date_year": 1574, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Olaf@Argyll", "form": "Olaf", "date_year": 940, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Park@Northumberland and Durham", "form": "Park", "date_year": 1560, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Penistone@Yorkshire", "form": "Penistone", "date_year": 1256, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Preston@-", "form": "Preston", "date_year": 1086, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "RiNGINGLOW@South-West Yorkshire", "form": "Sheffield", "date_year": 1574, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Sandal@Yorkshire", "form": "Sandal", "date_year": 1279, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Settle@Yorkshire", "form": "Settle", "date_year": 1299, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Sheffield@Berkshire", "form": "Sheffield", "date_year": 1086, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Sheffield@Berkshire", "form": "Sheffield", "date_year": 1267, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Sheffield@Berkshire", "form": "Sheffield", "date_year": 1270, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Sheffield@Berkshire", "form": "Sheffield", "date_year": 1307, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Sheffield@Berkshire", "form": "Sheffield", "date_year": 1574, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Stafford@Staffordshire", "form": "Stafford", "date_year": 1004, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Stennard@South-West Yorkshire", "form": "Stenodiff", "date_year": 1540, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Thingwall@Lancashire", "form": "Thingwall", "date_year": 1346, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Thornseat@South-West Yorkshire", "form": "Thorneset", "date_year": 1329, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Thorp@Yorkshire", "form": "Thorp", "date_year": 1150, "source_doc": "goodall_1914_sw_yorkshire"}
 {"_type": "attestation", "toponym_ref": "Thorpe@South-West Yorkshire", "form": "Thorp", "date_year": 1150, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Wakefield@Northamptonshire", "form": "Wakefield", "date_year": 1285, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "Wennington@Essex", "form": "Wennington", "date_year": 1247, "source_doc": "goodall_1914_sw_yorkshire"}
+{"_type": "attestation", "toponym_ref": "WoRSBOROUGH@South-West Yorkshire", "form": "Worsborough", "date_year": 1284, "source_doc": "goodall_1914_sw_yorkshire"}

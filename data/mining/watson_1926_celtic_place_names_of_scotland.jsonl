@@ -904,16 +904,41 @@
 {"_type": "etymology_element", "toponym_ref": "Teamhair@Scotland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:teamhair"}], "historical_form": "Teamhair", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar provides explicit gloss of the Irish term. Genitive forms Teamhra and Teamhrach are attested in historical records. | Teamhair, gen. Teamhra, "}
 {"_type": "etymology_element", "toponym_ref": "Tillymorgan@Scotland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:rath"}, {"ordinal": 1, "etymon_ref": "celtic:morganaigh", "inflection": "genitive"}], "historical_form": "Rath-Morganaigh", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Tillymorgan, Aberdeen; Ramornie, Ramorgany 1512 (RMS), in Fife, seems to be for Rath Morganaigh, ‘rath of (the) Morganach,’ i.e. of a man of Clan Mor", "attested_year": 1512}
 {"_type": "etymology_element", "toponym_ref": "Virvedrum@Scotland", "elements": [{"ordinal": 0, "etymon_ref": "celtic:ver"}, {"ordinal": 1, "etymon_ref": "celtic:vedros", "inflection": "neuter"}], "historical_form": "Ver-vedron", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar divides as Vir-vedron; vedron is neuter of E.Celt. *vedros; feminine form Vedra attested in Ptolemy's Wear; meaning 'very clear (cape)' based "}
+{"_type": "toponym", "ref": "Acre@Norfolk", "modern_name": "Acre", "country": "England", "region": "Norfolk"}
+{"_type": "toponym", "ref": "Alne@Northumberland and Durham", "modern_name": "Alne", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Alwent@Northumberland and Durham", "modern_name": "Alwent", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Buchan@Scotland", "modern_name": "Buchan", "region": "Scotland"}
+{"_type": "toponym", "ref": "Carrick@Northumberland and Durham", "modern_name": "Carrick", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Glack@Ireland", "modern_name": "Glack", "region": "Ireland"}
+{"_type": "toponym", "ref": "Grange@Northumberland and Durham", "modern_name": "Grange", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Nennius@Stirlingshire", "modern_name": "Nennius", "region": "Stirlingshire"}
+{"_type": "toponym", "ref": "Slamannan@Stirlingshire", "modern_name": "Slamannan", "region": "Stirlingshire"}
+{"_type": "toponym", "ref": "Stirling@Stirlingshire", "modern_name": "Stirling", "region": "Stirlingshire"}
+{"_type": "attestation", "toponym_ref": "Aberchirder@Scotland", "form": "Aberchirder", "date_year": 1493, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Abertarff@Scotland", "form": "Abirtarf", "date_year": 1208, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Acre@Norfolk", "form": "Acre", "date_year": 1567, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Alne@Northumberland and Durham", "form": "Alne", "date_year": 1176, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Alwent@Northumberland and Durham", "form": "Alowent", "date_year": 1238, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Buchan@Scotland", "form": "Buchan", "date_year": 1275, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Carrick@Northumberland and Durham", "form": "Carrick", "date_year": 1506, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Corsbasket@Scotland", "form": "Corsbasket", "date_year": 1426, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Dolcorachy@Scotland", "form": "Dolcorachy", "date_year": 1313, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Dolcorachy@Scotland", "form": "Dalhorochquhi", "date_year": 1445, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Dulchreg@Scotland", "form": "Dulchreg", "date_year": 1655, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Echline@Scotland", "form": "Kchlinge", "date_year": 1449, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Falkirk@Scotland", "form": "Calantair", "date_year": 1296, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Falkirk@Scotland", "form": "Kalentar", "date_year": 1362, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Fothirletir@Scotland", "form": "Fothirletir", "date_year": 1428, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Glack@Ireland", "form": "Glack", "date_year": 1390, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Grange@Northumberland and Durham", "form": "Grange", "date_year": 1611, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Kildalwin@Scotland", "form": "Kildalwin", "date_year": 1525, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Kinmont in Annandale@Scotland", "form": "Kynmund", "date_year": 1529, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Langnudre@Scotland", "form": "Langnudre", "date_year": 1424, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Manor@Scotland", "form": "Mainavre", "date_year": 1086, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Maol-domhnaich@Scotland", "form": "Petmuldonych", "date_year": 1504, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Nennius@Stirlingshire", "form": "Nennius", "date_year": 800, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Petblane@Scotland", "form": "Petblane", "date_year": 1643, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Pourie@Scotland", "form": "Pethfoure", "date_year": 1358, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
 {"_type": "attestation", "toponym_ref": "Prescoly@Scotland", "form": "Prescoly", "date_year": 1390, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Slamannan@Stirlingshire", "form": "Slamannan", "date_year": 1275, "source_doc": "watson_1926_celtic_place_names_of_scotland"}
+{"_type": "attestation", "toponym_ref": "Stirling@Stirlingshire", "form": "Stirling", "date_year": 1272, "source_doc": "watson_1926_celtic_place_names_of_scotland"}

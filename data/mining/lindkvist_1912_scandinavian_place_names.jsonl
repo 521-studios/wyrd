@@ -825,46 +825,128 @@
 {"_type": "etymology_element", "toponym_ref": "Yo@England (Danelaw)", "elements": [{"ordinal": 0, "etymon_ref": "old-english:gauhe"}, {"ordinal": 1, "etymon_ref": "old-norse:thorpe"}], "historical_form": "Gauhe-thorpe", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; First element Gauhe is obscure; thorpe is clear Old Norse. Modern form Gawthorpe shows phonetic development from Gauhe-. | Yo. 1198 Fountains Mem.; Go", "attested_year": 1198}
 {"_type": "etymology_element", "toponym_ref": "Yo@England (Danelaw)", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:naiita"}, {"ordinal": 1, "etymon_ref": "old-norse:gangr"}], "historical_form": "naiita-gangr", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar identifies the compound as Old West Scandinavian *naiita-gangr (-ganga), with detailed semantic development and comparison to related Scandina"}
 {"_type": "etymology_element", "toponym_ref": "Yoghannetheit Yo@England (Danelaw)", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:úlfa", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-norse:leikr"}, {"ordinal": 2, "etymon_ref": "old-norse:thwaite"}], "historical_form": "úlfa-leikr-thwaite", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar marks as 'probably' from partly anglicized Old West Scandinavian form. M.E. 'wulf' substituted for original Scandinavian first member in ortho"}
+{"_type": "toponym", "ref": "Argarmeles@Cheshire", "modern_name": "Argarmeles", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Asebi@-", "modern_name": "Asebi"}
+{"_type": "toponym", "ref": "Asgarby@Lincolnshire", "modern_name": "Asgarby", "country": "England", "region": "Lincolnshire"}
+{"_type": "toponym", "ref": "Aslacton@Norfolk", "modern_name": "Aslacton", "country": "England", "region": "Norfolk"}
+{"_type": "toponym", "ref": "Austhorp@Rutland", "modern_name": "Austhorp", "country": "England", "region": "Rutland"}
+{"_type": "toponym", "ref": "Austhorpe@Lincolnshire", "modern_name": "Austhorpe", "country": "England", "region": "Lincolnshire"}
+{"_type": "toponym", "ref": "Baildon@Yorkshire", "modern_name": "Baildon", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Bennington@Hertfordshire", "modern_name": "Bennington", "country": "England", "region": "Hertfordshire"}
+{"_type": "toponym", "ref": "Braceby@Lincolnshire", "modern_name": "Braceby", "country": "England", "region": "Lincolnshire"}
+{"_type": "toponym", "ref": "Braithwell@Yorkshire", "modern_name": "Braithwell", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Burton@Northumberland and Durham", "modern_name": "Burton", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Copeland House@Northumberland and Durham", "modern_name": "Copeland House", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Crake@Lancashire", "modern_name": "Crake", "region": "Lancashire"}
+{"_type": "toponym", "ref": "Garstang@Yorkshire", "modern_name": "Garstang", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Groby@LEC", "modern_name": "Groby", "country": "England", "region": "LEC"}
+{"_type": "toponym", "ref": "Horningtoft@Norfolk", "modern_name": "Horningtoft", "country": "England", "region": "Norfolk"}
+{"_type": "toponym", "ref": "Howick@Northumberland and Durham", "modern_name": "Howick", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Huby@Yorkshire", "modern_name": "Huby", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Ipswich@Essex", "modern_name": "Ipswich", "country": "England", "region": "Essex"}
+{"_type": "toponym", "ref": "Kirkby@Yorkshire", "modern_name": "Kirkby", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Lane@Northumberland and Durham", "modern_name": "Lane", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Langtoft@Lincolnshire", "modern_name": "Langtoft", "country": "England", "region": "Lincolnshire"}
+{"_type": "toponym", "ref": "Loistoft@England and Wales", "modern_name": "Loistoft", "region": "England and Wales"}
+{"_type": "toponym", "ref": "Manchester@Cheshire", "modern_name": "Manchester", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Maureholme@Lancashire", "modern_name": "Maureholme", "region": "Lancashire"}
+{"_type": "toponym", "ref": "Nafferton@Northumberland and Durham", "modern_name": "Nafferton", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Ouston@Yorkshire", "modern_name": "Ouston", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Pudsey@Yorkshire", "modern_name": "Pudsey", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Ripon@Yorkshire", "modern_name": "Ripon", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Stainton@Lancashire", "modern_name": "Stainton", "region": "Lancashire"}
+{"_type": "toponym", "ref": "Thorp@Yorkshire", "modern_name": "Thorp", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Toft@Cambridgeshire", "modern_name": "Toft", "region": "Cambridgeshire"}
 {"_type": "attestation", "toponym_ref": "Abi Li@England (Danelaw)", "form": "Hahy", "date_year": 1254, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Argarmeles@Cheshire", "form": "Argarmeles", "date_year": 1254, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Aschilebi Yo@England (Danelaw)", "form": "EsJdIby", "date_year": 1198, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Aschilebi Yo@England (Danelaw)", "form": "Eskelhy", "date_year": 1299, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Asebi@-", "form": "Asebi", "date_year": 1125, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Asfordeby Li@England (Danelaw)", "form": "Asffordehy", "date_year": 1303, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Asfordeby Li@England (Danelaw)", "form": "Asserhy", "date_year": 1428, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Asgarby@Lincolnshire", "form": "Asgarby", "date_year": 1289, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Aslacton@Norfolk", "form": "Aslacton", "date_year": 1284, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Astorp Li@England (Danelaw)", "form": "Astthorp", "date_year": 1303, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Astorp Li@England (Danelaw)", "form": "Astliorpe", "date_year": 1382, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Asuluesby@England (Danelaw)", "form": "Ascilhi", "date_year": 1278, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Asuuardebi Li@England (Danelaw)", "form": "Asivardebi", "date_year": 1196, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Asuuardebi Li@England (Danelaw)", "form": "Asivardeby", "date_year": 1303, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Asuuardebi Li@England (Danelaw)", "form": "Asivardeby", "date_year": 1328, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Austhorp@Rutland", "form": "Austhorp", "date_year": 1302, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Austhorpe@Lincolnshire", "form": "Austhorpe", "date_year": 1475, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Baildon@Yorkshire", "form": "Baildon", "date_year": 1255, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Bennington@Hertfordshire", "form": "Bennington", "date_year": 1202, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Braceby@Lincolnshire", "form": "Braceby", "date_year": 1391, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Braithwell@Yorkshire", "form": "Braithwell", "date_year": 1232, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Braithwell@Yorkshire", "form": "Braithwell", "date_year": 1338, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Burton@Northumberland and Durham", "form": "Burton", "date_year": 1268, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Calatorp@England (Danelaw)", "form": "Caiiuda", "date_year": 1189, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Calatorp@England (Danelaw)", "form": "Gaivude", "date_year": 1201, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Calatorp@England (Danelaw)", "form": "Cane", "date_year": 1230, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Calatorp@England (Danelaw)", "form": "Cane", "date_year": 1245, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Calatorp@England (Danelaw)", "form": "Cane", "date_year": 1252, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Calatorp@England (Danelaw)", "form": "CaUhorp", "date_year": 1260, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Copeland House@Northumberland and Durham", "form": "Coupland", "date_year": 1228, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Copeland House@Northumberland and Durham", "form": "Couplaund", "date_year": 1255, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Copeman Torp Yo@England (Danelaw)", "form": "Copmonistorp", "date_year": 1194, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Copeman Torp Yo@England (Danelaw)", "form": "Goupmanthorp", "date_year": 1283, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Copemaneforde Hunt@England (Danelaw)", "form": "Copmanesford", "date_year": 1207, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Copemaneforde Hunt@England (Danelaw)", "form": "Copmaneford", "date_year": 1225, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Crake@Lancashire", "form": "Crake", "date_year": 1470, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Estrebi Li DoB@England (Danelaw)", "form": "Esterhy", "date_year": 1294, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Garstang@Yorkshire", "form": "Garstang", "date_year": 1340, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Groby@LEC", "form": "Groby", "date_year": 1483, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Hardemetetoft Li@England (Danelaw)", "form": "Hertestofte", "date_year": 1287, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Horningtoft@Norfolk", "form": "Horningtoft", "date_year": 1290, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Howick@Northumberland and Durham", "form": "Howick", "date_year": 1288, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Huby@Yorkshire", "form": "Huby", "date_year": 1398, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Ipswich@Essex", "form": "Ipswich", "date_year": 1444, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Kirkby@Yorkshire", "form": "Kirkby", "date_year": 1286, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Kirkby@Yorkshire", "form": "Kirkby", "date_year": 1288, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Kirkby@Yorkshire", "form": "Kirkby", "date_year": 1295, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Kirkby@Yorkshire", "form": "Kirkby", "date_year": 1298, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Kirkby@Yorkshire", "form": "Kirkby", "date_year": 1301, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Kirkby@Yorkshire", "form": "Kirkby", "date_year": 1302, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Kirkby@Yorkshire", "form": "Kirkby", "date_year": 1303, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Kirkby@Yorkshire", "form": "Kirkby", "date_year": 1316, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Kirkby@Yorkshire", "form": "Kirkby", "date_year": 1323, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Kirkby@Yorkshire", "form": "Kirkby", "date_year": 1347, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Kirkby@Yorkshire", "form": "Kirkby", "date_year": 1387, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Lane@England (Danelaw)", "form": "Coupmanneswra", "date_year": 1229, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Lane@England (Danelaw)", "form": "Sueneshurst", "date_year": 1261, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Lane@England (Danelaw)", "form": "MaurJiolm", "date_year": 1334, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Lane@Northumberland and Durham", "form": "Lane", "date_year": 1250, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Langetouet@England (Danelaw)", "form": "Langethwait", "date_year": 1166, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Langtoft@Lincolnshire", "form": "Langtoft", "date_year": 1302, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Li@England (Danelaw)", "form": "Saustorp", "date_year": 1189, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Loistoft@England and Wales", "form": "Loistoft", "date_year": 1308, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "LouMandes Yo@England (Danelaw)", "form": "LouJcelandes", "date_year": 1399, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Manchester@Cheshire", "form": "Manchester", "date_year": 923, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Maureholme@Lancashire", "form": "Maureholme", "date_year": 1334, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Nadfartone Yo@England (Danelaw)", "form": "Naffirton", "date_year": 1308, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Nafferton@Northumberland and Durham", "form": "Nafretun", "date_year": 1221, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Odenebi Li@England (Danelaw)", "form": "Oupenehy", "date_year": 1250, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Osgodtorp Le@England (Danelaw)", "form": "Osgodesthorp", "date_year": 1124, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Osgodtorp Le@England (Danelaw)", "form": "OsegostJiorp", "date_year": 1275, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Ounesbi Li@England (Danelaw)", "form": "Ounehy", "date_year": 1166, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Ounesbi Li@England (Danelaw)", "form": "Ounehy", "date_year": 1226, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Ouston@Yorkshire", "form": "Ouston", "date_year": 1285, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Oustredinc@England (Danelaw)", "form": "Austriding", "date_year": 1135, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Pudsey@Yorkshire", "form": "Pudsey", "date_year": 1183, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Rabie Chs@England (Danelaw)", "form": "Rahy", "date_year": 1277, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Ripon@Yorkshire", "form": "Ripon", "date_year": 1452, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Rodemele Yo@England (Danelaw)", "form": "Bouthemell", "date_year": 1302, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Rodemele Yo@England (Danelaw)", "form": "Bouthmel", "date_year": 1307, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Rothewelle North@England (Danelaw)", "form": "Rowell", "date_year": 1208, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Staincros Yo@England (Danelaw)", "form": "Steincros", "date_year": 1165, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Stainton@Lancashire", "form": "Stainton", "date_year": 1282, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Stainton@Lancashire", "form": "Stainton", "date_year": 1283, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Staintune Li@England (Danelaw)", "form": "Waldsteinton", "date_year": 1208, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Steintun Wm@England (Danelaw)", "form": "Steynton", "date_year": 1240, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Steintun Wm@England (Danelaw)", "form": "Stainton", "date_year": 1282, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Steintun Wm@England (Danelaw)", "form": "Steynton", "date_year": 1282, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Steintun Wm@England (Danelaw)", "form": "Steynton", "date_year": 1461, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Steintun Wm@England (Danelaw)", "form": "Steynton", "date_year": 1466, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Steinueges@England (Danelaw)", "form": "Steinweg", "date_year": 1226, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Stofftam@England (Danelaw)", "form": "Toftis", "date_year": 1302, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Stofftam@England (Danelaw)", "form": "Westetoftes", "date_year": 1334, "source_doc": "lindkvist_1912_scandinavian_place_names"}
@@ -877,8 +959,12 @@
 {"_type": "attestation", "toponym_ref": "Sueningatuna Norf@England (Danelaw)", "form": "Sivenygton", "date_year": 1285, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Sueningatuna Norf@England (Danelaw)", "form": "Stvenington", "date_year": 1294, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Swaynsby Yo@England (Danelaw)", "form": "Sivainby", "date_year": 1367, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Thorp@Yorkshire", "form": "Thorp", "date_year": 1284, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Thorp@Yorkshire", "form": "Thorp", "date_year": 1346, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Tirnetofte@England (Danelaw)", "form": "Tkyrnetofte", "date_year": 1301, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Tirnetofte@England (Danelaw)", "form": "Thorntoft", "date_year": 1304, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Toft@Cambridgeshire", "form": "Toft", "date_year": 1286, "source_doc": "lindkvist_1912_scandinavian_place_names"}
+{"_type": "attestation", "toponym_ref": "Toft@Cambridgeshire", "form": "Toft", "date_year": 1316, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Toft Norf@England (Danelaw)", "form": "Toft", "date_year": 1316, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Tofth Cambr@England (Danelaw)", "form": "Toft", "date_year": 1316, "source_doc": "lindkvist_1912_scandinavian_place_names"}
 {"_type": "attestation", "toponym_ref": "Tofth Cambr@England (Danelaw)", "form": "Tliofftes", "date_year": 1492, "source_doc": "lindkvist_1912_scandinavian_place_names"}

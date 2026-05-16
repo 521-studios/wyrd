@@ -3197,5 +3197,3 @@
 {"_type": "citation", "etymon_ref": "biblical:mary"}
 {"_type": "citation", "etymon_ref": "old-english:philip"}
 {"_type": "citation", "etymon_ref": "old-english:philipa"}
-{"_op": "remove", "_type": "etymon", "ref": "celtic:micel", "_reason": "wyrd-e784: rando-port mis-tag; micel is well-attested Old English 'great/large'. Scholar sibling old-english:micel exists."}
-{"_op": "remove", "_type": "etymon", "ref": "old-norse:draeg", "_reason": "wyrd-e784: rando-port mis-tag; draeg is Old English place-name element 'drag-place'. Scholar sibling old-english:draeg exists with skeat 1901 citation."}

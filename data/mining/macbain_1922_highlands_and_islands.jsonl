@@ -477,15 +477,35 @@
 {"_type": "etymology_element", "toponym_ref": "Troll@Scottish Highlands and Islands", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:tryll"}, {"ordinal": 1, "etymon_ref": "old-norse:steinn"}], "historical_form": "tryll-steinn", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar identifies Tryllskar-steinn as the Old Norse compound underlying Cloch an Truiseil and its variants Tryskall, Tryshall via metathesis. | Troll"}
 {"_type": "etymology_element", "toponym_ref": "Urquhart@Scottish Highlands and Islands", "elements": [{"ordinal": 0, "etymon_ref": "celtic:air"}, {"ordinal": 1, "etymon_ref": "celtic:cartdan"}], "historical_form": "air-chartdan", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar derives cartdan from Welsh cerddin (rowan tree) via Pictish; acknowledges Pictish is unattested and relies on Welsh as nearest kin for explana"}
 {"_type": "etymology_element", "toponym_ref": "Vik@Scottish Highlands and Islands", "elements": [{"ordinal": 0, "etymon_ref": "old-norse:vik"}], "historical_form": "vik", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001 | Vik, a creek, bay, wick. This appears ter- minally in Gaelic as bhaig, aig, or ag. A common name is Sandwick, that is. Sand-bay. It is in Iceland, Sh"}
+{"_type": "toponym", "ref": "Blargie@Scottish Highlands and Islands", "modern_name": "Blargie", "region": "Scottish Highlands and Islands"}
+{"_type": "toponym", "ref": "Burgh@LEC", "modern_name": "Burgh", "country": "England", "region": "LEC"}
+{"_type": "toponym", "ref": "Crathie@Scottish Highlands and Islands", "modern_name": "Crathie", "region": "Scottish Highlands and Islands"}
+{"_type": "toponym", "ref": "Hill@Northumberland and Durham", "modern_name": "Hill", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Kessok@Scotland", "modern_name": "Kessok", "region": "Scotland"}
+{"_type": "toponym", "ref": "North@-", "modern_name": "North"}
+{"_type": "toponym", "ref": "Ovie@Scottish Highlands and Islands", "modern_name": "Ovie", "region": "Scottish Highlands and Islands"}
+{"_type": "toponym", "ref": "Perth@Scotland", "modern_name": "Perth", "region": "Scotland"}
+{"_type": "toponym", "ref": "Ross@England and Wales", "modern_name": "Ross", "region": "England and Wales"}
 {"_type": "attestation", "toponym_ref": "Achnacoichen@Scottish Highlands and Islands", "form": "Achnacochine", "date_year": 1509, "source_doc": "macbain_1922_highlands_and_islands"}
 {"_type": "attestation", "toponym_ref": "Ahriachan@Scottish Highlands and Islands", "form": "Abir-hacyn", "date_year": 1334, "source_doc": "macbain_1922_highlands_and_islands"}
 {"_type": "attestation", "toponym_ref": "BeaUid@Scottish Highlands and Islands", "form": "BeaUid", "date_year": 1603, "source_doc": "macbain_1922_highlands_and_islands"}
 {"_type": "attestation", "toponym_ref": "BeaUid@Scottish Highlands and Islands", "form": "Ballet", "date_year": 1637, "source_doc": "macbain_1922_highlands_and_islands"}
+{"_type": "attestation", "toponym_ref": "Blargie@Scottish Highlands and Islands", "form": "Blargie", "date_year": 1603, "source_doc": "macbain_1922_highlands_and_islands"}
+{"_type": "attestation", "toponym_ref": "Burgh@LEC", "form": "Burgh", "date_year": 1603, "source_doc": "macbain_1922_highlands_and_islands"}
+{"_type": "attestation", "toponym_ref": "Cluny@Scottish Highlands and Islands", "form": "Cluny", "date_year": 1609, "source_doc": "macbain_1922_highlands_and_islands"}
+{"_type": "attestation", "toponym_ref": "Crathie@Scottish Highlands and Islands", "form": "Crathie", "date_year": 1603, "source_doc": "macbain_1922_highlands_and_islands"}
 {"_type": "attestation", "toponym_ref": "Culloden@Scottish Highlands and Islands", "form": "Cullodyn", "date_year": 1238, "source_doc": "macbain_1922_highlands_and_islands"}
 {"_type": "attestation", "toponym_ref": "DaJnavert@Scottish Highlands and Islands", "form": "DaJnavert", "date_year": 1338, "source_doc": "macbain_1922_highlands_and_islands"}
 {"_type": "attestation", "toponym_ref": "DaJnavert@Scottish Highlands and Islands", "form": "Dalnafert", "date_year": 1603, "source_doc": "macbain_1922_highlands_and_islands"}
 {"_type": "attestation", "toponym_ref": "Essich@Scottish Highlands and Islands", "form": "Essy", "date_year": 1456, "source_doc": "macbain_1922_highlands_and_islands"}
 {"_type": "attestation", "toponym_ref": "Heisker@Scottish Highlands and Islands", "form": "Hellisker", "date_year": 1644, "source_doc": "macbain_1922_highlands_and_islands"}
 {"_type": "attestation", "toponym_ref": "Heisker@Scottish Highlands and Islands", "form": "Munro", "date_year": 1649, "source_doc": "macbain_1922_highlands_and_islands"}
+{"_type": "attestation", "toponym_ref": "Hill@Northumberland and Durham", "form": "Hill", "date_year": 1402, "source_doc": "macbain_1922_highlands_and_islands"}
 {"_type": "attestation", "toponym_ref": "Insh@Scottish Highlands and Islands", "form": "Eegistrum", "date_year": 1226, "source_doc": "macbain_1922_highlands_and_islands"}
+{"_type": "attestation", "toponym_ref": "Kessok@Scotland", "form": "Kessok", "date_year": 1437, "source_doc": "macbain_1922_highlands_and_islands"}
+{"_type": "attestation", "toponym_ref": "North@-", "form": "North", "date_year": 1427, "source_doc": "macbain_1922_highlands_and_islands"}
+{"_type": "attestation", "toponym_ref": "Ovie@Scottish Highlands and Islands", "form": "Ovie", "date_year": 1603, "source_doc": "macbain_1922_highlands_and_islands"}
+{"_type": "attestation", "toponym_ref": "Perth@Scotland", "form": "Perth", "date_year": 1396, "source_doc": "macbain_1922_highlands_and_islands"}
 {"_type": "attestation", "toponym_ref": "Pitchurn@Scottish Highlands and Islands", "form": "Pitchurn", "date_year": 1603, "source_doc": "macbain_1922_highlands_and_islands"}
+{"_type": "attestation", "toponym_ref": "Pitourie@Scottish Highlands and Islands", "form": "Pitourie", "date_year": 1495, "source_doc": "macbain_1922_highlands_and_islands"}
+{"_type": "attestation", "toponym_ref": "Ross@England and Wales", "form": "Ross", "date_year": 1661, "source_doc": "macbain_1922_highlands_and_islands"}

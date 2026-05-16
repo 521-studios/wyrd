@@ -331,4 +331,58 @@
 {"_type": "etymology_element", "toponym_ref": "Reg@Herefordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:byre"}], "historical_form": "byre", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5 | Reg. 1334 Maurice atte Birches ordained, Ep. Reg. 1340 Muchelbirches, Min. Ace. Aconbury. 1 341 Byrches sancte Marie, Non. Inq. 1538 Birche, Val. Eccles. 1539", "attested_year": 1334}
 {"_type": "etymology_element", "toponym_ref": "Survey@Herefordshire", "elements": [{"ordinal": 0, "etymon_ref": "old-english:brom"}, {"ordinal": 1, "etymon_ref": "modern-english:close"}], "historical_form": "Broomy-Close", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5; Scholar identifies this as a 19th-century Wallicizing of a 17th-century English name. Multiple parallel forms attested (Broomy Hill, The Broome, Broome Hill Fa"}
 {"_type": "etymology_element", "toponym_ref": "Surveys@Herefordshire", "elements": [{"ordinal": 0, "etymon_ref": "modern-english:blacman", "inflection": "genitive"}, {"ordinal": 1, "etymon_ref": "old-english:tun"}], "historical_form": "Blacman-tun", "confidence": "high", "notes": "extracted_by:anthropic:claude-haiku-4-5; Scholar notes that popular etymology later altered the form to 'Surveys'; original compound was 'Blacman's tun' from a person named Blacman who held the Kentis"}
+{"_type": "toponym", "ref": "Barre@Scotland", "modern_name": "Barre", "region": "Scotland"}
+{"_type": "toponym", "ref": "Bodenham@Herefordshire", "modern_name": "Bodenham", "country": "England", "region": "Herefordshire"}
+{"_type": "toponym", "ref": "Burghill@Herefordshire", "modern_name": "Burghill", "country": "England", "region": "Herefordshire"}
+{"_type": "toponym", "ref": "Cart@Northumberland and Durham", "modern_name": "Cart", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Clifford@Devon", "modern_name": "Clifford", "country": "England", "region": "Devon"}
+{"_type": "toponym", "ref": "Goodrich@Herefordshire", "modern_name": "Goodrich", "country": "England", "region": "Herefordshire"}
+{"_type": "toponym", "ref": "Hereford@Cheshire", "modern_name": "Hereford", "country": "England", "region": "Cheshire"}
+{"_type": "toponym", "ref": "Hope@Wales", "modern_name": "Hope", "region": "Wales"}
+{"_type": "toponym", "ref": "Kilpeck@Herefordshire", "modern_name": "Kilpeck", "country": "England", "region": "Herefordshire"}
+{"_type": "toponym", "ref": "Kingsland@Herefordshire", "modern_name": "Kingsland", "country": "England", "region": "Herefordshire"}
+{"_type": "toponym", "ref": "Ledbury@Herefordshire", "modern_name": "Ledbury", "country": "England", "region": "Herefordshire"}
+{"_type": "toponym", "ref": "Mansell@Herefordshire", "modern_name": "Mansell", "country": "England", "region": "Herefordshire"}
+{"_type": "toponym", "ref": "Ocle@Herefordshire", "modern_name": "Ocle", "country": "England", "region": "Herefordshire"}
+{"_type": "toponym", "ref": "Pencombe@Herefordshire", "modern_name": "Pencombe", "country": "England", "region": "Herefordshire"}
+{"_type": "toponym", "ref": "Ross@England and Wales", "modern_name": "Ross", "region": "England and Wales"}
+{"_type": "toponym", "ref": "Sarnesfield@Herefordshire", "modern_name": "Sarnesfield", "country": "England", "region": "Herefordshire"}
+{"_type": "toponym", "ref": "Stoke@-", "modern_name": "Stoke"}
+{"_type": "toponym", "ref": "Sutton@Bedfordshire", "modern_name": "Sutton", "country": "England", "region": "Bedfordshire"}
+{"_type": "toponym", "ref": "Tillington@Staffordshire", "modern_name": "Tillington", "country": "England", "region": "Staffordshire"}
+{"_type": "toponym", "ref": "Tupsley@Herefordshire", "modern_name": "Tupsley", "country": "England", "region": "Herefordshire"}
+{"_type": "toponym", "ref": "Tyberton@Herefordshire", "modern_name": "Tyberton", "country": "England", "region": "Herefordshire"}
+{"_type": "toponym", "ref": "Wigmore@Herefordshire", "modern_name": "Wigmore", "country": "England", "region": "Herefordshire"}
+{"_type": "attestation", "toponym_ref": "Archenfield@Herefordshire", "form": "Archenfield", "date_year": 1086, "source_doc": "bannister_1916_herefordshire"}
 {"_type": "attestation", "toponym_ref": "Attwood@Herefordshire", "form": "Wode", "date_year": 1345, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Barre@Scotland", "form": "Barre", "date_year": 1334, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Birch@Herefordshire", "form": "Birch", "date_year": 1538, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Bodenham@Herefordshire", "form": "Bodenham", "date_year": 1220, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Bridstow@Herefordshire", "form": "Bridstow", "date_year": 1630, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Burghill@Herefordshire", "form": "Burghill", "date_year": 1395, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Cart@Northumberland and Durham", "form": "Cart", "date_year": 1232, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Clifford@Devon", "form": "Clifford", "date_year": 1277, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Cowarne@Herefordshire", "form": "Cowarne", "date_year": 1138, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Cowarne@Herefordshire", "form": "Cowarne", "date_year": 1538, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Goodrich@Herefordshire", "form": "Goodrich", "date_year": 1413, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Goodrich@Herefordshire", "form": "Goodrich", "date_year": 1674, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Goodrich@Herefordshire", "form": "Goodrich", "date_year": 1693, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Hereford@Cheshire", "form": "Hereford", "date_year": 1055, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Hereford@Cheshire", "form": "Hereford", "date_year": 1335, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Hereford@Cheshire", "form": "Hereford", "date_year": 1375, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Hope@Wales", "form": "Hope", "date_year": 1542, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Kilpeck@Herefordshire", "form": "Kilpeck", "date_year": 1272, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Kingsland@Herefordshire", "form": "Kingsland", "date_year": 1086, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Ledbury@Herefordshire", "form": "Ledbury", "date_year": 1304, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Ledbury@Herefordshire", "form": "Ledbury", "date_year": 1338, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Mansell@Herefordshire", "form": "Mansell", "date_year": 1338, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Ocle@Herefordshire", "form": "Ocle", "date_year": 1243, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Pencombe@Herefordshire", "form": "Pencombe", "date_year": 1300, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Ross@England and Wales", "form": "Ross", "date_year": 1300, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Sarnesfield@Herefordshire", "form": "Sarnesfield", "date_year": 1243, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Stoke@-", "form": "Stoke", "date_year": 1086, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Sutton@Bedfordshire", "form": "Sutton", "date_year": 1290, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Tillington@Staffordshire", "form": "Tillington", "date_year": 1395, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Tupsley@Herefordshire", "form": "Tupsley", "date_year": 1684, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Tyberton@Herefordshire", "form": "Tyberton", "date_year": 1086, "source_doc": "bannister_1916_herefordshire"}
+{"_type": "attestation", "toponym_ref": "Wigmore@Herefordshire", "form": "Wigmore", "date_year": 1302, "source_doc": "bannister_1916_herefordshire"}

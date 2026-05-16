@@ -1386,6 +1386,14 @@
 {"_type": "etymology_element", "toponym_ref": "Worthe@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:weorp"}], "historical_form": "weorp", "confidence": "high", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Worthe, Cal. Inq. P.M. vol. i. p. 328. 1327 Wourth, ibid. ii. p. 3. 1439 Worthe, ibid. iv. p. 198. O.E. weorp, \"enclosed land.\" Strictly speaking, Type I repres", "attested_year": 1327}
 {"_type": "etymology_element", "toponym_ref": "Worthing@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:weorfr"}, {"ordinal": 1, "etymon_ref": "old-english:ing"}], "historical_form": "weorfr-ing", "confidence": "medium", "notes": "extracted_by:llm:qwen3.5:35b-a3b; Scholar notes the form is 'practically synonymous' with OE weorfr, implying a derivation but not stating it as a definitive etymological breakdown. | Worthing. 1328 W", "attested_year": 1328}
 {"_type": "etymology_element", "toponym_ref": "Wyseberg@-", "elements": [{"ordinal": 0, "etymon_ref": "old-english:wlsa"}, {"ordinal": 1, "etymon_ref": "old-english:beorg"}], "historical_form": "wlsa-beorg", "confidence": "medium", "notes": "extracted_by:anthropic:claude-haiku-4-5-20251001; First element 'probably' O.E. wlsa, possibly used as a personal name or shortened form of names like Wlsldc, Wisgdr; second element certainly O.E. beorg/beorh. Modern forms show confusion between M.E. -bergh and -burgh. | Wyseberg, Wisborough Green. 1287 Wyberg, Abbr. Plac. p. 214. 1306 Wiseberg, Cal. Rot. Ch. p. 138. WtfS ** 04^, K*. «- 12 — 2 / v > 180 WYSEBERG, WISBOROUGH GREEN 1409 Wysburgh, Ind. Ch. and Rolls, p. 826. 1411-2 Wisebergh, Subs.", "attested_year": 1287}
+{"_type": "toponym", "ref": "Bourn@Cambridgeshire", "modern_name": "Bourn", "region": "Cambridgeshire"}
+{"_type": "toponym", "ref": "Dene@Northumberland and Durham", "modern_name": "Dene", "region": "Northumberland and Durham"}
+{"_type": "toponym", "ref": "Estone@Yorkshire", "modern_name": "Estone", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Herste@Kent", "modern_name": "Herste", "country": "England", "region": "Kent"}
+{"_type": "toponym", "ref": "London@Essex", "modern_name": "London", "country": "England", "region": "Essex"}
+{"_type": "toponym", "ref": "Mesewelle@SUS", "modern_name": "Mesewelle", "country": "England", "region": "SUS"}
+{"_type": "toponym", "ref": "Middeltone@Yorkshire", "modern_name": "Middeltone", "country": "England", "region": "Yorkshire"}
+{"_type": "toponym", "ref": "Sudtone@Lincolnshire", "modern_name": "Sudtone", "country": "England", "region": "Lincolnshire"}
 {"_type": "attestation", "toponym_ref": "Aldingbourne@-", "form": "Aldingeborne", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Aldrington@-", "form": "Eldretun", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Alfriston@-", "form": "Alvricestone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
@@ -1401,6 +1409,7 @@
 {"_type": "attestation", "toponym_ref": "Bishopstone@-", "form": "Biscopestone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Bodiam@-", "form": "Bodeha", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Boseham@-", "form": "Boseham", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Bourn@Cambridgeshire", "form": "Burne", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Boxgrove@-", "form": "Bosgrave", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Brightling@-", "form": "Brislinga", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Broadwater@-", "form": "Bradewatre", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
@@ -1413,10 +1422,12 @@
 {"_type": "attestation", "toponym_ref": "Cokeham@-", "form": "Cocheha", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Dallington@-", "form": "Dalintone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Dean@-", "form": "Dene", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Dene@Northumberland and Durham", "form": "Dene", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Denton@-", "form": "Dentune", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Durrington@-", "form": "Derentune", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Eastdean@-", "form": "Esdene", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Easton@-", "form": "Estone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Estone@Yorkshire", "form": "Estone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Fairlight@-", "form": "Ferlega", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Faulking@-", "form": "Fochinges", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Felpham@-", "form": "Falcheham", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
@@ -1428,6 +1439,7 @@
 {"_type": "attestation", "toponym_ref": "Hankham@-", "form": "Henecha", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Hartfield@-", "form": "Hertevel", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Hastings@-", "form": "Hastinges", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Herste@Kent", "form": "Herste", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Hollington@-", "form": "Holintun", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Horsey@-", "form": "Horselie", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Iden@-", "form": "Idene", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
@@ -1436,6 +1448,11 @@
 {"_type": "attestation", "toponym_ref": "Keymer@-", "form": "Chemere", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Lancing@-", "form": "Lancinges", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Lewes@-", "form": "Lewes", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Lewes@-", "form": "Lewes", "date_year": 1296, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "London@Essex", "form": "London", "date_year": 1695, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Maudlin@-", "form": "Maudlin", "date_year": 1562, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Mesewelle@SUS", "form": "Mesewelle", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Middeltone@Yorkshire", "form": "Middeltone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Middleton@-", "form": "Middeltone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Mountfield@-", "form": "Montifelle", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "No@-", "form": "Eschintone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
@@ -1461,6 +1478,7 @@
 {"_type": "attestation", "toponym_ref": "Stedham@-", "form": "Stedeha", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Stoke@-", "form": "Stoches", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Streat@-", "form": "Estrat", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
+{"_type": "attestation", "toponym_ref": "Sudtone@Lincolnshire", "form": "Sudtone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Tangmere@-", "form": "Tangemere", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Thorney Island@-", "form": "Tornei", "date_year": 1086, "source_doc": "roberts_1914_sussex"}
 {"_type": "attestation", "toponym_ref": "Tortington@-", "form": "Tortintone", "date_year": 1086, "source_doc": "roberts_1914_sussex"}

@@ -42,3 +42,8 @@
 {"_type": "etymology_element", "toponym_ref": "Rhubarb@Europe", "elements": [{"ordinal": 0, "etymon_ref": "celtic:rhyd"}, {"ordinal": 1, "etymon_ref": "celtic:rhyn"}], "historical_form": "rhyd-rhyn", "confidence": "medium", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Rhubarb, 280 rhyd, Celtic root, 170, 331 rhyn, a promontory, 137"}
 {"_type": "etymology_element", "toponym_ref": "Strongholds@Europe", "elements": [{"ordinal": 0, "etymon_ref": "celtic:dun"}], "historical_form": "dun", "confidence": "medium", "notes": "extracted_by:llm:qwen3.5:35b-a3b | Strongholds, Celtic, indicated by the root dun, 148 ; peel, 175 Substantival components of local names, list of, 326 Substantival element of local names, 131,"}
 {"_type": "etymology_element", "toponym_ref": "Strongholds@Europe", "elements": [{"ordinal": 0, "etymon_ref": "celtic:dun"}], "confidence": "high", "notes": "extracted_by:gemini:gemini-2.5-flash | Strongholds, Celtic, indicated by the root dun, 148 ; peel, 175 Substantival components of local names, list of, 326 Substantival element of local names, 131,"}
+{"_type": "toponym", "ref": "Arundel@-", "modern_name": "Arundel"}
+{"_type": "toponym", "ref": "London@Essex", "modern_name": "London", "country": "England", "region": "Essex"}
+{"_type": "attestation", "toponym_ref": "Arundel@-", "form": "Arundel", "date_year": 1580, "source_doc": "taylor_1893_words_and_places"}
+{"_type": "attestation", "toponym_ref": "London@Essex", "form": "London", "date_year": 1627, "source_doc": "taylor_1893_words_and_places"}
+{"_type": "attestation", "toponym_ref": "London@Essex", "form": "London", "date_year": 1629, "source_doc": "taylor_1893_words_and_places"}
