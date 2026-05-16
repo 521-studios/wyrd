@@ -397,10 +397,16 @@ def extract_toponym_mentions_from_chunk(
     #
     # Schema dialect dispatch: Gemini's responseSchema is OpenAPI-3.0,
     # not JSON Schema (see wyrd-pe4g + comment on RESPONSE_SCHEMA_GEMINI
-    # above). Other providers take standard JSON Schema. Lazy isinstance
-    # check by class name avoids importing GeminiClient at module load
-    # time so test fakes don't need to subclass it.
-    schema = RESPONSE_SCHEMA_GEMINI if type(client).__name__ == "GeminiClient" else RESPONSE_SCHEMA
+    # above). Each client declares its dialect via a ``schema_dialect``
+    # class attribute; absence defaults to "json-schema". The attribute-
+    # based contract survives renames + subclasses (inherited via MRO)
+    # and lets new providers declare their dialect without editing this
+    # dispatch site.
+    schema = (
+        RESPONSE_SCHEMA_GEMINI
+        if getattr(client, "schema_dialect", "json-schema") == "openapi"
+        else RESPONSE_SCHEMA
+    )
     response = client.chat_json(SYSTEM_PROMPT, user, schema)
     if not isinstance(response, dict):
         raise RuntimeError(f"LLM returned non-dict envelope: {type(response).__name__}")

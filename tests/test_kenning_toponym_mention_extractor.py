@@ -530,31 +530,38 @@ def test_extract_one_chunk_happy_path_passes_chunk_and_schema_through():
     assert "mentions" in schema_arg["properties"]
 
 
-def test_extract_one_chunk_dispatches_gemini_dialect_to_geminiclient():
-    """wyrd-pe4g: GeminiClient (recognized by class name) must receive
-    the OpenAPI-3.0 dialect schema (RESPONSE_SCHEMA_GEMINI), not the
-    JSON Schema dialect. Direct-test against Gemini's API confirmed
+def test_extract_one_chunk_dispatches_openapi_dialect_to_openapi_clients():
+    """wyrd-pe4g: a client whose ``schema_dialect`` is "openapi" (Gemini
+    today; future OpenAPI-3.0-subset providers) must receive
+    RESPONSE_SCHEMA_GEMINI. Direct-test against Gemini's API confirmed
     that the JSON Schema variant returns HTTP 400 on every chunk
-    (rejected `additionalProperties` and `type: [..., "null"]` union)."""
+    (rejected `additionalProperties` and `type: [..., "null"]` union).
+    Real GeminiClient declares `schema_dialect = "openapi"` as a
+    ClassVar; this test inlines the same contract on a stub."""
 
-    class GeminiClient:  # noqa: N801 — name-matching is the dispatch contract
-        model = "gemini-2.5-flash"
+    class OpenApiClient:
+        schema_dialect = "openapi"
+        model = "fake-openapi-test"
         calls: list[dict | None] = []
 
-        def chat_json(self, system, user, schema=None):
-            type(self).calls.append(schema)
+        def chat_json(self, system, user, response_schema=None):
+            # Matches real GeminiClient.chat_json signature (kwarg
+            # `response_schema`, not `schema`) so positional dispatch
+            # in production stays accurate.
+            type(self).calls.append(response_schema)
             return {"mentions": [{"form": "Edlingham", "context": "Edlingham mentioned"}]}
 
-    out = extract_toponym_mentions_from_chunk(GeminiClient(), "Edlingham mentioned")
+    out = extract_toponym_mentions_from_chunk(OpenApiClient(), "Edlingham mentioned")
     assert [m.form for m in out] == ["Edlingham"]
-    assert len(GeminiClient.calls) == 1
-    assert GeminiClient.calls[0] is RESPONSE_SCHEMA_GEMINI
+    assert len(OpenApiClient.calls) == 1
+    assert OpenApiClient.calls[0] is RESPONSE_SCHEMA_GEMINI
 
 
-def test_extract_one_chunk_dispatches_jsonschema_to_non_gemini_clients():
-    """Anthropic + Ollama (and any other named provider) get the
-    standard JSON Schema variant. Dispatch is by class name, so a
-    FakeClient or an AnthropicClient gets RESPONSE_SCHEMA verbatim."""
+def test_extract_one_chunk_dispatches_jsonschema_to_unmarked_clients():
+    """Clients without a `schema_dialect` attribute (and clients that
+    declare anything other than "openapi") get the standard JSON Schema
+    variant. AnthropicClient + OllamaClient don't declare the attribute
+    today and rely on this default."""
     client = FakeClient([{"mentions": [{"form": "Edlingham", "context": "Edlingham mentioned"}]}])
     out = extract_toponym_mentions_from_chunk(client, "Edlingham mentioned")
     assert [m.form for m in out] == ["Edlingham"]
@@ -563,15 +570,37 @@ def test_extract_one_chunk_dispatches_jsonschema_to_non_gemini_clients():
     assert schema_arg is RESPONSE_SCHEMA
 
 
+def test_extract_one_chunk_dispatches_to_openapi_subclass():
+    """Subclasses of an openapi-dialect client inherit the marker via
+    MRO and must still receive RESPONSE_SCHEMA_GEMINI. silent-failure-
+    hunter round-1 finding: the prior class-name dispatch silently
+    routed subclasses to JSON Schema → HTTP 400 from Gemini."""
+
+    class OpenApiBase:
+        schema_dialect = "openapi"
+
+    class InstrumentedGeminiClient(OpenApiBase):
+        model = "wrapper-around-gemini"
+        calls: list[dict | None] = []
+
+        def chat_json(self, system, user, response_schema=None):
+            type(self).calls.append(response_schema)
+            return {"mentions": [{"form": "Edlingham", "context": "Edlingham mentioned"}]}
+
+    extract_toponym_mentions_from_chunk(InstrumentedGeminiClient(), "Edlingham mentioned")
+    assert InstrumentedGeminiClient.calls[0] is RESPONSE_SCHEMA_GEMINI
+
+
 def test_response_schema_gemini_uses_openapi_dialect():
     """wyrd-pe4g: structural anchors so a future schema edit can't
     silently re-introduce JSON-Schema constructs that Gemini rejects.
 
     Gemini's responseSchema is OpenAPI-3.0-ish: uppercase type names,
-    no `additionalProperties`, no `type: ["X", "null"]` unions
-    (use `nullable: true` instead). Each anchor below corresponds to
-    a specific HTTP-400 mode observed in the direct test against
-    Gemini's API."""
+    no `additionalProperties`, no `type: ["X", "null"]` unions (use
+    `nullable: true` instead). The first two are documented HTTP-400
+    modes from wyrd-pe4g's direct test against Gemini's API; the
+    uppercase-type requirement is from Gemini's responseSchema spec
+    (lowercase silently produces malformed structured output)."""
     schema = RESPONSE_SCHEMA_GEMINI
 
     def walk(node, *, path="$"):
@@ -1149,6 +1178,10 @@ def test_cli_provider_gemini_routes_to_gemini_client(tmp_path, monkeypatch):
     sources_dir.mkdir()
     (sources_dir / "stub.txt").write_text("Edlingham.", encoding="utf-8")
     fake = FakeClient([{"mentions": []}])
+    # Mark the fake with the same dispatch marker the real GeminiClient
+    # carries (wyrd-pe4g) so the CLI end-to-end exercises the openapi
+    # branch of extract_toponym_mentions_from_chunk's dispatch.
+    fake.schema_dialect = "openapi"
 
     import wyrd.generators.kenning.gemini_extractor as gemini_module
 
@@ -1169,8 +1202,10 @@ def test_cli_provider_gemini_routes_to_gemini_client(tmp_path, monkeypatch):
         ],
     )
     assert result.exit_code == 0, result.output
-    # The fake was instantiated and called.
+    # The fake was instantiated and called with the openapi-dialect schema.
     assert len(fake.calls) == 1
+    _, _, schema_arg = fake.calls[0]
+    assert schema_arg is RESPONSE_SCHEMA_GEMINI
 
 
 def test_cli_provider_ollama_routes_to_ollama_client(tmp_path, monkeypatch):
