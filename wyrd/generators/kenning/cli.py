@@ -3436,6 +3436,253 @@ def lexicon_ingest_toponym_mentions(
         )
 
 
+@lexicon.command("prepare-toponym-candidates")
+@click.option(
+    "--jsonl",
+    "candidates_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=True,
+    help="JSONL of unresolved candidates (output of ingest-toponym-mentions --candidates-out).",
+)
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+    help="Lexicon SQLite DB.",
+)
+@click.option(
+    "--out",
+    "triage_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    required=True,
+    help="Write triage JSONL to this path. Operator hand-edits this file, "
+    "then feeds it to commit-toponym-candidates.",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Overwrite --out if it exists.",
+)
+def lexicon_prepare_toponym_candidates(
+    candidates_path: Path,
+    db_path: Path,
+    triage_path: Path,
+    force: bool,
+) -> None:
+    """Prepare a triage JSONL from Phase 2b.1's unresolved-candidates
+    output (wyrd-x82p Phase 2b.3).
+
+    For each candidate, attaches the top-3 fuzzy-matched existing
+    toponyms (by SequenceMatcher.ratio over normalized forms), with
+    a region-hint boost when the candidate carries one. Emits a
+    JSONL where each row pre-fills ``action: "defer"`` —
+    operator edits the action to ``"map"`` (with ``toponym_id``),
+    ``"create"`` (with ``create_modern_name`` / ``create_country``
+    / ``create_region``), or ``"skip"``, then feeds the file to
+    ``commit-toponym-candidates``.
+    """
+    from wyrd.generators.kenning.toponym_candidate_review import (
+        _toponym_rows,
+        prepare_candidate,
+    )
+
+    if triage_path.exists() and not force:
+        raise click.ClickException(f"--out {triage_path} already exists; pass --force to overwrite")
+    if triage_path.exists() and force:
+        click.echo(
+            f"warning: --force overwriting existing {triage_path}",
+            err=True,
+        )
+
+    click.echo(f"Using DB {db_path}", err=True)
+    with LexiconDB(db_path) as db:
+        toponyms = _toponym_rows(db.conn)
+    click.echo(f"Loaded {len(toponyms):,} toponyms for fuzzy match", err=True)
+
+    # Stream the candidates: read input one line at a time, write
+    # triage output as we go. Atomic-rename pattern (temp + replace)
+    # so a mid-write crash leaves any prior triage file intact.
+    tmp_path = triage_path.with_suffix(triage_path.suffix + ".tmp")
+    n_prepared = 0
+    n_with_suggestions = 0
+    with (
+        candidates_path.open("r", encoding="utf-8") as src,
+        tmp_path.open("w", encoding="utf-8") as sink,
+    ):
+        for line_no, line in enumerate(src, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                raw = json.loads(line)
+            except json.JSONDecodeError as e:
+                raise click.ClickException(f"{candidates_path}:{line_no}: invalid JSON: {e}") from e
+            if not isinstance(raw, dict):
+                raise click.ClickException(f"{candidates_path}:{line_no}: row is not a JSON object")
+            prepared = prepare_candidate(raw, toponyms)
+            row_out = {
+                "source_id": prepared.source_id,
+                "form": prepared.form,
+                "date_year": prepared.date_year,
+                "region_hint": prepared.region_hint,
+                "context": prepared.context,
+                "suggestions": [
+                    {
+                        "toponym_id": s.toponym_id,
+                        "modern_name": s.modern_name,
+                        "region": s.region,
+                        "country": s.country,
+                        "fuzzy_score": s.fuzzy_score,
+                    }
+                    for s in prepared.suggestions
+                ],
+                "action": prepared.action,
+                "toponym_id": prepared.toponym_id,
+                "create_modern_name": prepared.create_modern_name,
+                "create_country": prepared.create_country,
+                "create_region": prepared.create_region,
+            }
+            sink.write(json.dumps(row_out, ensure_ascii=False) + "\n")
+            n_prepared += 1
+            if prepared.suggestions:
+                n_with_suggestions += 1
+            if n_prepared % 1000 == 0:
+                click.echo(f"  prepared {n_prepared:,} candidates...", err=True)
+    tmp_path.replace(triage_path)
+    click.echo(f"Wrote {n_prepared:,} triage rows → {triage_path}", err=True)
+    click.echo(
+        f"  with fuzzy suggestions: {n_with_suggestions:,} "
+        f"({n_prepared - n_with_suggestions:,} likely new-toponym candidates)",
+        err=True,
+    )
+
+
+@lexicon.command("commit-toponym-candidates")
+@click.option(
+    "--jsonl",
+    "triage_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=True,
+    help="Operator-edited triage JSONL (from prepare-toponym-candidates).",
+)
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+    help="Lexicon SQLite DB.",
+)
+@click.option(
+    "--apply",
+    is_flag=True,
+    default=False,
+    help="Write to DB. Default: dry-run reports predicted counts only.",
+)
+@click.option(
+    "--verbose",
+    is_flag=True,
+    default=False,
+    help="Print per-row decisions to stderr (one line per non-defer row).",
+)
+def lexicon_commit_toponym_candidates(
+    triage_path: Path,
+    db_path: Path,
+    apply: bool,
+    verbose: bool,
+) -> None:
+    """Apply the operator's triage decisions (wyrd-x82p Phase 2b.3).
+
+    Reads the edited triage JSONL. For each row:
+
+    * ``action: map`` — writes a ``toponym_attestation`` row pointing
+      at ``toponym_id``.
+    * ``action: create`` — creates a new ``toponym`` row from
+      ``create_modern_name`` / ``create_country`` / ``create_region``
+      and a matching attestation. If the (name, country, region)
+      tuple already exists (UNIQUE-index collision), the decision is
+      treated as a MAP to the existing id — prevents accidental
+      duplicate toponym rows.
+    * ``action: skip`` — no DB write.
+    * ``action: defer`` — no DB write; left for a future pass.
+
+    Idempotent for the ``map`` path via the UNIQUE index on
+    ``toponym_attestation``. Re-running with the same triage JSONL
+    is a no-op for already-applied rows.
+    """
+    from wyrd.generators.kenning.toponym_candidate_review import (
+        commit_triage_decisions,
+    )
+
+    click.echo(f"Using DB {db_path}", err=True)
+    # Read the whole JSONL into memory — pilot scale is hundreds to
+    # thousands of rows; streaming isn't worth the complexity here.
+    rows: list[dict] = []
+    with triage_path.open("r", encoding="utf-8") as f:
+        for line_no, line in enumerate(f, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError as e:
+                raise click.ClickException(f"{triage_path}:{line_no}: invalid JSON: {e}") from e
+    click.echo(f"Loaded {len(rows):,} triage rows", err=True)
+
+    with LexiconDB(db_path) as db:
+        report = commit_triage_decisions(db.conn, rows, apply=apply)
+        if apply:
+            db.conn.commit()
+
+    if verbose:
+        for idx, msg in report.error_records:
+            click.echo(f"  row {idx}: ERROR — {msg}", err=True)
+        # Surface CREATE → MAP demotions per row so the operator
+        # sees which of their CREATEs collided with an existing
+        # toponym (silently demoting was a load-bearing UX gap
+        # otherwise).
+        for idx, tid, name in report.demoted_records:
+            click.echo(
+                f"  row {idx}: CREATE→MAP — {name!r} collides with existing toponym {tid}",
+                err=True,
+            )
+
+    # Warn when most rows are still at the default-defer placeholder:
+    # operator may have run commit on an unedited triage file. Gated
+    # on processed >= 5 so a single-row "I deferred this on purpose"
+    # invocation doesn't get a noisy 100% warning.
+    if report.deferred > 0 and report.processed >= 5:
+        defer_ratio = report.deferred / report.processed
+        if defer_ratio >= 0.8:
+            click.echo(
+                f"warning: {report.deferred}/{report.processed} "
+                f"({defer_ratio:.0%}) rows are still at action=defer — "
+                f"if this is unintended, the triage file may not have been edited yet",
+                err=True,
+            )
+
+    click.echo("", err=True)
+    click.echo(
+        f"TOTAL processed={report.processed} "
+        f"mapped={report.mapped} "
+        f"created={report.created} "
+        f"demoted={report.demoted_count} "
+        f"skipped={report.skipped} "
+        f"deferred={report.deferred} "
+        f"errors={report.errors} "
+        f"({'APPLIED' if apply else 'dry-run'})",
+        err=True,
+    )
+    if report.errors and not verbose:
+        click.echo(
+            "  (re-run with --verbose to see per-row error messages)",
+            err=True,
+        )
+
+
 @lexicon.command("audit-etymology-alignment")
 @click.option(
     "--dir",
