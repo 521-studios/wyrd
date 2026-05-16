@@ -114,6 +114,35 @@ def test_default_model_picks_up_env_override(monkeypatch: pytest.MonkeyPatch) ->
 # --- 429 retry wiring (wyrd-cfa) ------------------------------------------
 
 
+def test_chat_json_non_utf8_body_raises_runtimeerror(monkeypatch: pytest.MonkeyPatch) -> None:
+    """wyrd-pe4g round-5 silent-failure-hunter: a 2xx response whose
+    body isn't valid UTF-8 (binary blob, corrupted upstream, proxy
+    injection) must surface as RuntimeError. UnicodeDecodeError is a
+    ValueError subclass — without the `.decode("utf-8")` wrap on the
+    success path it leaks through _PROGRAMMER_ERROR_EXCEPTIONS and
+    aborts the run identically to the round-4 envelope-parse leak."""
+    from unittest.mock import patch
+
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    client = GeminiClient()
+
+    class _NonUtf8Resp:
+        def read(self) -> bytes:
+            return b"\xff\xfe\xfd binary garbage"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            pass
+
+    with (
+        patch("urllib.request.urlopen", lambda req, timeout=None: _NonUtf8Resp()),
+        pytest.raises(RuntimeError, match="non-UTF-8 body"),
+    ):
+        client.chat_json("sys", "usr")
+
+
 def test_chat_json_malformed_envelope_raises_runtimeerror(monkeypatch: pytest.MonkeyPatch) -> None:
     """wyrd-pe4g round-4: a 2xx response with non-JSON body (CDN/proxy
     HTML error page, truncated body on a dropped connection) must

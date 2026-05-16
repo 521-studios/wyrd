@@ -182,6 +182,13 @@ class GeminiClient:
             # TimeoutError isn't a URLError subclass; needs separate catch
             # so a single slow Gemini call doesn't crash the review loop.
             raise RuntimeError(f"Gemini unreachable at {url}: {e}") from e
+        except UnicodeDecodeError as e:
+            # Non-UTF-8 body on a 2xx response — corrupted upstream,
+            # CDN/proxy injecting binary content, etc. UnicodeDecodeError
+            # is a ValueError subclass; without this wrap it would
+            # propagate through the chunk loop's _PROGRAMMER_ERROR_EXCEPTIONS
+            # re-raise (wyrd-pe4g) and abort the whole multi-source run.
+            raise RuntimeError(f"Gemini returned non-UTF-8 body: {e}") from e
 
         try:
             envelope = json.loads(body)

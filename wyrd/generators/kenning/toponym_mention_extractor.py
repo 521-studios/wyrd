@@ -464,16 +464,22 @@ _OVERSIZED_PARAGRAPH_MULTIPLIER = 1.5
 # entirely.
 #
 # For this carve-out to stay scoped to configuration errors, every
-# transport-layer JSON parse path must funnel JSONDecodeError (a
-# ValueError subclass) into RuntimeError. Both the inner content
-# parses (anthropic_extractor.py / gemini_extractor.py /
-# llm_extractor.py `json.loads(content)` blocks) AND the outer
-# envelope parses (`json.loads(body)`) are wrapped to maintain
-# this invariant — without wrapping the envelope parse, a CDN/proxy
-# HTML error page on a 2xx response or a truncated body would
-# leak ValueError into this re-raise and abort the run.
-# wyrd-pe4g round-4: code-reviewer + silent-failure-hunter +
-# comment-analyzer all converged on the missing envelope wrap.
+# transport-layer path that produces a ValueError-subclass must
+# funnel it into RuntimeError. Three classes to keep in sync across
+# all three clients (anthropic_extractor.py / gemini_extractor.py /
+# llm_extractor.py):
+#   1. UnicodeDecodeError from `.decode("utf-8")` on the success
+#      response body (wyrd-pe4g round-5: silent-failure-hunter)
+#   2. JSONDecodeError from outer `json.loads(body)` envelope parse
+#      (wyrd-pe4g round-4: code-reviewer + silent-failure-hunter +
+#      comment-analyzer)
+#   3. JSONDecodeError from inner `json.loads(text/content)` parse
+#      of the model-produced JSON (pre-existing)
+# All six call sites (3 clients × 2 inner+outer JSON parses, plus
+# 3 clients × decode-on-success) are wrapped to maintain this
+# invariant. Without each wrap, a CDN/proxy HTML error page, a
+# truncated 2xx body, or a binary blob on the success path would
+# leak ValueError into this re-raise and abort the multi-source run.
 _PROGRAMMER_ERROR_EXCEPTIONS: tuple[type[Exception], ...] = (
     AttributeError,
     TypeError,
