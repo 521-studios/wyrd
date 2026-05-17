@@ -1096,7 +1096,12 @@ def test_compute_is_pure_read_returns_stable_decisions(db):
 
 def test_canonical_decision_is_frozen():
     """CanonicalDecision is documented as frozen for audit-log safety.
-    Mutation attempts must raise. R1 type-design MEDIUM."""
+    Mutation attempts must raise dataclasses.FrozenInstanceError.
+    R1 type-design MEDIUM + R2 pr-test-analyzer MEDIUM: previous test
+    used pytest.raises((AttributeError, Exception)) which would
+    swallow any error and make the test near-tautological."""
+    from dataclasses import FrozenInstanceError
+
     d = CanonicalDecision(
         toponym_id=1,
         promoted_etymology_id=2,
@@ -1105,7 +1110,7 @@ def test_canonical_decision_is_frozen():
         runner_up_witness_count=1,
         total_clusters=2,
     )
-    with pytest.raises((AttributeError, Exception)):  # FrozenInstanceError
+    with pytest.raises(FrozenInstanceError):
         d.toponym_id = 99  # type: ignore[misc]
 
 
@@ -1132,3 +1137,138 @@ def test_cli_verbose_outputs_per_decision_lines(tmp_path):
     assert "consensus=2" in result.output
     assert "clusters=2" in result.output
     assert "runner_up=1" in result.output
+
+
+def test_cli_verbose_outputs_no_consensus_line(tmp_path):
+    """--verbose surfaces the 'no consensus' decision line for
+    single-witness toponyms. R2 test-coverage HIGH: the promote
+    branch was tested but the no-consensus branch is a separate
+    format string that could silently break."""
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('s', 'S')")
+    db.conn.execute("INSERT INTO toponym (id, modern_name) VALUES (1, 'X')")
+    db.conn.execute("INSERT INTO etymon (id, canonical_form, language) VALUES (1, 'x', 'oe')")
+    cur = db.conn.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id, notes) "
+        "VALUES (1, 's', 'extracted_by:llm:qwen; fixture')"
+    )
+    db.conn.execute(
+        "INSERT INTO toponym_etymology_element "
+        "(toponym_etymology_id, ordinal, etymon_id) VALUES (?, 0, 1)",
+        (cur.lastrowid,),
+    )
+    db.commit()
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "canonicalize-toponym-etymology",
+            "--db",
+            str(db_path),
+            "--verbose",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # No-consensus format pinned
+    assert "no consensus" in result.output
+    assert "max_witnesses=" in result.output
+
+
+def test_compute_canonical_plans_direct(db):
+    """The lower-level builder ``compute_canonical_plans`` is the
+    preferred API for the CLI + future callers needing the apply-
+    side row updates. Pin its shape directly so a refactor that
+    breaks _RowUpdate field ordering or _ToponymPlan structure
+    fails this test rather than slipping through the high-level
+    compute_canonical_decisions wrapper. R2 test-coverage MEDIUM."""
+    from wyrd.generators.kenning.toponym_etymology_canonical import compute_canonical_plans
+
+    _add_toponym(db, 1, "X")
+    _add_etymon(db, 1, "x", "old-english")
+    qwen = _add_etymology(db, toponym_id=1, extractor="qwen", elements=[(1, "old-english")])
+    haiku = _add_etymology(db, toponym_id=1, extractor="haiku", elements=[(1, "old-english")])
+    plans = compute_canonical_plans(db)
+    assert len(plans) == 1
+    plan = plans[0]
+    assert plan.decision.toponym_id == 1
+    assert plan.decision.promoted_etymology_id == qwen
+    assert plan.all_empty_elements is False
+    # row_updates is a tuple of _RowUpdate NamedTuples — field access
+    # via attribute (not positional indexing).
+    assert len(plan.row_updates) == 2
+    qwen_update = next(u for u in plan.row_updates if u.row_id == qwen)
+    haiku_update = next(u for u in plan.row_updates if u.row_id == haiku)
+    assert qwen_update.is_canonical == 1
+    assert haiku_update.is_canonical == 0
+    assert qwen_update.consensus_size == 2
+    assert haiku_update.consensus_size == 2
+    assert qwen_update.cluster_key == '[["x","old-english"]]'
+    assert haiku_update.cluster_key == '[["x","old-english"]]'
+
+
+def test_anonymous_and_empty_elements_does_not_promote(db):
+    """Two anonymous rows with EMPTY element tuples: cluster_key
+    is the same ('[]'), 0 witnesses, all-empty-elements branch
+    fires → no promotion. Pins the interaction between the new
+    anonymous-witness semantics and the all-empty short-circuit.
+    R2 test-coverage MEDIUM."""
+    _add_toponym(db, 1, "X")
+    db.conn.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id, notes) "
+        "VALUES (1, 'test_src', 'no extractor tag here')"
+    )
+    db.conn.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id, notes) "
+        "VALUES (1, 'test_src', 'also no extractor tag')"
+    )
+    db.commit()
+    summary = apply_canonical_decisions(db, compute_canonical_decisions(db))
+    assert summary.toponyms_no_elements == 1
+    assert summary.toponyms_promoted == 0
+    rows = list(
+        db.conn.execute(
+            "SELECT is_canonical, consensus_size, cluster_key FROM toponym_etymology ORDER BY id"
+        )
+    )
+    for row in rows:
+        assert row["is_canonical"] == 0
+        # All-empty branch stamps consensus_size=0 (matches the
+        # actual witness count) and cluster_key=None. R2 silent-
+        # failure MEDIUM.
+        assert row["consensus_size"] == 0
+        assert row["cluster_key"] is None
+
+
+def test_stale_decision_does_not_write_wrong_canonical(db):
+    """Back-compat path: caller passes a stale CanonicalDecision
+    referring to a row that no longer exists. The apply path
+    must NOT inherit the stale promoted_etymology_id — it must
+    re-derive from current DB state. R2 silent-failure-hunter
+    HIGH: previously the stale id would have been written as
+    canonical (matching nothing in WHERE id=?, silent zero-update;
+    audit JSONL still claims promotion)."""
+    _add_toponym(db, 1, "X")
+    _add_etymon(db, 1, "x", "old-english")
+    qwen = _add_etymology(db, toponym_id=1, extractor="qwen", elements=[(1, "old-english")])
+    haiku = _add_etymology(db, toponym_id=1, extractor="haiku", elements=[(1, "old-english")])
+    # Capture stale decision before any DB modification.
+    stale_decisions = compute_canonical_decisions(db)
+    # Now delete the would-be winner row (the qwen row).
+    db.conn.execute("DELETE FROM toponym_etymology WHERE id = ?", (qwen,))
+    db.conn.execute("DELETE FROM toponym_etymology_element WHERE toponym_etymology_id = ?", (qwen,))
+    db.commit()
+    # Apply with the STALE decision. Without the fix, this would
+    # silently fail to write canonical (qwen row gone, haiku row
+    # not marked). With the fix, the back-compat path re-derives
+    # plans from current state — only haiku remains, single witness,
+    # no consensus → demoted to is_canonical=0.
+    apply_canonical_decisions(db, stale_decisions)
+    surviving = db.conn.execute(
+        "SELECT is_canonical, consensus_size FROM toponym_etymology WHERE id = ?",
+        (haiku,),
+    ).fetchone()
+    assert surviving["is_canonical"] == 0  # single witness — no consensus
+    assert surviving["consensus_size"] == 1  # cluster has 1 witness now
