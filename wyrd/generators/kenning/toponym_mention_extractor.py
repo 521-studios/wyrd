@@ -591,16 +591,20 @@ class MineToponymMentionsReport:
     # hallucinated forms (per the chunk-level word-boundary guard)
     # that the operator's --hallucination-fallback-threshold fired
     # and we ran the fallback ALSO. Two counters, deliberately
-    # separate (silent-failure-hunter wyrd-z8mq round 1): _attempted
-    # bumps on every rescue trigger regardless of fallback success;
-    # _succeeded only when the fallback actually returned mentions.
-    # A gap (attempted > succeeded) is the operationally critical
-    # signal — without it, a broken fallback (bad API key, network
-    # outage) silently leaves every gemma4 hallucination unrescued
-    # while the single-counter `halluc_rescued=N` looks healthy.
-    # Distinct from chunks_recovered_by_fallback (where the primary
-    # failed outright). Tiered runs only; both stay 0 when the
-    # threshold is disabled or unset.
+    # separate (silent-failure-hunter wyrd-z8mq round 1 + round 2):
+    # _attempted bumps on every rescue trigger regardless of
+    # outcome; _succeeded bumps only when the fallback returned a
+    # NON-EMPTY mentions list — i.e., actually delivered content,
+    # not just "didn't raise". A gap (attempted > succeeded) is
+    # the operationally critical signal that catches both
+    # transport failures (bad API key, network outage) AND
+    # silent-empty responses (content-policy refusal, mis-shaped
+    # JSON producing {"mentions": []}). Without this distinction
+    # the single-counter `halluc_rescued=N` would look healthy
+    # while gemma4's hallucinations stayed unrescued. Distinct
+    # from chunks_recovered_by_fallback (where the primary failed
+    # outright). Tiered runs only; both stay 0 when the threshold
+    # is disabled or unset.
     chunks_hallucination_rescue_attempted: int = 0
     chunks_hallucination_rescue_succeeded: int = 0
     hallucinations_dropped: int = 0
@@ -740,21 +744,28 @@ def _run_hallucination_rescue(
     """Run the fallback on a chunk where the primary succeeded but
     emitted >= threshold hallucinated forms (wyrd-z8mq). Returns the
     (possibly-merged) mentions list + a bool indicating whether the
-    fallback succeeded.
+    fallback actually delivered content.
 
-    On success: union-merges fallback's mentions into primary's by
-    :func:`_hallucination_rescue_dedup_key` (primary canonical on
-    collision; fallback adds anything primary didn't see), folds
-    fallback's per-chunk counters into ``primary_counters``, returns
-    (merged_list, True).
+    Three outcomes the bool distinguishes:
 
-    On fallback error (transport / API / parse): primary's mentions
-    are returned unchanged, ``primary_counters`` is untouched (the
-    rescue's discarded counters never land), returns
-    (primary_mentions, False). The orchestrator decides what to do
-    with the boolean — current behavior is to log and continue, since
-    the rescue is opportunistic; primary's good mentions still flow
-    through to the output.
+    1. Fallback returned non-empty mentions → union-merges into
+       primary's by :func:`_hallucination_rescue_dedup_key` (primary
+       canonical on collision; fallback adds anything primary didn't
+       see), folds fallback's per-chunk counters into
+       ``primary_counters``, returns (merged_list, True).
+    2. Fallback returned an empty list — call succeeded mechanically
+       but produced no output (content-policy refusal, schema-
+       validation glitch, model declining to extract anything).
+       Operationally equivalent to a failed rescue from the
+       operator's perspective: primary's hallucinations weren't
+       caught. Returns (primary_mentions, False). Counters are
+       still folded (years_clamped contributions from an empty-
+       mentions response would be 0; this is defensive).
+    3. Fallback raised (transport / API / parse error). primary's
+       mentions returned unchanged, ``primary_counters`` untouched.
+       Returns (primary_mentions, False). The orchestrator logs and
+       continues; primary's good mentions still flow through to the
+       output (the rescue is opportunistic).
 
     ``_PROGRAMMER_ERROR_EXCEPTIONS`` propagates as a traceback
     (consistent with the rest of the file's contract).
@@ -785,7 +796,13 @@ def _run_hallucination_rescue(
     added = [m for m in rescue_mentions if _hallucination_rescue_dedup_key(m) not in primary_keys]
     primary_counters.hallucinations_dropped += rescue_counters.hallucinations_dropped
     primary_counters.years_clamped += rescue_counters.years_clamped
-    return list(primary_mentions) + added, True
+    # ``rescue_mentions`` empty = fallback ran cleanly but contributed
+    # nothing. Operationally equivalent to a failed rescue: the
+    # primary's hallucinations weren't actually caught. Return False
+    # so chunks_hallucination_rescue_succeeded reflects "fallback
+    # delivered output", not just "fallback didn't raise"
+    # (silent-failure-hunter wyrd-z8mq round 2 HIGH).
+    return list(primary_mentions) + added, bool(rescue_mentions)
 
 
 def mine_toponym_mentions_tiered(
@@ -846,11 +863,15 @@ def mine_toponym_mentions_tiered(
 
     Two counters track the rescue: ``chunks_hallucination_rescue_attempted``
     increments per chunk where the fallback fired on the threshold
-    (regardless of whether the fallback then succeeded), and
+    (regardless of fallback outcome), and
     ``chunks_hallucination_rescue_succeeded`` increments only when
-    the fallback returned mentions. A gap (attempted > succeeded)
-    surfaces broken-fallback configurations (bad API key, network
-    outage) that would otherwise look healthy on a single counter.
+    the fallback returned a NON-EMPTY mentions list (actually
+    delivered content, not just "didn't raise"). A gap
+    (attempted > succeeded) surfaces both broken-fallback
+    configurations (bad API key, network outage) and silent-empty
+    responses (content-policy refusal, mis-shaped JSON producing
+    ``{"mentions": []}``) that would otherwise look healthy on a
+    single counter.
 
     Counter folding: the fallback's per-chunk counters
     (``hallucinations_dropped``, ``years_clamped``) are added to
