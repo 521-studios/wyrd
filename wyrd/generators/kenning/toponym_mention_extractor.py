@@ -863,12 +863,15 @@ def mine_toponym_mentions_tiered(
     still propagate.
 
     Resolved-mention counters (``hallucinations_dropped``,
-    ``years_clamped``) reflect ONLY the tier that succeeded — the
+    ``years_clamped``) on the failure-rescue path (primary-failed-
+    then-fallback) reflect ONLY the tier that succeeded — the
     losing tier's per-chunk counters are discarded so a partial-
     populate from a primary that raised mid-validation can't double-
     count. ``extract_toponym_mentions_from_chunk`` does not currently
     populate counters partially before raising, so the discarded-
-    state is defensive against future refactors.
+    state is defensive against future refactors. (The hallucination-
+    rescue path below has different counter-folding semantics —
+    both tiers contribute to the aggregate. See the rescue section.)
 
     The report shape matches :class:`MineToponymMentionsReport` so
     the CLI's summary line and the Phase 2b.1 ingester both work
@@ -898,11 +901,14 @@ def mine_toponym_mentions_tiered(
     single counter.
 
     Counter folding: the fallback's per-chunk counters
-    (``hallucinations_dropped``, ``years_clamped``) are added to
-    the primary's ONLY when the rescue succeeds. A rescue whose
-    fallback errored leaves only the primary's counters in the
-    aggregate; the primary's good mentions still flow through to
-    the output (the rescue is opportunistic).
+    (``hallucinations_dropped``, ``years_clamped``) fold into
+    the primary's whenever the fallback call returns — including
+    the all-hallucinated case where the admit list is empty but
+    the dropped-form count carries real signal about fallback
+    model quality. Only an ERRORED fallback (Outcome 3 of
+    :func:`_run_hallucination_rescue`) leaves rescue_counters
+    discarded. The primary's good mentions always flow through
+    to the output (the rescue is opportunistic, never destructive).
 
     Designed for the gemma4 / Anthropic split observed 2026-05-16:
     gemma4 primary's smoke had 1 hallucinated form across 79

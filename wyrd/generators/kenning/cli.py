@@ -3225,10 +3225,12 @@ def lexicon_mine_toponym_mentions_tiered(
         tmp_path.replace(out_path)
 
         # halluc_rescued shape: succeeded/attempted. Gap (succeeded <
-        # attempted) is the broken-fallback signal — e.g., "0/14"
-        # means 14 chunks tripped the threshold but every fallback
-        # call errored, so none of the primary's hallucinations got
-        # caught. wyrd-z8mq R1 silent-failure-hunter HIGH.
+        # attempted) is the broken-fallback signal — could be every
+        # fallback call erroring (bad API key, network outage) OR
+        # every fallback returning empty (content-policy refusal,
+        # all-hallucinated response). Either way, the primary's
+        # hallucinations weren't actually caught. wyrd-z8mq R1
+        # silent-failure-hunter HIGH + R2 follow-on.
         click.echo(
             f"  → {out_path} | chunks={report.chunks_processed} "
             f"(recovered={report.chunks_recovered_by_fallback} "

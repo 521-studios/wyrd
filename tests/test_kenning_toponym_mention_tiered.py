@@ -2207,6 +2207,118 @@ def test_cli_summary_reports_halluc_rescued_succeeded_over_attempted(tmp_path, m
     assert "clamped=0 " in result.output  # appears in both per-source + TOTAL lines
 
 
+def test_cli_summary_reports_years_clamped_non_zero(tmp_path, monkeypatch):
+    """wyrd-z8mq R4 pr-test-analyzer LOW: the previous CLI summary
+    test asserts `clamped=0` everywhere because no date_year is
+    set in the fixture. A regression deleting
+    `totals['years_clamped'] += report.years_clamped` would pass
+    the all-zero assertion (right-hand side is always 0). Pin
+    non-zero aggregation explicitly with a primary that emits
+    out-of-range date_year values (clamped by the validator)."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text("Edlingham one.", encoding="utf-8")
+    (sources_dir / "src_b.txt").write_text("Tynemouth two.", encoding="utf-8")
+    output_dir = tmp_path / "out"
+
+    # Each source emits 1 mention with date_year=9999 (out of range,
+    # gets clamped to None — years_clamped += 1 per source).
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlingham", "context": "Edlingham one", "date_year": 9999},
+                ]
+            },
+            {
+                "mentions": [
+                    {"form": "Tynemouth", "context": "Tynemouth two", "date_year": 8888},
+                ]
+            },
+        ]
+    )
+    fallback = FakeClient([])  # no rescue triggered (no hallucinations)
+    _stub_ollama_for_cli(monkeypatch, primary)
+    _stub_anthropic_for_cli(monkeypatch, fallback)
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Per-source line ends with `clamped=N\n` (no trailing space in
+    # the f-string, it's the last field), so match without trailing
+    # space. TOTAL line has trailing-space form.
+    assert "clamped=1" in result.output  # appears on per-source line(s)
+    # TOTAL line shows clamped=2 (sum across sources). A regression
+    # deleting the totals['years_clamped'] += line would produce
+    # 'clamped=0 ' in the TOTAL line and fail this assertion.
+    assert "clamped=2 " in result.output
+
+
+def test_tiered_hallucination_rescue_folds_counters_even_on_empty_admit():
+    """wyrd-z8mq R4 comment-analyzer: the helper docstring claims
+    fallback counters fold whenever the call returns — including
+    the all-hallucinated case where rescue_mentions ends up empty
+    but rescue_counters.hallucinations_dropped > 0. No test pinned
+    this until now; a regression switching the fold to be
+    conditional on rescue_mentions non-empty would not be caught.
+
+    Pin: primary trips the threshold; fallback returns 2 fabricated
+    forms (both fail the word-boundary guard); admit list = [] but
+    rescue_counters.hallucinations_dropped = 2. The report's
+    aggregate hallucinations_dropped reflects BOTH primary's drops
+    AND fallback's drops."""
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin"},
+                    {"form": "Faux1", "context": "Faux1"},  # primary halluc #1
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient(
+        [
+            {
+                "mentions": [
+                    # Both fail the word-boundary guard (not in chunk 1)
+                    {"form": "NotInChunk_A", "context": "NotInChunk_A"},
+                    {"form": "NotInChunk_B", "context": "NotInChunk_B"},
+                ]
+            },
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    # Rescue attempted (threshold tripped), but fallback delivered
+    # no admitted content → succeeded=0 under the bool(rescue_mentions)
+    # contract.
+    assert report.chunks_hallucination_rescue_attempted == 1
+    assert report.chunks_hallucination_rescue_succeeded == 0
+    # Counters STILL fold: primary's 1 halluc + fallback's 2 dropped = 3.
+    # A regression dropping the fold in the empty-admit case would
+    # show hallucinations_dropped == 1 (primary only).
+    assert report.hallucinations_dropped == 3
+
+
 def test_cli_summary_reports_broken_fallback_as_gap(tmp_path, monkeypatch):
     """Companion to the previous test: a broken fallback shows up as
     halluc_rescued=0/N (succeeded < attempted) in the summary. This
