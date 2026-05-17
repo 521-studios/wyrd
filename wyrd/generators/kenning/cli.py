@@ -3027,16 +3027,17 @@ def _build_extractor_client(provider: str, model: str | None, ollama_url: str | 
 )
 @click.option(
     "--hallucination-fallback-threshold",
-    type=int,
+    type=click.IntRange(min=0),
     default=None,
-    help="When set, chunks where the primary SUCCEEDED but emitted at least "
-    "this many hallucinated forms (per the word-boundary guard) ALSO get "
+    help="When set to N >= 1, chunks where the primary SUCCEEDED but emitted "
+    "at least N hallucinated forms (per the word-boundary guard) ALSO get "
     "re-extracted by the fallback; mentions are union-merged by "
-    "(form, date_year, region_hint). Primary wins on collision; fallback "
-    "adds what primary didn't see. None / 0 = disabled (default). Use "
-    "with `--primary-provider ollama` + small local model + "
-    "`--fallback-provider anthropic` to keep gemma4's good mentions while "
-    "letting Anthropic catch its fabrications. wyrd-z8mq.",
+    "(form, date_year, region_hint, context). Primary wins on byte-identical "
+    "collision; fallback adds what primary didn't see. Omitting the flag "
+    "or passing 0 disables the rescue (default). Negative values are "
+    "rejected by IntRange. Use with `--primary-provider ollama` + small "
+    "local model + `--fallback-provider anthropic` to keep gemma4's good "
+    "mentions while letting Anthropic catch its fabrications. wyrd-z8mq.",
 )
 def lexicon_mine_toponym_mentions_tiered(
     sources_dir: Path,
@@ -3143,7 +3144,8 @@ def lexicon_mine_toponym_mentions_tiered(
         "sources_skipped": 0,
         "chunks_processed": 0,
         "chunks_recovered": 0,
-        "chunks_hallucination_rescued": 0,
+        "chunks_hallucination_rescue_attempted": 0,
+        "chunks_hallucination_rescue_succeeded": 0,
         "chunks_failed": 0,
         "mentions": 0,
     }
@@ -3220,10 +3222,16 @@ def lexicon_mine_toponym_mentions_tiered(
                 sink.write(_line(source_id, m) + "\n")
         tmp_path.replace(out_path)
 
+        # halluc_rescued shape: succeeded/attempted. Gap (succeeded <
+        # attempted) is the broken-fallback signal — e.g., "0/14"
+        # means 14 chunks tripped the threshold but every fallback
+        # call errored, so none of the primary's hallucinations got
+        # caught. wyrd-z8mq R1 silent-failure-hunter HIGH.
         click.echo(
             f"  → {out_path} | chunks={report.chunks_processed} "
             f"(recovered={report.chunks_recovered_by_fallback} "
-            f"halluc_rescued={report.chunks_hallucination_rescued} "
+            f"halluc_rescued={report.chunks_hallucination_rescue_succeeded}/"
+            f"{report.chunks_hallucination_rescue_attempted} "
             f"failed={report.chunks_failed}) mentions={len(report.mentions)} "
             f"halluc={report.hallucinations_dropped}",
             err=True,
@@ -3232,7 +3240,12 @@ def lexicon_mine_toponym_mentions_tiered(
         totals["sources_processed"] += 1
         totals["chunks_processed"] += report.chunks_processed
         totals["chunks_recovered"] += report.chunks_recovered_by_fallback
-        totals["chunks_hallucination_rescued"] += report.chunks_hallucination_rescued
+        totals["chunks_hallucination_rescue_attempted"] += (
+            report.chunks_hallucination_rescue_attempted
+        )
+        totals["chunks_hallucination_rescue_succeeded"] += (
+            report.chunks_hallucination_rescue_succeeded
+        )
         totals["chunks_failed"] += report.chunks_failed
         totals["mentions"] += len(report.mentions)
 
@@ -3242,7 +3255,8 @@ def lexicon_mine_toponym_mentions_tiered(
         f"(skipped={totals['sources_skipped']}) "
         f"chunks={totals['chunks_processed']} "
         f"recovered_by_fallback={totals['chunks_recovered']} "
-        f"halluc_rescued={totals['chunks_hallucination_rescued']} "
+        f"halluc_rescued={totals['chunks_hallucination_rescue_succeeded']}/"
+        f"{totals['chunks_hallucination_rescue_attempted']} "
         f"failed={totals['chunks_failed']} "
         f"mentions={totals['mentions']}",
         err=True,
