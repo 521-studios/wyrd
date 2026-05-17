@@ -7,6 +7,7 @@ import sqlite3
 import sys
 import time
 from collections import Counter
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
@@ -3270,6 +3271,707 @@ def lexicon_mine_toponym_mentions_tiered(
         f"mentions={totals['mentions']}",
         err=True,
     )
+
+
+def _read_failures_jsonl(path: Path) -> list[dict]:
+    """Read a captured-failures JSONL into a list of dict records.
+
+    Required fields: source_id (str), chunk_index (int), chunk_body
+    (non-empty str). Optional fields: error, extractor. Rejects
+    malformed JSON, non-dict rows, missing required fields, null or
+    wrong-type required values, and empty ``chunk_body`` (the resume
+    path would silently process an empty string as a chunk otherwise —
+    FailedChunk.chunk_body defaults to "" for back-compat but
+    staged-cascade input must always carry the real chunk text)."""
+    records: list[dict] = []
+    with path.open("r", encoding="utf-8") as fh:
+        for line_num, raw in enumerate(fh, start=1):
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                rec = json.loads(raw)
+            except json.JSONDecodeError as e:
+                raise click.ClickException(f"{path}:{line_num}: not valid JSON: {e}") from e
+            if not isinstance(rec, dict):
+                raise click.ClickException(
+                    f"{path}:{line_num}: expected JSON object, got {type(rec).__name__}"
+                )
+            for key in ("source_id", "chunk_index", "chunk_body"):
+                if key not in rec:
+                    raise click.ClickException(f"{path}:{line_num}: missing required field {key!r}")
+                if rec[key] is None:
+                    raise click.ClickException(f"{path}:{line_num}: required field {key!r} is null")
+            # Type-check required fields. ``source_id`` as a list/dict
+            # would blow up at ``by_source.setdefault(rec["source_id"],
+            # …)`` with an unhashable-type TypeError far downstream;
+            # ``chunk_index`` as a string ("5") would silently coerce
+            # through ``int()`` while True/False (subclasses of int)
+            # would silently extract chunk 0 or chunk 1; ``chunk_body``
+            # as a list would AttributeError on ``.strip()`` mid-loop.
+            # Reject all three loudly at read time. R2 silent-failure-
+            # hunter MEDIUM.
+            if not isinstance(rec["source_id"], str):
+                raise click.ClickException(
+                    f"{path}:{line_num}: source_id must be a string, got "
+                    f"{type(rec['source_id']).__name__}"
+                )
+            # bool is a subclass of int in Python — reject explicitly
+            # so True/False values aren't silently coerced to 1/0.
+            if not isinstance(rec["chunk_index"], int) or isinstance(rec["chunk_index"], bool):
+                raise click.ClickException(
+                    f"{path}:{line_num}: chunk_index must be an integer, got "
+                    f"{type(rec['chunk_index']).__name__}"
+                )
+            if not isinstance(rec["chunk_body"], str):
+                raise click.ClickException(
+                    f"{path}:{line_num}: chunk_body must be a string, got "
+                    f"{type(rec['chunk_body']).__name__}"
+                )
+            if not rec["chunk_body"].strip():
+                raise click.ClickException(
+                    f"{path}:{line_num}: chunk_body is empty — staged-cascade resume "
+                    f"can't re-extract from no text (was this captured before wyrd-srd2?)"
+                )
+            records.append(rec)
+    return records
+
+
+def _load_existing_mention_keys(
+    out_path: Path,
+    log_warning: Callable[[str], None] | None = None,
+) -> tuple[set[tuple], int]:
+    """Build the dedup-key set from an existing per-source output JSONL.
+    Returns ``(keys, malformed_count)``. Empty set + 0 if the file
+    doesn't exist. The key shape mirrors what the writer emits —
+    staged cascade re-runs use this to skip already-emitted
+    attestations when appending new mentions.
+
+    Non-dict rows and malformed-JSON rows are skipped (defensive: a
+    partially-written file after a crash shouldn't bomb the next
+    resume), but the ``malformed_count`` return + optional
+    log_warning surface them to the operator so a corrupted file
+    doesn't quietly grow duplicate rows. R2 silent-failure-hunter
+    MEDIUM."""
+    if not out_path.exists():
+        return set(), 0
+    keys: set[tuple] = set()
+    malformed = 0
+    with out_path.open("r", encoding="utf-8") as fh:
+        for raw in fh:
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                row = json.loads(raw)
+            except json.JSONDecodeError:
+                malformed += 1
+                continue
+            if not isinstance(row, dict):
+                malformed += 1
+                continue
+            keys.add(
+                (
+                    row.get("form"),
+                    row.get("date_year"),
+                    row.get("region_hint"),
+                    row.get("context"),
+                )
+            )
+    if malformed and log_warning is not None:
+        log_warning(
+            f"{malformed} malformed row(s) in {out_path} can't be deduped "
+            f"against — new mentions matching them will appear as new"
+        )
+    return keys, malformed
+
+
+def _make_chunk_callbacks(source_id: str, start_ts: float, emit_failure):
+    """Build the (progress, warn, on_chunk_failed) callback trio shared
+    by both fresh-mining and resume-from-failures source loops. Hoisted
+    out of the loop body so the late-binding default-arg trick that
+    captures loop variables can be replaced with real parameter
+    bindings — clearer, and forces a single source of truth for the
+    log line shape (the project's mining-progress convention from
+    CLAUDE.md)."""
+
+    def progress(done: int, total: int, mentions: int) -> None:
+        elapsed = time.monotonic() - start_ts
+        rate = elapsed / done if done else 0.0
+        click.echo(
+            f"    chunk [{done}/{total}] mentions={mentions} ({rate:.1f}s/chunk)",
+            err=True,
+        )
+
+    def warn(msg: str) -> None:
+        click.echo(f"    warning: {msg}", err=True)
+
+    def on_fail(fc) -> None:
+        emit_failure(source_id, fc)
+
+    return progress, warn, on_fail
+
+
+@lexicon.command("mine-toponym-mentions-staged")
+@click.option(
+    "--sources-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=Path("sources"),
+    show_default=True,
+    help="Directory of <source_id>.txt scholar bodies. Used in fresh-mining "
+    "mode (when --from-failures is not given).",
+)
+@click.option(
+    "--source",
+    "sources",
+    multiple=True,
+    help="Restrict to named source_ids (repeat for multiple). Default in "
+    "fresh-mining mode: every *.txt under --sources-dir. Ignored in "
+    "--from-failures mode.",
+)
+@click.option(
+    "--from-failures",
+    "from_failures",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="Read pre-chunked (source_id, chunk_index, chunk_body) records from "
+    "this JSONL (typically the --capture-failures output of an earlier stage) "
+    "and re-process those chunks with the configured provider. Mutually "
+    "exclusive with --sources-dir-based fresh mining.",
+)
+@click.option(
+    "--output-dir",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=Path("data/mining/phase2"),
+    show_default=True,
+    help="Directory for <source_id>.jsonl extraction output. Created if "
+    "missing. In --from-failures mode, mentions are APPENDED to existing "
+    "per-source files with deduplication on (form, date_year, region_hint, "
+    "context); idempotent re-runs.",
+)
+@click.option(
+    "--capture-failures",
+    "capture_failures",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Write a JSONL record for every chunk that failed at this stage "
+    "(transport, JSON parse, schema mismatch). Each record has source_id, "
+    "chunk_index, chunk_body, error, extractor — ready to feed a downstream "
+    "stage via --from-failures. Required only to enable a downstream cascade "
+    "stage; omit if this is the terminal stage.",
+)
+@click.option(
+    "--provider",
+    type=click.Choice(["anthropic", "gemini", "ollama"]),
+    default="ollama",
+    show_default=True,
+    help="LLM backend for this stage.",
+)
+@click.option(
+    "--model",
+    default=None,
+    help="Override model id (provider-specific default if omitted).",
+)
+@click.option(
+    "--ollama-url",
+    default=None,
+    help="Override Ollama base URL when --provider ollama (default: "
+    "$WYRD_OLLAMA_URL or localhost).",
+)
+@click.option(
+    "--chunk-size",
+    type=int,
+    default=3000,
+    show_default=True,
+    help="Target chunk size in characters (snaps to paragraph boundaries). "
+    "In --from-failures mode chunks are pre-sliced; the value is then used "
+    "only for the oversize-paragraph warning threshold.",
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=None,
+    help="Process only the first N chunks per source (smoke testing).",
+)
+@click.option(
+    "--skip-existing",
+    is_flag=True,
+    default=False,
+    help="In fresh-mining mode, skip sources whose output JSONL already exists in --output-dir.",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="In fresh-mining mode, overwrite existing per-source output files "
+    "(default: error). Mutually exclusive with --skip-existing.",
+)
+def lexicon_mine_toponym_mentions_staged(
+    sources_dir: Path,
+    sources: tuple[str, ...],
+    from_failures: Path | None,
+    output_dir: Path,
+    capture_failures: Path | None,
+    provider: str,
+    model: str | None,
+    ollama_url: str | None,
+    chunk_size: int,
+    limit: int | None,
+    skip_existing: bool,
+    force: bool,
+) -> None:
+    """Stage-at-a-time LLM mention extraction with failure capture (wyrd-srd2).
+
+    Two operating modes share this command:
+
+    1. **Fresh-mining mode** (default): walks every source_id given via
+       --source (or every *.txt under --sources-dir when --source is
+       omitted). For each source, mines chunks with the configured
+       provider+model, writes successful mentions to
+       --output-dir/<source_id>.jsonl, captures failed chunks to
+       --capture-failures (if given).
+
+    2. **Resume-from-failures mode** (--from-failures FILE): reads
+       pre-chunked records from FILE and re-processes those chunks with
+       the configured provider+model. Mentions are APPENDED to existing
+       per-source output files with deduplication; chunks that fail at
+       this stage flow into --capture-failures for the next stage.
+
+    Operator-paced cascade:
+
+        # Stage 1: free local model on everything
+        wyrd kenning lexicon mine-toponym-mentions-staged \\
+            --provider ollama --model gemma4:26b --chunk-size 3000 \\
+            --output-dir data/mining/phase2 \\
+            --capture-failures data/mining/phase2_failures/stage1.jsonl
+
+        # Inspect: wc -l data/mining/phase2_failures/stage1.jsonl
+
+        # Stage 2: cheap cloud model on the residual
+        wyrd kenning lexicon mine-toponym-mentions-staged \\
+            --from-failures data/mining/phase2_failures/stage1.jsonl \\
+            --provider gemini --model gemini-2.5-flash \\
+            --output-dir data/mining/phase2 \\
+            --capture-failures data/mining/phase2_failures/stage2.jsonl
+
+        # Stage 3: more capable model on the still-failed
+        wyrd kenning lexicon mine-toponym-mentions-staged \\
+            --from-failures data/mining/phase2_failures/stage2.jsonl \\
+            --provider anthropic --model claude-haiku-4-5-20251001 \\
+            --output-dir data/mining/phase2 \\
+            --capture-failures data/mining/phase2_failures/stage3.jsonl
+
+    Output JSONL rows include ``extractor:"provider:model"`` so post-hoc
+    analysis can attribute each mention to the stage that captured it.
+    """
+    from wyrd.generators.kenning.toponym_mention_extractor import (
+        ToponymMention,
+        mine_toponym_mentions,
+        mine_toponym_mentions_from_chunks,
+    )
+
+    if from_failures is not None and sources:
+        raise click.ClickException("--from-failures and --source are mutually exclusive")
+    if from_failures is not None and (skip_existing or force):
+        # --skip-existing and --force only make sense in fresh-mining
+        # mode (they gate per-source output existence). Resume-mode
+        # always APPENDS with dedup against existing rows. Silently
+        # ignoring the flags would mislead an operator who passed
+        # `--from-failures … --force` expecting overwrite.
+        bad = "--skip-existing" if skip_existing else "--force"
+        raise click.ClickException(
+            f"{bad} is only valid in fresh-mining mode (cannot combine with --from-failures)"
+        )
+    if skip_existing and force:
+        raise click.ClickException("--skip-existing and --force are mutually exclusive")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Lazy client construction (matches the tiered command's pattern):
+    # a --skip-existing resume where every source is skipped shouldn't
+    # require ANTHROPIC_API_KEY validation or an Ollama probe.
+    client_box: dict = {"client": None, "extractor": f"{provider}:{model or 'default'}"}
+
+    def _ensure_client():
+        if client_box["client"] is None:
+            built = _build_extractor_client(provider, model, ollama_url=ollama_url)
+            # Refresh extractor name now that we know the resolved
+            # model id — JSONL rows pin the actual model that ran,
+            # not the placeholder "default".
+            client_box["client"] = built
+            client_box["extractor"] = f"{provider}:{built.model}"
+
+    failure_sink = None
+    if capture_failures is not None:
+        capture_failures.parent.mkdir(parents=True, exist_ok=True)
+        # Stale-records warning: appending to a non-empty failures file
+        # is legitimate (an operator may be incrementally building one),
+        # but if the file came from a DIFFERENT cascade run the stale
+        # records would silently flow into the next stage's input. Warn
+        # so the operator can confirm/clear before continuing. wyrd-srd2
+        # R1 silent-failure-hunter HIGH.
+        if capture_failures.exists() and capture_failures.stat().st_size > 0:
+            # Stream-count rather than read_text() so a large stale
+            # failures file doesn't load into memory just to compute
+            # the warning count.
+            with capture_failures.open("r", encoding="utf-8") as _fh:
+                stale = sum(1 for ln in _fh if ln.strip())
+            click.echo(
+                f"  warning: --capture-failures {capture_failures} already has "
+                f"{stale} record(s); appending (`> {capture_failures}` to clear)",
+                err=True,
+            )
+        # Append-mode: re-running the same stage doesn't blow away the
+        # tail of the prior run. The operator can clear the file
+        # manually if a fresh slate is wanted (see warning above).
+        failure_sink = capture_failures.open("a", encoding="utf-8")
+
+    def _emit_failure(source_id, fc):
+        if failure_sink is None:
+            return
+        rec = {
+            "source_id": source_id,
+            "chunk_index": fc.index,
+            "chunk_body": fc.chunk_body,
+            "error": fc.error,
+            "extractor": client_box["extractor"],
+        }
+        failure_sink.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        failure_sink.flush()
+
+    def _line(source_id: str, m: ToponymMention) -> str:
+        return json.dumps(
+            {
+                "source_id": source_id,
+                "form": m.form,
+                "date_year": m.date_year,
+                "region_hint": m.region_hint,
+                "context": m.context,
+                "extractor": client_box["extractor"],
+            },
+            ensure_ascii=False,
+        )
+
+    totals = {
+        "sources_processed": 0,
+        "sources_skipped": 0,
+        "chunks_processed": 0,
+        "chunks_failed": 0,
+        "hallucinations_dropped": 0,
+        "years_clamped": 0,
+        "mentions": 0,
+        "mentions_deduped": 0,
+        "malformed_purged": 0,
+    }
+
+    try:
+        if from_failures is not None:
+            _run_resume_from_failures(
+                from_failures=from_failures,
+                output_dir=output_dir,
+                provider=provider,
+                model=model,
+                chunk_size=chunk_size,
+                limit=limit,
+                client_box=client_box,
+                ensure_client=_ensure_client,
+                emit_failure=_emit_failure,
+                line_fn=_line,
+                totals=totals,
+                mine_fn=mine_toponym_mentions_from_chunks,
+            )
+        else:
+            _run_fresh_mining(
+                sources=sources,
+                sources_dir=sources_dir,
+                output_dir=output_dir,
+                provider=provider,
+                model=model,
+                chunk_size=chunk_size,
+                limit=limit,
+                skip_existing=skip_existing,
+                force=force,
+                client_box=client_box,
+                ensure_client=_ensure_client,
+                emit_failure=_emit_failure,
+                line_fn=_line,
+                totals=totals,
+                mine_fn=mine_toponym_mentions,
+            )
+    finally:
+        if failure_sink is not None:
+            failure_sink.close()
+
+    click.echo("", err=True)
+    summary = (
+        f"TOTAL sources={totals['sources_processed']} "
+        f"(skipped={totals['sources_skipped']}) "
+        f"chunks={totals['chunks_processed']} "
+        f"failed={totals['chunks_failed']} "
+        f"halluc={totals['hallucinations_dropped']} "
+        f"clamped={totals['years_clamped']} "
+        f"mentions={totals['mentions']}"
+    )
+    if from_failures is not None:
+        summary += f" deduped={totals['mentions_deduped']}"
+        if totals["malformed_purged"]:
+            summary += f" malformed_purged={totals['malformed_purged']}"
+    click.echo(summary, err=True)
+    # Always surface the capture-failures status — operators want to
+    # know whether the next stage has work to do (or whether the file
+    # is now stale and should be cleared). wyrd-srd2 R1 silent-failure
+    # MEDIUM: silent "0 failures, file unchanged" path was ambiguous.
+    if capture_failures is not None:
+        if totals["chunks_failed"] > 0:
+            click.echo(
+                f"  {totals['chunks_failed']} failed chunk(s) appended → {capture_failures}",
+                err=True,
+            )
+        else:
+            click.echo(
+                f"  0 new failures → {capture_failures} unchanged this run",
+                err=True,
+            )
+
+
+def _run_resume_from_failures(
+    *,
+    from_failures: Path,
+    output_dir: Path,
+    provider: str,
+    model: str | None,
+    chunk_size: int,
+    limit: int | None,
+    client_box: dict,
+    ensure_client,
+    emit_failure,
+    line_fn,
+    totals: dict,
+    mine_fn,
+) -> None:
+    """Resume-from-failures mode body, extracted out of the click command
+    so the dispatcher stays narrow. mine_fn is injected for testability
+    (matches mine_toponym_mentions_from_chunks at the only call site)."""
+    records = _read_failures_jsonl(from_failures)
+    if not records:
+        # Fall through to summary (don't early-return): operator wants
+        # the unambiguous "sources=0 mentions=0" line even on a no-op.
+        click.echo(
+            f"--from-failures {from_failures} contained no records; nothing to do",
+            err=True,
+        )
+        return
+    by_source: dict[str, list[tuple[int, str]]] = {}
+    for rec in records:
+        by_source.setdefault(rec["source_id"], []).append(
+            (int(rec["chunk_index"]), rec["chunk_body"])
+        )
+    # Sort each source's chunks by original index so progress lines
+    # look chronological. Sort sources alphabetically for determinism
+    # across resume invocations.
+    for src in by_source:
+        by_source[src].sort(key=lambda t: t[0])
+    click.echo(
+        f"Resume from {from_failures}: {len(records)} chunks across {len(by_source)} source(s)",
+        err=True,
+    )
+    click.echo(f"Provider: {provider} (model={model or 'default'})", err=True)
+
+    for src_i, source_id in enumerate(sorted(by_source), start=1):
+        indexed_chunks = by_source[source_id]
+        if limit is not None:
+            indexed_chunks = indexed_chunks[:limit]
+        ensure_client()
+        out_path = output_dir / f"{source_id}.jsonl"
+        start_ts = time.monotonic()
+        progress, warn, on_fail = _make_chunk_callbacks(source_id, start_ts, emit_failure)
+        existing_keys, malformed = _load_existing_mention_keys(out_path, log_warning=warn)
+        click.echo(
+            f"[{src_i}/{len(by_source)}] {source_id}: "
+            f"{len(indexed_chunks)} chunk(s) to retry "
+            f"({len(existing_keys)} existing mentions"
+            + (f", {malformed} malformed" if malformed else "")
+            + ")",
+            err=True,
+        )
+
+        report = mine_fn(
+            client_box["client"],
+            source_id,
+            indexed_chunks,
+            target_chunk_size=chunk_size,
+            on_chunk_done=progress,
+            on_chunk_failed=on_fail,
+            log_warning=warn,
+        )
+
+        # Atomic-write append: build the union (existing + new-deduped)
+        # in a .tmp file, then replace the original. A killed process
+        # mid-write leaves the original intact, vs. a direct
+        # ``open("a")`` which could leave a half-written final line
+        # that downstream commands would silently drop or stumble on.
+        # wyrd-srd2 R1 silent-failure-hunter HIGH.
+        new_count = 0
+        dup_count = 0
+        purged_count = 0
+        tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+        with tmp_path.open("w", encoding="utf-8") as sink:
+            if out_path.exists():
+                # Preserve well-formed existing rows verbatim (don't
+                # re-serialize: stage-specific fields like ``extractor``
+                # must keep their original value through the cascade).
+                # DROP malformed rows (non-JSON, non-dict) — without
+                # this the corruption persists every resume and the
+                # file's bad-row count grows forever. R3 silent-failure
+                # MEDIUM. ``_load_existing_mention_keys`` already
+                # surfaced the malformed_count to the operator; here
+                # we also remove them.
+                with out_path.open("r", encoding="utf-8") as src:
+                    for line in src:
+                        stripped = line.rstrip("\n")
+                        if not stripped:
+                            continue
+                        try:
+                            row = json.loads(stripped)
+                        except json.JSONDecodeError:
+                            purged_count += 1
+                            continue
+                        if not isinstance(row, dict):
+                            purged_count += 1
+                            continue
+                        sink.write(stripped + "\n")
+            for m in report.mentions:
+                key = (m.form, m.date_year, m.region_hint, m.context)
+                if key in existing_keys:
+                    dup_count += 1
+                    continue
+                sink.write(line_fn(source_id, m) + "\n")
+                existing_keys.add(key)
+                new_count += 1
+        tmp_path.replace(out_path)
+        if purged_count:
+            click.echo(
+                f"    purged {purged_count} malformed row(s) from {out_path}",
+                err=True,
+            )
+
+        click.echo(
+            f"  → {out_path} | chunks={report.chunks_processed} "
+            f"failed={report.chunks_failed} new_mentions={new_count} "
+            f"deduped={dup_count} halluc={report.hallucinations_dropped} "
+            f"clamped={report.years_clamped}",
+            err=True,
+        )
+
+        totals["sources_processed"] += 1
+        totals["chunks_processed"] += report.chunks_processed
+        totals["chunks_failed"] += report.chunks_failed
+        totals["hallucinations_dropped"] += report.hallucinations_dropped
+        totals["years_clamped"] += report.years_clamped
+        totals["mentions"] += new_count
+        totals["mentions_deduped"] += dup_count
+        totals["malformed_purged"] += purged_count
+
+
+def _run_fresh_mining(
+    *,
+    sources: tuple[str, ...],
+    sources_dir: Path,
+    output_dir: Path,
+    provider: str,
+    model: str | None,
+    chunk_size: int,
+    limit: int | None,
+    skip_existing: bool,
+    force: bool,
+    client_box: dict,
+    ensure_client,
+    emit_failure,
+    line_fn,
+    totals: dict,
+    mine_fn,
+) -> None:
+    """Fresh-mining mode body, extracted out of the click command. mine_fn
+    is injected (matches mine_toponym_mentions at the only call site)."""
+    if sources:
+        source_ids = []
+        for sid in sources:
+            txt = sources_dir / f"{Path(sid).name}.txt"
+            if not txt.exists():
+                raise click.ClickException(f"source body not found: {txt}")
+            source_ids.append(Path(sid).name)
+    else:
+        source_ids = sorted(p.stem for p in sources_dir.glob("*.txt") if p.name != "MANIFEST.md")
+    if not source_ids:
+        raise click.ClickException(f"no sources under {sources_dir}")
+
+    click.echo(f"Sources to process: {len(source_ids)}", err=True)
+    click.echo(f"Provider: {provider} (model={model or 'default'})", err=True)
+
+    for src_i, source_id in enumerate(source_ids, start=1):
+        out_path = output_dir / f"{source_id}.jsonl"
+        if out_path.exists():
+            if skip_existing:
+                click.echo(
+                    f"[{src_i}/{len(source_ids)}] {source_id}: SKIP (output exists)",
+                    err=True,
+                )
+                totals["sources_skipped"] += 1
+                continue
+            if not force:
+                raise click.ClickException(
+                    f"output {out_path} exists; pass --skip-existing to leave it "
+                    f"or --force to overwrite"
+                )
+
+        txt_path = sources_dir / f"{source_id}.txt"
+        body = txt_path.read_text(encoding="utf-8", errors="replace")
+        if "�" in body:
+            click.echo(
+                f"  warning: {source_id} contained invalid UTF-8 sequences (now U+FFFD)",
+                err=True,
+            )
+
+        click.echo(
+            f"[{src_i}/{len(source_ids)}] {source_id}: {len(body):,} chars",
+            err=True,
+        )
+        ensure_client()
+        start_ts = time.monotonic()
+        progress, warn, on_fail = _make_chunk_callbacks(source_id, start_ts, emit_failure)
+
+        report = mine_fn(
+            client_box["client"],
+            source_id,
+            body,
+            target_chunk_size=chunk_size,
+            limit=limit,
+            on_chunk_done=progress,
+            on_chunk_failed=on_fail,
+            log_warning=warn,
+        )
+
+        # Atomic write: fresh per-source files use full rewrite.
+        tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+        with tmp_path.open("w", encoding="utf-8") as sink:
+            for m in report.mentions:
+                sink.write(line_fn(source_id, m) + "\n")
+        tmp_path.replace(out_path)
+
+        click.echo(
+            f"  → {out_path} | chunks={report.chunks_processed} "
+            f"failed={report.chunks_failed} mentions={len(report.mentions)} "
+            f"halluc={report.hallucinations_dropped} "
+            f"clamped={report.years_clamped}",
+            err=True,
+        )
+
+        totals["sources_processed"] += 1
+        totals["chunks_processed"] += report.chunks_processed
+        totals["chunks_failed"] += report.chunks_failed
+        totals["hallucinations_dropped"] += report.hallucinations_dropped
+        totals["years_clamped"] += report.years_clamped
+        totals["mentions"] += len(report.mentions)
 
 
 @lexicon.command("ingest-toponym-mentions")

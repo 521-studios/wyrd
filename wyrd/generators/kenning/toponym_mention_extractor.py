@@ -546,10 +546,21 @@ def chunk_source_body(body: str, *, target_chunk_size: int = 20000) -> list[str]
 class FailedChunk:
     """Per-chunk failure record. Carried on the run report so operators
     see *which* chunk failed and *what kind* of error (rate-limit,
-    JSON-truncation, schema-mismatch) — vs. an opaque count."""
+    JSON-truncation, schema-mismatch) — vs. an opaque count.
+
+    ``chunk_body`` carries the chunk text verbatim so the staged-cascade
+    pipeline (wyrd-srd2) can re-run a failed chunk against a different
+    model without re-chunking the original source. Both production
+    constructors (``mine_toponym_mentions`` and
+    ``mine_toponym_mentions_tiered``) always populate it; the default
+    of ``""`` exists so test fixtures + diagnostic-only callers can
+    still construct a ``FailedChunk`` without the body. The
+    staged-cascade resume path validates non-empty at read time so an
+    accidentally-empty record is rejected loudly."""
 
     index: int
     error: str
+    chunk_body: str = ""
 
 
 # Memory ceiling for ``failed_chunks`` on a single source's report.
@@ -628,6 +639,7 @@ def mine_toponym_mentions(
     target_chunk_size: int = 20000,
     limit: int | None = None,
     on_chunk_done: Callable[[int, int, int], None] | None = None,
+    on_chunk_failed: Callable[[FailedChunk], None] | None = None,
     log_warning: Callable[[str], None] | None = None,
 ) -> MineToponymMentionsReport:
     """Walk a source body chunk-by-chunk, accumulating extracted
@@ -641,21 +653,85 @@ def mine_toponym_mentions(
     * ``on_chunk_done`` — invoked after each SUCCESSFUL chunk with
       ``(chunks_done, total_chunks, mentions_so_far)``. The total is
       the post-limit count, so progress lines display correctly.
+    * ``on_chunk_failed`` — invoked for every failed chunk with the
+      ``FailedChunk`` record (including chunk_body). Used by the
+      staged-cascade CLI to stream failures to a JSONL file as they
+      happen (wyrd-srd2) — bypassing the report's in-memory cap.
+      Defaults to None (silent).
     * ``log_warning`` — optional sink for diagnostic warnings
       (oversize paragraph, etc.). Defaults to silent; the CLI wires
       ``click.echo(..., err=True)``.
     """
-    report = MineToponymMentionsReport(source_id=source_id)
     chunks = chunk_source_body(body, target_chunk_size=target_chunk_size)
     if limit is not None:
         chunks = chunks[:limit]
-    total = len(chunks)
+    return _process_indexed_chunks(
+        client,
+        source_id,
+        list(enumerate(chunks)),
+        target_chunk_size=target_chunk_size,
+        on_chunk_done=on_chunk_done,
+        on_chunk_failed=on_chunk_failed,
+        log_warning=log_warning,
+    )
+
+
+def mine_toponym_mentions_from_chunks(
+    client,
+    source_id: str,
+    indexed_chunks: list[tuple[int, str]],
+    *,
+    target_chunk_size: int = 20000,
+    on_chunk_done: Callable[[int, int, int], None] | None = None,
+    on_chunk_failed: Callable[[FailedChunk], None] | None = None,
+    log_warning: Callable[[str], None] | None = None,
+) -> MineToponymMentionsReport:
+    """Mine a list of pre-chunked ``(chunk_index, chunk_body)`` tuples.
+
+    Used by the staged-cascade pipeline (wyrd-srd2) to retry chunks
+    that failed at an earlier stage. The chunk indices are preserved
+    from the original chunking pass so the failed-chunks file remains
+    coherent across stages (a failure at chunk 47 stays chunk 47 even
+    when stage 2 sees only the subset of chunks stage 1 couldn't
+    handle).
+
+    Same return shape and callback contract as :func:`mine_toponym_mentions`.
+    ``target_chunk_size`` is retained for the oversize-warning
+    threshold; it doesn't drive re-chunking here since chunks are
+    already supplied.
+    """
+    return _process_indexed_chunks(
+        client,
+        source_id,
+        indexed_chunks,
+        target_chunk_size=target_chunk_size,
+        on_chunk_done=on_chunk_done,
+        on_chunk_failed=on_chunk_failed,
+        log_warning=log_warning,
+    )
+
+
+def _process_indexed_chunks(
+    client,
+    source_id: str,
+    indexed_chunks: list[tuple[int, str]],
+    *,
+    target_chunk_size: int,
+    on_chunk_done: Callable[[int, int, int], None] | None,
+    on_chunk_failed: Callable[[FailedChunk], None] | None,
+    log_warning: Callable[[str], None] | None,
+) -> MineToponymMentionsReport:
+    """Inner per-chunk loop shared by :func:`mine_toponym_mentions`
+    (fresh chunking) and :func:`mine_toponym_mentions_from_chunks`
+    (resume from a failures file)."""
+    report = MineToponymMentionsReport(source_id=source_id)
+    total = len(indexed_chunks)
     oversize_threshold = target_chunk_size * _OVERSIZED_PARAGRAPH_MULTIPLIER
     # head_failures: first N/2 captured directly. tail_failures: bounded
     # ring buffer of the most recent N/2. Merged at end before returning.
     head_failures: list[FailedChunk] = []
     tail_failures: deque[FailedChunk] = deque(maxlen=_FAILED_CHUNKS_TAIL)
-    for i, chunk in enumerate(chunks):
+    for done, (i, chunk) in enumerate(indexed_chunks, start=1):
         # Inline oversize warning — folded into the main loop to
         # avoid a separate pre-pass over the chunk list. Fires
         # BEFORE the LLM call so operators see the warning
@@ -688,11 +764,17 @@ def mine_toponym_mentions(
             # re-raised in the prior clause; KeyboardInterrupt and
             # SystemExit (BaseException) still propagate naturally.
             report.chunks_failed += 1
-            failure = FailedChunk(index=i, error=f"{type(e).__name__}: {e}")
+            failure = FailedChunk(
+                index=i,
+                error=f"{type(e).__name__}: {e}",
+                chunk_body=chunk,
+            )
             if len(head_failures) < _FAILED_CHUNKS_HEAD:
                 head_failures.append(failure)
             else:
                 tail_failures.append(failure)
+            if on_chunk_failed is not None:
+                on_chunk_failed(failure)
             if log_warning is not None:
                 log_warning(f"chunk {i} failed: {type(e).__name__}: {e}")
             continue
@@ -701,7 +783,7 @@ def mine_toponym_mentions(
         report.hallucinations_dropped += chunk_counters.hallucinations_dropped
         report.years_clamped += chunk_counters.years_clamped
         if on_chunk_done is not None:
-            on_chunk_done(i + 1, total, len(report.mentions))
+            on_chunk_done(done, total, len(report.mentions))
     # Merge head + tail. List shape preserves indices for the CLI's
     # display loop; the gap between head and tail (if any) is implicit
     # via the chunks_failed counter minus len(failed_chunks).
@@ -982,6 +1064,7 @@ def mine_toponym_mentions_tiered(
                 failure = FailedChunk(
                     index=i,
                     error=f"primary={primary_error}; fallback={fallback_error}",
+                    chunk_body=chunk,
                 )
                 if len(head_failures) < _FAILED_CHUNKS_HEAD:
                     head_failures.append(failure)
