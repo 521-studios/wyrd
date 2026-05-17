@@ -43,3 +43,5 @@ data/mining/os_open_names.jsonl
 # Local Claude Code agent state — do not commit
 .claude/scheduled_tasks.lock
 uv.lock
+.claude/worktrees/
+data/mining/phase2_failures/
