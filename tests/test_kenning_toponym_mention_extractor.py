@@ -25,6 +25,7 @@ from wyrd.generators.kenning.toponym_mention_extractor import (
     RESPONSE_SCHEMA,
     RESPONSE_SCHEMA_GEMINI,
     SYSTEM_PROMPT,
+    FailedChunk,
     MineToponymMentionsReport,
     ToponymMention,
     ValidationCounters,
@@ -35,6 +36,7 @@ from wyrd.generators.kenning.toponym_mention_extractor import (
     chunk_source_body,
     extract_toponym_mentions_from_chunk,
     mine_toponym_mentions,
+    mine_toponym_mentions_from_chunks,
 )
 
 # ---------- FakeClient ---------------------------------------------------
@@ -932,6 +934,125 @@ def test_mine_toponym_mentions_rolls_up_validation_counters():
     assert report.years_clamped == 1
 
 
+# ---------- Staged-cascade hooks (wyrd-srd2) -----------------------------
+
+
+def test_failed_chunk_carries_body_for_staged_resume():
+    """wyrd-srd2 contract: the FailedChunk record returned in the
+    report MUST include the chunk body verbatim. The staged-cascade
+    CLI streams those bodies to a failures file so a downstream stage
+    can re-process the same chunks without re-chunking the source."""
+    body = _three_chunk_body()
+    client = FakeClient(
+        [
+            {"mentions": [{"form": "Edlin", "context": "Edlin"}]},
+            RuntimeError("Anthropic HTTP 503: service unavailable"),
+            {"mentions": [{"form": "Tyne", "context": "Tyne"}]},
+        ]
+    )
+    report = mine_toponym_mentions(client, "test_source", body, target_chunk_size=10000)
+    assert len(report.failed_chunks) == 1
+    fc = report.failed_chunks[0]
+    assert fc.chunk_body  # non-empty
+    # The body is the actual chunk text passed to the LLM call, not a
+    # placeholder or the full source. _three_chunk_body's middle chunk
+    # is well-defined; we just check the body was preserved (no empty,
+    # no truncation, no marker text).
+    assert len(fc.chunk_body) > 0
+    assert fc.chunk_body.strip() != ""
+
+
+def test_on_chunk_failed_callback_fires_per_failure():
+    """The staged-cascade CLI bypasses the in-memory FailedChunk cap
+    (100 records) by streaming via callback. Verify the callback fires
+    exactly once per failed chunk and receives the chunk_body."""
+    body = _three_chunk_body()
+    client = FakeClient(
+        [
+            RuntimeError("err 1"),
+            {"mentions": [{"form": "Edlin", "context": "Edlin"}]},
+            RuntimeError("err 2"),
+        ]
+    )
+    captured: list[FailedChunk] = []
+    report = mine_toponym_mentions(
+        client,
+        "test_source",
+        body,
+        target_chunk_size=10000,
+        on_chunk_failed=captured.append,
+    )
+    assert report.chunks_failed == 2
+    assert len(captured) == 2
+    assert captured[0].index == 0
+    assert captured[1].index == 2
+    for fc in captured:
+        assert fc.chunk_body  # carries the chunk text
+
+
+def test_mine_toponym_mentions_from_chunks_preserves_indices():
+    """Resume-from-failures (wyrd-srd2): a later stage re-runs only the
+    failed chunks. The chunk indices come from the original chunking
+    pass and must be preserved through the report — a chunk that was
+    chunk 47 in stage 1 stays chunk 47 in the stage-2 failures file
+    even when stage 2 sees only 6 chunks total."""
+    client = FakeClient(
+        [
+            {"mentions": [{"form": "Bedlington", "context": "Bedlington"}]},
+            {"mentions": [{"form": "Edlingham", "context": "Edlingham"}]},
+        ]
+    )
+    # Original chunk indices 47 and 92 — non-contiguous, simulating
+    # the cross-source failures-file shape after stage 1.
+    indexed = [(47, "...Bedlington..."), (92, "...Edlingham...")]
+    report = mine_toponym_mentions_from_chunks(client, "src", indexed)
+    assert report.chunks_processed == 2
+    assert {m.form for m in report.mentions} == {"Bedlington", "Edlingham"}
+    # If a chunk fails here, its FailedChunk.index must match the
+    # supplied index, not the iteration position.
+    client2 = FakeClient([RuntimeError("upstream 500")])
+    failed_chunks: list[FailedChunk] = []
+    report2 = mine_toponym_mentions_from_chunks(
+        client2,
+        "src",
+        [(102, "...Tyne...")],
+        on_chunk_failed=failed_chunks.append,
+    )
+    assert report2.chunks_failed == 1
+    assert failed_chunks[0].index == 102
+    assert "...Tyne..." in failed_chunks[0].chunk_body
+
+
+def test_mine_toponym_mentions_from_chunks_empty_input_is_noop():
+    """Edge case: an empty failures file should produce an empty
+    report with no LLM calls."""
+    client = FakeClient([])
+    report = mine_toponym_mentions_from_chunks(client, "src", [])
+    assert report.chunks_processed == 0
+    assert report.chunks_failed == 0
+    assert report.mentions == []
+    assert client.calls == []  # no LLM invocations
+
+
+def test_mine_toponym_mentions_from_chunks_oversize_warning_fires():
+    """The oversize-paragraph warning still fires in resume mode — a
+    chunk that's bigger than target_chunk_size * multiplier should
+    surface so operators see why a chunk might truncate on a deeper
+    model. Same threshold logic as fresh-mining mode (shared helper)."""
+    warnings: list[str] = []
+    client = FakeClient([{"mentions": []}])
+    # Oversize is 1.5× target_chunk_size by default (_OVERSIZED_PARAGRAPH_MULTIPLIER).
+    big_chunk = "x" * 200
+    mine_toponym_mentions_from_chunks(
+        client,
+        "src",
+        [(0, big_chunk)],
+        target_chunk_size=100,  # 1.5× = 150, so 200 > 150 triggers the warning
+        log_warning=warnings.append,
+    )
+    assert any("oversized paragraph" in w for w in warnings)
+
+
 # ---------- CLI integration ----------------------------------------------
 
 
@@ -1576,6 +1697,549 @@ def test_cli_force_without_existing_output_does_not_warn(tmp_path, monkeypatch):
     )
     assert result.exit_code == 0, result.stderr
     assert "overwriting" not in result.stderr
+
+
+# ---------- mine-toponym-mentions-staged (wyrd-srd2) ---------------------
+
+
+def _read_jsonl(path) -> list[dict]:
+    return [
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+
+
+def test_cli_staged_fresh_mining_writes_per_source_with_extractor_tag(tmp_path, monkeypatch):
+    """Fresh-mining mode (no --from-failures): walks sources_dir, writes
+    one JSONL per source to --output-dir, each row tagged with the
+    `extractor` so cascade-stage attribution survives in the data."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "alpha.txt").write_text("Edlingham is in Northumberland.", encoding="utf-8")
+    (sources_dir / "beta.txt").write_text("Tyne is a river.", encoding="utf-8")
+    output_dir = tmp_path / "out"
+
+    _stub_anthropic_for_cli(
+        monkeypatch,
+        FakeClient(
+            [
+                {"mentions": [{"form": "Edlingham", "context": "Edlingham is in Northumberland"}]},
+                {"mentions": [{"form": "Tyne", "context": "Tyne is a river"}]},
+            ]
+        ),
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "anthropic",
+            "--chunk-size",
+            "5000",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    alpha_rows = _read_jsonl(output_dir / "alpha.jsonl")
+    beta_rows = _read_jsonl(output_dir / "beta.jsonl")
+    assert len(alpha_rows) == 1
+    assert alpha_rows[0]["form"] == "Edlingham"
+    assert alpha_rows[0]["extractor"].startswith("anthropic:")
+    assert beta_rows[0]["form"] == "Tyne"
+
+
+def test_cli_staged_capture_failures_writes_chunk_body(tmp_path, monkeypatch):
+    """--capture-failures captures every failed chunk including the
+    chunk body verbatim — the downstream stage's --from-failures input
+    relies on this."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    body = "Edlingham was first attested.\n\nTyne is a river.\n\nDurham is a city."
+    (sources_dir / "alpha.txt").write_text(body, encoding="utf-8")
+    output_dir = tmp_path / "out"
+    failures_file = tmp_path / "failures.jsonl"
+
+    _stub_anthropic_for_cli(
+        monkeypatch,
+        FakeClient(
+            [
+                {"mentions": [{"form": "Edlingham", "context": "Edlingham was first attested"}]},
+                RuntimeError("HTTP 503"),
+                {"mentions": [{"form": "Durham", "context": "Durham is a city"}]},
+            ]
+        ),
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--capture-failures",
+            str(failures_file),
+            "--provider",
+            "anthropic",
+            "--chunk-size",
+            "20",  # forces 3 chunks
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    failures = _read_jsonl(failures_file)
+    assert len(failures) == 1
+    fc = failures[0]
+    assert fc["source_id"] == "alpha"
+    assert fc["chunk_index"] == 1  # middle chunk
+    assert "Tyne is a river" in fc["chunk_body"]
+    assert "RuntimeError" in fc["error"]
+    assert fc["extractor"].startswith("anthropic:")
+
+
+def test_cli_staged_from_failures_appends_with_dedup(tmp_path, monkeypatch):
+    """--from-failures resumes pre-chunked failed records, appending
+    new mentions to existing per-source files. Dedup on (form,
+    date_year, region_hint, context) skips already-emitted rows so a
+    re-run of the same stage is idempotent."""
+    runner = CliRunner()
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    # Pre-existing per-source file from a prior stage
+    (output_dir / "alpha.jsonl").write_text(
+        json.dumps(
+            {
+                "source_id": "alpha",
+                "form": "Existing",
+                "date_year": 1086,
+                "region_hint": None,
+                "context": "Existing was here",
+                "extractor": "ollama:gemma4:26b",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    failures_file = tmp_path / "failures.jsonl"
+    failures_file.write_text(
+        json.dumps(
+            {
+                "source_id": "alpha",
+                "chunk_index": 5,
+                "chunk_body": "Bedlington is a town. Existing was here too.",
+                "error": "RuntimeError: stage 1 timeout",
+                "extractor": "ollama:gemma4:26b",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    _stub_anthropic_for_cli(
+        monkeypatch,
+        FakeClient(
+            [
+                {
+                    "mentions": [
+                        {"form": "Bedlington", "context": "Bedlington is a town"},
+                        # Duplicate of the pre-existing row — must be deduped
+                        {"form": "Existing", "date_year": 1086, "context": "Existing was here"},
+                    ]
+                }
+            ]
+        ),
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--from-failures",
+            str(failures_file),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "anthropic",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    rows = _read_jsonl(output_dir / "alpha.jsonl")
+    forms = [r["form"] for r in rows]
+    # Existing stays (once), Bedlington added, no duplicate Existing.
+    assert forms.count("Existing") == 1
+    assert "Bedlington" in forms
+    assert len(rows) == 2
+    # Summary mentions deduped count
+    assert "deduped=1" in result.output
+
+
+def test_cli_staged_from_failures_captures_secondary_failures(tmp_path, monkeypatch):
+    """Cascade contract: a stage 2 run that also fails on some chunks
+    must capture those into ITS --capture-failures file so stage 3 can
+    pick them up. The cross-stage cascade rides on this composability."""
+    runner = CliRunner()
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    failures_in = tmp_path / "stage1_failures.jsonl"
+    failures_in.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "source_id": "alpha",
+                        "chunk_index": 1,
+                        "chunk_body": "Bedlington is a town",
+                        "error": "stage1 err",
+                        "extractor": "ollama:gemma4:26b",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "source_id": "alpha",
+                        "chunk_index": 7,
+                        "chunk_body": "Tyne is a river",
+                        "error": "stage1 err",
+                        "extractor": "ollama:gemma4:26b",
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    failures_out = tmp_path / "stage2_failures.jsonl"
+
+    _stub_anthropic_for_cli(
+        monkeypatch,
+        FakeClient(
+            [
+                {"mentions": [{"form": "Bedlington", "context": "Bedlington is a town"}]},
+                RuntimeError("still failing in stage 2"),
+            ]
+        ),
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--from-failures",
+            str(failures_in),
+            "--output-dir",
+            str(output_dir),
+            "--capture-failures",
+            str(failures_out),
+            "--provider",
+            "anthropic",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    # Stage 2 success: Bedlington recovered into alpha.jsonl
+    alpha = _read_jsonl(output_dir / "alpha.jsonl")
+    assert {r["form"] for r in alpha} == {"Bedlington"}
+
+    # Stage 2 failure: Tyne chunk preserved in stage2_failures.jsonl
+    # with its ORIGINAL chunk_index from stage 1 (7), not renumbered.
+    out_failures = _read_jsonl(failures_out)
+    assert len(out_failures) == 1
+    assert out_failures[0]["chunk_index"] == 7
+    assert "Tyne is a river" in out_failures[0]["chunk_body"]
+    assert "still failing" in out_failures[0]["error"]
+
+
+def test_cli_staged_from_failures_and_source_are_mutually_exclusive(tmp_path, monkeypatch):
+    """Operator can't combine fresh-mining and resume modes — confusing
+    semantics + would silently ignore one of the inputs. Hard-error
+    instead."""
+    runner = CliRunner()
+    failures_file = tmp_path / "f.jsonl"
+    failures_file.write_text("", encoding="utf-8")
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "alpha.txt").write_text("body", encoding="utf-8")
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--from-failures",
+            str(failures_file),
+            "--source",
+            "alpha",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(tmp_path / "out"),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "mutually exclusive" in result.output
+
+
+def test_cli_staged_from_failures_empty_input_is_noop(tmp_path, monkeypatch):
+    """An empty failures file is operationally valid (nothing left to
+    do) — exit cleanly with a friendly message rather than erroring."""
+    runner = CliRunner()
+    failures_file = tmp_path / "f.jsonl"
+    failures_file.write_text("", encoding="utf-8")
+    output_dir = tmp_path / "out"
+
+    _stub_anthropic_for_cli(monkeypatch, FakeClient([]))
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--from-failures",
+            str(failures_file),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "anthropic",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "no records" in result.output
+
+
+def test_cli_staged_skip_existing_and_force_are_mutually_exclusive(tmp_path):
+    """Symmetric with mine-toponym-mentions-tiered: --skip-existing and
+    --force can't both be set."""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--sources-dir",
+            str(tmp_path),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--skip-existing",
+            "--force",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "mutually exclusive" in result.output
+
+
+def test_cli_staged_from_failures_groups_records_by_source(tmp_path, monkeypatch):
+    """A failures file may contain records from many sources (corpus-wide
+    failure capture in stage 1). The resume command must group by
+    source_id and write each source's mentions to its own output file."""
+    runner = CliRunner()
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    failures_file = tmp_path / "f.jsonl"
+    failures_file.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "source_id": "alpha",
+                        "chunk_index": 0,
+                        "chunk_body": "Bedlington is a town",
+                        "error": "x",
+                        "extractor": "ollama:m",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "source_id": "beta",
+                        "chunk_index": 0,
+                        "chunk_body": "Tyne is a river",
+                        "error": "x",
+                        "extractor": "ollama:m",
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    _stub_anthropic_for_cli(
+        monkeypatch,
+        FakeClient(
+            [
+                {"mentions": [{"form": "Bedlington", "context": "Bedlington is a town"}]},
+                {"mentions": [{"form": "Tyne", "context": "Tyne is a river"}]},
+            ]
+        ),
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--from-failures",
+            str(failures_file),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "anthropic",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    assert {r["form"] for r in _read_jsonl(output_dir / "alpha.jsonl")} == {"Bedlington"}
+    assert {r["form"] for r in _read_jsonl(output_dir / "beta.jsonl")} == {"Tyne"}
+
+
+def test_cli_staged_from_failures_rejects_malformed_jsonl(tmp_path, monkeypatch):
+    """A failures file with a non-JSON line errors clearly, citing the
+    line number — easier debugging than an opaque ValueError traceback."""
+    runner = CliRunner()
+    failures_file = tmp_path / "bad.jsonl"
+    # Valid record on line 1 (with all required fields), garbage on line 2 —
+    # without the line-by-line read, line 1 would succeed and the error
+    # would surface much later. Pinning the line number is the bug.
+    valid = json.dumps(
+        {
+            "source_id": "alpha",
+            "chunk_index": 0,
+            "chunk_body": "body",
+            "error": "x",
+        }
+    )
+    failures_file.write_text(f"{valid}\nnot json at all\n", encoding="utf-8")
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--from-failures",
+            str(failures_file),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--provider",
+            "anthropic",
+        ],
+    )
+    assert result.exit_code != 0
+    # Error should mention the file and the line number 2
+    assert "bad.jsonl:2" in result.output
+
+
+def test_cli_staged_from_failures_rejects_missing_required_field(tmp_path, monkeypatch):
+    """A failures file row missing chunk_body errors clearly — without
+    chunk_body the resume can't re-process the chunk, and silently
+    skipping would lose data."""
+    runner = CliRunner()
+    failures_file = tmp_path / "incomplete.jsonl"
+    failures_file.write_text(
+        json.dumps({"source_id": "alpha", "chunk_index": 0, "error": "x"}) + "\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--from-failures",
+            str(failures_file),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--provider",
+            "anthropic",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "chunk_body" in result.output
+
+
+def test_cli_staged_capture_failures_appends_across_runs(tmp_path, monkeypatch):
+    """--capture-failures opens the file in append mode — re-running
+    a stage doesn't blow away earlier failure records (useful when
+    iterating). Operator clears the file manually for a fresh slate."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "alpha.txt").write_text("Edlin.\n\nTyne.", encoding="utf-8")
+    output_dir = tmp_path / "out"
+    failures_file = tmp_path / "failures.jsonl"
+
+    # First run: chunk 1 fails
+    _stub_anthropic_for_cli(
+        monkeypatch,
+        FakeClient(
+            [
+                {"mentions": [{"form": "Edlin", "context": "Edlin"}]},
+                RuntimeError("err1"),
+            ]
+        ),
+    )
+    result1 = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--capture-failures",
+            str(failures_file),
+            "--provider",
+            "anthropic",
+            "--chunk-size",
+            "10",
+            "--force",
+        ],
+    )
+    assert result1.exit_code == 0, result1.output
+    assert len(_read_jsonl(failures_file)) == 1
+
+    # Second run on the same source (force-overwrite the per-source output)
+    # — failure records APPEND, not overwrite.
+    _stub_anthropic_for_cli(
+        monkeypatch,
+        FakeClient(
+            [
+                RuntimeError("err2_first"),
+                {"mentions": [{"form": "Tyne", "context": "Tyne"}]},
+            ]
+        ),
+    )
+    result2 = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--capture-failures",
+            str(failures_file),
+            "--provider",
+            "anthropic",
+            "--chunk-size",
+            "10",
+            "--force",
+        ],
+    )
+    assert result2.exit_code == 0, result2.output
+    # 1 from run-1 + 1 from run-2 = 2 total
+    assert len(_read_jsonl(failures_file)) == 2
 
 
 def test_chunk_source_body_chunks_are_complete_paragraphs():

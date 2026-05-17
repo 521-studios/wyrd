@@ -3272,6 +3272,502 @@ def lexicon_mine_toponym_mentions_tiered(
     )
 
 
+def _read_failures_jsonl(path: Path) -> list[dict]:
+    """Read a captured-failures JSONL into a list of dict records.
+    Each record has source_id, chunk_index, chunk_body, error, extractor."""
+    records: list[dict] = []
+    with path.open("r", encoding="utf-8") as fh:
+        for line_num, raw in enumerate(fh, start=1):
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                rec = json.loads(raw)
+            except json.JSONDecodeError as e:
+                raise click.ClickException(f"{path}:{line_num}: not valid JSON: {e}") from e
+            for key in ("source_id", "chunk_index", "chunk_body"):
+                if key not in rec:
+                    raise click.ClickException(f"{path}:{line_num}: missing required field {key!r}")
+            records.append(rec)
+    return records
+
+
+def _load_existing_mention_keys(out_path: Path) -> set[tuple]:
+    """Build the dedup-key set from an existing per-source output JSONL.
+    Returns an empty set if the file doesn't exist. The key shape mirrors
+    what the writer emits — staged cascade re-runs use this to skip
+    already-emitted attestations when appending new mentions."""
+    if not out_path.exists():
+        return set()
+    keys: set[tuple] = set()
+    with out_path.open("r", encoding="utf-8") as fh:
+        for raw in fh:
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                row = json.loads(raw)
+            except json.JSONDecodeError:
+                # Defensive: a hand-edited or partially-written file
+                # shouldn't crash the resume — just skip the bad row,
+                # the new write would naturally re-emit anything
+                # missing from the dedup set.
+                continue
+            keys.add(
+                (
+                    row.get("form"),
+                    row.get("date_year"),
+                    row.get("region_hint"),
+                    row.get("context"),
+                )
+            )
+    return keys
+
+
+@lexicon.command("mine-toponym-mentions-staged")
+@click.option(
+    "--sources-dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=Path("sources"),
+    show_default=True,
+    help="Directory of <source_id>.txt scholar bodies. Used in fresh-mining "
+    "mode (when --from-failures is not given).",
+)
+@click.option(
+    "--source",
+    "sources",
+    multiple=True,
+    help="Restrict to named source_ids (repeat for multiple). Default in "
+    "fresh-mining mode: every *.txt under --sources-dir. Ignored in "
+    "--from-failures mode.",
+)
+@click.option(
+    "--from-failures",
+    "from_failures",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="Read pre-chunked (source_id, chunk_index, chunk_body) records from "
+    "this JSONL (typically the --capture-failures output of an earlier stage) "
+    "and re-process those chunks with the configured provider. Mutually "
+    "exclusive with --sources-dir-based fresh mining.",
+)
+@click.option(
+    "--output-dir",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=Path("data/mining/phase2"),
+    show_default=True,
+    help="Directory for <source_id>.jsonl extraction output. Created if "
+    "missing. In --from-failures mode, mentions are APPENDED to existing "
+    "per-source files with deduplication on (form, date_year, region_hint, "
+    "context); idempotent re-runs.",
+)
+@click.option(
+    "--capture-failures",
+    "capture_failures",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Write a JSONL record for every chunk that failed at this stage "
+    "(transport, JSON parse, schema mismatch). Each record has source_id, "
+    "chunk_index, chunk_body, error, extractor — ready to feed a downstream "
+    "stage via --from-failures. Required for staged cascade.",
+)
+@click.option(
+    "--provider",
+    type=click.Choice(["anthropic", "gemini", "ollama"]),
+    default="ollama",
+    show_default=True,
+    help="LLM backend for this stage.",
+)
+@click.option(
+    "--model",
+    default=None,
+    help="Override model id (provider-specific default if omitted).",
+)
+@click.option(
+    "--ollama-url",
+    default=None,
+    help="Override Ollama base URL when --provider ollama (default: "
+    "$WYRD_OLLAMA_URL or localhost).",
+)
+@click.option(
+    "--chunk-size",
+    type=int,
+    default=3000,
+    show_default=True,
+    help="Target chunk size in characters (snaps to paragraph boundaries). "
+    "Ignored in --from-failures mode (chunks are pre-sliced).",
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=None,
+    help="Process only the first N chunks per source (smoke testing).",
+)
+@click.option(
+    "--skip-existing",
+    is_flag=True,
+    default=False,
+    help="In fresh-mining mode, skip sources whose output JSONL already exists in --output-dir.",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="In fresh-mining mode, overwrite existing per-source output files "
+    "(default: error). Mutually exclusive with --skip-existing.",
+)
+def lexicon_mine_toponym_mentions_staged(
+    sources_dir: Path,
+    sources: tuple[str, ...],
+    from_failures: Path | None,
+    output_dir: Path,
+    capture_failures: Path | None,
+    provider: str,
+    model: str | None,
+    ollama_url: str | None,
+    chunk_size: int,
+    limit: int | None,
+    skip_existing: bool,
+    force: bool,
+) -> None:
+    """Stage-at-a-time LLM mention extraction with failure capture (wyrd-srd2).
+
+    Two operating modes share this command:
+
+    1. **Fresh-mining mode** (default): walks every source_id given via
+       --source (or every *.txt under --sources-dir when --source is
+       omitted). For each source, mines chunks with the configured
+       provider+model, writes successful mentions to
+       --output-dir/<source_id>.jsonl, captures failed chunks to
+       --capture-failures (if given).
+
+    2. **Resume-from-failures mode** (--from-failures FILE): reads
+       pre-chunked records from FILE and re-processes those chunks with
+       the configured provider+model. Mentions are APPENDED to existing
+       per-source output files with deduplication; chunks that fail at
+       this stage flow into --capture-failures for the next stage.
+
+    Operator-paced cascade:
+
+        # Stage 1: free local model on everything
+        wyrd kenning lexicon mine-toponym-mentions-staged \\
+            --provider ollama --model gemma4:26b --chunk-size 3000 \\
+            --output-dir data/mining/phase2 \\
+            --capture-failures data/mining/phase2_failures/stage1.jsonl
+
+        # Inspect: wc -l data/mining/phase2_failures/stage1.jsonl
+
+        # Stage 2: cheap cloud model on the residual
+        wyrd kenning lexicon mine-toponym-mentions-staged \\
+            --from-failures data/mining/phase2_failures/stage1.jsonl \\
+            --provider gemini --model gemini-2.5-flash \\
+            --output-dir data/mining/phase2 \\
+            --capture-failures data/mining/phase2_failures/stage2.jsonl
+
+        # Stage 3: more capable model on the still-failed
+        wyrd kenning lexicon mine-toponym-mentions-staged \\
+            --from-failures data/mining/phase2_failures/stage2.jsonl \\
+            --provider anthropic --model claude-haiku-4-5-20251001 \\
+            --output-dir data/mining/phase2 \\
+            --capture-failures data/mining/phase2_failures/stage3.jsonl
+
+    Output JSONL rows include ``extractor:"provider:model"`` so post-hoc
+    analysis can attribute each mention to the stage that captured it.
+    """
+    import time
+
+    from wyrd.generators.kenning.toponym_mention_extractor import (
+        FailedChunk,
+        ToponymMention,
+        mine_toponym_mentions,
+        mine_toponym_mentions_from_chunks,
+    )
+
+    if from_failures is not None and sources:
+        raise click.ClickException("--from-failures and --source are mutually exclusive")
+    if skip_existing and force:
+        raise click.ClickException("--skip-existing and --force are mutually exclusive")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Lazy client construction (matches the tiered command's pattern):
+    # a --skip-existing resume where every source is skipped shouldn't
+    # require ANTHROPIC_API_KEY validation or an Ollama probe.
+    client = None
+    extractor_name = f"{provider}:{model or 'default'}"
+
+    def _ensure_client():
+        nonlocal client
+        if client is None:
+            built = _build_extractor_client(provider, model, ollama_url=ollama_url)
+            # Refresh extractor_name now that we know the resolved model id.
+            nonlocal extractor_name
+            extractor_name = f"{provider}:{built.model}"
+            client = built
+
+    failure_sink = None
+    if capture_failures is not None:
+        capture_failures.parent.mkdir(parents=True, exist_ok=True)
+        # Append-mode: re-running the same stage doesn't blow away the
+        # tail of the prior run. The operator can `cat /dev/null > file`
+        # if a clean slate is wanted.
+        failure_sink = capture_failures.open("a", encoding="utf-8")
+
+    def _emit_failure(source_id: str, fc: FailedChunk) -> None:
+        if failure_sink is None:
+            return
+        rec = {
+            "source_id": source_id,
+            "chunk_index": fc.index,
+            "chunk_body": fc.chunk_body,
+            "error": fc.error,
+            "extractor": extractor_name,
+        }
+        failure_sink.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        failure_sink.flush()
+
+    def _line(source_id: str, m: ToponymMention) -> str:
+        return json.dumps(
+            {
+                "source_id": source_id,
+                "form": m.form,
+                "date_year": m.date_year,
+                "region_hint": m.region_hint,
+                "context": m.context,
+                "extractor": extractor_name,
+            },
+            ensure_ascii=False,
+        )
+
+    totals = {
+        "sources_processed": 0,
+        "sources_skipped": 0,
+        "chunks_processed": 0,
+        "chunks_failed": 0,
+        "hallucinations_dropped": 0,
+        "years_clamped": 0,
+        "mentions": 0,
+        "mentions_deduped": 0,
+    }
+
+    try:
+        if from_failures is not None:
+            # Resume-from-failures: group records by source_id, process
+            # each source's failed chunks in original-chunk-index order.
+            records = _read_failures_jsonl(from_failures)
+            if not records:
+                click.echo(
+                    f"--from-failures {from_failures} contained no records; nothing to do",
+                    err=True,
+                )
+                return
+            by_source: dict[str, list[tuple[int, str]]] = {}
+            for rec in records:
+                by_source.setdefault(rec["source_id"], []).append(
+                    (int(rec["chunk_index"]), rec["chunk_body"])
+                )
+            # Sort each source's chunks by original index so progress
+            # lines look chronological. Sort sources alphabetically for
+            # determinism across resume invocations.
+            for src in by_source:
+                by_source[src].sort(key=lambda t: t[0])
+            click.echo(
+                f"Resume from {from_failures}: {len(records)} chunks across "
+                f"{len(by_source)} source(s)",
+                err=True,
+            )
+            click.echo(f"Provider: {provider} (model={model or 'default'})", err=True)
+            for src_i, source_id in enumerate(sorted(by_source), start=1):
+                indexed_chunks = by_source[source_id]
+                if limit is not None:
+                    indexed_chunks = indexed_chunks[:limit]
+                _ensure_client()
+                out_path = output_dir / f"{source_id}.jsonl"
+                existing_keys = _load_existing_mention_keys(out_path)
+                click.echo(
+                    f"[{src_i}/{len(by_source)}] {source_id}: "
+                    f"{len(indexed_chunks)} chunk(s) to retry "
+                    f"({len(existing_keys)} existing mentions)",
+                    err=True,
+                )
+                start_ts = time.monotonic()
+
+                def progress(
+                    done: int, total: int, mentions: int, _start_ts: float = start_ts
+                ) -> None:
+                    elapsed = time.monotonic() - _start_ts
+                    rate = elapsed / done if done else 0.0
+                    click.echo(
+                        f"    chunk [{done}/{total}] mentions={mentions} ({rate:.1f}s/chunk)",
+                        err=True,
+                    )
+
+                def warn(msg: str) -> None:
+                    click.echo(f"    warning: {msg}", err=True)
+
+                def on_fail(fc: FailedChunk, _source_id: str = source_id) -> None:
+                    _emit_failure(_source_id, fc)
+
+                report = mine_toponym_mentions_from_chunks(
+                    client,
+                    source_id,
+                    indexed_chunks,
+                    target_chunk_size=chunk_size,
+                    on_chunk_done=progress,
+                    on_chunk_failed=on_fail,
+                    log_warning=warn,
+                )
+
+                # Append new mentions, deduped against existing.
+                new_count = 0
+                dup_count = 0
+                with out_path.open("a", encoding="utf-8") as sink:
+                    for m in report.mentions:
+                        key = (m.form, m.date_year, m.region_hint, m.context)
+                        if key in existing_keys:
+                            dup_count += 1
+                            continue
+                        sink.write(_line(source_id, m) + "\n")
+                        existing_keys.add(key)
+                        new_count += 1
+
+                click.echo(
+                    f"  → {out_path} | chunks={report.chunks_processed} "
+                    f"failed={report.chunks_failed} new_mentions={new_count} "
+                    f"deduped={dup_count} halluc={report.hallucinations_dropped} "
+                    f"clamped={report.years_clamped}",
+                    err=True,
+                )
+
+                totals["sources_processed"] += 1
+                totals["chunks_processed"] += report.chunks_processed
+                totals["chunks_failed"] += report.chunks_failed
+                totals["hallucinations_dropped"] += report.hallucinations_dropped
+                totals["years_clamped"] += report.years_clamped
+                totals["mentions"] += new_count
+                totals["mentions_deduped"] += dup_count
+        else:
+            # Fresh-mining mode: walk sources_dir or --source list.
+            if sources:
+                source_ids = []
+                for sid in sources:
+                    txt = sources_dir / f"{Path(sid).name}.txt"
+                    if not txt.exists():
+                        raise click.ClickException(f"source body not found: {txt}")
+                    source_ids.append(Path(sid).name)
+            else:
+                source_ids = sorted(
+                    p.stem for p in sources_dir.glob("*.txt") if p.name != "MANIFEST.md"
+                )
+            if not source_ids:
+                raise click.ClickException(f"no sources under {sources_dir}")
+
+            click.echo(f"Sources to process: {len(source_ids)}", err=True)
+            click.echo(f"Provider: {provider} (model={model or 'default'})", err=True)
+
+            for src_i, source_id in enumerate(source_ids, start=1):
+                out_path = output_dir / f"{source_id}.jsonl"
+                if out_path.exists():
+                    if skip_existing:
+                        click.echo(
+                            f"[{src_i}/{len(source_ids)}] {source_id}: SKIP (output exists)",
+                            err=True,
+                        )
+                        totals["sources_skipped"] += 1
+                        continue
+                    if not force:
+                        raise click.ClickException(
+                            f"output {out_path} exists; pass --skip-existing to resume or "
+                            f"--force to overwrite"
+                        )
+
+                txt_path = sources_dir / f"{source_id}.txt"
+                body = txt_path.read_text(encoding="utf-8", errors="replace")
+                if "�" in body:
+                    click.echo(
+                        f"  warning: {source_id} contained invalid UTF-8 sequences",
+                        err=True,
+                    )
+
+                click.echo(
+                    f"[{src_i}/{len(source_ids)}] {source_id}: {len(body):,} chars",
+                    err=True,
+                )
+                _ensure_client()
+                start_ts = time.monotonic()
+
+                def progress(
+                    done: int, total: int, mentions: int, _start_ts: float = start_ts
+                ) -> None:
+                    elapsed = time.monotonic() - _start_ts
+                    rate = elapsed / done if done else 0.0
+                    click.echo(
+                        f"    chunk [{done}/{total}] mentions={mentions} ({rate:.1f}s/chunk)",
+                        err=True,
+                    )
+
+                def warn(msg: str) -> None:
+                    click.echo(f"    warning: {msg}", err=True)
+
+                def on_fail(fc: FailedChunk, _source_id: str = source_id) -> None:
+                    _emit_failure(_source_id, fc)
+
+                report = mine_toponym_mentions(
+                    client,
+                    source_id,
+                    body,
+                    target_chunk_size=chunk_size,
+                    limit=limit,
+                    on_chunk_done=progress,
+                    on_chunk_failed=on_fail,
+                    log_warning=warn,
+                )
+
+                # Atomic write: fresh per-source files use full rewrite.
+                tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+                with tmp_path.open("w", encoding="utf-8") as sink:
+                    for m in report.mentions:
+                        sink.write(_line(source_id, m) + "\n")
+                tmp_path.replace(out_path)
+
+                click.echo(
+                    f"  → {out_path} | chunks={report.chunks_processed} "
+                    f"failed={report.chunks_failed} mentions={len(report.mentions)} "
+                    f"halluc={report.hallucinations_dropped} "
+                    f"clamped={report.years_clamped}",
+                    err=True,
+                )
+
+                totals["sources_processed"] += 1
+                totals["chunks_processed"] += report.chunks_processed
+                totals["chunks_failed"] += report.chunks_failed
+                totals["hallucinations_dropped"] += report.hallucinations_dropped
+                totals["years_clamped"] += report.years_clamped
+                totals["mentions"] += len(report.mentions)
+    finally:
+        if failure_sink is not None:
+            failure_sink.close()
+
+    click.echo("", err=True)
+    summary = (
+        f"TOTAL sources={totals['sources_processed']} "
+        f"(skipped={totals['sources_skipped']}) "
+        f"chunks={totals['chunks_processed']} "
+        f"failed={totals['chunks_failed']} "
+        f"halluc={totals['hallucinations_dropped']} "
+        f"clamped={totals['years_clamped']} "
+        f"mentions={totals['mentions']}"
+    )
+    if from_failures is not None:
+        summary += f" deduped={totals['mentions_deduped']}"
+    click.echo(summary, err=True)
+    if capture_failures is not None and totals["chunks_failed"] > 0:
+        click.echo(
+            f"  {totals['chunks_failed']} failed chunk(s) appended → {capture_failures}",
+            err=True,
+        )
+
+
 @lexicon.command("ingest-toponym-mentions")
 @click.option(
     "--jsonl",
