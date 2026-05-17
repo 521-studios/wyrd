@@ -1174,6 +1174,50 @@ def _migrate_toponym_etymology_attested_year(db: LexiconDB, applied: dict[str, b
         applied["toponym_etymology.attested_year"] = True
 
 
+def _migrate_toponym_etymology_canonical(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """wyrd-08qv: add is_canonical / consensus_size / cluster_key columns
+    + partial index + canonical view to toponym_etymology on legacy DBs.
+
+    Idempotent: PRAGMA-checks each column before adding. Fresh installs
+    pick everything up from data/lexicon.sql; this is migration-only.
+
+    Why three columns rather than a sibling table: keeps the canonical
+    decision colocated with the hypothesis it applies to (no JOIN to
+    answer 'is this row canonical?'), and the partial index on
+    is_canonical=1 keeps canonical-only queries fast. The cluster_key
+    lives on the row so an operator can grep the canonicalize-run
+    output and SEE what cluster a row belongs to without re-running
+    the clustering logic.
+    """
+    cols = {row["name"] for row in db.conn.execute("PRAGMA table_info(toponym_etymology)")}
+    if "is_canonical" not in cols:
+        db.conn.execute(
+            "ALTER TABLE toponym_etymology ADD COLUMN is_canonical INTEGER NOT NULL DEFAULT 0"
+        )
+        applied["toponym_etymology.is_canonical"] = True
+    if "consensus_size" not in cols:
+        db.conn.execute(
+            "ALTER TABLE toponym_etymology ADD COLUMN consensus_size INTEGER NOT NULL DEFAULT 1"
+        )
+        applied["toponym_etymology.consensus_size"] = True
+    if "cluster_key" not in cols:
+        db.conn.execute("ALTER TABLE toponym_etymology ADD COLUMN cluster_key TEXT")
+        applied["toponym_etymology.cluster_key"] = True
+    db.conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_toponym_etymology_canonical "
+        "ON toponym_etymology(toponym_id) WHERE is_canonical = 1"
+    )
+    # Recreate view idempotently (DROP + CREATE — same pattern the
+    # _rebuild_etymon_views helper uses).
+    db.conn.execute("DROP VIEW IF EXISTS toponym_etymology_canonical")
+    db.conn.execute(
+        "CREATE VIEW toponym_etymology_canonical AS "
+        "SELECT * FROM toponym_etymology WHERE is_canonical = 1"
+    )
+    applied["toponym_etymology_canonical_view"] = True
+    applied["idx_toponym_etymology_canonical"] = True
+
+
 def _create_etymon_period_form_table(db: LexiconDB, applied: dict[str, bool]) -> None:
     """wyrd-unuo Phase 3.3: ensure ``etymon_period_form`` table +
     indexes exist on legacy DBs.
@@ -1574,6 +1618,12 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "mining_run_table": False,
         "etymon_citation.context_snippet": False,
         "toponym_etymology.attested_year": False,
+        # wyrd-08qv: multi-extractor consensus canonicalization.
+        "toponym_etymology.is_canonical": False,
+        "toponym_etymology.consensus_size": False,
+        "toponym_etymology.cluster_key": False,
+        "idx_toponym_etymology_canonical": False,
+        "toponym_etymology_canonical_view": False,
         "wal_mode": False,
         "meaning_synset_table": False,
         "etymon_meaning_synset_table": False,
@@ -1613,6 +1663,7 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     _create_mining_run_table(db, applied)
     _migrate_citation_context_snippet(db, applied)
     _migrate_toponym_etymology_attested_year(db, applied)
+    _migrate_toponym_etymology_canonical(db, applied)
     _create_meaning_synset_tables(db, applied)
     _create_fantasy_morpheme_table(db, applied)
     _migrate_wal_mode(db, applied)

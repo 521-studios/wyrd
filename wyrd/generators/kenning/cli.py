@@ -4427,6 +4427,170 @@ def lexicon_commit_toponym_candidates(
         )
 
 
+@lexicon.command("canonicalize-toponym-etymology")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+    help="Lexicon SQLite DB.",
+)
+@click.option(
+    "--source",
+    "source_id",
+    default=None,
+    help="Restrict canonicalization to toponyms with at least one "
+    "toponym_etymology row from this source_id. Default: every toponym.",
+)
+@click.option(
+    "--apply",
+    is_flag=True,
+    default=False,
+    help="Write to DB. Without this flag, runs in dry-run mode and prints "
+    "the predicted promote/no-consensus counts.",
+)
+@click.option(
+    "--audit-out",
+    "audit_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Write one JSONL row per decision (toponym_id, promoted_etymology_id, "
+    "consensus_size, cluster_key, runner_up_witness_count, total_clusters). "
+    "Use the audit trail to diff cross-run promotions or feed downstream "
+    "consumers a list of newly-canonical toponyms.",
+)
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Overwrite --audit-out if it exists.",
+)
+@click.option(
+    "--verbose",
+    is_flag=True,
+    default=False,
+    help="Print per-toponym decisions to stderr (suppressed by default — "
+    "the corpus has ~thousands of toponyms).",
+)
+def lexicon_canonicalize_toponym_etymology(
+    db_path: Path,
+    source_id: str | None,
+    apply: bool,
+    audit_path: Path | None,
+    force: bool,
+    verbose: bool,
+) -> None:
+    """Canonicalize toponym_etymology rows via multi-extractor consensus (wyrd-08qv).
+
+    Three LLM extractor passes (qwen, haiku, gemini) over the same
+    source body produce three ``toponym_etymology`` rows per toponym.
+    When ≥2 of them agree on the element-tuple (normalized form +
+    language per ordinal), the answer is settled. This command:
+
+    1. Clusters rows by (normalized element-tuple, languages) per toponym.
+    2. Counts distinct extractor witnesses per cluster (parsing the
+       ``extracted_by:provider:model`` prefix from the notes field).
+    3. Promotes the largest agreeing cluster (≥2 witnesses) to canonical
+       — marks one row ``is_canonical=1`` + stamps ``consensus_size`` +
+       ``cluster_key`` on every row for audit visibility.
+    4. Re-runs are idempotent: previously-canonical rows that lose
+       consensus get demoted, single-witness toponyms stay untouched.
+
+    Downstream consumers read ``toponym_etymology_canonical`` (a VIEW
+    over the canonical-only rows). Future LLM re-extraction passes can
+    skip toponyms with ``is_canonical = 1`` rows to save cost on
+    settled answers.
+    """
+    from wyrd.generators.kenning.lexicon import LexiconDB
+    from wyrd.generators.kenning.toponym_etymology_canonical import (
+        apply_canonical_decisions,
+        compute_canonical_decisions,
+    )
+
+    if audit_path is not None and audit_path.exists() and not force:
+        raise click.ClickException(f"--audit-out {audit_path} exists; pass --force to overwrite")
+    db = LexiconDB(db_path)
+    click.echo(f"Using DB {db_path}", err=True)
+
+    decisions = compute_canonical_decisions(db, source_id=source_id)
+    if not decisions:
+        click.echo("No toponym_etymology rows to canonicalize.", err=True)
+        return
+
+    # Dry-run preview: count outcomes BEFORE writing.
+    promoted = sum(1 for d in decisions if d.promoted_etymology_id is not None)
+    no_consensus = sum(1 for d in decisions if d.promoted_etymology_id is None)
+    click.echo(
+        f"Examining {len(decisions)} toponym(s)"
+        + (f" (filtered to source_id={source_id!r})" if source_id else "")
+        + f": promote={promoted} no_consensus={no_consensus}",
+        err=True,
+    )
+
+    if verbose:
+        for d in decisions:
+            if d.promoted_etymology_id is not None:
+                click.echo(
+                    f"  toponym#{d.toponym_id}: promote ety#{d.promoted_etymology_id} "
+                    f"(consensus={d.consensus_size}, clusters={d.total_clusters}, "
+                    f"runner_up={d.runner_up_witness_count}) "
+                    f"key={d.cluster_key!r}",
+                    err=True,
+                )
+            else:
+                click.echo(
+                    f"  toponym#{d.toponym_id}: no consensus "
+                    f"(clusters={d.total_clusters}, "
+                    f"max_witnesses={d.runner_up_witness_count})",
+                    err=True,
+                )
+
+    if not apply:
+        click.echo("(dry-run — pass --apply to write)", err=True)
+        return
+
+    audit_sink = None
+    if audit_path is not None:
+        audit_path.parent.mkdir(parents=True, exist_ok=True)
+        audit_sink = audit_path.open("w", encoding="utf-8")
+
+    def _audit(d) -> None:
+        if audit_sink is None:
+            return
+        audit_sink.write(
+            json.dumps(
+                {
+                    "toponym_id": d.toponym_id,
+                    "promoted_etymology_id": d.promoted_etymology_id,
+                    "consensus_size": d.consensus_size,
+                    "cluster_key": d.cluster_key,
+                    "runner_up_witness_count": d.runner_up_witness_count,
+                    "total_clusters": d.total_clusters,
+                },
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+
+    try:
+        summary = apply_canonical_decisions(db, decisions, on_decision=_audit)
+    finally:
+        if audit_sink is not None:
+            audit_sink.close()
+
+    click.echo(
+        f"TOTAL toponyms={summary.toponyms_examined} "
+        f"promoted={summary.toponyms_promoted} "
+        f"no_consensus={summary.toponyms_no_consensus} "
+        f"no_elements={summary.toponyms_no_elements} "
+        f"rows_updated={summary.rows_updated} (APPLIED)",
+        err=True,
+    )
+    if audit_path is not None:
+        click.echo(f"Wrote audit JSONL → {audit_path}", err=True)
+
+
 @lexicon.command("audit-etymology-alignment")
 @click.option(
     "--dir",
