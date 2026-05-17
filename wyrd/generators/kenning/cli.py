@@ -3275,12 +3275,13 @@ def lexicon_mine_toponym_mentions_tiered(
 def _read_failures_jsonl(path: Path) -> list[dict]:
     """Read a captured-failures JSONL into a list of dict records.
 
-    Each record has source_id, chunk_index, chunk_body, error, extractor.
-    Rejects malformed lines, non-dict rows, missing required fields,
-    null required values, and empty ``chunk_body`` — the resume path
-    would silently process an empty string as a chunk if we let it
-    through (FailedChunk.chunk_body defaults to "" for back-compat
-    but staged-cascade input must always carry the real chunk text)."""
+    Required fields: source_id (str), chunk_index (int), chunk_body
+    (non-empty str). Optional fields: error, extractor. Rejects
+    malformed JSON, non-dict rows, missing required fields, null or
+    wrong-type required values, and empty ``chunk_body`` (the resume
+    path would silently process an empty string as a chunk otherwise —
+    FailedChunk.chunk_body defaults to "" for back-compat but
+    staged-cascade input must always carry the real chunk text)."""
     records: list[dict] = []
     with path.open("r", encoding="utf-8") as fh:
         for line_num, raw in enumerate(fh, start=1):
@@ -3300,7 +3301,31 @@ def _read_failures_jsonl(path: Path) -> list[dict]:
                     raise click.ClickException(f"{path}:{line_num}: missing required field {key!r}")
                 if rec[key] is None:
                     raise click.ClickException(f"{path}:{line_num}: required field {key!r} is null")
-            if not str(rec["chunk_body"]).strip():
+            # Type-check required fields. Without this a list/dict
+            # would slip through ``str(rec[key]).strip()`` (str([])
+            # == "[]" — non-empty), feeding garbage into the LLM
+            # call; ``source_id`` as a list would blow up at
+            # ``by_source.setdefault(rec["source_id"], …)`` with an
+            # unhashable-type TypeError far downstream. R2 silent-
+            # failure-hunter MEDIUM.
+            if not isinstance(rec["source_id"], str):
+                raise click.ClickException(
+                    f"{path}:{line_num}: source_id must be a string, got "
+                    f"{type(rec['source_id']).__name__}"
+                )
+            # bool is a subclass of int in Python — reject explicitly
+            # so True/False values aren't silently coerced to 1/0.
+            if not isinstance(rec["chunk_index"], int) or isinstance(rec["chunk_index"], bool):
+                raise click.ClickException(
+                    f"{path}:{line_num}: chunk_index must be an integer, got "
+                    f"{type(rec['chunk_index']).__name__}"
+                )
+            if not isinstance(rec["chunk_body"], str):
+                raise click.ClickException(
+                    f"{path}:{line_num}: chunk_body must be a string, got "
+                    f"{type(rec['chunk_body']).__name__}"
+                )
+            if not rec["chunk_body"].strip():
                 raise click.ClickException(
                     f"{path}:{line_num}: chunk_body is empty — staged-cascade resume "
                     f"can't re-extract from no text (was this captured before wyrd-srd2?)"
@@ -3309,20 +3334,23 @@ def _read_failures_jsonl(path: Path) -> list[dict]:
     return records
 
 
-def _load_existing_mention_keys(out_path: Path) -> set[tuple]:
+def _load_existing_mention_keys(out_path: Path, log_warning=None) -> tuple[set[tuple], int]:
     """Build the dedup-key set from an existing per-source output JSONL.
-    Returns an empty set if the file doesn't exist. The key shape mirrors
-    what the writer emits — staged cascade re-runs use this to skip
-    already-emitted attestations when appending new mentions.
+    Returns ``(keys, malformed_count)``. Empty set + 0 if the file
+    doesn't exist. The key shape mirrors what the writer emits —
+    staged cascade re-runs use this to skip already-emitted
+    attestations when appending new mentions.
 
-    Non-dict rows (e.g., a bare string from a hand-edit) are skipped
-    silently — they couldn't have been emitted by the writer, so they
-    can't possibly match a new mention's key. Truly-malformed JSON
-    lines are likewise skipped (defensive: a partially-written file
-    after a crash shouldn't bomb the next resume)."""
+    Non-dict rows and malformed-JSON rows are skipped (defensive: a
+    partially-written file after a crash shouldn't bomb the next
+    resume), but the ``malformed_count`` return + optional
+    log_warning surface them to the operator so a corrupted file
+    doesn't quietly grow duplicate rows. R2 silent-failure-hunter
+    MEDIUM."""
     if not out_path.exists():
-        return set()
+        return set(), 0
     keys: set[tuple] = set()
+    malformed = 0
     with out_path.open("r", encoding="utf-8") as fh:
         for raw in fh:
             raw = raw.strip()
@@ -3331,15 +3359,10 @@ def _load_existing_mention_keys(out_path: Path) -> set[tuple]:
             try:
                 row = json.loads(raw)
             except json.JSONDecodeError:
-                # Defensive: a hand-edited or partially-written file
-                # shouldn't crash the resume — just skip the bad row,
-                # the new write would naturally re-emit anything
-                # missing from the dedup set.
+                malformed += 1
                 continue
             if not isinstance(row, dict):
-                # Same defensive posture: a JSON array or scalar at the
-                # top level can't carry a dedup key, so it can't
-                # possibly conflict with a new mention.
+                malformed += 1
                 continue
             keys.add(
                 (
@@ -3349,7 +3372,12 @@ def _load_existing_mention_keys(out_path: Path) -> set[tuple]:
                     row.get("context"),
                 )
             )
-    return keys
+    if malformed and log_warning is not None:
+        log_warning(
+            f"{malformed} malformed row(s) in {out_path} can't be deduped "
+            f"against — new mentions matching them will appear as new"
+        )
+    return keys, malformed
 
 
 def _make_chunk_callbacks(source_id: str, start_ts: float, emit_failure):
@@ -3577,12 +3605,14 @@ def lexicon_mine_toponym_mentions_staged(
         # so the operator can confirm/clear before continuing. wyrd-srd2
         # R1 silent-failure-hunter HIGH.
         if capture_failures.exists() and capture_failures.stat().st_size > 0:
-            stale = sum(
-                1 for ln in capture_failures.read_text(encoding="utf-8").splitlines() if ln.strip()
-            )
+            # Stream-count rather than read_text() so a large stale
+            # failures file doesn't load into memory just to compute
+            # the warning count.
+            with capture_failures.open("r", encoding="utf-8") as _fh:
+                stale = sum(1 for ln in _fh if ln.strip())
             click.echo(
                 f"  warning: --capture-failures {capture_failures} already has "
-                f"{stale} record(s); appending (use `: > {capture_failures}` to clear)",
+                f"{stale} record(s); appending (`> {capture_failures}` to clear)",
                 err=True,
             )
         # Append-mode: re-running the same stage doesn't blow away the
@@ -3744,15 +3774,17 @@ def _run_resume_from_failures(
             indexed_chunks = indexed_chunks[:limit]
         ensure_client()
         out_path = output_dir / f"{source_id}.jsonl"
-        existing_keys = _load_existing_mention_keys(out_path)
+        start_ts = time.monotonic()
+        progress, warn, on_fail = _make_chunk_callbacks(source_id, start_ts, emit_failure)
+        existing_keys, malformed = _load_existing_mention_keys(out_path, log_warning=warn)
         click.echo(
             f"[{src_i}/{len(by_source)}] {source_id}: "
             f"{len(indexed_chunks)} chunk(s) to retry "
-            f"({len(existing_keys)} existing mentions)",
+            f"({len(existing_keys)} existing mentions"
+            + (f", {malformed} malformed" if malformed else "")
+            + ")",
             err=True,
         )
-        start_ts = time.monotonic()
-        progress, warn, on_fail = _make_chunk_callbacks(source_id, start_ts, emit_failure)
 
         report = mine_fn(
             client_box["client"],
@@ -3778,10 +3810,13 @@ def _run_resume_from_failures(
                 # Preserve existing rows verbatim (don't re-serialize:
                 # some fields like `extractor` are stage-specific and
                 # must keep their original value through the cascade).
+                # Normalize trailing newline once so the file remains
+                # well-formed even if the prior write was killed.
                 with out_path.open("r", encoding="utf-8") as src:
                     for line in src:
-                        if line.rstrip("\n"):
-                            sink.write(line if line.endswith("\n") else line + "\n")
+                        stripped = line.rstrip("\n")
+                        if stripped:
+                            sink.write(stripped + "\n")
             for m in report.mentions:
                 key = (m.form, m.date_year, m.region_hint, m.context)
                 if key in existing_keys:

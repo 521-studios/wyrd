@@ -2783,6 +2783,402 @@ def test_cli_staged_from_failures_resume_atomic_against_existing(tmp_path, monke
     assert not (output_dir / "alpha.jsonl.tmp").exists()
 
 
+def test_cli_staged_from_failures_rejects_non_string_source_id(tmp_path, monkeypatch):
+    """source_id as list / int / dict would explode at
+    by_source.setdefault(rec["source_id"], ...) with an unhashable-type
+    TypeError or silently group under the wrong key. Reject loudly at
+    read-time. R2 silent-failure-hunter MEDIUM."""
+    runner = CliRunner()
+    failures_file = tmp_path / "bad_type.jsonl"
+    failures_file.write_text(
+        json.dumps(
+            {
+                "source_id": ["alpha"],  # list, not str
+                "chunk_index": 0,
+                "chunk_body": "body",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--from-failures",
+            str(failures_file),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--provider",
+            "anthropic",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "source_id must be a string" in result.output
+
+
+def test_cli_staged_from_failures_rejects_non_integer_chunk_index(tmp_path, monkeypatch):
+    """chunk_index as a string would slip through the None-check and
+    silently coerce via int() — but only for digit strings. A boolean
+    True/False would coerce to 1/0 silently. Reject both."""
+    runner = CliRunner()
+    failures_file = tmp_path / "bad_idx.jsonl"
+    failures_file.write_text(
+        json.dumps(
+            {
+                "source_id": "alpha",
+                "chunk_index": "five",  # string, not int
+                "chunk_body": "body",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--from-failures",
+            str(failures_file),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--provider",
+            "anthropic",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "chunk_index must be an integer" in result.output
+
+
+def test_cli_staged_from_failures_rejects_bool_chunk_index(tmp_path, monkeypatch):
+    """bool is a subclass of int in Python — without an explicit guard,
+    True/False would silently coerce to 1/0 and process the wrong chunk.
+    Reject bool explicitly. R2 silent-failure-hunter MEDIUM."""
+    runner = CliRunner()
+    failures_file = tmp_path / "bool_idx.jsonl"
+    failures_file.write_text(
+        json.dumps(
+            {
+                "source_id": "alpha",
+                "chunk_index": True,  # bool — subclass of int!
+                "chunk_body": "body",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--from-failures",
+            str(failures_file),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--provider",
+            "anthropic",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "chunk_index must be an integer" in result.output
+
+
+def test_cli_staged_from_failures_rejects_non_string_chunk_body(tmp_path, monkeypatch):
+    """chunk_body as a list/dict would slip past the empty-strip check
+    (str([]) == "[]" — non-empty), feeding garbage into the LLM call."""
+    runner = CliRunner()
+    failures_file = tmp_path / "bad_body.jsonl"
+    failures_file.write_text(
+        json.dumps(
+            {
+                "source_id": "alpha",
+                "chunk_index": 0,
+                "chunk_body": ["not", "a", "string"],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--from-failures",
+            str(failures_file),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--provider",
+            "anthropic",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "chunk_body must be a string" in result.output
+
+
+def test_cli_staged_from_failures_resume_processes_non_monotonic_indices(tmp_path, monkeypatch):
+    """A failures file may carry indices in any order (e.g., [47, 12, 92]
+    for one source). The resume must sort by chunk_index per source so
+    progress lines look chronological. R2 test-coverage HIGH."""
+    runner = CliRunner()
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    failures_file = tmp_path / "f.jsonl"
+    # Intentionally out-of-order: 47, 12, 92
+    failures_file.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "source_id": "alpha",
+                        "chunk_index": 47,
+                        "chunk_body": "chunk forty-seven",
+                        "error": "x",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "source_id": "alpha",
+                        "chunk_index": 12,
+                        "chunk_body": "chunk twelve",
+                        "error": "x",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "source_id": "alpha",
+                        "chunk_index": 92,
+                        "chunk_body": "chunk ninety-two",
+                        "error": "x",
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    # Capture which chunks the LLM saw and in what order.
+    captured_inputs: list[str] = []
+
+    class _OrderingFakeClient:
+        model = "fake-test-model"
+
+        def chat_json(self, system, user, schema=None):
+            captured_inputs.append(user)
+            return {"mentions": []}
+
+    fake = _OrderingFakeClient()
+    import wyrd.generators.kenning.anthropic_extractor as ae_module
+
+    monkeypatch.setattr(ae_module, "AnthropicClient", lambda **kw: fake)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-used")
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--from-failures",
+            str(failures_file),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "anthropic",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Three calls in chunk_index order: 12, 47, 92.
+    assert len(captured_inputs) == 3
+    assert "chunk twelve" in captured_inputs[0]
+    assert "chunk forty-seven" in captured_inputs[1]
+    assert "chunk ninety-two" in captured_inputs[2]
+
+
+def test_cli_staged_from_failures_limit_applies_per_source(tmp_path, monkeypatch):
+    """--limit in resume mode slices each source's chunk list, NOT the
+    global record count. Pins the semantics so a regression that
+    interpreted --limit globally would be caught. R2 test-coverage HIGH."""
+    runner = CliRunner()
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    failures_file = tmp_path / "f.jsonl"
+    # 3 chunks for alpha, 3 chunks for beta.
+    failures_file.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "source_id": "alpha",
+                        "chunk_index": i,
+                        "chunk_body": f"a{i}",
+                        "error": "x",
+                    }
+                )
+                for i in (1, 2, 3)
+            ]
+            + [
+                json.dumps(
+                    {
+                        "source_id": "beta",
+                        "chunk_index": i,
+                        "chunk_body": f"b{i}",
+                        "error": "x",
+                    }
+                )
+                for i in (1, 2, 3)
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    captured_inputs: list[str] = []
+
+    class _CountingFakeClient:
+        model = "fake-test-model"
+
+        def chat_json(self, system, user, schema=None):
+            captured_inputs.append(user)
+            return {"mentions": []}
+
+    import wyrd.generators.kenning.anthropic_extractor as ae_module
+
+    monkeypatch.setattr(ae_module, "AnthropicClient", lambda **kw: _CountingFakeClient())
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-used")
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--from-failures",
+            str(failures_file),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "anthropic",
+            "--limit",
+            "2",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # PER-SOURCE limit: 2 from alpha + 2 from beta = 4 calls (not 2 globally).
+    assert len(captured_inputs) == 4
+    # First two are alpha (sorted), next two are beta.
+    assert all("a" in c for c in captured_inputs[:2])
+    assert all("b" in c for c in captured_inputs[2:])
+
+
+def test_cli_staged_resume_warns_on_malformed_existing_rows(tmp_path, monkeypatch):
+    """If the existing per-source JSONL has malformed rows (from a
+    SIGKILL'd prior write or a hand-edit), surface the count so the
+    operator sees they can't be deduped against. R2 silent-failure-hunter
+    MEDIUM: silent-skip was masking data corruption."""
+    runner = CliRunner()
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    # Existing per-source file with a mix of valid and corrupt rows.
+    valid_row = json.dumps(
+        {
+            "source_id": "alpha",
+            "form": "Existing",
+            "date_year": None,
+            "region_hint": None,
+            "context": "ctx",
+        }
+    )
+    (output_dir / "alpha.jsonl").write_text(
+        valid_row + "\n" + "not json at all\n" + "[1, 2, 3]\n", encoding="utf-8"
+    )
+
+    failures_file = tmp_path / "f.jsonl"
+    failures_file.write_text(
+        json.dumps(
+            {
+                "source_id": "alpha",
+                "chunk_index": 1,
+                "chunk_body": "Bedlington is a town",
+                "error": "x",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    _stub_anthropic_for_cli(
+        monkeypatch,
+        FakeClient([{"mentions": [{"form": "Bedlington", "context": "Bedlington is a town"}]}]),
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--from-failures",
+            str(failures_file),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "anthropic",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Warning surfaces the malformed count
+    assert "2 malformed row(s)" in result.output
+    assert "can't be deduped" in result.output
+    # Per-source header includes "2 malformed"
+    assert "2 malformed" in result.output
+
+
+def test_cli_staged_capture_failures_does_not_warn_on_empty_existing_file(tmp_path, monkeypatch):
+    """The stale-records warning fires only when the file is NON-EMPTY.
+    A pre-touched but empty file (e.g., from a prior run that captured
+    no failures) should NOT trigger the warning. Pins both halves of
+    the `exists() AND st_size > 0` gate."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "alpha.txt").write_text("Edlingham.", encoding="utf-8")
+    output_dir = tmp_path / "out"
+    failures_file = tmp_path / "empty.jsonl"
+    failures_file.write_text("", encoding="utf-8")  # exists but empty
+
+    _stub_anthropic_for_cli(
+        monkeypatch,
+        FakeClient([{"mentions": [{"form": "Edlingham", "context": "Edlingham"}]}]),
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--capture-failures",
+            str(failures_file),
+            "--provider",
+            "anthropic",
+            "--chunk-size",
+            "5000",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # The stale-records warning must NOT have fired
+    assert "already has" not in result.output
+
+
 def test_chunk_source_body_chunks_are_complete_paragraphs():
     """Stronger version of the paragraph-boundary test: each emitted
     chunk's constituent pieces (split by \\n\\n) must each appear as
