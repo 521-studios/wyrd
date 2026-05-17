@@ -3147,6 +3147,8 @@ def lexicon_mine_toponym_mentions_tiered(
         "chunks_hallucination_rescue_attempted": 0,
         "chunks_hallucination_rescue_succeeded": 0,
         "chunks_failed": 0,
+        "hallucinations_dropped": 0,
+        "years_clamped": 0,
         "mentions": 0,
     }
 
@@ -3233,7 +3235,8 @@ def lexicon_mine_toponym_mentions_tiered(
             f"halluc_rescued={report.chunks_hallucination_rescue_succeeded}/"
             f"{report.chunks_hallucination_rescue_attempted} "
             f"failed={report.chunks_failed}) mentions={len(report.mentions)} "
-            f"halluc={report.hallucinations_dropped}",
+            f"halluc={report.hallucinations_dropped} "
+            f"clamped={report.years_clamped}",
             err=True,
         )
 
@@ -3247,6 +3250,8 @@ def lexicon_mine_toponym_mentions_tiered(
             report.chunks_hallucination_rescue_succeeded
         )
         totals["chunks_failed"] += report.chunks_failed
+        totals["hallucinations_dropped"] += report.hallucinations_dropped
+        totals["years_clamped"] += report.years_clamped
         totals["mentions"] += len(report.mentions)
 
     click.echo("", err=True)
@@ -3258,6 +3263,8 @@ def lexicon_mine_toponym_mentions_tiered(
         f"halluc_rescued={totals['chunks_hallucination_rescue_succeeded']}/"
         f"{totals['chunks_hallucination_rescue_attempted']} "
         f"failed={totals['chunks_failed']} "
+        f"halluc={totals['hallucinations_dropped']} "
+        f"clamped={totals['years_clamped']} "
         f"mentions={totals['mentions']}",
         err=True,
     )

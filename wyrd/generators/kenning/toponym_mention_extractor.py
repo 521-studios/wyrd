@@ -753,14 +753,19 @@ def _run_hallucination_rescue(
        canonical on collision; fallback adds anything primary didn't
        see), folds fallback's per-chunk counters into
        ``primary_counters``, returns (merged_list, True).
-    2. Fallback returned an empty list — call succeeded mechanically
-       but produced no output (content-policy refusal, schema-
-       validation glitch, model declining to extract anything).
-       Operationally equivalent to a failed rescue from the
-       operator's perspective: primary's hallucinations weren't
-       caught. Returns (primary_mentions, False). Counters are
-       still folded (years_clamped contributions from an empty-
-       mentions response would be 0; this is defensive).
+    2. Fallback returned an empty admit list — call succeeded
+       mechanically but produced no usable content. Could be a
+       content-policy refusal, a schema-validation glitch, a
+       model declining to extract, OR an all-hallucinated response
+       where every form failed the word-boundary guard. Operationally
+       equivalent to a failed rescue from the operator's
+       perspective: primary's hallucinations weren't caught.
+       Returns (primary_mentions, False). The fallback's per-chunk
+       counters STILL fold in — ``hallucinations_dropped`` and
+       ``years_clamped`` from the all-hallucinated case carry
+       real signal about fallback model quality (an empty admit
+       list with non-zero dropped count means "fallback emitted
+       garbage we filtered out", not "fallback returned nothing").
     3. Fallback raised (transport / API / parse error). primary's
        mentions returned unchanged, ``primary_counters`` untouched.
        Returns (primary_mentions, False). The orchestrator logs and
@@ -792,12 +797,31 @@ def _run_hallucination_rescue(
             )
         return primary_mentions, False
 
-    primary_keys = {_hallucination_rescue_dedup_key(m) for m in primary_mentions}
-    added = [m for m in rescue_mentions if _hallucination_rescue_dedup_key(m) not in primary_keys]
+    # Dedup against primary's keys AND against fallback-internal
+    # duplicates (Gemini wyrd-z8mq round 3 MEDIUM): if the fallback
+    # itself emits the same mention twice, only one survives the
+    # merge. The running ``seen_keys`` set carries forward as we
+    # walk rescue_mentions so a second emission of an already-added
+    # key doesn't slip through.
+    seen_keys = {_hallucination_rescue_dedup_key(m) for m in primary_mentions}
+    added: list[ToponymMention] = []
+    for m in rescue_mentions:
+        key = _hallucination_rescue_dedup_key(m)
+        if key in seen_keys:
+            continue
+        added.append(m)
+        seen_keys.add(key)
+    # Counter folding: the fallback's per-chunk counters fold in
+    # whenever the call returned (regardless of admit-list shape).
+    # An all-hallucinated fallback emits non-zero hallucinations_dropped
+    # even when rescue_mentions ends up empty (silent-failure-hunter
+    # wyrd-z8mq round 3 LOW-MEDIUM: docstring previously overclaimed
+    # "would be 0" here). The fallback's hallucination count is real
+    # data about model quality and stays in the aggregate.
     primary_counters.hallucinations_dropped += rescue_counters.hallucinations_dropped
     primary_counters.years_clamped += rescue_counters.years_clamped
-    # ``rescue_mentions`` empty = fallback ran cleanly but contributed
-    # nothing. Operationally equivalent to a failed rescue: the
+    # ``rescue_mentions`` empty = fallback ran cleanly but admitted
+    # no content. Operationally equivalent to a failed rescue: the
     # primary's hallucinations weren't actually caught. Return False
     # so chunks_hallucination_rescue_succeeded reflects "fallback
     # delivered output", not just "fallback didn't raise"

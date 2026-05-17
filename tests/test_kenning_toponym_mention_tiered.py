@@ -1975,6 +1975,56 @@ def test_tiered_hallucination_rescue_dedup_key_distinguishes_region_hint():
     assert regions == ["Durham", "Northumberland"]
 
 
+def test_tiered_hallucination_rescue_dedupes_internal_fallback_duplicates():
+    """wyrd-z8mq round 3 Gemini MEDIUM: when the fallback itself
+    emits the same mention twice, the union merge should keep only
+    one. The base extractor doesn't dedup intra-response duplicates;
+    the union-merge pass is the appropriate place to clean them.
+
+    Chunk 1's body contains 'Edlin' (real form, word-boundary
+    matches). Primary emits Edlin with one context; fallback emits
+    Edlin TWICE with a different (byte-identical-to-itself) context.
+    Without internal dedup the result would have 3 Edlins
+    (primary + fallback x2); with it, the result has 2 (primary +
+    one fallback)."""
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin primary-context"},
+                    {"form": "Faux", "context": "Faux"},
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin fallback-context"},
+                    {"form": "Edlin", "context": "Edlin fallback-context"},
+                ]
+            },
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_hallucination_rescue_attempted == 1
+    assert report.chunks_hallucination_rescue_succeeded == 1
+    # Two Edlins (primary's + one fallback). Without internal dedup
+    # we'd have three.
+    edlin_contexts = sorted(m.context for m in report.mentions if m.form == "Edlin")
+    assert edlin_contexts == ["Edlin fallback-context", "Edlin primary-context"]
+
+
 def test_tiered_hallucination_rescue_only_when_primary_succeeds():
     """The rescue path is mutually exclusive with the primary-failed
     path. If the primary FAILS and the fallback recovers, the recovery
@@ -2148,6 +2198,13 @@ def test_cli_summary_reports_halluc_rescued_succeeded_over_attempted(tmp_path, m
     assert "halluc_rescued=1/1" in result.output
     # TOTAL summary aggregates: 2 attempted + 2 succeeded across sources
     assert "halluc_rescued=2/2" in result.output
+    # Gemini wyrd-z8mq R3 MEDIUM: per-source + TOTAL lines now show
+    # halluc + clamped aggregates. Each source dropped 1 hallucination
+    # (FauxA / FauxB); total = 2 across sources. No year-clamping in
+    # this scenario (no date_year fields set).
+    assert "halluc=1 " in result.output  # per-source
+    assert "halluc=2 " in result.output  # TOTAL
+    assert "clamped=0 " in result.output  # appears in both per-source + TOTAL lines
 
 
 def test_cli_summary_reports_broken_fallback_as_gap(tmp_path, monkeypatch):
