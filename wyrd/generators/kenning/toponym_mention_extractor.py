@@ -550,9 +550,13 @@ class FailedChunk:
 
     ``chunk_body`` carries the chunk text verbatim so the staged-cascade
     pipeline (wyrd-srd2) can re-run a failed chunk against a different
-    model without re-chunking the original source. Defaults to empty
-    string for backward compat with callers that only care about the
-    diagnostic (index + error)."""
+    model without re-chunking the original source. Both production
+    constructors (``mine_toponym_mentions`` and
+    ``mine_toponym_mentions_tiered``) always populate it; the default
+    of ``""`` exists so test fixtures + diagnostic-only callers can
+    still construct a ``FailedChunk`` without the body. The
+    staged-cascade resume path validates non-empty at read time so an
+    accidentally-empty record is rejected loudly."""
 
     index: int
     error: str
