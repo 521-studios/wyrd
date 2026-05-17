@@ -1264,3 +1264,332 @@ def test_cli_realistic_mention_shape_preserves_all_fields(tmp_path, monkeypatch)
     assert line["date_year"] == 1086
     assert line["region_hint"] == "Northumberland"
     assert "Edlingham in Northumberland" in line["context"]
+
+
+# ---------- hallucination-triggered rescue (wyrd-z8mq) ------------------
+#
+# Tests for ``hallucination_fallback_threshold``: when the primary
+# succeeds but emits ``hallucinations_dropped >= threshold`` forms, the
+# fallback ALSO runs on the same chunk and union-merges mentions by
+# (form, date_year, region_hint). Designed for gemma4 primary +
+# Anthropic fallback so the small model keeps its good mentions while
+# the large model catches what it fabricated. Each FakeClient response
+# below uses chunk 1's "Edlin" / chunk 2's "Wear" / chunk 3's "Tyne"
+# as real forms; other strings (e.g. "Faux") trip the word-boundary
+# guard since they don't appear in the chunk body.
+
+
+def test_tiered_hallucination_rescue_triggers_when_threshold_met():
+    """Primary emits a good mention + 2 hallucinated forms (not in
+    chunk body); fallback emits 1 additional good mention. With
+    threshold=1, the rescue fires; mentions get union-merged."""
+    primary = FakeClient(
+        [
+            # chunk 1: 1 real ("Edlin") + 2 fake ("Faux1", "Faux2")
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin context"},
+                    {"form": "Faux1", "context": "Faux1 context"},
+                    {"form": "Faux2", "context": "Faux2 context"},
+                ]
+            },
+            {"mentions": []},  # chunk 2: empty
+            {"mentions": []},  # chunk 3: empty
+        ]
+    )
+    fallback = FakeClient(
+        [
+            # chunk 1 rescue: 1 net-new mention the primary missed
+            # (Edlin is in chunk 1 too — verified via the chunk body
+            # `"A" * 7995 + " Edlin"`).
+            {"mentions": [{"form": "Edlin", "context": "Edlin alt-context"}]},
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_processed == 3
+    assert report.chunks_hallucination_rescued == 1
+    assert report.chunks_recovered_by_fallback == 0  # primary didn't fail
+    assert report.hallucinations_dropped == 2  # only primary's chunk-1 fakes (fallback had none)
+    assert len(fallback.calls) == 1
+    # Union merge: primary's "Edlin" is canonical (dedup key collision
+    # on (form="Edlin", date_year=None, region_hint=None)). Fallback's
+    # "Edlin" is dropped as duplicate. Primary's good mention stays.
+    assert [m.form for m in report.mentions] == ["Edlin"]
+
+
+def test_tiered_hallucination_rescue_below_threshold_no_fallback():
+    """Primary emits 1 hallucinated form, but threshold=2 — rescue
+    does NOT fire. Counter stays 0, fallback isn't called."""
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin context"},
+                    {"form": "Faux1", "context": "Faux1 context"},
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient([])  # not called
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=2,
+    )
+    assert report.chunks_hallucination_rescued == 0
+    assert report.hallucinations_dropped == 1
+    assert len(fallback.calls) == 0
+    assert [m.form for m in report.mentions] == ["Edlin"]
+
+
+def test_tiered_hallucination_rescue_disabled_by_default():
+    """Without the threshold (None), primary's hallucinations don't
+    trigger the rescue — existing two-tier semantics are preserved.
+    Regression guard against accidentally enabling-on-default."""
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin context"},
+                    {"form": "Faux1", "context": "Faux1 context"},
+                    {"form": "Faux2", "context": "Faux2 context"},
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient([])
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        # hallucination_fallback_threshold defaults to None
+    )
+    assert report.chunks_hallucination_rescued == 0
+    assert report.hallucinations_dropped == 2
+    assert len(fallback.calls) == 0
+
+
+def test_tiered_hallucination_rescue_disabled_when_zero():
+    """threshold=0 is explicit-disabled (matches CLI default behavior
+    where the operator passes 0 to mean 'off'). Fallback NOT called
+    even with 5 hallucinations."""
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin"},
+                    {"form": "Faux1", "context": "Faux1"},
+                    {"form": "Faux2", "context": "Faux2"},
+                    {"form": "Faux3", "context": "Faux3"},
+                    {"form": "Faux4", "context": "Faux4"},
+                    {"form": "Faux5", "context": "Faux5"},
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient([])
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=0,
+    )
+    assert report.chunks_hallucination_rescued == 0
+    assert len(fallback.calls) == 0
+
+
+def test_tiered_hallucination_rescue_union_adds_novel_mentions():
+    """Primary's chunk 2 hits threshold; fallback emits a NEW form
+    primary didn't see (different from primary's dedup keys). Union
+    merge keeps both."""
+    primary = FakeClient(
+        [
+            {"mentions": []},
+            # chunk 2 ("Wear"): 1 real + 1 fake
+            {
+                "mentions": [
+                    {"form": "Wear", "context": "Wear context", "date_year": 1086},
+                    {"form": "FakeForm", "context": "FakeForm", "date_year": 1086},
+                ]
+            },
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient(
+        [
+            # rescue on chunk 2: adds a different mention of Wear at
+            # a different year (different dedup key) — both kept.
+            {"mentions": [{"form": "Wear", "context": "Wear alt", "date_year": 1200}]},
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_hallucination_rescued == 1
+    # Primary's (Wear, 1086) + fallback's (Wear, 1200) — different
+    # date_year, different dedup keys, both retained.
+    forms_years = [(m.form, m.date_year) for m in report.mentions]
+    assert forms_years == [("Wear", 1086), ("Wear", 1200)]
+
+
+def test_tiered_hallucination_rescue_continues_on_fallback_error():
+    """Rescue is opportunistic — if the fallback ERRORS on the rescue
+    pass, the primary's good mentions still flow through (no
+    chunks_failed bump). Counter still increments since the rescue
+    WAS attempted on this chunk (budget signal). Without this guard
+    the operator would see chunks_failed bump even though gemma4's
+    output was perfectly usable."""
+
+    class _FailingFallback:
+        model = "fail"
+
+        def chat_json(self, system, user, schema=None):
+            raise RuntimeError("simulated fallback transport failure")
+
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin"},
+                    {"form": "Faux1", "context": "Faux1"},
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        _FailingFallback(),
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_hallucination_rescued == 1  # attempt counts
+    assert report.chunks_failed == 0  # primary's mentions still good
+    assert report.chunks_processed == 3
+    assert [m.form for m in report.mentions] == ["Edlin"]
+
+
+def test_tiered_hallucination_rescue_aggregates_counters_across_chunks():
+    """Counters aggregate across multiple rescued chunks (rescued
+    counter and hallucinations_dropped from both tiers)."""
+    primary = FakeClient(
+        [
+            # chunk 1: 1 real + 2 fake → triggers rescue
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin"},
+                    {"form": "Faux1a", "context": "Faux1a"},
+                    {"form": "Faux1b", "context": "Faux1b"},
+                ]
+            },
+            # chunk 2: 1 real + 1 fake → triggers rescue
+            {
+                "mentions": [
+                    {"form": "Wear", "context": "Wear"},
+                    {"form": "Faux2a", "context": "Faux2a"},
+                ]
+            },
+            # chunk 3: 1 real + 0 fake → no rescue
+            {"mentions": [{"form": "Tyne", "context": "Tyne"}]},
+        ]
+    )
+    fallback = FakeClient(
+        [
+            # rescue on chunk 1: no hallucinations
+            {"mentions": [{"form": "Edlin", "context": "Edlin alt"}]},
+            # rescue on chunk 2: 1 hallucination of its own
+            {
+                "mentions": [
+                    {"form": "Wear", "context": "Wear alt"},
+                    {"form": "Faux2b", "context": "Faux2b"},
+                ]
+            },
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_hallucination_rescued == 2  # chunks 1 + 2 rescued
+    # Hallucinations: primary chunk 1 (2) + primary chunk 2 (1) +
+    # fallback chunk 2 rescue (1) = 4. Fallback chunk 1 rescue had 0.
+    assert report.hallucinations_dropped == 4
+    assert report.chunks_processed == 3
+    assert report.chunks_failed == 0
+    # All three primary mentions retained; fallback contributed no
+    # new dedup keys (its Edlin/Wear collided with primary's).
+    assert [m.form for m in report.mentions] == ["Edlin", "Wear", "Tyne"]
+
+
+def test_tiered_hallucination_rescue_only_when_primary_succeeds():
+    """The rescue path is mutually exclusive with the primary-failed
+    path. If the primary FAILS and the fallback recovers (existing
+    behavior), chunks_recovered_by_fallback increments but
+    chunks_hallucination_rescued does NOT — even if the fallback's
+    mentions include hallucinations of its own."""
+    primary = FakeClient(
+        [
+            RuntimeError("primary timeout"),  # chunk 1: primary FAILS
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient(
+        [
+            # chunk 1 recovery: 1 real + 2 fake. Hallucinations on
+            # the recovery DON'T trigger a second rescue (mutually
+            # exclusive). This is the existing chunks_recovered_by_
+            # fallback path; rescue layer is separate.
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin"},
+                    {"form": "Faux1", "context": "Faux1"},
+                    {"form": "Faux2", "context": "Faux2"},
+                ]
+            },
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_recovered_by_fallback == 1
+    assert report.chunks_hallucination_rescued == 0  # mutually exclusive
+    assert report.hallucinations_dropped == 2
+    assert [m.form for m in report.mentions] == ["Edlin"]

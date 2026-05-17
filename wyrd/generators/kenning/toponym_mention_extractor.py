@@ -587,6 +587,14 @@ class MineToponymMentionsReport:
     # single-tier runs). Subtract from chunks_processed to learn
     # how many chunks the primary handled on its own.
     chunks_recovered_by_fallback: int = 0
+    # Chunks where the primary SUCCEEDED but emitted enough
+    # hallucinated forms (per the chunk-level word-boundary guard)
+    # that the operator's --hallucination-fallback-threshold fired
+    # and we ran the fallback ALSO. Distinct from
+    # chunks_recovered_by_fallback (where the primary failed
+    # outright). Tiered runs only; stays 0 when the threshold is
+    # disabled or unset (wyrd-z8mq).
+    chunks_hallucination_rescued: int = 0
     hallucinations_dropped: int = 0
     years_clamped: int = 0
     mentions: list[ToponymMention] = field(default_factory=list)
@@ -698,6 +706,7 @@ def mine_toponym_mentions_tiered(
     *,
     target_chunk_size: int = 20000,
     limit: int | None = None,
+    hallucination_fallback_threshold: int | None = None,
     on_chunk_done: Callable[[int, int, int], None] | None = None,
     log_warning: Callable[[str], None] | None = None,
 ) -> MineToponymMentionsReport:
@@ -733,6 +742,27 @@ def mine_toponym_mentions_tiered(
     The report shape matches :class:`MineToponymMentionsReport` so
     the CLI's summary line and the Phase 2b.1 ingester both work
     unchanged.
+
+    **Hallucination-triggered rescue (wyrd-z8mq).** When
+    ``hallucination_fallback_threshold`` is set (``None`` / ``0`` =
+    disabled), a chunk where the PRIMARY succeeded but emitted
+    ``hallucinations_dropped >= threshold`` ALSO runs the fallback
+    on the same chunk; the fallback's mentions are union-merged into
+    the primary's by ``(form, date_year, region_hint)`` (primary
+    wins on collision, fallback adds anything it saw that primary
+    didn't). This preserves everything the primary saw correctly
+    while letting the fallback catch what the primary fabricated.
+    Counter: ``chunks_hallucination_rescued`` increments per chunk
+    where the fallback actually fired on the threshold (regardless
+    of whether the fallback then succeeded or failed). The
+    fallback's per-chunk counters are added to the primary's so the
+    aggregate reflects both tiers' real work on that chunk; a
+    fallback that itself fails on the rescue is logged + skipped
+    but the primary's good mentions stay in the output. Designed
+    for the gemma4 / Anthropic split observed 2026-05-16: gemma4
+    primary ~1.3% hallucination rate, threshold=1 triggers
+    fallback on ~13% of chunks (one bad form per chunk is enough
+    to warrant Anthropic re-extraction at ~$0.06/chunk).
     """
     report = MineToponymMentionsReport(source_id=source_id)
     chunks = chunk_source_body(body, target_chunk_size=target_chunk_size)
@@ -799,6 +829,65 @@ def mine_toponym_mentions_tiered(
                 if log_warning is not None:
                     log_warning(f"chunk {i} both tiers failed: {fallback_error}")
                 continue
+        elif (
+            hallucination_fallback_threshold is not None
+            and hallucination_fallback_threshold > 0
+            and chunk_counters.hallucinations_dropped >= hallucination_fallback_threshold
+        ):
+            # Hallucination-triggered rescue (wyrd-z8mq). Primary
+            # SUCCEEDED but emitted at least ``threshold`` forms that
+            # the word-boundary guard dropped — likely missed real
+            # forms too. Run fallback on the same chunk and union-
+            # merge by (form, date_year, region_hint). Primary wins
+            # on collision; fallback adds what primary didn't see.
+            #
+            # Counter increments regardless of fallback success: the
+            # rescue WAS attempted on this chunk, even if it errored.
+            # That's the operationally interesting fact for budgeting.
+            report.chunks_hallucination_rescued += 1
+            if log_warning is not None:
+                log_warning(
+                    f"chunk {i} primary hallucinated "
+                    f"{chunk_counters.hallucinations_dropped} forms — "
+                    f"running fallback for rescue"
+                )
+            rescue_counters = ValidationCounters()
+            try:
+                rescue_mentions = extract_toponym_mentions_from_chunk(
+                    fallback_client, chunk, counters=rescue_counters
+                )
+            except _PROGRAMMER_ERROR_EXCEPTIONS:
+                raise  # Our bug — let it surface as a traceback.
+            except Exception as e:
+                # Fallback failed on the rescue. Primary's good
+                # mentions still flow through to the output — don't
+                # poison the chunk on a transport error during what's
+                # only an opportunistic extra pass. Log so the
+                # operator can see which rescues missed.
+                if log_warning is not None:
+                    log_warning(
+                        f"chunk {i} rescue fallback failed: {type(e).__name__}: {e} "
+                        f"— primary mentions retained"
+                    )
+            else:
+                # Union-merge: primary first (canonical on collision),
+                # then anything fallback emitted that primary didn't.
+                # Key dedup omits ``context`` since two extractors
+                # describing the same (form, year, region) with
+                # different surrounding-snippet text is the same
+                # mention, not a duplicate.
+                primary_keys = {(m.form, m.date_year, m.region_hint) for m in mentions}
+                added = [
+                    m
+                    for m in rescue_mentions
+                    if (m.form, m.date_year, m.region_hint) not in primary_keys
+                ]
+                mentions = list(mentions) + added
+                # Fold the rescue's per-chunk counters in too — both
+                # tiers really did work on this chunk and both sets
+                # of stats should land in the aggregate.
+                chunk_counters.hallucinations_dropped += rescue_counters.hallucinations_dropped
+                chunk_counters.years_clamped += rescue_counters.years_clamped
         report.mentions.extend(mentions)
         report.chunks_processed += 1
         report.hallucinations_dropped += chunk_counters.hallucinations_dropped

@@ -3025,6 +3025,19 @@ def _build_extractor_client(provider: str, model: str | None, ollama_url: str | 
     help="Overwrite existing per-source output files (default: error). "
     "Mutually-exclusive with --skip-existing.",
 )
+@click.option(
+    "--hallucination-fallback-threshold",
+    type=int,
+    default=None,
+    help="When set, chunks where the primary SUCCEEDED but emitted at least "
+    "this many hallucinated forms (per the word-boundary guard) ALSO get "
+    "re-extracted by the fallback; mentions are union-merged by "
+    "(form, date_year, region_hint). Primary wins on collision; fallback "
+    "adds what primary didn't see. None / 0 = disabled (default). Use "
+    "with `--primary-provider ollama` + small local model + "
+    "`--fallback-provider anthropic` to keep gemma4's good mentions while "
+    "letting Anthropic catch its fabrications. wyrd-z8mq.",
+)
 def lexicon_mine_toponym_mentions_tiered(
     sources_dir: Path,
     sources: tuple[str, ...],
@@ -3038,6 +3051,7 @@ def lexicon_mine_toponym_mentions_tiered(
     limit: int | None,
     skip_existing: bool,
     force: bool,
+    hallucination_fallback_threshold: int | None,
 ) -> None:
     """Two-tier LLM mention extraction across one or many sources
     (wyrd-x82p Phase 2b.2).
@@ -3129,6 +3143,7 @@ def lexicon_mine_toponym_mentions_tiered(
         "sources_skipped": 0,
         "chunks_processed": 0,
         "chunks_recovered": 0,
+        "chunks_hallucination_rescued": 0,
         "chunks_failed": 0,
         "mentions": 0,
     }
@@ -3191,6 +3206,7 @@ def lexicon_mine_toponym_mentions_tiered(
             body,
             target_chunk_size=chunk_size,
             limit=limit,
+            hallucination_fallback_threshold=hallucination_fallback_threshold,
             on_chunk_done=progress,
             log_warning=warn,
         )
@@ -3207,6 +3223,7 @@ def lexicon_mine_toponym_mentions_tiered(
         click.echo(
             f"  → {out_path} | chunks={report.chunks_processed} "
             f"(recovered={report.chunks_recovered_by_fallback} "
+            f"halluc_rescued={report.chunks_hallucination_rescued} "
             f"failed={report.chunks_failed}) mentions={len(report.mentions)} "
             f"halluc={report.hallucinations_dropped}",
             err=True,
@@ -3215,6 +3232,7 @@ def lexicon_mine_toponym_mentions_tiered(
         totals["sources_processed"] += 1
         totals["chunks_processed"] += report.chunks_processed
         totals["chunks_recovered"] += report.chunks_recovered_by_fallback
+        totals["chunks_hallucination_rescued"] += report.chunks_hallucination_rescued
         totals["chunks_failed"] += report.chunks_failed
         totals["mentions"] += len(report.mentions)
 
@@ -3224,6 +3242,7 @@ def lexicon_mine_toponym_mentions_tiered(
         f"(skipped={totals['sources_skipped']}) "
         f"chunks={totals['chunks_processed']} "
         f"recovered_by_fallback={totals['chunks_recovered']} "
+        f"halluc_rescued={totals['chunks_hallucination_rescued']} "
         f"failed={totals['chunks_failed']} "
         f"mentions={totals['mentions']}",
         err=True,
