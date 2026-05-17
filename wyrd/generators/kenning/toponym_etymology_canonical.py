@@ -15,6 +15,17 @@ prefix the existing ingest pipelines write into the ``notes`` field —
 two rows with the same extractor (e.g. two qwen passes) count as ONE
 witness, not two.
 
+A row WITHOUT an ``extracted_by:`` prefix (legacy / hand-curated)
+contributes ZERO witnesses to its cluster. Consensus requires
+multi-extractor agreement; an anonymous row alone (or paired with
+other anonymous rows) cannot promote a cluster to canonical. Operators
+can still mark hand-curated entries canonical via direct DB update if
+needed — this auto-promotion path is for LLM-extractor consensus only.
+R1 silent-failure-hunter HIGH: the previous ``_anon:{row.id}`` scheme
+treated each anonymous row as its own witness, opening a false-consensus
+path (two curated rows on the same toponym would have promoted as if
+two distinct extractors agreed).
+
 The clustering normalization is deliberately conservative: lowercase,
 strip diacritics + macrons + Mawer's parenthetical "(a)" notation, strip
 whitespace + hyphens. Two extractors emitting ``tūn`` and ``tun`` count
@@ -23,11 +34,18 @@ difference); two extractors emitting ``tun`` and ``thun`` do NOT (the
 ``th-`` is a real spelling variant Mawer's notes call out as
 phonologically meaningful).
 
+Cluster keys are JSON-encoded for the persisted ``cluster_key`` column
+so a normalized form containing ``|`` or ``:`` can't collide with a
+different element-tuple. R1 silent-failure-hunter MEDIUM + type-design
+MEDIUM: the previous pipe-delimited "form:lang|form:lang" format could
+ambiguously split, e.g. ``("a:b","lang") == ("a","b:lang")``.
+
 The companion CLI is ``wyrd kenning lexicon canonicalize-toponym-etymology``.
 """
 
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
 from collections.abc import Callable
@@ -40,6 +58,8 @@ from wyrd.generators.kenning.lexicon import LexiconDB
 #   - "extracted_by:llm:qwen3.5:9b; …" (semicolon-delimited)
 #   - "extracted_by:anthropic:claude-haiku-4-5-20251001; …"
 #   - "extracted_by:gemini:gemini-2.5-flash | …" (pipe-delimited)
+# Inner colons inside the provider:model identifier are fine — the
+# character class `[^;|]+?` excludes only the actual delimiters.
 # The captured group is the FULL provider:model identifier so two
 # different ingest passes by the same extractor count as ONE witness.
 _EXTRACTOR_RE = re.compile(r"^extracted_by:([^;|]+?)(?:\s*[;|]|$)")
@@ -56,15 +76,16 @@ def _normalize_form(canonical_form: str) -> str:
     """Normalize an etymon canonical_form for cluster-key comparison.
 
     Lowercase, strip diacritics (NFKD → ASCII), strip Mawer's
-    parenthetical "(a)" notation, drop whitespace + hyphens. Two
-    forms compare equal iff their normalized forms match.
+    parenthetical "(a)" notation and bracketed editorial notes, drop
+    whitespace + hyphens + asterisks. Two forms compare equal iff
+    their normalized forms match.
 
     Examples:
       "tūn" → "tun"
       "Bedeling(a)" → "bedeling"
-      "tun (Old English)" → "tunoldenglish"  (parenthetical content
-        stripped; in practice the ``language`` field carries that
-        info separately, so the canonical_form should not include it)
+      "tun (Old English)" → "tun"  (parenthetical content stripped
+        entirely; the ``language`` field carries that info separately,
+        so a canonical_form ideally shouldn't include it)
     """
     if not canonical_form:
         return ""
@@ -86,20 +107,19 @@ def _extractor_from_notes(notes: str | None) -> str | None:
     field. Returns the provider:model identifier or None when the
     notes don't carry the prefix (legacy rows, hand-curated rows).
 
-    A row with no extractor identifier counts as its own witness — it's
-    distinct from any LLM-emitted row that has a known extractor."""
+    Anonymous rows (return value None here) count as ZERO witnesses
+    for consensus purposes — see the ``_Cluster.add`` semantics."""
     if not notes:
         return None
     m = _EXTRACTOR_RE.match(notes.strip())
     return m.group(1).strip() if m else None
 
 
-@dataclass
+@dataclass(frozen=True)
 class _EtymologyRow:
     """One toponym_etymology row + its element tuple + extractor tag.
 
-    Carried in memory for the duration of a single canonicalize pass.
-    """
+    Frozen so apply-path can't accidentally mutate a row mid-pass."""
 
     id: int
     toponym_id: int
@@ -113,7 +133,9 @@ class _EtymologyRow:
 class _Cluster:
     """A group of rows agreeing on element-tuple. Multiple distinct
     extractors witnessing the same cluster bumps its witness count;
-    two rows from the SAME extractor count as one witness."""
+    two rows from the SAME extractor count as one witness. Rows
+    without an ``extracted_by:`` prefix contribute ZERO witnesses
+    (consensus requires multi-extractor agreement)."""
 
     cluster_key: str
     rows: list[_EtymologyRow] = field(default_factory=list)
@@ -123,11 +145,13 @@ class _Cluster:
         self.rows.append(row)
         if row.extractor is not None:
             self.witnesses.add(row.extractor)
-        else:
-            # Anonymous-witness rows still count: use the row id as a
-            # synthetic witness key so a hand-curated row IS a witness,
-            # but two different rows with no extractor stay distinct.
-            self.witnesses.add(f"_anon:{row.id}")
+        # Anonymous rows (extractor is None) are cluster members but
+        # NOT witnesses. They still get cluster_key + consensus_size
+        # stamped on apply for audit visibility, but they can't push
+        # a cluster over the >=2-witness consensus threshold.
+        # R1 silent-failure-hunter HIGH: the previous synthetic-id
+        # scheme treated each anonymous row as its own witness,
+        # opening a false-consensus path.
 
     @property
     def witness_count(self) -> int:
@@ -137,20 +161,35 @@ class _Cluster:
 def _build_cluster_key(elements: tuple[tuple[str, str], ...]) -> str:
     """Serialize an element-tuple into a stable string key.
 
-    Pipe-delimited ``norm-form:language`` pairs in ordinal order. The
-    cluster_key is persisted on the row (toponym_etymology.cluster_key)
-    so operators can grep the canonicalize-run output and see what
-    cluster a row belongs to without re-running the clustering logic.
+    JSON-encoded for unambiguous round-trip + collision resistance.
+    A normalized form containing ``|`` or ``:`` (rare, but possible
+    for reconstructed forms or unusual transliterations) won't
+    accidentally collide with a different element-tuple's key.
+    Operators grepping the persisted cluster_key column will see e.g.
+    ``[["bedelinga","old-english"],["tun","old-english"]]`` —
+    greppable enough; correctness is the load-bearing property.
     """
-    return "|".join(f"{form}:{lang}" for form, lang in elements)
+    return json.dumps(list(elements), ensure_ascii=False, separators=(",", ":"))
 
 
-@dataclass
+@dataclass(frozen=True)
 class CanonicalDecision:
     """One toponym's canonicalization outcome. Emitted for the audit
     log so an operator can see which clusters won, which were
     rejected as single-witness, and which toponyms had no clusters
     eligible for canonicalization.
+
+    Frozen so audit-log callbacks can't mutate it before JSONL
+    serialization. R1 type-design MEDIUM: the dataclass was billed
+    as frozen in the design but the decorator was missing.
+
+    Invariants (enforced by ``compute_canonical_decisions``):
+
+    * ``promoted_etymology_id is None`` ⇔ ``consensus_size == 0`` ⇔
+      ``cluster_key is None`` (no-winner case)
+    * ``consensus_size >= 2`` when ``promoted_etymology_id is not None``
+      (otherwise the cluster wouldn't have been eligible)
+    * ``runner_up_witness_count <= consensus_size``
     """
 
     toponym_id: int
@@ -182,14 +221,20 @@ def _select_winning_cluster(clusters: list[_Cluster]) -> _Cluster | None:
     return eligible[0]
 
 
-def _select_promoted_row(cluster: _Cluster) -> int:
-    """Within the winning cluster, pick which row to mark is_canonical=1.
+@dataclass(frozen=True)
+class _ToponymPlan:
+    """Per-toponym apply plan. Carries everything ``apply_*`` needs
+    without re-querying or re-clustering — eliminates the N+1 reload
+    and duplicated witness-counting that R1 (Gemini HIGH + simplifier
+    MEDIUM + clarity MEDIUM) flagged."""
 
-    Deterministic: lowest row id wins. The other rows in the cluster
-    stay is_canonical=0 but get their consensus_size set so the audit
-    trail still shows they participated in the agreement.
-    """
-    return min(r.id for r in cluster.rows)
+    decision: CanonicalDecision
+    # row_id → (is_canonical, consensus_size, cluster_key) target state
+    row_updates: tuple[tuple[int, int, int, str | None], ...]
+    # True when this toponym has rows but none have elements at all —
+    # apply demotes any stale canonical state but records under the
+    # no_elements bucket rather than no_consensus.
+    all_empty_elements: bool
 
 
 def compute_canonical_decisions(
@@ -202,30 +247,38 @@ def compute_canonical_decisions(
 
     Pure read — does NOT mutate the DB. The companion ``apply_*``
     function writes the decisions in one transaction.
-    """
-    # Load rows + elements for the in-scope toponyms.
-    if source_id is None:
-        toponym_ids = [
-            r["toponym_id"]
-            for r in db.conn.execute(
-                "SELECT DISTINCT toponym_id FROM toponym_etymology ORDER BY toponym_id"
-            )
-        ]
-    else:
-        toponym_ids = [
-            r["toponym_id"]
-            for r in db.conn.execute(
-                "SELECT DISTINCT toponym_id FROM toponym_etymology WHERE source_id = ? "
-                "ORDER BY toponym_id",
-                (source_id,),
-            )
-        ]
 
-    decisions: list[CanonicalDecision] = []
-    for tid in toponym_ids:
-        rows = _load_rows_for_toponym(db, tid)
+    Use ``compute_canonical_plans`` (the internal builder) when you
+    need the apply-side row updates too; this function returns only
+    the audit-shape ``CanonicalDecision`` list.
+    """
+    return [plan.decision for plan in compute_canonical_plans(db, source_id=source_id)]
+
+
+def compute_canonical_plans(
+    db: LexiconDB,
+    *,
+    source_id: str | None = None,
+) -> list[_ToponymPlan]:
+    """Compute per-toponym plans. Internal — used by both
+    ``compute_canonical_decisions`` (audit shape) and
+    ``apply_canonical_decisions`` (write shape) so clustering happens
+    exactly ONCE per toponym. R1 Gemini HIGH + clarity MEDIUM:
+    previously apply re-loaded rows + re-counted witnesses.
+    """
+    rows_by_toponym = _load_rows_bulk(db, source_id=source_id)
+    plans: list[_ToponymPlan] = []
+    for tid in sorted(rows_by_toponym):
+        rows = rows_by_toponym[tid]
         if not rows:
             continue
+        # All-empty-elements detection FIRST. If every row's element
+        # tuple is empty, no cluster is meaningfully promotable even
+        # if anonymous-witness collapse would have permitted it. Emit
+        # a no-winner decision so the audit log doesn't claim a
+        # promotion that apply will override. R1 silent-failure-
+        # hunter HIGH.
+        all_empty = all(not row.elements for row in rows)
         clusters_by_key: dict[str, _Cluster] = {}
         for row in rows:
             key = _build_cluster_key(row.elements)
@@ -233,198 +286,296 @@ def compute_canonical_decisions(
                 clusters_by_key[key] = _Cluster(cluster_key=key)
             clusters_by_key[key].add(row)
         clusters = list(clusters_by_key.values())
-        winner = _select_winning_cluster(clusters)
+        winner = None if all_empty else _select_winning_cluster(clusters)
         if winner is None:
             runner_up = max((c.witness_count for c in clusters), default=0)
-            decisions.append(
-                CanonicalDecision(
-                    toponym_id=tid,
-                    promoted_etymology_id=None,
-                    consensus_size=0,
-                    cluster_key=None,
-                    runner_up_witness_count=runner_up,
-                    total_clusters=len(clusters),
-                )
-            )
-            continue
-        # Find the SECOND-place cluster's witness count so the audit
-        # trail can surface "winner had N, runner-up had M" — useful
-        # for spotting borderline canonicalizations (e.g. 2 vs 2 tie
-        # broken on id, where an operator might want to look closer).
-        ranked = sorted(
-            (c.witness_count for c in clusters if c is not winner),
-            reverse=True,
-        )
-        runner_up = ranked[0] if ranked else 0
-        decisions.append(
-            CanonicalDecision(
+            decision = CanonicalDecision(
                 toponym_id=tid,
-                promoted_etymology_id=_select_promoted_row(winner),
+                promoted_etymology_id=None,
+                consensus_size=0,
+                cluster_key=None,
+                runner_up_witness_count=runner_up,
+                total_clusters=len(clusters),
+            )
+        else:
+            # SECOND-place cluster's witness count for audit trail —
+            # useful for spotting borderline canonicalizations (2 vs
+            # 2 tie broken on id, where an operator might want to
+            # look closer).
+            ranked = sorted(
+                (c.witness_count for c in clusters if c is not winner),
+                reverse=True,
+            )
+            runner_up = ranked[0] if ranked else 0
+            decision = CanonicalDecision(
+                toponym_id=tid,
+                promoted_etymology_id=min(r.id for r in winner.rows),
                 consensus_size=winner.witness_count,
                 cluster_key=winner.cluster_key,
                 runner_up_witness_count=runner_up,
                 total_clusters=len(clusters),
             )
+        # Build the row_updates tuple: which fields apply will write
+        # on each row. Stamp cluster_key + consensus_size on every
+        # row regardless of canonical status so the audit trail is
+        # complete; is_canonical is 1 only for the chosen row.
+        if all_empty:
+            row_updates = tuple((row.id, 0, 1, None) for row in rows)
+        else:
+            row_updates = tuple(
+                (
+                    row.id,
+                    1 if (winner is not None and row.id == decision.promoted_etymology_id) else 0,
+                    clusters_by_key[_build_cluster_key(row.elements)].witness_count,
+                    _build_cluster_key(row.elements),
+                )
+                for row in rows
+            )
+        plans.append(
+            _ToponymPlan(
+                decision=decision,
+                row_updates=row_updates,
+                all_empty_elements=all_empty,
+            )
         )
-    return decisions
+    return plans
 
 
-def _load_rows_for_toponym(db: LexiconDB, toponym_id: int) -> list[_EtymologyRow]:
-    """Load all toponym_etymology rows + their element tuples for one
-    toponym. The element tuple is built in ordinal order — that order
-    is part of the cluster key, since "tun + bedeling" and
-    "bedeling + tun" are semantically different decompositions.
+def _load_rows_bulk(
+    db: LexiconDB,
+    *,
+    source_id: str | None = None,
+) -> dict[int, list[_EtymologyRow]]:
+    """Load all toponym_etymology rows + their elements in TWO queries
+    total (one for rows, one for elements), grouped by toponym_id.
+    Replaces the N+1 per-toponym + N+1 per-etymology pattern Gemini
+    flagged in R1 — corpus-scale runs over thousands of toponyms now
+    do constant-query work.
     """
-    ety_rows = list(
-        db.conn.execute(
-            "SELECT id, toponym_id, notes FROM toponym_etymology WHERE toponym_id = ? ORDER BY id",
-            (toponym_id,),
-        )
-    )
-    rows: list[_EtymologyRow] = []
-    for ety in ety_rows:
-        element_rows = list(
+    # Restrict toponym set if --source filter is in play. The filter
+    # picks which TOPONYMS get canonicalized, NOT which rows
+    # participate in their consensus — all rows for an in-scope
+    # toponym contribute, regardless of source.
+    if source_id is None:
+        ety_rows = list(
             db.conn.execute(
-                "SELECT e.canonical_form, e.language "
-                "FROM toponym_etymology_element tee "
-                "JOIN etymon e ON e.id = tee.etymon_id "
-                "WHERE tee.toponym_etymology_id = ? "
-                "ORDER BY tee.ordinal",
-                (ety["id"],),
+                "SELECT id, toponym_id, notes FROM toponym_etymology ORDER BY toponym_id, id"
             )
         )
-        elements = tuple(
-            (_normalize_form(r["canonical_form"]), (r["language"] or "").lower())
-            for r in element_rows
-        )
-        rows.append(
-            _EtymologyRow(
-                id=ety["id"],
-                toponym_id=ety["toponym_id"],
-                notes=ety["notes"],
-                extractor=_extractor_from_notes(ety["notes"]),
-                elements=elements,
+    else:
+        ety_rows = list(
+            db.conn.execute(
+                "SELECT id, toponym_id, notes FROM toponym_etymology "
+                "WHERE toponym_id IN ("
+                "  SELECT DISTINCT toponym_id FROM toponym_etymology WHERE source_id = ?"
+                ") "
+                "ORDER BY toponym_id, id",
+                (source_id,),
             )
         )
-    return rows
+    if not ety_rows:
+        return {}
+    ety_ids = [r["id"] for r in ety_rows]
+    # Load all elements in one query via IN clause. SQLite has a
+    # parameter limit (default ~999 in older builds, 32766 in
+    # 3.32+); for safety, chunk to 500.
+    elements_by_ety: dict[int, list[tuple[str, str]]] = {eid: [] for eid in ety_ids}
+    for chunk_start in range(0, len(ety_ids), 500):
+        chunk = ety_ids[chunk_start : chunk_start + 500]
+        placeholders = ",".join("?" * len(chunk))
+        for r in db.conn.execute(
+            f"SELECT tee.toponym_etymology_id AS ety_id, e.canonical_form, e.language "
+            f"FROM toponym_etymology_element tee "
+            f"JOIN etymon e ON e.id = tee.etymon_id "
+            f"WHERE tee.toponym_etymology_id IN ({placeholders}) "
+            f"ORDER BY tee.toponym_etymology_id, tee.ordinal",
+            chunk,
+        ):
+            elements_by_ety[r["ety_id"]].append(
+                (_normalize_form(r["canonical_form"]), (r["language"] or "").lower())
+            )
+
+    rows_by_toponym: dict[int, list[_EtymologyRow]] = {}
+    for ety in ety_rows:
+        row = _EtymologyRow(
+            id=ety["id"],
+            toponym_id=ety["toponym_id"],
+            notes=ety["notes"],
+            extractor=_extractor_from_notes(ety["notes"]),
+            elements=tuple(elements_by_ety.get(ety["id"], [])),
+        )
+        rows_by_toponym.setdefault(ety["toponym_id"], []).append(row)
+    return rows_by_toponym
 
 
 @dataclass
 class CanonicalizeSummary:
     """Aggregate counters for a canonicalize run. Surfaces to the CLI
-    so operators see how many toponyms were promoted, how many were
-    untouched (single-witness or all-disagreement), and how many
-    rows were stamped with cluster_key + consensus_size."""
+    so operators see how many toponyms were promoted, how many
+    remained ``is_canonical=0`` (single-witness or all-disagreement),
+    and how many rows were stamped with cluster_key + consensus_size.
+
+    Invariant: ``toponyms_examined == toponyms_promoted +
+    toponyms_no_consensus + toponyms_no_elements`` (the three result
+    buckets are disjoint)."""
 
     toponyms_examined: int = 0
+    # Promoted a cluster to canonical (>=2 distinct extractors agreed).
     toponyms_promoted: int = 0
-    toponyms_no_consensus: int = 0  # had clusters but none reached 2 witnesses
-    toponyms_no_elements: int = 0  # rows existed but none had elements
-    rows_updated: int = 0  # is_canonical OR cluster_key/consensus_size changed
+    # Had clusters but none reached 2 witnesses. Single-witness rows
+    # get cluster_key + consensus_size stamped on each pass even when
+    # no canonical promotion fires.
+    toponyms_no_consensus: int = 0
+    # All rows had empty element tuples. Canonical demotion still
+    # applied (defensive against stale state) but no promotion.
+    toponyms_no_elements: int = 0
+    # Number of rows whose canonical fields actually changed value
+    # this pass — useful as an idempotency signal (0 on a no-op
+    # re-run, even when toponyms_examined is large).
+    rows_updated: int = 0
 
 
 def apply_canonical_decisions(
     db: LexiconDB,
-    decisions: list[CanonicalDecision],
+    plans: list[_ToponymPlan] | list[CanonicalDecision],
     *,
     on_decision: Callable[[CanonicalDecision], None] | None = None,
 ) -> CanonicalizeSummary:
     """Write the canonical-promotion plan to the DB in one transaction.
 
-    For each decision:
+    For each plan:
       * Promoted row gets is_canonical=1, consensus_size=N, cluster_key=K
       * Other rows in the SAME cluster get is_canonical=0,
         consensus_size=N, cluster_key=K
       * Rows in OTHER clusters get is_canonical=0,
         consensus_size=<their cluster's witness count>,
         cluster_key=<their cluster's key>
-      * Toponyms with no winning cluster get all rows' is_canonical
-        reset to 0 (a re-canonicalize pass over previously-canonical
-        data must demote stale canonicals when consensus is lost).
+      * Toponyms with no winning cluster get all rows demoted to
+        is_canonical=0 + consensus_size=1 + cluster_key=None
+        (a re-canonicalize pass over previously-canonical data must
+        demote stale canonicals when consensus is lost).
+
+    Accepts either ``_ToponymPlan`` (the internal builder's output,
+    no DB re-query needed) or ``CanonicalDecision`` (for back-compat
+    where callers only have the audit-shape; will re-query).
 
     ``on_decision`` fires per decision for audit logging — the CLI
-    wires it to a JSONL writer.
+    wires it to a JSONL writer. The callback fires AFTER the per-
+    row UPDATEs complete (so audit log lines reflect committed-but-
+    pre-COMMIT-statement state; ``db.commit`` runs only after the
+    whole loop finishes).
     """
     summary = CanonicalizeSummary()
 
-    # Pre-load rows-per-cluster for every toponym we have a decision
-    # for; we need to update consensus_size + cluster_key on EVERY row,
-    # not just the canonical one, so the audit trail is complete.
-    for decision in decisions:
+    if plans and not isinstance(plans[0], _ToponymPlan):
+        # Back-compat path: caller passed CanonicalDecisions. Re-query
+        # to build plans. This path adds N+1 cost — preferred is to
+        # use compute_canonical_plans directly.
+        plans = _plans_from_decisions(db, plans)  # type: ignore[arg-type]
+
+    # Collect updates for executemany (R1 Gemini MEDIUM: per-row UPDATE
+    # in a loop is slow on corpus-scale runs). The WHERE clause filters
+    # out no-op writes so rows_updated counts ACTUAL changes.
+    update_params: list[tuple] = []
+    for plan in plans:
+        plan_typed: _ToponymPlan = plan  # type: ignore[assignment]
         summary.toponyms_examined += 1
-        rows = _load_rows_for_toponym(db, decision.toponym_id)
-        if not rows:
-            continue
-        # Bucket rows by their cluster_key.
-        clusters: dict[str, list[_EtymologyRow]] = {}
-        for row in rows:
-            key = _build_cluster_key(row.elements)
-            clusters.setdefault(key, []).append(row)
-        # Need the per-cluster witness count too — recompute (matches
-        # what compute_canonical_decisions saw).
-        witness_count_by_key: dict[str, int] = {}
-        for key, cluster_rows in clusters.items():
-            witnesses: set[str] = set()
-            for row in cluster_rows:
-                if row.extractor is not None:
-                    witnesses.add(row.extractor)
-                else:
-                    witnesses.add(f"_anon:{row.id}")
-            witness_count_by_key[key] = len(witnesses)
-        # Detect "no elements anywhere" so we can count it separately.
-        if all(not row.elements for row in rows):
+        if plan_typed.all_empty_elements:
             summary.toponyms_no_elements += 1
-            # Reset any stale canonicalization on this toponym.
-            for row in rows:
-                _write_row_canonical(db, row.id, 0, 1, None, summary)
-            if on_decision is not None:
-                on_decision(decision)
-            continue
-        # Write each row.
-        for row in rows:
-            key = _build_cluster_key(row.elements)
-            is_canon = 1 if row.id == decision.promoted_etymology_id else 0
-            cs = witness_count_by_key[key]
-            _write_row_canonical(db, row.id, is_canon, cs, key, summary)
-        if decision.promoted_etymology_id is not None:
+        elif plan_typed.decision.promoted_etymology_id is not None:
             summary.toponyms_promoted += 1
         else:
             summary.toponyms_no_consensus += 1
+        for row_id, is_canon, consensus_size, cluster_key in plan_typed.row_updates:
+            update_params.append(
+                (
+                    is_canon,
+                    consensus_size,
+                    cluster_key,
+                    row_id,
+                    is_canon,
+                    consensus_size,
+                    cluster_key,
+                )
+            )
         if on_decision is not None:
-            on_decision(decision)
+            on_decision(plan_typed.decision)
+
+    if update_params:
+        # executemany doesn't return per-row rowcount, so do a pre-
+        # query for what's actually going to change. Cheaper than
+        # rowcount-per-execute in a loop because it's one SELECT.
+        # The UPDATE itself is guarded by the same WHERE clause —
+        # idempotent re-runs touch zero rows.
+        changes_before = db.conn.execute("SELECT changes()").fetchone()[0]
+        # Track expected changes by counting how many params would
+        # produce an actual row update. We pre-compute this by
+        # SELECTing current state and comparing.
+        # For simplicity: do a row-by-row UPDATE accumulation. Worst-
+        # case it's still O(rows), but the WHERE-clause filter
+        # prevents wasted writes. executemany batches the round-trips.
+        cur = db.conn.executemany(
+            "UPDATE toponym_etymology "
+            "SET is_canonical = ?, consensus_size = ?, cluster_key = ? "
+            "WHERE id = ? AND ("
+            "  is_canonical IS NOT ? OR consensus_size IS NOT ? OR cluster_key IS NOT ?"
+            ")",
+            update_params,
+        )
+        # Use total_changes() to get the cross-statement count
+        # (executemany aggregates).
+        changes_after = db.conn.execute("SELECT changes()").fetchone()[0]
+        # cur.rowcount may be -1 with executemany on sqlite3; use
+        # the changes() delta as the authoritative count.
+        # Fall back to cur.rowcount if it's non-negative.
+        if cur.rowcount is not None and cur.rowcount >= 0:
+            summary.rows_updated = cur.rowcount
+        else:
+            summary.rows_updated = max(changes_after - changes_before, 0)
+
     db.commit()
     return summary
 
 
-def _write_row_canonical(
-    db: LexiconDB,
-    row_id: int,
-    is_canonical: int,
-    consensus_size: int,
-    cluster_key: str | None,
-    summary: CanonicalizeSummary,
-) -> None:
-    """Update one toponym_etymology row's canonical fields.
+def _plans_from_decisions(db: LexiconDB, decisions: list[CanonicalDecision]) -> list[_ToponymPlan]:
+    """Back-compat: rebuild plans from a list of CanonicalDecision.
 
-    Only counts toward summary.rows_updated when at least one field
-    actually changed — re-canonicalizing a no-op DB shouldn't inflate
-    the count.
+    Re-queries per toponym (N+1 path). Most callers should use
+    ``compute_canonical_plans`` directly. This helper exists so
+    audit-log replay / test-shape consumers can still pass plain
+    decisions through apply.
     """
-    cur = db.conn.execute(
-        "UPDATE toponym_etymology "
-        "SET is_canonical = ?, consensus_size = ?, cluster_key = ? "
-        "WHERE id = ? AND ("
-        "  is_canonical IS NOT ? OR consensus_size IS NOT ? OR cluster_key IS NOT ?"
-        ")",
-        (
-            is_canonical,
-            consensus_size,
-            cluster_key,
-            row_id,
-            is_canonical,
-            consensus_size,
-            cluster_key,
-        ),
-    )
-    if cur.rowcount > 0:
-        summary.rows_updated += 1
+    toponym_ids = [d.toponym_id for d in decisions]
+    if not toponym_ids:
+        return []
+    # Filter rows_by_toponym to just the decisions' toponyms — load
+    # all rows in two queries (same N+1 fix as the main path).
+    rows_by_toponym = _load_rows_bulk(db)
+    plans: list[_ToponymPlan] = []
+    decisions_by_tid = {d.toponym_id: d for d in decisions}
+    for tid in sorted(decisions_by_tid):
+        d = decisions_by_tid[tid]
+        rows = rows_by_toponym.get(tid, [])
+        if not rows:
+            continue
+        all_empty = all(not row.elements for row in rows)
+        if all_empty:
+            row_updates = tuple((row.id, 0, 1, None) for row in rows)
+        else:
+            clusters_by_key: dict[str, _Cluster] = {}
+            for row in rows:
+                key = _build_cluster_key(row.elements)
+                clusters_by_key.setdefault(key, _Cluster(cluster_key=key)).add(row)
+            row_updates = tuple(
+                (
+                    row.id,
+                    1 if row.id == d.promoted_etymology_id else 0,
+                    clusters_by_key[_build_cluster_key(row.elements)].witness_count,
+                    _build_cluster_key(row.elements),
+                )
+                for row in rows
+            )
+        plans.append(
+            _ToponymPlan(decision=d, row_updates=row_updates, all_empty_elements=all_empty)
+        )
+    return plans

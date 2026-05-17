@@ -4495,17 +4495,19 @@ def lexicon_canonicalize_toponym_etymology(
        — marks one row ``is_canonical=1`` + stamps ``consensus_size`` +
        ``cluster_key`` on every row for audit visibility.
     4. Re-runs are idempotent: previously-canonical rows that lose
-       consensus get demoted, single-witness toponyms stay untouched.
+       consensus get demoted; single-witness rows stay
+       ``is_canonical=0`` (but still get ``cluster_key`` /
+       ``consensus_size`` stamped each pass for audit completeness).
 
     Downstream consumers read ``toponym_etymology_canonical`` (a VIEW
     over the canonical-only rows). Future LLM re-extraction passes can
     skip toponyms with ``is_canonical = 1`` rows to save cost on
     settled answers.
     """
-    from wyrd.generators.kenning.lexicon import LexiconDB
     from wyrd.generators.kenning.toponym_etymology_canonical import (
+        CanonicalDecision,
         apply_canonical_decisions,
-        compute_canonical_decisions,
+        compute_canonical_plans,
     )
 
     if audit_path is not None and audit_path.exists() and not force:
@@ -4513,23 +4515,31 @@ def lexicon_canonicalize_toponym_etymology(
     db = LexiconDB(db_path)
     click.echo(f"Using DB {db_path}", err=True)
 
-    decisions = compute_canonical_decisions(db, source_id=source_id)
-    if not decisions:
+    # Use compute_canonical_plans (not compute_canonical_decisions) so
+    # the per-toponym row_updates are built once. apply_canonical_decisions
+    # consumes the plans directly; this avoids the previous N+1 reload
+    # on the apply side (wyrd-08qv R1 — Gemini HIGH).
+    plans = compute_canonical_plans(db, source_id=source_id)
+    if not plans:
         click.echo("No toponym_etymology rows to canonicalize.", err=True)
         return
 
     # Dry-run preview: count outcomes BEFORE writing.
-    promoted = sum(1 for d in decisions if d.promoted_etymology_id is not None)
-    no_consensus = sum(1 for d in decisions if d.promoted_etymology_id is None)
+    promoted = sum(1 for p in plans if p.decision.promoted_etymology_id is not None)
+    no_consensus = sum(
+        1 for p in plans if p.decision.promoted_etymology_id is None and not p.all_empty_elements
+    )
+    no_elements = sum(1 for p in plans if p.all_empty_elements)
     click.echo(
-        f"Examining {len(decisions)} toponym(s)"
+        f"Examining {len(plans)} toponym(s)"
         + (f" (filtered to source_id={source_id!r})" if source_id else "")
-        + f": promote={promoted} no_consensus={no_consensus}",
+        + f": promote={promoted} no_consensus={no_consensus} no_elements={no_elements}",
         err=True,
     )
 
     if verbose:
-        for d in decisions:
+        for plan in plans:
+            d = plan.decision
             if d.promoted_etymology_id is not None:
                 click.echo(
                     f"  toponym#{d.toponym_id}: promote ety#{d.promoted_etymology_id} "
@@ -4555,18 +4565,18 @@ def lexicon_canonicalize_toponym_etymology(
         audit_path.parent.mkdir(parents=True, exist_ok=True)
         audit_sink = audit_path.open("w", encoding="utf-8")
 
-    def _audit(d) -> None:
+    def _audit(decision: CanonicalDecision) -> None:
         if audit_sink is None:
             return
         audit_sink.write(
             json.dumps(
                 {
-                    "toponym_id": d.toponym_id,
-                    "promoted_etymology_id": d.promoted_etymology_id,
-                    "consensus_size": d.consensus_size,
-                    "cluster_key": d.cluster_key,
-                    "runner_up_witness_count": d.runner_up_witness_count,
-                    "total_clusters": d.total_clusters,
+                    "toponym_id": decision.toponym_id,
+                    "promoted_etymology_id": decision.promoted_etymology_id,
+                    "consensus_size": decision.consensus_size,
+                    "cluster_key": decision.cluster_key,
+                    "runner_up_witness_count": decision.runner_up_witness_count,
+                    "total_clusters": decision.total_clusters,
                 },
                 ensure_ascii=False,
             )
@@ -4574,7 +4584,7 @@ def lexicon_canonicalize_toponym_etymology(
         )
 
     try:
-        summary = apply_canonical_decisions(db, decisions, on_decision=_audit)
+        summary = apply_canonical_decisions(db, plans, on_decision=_audit)
     finally:
         if audit_sink is not None:
             audit_sink.close()

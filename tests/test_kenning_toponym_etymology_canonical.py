@@ -121,10 +121,19 @@ def test_normalize_form_strips_whitespace_hyphens_asterisks():
 
 
 def test_normalize_form_real_disagreement_stays_distinct():
-    """'tun' vs 'thun' — Mawer's scholarly notes specifically call out
-    the th-/t- alternation as phonologically meaningful (Anglo-Norman
-    /θ/ → /t/ assimilation). These must NOT collapse, or we'd merge
-    real disagreement into false consensus."""
+    """Two cases the normalizer must NOT collapse:
+
+    * 'tun' vs 'thun' — Mawer's scholarly notes call out the t-/th-
+      alternation as phonologically meaningful (Anglo-Norman /θ/ → /t/
+      assimilation). Two extractors emitting these are disagreeing,
+      not agreeing.
+    * 'hr6sa' vs 'rosa' — raw OCR noise (digits inside what should be
+      letters) is a real production signal. The normalizer should NOT
+      strip digits, because doing so would silently merge OCR-broken
+      forms with their clean counterparts and falsely produce
+      consensus. A future maintainer "fixing" the normalizer to strip
+      digits would silently break this pin.
+    """
     assert _normalize_form("tun") != _normalize_form("thun")
     assert _normalize_form("hr6sa") != _normalize_form("rosa")
 
@@ -144,6 +153,8 @@ def test_extractor_from_notes_parses_llm_provider():
 
 
 def test_extractor_from_notes_parses_anthropic():
+    """Anthropic notes carry the same `extracted_by:provider:model;`
+    shape; inner colons (model id) don't confuse the regex."""
     notes = "extracted_by:anthropic:claude-haiku-4-5-20251001; Scholar identifies…"
     assert _extractor_from_notes(notes) == "anthropic:claude-haiku-4-5-20251001"
 
@@ -203,8 +214,9 @@ def test_two_witnesses_agree_promote_canonical(db):
     assert d.consensus_size == 2
     assert d.runner_up_witness_count == 1
     assert d.total_clusters == 2
-    # Cluster key reflects the normalized winning tuple.
-    assert d.cluster_key == "bedeling:old-english|tun:old-english"
+    # Cluster key reflects the normalized winning tuple — JSON-encoded
+    # for unambiguous round-trip (R1 type-design + silent-failure).
+    assert d.cluster_key == '[["bedeling","old-english"],["tun","old-english"]]'
     # haiku's hypothesis is not the canonical one (mention it just
     # to make the test's intent visible).
     assert d.promoted_etymology_id != haiku_ety
@@ -262,20 +274,75 @@ def test_two_clusters_tied_at_two_witnesses_picks_lowest_id(db):
     Tie broken deterministically by min-row-id in the winning cluster.
     Without this, re-runs over the same data could pick different
     canonicals on different days — defeating the 'settled answer'
-    semantics."""
+    semantics. ALSO verify the LOSING cluster's two rows received
+    cluster_key + consensus_size stamps (R1 pr-test-analyzer
+    MEDIUM)."""
     _add_toponym(db, 1, "X")
     _add_etymon(db, 1, "a", "old-english")
     _add_etymon(db, 2, "b", "old-english")
     a_qwen = _add_etymology(db, toponym_id=1, extractor="llm:qwen", elements=[(1, "old-english")])
-    _add_etymology(db, toponym_id=1, extractor="anthropic:claude", elements=[(1, "old-english")])
+    a_claude = _add_etymology(
+        db, toponym_id=1, extractor="anthropic:claude", elements=[(1, "old-english")]
+    )
     # The 'b' cluster has higher row ids — should NOT win.
-    _add_etymology(db, toponym_id=1, extractor="gemini:flash", elements=[(2, "old-english")])
-    _add_etymology(db, toponym_id=1, extractor="openai:gpt-5", elements=[(2, "old-english")])
+    b_gemini = _add_etymology(
+        db, toponym_id=1, extractor="gemini:flash", elements=[(2, "old-english")]
+    )
+    b_openai = _add_etymology(
+        db, toponym_id=1, extractor="llm:llama3", elements=[(2, "old-english")]
+    )
     decisions = compute_canonical_decisions(db)
     d = decisions[0]
     assert d.consensus_size == 2
     assert d.runner_up_witness_count == 2  # genuine tie
     assert d.promoted_etymology_id == a_qwen
+    # Apply and check the losing cluster rows got stamped too.
+    apply_canonical_decisions(db, decisions)
+    loser_rows = list(
+        db.conn.execute(
+            "SELECT id, is_canonical, consensus_size, cluster_key "
+            "FROM toponym_etymology WHERE id IN (?, ?) ORDER BY id",
+            (b_gemini, b_openai),
+        )
+    )
+    for r in loser_rows:
+        assert r["is_canonical"] == 0
+        assert r["consensus_size"] == 2  # the losing cluster also has 2 witnesses
+        assert r["cluster_key"] == '[["b","old-english"]]'
+    # And the winning cluster's non-canonical row (a_claude) — same
+    # cluster_key as a_qwen, is_canonical=0.
+    claude_row = db.conn.execute(
+        "SELECT is_canonical, consensus_size, cluster_key FROM toponym_etymology WHERE id = ?",
+        (a_claude,),
+    ).fetchone()
+    assert claude_row["is_canonical"] == 0
+    assert claude_row["consensus_size"] == 2
+    assert claude_row["cluster_key"] == '[["a","old-english"]]'
+
+
+def test_three_clusters_tied_at_two_witnesses_each(db):
+    """6 extractors split 2-vs-2-vs-2 on three different element
+    tuples. The lowest-id-row cluster wins (deterministic). R1
+    test-coverage MEDIUM: 2-way tie was covered, 3-way wasn't."""
+    _add_toponym(db, 1, "X")
+    _add_etymon(db, 1, "a", "old-english")
+    _add_etymon(db, 2, "b", "old-english")
+    _add_etymon(db, 3, "c", "old-english")
+    # First cluster ('a') — lowest ids 1, 2 → MIN is 1.
+    a_qwen = _add_etymology(db, toponym_id=1, extractor="llm:qwen", elements=[(1, "old-english")])
+    _add_etymology(db, toponym_id=1, extractor="anthropic:claude", elements=[(1, "old-english")])
+    # Second cluster ('b') — ids 3, 4.
+    _add_etymology(db, toponym_id=1, extractor="gemini:flash", elements=[(2, "old-english")])
+    _add_etymology(db, toponym_id=1, extractor="llm:llama3", elements=[(2, "old-english")])
+    # Third cluster ('c') — ids 5, 6.
+    _add_etymology(db, toponym_id=1, extractor="anthropic:sonnet", elements=[(3, "old-english")])
+    _add_etymology(db, toponym_id=1, extractor="gemini:pro", elements=[(3, "old-english")])
+    decisions = compute_canonical_decisions(db)
+    d = decisions[0]
+    assert d.consensus_size == 2
+    assert d.runner_up_witness_count == 2  # 3-way tie at 2
+    assert d.total_clusters == 3
+    assert d.promoted_etymology_id == a_qwen  # lowest id across all eligible clusters
 
 
 def test_no_elements_anywhere_is_noop(db):
@@ -311,7 +378,10 @@ def test_no_elements_anywhere_is_noop(db):
 def test_normalization_collapses_macron_variants(db):
     """Two extractors emit 'tūn' and 'tun'. They MUST count as
     agreement (per _normalize_form's documented contract). Pinning
-    this end-to-end through compute_canonical_decisions."""
+    this end-to-end through compute_canonical_decisions AND verifying
+    both rows get the SAME cluster_key after apply — without this,
+    a bug that bypasses _normalize_form in cluster_key construction
+    could still appear to 'cluster together' via some other path."""
     _add_toponym(db, 1, "Bedlington")
     _add_etymon(db, 1, "bedeling", "old-english")
     _add_etymon(db, 2, "tūn", "old-english")  # macron
@@ -319,7 +389,7 @@ def test_normalization_collapses_macron_variants(db):
     qwen = _add_etymology(
         db, toponym_id=1, extractor="llm:qwen", elements=[(1, "old-english"), (2, "old-english")]
     )
-    _add_etymology(
+    gemini = _add_etymology(
         db,
         toponym_id=1,
         extractor="gemini:flash",
@@ -329,6 +399,19 @@ def test_normalization_collapses_macron_variants(db):
     d = decisions[0]
     assert d.consensus_size == 2
     assert d.promoted_etymology_id == qwen
+    # Apply and verify BOTH rows received the same cluster_key (the
+    # macron and no-macron rows must literally share a key in the DB,
+    # not just happen to cluster).
+    apply_canonical_decisions(db, decisions)
+    keys = list(
+        db.conn.execute(
+            "SELECT cluster_key FROM toponym_etymology WHERE id IN (?, ?) ORDER BY id",
+            (qwen, gemini),
+        )
+    )
+    assert keys[0]["cluster_key"] == keys[1]["cluster_key"], (
+        "macron + no-macron rows must share cluster_key"
+    )
 
 
 def test_th_alternation_does_NOT_collapse(db):
@@ -415,11 +498,11 @@ def test_apply_marks_canonical_row_only(db):
     assert rows[0]["id"] == qwen
     assert rows[0]["is_canonical"] == 1
     assert rows[0]["consensus_size"] == 2
-    assert rows[0]["cluster_key"] == "x:old-english"
+    assert rows[0]["cluster_key"] == '[["x","old-english"]]'
     assert rows[1]["id"] == haiku
     assert rows[1]["is_canonical"] == 0  # other row in same cluster
     assert rows[1]["consensus_size"] == 2  # but participates in the agreement
-    assert rows[1]["cluster_key"] == "x:old-english"
+    assert rows[1]["cluster_key"] == '[["x","old-english"]]'
 
 
 def test_apply_stamps_non_canonical_clusters_too(db):
@@ -440,7 +523,7 @@ def test_apply_stamps_non_canonical_clusters_too(db):
     ).fetchone()
     assert row["is_canonical"] == 0
     assert row["consensus_size"] == 1  # the loser's cluster had 1 witness
-    assert row["cluster_key"] == "b:old-english"
+    assert row["cluster_key"] == '[["b","old-english"]]'
 
 
 def test_apply_is_idempotent(db):
@@ -453,6 +536,9 @@ def test_apply_is_idempotent(db):
     _add_etymology(db, toponym_id=1, extractor="haiku", elements=[(1, "old-english")])
     d1 = compute_canonical_decisions(db)
     s1 = apply_canonical_decisions(db, d1)
+    # 2 rows updated on first pass: BOTH rows in the winning cluster
+    # get cluster_key/consensus_size stamped (one as canonical, one
+    # as cluster sibling).
     assert s1.rows_updated == 2
     # Second pass over identical state: zero updates.
     d2 = compute_canonical_decisions(db)
@@ -484,14 +570,20 @@ def test_apply_demotes_when_consensus_lost(db):
         "DELETE FROM toponym_etymology_element WHERE toponym_etymology_id = ?", (haiku,)
     )
     db.commit()
-    # Second pass: demote.
+    # Second pass: demote. Also verify cluster_key + consensus_size
+    # reflect the NEW single-witness state — without these checks a
+    # regression that demoted is_canonical but left stale cluster
+    # metadata could slip through. R1 pr-test-analyzer MEDIUM.
     apply_canonical_decisions(db, compute_canonical_decisions(db))
-    assert (
-        db.conn.execute(
-            "SELECT is_canonical FROM toponym_etymology WHERE id = ?", (qwen,)
-        ).fetchone()["is_canonical"]
-        == 0
-    )
+    row = db.conn.execute(
+        "SELECT is_canonical, consensus_size, cluster_key FROM toponym_etymology WHERE id = ?",
+        (qwen,),
+    ).fetchone()
+    assert row["is_canonical"] == 0
+    assert row["consensus_size"] == 1
+    # cluster_key is still stamped — single-witness rows aren't
+    # canonical but they ARE clustered (cluster of size 1).
+    assert row["cluster_key"] == '[["x","old-english"]]'
 
 
 def test_canonical_view_filters_to_is_canonical_one(db):
@@ -583,7 +675,9 @@ def test_cli_dry_run_does_not_write(tmp_path):
 
 def test_cli_apply_writes_canonical(tmp_path):
     """--apply commits the canonicalization. Verify is_canonical
-    column gets set + the canonical view returns one row."""
+    column gets set + the canonical view returns one row + the SPECIFIC
+    row chosen is the lowest-id deterministic pick (qwen's row, not
+    haiku's). R1 pr-test-analyzer MEDIUM: 'which row' wasn't pinned."""
     db_path = tmp_path / "lexicon.db"
     _seed_minimal_db(db_path)
     runner = CliRunner()
@@ -595,8 +689,17 @@ def test_cli_apply_writes_canonical(tmp_path):
     assert "promoted=1" in result.output
     assert "(APPLIED)" in result.output
     db = LexiconDB(db_path)
-    canon = db.conn.execute("SELECT COUNT(*) FROM toponym_etymology_canonical").fetchone()[0]
-    assert canon == 1
+    rows = list(
+        db.conn.execute("SELECT id, is_canonical, notes FROM toponym_etymology ORDER BY id")
+    )
+    # _seed_minimal_db inserts qwen, claude-haiku, gemini in that order
+    # — qwen gets id=1, gets is_canonical=1 (lowest id in winning cluster).
+    assert rows[0]["is_canonical"] == 1
+    assert "llm:qwen" in rows[0]["notes"]
+    # The other rows: haiku is in the SAME cluster (is_canonical=0,
+    # not the chosen one); gemini is in a DIFFERENT cluster.
+    assert rows[1]["is_canonical"] == 0
+    assert rows[2]["is_canonical"] == 0
 
 
 def test_cli_audit_out_writes_jsonl(tmp_path):
@@ -625,7 +728,7 @@ def test_cli_audit_out_writes_jsonl(tmp_path):
     assert rows[0]["toponym_id"] == 1
     assert rows[0]["consensus_size"] == 2
     assert rows[0]["promoted_etymology_id"] is not None
-    assert rows[0]["cluster_key"] == "a:oe"
+    assert rows[0]["cluster_key"] == '[["a","oe"]]'
 
 
 def test_cli_audit_out_refuses_to_overwrite_without_force(tmp_path):
@@ -795,3 +898,237 @@ def test_cluster_key_respects_ordinal_order():
     a = (("bedeling", "old-english"), ("tun", "old-english"))
     b = (("tun", "old-english"), ("bedeling", "old-english"))
     assert _build_cluster_key(a) != _build_cluster_key(b)
+
+
+def test_cluster_key_handles_pipe_and_colon_in_form():
+    """A normalized form containing '|' or ':' (rare but possible
+    for reconstructed forms or unusual transliterations) must NOT
+    collide with a different element-tuple's key. R1 silent-failure-
+    hunter MEDIUM + type-design MEDIUM: the previous pipe-delimited
+    'form:lang|form:lang' format was ambiguous on these chars."""
+    # Two semantically-different element tuples that the old
+    # pipe-delimited format would have collapsed.
+    tuple_a = (("a:b", "lang"),)
+    tuple_b = (("a", "b:lang"),)
+    assert _build_cluster_key(tuple_a) != _build_cluster_key(tuple_b)
+    # And one with a pipe in the form:
+    tuple_c = (("a|b", "lang"),)
+    tuple_d = (("a", "lang|b"),)
+    assert _build_cluster_key(tuple_c) != _build_cluster_key(tuple_d)
+
+
+# ---------- new behaviors added in R1 -----------------------------------
+
+
+def test_anonymous_rows_do_not_witness_consensus(db):
+    """A row without ``extracted_by:`` prefix contributes ZERO
+    witnesses for consensus purposes. Two anonymous rows with the
+    same element-tuple do NOT promote — consensus requires at least
+    2 DISTINCT extractor tags. R1 silent-failure-hunter HIGH: the
+    previous ``_anon:{row.id}`` scheme allowed false consensus from
+    multiple legacy/curated rows."""
+    _add_toponym(db, 1, "X")
+    _add_etymon(db, 1, "x", "old-english")
+    # Two rows with notes lacking the extracted_by prefix.
+    db.conn.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id, notes) "
+        "VALUES (1, 'test_src', 'hand-curated by scholar A')"
+    )
+    db.conn.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id, notes) "
+        "VALUES (1, 'test_src', 'hand-curated by scholar B')"
+    )
+    db.commit()
+    for ety_id in (1, 2):
+        db.conn.execute(
+            "INSERT INTO toponym_etymology_element "
+            "(toponym_etymology_id, ordinal, etymon_id) VALUES (?, 0, 1)",
+            (ety_id,),
+        )
+    db.commit()
+    decisions = compute_canonical_decisions(db)
+    d = decisions[0]
+    # Two anonymous rows form a single cluster of size 2, but witness
+    # count is 0 (no extractor tags), so no canonical promotion.
+    assert d.promoted_etymology_id is None
+    assert d.consensus_size == 0
+
+
+def test_anonymous_row_alongside_llm_does_not_promote_alone(db):
+    """1 LLM row + 1 anonymous row in the same cluster has only 1
+    witness (the LLM). Cannot promote to canonical (needs >=2)."""
+    _add_toponym(db, 1, "X")
+    _add_etymon(db, 1, "x", "old-english")
+    # Anonymous row first (id=1), LLM row second (id=2).
+    db.conn.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id, notes) "
+        "VALUES (1, 'test_src', 'no prefix here')"
+    )
+    db.conn.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id, notes) "
+        "VALUES (1, 'test_src', 'extracted_by:llm:qwen; fixture')"
+    )
+    db.commit()
+    for ety_id in (1, 2):
+        db.conn.execute(
+            "INSERT INTO toponym_etymology_element "
+            "(toponym_etymology_id, ordinal, etymon_id) VALUES (?, 0, 1)",
+            (ety_id,),
+        )
+    db.commit()
+    decisions = compute_canonical_decisions(db)
+    d = decisions[0]
+    # Cluster has 2 rows, 1 witness → not promoted.
+    assert d.promoted_etymology_id is None
+    assert d.consensus_size == 0
+    assert d.runner_up_witness_count == 1  # the LLM row contributes 1
+
+
+def test_two_llms_agree_with_anonymous_rider(db):
+    """2 LLM extractors agreeing + 1 anonymous row in the same
+    cluster: 2 witnesses → canonical promotion. The anonymous row
+    rides along as cluster member (gets cluster_key + consensus_size
+    stamped) but doesn't itself count as a witness."""
+    _add_toponym(db, 1, "X")
+    _add_etymon(db, 1, "x", "old-english")
+    qwen = _add_etymology(db, toponym_id=1, extractor="llm:qwen", elements=[(1, "old-english")])
+    _add_etymology(db, toponym_id=1, extractor="anthropic:claude", elements=[(1, "old-english")])
+    # Third row: anonymous (notes WITHOUT extracted_by prefix).
+    cur = db.conn.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id, notes) "
+        "VALUES (1, 'test_src', 'no extractor tag here')"
+    )
+    anon_id = cur.lastrowid
+    db.conn.execute(
+        "INSERT INTO toponym_etymology_element "
+        "(toponym_etymology_id, ordinal, etymon_id) VALUES (?, 0, 1)",
+        (anon_id,),
+    )
+    db.commit()
+    decisions = compute_canonical_decisions(db)
+    d = decisions[0]
+    assert d.consensus_size == 2  # qwen + claude only, anon doesn't count
+    assert d.promoted_etymology_id == qwen  # lowest id in winning cluster
+    apply_canonical_decisions(db, decisions)
+    # Anonymous rider got cluster metadata too.
+    row = db.conn.execute(
+        "SELECT is_canonical, consensus_size, cluster_key FROM toponym_etymology WHERE id = ?",
+        (anon_id,),
+    ).fetchone()
+    assert row["is_canonical"] == 0  # not the winning row
+    assert row["consensus_size"] == 2  # cluster size visible
+    assert row["cluster_key"] == '[["x","old-english"]]'
+
+
+def test_e2e_bedlington_compute_apply_view(db):
+    """End-to-end Bedlington shape: 3 extractors, 2 agree, 1 has
+    extra element. Apply → query canonical VIEW → expect exactly one
+    row. The full happy path the production pipeline relies on.
+    R1 test-coverage-reviewer MEDIUM: no single test stitched compute
+    → apply → VIEW → assert in one Bedlington-shape scenario."""
+    _add_toponym(db, 1, "Bedlington")
+    _add_etymon(db, 1, "bedeling", "old-english")
+    _add_etymon(db, 2, "tun", "old-english")
+    _add_etymon(db, 3, "bedel", "old-english")  # haiku's extra element
+    qwen = _add_etymology(
+        db, toponym_id=1, extractor="llm:qwen", elements=[(1, "old-english"), (2, "old-english")]
+    )
+    _add_etymology(
+        db,
+        toponym_id=1,
+        extractor="anthropic:claude-haiku",
+        elements=[(1, "old-english"), (2, "old-english"), (3, "old-english")],
+    )
+    _add_etymology(
+        db,
+        toponym_id=1,
+        extractor="gemini:flash",
+        elements=[(1, "old-english"), (2, "old-english")],
+    )
+    apply_canonical_decisions(db, compute_canonical_decisions(db))
+    # The VIEW returns exactly the one canonical row.
+    rows = list(db.conn.execute("SELECT * FROM toponym_etymology_canonical"))
+    assert len(rows) == 1
+    assert rows[0]["id"] == qwen
+    assert rows[0]["consensus_size"] == 2
+    assert rows[0]["cluster_key"] == '[["bedeling","old-english"],["tun","old-english"]]'
+
+
+def test_multi_source_toponym(db):
+    """A toponym with toponym_etymology rows from MULTIPLE sources
+    treats them all as candidates for consensus. R1 test-coverage-
+    reviewer MEDIUM: source-agnostic clustering wasn't pinned."""
+    # Add a second source.
+    db.conn.execute("INSERT INTO source (id, title) VALUES ('test_src2', 'Test Source 2')")
+    db.commit()
+    _add_toponym(db, 1, "X")
+    _add_etymon(db, 1, "x", "old-english")
+    qwen_a = _add_etymology(
+        db, toponym_id=1, extractor="llm:qwen", elements=[(1, "old-english")], source="test_src"
+    )
+    _add_etymology(
+        db,
+        toponym_id=1,
+        extractor="gemini:flash",
+        elements=[(1, "old-english")],
+        source="test_src2",
+    )
+    decisions = compute_canonical_decisions(db)
+    d = decisions[0]
+    # Two distinct extractors agree, regardless of source — consensus.
+    assert d.consensus_size == 2
+    assert d.promoted_etymology_id == qwen_a
+
+
+def test_compute_is_pure_read_returns_stable_decisions(db):
+    """compute_canonical_decisions called twice on the same DB must
+    return field-identical CanonicalDecision lists. R1 pr-test
+    LOW: determinism across repeat calls wasn't pinned."""
+    _add_toponym(db, 1, "X")
+    _add_etymon(db, 1, "x", "old-english")
+    _add_etymology(db, toponym_id=1, extractor="qwen", elements=[(1, "old-english")])
+    _add_etymology(db, toponym_id=1, extractor="haiku", elements=[(1, "old-english")])
+    d1 = compute_canonical_decisions(db)
+    d2 = compute_canonical_decisions(db)
+    # CanonicalDecision is now frozen=True, so equality is field-by-field.
+    assert d1 == d2
+
+
+def test_canonical_decision_is_frozen():
+    """CanonicalDecision is documented as frozen for audit-log safety.
+    Mutation attempts must raise. R1 type-design MEDIUM."""
+    d = CanonicalDecision(
+        toponym_id=1,
+        promoted_etymology_id=2,
+        consensus_size=2,
+        cluster_key="x",
+        runner_up_witness_count=1,
+        total_clusters=2,
+    )
+    with pytest.raises((AttributeError, Exception)):  # FrozenInstanceError
+        d.toponym_id = 99  # type: ignore[misc]
+
+
+def test_cli_verbose_outputs_per_decision_lines(tmp_path):
+    """--verbose surfaces per-toponym decision lines. R1 test-coverage
+    HIGH: this flag was unpinned and a refactor could silently break
+    the format operators rely on for triage."""
+    db_path = tmp_path / "lexicon.db"
+    _seed_minimal_db(db_path)
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "canonicalize-toponym-etymology",
+            "--db",
+            str(db_path),
+            "--verbose",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Promote line for the consensual toponym
+    assert "promote ety#" in result.output
+    assert "consensus=2" in result.output
+    assert "clusters=2" in result.output
+    assert "runner_up=1" in result.output

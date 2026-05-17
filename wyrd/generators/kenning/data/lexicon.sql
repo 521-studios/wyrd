@@ -373,8 +373,11 @@ CREATE TABLE toponym_etymology (
   -- only by default; future LLM re-extraction passes can skip
   -- toponyms with a canonical etymology to save cost on settled
   -- answers. Single-witness rows stay is_canonical=0 + consensus_size=1.
-  -- Recomputed in bulk by `canonicalize-toponym-etymology --apply`;
-  -- reversible via `clear-enrichment --stage=canonical-etymology`.
+  -- Recomputed in bulk by `canonicalize-toponym-etymology --apply` —
+  -- the operation is idempotent and automatically demotes rows that
+  -- lose consensus on a re-run, so there's no separate
+  -- clear-enrichment stage; re-run the canonicalize command after the
+  -- corpus changes to refresh.
   is_canonical    INTEGER NOT NULL DEFAULT 0,
   consensus_size  INTEGER NOT NULL DEFAULT 1,
   -- The cluster key used to group agreeing rows. Persisted (rather
