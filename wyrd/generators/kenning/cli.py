@@ -4537,6 +4537,100 @@ def lexicon_rando_port_readiness(
         raise SystemExit(1)
 
 
+@lexicon.command("report-wikipedia-backfill")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+    help="Lexicon SQLite DB (read-only — this command never writes).",
+)
+@click.option(
+    "--data-dir",
+    "data_dir",
+    type=click.Path(exists=True, file_okay=False, path_type=Path),
+    default=Path("wyrd/generators/kenning/data"),
+    show_default=True,
+    help="Directory containing the *_place_names.json files.",
+)
+@click.option(
+    "--language",
+    "languages",
+    multiple=True,
+    help="Restrict to one or more cultures (repeatable). Tokens are matched "
+    "case-insensitively against the file prefix: --language english picks "
+    "english_place_names.json. Default: all 5 (english, scottish, welsh, "
+    "irish, breton).",
+)
+@click.option(
+    "--as-json",
+    "as_json",
+    is_flag=True,
+    default=False,
+    help="Emit machine-readable JSON on stdout instead of the human table on "
+    "stderr. Useful for piping into jq / downstream tooling.",
+)
+@click.option(
+    "--verbose",
+    is_flag=True,
+    default=False,
+    help="Expand each region to per-county/subregion rows in the table "
+    "output. Default rolls up to per-country only.",
+)
+def lexicon_report_wikipedia_backfill(
+    db_path: Path,
+    data_dir: Path,
+    languages: tuple[str, ...],
+    as_json: bool,
+    verbose: bool,
+) -> None:
+    """Report Wikipedia-place-name backfill progress (wyrd-4453).
+
+    The 5 ``*_place_names.json`` files in
+    ``wyrd/generators/kenning/data`` are Wikipedia-sourced seed lists
+    used to populate the toponym table. The epic-terminal goal is to
+    retire them once scholar mining has independently attested enough
+    entries that dropping the Wikipedia provenance is safe.
+
+    Per file → region → (optionally county), this command tallies:
+
+      * total     — Wikipedia entries the file lists
+      * in_db     — entries that exist as a toponym row (exact-match
+        on ``modern_name``)
+      * attested  — entries with ≥1 ``toponym_attestation`` row
+        (scholar attestation — the retirement criterion)
+      * gap       — total - attested
+
+    Strictly read-only. Name lookup is case-sensitive exact match
+    against ``toponym.modern_name``; fuzzy-matching is a follow-up.
+    """
+    from wyrd.generators.kenning.wikipedia_backfill_report import (
+        compute_backfill_report,
+        format_report,
+        report_to_dict,
+    )
+
+    db = LexiconDB(db_path)
+    click.echo(f"Using DB {db_path}", err=True)
+
+    reports = compute_backfill_report(
+        db,
+        data_dir=data_dir,
+        languages=languages or None,
+    )
+
+    if as_json:
+        # JSON to stdout; the "Using DB ..." line still on stderr so
+        # the pipe stays clean.
+        click.echo(json.dumps(report_to_dict(reports), ensure_ascii=False, indent=2))
+        return
+
+    # Human-readable table to stderr per project mining-progress
+    # convention (data on stdout, status on stderr).
+    click.echo(format_report(reports, verbose=verbose), err=True)
+
+
 @lexicon.command("fetch-bulk-sources")
 @click.option(
     "--slice",
