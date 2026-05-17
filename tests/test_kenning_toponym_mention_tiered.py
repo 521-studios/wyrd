@@ -2025,6 +2025,45 @@ def test_tiered_hallucination_rescue_dedupes_internal_fallback_duplicates():
     assert edlin_contexts == ["Edlin fallback-context", "Edlin primary-context"]
 
 
+def test_run_hallucination_rescue_failure_path_returns_fresh_list():
+    """wyrd-z8mq R5 (Gemini MEDIUM) + R6 (test-coverage LOW): pin
+    the list-identity contract on the failure path. The R5 fix
+    changed `return primary_mentions, False` to
+    `return list(primary_mentions), False` for ownership-contract
+    consistency with the success path. A regression deleting the
+    `list(...)` wrap would silently alias the failure-path return
+    — not a current bug (caller only `.extend()`s the result) but
+    a latent hazard the R5 fix was specifically meant to prevent.
+    Until now this contract had no test."""
+    from wyrd.generators.kenning.toponym_mention_extractor import (
+        ToponymMention,
+        ValidationCounters,
+        _run_hallucination_rescue,
+    )
+
+    class _RaisingFallback:
+        model = "raise"
+
+        def chat_json(self, system, user, schema=None):
+            raise RuntimeError("simulated rescue transport failure")
+
+    primary = [
+        ToponymMention(form="Edlin", date_year=None, region_hint=None, context="Edlin context")
+    ]
+    counters = ValidationCounters()
+    result, succeeded = _run_hallucination_rescue(
+        _RaisingFallback(),
+        chunk="Edlin context",
+        chunk_index=0,
+        primary_mentions=primary,
+        primary_counters=counters,
+        log_warning=None,
+    )
+    assert succeeded is False
+    assert result == primary  # same contents
+    assert result is not primary  # ...but a fresh list (the load-bearing assertion)
+
+
 def test_tiered_hallucination_rescue_only_when_primary_succeeds():
     """The rescue path is mutually exclusive with the primary-failed
     path. If the primary FAILS and the fallback recovers, the recovery
