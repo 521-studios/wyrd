@@ -1264,3 +1264,1220 @@ def test_cli_realistic_mention_shape_preserves_all_fields(tmp_path, monkeypatch)
     assert line["date_year"] == 1086
     assert line["region_hint"] == "Northumberland"
     assert "Edlingham in Northumberland" in line["context"]
+
+
+# ---------- hallucination-triggered rescue (wyrd-z8mq) ------------------
+#
+# Tests for ``hallucination_fallback_threshold``: when the primary
+# succeeds but emits ``hallucinations_dropped >= threshold`` forms, the
+# fallback ALSO runs on the same chunk and union-merges mentions by
+# (form, date_year, region_hint, context). Designed for gemma4 primary
+# + Anthropic fallback so the small model keeps its good mentions while
+# the large model catches what it fabricated. Each FakeClient response
+# below uses chunk 1's "Edlin" / chunk 2's "Wear" / chunk 3's "Tyne"
+# as real forms; other strings (e.g. "Faux") trip the word-boundary
+# guard since they don't appear in the chunk body.
+#
+# Counter contract (round-1 silent-failure-hunter HIGH): the rescue
+# tracks attempted + succeeded separately. _attempted bumps when the
+# threshold trips (regardless of fallback success); _succeeded bumps
+# only when the fallback returns mentions. A gap (succeeded < attempted)
+# is the broken-fallback signal (bad API key, network outage) that the
+# CLI surfaces as `halluc_rescued=succeeded/attempted` in summary lines.
+
+
+def test_tiered_hallucination_rescue_triggers_and_dedupes_on_byte_identical():
+    """Primary emits a good mention + 2 hallucinated forms; fallback
+    emits the SAME good mention with byte-identical context. Rescue
+    fires, byte-identical dedup collapses the two Edlin emissions
+    (one survives, not two).
+
+    Pins: (a) the attempted+succeeded counters increment, (b)
+    byte-identical (form, date_year, region_hint, context) collisions
+    drop the fallback's copy. The 'primary wins' canonical-winner
+    semantics is structurally true (the code inserts primary's
+    mentions before applying the filter to fallback's), but with
+    byte-identical attributes the surviving mention is observationally
+    indistinguishable from either source; the test doesn't try to
+    pin which physical instance survived — test-coverage R1 LOW
+    noted this and the resolution is to NOT overclaim. See
+    test_tiered_hallucination_rescue_preserves_distinct_contexts
+    for the distinct-context case where both mentions survive."""
+    primary = FakeClient(
+        [
+            # chunk 1: 1 real ("Edlin") + 2 fake ("Faux1", "Faux2")
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin shared context"},
+                    {"form": "Faux1", "context": "Faux1 context"},
+                    {"form": "Faux2", "context": "Faux2 context"},
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient(
+        [
+            # Byte-identical context — same form/year/region/context
+            # → primary wins on collision, fallback's copy dropped.
+            {"mentions": [{"form": "Edlin", "context": "Edlin shared context"}]},
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_processed == 3
+    assert report.chunks_hallucination_rescue_attempted == 1
+    assert report.chunks_hallucination_rescue_succeeded == 1
+    assert report.chunks_recovered_by_fallback == 0
+    assert report.hallucinations_dropped == 2
+    assert len(fallback.calls) == 1
+    # One Edlin survives — both emissions had identical dedup keys.
+    assert [m.form for m in report.mentions] == ["Edlin"]
+    assert report.mentions[0].context == "Edlin shared context"
+
+
+def test_tiered_hallucination_rescue_preserves_distinct_contexts():
+    """Context-inclusive dedup (silent-failure-hunter R1 MEDIUM): if
+    primary's Edlin has context A and fallback's Edlin has context B,
+    the two are DIFFERENT attestations and both must be retained.
+    Without context in the dedup key the fallback's distinct
+    attestation would be silently dropped — real information loss
+    since context is downstream-serialized."""
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin sentence one"},
+                    {"form": "Faux1", "context": "Faux1"},
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient(
+        [
+            {"mentions": [{"form": "Edlin", "context": "Edlin sentence two"}]},
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_hallucination_rescue_attempted == 1
+    assert report.chunks_hallucination_rescue_succeeded == 1
+    # Both Edlin mentions retained — different contexts = different
+    # dedup keys.
+    contexts = sorted(m.context for m in report.mentions)
+    assert contexts == ["Edlin sentence one", "Edlin sentence two"]
+
+
+def test_tiered_hallucination_rescue_at_exact_threshold_boundary():
+    """threshold=1, hallucinations=1: the >= comparison must fire
+    at the boundary (test-coverage R1 LOW). A regression to > would
+    silently break the dominant production config (gemma4 primary
+    with threshold=1). Fallback emits a non-empty rescue so
+    _succeeded increments under the round-2 contract (otherwise the
+    test would conflate threshold-boundary with rescue-content-
+    delivery)."""
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin"},
+                    {"form": "Faux1", "context": "Faux1"},  # 1 fake → boundary
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient([{"mentions": [{"form": "Edlin", "context": "Edlin"}]}])
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_hallucination_rescue_attempted == 1
+    assert report.chunks_hallucination_rescue_succeeded == 1
+    assert len(fallback.calls) == 1
+
+
+def test_tiered_hallucination_rescue_below_threshold_no_fallback():
+    """Primary emits 1 hallucinated form, but threshold=2 — rescue
+    does NOT fire. Counters stay 0, fallback isn't called."""
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin context"},
+                    {"form": "Faux1", "context": "Faux1 context"},
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient([])
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=2,
+    )
+    assert report.chunks_hallucination_rescue_attempted == 0
+    assert report.chunks_hallucination_rescue_succeeded == 0
+    assert report.hallucinations_dropped == 1
+    assert len(fallback.calls) == 0
+
+
+def test_tiered_hallucination_rescue_disabled_by_default():
+    """Without the threshold (None), primary's hallucinations don't
+    trigger the rescue — existing two-tier semantics are preserved."""
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin context"},
+                    {"form": "Faux1", "context": "Faux1 context"},
+                    {"form": "Faux2", "context": "Faux2 context"},
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient([])
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+    )
+    assert report.chunks_hallucination_rescue_attempted == 0
+    assert report.chunks_hallucination_rescue_succeeded == 0
+    assert report.hallucinations_dropped == 2
+    assert len(fallback.calls) == 0
+
+
+def test_tiered_hallucination_rescue_disabled_when_zero():
+    """threshold=0 explicitly-disabled. Fallback NOT called even with
+    5 hallucinations."""
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin"},
+                    {"form": "Faux1", "context": "Faux1"},
+                    {"form": "Faux2", "context": "Faux2"},
+                    {"form": "Faux3", "context": "Faux3"},
+                    {"form": "Faux4", "context": "Faux4"},
+                    {"form": "Faux5", "context": "Faux5"},
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient([])
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=0,
+    )
+    assert report.chunks_hallucination_rescue_attempted == 0
+    assert report.chunks_hallucination_rescue_succeeded == 0
+    assert len(fallback.calls) == 0
+
+
+def test_tiered_hallucination_rescue_union_adds_novel_mentions():
+    """Primary's chunk 2 hits threshold; fallback emits a NEW form
+    primary didn't see (different from primary's dedup keys). Union
+    merge keeps both."""
+    primary = FakeClient(
+        [
+            {"mentions": []},
+            {
+                "mentions": [
+                    {"form": "Wear", "context": "Wear context", "date_year": 1086},
+                    {"form": "FakeForm", "context": "FakeForm", "date_year": 1086},
+                ]
+            },
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient(
+        [
+            {"mentions": [{"form": "Wear", "context": "Wear alt", "date_year": 1200}]},
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_hallucination_rescue_attempted == 1
+    assert report.chunks_hallucination_rescue_succeeded == 1
+    forms_years = [(m.form, m.date_year) for m in report.mentions]
+    assert forms_years == [("Wear", 1086), ("Wear", 1200)]
+
+
+def test_tiered_hallucination_rescue_continues_on_fallback_error():
+    """Rescue is opportunistic — if the fallback ERRORS on the rescue
+    pass, primary's good mentions flow through (no chunks_failed bump).
+    _attempted increments since the rescue WAS attempted; _succeeded
+    does NOT, exposing the broken-fallback case in the summary line
+    (silent-failure-hunter R1 HIGH)."""
+
+    class _FailingFallback:
+        model = "fail"
+
+        def chat_json(self, system, user, schema=None):
+            raise RuntimeError("simulated fallback transport failure")
+
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin"},
+                    {"form": "Faux1", "context": "Faux1"},
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        _FailingFallback(),
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_hallucination_rescue_attempted == 1
+    assert report.chunks_hallucination_rescue_succeeded == 0
+    assert report.chunks_failed == 0  # primary's mentions still good
+    assert report.chunks_processed == 3
+    assert [m.form for m in report.mentions] == ["Edlin"]
+
+
+def test_tiered_hallucination_rescue_counters_attempted_vs_succeeded_diverge():
+    """Multi-chunk run with mixed fallback outcomes (one succeeds,
+    one fails). Pins that the two counters can legitimately diverge —
+    the operationally critical observability case the dual-counter
+    design is meant to surface (silent-failure-hunter R1 HIGH)."""
+
+    class _MixedFallback:
+        """Returns mentions on first call, errors on second."""
+
+        model = "mixed"
+
+        def __init__(self):
+            self.calls = 0
+
+        def chat_json(self, system, user, schema=None):
+            self.calls += 1
+            if self.calls == 1:
+                return {"mentions": [{"form": "Edlin", "context": "rescue context"}]}
+            raise RuntimeError("simulated mid-run transient")
+
+    primary = FakeClient(
+        [
+            # chunk 1: triggers rescue, fallback succeeds
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin"},
+                    {"form": "Faux1a", "context": "Faux1a"},
+                ]
+            },
+            # chunk 2: triggers rescue, fallback fails
+            {
+                "mentions": [
+                    {"form": "Wear", "context": "Wear"},
+                    {"form": "Faux2a", "context": "Faux2a"},
+                ]
+            },
+            {"mentions": []},
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        _MixedFallback(),
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_hallucination_rescue_attempted == 2
+    assert report.chunks_hallucination_rescue_succeeded == 1
+    assert report.chunks_failed == 0
+    # Primary's good mentions retained from BOTH chunks regardless
+    # of fallback outcome on either. Chunk-1 fallback added a
+    # distinct-context Edlin (kept under context-inclusive dedup);
+    # chunk-2 fallback errored so no contribution.
+    forms = sorted(m.form for m in report.mentions)
+    assert forms == ["Edlin", "Edlin", "Wear"]
+
+
+def test_tiered_hallucination_rescue_aggregates_counters_across_chunks():
+    """Counters aggregate across multiple rescued chunks. Both
+    counters track the same chunks (attempted=succeeded since both
+    fallback calls return mentions); hallucinations_dropped sums
+    primary + fallback contributions."""
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin"},
+                    {"form": "Faux1a", "context": "Faux1a"},
+                    {"form": "Faux1b", "context": "Faux1b"},
+                ]
+            },
+            {
+                "mentions": [
+                    {"form": "Wear", "context": "Wear"},
+                    {"form": "Faux2a", "context": "Faux2a"},
+                ]
+            },
+            {"mentions": [{"form": "Tyne", "context": "Tyne"}]},  # no rescue
+        ]
+    )
+    fallback = FakeClient(
+        [
+            {"mentions": [{"form": "Edlin", "context": "Edlin alt"}]},
+            {
+                "mentions": [
+                    {"form": "Wear", "context": "Wear alt"},
+                    {"form": "Faux2b", "context": "Faux2b"},
+                ]
+            },
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_hallucination_rescue_attempted == 2
+    assert report.chunks_hallucination_rescue_succeeded == 2
+    # primary chunk 1 (2) + primary chunk 2 (1) + fallback chunk 2 (1) = 4
+    assert report.hallucinations_dropped == 4
+    assert report.chunks_processed == 3
+    assert report.chunks_failed == 0
+    # Context-inclusive dedup keeps the fallback's distinct-context
+    # Edlin and Wear too — both contribute novel attestations.
+    forms = sorted(m.form for m in report.mentions)
+    assert forms == ["Edlin", "Edlin", "Tyne", "Wear", "Wear"]
+
+
+def test_tiered_hallucination_rescue_all_chunks_triggered():
+    """Every chunk trips the threshold (3/3). Boundary test for
+    consistent counter aggregation when the rescue fires on the
+    first chunk, last chunk, and every chunk in between
+    (pr-test-analyzer R1 LOW). Fallback emits non-empty mentions on
+    each chunk so the contract-of-_succeeded ('fallback delivered
+    content') is satisfied — see test_tiered_hallucination_rescue_empty_fallback_*
+    below for the empty-response semantics."""
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin"},
+                    {"form": "Faux1", "context": "Faux1"},
+                ]
+            },
+            {
+                "mentions": [
+                    {"form": "Wear", "context": "Wear"},
+                    {"form": "Faux2", "context": "Faux2"},
+                ]
+            },
+            {
+                "mentions": [
+                    {"form": "Tyne", "context": "Tyne"},
+                    {"form": "Faux3", "context": "Faux3"},
+                ]
+            },
+        ]
+    )
+    fallback = FakeClient(
+        [
+            # Non-empty rescues: each emits the same form the primary
+            # found, with same context → dedup collapses, but
+            # rescue_mentions itself is non-empty so _succeeded
+            # increments under the round-2 contract.
+            {"mentions": [{"form": "Edlin", "context": "Edlin"}]},
+            {"mentions": [{"form": "Wear", "context": "Wear"}]},
+            {"mentions": [{"form": "Tyne", "context": "Tyne"}]},
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_hallucination_rescue_attempted == 3
+    assert report.chunks_hallucination_rescue_succeeded == 3
+    assert len(fallback.calls) == 3
+
+
+def test_tiered_hallucination_rescue_empty_fallback_response_counts_as_unsucceeded():
+    """wyrd-z8mq round 2 silent-failure-hunter HIGH: a fallback that
+    returns `{"mentions": []}` (content-policy refusal, schema
+    validation glitch, model declining to extract) is operationally
+    equivalent to a failed rescue — the primary's hallucinations
+    weren't actually caught even though the call mechanically
+    succeeded. _attempted increments (rescue WAS triggered);
+    _succeeded does NOT (no content delivered). The CLI summary
+    will surface this as 'halluc_rescued=0/N', identical to the
+    transport-failure case."""
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin"},
+                    {"form": "Faux1", "context": "Faux1"},
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient(
+        [
+            # Mechanically successful call, but empty result —
+            # the silent-empty case the round-2 fix is meant to
+            # surface.
+            {"mentions": []},
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_hallucination_rescue_attempted == 1
+    assert report.chunks_hallucination_rescue_succeeded == 0  # empty → no content delivered
+    assert report.chunks_failed == 0  # primary's mentions still good
+    assert [m.form for m in report.mentions] == ["Edlin"]
+
+
+def test_tiered_hallucination_rescue_log_warnings_emitted():
+    """wyrd-z8mq R2 pr-test-analyzer LOW: the rescue's trigger log
+    line + the fallback-failure log line are operator-debugging
+    contracts ('which chunks were rescued', 'which rescues failed').
+    A refactor that drops chunk index or changes the wording would
+    not be caught by other tests. Capture both."""
+
+    class _FailingFallback:
+        model = "fail"
+
+        def chat_json(self, system, user, schema=None):
+            raise RuntimeError("simulated rescue transport failure")
+
+    primary = FakeClient(
+        [
+            # chunk 1 (index 0): triggers rescue
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin"},
+                    {"form": "Faux1", "context": "Faux1"},
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    warnings: list[str] = []
+    mine_toponym_mentions_tiered(
+        primary,
+        _FailingFallback(),
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+        log_warning=warnings.append,
+    )
+    rescue_trigger_lines = [w for w in warnings if "running fallback for rescue" in w]
+    assert len(rescue_trigger_lines) == 1
+    assert "chunk 0" in rescue_trigger_lines[0]  # chunk index preserved
+    assert "1 forms" in rescue_trigger_lines[0]  # hallucination count preserved
+
+    rescue_fail_lines = [w for w in warnings if "rescue fallback failed" in w]
+    assert len(rescue_fail_lines) == 1
+    assert "chunk 0" in rescue_fail_lines[0]
+    assert "simulated rescue transport failure" in rescue_fail_lines[0]
+    assert "primary mentions retained" in rescue_fail_lines[0]
+
+
+def test_tiered_hallucination_rescue_reraises_programmer_errors_from_rescue():
+    """wyrd-z8mq R2 pr-test-analyzer LOW + test-coverage LOW
+    (convergent): the rescue helper has its OWN
+    _PROGRAMMER_ERROR_EXCEPTIONS re-raise clause (separate from the
+    primary-failed-fallback path's). A regression that swallowed
+    AttributeError/TypeError/NameError/ImportError/ValueError on
+    the rescue path would downgrade real bugs into 'failed rescue'
+    log lines, masking them in production.
+
+    Mirrors test_tiered_reraises_programmer_errors_from_fallback
+    but for the rescue path specifically."""
+
+    class _ProgrammerErrorOnRescue:
+        model = "broken"
+
+        def chat_json(self, system, user, schema=None):
+            # NOT a transport error — a real Python bug surface.
+            raise AttributeError("simulated missing method bug")
+
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin"},
+                    {"form": "Faux1", "context": "Faux1"},
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    import pytest
+
+    with pytest.raises(AttributeError, match="simulated missing method bug"):
+        mine_toponym_mentions_tiered(
+            primary,
+            _ProgrammerErrorOnRescue(),
+            "test_source",
+            _three_chunk_body(),
+            target_chunk_size=10000,
+            hallucination_fallback_threshold=1,
+        )
+
+
+def test_tiered_hallucination_rescue_folds_years_clamped_from_fallback():
+    """wyrd-z8mq R2 pr-test-analyzer LOW: years_clamped from the
+    rescue's chunk_counters folds into the report alongside
+    hallucinations_dropped. The aggregation test only pinned
+    hallucinations_dropped; a regression dropping the years_clamped
+    fold would silently lose the year-coercion stat from rescued
+    chunks.
+
+    A primary mention with an out-of-range date_year triggers
+    years_clamped on the primary side; a fallback mention with the
+    same triggers years_clamped on the rescue side. Both should
+    sum into the report's aggregate."""
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin", "date_year": 9999},  # clamped
+                    {"form": "Faux1", "context": "Faux1"},
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient(
+        [
+            # Rescue contributes its own clamped year — different
+            # context so it isn't deduped against primary's Edlin.
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin other", "date_year": 5555},
+                ]
+            },
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_hallucination_rescue_attempted == 1
+    assert report.chunks_hallucination_rescue_succeeded == 1
+    # primary clamped 1 + fallback rescue clamped 1 = 2
+    assert report.years_clamped == 2
+
+
+def test_tiered_hallucination_rescue_dedup_key_distinguishes_region_hint():
+    """wyrd-z8mq R2 test-coverage LOW: dedup-key tests cover form,
+    date_year, and context distinctions but not region_hint. A
+    regression dropping region_hint from
+    _hallucination_rescue_dedup_key would collapse mentions of the
+    same place name from different regions (e.g. Newton in
+    Northumberland vs Newton in Durham) into one. Pin the slot
+    explicitly."""
+    primary = FakeClient(
+        [
+            {"mentions": []},
+            {"mentions": []},
+            {
+                "mentions": [
+                    {"form": "Tyne", "context": "Tyne shared", "region_hint": "Northumberland"},
+                    {"form": "Faux", "context": "Faux"},
+                ]
+            },
+        ]
+    )
+    fallback = FakeClient(
+        [
+            # Same form + same context, different region_hint —
+            # distinct dedup key, both must survive.
+            {"mentions": [{"form": "Tyne", "context": "Tyne shared", "region_hint": "Durham"}]},
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    regions = sorted(m.region_hint for m in report.mentions)
+    assert regions == ["Durham", "Northumberland"]
+
+
+def test_tiered_hallucination_rescue_dedupes_internal_fallback_duplicates():
+    """wyrd-z8mq round 3 Gemini MEDIUM: when the fallback itself
+    emits the same mention twice, the union merge should keep only
+    one. The base extractor doesn't dedup intra-response duplicates;
+    the union-merge pass is the appropriate place to clean them.
+
+    Chunk 1's body contains 'Edlin' (real form, word-boundary
+    matches). Primary emits Edlin with one context; fallback emits
+    Edlin TWICE with a different (byte-identical-to-itself) context.
+    Without internal dedup the result would have 3 Edlins
+    (primary + fallback x2); with it, the result has 2 (primary +
+    one fallback)."""
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin primary-context"},
+                    {"form": "Faux", "context": "Faux"},
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin fallback-context"},
+                    {"form": "Edlin", "context": "Edlin fallback-context"},
+                ]
+            },
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_hallucination_rescue_attempted == 1
+    assert report.chunks_hallucination_rescue_succeeded == 1
+    # Two Edlins (primary's + one fallback). Without internal dedup
+    # we'd have three.
+    edlin_contexts = sorted(m.context for m in report.mentions if m.form == "Edlin")
+    assert edlin_contexts == ["Edlin fallback-context", "Edlin primary-context"]
+
+
+def test_run_hallucination_rescue_failure_path_returns_fresh_list():
+    """wyrd-z8mq R5 (Gemini MEDIUM) + R6 (test-coverage LOW): pin
+    the list-identity contract on the failure path. The R5 fix
+    changed `return primary_mentions, False` to
+    `return list(primary_mentions), False` for ownership-contract
+    consistency with the success path. A regression deleting the
+    `list(...)` wrap would silently alias the failure-path return
+    — not a current bug (caller only `.extend()`s the result) but
+    a latent hazard the R5 fix was specifically meant to prevent.
+    Until now this contract had no test."""
+    from wyrd.generators.kenning.toponym_mention_extractor import (
+        ToponymMention,
+        ValidationCounters,
+        _run_hallucination_rescue,
+    )
+
+    class _RaisingFallback:
+        model = "raise"
+
+        def chat_json(self, system, user, schema=None):
+            raise RuntimeError("simulated rescue transport failure")
+
+    primary = [
+        ToponymMention(form="Edlin", date_year=None, region_hint=None, context="Edlin context")
+    ]
+    counters = ValidationCounters()
+    result, succeeded = _run_hallucination_rescue(
+        _RaisingFallback(),
+        chunk="Edlin context",
+        chunk_index=0,
+        primary_mentions=primary,
+        primary_counters=counters,
+        log_warning=None,
+    )
+    assert succeeded is False
+    assert result == primary  # same contents
+    assert result is not primary  # ...but a fresh list (the load-bearing assertion)
+
+
+def test_tiered_hallucination_rescue_only_when_primary_succeeds():
+    """The rescue path is mutually exclusive with the primary-failed
+    path. If the primary FAILS and the fallback recovers, the recovery
+    path counters increment but the rescue counters do NOT — even if
+    the recovery fallback emits its own hallucinations."""
+    primary = FakeClient(
+        [
+            RuntimeError("primary timeout"),
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin"},
+                    {"form": "Faux1", "context": "Faux1"},
+                    {"form": "Faux2", "context": "Faux2"},
+                ]
+            },
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    assert report.chunks_recovered_by_fallback == 1
+    assert report.chunks_hallucination_rescue_attempted == 0  # mutually exclusive
+    assert report.chunks_hallucination_rescue_succeeded == 0
+    assert report.hallucinations_dropped == 2
+    assert [m.form for m in report.mentions] == ["Edlin"]
+
+
+# ---------- CLI integration for the rescue flag (wyrd-z8mq) -------------
+
+
+def test_cli_hallucination_fallback_threshold_flows_through(tmp_path, monkeypatch):
+    """End-to-end: --hallucination-fallback-threshold flag is plumbed
+    from the click decorator through the function call site so a
+    typo'd kwarg or missing pass-through is caught (pr-test-analyzer
+    R1 HIGH). Source body has 1 chunk; primary emits 1 real + 1 fake;
+    fallback succeeds → halluc_rescued counters increment."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text("Edlingham mentioned here.", encoding="utf-8")
+    output_dir = tmp_path / "out"
+
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlingham", "context": "Edlingham mentioned here"},
+                    {"form": "FauxPlace", "context": "FauxPlace fabricated"},
+                ]
+            }
+        ]
+    )
+    fallback = FakeClient([{"mentions": []}])
+    _stub_ollama_for_cli(monkeypatch, primary)
+    _stub_anthropic_for_cli(monkeypatch, fallback)
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--hallucination-fallback-threshold",
+            "1",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Fallback was actually called → flag plumbed through.
+    assert len(fallback.calls) == 1
+
+
+def test_cli_hallucination_fallback_threshold_rejects_negative(tmp_path):
+    """click.IntRange(min=0) rejects negative threshold values
+    (type-design-analyzer R1 MEDIUM). Without the IntRange guard,
+    a negative threshold would silently disable the rescue (the
+    library checks `> 0`) while the operator might expect a stricter
+    config (or some other intent) — better to fail loudly at the CLI."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text("body", encoding="utf-8")
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--hallucination-fallback-threshold",
+            "-1",
+        ],
+    )
+    assert result.exit_code != 0
+    # click.IntRange validation message
+    assert "is not in the range" in result.output or "Invalid value" in result.output
+
+
+def test_cli_summary_reports_halluc_rescued_succeeded_over_attempted(tmp_path, monkeypatch):
+    """Per-source + TOTAL summary lines include
+    `halluc_rescued=succeeded/attempted` (silent-failure-hunter R1
+    HIGH + test-coverage R1 MEDIUM). A broken fallback (every rescue
+    errors) would show e.g. "0/14" — the gap is the only signal that
+    the rescue is structurally failing."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text("Edlingham one.", encoding="utf-8")
+    (sources_dir / "src_b.txt").write_text("Tynemouth two.", encoding="utf-8")
+    output_dir = tmp_path / "out"
+
+    # Each source: primary emits 1 real + 1 fake (trips threshold=1).
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlingham", "context": "Edlingham one"},
+                    {"form": "FauxA", "context": "FauxA"},
+                ]
+            },
+            {
+                "mentions": [
+                    {"form": "Tynemouth", "context": "Tynemouth two"},
+                    {"form": "FauxB", "context": "FauxB"},
+                ]
+            },
+        ]
+    )
+    # Fallback emits a non-empty rescue per source so succeeded
+    # increments under the round-2 'bool(rescue_mentions)' contract.
+    fallback = FakeClient(
+        [
+            {"mentions": [{"form": "Edlingham", "context": "Edlingham one"}]},
+            {"mentions": [{"form": "Tynemouth", "context": "Tynemouth two"}]},
+        ]
+    )
+    _stub_ollama_for_cli(monkeypatch, primary)
+    _stub_anthropic_for_cli(monkeypatch, fallback)
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--hallucination-fallback-threshold",
+            "1",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Per-source summary lines: each source had 1 attempted + 1 succeeded
+    assert "halluc_rescued=1/1" in result.output
+    # TOTAL summary aggregates: 2 attempted + 2 succeeded across sources
+    assert "halluc_rescued=2/2" in result.output
+    # Gemini wyrd-z8mq R3 MEDIUM: per-source + TOTAL lines now show
+    # halluc + clamped aggregates. Each source dropped 1 hallucination
+    # (FauxA / FauxB); total = 2 across sources. No year-clamping in
+    # this scenario (no date_year fields set).
+    assert "halluc=1 " in result.output  # per-source
+    assert "halluc=2 " in result.output  # TOTAL
+    assert "clamped=0 " in result.output  # appears in both per-source + TOTAL lines
+
+
+def test_cli_summary_reports_silent_empty_fallback_as_gap(tmp_path, monkeypatch):
+    """wyrd-z8mq R5 pr-test-analyzer LOW: the CLI comment about the
+    broken-fallback signal covers BOTH 'every fallback errored' (the
+    pre-existing test_cli_summary_reports_broken_fallback_as_gap)
+    AND 'every fallback returned empty / all-hallucinated' (the
+    silent case). The unit-level test pins the latter, but no CLI
+    test exercises the silent-empty case until now. Closes the
+    test/documentation parity loop the R4 comment opened."""
+
+    class _SilentEmptyFallback:
+        """Fallback that returns content that fails the word-boundary
+        guard — admit list will be empty, succeeded=0, but the call
+        itself doesn't raise."""
+
+        model = "silent-empty"
+
+        def chat_json(self, system, user, schema=None):
+            return {"mentions": [{"form": "NotInChunkAnywhere", "context": "fake"}]}
+
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text("Edlingham here.", encoding="utf-8")
+    output_dir = tmp_path / "out"
+
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlingham", "context": "Edlingham here"},
+                    {"form": "Faux", "context": "Faux"},
+                ]
+            }
+        ]
+    )
+    _stub_ollama_for_cli(monkeypatch, primary)
+    import wyrd.generators.kenning.anthropic_extractor as ae_module
+
+    monkeypatch.setattr(ae_module, "AnthropicClient", lambda **kw: _SilentEmptyFallback())
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-used")
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--hallucination-fallback-threshold",
+            "1",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Same shape as the errored-fallback case: attempted=1, succeeded=0
+    # surfaces as halluc_rescued=0/1. Operator sees this same signal
+    # whether the fallback errored OR returned content that failed
+    # the word-boundary guard.
+    assert "halluc_rescued=0/1" in result.output
+
+
+def test_cli_summary_reports_years_clamped_non_zero(tmp_path, monkeypatch):
+    """wyrd-z8mq R4 pr-test-analyzer LOW: the previous CLI summary
+    test asserts `clamped=0` everywhere because no date_year is
+    set in the fixture. A regression deleting
+    `totals['years_clamped'] += report.years_clamped` would pass
+    the all-zero assertion (right-hand side is always 0). Pin
+    non-zero aggregation explicitly with a primary that emits
+    out-of-range date_year values (clamped by the validator)."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text("Edlingham one.", encoding="utf-8")
+    (sources_dir / "src_b.txt").write_text("Tynemouth two.", encoding="utf-8")
+    output_dir = tmp_path / "out"
+
+    # Each source emits 1 mention with date_year=9999 (out of range,
+    # gets clamped to None — years_clamped += 1 per source).
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlingham", "context": "Edlingham one", "date_year": 9999},
+                ]
+            },
+            {
+                "mentions": [
+                    {"form": "Tynemouth", "context": "Tynemouth two", "date_year": 8888},
+                ]
+            },
+        ]
+    )
+    fallback = FakeClient([])  # no rescue triggered (no hallucinations)
+    _stub_ollama_for_cli(monkeypatch, primary)
+    _stub_anthropic_for_cli(monkeypatch, fallback)
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Per-source line ends with `clamped=N\n` (no trailing space in
+    # the f-string, it's the last field), so match without trailing
+    # space. TOTAL line has trailing-space form.
+    assert "clamped=1" in result.output  # appears on per-source line(s)
+    # TOTAL line shows clamped=2 (sum across sources). A regression
+    # deleting the totals['years_clamped'] += line would produce
+    # 'clamped=0 ' in the TOTAL line and fail this assertion.
+    assert "clamped=2 " in result.output
+
+
+def test_tiered_hallucination_rescue_folds_counters_even_on_empty_admit():
+    """wyrd-z8mq R4 comment-analyzer: the helper docstring claims
+    fallback counters fold whenever the call returns — including
+    the all-hallucinated case where rescue_mentions ends up empty
+    but rescue_counters.hallucinations_dropped > 0. No test pinned
+    this until now; a regression switching the fold to be
+    conditional on rescue_mentions non-empty would not be caught.
+
+    Pin: primary trips the threshold; fallback returns 2 fabricated
+    forms (both fail the word-boundary guard); admit list = [] but
+    rescue_counters.hallucinations_dropped = 2. The report's
+    aggregate hallucinations_dropped reflects BOTH primary's drops
+    AND fallback's drops."""
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "Edlin"},
+                    {"form": "Faux1", "context": "Faux1"},  # primary halluc #1
+                ]
+            },
+            {"mentions": []},
+            {"mentions": []},
+        ]
+    )
+    fallback = FakeClient(
+        [
+            {
+                "mentions": [
+                    # Both fail the word-boundary guard (not in chunk 1).
+                    {"form": "NotInChunk_A", "context": "NotInChunk_A"},
+                    {"form": "NotInChunk_B", "context": "NotInChunk_B"},
+                ]
+            },
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        hallucination_fallback_threshold=1,
+    )
+    # Rescue attempted (threshold tripped), but fallback delivered
+    # no admitted content → succeeded=0 under the bool(rescue_mentions)
+    # contract.
+    assert report.chunks_hallucination_rescue_attempted == 1
+    assert report.chunks_hallucination_rescue_succeeded == 0
+    # Counters STILL fold: primary's 1 halluc + fallback's 2 dropped = 3.
+    # A regression dropping the fold in the empty-admit case would
+    # show hallucinations_dropped == 1 (primary only).
+    assert report.hallucinations_dropped == 3
+    # Note (pr-test-analyzer R5 LOW investigation, won't-fix):
+    # the parallel years_clamped fold can't be non-vacuously tested
+    # on the empty-admit path because _validated_mentions drops
+    # forms (incrementing hallucinations_dropped) BEFORE running
+    # _coerce_year — so any rescue_mentions=[] case has
+    # rescue_counters.years_clamped=0 by construction. The
+    # years_clamped fold IS tested in the success-path test
+    # ``test_tiered_hallucination_rescue_folds_years_clamped_from_fallback``
+    # where admit list is non-empty + carries clamped years.
+
+
+def test_cli_summary_reports_broken_fallback_as_gap(tmp_path, monkeypatch):
+    """Companion to the previous test: a broken fallback shows up as
+    halluc_rescued=0/N (succeeded < attempted) in the summary. This
+    is the signal an operator with a misconfigured API key would
+    actually see (silent-failure-hunter R1 HIGH)."""
+
+    class _FailingFallback:
+        model = "fail"
+
+        def chat_json(self, system, user, schema=None):
+            raise RuntimeError("simulated bad API key")
+
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text("Edlingham here.", encoding="utf-8")
+    output_dir = tmp_path / "out"
+
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlingham", "context": "Edlingham here"},
+                    {"form": "Faux", "context": "Faux"},
+                ]
+            }
+        ]
+    )
+    _stub_ollama_for_cli(monkeypatch, primary)
+    # Plug a failing fallback in by monkeypatching AnthropicClient
+    # construction to return the failing stub.
+    import wyrd.generators.kenning.anthropic_extractor as ae_module
+
+    monkeypatch.setattr(ae_module, "AnthropicClient", lambda **kw: _FailingFallback())
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-used")
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--hallucination-fallback-threshold",
+            "1",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Attempted = 1, succeeded = 0 — the gap is the broken-fallback signal.
+    assert "halluc_rescued=0/1" in result.output

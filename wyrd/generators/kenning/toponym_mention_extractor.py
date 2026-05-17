@@ -587,6 +587,26 @@ class MineToponymMentionsReport:
     # single-tier runs). Subtract from chunks_processed to learn
     # how many chunks the primary handled on its own.
     chunks_recovered_by_fallback: int = 0
+    # Chunks where the primary SUCCEEDED but emitted enough
+    # hallucinated forms (per the chunk-level word-boundary guard)
+    # that the operator's --hallucination-fallback-threshold fired
+    # and we ran the fallback ALSO. Two counters, deliberately
+    # separate (silent-failure-hunter wyrd-z8mq round 1 + round 2):
+    # _attempted bumps on every rescue trigger regardless of
+    # outcome; _succeeded bumps only when the fallback returned a
+    # NON-EMPTY mentions list — i.e., actually delivered content,
+    # not just "didn't raise". A gap (attempted > succeeded) is
+    # the operationally critical signal that catches both
+    # transport failures (bad API key, network outage) AND
+    # silent-empty responses (content-policy refusal, mis-shaped
+    # JSON producing {"mentions": []}). Without this distinction
+    # the single-counter `halluc_rescued=N` would look healthy
+    # while gemma4's hallucinations stayed unrescued. Distinct
+    # from chunks_recovered_by_fallback (where the primary failed
+    # outright). Tiered runs only; both stay 0 when the threshold
+    # is disabled or unset.
+    chunks_hallucination_rescue_attempted: int = 0
+    chunks_hallucination_rescue_succeeded: int = 0
     hallucinations_dropped: int = 0
     years_clamped: int = 0
     mentions: list[ToponymMention] = field(default_factory=list)
@@ -690,6 +710,131 @@ def mine_toponym_mentions(
     return report
 
 
+def _hallucination_rescue_dedup_key(
+    mention: ToponymMention,
+) -> tuple[str, int | None, str | None, str]:
+    """Build the union-merge dedup key for the hallucination rescue
+    path (wyrd-z8mq). Includes ``context`` deliberately: two
+    extractions of the SAME chunk emitting the same form+year+region
+    from different sentences are different attestations, not
+    duplicates, and downstream JSONL serialization preserves
+    ``context`` per row. Collapsing them on (form, year, region)
+    alone would silently drop real attestation rows (silent-
+    failure-hunter wyrd-z8mq round 1).
+
+    Note: this is broader than the DB-side dedup in the Phase 2b.1
+    ingester (``toponym_mention_ingest.py``), which dedupes on
+    ``(toponym_id, form, date_year, source_doc)`` AFTER mentions are
+    resolved to a toponym_id. The two layers' equivalence definitions
+    are intentionally different: at extraction time we don't yet
+    know the resolver verdict, so we keep ALL distinct attestations
+    and let the ingester collapse on its narrower DB-side key.
+    """
+    return (mention.form, mention.date_year, mention.region_hint, mention.context)
+
+
+def _run_hallucination_rescue(
+    fallback_client,
+    chunk: str,
+    chunk_index: int,
+    primary_mentions: list[ToponymMention],
+    primary_counters: ValidationCounters,
+    log_warning: Callable[[str], None] | None,
+) -> tuple[list[ToponymMention], bool]:
+    """Run the fallback on a chunk where the primary succeeded but
+    emitted >= threshold hallucinated forms (wyrd-z8mq). Returns the
+    (possibly-merged) mentions list + a bool indicating whether the
+    fallback actually delivered content.
+
+    Three outcomes the bool distinguishes:
+
+    1. Fallback returned non-empty mentions → union-merges into
+       primary's by :func:`_hallucination_rescue_dedup_key` (primary
+       canonical on collision; fallback adds anything primary didn't
+       see), folds fallback's per-chunk counters into
+       ``primary_counters``, returns (merged_list, True).
+    2. Fallback returned an empty admit list — call succeeded
+       mechanically but produced no usable content. Could be a
+       content-policy refusal, a schema-validation glitch, a
+       model declining to extract, OR an all-hallucinated response
+       where every form failed the word-boundary guard. Operationally
+       equivalent to a failed rescue from the operator's
+       perspective: primary's hallucinations weren't caught.
+       Returns (primary_mentions, False). The fallback's per-chunk
+       counters STILL fold in — ``hallucinations_dropped`` and
+       ``years_clamped`` from the all-hallucinated case carry
+       real signal about fallback model quality (an empty admit
+       list with non-zero dropped count means "fallback emitted
+       garbage we filtered out", not "fallback returned nothing").
+    3. Fallback raised (transport / API / parse error). primary's
+       mentions returned unchanged, ``primary_counters`` untouched.
+       Returns (primary_mentions, False). The orchestrator logs and
+       continues; primary's good mentions still flow through to the
+       output (the rescue is opportunistic).
+
+    ``_PROGRAMMER_ERROR_EXCEPTIONS`` propagates as a traceback
+    (consistent with the rest of the file's contract).
+    """
+    rescue_counters = ValidationCounters()
+    try:
+        rescue_mentions = extract_toponym_mentions_from_chunk(
+            fallback_client, chunk, counters=rescue_counters
+        )
+    except _PROGRAMMER_ERROR_EXCEPTIONS:
+        raise  # Our bug — let it surface as a traceback.
+    except Exception as e:
+        # Fallback failed on the rescue. Primary's good mentions
+        # still flow through to the output — don't poison the chunk
+        # on a transport error during what's only an opportunistic
+        # extra pass. Log so the operator can see which rescues
+        # missed (the gap between attempted vs succeeded counters
+        # is the budget-impact signal; the log line tells WHICH
+        # chunks).
+        if log_warning is not None:
+            log_warning(
+                f"chunk {chunk_index} rescue fallback failed: "
+                f"{type(e).__name__}: {e} — primary mentions retained"
+            )
+        # Return a shallow copy to match the success path's contract
+        # (always-fresh list). The caller doesn't currently mutate
+        # the return value (just `.extend()`s it into the report),
+        # but consistent ownership prevents a future refactor from
+        # silently aliasing the failure-path return into shared state
+        # — Gemini wyrd-z8mq round 5 MEDIUM.
+        return list(primary_mentions), False
+
+    # Dedup against primary's keys AND against fallback-internal
+    # duplicates (Gemini wyrd-z8mq round 3 MEDIUM): if the fallback
+    # itself emits the same mention twice, only one survives the
+    # merge. The running ``seen_keys`` set carries forward as we
+    # walk rescue_mentions so a second emission of an already-added
+    # key doesn't slip through.
+    seen_keys = {_hallucination_rescue_dedup_key(m) for m in primary_mentions}
+    added: list[ToponymMention] = []
+    for m in rescue_mentions:
+        key = _hallucination_rescue_dedup_key(m)
+        if key in seen_keys:
+            continue
+        added.append(m)
+        seen_keys.add(key)
+    # Counter folding: the fallback's per-chunk counters fold in
+    # whenever the call returned (regardless of admit-list shape).
+    # An all-hallucinated fallback emits non-zero hallucinations_dropped
+    # even when rescue_mentions ends up empty (silent-failure-hunter
+    # wyrd-z8mq round 3 LOW-MEDIUM: docstring previously overclaimed
+    # "would be 0" here). The fallback's hallucination count is real
+    # data about model quality and stays in the aggregate.
+    primary_counters.hallucinations_dropped += rescue_counters.hallucinations_dropped
+    primary_counters.years_clamped += rescue_counters.years_clamped
+    # ``rescue_mentions`` empty = fallback ran cleanly but admitted
+    # no content. Operationally equivalent to a failed rescue: the
+    # primary's hallucinations weren't actually caught. Return False
+    # so chunks_hallucination_rescue_succeeded reflects "fallback
+    # delivered output", not just "fallback didn't raise"
+    # (silent-failure-hunter wyrd-z8mq round 2 HIGH).
+    return list(primary_mentions) + added, bool(rescue_mentions)
+
+
 def mine_toponym_mentions_tiered(
     primary_client,
     fallback_client,
@@ -698,6 +843,7 @@ def mine_toponym_mentions_tiered(
     *,
     target_chunk_size: int = 20000,
     limit: int | None = None,
+    hallucination_fallback_threshold: int | None = None,
     on_chunk_done: Callable[[int, int, int], None] | None = None,
     log_warning: Callable[[str], None] | None = None,
 ) -> MineToponymMentionsReport:
@@ -723,16 +869,61 @@ def mine_toponym_mentions_tiered(
     still propagate.
 
     Resolved-mention counters (``hallucinations_dropped``,
-    ``years_clamped``) reflect ONLY the tier that succeeded — the
+    ``years_clamped``) on the failure-rescue path (primary-failed-
+    then-fallback) reflect ONLY the tier that succeeded — the
     losing tier's per-chunk counters are discarded so a partial-
     populate from a primary that raised mid-validation can't double-
     count. ``extract_toponym_mentions_from_chunk`` does not currently
     populate counters partially before raising, so the discarded-
-    state is defensive against future refactors.
+    state is defensive against future refactors. (The hallucination-
+    rescue path below has different counter-folding semantics —
+    both tiers contribute to the aggregate. See the rescue section.)
 
     The report shape matches :class:`MineToponymMentionsReport` so
     the CLI's summary line and the Phase 2b.1 ingester both work
     unchanged.
+
+    **Hallucination-triggered rescue (wyrd-z8mq).** When
+    ``hallucination_fallback_threshold`` is set (``None`` or any
+    value ``<= 0`` = disabled), a chunk where the PRIMARY succeeded
+    but emitted ``hallucinations_dropped >= threshold`` ALSO runs
+    the fallback on the same chunk; the fallback's mentions are
+    union-merged into the primary's by
+    :func:`_hallucination_rescue_dedup_key` (primary wins on
+    collision, fallback adds anything it saw that primary didn't).
+    This preserves everything the primary saw correctly while
+    letting the fallback catch what the primary fabricated.
+
+    Two counters track the rescue: ``chunks_hallucination_rescue_attempted``
+    increments per chunk where the fallback fired on the threshold
+    (regardless of fallback outcome), and
+    ``chunks_hallucination_rescue_succeeded`` increments only when
+    the fallback returned a NON-EMPTY mentions list (actually
+    delivered content, not just "didn't raise"). A gap
+    (attempted > succeeded) surfaces both broken-fallback
+    configurations (bad API key, network outage) and silent-empty
+    responses (content-policy refusal, mis-shaped JSON producing
+    ``{"mentions": []}``) that would otherwise look healthy on a
+    single counter.
+
+    Counter folding: the fallback's per-chunk counters
+    (``hallucinations_dropped``, ``years_clamped``) fold into
+    the primary's whenever the fallback call returns — including
+    the all-hallucinated case where the admit list is empty but
+    the dropped-form count carries real signal about fallback
+    model quality. Only an ERRORED fallback (Outcome 3 of
+    :func:`_run_hallucination_rescue`) leaves rescue_counters
+    discarded. The primary's good mentions always flow through
+    to the output (the rescue is opportunistic, never destructive).
+
+    Designed for the gemma4 / Anthropic split observed 2026-05-16:
+    gemma4 primary's smoke had 1 hallucinated form across 79
+    extracted mentions (1.3%) on 3 chunks of Mawer 1920. With
+    threshold=1 the rescue fires on any chunk whose primary
+    emitted >=1 fabrication; full-book frequency depends on the
+    text density and the model's per-chunk fabrication rate
+    (calibrate against a full-source run before setting the
+    threshold in production).
     """
     report = MineToponymMentionsReport(source_id=source_id)
     chunks = chunk_source_body(body, target_chunk_size=target_chunk_size)
@@ -799,6 +990,26 @@ def mine_toponym_mentions_tiered(
                 if log_warning is not None:
                     log_warning(f"chunk {i} both tiers failed: {fallback_error}")
                 continue
+        elif (
+            hallucination_fallback_threshold is not None
+            and hallucination_fallback_threshold > 0
+            and chunk_counters.hallucinations_dropped >= hallucination_fallback_threshold
+        ):
+            # Hallucination-triggered rescue (wyrd-z8mq). Detailed
+            # contract + counter semantics are in
+            # :func:`_run_hallucination_rescue` above.
+            report.chunks_hallucination_rescue_attempted += 1
+            if log_warning is not None:
+                log_warning(
+                    f"chunk {i} primary hallucinated "
+                    f"{chunk_counters.hallucinations_dropped} forms — "
+                    f"running fallback for rescue"
+                )
+            mentions, rescue_ok = _run_hallucination_rescue(
+                fallback_client, chunk, i, mentions, chunk_counters, log_warning
+            )
+            if rescue_ok:
+                report.chunks_hallucination_rescue_succeeded += 1
         report.mentions.extend(mentions)
         report.chunks_processed += 1
         report.hallucinations_dropped += chunk_counters.hallucinations_dropped
