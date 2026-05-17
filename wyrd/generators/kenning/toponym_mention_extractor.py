@@ -795,7 +795,13 @@ def _run_hallucination_rescue(
                 f"chunk {chunk_index} rescue fallback failed: "
                 f"{type(e).__name__}: {e} — primary mentions retained"
             )
-        return primary_mentions, False
+        # Return a shallow copy to match the success path's contract
+        # (always-fresh list). The caller doesn't currently mutate
+        # the return value (just `.extend()`s it into the report),
+        # but consistent ownership prevents a future refactor from
+        # silently aliasing the failure-path return into shared state
+        # — Gemini wyrd-z8mq round 5 MEDIUM.
+        return list(primary_mentions), False
 
     # Dedup against primary's keys AND against fallback-internal
     # duplicates (Gemini wyrd-z8mq round 3 MEDIUM): if the fallback

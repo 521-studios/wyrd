@@ -2207,6 +2207,68 @@ def test_cli_summary_reports_halluc_rescued_succeeded_over_attempted(tmp_path, m
     assert "clamped=0 " in result.output  # appears in both per-source + TOTAL lines
 
 
+def test_cli_summary_reports_silent_empty_fallback_as_gap(tmp_path, monkeypatch):
+    """wyrd-z8mq R5 pr-test-analyzer LOW: the CLI comment about the
+    broken-fallback signal covers BOTH 'every fallback errored' (the
+    pre-existing test_cli_summary_reports_broken_fallback_as_gap)
+    AND 'every fallback returned empty / all-hallucinated' (the
+    silent case). The unit-level test pins the latter, but no CLI
+    test exercises the silent-empty case until now. Closes the
+    test/documentation parity loop the R4 comment opened."""
+
+    class _SilentEmptyFallback:
+        """Fallback that returns content that fails the word-boundary
+        guard — admit list will be empty, succeeded=0, but the call
+        itself doesn't raise."""
+
+        model = "silent-empty"
+
+        def chat_json(self, system, user, schema=None):
+            return {"mentions": [{"form": "NotInChunkAnywhere", "context": "fake"}]}
+
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text("Edlingham here.", encoding="utf-8")
+    output_dir = tmp_path / "out"
+
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlingham", "context": "Edlingham here"},
+                    {"form": "Faux", "context": "Faux"},
+                ]
+            }
+        ]
+    )
+    _stub_ollama_for_cli(monkeypatch, primary)
+    import wyrd.generators.kenning.anthropic_extractor as ae_module
+
+    monkeypatch.setattr(ae_module, "AnthropicClient", lambda **kw: _SilentEmptyFallback())
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-used")
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--hallucination-fallback-threshold",
+            "1",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Same shape as the errored-fallback case: attempted=1, succeeded=0
+    # surfaces as halluc_rescued=0/1. Operator sees this same signal
+    # whether the fallback errored OR returned content that failed
+    # the word-boundary guard.
+    assert "halluc_rescued=0/1" in result.output
+
+
 def test_cli_summary_reports_years_clamped_non_zero(tmp_path, monkeypatch):
     """wyrd-z8mq R4 pr-test-analyzer LOW: the previous CLI summary
     test asserts `clamped=0` everywhere because no date_year is
@@ -2293,7 +2355,7 @@ def test_tiered_hallucination_rescue_folds_counters_even_on_empty_admit():
         [
             {
                 "mentions": [
-                    # Both fail the word-boundary guard (not in chunk 1)
+                    # Both fail the word-boundary guard (not in chunk 1).
                     {"form": "NotInChunk_A", "context": "NotInChunk_A"},
                     {"form": "NotInChunk_B", "context": "NotInChunk_B"},
                 ]
@@ -2317,6 +2379,15 @@ def test_tiered_hallucination_rescue_folds_counters_even_on_empty_admit():
     # A regression dropping the fold in the empty-admit case would
     # show hallucinations_dropped == 1 (primary only).
     assert report.hallucinations_dropped == 3
+    # Note (pr-test-analyzer R5 LOW investigation, won't-fix):
+    # the parallel years_clamped fold can't be non-vacuously tested
+    # on the empty-admit path because _validated_mentions drops
+    # forms (incrementing hallucinations_dropped) BEFORE running
+    # _coerce_year — so any rescue_mentions=[] case has
+    # rescue_counters.years_clamped=0 by construction. The
+    # years_clamped fold IS tested in the success-path test
+    # ``test_tiered_hallucination_rescue_folds_years_clamped_from_fallback``
+    # where admit list is non-empty + carries clamped years.
 
 
 def test_cli_summary_reports_broken_fallback_as_gap(tmp_path, monkeypatch):
