@@ -123,11 +123,19 @@ def _extractor_from_notes(notes: str | None) -> str | None:
     notes don't carry the prefix (legacy rows, hand-curated rows).
 
     Anonymous rows (return value None here) count as ZERO witnesses
-    for consensus purposes — see the ``_Cluster.add`` semantics."""
+    for consensus purposes — see the ``_Cluster.add`` semantics.
+
+    A malformed prefix that strips to empty (``"extracted_by:   ;..."``)
+    is treated as anonymous. R3 silent-failure-hunter LOW: returning
+    an empty-string identifier would collapse multiple malformed-notes
+    rows into a single ``""`` witness, falsely producing consensus."""
     if not notes:
         return None
     m = _EXTRACTOR_RE.match(notes.strip())
-    return m.group(1).strip() if m else None
+    if not m:
+        return None
+    extractor = m.group(1).strip()
+    return extractor or None
 
 
 @dataclass(frozen=True)
@@ -575,6 +583,19 @@ def _plans_from_decisions(db: LexiconDB, decisions: list[CanonicalDecision]) -> 
     this shim exists so tests and audit-log replay can still pass
     ``CanonicalDecision`` objects through ``apply_canonical_decisions``
     without juggling the lower-level type.
+
+    Two behavior notes after the R2 rewrite, neither affecting
+    correctness in the CLI path (which uses plans directly):
+
+    1. Toponyms whose rows have been DELETED between the original
+       compute and this apply are silently omitted from the returned
+       plan list — ``summary.toponyms_examined`` will reflect surviving
+       toponyms, not the input decision count. R3 silent-failure LOW.
+    2. The recompute does NOT propagate any original ``source_id``
+       scope (CanonicalDecision has no source_id field). For a
+       previously source-scoped run, the back-compat shim does a
+       full-corpus re-cluster + filter — correct but O(corpus)
+       work instead of O(decisions). R3 code-reviewer MEDIUM.
     """
     toponym_ids = {d.toponym_id for d in decisions}
     if not toponym_ids:

@@ -175,6 +175,16 @@ def test_extractor_from_notes_returns_none_for_legacy_or_curated():
     assert _extractor_from_notes("scholar attestation without prefix") is None
 
 
+def test_extractor_from_notes_returns_none_for_empty_extractor_value():
+    """Malformed notes like ``"extracted_by:   ;..."`` strip to an
+    empty extractor id. Treat as anonymous (return None) rather than
+    returning ``""`` — otherwise multiple malformed rows would
+    collapse to a single ``""`` witness in the cluster's witness set
+    and falsely produce consensus. R3 silent-failure-hunter LOW."""
+    assert _extractor_from_notes("extracted_by:   ; something") is None
+    assert _extractor_from_notes("extracted_by: | something") is None
+
+
 # ---------- compute_canonical_decisions (clustering + promotion) --------
 
 

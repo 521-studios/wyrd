@@ -383,9 +383,11 @@ CREATE TABLE toponym_etymology (
   -- The cluster key used to group agreeing rows. Persisted (rather
   -- than recomputed on read) so operators can grep/filter the
   -- canonicalize-run output and understand WHY a cluster formed.
-  -- Shape: pipe-delimited "<norm-form>:<lang>" pairs in ordinal
-  -- order, e.g. "bedelinga:old-english|tun:old-english". Null until
-  -- canonicalize-toponym-etymology has run.
+  -- Shape: JSON-encoded list of [norm-form, lang] pairs in ordinal
+  -- order, e.g. '[["bedelinga","old-english"],["tun","old-english"]]'.
+  -- Null until canonicalize-toponym-etymology has run. JSON-encoded
+  -- (vs. pipe-delimited) so a normalized form containing `|` or `:`
+  -- can't ambiguously collide with a different element-tuple.
   cluster_key     TEXT
 );
 CREATE INDEX idx_toponym_etymology_year ON toponym_etymology(attested_year);
