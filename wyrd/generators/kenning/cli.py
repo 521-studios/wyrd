@@ -7,6 +7,7 @@ import sqlite3
 import sys
 import time
 from collections import Counter
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
@@ -3301,13 +3302,15 @@ def _read_failures_jsonl(path: Path) -> list[dict]:
                     raise click.ClickException(f"{path}:{line_num}: missing required field {key!r}")
                 if rec[key] is None:
                     raise click.ClickException(f"{path}:{line_num}: required field {key!r} is null")
-            # Type-check required fields. Without this a list/dict
-            # would slip through ``str(rec[key]).strip()`` (str([])
-            # == "[]" — non-empty), feeding garbage into the LLM
-            # call; ``source_id`` as a list would blow up at
-            # ``by_source.setdefault(rec["source_id"], …)`` with an
-            # unhashable-type TypeError far downstream. R2 silent-
-            # failure-hunter MEDIUM.
+            # Type-check required fields. ``source_id`` as a list/dict
+            # would blow up at ``by_source.setdefault(rec["source_id"],
+            # …)`` with an unhashable-type TypeError far downstream;
+            # ``chunk_index`` as a string ("5") would silently coerce
+            # through ``int()`` while True/False (subclasses of int)
+            # would silently extract chunk 0 or chunk 1; ``chunk_body``
+            # as a list would AttributeError on ``.strip()`` mid-loop.
+            # Reject all three loudly at read time. R2 silent-failure-
+            # hunter MEDIUM.
             if not isinstance(rec["source_id"], str):
                 raise click.ClickException(
                     f"{path}:{line_num}: source_id must be a string, got "
@@ -3334,7 +3337,10 @@ def _read_failures_jsonl(path: Path) -> list[dict]:
     return records
 
 
-def _load_existing_mention_keys(out_path: Path, log_warning=None) -> tuple[set[tuple], int]:
+def _load_existing_mention_keys(
+    out_path: Path,
+    log_warning: Callable[[str], None] | None = None,
+) -> tuple[set[tuple], int]:
     """Build the dedup-key set from an existing per-source output JSONL.
     Returns ``(keys, malformed_count)``. Empty set + 0 if the file
     doesn't exist. The key shape mirrors what the writer emits —
@@ -3655,6 +3661,7 @@ def lexicon_mine_toponym_mentions_staged(
         "years_clamped": 0,
         "mentions": 0,
         "mentions_deduped": 0,
+        "malformed_purged": 0,
     }
 
     try:
@@ -3707,6 +3714,8 @@ def lexicon_mine_toponym_mentions_staged(
     )
     if from_failures is not None:
         summary += f" deduped={totals['mentions_deduped']}"
+        if totals["malformed_purged"]:
+            summary += f" malformed_purged={totals['malformed_purged']}"
     click.echo(summary, err=True)
     # Always surface the capture-failures status — operators want to
     # know whether the next stage has work to do (or whether the file
@@ -3804,19 +3813,33 @@ def _run_resume_from_failures(
         # wyrd-srd2 R1 silent-failure-hunter HIGH.
         new_count = 0
         dup_count = 0
+        purged_count = 0
         tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
         with tmp_path.open("w", encoding="utf-8") as sink:
             if out_path.exists():
-                # Preserve existing rows verbatim (don't re-serialize:
-                # some fields like `extractor` are stage-specific and
+                # Preserve well-formed existing rows verbatim (don't
+                # re-serialize: stage-specific fields like ``extractor``
                 # must keep their original value through the cascade).
-                # Normalize trailing newline once so the file remains
-                # well-formed even if the prior write was killed.
+                # DROP malformed rows (non-JSON, non-dict) — without
+                # this the corruption persists every resume and the
+                # file's bad-row count grows forever. R3 silent-failure
+                # MEDIUM. ``_load_existing_mention_keys`` already
+                # surfaced the malformed_count to the operator; here
+                # we also remove them.
                 with out_path.open("r", encoding="utf-8") as src:
                     for line in src:
                         stripped = line.rstrip("\n")
-                        if stripped:
-                            sink.write(stripped + "\n")
+                        if not stripped:
+                            continue
+                        try:
+                            row = json.loads(stripped)
+                        except json.JSONDecodeError:
+                            purged_count += 1
+                            continue
+                        if not isinstance(row, dict):
+                            purged_count += 1
+                            continue
+                        sink.write(stripped + "\n")
             for m in report.mentions:
                 key = (m.form, m.date_year, m.region_hint, m.context)
                 if key in existing_keys:
@@ -3826,6 +3849,11 @@ def _run_resume_from_failures(
                 existing_keys.add(key)
                 new_count += 1
         tmp_path.replace(out_path)
+        if purged_count:
+            click.echo(
+                f"    purged {purged_count} malformed row(s) from {out_path}",
+                err=True,
+            )
 
         click.echo(
             f"  → {out_path} | chunks={report.chunks_processed} "
@@ -3842,6 +3870,7 @@ def _run_resume_from_failures(
         totals["years_clamped"] += report.years_clamped
         totals["mentions"] += new_count
         totals["mentions_deduped"] += dup_count
+        totals["malformed_purged"] += purged_count
 
 
 def _run_fresh_mining(

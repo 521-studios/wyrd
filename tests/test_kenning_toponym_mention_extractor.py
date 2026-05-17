@@ -3179,6 +3179,165 @@ def test_cli_staged_capture_failures_does_not_warn_on_empty_existing_file(tmp_pa
     assert "already has" not in result.output
 
 
+def test_cli_staged_resume_purges_malformed_existing_rows(tmp_path, monkeypatch):
+    """The verbatim-copy preserves WELL-FORMED existing rows but DROPS
+    malformed (non-JSON / non-dict) rows during the atomic rewrite.
+    Without this, corrupt rows accumulate across every resume cycle
+    forever. R3 silent-failure-hunter MEDIUM."""
+    runner = CliRunner()
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    valid_row = json.dumps(
+        {
+            "source_id": "alpha",
+            "form": "Existing",
+            "date_year": None,
+            "region_hint": None,
+            "context": "ctx",
+        }
+    )
+    # File with 1 valid row + 2 malformed rows
+    (output_dir / "alpha.jsonl").write_text(
+        valid_row + "\n" + "not json at all\n" + "[1, 2, 3]\n", encoding="utf-8"
+    )
+
+    failures_file = tmp_path / "f.jsonl"
+    failures_file.write_text(
+        json.dumps(
+            {
+                "source_id": "alpha",
+                "chunk_index": 1,
+                "chunk_body": "Bedlington is a town",
+                "error": "x",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    _stub_anthropic_for_cli(
+        monkeypatch,
+        FakeClient([{"mentions": [{"form": "Bedlington", "context": "Bedlington is a town"}]}]),
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--from-failures",
+            str(failures_file),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "anthropic",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # After atomic rewrite: the valid row + the new Bedlington row remain;
+    # the two malformed rows are GONE.
+    final_text = (output_dir / "alpha.jsonl").read_text(encoding="utf-8")
+    assert "not json at all" not in final_text
+    assert "[1, 2, 3]" not in final_text
+    rows = _read_jsonl(output_dir / "alpha.jsonl")
+    assert {r["form"] for r in rows} == {"Existing", "Bedlington"}
+    # Operator-visible purge count appears in output
+    assert "purged 2 malformed row(s)" in result.output
+    # And aggregates into the TOTAL summary
+    assert "malformed_purged=2" in result.output
+
+
+def test_cli_staged_fresh_mining_force_overwrites_existing(tmp_path, monkeypatch):
+    """--force in fresh-mining mode REPLACES an existing per-source
+    output (atomic .tmp + replace). Pin the happy-path overwrite,
+    complementing the existing mutex-error coverage. R3 test-coverage
+    HIGH: only the error path was covered before."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "alpha.txt").write_text("Edlingham.", encoding="utf-8")
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    # Pre-existing per-source output that --force should clobber
+    stale = output_dir / "alpha.jsonl"
+    stale.write_text(
+        json.dumps(
+            {
+                "source_id": "alpha",
+                "form": "StaleForm",
+                "date_year": None,
+                "region_hint": None,
+                "context": "stale",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    _stub_anthropic_for_cli(
+        monkeypatch,
+        FakeClient([{"mentions": [{"form": "Edlingham", "context": "Edlingham"}]}]),
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "anthropic",
+            "--chunk-size",
+            "5000",
+            "--force",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    rows = _read_jsonl(stale)
+    assert {r["form"] for r in rows} == {"Edlingham"}
+    assert not any(r["form"] == "StaleForm" for r in rows)
+
+
+def test_cli_staged_fresh_mining_warns_on_utf8_replacement_chars(tmp_path, monkeypatch):
+    """When the source body contains invalid UTF-8 (read with
+    errors='replace' produces U+FFFD), the staged command must warn
+    the operator so silent mention rejection from the form-in-chunk
+    guard doesn't go unnoticed. R3 test-coverage HIGH."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    # Bytes 0xff 0xfe are illegal in UTF-8 and decode to U+FFFD via
+    # errors='replace'.
+    (sources_dir / "alpha.txt").write_bytes(b"Edlingham is here\xff\xfe and more.")
+    output_dir = tmp_path / "out"
+
+    _stub_anthropic_for_cli(
+        monkeypatch,
+        FakeClient([{"mentions": []}]),
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "anthropic",
+            "--chunk-size",
+            "5000",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "invalid UTF-8" in result.output
+
+
 def test_chunk_source_body_chunks_are_complete_paragraphs():
     """Stronger version of the paragraph-boundary test: each emitted
     chunk's constituent pieces (split by \\n\\n) must each appear as
