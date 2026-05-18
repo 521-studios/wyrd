@@ -174,6 +174,41 @@ def test_chat_json_malformed_envelope_raises_runtimeerror(monkeypatch: pytest.Mo
         client.chat_json("sys", "usr")
 
 
+def test_chat_json_non_json_content_raises_runtimeerror(monkeypatch: pytest.MonkeyPatch) -> None:
+    """wyrd-rmc6: the inner content parse (parts[0].text → JSON) must also
+    raise RuntimeError on JSONDecodeError, not let it leak through
+    _PROGRAMMER_ERROR_EXCEPTIONS as ValueError. This pins the helper
+    extraction: a regression that drops the parse_transport_json wrap on
+    the content path would abort the whole multi-source run on a single
+    malformed model response."""
+    import json
+    from unittest.mock import patch
+
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    client = GeminiClient()
+
+    # Outer envelope is valid; the inner text is garbage that isn't JSON.
+    envelope = json.dumps(
+        {"candidates": [{"content": {"parts": [{"text": "this is not json {{"}]}}]}
+    ).encode("utf-8")
+
+    class _Resp:
+        def read(self) -> bytes:
+            return envelope
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            pass
+
+    with (
+        patch("urllib.request.urlopen", lambda req, timeout=None: _Resp()),
+        pytest.raises(RuntimeError, match="non-JSON content"),
+    ):
+        client.chat_json("sys", "usr")
+
+
 def test_chat_json_retries_through_provider_retry_helper(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

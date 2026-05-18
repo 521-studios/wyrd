@@ -891,6 +891,25 @@ def test_ollama_chat_json_malformed_envelope_raises_runtimeerror() -> None:
         client.chat_json("sys", "usr", {})
 
 
+def test_ollama_chat_json_non_json_content_raises_runtimeerror() -> None:
+    """wyrd-rmc6: the inner content parse (message.content → JSON) must also
+    raise RuntimeError on JSONDecodeError, not let it leak through
+    _PROGRAMMER_ERROR_EXCEPTIONS as ValueError. This pins the helper
+    extraction: a regression that drops the parse_transport_json wrap on
+    the content path would abort the whole multi-source run on a single
+    malformed model response."""
+    import json
+
+    client = OllamaClient()
+    # Outer envelope is valid; message.content is non-JSON garbage.
+    envelope = json.dumps({"message": {"content": "this is not json {{"}}).encode("utf-8")
+    with (
+        patch("urllib.request.urlopen", lambda req, timeout=None: _RawBytesResp(envelope)),
+        pytest.raises(RuntimeError, match="non-JSON content"),
+    ):
+        client.chat_json("sys", "usr", {})
+
+
 def test_ollama_chat_json_non_utf8_body_raises_runtimeerror() -> None:
     """wyrd-pe4g round-5 silent-failure-hunter: a 2xx response whose
     body isn't valid UTF-8 (binary blob, corrupted upstream, proxy

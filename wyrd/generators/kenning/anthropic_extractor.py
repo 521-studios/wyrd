@@ -33,6 +33,7 @@ from wyrd.generators.kenning.llm_extractor import (
     USER_TEMPLATE,
     LLMResult,
     assemble_extraction_result,
+    parse_transport_json,
     transport_error_result,
 )
 from wyrd.generators.kenning.provider_retry import open_with_429_retry
@@ -120,17 +121,7 @@ class AnthropicClient:
             # closed in round 4.
             raise RuntimeError(f"Anthropic returned non-UTF-8 body: {e}") from e
 
-        try:
-            envelope = json.loads(body)
-        except json.JSONDecodeError as e:
-            # 2xx response with malformed body — CDN/proxy HTML error page,
-            # truncated body on a dropped connection, etc. JSONDecodeError
-            # is a ValueError subclass; without this wrap it would propagate
-            # through the chunk loop's _PROGRAMMER_ERROR_EXCEPTIONS re-raise
-            # (which lists ValueError to surface schema_dialect typos —
-            # wyrd-pe4g) and abort the whole multi-source run. As a transport
-            # hiccup it should bucket into chunks_failed instead.
-            raise RuntimeError(f"Anthropic returned non-JSON envelope: {body[:500]}") from e
+        envelope = parse_transport_json(body, provider="Anthropic", kind="envelope")
         # Standard Messages-API response shape: content[0].text
         try:
             blocks = envelope["content"]
@@ -154,10 +145,7 @@ class AnthropicClient:
                 lines = lines[:-1]
             text = "\n".join(lines)
 
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError as e:
-            raise RuntimeError(f"Anthropic produced non-JSON content: {text[:500]}") from e
+        return parse_transport_json(text, provider="Anthropic", kind="content")
 
 
 def extract_one(

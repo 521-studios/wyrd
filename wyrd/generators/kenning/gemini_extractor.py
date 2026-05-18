@@ -25,6 +25,7 @@ from wyrd.generators.kenning.llm_extractor import (
     USER_TEMPLATE,
     LLMResult,
     assemble_extraction_result,
+    parse_transport_json,
     transport_error_result,
 )
 from wyrd.generators.kenning.provider_retry import open_with_429_retry
@@ -190,17 +191,7 @@ class GeminiClient:
             # re-raise (wyrd-pe4g) and abort the whole multi-source run.
             raise RuntimeError(f"Gemini returned non-UTF-8 body: {e}") from e
 
-        try:
-            envelope = json.loads(body)
-        except json.JSONDecodeError as e:
-            # 2xx response with malformed body — CDN/proxy HTML error page,
-            # truncated body on a dropped connection, etc. JSONDecodeError
-            # is a ValueError subclass; without this wrap it would propagate
-            # through the chunk loop's _PROGRAMMER_ERROR_EXCEPTIONS re-raise
-            # (which lists ValueError to surface schema_dialect typos —
-            # wyrd-pe4g) and abort the whole multi-source run. As a transport
-            # hiccup it should bucket into chunks_failed instead.
-            raise RuntimeError(f"Gemini returned non-JSON envelope: {body[:500]}") from e
+        envelope = parse_transport_json(body, provider="Gemini", kind="envelope")
         # Standard Gemini response shape: candidates[0].content.parts[0].text
         try:
             candidate = envelope["candidates"][0]
@@ -214,10 +205,7 @@ class GeminiClient:
                 f"Gemini produced empty content. finish_reason={candidate.get('finishReason')}"
             )
 
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError as e:
-            raise RuntimeError(f"Gemini produced non-JSON content: {text[:500]}") from e
+        return parse_transport_json(text, provider="Gemini", kind="content")
 
 
 # --- extraction -----------------------------------------------------------
