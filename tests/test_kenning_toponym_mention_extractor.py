@@ -497,7 +497,7 @@ def test_extract_one_chunk_passes_schema_positionally():
             assert isinstance(schema, dict), f"expected dict schema, got {type(schema)}"
             return {"mentions": [{"form": "Edlingham", "context": "x"}]}
 
-    out = extract_toponym_mentions_from_chunk(StrictPositionalClient(), "Edlingham mentioned")
+    out, _ = extract_toponym_mentions_from_chunk(StrictPositionalClient(), "Edlingham mentioned")
     assert [m.form for m in out] == ["Edlingham"]
 
 
@@ -520,7 +520,7 @@ def test_extract_one_chunk_happy_path_passes_chunk_and_schema_through():
             }
         ]
     )
-    out = extract_toponym_mentions_from_chunk(client, chunk)
+    out, _ = extract_toponym_mentions_from_chunk(client, chunk)
     assert [m.form for m in out] == ["Edlingham"]
     # Verify the actual LLM call payload.
     assert len(client.calls) == 1
@@ -555,7 +555,7 @@ def test_extract_one_chunk_dispatches_openapi_dialect_to_openapi_clients():
             type(self).calls.append(response_schema)
             return {"mentions": [{"form": "Edlingham", "context": "Edlingham mentioned"}]}
 
-    out = extract_toponym_mentions_from_chunk(OpenApiClient(), "Edlingham mentioned")
+    out, _ = extract_toponym_mentions_from_chunk(OpenApiClient(), "Edlingham mentioned")
     assert [m.form for m in out] == ["Edlingham"]
     assert len(OpenApiClient.calls) == 1
     assert OpenApiClient.calls[0] is RESPONSE_SCHEMA_GEMINI
@@ -567,7 +567,7 @@ def test_extract_one_chunk_dispatches_jsonschema_to_unmarked_clients():
     variant. AnthropicClient + OllamaClient don't declare the attribute
     today and rely on this default."""
     client = FakeClient([{"mentions": [{"form": "Edlingham", "context": "Edlingham mentioned"}]}])
-    out = extract_toponym_mentions_from_chunk(client, "Edlingham mentioned")
+    out, _ = extract_toponym_mentions_from_chunk(client, "Edlingham mentioned")
     assert [m.form for m in out] == ["Edlingham"]
     assert len(client.calls) == 1
     _, _, schema_arg = client.calls[0]
@@ -729,8 +729,7 @@ def test_extract_one_chunk_counters_get_populated():
             }
         ]
     )
-    counters = ValidationCounters()
-    out = extract_toponym_mentions_from_chunk(client, chunk, counters=counters)
+    out, counters = extract_toponym_mentions_from_chunk(client, chunk)
     assert len(out) == 2
     assert counters.admitted == 2
     assert counters.hallucinations_dropped == 1
@@ -1502,7 +1501,7 @@ def test_extract_toponym_mentions_from_chunk_sends_openapi_schema_to_gemini_wire
 
     client = GeminiClient(model="gemini-2.5-flash")
     with patch("urllib.request.urlopen", capturing_urlopen):
-        result = extract_toponym_mentions_from_chunk(client, "Edlingham was held.")
+        result, _ = extract_toponym_mentions_from_chunk(client, "Edlingham was held.")
 
     assert result == []
     # Pin call count so a regression that produces spurious retries

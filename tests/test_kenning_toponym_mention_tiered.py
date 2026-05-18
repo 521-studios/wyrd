@@ -1583,6 +1583,16 @@ def test_tiered_hallucination_rescue_continues_on_fallback_error():
     assert report.chunks_failed == 0  # primary's mentions still good
     assert report.chunks_processed == 3
     assert [m.form for m in report.mentions] == ["Edlin"]
+    # wyrd-oaq5: the errored-rescue path returns a zero
+    # ValidationCounters delta so the orchestrator's ``+=`` fold is a
+    # no-op. Pin the operator-observable consequence: primary's
+    # hallucination count is recorded once (Faux1 dropped on chunk 1),
+    # NOT corrupted by the errored fallback. Catches (a) a buggy
+    # __iadd__ that mutates from a non-zero operand, (b) a future
+    # refactor that lets the errored-rescue path leak partial
+    # counters, (c) orchestrator folding from the wrong accumulator.
+    assert report.hallucinations_dropped == 1
+    assert report.years_clamped == 0
 
 
 def test_tiered_hallucination_rescue_counters_attempted_vs_succeeded_diverge():
@@ -2050,18 +2060,19 @@ def test_run_hallucination_rescue_failure_path_returns_fresh_list():
     primary = [
         ToponymMention(form="Edlin", date_year=None, region_hint=None, context="Edlin context")
     ]
-    counters = ValidationCounters()
-    result, succeeded = _run_hallucination_rescue(
+    result, delta, succeeded = _run_hallucination_rescue(
         _RaisingFallback(),
         chunk="Edlin context",
         chunk_index=0,
         primary_mentions=primary,
-        primary_counters=counters,
         log_warning=None,
     )
     assert succeeded is False
     assert result == primary  # same contents
     assert result is not primary  # ...but a fresh list (the load-bearing assertion)
+    # wyrd-oaq5: errored-rescue returns a zero counters delta so the
+    # caller's ``+=`` fold is a no-op (primary's counters stay untouched).
+    assert delta == ValidationCounters()
 
 
 def test_tiered_hallucination_rescue_only_when_primary_succeeds():
