@@ -1464,24 +1464,23 @@ def test_extract_toponym_mentions_from_chunk_sends_openapi_schema_to_gemini_wire
 
     test_cli_provider_gemini_routes_to_gemini_client (above) uses a
     FakeClient and asserts the dispatch picks RESPONSE_SCHEMA_GEMINI by
-    object identity. That covers dispatch but bypasses the real
-    GeminiClient.chat_json HTTP path. If someone reverts the
-    schema-dialect dispatch in extract_toponym_mentions_from_chunk to
-    always pass RESPONSE_SCHEMA, the FakeClient test would still pass
-    because the dispatch still routes — only the value passed would
-    change. This test exercises the real GeminiClient through a
-    mocked urlopen and asserts the wire payload's
-    ``generationConfig.responseSchema`` carries the OpenAPI dialect
-    (uppercase types, no additionalProperties, nullable: true), so a
-    revert that re-sends JSON Schema to Gemini's API trips CI here.
+    object identity. That pins the choice at the dispatch site but
+    bypasses the real GeminiClient.chat_json HTTP path — a bug that
+    corrupted the schema after dispatch (inside chat_json itself, or
+    in how the schema gets serialized into the request body) would
+    not be caught by the FakeClient test. This test exercises the
+    real GeminiClient through a mocked urlopen and asserts the wire
+    payload's ``generationConfig.responseSchema`` carries the OpenAPI
+    dialect (uppercase types, no additionalProperties, nullable:
+    true), so a regression in either dispatch or wire-encoding trips
+    CI here.
     """
-    import json
     from unittest.mock import patch
 
     from wyrd.generators.kenning.gemini_extractor import GeminiClient
 
     monkeypatch.setenv("GEMINI_API_KEY", "test-not-used")
-    captured: dict[str, bytes] = {}
+    calls: list[bytes] = []
     inner_payload = json.dumps({"mentions": []})
     envelope = json.dumps(
         {"candidates": [{"content": {"parts": [{"text": inner_payload}]}}]}
@@ -1498,7 +1497,7 @@ def test_extract_toponym_mentions_from_chunk_sends_openapi_schema_to_gemini_wire
             pass
 
     def capturing_urlopen(req, timeout=None):
-        captured["body"] = req.data
+        calls.append(req.data)
         return _Resp()
 
     client = GeminiClient(model="gemini-2.5-flash")
@@ -1506,8 +1505,12 @@ def test_extract_toponym_mentions_from_chunk_sends_openapi_schema_to_gemini_wire
         result = extract_toponym_mentions_from_chunk(client, "Edlingham was held.")
 
     assert result == []
-    assert "body" in captured, "urlopen was never called"
-    sent = json.loads(captured["body"].decode("utf-8"))
+    # Pin call count so a regression that produces spurious retries
+    # (or a double-dispatch in chat_json) doesn't silently pass with
+    # only the last attempt's body captured — the wire contract is
+    # exactly-one-request per chunk.
+    assert len(calls) == 1, f"urlopen called {len(calls)} times, expected 1"
+    sent = json.loads(calls[0].decode("utf-8"))
     schema = sent["generationConfig"]["responseSchema"]
 
     # Top-level shape is the Gemini OpenAPI dialect.
