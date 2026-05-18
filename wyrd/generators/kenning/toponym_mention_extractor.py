@@ -1104,6 +1104,15 @@ def mine_toponym_mentions_tiered(
     callback fires only on the both-tiers-failed path — primary-only
     failures that the fallback recovers are reported via
     ``chunks_recovered_by_fallback`` and don't invoke this callback.
+
+    Exceptions raised by ``on_chunk_failed`` (and the sibling
+    ``on_chunk_done`` / ``log_warning`` callbacks) propagate
+    UNWRAPPED out of this function — the current source's report is
+    lost, and the orchestrator's caller sees the original exception.
+    The contract matches the single-tier orchestrator. Callers that
+    need transient-I/O resilience (e.g. CLI failure-streaming on a
+    flaky disk) should wrap their callback body in try/except so an
+    individual chunk's I/O hiccup doesn't trash a multi-source run.
     """
     report = MineToponymMentionsReport(source_id=source_id)
     chunks = chunk_source_body(body, target_chunk_size=target_chunk_size)
