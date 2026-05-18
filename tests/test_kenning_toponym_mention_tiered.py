@@ -20,6 +20,7 @@ from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.toponym_mention_extractor import (
+    FailedChunk,
     MineToponymMentionsReport,
     chunk_source_body,
     mine_toponym_mentions_tiered,
@@ -160,6 +161,75 @@ def test_tiered_both_tiers_fail_records_failed_chunk():
     # diagnostic.
     assert "primary 503" in fc.error
     assert "429" in fc.error
+
+
+def test_tiered_on_chunk_failed_fires_per_both_tiers_failure():
+    """wyrd-3gbx: the tiered orchestrator must invoke on_chunk_failed
+    on every chunk where BOTH tiers failed, passing the FailedChunk
+    record with the chained primary=...; fallback=... error. Mirrors
+    the single-tier mine_toponym_mentions parity that
+    mine-toponym-mentions-staged depends on for failure-streaming.
+    The callback does NOT fire on primary-only failures the fallback
+    recovers — those are reported via chunks_recovered_by_fallback.
+    """
+    primary = FakeClient(
+        [
+            {"mentions": [{"form": "Edlin", "context": "Edlin"}]},
+            RuntimeError("primary 503"),
+            RuntimeError("primary 504"),
+        ]
+    )
+    fallback = FakeClient(
+        [
+            # First primary failure: fallback recovers (mentions
+            # returned) — no on_chunk_failed fire.
+            {"mentions": [{"form": "Tyne", "context": "Tyne"}]},
+            # Second primary failure: fallback also fails — fires.
+            RuntimeError("fallback 429"),
+        ]
+    )
+    captured: list[FailedChunk] = []
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        on_chunk_failed=captured.append,
+    )
+    # Sanity: primary-recovered AND both-tiers-failed both occurred.
+    assert report.chunks_recovered_by_fallback == 1
+    assert report.chunks_failed == 1
+    # Callback fired EXACTLY once — on the both-tiers-failed chunk,
+    # not on the primary-only chunk the fallback rescued.
+    assert len(captured) == 1
+    fc = captured[0]
+    assert fc.index == 2
+    assert "primary 504" in fc.error
+    assert "fallback 429" in fc.error
+    assert fc.chunk_body  # non-empty — operator can resume from this record
+
+
+def test_tiered_on_chunk_failed_none_is_silent():
+    """Default on_chunk_failed=None must remain valid (the existing CLI
+    callers don't pass the callback). Guard against a regression that
+    would NoneType-call the callback unconditionally."""
+    primary = FakeClient([RuntimeError("primary boom")])
+    fallback = FakeClient([RuntimeError("fallback boom")])
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        limit=1,
+        # on_chunk_failed not passed — relies on the default of None.
+    )
+    assert report.chunks_failed == 1
+    # The failure was still recorded in the in-memory buffer (the
+    # head/tail path remains the source of truth when on_chunk_failed
+    # isn't wired).
+    assert len(report.failed_chunks) == 1
 
 
 def test_tiered_counters_from_successful_tier_only():
@@ -739,6 +809,127 @@ def test_cli_summary_reports_recovery_count(tmp_path, monkeypatch):
     )
     assert result.exit_code == 0, result.output
     assert "recovered_by_fallback=1" in result.output
+
+
+def test_cli_capture_failures_streams_both_tiers_failed_chunks(tmp_path, monkeypatch):
+    """wyrd-3gbx: --capture-failures PATH must stream a JSONL record
+    for every chunk where BOTH tiers failed, mirroring the single-tier
+    mine-toponym-mentions failure-streaming. Each record carries
+    source_id, chunk_index, chunk_body, and the chained error string."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text("Edlingham in Northumberland.", encoding="utf-8")
+
+    # One chunk; primary fails, fallback fails — both-tiers-failure path.
+    primary = FakeClient([RuntimeError("primary 503")])
+    fallback = FakeClient([RuntimeError("fallback 429")])
+    _stub_ollama_for_cli(monkeypatch, primary)
+    _stub_anthropic_for_cli(monkeypatch, fallback)
+
+    capture_path = tmp_path / "failures.jsonl"
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--capture-failures",
+            str(capture_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    # Failure JSONL has exactly one record for the failed chunk.
+    lines = capture_path.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 1
+    record = json.loads(lines[0])
+    assert record["source_id"] == "src_a"
+    assert record["chunk_index"] == 0
+    assert record["chunk_body"]
+    assert "primary 503" in record["error"]
+    assert "fallback 429" in record["error"]
+    # Summary line surfaces the streamed count.
+    assert "1 failed chunk(s) appended" in result.output
+
+
+def test_cli_capture_failures_unchanged_when_no_failures(tmp_path, monkeypatch):
+    """wyrd-3gbx: when --capture-failures is given but no chunk hits
+    the both-tiers-failed path, the CLI still emits an explicit
+    'unchanged this run' status message (matches the staged-cascade
+    CLI's observability shape so operators can distinguish 'no
+    failures' from 'flag ignored')."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text("Edlingham in Northumberland.", encoding="utf-8")
+
+    primary = FakeClient([{"mentions": [{"form": "Edlingham", "context": "x"}]}])
+    fallback = FakeClient([])  # untouched
+    _stub_ollama_for_cli(monkeypatch, primary)
+    _stub_anthropic_for_cli(monkeypatch, fallback)
+
+    capture_path = tmp_path / "failures.jsonl"
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--capture-failures",
+            str(capture_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "0 new failures" in result.output
+    # The capture file exists (we opened it for append) but is empty.
+    assert capture_path.exists()
+    assert capture_path.read_text(encoding="utf-8") == ""
+
+
+def test_cli_capture_failures_warns_on_existing_non_empty_file(tmp_path, monkeypatch):
+    """wyrd-3gbx: append-mode is the chosen idempotent-resume shape
+    (matches the staged-cascade CLI). Warn loudly if the file already
+    has records so an operator-blind append doesn't silently bury old
+    state. The warning surfaces the existing record count so the
+    operator can decide whether to `> failures.jsonl` to clear."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text("Edlingham in Northumberland.", encoding="utf-8")
+
+    capture_path = tmp_path / "failures.jsonl"
+    capture_path.write_text('{"source_id": "old", "chunk_index": 0, "chunk_body": "x"}\n')
+
+    primary = FakeClient([{"mentions": [{"form": "Edlingham", "context": "x"}]}])
+    fallback = FakeClient([])
+    _stub_ollama_for_cli(monkeypatch, primary)
+    _stub_anthropic_for_cli(monkeypatch, fallback)
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-tiered",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(tmp_path / "out"),
+            "--capture-failures",
+            str(capture_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "already has 1 record(s)" in result.output
+    # Pre-existing record is preserved.
+    lines = capture_path.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 1
+    assert json.loads(lines[0])["source_id"] == "old"
 
 
 # ---------- round-2 additions: CLI flag pass-through coverage -----------

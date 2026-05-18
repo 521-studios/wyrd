@@ -3040,6 +3040,18 @@ def _build_extractor_client(provider: str, model: str | None, ollama_url: str | 
     "local model + `--fallback-provider anthropic` to keep gemma4's good "
     "mentions while letting Anthropic catch its fabrications. wyrd-z8mq.",
 )
+@click.option(
+    "--capture-failures",
+    "capture_failures",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Write a JSONL record for every chunk where BOTH tiers failed "
+    "(primary AND fallback). Each record has source_id, chunk_index, "
+    "chunk_body, error (chained primary=...; fallback=...). Streamed as "
+    "failures happen rather than buffered in-memory — bypasses the "
+    "head/tail cap on report.failed_chunks. wyrd-3gbx parity with the "
+    "single-tier mine-toponym-mentions failure-streaming.",
+)
 def lexicon_mine_toponym_mentions_tiered(
     sources_dir: Path,
     sources: tuple[str, ...],
@@ -3054,6 +3066,7 @@ def lexicon_mine_toponym_mentions_tiered(
     skip_existing: bool,
     force: bool,
     hallucination_fallback_threshold: int | None,
+    capture_failures: Path | None,
 ) -> None:
     """Two-tier LLM mention extraction across one or many sources
     (wyrd-x82p Phase 2b.2).
@@ -3075,6 +3088,7 @@ def lexicon_mine_toponym_mentions_tiered(
     import time
 
     from wyrd.generators.kenning.toponym_mention_extractor import (
+        FailedChunk,
         ToponymMention,
         mine_toponym_mentions_tiered,
     )
@@ -3083,6 +3097,24 @@ def lexicon_mine_toponym_mentions_tiered(
         raise click.ClickException("--skip-existing and --force are mutually exclusive")
 
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # --capture-failures sink setup. Append mode so a resume across
+    # multiple invocations accumulates failures end-to-end (mirrors
+    # the staged-cascade behavior). Warn on existing non-empty file
+    # so an operator-blind append doesn't silently bury old records.
+    failure_sink = None
+    failures_appended = 0
+    if capture_failures is not None:
+        capture_failures.parent.mkdir(parents=True, exist_ok=True)
+        if capture_failures.exists() and capture_failures.stat().st_size > 0:
+            with capture_failures.open("r", encoding="utf-8") as _fh:
+                stale = sum(1 for _ in _fh)
+            click.echo(
+                f"  warning: --capture-failures {capture_failures} already has "
+                f"{stale} record(s); appending (`> {capture_failures}` to clear)",
+                err=True,
+            )
+        failure_sink = capture_failures.open("a", encoding="utf-8")
 
     # Resolve source list. If --source isn't given, walk *.txt under
     # the sources dir; sort for deterministic ordering across runs.
@@ -3204,6 +3236,32 @@ def lexicon_mine_toponym_mentions_tiered(
         def warn(msg: str) -> None:
             click.echo(f"    warning: {msg}", err=True)
 
+        # Per-source on_chunk_failed closure — captures source_id by
+        # default arg (B023 closure-over-loop-var, same shape as
+        # `progress` above) so the source_id baked into each emitted
+        # record is the CURRENT iteration's, not the last one's.
+        def on_fail(
+            fc: FailedChunk,
+            _sid: str = source_id,
+        ) -> None:
+            nonlocal failures_appended
+            if failure_sink is None:
+                return
+            failure_sink.write(
+                json.dumps(
+                    {
+                        "source_id": _sid,
+                        "chunk_index": fc.index,
+                        "chunk_body": fc.chunk_body,
+                        "error": fc.error,
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
+            failure_sink.flush()
+            failures_appended += 1
+
         report = mine_toponym_mentions_tiered(
             primary_client,
             fallback_client,
@@ -3213,6 +3271,7 @@ def lexicon_mine_toponym_mentions_tiered(
             limit=limit,
             hallucination_fallback_threshold=hallucination_fallback_threshold,
             on_chunk_done=progress,
+            on_chunk_failed=on_fail if failure_sink is not None else None,
             log_warning=warn,
         )
 
@@ -3257,6 +3316,9 @@ def lexicon_mine_toponym_mentions_tiered(
         totals["years_clamped"] += report.years_clamped
         totals["mentions"] += len(report.mentions)
 
+    if failure_sink is not None:
+        failure_sink.close()
+
     click.echo("", err=True)
     click.echo(
         f"TOTAL sources={totals['sources_processed']} "
@@ -3271,6 +3333,20 @@ def lexicon_mine_toponym_mentions_tiered(
         f"mentions={totals['mentions']}",
         err=True,
     )
+    # Always surface the capture-failures status — operators want to
+    # know whether the streamed file got new records this run or stayed
+    # unchanged (mirrors the staged-cascade CLI's behavior).
+    if capture_failures is not None:
+        if failures_appended:
+            click.echo(
+                f"  {failures_appended} failed chunk(s) appended → {capture_failures}",
+                err=True,
+            )
+        else:
+            click.echo(
+                f"  0 new failures → {capture_failures} unchanged this run",
+                err=True,
+            )
 
 
 def _read_failures_jsonl(path: Path) -> list[dict]:
