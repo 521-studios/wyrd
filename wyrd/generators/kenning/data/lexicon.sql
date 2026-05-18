@@ -506,7 +506,11 @@ CREATE VIEW etymon_consensus AS
     LEFT JOIN etymon le ON le.id = target.lemma_id
     LEFT JOIN etymon_citation c ON c.etymon_id = e.id
   )
-  GROUP BY lemma_id;
+  -- canonical_form and language are functionally dependent on
+  -- lemma_id via the rollup chain, but explicit GROUP BY keeps the
+  -- result well-defined without relying on SQLite's "bare column"
+  -- tolerance.
+  GROUP BY lemma_id, canonical_form, language;
 
 -- wyrd-7lo: per-canonical rollup views for the gloss / tag / text-match
 -- child tables. After D22's non-destructive OCR clustering, child rows
@@ -561,17 +565,28 @@ CREATE VIEW etymon_text_match_canonical AS
 -- Per-toponym disagreement: distinct breakdown signatures per toponym.
 -- A signature is the ordered list of etymon_ids; if a toponym has >1
 -- distinct signature, scholars disagree on the breakdown.
--- Note: relies on GROUP_CONCAT honoring the ORDER BY clause, which it does
--- in SQLite 3.44+.
+-- Pre-sorts in a subquery instead of using GROUP_CONCAT(... ORDER BY ...)
+-- so the view works on SQLite 3.40 (Lambda runtime) — that syntax is
+-- 3.44+ only. GROUP_CONCAT preserves the input row order, so the
+-- subquery's ORDER BY te.id, tee.ordinal is what makes the signature
+-- ordinal-stable.
 CREATE VIEW toponym_breakdown_signature AS
-  SELECT te.toponym_id,
-         te.id        AS toponym_etymology_id,
-         te.source_id,
-         GROUP_CONCAT(tee.etymon_id, ',' ORDER BY tee.ordinal) AS signature
-  FROM toponym_etymology te
-  LEFT JOIN toponym_etymology_element tee
-    ON tee.toponym_etymology_id = te.id
-  GROUP BY te.id;
+  SELECT toponym_id,
+         toponym_etymology_id,
+         source_id,
+         GROUP_CONCAT(etymon_id, ',') AS signature
+  FROM (
+    SELECT te.toponym_id,
+           te.id AS toponym_etymology_id,
+           te.source_id,
+           tee.etymon_id,
+           tee.ordinal
+    FROM toponym_etymology te
+    LEFT JOIN toponym_etymology_element tee
+      ON tee.toponym_etymology_id = te.id
+    ORDER BY te.id, tee.ordinal
+  )
+  GROUP BY toponym_etymology_id, toponym_id, source_id;
 
 -- D? / wyrd-7tz: meaning-synset layer. A meaning_synset is a fine-grained
 -- semantic equivalence class — 'water/flowing' (members: OE wæter,

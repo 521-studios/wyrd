@@ -50,6 +50,12 @@ def upgrade() -> None:
         """
     )
 
+    # GROUP BY includes every non-aggregated SELECT column so the
+    # result is well-defined regardless of SQLite's "bare column"
+    # tolerance. ``canonical_form`` and ``language`` are functionally
+    # dependent on ``lemma_id`` via the rollup chain, so the extra
+    # GROUP BY columns don't change the row set — only the
+    # determinism guarantee.
     op.execute(
         """
         CREATE VIEW etymon_consensus AS
@@ -69,7 +75,7 @@ def upgrade() -> None:
             LEFT JOIN etymon le ON le.id = target.lemma_id
             LEFT JOIN etymon_citation c ON c.etymon_id = e.id
           )
-          GROUP BY lemma_id
+          GROUP BY lemma_id, canonical_form, language
         """
     )
 
@@ -116,17 +122,31 @@ def upgrade() -> None:
         """
     )
 
+    # GROUP_CONCAT(..., ',' ORDER BY ...) is a SQLite 3.44+ feature
+    # (released late 2023). The Lambda runtime ships SQLite 3.40,
+    # and AL2023-based dev machines may also be older. To keep the
+    # ordinal-stable signature without requiring 3.44, pre-sort the
+    # rows in a subquery and then aggregate without ORDER BY —
+    # GROUP_CONCAT preserves the input row order.
     op.execute(
         """
         CREATE VIEW toponym_breakdown_signature AS
-          SELECT te.toponym_id,
-                 te.id        AS toponym_etymology_id,
-                 te.source_id,
-                 GROUP_CONCAT(tee.etymon_id, ',' ORDER BY tee.ordinal) AS signature
-          FROM toponym_etymology te
-          LEFT JOIN toponym_etymology_element tee
-            ON tee.toponym_etymology_id = te.id
-          GROUP BY te.id
+          SELECT toponym_id,
+                 toponym_etymology_id,
+                 source_id,
+                 GROUP_CONCAT(etymon_id, ',') AS signature
+          FROM (
+            SELECT te.toponym_id,
+                   te.id AS toponym_etymology_id,
+                   te.source_id,
+                   tee.etymon_id,
+                   tee.ordinal
+            FROM toponym_etymology te
+            LEFT JOIN toponym_etymology_element tee
+              ON tee.toponym_etymology_id = te.id
+            ORDER BY te.id, tee.ordinal
+          )
+          GROUP BY toponym_etymology_id, toponym_id, source_id
         """
     )
 

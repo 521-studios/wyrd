@@ -67,12 +67,8 @@ where = ["."]
 include = ["wyrd*"]
 
 [tool.setuptools.package-data]
-<<<<<<< HEAD
 "wyrd.generators.kenning" = ["data/*.json", "data/*.sql", "data/*.yaml"]
-=======
-"wyrd.generators.kenning" = ["data/*.json", "data/*.sql"]
 "wyrd.generators.kenning.lexicon.sql.migrations" = ["script.py.mako"]
->>>>>>> b4a4ee3 (kenning: scaffold lexicon/sql package + 8 layered alembic migrations (WIP))
 
 [tool.black]
 line-length = 100

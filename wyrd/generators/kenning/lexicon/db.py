@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import create_engine, event
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import URL, Engine
 from sqlalchemy.pool import StaticPool
 
 from wyrd.generators.kenning.lexicon.sql.queries import (
@@ -118,8 +118,15 @@ class LexiconDB:
         # The lexicon writers are single-threaded today, but the
         # default would break tests that share a LexiconDB across
         # threading.Thread instances.
+        #
+        # ``URL.create`` (rather than f"sqlite:///{path}") handles
+        # paths with special characters (``#``, ``?``, ``:``) without
+        # silently truncating into URL fragment/query/auth fields.
+        # Wyrd's lexicon-DB lives at ~/.wyrd/lexicon.db in production,
+        # but tmp-path tests on CI can land under names containing
+        # any of those.
         self.__engine = create_engine(
-            f"sqlite:///{self.path}",
+            URL.create("sqlite", database=str(self.path)),
             future=True,
             poolclass=StaticPool,
             connect_args={"check_same_thread": False},
