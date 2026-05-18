@@ -432,19 +432,19 @@ def _replace_priors(
             "INSERT INTO empirical_priors_native "
             "(culture, position, tag, era_midpoint, lemma_ref, count) "
             "VALUES (?, ?, ?, ?, ?, ?)",
-            [
+            (
                 (k.culture, k.position, k.tag, k.era_midpoint, k.lemma_ref, n)
                 for k, n in native.items()
-            ],
+            ),
         )
         db.conn.executemany(
             "INSERT INTO empirical_priors_loan "
             "(donor, recipient, position, tag, era_midpoint, lemma_ref, count) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [
+            (
                 (k.donor, k.recipient, k.position, k.tag, k.era_midpoint, k.lemma_ref, n)
                 for k, n in loan.items()
-            ],
+            ),
         )
 
 
@@ -529,19 +529,15 @@ def dump_empirical_priors_to_json(
     content hash, a sequential integer, or a date string per their
     versioning policy.
     """
-    native_rows = list(
-        db.conn.execute(
-            "SELECT culture, position, tag, era_midpoint, lemma_ref, count "
-            "FROM empirical_priors_native "
-            "ORDER BY culture, position, tag, era_midpoint, lemma_ref"
-        )
+    native_rows = db.conn.execute(
+        "SELECT culture, position, tag, era_midpoint, lemma_ref, count "
+        "FROM empirical_priors_native "
+        "ORDER BY culture, position, tag, era_midpoint, lemma_ref"
     )
-    loan_rows = list(
-        db.conn.execute(
-            "SELECT donor, recipient, position, tag, era_midpoint, lemma_ref, count "
-            "FROM empirical_priors_loan "
-            "ORDER BY donor, recipient, position, tag, era_midpoint, lemma_ref"
-        )
+    loan_rows = db.conn.execute(
+        "SELECT donor, recipient, position, tag, era_midpoint, lemma_ref, count "
+        "FROM empirical_priors_loan "
+        "ORDER BY donor, recipient, position, tag, era_midpoint, lemma_ref"
     )
     artifact = {
         "version": version,
