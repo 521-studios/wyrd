@@ -20,6 +20,16 @@ dependencies = [
     # register-effect access) so cold-start cost is paid only when a
     # --register flag is used.
     "PyYAML>=6.0",
+    # wyrd-67fv: SQLAlchemy Core for the lexicon's query builder and
+    # table metadata; alembic for layered schema migrations. Lexicon is
+    # authoring-side only — the Lambda runtime reads the bundled
+    # meanings.json and never touches lexicon code, so neither dep
+    # affects cold-start. Both ship aarch64 manylinux wheels (SA) /
+    # pure-python (alembic), so they pass the Lambda build's
+    # ``--only-binary=:all: --platform manylinux2014_aarch64`` gate
+    # regardless.
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
 ]
 
 [project.optional-dependencies]
@@ -57,7 +67,12 @@ where = ["."]
 include = ["wyrd*"]
 
 [tool.setuptools.package-data]
+<<<<<<< HEAD
 "wyrd.generators.kenning" = ["data/*.json", "data/*.sql", "data/*.yaml"]
+=======
+"wyrd.generators.kenning" = ["data/*.json", "data/*.sql"]
+"wyrd.generators.kenning.lexicon.sql.migrations" = ["script.py.mako"]
+>>>>>>> b4a4ee3 (kenning: scaffold lexicon/sql package + 8 layered alembic migrations (WIP))
 
 [tool.black]
 line-length = 100
