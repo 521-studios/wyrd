@@ -54,11 +54,15 @@ focused on the runtime (`__init__.py`, `meaning.py`, `name.py`,
    `CREATE VIEW`.
 2. For each new `.py` file in `wyrd/generators/kenning/` (not under
    `lexicon/`), open it and check whether it does lexicon-side I/O.
-3. Recommend either: move the file into `lexicon/`, or extract the
-   DB-touching code into a function that lives there.
-
-It is acceptable to acknowledge a placement issue and defer with a
-beads ticket, rather than block the PR.
+3. If a NEW file is misplaced: **block the PR.** Request the file
+   move before merge. Placement is a structural decision; landing
+   new code in the wrong place and ticketing the cleanup recreates
+   the exact debt wyrd-67fv was filed to repay. There is no
+   "defer with a ticket" path for new files.
+4. If pre-existing out-of-place code is touched (the
+   disambiguator / strata / english_shaping / ingester family),
+   that's not the same — those moves are explicit follow-up
+   tickets. Don't flag those re-edits.
 
 ## alembic-migration-discipline-reviewer
 
