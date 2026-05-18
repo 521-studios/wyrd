@@ -641,9 +641,15 @@ CREATE INDEX idx_attestation_topo   ON toponym_attestation(toponym_id);
 -- wyrd-skm Phase 3.0a: keeps mine-attestations re-runs idempotent.
 -- Allows multiple attestations per toponym (different form, year, or
 -- scholarly source) without duplicating identical (toponym, form, year,
--- source) rows.
+-- source) rows. COALESCE on the nullable columns matches the pattern
+-- used by idx_toponym_unique (country / region) and
+-- idx_etymon_citation_unique (page) — without the wrap, SQLite treats
+-- every NULL as distinct under UNIQUE so an idempotent re-mine could
+-- silently double-insert NULL-year rows.
 CREATE UNIQUE INDEX idx_attestation_unique
-  ON toponym_attestation(toponym_id, form, date_year, source_doc);
+  ON toponym_attestation(
+    toponym_id, form, COALESCE(date_year, 0), COALESCE(source_doc, '')
+  );
 
 -- wyrd-unuo Phase 3.3: per-etymon period-keyed surface forms,
 -- projected from toponym_attestation rows by segmenting historical

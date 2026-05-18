@@ -298,12 +298,18 @@ toponym_attestation = Table(
     Column("source_doc", Text),
 )
 Index("idx_attestation_topo", toponym_attestation.c.toponym_id)
+# COALESCE on the nullable columns matches idx_toponym_unique
+# (country / region) and idx_etymon_citation_unique (page). Without
+# the wrap, SQLite treats every NULL as distinct under UNIQUE, so
+# an idempotent re-mine could silently double-insert two NULL-year
+# attestations for the same (toponym, form, source_doc). Gemini
+# round-5 review caught the pre-PR inconsistency.
 Index(
     "idx_attestation_unique",
     toponym_attestation.c.toponym_id,
     toponym_attestation.c.form,
-    toponym_attestation.c.date_year,
-    toponym_attestation.c.source_doc,
+    text("COALESCE(date_year, 0)"),
+    text("COALESCE(source_doc, '')"),
     unique=True,
 )
 

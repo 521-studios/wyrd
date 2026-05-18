@@ -64,10 +64,15 @@ def upgrade() -> None:
         """
     )
     op.execute("CREATE INDEX idx_attestation_topo ON toponym_attestation(toponym_id)")
+    # COALESCE on the nullable columns so NULL year + NULL source_doc
+    # don't bypass uniqueness — matches idx_toponym_unique and
+    # idx_etymon_citation_unique (Gemini round-5 review).
     op.execute(
         """
         CREATE UNIQUE INDEX idx_attestation_unique
-          ON toponym_attestation(toponym_id, form, date_year, source_doc)
+          ON toponym_attestation(
+            toponym_id, form, COALESCE(date_year, 0), COALESCE(source_doc, '')
+          )
         """
     )
 
