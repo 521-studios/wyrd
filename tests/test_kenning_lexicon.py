@@ -73,6 +73,7 @@ from wyrd.generators.kenning.lexicon import (
     seed_from_meanings,
     seed_meaning_synsets,
 )
+from wyrd.generators.kenning.lexicon.sql import upgrade_head
 from wyrd.generators.kenning.llm_extractor import LLMResult
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.rewind import (
@@ -238,8 +239,6 @@ def test_lexicon_db_close_disposes_pool_and_connection(fresh_db: Path) -> None:
     and assert the SA proxy + engine are in their closed state.
     Name-mangled attributes go through the ``_LexiconDB__`` prefix.
     """
-    import pytest
-
     db = LexiconDB(fresh_db)
     db.upsert_source(id="lock-test", title="Lock Test")
     db.commit()
@@ -275,8 +274,6 @@ def test_lexicon_db_engine_and_conn_are_read_only_properties(fresh_db: Path) -> 
     attribute being reassigned after construction; wyrd-67fv exposes
     both as read-only properties so a regression is a hard error
     rather than a silently-split-writes bug."""
-    import pytest
-
     with LexiconDB(fresh_db) as db:
         with pytest.raises(AttributeError):
             db.engine = None  # type: ignore[misc]
@@ -292,8 +289,6 @@ def test_init_schema_stamps_alembic_version_at_head(fresh_db: Path) -> None:
     a subsequent ``upgrade`` would re-run every migration and fail
     on the duplicate CREATE. Pin the stamp explicitly so the
     regression surfaces here, not in the next migration's PR."""
-    import sqlite3
-
     with sqlite3.connect(fresh_db) as conn:
         row = conn.execute("SELECT version_num FROM alembic_version").fetchone()
     assert row is not None, "alembic_version row missing"
@@ -307,13 +302,9 @@ def test_upgrade_head_is_idempotent(fresh_db: Path) -> None:
     ``rebuild-from-jsonl`` flow re-invoke it on the same DB. A
     regression where a migration re-runs (lost ``IF NOT EXISTS``
     guard, missing alembic_version stamp) would surface here."""
-    from wyrd.generators.kenning.lexicon.sql import upgrade_head
-
     # init_schema already ran upgrade_head once via the fixture.
     # Second invocation must complete cleanly with no changes.
     upgrade_head(fresh_db)
-
-    import sqlite3
 
     with sqlite3.connect(fresh_db) as conn:
         version = conn.execute("SELECT version_num FROM alembic_version").fetchone()

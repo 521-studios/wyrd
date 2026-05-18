@@ -49,6 +49,13 @@ def run_migrations_online() -> None:
     engine = create_engine(url, future=True)
     with engine.begin() as connection:
         connection.exec_driver_sql("PRAGMA foreign_keys = ON")
+        # Match LexiconDB's per-connection pragmas — init_schema
+        # enables WAL on the file before alembic runs, so
+        # synchronous=NORMAL is the recommended pairing (crash
+        # safety via WAL replay without per-transaction fsync).
+        # Without this every fresh-DB test pays per-transaction
+        # fsync during alembic's migration writes.
+        connection.exec_driver_sql("PRAGMA synchronous = NORMAL")
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

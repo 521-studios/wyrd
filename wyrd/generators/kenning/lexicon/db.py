@@ -138,7 +138,18 @@ class LexiconDB:
         # connection isn't recycled out from under existing callers.
         # ``self.conn`` (below) is the raw sqlite3 connection itself.
         self.__raw_proxy = self.__engine.raw_connection()
-        self.__conn: sqlite3.Connection = self.__raw_proxy.driver_connection
+        # ``driver_connection`` is typed Optional in SA. With
+        # ``StaticPool`` on a fresh engine the proxy always wraps a
+        # live sqlite3 connection, but the explicit None guard makes
+        # the contract readable and raises eagerly if a future change
+        # to the pool ever puts us in a state where it could fail.
+        dbapi_conn = self.__raw_proxy.driver_connection
+        if dbapi_conn is None:
+            raise RuntimeError(
+                "engine.raw_connection().driver_connection is None — "
+                "engine pool failed to hand out a DBAPI connection"
+            )
+        self.__conn: sqlite3.Connection = dbapi_conn
         self.__closed = False
 
     @property
