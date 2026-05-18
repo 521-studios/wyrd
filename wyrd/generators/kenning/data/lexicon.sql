@@ -657,3 +657,76 @@ CREATE INDEX idx_period_form_year
 -- pairs from the same attestation should not duplicate.
 CREATE UNIQUE INDEX idx_period_form_unique
   ON etymon_period_form(etymon_id, form, date_year, source_doc);
+
+-- wyrd-ecjp.2: empirical-baseline priors for the vector-driven
+-- generator (D36.4, D36.7). Two parallel views of the same
+-- observation set:
+--
+--   * empirical_priors_native  — keyed by (culture, position, tag,
+--     era, lemma_ref). The "all elements that appeared in a
+--     <culture>-recipient toponym" count, regardless of source
+--     language.
+--   * empirical_priors_loan    — keyed by (donor_language, recipient
+--     culture, position, tag, era, lemma_ref). The same observations
+--     partitioned by the lemma's source language; scenario packs
+--     (D36.4 Option B) read this slice for their template's
+--     loan-relationship baseline.
+--
+-- ``lemma_ref`` is the canonical "<language>:<canonical_form>"
+-- string (matches the L2 cross-file etymon ref shape). The
+-- lemma is the donor-language form even in the native view, so a
+-- Latin loan in an English toponym surfaces as
+-- ``empirical_priors_native(culture='english', lemma_ref='latin:castrum')``
+-- — native aggregates across loan languages.
+--
+-- ``era_midpoint`` is the integer-year midpoint of the era cell
+-- (per ``era.ERA_CELLS``; open-ended cells use a fixed-offset
+-- convention defined in the extractor). The era LABEL is recoverable
+-- via ``era.era_cell(language, midpoint)`` so the schema doesn't
+-- store it.
+--
+-- For ad-hoc SQL: enumerate valid era_midpoint values via
+-- ``empirical_priors.known_era_midpoints()`` or the
+-- ``empirical_priors.json`` sidecar — e.g. english/oe-late = 950,
+-- english/me = 1300, english/early-modern = 1600, english/modern
+-- (open-high) = 1800.
+--
+-- ``count`` is the raw occurrence count in this cell. Smoothing
+-- (hierarchical fallback per D36.7) happens at lookup time, not
+-- at bake time — the table holds raw observations so we can choose
+-- different smoothing rules without re-mining.
+--
+-- LLM-free, deterministic, idempotent. Re-generable via
+-- ``lexicon mine-empirical-baselines --apply [--force]``; dump to
+-- the committed JSON sidecar via ``--dump-json <path>`` so diffs
+-- are reviewable.
+-- The PRIMARY KEY ordering on both tables intentionally matches the
+-- lookup pattern (culture/donor + recipient → position → tag → era →
+-- lemma). SQLite covers PK-prefix lookups via the auto-generated
+-- B-tree on the PK; only the secondary `_lemma` index is non-redundant
+-- (it indexes lemma_ref, which is NOT a PK prefix and IS needed for
+-- "find all cells containing this lemma" queries).
+CREATE TABLE empirical_priors_native (
+  culture       TEXT NOT NULL,
+  position      TEXT NOT NULL,
+  tag           TEXT NOT NULL,
+  era_midpoint  INTEGER NOT NULL,
+  lemma_ref     TEXT NOT NULL,
+  count         INTEGER NOT NULL CHECK (count > 0),
+  PRIMARY KEY (culture, position, tag, era_midpoint, lemma_ref)
+);
+CREATE INDEX idx_priors_native_lemma
+  ON empirical_priors_native(lemma_ref);
+
+CREATE TABLE empirical_priors_loan (
+  donor         TEXT NOT NULL,
+  recipient     TEXT NOT NULL,
+  position      TEXT NOT NULL,
+  tag           TEXT NOT NULL,
+  era_midpoint  INTEGER NOT NULL,
+  lemma_ref     TEXT NOT NULL,
+  count         INTEGER NOT NULL CHECK (count > 0),
+  PRIMARY KEY (donor, recipient, position, tag, era_midpoint, lemma_ref)
+);
+CREATE INDEX idx_priors_loan_lemma
+  ON empirical_priors_loan(lemma_ref);

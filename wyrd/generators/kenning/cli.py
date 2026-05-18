@@ -38,6 +38,10 @@ from wyrd.generators.kenning.dictionary_parser import (
     parse_alphabetical_text,
     parse_numbered_list_text,
 )
+from wyrd.generators.kenning.empirical_priors import (
+    dump_empirical_priors_to_json,
+    mine_empirical_baselines,
+)
 from wyrd.generators.kenning.english_shaping import (
     PHASE2A_NON_LATIN_LANGS,
     derive_english_shaped,
@@ -8009,6 +8013,130 @@ def lexicon_project_period_forms(
     )
     if not apply_changes:
         click.echo("(dry-run; pass --apply to write etymon_period_form rows)", err=True)
+
+
+@lexicon.command("mine-empirical-baselines")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+@click.option(
+    "--apply",
+    "apply_changes",
+    is_flag=True,
+    default=False,
+    help=(
+        "Replace empirical_priors_native + empirical_priors_loan with "
+        "freshly-extracted counts. Without this, dry-run only."
+    ),
+)
+@click.option(
+    "--progress-every",
+    type=int,
+    default=5000,
+    show_default=True,
+    help="Emit a stderr progress line every N rows scanned. 0 = silent.",
+)
+def lexicon_mine_empirical_baselines(
+    db_path: Path, apply_changes: bool, progress_every: int
+) -> None:
+    """wyrd-ecjp.2: extract empirical-baseline priors per (culture x
+    position x tag x era) from toponym_etymology + elements + tags.
+
+    Two parallel views (D36.4 Option B):
+      * empirical_priors_native — all elements in <culture>-recipient
+        toponyms.
+      * empirical_priors_loan — same observations partitioned by donor
+        language; scenario packs read this for their template's
+        loan-relationship baseline.
+
+    LLM-free, deterministic, idempotent. Replace-not-merge each apply
+    run — stale cells from removed observations don't persist.
+
+    Pair with ``lexicon dump-empirical-priors --output ...`` to emit a
+    review-friendly JSON sidecar after writing the tables.
+    """
+    with LexiconDB(db_path) as db:
+        result = mine_empirical_baselines(db, apply=apply_changes, progress_every=progress_every)
+    click.echo("mine-empirical-baselines:", err=True)
+    click.echo(
+        "  scanned={scanned:>6}  emitted={emitted:>6}  "
+        "native_cells={nc:>5}  loan_cells={lc:>5}".format(
+            scanned=result["rows_scanned"],
+            emitted=result["rows_emitted"],
+            nc=result["native_cells_written"],
+            lc=result["loan_cells_written"],
+        ),
+        err=True,
+    )
+    click.echo(
+        "  skipped: country_unknown={cu:>5}  country_unmapped={cm:>5}  "
+        "year_unknown={yu:>5}  year_out_of_range={yo:>5}  "
+        "no_tag={nt:>5}".format(
+            cu=result["skipped_country_unknown"],
+            cm=result["skipped_country_unmapped"],
+            yu=result["skipped_year_unknown"],
+            yo=result["skipped_year_out_of_range"],
+            nt=result["skipped_no_tag"],
+        ),
+        err=True,
+    )
+    if not apply_changes:
+        click.echo(
+            "(dry-run; pass --apply to write empirical_priors_* rows)",
+            err=True,
+        )
+
+
+@lexicon.command("dump-empirical-priors")
+@click.option(
+    "--db",
+    "db_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=_DEFAULT_LEXICON_PATH,
+    show_default=LEXICON_DB_DEFAULT_DISPLAY,
+)
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    required=True,
+    help="Path to write the JSON priors artifact.",
+)
+@click.option(
+    "--version",
+    type=str,
+    default="unversioned",
+    show_default=True,
+    help=(
+        "Version string written verbatim into the JSON. Use a content "
+        "hash, sequential int, or date per your versioning policy."
+    ),
+)
+def lexicon_dump_empirical_priors(db_path: Path, output_path: Path, version: str) -> None:
+    """wyrd-ecjp.2: dump empirical_priors_* tables to a sorted, byte-
+    stable JSON artifact. Run after ``mine-empirical-baselines --apply``.
+
+    Output shape: a top-level dict with ``version`` (verbatim from
+    --version) and two lists of cell records (``native``, ``loan``).
+    Each cell record carries its key fields + a sorted ``lemmas``
+    dict mapping lemma_ref to count. Sort order is deterministic so
+    re-running on the same DB state produces a byte-identical file.
+
+    The committed JSON is the operator-visible diff surface for
+    priors evolution.
+    """
+    with LexiconDB(db_path) as db:
+        result = dump_empirical_priors_to_json(db, output_path, version=version)
+    click.echo("dump-empirical-priors:", err=True)
+    click.echo(
+        f"  wrote {result['native_cells']} native cells + "
+        f"{result['loan_cells']} loan cells to {output_path}",
+        err=True,
+    )
 
 
 @lexicon.command("fuzzy-search")
