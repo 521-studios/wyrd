@@ -63,15 +63,9 @@ def upgrade() -> None:
         )
         """
     )
-    op.execute(
-        "CREATE INDEX idx_etymon_text_match_etymon ON etymon_text_match(etymon_id)"
-    )
-    op.execute(
-        "CREATE INDEX idx_etymon_text_match_source ON etymon_text_match(source_id)"
-    )
-    op.execute(
-        "CREATE INDEX idx_etymon_text_match_year ON etymon_text_match(attested_year)"
-    )
+    op.execute("CREATE INDEX idx_etymon_text_match_etymon ON etymon_text_match(etymon_id)")
+    op.execute("CREATE INDEX idx_etymon_text_match_source ON etymon_text_match(source_id)")
+    op.execute("CREATE INDEX idx_etymon_text_match_year ON etymon_text_match(attested_year)")
 
 
 def downgrade() -> None:

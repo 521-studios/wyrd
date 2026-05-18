@@ -88,15 +88,9 @@ def upgrade() -> None:
         )
         """
     )
-    op.execute(
-        "CREATE INDEX idx_etymology_toponym ON toponym_etymology(toponym_id)"
-    )
-    op.execute(
-        "CREATE INDEX idx_etymology_source  ON toponym_etymology(source_id)"
-    )
-    op.execute(
-        "CREATE INDEX idx_toponym_etymology_year ON toponym_etymology(attested_year)"
-    )
+    op.execute("CREATE INDEX idx_etymology_toponym ON toponym_etymology(toponym_id)")
+    op.execute("CREATE INDEX idx_etymology_source  ON toponym_etymology(source_id)")
+    op.execute("CREATE INDEX idx_toponym_etymology_year ON toponym_etymology(attested_year)")
     op.execute(
         """
         CREATE INDEX idx_toponym_etymology_canonical
@@ -168,12 +162,8 @@ def upgrade() -> None:
         )
         """
     )
-    op.execute(
-        "CREATE INDEX idx_period_form_etymon ON etymon_period_form(etymon_id)"
-    )
-    op.execute(
-        "CREATE INDEX idx_period_form_year ON etymon_period_form(date_year)"
-    )
+    op.execute("CREATE INDEX idx_period_form_etymon ON etymon_period_form(etymon_id)")
+    op.execute("CREATE INDEX idx_period_form_year ON etymon_period_form(date_year)")
     op.execute(
         """
         CREATE UNIQUE INDEX idx_period_form_unique

@@ -36,9 +36,7 @@ def upgrade() -> None:
         )
         """
     )
-    op.execute(
-        "CREATE INDEX idx_meaning_synset_hypernym ON meaning_synset(hypernym_id)"
-    )
+    op.execute("CREATE INDEX idx_meaning_synset_hypernym ON meaning_synset(hypernym_id)")
 
     op.execute(
         """
@@ -76,9 +74,7 @@ def upgrade() -> None:
           ON empirical_priors_native(culture, position, tag, era_midpoint)
         """
     )
-    op.execute(
-        "CREATE INDEX idx_priors_native_lemma ON empirical_priors_native(lemma_ref)"
-    )
+    op.execute("CREATE INDEX idx_priors_native_lemma ON empirical_priors_native(lemma_ref)")
 
     op.execute(
         """
@@ -100,9 +96,7 @@ def upgrade() -> None:
           ON empirical_priors_loan(donor, recipient, position, tag, era_midpoint)
         """
     )
-    op.execute(
-        "CREATE INDEX idx_priors_loan_lemma ON empirical_priors_loan(lemma_ref)"
-    )
+    op.execute("CREATE INDEX idx_priors_loan_lemma ON empirical_priors_loan(lemma_ref)")
 
 
 def downgrade() -> None:

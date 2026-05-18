@@ -5470,9 +5470,7 @@ def _load_norman_manorial_family_tokens() -> frozenset[str]:
     surname-only matching policy that ``_norman_manorial_subjects``
     documents).
     """
-    data = resources.files("wyrd.generators.kenning.data").joinpath(
-        "norman_manorial_families.json"
-    )
+    data = resources.files("wyrd.generators.kenning.data").joinpath("norman_manorial_families.json")
     families = json.loads(data.read_text())
     return frozenset(family.split()[-1] for family in families)
 

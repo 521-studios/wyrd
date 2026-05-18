@@ -53,12 +53,8 @@ UPSERT_ETYMON = """
 # are intentionally NOT normalized at write time (mining preserves
 # scholar wording) so the same morpheme can carry several glosses
 # from several sources.
-INSERT_GLOSS_OR_IGNORE = (
-    "INSERT OR IGNORE INTO etymon_gloss (etymon_id, gloss) VALUES (?, ?)"
-)
+INSERT_GLOSS_OR_IGNORE = "INSERT OR IGNORE INTO etymon_gloss (etymon_id, gloss) VALUES (?, ?)"
 
 
 # Composite-PK insert; same idempotency contract as the gloss write.
-INSERT_TAG_OR_IGNORE = (
-    "INSERT OR IGNORE INTO etymon_tag (etymon_id, tag) VALUES (?, ?)"
-)
+INSERT_TAG_OR_IGNORE = "INSERT OR IGNORE INTO etymon_tag (etymon_id, tag) VALUES (?, ?)"

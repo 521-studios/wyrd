@@ -202,8 +202,7 @@ etymon_variant = Table(
         "variant_class",
         Text,
         CheckConstraint(
-            "variant_class IN ('alternative', 'inflection', 'romanization', "
-            "'canonical', 'other')"
+            "variant_class IN ('alternative', 'inflection', 'romanization', 'canonical', 'other')"
         ),
         nullable=False,
     ),
@@ -504,9 +503,7 @@ empirical_priors_loan = Table(
     Column("era_midpoint", Integer, nullable=False),
     Column("lemma_ref", Text, nullable=False),
     Column("count", Integer, CheckConstraint("count > 0"), nullable=False),
-    PrimaryKeyConstraint(
-        "donor", "recipient", "position", "tag", "era_midpoint", "lemma_ref"
-    ),
+    PrimaryKeyConstraint("donor", "recipient", "position", "tag", "era_midpoint", "lemma_ref"),
 )
 Index(
     "idx_priors_loan_cell",

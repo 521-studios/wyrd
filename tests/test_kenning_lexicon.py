@@ -183,18 +183,12 @@ def test_lexicon_db_engine_and_conn_share_dbapi_connection(fresh_db: Path) -> No
     with LexiconDB(fresh_db) as db:
         # Write via SA engine, read via sqlite3 shim.
         with db.engine.begin() as sa_conn:
-            sa_conn.exec_driver_sql(
-                "INSERT INTO source (id, title) VALUES ('via-engine', 'T')"
-            )
-        row = db.conn.execute(
-            "SELECT title FROM source WHERE id = 'via-engine'"
-        ).fetchone()
+            sa_conn.exec_driver_sql("INSERT INTO source (id, title) VALUES ('via-engine', 'T')")
+        row = db.conn.execute("SELECT title FROM source WHERE id = 'via-engine'").fetchone()
         assert row["title"] == "T"
 
         # Write via sqlite3 shim, read via SA engine.
-        db.conn.execute(
-            "INSERT INTO source (id, title) VALUES ('via-conn', 'U')"
-        )
+        db.conn.execute("INSERT INTO source (id, title) VALUES ('via-conn', 'U')")
         db.commit()
         with db.engine.connect() as sa_conn:
             count = sa_conn.exec_driver_sql(
@@ -227,9 +221,7 @@ def test_lexicon_db_close_releases_file_lock(fresh_db: Path) -> None:
     # would observe extra stray reader marks. We just verify that
     # the new instance reads what the prior one wrote.
     with LexiconDB(fresh_db) as db2:
-        row = db2.conn.execute(
-            "SELECT title FROM source WHERE id = 'lock-test'"
-        ).fetchone()
+        row = db2.conn.execute("SELECT title FROM source WHERE id = 'lock-test'").fetchone()
         assert row["title"] == "Lock Test"
 
 
@@ -279,9 +271,7 @@ def test_upgrade_head_is_idempotent(fresh_db: Path) -> None:
     import sqlite3
 
     with sqlite3.connect(fresh_db) as conn:
-        version = conn.execute(
-            "SELECT version_num FROM alembic_version"
-        ).fetchone()
+        version = conn.execute("SELECT version_num FROM alembic_version").fetchone()
     assert version[0] == "0008_views"
 
 
