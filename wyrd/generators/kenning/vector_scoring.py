@@ -421,6 +421,16 @@ def baseline_score_native(
     """
     if not request_tag_weights:
         return 0.0
+    # Materialize tags up-front so we (1) handle Iterable callers
+    # (e.g. one-shot generators) safely, (2) check emptiness BEFORE
+    # paying the O(N_cells) tag-independent scan cost (Gemini round-3
+    # HIGH finding — a lemma with no tags has no per-tag contribution
+    # to aggregate, so the tag-independent value is dead work), and
+    # (3) pin the FP-sum iteration order against hash randomization
+    # via sorted() (see sem_score for the same rationale).
+    sorted_tags = sorted(set(lemma_tags))
+    if not sorted_tags:
+        return 0.0
     # Compute tag-independent fallback (levels 3+4) ONCE per lemma —
     # the result depends only on (lemma_ref, culture, slot_position)
     # and is shared across all of the lemma's tags. Without this
@@ -428,9 +438,7 @@ def baseline_score_native(
     # once per tag (Gemini round-2 HIGH finding).
     tag_independent = _native_lookup_tag_independent(priors, lemma_ref, culture, slot_position)
     total = 0.0
-    # sorted(set(...)) pins the FP-sum iteration order against hash
-    # randomization (see sem_score for the same rationale).
-    for tag in sorted(set(lemma_tags)):
+    for tag in sorted_tags:
         rw = request_tag_weights.get(tag, 0.0)
         if rw == 0.0:
             continue
@@ -471,15 +479,20 @@ def baseline_score_pack(
     """
     if not request_tag_weights:
         return 0.0
+    # Same early-return + materialization as baseline_score_native —
+    # see that function for the full rationale (Iterable safety +
+    # empty-tags short-circuit before the O(N_cells) scan + FP-sum
+    # order pinning).
+    sorted_tags = sorted(set(lemma_tags))
+    if not sorted_tags:
+        return 0.0
     # Same tag-independent factoring as baseline_score_native — pack
     # variant just uses the loan-relationship cells.
     tag_independent = _loan_lookup_tag_independent(
         priors, lemma_ref, pack.template_donor, pack.template_recipient, slot_position
     )
     total = 0.0
-    # sorted(set(...)) pins the FP-sum iteration order against hash
-    # randomization (see sem_score for the same rationale).
-    for tag in sorted(set(lemma_tags)):
+    for tag in sorted_tags:
         rw = request_tag_weights.get(tag, 0.0)
         if rw == 0.0:
             continue
