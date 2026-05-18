@@ -22,19 +22,19 @@ from wyrd.generators.kenning.phonology_rules import rule_form as phonology_rule_
 if TYPE_CHECKING:
     from wyrd.generators.kenning.skeat_parser import ParsedEntry
 
-# wyrd-67fv: constants + the LexiconDB wrapper live in dedicated
-# submodules (``lexicon.constants``, ``lexicon.db``); re-exported here
-# so external callers (cli.py, rewind.py, disambiguator.py, tests) can
-# keep their ``from wyrd.generators.kenning.lexicon import LexiconDB``
-# / ``LANGUAGE_FIELDS`` imports unchanged.
-# wyrd-67fv slice A: schema management + page-citation parsing + the
-# meanings.json seed move to their own modules. Re-exported here so
-# external callers (cli.py, tests, follow-on enrichment passes) keep
-# working without changing their imports.
+# wyrd-67fv: every authoring concern lives in a dedicated submodule
+# (``lexicon.constants``, ``lexicon.db``, ``lexicon.schema``,
+# ``lexicon.citations``, ``lexicon.seed``, ``lexicon.empirical_priors``,
+# ``lexicon.sql``). The blocks below re-export the PUBLIC surface — plus
+# the small set of underscore-prefixed names tests actually import — so
+# external callers (cli.py, rewind.py, disambiguator.py, the test suite)
+# keep their existing ``from wyrd.generators.kenning.lexicon import …``
+# imports unchanged. Underscore helpers without an external caller are
+# NOT re-exported; in-package callers reach them via the submodule path
+# directly (``from wyrd.generators.kenning.lexicon.schema import …``).
 from wyrd.generators.kenning.lexicon.citations import (  # noqa: E402, F401
-    _backfill_table_pages,
-    _normalize_for_quote_match,
-    _quote_body_excerpt,
+    _normalize_for_quote_match,  # tested directly by test_kenning_lexicon
+    _quote_body_excerpt,  # tested directly by test_kenning_lexicon
     backfill_citation_pages,
     detect_running_headers,
     page_for_offset,
@@ -47,31 +47,9 @@ from wyrd.generators.kenning.lexicon.constants import (  # noqa: E402, F401
     normalize_ocr_form,
     position_from_usage,
 )
-from wyrd.generators.kenning.lexicon.db import (  # noqa: E402, F401
-    LexiconDB,
-    _apply_persistent_pragmas,  # re-exported for legacy callers; not used here
-)
+from wyrd.generators.kenning.lexicon.db import LexiconDB  # noqa: E402, F401
 from wyrd.generators.kenning.lexicon.schema import (  # noqa: E402, F401
-    _add_etymon_columns,
-    _create_empirical_priors_tables,
-    _create_etymon_descent_table,
-    _create_etymon_indexes,
-    _create_etymon_period_form_table,
-    _create_etymon_variant_table,
-    _create_fantasy_morpheme_table,
-    _create_meaning_synset_tables,
-    _create_mining_run_table,
-    _create_toponym_attestation_unique_index,
-    _create_toponym_decomposition_table,
-    _migrate_citation_context_snippet,
-    _migrate_text_match_table,
-    _migrate_toponym_etymology_attested_year,
-    _migrate_toponym_etymology_canonical,
-    _migrate_wal_mode,
-    _rebuild_etymon_views,
-    _recreate_view,
-    _rename_synset_to_cognate,
-    _schema_sql,
+    _migrate_toponym_etymology_canonical,  # used by test_kenning_toponym_etymology_canonical
     init_schema,
     migrate_schema,
     record_mining_run,

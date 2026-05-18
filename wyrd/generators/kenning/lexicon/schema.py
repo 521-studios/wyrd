@@ -10,7 +10,7 @@ Two entry points operate on a ``LexiconDB``:
   with synchronous=NORMAL via the SA connect-event listener on the
   engine.
 * ``migrate_schema(db)`` — legacy uplift. Bring an existing
-  lexicon.db forward column-by-column with the ~15 idempotent
+  lexicon.db forward column-by-column with the 18 idempotent
   ``_create_*_table`` / ``_migrate_*`` helpers in this module. Per
   the wyrd-67fv direction, new schema changes go through new
   alembic migrations, not new helpers here — the legacy path stays
@@ -20,7 +20,7 @@ Two entry points operate on a ``LexiconDB``:
 shares the schema-management mindset: every persistent mining
 operation must land in the ``mining_run`` table; this is the writer.
 
-The bulk of this file is the 15 helpers ``migrate_schema``
+The bulk of this file is the 18 helpers ``migrate_schema``
 orchestrates. Each helper:
 * Inspects ``sqlite_master`` / ``PRAGMA table_info`` to decide
   whether its target column / index / table is missing.
@@ -38,23 +38,9 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from importlib import resources
 from pathlib import Path
 
 from wyrd.generators.kenning.lexicon.db import LexiconDB, _apply_persistent_pragmas
-
-
-def _schema_sql() -> str:
-    """Return the legacy lexicon.sql baseline as a single string.
-
-    Retained as a back-compat shim for any external tooling that wants
-    to inspect the schema as one document. ``init_schema`` no longer
-    calls it — the canonical path is alembic ``upgrade head``, run via
-    ``lexicon.sql.upgrade_head``. The committed ``data/lexicon.sql``
-    file is regenerated from the layered migrations on every schema
-    change so the two stay in sync.
-    """
-    return resources.files("wyrd.generators.kenning.data").joinpath("lexicon.sql").read_text()
 
 
 def init_schema(db_path: Path | str) -> None:
@@ -981,8 +967,15 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     Idempotent — running on an already-migrated DB is a no-op. Returns a
     dict of {migration_name: applied?} so callers can report.
 
-    Each helper is independent and operates on its own slice of the
-    schema; reading them in order shows the full migration surface.
+    Each helper operates on its own slice of the schema, but the
+    call order matters where there's a dependency: renames must
+    precede column-adds (so a rename isn't followed by an ADD of
+    the now-orphaned legacy column name), column-adds precede
+    index-creates against those columns, and table-creates precede
+    helpers that ALTER columns onto those tables. The
+    ``_rename_synset_to_cognate`` → ``_add_etymon_columns`` ordering
+    just below is the explicit example. Reading the helpers in the
+    call order below shows the full migration surface.
     """
     applied = {
         "etymon.lemma_id": False,

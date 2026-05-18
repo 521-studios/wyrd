@@ -183,7 +183,8 @@ def backfill_citation_pages(
 
     For each row in ``source_id`` where page IS NULL, strip the provider-
     attribution prefix from the row's quoted excerpt (everything before
-    the last ` | `), normalize whitespace (the parser collapses OCR
+    the first ` | ` — see ``_quote_body_excerpt`` for why first-not-last),
+    normalize whitespace (the parser collapses OCR
     multi-spaces before sending to the LLM, so the stored quote uses
     single-spacing while the source has the original OCR runs), find
     the normalized excerpt in normalized source_text, translate the
