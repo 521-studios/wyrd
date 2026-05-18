@@ -1289,10 +1289,8 @@ def _create_empirical_priors_tables(db: LexiconDB, applied: dict[str, bool]) -> 
             )
             """
         )
-        db.conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_priors_native_cell "
-            "ON empirical_priors_native(culture, position, tag, era_midpoint)"
-        )
+        # Only the lemma_ref index is non-redundant — PK-prefix lookups
+        # are already covered by the auto-generated PK B-tree.
         db.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_priors_native_lemma "
             "ON empirical_priors_native(lemma_ref)"
@@ -1317,10 +1315,8 @@ def _create_empirical_priors_tables(db: LexiconDB, applied: dict[str, bool]) -> 
             )
             """
         )
-        db.conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_priors_loan_cell "
-            "ON empirical_priors_loan(donor, recipient, position, tag, era_midpoint)"
-        )
+        # Only the lemma_ref index is non-redundant — PK-prefix lookups
+        # are already covered by the auto-generated PK B-tree.
         db.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_priors_loan_lemma ON empirical_priors_loan(lemma_ref)"
         )

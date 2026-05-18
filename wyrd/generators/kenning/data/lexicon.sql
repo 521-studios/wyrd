@@ -700,6 +700,12 @@ CREATE UNIQUE INDEX idx_period_form_unique
 -- ``lexicon mine-empirical-baselines --apply [--force]``; dump to
 -- the committed JSON sidecar via ``--dump-json <path>`` so diffs
 -- are reviewable.
+-- The PRIMARY KEY ordering on both tables intentionally matches the
+-- lookup pattern (culture/donor + recipient → position → tag → era →
+-- lemma). SQLite covers PK-prefix lookups via the auto-generated
+-- B-tree on the PK; only the secondary `_lemma` index is non-redundant
+-- (it indexes lemma_ref, which is NOT a PK prefix and IS needed for
+-- "find all cells containing this lemma" queries).
 CREATE TABLE empirical_priors_native (
   culture       TEXT NOT NULL,
   position      TEXT NOT NULL,
@@ -709,8 +715,6 @@ CREATE TABLE empirical_priors_native (
   count         INTEGER NOT NULL CHECK (count > 0),
   PRIMARY KEY (culture, position, tag, era_midpoint, lemma_ref)
 );
-CREATE INDEX idx_priors_native_cell
-  ON empirical_priors_native(culture, position, tag, era_midpoint);
 CREATE INDEX idx_priors_native_lemma
   ON empirical_priors_native(lemma_ref);
 
@@ -724,7 +728,5 @@ CREATE TABLE empirical_priors_loan (
   count         INTEGER NOT NULL CHECK (count > 0),
   PRIMARY KEY (donor, recipient, position, tag, era_midpoint, lemma_ref)
 );
-CREATE INDEX idx_priors_loan_cell
-  ON empirical_priors_loan(donor, recipient, position, tag, era_midpoint);
 CREATE INDEX idx_priors_loan_lemma
   ON empirical_priors_loan(lemma_ref);

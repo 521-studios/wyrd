@@ -288,11 +288,7 @@ SELECT
     tee.ordinal                AS ordinal,
     cnt.element_count          AS element_count,
     t.country                  AS country,
-    t.modern_name              AS modern_name,
-    COALESCE(t.region, '')     AS region,
     te.attested_year           AS attested_year,
-    te.source_id               AS source_id,
-    te.page                    AS page,
     e.canonical_form           AS canonical_form,
     e.language                 AS language,
     tag.tag                    AS tag
