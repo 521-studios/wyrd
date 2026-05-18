@@ -287,7 +287,10 @@ Entry text:
 
 
 def parse_transport_json(
-    payload: str, *, provider: str, kind: Literal["envelope", "content"]
+    payload: str,
+    *,
+    provider: Literal["Anthropic", "Gemini", "Ollama"],
+    kind: Literal["envelope", "content"],
 ) -> dict:
     """Parse JSON from a transport payload, normalizing JSONDecodeError to
     RuntimeError with a provider-specific diagnostic message.

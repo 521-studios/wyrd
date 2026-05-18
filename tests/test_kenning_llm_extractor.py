@@ -17,6 +17,7 @@ is the worst direction). wyrd-pe4g rounds 4-5.
 
 from __future__ import annotations
 
+import json
 import re
 from unittest.mock import patch
 
@@ -898,8 +899,6 @@ def test_ollama_chat_json_non_json_content_raises_runtimeerror() -> None:
     extraction: a regression that drops the parse_transport_json wrap on
     the content path would abort the whole multi-source run on a single
     malformed model response."""
-    import json
-
     client = OllamaClient()
     # Outer envelope is valid; message.content is non-JSON garbage.
     envelope = json.dumps({"message": {"content": "this is not json {{"}}).encode("utf-8")
