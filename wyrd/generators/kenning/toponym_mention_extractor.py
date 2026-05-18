@@ -237,11 +237,22 @@ class ValidationCounters:
     Used by the orchestrator to roll up across all chunks, so
     operators can see the failure-mode breakdown (vs. an opaque
     "0 mentions admitted" result is a load-bearing UX gap).
+
+    Helpers that produce a counters delta (e.g.
+    :func:`extract_toponym_mentions_from_chunk`,
+    :func:`_run_hallucination_rescue`) return a fresh instance for
+    the caller to fold into a per-chunk accumulator via ``+=``.
     """
 
     admitted: int = 0
     hallucinations_dropped: int = 0
     years_clamped: int = 0  # any year value the LLM emitted that we coerced to None
+
+    def __iadd__(self, other: ValidationCounters) -> ValidationCounters:
+        self.admitted += other.admitted
+        self.hallucinations_dropped += other.hallucinations_dropped
+        self.years_clamped += other.years_clamped
+        return self
 
 
 # Strict digit-only match for year strings — Python's int() accepts
@@ -392,13 +403,18 @@ def _validated_mentions(
 def extract_toponym_mentions_from_chunk(
     client,
     chunk: str,
-    counters: ValidationCounters | None = None,
-) -> list[ToponymMention]:
-    """Run one LLM call against ``chunk`` and return validated
-    mentions. ``client`` must have a ``chat_json(system, user,
-    schema=None) -> dict`` method — same contract as
-    :class:`AnthropicClient`, :class:`OllamaClient`,
+) -> tuple[list[ToponymMention], ValidationCounters]:
+    """Run one LLM call against ``chunk`` and return
+    ``(validated_mentions, counters)``. ``client`` must have a
+    ``chat_json(system, user, schema=None) -> dict`` method — same
+    contract as :class:`AnthropicClient`, :class:`OllamaClient`,
     :class:`GeminiClient` in the existing extractor modules.
+
+    The returned :class:`ValidationCounters` is a fresh delta — the
+    caller folds it into its per-chunk accumulator via ``+=`` (see
+    :func:`ValidationCounters.__iadd__`). This delta-return shape
+    (wyrd-oaq5) keeps the helper free of caller-supplied mutable
+    state: it produces a value, the caller decides how to combine it.
 
     Network / JSON-parse errors propagate as ``RuntimeError`` — the
     caller (per-source orchestrator) decides whether to skip the
@@ -445,7 +461,9 @@ def extract_toponym_mentions_from_chunk(
         raise RuntimeError("LLM response missing 'mentions' key")
     if not isinstance(raw, list):
         raise RuntimeError(f"LLM response 'mentions' was {type(raw).__name__}, expected list")
-    return _validated_mentions(raw, chunk, counters=counters)
+    counters = ValidationCounters()
+    mentions = _validated_mentions(raw, chunk, counters=counters)
+    return mentions, counters
 
 
 # When a single paragraph exceeds this multiple of the target chunk
@@ -742,9 +760,8 @@ def _process_indexed_chunks(
                 f"({len(chunk):,} chars > {int(oversize_threshold):,} threshold) — "
                 f"LLM output may truncate; consider lowering --chunk-size"
             )
-        chunk_counters = ValidationCounters()
         try:
-            mentions = extract_toponym_mentions_from_chunk(client, chunk, counters=chunk_counters)
+            mentions, chunk_counters = extract_toponym_mentions_from_chunk(client, chunk)
         except _PROGRAMMER_ERROR_EXCEPTIONS:
             # Re-raise: AttributeError / TypeError / NameError /
             # ImportError are our bugs, not the LLM's. Letting them
@@ -820,21 +837,22 @@ def _run_hallucination_rescue(
     chunk: str,
     chunk_index: int,
     primary_mentions: list[ToponymMention],
-    primary_counters: ValidationCounters,
     log_warning: Callable[[str], None] | None,
-) -> tuple[list[ToponymMention], bool]:
+) -> tuple[list[ToponymMention], ValidationCounters, bool]:
     """Run the fallback on a chunk where the primary succeeded but
-    emitted >= threshold hallucinated forms (wyrd-z8mq). Returns the
-    (possibly-merged) mentions list + a bool indicating whether the
-    fallback actually delivered content.
+    emitted >= threshold hallucinated forms (wyrd-z8mq). Returns a
+    3-tuple ``(mentions, delta_counters, ok)``: the possibly-merged
+    mentions, the fallback's per-call counter delta for the caller
+    to fold, and a bool indicating whether the fallback actually
+    delivered content.
 
     Three outcomes the bool distinguishes:
 
     1. Fallback returned non-empty mentions → union-merges into
        primary's by :func:`_hallucination_rescue_dedup_key` (primary
        canonical on collision; fallback adds anything primary didn't
-       see), folds fallback's per-chunk counters into
-       ``primary_counters``, returns (merged_list, True).
+       see). Returns (merged_list, rescue_delta, True). Caller folds
+       rescue_delta via ``+=`` into its chunk accumulator.
     2. Fallback returned an empty admit list — call succeeded
        mechanically but produced no usable content. Could be a
        content-policy refusal, a schema-validation glitch, a
@@ -842,25 +860,26 @@ def _run_hallucination_rescue(
        where every form failed the word-boundary guard. Operationally
        equivalent to a failed rescue from the operator's
        perspective: primary's hallucinations weren't caught.
-       Returns (primary_mentions, False). The fallback's per-chunk
-       counters STILL fold in — ``hallucinations_dropped`` and
-       ``years_clamped`` from the all-hallucinated case carry
-       real signal about fallback model quality (an empty admit
-       list with non-zero dropped count means "fallback emitted
-       garbage we filtered out", not "fallback returned nothing").
+       Returns (primary_mentions, rescue_delta, False). The
+       fallback's per-call counters STILL flow back — an
+       all-hallucinated fallback emits non-zero
+       ``hallucinations_dropped`` that carries real signal about
+       fallback model quality (an empty admit list with non-zero
+       dropped count means "fallback emitted garbage we filtered
+       out", not "fallback returned nothing"). Caller folds.
     3. Fallback raised (transport / API / parse error). primary's
-       mentions returned unchanged, ``primary_counters`` untouched.
-       Returns (primary_mentions, False). The orchestrator logs and
-       continues; primary's good mentions still flow through to the
-       output (the rescue is opportunistic).
+       mentions returned unchanged; the returned counters delta is
+       zero so caller's fold is a no-op. Returns
+       (primary_mentions, zero_delta, False). The orchestrator logs
+       and continues; primary's good mentions still flow through to
+       the output (the rescue is opportunistic).
 
     ``_PROGRAMMER_ERROR_EXCEPTIONS`` propagates as a traceback
     (consistent with the rest of the file's contract).
     """
-    rescue_counters = ValidationCounters()
     try:
-        rescue_mentions = extract_toponym_mentions_from_chunk(
-            fallback_client, chunk, counters=rescue_counters
+        rescue_mentions, rescue_counters = extract_toponym_mentions_from_chunk(
+            fallback_client, chunk
         )
     except _PROGRAMMER_ERROR_EXCEPTIONS:
         raise  # Our bug — let it surface as a traceback.
@@ -882,8 +901,10 @@ def _run_hallucination_rescue(
         # the return value (just `.extend()`s it into the report),
         # but consistent ownership prevents a future refactor from
         # silently aliasing the failure-path return into shared state
-        # — Gemini wyrd-z8mq round 5 MEDIUM.
-        return list(primary_mentions), False
+        # — Gemini wyrd-z8mq round 5 MEDIUM. Zero counter delta on
+        # this path: caller's ``+=`` is a no-op, primary's counters
+        # untouched.
+        return list(primary_mentions), ValidationCounters(), False
 
     # Dedup against primary's keys AND against fallback-internal
     # duplicates (Gemini wyrd-z8mq round 3 MEDIUM): if the fallback
@@ -899,22 +920,17 @@ def _run_hallucination_rescue(
             continue
         added.append(m)
         seen_keys.add(key)
-    # Counter folding: the fallback's per-chunk counters fold in
-    # whenever the call returned (regardless of admit-list shape).
-    # An all-hallucinated fallback emits non-zero hallucinations_dropped
-    # even when rescue_mentions ends up empty (silent-failure-hunter
-    # wyrd-z8mq round 3 LOW-MEDIUM: docstring previously overclaimed
-    # "would be 0" here). The fallback's hallucination count is real
-    # data about model quality and stays in the aggregate.
-    primary_counters.hallucinations_dropped += rescue_counters.hallucinations_dropped
-    primary_counters.years_clamped += rescue_counters.years_clamped
     # ``rescue_mentions`` empty = fallback ran cleanly but admitted
     # no content. Operationally equivalent to a failed rescue: the
     # primary's hallucinations weren't actually caught. Return False
     # so chunks_hallucination_rescue_succeeded reflects "fallback
     # delivered output", not just "fallback didn't raise"
-    # (silent-failure-hunter wyrd-z8mq round 2 HIGH).
-    return list(primary_mentions) + added, bool(rescue_mentions)
+    # (silent-failure-hunter wyrd-z8mq round 2 HIGH). The rescue
+    # delta still flows back regardless of admit-list shape: an
+    # all-hallucinated fallback's hallucinations_dropped/years_clamped
+    # carry real signal about fallback model quality and stay in the
+    # aggregate when the caller folds.
+    return list(primary_mentions) + added, rescue_counters, bool(rescue_mentions)
 
 
 def _run_primary_failure_fallback(
@@ -937,19 +953,19 @@ def _run_primary_failure_fallback(
       bumps ``chunks_failed``, buffers ``failure`` in head/tail, and
       ``continue``s to the next chunk.
 
-    Counters are always returned fresh — ``extract_toponym_mentions_from_chunk``
-    doesn't populate counters partially before raising today, but a
-    future refactor could; keeping the discard explicit prevents
-    double-counting drift if that contract changes.
+    Counters delta is produced by
+    :func:`extract_toponym_mentions_from_chunk` (wyrd-oaq5 delta-return
+    shape) and flows back to the caller on success. On failure the
+    helper returns a fresh-empty :class:`ValidationCounters` so the
+    caller's ``+=`` fold is a no-op (the caller ``continue``s anyway,
+    but the empty delta keeps the contract symmetric across both
+    return shapes).
 
     ``_PROGRAMMER_ERROR_EXCEPTIONS`` propagates as a traceback
     (consistent with the rest of the file's contract).
     """
-    chunk_counters = ValidationCounters()
     try:
-        mentions = extract_toponym_mentions_from_chunk(
-            fallback_client, chunk, counters=chunk_counters
-        )
+        mentions, chunk_counters = extract_toponym_mentions_from_chunk(fallback_client, chunk)
     except _PROGRAMMER_ERROR_EXCEPTIONS:
         raise  # Our bug — let it surface as a traceback.
     except Exception as e:
@@ -964,7 +980,7 @@ def _run_primary_failure_fallback(
         )
         if log_warning is not None:
             log_warning(f"chunk {chunk_index} both tiers failed: {fallback_error}")
-        return None, chunk_counters, failure
+        return None, ValidationCounters(), failure
     return mentions, chunk_counters, None
 
 
@@ -1004,11 +1020,10 @@ def mine_toponym_mentions_tiered(
     Resolved-mention counters (``hallucinations_dropped``,
     ``years_clamped``) on the failure-rescue path (primary-failed-
     then-fallback) reflect ONLY the tier that succeeded — the
-    losing tier's per-chunk counters are discarded so a partial-
-    populate from a primary that raised mid-validation can't double-
-    count. ``extract_toponym_mentions_from_chunk`` does not currently
-    populate counters partially before raising, so the discarded-
-    state is defensive against future refactors. (The hallucination-
+    losing tier's counters never enter the chunk's accumulator
+    because :func:`extract_toponym_mentions_from_chunk` returns its
+    counters by value (wyrd-oaq5 delta-return shape) and the
+    orchestrator only unpacks them on success. (The hallucination-
     rescue path below has different counter-folding semantics —
     both tiers contribute to the aggregate. See the rescue section.)
 
@@ -1040,14 +1055,16 @@ def mine_toponym_mentions_tiered(
     single counter.
 
     Counter folding: the fallback's per-chunk counters
-    (``hallucinations_dropped``, ``years_clamped``) fold into
-    the primary's whenever the fallback call returns — including
-    the all-hallucinated case where the admit list is empty but
-    the dropped-form count carries real signal about fallback
-    model quality. Only an ERRORED fallback (Outcome 3 of
-    :func:`_run_hallucination_rescue`) leaves rescue_counters
-    discarded. The primary's good mentions always flow through
-    to the output (the rescue is opportunistic, never destructive).
+    (``hallucinations_dropped``, ``years_clamped``) fold into the
+    primary's whenever the fallback call returns — including the
+    all-hallucinated case where the admit list is empty but the
+    dropped-form count carries real signal about fallback model
+    quality. An ERRORED fallback (Outcome 3 of
+    :func:`_run_hallucination_rescue`) returns a zero
+    :class:`ValidationCounters`, so the orchestrator's ``+=`` fold
+    is a no-op on that path. The primary's good mentions always
+    flow through to the output (the rescue is opportunistic, never
+    destructive).
 
     Designed for the gemma4 / Anthropic split observed 2026-05-16:
     gemma4 primary's smoke had 1 hallucinated form across 79
@@ -1084,9 +1101,7 @@ def mine_toponym_mentions_tiered(
         primary_error: str | None = None
         mentions: list[ToponymMention] | None = None
         try:
-            mentions = extract_toponym_mentions_from_chunk(
-                primary_client, chunk, counters=chunk_counters
-            )
+            mentions, chunk_counters = extract_toponym_mentions_from_chunk(primary_client, chunk)
         except _PROGRAMMER_ERROR_EXCEPTIONS:
             raise  # Our bug — let it surface as a traceback.
         except Exception as e:
@@ -1125,9 +1140,10 @@ def mine_toponym_mentions_tiered(
                     f"{chunk_counters.hallucinations_dropped} forms — "
                     f"running fallback for rescue"
                 )
-            mentions, rescue_ok = _run_hallucination_rescue(
-                fallback_client, chunk, i, mentions, chunk_counters, log_warning
+            mentions, rescue_delta, rescue_ok = _run_hallucination_rescue(
+                fallback_client, chunk, i, mentions, log_warning
             )
+            chunk_counters += rescue_delta
             if rescue_ok:
                 report.chunks_hallucination_rescue_succeeded += 1
         report.mentions.extend(mentions)

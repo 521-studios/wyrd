@@ -2050,18 +2050,19 @@ def test_run_hallucination_rescue_failure_path_returns_fresh_list():
     primary = [
         ToponymMention(form="Edlin", date_year=None, region_hint=None, context="Edlin context")
     ]
-    counters = ValidationCounters()
-    result, succeeded = _run_hallucination_rescue(
+    result, delta, succeeded = _run_hallucination_rescue(
         _RaisingFallback(),
         chunk="Edlin context",
         chunk_index=0,
         primary_mentions=primary,
-        primary_counters=counters,
         log_warning=None,
     )
     assert succeeded is False
     assert result == primary  # same contents
     assert result is not primary  # ...but a fresh list (the load-bearing assertion)
+    # wyrd-oaq5: errored-rescue returns a zero counters delta so the
+    # caller's ``+=`` fold is a no-op (primary's counters stay untouched).
+    assert delta == ValidationCounters()
 
 
 def test_tiered_hallucination_rescue_only_when_primary_succeeds():
