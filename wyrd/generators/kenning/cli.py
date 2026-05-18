@@ -8074,10 +8074,12 @@ def lexicon_extract_empirical_priors(
     )
     click.echo(
         "  skipped: country_unknown={cu:>5}  country_unmapped={cm:>5}  "
-        "no_era={ne:>5}  no_tag={nt:>5}".format(
+        "year_unknown={yu:>5}  year_out_of_range={yo:>5}  "
+        "no_tag={nt:>5}".format(
             cu=result["skipped_country_unknown"],
             cm=result["skipped_country_unmapped"],
-            ne=result["skipped_no_era"],
+            yu=result["skipped_year_unknown"],
+            yo=result["skipped_year_out_of_range"],
             nt=result["skipped_no_tag"],
         ),
         err=True,

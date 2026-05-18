@@ -14,6 +14,7 @@ from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.empirical_priors import (
+    _COUNTRY_TO_CULTURE,
     _CULTURE_TO_FAMILY,
     _OPEN_BOUND_OFFSET,
     ExtractionResult,
@@ -170,10 +171,14 @@ def test_era_midpoint_for_culture_resolves_english():
     assert era_midpoint_for_culture("english", 950) == 950
 
 
-def test_era_midpoint_for_culture_unknown_culture_returns_none():
-    """Unknown culture string -> None (not raised). Callers route via
-    _COUNTRY_TO_CULTURE, which controls valid culture values."""
-    assert era_midpoint_for_culture("klingon", 950) is None
+def test_era_midpoint_for_culture_unknown_culture_raises():
+    """Unknown culture string -> ValueError (loud config-or-caller
+    error). Production callers route via _COUNTRY_TO_CULTURE, whose
+    values are by contract also in _CULTURE_TO_FAMILY; an unknown
+    string here would silently route every row of that culture into
+    skipped_year_*. Raise instead."""
+    with pytest.raises(ValueError, match="missing from _CULTURE_TO_FAMILY"):
+        era_midpoint_for_culture("klingon", 950)
 
 
 def test_era_midpoint_for_culture_year_past_all_cells_returns_none():
@@ -189,7 +194,7 @@ def test_era_midpoint_for_culture_year_past_all_cells_returns_none():
 def test_era_midpoint_for_culture_raises_on_missing_family_cells():
     """Config drift: _CULTURE_TO_FAMILY entry pointing at a family
     that isn't in ERA_CELLS must raise loudly, not silently route
-    every row of that culture into skipped_no_era."""
+    every row of that culture into skipped_year_*."""
     _CULTURE_TO_FAMILY["__test_orphan"] = "__no_such_family"
     try:
         with pytest.raises(ValueError, match="not in era.ERA_CELLS"):
@@ -270,9 +275,10 @@ def test_extraction_result_partition_invariant_enforced():
             loan_cells_written=3,
             skipped_country_unknown=1,
             skipped_country_unmapped=0,
-            skipped_no_era=1,
+            skipped_year_unknown=1,
+            skipped_year_out_of_range=0,
             skipped_no_tag=1,
-            # 3 + 1 + 0 + 1 + 1 = 6, not 10
+            # 3 + 1 + 0 + 1 + 0 + 1 = 6, not 10
         )
 
 
@@ -280,12 +286,13 @@ def test_extraction_result_partition_invariant_passes_when_balanced():
     """Sum of buckets equals rows_scanned -> no raise."""
     er = ExtractionResult(
         rows_scanned=10,
-        rows_emitted=5,
+        rows_emitted=4,
         native_cells_written=3,
         loan_cells_written=3,
         skipped_country_unknown=1,
         skipped_country_unmapped=1,
-        skipped_no_era=2,
+        skipped_year_unknown=2,
+        skipped_year_out_of_range=1,
         skipped_no_tag=1,
     )
     assert er.rows_scanned == 10
@@ -413,7 +420,9 @@ def test_extract_priors_skips_country_unmapped_when_not_in_map(db):
     assert summary.skipped_country_unmapped == 1
 
 
-def test_extract_priors_skips_no_era_when_attested_year_is_none(db):
+def test_extract_priors_skips_year_unknown_when_attested_year_is_none(db):
+    """attested_year IS NULL -> skipped_year_unknown (data-quality:
+    operator should backfill from source citations)."""
     tid = _add_toponym(db, "X")
     e = _add_etymon(db, "x", "old-english", tags=("plant",))
     _add_etymology(db, toponym_id=tid, elements=[e], attested_year=None)
@@ -421,7 +430,32 @@ def test_extract_priors_skips_no_era_when_attested_year_is_none(db):
     native, _loan, summary = extract_priors(db)
 
     assert native == {}
-    assert summary.skipped_no_era == 1
+    assert summary.skipped_year_unknown == 1
+    assert summary.skipped_year_out_of_range == 0
+
+
+def test_extract_priors_skips_year_out_of_range_when_year_past_cells(db):
+    """attested_year present but no matching era cell -> the
+    sibling counter (skipped_year_out_of_range). Production English
+    cells span (None, ...) → (..., None) so every English year
+    resolves; this test injects a temporary culture mapped to a
+    closed-bound family so the loop-exhaust path is exercised."""
+    # latin's last cell ends at 1800; year=2000 has no match.
+    _CULTURE_TO_FAMILY["__test_latin"] = "latin"
+    _COUNTRY_TO_CULTURE["__TestCountry"] = "__test_latin"
+    try:
+        tid = _add_toponym(db, "X", country="__TestCountry")
+        e = _add_etymon(db, "x", "latin", tags=("plant",))
+        _add_etymology(db, toponym_id=tid, elements=[e], attested_year=2000)
+
+        native, _loan, summary = extract_priors(db)
+
+        assert native == {}
+        assert summary.skipped_year_unknown == 0
+        assert summary.skipped_year_out_of_range == 1
+    finally:
+        del _CULTURE_TO_FAMILY["__test_latin"]
+        del _COUNTRY_TO_CULTURE["__TestCountry"]
 
 
 def test_extract_priors_skips_no_tag_when_etymon_has_no_tags(db):
@@ -500,7 +534,8 @@ def test_extract_priors_partition_invariant_with_mixed_skips(db):
     assert summary.rows_emitted == 1
     assert summary.skipped_country_unknown == 1
     assert summary.skipped_country_unmapped == 1
-    assert summary.skipped_no_era == 1
+    assert summary.skipped_year_unknown == 1
+    assert summary.skipped_year_out_of_range == 0
     assert summary.skipped_no_tag == 1
     # The dataclass __post_init__ already enforced the invariant —
     # asserting we got the ExtractionResult at all means it held.
@@ -517,9 +552,55 @@ def test_extract_priors_progress_emits_to_stderr(db, capsys):
     extract_priors(db, progress_every=2)
 
     captured = capsys.readouterr()
-    # Expect at least 2 progress lines (rows 2 and 4 hit `% 2 == 0`).
+    # Expect 2 in-loop progress lines + 1 final line. CLAUDE.md:
+    # "Always echo a final line at completion so the last partial
+    # chunk shows up."
     assert "[2] scanned" in captured.err
     assert "[4] scanned" in captured.err
+    # Final line — the loop saw 5 rows total; the final emission
+    # fires because 5 % 2 != 0.
+    assert "[5] scanned" in captured.err
+
+
+def test_extract_priors_progress_emits_final_line_on_exact_multiple(db, capsys):
+    """When total rows is an exact multiple of progress_every, the
+    final periodic emission already covered the last chunk — no
+    duplicate final line."""
+    # 4 rows + progress_every=2 -> emissions at 2 and 4. No extra final.
+    for i in range(4):
+        tid = _add_toponym(db, f"P{i}")
+        e = _add_etymon(db, f"e{i}", "old-english", tags=("plant",))
+        _add_etymology(db, toponym_id=tid, elements=[e], attested_year=950)
+
+    extract_priors(db, progress_every=2)
+
+    captured = capsys.readouterr()
+    # Exactly two progress lines, no duplicate at 4.
+    assert captured.err.count("scanned") == 2
+
+
+def test_extract_priors_mixed_tagged_and_untagged_compound(db):
+    """A single toponym with one tagged element and one untagged
+    element produces (a) one emitted cell from the tagged half and
+    (b) one skipped_no_tag from the untagged half. Pins the LEFT
+    JOIN behavior end-to-end against the position-derivation pathway.
+    A regression that pushed WHERE tag IS NOT NULL into the cnt
+    subquery would silently miscount element_count."""
+    tid = _add_toponym(db, "Mixedton")
+    e_tagged = _add_etymon(db, "Eadwine", "old-english", tags=("name",))
+    e_untagged = _add_etymon(db, "tūn", "old-english", tags=())
+    _add_etymology(db, toponym_id=tid, elements=[e_tagged, e_untagged], attested_year=950)
+
+    native, _loan, summary = extract_priors(db)
+
+    # Tagged element emits with position='pre' (ordinal 0 in 2-compound).
+    # Position MUST be 'pre' not 'post' — element_count is 2 because
+    # the LEFT JOIN preserves both elements.
+    assert native[_NativeKey("english", "pre", "name", 950, "old-english:Eadwine")] == 1
+    # Untagged element ranks into skipped_no_tag.
+    assert summary.rows_scanned == 2
+    assert summary.rows_emitted == 1
+    assert summary.skipped_no_tag == 1
 
 
 # ---------- mine_empirical_baselines ------------------------------------
@@ -673,6 +754,52 @@ def test_dump_json_byte_stable_across_db_reopen(db, tmp_path):
     db2.close()
 
     assert first.read_bytes() == second.read_bytes()
+
+
+def test_dump_json_byte_stable_across_independent_dbs(tmp_path):
+    """Two DBs built with DIFFERENT insert orders produce identical
+    JSON dumps. This pins the D36.9 contract that priors are
+    content-addressable, not insert-time-rowid-dependent. A
+    regression to ORDER BY te.id (or any insert-order key) would
+    pass test_dump_json_byte_stable_across_db_reopen (same DB,
+    same rowids) but fail here."""
+
+    def _build_db(db_path, insert_order: list[tuple[str, list[tuple[str, str, str]]]]) -> None:
+        """Build a fresh DB and insert the given (toponym, [(canonical, language, tag), ...])
+        rows in the order provided so the AUTOINCREMENT ids end up in
+        different sequences across the two DBs."""
+        init_schema(db_path)
+        d = LexiconDB(db_path)
+        d.conn.execute("INSERT INTO source (id, title) VALUES ('test_src', 'S')")
+        d.commit()
+        for top_name, elements in insert_order:
+            top_id = _add_toponym(d, top_name)
+            etymon_ids = []
+            for canon, lang, tag in elements:
+                etymon_ids.append(_add_etymon(d, canon, lang, tags=(tag,)))
+            _add_etymology(d, toponym_id=top_id, elements=etymon_ids, attested_year=950)
+        mine_empirical_baselines(d, apply=True)
+        out = db_path.parent / f"{db_path.stem}.json"
+        dump_empirical_priors_to_json(d, out, version="v1")
+        d.close()
+        return out
+
+    db_a_path = tmp_path / "a.db"
+    db_b_path = tmp_path / "b.db"
+    # Same content, opposite insert orders. Both DBs end up with
+    # identical L2 facts but different AUTOINCREMENT rowids on
+    # toponym / etymon / toponym_etymology.
+    forward = [
+        ("Alphaton", [("alpha", "old-english", "plant")]),
+        ("Betaton", [("beta", "old-english", "tree")]),
+        ("Gammaton", [("gamma", "old-norse", "water")]),
+    ]
+    reverse = list(reversed(forward))
+
+    out_a = _build_db(db_a_path, forward)
+    out_b = _build_db(db_b_path, reverse)
+
+    assert out_a.read_bytes() == out_b.read_bytes()
 
 
 def test_dump_json_sorts_lemmas_in_cell(db, tmp_path):

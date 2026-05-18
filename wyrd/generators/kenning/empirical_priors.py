@@ -69,7 +69,7 @@ _COUNTRY_TO_CULTURE: dict[str, str] = {
 # This map MUST cover every value in ``_COUNTRY_TO_CULTURE.values()``.
 # ``era_midpoint_for_culture`` raises if it doesn't, so config drift
 # fires loudly rather than silently bucketing every row of the affected
-# culture into ``skipped_no_era``.
+# culture into ``skipped_year_*``.
 _CULTURE_TO_FAMILY: dict[str, str] = {
     "english": "english",
     "welsh": "brythonic",
@@ -135,19 +135,26 @@ def era_midpoint_for_culture(culture: str, year: int) -> int | None:
     the era cell that year falls into, in the RECIPIENT CULTURE's
     family.
 
-    Raises ``ValueError`` when ``culture`` is in
-    ``_COUNTRY_TO_CULTURE.values()`` (i.e. a culture the extractor
-    routes rows to) but missing from ``_CULTURE_TO_FAMILY`` or with
-    no entry in ``ERA_CELLS`` — these are configuration drift between
-    the two maps and would otherwise silently bucket every row of the
-    affected culture into ``skipped_no_era``.
+    Raises ``ValueError`` when ``culture`` is missing from
+    ``_CULTURE_TO_FAMILY`` or when its family is missing from
+    ``ERA_CELLS`` — these are configuration drift between the maps
+    and would otherwise silently bucket every row of the affected
+    culture into the ``skipped_year_*`` counters. Production callers
+    always reach this function via a culture from
+    ``_COUNTRY_TO_CULTURE.values()``, which by contract is also in
+    ``_CULTURE_TO_FAMILY``; an unknown culture string is a programming
+    error, not a recoverable miss.
 
-    Returns ``None`` when ``culture`` is entirely unknown (caller's
-    error; raise also makes sense but we leave that to the caller)
-    or when the year falls outside every cell's range in the family.
+    Returns ``None`` only when the year falls outside every cell's
+    range in the family — that's the legitimate data-quality gap
+    the ``skipped_year_out_of_range`` counter surfaces.
     """
     if culture not in _CULTURE_TO_FAMILY:
-        return None
+        raise ValueError(
+            f"culture {culture!r} is missing from _CULTURE_TO_FAMILY — "
+            "an unknown culture is a config or caller error, not a "
+            "recoverable miss. Add the entry or fix the caller."
+        )
     family = _CULTURE_TO_FAMILY[culture]
     cells = ERA_CELLS.get(family)
     if cells is None:
@@ -210,13 +217,21 @@ class ExtractionResult:
         rows_scanned == rows_emitted
                       + skipped_country_unknown
                       + skipped_country_unmapped
-                      + skipped_no_era
+                      + skipped_year_unknown
+                      + skipped_year_out_of_range
                       + skipped_no_tag
 
     Each SQL row contributes to exactly one bucket. Skip-reason fields
     are mutually exclusive — the extractor's gate order is country
-    (unknown then unmapped) → era → tag, and the first failing gate
-    wins.
+    (unknown then unmapped) → year (unknown then out-of-range) → tag,
+    and the first failing gate wins.
+
+    Year skips are split into two reasons because they need different
+    remediation: ``_unknown`` means ``toponym_etymology.attested_year``
+    is NULL (operator: backfill years from source citations);
+    ``_out_of_range`` means the year is present but falls outside
+    every era cell's range in the recipient culture's family
+    (operator: extend ``ERA_CELLS`` or accept the proto-period gap).
     """
 
     rows_scanned: int
@@ -225,14 +240,16 @@ class ExtractionResult:
     loan_cells_written: int
     skipped_country_unknown: int
     skipped_country_unmapped: int
-    skipped_no_era: int
+    skipped_year_unknown: int
+    skipped_year_out_of_range: int
     skipped_no_tag: int
 
     def __post_init__(self) -> None:
         skipped = (
             self.skipped_country_unknown
             + self.skipped_country_unmapped
-            + self.skipped_no_era
+            + self.skipped_year_unknown
+            + self.skipped_year_out_of_range
             + self.skipped_no_tag
         )
         if self.rows_emitted + skipped != self.rows_scanned:
@@ -242,7 +259,8 @@ class ExtractionResult:
                 f"rows_emitted={self.rows_emitted} + "
                 f"skipped_country_unknown={self.skipped_country_unknown} + "
                 f"skipped_country_unmapped={self.skipped_country_unmapped} + "
-                f"skipped_no_era={self.skipped_no_era} + "
+                f"skipped_year_unknown={self.skipped_year_unknown} + "
+                f"skipped_year_out_of_range={self.skipped_year_out_of_range} + "
                 f"skipped_no_tag={self.skipped_no_tag}"
             )
 
@@ -254,7 +272,8 @@ class ExtractionResult:
             "loan_cells_written": self.loan_cells_written,
             "skipped_country_unknown": self.skipped_country_unknown,
             "skipped_country_unmapped": self.skipped_country_unmapped,
-            "skipped_no_era": self.skipped_no_era,
+            "skipped_year_unknown": self.skipped_year_unknown,
+            "skipped_year_out_of_range": self.skipped_year_out_of_range,
             "skipped_no_tag": self.skipped_no_tag,
         }
 
@@ -329,21 +348,26 @@ def extract_priors(
     rows_emitted = 0
     skipped_country_unknown = 0
     skipped_country_unmapped = 0
-    skipped_no_era = 0
+    skipped_year_unknown = 0
+    skipped_year_out_of_range = 0
     skipped_no_tag = 0
+
+    def _emit_progress() -> None:
+        print(
+            f"  [{rows_scanned}] scanned  emitted={rows_emitted} "
+            f"skip_country_unknown={skipped_country_unknown} "
+            f"skip_country_unmapped={skipped_country_unmapped} "
+            f"skip_year_unknown={skipped_year_unknown} "
+            f"skip_year_out_of_range={skipped_year_out_of_range} "
+            f"skip_no_tag={skipped_no_tag}",
+            file=sys.stderr,
+            flush=True,
+        )
 
     for row in db.conn.execute(_EXTRACT_SQL_ORDERED):
         rows_scanned += 1
         if progress_every and rows_scanned % progress_every == 0:
-            print(
-                f"  [{rows_scanned}] scanned  emitted={rows_emitted} "
-                f"skip_country_unknown={skipped_country_unknown} "
-                f"skip_country_unmapped={skipped_country_unmapped} "
-                f"skip_no_era={skipped_no_era} "
-                f"skip_no_tag={skipped_no_tag}",
-                file=sys.stderr,
-                flush=True,
-            )
+            _emit_progress()
 
         country = row["country"]
         attested = row["attested_year"]
@@ -358,13 +382,19 @@ def extract_priors(
             skipped_country_unmapped += 1
             continue
 
-        # Gate 2: era. era_midpoint_for_culture raises on config drift
-        # (missing _CULTURE_TO_FAMILY entry for a culture we route to)
-        # so only out-of-range year and missing attested_year reach
-        # this skip counter.
-        midpoint = era_midpoint_for_culture(culture, attested) if attested is not None else None
+        # Gate 2a: attested year present. era_midpoint_for_culture
+        # raises on config drift (missing _CULTURE_TO_FAMILY entry for
+        # a culture we route to), so NULL year is the only "missing
+        # year" path here.
+        if attested is None:
+            skipped_year_unknown += 1
+            continue
+        # Gate 2b: year falls into an era cell. None means the year is
+        # outside every cell's range — operator: extend ERA_CELLS or
+        # accept the proto-period gap.
+        midpoint = era_midpoint_for_culture(culture, attested)
         if midpoint is None:
-            skipped_no_era += 1
+            skipped_year_out_of_range += 1
             continue
 
         # Gate 3: tag. LEFT JOIN keeps untagged etymons in the result
@@ -397,6 +427,12 @@ def extract_priors(
         ] += 1
         rows_emitted += 1
 
+    # Final progress line — CLAUDE.md requires "Always echo a final
+    # line at completion so the last partial chunk shows up", even
+    # when total isn't an exact multiple of progress_every.
+    if progress_every and rows_scanned % progress_every != 0:
+        _emit_progress()
+
     summary = ExtractionResult(
         rows_scanned=rows_scanned,
         rows_emitted=rows_emitted,
@@ -404,7 +440,8 @@ def extract_priors(
         loan_cells_written=len(loan),
         skipped_country_unknown=skipped_country_unknown,
         skipped_country_unmapped=skipped_country_unmapped,
-        skipped_no_era=skipped_no_era,
+        skipped_year_unknown=skipped_year_unknown,
+        skipped_year_out_of_range=skipped_year_out_of_range,
         skipped_no_tag=skipped_no_tag,
     )
     return dict(native), dict(loan), summary
