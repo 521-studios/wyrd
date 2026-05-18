@@ -176,11 +176,13 @@ exotic:
   # Phonology features less common in English: palatalization,
   # retroflexion, pharyngeal, back vowels. Phonology-only — the
   # "exotic" feeling is structural, not semantic.
+  # vowel_backness is positive: convention is +1 = back vowels,
+  # -1 = front vowels.
   phonological:
     palatalization: 0.4
     retroflexion: 0.4
     pharyngeal: 0.3
-    vowel_backness: -0.2
+    vowel_backness: 0.2
   semantic_tags: {}
   position_bias: {}
 
