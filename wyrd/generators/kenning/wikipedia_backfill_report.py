@@ -135,9 +135,9 @@ class CountyReport:
     def gap(self) -> int:
         """Wikipedia entries still needing scholar attestation.
 
-        Equals ``(total - in_db) + (in_db - attested)``: both the
-        not-in-DB rows and the in-DB-but-unattested rows still block
-        Wikipedia retirement.
+        ``total - attested`` — the entries blocking Wikipedia
+        retirement, comprising both not-in-DB rows AND in-DB-but-
+        unattested rows.
         """
         return self.total - self.attested
 
@@ -340,8 +340,10 @@ def _filename_for_language(language: str) -> str:
     """Map a CLI ``--language NAME`` token to its place-names filename.
 
     Case-insensitive; ``"english"`` → ``"english_place_names.json"``.
-    Mainly defensive — operators may type "English" or "ENGLISH"
-    without thinking, and a silent no-match would be confusing.
+    Callers reach this only after ``compute_backfill_report`` has
+    validated the token against ``SUPPORTED_LANGUAGES`` (raising
+    ``UnknownLanguageError`` on a typo), so the lowercase here is
+    purely case-folding of known-valid tokens, not typo protection.
     """
     return f"{language.lower()}_place_names.json"
 

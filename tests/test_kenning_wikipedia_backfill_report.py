@@ -478,7 +478,7 @@ def test_nfc_normalization_matches_canonical_diacritic(db, tmp_path):
     assert fr.attested == 1
 
 
-def test_cli_unknown_language_is_bad_parameter(db, tmp_path):
+def test_cli_unknown_language_is_bad_parameter(tmp_path):
     """--language welch (typo) must error loudly, not silently produce
     empty output. R1 silent-failure-hunter MEDIUM. R2 also pins that
     the operator sees the list of VALID tokens in the error so they
@@ -521,7 +521,7 @@ def test_malformed_json_raises_with_path_context(db, tmp_path):
         compute_backfill_report(db, data_dir=data_dir, languages=("english",))
 
 
-def test_malformed_json_propagates_as_traceback_in_cli(db, tmp_path):
+def test_malformed_json_propagates_as_traceback_in_cli(tmp_path):
     """A malformed file is a data-corruption bug, NOT operator input
     error — the CLI MUST NOT swallow it as click.BadParameter. R2
     silent-failure-hunter MEDIUM: previously the broad ValueError
