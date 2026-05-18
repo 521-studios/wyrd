@@ -921,7 +921,7 @@ def _run_primary_failure_fallback(
     fallback_client,
     chunk: str,
     chunk_index: int,
-    primary_error: str,
+    primary_error: str | None,
     log_warning: Callable[[str], None] | None,
 ) -> tuple[list[ToponymMention] | None, ValidationCounters, FailedChunk | None]:
     """Run the fallback on a chunk where the primary raised. Returns a
