@@ -1013,6 +1013,7 @@ def mine_toponym_mentions_tiered(
     limit: int | None = None,
     hallucination_fallback_threshold: int | None = None,
     on_chunk_done: Callable[[int, int, int], None] | None = None,
+    on_chunk_failed: Callable[[FailedChunk], None] | None = None,
     log_warning: Callable[[str], None] | None = None,
 ) -> MineToponymMentionsReport:
     """Two-tier extraction: try ``primary_client`` on every chunk;
@@ -1093,6 +1094,25 @@ def mine_toponym_mentions_tiered(
     text density and the model's per-chunk fabrication rate
     (calibrate against a full-source run before setting the
     threshold in production).
+
+    ``on_chunk_failed`` (wyrd-3gbx) fires per BOTH-TIERS-FAILED
+    chunk with the chained ``FailedChunk`` record, mirroring the
+    single-tier :func:`mine_toponym_mentions` callback. Used by
+    failure-streaming CLIs that need to flush failures to disk in
+    real time rather than waiting for the in-memory head/tail buffer
+    to materialize at end of run. Defaults to None (silent). The
+    callback fires only on the both-tiers-failed path — primary-only
+    failures that the fallback recovers are reported via
+    ``chunks_recovered_by_fallback`` and don't invoke this callback.
+
+    Exceptions raised by ``on_chunk_failed`` (and the sibling
+    ``on_chunk_done`` / ``log_warning`` callbacks) propagate
+    UNWRAPPED out of this function — the current source's report is
+    lost, and the orchestrator's caller sees the original exception.
+    The contract matches the single-tier orchestrator. Callers that
+    need transient-I/O resilience (e.g. CLI failure-streaming on a
+    flaky disk) should wrap their callback body in try/except so an
+    individual chunk's I/O hiccup doesn't trash a multi-source run.
     """
     report = MineToponymMentionsReport(source_id=source_id)
     chunks = chunk_source_body(body, target_chunk_size=target_chunk_size)
@@ -1142,6 +1162,8 @@ def mine_toponym_mentions_tiered(
                     head_failures.append(failure)
                 else:
                     tail_failures.append(failure)
+                if on_chunk_failed is not None:
+                    on_chunk_failed(failure)
                 continue
             report.chunks_recovered_by_fallback += 1
         elif (

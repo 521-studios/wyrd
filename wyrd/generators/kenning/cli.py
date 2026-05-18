@@ -3040,6 +3040,18 @@ def _build_extractor_client(provider: str, model: str | None, ollama_url: str | 
     "local model + `--fallback-provider anthropic` to keep gemma4's good "
     "mentions while letting Anthropic catch its fabrications. wyrd-z8mq.",
 )
+@click.option(
+    "--capture-failures",
+    "capture_failures",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Write a JSONL record for every chunk where BOTH tiers failed "
+    "(primary AND fallback). Each record has source_id, chunk_index, "
+    "chunk_body, error (chained primary=...; fallback=...). Streamed as "
+    "failures happen rather than buffered in-memory — bypasses the "
+    "head/tail cap on report.failed_chunks. wyrd-3gbx parity with the "
+    "single-tier mine-toponym-mentions failure-streaming.",
+)
 def lexicon_mine_toponym_mentions_tiered(
     sources_dir: Path,
     sources: tuple[str, ...],
@@ -3054,6 +3066,7 @@ def lexicon_mine_toponym_mentions_tiered(
     skip_existing: bool,
     force: bool,
     hallucination_fallback_threshold: int | None,
+    capture_failures: Path | None,
 ) -> None:
     """Two-tier LLM mention extraction across one or many sources
     (wyrd-x82p Phase 2b.2).
@@ -3075,6 +3088,7 @@ def lexicon_mine_toponym_mentions_tiered(
     import time
 
     from wyrd.generators.kenning.toponym_mention_extractor import (
+        FailedChunk,
         ToponymMention,
         mine_toponym_mentions_tiered,
     )
@@ -3083,6 +3097,24 @@ def lexicon_mine_toponym_mentions_tiered(
         raise click.ClickException("--skip-existing and --force are mutually exclusive")
 
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # --capture-failures sink setup. Append mode so a resume across
+    # multiple invocations accumulates failures end-to-end (mirrors
+    # the staged-cascade behavior). Warn on existing non-empty file
+    # so an operator-blind append doesn't silently bury old records.
+    failure_sink = None
+    failures_appended = 0
+    if capture_failures is not None:
+        capture_failures.parent.mkdir(parents=True, exist_ok=True)
+        if capture_failures.exists() and capture_failures.stat().st_size > 0:
+            with capture_failures.open("r", encoding="utf-8") as _fh:
+                stale = sum(1 for ln in _fh if ln.strip())
+            click.echo(
+                f"  warning: --capture-failures {capture_failures} already has "
+                f"{stale} record(s); appending (`> {capture_failures}` to clear)",
+                err=True,
+            )
+        failure_sink = capture_failures.open("a", encoding="utf-8")
 
     # Resolve source list. If --source isn't given, walk *.txt under
     # the sources dir; sort for deterministic ordering across runs.
@@ -3153,109 +3185,153 @@ def lexicon_mine_toponym_mentions_tiered(
         "mentions": 0,
     }
 
-    for src_i, source_id in enumerate(source_ids, start=1):
-        out_path = output_dir / f"{source_id}.jsonl"
-        if out_path.exists():
-            if skip_existing:
+    # try/finally wraps the source loop so the --capture-failures sink
+    # is closed on every exit path — ClickException for output-exists
+    # conflicts (raised inside the loop), KeyboardInterrupt mid-iteration,
+    # unexpected raises from mine_toponym_mentions_tiered, atomic-write
+    # failures. Without this, the sink handle leaks on every non-clean
+    # exit; matches the staged CLI's pattern.
+    try:
+        for src_i, source_id in enumerate(source_ids, start=1):
+            out_path = output_dir / f"{source_id}.jsonl"
+            if out_path.exists():
+                if skip_existing:
+                    click.echo(
+                        f"[{src_i}/{len(source_ids)}] {source_id}: SKIP (output exists)",
+                        err=True,
+                    )
+                    totals["sources_skipped"] += 1
+                    continue
+                if not force:
+                    raise click.ClickException(
+                        f"output {out_path} exists; pass --skip-existing to resume or "
+                        f"--force to overwrite"
+                    )
+
+            txt_path = sources_dir / f"{source_id}.txt"
+            body = txt_path.read_text(encoding="utf-8", errors="replace")
+            if "�" in body:
                 click.echo(
-                    f"[{src_i}/{len(source_ids)}] {source_id}: SKIP (output exists)",
+                    f"  warning: {source_id} contained invalid UTF-8 sequences; some "
+                    f"mentions may be silently rejected",
                     err=True,
                 )
-                totals["sources_skipped"] += 1
-                continue
-            if not force:
-                raise click.ClickException(
-                    f"output {out_path} exists; pass --skip-existing to resume or "
-                    f"--force to overwrite"
+
+            click.echo(
+                f"[{src_i}/{len(source_ids)}] {source_id}: {len(body):,} chars",
+                err=True,
+            )
+
+            # Defer client construction to first real extraction —
+            # --skip-existing resume runs where every source is skipped
+            # don't need either client.
+            _ensure_clients()
+
+            start_ts = time.monotonic()
+
+            def progress(done: int, total: int, mentions: int, _start_ts: float = start_ts) -> None:
+                # Bind start_ts via default arg — B023: a closure reference
+                # to the loop variable would all share the LAST iteration's
+                # start_ts when this function is later invoked.
+                elapsed = time.monotonic() - _start_ts
+                rate = elapsed / done if done else 0.0
+                click.echo(
+                    f"    chunk [{done}/{total}] mentions={mentions} ({rate:.1f}s/chunk)",
+                    err=True,
                 )
 
-        txt_path = sources_dir / f"{source_id}.txt"
-        body = txt_path.read_text(encoding="utf-8", errors="replace")
-        if "�" in body:
+            def warn(msg: str) -> None:
+                click.echo(f"    warning: {msg}", err=True)
+
+            # Per-source on_chunk_failed closure — captures source_id and
+            # the extractor model pair by default-arg (B023 closure-over-
+            # loop-var, same shape as ``progress`` above) so the values
+            # baked into each emitted record are the CURRENT iteration's,
+            # not the last one's. ``extractor`` field mirrors the staged
+            # CLI's shape so downstream tooling (mine-toponym-mentions-
+            # staged --from-failures, etc.) can identify which model pair
+            # produced the failure.
+            extractor_tag = f"tiered:{primary_client.model}+{fallback_client.model}"
+
+            def on_fail(
+                fc: FailedChunk,
+                _sid: str = source_id,
+                _sink=failure_sink,
+                _extractor: str = extractor_tag,
+            ) -> None:
+                nonlocal failures_appended
+                _sink.write(
+                    json.dumps(
+                        {
+                            "source_id": _sid,
+                            "chunk_index": fc.index,
+                            "chunk_body": fc.chunk_body,
+                            "error": fc.error,
+                            "extractor": _extractor,
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
+                _sink.flush()
+                failures_appended += 1
+
+            report = mine_toponym_mentions_tiered(
+                primary_client,
+                fallback_client,
+                source_id,
+                body,
+                target_chunk_size=chunk_size,
+                limit=limit,
+                hallucination_fallback_threshold=hallucination_fallback_threshold,
+                on_chunk_done=progress,
+                on_chunk_failed=on_fail if failure_sink is not None else None,
+                log_warning=warn,
+            )
+
+            # Atomic write: temp file + rename so an interrupt mid-write
+            # leaves the previous output (if any) intact rather than
+            # truncated. Same pattern as Phase 2b.1's candidates-out.
+            tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+            with tmp_path.open("w", encoding="utf-8") as sink:
+                for m in report.mentions:
+                    sink.write(_line(source_id, m) + "\n")
+            tmp_path.replace(out_path)
+
+            # halluc_rescued shape: succeeded/attempted. Gap (succeeded <
+            # attempted) is the broken-fallback signal — could be every
+            # fallback call erroring (bad API key, network outage) OR
+            # every fallback returning empty (content-policy refusal,
+            # all-hallucinated response). Either way, the primary's
+            # hallucinations weren't actually caught. wyrd-z8mq R1
+            # silent-failure-hunter HIGH + R2 follow-on.
             click.echo(
-                f"  warning: {source_id} contained invalid UTF-8 sequences; some "
-                f"mentions may be silently rejected",
+                f"  → {out_path} | chunks={report.chunks_processed} "
+                f"(recovered={report.chunks_recovered_by_fallback} "
+                f"halluc_rescued={report.chunks_hallucination_rescue_succeeded}/"
+                f"{report.chunks_hallucination_rescue_attempted} "
+                f"failed={report.chunks_failed}) mentions={len(report.mentions)} "
+                f"halluc={report.hallucinations_dropped} "
+                f"clamped={report.years_clamped}",
                 err=True,
             )
 
-        click.echo(
-            f"[{src_i}/{len(source_ids)}] {source_id}: {len(body):,} chars",
-            err=True,
-        )
-
-        # Defer client construction to first real extraction —
-        # --skip-existing resume runs where every source is skipped
-        # don't need either client.
-        _ensure_clients()
-
-        start_ts = time.monotonic()
-
-        def progress(done: int, total: int, mentions: int, _start_ts: float = start_ts) -> None:
-            # Bind start_ts via default arg — B023: a closure reference
-            # to the loop variable would all share the LAST iteration's
-            # start_ts when this function is later invoked.
-            elapsed = time.monotonic() - _start_ts
-            rate = elapsed / done if done else 0.0
-            click.echo(
-                f"    chunk [{done}/{total}] mentions={mentions} ({rate:.1f}s/chunk)",
-                err=True,
+            totals["sources_processed"] += 1
+            totals["chunks_processed"] += report.chunks_processed
+            totals["chunks_recovered"] += report.chunks_recovered_by_fallback
+            totals["chunks_hallucination_rescue_attempted"] += (
+                report.chunks_hallucination_rescue_attempted
             )
-
-        def warn(msg: str) -> None:
-            click.echo(f"    warning: {msg}", err=True)
-
-        report = mine_toponym_mentions_tiered(
-            primary_client,
-            fallback_client,
-            source_id,
-            body,
-            target_chunk_size=chunk_size,
-            limit=limit,
-            hallucination_fallback_threshold=hallucination_fallback_threshold,
-            on_chunk_done=progress,
-            log_warning=warn,
-        )
-
-        # Atomic write: temp file + rename so an interrupt mid-write
-        # leaves the previous output (if any) intact rather than
-        # truncated. Same pattern as Phase 2b.1's candidates-out.
-        tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
-        with tmp_path.open("w", encoding="utf-8") as sink:
-            for m in report.mentions:
-                sink.write(_line(source_id, m) + "\n")
-        tmp_path.replace(out_path)
-
-        # halluc_rescued shape: succeeded/attempted. Gap (succeeded <
-        # attempted) is the broken-fallback signal — could be every
-        # fallback call erroring (bad API key, network outage) OR
-        # every fallback returning empty (content-policy refusal,
-        # all-hallucinated response). Either way, the primary's
-        # hallucinations weren't actually caught. wyrd-z8mq R1
-        # silent-failure-hunter HIGH + R2 follow-on.
-        click.echo(
-            f"  → {out_path} | chunks={report.chunks_processed} "
-            f"(recovered={report.chunks_recovered_by_fallback} "
-            f"halluc_rescued={report.chunks_hallucination_rescue_succeeded}/"
-            f"{report.chunks_hallucination_rescue_attempted} "
-            f"failed={report.chunks_failed}) mentions={len(report.mentions)} "
-            f"halluc={report.hallucinations_dropped} "
-            f"clamped={report.years_clamped}",
-            err=True,
-        )
-
-        totals["sources_processed"] += 1
-        totals["chunks_processed"] += report.chunks_processed
-        totals["chunks_recovered"] += report.chunks_recovered_by_fallback
-        totals["chunks_hallucination_rescue_attempted"] += (
-            report.chunks_hallucination_rescue_attempted
-        )
-        totals["chunks_hallucination_rescue_succeeded"] += (
-            report.chunks_hallucination_rescue_succeeded
-        )
-        totals["chunks_failed"] += report.chunks_failed
-        totals["hallucinations_dropped"] += report.hallucinations_dropped
-        totals["years_clamped"] += report.years_clamped
-        totals["mentions"] += len(report.mentions)
+            totals["chunks_hallucination_rescue_succeeded"] += (
+                report.chunks_hallucination_rescue_succeeded
+            )
+            totals["chunks_failed"] += report.chunks_failed
+            totals["hallucinations_dropped"] += report.hallucinations_dropped
+            totals["years_clamped"] += report.years_clamped
+            totals["mentions"] += len(report.mentions)
+    finally:
+        if failure_sink is not None:
+            failure_sink.close()
 
     click.echo("", err=True)
     click.echo(
@@ -3271,6 +3347,20 @@ def lexicon_mine_toponym_mentions_tiered(
         f"mentions={totals['mentions']}",
         err=True,
     )
+    # Always surface the capture-failures status — operators want to
+    # know whether the streamed file got new records this run or stayed
+    # unchanged (mirrors the staged-cascade CLI's behavior).
+    if capture_failures is not None:
+        if failures_appended:
+            click.echo(
+                f"  {failures_appended} failed chunk(s) appended → {capture_failures}",
+                err=True,
+            )
+        else:
+            click.echo(
+                f"  0 new failures → {capture_failures} unchanged this run",
+                err=True,
+            )
 
 
 def _read_failures_jsonl(path: Path) -> list[dict]:
