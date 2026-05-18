@@ -201,22 +201,28 @@ def load_register_effects_from_text(text: str) -> dict[str, RegisterEffect]:
     return {name: _validate_entry(name, entry) for name, entry in parsed.items()}
 
 
-def _copy_catalog(catalog: dict[str, RegisterEffect]) -> dict[str, RegisterEffect]:
-    """Return a fresh deep-ish copy of a catalog so callers can
-    mutate the result without polluting the cached canonical form.
+def _copy_effect(effect: RegisterEffect) -> RegisterEffect:
+    """Return a fresh ``RegisterEffect`` with copies of all weight
+    dicts.
 
     ``RegisterEffect`` is frozen but holds mutable ``dict[str, float]``
-    fields; this rebuild gives each caller fresh dicts to mutate.
+    fields; this rebuild gives each caller fresh dicts to mutate
+    without affecting the source instance. Used by ``_copy_catalog``
+    and ``get_register_effect`` to enforce mutation isolation against
+    the cached canonical form.
     """
-    return {
-        name: RegisterEffect(
-            name=effect.name,
-            phonological=dict(effect.phonological),
-            semantic_tags=dict(effect.semantic_tags),
-            position_bias=dict(effect.position_bias),
-        )
-        for name, effect in catalog.items()
-    }
+    return RegisterEffect(
+        name=effect.name,
+        phonological=dict(effect.phonological),
+        semantic_tags=dict(effect.semantic_tags),
+        position_bias=dict(effect.position_bias),
+    )
+
+
+def _copy_catalog(catalog: dict[str, RegisterEffect]) -> dict[str, RegisterEffect]:
+    """Return a fresh copy of a catalog so callers can mutate the
+    result without polluting the cached canonical form."""
+    return {name: _copy_effect(effect) for name, effect in catalog.items()}
 
 
 def load_register_effects(path: Path | None = None) -> dict[str, RegisterEffect]:
@@ -266,10 +272,4 @@ def get_register_effect(name: str) -> RegisterEffect:
     catalog = _load_bundled_cached()
     if name not in catalog:
         raise KeyError(f"unknown register effect {name!r}; catalog has {sorted(catalog.keys())}")
-    effect = catalog[name]
-    return RegisterEffect(
-        name=effect.name,
-        phonological=dict(effect.phonological),
-        semantic_tags=dict(effect.semantic_tags),
-        position_bias=dict(effect.position_bias),
-    )
+    return _copy_effect(catalog[name])
