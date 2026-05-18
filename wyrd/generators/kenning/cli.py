@@ -39,8 +39,8 @@ from wyrd.generators.kenning.dictionary_parser import (
     parse_numbered_list_text,
 )
 from wyrd.generators.kenning.empirical_priors import (
-    cli_dump_empirical_priors,
-    cli_mine_empirical_baselines,
+    dump_empirical_priors_to_json,
+    mine_empirical_baselines,
 )
 from wyrd.generators.kenning.english_shaping import (
     PHASE2A_NON_LATIN_LANGS,
@@ -8015,7 +8015,7 @@ def lexicon_project_period_forms(
         click.echo("(dry-run; pass --apply to write etymon_period_form rows)", err=True)
 
 
-@lexicon.command("mine-empirical-baselines")
+@lexicon.command("extract-empirical-priors")
 @click.option(
     "--db",
     "db_path",
@@ -8033,7 +8033,16 @@ def lexicon_project_period_forms(
         "freshly-extracted counts. Without this, dry-run only."
     ),
 )
-def lexicon_mine_empirical_baselines(db_path: Path, apply_changes: bool) -> None:
+@click.option(
+    "--progress-every",
+    type=int,
+    default=5000,
+    show_default=True,
+    help="Emit a stderr progress line every N rows scanned. 0 = silent.",
+)
+def lexicon_extract_empirical_priors(
+    db_path: Path, apply_changes: bool, progress_every: int
+) -> None:
     """wyrd-ecjp.2: extract empirical-baseline priors per (culture x
     position x tag x era) from toponym_etymology + elements + tags.
 
@@ -8050,7 +8059,34 @@ def lexicon_mine_empirical_baselines(db_path: Path, apply_changes: bool) -> None
     Pair with ``lexicon dump-empirical-priors --output ...`` to emit a
     review-friendly JSON sidecar after writing the tables.
     """
-    cli_mine_empirical_baselines(db_path, apply_changes)
+    with LexiconDB(db_path) as db:
+        result = mine_empirical_baselines(db, apply=apply_changes, progress_every=progress_every)
+    click.echo("extract-empirical-priors:", err=True)
+    click.echo(
+        "  scanned={scanned:>6}  emitted={emitted:>6}  "
+        "native_cells={nc:>5}  loan_cells={lc:>5}".format(
+            scanned=result["rows_scanned"],
+            emitted=result["rows_emitted"],
+            nc=result["native_cells_written"],
+            lc=result["loan_cells_written"],
+        ),
+        err=True,
+    )
+    click.echo(
+        "  skipped: country_unknown={cu:>5}  country_unmapped={cm:>5}  "
+        "no_era={ne:>5}  no_tag={nt:>5}".format(
+            cu=result["skipped_country_unknown"],
+            cm=result["skipped_country_unmapped"],
+            ne=result["skipped_no_era"],
+            nt=result["skipped_no_tag"],
+        ),
+        err=True,
+    )
+    if not apply_changes:
+        click.echo(
+            "(dry-run; pass --apply to write empirical_priors_* rows)",
+            err=True,
+        )
 
 
 @lexicon.command("dump-empirical-priors")
@@ -8080,7 +8116,7 @@ def lexicon_mine_empirical_baselines(db_path: Path, apply_changes: bool) -> None
 )
 def lexicon_dump_empirical_priors(db_path: Path, output_path: Path, version: str) -> None:
     """wyrd-ecjp.2: dump empirical_priors_* tables to a sorted, byte-
-    stable JSON artifact. Run after ``mine-empirical-baselines --apply``.
+    stable JSON artifact. Run after ``extract-empirical-priors --apply``.
 
     Output shape: a top-level dict with ``version`` (verbatim from
     --version) and two lists of cell records (``native``, ``loan``).
@@ -8091,7 +8127,14 @@ def lexicon_dump_empirical_priors(db_path: Path, output_path: Path, version: str
     The committed JSON is the operator-visible diff surface for
     priors evolution.
     """
-    cli_dump_empirical_priors(db_path, output_path, version)
+    with LexiconDB(db_path) as db:
+        result = dump_empirical_priors_to_json(db, output_path, version=version)
+    click.echo("dump-empirical-priors:", err=True)
+    click.echo(
+        f"  wrote {result['native_cells']} native cells + "
+        f"{result['loan_cells']} loan cells to {output_path}",
+        err=True,
+    )
 
 
 @lexicon.command("fuzzy-search")

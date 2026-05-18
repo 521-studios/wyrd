@@ -103,6 +103,12 @@ enrichment commands after rebuild.
   pass.
 - `etymon_period_form` — period-form projection (wyrd-skm Phase 3.0b).
   Re-derivable by re-running `lexicon project-period-forms`.
+- `empirical_priors_native` + `empirical_priors_loan` — empirical-baseline
+  priors per (culture × position × tag × era) for the vector-driven
+  generator (wyrd-ecjp.2). Re-derivable by re-running
+  `lexicon extract-empirical-priors --apply`; the operator-visible
+  diff surface is the committed JSON sidecar produced by
+  `lexicon dump-empirical-priors --output ...`.
 
 ### Views (always derived)
 

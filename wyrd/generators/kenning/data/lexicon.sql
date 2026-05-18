@@ -685,6 +685,12 @@ CREATE UNIQUE INDEX idx_period_form_unique
 -- via ``era.era_cell(language, midpoint)`` so the schema doesn't
 -- store it.
 --
+-- For ad-hoc SQL: enumerate valid era_midpoint values via
+-- ``empirical_priors.known_era_midpoints()`` or the
+-- ``empirical_priors.json`` sidecar — e.g. english/oe-late = 950,
+-- english/me = 1300, english/early-modern = 1600, english/modern
+-- (open-high) = 1800.
+--
 -- ``count`` is the raw occurrence count in this cell. Smoothing
 -- (hierarchical fallback per D36.7) happens at lookup time, not
 -- at bake time — the table holds raw observations so we can choose
