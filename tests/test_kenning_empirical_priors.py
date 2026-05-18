@@ -580,24 +580,34 @@ def test_extract_priors_progress_emits_final_line_on_exact_multiple(db, capsys):
 
 
 def test_extract_priors_mixed_tagged_and_untagged_compound(db):
-    """A single toponym with one tagged element and one untagged
-    element produces (a) one emitted cell from the tagged half and
-    (b) one skipped_no_tag from the untagged half. Pins the LEFT
-    JOIN behavior end-to-end against the position-derivation pathway.
-    A regression that pushed WHERE tag IS NOT NULL into the cnt
-    subquery would silently miscount element_count."""
+    """A single toponym with one untagged element FIRST + one tagged
+    element LAST produces (a) one skipped_no_tag from the untagged
+    half (ordinal=0) and (b) one emitted cell from the tagged half at
+    position='post' (ordinal=1 in 2-compound).
+
+    Element order is critical to make this test catch the claimed
+    regression. Under the regression — WHERE tag IS NOT NULL pushed
+    into the cnt subquery — the cnt for this etymology would be 1
+    (only the tagged element counted), so the tagged element at
+    ordinal=1 would NOT exist (ordinal would be out of range). But
+    if SQLite kept the row anyway with ordinal=1 against
+    element_count=1, _position_label(1, 1) hits the single-element
+    branch and returns 'pre'. With the LEFT JOIN preserved, cnt=2
+    and _position_label(1, 2) returns 'post'. The diverging position
+    keys catch the regression — a tagged-at-ordinal-0 setup would
+    return 'pre' under both arms and silently pass.
+    """
     tid = _add_toponym(db, "Mixedton")
-    e_tagged = _add_etymon(db, "Eadwine", "old-english", tags=("name",))
-    e_untagged = _add_etymon(db, "tūn", "old-english", tags=())
-    _add_etymology(db, toponym_id=tid, elements=[e_tagged, e_untagged], attested_year=950)
+    e_untagged = _add_etymon(db, "Eadwine", "old-english", tags=())
+    e_tagged = _add_etymon(db, "tūn", "old-english", tags=("architecture",))
+    _add_etymology(db, toponym_id=tid, elements=[e_untagged, e_tagged], attested_year=950)
 
     native, _loan, summary = extract_priors(db)
 
-    # Tagged element emits with position='pre' (ordinal 0 in 2-compound).
-    # Position MUST be 'pre' not 'post' — element_count is 2 because
-    # the LEFT JOIN preserves both elements.
-    assert native[_NativeKey("english", "pre", "name", 950, "old-english:Eadwine")] == 1
-    # Untagged element ranks into skipped_no_tag.
+    # Tagged element at ordinal=1 in 2-compound → position='post'.
+    assert native[_NativeKey("english", "post", "architecture", 950, "old-english:tūn")] == 1
+    # Untagged element at ordinal=0 → skipped_no_tag (its row reached
+    # the extractor via LEFT JOIN with tag=NULL).
     assert summary.rows_scanned == 2
     assert summary.rows_emitted == 1
     assert summary.skipped_no_tag == 1
@@ -758,11 +768,21 @@ def test_dump_json_byte_stable_across_db_reopen(db, tmp_path):
 
 def test_dump_json_byte_stable_across_independent_dbs(tmp_path):
     """Two DBs built with DIFFERENT insert orders produce identical
-    JSON dumps. This pins the D36.9 contract that priors are
-    content-addressable, not insert-time-rowid-dependent. A
-    regression to ORDER BY te.id (or any insert-order key) would
-    pass test_dump_json_byte_stable_across_db_reopen (same DB,
-    same rowids) but fail here."""
+    JSON dumps. This pins the END-TO-END D36.9 contract that priors
+    are content-addressable, not insert-time-rowid-dependent — the
+    user-visible byte-stability that downstream caches key on.
+
+    The byte-stability is the joint product of: (a) commutative
+    dict-accumulation in extract_priors (order of element rows
+    doesn't change the per-cell counts); (b) content-PRIMARY-KEY on
+    both priors tables (no rowid-based ordering survives into
+    storage); (c) the dump SELECTs' own ORDER BY clauses sorting on
+    content fields; (d) _cell_records re-sorting on the cell key
+    tuple. The extract iteration ORDER BY (_EXTRACT_SQL_ORDERED) is
+    NOT what guarantees byte-stable JSON output — it's about
+    debuggable iteration. A regression to ORDER BY te.id in
+    _EXTRACT_SQL_ORDERED would still produce identical dumps and
+    pass this test."""
 
     def _build_db(db_path, insert_order: list[tuple[str, list[tuple[str, str, str]]]]) -> None:
         """Build a fresh DB and insert the given (toponym, [(canonical, language, tag), ...])

@@ -308,11 +308,19 @@ JOIN etymon e               ON e.id = tee.etymon_id
 LEFT JOIN etymon_tag tag    ON tag.etymon_id = e.id
 """
 
-# Stable iteration order — same DB state, same row order, same
-# extraction. Sort by content-addressable fields (toponym identity +
-# attested year + source + page + ordinal + tag + donor language +
-# canonical form) so two DBs independently rebuilt from the same L2
-# JSONL produce the same row order regardless of insert-time rowids.
+# Content-addressable iteration order — same DB state, same row
+# order, AND two DBs independently rebuilt from the same L2 JSONL
+# iterate in the same order regardless of insert-time rowids. Sort
+# by toponym identity + attested year + source + page + ordinal +
+# tag + donor language + canonical form.
+#
+# Note: this ORDER BY is for DEBUGGABLE ITERATION (deterministic log
+# / trace output if extract_priors is observed mid-run). It is NOT
+# what guarantees byte-stable JSON dump output — that derives from
+# commutative dict-accumulation, content-PRIMARY-KEYs on the priors
+# tables, the dump SELECTs' own ORDER BY clauses, and _cell_records
+# re-sorting. See test_dump_json_byte_stable_across_independent_dbs
+# for the end-to-end pin.
 _EXTRACT_SQL_ORDERED = (
     _EXTRACT_SQL + " ORDER BY t.country, t.modern_name, "
     "COALESCE(t.region, ''), te.attested_year, te.source_id, "
