@@ -23,45 +23,36 @@ from wyrd.generators.kenning.phonology_rules import rule_form as phonology_rule_
 if TYPE_CHECKING:
     from wyrd.generators.kenning.skeat_parser import ParsedEntry
 
-# Map meanings.json source-language field names to the lexicon's canonical
-# language codes. Keep in sync with _LEGEND in the kenning generator. The
-# misspellings ('old_scandanavian', 'old _english') are real entries in the
-# bundled meanings.json — normalized here so we don't lose data.
-LANGUAGE_FIELDS = {
-    "old_english": "old-english",
-    "old _english": "old-english",
-    "old_scandinavian": "old-norse",
-    "old_scandanavian": "old-norse",
-    "old_french": "norman-french",
-    "celtic_mix": "celtic",
-    "latin": "latin",
-    "germanic": "germanic",
-    "greek": "greek",
-    "modern_english": "modern-english",
-    "biblical": "biblical",
-    # wyrd-vsrn Phase 2c: wave-2 bundle fields — round-trip on
-    # ingestion routes 'hebrew'/'arabic'/etc. JSON keys to the
-    # canonical-language code on the etymon table. Multiple lexicon
-    # codes (e.g. he + hbo + sem-pro) emit into the same bundle
-    # field via _LANG_CODE_TO_JSON_FIELD; ingestion direction loses
-    # that detail and treats every entry as the canonical lang.
-    "hebrew": "he",
-    "arabic": "ar",
-    "persian": "fa",
-    "sanskrit": "sa",
-    "akkadian": "akk",
-    "egyptian": "egy",
-    "aramaic": "arc",
-    "armenian": "axm",
-}
+# wyrd-67fv: constants live in lexicon.constants; re-exported here so
+# external callers (cli.py, rewind.py, disambiguator.py, tests) can keep
+# their ``from wyrd.generators.kenning.lexicon import LANGUAGE_FIELDS``
+# imports unchanged.
+from wyrd.generators.kenning.lexicon.constants import (  # noqa: E402
+    LANGUAGE_FIELDS,
+    NON_LANGUAGE_FIELDS,
+    OCR_LIGATURE_MAP,
+    normalize_ocr_form,
+    position_from_usage,
+)
 
-# Fields on a `word` that are not source-language slots and must be skipped
-# during ingestion. `source_known` is a per-entry boolean flag; we'll store it
-# as etymon notes if it ever matters, but for now we just pass over it.
-NON_LANGUAGE_FIELDS = {"modern_usage", "source_known"}
+# Underscore-prefixed aliases for the existing internal callers; the
+# canonical names are the un-prefixed exports from
+# ``lexicon.constants``. Kept until the rest of the package's call
+# sites migrate.
+_OCR_LIGATURE_MAP = OCR_LIGATURE_MAP
+_position_from_usage = position_from_usage
 
 
 def _schema_sql() -> str:
+    """Return the legacy lexicon.sql baseline as a single string.
+
+    Retained as a back-compat shim for any external tooling that wants
+    to inspect the schema as one document. ``init_schema`` no longer
+    calls it — the canonical path is alembic ``upgrade head``, run via
+    ``lexicon.sql.upgrade_head``. The committed ``data/lexicon.sql``
+    file is regenerated from the layered migrations on every schema
+    change so the two stay in sync.
+    """
     return resources.files("wyrd.generators.kenning.data").joinpath("lexicon.sql").read_text()
 
 
@@ -69,9 +60,18 @@ def init_schema(db_path: Path | str) -> None:
     """Create a fresh lexicon DB at db_path with the schema applied.
 
     Wipes any existing file at the path. Sets file-persistent
-    journal_mode=WAL and synchronous=NORMAL so the resulting DB
-    supports concurrent readers + one writer out of the box.
+    journal_mode=WAL (so subsequent opens inherit the mode) and then
+    runs the layered alembic migrations via ``upgrade_head`` to create
+    the schema and stamp the ``alembic_version`` table at the current
+    revision (wyrd-67fv: 0008_views).
+
+    The WAL pragma is applied on a transient connection BEFORE alembic
+    runs so the mode is recorded under the same journal_mode every
+    subsequent open sees — alembic's transaction would otherwise see
+    the default ``delete`` mode for the first transaction.
     """
+    from wyrd.generators.kenning.lexicon.sql import upgrade_head
+
     path = Path(db_path)
     if path.exists():
         path.unlink()
@@ -79,10 +79,10 @@ def init_schema(db_path: Path | str) -> None:
     conn = sqlite3.connect(path)
     try:
         _apply_persistent_pragmas(conn)
-        conn.executescript(_schema_sql())
         conn.commit()
     finally:
         conn.close()
+    upgrade_head(path)
 
 
 def _apply_persistent_pragmas(conn: sqlite3.Connection) -> None:
@@ -101,90 +101,11 @@ def _apply_persistent_pragmas(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA journal_mode = WAL")
 
 
-# --- OCR ligature normalization ------------------------------------------
-#
-# OE ligature characters (æ, ð, þ, œ, ȳ, ē, etc.) are routinely mangled by
-# OCR engines. The same etymon ends up under many spellings: "Hædan",
-# "Hcsdan", "Hsedan", "Haedan", "Hædann"... breaking consensus counts.
-#
-# We normalize by:
-#   1. Mapping common OCR confusions back to ASCII-equivalent OE chars.
-#   2. Lowercasing.
-#   3. Stripping leading/trailing dashes (which mark position, not form).
-#
-# This produces a canonical key that's robust to OCR variation.
-
-# OCR-confused digraphs that should map to OE ligatures (in ASCII).
-# The repeated-replace shape was investigated as a perf hot-spot under
-# wyrd-0ke (Gemini PR #53 round-5 concern about M·N allocations on
-# multi-MB OCR bodies). Benchmarked alternatives (str.translate +
-# str.replace, str.translate + re.sub, single re.sub over an
-# alternation pattern) all came out 5-15x SLOWER on 1/10/50 MB bodies
-# and produced identical memory peaks (intermediate strings are GC'd
-# between replace calls so the peak is dominated by the single largest
-# in-flight string, not the running allocation count). Python's
-# str.replace is a heavily-optimized C path with a memchr-fast
-# negative-scan; replacing it with translate or regex adds Python-side
-# dispatch overhead that swamps the per-mapping allocation savings on
-# the bodies this function actually sees. Keep the loop; documented
-# here so a future drive-by perf review doesn't redo the same work.
-_OCR_LIGATURE_MAP = [
-    # Order matters — longer/more-specific first. "cs" inside an OE form is
-    # almost always a misread æ; same for "ce" in many positions. We keep the
-    # ASCII-friendly equivalents (ae, dh, th, oe) in normalized form.
-    ("æ", "ae"),
-    ("ð", "dh"),
-    ("þ", "th"),
-    ("œ", "oe"),
-    ("ȳ", "y"),
-    ("ē", "e"),
-    ("ī", "i"),
-    ("ō", "o"),
-    ("ū", "u"),
-    ("ā", "a"),
-    # Common OCR confusions for æ
-    ("cs", "ae"),  # "Hcsdan" → "haedan"
-    ("ce", "ae"),  # "Hcedan" → "haedan" (only in OE context — risky in modern)
-    # Common OCR confusions for ð
-    ("§", "dh"),
-]
-
-
-def normalize_ocr_form(form: str) -> str:
-    """Normalize an etymon form against common OCR confusions.
-
-    Returns a lowercased, dash-stripped, ligature-normalized form suitable
-    as a clustering key. The result is NOT meant to be displayed — it's a
-    join key.
-
-    Conservative: we only apply the most reliable mappings. "ce" → "ae"
-    is genuinely OE-context-dependent and applied here; if it produces
-    false positives in modern-english entries we'd want a per-language
-    rule set, but for now the lexicon is dominated by historical forms.
-
-    The repeated-replace shape is intentional. See the rationale next to
-    ``_OCR_LIGATURE_MAP`` — translate / regex alternatives all benched
-    slower on the call-site body sizes (1-50 MB) we actually see, and
-    the memory-peak claim that motivated wyrd-0ke didn't hold up under
-    measurement either.
-    """
-    s = form.strip().strip("-").lower()
-    for src, dst in _OCR_LIGATURE_MAP:
-        s = s.replace(src, dst)
-    return s
-
-
-def _position_from_usage(modern_usage: str) -> str:
-    """Derive a reflex position from the dash markers on a modern_usage string.
-
-    Mirrors Meaning._set_location: starts and ends with '-' → inner, ends with
-    '-' → pre, otherwise post.
-    """
-    if modern_usage.startswith("-") and modern_usage.endswith("-"):
-        return "inner"
-    if modern_usage.endswith("-"):
-        return "pre"
-    return "post"
+# OCR ligature normalization, position-from-usage, and the
+# meanings.json language-field map have been extracted to
+# ``lexicon.constants`` (wyrd-67fv). The imports at the top of this
+# module re-export them under their historical names so external
+# callers don't have to change.
 
 
 class LexiconDB:
