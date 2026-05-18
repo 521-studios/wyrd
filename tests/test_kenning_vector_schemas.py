@@ -40,13 +40,13 @@ def test_phonological_vector_dot_uses_named_fields():
     v = PhonologicalVector(cluster_density=0.8, vowel_final_bias=-0.5)
     s = v.dot({"cluster_density": 0.6, "vowel_final_bias": -0.4})
     # 0.6 * 0.8 + (-0.4) * (-0.5) = 0.48 + 0.20 = 0.68
-    assert abs(s - 0.68) < 1e-9
+    assert s == pytest.approx(0.68)
 
 
 def test_phonological_vector_dot_uses_extras():
     v = PhonologicalVector(extras={"new_dim": 0.5})
     s = v.dot({"new_dim": 0.4})
-    assert abs(s - 0.20) < 1e-9
+    assert s == pytest.approx(0.20)
 
 
 def test_phonological_vector_dot_ignores_unknown_keys():
@@ -56,7 +56,7 @@ def test_phonological_vector_dot_ignores_unknown_keys():
     dimensions should still score against newer register effects."""
     v = PhonologicalVector(cluster_density=0.7)
     s = v.dot({"cluster_density": 0.5, "future_dim_we_dont_have_yet": 0.9})
-    assert abs(s - 0.35) < 1e-9
+    assert s == pytest.approx(0.35)
 
 
 def test_phonological_vector_dot_zero_weight_skips():
@@ -148,8 +148,8 @@ def test_compose_register_effects_graduation_then_compose():
     harsh_half = RegisterEffect(name="harsh", phonological={"cluster_density": 0.6}).scaled(0.5)
     grim_thirty = RegisterEffect(name="grim", semantic_tags={"death": 0.7}).scaled(0.3)
     composed = compose_register_effects([harsh_half, grim_thirty])
-    assert abs(composed.phonological["cluster_density"] - 0.30) < 1e-9
-    assert abs(composed.semantic_tags["death"] - 0.21) < 1e-9
+    assert composed.phonological["cluster_density"] == pytest.approx(0.30)
+    assert composed.semantic_tags["death"] == pytest.approx(0.21)
 
 
 # ---- EligibilityGate ----------------------------------------------------
@@ -483,4 +483,4 @@ def test_dot_ignores_non_dimension_dataclass_fields():
     # treated as a numeric — TypeError or worse. Now ignored.
     s = v.dot({"cluster_density": 0.5, "extras": 0.5})
     # Only cluster_density contributes; extras key is unknown.
-    assert abs(s - 0.25) < 1e-9
+    assert s == pytest.approx(0.25)

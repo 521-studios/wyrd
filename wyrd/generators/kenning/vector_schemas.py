@@ -36,6 +36,7 @@ silently. See DECISIONS.md D36 for the full architectural narrative.
 from __future__ import annotations
 
 import math
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Literal, get_args
 
@@ -237,24 +238,31 @@ def compose_register_effects(effects: list[RegisterEffect]) -> RegisterEffect:
     Clamping preserves the "each effect is one unit of pull on each
     axis" semantics.
     """
-    phon: dict[str, float] = {}
-    sem: dict[str, float] = {}
-    pos: dict[str, float] = {}
+    phon: defaultdict[str, float] = defaultdict(float)
+    sem: defaultdict[str, float] = defaultdict(float)
+    pos: defaultdict[str, float] = defaultdict(float)
     for e in effects:
         for k, v in e.phonological.items():
-            phon[k] = phon.get(k, 0.0) + v
+            phon[k] += v
         for k, v in e.semantic_tags.items():
-            sem[k] = sem.get(k, 0.0) + v
+            sem[k] += v
         for k, v in e.position_bias.items():
-            pos[k] = pos.get(k, 0.0) + v
-    _clamp_in_place(phon)
-    _clamp_in_place(sem)
-    _clamp_in_place(pos)
+            pos[k] += v
+    # Convert defaultdicts back to plain dicts at the return boundary so
+    # downstream callers can't accidentally create zero entries via
+    # missing-key access on the composed effect. _clamp_in_place operates
+    # on plain dicts (it iterates keys, doesn't touch missing-key
+    # semantics) so it's safe to call before or after the conversion;
+    # called after to match the dict-typed RegisterEffect field types.
+    out_phon, out_sem, out_pos = dict(phon), dict(sem), dict(pos)
+    _clamp_in_place(out_phon)
+    _clamp_in_place(out_sem)
+    _clamp_in_place(out_pos)
     return RegisterEffect(
         name="+".join(e.name for e in effects) or "<empty>",
-        phonological=phon,
-        semantic_tags=sem,
-        position_bias=pos,
+        phonological=out_phon,
+        semantic_tags=out_sem,
+        position_bias=out_pos,
     )
 
 
