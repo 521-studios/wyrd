@@ -1,3 +1,26 @@
+# Configuration
+
+```json
+{
+  "defaults_version_checked": "1.3.0",
+  "overlap_acknowledged": {
+    "complexity-reviewer": {
+      "overlaps_with": "code-simplifier",
+      "reason": "Different lenses: complexity-reviewer applies hard metric rules (the and/or test, the ~50-line one-screen rule, extractable inner structures), while the default code-simplifier focuses on genuinely confusing patterns (nested ternaries, redundant abstractions, dense one-liners). Both contributed independent signal during the wyrd-67fv review loop (PR #234)."
+    },
+    "test-coverage-reviewer": {
+      "overlaps_with": "pr-test-analyzer",
+      "reason": "Different lenses: test-coverage-reviewer enforces the absolute rule that every touched Python function needs a unit test, while the default pr-test-analyzer scores behavioral-coverage gaps on a criticality axis (HIGH/MEDIUM/LOW). Both contributed independent findings during PR #234 — pr-test-analyzer flagged unverified new abstractions (engine surface, alembic stamp, close lifecycle) that test-coverage-reviewer's binary rule would have missed."
+    }
+  },
+  "independent_validator": {
+    "enabled": true,
+    "skip_for": [],
+    "uncertain_action": "post_with_annotation"
+  }
+}
+```
+
 # Agents
 
 ## complexity-reviewer
