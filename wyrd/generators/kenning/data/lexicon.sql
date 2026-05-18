@@ -364,9 +364,41 @@ CREATE TABLE toponym_etymology (
   -- post-Roman attestations (≥700) to filter page / volume / footnote
   -- numbers that cluster in the low hundreds. Idempotent + reversible
   -- via clear-enrichment --stage=attested-years.
-  attested_year   INTEGER
+  attested_year   INTEGER,
+  -- wyrd-08qv: multi-extractor consensus canonicalization. When >=2
+  -- different LLM extractors propose the same element-tuple for a
+  -- toponym, ONE row in the agreeing cluster is marked is_canonical=1
+  -- and carries the witness count in consensus_size. Downstream
+  -- consumers (proportions, generation, validation) read canonical-
+  -- only by default; future LLM re-extraction passes can skip
+  -- toponyms with a canonical etymology to save cost on settled
+  -- answers. Single-witness rows stay is_canonical=0 + consensus_size=1.
+  -- Recomputed in bulk by `canonicalize-toponym-etymology --apply` —
+  -- the operation is idempotent and automatically demotes rows that
+  -- lose consensus on a re-run, so there's no separate
+  -- clear-enrichment stage; re-run the canonicalize command after the
+  -- corpus changes to refresh.
+  is_canonical    INTEGER NOT NULL DEFAULT 0,
+  consensus_size  INTEGER NOT NULL DEFAULT 1,
+  -- The cluster key used to group agreeing rows. Persisted (rather
+  -- than recomputed on read) so operators can grep/filter the
+  -- canonicalize-run output and understand WHY a cluster formed.
+  -- Shape: JSON-encoded list of [norm-form, lang] pairs in ordinal
+  -- order, e.g. '[["bedelinga","old-english"],["tun","old-english"]]'.
+  -- Null until canonicalize-toponym-etymology has run. JSON-encoded
+  -- (vs. pipe-delimited) so a normalized form containing `|` or `:`
+  -- can't ambiguously collide with a different element-tuple.
+  cluster_key     TEXT
 );
 CREATE INDEX idx_toponym_etymology_year ON toponym_etymology(attested_year);
+CREATE INDEX idx_toponym_etymology_canonical
+  ON toponym_etymology(toponym_id) WHERE is_canonical = 1;
+
+-- wyrd-08qv: convenience view for canonical-only reads. Downstream
+-- consumers (proportions, generation) join this to bypass disagreement
+-- rows + single-witness fringe hypotheses.
+CREATE VIEW toponym_etymology_canonical AS
+  SELECT * FROM toponym_etymology WHERE is_canonical = 1;
 
 CREATE TABLE toponym_etymology_element (
   toponym_etymology_id INTEGER NOT NULL REFERENCES toponym_etymology(id) ON DELETE CASCADE,
