@@ -73,6 +73,7 @@ from wyrd.generators.kenning.lexicon import (
     seed_from_meanings,
     seed_meaning_synsets,
 )
+from wyrd.generators.kenning.lexicon.sql import upgrade_head
 from wyrd.generators.kenning.llm_extractor import LLMResult
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.rewind import (
@@ -165,6 +166,193 @@ def test_lexicon_db_uses_synchronous_normal(fresh_db: Path) -> None:
         # PRAGMA returns 0=OFF, 1=NORMAL, 2=FULL, 3=EXTRA.
         sync = db.conn.execute("PRAGMA synchronous").fetchone()[0]
     assert sync == 1, f"expected synchronous=NORMAL (1), got {sync}"
+
+
+def test_lexicon_db_engine_and_conn_share_dbapi_connection(fresh_db: Path) -> None:
+    """wyrd-67fv: ``LexiconDB`` holds a SQLAlchemy ``Engine`` (for
+    query-builder paths) plus a ``sqlite3.Connection`` shim (for the
+    ~1k existing ``db.conn.execute(...)`` call sites). The StaticPool
+    invariant says both views read+write through ONE underlying
+    DBAPI connection.
+
+    Identity pin (the load-bearing assertion): the connection a fresh
+    ``engine.raw_connection()`` checkout exposes IS ``db.conn`` — the
+    same Python object. A regression that swaps StaticPool for
+    QueuePool (the SA default) would hand out a different connection
+    on every checkout; that identity check fails immediately.
+
+    Plus a round-trip smoke (write via one surface, read via the
+    other) to catch the case where the pool-class change isn't a
+    StaticPool→QueuePool swap but something subtler that still keeps
+    object-identity by accident.
+    """
+    with LexiconDB(fresh_db) as db:
+        # Identity assertion — the load-bearing pin for the
+        # StaticPool invariant. A fresh raw_connection() checkout
+        # must hand out the same underlying sqlite3.Connection
+        # ``db.conn`` already points at.
+        fresh_proxy = db.engine.raw_connection()
+        try:
+            assert fresh_proxy.driver_connection is db.conn, (
+                "engine.raw_connection().driver_connection is not db.conn — "
+                "StaticPool invariant broken; new pool-class is splitting connections"
+            )
+        finally:
+            fresh_proxy.close()
+
+        # Round-trip smoke — write via SA engine, read via sqlite3
+        # shim, and vice versa. Catches divergence even when the
+        # identity check happens to pass.
+        with db.engine.begin() as sa_conn:
+            sa_conn.exec_driver_sql("INSERT INTO source (id, title) VALUES ('via-engine', 'T')")
+        row = db.conn.execute("SELECT title FROM source WHERE id = 'via-engine'").fetchone()
+        assert row["title"] == "T"
+
+        db.conn.execute("INSERT INTO source (id, title) VALUES ('via-conn', 'U')")
+        db.commit()
+        with db.engine.connect() as sa_conn:
+            count = sa_conn.exec_driver_sql(
+                "SELECT COUNT(*) FROM source WHERE id IN ('via-engine', 'via-conn')"
+            ).scalar()
+        assert count == 2
+
+
+def test_lexicon_db_close_is_idempotent(fresh_db: Path) -> None:
+    """``close()`` must be safe to call twice. With ``__enter__`` /
+    ``__exit__`` exposing it, callers that release the file lock
+    early inside a ``with`` block would otherwise hit a
+    double-dispose on context exit."""
+    db = LexiconDB(fresh_db)
+    db.close()
+    db.close()  # should be a no-op, no exception
+
+
+def test_lexicon_db_close_disposes_pool_and_connection(fresh_db: Path) -> None:
+    """``close()`` must actually call ``__raw_proxy.close()`` AND
+    ``__engine.dispose()``. A regression that drops either silently
+    leaks the sqlite3 connection until GC; reopens still work on
+    Linux WAL (SQLite tolerates multiple readers cheerfully), but
+    Windows + fcntl-locked NFS bite. The round-trip-only test was
+    too loose — round-2 review correctly flagged it.
+
+    Pin: after ``close()``, inspect the LexiconDB instance directly
+    and assert the SA proxy + engine are in their closed state.
+    Name-mangled attributes go through the ``_LexiconDB__`` prefix.
+    """
+    db = LexiconDB(fresh_db)
+    db.upsert_source(id="lock-test", title="Lock Test")
+    db.commit()
+
+    raw_proxy = db._LexiconDB__raw_proxy  # type: ignore[attr-defined]
+    underlying_sqlite_conn = db.conn
+
+    db.close()
+
+    # The fairy proxy's underlying DBAPI connection should be gone
+    # after engine.dispose() — SA marks .driver_connection as None
+    # on a closed proxy.
+    assert raw_proxy.driver_connection is None, (
+        "raw_proxy.driver_connection still set after close() — "
+        "engine.dispose() didn't actually dispose the pool"
+    )
+    # And the original sqlite3.Connection itself must be closed.
+    # If engine.dispose() ever silently regresses to a no-op the
+    # connection stays alive in StaticPool until GC, and this
+    # assertion catches it immediately.
+    with pytest.raises(sqlite3.ProgrammingError, match="closed database"):
+        underlying_sqlite_conn.execute("SELECT 1")
+
+    # Reopen still works (functional smoke); the assertions above
+    # are the load-bearing pins for the dispose contract.
+    with LexiconDB(fresh_db) as db2:
+        row = db2.conn.execute("SELECT title FROM source WHERE id = 'lock-test'").fetchone()
+        assert row["title"] == "Lock Test"
+
+
+def test_lexicon_db_engine_and_conn_are_read_only_properties(fresh_db: Path) -> None:
+    """The StaticPool-shared-connection invariant relies on neither
+    attribute being reassigned after construction; wyrd-67fv exposes
+    both as read-only properties so a regression is a hard error
+    rather than a silently-split-writes bug."""
+    with LexiconDB(fresh_db) as db:
+        with pytest.raises(AttributeError):
+            db.engine = None  # type: ignore[misc]
+        with pytest.raises(AttributeError):
+            db.conn = None  # type: ignore[misc]
+
+
+def test_init_schema_stamps_alembic_version_at_head(fresh_db: Path) -> None:
+    """wyrd-67fv: ``init_schema`` runs the layered alembic migrations
+    via ``upgrade_head``. If the env.py transaction handling regresses
+    again (SA 2.0 ``connect()`` vs ``begin()``), the DDL persists
+    but the ``alembic_version`` stamp silently doesn't — which means
+    a subsequent ``upgrade`` would re-run every migration and fail
+    on the duplicate CREATE. Pin the stamp explicitly so the
+    regression surfaces here, not in the next migration's PR."""
+    with sqlite3.connect(fresh_db) as conn:
+        row = conn.execute("SELECT version_num FROM alembic_version").fetchone()
+    assert row is not None, "alembic_version row missing"
+    # Head revision id per the wyrd-67fv layered migrations.
+    assert row[0] == "0008_views", f"expected head '0008_views', got {row[0]!r}"
+
+
+def test_upgrade_head_is_idempotent(fresh_db: Path) -> None:
+    """Running ``upgrade_head`` against a DB that's already at head
+    must be a no-op. ``init_schema`` runs it once; tests + the CLI
+    ``rebuild-from-jsonl`` flow re-invoke it on the same DB. A
+    regression where a migration re-runs (lost ``IF NOT EXISTS``
+    guard, missing alembic_version stamp) would surface here."""
+    # init_schema already ran upgrade_head once via the fixture.
+    # Second invocation must complete cleanly with no changes.
+    upgrade_head(fresh_db)
+
+    with sqlite3.connect(fresh_db) as conn:
+        version = conn.execute("SELECT version_num FROM alembic_version").fetchone()
+    assert version[0] == "0008_views"
+
+
+def test_idx_attestation_unique_dedups_null_year_and_source(fresh_db: Path) -> None:
+    """wyrd-67fv round-5: ``idx_attestation_unique`` uses COALESCE wraps on
+    the nullable columns so two attestations of (same toponym, same
+    form, NULL year, NULL source_doc) collapse under the UNIQUE
+    constraint. Without the wrap SQLite treats every NULL as distinct,
+    so the second INSERT would silently succeed and a mine-attestations
+    re-run would double-write. Pin the index-level dedup directly so
+    the COALESCE change can't silently regress.
+    """
+    with LexiconDB(fresh_db) as db:
+        toponym_id = db.conn.execute(
+            "INSERT INTO toponym (modern_name) VALUES ('Pinhampton') RETURNING id"
+        ).fetchone()[0]
+        # First insert lands.
+        db.conn.execute(
+            "INSERT OR IGNORE INTO toponym_attestation "
+            "(toponym_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+            (toponym_id, "Pinampton", None, None),
+        )
+        # Second insert with identical (form, NULL, NULL) collapses
+        # — INSERT OR IGNORE swallows the UNIQUE violation.
+        db.conn.execute(
+            "INSERT OR IGNORE INTO toponym_attestation "
+            "(toponym_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+            (toponym_id, "Pinampton", None, None),
+        )
+        # Third with a different NULL pair (NULL year, non-NULL source)
+        # is genuinely different — should insert.
+        db.conn.execute(
+            "INSERT OR IGNORE INTO toponym_attestation "
+            "(toponym_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+            (toponym_id, "Pinampton", None, "Mawer 1920"),
+        )
+        db.commit()
+
+        count = db.conn.execute(
+            "SELECT COUNT(*) FROM toponym_attestation WHERE toponym_id = ?",
+            (toponym_id,),
+        ).fetchone()[0]
+        assert count == 2, (
+            f"expected 2 rows (NULL+NULL deduped, NULL+'Mawer 1920' kept); got {count}"
+        )
 
 
 def test_upsert_etymon_returns_same_id_on_duplicate(fresh_db: Path) -> None:
