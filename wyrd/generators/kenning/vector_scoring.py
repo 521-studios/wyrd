@@ -250,12 +250,12 @@ def _native_lookup_tag_independent(
         if c != culture or lemma_ref not in cell:
             continue
         v = cell[lemma_ref]
-        if p == position:
-            # Level 3 match: (culture, position, *, *)
-            if best_l3 is None or v > best_l3:
-                best_l3 = v
-        # Level 4 match: (culture, *, *, *) — same row qualifies if
-        # culture matches, regardless of position.
+        # Level 3 match: (culture, position, *, *) — same culture AND
+        # same position. Conditions combined to satisfy SIM102.
+        if p == position and (best_l3 is None or v > best_l3):
+            best_l3 = v
+        # Level 4 match: (culture, *, *, *) — same row qualifies on
+        # culture alone, regardless of position.
         if best_l4 is None or v > best_l4:
             best_l4 = v
     if best_l3 is not None:
@@ -344,9 +344,10 @@ def _loan_lookup_tag_independent(
         if d != donor or r != recipient or lemma_ref not in cell:
             continue
         v = cell[lemma_ref]
-        if p == position:
-            if best_l3 is None or v > best_l3:
-                best_l3 = v
+        # Level 3 conditions combined to satisfy SIM102 (matches the
+        # _native_lookup_tag_independent pattern).
+        if p == position and (best_l3 is None or v > best_l3):
+            best_l3 = v
         if best_l4 is None or v > best_l4:
             best_l4 = v
     if best_l3 is not None:
