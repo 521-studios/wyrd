@@ -8,6 +8,7 @@ against synthetic toponym + etymology + element fixtures.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
@@ -784,7 +785,9 @@ def test_dump_json_byte_stable_across_independent_dbs(tmp_path):
     _EXTRACT_SQL_ORDERED would still produce identical dumps and
     pass this test."""
 
-    def _build_db(db_path, insert_order: list[tuple[str, list[tuple[str, str, str]]]]) -> None:
+    def _build_db(
+        db_path: Path, insert_order: list[tuple[str, list[tuple[str, str, str]]]]
+    ) -> Path:
         """Build a fresh DB and insert the given (toponym, [(canonical, language, tag), ...])
         rows in the order provided so the AUTOINCREMENT ids end up in
         different sequences across the two DBs."""
