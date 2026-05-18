@@ -122,9 +122,12 @@ def passes_tag_required_gate(meaning: Meaning, required: AbstractSet[str]) -> bo
     Meaning must carry both tags. For OR semantics use multiple
     separate generation requests + merge.
 
-    Implementation uses ``set.issubset(iterable)`` which is O(n+m)
-    over the iterable (linear in meaning.tags + required) rather
-    than the O(n*m) of a nested ``in``-on-list scan.
+    Uses ``required.issubset(meaning.tags)`` rather than the naive
+    ``all(t in meaning.tags for t in required)``. CPython's
+    ``set.issubset`` converts the iterable argument to a set
+    internally (one O(m) pass) and then checks each element of
+    ``required`` in O(1), avoiding the O(n*m) of the
+    nested-``in``-on-list pattern.
     """
     if not required:
         return True
@@ -137,9 +140,11 @@ def passes_tag_excluded_gate(meaning: Meaning, excluded: AbstractSet[str]) -> bo
 
     Pairs with the existing ``--exclude-tags`` knob (wyrd-yan).
 
-    Implementation uses ``set.isdisjoint(iterable)`` which is O(n+m)
-    over the iterable rather than the O(n*m) of a nested ``in``-on-
-    list scan inside ``any(...)``.
+    Uses ``excluded.isdisjoint(meaning.tags)`` rather than the naive
+    ``not any(t in meaning.tags for t in excluded)``. CPython's
+    ``set.isdisjoint`` iterates the iterable argument once and does
+    O(1) set lookups against the excluded-set, avoiding the O(n*m)
+    of the nested-``in``-on-list pattern.
     """
     if not excluded:
         return True
