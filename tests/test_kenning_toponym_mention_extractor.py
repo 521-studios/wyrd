@@ -1457,6 +1457,80 @@ def test_cli_provider_gemini_routes_to_gemini_client(tmp_path, monkeypatch):
     assert schema_arg is RESPONSE_SCHEMA_GEMINI
 
 
+def test_extract_toponym_mentions_from_chunk_sends_openapi_schema_to_gemini_wire(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """wyrd-9air: end-to-end pin of the wire-level Gemini contract.
+
+    test_cli_provider_gemini_routes_to_gemini_client (above) uses a
+    FakeClient and asserts the dispatch picks RESPONSE_SCHEMA_GEMINI by
+    object identity. That covers dispatch but bypasses the real
+    GeminiClient.chat_json HTTP path. If someone reverts the
+    schema-dialect dispatch in extract_toponym_mentions_from_chunk to
+    always pass RESPONSE_SCHEMA, the FakeClient test would still pass
+    because the dispatch still routes — only the value passed would
+    change. This test exercises the real GeminiClient through a
+    mocked urlopen and asserts the wire payload's
+    ``generationConfig.responseSchema`` carries the OpenAPI dialect
+    (uppercase types, no additionalProperties, nullable: true), so a
+    revert that re-sends JSON Schema to Gemini's API trips CI here.
+    """
+    import json
+    from unittest.mock import patch
+
+    from wyrd.generators.kenning.gemini_extractor import GeminiClient
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test-not-used")
+    captured: dict[str, bytes] = {}
+    inner_payload = json.dumps({"mentions": []})
+    envelope = json.dumps(
+        {"candidates": [{"content": {"parts": [{"text": inner_payload}]}}]}
+    ).encode("utf-8")
+
+    class _Resp:
+        def read(self) -> bytes:
+            return envelope
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            pass
+
+    def capturing_urlopen(req, timeout=None):
+        captured["body"] = req.data
+        return _Resp()
+
+    client = GeminiClient(model="gemini-2.5-flash")
+    with patch("urllib.request.urlopen", capturing_urlopen):
+        result = extract_toponym_mentions_from_chunk(client, "Edlingham was held.")
+
+    assert result == []
+    assert "body" in captured, "urlopen was never called"
+    sent = json.loads(captured["body"].decode("utf-8"))
+    schema = sent["generationConfig"]["responseSchema"]
+
+    # Top-level shape is the Gemini OpenAPI dialect.
+    assert schema["type"] == "OBJECT", "wire schema must use uppercase OpenAPI types"
+    assert "additionalProperties" not in schema, (
+        "Gemini rejects additionalProperties at schema-submit time; if this key "
+        "is present, the dispatch is sending RESPONSE_SCHEMA (JSON Schema) "
+        "instead of RESPONSE_SCHEMA_GEMINI"
+    )
+
+    # Item schema carries the dialect markers: uppercase types, no
+    # additionalProperties, nullable: true (not type: [..., 'null']).
+    item = schema["properties"]["mentions"]["items"]
+    assert item["type"] == "OBJECT"
+    assert "additionalProperties" not in item
+    date_year_schema = item["properties"]["date_year"]
+    assert date_year_schema.get("nullable") is True
+    assert date_year_schema["type"] == "INTEGER", (
+        "date_year must be OpenAPI nullable INTEGER, not JSON Schema type: [int, null]"
+    )
+    assert not isinstance(date_year_schema["type"], list)
+
+
 def test_cli_provider_ollama_routes_to_ollama_client(tmp_path, monkeypatch):
     """--provider ollama must instantiate OllamaClient. test-coverage-
     reviewer round-1 finding."""
