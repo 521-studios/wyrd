@@ -14,7 +14,8 @@ import pytest
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
-from wyrd.generators.kenning.empirical_priors import (
+from wyrd.generators.kenning.lexicon import LexiconDB, init_schema, migrate_schema
+from wyrd.generators.kenning.lexicon.empirical_priors import (
     _COUNTRY_TO_CULTURE,
     _CULTURE_TO_FAMILY,
     _OPEN_BOUND_OFFSET,
@@ -30,7 +31,6 @@ from wyrd.generators.kenning.empirical_priors import (
     known_era_midpoints,
     mine_empirical_baselines,
 )
-from wyrd.generators.kenning.lexicon import LexiconDB, init_schema, migrate_schema
 
 # ---------- fixtures -----------------------------------------------------
 
