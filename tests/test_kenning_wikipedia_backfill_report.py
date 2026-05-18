@@ -446,14 +446,18 @@ def test_nfc_normalization_matches_canonical_diacritic(db, tmp_path):
     """The same character can be encoded as NFC (precomposed) or NFD
     (decomposed). Wikipedia and the DB may differ. After NFC
     normalization on both sides, the match should succeed. R1
-    silent-failure-hunter MEDIUM."""
-    # NFC: U+00E9 (precomposed é)
-    nfc_name = "Café"
-    # NFD: U+0065 U+0301 (e + combining acute)
-    nfd_name = "Café"
-    assert nfc_name != nfd_name  # they're different code-point sequences
+    silent-failure-hunter MEDIUM.
+
+    R2 pr-test-analyzer MEDIUM: build the two forms programmatically
+    via unicodedata.normalize so the editor can not silently re-encode
+    both source-file literals to NFC and turn the test into a
+    tautology."""
     import unicodedata as _u
 
+    canonical = "Café"
+    nfc_name = _u.normalize("NFC", canonical)  # precomposed: U+00E9
+    nfd_name = _u.normalize("NFD", canonical)  # decomposed: U+0065 U+0301
+    assert nfc_name != nfd_name, "NFC/NFD must produce different code-point sequences"
     assert _u.normalize("NFC", nfd_name) == nfc_name
 
     # DB stores NFC form
@@ -476,19 +480,13 @@ def test_nfc_normalization_matches_canonical_diacritic(db, tmp_path):
 
 def test_cli_unknown_language_is_bad_parameter(db, tmp_path):
     """--language welch (typo) must error loudly, not silently produce
-    empty output. R1 silent-failure-hunter MEDIUM."""
-    from click.testing import CliRunner
-
-    from wyrd.generators.kenning.cli import cli as cli_root
-
+    empty output. R1 silent-failure-hunter MEDIUM. R2 also pins that
+    the operator sees the list of VALID tokens in the error so they
+    can correct the typo without consulting docs."""
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     runner = CliRunner()
-    # Find the live lexicon path used by the CLI default; pass a
-    # synthetic empty one to avoid leaning on it.
     db_path = tmp_path / "lexicon.db"
-    from wyrd.generators.kenning.lexicon import init_schema
-
     init_schema(db_path)
     result = runner.invoke(
         cli_root,
@@ -505,6 +503,89 @@ def test_cli_unknown_language_is_bad_parameter(db, tmp_path):
     )
     assert result.exit_code != 0
     assert "unknown --language" in result.output
+    # The error must surface the valid set so the operator can
+    # self-serve the fix.
+    assert "welsh" in result.output
+
+
+def test_malformed_json_raises_with_path_context(db, tmp_path):
+    """A *_place_names.json with syntactically invalid JSON raises
+    ValueError with the path in the message. Without the wrap, a
+    bare JSONDecodeError would surface without file context, making
+    operator triage hard. R2 test-coverage MEDIUM."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    bad = data_dir / "english_place_names.json"
+    bad.write_text("{not valid json at all", encoding="utf-8")
+    with pytest.raises(ValueError, match=r"english_place_names\.json.*invalid JSON"):
+        compute_backfill_report(db, data_dir=data_dir, languages=("english",))
+
+
+def test_malformed_json_propagates_as_traceback_in_cli(db, tmp_path):
+    """A malformed file is a data-corruption bug, NOT operator input
+    error — the CLI MUST NOT swallow it as click.BadParameter. R2
+    silent-failure-hunter MEDIUM: previously the broad ValueError
+    catch conflated unknown-language with file-corruption."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    bad = data_dir / "english_place_names.json"
+    bad.write_text("{not valid json at all", encoding="utf-8")
+    runner = CliRunner()
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "report-wikipedia-backfill",
+            "--db",
+            str(db_path),
+            "--data-dir",
+            str(data_dir),
+            "--language",
+            "english",
+        ],
+        catch_exceptions=True,
+    )
+    # Non-zero exit, but specifically NOT a BadParameter — the
+    # underlying ValueError propagates.
+    assert result.exit_code != 0
+    assert "Invalid value" not in result.output  # click's BadParameter prefix
+    assert result.exception is not None
+    assert isinstance(result.exception, ValueError)
+
+
+def test_report_to_dict_totals_aggregate_across_multiple_files(db, tmp_path):
+    """report_to_dict accumulates the top-level ``totals`` across
+    every FileReport in the list. With multiple files, the running
+    sum must reflect ALL of them (a producer bug skipping or double-
+    counting one file's contribution wouldn't fail any current test).
+    R2 test-coverage MEDIUM."""
+    from wyrd.generators.kenning.wikipedia_backfill_report import report_to_dict
+
+    full_id = _add_toponym(db, "FullPlace")
+    _add_attestation(db, full_id)
+
+    data_dir = tmp_path / "data"
+    _write_place_names(
+        data_dir,
+        "english_place_names.json",
+        {"England": {"A": ["FullPlace", "MissingFromDB"]}},
+    )
+    _write_place_names(
+        data_dir,
+        "scottish_place_names.json",
+        {"Scotland": {"B": ["FullPlace", "Unknown"]}},
+    )
+    reports = compute_backfill_report(db, data_dir=data_dir)
+    out = report_to_dict(reports)
+    # Two files × 2 entries each = 4 total
+    assert out["totals"]["total"] == 4
+    # FullPlace appears in both files, in_db both times
+    assert out["totals"]["in_db"] == 2
+    # FullPlace is attested in both occurrences
+    assert out["totals"]["attested"] == 2
+    assert out["totals"]["gap"] == 2
 
 
 # ---------- JSON output -------------------------------------------------

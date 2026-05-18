@@ -4602,10 +4602,12 @@ def lexicon_report_wikipedia_backfill(
         (scholar attestation — the retirement criterion)
       * gap       — total - attested
 
-    Strictly read-only. Name lookup is case-sensitive exact match
-    against ``toponym.modern_name``; fuzzy-matching is a follow-up.
+    Strictly read-only. Name lookup is NFC-normalized exact match
+    against ``toponym.modern_name`` (case- and punctuation-sensitive
+    otherwise); fuzzy-matching is a follow-up.
     """
     from wyrd.generators.kenning.wikipedia_backfill_report import (
+        UnknownLanguageError,
         compute_backfill_report,
         format_report,
         report_to_dict,
@@ -4620,12 +4622,16 @@ def lexicon_report_wikipedia_backfill(
                 data_dir=data_dir,
                 languages=languages or None,
             )
-        except ValueError as e:
+        except UnknownLanguageError as e:
             # Re-raise as click.BadParameter so the operator sees a
-            # clean CLI error message rather than a traceback. The
-            # compute layer raises ValueError for unknown --language
-            # tokens (R1 silent-failure-hunter MEDIUM: previously
-            # silently produced empty report).
+            # clean CLI error message rather than a traceback. ONLY
+            # catches the unknown-language case — data-shape errors
+            # from _load_place_names (ValueError) and invariant
+            # violations from CountyReport.__post_init__ (ValueError)
+            # represent file corruption / producer bugs and propagate
+            # as full tracebacks. R2 silent-failure-hunter MEDIUM
+            # flagged the previous bare-ValueError catch as conflating
+            # three distinct error classes.
             raise click.BadParameter(str(e)) from e
 
         if as_json:

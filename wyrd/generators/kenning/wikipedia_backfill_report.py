@@ -22,8 +22,9 @@ This module reports the retirement-readiness gap per region:
 
 KNOWN LIMITATIONS (documented intentionally):
 
-1. Name matching is case-sensitive exact match against
-   ``toponym.modern_name`` (after NFC normalization). Operators
+1. Name matching is NFC-normalized exact match against
+   ``toponym.modern_name`` (case- and punctuation-sensitive
+   otherwise). Operators
    running the report against the live DB will see false-negatives
    where the Wikipedia name and the DB form differ in punctuation or
    disambiguation suffixes ("Newcastle" vs "Newcastle upon Tyne").
@@ -71,6 +72,17 @@ WIKIPEDIA_PLACE_NAME_FILES: tuple[str, ...] = (
 SUPPORTED_LANGUAGES: tuple[str, ...] = tuple(
     f.removesuffix("_place_names.json") for f in WIKIPEDIA_PLACE_NAME_FILES
 )
+
+
+class UnknownLanguageError(ValueError):
+    """Raised when ``compute_backfill_report`` receives a --language
+    token outside ``SUPPORTED_LANGUAGES``. A dedicated subclass so the
+    CLI can convert this specific error to ``click.BadParameter``
+    without conflating it with data-shape errors from
+    ``_load_place_names`` or invariant violations from
+    ``CountyReport.__post_init__`` — those represent file corruption /
+    producer bugs and SHOULD surface as full tracebacks rather than
+    operator-input errors. R2 silent-failure-hunter MEDIUM."""
 
 
 def _nfc(text: str) -> str:
@@ -273,17 +285,29 @@ def _build_toponym_lookups(db: LexiconDB) -> tuple[set[str], set[str]]:
 
     # Exclude non-scholar source_docs (rando-port today; any future
     # synthetic-provenance entries) — a name attested ONLY by the
-    # seed sources is not evidence of scholar coverage. The CTE
-    # form lets the planner pre-filter attestations before joining.
+    # seed sources is not evidence of scholar coverage.
     attested_names: set[str] = set()
-    placeholders = ",".join("?" * len(_NON_SCHOLAR_SOURCES))
-    sql = (
-        "SELECT DISTINCT t.modern_name "
-        "FROM toponym t "
-        "JOIN toponym_attestation a ON a.toponym_id = t.id "
-        f"WHERE a.source_doc IS NULL OR a.source_doc NOT IN ({placeholders})"
-    )
-    for row in db.conn.execute(sql, tuple(_NON_SCHOLAR_SOURCES)):
+    if _NON_SCHOLAR_SOURCES:
+        # Filter clause is parametric over the constant; guard against
+        # the future case where someone empties the frozenset (which
+        # would generate ``NOT IN ()``, a SQLite syntax error). R2
+        # code-reviewer MEDIUM.
+        placeholders = ",".join("?" * len(_NON_SCHOLAR_SOURCES))
+        sql = (
+            "SELECT DISTINCT t.modern_name "
+            "FROM toponym t "
+            "JOIN toponym_attestation a ON a.toponym_id = t.id "
+            f"WHERE a.source_doc IS NULL OR a.source_doc NOT IN ({placeholders})"
+        )
+        params: tuple = tuple(_NON_SCHOLAR_SOURCES)
+    else:
+        sql = (
+            "SELECT DISTINCT t.modern_name "
+            "FROM toponym t "
+            "JOIN toponym_attestation a ON a.toponym_id = t.id"
+        )
+        params = ()
+    for row in db.conn.execute(sql, params):
         attested_names.add(_nfc(row["modern_name"]))
 
     return in_db_names, attested_names
@@ -346,7 +370,7 @@ def compute_backfill_report(
     if languages:
         bad = [lang for lang in languages if lang.lower() not in SUPPORTED_LANGUAGES]
         if bad:
-            raise ValueError(
+            raise UnknownLanguageError(
                 f"unknown --language token(s): {sorted(bad)!r}; "
                 f"valid: {list(SUPPORTED_LANGUAGES)!r}"
             )
