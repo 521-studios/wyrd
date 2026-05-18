@@ -917,6 +917,57 @@ def _run_hallucination_rescue(
     return list(primary_mentions) + added, bool(rescue_mentions)
 
 
+def _run_primary_failure_fallback(
+    fallback_client,
+    chunk: str,
+    chunk_index: int,
+    primary_error: str,
+    log_warning: Callable[[str], None] | None,
+) -> tuple[list[ToponymMention] | None, ValidationCounters, FailedChunk | None]:
+    """Run the fallback on a chunk where the primary raised. Returns a
+    3-tuple ``(mentions, counters, failure)``:
+
+    * ``(mentions, counters, None)`` — fallback recovered. Caller folds
+      ``counters`` into the report and bumps
+      ``chunks_recovered_by_fallback``.
+    * ``(None, counters, failure)`` — BOTH tiers failed. ``failure``
+      records the chained ``primary=...; fallback=...`` error so
+      operators can distinguish a transient one-tier hiccup from a
+      genuinely-hard chunk where both quality tiers gave up. Caller
+      bumps ``chunks_failed``, buffers ``failure`` in head/tail, and
+      ``continue``s to the next chunk.
+
+    Counters are always returned fresh — ``extract_toponym_mentions_from_chunk``
+    doesn't populate counters partially before raising today, but a
+    future refactor could; keeping the discard explicit prevents
+    double-counting drift if that contract changes.
+
+    ``_PROGRAMMER_ERROR_EXCEPTIONS`` propagates as a traceback
+    (consistent with the rest of the file's contract).
+    """
+    chunk_counters = ValidationCounters()
+    try:
+        mentions = extract_toponym_mentions_from_chunk(
+            fallback_client, chunk, counters=chunk_counters
+        )
+    except _PROGRAMMER_ERROR_EXCEPTIONS:
+        raise  # Our bug — let it surface as a traceback.
+    except Exception as e:
+        # BOTH tiers failed — record BOTH errors so operators see the
+        # full failure chain (transient vs. genuinely-hard chunk are
+        # distinguishable from the pair).
+        fallback_error = f"{type(e).__name__}: {e}"
+        failure = FailedChunk(
+            index=chunk_index,
+            error=f"primary={primary_error}; fallback={fallback_error}",
+            chunk_body=chunk,
+        )
+        if log_warning is not None:
+            log_warning(f"chunk {chunk_index} both tiers failed: {fallback_error}")
+        return None, chunk_counters, failure
+    return mentions, chunk_counters, None
+
+
 def mine_toponym_mentions_tiered(
     primary_client,
     fallback_client,
@@ -1025,6 +1076,10 @@ def mine_toponym_mentions_tiered(
                 f"({len(chunk):,} chars > {int(oversize_threshold):,} threshold) — "
                 f"LLM output may truncate; consider lowering --chunk-size"
             )
+        # Phase 1: try primary. Bare ``except Exception`` (not
+        # RuntimeError) so provider-SDK error classes
+        # (anthropic.APIError, httpx.HTTPError, TimeoutError) trigger
+        # the fallback rather than aborting the whole source.
         chunk_counters = ValidationCounters()
         primary_error: str | None = None
         mentions: list[ToponymMention] | None = None
@@ -1035,52 +1090,34 @@ def mine_toponym_mentions_tiered(
         except _PROGRAMMER_ERROR_EXCEPTIONS:
             raise  # Our bug — let it surface as a traceback.
         except Exception as e:
-            # Bare Exception (not RuntimeError) so provider-SDK error
-            # classes (anthropic.APIError, httpx.HTTPError, TimeoutError)
-            # trigger fallback rather than aborting the whole source.
             primary_error = f"{type(e).__name__}: {e}"
             if log_warning is not None:
                 log_warning(f"chunk {i} primary failed: {primary_error} — retrying with fallback")
         if mentions is None:
-            # Primary failed. Try fallback. Reset counters defensively
-            # — extract_toponym_mentions_from_chunk doesn't populate
-            # counters partially before raising today, but a future
-            # refactor could. Keeping the discard explicit prevents
-            # double-counting drift if that contract changes.
-            chunk_counters = ValidationCounters()
-            try:
-                mentions = extract_toponym_mentions_from_chunk(
-                    fallback_client, chunk, counters=chunk_counters
-                )
-                report.chunks_recovered_by_fallback += 1
-            except _PROGRAMMER_ERROR_EXCEPTIONS:
-                raise  # Our bug — let it surface as a traceback.
-            except Exception as e:
-                # BOTH tiers failed — record BOTH errors so operators
-                # see the full failure chain (transient vs. genuinely-
-                # hard chunk are distinguishable from the pair).
-                fallback_error = f"{type(e).__name__}: {e}"
+            # Phase 2: primary failed — try fallback. See
+            # :func:`_run_primary_failure_fallback` for counter/failure
+            # semantics. ``primary_error`` is non-None on this branch:
+            # the only path that leaves ``mentions`` as None is the
+            # primary's except block above, which sets it.
+            mentions, chunk_counters, failure = _run_primary_failure_fallback(
+                fallback_client, chunk, i, primary_error, log_warning
+            )
+            if failure is not None:
                 report.chunks_failed += 1
-                failure = FailedChunk(
-                    index=i,
-                    error=f"primary={primary_error}; fallback={fallback_error}",
-                    chunk_body=chunk,
-                )
                 if len(head_failures) < _FAILED_CHUNKS_HEAD:
                     head_failures.append(failure)
                 else:
                     tail_failures.append(failure)
-                if log_warning is not None:
-                    log_warning(f"chunk {i} both tiers failed: {fallback_error}")
                 continue
+            report.chunks_recovered_by_fallback += 1
         elif (
             hallucination_fallback_threshold is not None
             and hallucination_fallback_threshold > 0
             and chunk_counters.hallucinations_dropped >= hallucination_fallback_threshold
         ):
-            # Hallucination-triggered rescue (wyrd-z8mq). Detailed
-            # contract + counter semantics are in
-            # :func:`_run_hallucination_rescue` above.
+            # Phase 3: primary succeeded but hallucinated — try rescue.
+            # See :func:`_run_hallucination_rescue` for the detailed
+            # contract + counter-folding semantics (wyrd-z8mq).
             report.chunks_hallucination_rescue_attempted += 1
             if log_warning is not None:
                 log_warning(
