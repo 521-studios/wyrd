@@ -38,10 +38,6 @@ from wyrd.generators.kenning.dictionary_parser import (
     parse_alphabetical_text,
     parse_numbered_list_text,
 )
-from wyrd.generators.kenning.empirical_priors import (
-    dump_empirical_priors_to_json,
-    mine_empirical_baselines,
-)
 from wyrd.generators.kenning.english_shaping import (
     PHASE2A_NON_LATIN_LANGS,
     derive_english_shaped,
@@ -85,6 +81,10 @@ from wyrd.generators.kenning.lexicon import (
     reverse_search_attestations,
     seed_from_meanings,
     seed_meaning_synsets,
+)
+from wyrd.generators.kenning.lexicon.empirical_priors import (
+    dump_empirical_priors_to_json,
+    mine_empirical_baselines,
 )
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.name import load_names_with_regions
