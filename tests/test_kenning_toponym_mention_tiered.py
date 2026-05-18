@@ -1583,6 +1583,16 @@ def test_tiered_hallucination_rescue_continues_on_fallback_error():
     assert report.chunks_failed == 0  # primary's mentions still good
     assert report.chunks_processed == 3
     assert [m.form for m in report.mentions] == ["Edlin"]
+    # wyrd-oaq5: the errored-rescue path returns a zero
+    # ValidationCounters delta so the orchestrator's ``+=`` fold is a
+    # no-op. Pin the operator-observable consequence: primary's
+    # hallucination count is recorded once (Faux1 dropped on chunk 1),
+    # NOT corrupted by the errored fallback. Catches (a) a buggy
+    # __iadd__ that mutates from a non-zero operand, (b) a future
+    # refactor that lets the errored-rescue path leak partial
+    # counters, (c) orchestrator folding from the wrong accumulator.
+    assert report.hallucinations_dropped == 1
+    assert report.years_clamped == 0
 
 
 def test_tiered_hallucination_rescue_counters_attempted_vs_succeeded_diverge():

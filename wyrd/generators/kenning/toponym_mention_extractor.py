@@ -242,6 +242,25 @@ class ValidationCounters:
     :func:`extract_toponym_mentions_from_chunk`,
     :func:`_run_hallucination_rescue`) return a fresh instance for
     the caller to fold into a per-chunk accumulator via ``+=``.
+
+    No ``__add__`` companion is provided — pure summation (``a + b``)
+    isn't a supported operation, by design. Counters are
+    fold-into-accumulator only; the absence of ``__add__`` keeps a
+    standalone ``total = a + b`` from quietly producing a broken
+    detached instance.
+
+    The ``__iadd__`` implementation folds ALL three fields including
+    ``admitted``. The pre-wyrd-oaq5 hand-rolled rescue merge in
+    :func:`_run_hallucination_rescue` folded only
+    ``hallucinations_dropped`` and ``years_clamped``, leaving
+    ``admitted`` out. The orchestrator never reads
+    ``chunk_counters.admitted`` into the report
+    (:class:`MineToponymMentionsReport` lacks an ``admitted`` field
+    today), so this is operationally inert. If a future PR adds
+    ``report.admitted += chunk_counters.admitted``, be aware the
+    hallucination-rescue path now double-counts admits across both
+    tiers — that may want explicit accounting at the fold site
+    rather than the field-wide ``+=`` shape.
     """
 
     admitted: int = 0
