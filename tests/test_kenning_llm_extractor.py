@@ -17,6 +17,7 @@ is the worst direction). wyrd-pe4g rounds 4-5.
 
 from __future__ import annotations
 
+import json
 import re
 from unittest.mock import patch
 
@@ -887,6 +888,23 @@ def test_ollama_chat_json_malformed_envelope_raises_runtimeerror() -> None:
     with (
         patch("urllib.request.urlopen", lambda req, timeout=None: _RawBytesResp(malformed)),
         pytest.raises(RuntimeError, match="non-JSON envelope"),
+    ):
+        client.chat_json("sys", "usr", {})
+
+
+def test_ollama_chat_json_non_json_content_raises_runtimeerror() -> None:
+    """wyrd-rmc6: the inner content parse (message.content → JSON) must also
+    raise RuntimeError on JSONDecodeError, not let it leak through
+    _PROGRAMMER_ERROR_EXCEPTIONS as ValueError. This pins the helper
+    extraction: a regression that drops the parse_transport_json wrap on
+    the content path would abort the whole multi-source run on a single
+    malformed model response."""
+    client = OllamaClient()
+    # Outer envelope is valid; message.content is non-JSON garbage.
+    envelope = json.dumps({"message": {"content": "this is not json {{"}}).encode("utf-8")
+    with (
+        patch("urllib.request.urlopen", lambda req, timeout=None: _RawBytesResp(envelope)),
+        pytest.raises(RuntimeError, match="non-JSON content"),
     ):
         client.chat_json("sys", "usr", {})
 

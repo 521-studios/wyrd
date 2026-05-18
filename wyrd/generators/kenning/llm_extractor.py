@@ -19,6 +19,7 @@ import re
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from typing import Literal
 
 from wyrd.generators.kenning.skeat_parser import (
     SOURCE_QUOTE_BUDGET,
@@ -282,6 +283,49 @@ Entry text:
 """
 
 
+# --- transport helpers ----------------------------------------------------
+
+
+def parse_transport_json(
+    payload: str,
+    *,
+    provider: Literal["Anthropic", "Gemini", "Ollama"],
+    kind: Literal["envelope", "content"],
+) -> dict:
+    """Parse JSON from a transport payload, normalizing JSONDecodeError to
+    RuntimeError with a provider-specific diagnostic message.
+
+    ``kind`` distinguishes the layer being parsed:
+      * ``"envelope"`` — the outer HTTP body returned by the provider.
+        Error verb: ``returned non-JSON envelope`` (transport-level concern:
+        CDN/proxy HTML error page, truncated body on a dropped connection).
+      * ``"content"`` — the inner JSON the model produced inside the
+        envelope. Error verb: ``produced non-JSON content`` (model-level
+        concern: model emitted malformed JSON despite the schema/prompt).
+
+    Why route JSONDecodeError → RuntimeError (wyrd-pe4g cross-module
+    invariant): the chunk loop in ``toponym_mention_extractor.py`` lists
+    ``ValueError`` in ``_PROGRAMMER_ERROR_EXCEPTIONS`` so a typo'd
+    ``schema_dialect`` surfaces as a Python traceback rather than 100%
+    chunks_failed. ``json.JSONDecodeError`` is a ``ValueError`` subclass —
+    without this wrap, a 2xx response with a malformed body would propagate
+    through the re-raise and abort the whole multi-source run instead of
+    bucketing the chunk into chunks_failed where it belongs.
+
+    All three transport clients (Anthropic, Gemini, Ollama) call this at
+    both the outer envelope parse and the inner content parse — six sites,
+    one invariant.
+    """
+    try:
+        return json.loads(payload)
+    except json.JSONDecodeError as e:
+        if kind == "envelope":
+            verb = "returned non-JSON envelope"
+        else:
+            verb = "produced non-JSON content"
+        raise RuntimeError(f"{provider} {verb}: {payload[:500]}") from e
+
+
 # --- HTTP client ----------------------------------------------------------
 
 
@@ -338,24 +382,11 @@ class OllamaClient:
             # re-raise (wyrd-pe4g) and abort the whole multi-source run.
             raise RuntimeError(f"Ollama returned non-UTF-8 body: {e}") from e
 
-        try:
-            envelope = json.loads(body)
-        except json.JSONDecodeError as e:
-            # 2xx response with malformed body — proxy HTML error page,
-            # truncated body on a dropped connection, etc. JSONDecodeError
-            # is a ValueError subclass; without this wrap it would propagate
-            # through the chunk loop's _PROGRAMMER_ERROR_EXCEPTIONS re-raise
-            # (which lists ValueError to surface schema_dialect typos —
-            # wyrd-pe4g) and abort the whole multi-source run. As a transport
-            # hiccup it should bucket into chunks_failed instead.
-            raise RuntimeError(f"Ollama returned non-JSON envelope: {body[:500]}") from e
+        envelope = parse_transport_json(body, provider="Ollama", kind="envelope")
         content = envelope.get("message", {}).get("content")
         if not content:
             raise RuntimeError(f"Ollama returned empty content. Raw: {body[:500]}")
-        try:
-            return json.loads(content)
-        except json.JSONDecodeError as e:
-            raise RuntimeError(f"Ollama produced non-JSON content: {content[:500]}") from e
+        return parse_transport_json(content, provider="Ollama", kind="content")
 
 
 # --- validation -----------------------------------------------------------
