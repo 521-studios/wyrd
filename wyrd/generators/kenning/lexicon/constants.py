@@ -56,10 +56,14 @@ LANGUAGE_FIELDS: dict[str, str] = {
     "armenian": "axm",
 }
 
-# Fields on a `word` that are not source-language slots and must be
-# skipped during ingestion. ``source_known`` is a per-entry boolean
-# flag; we'll store it as etymon notes if it ever matters, but for now
-# we just pass over it.
+# Names of ``word`` keys that are NOT source-language form arrays.
+# Lexicon ingest must treat these as non-language data: ``modern_usage``
+# is the canonical surface form (read elsewhere to derive a reflex
+# position, not stored as an etymon), and ``source_known`` is a per-
+# entry boolean flag the ingester has historically ignored. The set is
+# used by tests as an exhaustiveness check against the LANGUAGE_FIELDS
+# enumeration; the bundle loader treats anything not in either set as
+# a new language slot and routes it accordingly.
 NON_LANGUAGE_FIELDS: set[str] = {"modern_usage", "source_known"}
 
 

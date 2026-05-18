@@ -43,13 +43,16 @@ def upgrade_head(db_path: Path | str) -> None:
 
     Creates the schema from scratch when the DB has no
     ``alembic_version`` row, or rolls forward to the latest revision
-    otherwise. Idempotent — re-running on an already-up-to-date DB is
-    a no-op.
+    otherwise. Idempotent — re-running on an already-up-to-date DB
+    is a no-op.
     """
-    # Imported here so importing the lexicon package doesn't pay the
-    # full alembic import cost when only the SQLAlchemy MetaData is
-    # needed. The CLI / init_schema paths are the only callers, and
-    # they're already on a slow path.
+    # Deferred import for ``alembic.command`` specifically — it pulls
+    # in alembic.runtime.migration + util + script chains the
+    # alembic.config import above does NOT load. Importing
+    # ``lexicon.sql`` (which transitively loads ``alembic.config``
+    # via this module) shouldn't cost the migration-runtime chain
+    # too; only the init_schema / CLI paths that actually run
+    # migrations need it.
     from alembic.command import upgrade
 
     upgrade(alembic_config(db_path), "head")

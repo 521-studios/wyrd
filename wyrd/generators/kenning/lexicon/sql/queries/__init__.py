@@ -19,11 +19,11 @@ from wyrd.generators.kenning.lexicon.sql.queries.etymon import (
 )
 from wyrd.generators.kenning.lexicon.sql.queries.etymon_citation import (
     INSERT_CITATION_IF_ABSENT,
+    citation_params,
 )
 from wyrd.generators.kenning.lexicon.sql.queries.reflex import (
-    INSERT_REFLEX,
     LINK_REFLEX_ETYMON_OR_IGNORE,
-    SELECT_REFLEX_BY_FORM,
+    UPSERT_REFLEX,
 )
 from wyrd.generators.kenning.lexicon.sql.queries.source import UPSERT_SOURCE
 from wyrd.generators.kenning.lexicon.sql.queries.stats import (
@@ -34,12 +34,12 @@ from wyrd.generators.kenning.lexicon.sql.queries.stats import (
 __all__ = [
     "INSERT_CITATION_IF_ABSENT",
     "INSERT_GLOSS_OR_IGNORE",
-    "INSERT_REFLEX",
     "INSERT_TAG_OR_IGNORE",
     "LINK_REFLEX_ETYMON_OR_IGNORE",
-    "SELECT_REFLEX_BY_FORM",
     "STATS_COUNT_TEMPLATE",
     "STATS_TABLES",
     "UPSERT_ETYMON",
+    "UPSERT_REFLEX",
     "UPSERT_SOURCE",
+    "citation_params",
 ]

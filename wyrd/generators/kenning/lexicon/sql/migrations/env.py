@@ -37,13 +37,13 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Connect to the configured DB and apply migrations.
 
-    Uses ``connectable.begin()`` (not ``.connect()``) so SA 2.0's
-    "commit-as-you-go" mode auto-commits when the block exits. Without
-    this, alembic's ``begin_transaction`` rolls back the
-    ``alembic_version`` stamp at function return — DDL persists (SQLite
-    auto-commits CREATE TABLE) but the version table stays empty, so a
-    subsequent ``upgrade`` re-runs every migration and fails on the
-    duplicate CREATE.
+    Uses ``engine.begin()`` (not ``engine.connect()``) so SA 2.0's
+    "commit-as-you-go" mode auto-commits when the block exits.
+    Without this, alembic's ``begin_transaction`` rolls back the
+    ``alembic_version`` stamp at function return — DDL persists
+    (SQLite auto-commits CREATE TABLE) but the version table stays
+    empty, so a subsequent ``upgrade`` re-runs every migration and
+    fails on the duplicate CREATE.
     """
     url = config.get_main_option("sqlalchemy.url")
     engine = create_engine(url, future=True)

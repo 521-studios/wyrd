@@ -167,6 +167,124 @@ def test_lexicon_db_uses_synchronous_normal(fresh_db: Path) -> None:
     assert sync == 1, f"expected synchronous=NORMAL (1), got {sync}"
 
 
+def test_lexicon_db_engine_and_conn_share_dbapi_connection(fresh_db: Path) -> None:
+    """wyrd-67fv: ``LexiconDB`` holds a SQLAlchemy ``Engine`` (for
+    query-builder paths) plus a ``sqlite3.Connection`` shim (for the
+    ~1k existing ``db.conn.execute(...)`` call sites). The StaticPool
+    invariant says both views read+write through one DBAPI connection
+    so transaction state stays coherent across the surfaces.
+
+    Pin: write through ``db.engine`` and confirm ``db.conn`` reads it
+    back in the same transaction (no commit between the two), and
+    vice versa. If the engine ever moves off StaticPool or the
+    raw_connection lifetime shortens, this regresses loudly instead
+    of silently splitting writes across two connections.
+    """
+    with LexiconDB(fresh_db) as db:
+        # Write via SA engine, read via sqlite3 shim.
+        with db.engine.begin() as sa_conn:
+            sa_conn.exec_driver_sql(
+                "INSERT INTO source (id, title) VALUES ('via-engine', 'T')"
+            )
+        row = db.conn.execute(
+            "SELECT title FROM source WHERE id = 'via-engine'"
+        ).fetchone()
+        assert row["title"] == "T"
+
+        # Write via sqlite3 shim, read via SA engine.
+        db.conn.execute(
+            "INSERT INTO source (id, title) VALUES ('via-conn', 'U')"
+        )
+        db.commit()
+        with db.engine.connect() as sa_conn:
+            count = sa_conn.exec_driver_sql(
+                "SELECT COUNT(*) FROM source WHERE id IN ('via-engine', 'via-conn')"
+            ).scalar()
+        assert count == 2
+
+
+def test_lexicon_db_close_is_idempotent(fresh_db: Path) -> None:
+    """``close()`` must be safe to call twice. With ``__enter__`` /
+    ``__exit__`` exposing it, callers that release the file lock
+    early inside a ``with`` block would otherwise hit a
+    double-dispose on context exit."""
+    db = LexiconDB(fresh_db)
+    db.close()
+    db.close()  # should be a no-op, no exception
+
+
+def test_lexicon_db_close_releases_file_lock(fresh_db: Path) -> None:
+    """``close()`` must dispose the engine pool so the underlying
+    sqlite3 connection actually closes. Otherwise a re-open of the
+    same file across processes can hit a WAL-file conflict, and
+    on Windows / NFS the file lock keeps the .db unwriteable."""
+    db = LexiconDB(fresh_db)
+    db.upsert_source(id="lock-test", title="Lock Test")
+    db.commit()
+    db.close()
+
+    # Reopen; if the prior conn isn't released, the WAL handshake
+    # would observe extra stray reader marks. We just verify that
+    # the new instance reads what the prior one wrote.
+    with LexiconDB(fresh_db) as db2:
+        row = db2.conn.execute(
+            "SELECT title FROM source WHERE id = 'lock-test'"
+        ).fetchone()
+        assert row["title"] == "Lock Test"
+
+
+def test_lexicon_db_engine_and_conn_are_read_only_properties(fresh_db: Path) -> None:
+    """The StaticPool-shared-connection invariant relies on neither
+    attribute being reassigned after construction; wyrd-67fv exposes
+    both as read-only properties so a regression is a hard error
+    rather than a silently-split-writes bug."""
+    import pytest
+
+    with LexiconDB(fresh_db) as db:
+        with pytest.raises(AttributeError):
+            db.engine = None  # type: ignore[misc]
+        with pytest.raises(AttributeError):
+            db.conn = None  # type: ignore[misc]
+
+
+def test_init_schema_stamps_alembic_version_at_head(fresh_db: Path) -> None:
+    """wyrd-67fv: ``init_schema`` runs the layered alembic migrations
+    via ``upgrade_head``. If the env.py transaction handling regresses
+    again (SA 2.0 ``connect()`` vs ``begin()``), the DDL persists
+    but the ``alembic_version`` stamp silently doesn't — which means
+    a subsequent ``upgrade`` would re-run every migration and fail
+    on the duplicate CREATE. Pin the stamp explicitly so the
+    regression surfaces here, not in the next migration's PR."""
+    import sqlite3
+
+    with sqlite3.connect(fresh_db) as conn:
+        row = conn.execute("SELECT version_num FROM alembic_version").fetchone()
+    assert row is not None, "alembic_version row missing"
+    # Head revision id per the wyrd-67fv layered migrations.
+    assert row[0] == "0008_views", f"expected head '0008_views', got {row[0]!r}"
+
+
+def test_upgrade_head_is_idempotent(fresh_db: Path) -> None:
+    """Running ``upgrade_head`` against a DB that's already at head
+    must be a no-op. ``init_schema`` runs it once; tests + the CLI
+    ``rebuild-from-jsonl`` flow re-invoke it on the same DB. A
+    regression where a migration re-runs (lost ``IF NOT EXISTS``
+    guard, missing alembic_version stamp) would surface here."""
+    from wyrd.generators.kenning.lexicon.sql import upgrade_head
+
+    # init_schema already ran upgrade_head once via the fixture.
+    # Second invocation must complete cleanly with no changes.
+    upgrade_head(fresh_db)
+
+    import sqlite3
+
+    with sqlite3.connect(fresh_db) as conn:
+        version = conn.execute(
+            "SELECT version_num FROM alembic_version"
+        ).fetchone()
+    assert version[0] == "0008_views"
+
+
 def test_upsert_etymon_returns_same_id_on_duplicate(fresh_db: Path) -> None:
     with LexiconDB(fresh_db) as db:
         first = db.upsert_etymon("ham", "old-english", modifier_type="Habitative")

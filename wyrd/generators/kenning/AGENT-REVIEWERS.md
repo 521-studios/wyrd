@@ -1,18 +1,17 @@
 # Kenning-specific agent reviewers
 
-Add to the universal `AGENT-REVIEWERS.md` at repo root, not replace
-it. Reviewers here only inspect files under
+These reviewers compose with the universal `AGENT-REVIEWERS.md` at
+repo root — they don't replace it. Scope: files under
 `wyrd/generators/kenning/` and `tests/test_kenning_*`.
 
 ## lexicon-package-structure-reviewer
 
 Enforce that lexicon-DB concerns live under
 `wyrd/generators/kenning/lexicon/`. Per wyrd-67fv, the lexicon was
-split out of a 7,272-line `lexicon.py` into a package. The goal is
-that every "this code reads or writes the lexicon DB" concern is
-inside the package, and the rest of `wyrd/generators/kenning/` stays
-focused on the runtime (`__init__.py`, `meaning.py`, `name.py`,
-`proportions.py`, `trie_matcher.py`, etc.).
+split out of a 7,272-line `lexicon.py` into a package. Every file
+that touches the lexicon DB belongs in the package; the rest of
+`wyrd/generators/kenning/` stays runtime-only (`__init__.py`,
+`meaning.py`, `name.py`, `proportions.py`, `trie_matcher.py`, etc.).
 
 **FLAG when a file outside `lexicon/` contains:**
 
@@ -146,10 +145,6 @@ data = resources.files("wyrd.generators.kenning.data").joinpath(
 )
 families = json.loads(data.read_text())
 ```
-
-The package path is explicit, package-relocation-proof, and works
-inside a zipapp / frozen Lambda bundle without falling back to
-filesystem layout assumptions.
 
 **Acceptable** (don't flag):
 

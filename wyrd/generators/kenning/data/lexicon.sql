@@ -378,7 +378,7 @@ CREATE TABLE toponym_etymology (
   -- lose consensus on a re-run, so there's no separate
   -- clear-enrichment stage; re-run the canonicalize command after the
   -- corpus changes to refresh.
-  is_canonical    INTEGER NOT NULL DEFAULT 0,
+  is_canonical    INTEGER NOT NULL DEFAULT 0 CHECK (is_canonical IN (0, 1)),
   consensus_size  INTEGER NOT NULL DEFAULT 1,
   -- The cluster key used to group agreeing rows. Persisted (rather
   -- than recomputed on read) so operators can grep/filter the
@@ -403,7 +403,7 @@ CREATE VIEW toponym_etymology_canonical AS
 CREATE TABLE toponym_etymology_element (
   toponym_etymology_id INTEGER NOT NULL REFERENCES toponym_etymology(id) ON DELETE CASCADE,
   ordinal              INTEGER NOT NULL,
-  etymon_id            INTEGER NOT NULL REFERENCES etymon(id),
+  etymon_id            INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
   inflection           TEXT,
   surface_in_modern    TEXT,
   PRIMARY KEY (toponym_etymology_id, ordinal)

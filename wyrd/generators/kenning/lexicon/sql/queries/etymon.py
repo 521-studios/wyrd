@@ -15,10 +15,14 @@ from __future__ import annotations
 
 # Insert an etymon row if (canonical_form, language) is new, else
 # fill any NULL fields without overwriting existing non-null values.
-# The pronunciation_dialect CASE pairs with pronunciation_ipa: if
-# the existing row already has an IPA, the dialect tag rides along
-# (even if NULL), so we never end up with a dialect describing an
-# IPA we never stored.
+#
+# pronunciation_ipa and pronunciation_dialect update as a unit so a
+# dialect tag never ends up describing an IPA the row never stored.
+# When the existing row HAS an IPA, BOTH the IPA and dialect stay
+# at the existing values (incoming pair is dropped, even if the
+# incoming dialect is non-NULL and the existing one is NULL). When
+# the existing row's IPA is NULL, BOTH come from the incoming row
+# via the COALESCE on IPA + the CASE on dialect.
 #
 # Returns the row id via SQLite's RETURNING clause so the caller
 # doesn't pay for a follow-up SELECT.

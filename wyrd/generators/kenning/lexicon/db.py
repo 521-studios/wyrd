@@ -34,14 +34,14 @@ from sqlalchemy.pool import StaticPool
 from wyrd.generators.kenning.lexicon.sql.queries import (
     INSERT_CITATION_IF_ABSENT,
     INSERT_GLOSS_OR_IGNORE,
-    INSERT_REFLEX,
     INSERT_TAG_OR_IGNORE,
     LINK_REFLEX_ETYMON_OR_IGNORE,
-    SELECT_REFLEX_BY_FORM,
     STATS_COUNT_TEMPLATE,
     STATS_TABLES,
     UPSERT_ETYMON,
+    UPSERT_REFLEX,
     UPSERT_SOURCE,
+    citation_params,
 )
 
 
@@ -104,6 +104,10 @@ class LexiconDB:
 
     Both share one underlying DBAPI connection via ``StaticPool``,
     so transaction state is consistent across the two surfaces.
+    The two handles are exposed as read-only properties; reassigning
+    ``db.engine`` or ``db.conn`` would break that coherence
+    invariant, so the underlying fields are name-mangled and the
+    setters are intentionally absent.
     """
 
     def __init__(self, path: Path | str):
@@ -114,19 +118,31 @@ class LexiconDB:
         # The lexicon writers are single-threaded today, but the
         # default would break tests that share a LexiconDB across
         # threading.Thread instances.
-        self.engine = create_engine(
+        self.__engine = create_engine(
             f"sqlite:///{self.path}",
             future=True,
             poolclass=StaticPool,
             connect_args={"check_same_thread": False},
         )
-        _register_per_connection_pragmas(self.engine)
-        # Long-lived raw DBAPI connection from the engine pool. The
-        # ``_raw_proxy`` fairy holds the pool slot open for the
-        # LexiconDB instance's lifetime so ``self.conn`` doesn't get
-        # recycled out from under existing callers.
-        self._raw_proxy = self.engine.raw_connection()
-        self.conn: sqlite3.Connection = self._raw_proxy.driver_connection
+        _register_per_connection_pragmas(self.__engine)
+        # Long-lived raw DBAPI proxy from the engine pool. SA names
+        # this object ``_ConnectionFairy``; we hold it for the
+        # LexiconDB instance's lifetime so the underlying sqlite3
+        # connection isn't recycled out from under existing callers.
+        # ``self.conn`` (below) is the raw sqlite3 connection itself.
+        self.__raw_proxy = self.__engine.raw_connection()
+        self.__conn: sqlite3.Connection = self.__raw_proxy.driver_connection
+        self.__closed = False
+
+    @property
+    def engine(self) -> Engine:
+        """SA Engine over the shared DBAPI connection. Read-only."""
+        return self.__engine
+
+    @property
+    def conn(self) -> sqlite3.Connection:
+        """Raw sqlite3 connection from the engine pool. Read-only."""
+        return self.__conn
 
     def __enter__(self) -> LexiconDB:
         return self
@@ -135,10 +151,19 @@ class LexiconDB:
         self.close()
 
     def close(self) -> None:
-        """Release the raw connection back to the pool, then dispose
-        the engine so the underlying sqlite3 connection is closed."""
-        self._raw_proxy.close()
-        self.engine.dispose()
+        """Release the raw proxy back to the pool, then dispose the
+        engine so the underlying sqlite3 connection is closed.
+
+        Idempotent: a second call is a no-op. Lets callers safely
+        invoke ``close()`` explicitly inside a ``with`` block when
+        they need to release the file lock before the block exits,
+        without the ``__exit__`` double-close raising.
+        """
+        if self.__closed:
+            return
+        self.__closed = True
+        self.__raw_proxy.close()
+        self.__engine.dispose()
 
     def commit(self) -> None:
         self.conn.commit()
@@ -226,16 +251,22 @@ class LexiconDB:
         """
         self.conn.execute(
             INSERT_CITATION_IF_ABSENT,
-            (etymon_id, source_id, page, short_quote, context_snippet, etymon_id, source_id),
+            citation_params(
+                etymon_id,
+                source_id,
+                page=page,
+                short_quote=short_quote,
+                context_snippet=context_snippet,
+            ),
         )
 
     def upsert_reflex(self, surface_form: str, position: str) -> int:
-        cur = self.conn.execute(SELECT_REFLEX_BY_FORM, (surface_form, position))
-        row = cur.fetchone()
-        if row is not None:
-            return row["id"]
-        cur = self.conn.execute(INSERT_REFLEX, (surface_form, position))
-        return cur.lastrowid
+        # ON CONFLICT … RETURNING in one round-trip — no TOCTOU
+        # window, and no stdlib-typed-as-int-but-Optional lastrowid
+        # to type-cast around. See UPSERT_REFLEX for the no-op
+        # DO UPDATE pattern that lets RETURNING fire on conflict.
+        cur = self.conn.execute(UPSERT_REFLEX, (surface_form, position))
+        return cur.fetchone()[0]
 
     def link_reflex_etymon(self, reflex_id: int, etymon_id: int) -> None:
         self.conn.execute(LINK_REFLEX_ETYMON_OR_IGNORE, (reflex_id, etymon_id))

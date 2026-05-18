@@ -82,7 +82,7 @@ def upgrade() -> None:
           confidence      TEXT CHECK (confidence IN ('high', 'medium', 'low')),
           notes           TEXT,
           attested_year   INTEGER,
-          is_canonical    INTEGER NOT NULL DEFAULT 0,
+          is_canonical    INTEGER NOT NULL DEFAULT 0 CHECK (is_canonical IN (0, 1)),
           consensus_size  INTEGER NOT NULL DEFAULT 1,
           cluster_key     TEXT
         )
@@ -109,7 +109,7 @@ def upgrade() -> None:
         CREATE TABLE toponym_etymology_element (
           toponym_etymology_id INTEGER NOT NULL REFERENCES toponym_etymology(id) ON DELETE CASCADE,
           ordinal              INTEGER NOT NULL,
-          etymon_id            INTEGER NOT NULL REFERENCES etymon(id),
+          etymon_id            INTEGER NOT NULL REFERENCES etymon(id) ON DELETE CASCADE,
           inflection           TEXT,
           surface_in_modern    TEXT,
           PRIMARY KEY (toponym_etymology_id, ordinal)

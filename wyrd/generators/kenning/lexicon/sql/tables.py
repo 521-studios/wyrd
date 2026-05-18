@@ -20,7 +20,7 @@ Design choices:
   expressions where not.
 * **Views live in migrations, not here.** SA Core has no first-class
   view object. ``etymon_canonical``, ``etymon_consensus``, and the
-  ``*_canonical`` family are created in the ``0012_views`` migration
+  ``*_canonical`` family are created in the ``0008_views`` migration
   via ``op.execute("CREATE VIEW ...")``. Tests that need to read from
   them go through raw SQL the way the existing code does.
 
@@ -323,7 +323,13 @@ toponym_etymology = Table(
     ),
     Column("notes", Text),
     Column("attested_year", Integer),
-    Column("is_canonical", Integer, nullable=False, server_default=text("0")),
+    Column(
+        "is_canonical",
+        Integer,
+        CheckConstraint("is_canonical IN (0, 1)"),
+        nullable=False,
+        server_default=text("0"),
+    ),
     Column("consensus_size", Integer, nullable=False, server_default=text("1")),
     Column("cluster_key", Text),
 )
@@ -346,7 +352,19 @@ toponym_etymology_element = Table(
         nullable=False,
     ),
     Column("ordinal", Integer, nullable=False),
-    Column("etymon_id", Integer, ForeignKey("etymon.id"), nullable=False),
+    # CASCADE matches the sibling toponym_etymology_id FK. The pre-PR
+    # schema lacked an explicit ondelete on this FK (SQLite default
+    # is RESTRICT), inconsistent with every other etymon-targeting
+    # FK in the lexicon. Flagged by Gemini + type-design-analyzer
+    # round-1 review (wyrd-67fv); CASCADE is the consistent choice
+    # because etymon deletion implies the breakdown referencing it
+    # is also no longer meaningful.
+    Column(
+        "etymon_id",
+        Integer,
+        ForeignKey("etymon.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
     Column("inflection", Text),
     Column("surface_in_modern", Text),
     PrimaryKeyConstraint("toponym_etymology_id", "ordinal"),

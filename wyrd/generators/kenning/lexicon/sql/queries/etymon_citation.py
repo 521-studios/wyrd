@@ -22,6 +22,12 @@ from __future__ import annotations
 # writers can't both pass a pre-check and both insert. Matches the
 # intended one-row-per-evidence-pair semantic the unique index meant
 # to enforce.
+#
+# The seven parameters carry the (etymon_id, source_id) pair twice
+# — once for the INSERT row and once for the WHERE NOT EXISTS
+# pre-check — and callers MUST keep the pairs equal. Use
+# ``citation_params(...)`` below to build the tuple instead of
+# constructing it by hand; it eliminates the drift class entirely.
 INSERT_CITATION_IF_ABSENT = """
     INSERT INTO etymon_citation
         (etymon_id, source_id, page, short_quote, context_snippet)
@@ -31,3 +37,31 @@ INSERT_CITATION_IF_ABSENT = """
         WHERE etymon_id = ? AND source_id = ?
     )
 """
+
+
+def citation_params(
+    etymon_id: int,
+    source_id: str,
+    *,
+    page: str | None = None,
+    short_quote: str | None = None,
+    context_snippet: str | None = None,
+) -> tuple[object, ...]:
+    """Build the 7-tuple of bound parameters for
+    ``INSERT_CITATION_IF_ABSENT``.
+
+    The query needs (etymon_id, source_id) twice — once for the
+    INSERT, once for the WHERE NOT EXISTS — and the two pairs must
+    match for the dedupe semantics to hold. Routing through this
+    helper makes the contract self-enforcing: the caller passes the
+    pair once, the helper repeats it.
+    """
+    return (
+        etymon_id,
+        source_id,
+        page,
+        short_quote,
+        context_snippet,
+        etymon_id,
+        source_id,
+    )
