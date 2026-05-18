@@ -311,6 +311,50 @@ def test_upgrade_head_is_idempotent(fresh_db: Path) -> None:
     assert version[0] == "0008_views"
 
 
+def test_idx_attestation_unique_dedups_null_year_and_source(fresh_db: Path) -> None:
+    """wyrd-67fv round-5: ``idx_attestation_unique`` uses COALESCE wraps on
+    the nullable columns so two attestations of (same toponym, same
+    form, NULL year, NULL source_doc) collapse under the UNIQUE
+    constraint. Without the wrap SQLite treats every NULL as distinct,
+    so the second INSERT would silently succeed and a mine-attestations
+    re-run would double-write. Pin the index-level dedup directly so
+    the COALESCE change can't silently regress.
+    """
+    with LexiconDB(fresh_db) as db:
+        toponym_id = db.conn.execute(
+            "INSERT INTO toponym (modern_name) VALUES ('Pinhampton') RETURNING id"
+        ).fetchone()[0]
+        # First insert lands.
+        db.conn.execute(
+            "INSERT OR IGNORE INTO toponym_attestation "
+            "(toponym_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+            (toponym_id, "Pinampton", None, None),
+        )
+        # Second insert with identical (form, NULL, NULL) collapses
+        # — INSERT OR IGNORE swallows the UNIQUE violation.
+        db.conn.execute(
+            "INSERT OR IGNORE INTO toponym_attestation "
+            "(toponym_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+            (toponym_id, "Pinampton", None, None),
+        )
+        # Third with a different NULL pair (NULL year, non-NULL source)
+        # is genuinely different — should insert.
+        db.conn.execute(
+            "INSERT OR IGNORE INTO toponym_attestation "
+            "(toponym_id, form, date_year, source_doc) VALUES (?, ?, ?, ?)",
+            (toponym_id, "Pinampton", None, "Mawer 1920"),
+        )
+        db.commit()
+
+        count = db.conn.execute(
+            "SELECT COUNT(*) FROM toponym_attestation WHERE toponym_id = ?",
+            (toponym_id,),
+        ).fetchone()[0]
+        assert count == 2, (
+            f"expected 2 rows (NULL+NULL deduped, NULL+'Mawer 1920' kept); got {count}"
+        )
+
+
 def test_upsert_etymon_returns_same_id_on_duplicate(fresh_db: Path) -> None:
     with LexiconDB(fresh_db) as db:
         first = db.upsert_etymon("ham", "old-english", modifier_type="Habitative")

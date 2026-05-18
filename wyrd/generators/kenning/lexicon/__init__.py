@@ -1071,13 +1071,22 @@ def _create_toponym_decomposition_table(db: LexiconDB, applied: dict[str, bool])
 
 def _create_toponym_attestation_unique_index(db: LexiconDB, applied: dict[str, bool]) -> None:
     """wyrd-skm Phase 3.0a: ensure ``toponym_attestation`` has a unique
-    index on ``(toponym_id, form, date_year, source_doc)`` so the
-    ``mine-attestations`` ingest is idempotent.
+    index on ``(toponym_id, form, COALESCE(date_year, 0),
+    COALESCE(source_doc, ''))`` so the ``mine-attestations`` ingest
+    is idempotent.
 
     The base table ships in ``data/lexicon.sql`` but pre-existed without
     a unique constraint. Adding one via CREATE UNIQUE INDEX rather than
     a table-recreate keeps existing rows intact and runs as a no-op on
     fresh schemas (the index ships in lexicon.sql alongside the table).
+
+    The COALESCE wraps match idx_toponym_unique + idx_etymon_citation_unique.
+    Without them SQLite treats every NULL as distinct under UNIQUE, so two
+    attestations of the same (toponym, form, source_doc) with NULL year
+    would both insert — the wrap closes that idempotency hole. wyrd-67fv
+    round-5 review (Gemini) caught the pre-PR shape; legacy DBs whose
+    index was created BEFORE this fix still carry the bare-NULL shape
+    and need manual DROP + CREATE to update.
 
     Existing rows are NOT deduped here — the table is empty in
     production today (mining hasn't run) so there's nothing to clean
@@ -1091,7 +1100,9 @@ def _create_toponym_attestation_unique_index(db: LexiconDB, applied: dict[str, b
     if not rows:
         db.conn.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_attestation_unique "
-            "ON toponym_attestation(toponym_id, form, date_year, source_doc)"
+            "ON toponym_attestation("
+            "  toponym_id, form, COALESCE(date_year, 0), COALESCE(source_doc, '')"
+            ")"
         )
         applied["idx_attestation_unique"] = True
 
