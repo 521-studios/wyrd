@@ -1763,7 +1763,7 @@ language epic (wyrd-v2gm), the narrative-translator epic
 (wyrd-sreb), and the rip-and-replace mood-system work
 (wyrd-kq7w).
 
-Eight sub-decisions locked 2026-05-16, consolidated here as
+Nine sub-decisions locked 2026-05-16, consolidated here as
 the spec entry for Phase 1 (wyrd-ecjp.1). The in-memory
 representation lives in
 `wyrd/generators/kenning/vector_schemas.py`; the catalog
@@ -1792,11 +1792,18 @@ independent axes:
   on the lemma side — the semantic-score is a dot product
   between the request's semantic-tag weight vector and the
   lemma's tag membership (1.0 if tagged, 0.0 if not).
-* **Position** — slot-prior dict per lemma. Some morphemes
-  prefer first-element (`Edl-`, `Hæth-`), some prefer
-  second-element (`-tūn`, `-hām`), some are equally
-  productive. Position priors are part of the existing
-  proportions data shape and carry forward unchanged.
+* **Position** — slot-prior dict per lemma. Position labels
+  are free-form strings, not a closed enum — the data shape
+  supports arbitrary positions (first-element / second-element
+  / folk-connector like `-inga-` / manorial-affix like Mandeville
+  / locative-phrase like upon-Tyne / hundred-prefix / bishopric-
+  prefix / etc.) as the corpus surfaces them. The v1 catalog
+  migrates the existing proportions-shape position labels
+  unchanged; later positions append as new string keys without
+  a schema migration. The "first vs second" framing in informal
+  prose is illustrative shorthand only — the scoring runtime,
+  the priors-keyed lookups, and the register-effect
+  `position_bias` dict all treat position as an opaque string.
 * **Empirical-baseline** — frequency prior per (culture,
   position, tag, era) for native generation; per (donor,
   recipient, position, tag, era) for pack overlays. Derived
@@ -1852,16 +1859,10 @@ created an N²-knob problem (every register-axis weight could
 in principle be modulated by realism independently) and
 confused the auto-blend semantics when register effects
 engaged. D36.3 collapses realism into a single axis weight
-(`base_w`) in the canonical formula. There is no `realism`
-flag separate from `base_w`; there is no
-"baseline-retention" property on register effects.
-
-The auto-blend semantics that the older design tried to
-codify fall out for free: when `phon_w = sem_w = pos_w =
-base_w = 1.0` and the register vector is non-zero, the
-register's pull on the directional axes (phon/sem/pos) is
-balanced against the empirical baseline by the formula
-itself. No hidden re-weighting needed.
+(`base_w`) in the canonical formula — no separate `realism`
+flag, no "baseline-retention" property on register effects.
+The auto-blend semantics fall out of the formula itself; no
+hidden re-weighting needed.
 
 Pack weight is INDEPENDENT from base_w (D36.4). The operator
 can ask for "high realism + low pack" (base_w=1.0,
@@ -1971,7 +1972,7 @@ and proposes bands sized to bracket typical drift. Phase 6b
 (wyrd-ecjp.7) locks those bands into the regression test
 suite.
 
-### D36.9. The priors artifact is re-runnable on every meaningful corpus addition.
+### D36.9. The priors artifact is a re-runnable deterministic derived artifact.
 
 Priors extraction (Phase 2) is a derived artifact, not a
 one-shot import. Re-running on the same lexicon DB state
@@ -2011,11 +2012,8 @@ Three load-bearing properties of the architecture:
 
 3. **Pack overlays without bespoke pack-rule code.** A new
    scenario pack just declares its (template_donor,
-   template_recipient) and ships lemmas. The same scoring
+   template_recipient) and ships lemmas; the same scoring
    runtime + priors lookup handles every pack identically.
-   The D3-Option-B inheritance means pack-specific
-   calibration is a data problem (mine the loan relationship)
-   rather than a code problem.
 
 ### Cross-references.
 
@@ -2033,12 +2031,6 @@ Blocks: `wyrd-ecjp.2` (Phase 2 priors extraction),
 `wyrd-ecjp.5` (Phase 5 NameGenerator rewrite),
 `wyrd-ecjp.6/7` (Phase 6 drift measurement + tolerance),
 `wyrd-ecjp.8` (Phase 7 bundle + pack overlay),
-`wyrd-ecjp.9` (Phase 8 CLI + integration + docs).
-
-Downstream consumers waiting on this foundation:
-`wyrd-v2gm` (scenario-pack town-name generation; Khuzdul
-pilot uses Option B baseline), `wyrd-sreb` (narrative-driven
-scenario translation; uses request vectors as the
-LLM-translation target), `wyrd-kq7w` (rip-and-replace mood
-system; v1 catalog migration from `MOODS` is captured in
-this entry).
+`wyrd-ecjp.9` (Phase 8 CLI + integration + docs). Downstream
+consumers (wyrd-v2gm, wyrd-sreb, wyrd-kq7w) listed in the
+introduction above.

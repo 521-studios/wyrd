@@ -35,8 +35,9 @@ silently. See DECISIONS.md D36 for the full architectural narrative.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, get_args
 
 # ---- phonological feature vector (kq7w.1 schema half) -------------------
 
@@ -56,6 +57,16 @@ from typing import Literal
 # etymon's canonical_form + pronunciation_ipa (preferring IPA where
 # available) and persists alongside the etymon row. Re-running the
 # enrichment is idempotent — same input form yields the same vector.
+#
+# ``PhonologicalFeatureName`` is the canonical Literal type of the v1
+# dimension names — published for downstream typed-dict consumers (the
+# kq7w.2 register-effects YAML loader uses it for catalog validation;
+# external callers writing typed weight dicts can annotate against it).
+# Its runtime mirror, ``_DIMENSION_NAMES``, is used by
+# :meth:`PhonologicalVector.dot` for the dimension-recognition step —
+# it's the single source of truth for "what counts as a named
+# dimension" and is automatically derived from the Literal via
+# ``get_args`` so the Literal and the frozenset can't drift.
 PhonologicalFeatureName = Literal[
     "cluster_density",
     "final_fortition",
@@ -72,6 +83,7 @@ PhonologicalFeatureName = Literal[
     "stop_vs_continuant",
     "aspirated_voiceless",
 ]
+_DIMENSION_NAMES: frozenset[str] = frozenset(get_args(PhonologicalFeatureName))
 
 
 @dataclass(frozen=True)
@@ -92,6 +104,14 @@ class PhonologicalVector:
 
     Composition with a register effect's phonological-weight vector is
     component-wise dot product: see RegisterEffect.compose.
+
+    Note on immutability: ``frozen=True`` blocks field rebinding but
+    does NOT make the ``extras`` dict immutable. Callers must treat
+    ``extras`` as read-only after construction — Phase 4 consumers
+    rely on hashable identity for caching composed scores, and silent
+    in-place dict mutation will silently corrupt those caches. The
+    type-system guarantee is "no field reassignment"; the conventional
+    guarantee is "treat dicts as read-only too".
     """
 
     cluster_density: float = 0.0
@@ -124,7 +144,13 @@ class PhonologicalVector:
         for name, w in weights.items():
             if w == 0:
                 continue
-            if name in self.__dataclass_fields__ and name != "extras":
+            # Explicit dimension whitelist via ``_DIMENSION_NAMES``
+            # rather than ``self.__dataclass_fields__``: future
+            # non-dimension metadata fields added to this dataclass
+            # (e.g. a version stamp or provenance field) won't be
+            # mistakenly treated as scoring dimensions if their
+            # names happen to collide with a weight key.
+            if name in _DIMENSION_NAMES:
                 s += w * getattr(self, name)
             elif name in self.extras:
                 s += w * self.extras[name]
@@ -143,6 +169,14 @@ class RegisterEffect:
     component-wise: phonological vectors add, semantic-tag dicts add per
     tag, position biases add per slot. The composed result is clamped
     to [-1, +1] per dimension after summation.
+
+    Note on immutability: ``frozen=True`` blocks field rebinding but
+    does NOT make the three dict fields immutable. Callers must treat
+    a constructed RegisterEffect's dicts as read-only — Phase 4
+    caches composed effects by identity, and silent in-place dict
+    mutation will corrupt those caches. The type-system guarantee is
+    "no field reassignment"; the conventional guarantee on the dicts
+    is "do not mutate after construction".
 
     Per-effect graduation: callers pass an optional weight multiplier
     (the colon-suffix syntax: ``harsh:0.5`` means apply harsh at 50%%
@@ -221,7 +255,22 @@ def compose_register_effects(effects: list[RegisterEffect]) -> RegisterEffect:
 
 
 def _clamp_in_place(d: dict[str, float]) -> None:
+    """Clamp every value in ``d`` to [-1.0, +1.0] in place.
+
+    Rejects NaN and Inf — those would otherwise pass through every
+    comparison (`v > 1.0` is False for NaN, `v < -1.0` is False for
+    NaN) and propagate downstream through `dot()` to produce NaN
+    scores. NaN scores break ranking comparisons non-deterministically
+    (Python's `max` over NaN-containing iterables returns the first
+    NaN it sees, depending on iteration order), so the runtime would
+    sample garbage instead of crashing. Raise loudly here instead.
+    """
     for k, v in d.items():
+        if math.isnan(v) or math.isinf(v):
+            raise ValueError(
+                f"register-effect weight {k!r}={v!r} is not finite; "
+                "NaN/Inf inputs would silently corrupt downstream scoring"
+            )
         if v > 1.0:
             d[k] = 1.0
         elif v < -1.0:
@@ -233,7 +282,7 @@ def _clamp_in_place(d: dict[str, float]) -> None:
 
 @dataclass(frozen=True)
 class EligibilityGate:
-    """Boolean predicates applied BEFORE vector scoring (D1, D5).
+    """Boolean predicates applied BEFORE vector scoring (D36.1, D36.6).
 
     Hard gates shrink the eligible-lemma pool to those that pass every
     predicate. They are NOT continuous — a lemma either matches the
@@ -267,6 +316,19 @@ class EligibilityGate:
     allowed_pack_tags: frozenset[str] = frozenset()
     excluded_pack_tags: frozenset[str] = frozenset()
 
+    def __post_init__(self) -> None:
+        # Validate the era ordering invariant — inverted ranges
+        # (era_min > era_max) silently produce empty eligibility
+        # pools downstream, which presents as "0 mentions generated"
+        # with no operator-facing diagnostic. Raise loudly here so
+        # the CLI / API layer can surface the mistake at request
+        # construction time, before any scoring runs.
+        if self.era_min is not None and self.era_max is not None and self.era_min > self.era_max:
+            raise ValueError(
+                f"era_min ({self.era_min}) must be <= era_max ({self.era_max}); "
+                "inverted era range produces an empty eligibility pool"
+            )
+
 
 # ---- pack overlay (scenario-pack composition) ---------------------------
 
@@ -277,7 +339,7 @@ class PackOverlay:
 
     A pack overlay introduces pack-specific lemmas into the eligible
     pool alongside the native culture's lemmas. The pack's lemmas
-    inherit their template's empirical-baseline (D3 Option B): a
+    inherit their template's empirical-baseline (D36.4 Option B): a
     Khuzdul pack templated on ON→OE uses the ON→OE empirical baseline
     mining as its baseline-axis reference. Pack-weight is a multiplier
     on the pack's baseline contribution to the canonical composition
@@ -299,7 +361,7 @@ class PackOverlay:
     even when the pack is declared; 1.0 produces pack lemmas at the
     empirical loan rate; >1.0 over-weights the pack beyond historical
     realism. Pack-weight is INDEPENDENT from baseline-axis weight
-    (D2): the operator can ask for "high realism + low pack" or
+    (D36.3): the operator can ask for "high realism + low pack" or
     "low realism + heavy pack" as orthogonal knobs.
     """
 
@@ -314,7 +376,7 @@ class PackOverlay:
 
 @dataclass(frozen=True)
 class ScoringWeights:
-    """Per-axis weight scalars in the canonical composition rule (D1).
+    """Per-axis weight scalars in the canonical composition rule (D36.2).
 
     The canonical formula is
 
@@ -336,7 +398,7 @@ class ScoringWeights:
         axis weight), letting non-baseline-favoured lemmas score
         higher relative to the baseline.
 
-    Per D2: empirical baseline is just another axis with continuous
+    Per D36.3: empirical baseline is just another axis with continuous
     weight. There's no separate 'realism' concept — it's literally
     just ``base_w``.
     """
@@ -356,7 +418,7 @@ class RequestVector:
     scoring engine needs to score a candidate lemma in a slot:
 
       1. ``gate`` — the hard-filter predicates that shrink the eligible
-         pool (D1, D5). Lemmas that fail the gate are removed BEFORE
+         pool (D36.1, D36.6). Lemmas that fail the gate are removed BEFORE
          scoring; they never appear in the score-then-sample pipeline.
       2. ``register`` — the composed register-effect (sum of caller-
          requested effects, scaled by graduation, clamped). Drives the
@@ -405,7 +467,7 @@ LoanPriorsKey = tuple[str, str, str, str, int]
 class EmpiricalPriors:
     """Per-(culture × position × tag × era) and per-(donor × recipient
     × position × tag × era) frequency priors for the empirical-baseline
-    axis (D3, D7).
+    axis (D36.4, D36.7).
 
     The priors are a derived artifact — Phase 2 reads the lexicon DB
     and materializes this structure as a versioned file. Re-running
@@ -427,7 +489,7 @@ class EmpiricalPriors:
     Versioning: the ``version`` field (a content-hash or sequential
     integer) identifies the priors snapshot. Downstream caches and
     bundle builds key on this so a regenerated priors artifact
-    invalidates the right downstream artifacts (D8 Phase 6 drift
+    invalidates the right downstream artifacts (D36.8 Phase 6 drift
     plumbing).
     """
 
@@ -471,3 +533,14 @@ class CohesionContext:
 
     picked_tags: frozenset[str] = frozenset()
     novelty: float = 0.0
+
+    def __post_init__(self) -> None:
+        # Validate the documented [0, 1] novelty range — out-of-bounds
+        # values produce silently-degraded sampling downstream (the
+        # mixture math at novelty<0 amplifies empirical weights into
+        # near-determinism; at novelty>1 the sampling math goes
+        # negative-uniform and turns into noise). Raise loudly here
+        # so the CLI / API layer surfaces operator mistakes (e.g. a
+        # `--novelty 1.5` typo) at request construction time.
+        if not 0.0 <= self.novelty <= 1.0:
+            raise ValueError(f"novelty must be in [0.0, 1.0]; got {self.novelty!r}")

@@ -324,3 +324,168 @@ def test_cohesion_context_threading():
     ctx = CohesionContext(picked_tags=frozenset({"military", "death"}), novelty=0.3)
     assert "military" in ctx.picked_tags
     assert ctx.novelty == 0.3
+
+
+def test_cohesion_context_novelty_above_one_raises():
+    """The CohesionContext docstring documents novelty as a [0, 1]
+    blend knob. Out-of-bounds values silently degrade sampling
+    downstream (novelty<0 amplifies empirical to near-determinism;
+    novelty>1 turns sampling negative-uniform). __post_init__
+    raises at construction so the CLI/API layer can surface the
+    mistake before scoring runs."""
+    import pytest
+
+    with pytest.raises(ValueError, match=r"novelty must be in \[0\.0, 1\.0\]"):
+        CohesionContext(novelty=1.5)
+
+
+def test_cohesion_context_novelty_below_zero_raises():
+    import pytest
+
+    with pytest.raises(ValueError, match=r"novelty must be in \[0\.0, 1\.0\]"):
+        CohesionContext(novelty=-0.1)
+
+
+def test_cohesion_context_novelty_at_bounds_accepted():
+    """The endpoints (0.0 and 1.0) are inclusive — the documented
+    range is [0, 1], not (0, 1). Pin them as valid."""
+    assert CohesionContext(novelty=0.0).novelty == 0.0
+    assert CohesionContext(novelty=1.0).novelty == 1.0
+
+
+# ---- EligibilityGate era-ordering validation ----------------------------
+
+
+def test_eligibility_gate_inverted_era_range_raises():
+    """The EligibilityGate __post_init__ rejects inverted era
+    ranges. Otherwise an operator typo (era_min=1300, era_max=1066)
+    silently produces an empty eligibility pool downstream, which
+    surfaces as '0 mentions generated' with no diagnostic."""
+    import pytest
+
+    with pytest.raises(ValueError, match=r"era_min .* must be <= era_max"):
+        EligibilityGate(culture="english", era_min=1300, era_max=1066)
+
+
+def test_eligibility_gate_equal_era_bounds_accepted():
+    """Single-year range (era_min == era_max) is valid — used to
+    target a specific period (e.g. Domesday-only output)."""
+    g = EligibilityGate(culture="english", era_min=1086, era_max=1086)
+    assert g.era_min == 1086
+    assert g.era_max == 1086
+
+
+def test_eligibility_gate_open_bounds_accepted():
+    """Half-open ranges (only era_min OR only era_max) are valid —
+    they're "no upper bound" / "no lower bound" semantics, not
+    invariant violations."""
+    g_lo = EligibilityGate(culture="english", era_min=1066)
+    assert g_lo.era_min == 1066 and g_lo.era_max is None
+    g_hi = EligibilityGate(culture="english", era_max=1300)
+    assert g_hi.era_min is None and g_hi.era_max == 1300
+
+
+# ---- compose: position_bias + semantic_tags clamping --------------------
+
+
+def test_compose_register_effects_sums_position_bias_component_wise():
+    """position_bias is one of the four canonical-axis dicts that
+    compose_register_effects sums. The pure-phonological tests above
+    don't exercise this path. (pr-test-analyzer round 1 finding.)"""
+    a = RegisterEffect(name="a", position_bias={"first": 0.5, "second": -0.3})
+    b = RegisterEffect(name="b", position_bias={"first": 0.2, "manorial-affix": 0.4})
+    composed = compose_register_effects([a, b])
+    assert composed.position_bias == {
+        "first": 0.7,
+        "second": -0.3,
+        "manorial-affix": 0.4,
+    }
+
+
+def test_compose_register_effects_clamps_position_bias():
+    a = RegisterEffect(name="a", position_bias={"first": 0.8})
+    b = RegisterEffect(name="b", position_bias={"first": 0.7})
+    composed = compose_register_effects([a, b])
+    # Sum is 1.5; must clamp to 1.0 — same per-dimension invariant
+    # the phonological-clamp test pins.
+    assert composed.position_bias["first"] == 1.0
+
+
+def test_compose_register_effects_clamps_semantic_tags():
+    """semantic_tags clamping was also untested pre-round-1.
+    Pin both positive and negative overflow."""
+    a = RegisterEffect(name="a", semantic_tags={"death": 0.8, "monster": -0.6})
+    b = RegisterEffect(name="b", semantic_tags={"death": 0.7, "monster": -0.7})
+    composed = compose_register_effects([a, b])
+    assert composed.semantic_tags["death"] == 1.0
+    assert composed.semantic_tags["monster"] == -1.0
+
+
+# ---- compose: NaN/Inf rejection -----------------------------------------
+
+
+def test_compose_register_effects_rejects_nan():
+    """NaN would pass through `v > 1.0` / `v < -1.0` unchanged and
+    propagate as NaN scores downstream, silently corrupting ranking.
+    _clamp_in_place raises loudly instead. (silent-failure-hunter
+    round 1 finding.)"""
+    import math
+
+    import pytest
+
+    a = RegisterEffect(name="a", phonological={"cluster_density": math.nan})
+    with pytest.raises(ValueError, match=r"NaN/Inf inputs"):
+        compose_register_effects([a])
+
+
+def test_compose_register_effects_rejects_inf():
+    import math
+
+    import pytest
+
+    a = RegisterEffect(name="a", semantic_tags={"death": math.inf})
+    with pytest.raises(ValueError, match=r"NaN/Inf inputs"):
+        compose_register_effects([a])
+
+
+# ---- EmpiricalPriors version equality (frozen dataclass __eq__) ---------
+
+
+def test_empirical_priors_version_in_equality():
+    """The version field is the cache-invalidation key for every
+    downstream consumer (D36.9). Frozen dataclass __eq__ includes
+    it by default — pin that contract here so a future custom
+    __eq__ doesn't silently break cache invalidation."""
+    a = EmpiricalPriors(version="v1")
+    b = EmpiricalPriors(version="v2")
+    assert a != b
+
+
+def test_empirical_priors_equality_with_same_content():
+    """Symmetric pin: same content → equal. Confirms __eq__
+    semantics work as expected for both equal and unequal cases."""
+    a = EmpiricalPriors(version="v1")
+    b = EmpiricalPriors(version="v1")
+    assert a == b
+
+
+# ---- dot() uses explicit dimension set ----------------------------------
+
+
+def test_dot_ignores_non_dimension_dataclass_fields():
+    """The PhonologicalVector.dot method uses the explicit
+    _DIMENSION_NAMES whitelist (not __dataclass_fields__). If a
+    future maintainer adds a non-dimension metadata field (e.g.
+    a provenance string) to PhonologicalVector, AND a register
+    effect accidentally targets a key with the same name, dot()
+    must not include that metadata in the score. Test by
+    confirming 'extras' (a dataclass field that isn't a
+    dimension) is never picked up via the named-field branch."""
+    v = PhonologicalVector(cluster_density=0.5)
+    # 'extras' is a dataclass field BUT not in _DIMENSION_NAMES.
+    # A weight keyed on 'extras' would have hit the old
+    # __dataclass_fields__-based branch with self.extras (a dict)
+    # treated as a numeric — TypeError or worse. Now ignored.
+    s = v.dot({"cluster_density": 0.5, "extras": 0.5})
+    # Only cluster_density contributes; extras key is unknown.
+    assert abs(s - 0.25) < 1e-9
