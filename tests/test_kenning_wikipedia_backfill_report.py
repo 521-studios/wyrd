@@ -271,17 +271,20 @@ def test_missing_file_produces_empty_report(db, tmp_path):
     # All 5 files reported, all empty.
     assert len(reports) == 5
     assert all(r.total == 0 for r in reports)
-    assert all(r.regions == [] for r in reports)
+    assert all(r.regions == () for r in reports)
 
 
-def test_bogus_language_filter_silent(db, tmp_path):
-    """--language bogus matches no file → empty report (operator
-    sees the absence in the table)."""
+def test_bogus_language_filter_raises(db, tmp_path):
+    """--language bogus is now a loud error. R1 silent-failure-hunter
+    MEDIUM: previously silently produced an empty report, so an
+    operator typing ``--language welch`` would get zero output and
+    exit 0 with no diagnostic. Now raises ValueError (the CLI
+    converts to click.BadParameter)."""
     data_dir = tmp_path / "data"
     _write_place_names(data_dir, "english_place_names.json", {"England": {"A": ["X"]}})
 
-    reports = compute_backfill_report(db, data_dir=data_dir, languages=("bogus",))
-    assert reports == []
+    with pytest.raises(ValueError, match="unknown --language"):
+        compute_backfill_report(db, data_dir=data_dir, languages=("bogus",))
 
 
 # ---------- shape validation -------------------------------------------
@@ -364,10 +367,144 @@ def test_pct_attested_zero_when_no_total():
     shouldn't divide-by-zero."""
     cr = CountyReport(name="Empty", total=0, in_db=0, attested=0)
     assert cr.pct_attested == 0.0
-    rr = RegionReport(name="Empty", counties=[])
+    rr = RegionReport(name="Empty", counties=())
     assert rr.pct_attested == 0.0
-    fr = FileReport(filename="empty.json", regions=[])
+    fr = FileReport(filename="empty.json", regions=())
     assert fr.pct_attested == 0.0
+
+
+def test_county_report_rejects_invalid_invariant():
+    """CountyReport's __post_init__ enforces
+    ``0 <= attested <= in_db <= total``. A producer bug that built
+    ``CountyReport(total=0, in_db=5, attested=10)`` would yield a
+    negative gap and a confusing report. R1 type-design MEDIUM."""
+    # Valid construction works.
+    CountyReport(name="A", total=10, in_db=5, attested=3)
+    # Negative violations
+    with pytest.raises(ValueError, match="violates"):
+        CountyReport(name="A", total=10, in_db=15, attested=5)  # in_db > total
+    with pytest.raises(ValueError, match="violates"):
+        CountyReport(name="A", total=10, in_db=5, attested=8)  # attested > in_db
+    with pytest.raises(ValueError, match="violates"):
+        CountyReport(name="A", total=10, in_db=5, attested=-1)  # attested < 0
+
+
+def test_attestation_from_non_scholar_source_does_not_count(db, tmp_path):
+    """An attestation row with source_doc='rando-port' (or any other
+    non-scholar source per ``_NON_SCHOLAR_SOURCES``) MUST NOT count
+    as scholar-attested. The entire retirement gate depends on this —
+    a name attested only by the legacy seed isn't evidence the
+    Wikipedia seed can be retired. R1 silent-failure-hunter HIGH."""
+    name = "RandoOnlyPlace"
+    toponym_id = _add_toponym(db, name)
+    # Attest only from rando-port (non-scholar source).
+    db.conn.execute(
+        "INSERT INTO toponym_attestation (toponym_id, form, source_doc) "
+        "VALUES (?, ?, 'rando-port')",
+        (toponym_id, name),
+    )
+    db.commit()
+
+    data_dir = tmp_path / "data"
+    _write_place_names(
+        data_dir,
+        "english_place_names.json",
+        {"England": {"TestCounty": [name]}},
+    )
+    reports = compute_backfill_report(db, data_dir=data_dir, languages=("english",))
+    fr = reports[0]
+    assert fr.total == 1
+    assert fr.in_db == 1  # toponym exists
+    assert fr.attested == 0  # but rando-port doesn't count as scholar
+
+
+def test_attestation_with_null_source_doc_counts(db, tmp_path):
+    """An attestation with NULL source_doc (legacy/unknown provenance)
+    is counted as scholar — only the explicit non-scholar set is
+    excluded. Conservative default: if we don't KNOW it's
+    non-scholar, treat as scholar."""
+    name = "LegacyAttestedPlace"
+    toponym_id = _add_toponym(db, name)
+    db.conn.execute(
+        "INSERT INTO toponym_attestation (toponym_id, form, source_doc) VALUES (?, ?, NULL)",
+        (toponym_id, name),
+    )
+    db.commit()
+
+    data_dir = tmp_path / "data"
+    _write_place_names(
+        data_dir,
+        "english_place_names.json",
+        {"England": {"TestCounty": [name]}},
+    )
+    reports = compute_backfill_report(db, data_dir=data_dir, languages=("english",))
+    fr = reports[0]
+    assert fr.attested == 1
+
+
+def test_nfc_normalization_matches_canonical_diacritic(db, tmp_path):
+    """The same character can be encoded as NFC (precomposed) or NFD
+    (decomposed). Wikipedia and the DB may differ. After NFC
+    normalization on both sides, the match should succeed. R1
+    silent-failure-hunter MEDIUM."""
+    # NFC: U+00E9 (precomposed é)
+    nfc_name = "Café"
+    # NFD: U+0065 U+0301 (e + combining acute)
+    nfd_name = "Café"
+    assert nfc_name != nfd_name  # they're different code-point sequences
+    import unicodedata as _u
+
+    assert _u.normalize("NFC", nfd_name) == nfc_name
+
+    # DB stores NFC form
+    toponym_id = _add_toponym(db, nfc_name)
+    _add_attestation(db, toponym_id)
+
+    # Wikipedia file stores the NFD form
+    data_dir = tmp_path / "data"
+    _write_place_names(
+        data_dir,
+        "english_place_names.json",
+        {"England": {"TestCounty": [nfd_name]}},
+    )
+    reports = compute_backfill_report(db, data_dir=data_dir, languages=("english",))
+    fr = reports[0]
+    # NFC normalization should match: name found, attested.
+    assert fr.in_db == 1
+    assert fr.attested == 1
+
+
+def test_cli_unknown_language_is_bad_parameter(db, tmp_path):
+    """--language welch (typo) must error loudly, not silently produce
+    empty output. R1 silent-failure-hunter MEDIUM."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli import cli as cli_root
+
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    runner = CliRunner()
+    # Find the live lexicon path used by the CLI default; pass a
+    # synthetic empty one to avoid leaning on it.
+    db_path = tmp_path / "lexicon.db"
+    from wyrd.generators.kenning.lexicon import init_schema
+
+    init_schema(db_path)
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "report-wikipedia-backfill",
+            "--db",
+            str(db_path),
+            "--data-dir",
+            str(data_dir),
+            "--language",
+            "welch",  # typo
+        ],
+    )
+    assert result.exit_code != 0
+    assert "unknown --language" in result.output
 
 
 # ---------- JSON output -------------------------------------------------

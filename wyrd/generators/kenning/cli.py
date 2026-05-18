@@ -4611,24 +4611,32 @@ def lexicon_report_wikipedia_backfill(
         report_to_dict,
     )
 
-    db = LexiconDB(db_path)
-    click.echo(f"Using DB {db_path}", err=True)
+    with LexiconDB(db_path) as db:
+        click.echo(f"Using DB {db_path}", err=True)
 
-    reports = compute_backfill_report(
-        db,
-        data_dir=data_dir,
-        languages=languages or None,
-    )
+        try:
+            reports = compute_backfill_report(
+                db,
+                data_dir=data_dir,
+                languages=languages or None,
+            )
+        except ValueError as e:
+            # Re-raise as click.BadParameter so the operator sees a
+            # clean CLI error message rather than a traceback. The
+            # compute layer raises ValueError for unknown --language
+            # tokens (R1 silent-failure-hunter MEDIUM: previously
+            # silently produced empty report).
+            raise click.BadParameter(str(e)) from e
 
-    if as_json:
-        # JSON to stdout; the "Using DB ..." line still on stderr so
-        # the pipe stays clean.
-        click.echo(json.dumps(report_to_dict(reports), ensure_ascii=False, indent=2))
-        return
+        if as_json:
+            # JSON to stdout; the "Using DB ..." line still on stderr
+            # so the pipe stays clean.
+            click.echo(json.dumps(report_to_dict(reports), ensure_ascii=False, indent=2))
+            return
 
-    # Human-readable table to stderr per project mining-progress
-    # convention (data on stdout, status on stderr).
-    click.echo(format_report(reports, verbose=verbose), err=True)
+        # Human-readable table to stderr per project mining-progress
+        # convention (data on stdout, status on stderr).
+        click.echo(format_report(reports, verbose=verbose), err=True)
 
 
 @lexicon.command("fetch-bulk-sources")

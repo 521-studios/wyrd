@@ -10,21 +10,34 @@ This module reports the retirement-readiness gap per region:
 
 * ``total``       — Wikipedia entries the file lists for the region.
 * ``in_db``       — entries that resolve to a ``toponym`` row by exact
-  ``modern_name`` match.
+  ``modern_name`` match (after NFC normalization on both sides so a
+  diacritic-encoding mismatch doesn't falsely under-count).
 * ``attested``    — entries whose ``toponym`` row has ≥1
-  ``toponym_attestation`` row (scholar attestation is the retirement
-  criterion; an in-DB row alone isn't enough — it might trace back to
-  the Wikipedia seed itself).
+  ``toponym_attestation`` row from a SCHOLAR source (rando-port and
+  any future synthetic-provenance rows are explicitly excluded —
+  scholar attestation is the retirement criterion; a row attested
+  only by the legacy seed itself doesn't justify retiring that seed).
 * ``gap``         — ``total - attested``; how many entries still need
   scholar mining before Wikipedia can be retired safely.
 
-KNOWN LIMITATION (documented intentionally): the name lookup is
-case-sensitive exact match against ``toponym.modern_name``. Operators
-running the report against the live DB will see false-negatives where
-the Wikipedia name and the DB form differ in punctuation, diacritics,
-or disambiguation suffixes ("Newcastle" vs "Newcastle upon Tyne"). A
-fuzzier matcher is a follow-up — start with the strict numbers so the
-retirement gate is conservative.
+KNOWN LIMITATIONS (documented intentionally):
+
+1. Name matching is case-sensitive exact match against
+   ``toponym.modern_name`` (after NFC normalization). Operators
+   running the report against the live DB will see false-negatives
+   where the Wikipedia name and the DB form differ in punctuation or
+   disambiguation suffixes ("Newcastle" vs "Newcastle upon Tyne").
+   A fuzzier matcher is a follow-up — start with the strict numbers
+   so the retirement gate is conservative.
+
+2. Cross-region permissive matching: a ``Newton`` attested anywhere
+   in the DB counts as attested for every Wikipedia ``Newton`` across
+   all 5 culture files. Conceptually this OVER-counts retirement
+   readiness (different "Newton" places shouldn't transitively cover
+   for each other). The current report is intentionally permissive
+   — the operator-review step that follows the report is where
+   per-region attestation gets vetted. A region-scoped variant is a
+   follow-up (see bd ticket pointer in CLAUDE.md if it's filed).
 
 Read-only: this module NEVER writes to the DB.
 """
@@ -32,10 +45,11 @@ Read-only: this module NEVER writes to the DB.
 from __future__ import annotations
 
 import json
+import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from wyrd.generators.kenning.lexicon import LexiconDB
+from wyrd.generators.kenning.lexicon import _NON_SCHOLAR_SOURCES, LexiconDB
 
 # The 5 Wikipedia-sourced files seeded by the original toponym ingest.
 # Order is the printed-report order. The CLI's ``--language`` flag
@@ -49,12 +63,35 @@ WIKIPEDIA_PLACE_NAME_FILES: tuple[str, ...] = (
     "breton_place_names.json",
 )
 
+# Culture tokens accepted by ``--language``. Derived from
+# WIKIPEDIA_PLACE_NAME_FILES so the CLI can validate the operator's
+# spelling and refuse silently-empty runs (R1 silent-failure-hunter
+# MEDIUM). Order matches the file ordering for predictable error
+# messages.
+SUPPORTED_LANGUAGES: tuple[str, ...] = tuple(
+    f.removesuffix("_place_names.json") for f in WIKIPEDIA_PLACE_NAME_FILES
+)
+
+
+def _nfc(text: str) -> str:
+    """Apply Unicode NFC normalization. The toponym table and the
+    Wikipedia JSONs may store the SAME character sequence with
+    different combining-form decomposition (e.g. precomposed
+    ``é`` U+00E9 vs decomposed ``e`` U+0065 + ``́``). Match
+    by NFC on both sides so a diacritic-encoding mismatch doesn't
+    silently under-count attestations. R1 silent-failure-hunter
+    MEDIUM."""
+    return unicodedata.normalize("NFC", text)
+
 
 @dataclass(frozen=True)
 class CountyReport:
     """One subregion's backfill numbers (e.g. "Bedfordshire" inside
     England). The atomic unit of the report — every higher-level
     aggregate sums these.
+
+    Invariants (validated in __post_init__):
+        0 <= attested <= in_db <= total
     """
 
     name: str
@@ -62,14 +99,23 @@ class CountyReport:
     in_db: int
     attested: int
 
+    def __post_init__(self) -> None:
+        # Validate the count invariant so a producer bug surfaces
+        # immediately instead of as a -ve gap deep in a report.
+        # R1 type-design MEDIUM.
+        if not (0 <= self.attested <= self.in_db <= self.total):
+            raise ValueError(
+                f"CountyReport({self.name!r}) violates 0 <= attested <= in_db <= total: "
+                f"total={self.total} in_db={self.in_db} attested={self.attested}"
+            )
+
     @property
     def in_db_no_attestation(self) -> int:
         """Entries in the DB but without any scholar attestation.
 
         Surfaced separately because they're the rows that contributed
-        to the DB BUT can't be retired yet — they're still
-        Wikipedia-only provenance until a scholar source confirms
-        them.
+        to the DB BUT can't be retired yet — they're still Wikipedia-
+        only provenance until a scholar source confirms them.
         """
         return self.in_db - self.attested
 
@@ -77,8 +123,9 @@ class CountyReport:
     def gap(self) -> int:
         """Wikipedia entries still needing scholar attestation.
 
-        Includes both "not in DB" and "in DB but no attestation" —
-        both block the Wikipedia file from being retired.
+        Equals ``(total - in_db) + (in_db - attested)``: both the
+        not-in-DB rows and the in-DB-but-unattested rows still block
+        Wikipedia retirement.
         """
         return self.total - self.attested
 
@@ -90,10 +137,15 @@ class CountyReport:
 @dataclass(frozen=True)
 class RegionReport:
     """One country/region inside a file (e.g. "England", "The Isle of
-    Man") — aggregates its counties."""
+    Man") — aggregates its counties.
+
+    ``counties`` is a tuple (not a list) so the frozen=True guarantee
+    actually holds — a list field on a frozen dataclass blocks
+    rebinding but not in-place mutation. R1 type-design MEDIUM.
+    """
 
     name: str
-    counties: list[CountyReport] = field(default_factory=list)
+    counties: tuple[CountyReport, ...] = field(default_factory=tuple)
 
     @property
     def total(self) -> int:
@@ -122,10 +174,12 @@ class RegionReport:
 
 @dataclass(frozen=True)
 class FileReport:
-    """One Wikipedia *_place_names.json file — aggregates its regions."""
+    """One Wikipedia *_place_names.json file — aggregates its regions.
+
+    ``regions`` is a tuple (see RegionReport for why)."""
 
     filename: str
-    regions: list[RegionReport] = field(default_factory=list)
+    regions: tuple[RegionReport, ...] = field(default_factory=tuple)
 
     @property
     def total(self) -> int:
@@ -160,11 +214,15 @@ def _load_place_names(path: Path) -> dict[str, dict[str, list[str]]]:
         {"<country>": {"<subregion>": ["name1", "name2", ...], ...}, ...}
 
     Returns the parsed structure verbatim. Raises ``ValueError`` on
-    shape mismatch — we want to fail loud on a file that drifted from
-    the documented shape so the operator notices, not silently report
-    zero.
+    shape mismatch or malformed JSON — we want to fail loud on a file
+    that drifted from the documented shape so the operator notices,
+    not silently report zero.
     """
-    raw = json.loads(path.read_text(encoding="utf-8"))
+    text = path.read_text(encoding="utf-8")
+    try:
+        raw = json.loads(text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"{path}: invalid JSON: {e}") from e
     if not isinstance(raw, dict):
         raise ValueError(f"{path}: top-level must be dict, got {type(raw).__name__}")
     for country, subregions in raw.items():
@@ -182,38 +240,51 @@ def _load_place_names(path: Path) -> dict[str, dict[str, list[str]]]:
 
 
 def _build_toponym_lookups(db: LexiconDB) -> tuple[set[str], set[str]]:
-    """Return ``(in_db_names, attested_names)`` from one DB read.
+    """Return ``(in_db_names, attested_names)`` from two DB reads.
 
-    Both are sets of ``modern_name`` strings. ``in_db_names`` is every
-    name that has a ``toponym`` row; ``attested_names`` is the subset
-    that ALSO has ≥1 ``toponym_attestation`` row.
+    Both are sets of NFC-normalized ``modern_name`` strings.
+    ``in_db_names`` is every name that has a ``toponym`` row;
+    ``attested_names`` is the subset that ALSO has ≥1
+    ``toponym_attestation`` row FROM A SCHOLAR SOURCE (rando-port
+    and any other entries in ``_NON_SCHOLAR_SOURCES`` are excluded —
+    a name attested only by the Wikipedia/seed sources is not
+    evidence of scholar coverage, so it doesn't satisfy the
+    retirement gate). R1 silent-failure-hunter HIGH.
 
-    Built as sets to avoid an N-way query loop — the largest input file
-    (English) has ~20k entries and the DB has ~10k toponyms; loading
-    both into memory is cheap (single-digit MB) and turns each lookup
-    into a hash membership check.
+    Built as sets to avoid an N-way query loop — the largest input
+    file (English) has ~20k entries; loading both into memory is
+    cheap (single-digit MB) and turns each lookup into a hash
+    membership check.
 
-    Same ``modern_name`` may appear in multiple toponym rows (different
-    country/region disambiguators); the set collapses them — once the
-    name is in the DB it's in the lookup, regardless of how many
-    rows share it.
+    Same ``modern_name`` may appear in multiple toponym rows
+    (different country/region disambiguators); the set collapses them
+    — once the name is in the DB it's in the lookup, regardless of
+    how many rows share it. See module docstring KNOWN LIMITATIONS
+    #2 for the cross-region permissive-match implication.
     """
     in_db_names: set[str] = set()
+    # SELECT DISTINCT collapses duplicates at the DB level so the
+    # Python loop only sees unique names. Same modern_name commonly
+    # appears across multiple toponym rows (different country/region
+    # disambiguators); pre-filtering avoids redundant set insertions
+    # and reduces row-fetch bandwidth on large corpora.
+    for row in db.conn.execute("SELECT DISTINCT modern_name FROM toponym"):
+        in_db_names.add(_nfc(row["modern_name"]))
+
+    # Exclude non-scholar source_docs (rando-port today; any future
+    # synthetic-provenance entries) — a name attested ONLY by the
+    # seed sources is not evidence of scholar coverage. The CTE
+    # form lets the planner pre-filter attestations before joining.
     attested_names: set[str] = set()
-
-    for row in db.conn.execute("SELECT modern_name FROM toponym"):
-        in_db_names.add(row["modern_name"])
-
-    # LEFT-side filter: only consider toponyms that exist (toponym_id
-    # FK guarantees this, but the query plan stays clearer with the
-    # explicit join). Same modern_name → attested as long as ANY of
-    # its toponym rows has ≥1 attestation.
-    for row in db.conn.execute(
+    placeholders = ",".join("?" * len(_NON_SCHOLAR_SOURCES))
+    sql = (
         "SELECT DISTINCT t.modern_name "
         "FROM toponym t "
-        "JOIN toponym_attestation a ON a.toponym_id = t.id"
-    ):
-        attested_names.add(row["modern_name"])
+        "JOIN toponym_attestation a ON a.toponym_id = t.id "
+        f"WHERE a.source_doc IS NULL OR a.source_doc NOT IN ({placeholders})"
+    )
+    for row in db.conn.execute(sql, tuple(_NON_SCHOLAR_SOURCES)):
+        attested_names.add(_nfc(row["modern_name"]))
 
     return in_db_names, attested_names
 
@@ -230,11 +301,14 @@ def _compute_county_report(
     twice in the same county list (Wikipedia happily duplicates), it
     counts twice. Each occurrence is a Wikipedia entry, even though
     the underlying toponym table collapses them. See test
-    ``test_duplicate_name_counts_each_occurrence``.
+    ``test_duplicate_name_counts_each_occurrence``. Names are NFC-
+    normalized to match the same normalization applied at DB-read
+    time in ``_build_toponym_lookups``.
     """
     total = len(place_names)
-    in_db = sum(1 for n in place_names if n in in_db_names)
-    attested = sum(1 for n in place_names if n in attested_names)
+    normalized = [_nfc(n) for n in place_names]
+    in_db = sum(1 for n in normalized if n in in_db_names)
+    attested = sum(1 for n in normalized if n in attested_names)
     return CountyReport(name=name, total=total, in_db=in_db, attested=attested)
 
 
@@ -260,13 +334,23 @@ def compute_backfill_report(
         data_dir: directory containing the ``*_place_names.json`` files.
         languages: optional filter — tuple of culture tokens (e.g.
           ``("english", "scottish")``). When None or empty, all 5
-          files are reported. Missing files in the filter are silently
-          skipped (e.g. ``--language bogus`` produces an empty report
-          rather than crashing — the CLI surfaces the absence).
+          files are reported. Unknown tokens raise ValueError (the
+          CLI converts to a BadParameter so the operator sees the
+          full set of valid options). R1 silent-failure-hunter
+          MEDIUM: a typo'd ``--language welch`` used to silently
+          produce an empty report.
 
     Returns: list of ``FileReport`` in ``WIKIPEDIA_PLACE_NAME_FILES``
     order, filtered to the requested languages.
     """
+    if languages:
+        bad = [lang for lang in languages if lang.lower() not in SUPPORTED_LANGUAGES]
+        if bad:
+            raise ValueError(
+                f"unknown --language token(s): {sorted(bad)!r}; "
+                f"valid: {list(SUPPORTED_LANGUAGES)!r}"
+            )
+
     in_db_names, attested_names = _build_toponym_lookups(db)
 
     selected = WIKIPEDIA_PLACE_NAME_FILES
@@ -281,21 +365,24 @@ def compute_backfill_report(
             # Don't crash — the operator may legitimately not have all
             # 5 files (e.g. a partial checkout). Emit an empty file
             # report so the CLI can surface it.
-            reports.append(FileReport(filename=filename, regions=[]))
+            reports.append(FileReport(filename=filename, regions=()))
             continue
         raw = _load_place_names(path)
-        regions: list[RegionReport] = []
-        for country, subregions in raw.items():
-            counties = [
-                _compute_county_report(
-                    name=subregion,
-                    place_names=names,
-                    in_db_names=in_db_names,
-                    attested_names=attested_names,
-                )
-                for subregion, names in subregions.items()
-            ]
-            regions.append(RegionReport(name=country, counties=counties))
+        regions = tuple(
+            RegionReport(
+                name=country,
+                counties=tuple(
+                    _compute_county_report(
+                        name=subregion,
+                        place_names=names,
+                        in_db_names=in_db_names,
+                        attested_names=attested_names,
+                    )
+                    for subregion, names in subregions.items()
+                ),
+            )
+            for country, subregions in raw.items()
+        )
         reports.append(FileReport(filename=filename, regions=regions))
     return reports
 
@@ -356,12 +443,14 @@ def report_to_dict(reports: list[FileReport]) -> dict:
     return out
 
 
-# Column layout for the human-readable table. The widths were tuned
-# against the live-DB numbers: English's "20172" is the widest count;
-# "The Isle of Man" is the widest region label at 15 chars; "%_attested"
-# is the longest header. Stays under 100 columns at the deepest
-# indent (verbose per-county).
-_LABEL_WIDTH = 28  # leaves room for "    " indent + 24-char county name
+# Column layout for the human-readable table. ``_COL_WIDTH`` is wide
+# enough for 6-digit counts (corpus-scale: English currently ~20k,
+# Irish ~41k). Bump to 10 if any single bucket ever exceeds 999k.
+# ``_LABEL_WIDTH=40`` leaves room for the 4-space indent + 36-char
+# county/place names — long English names like
+# "Sutton-under-Whitestonecliffe" (29 chars) sit comfortably. Total
+# table width stays under 100 columns at the deepest indent.
+_LABEL_WIDTH = 40
 _COL_WIDTH = 9
 _PCT_WIDTH = 10
 
