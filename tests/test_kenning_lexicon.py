@@ -171,23 +171,42 @@ def test_lexicon_db_engine_and_conn_share_dbapi_connection(fresh_db: Path) -> No
     """wyrd-67fv: ``LexiconDB`` holds a SQLAlchemy ``Engine`` (for
     query-builder paths) plus a ``sqlite3.Connection`` shim (for the
     ~1k existing ``db.conn.execute(...)`` call sites). The StaticPool
-    invariant says both views read+write through one DBAPI connection
-    so transaction state stays coherent across the surfaces.
+    invariant says both views read+write through ONE underlying
+    DBAPI connection.
 
-    Pin: write through ``db.engine`` and confirm ``db.conn`` reads it
-    back in the same transaction (no commit between the two), and
-    vice versa. If the engine ever moves off StaticPool or the
-    raw_connection lifetime shortens, this regresses loudly instead
-    of silently splitting writes across two connections.
+    Identity pin (the load-bearing assertion): the connection a fresh
+    ``engine.raw_connection()`` checkout exposes IS ``db.conn`` — the
+    same Python object. A regression that swaps StaticPool for
+    QueuePool (the SA default) would hand out a different connection
+    on every checkout; that identity check fails immediately.
+
+    Plus a round-trip smoke (write via one surface, read via the
+    other) to catch the case where the pool-class change isn't a
+    StaticPool→QueuePool swap but something subtler that still keeps
+    object-identity by accident.
     """
     with LexiconDB(fresh_db) as db:
-        # Write via SA engine, read via sqlite3 shim.
+        # Identity assertion — the load-bearing pin for the
+        # StaticPool invariant. A fresh raw_connection() checkout
+        # must hand out the same underlying sqlite3.Connection
+        # ``db.conn`` already points at.
+        fresh_proxy = db.engine.raw_connection()
+        try:
+            assert fresh_proxy.driver_connection is db.conn, (
+                "engine.raw_connection().driver_connection is not db.conn — "
+                "StaticPool invariant broken; new pool-class is splitting connections"
+            )
+        finally:
+            fresh_proxy.close()
+
+        # Round-trip smoke — write via SA engine, read via sqlite3
+        # shim, and vice versa. Catches divergence even when the
+        # identity check happens to pass.
         with db.engine.begin() as sa_conn:
             sa_conn.exec_driver_sql("INSERT INTO source (id, title) VALUES ('via-engine', 'T')")
         row = db.conn.execute("SELECT title FROM source WHERE id = 'via-engine'").fetchone()
         assert row["title"] == "T"
 
-        # Write via sqlite3 shim, read via SA engine.
         db.conn.execute("INSERT INTO source (id, title) VALUES ('via-conn', 'U')")
         db.commit()
         with db.engine.connect() as sa_conn:
@@ -207,19 +226,45 @@ def test_lexicon_db_close_is_idempotent(fresh_db: Path) -> None:
     db.close()  # should be a no-op, no exception
 
 
-def test_lexicon_db_close_releases_file_lock(fresh_db: Path) -> None:
-    """``close()`` must dispose the engine pool so the underlying
-    sqlite3 connection actually closes. Otherwise a re-open of the
-    same file across processes can hit a WAL-file conflict, and
-    on Windows / NFS the file lock keeps the .db unwriteable."""
+def test_lexicon_db_close_disposes_pool_and_connection(fresh_db: Path) -> None:
+    """``close()`` must actually call ``__raw_proxy.close()`` AND
+    ``__engine.dispose()``. A regression that drops either silently
+    leaks the sqlite3 connection until GC; reopens still work on
+    Linux WAL (SQLite tolerates multiple readers cheerfully), but
+    Windows + fcntl-locked NFS bite. The round-trip-only test was
+    too loose — round-2 review correctly flagged it.
+
+    Pin: after ``close()``, inspect the LexiconDB instance directly
+    and assert the SA proxy + engine are in their closed state.
+    Name-mangled attributes go through the ``_LexiconDB__`` prefix.
+    """
+    import pytest
+
     db = LexiconDB(fresh_db)
     db.upsert_source(id="lock-test", title="Lock Test")
     db.commit()
+
+    raw_proxy = db._LexiconDB__raw_proxy  # type: ignore[attr-defined]
+    underlying_sqlite_conn = db.conn
+
     db.close()
 
-    # Reopen; if the prior conn isn't released, the WAL handshake
-    # would observe extra stray reader marks. We just verify that
-    # the new instance reads what the prior one wrote.
+    # The fairy proxy's underlying DBAPI connection should be gone
+    # after engine.dispose() — SA marks .driver_connection as None
+    # on a closed proxy.
+    assert raw_proxy.driver_connection is None, (
+        "raw_proxy.driver_connection still set after close() — "
+        "engine.dispose() didn't actually dispose the pool"
+    )
+    # And the original sqlite3.Connection itself must be closed.
+    # If engine.dispose() ever silently regresses to a no-op the
+    # connection stays alive in StaticPool until GC, and this
+    # assertion catches it immediately.
+    with pytest.raises(sqlite3.ProgrammingError, match="closed database"):
+        underlying_sqlite_conn.execute("SELECT 1")
+
+    # Reopen still works (functional smoke); the assertions above
+    # are the load-bearing pins for the dispose contract.
     with LexiconDB(fresh_db) as db2:
         row = db2.conn.execute("SELECT title FROM source WHERE id = 'lock-test'").fetchone()
         assert row["title"] == "Lock Test"

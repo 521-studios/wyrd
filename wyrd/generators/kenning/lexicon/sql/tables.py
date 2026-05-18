@@ -351,13 +351,17 @@ toponym_etymology_element = Table(
         nullable=False,
     ),
     Column("ordinal", Integer, nullable=False),
-    # CASCADE matches the sibling toponym_etymology_id FK. The pre-PR
-    # schema lacked an explicit ondelete on this FK (SQLite default
-    # is RESTRICT), inconsistent with every other etymon-targeting
-    # FK in the lexicon. Flagged by Gemini + type-design-analyzer
-    # round-1 review (wyrd-67fv); CASCADE is the consistent choice
-    # because etymon deletion implies the breakdown referencing it
-    # is also no longer meaningful.
+    # CASCADE matches the sibling toponym_etymology_id FK and every
+    # other NON-NULLABLE etymon-targeting FK (etymon_gloss,
+    # etymon_tag, etymon_citation, etymon_text_match, etymon_descent
+    # parent/child, etymon_variant, reflex_etymon,
+    # etymon_period_form, etymon_meaning_synset). The pattern across
+    # the schema is: nullable etymon FKs use SET NULL (lemma_id,
+    # merged_into_id, cognate_id); non-nullable use CASCADE. The
+    # pre-PR schema left this column un-annotated (SQLite default is
+    # NO ACTION ≈ RESTRICT), which would block etymon deletion and
+    # is the one outlier across the pattern. Gemini +
+    # type-design-analyzer round-1 review (wyrd-67fv) caught it.
     Column(
         "etymon_id",
         Integer,

@@ -15,6 +15,7 @@ from __future__ import annotations
 import importlib.resources
 from pathlib import Path
 
+from alembic.command import upgrade
 from alembic.config import Config
 
 
@@ -46,13 +47,4 @@ def upgrade_head(db_path: Path | str) -> None:
     otherwise. Idempotent — re-running on an already-up-to-date DB
     is a no-op.
     """
-    # Deferred import for ``alembic.command`` specifically — it pulls
-    # in alembic.runtime.migration + util + script chains the
-    # alembic.config import above does NOT load. Importing
-    # ``lexicon.sql`` (which transitively loads ``alembic.config``
-    # via this module) shouldn't cost the migration-runtime chain
-    # too; only the init_schema / CLI paths that actually run
-    # migrations need it.
-    from alembic.command import upgrade
-
     upgrade(alembic_config(db_path), "head")
