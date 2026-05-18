@@ -97,7 +97,9 @@ def passes_culture_gate(culture: str) -> bool:
 def passes_era_gate(meaning: Meaning, era_min: int | None, era_max: int | None) -> bool:
     """True if the Meaning has at least one attested form in
     ``[era_min, era_max)``, OR has no attested-year data at all (the
-    D5-2 'no data → pass' rule). Both bounds None → no filter.
+    "no data → pass" rule documented on
+    ``Meaning.attested_in_era_range``; see D5 / D5-3 (wyrd-lyp) for
+    the architectural decision). Both bounds None → no filter.
     """
     if era_min is None and era_max is None:
         return True

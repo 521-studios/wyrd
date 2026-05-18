@@ -116,7 +116,7 @@ def test_era_gate_meaning_outside_window_fails():
 
 
 def test_era_gate_meaning_with_no_attested_years_passes():
-    """D5-2 'no data → pass' rule: a Meaning with no attested-year
+    """ "No data → pass" rule (D5 / D5-3 wyrd-lyp): a Meaning with no attested-year
     data passes any era filter. Most legacy bundle Meanings fall
     here today; tightening this rule waits on mining coverage rising.
     """
