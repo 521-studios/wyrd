@@ -1260,6 +1260,73 @@ def _create_etymon_period_form_table(db: LexiconDB, applied: dict[str, bool]) ->
     applied["etymon_period_form_table"] = True
 
 
+def _create_empirical_priors_tables(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """wyrd-ecjp.2: ensure the empirical-baseline priors tables exist
+    on legacy DBs.
+
+    Two tables (native + loan-relationship) per D36.4 / D36.7. Both
+    are derived-artifact L3 tables; ``lexicon mine-empirical-baselines
+    --apply`` is the only writer. Re-runnable + idempotent (replace-
+    not-merge each run).
+
+    Idempotent: PRAGMA-checks for each table first; runs as no-op on
+    fresh installs (tables ship in data/lexicon.sql).
+    """
+    cur = db.conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='empirical_priors_native'"
+    )
+    if cur.fetchone() is None:
+        db.conn.execute(
+            """
+            CREATE TABLE empirical_priors_native (
+              culture       TEXT NOT NULL,
+              position      TEXT NOT NULL,
+              tag           TEXT NOT NULL,
+              era_midpoint  INTEGER NOT NULL,
+              lemma_ref     TEXT NOT NULL,
+              count         INTEGER NOT NULL CHECK (count > 0),
+              PRIMARY KEY (culture, position, tag, era_midpoint, lemma_ref)
+            )
+            """
+        )
+        db.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_priors_native_cell "
+            "ON empirical_priors_native(culture, position, tag, era_midpoint)"
+        )
+        db.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_priors_native_lemma "
+            "ON empirical_priors_native(lemma_ref)"
+        )
+        applied["empirical_priors_native_table"] = True
+
+    cur = db.conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='empirical_priors_loan'"
+    )
+    if cur.fetchone() is None:
+        db.conn.execute(
+            """
+            CREATE TABLE empirical_priors_loan (
+              donor         TEXT NOT NULL,
+              recipient     TEXT NOT NULL,
+              position      TEXT NOT NULL,
+              tag           TEXT NOT NULL,
+              era_midpoint  INTEGER NOT NULL,
+              lemma_ref     TEXT NOT NULL,
+              count         INTEGER NOT NULL CHECK (count > 0),
+              PRIMARY KEY (donor, recipient, position, tag, era_midpoint, lemma_ref)
+            )
+            """
+        )
+        db.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_priors_loan_cell "
+            "ON empirical_priors_loan(donor, recipient, position, tag, era_midpoint)"
+        )
+        db.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_priors_loan_lemma ON empirical_priors_loan(lemma_ref)"
+        )
+        applied["empirical_priors_loan_table"] = True
+
+
 def _create_toponym_decomposition_table(db: LexiconDB, applied: dict[str, bool]) -> None:
     """wyrd-08m Phase 1: ensure ``toponym_decomposition`` table + indexes
     exist on legacy DBs.
@@ -1648,6 +1715,9 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         "etymon_period_form_table": False,
         # wyrd-08m Phase 1: matcher-derived decomposition multiplicity.
         "toponym_decomposition_table": False,
+        # wyrd-ecjp.2: vector-driven empirical-baseline priors.
+        "empirical_priors_native_table": False,
+        "empirical_priors_loan_table": False,
     }
     # wyrd-44a: rename the legacy cognate-cluster column from synset_id
     # to cognate_id BEFORE the add-columns helper runs — otherwise
@@ -1675,6 +1745,7 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     _create_toponym_attestation_unique_index(db, applied)
     _create_etymon_period_form_table(db, applied)
     _create_toponym_decomposition_table(db, applied)
+    _create_empirical_priors_tables(db, applied)
     db.commit()
     return applied
 
