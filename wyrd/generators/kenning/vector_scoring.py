@@ -190,6 +190,79 @@ def _native_lookup_exact(
     return cell[lemma_ref]
 
 
+def _native_lookup_tag_specific(
+    priors: EmpiricalPriors,
+    lemma_ref: str,
+    culture: str,
+    position: str,
+    tag: str,
+    era_midpoint: int,
+) -> float | None:
+    """Tag-specific levels of the native-priors hierarchical fallback
+    (levels 1 + 2). Returns the weight when a matching tag-specific
+    cell carries the lemma; None when neither the exact nor any
+    era-wildcard cell at this tag has it (caller falls back to the
+    tag-independent lookup).
+
+    Splitting tag-specific from tag-independent levels lets
+    ``baseline_score_native`` factor the tag-independent computation
+    out of its per-tag loop. Without the split, lemmas with many
+    tags pay the tag-independent O(N_cells) scan cost once per tag.
+    """
+    exact = _native_lookup_exact(priors, lemma_ref, culture, position, tag, era_midpoint)
+    if exact is not None:
+        return exact
+
+    # Level 2: era wildcard. (c, p, t, *)
+    best: float | None = None
+    for (c, p, t, _e), cell in priors.native.items():
+        if c == culture and p == position and t == tag and lemma_ref in cell:
+            v = cell[lemma_ref]
+            if best is None or v > best:
+                best = v
+    return best
+
+
+def _native_lookup_tag_independent(
+    priors: EmpiricalPriors,
+    lemma_ref: str,
+    culture: str,
+    position: str,
+) -> float | None:
+    """Tag-independent levels of the native-priors fallback (levels
+    3 + 4). Returns the weight when a tag-wildcard cell carries the
+    lemma; None when no cell at any tag-wildcard specificity has it.
+
+    Computed in a single pass over ``priors.native.items()`` — both
+    levels 3 (c, p, *, *) and 4 (c, *, *, *) are filterable from the
+    same iteration, with separate ``best`` trackers per level.
+    Level 3 wins when matched (more specific); level 4 only applies
+    when level 3 found nothing.
+
+    Tag-independent by design: levels 3 + 4 wildcard the tag
+    dimension, so the result is a function of
+    (lemma_ref, culture, position) only — callers that iterate over
+    a lemma's tags should call this once, outside the per-tag loop.
+    """
+    best_l3: float | None = None
+    best_l4: float | None = None
+    for (c, p, _t, _e), cell in priors.native.items():
+        if c != culture or lemma_ref not in cell:
+            continue
+        v = cell[lemma_ref]
+        if p == position:
+            # Level 3 match: (culture, position, *, *)
+            if best_l3 is None or v > best_l3:
+                best_l3 = v
+        # Level 4 match: (culture, *, *, *) — same row qualifies if
+        # culture matches, regardless of position.
+        if best_l4 is None or v > best_l4:
+            best_l4 = v
+    if best_l3 is not None:
+        return best_l3
+    return best_l4
+
+
 def _native_lookup_with_fallback(
     priors: EmpiricalPriors,
     lemma_ref: str,
@@ -214,40 +287,71 @@ def _native_lookup_with_fallback(
     of the data which lines up with the empirical-baseline axis being
     a soft preference, not a hard filter.)
 
-    Reference implementation: O(N_cells) per lookup. A flat
-    lemma → cells reverse index is the planned follow-up perf
-    optimization (see module docstring).
+    This is a thin combinator over the split tag-specific /
+    tag-independent helpers — preserved so callers exercising the
+    single-tag path (and the tests that pin the level-priority
+    contract) keep a stable entry point. ``baseline_score_native``
+    bypasses this and calls the split helpers directly so the
+    tag-independent levels are computed once across all of a lemma's
+    tags.
     """
-    exact = _native_lookup_exact(priors, lemma_ref, culture, position, tag, era_midpoint)
-    if exact is not None:
-        return exact
+    tag_specific = _native_lookup_tag_specific(
+        priors, lemma_ref, culture, position, tag, era_midpoint
+    )
+    if tag_specific is not None:
+        return tag_specific
+    tag_independent = _native_lookup_tag_independent(priors, lemma_ref, culture, position)
+    return tag_independent if tag_independent is not None else 0.0
 
-    # Level 2: era wildcard. (c, p, t, *)
+
+def _loan_lookup_tag_specific(
+    priors: EmpiricalPriors,
+    lemma_ref: str,
+    donor: str,
+    recipient: str,
+    position: str,
+    tag: str,
+    era_midpoint: int,
+) -> float | None:
+    """Loan-priors mirror of ``_native_lookup_tag_specific``: levels
+    1 + 2 keyed on (donor, recipient, position, tag, *)."""
+    exact_cell = priors.loan_relationship.get((donor, recipient, position, tag, era_midpoint))
+    if exact_cell is not None and lemma_ref in exact_cell:
+        return exact_cell[lemma_ref]
+
     best: float | None = None
-    for (c, p, t, _e), cell in priors.native.items():
-        if c == culture and p == position and t == tag and lemma_ref in cell:
+    for (d, r, p, t, _e), cell in priors.loan_relationship.items():
+        if d == donor and r == recipient and p == position and t == tag and lemma_ref in cell:
             v = cell[lemma_ref]
             if best is None or v > best:
                 best = v
-    if best is not None:
-        return best
+    return best
 
-    # Level 3: tag + era wildcard. (c, p, *, *)
-    for (c, p, _t, _e), cell in priors.native.items():
-        if c == culture and p == position and lemma_ref in cell:
-            v = cell[lemma_ref]
-            if best is None or v > best:
-                best = v
-    if best is not None:
-        return best
 
-    # Level 4: position + tag + era wildcard. (c, *, *, *)
-    for (c, _p, _t, _e), cell in priors.native.items():
-        if c == culture and lemma_ref in cell:
-            v = cell[lemma_ref]
-            if best is None or v > best:
-                best = v
-    return best if best is not None else 0.0
+def _loan_lookup_tag_independent(
+    priors: EmpiricalPriors,
+    lemma_ref: str,
+    donor: str,
+    recipient: str,
+    position: str,
+) -> float | None:
+    """Loan-priors mirror of ``_native_lookup_tag_independent``:
+    single-pass collection of levels 3 (d, r, p, *, *) + 4 (d, r,
+    *, *, *) with per-level best trackers."""
+    best_l3: float | None = None
+    best_l4: float | None = None
+    for (d, r, p, _t, _e), cell in priors.loan_relationship.items():
+        if d != donor or r != recipient or lemma_ref not in cell:
+            continue
+        v = cell[lemma_ref]
+        if p == position:
+            if best_l3 is None or v > best_l3:
+                best_l3 = v
+        if best_l4 is None or v > best_l4:
+            best_l4 = v
+    if best_l3 is not None:
+        return best_l3
+    return best_l4
 
 
 def _loan_lookup_with_fallback(
@@ -267,37 +371,18 @@ def _loan_lookup_with_fallback(
       3. tag+era-wild   (donor, recipient, position, *,   *)
       4. all-wild       (donor, recipient, *,        *,   *)
       5. 0.0
+
+    Thin combinator over ``_loan_lookup_tag_specific`` (levels 1+2)
+    and ``_loan_lookup_tag_independent`` (levels 3+4); see
+    ``_native_lookup_with_fallback`` for the same rationale.
     """
-    exact_cell = priors.loan_relationship.get((donor, recipient, position, tag, era_midpoint))
-    if exact_cell is not None and lemma_ref in exact_cell:
-        return exact_cell[lemma_ref]
-
-    best: float | None = None
-    # Level 2: era wildcard.
-    for (d, r, p, t, _e), cell in priors.loan_relationship.items():
-        if d == donor and r == recipient and p == position and t == tag and lemma_ref in cell:
-            v = cell[lemma_ref]
-            if best is None or v > best:
-                best = v
-    if best is not None:
-        return best
-
-    # Level 3: tag + era wildcard.
-    for (d, r, p, _t, _e), cell in priors.loan_relationship.items():
-        if d == donor and r == recipient and p == position and lemma_ref in cell:
-            v = cell[lemma_ref]
-            if best is None or v > best:
-                best = v
-    if best is not None:
-        return best
-
-    # Level 4: position + tag + era wildcard.
-    for (d, r, _p, _t, _e), cell in priors.loan_relationship.items():
-        if d == donor and r == recipient and lemma_ref in cell:
-            v = cell[lemma_ref]
-            if best is None or v > best:
-                best = v
-    return best if best is not None else 0.0
+    tag_specific = _loan_lookup_tag_specific(
+        priors, lemma_ref, donor, recipient, position, tag, era_midpoint
+    )
+    if tag_specific is not None:
+        return tag_specific
+    tag_independent = _loan_lookup_tag_independent(priors, lemma_ref, donor, recipient, position)
+    return tag_independent if tag_independent is not None else 0.0
 
 
 def baseline_score_native(
@@ -335,6 +420,12 @@ def baseline_score_native(
     """
     if not request_tag_weights:
         return 0.0
+    # Compute tag-independent fallback (levels 3+4) ONCE per lemma —
+    # the result depends only on (lemma_ref, culture, slot_position)
+    # and is shared across all of the lemma's tags. Without this
+    # factoring, lemmas with many tags pay the O(N_cells) scan cost
+    # once per tag (Gemini round-2 HIGH finding).
+    tag_independent = _native_lookup_tag_independent(priors, lemma_ref, culture, slot_position)
     total = 0.0
     # sorted(set(...)) pins the FP-sum iteration order against hash
     # randomization (see sem_score for the same rationale).
@@ -342,9 +433,18 @@ def baseline_score_native(
         rw = request_tag_weights.get(tag, 0.0)
         if rw == 0.0:
             continue
-        per_tag = _native_lookup_with_fallback(
+        tag_specific = _native_lookup_tag_specific(
             priors, lemma_ref, culture, slot_position, tag, era_midpoint
         )
+        # Level-priority semantics: tag-specific (levels 1+2) wins
+        # when matched; tag-independent (levels 3+4) is the fallback.
+        # Matches ``_native_lookup_with_fallback``'s short-circuit.
+        if tag_specific is not None:
+            per_tag = tag_specific
+        elif tag_independent is not None:
+            per_tag = tag_independent
+        else:
+            per_tag = 0.0
         total += rw * per_tag
     return total
 
@@ -370,6 +470,11 @@ def baseline_score_pack(
     """
     if not request_tag_weights:
         return 0.0
+    # Same tag-independent factoring as baseline_score_native — pack
+    # variant just uses the loan-relationship cells.
+    tag_independent = _loan_lookup_tag_independent(
+        priors, lemma_ref, pack.template_donor, pack.template_recipient, slot_position
+    )
     total = 0.0
     # sorted(set(...)) pins the FP-sum iteration order against hash
     # randomization (see sem_score for the same rationale).
@@ -377,7 +482,7 @@ def baseline_score_pack(
         rw = request_tag_weights.get(tag, 0.0)
         if rw == 0.0:
             continue
-        per_tag = _loan_lookup_with_fallback(
+        tag_specific = _loan_lookup_tag_specific(
             priors,
             lemma_ref,
             pack.template_donor,
@@ -386,6 +491,12 @@ def baseline_score_pack(
             tag,
             era_midpoint,
         )
+        if tag_specific is not None:
+            per_tag = tag_specific
+        elif tag_independent is not None:
+            per_tag = tag_independent
+        else:
+            per_tag = 0.0
         total += rw * per_tag
     return total
 
