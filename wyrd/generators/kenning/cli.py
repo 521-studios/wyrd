@@ -3243,10 +3243,6 @@ def lexicon_mine_toponym_mentions_tiered(
             def warn(msg: str) -> None:
                 click.echo(f"    warning: {msg}", err=True)
 
-            # Per-source on_chunk_failed closure — captures source_id by
-            # default arg (B023 closure-over-loop-var, same shape as
-            # `progress` above) so the source_id baked into each emitted
-            # record is the CURRENT iteration's, not the last one's.
             # Per-source on_chunk_failed closure — captures source_id and
             # the extractor model pair by default-arg (B023 closure-over-
             # loop-var, same shape as ``progress`` above) so the values
