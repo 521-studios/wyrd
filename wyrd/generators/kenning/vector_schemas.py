@@ -106,12 +106,14 @@ class PhonologicalVector:
     component-wise dot product: see RegisterEffect.compose.
 
     Note on immutability: ``frozen=True`` blocks field rebinding but
-    does NOT make the ``extras`` dict immutable. Callers must treat
-    ``extras`` as read-only after construction — Phase 4 consumers
-    rely on hashable identity for caching composed scores, and silent
-    in-place dict mutation will silently corrupt those caches. The
-    type-system guarantee is "no field reassignment"; the conventional
-    guarantee is "treat dicts as read-only too".
+    does NOT make the ``extras`` dict immutable, and does NOT make
+    instances hashable (mutable dict fields preclude that regardless
+    of ``frozen``). Callers must treat ``extras`` as read-only after
+    construction by convention — silent in-place dict mutation would
+    invalidate any per-instance derived state (e.g. memoized scores
+    keyed on ``id(vector)``) downstream. The type-system guarantee
+    is "no field reassignment"; the conventional guarantee is "treat
+    dicts as read-only too".
     """
 
     cluster_density: float = 0.0
@@ -171,15 +173,17 @@ class RegisterEffect:
     to [-1, +1] per dimension after summation.
 
     Note on immutability: ``frozen=True`` blocks field rebinding but
-    does NOT make the three dict fields immutable. Callers must treat
-    a constructed RegisterEffect's dicts as read-only — Phase 4
-    caches composed effects by identity, and silent in-place dict
-    mutation will corrupt those caches. The type-system guarantee is
-    "no field reassignment"; the conventional guarantee on the dicts
-    is "do not mutate after construction".
+    does NOT make the three dict fields immutable, and does NOT make
+    instances hashable (mutable dict fields preclude that regardless
+    of ``frozen``). Callers must treat a constructed RegisterEffect's
+    dicts as read-only by convention — silent in-place dict mutation
+    would invalidate any per-instance derived state (e.g. memoized
+    composed-effect scores keyed on ``id(effect)``) downstream. The
+    type-system guarantee is "no field reassignment"; the conventional
+    guarantee on the dicts is "do not mutate after construction".
 
     Per-effect graduation: callers pass an optional weight multiplier
-    (the colon-suffix syntax: ``harsh:0.5`` means apply harsh at 50%%
+    (the colon-suffix syntax: ``harsh:0.5`` means apply harsh at 50%
     strength). The multiplier scales every component of the effect
     uniformly before composition with other effects.
 

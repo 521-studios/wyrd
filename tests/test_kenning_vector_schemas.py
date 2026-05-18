@@ -8,6 +8,10 @@ shapes the downstream phases consume.
 
 from __future__ import annotations
 
+import math
+
+import pytest
+
 from wyrd.generators.kenning.vector_schemas import (
     CohesionContext,
     EligibilityGate,
@@ -333,14 +337,12 @@ def test_cohesion_context_novelty_above_one_raises():
     novelty>1 turns sampling negative-uniform). __post_init__
     raises at construction so the CLI/API layer can surface the
     mistake before scoring runs."""
-    import pytest
 
     with pytest.raises(ValueError, match=r"novelty must be in \[0\.0, 1\.0\]"):
         CohesionContext(novelty=1.5)
 
 
 def test_cohesion_context_novelty_below_zero_raises():
-    import pytest
 
     with pytest.raises(ValueError, match=r"novelty must be in \[0\.0, 1\.0\]"):
         CohesionContext(novelty=-0.1)
@@ -361,7 +363,6 @@ def test_eligibility_gate_inverted_era_range_raises():
     ranges. Otherwise an operator typo (era_min=1300, era_max=1066)
     silently produces an empty eligibility pool downstream, which
     surfaces as '0 mentions generated' with no diagnostic."""
-    import pytest
 
     with pytest.raises(ValueError, match=r"era_min .* must be <= era_max"):
         EligibilityGate(culture="english", era_min=1300, era_max=1066)
@@ -429,9 +430,6 @@ def test_compose_register_effects_rejects_nan():
     propagate as NaN scores downstream, silently corrupting ranking.
     _clamp_in_place raises loudly instead. (silent-failure-hunter
     round 1 finding.)"""
-    import math
-
-    import pytest
 
     a = RegisterEffect(name="a", phonological={"cluster_density": math.nan})
     with pytest.raises(ValueError, match=r"NaN/Inf inputs"):
@@ -439,9 +437,6 @@ def test_compose_register_effects_rejects_nan():
 
 
 def test_compose_register_effects_rejects_inf():
-    import math
-
-    import pytest
 
     a = RegisterEffect(name="a", semantic_tags={"death": math.inf})
     with pytest.raises(ValueError, match=r"NaN/Inf inputs"):
