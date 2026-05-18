@@ -30,21 +30,20 @@ if TYPE_CHECKING:
 # / ``LANGUAGE_FIELDS`` imports unchanged.
 from wyrd.generators.kenning.lexicon.constants import (  # noqa: E402
     LANGUAGE_FIELDS,
-    NON_LANGUAGE_FIELDS,
-    OCR_LIGATURE_MAP,
     normalize_ocr_form,
     position_from_usage,
+)
+from wyrd.generators.kenning.lexicon.constants import (  # noqa: E402
+    NON_LANGUAGE_FIELDS as NON_LANGUAGE_FIELDS,
 )
 from wyrd.generators.kenning.lexicon.db import (  # noqa: E402
     LexiconDB,
     _apply_persistent_pragmas,
 )
 
-# Underscore-prefixed aliases for the existing internal callers; the
-# canonical names are the un-prefixed exports from
-# ``lexicon.constants``. Kept until the rest of the package's call
-# sites migrate.
-_OCR_LIGATURE_MAP = OCR_LIGATURE_MAP
+# Underscore-prefixed alias for the existing internal callers; the
+# canonical name is the un-prefixed export from ``lexicon.constants``.
+# Kept until the rest of the package's call sites migrate.
 _position_from_usage = position_from_usage
 
 
