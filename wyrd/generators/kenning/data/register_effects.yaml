@@ -1,0 +1,199 @@
+# Register-effect catalog — wyrd-kq7w.2.
+#
+# Each register effect is a triple of vectors that the request-vector
+# composition (wyrd/generators/kenning/vector_schemas.py
+# compose_register_effects) sums and clamps to [-1, +1] per dimension:
+#
+#   <name>:
+#     phonological:    {<feature>: <weight in [-1, +1]>, ...}
+#     semantic_tags:   {<tag>: <weight in [-1, +1]>, ...}
+#     position_bias:   {<position>: <weight in [-1, +1]>, ...}
+#
+# Phonological feature names MUST be in the PhonologicalFeatureName
+# Literal in vector_schemas.py (14 v1 dimensions): cluster_density,
+# final_fortition, final_cluster_rate, vowel_final_bias,
+# soft_consonants, polysyllabic_bias, palatalization, sibilance,
+# retroflexion, pharyngeal, vowel_height, vowel_backness,
+# stop_vs_continuant, aspirated_voiceless. The loader validates at
+# parse time; typos raise loudly rather than silently no-op.
+#
+# Semantic tag names are open-set — they bind to the bundled
+# meaning-database's tag set (death, military, monster, undead,
+# magic, plant, water, agriculture, tree, bird, saint, religious,
+# topography, geology, descriptive, animal, fantasy). The loader
+# does NOT validate these against any catalog — a tag the meaning
+# DB doesn't carry simply contributes nothing to the semantic axis.
+#
+# Position bias keys are free-form strings matching D36.1's
+# position vocabulary (pre, inner, post, plus future positions like
+# manorial-affix, locative-phrase, folk-connector etc.).
+#
+# Migration (v1, 2026-05-18): grim / harsh / pastoral / devotional /
+# mortuary migrated from the legacy MOODS dict
+# (wyrd/generators/kenning/__init__.py). New entries surfaced at the
+# 2026-05-16 design discussion: noble / mystical / melodic / sinister
+# / ancient / exotic / martial.
+
+# === Migrated from MOODS ==================================================
+
+grim:
+  # Legacy MOODS: tags = (death, military, monster, undead, magic).
+  # Tag-driven mood; phonology stays neutral so the operator can
+  # compose with --register grim,harsh for "grim AND phonologically
+  # menacing" without double-counting harshness.
+  phonological: {}
+  semantic_tags:
+    death: 0.7
+    military: 0.3
+    monster: 0.5
+    undead: 0.6
+    magic: 0.4
+  position_bias: {}
+
+harsh:
+  # Legacy MOODS: harshness=1.0 (phonology-only via _harshness_score
+  # in proportions.py — coda harshness 45% + cluster density 35% +
+  # consonant density 20%). Migrated into the named-dimension
+  # vector. Clusters / final fortition / final clusters dominate;
+  # soft-consonant + vowel-final biases push negative.
+  phonological:
+    cluster_density: 0.6
+    final_fortition: 0.5
+    final_cluster_rate: 0.5
+    vowel_final_bias: -0.4
+    soft_consonants: -0.5
+    stop_vs_continuant: 0.4
+  semantic_tags: {}
+  position_bias: {}
+
+pastoral:
+  # Legacy MOODS: tags = (plant, animal, water, agriculture, tree,
+  # bird). Soft phonology added — rural feel reads better when the
+  # phonology matches the semantic register.
+  phonological:
+    vowel_final_bias: 0.3
+    soft_consonants: 0.4
+    cluster_density: -0.3
+  semantic_tags:
+    plant: 0.5
+    animal: 0.4
+    water: 0.5
+    agriculture: 0.6
+    tree: 0.4
+    bird: 0.4
+  position_bias: {}
+
+devotional:
+  # Legacy MOODS: tags = (saint, religious). Polysyllabic + soft
+  # phonology added — saintly/monastic naming reads better with
+  # longer melodic words.
+  phonological:
+    polysyllabic_bias: 0.3
+    soft_consonants: 0.2
+  semantic_tags:
+    saint: 0.7
+    religious: 0.6
+  position_bias: {}
+
+mortuary:
+  # Legacy MOODS: tags = (death, undead) — strict subset of grim
+  # for cases where the operator wants death-themed without the
+  # military / monster axes.
+  phonological: {}
+  semantic_tags:
+    death: 0.8
+    undead: 0.6
+  position_bias: {}
+
+# === New entries (2026-05-16 design discussion) ===========================
+
+noble:
+  # Phonology-only at v1: polysyllabic + soft + vowel-final biases
+  # give a grand-but-not-harsh feel. Semantic side waits on a
+  # 'royalty' tag in the meaning DB (mining hasn't surfaced one).
+  phonological:
+    polysyllabic_bias: 0.5
+    soft_consonants: 0.3
+    vowel_final_bias: 0.4
+  semantic_tags: {}
+  position_bias: {}
+
+mystical:
+  # Sibilant + palatal + soft consonants; semantic tilt toward
+  # magic / fantasy. Suitable for wizard-tower / fey naming.
+  phonological:
+    sibilance: 0.4
+    palatalization: 0.3
+    soft_consonants: 0.2
+  semantic_tags:
+    magic: 0.6
+    fantasy: 0.4
+    monster: 0.2
+  position_bias: {}
+
+melodic:
+  # Maximally vowel-final + polysyllabic + soft. Useful for elven /
+  # romance-language-feel registers without picking a specific
+  # culture. Phonology-only.
+  phonological:
+    vowel_final_bias: 0.5
+    polysyllabic_bias: 0.4
+    soft_consonants: 0.3
+    vowel_height: 0.2
+  semantic_tags: {}
+  position_bias: {}
+
+sinister:
+  # Hard-consonant phonology + monster/undead/magic tags. Distinct
+  # from grim (which is tag-only) in that sinister biases the
+  # phonology too, for a more menacing "feel" without going full
+  # harsh.
+  phonological:
+    cluster_density: 0.4
+    final_fortition: 0.3
+    sibilance: 0.3
+  semantic_tags:
+    monster: 0.5
+    magic: 0.3
+    undead: 0.4
+  position_bias: {}
+
+ancient:
+  # Longer / vowel-final phonology + landscape/topography semantics.
+  # Suggests pre-Conquest / archaic-feel place names without binding
+  # to a specific culture's register.
+  phonological:
+    polysyllabic_bias: 0.3
+    vowel_final_bias: 0.2
+    pharyngeal: 0.2
+  semantic_tags:
+    topography: 0.3
+    geology: 0.2
+    descriptive: 0.2
+  position_bias: {}
+
+exotic:
+  # Phonology features less common in English: palatalization,
+  # retroflexion, pharyngeal, back vowels. Phonology-only — the
+  # "exotic" feeling is structural, not semantic.
+  phonological:
+    palatalization: 0.4
+    retroflexion: 0.4
+    pharyngeal: 0.3
+    vowel_backness: -0.2
+  semantic_tags: {}
+  position_bias: {}
+
+martial:
+  # Stop-final / cluster-heavy phonology + military semantics.
+  # Distinct from harsh in that martial leans on stops specifically
+  # (rather than clusters + final fortition broadly), giving a more
+  # disciplined "soldier" feel than the chaotic-harsh register.
+  phonological:
+    final_fortition: 0.4
+    cluster_density: 0.3
+    stop_vs_continuant: 0.4
+  semantic_tags:
+    military: 0.7
+    monster: 0.3
+  position_bias: {}

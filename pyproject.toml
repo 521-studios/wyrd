@@ -13,6 +13,13 @@ dependencies = [
     # ``ingest-wiktionary``, so other CLI paths pay no startup cost.
     "boto3>=1.34",
     "zstandard>=0.22",
+    # wyrd-kq7w.2: PyYAML reads the operator-edited
+    # register_effects.yaml catalog (kenning/data/register_effects.yaml).
+    # YAML over JSON for nested-dict readability when an operator
+    # hand-edits the catalog; load is lazy (only fires on first
+    # register-effect access) so cold-start cost is paid only when a
+    # --register flag is used.
+    "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -50,7 +57,7 @@ where = ["."]
 include = ["wyrd*"]
 
 [tool.setuptools.package-data]
-"wyrd.generators.kenning" = ["data/*.json", "data/*.sql"]
+"wyrd.generators.kenning" = ["data/*.json", "data/*.sql", "data/*.yaml"]
 
 [tool.black]
 line-length = 100
