@@ -1750,3 +1750,287 @@ Defensive `collect_canonical_decompositions`: returns empty
 dict when the `toponym_decomposition` table is missing
 (older DBs predate wyrd-08m Phase 1 migration). Prevents
 the bundle export from crashing on unmigrated DBs.
+
+
+## D36. Vector-driven generator architecture (wyrd-ecjp, wyrd-kq7w.1/.2, 2026-05-18).
+
+The flat per-culture proportions JSON + scalar `--mood` /
+`--harshness` / `--cohesion` / `--novelty` knobs are replaced
+by composable vector scoring across four axes, hard
+eligibility gates outside vector space, and pack-overlay
+composition for scenario packs. Foundation for the fantasy-
+language epic (wyrd-v2gm), the narrative-translator epic
+(wyrd-sreb), and the rip-and-replace mood-system work
+(wyrd-kq7w).
+
+Nine sub-decisions locked 2026-05-16, consolidated here as
+the spec entry for Phase 1 (wyrd-ecjp.1). The in-memory
+representation lives in
+`wyrd/generators/kenning/vector_schemas.py`; the catalog
+authoring source is
+`wyrd/generators/kenning/data/register_effects.yaml` (Phase B,
+wyrd-kq7w.2). Both file paths are part of the API contract
+for downstream phases.
+
+### D36.1. Four scoring axes.
+
+Generation scores each candidate lemma against four
+independent axes:
+
+* **Phonological** — feature vector per lemma. v1 has 14
+  named dimensions (cluster_density, final_fortition,
+  final_cluster_rate, vowel_final_bias, soft_consonants,
+  polysyllabic_bias, palatalization, sibilance, retroflexion,
+  pharyngeal, vowel_height, vowel_backness,
+  stop_vs_continuant, aspirated_voiceless) plus an `extras`
+  forward-compat slot. Computed once per etymon from
+  canonical_form + IPA; persisted alongside the etymon row
+  (`PhonologicalVector`, schema half of wyrd-kq7w.1).
+* **Semantic** — tag-weight dict per lemma. Reuses the
+  existing meaning-database tag set (death, plant, water,
+  saint, religious, military, magic, etc.). No new schema
+  on the lemma side — the semantic-score is a dot product
+  between the request's semantic-tag weight vector and the
+  lemma's tag membership (1.0 if tagged, 0.0 if not).
+* **Position** — slot-prior dict per lemma. Position labels
+  are free-form strings, not a closed enum — the data shape
+  supports arbitrary positions (first-element / second-element
+  / folk-connector like `-inga-` / manorial-affix like Mandeville
+  / locative-phrase like upon-Tyne / hundred-prefix / bishopric-
+  prefix / etc.) as the corpus surfaces them. The v1 catalog
+  migrates the existing proportions-shape position labels
+  unchanged; later positions append as new string keys without
+  a schema migration. The "first vs second" framing in informal
+  prose is illustrative shorthand only — the scoring runtime,
+  the priors-keyed lookups, and the register-effect
+  `position_bias` dict all treat position as an opaque string.
+* **Empirical-baseline** — frequency prior per (culture,
+  position, tag, era) for native generation; per (donor,
+  recipient, position, tag, era) for pack overlays. Derived
+  artifact: Phase 2 (wyrd-ecjp.2) materializes this from the
+  lexicon DB. Re-runnable / versioned (see D36.9).
+
+Hard gates (culture, era, stratum, pack allowlist/tag-filter)
+live OUTSIDE the vector space as boolean predicates — they
+shrink the eligible-lemma pool BEFORE any scoring happens.
+A lemma either matches or it doesn't; soft preferences
+belong on the vector axes.
+
+### D36.2. Canonical composition rule.
+
+For each candidate lemma in each slot, the total score is
+
+```
+score(lemma) = phon_w * phon_score(lemma, request)
+             + sem_w  * sem_score(lemma, request)
+             + pos_w  * pos_score(lemma, request, slot)
+             + base_w * baseline_score(lemma, source, request)
+```
+
+where `phon_w` / `sem_w` / `pos_w` / `base_w` are the per-axis
+scalar weights from `ScoringWeights`. Default weights are
+all 1.0 (every axis contributes equally). The user-facing
+knobs map onto these:
+
+* `--register harsh:0.8,grim:0.5` composes the harsh and grim
+  register effects (scaled by 0.8 and 0.5), sums them, clamps
+  to [-1, +1] per dimension, and uses the result as the
+  request's `register` vector. The axis weights stay at
+  default; the DIRECTION of preference changes.
+* `--realism 0.5` halves `base_w`. The empirical-baseline
+  axis contributes half as much; non-baseline-favoured
+  lemmas score relatively higher. Per D36.3 below, this is
+  the ONE realism knob — there's no separate concept.
+* `--novelty 0.5` is handled by the D17 cohesion-adapter
+  layer, not the per-axis weights. See D36.5.
+
+`baseline_score(lemma, source, request)` reads from the
+empirical-priors artifact: `source=native` looks up
+`priors.native[(culture, position, tag, era)][lemma]`;
+`source=pack P` looks up
+`priors.loan_relationship[(P.template_donor, P.template_recipient,
+position, tag, era)][lemma]`, weighted by `P.weight`.
+
+### D36.3. Empirical baseline is an axis, not a separate concept.
+
+Pre-2026-05-16 thinking included a "realism" or "baseline-
+retention" axis distinct from the per-axis weights. That
+created an N²-knob problem (every register-axis weight could
+in principle be modulated by realism independently) and
+confused the auto-blend semantics when register effects
+engaged. D36.3 collapses realism into a single axis weight
+(`base_w`) in the canonical formula — no separate `realism`
+flag, no "baseline-retention" property on register effects.
+The auto-blend semantics fall out of the formula itself; no
+hidden re-weighting needed.
+
+Pack weight is INDEPENDENT from base_w (D36.4). The operator
+can ask for "high realism + low pack" (base_w=1.0,
+pack.weight=0.2) or "low realism + heavy pack" (base_w=0.2,
+pack.weight=2.0) as orthogonal knobs.
+
+### D36.4. Pack lemmas inherit their template's empirical baseline (Option B).
+
+A scenario pack (Khuzdul, Tatar, Polynesian, etc.) declares a
+TEMPLATE relationship — `(template_donor, template_recipient)`
+— that maps onto a real-world loan relationship the pack is
+modeled on. Khuzdul-templated-on-ON→OE uses the ON→OE
+loan-relationship empirical baseline as its
+baseline-axis reference. A bare invocation of `--culture
+english --pack neo-khuzdul` (no other knobs) produces output
+where Khuzdul lemmas appear at the rate REAL Old Norse loans
+empirically appeared in Old English place-naming.
+
+Pack weight (`pack.weight`, default 1.0) is a multiplier on
+the pack's baseline contribution. weight=0 produces native-
+only generation even with the pack declared; weight=1 is the
+historical loan rate; weight>1 over-weights the pack. The
+multiplier is purely on the baseline axis; the pack's lemmas
+still go through the same phonological/semantic/position
+axes as native lemmas, so a request for `--register harsh`
+biases pack lemmas toward harsh ones too.
+
+Two packs simultaneously declared compose additively on the
+baseline axis. Multi-pack composition semantics live in
+Phase 7 (wyrd-ecjp.8) — for the spec lock we just say "their
+baseline contributions sum" without locking the exact
+normalization-across-packs rule (which Phase 7 calibrates
+against empirical data).
+
+### D36.5. D17 cohesion preserved via adapter, not re-derived.
+
+The existing D17 Bayesian-mixture novelty + cohesion model
+stays the runtime sampling layer. The vector-driven
+generator produces per-lemma vector scores; a
+`CohesionContext`-wrapped scorer applies the existing
+tag-class-prior multiplier (`key_boost` in the current
+`Generator.select` API) BEFORE the novelty blend
+(`(1-novelty)·boosted + novelty·uniform`).
+
+In other words: D36 replaces the WEIGHT-COMPUTATION machinery
+(harshness scoring, tag-include filter, etc.) but plugs into
+the existing SAMPLING machinery unchanged. `--novelty` and
+`--cohesion` semantics stay byte-stable; the Braitham Gate
+regression test from D17 must still pass after the
+NameGenerator rewrite (wyrd-ecjp.5).
+
+The adapter glue lives between Phase 4 (vector scoring) and
+Phase 5 (NameGenerator rewrite). Phase 4 emits per-slot
+vector scores; the cohesion adapter wraps them with the
+context-conditional boost from picked-tags-so-far; Phase 5's
+slot walk calls the wrapped scorer.
+
+### D36.6. Culture is a hard gate in v1.
+
+`--culture english` excludes everything not in the english
+stratum, period. Soft culture blends ("Welsh-50%-English") are
+future expressivity, not v1. The hard gate makes runtime
+behavior predictable and indexes cleanly (Phase 3,
+wyrd-ecjp.3, pre-computes per-culture eligibility sets at
+bundle-build time).
+
+The `--tag` knob also stays (per Q6 user direction). A
+positive-tag filter is a hard gate; lemmas not carrying the
+requested tag are excluded BEFORE scoring. Exclude-tags
+(wyrd-yan) likewise stay as a hard exclusion filter.
+
+The vector model's semantic-axis weights provide the SOFT
+version of tag preference (this is the "lean toward death-
+themed names" knob); the existing `--tag` is the HARD version
+("only names with the death tag"). Both coexist.
+
+### D36.7. Per (culture × position × tag × era) priors granularity.
+
+The empirical-priors artifact is keyed at (culture, position,
+tag, era) for native cells and (donor, recipient, position,
+tag, era) for loan-relationship cells. Era buckets are
+integer-year mid-points of D5's era model (pre-Conquest,
+Domesday, late-medieval, early-modern, modern). Tag is a
+single semantic-tag string — lemmas carrying multiple tags
+appear under each independently, and the baseline-score
+combinator aggregates across tags at scoring time (the
+aggregation rule is Phase 2's call: sum / max / weighted-by-
+request-tag-weights).
+
+Per D7 in the parent epic locking: this granularity matches
+the existing meaning-db's tag/era surface, so no new lemma-
+side schema is needed beyond what wyrd-kq7w.1 adds. Sparsity
+in low-coverage cells (e.g. Old Norse × stratum-marginal ×
+era-marginal) is handled by Phase 2's smoothing rule, also a
+Phase 2 decision.
+
+### D36.8. Tolerance bands deferred to Phase 6a.
+
+The drift-measurement work (Phase 6a, wyrd-ecjp.6) measures
+how priors shift between regenerations. Tolerance bands —
+the thresholds at which a priors shift is judged
+"significant" — are calibrated against empirical drift, not
+declared a priori at the spec lock. Phase 6a runs a series
+of priors regenerations across mining-checkpoint snapshots,
+measures per-cell distributions of the inter-version delta,
+and proposes bands sized to bracket typical drift. Phase 6b
+(wyrd-ecjp.7) locks those bands into the regression test
+suite.
+
+### D36.9. The priors artifact is a re-runnable deterministic derived artifact.
+
+Priors extraction (Phase 2) is a derived artifact, not a
+one-shot import. Re-running on the same lexicon DB state
+produces a byte-identical priors file; re-running after new
+mining lands produces a new versioned file. Downstream caches
++ bundle builds key on the priors version so a regenerated
+artifact invalidates only what depends on it.
+
+Operational implication: the framework code (Phases 1, 3, 4,
+5, 7, 8) is stable across data evolution. The priors and
+the bundles built from them re-roll as the corpus grows.
+Tests parametrize on priors rather than asserting against
+specific values — bad pattern: `assert score("Edwarston")
+== 0.847` (breaks every regen); good pattern: `assert
+score(name) > score(distractor)` (relative ordering,
+robust to priors evolution). Frozen test-priors snapshots
+are used where a specific value is needed; they regenerate
+from a fixed-seed corpus subset.
+
+### Why this shape.
+
+Three load-bearing properties of the architecture:
+
+1. **Composability.** Multiple register effects compose
+   additively (`--register harsh:0.5,grim:0.7,ancient:0.3`).
+   Multiple packs compose additively on the baseline axis.
+   The four scoring axes compose additively per the
+   canonical formula. The CLI / API surface stays small
+   because each axis is independently meaningful.
+
+2. **Data evolution without code churn.** New mining data
+   regenerates priors; the framework code stays put. The
+   register catalog YAML lets the operator add a new
+   register effect (e.g. `melodic`) without a code change.
+   Phase 6's drift bands quantify "how much priors evolution
+   is benign."
+
+3. **Pack overlays without bespoke pack-rule code.** A new
+   scenario pack just declares its (template_donor,
+   template_recipient) and ships lemmas; the same scoring
+   runtime + priors lookup handles every pack identically.
+
+### Cross-references.
+
+`wyrd-ecjp.1` (this spec). Depends on `wyrd-kq7w.1` (Phase A:
+per-lemma phonological-vector schema + corpus enrichment
+pass — schema half locked here, enrichment pass is the
+follow-on work) and `wyrd-kq7w.2` (Phase B:
+register_effects.yaml catalog format + composition rules —
+format locked here, catalog content-population is the
+follow-on work).
+
+Blocks: `wyrd-ecjp.2` (Phase 2 priors extraction),
+`wyrd-ecjp.3` (Phase 3 eligibility-gate runtime),
+`wyrd-ecjp.4` (Phase 4 vector-scoring runtime),
+`wyrd-ecjp.5` (Phase 5 NameGenerator rewrite),
+`wyrd-ecjp.6/7` (Phase 6 drift measurement + tolerance),
+`wyrd-ecjp.8` (Phase 7 bundle + pack overlay),
+`wyrd-ecjp.9` (Phase 8 CLI + integration + docs). Downstream
+consumers (wyrd-v2gm, wyrd-sreb, wyrd-kq7w) listed in the
+introduction above.
