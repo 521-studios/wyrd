@@ -157,6 +157,22 @@ def test_native_lookup_exact_cell_missing_lemma_returns_none():
     assert _native_lookup_exact(priors, "old-english:āc", "english", "pre", "plant", 950) is None
 
 
+def test_native_lookup_exact_lemma_stored_at_zero_returns_zero_not_none():
+    """Defensive: a lemma explicitly stored with weight 0.0 must be
+    reported as PRESENT (returning 0.0), not as MISSING (returning
+    None). Missing-vs-stored-zero matters because returning None
+    triggers hierarchical fallback to a coarser cell — a stored
+    zero is real evidence that this lemma should not score in this
+    cell, and fallback would silently override it.
+
+    The L3-table schema CHECK currently excludes count=0, but the
+    in-memory EmpiricalPriors dataclass doesn't enforce that and
+    future schema changes might. Pinning this contract here keeps
+    the behavior stable."""
+    priors = EmpiricalPriors(native={("english", "pre", "plant", 950): {"old-english:āc": 0.0}})
+    assert _native_lookup_exact(priors, "old-english:āc", "english", "pre", "plant", 950) == 0.0
+
+
 # ---------- _native_lookup_with_fallback --------------------------------
 
 
@@ -287,6 +303,95 @@ def test_loan_lookup_donor_recipient_isolation():
     )
 
 
+def test_loan_lookup_tag_and_era_wildcard():
+    """Level 3: exact + era-wild both miss; (d, r, p, *, *) has lemma."""
+    priors = EmpiricalPriors(
+        loan_relationship={
+            ("old-norse", "english", "pre", "kinship", 950): {"old-norse:karl": 3.0},
+            ("old-norse", "english", "pre", "kinship", 1300): {"old-norse:karl": 6.0},
+        }
+    )
+    # exact (pre, social, 950) misses; era-wild (pre, social, *) misses;
+    # (pre, *, *) finds kinship cells → max(3, 6) = 6
+    assert (
+        _loan_lookup_with_fallback(
+            priors, "old-norse:karl", "old-norse", "english", "pre", "social", 950
+        )
+        == 6.0
+    )
+
+
+def test_loan_lookup_position_tag_era_wildcard():
+    """Level 4: (d, r, *, *, *) finds the lemma in any cell for the
+    donor/recipient."""
+    priors = EmpiricalPriors(
+        loan_relationship={
+            ("old-norse", "english", "post", "kinship", 1300): {"old-norse:karl": 9.0},
+        }
+    )
+    # exact and all narrower wildcards miss; (donor, recipient, *, *, *)
+    # finds the post-cell → 9.0
+    assert (
+        _loan_lookup_with_fallback(
+            priors, "old-norse:karl", "old-norse", "english", "pre", "social", 950
+        )
+        == 9.0
+    )
+
+
+def test_loan_lookup_no_lemma_anywhere_returns_zero():
+    priors = EmpiricalPriors(
+        loan_relationship={("old-norse", "english", "pre", "social", 950): {"old-norse:other": 4.0}}
+    )
+    assert (
+        _loan_lookup_with_fallback(
+            priors, "old-norse:karl", "old-norse", "english", "pre", "social", 950
+        )
+        == 0.0
+    )
+
+
+def test_native_lookup_fallback_exact_short_circuits_past_era_wild():
+    """Pin the level-priority contract: when the exact cell has the
+    lemma, the era-wild scan MUST NOT consult lower-specificity cells.
+    A regression that took max across ALL levels (instead of
+    short-circuiting at the most specific match) would silently
+    return the lower-level weight instead of the exact-cell weight.
+
+    The exact cell stores weight 3.0; lower-specificity cells store
+    99.0. Correct behavior returns 3.0 (most-specific evidence wins);
+    a broken aggregator returning max-across-all-levels returns 99.0.
+    """
+    priors = EmpiricalPriors(
+        native={
+            ("english", "pre", "plant", 950): {"old-english:āc": 3.0},
+            # Lower-specificity (era-wild from plant's perspective)
+            ("english", "pre", "plant", 1300): {"old-english:āc": 99.0},
+            # Tag-wild
+            ("english", "pre", "tree", 950): {"old-english:āc": 99.0},
+            # Position-wild
+            ("english", "post", "plant", 950): {"old-english:āc": 99.0},
+        }
+    )
+    result = _native_lookup_with_fallback(priors, "old-english:āc", "english", "pre", "plant", 950)
+    assert result == 3.0
+
+
+def test_loan_lookup_fallback_exact_short_circuits_past_era_wild():
+    """Same level-priority pin for the loan-relationship fallback."""
+    priors = EmpiricalPriors(
+        loan_relationship={
+            ("old-norse", "english", "pre", "social", 950): {"old-norse:karl": 3.0},
+            ("old-norse", "english", "pre", "social", 1300): {"old-norse:karl": 99.0},
+            ("old-norse", "english", "pre", "kinship", 950): {"old-norse:karl": 99.0},
+        }
+    )
+    result = _loan_lookup_with_fallback(
+        priors, "old-norse:karl", "old-norse", "english", "pre", "social", 950
+    )
+    assert result == 3.0
+
+
 # ---------- baseline_score_native ---------------------------------------
 
 
@@ -408,7 +513,7 @@ def test_baseline_pack_lookup_through_template_donor_recipient():
     result = baseline_score_pack(
         "khuz:karl",
         ["social"],
-        _pack(),
+        pack=_pack(),
         slot_position="pre",
         era_midpoint=950,
         priors=priors,
@@ -430,7 +535,7 @@ def test_baseline_pack_does_not_apply_pack_weight():
     result_full = baseline_score_pack(
         "khuz:karl",
         ["social"],
-        pack_full,
+        pack=pack_full,
         slot_position="pre",
         era_midpoint=950,
         priors=priors,
@@ -439,7 +544,7 @@ def test_baseline_pack_does_not_apply_pack_weight():
     result_half = baseline_score_pack(
         "khuz:karl",
         ["social"],
-        pack_half,
+        pack=pack_half,
         slot_position="pre",
         era_midpoint=950,
         priors=priors,
@@ -447,6 +552,63 @@ def test_baseline_pack_does_not_apply_pack_weight():
     )
     # Both ignore pack.weight — caller's responsibility
     assert result_full == result_half
+
+
+def test_baseline_pack_empty_request_tag_weights_returns_zero():
+    """Same short-circuit behavior as baseline_score_native: no
+    request semantic interest → no per-tag aggregation."""
+    priors = EmpiricalPriors(
+        loan_relationship={("old-norse", "english", "pre", "social", 950): {"khuz:karl": 4.0}}
+    )
+    result = baseline_score_pack(
+        "khuz:karl",
+        ["social"],
+        pack=_pack(),
+        slot_position="pre",
+        era_midpoint=950,
+        priors=priors,
+        request_tag_weights={},
+    )
+    assert result == 0.0
+
+
+def test_baseline_pack_empty_lemma_tags_returns_zero():
+    """Lemma with no tags has nothing to aggregate over."""
+    priors = EmpiricalPriors(
+        loan_relationship={("old-norse", "english", "pre", "social", 950): {"khuz:karl": 4.0}}
+    )
+    result = baseline_score_pack(
+        "khuz:karl",
+        [],
+        pack=_pack(),
+        slot_position="pre",
+        era_midpoint=950,
+        priors=priors,
+        request_tag_weights=_request_tag_weights(social=0.5),
+    )
+    assert result == 0.0
+
+
+def test_baseline_pack_skips_zero_weight_tags():
+    """Tags the request weights at 0 short-circuit out of the per-tag
+    loop, matching baseline_score_native's behavior."""
+    priors = EmpiricalPriors(
+        loan_relationship={
+            ("old-norse", "english", "pre", "social", 950): {"khuz:karl": 4.0},
+            ("old-norse", "english", "pre", "magic", 950): {"khuz:karl": 99.0},
+        }
+    )
+    result = baseline_score_pack(
+        "khuz:karl",
+        ["social", "magic"],
+        pack=_pack(),
+        slot_position="pre",
+        era_midpoint=950,
+        priors=priors,
+        request_tag_weights=_request_tag_weights(social=0.5, magic=0.0),
+    )
+    # magic short-circuits; only social contributes: 0.5 * 4.0 = 2.0
+    assert result == pytest.approx(2.0)
 
 
 # ---------- baseline_score (full: native + per-pack scaled) -------------
@@ -528,8 +690,8 @@ def test_baseline_full_multi_pack_sums():
     """Multiple admitted packs sum on the baseline axis."""
     priors = EmpiricalPriors(
         loan_relationship={
-            ("old-norse", "english", "pre", "social", 950): {"karl": 4.0},
-            ("medieval-french", "english", "pre", "social", 950): {"karl": 2.0},
+            ("old-norse", "english", "pre", "social", 950): {"old-norse:karl": 4.0},
+            ("old-french", "english", "pre", "social", 950): {"old-norse:karl": 2.0},
         }
     )
     pack_a = PackOverlay(
@@ -537,12 +699,12 @@ def test_baseline_full_multi_pack_sums():
     )
     pack_b = PackOverlay(
         pack_name="b",
-        template_donor="medieval-french",
+        template_donor="old-french",
         template_recipient="english",
         weight=1.0,
     )
     result = baseline_score(
-        "karl",
+        "old-norse:karl",
         ["social"],
         culture="english",
         slot_position="pre",
@@ -721,3 +883,121 @@ def test_score_realism_zero_collapses_to_register_driven():
     # phon: 0.2, sem: 0.6, pos: 0, baseline: 999 * 0.6 = 599.4 but
     # base_w=0 cancels it → total = 0.2 + 0.6 = 0.8
     assert result == pytest.approx(0.8)
+
+
+def test_score_with_admitted_pack_includes_pack_baseline():
+    """Top-level score() with a non-empty packs list exercises the
+    baseline_score's pack-side branch. Previously every score() test
+    used default packs=() — the integration test set never reached
+    the per-pack baseline composition."""
+    lemma_phon = PhonologicalVector()  # all zeros — phon_score contributes 0
+    register = RegisterEffect(name="r", semantic_tags={"social": 0.5})
+    pack = PackOverlay(
+        pack_name="khuz",
+        template_donor="old-norse",
+        template_recipient="english",
+        weight=1.0,
+    )
+    priors = EmpiricalPriors(
+        loan_relationship={("old-norse", "english", "pre", "social", 950): {"khuz:karl": 4.0}}
+    )
+    request = RequestVector(gate=_gate(), register=register, packs=(pack,))
+    result = score(
+        "khuz:karl",
+        ["social"],
+        lemma_phon,
+        request=request,
+        slot_position="pre",
+        era_midpoint=950,
+        priors=priors,
+    )
+    # phon: 0
+    # sem: 0.5 (single matching tag at request weight 0.5)
+    # pos: 0
+    # baseline: native (0) + pack.weight (1.0) * 0.5 * 4.0 = 2.0
+    # total at default ScoringWeights: 0.5 + 2.0 = 2.5
+    assert result == pytest.approx(2.5)
+
+
+def test_score_with_generator_lemma_tags_is_multi_pass_safe():
+    """Pin the contract that lemma_tags can be a generator/iterator
+    even though it's consumed by multiple sub-scorers. The fix:
+    score() materializes a frozenset once at top before passing to
+    sub-scorers. A regression that re-passed the raw iterator
+    would silently zero sem_score + baseline_score after the first
+    consumer drained it."""
+    lemma_phon = PhonologicalVector()
+    register = RegisterEffect(
+        name="r",
+        semantic_tags={"plant": 0.6},
+    )
+    priors = EmpiricalPriors(native={("english", "pre", "plant", 950): {"old-english:āc": 2.0}})
+    request = RequestVector(gate=_gate(), register=register)
+
+    # Tags as a single-pass generator
+    def tag_gen():
+        yield "plant"
+
+    result = score(
+        "old-english:āc",
+        tag_gen(),
+        lemma_phon,
+        request=request,
+        slot_position="pre",
+        era_midpoint=950,
+        priors=priors,
+    )
+    # sem: 0.6 (plant @ 0.6); baseline: 0.6 * 2.0 = 1.2; total: 1.8
+    assert result == pytest.approx(1.8)
+
+
+def test_score_seed_stable_across_string_set_iteration():
+    """The set(lemma_tags) → sum() pattern, if not order-pinned,
+    can produce bit-level different floats across Python processes
+    because string hashes are PYTHONHASHSEED-randomized and FP
+    addition is non-associative. The fix uses sorted(set(...)) for
+    deterministic iteration order. This test exercises a multi-tag
+    summation against a request with multiple weights — the order
+    of summation must be deterministic for the same inputs.
+
+    Pinning here means a regression that drops sorted() would
+    immediately show up via comparing the result against the
+    expected value computed in sorted-key order."""
+    lemma_phon = PhonologicalVector()
+    register = RegisterEffect(
+        name="r",
+        semantic_tags={"alpha": 0.1, "bravo": 0.2, "charlie": 0.3, "delta": 0.4},
+    )
+    priors = EmpiricalPriors()
+    request = RequestVector(gate=_gate(), register=register)
+    # Sum in sorted-key order: 0.1 + 0.2 + 0.3 + 0.4 = 1.0
+    expected = 0.1 + 0.2 + 0.3 + 0.4
+    result = score(
+        "x",
+        ["delta", "charlie", "bravo", "alpha"],  # arbitrary input order
+        lemma_phon,
+        request=request,
+        slot_position="pre",
+        era_midpoint=950,
+        priors=priors,
+    )
+    assert result == pytest.approx(expected)
+
+
+def test_baseline_native_negative_weight_pulls_score_down():
+    """A request that EXCLUDES a tag direction (negative weight) is
+    expected to pull baseline DOWN, not short-circuit. The current
+    short-circuit guard is `rw == 0.0`, which correctly preserves
+    negative weights. Pinning the signed-arithmetic semantics."""
+    priors = EmpiricalPriors(native={("english", "pre", "plant", 950): {"old-english:āc": 5.0}})
+    result = baseline_score_native(
+        "old-english:āc",
+        ["plant"],
+        culture="english",
+        slot_position="pre",
+        era_midpoint=950,
+        priors=priors,
+        request_tag_weights={"plant": -0.5},
+    )
+    # -0.5 * 5.0 = -2.5
+    assert result == pytest.approx(-2.5)

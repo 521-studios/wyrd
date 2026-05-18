@@ -34,10 +34,24 @@ This module implements the v1 reference shape:
   than the score; folding it in here would double-count.
 * ``baseline_score_native`` aggregates the empirical-priors lookup
   over the lemma's tags, weighted by the request's per-tag interest
-  (D36.7's "weighted-by-request-tag-weights" aggregation rule).
-  Hierarchical fallback per D36.7 walks the cells in
-  most-specific-first order:
+  (the "weighted-by-request-tag-weights" rule chosen for the
+  cross-tag aggregator — D36.7 lists this as one of three candidates
+  alongside sum / max and defers the call to the Phase 4 / Phase 2
+  implementation). Hierarchical fallback per D36.7 walks the cells
+  in most-specific-first order:
   ``(c, p, t, e) → (c, p, t, *) → (c, p, *, *) → (c, *, *, *) → 0``.
+
+  IMPLICATION OF THE COUPLING: ``baseline_score`` reads the request's
+  ``register.semantic_tags`` as the per-tag-weight vector for
+  aggregation. A request with a phonology-only register (e.g.
+  ``--register harsh`` alone, no ``--tag`` flags, no register-effect
+  that brings semantic_tags) supplies an empty tag-weight vector,
+  which collapses baseline to 0 even when ``base_w=1.0``. This is
+  consistent with the chosen aggregation rule (no per-tag interest
+  ⇒ no per-tag contribution to sum). Operators who want empirical
+  baseline driving generation must also pass a register effect or
+  --tag flag that supplies semantic_tags. Surfacing this trade-off
+  in the CLI help is wyrd-ecjp.9's job.
 * ``baseline_score_pack`` does the same against the
   ``loan_relationship`` priors keyed on the pack's
   (template_donor, template_recipient) — D36.4 Option B.
@@ -48,10 +62,10 @@ What's NOT here:
   implementation iterates ``priors.native.items()`` per lookup; that's
   O(N_cells) per (lemma × slot × tag) triple and won't meet the
   Phase 4 acceptance criterion's 2x perf bound on a corpus-scale
-  request. Phase 6a (wyrd-ecjp.6 drift measurement) and/or a
-  follow-up perf ticket will add a flat ``dict[lemma_ref,
-  dict[cell_key, weight]]`` reverse index that's O(1) for the
-  exact-match path. The reference shape here is correctness-first.
+  request. A flat ``dict[lemma_ref, dict[cell_key, weight]]``
+  reverse index gives O(1) for the exact-match path and a small
+  bounded walk for fallback levels; deferred to a follow-up perf
+  ticket. The reference shape here is correctness-first.
 * The D17 cohesion adapter (CohesionContext from vector_schemas)
   isn't called here — that's the wrapper layer between Phase 4 and
   Phase 5 (NameGenerator slot-walk), per D36.5. The cohesion
@@ -112,11 +126,19 @@ def sem_score(
     Tags the lemma carries but the request doesn't weight contribute
     0; tags the request weights but the lemma doesn't carry
     contribute 0. Only the intersection contributes.
+
+    Iteration uses ``sorted(set(lemma_tags))`` so floating-point sum
+    order is deterministic across processes — Python's set iteration
+    order over string keys depends on per-process hash
+    randomization, and FP addition is non-associative, so an
+    unsorted walk over a set of strings would produce bit-level
+    output differences for the same inputs. The seed-stable contract
+    requires order-pinning.
     """
     tag_weights = request_register.semantic_tags
     if not tag_weights:
         return 0.0
-    return sum(tag_weights.get(t, 0.0) for t in set(lemma_tags))
+    return sum(tag_weights.get(t, 0.0) for t in sorted(set(lemma_tags)))
 
 
 def pos_score(
@@ -152,11 +174,20 @@ def _native_lookup_exact(
     """Direct lookup at the most-specific (culture, position, tag, era)
     cell. Returns None when the cell doesn't exist OR exists but
     doesn't carry the lemma — both cases mean 'no exact-match data;
-    caller should try the fallback'."""
+    caller should try the fallback'.
+
+    Uses explicit ``in``-check rather than ``cell.get(lemma_ref)`` so a
+    lemma stored at weight 0.0 (defensive: the L3-table schema CHECK
+    excludes 0, but the in-memory EmpiricalPriors dataclass doesn't
+    enforce that) is correctly reported as PRESENT (returning 0.0)
+    rather than ABSENT (returning None and triggering fallback to a
+    coarser cell). Matches the convention used in
+    ``_loan_lookup_with_fallback``.
+    """
     cell = priors.native.get((culture, position, tag, era_midpoint))
-    if cell is None:
+    if cell is None or lemma_ref not in cell:
         return None
-    return cell.get(lemma_ref)
+    return cell[lemma_ref]
 
 
 def _native_lookup_with_fallback(
@@ -305,7 +336,9 @@ def baseline_score_native(
     if not request_tag_weights:
         return 0.0
     total = 0.0
-    for tag in set(lemma_tags):
+    # sorted(set(...)) pins the FP-sum iteration order against hash
+    # randomization (see sem_score for the same rationale).
+    for tag in sorted(set(lemma_tags)):
         rw = request_tag_weights.get(tag, 0.0)
         if rw == 0.0:
             continue
@@ -319,8 +352,8 @@ def baseline_score_native(
 def baseline_score_pack(
     lemma_ref: str,
     lemma_tags: Iterable[str],
-    pack: PackOverlay,
     *,
+    pack: PackOverlay,
     slot_position: str,
     era_midpoint: int,
     priors: EmpiricalPriors,
@@ -338,7 +371,9 @@ def baseline_score_pack(
     if not request_tag_weights:
         return 0.0
     total = 0.0
-    for tag in set(lemma_tags):
+    # sorted(set(...)) pins the FP-sum iteration order against hash
+    # randomization (see sem_score for the same rationale).
+    for tag in sorted(set(lemma_tags)):
         rw = request_tag_weights.get(tag, 0.0)
         if rw == 0.0:
             continue
@@ -395,7 +430,7 @@ def baseline_score(
         per_pack = baseline_score_pack(
             lemma_ref,
             lemma_tags,
-            pack,
+            pack=pack,
             slot_position=slot_position,
             era_midpoint=era_midpoint,
             priors=priors,
@@ -471,13 +506,27 @@ def score(
 
     Seed-stable contract: same inputs → same float (no randomness,
     no hash-iteration order, no datetime).
+
+    Note on ``lemma_tags``: the parameter is typed ``Iterable[str]``
+    for caller convenience but the value is consumed by multiple
+    sub-scorers (sem_score, baseline_score, plus one pass per
+    admitted pack). To support iterator / generator callers safely,
+    this function materializes the tags into a frozenset ONCE up
+    front; sub-scorers see a multi-pass collection. A bare iterator
+    passed in still works because ``frozenset(iter)`` drains it
+    here; subsequent sub-scorers receive the frozen materialized
+    view.
     """
+    # Materialize once — supports generator callers + downstream
+    # multi-pass safe.
+    lemma_tag_set: frozenset[str] = frozenset(lemma_tags)
+
     phon = phon_score(lemma_phon, request.register)
-    sem = sem_score(lemma_tags, request.register)
+    sem = sem_score(lemma_tag_set, request.register)
     pos = pos_score(slot_position, request.register)
     baseline = baseline_score(
         lemma_ref,
-        lemma_tags,
+        lemma_tag_set,
         culture=request.gate.culture,
         slot_position=slot_position,
         era_midpoint=era_midpoint,
