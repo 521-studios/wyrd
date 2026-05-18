@@ -28,13 +28,11 @@ if TYPE_CHECKING:
 # so external callers (cli.py, rewind.py, disambiguator.py, tests) can
 # keep their ``from wyrd.generators.kenning.lexicon import LexiconDB``
 # / ``LANGUAGE_FIELDS`` imports unchanged.
-from wyrd.generators.kenning.lexicon.constants import (  # noqa: E402
+from wyrd.generators.kenning.lexicon.constants import (  # noqa: E402, F401
     LANGUAGE_FIELDS,
+    NON_LANGUAGE_FIELDS,  # re-exported for tests; not used inside this module
     normalize_ocr_form,
     position_from_usage,
-)
-from wyrd.generators.kenning.lexicon.constants import (  # noqa: E402
-    NON_LANGUAGE_FIELDS as NON_LANGUAGE_FIELDS,
 )
 from wyrd.generators.kenning.lexicon.db import (  # noqa: E402
     LexiconDB,
