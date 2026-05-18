@@ -106,7 +106,7 @@ enrichment commands after rebuild.
 - `empirical_priors_native` + `empirical_priors_loan` — empirical-baseline
   priors per (culture × position × tag × era) for the vector-driven
   generator (wyrd-ecjp.2). Re-derivable by re-running
-  `lexicon extract-empirical-priors --apply`; the operator-visible
+  `lexicon mine-empirical-baselines --apply`; the operator-visible
   diff surface is the committed JSON sidecar produced by
   `lexicon dump-empirical-priors --output ...`.
 

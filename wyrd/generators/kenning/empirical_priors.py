@@ -308,24 +308,23 @@ JOIN etymon e               ON e.id = tee.etymon_id
 LEFT JOIN etymon_tag tag    ON tag.etymon_id = e.id
 """
 
-# Content-addressable iteration order — same DB state, same row
-# order, AND two DBs independently rebuilt from the same L2 JSONL
-# iterate in the same order regardless of insert-time rowids. Sort
-# by toponym identity + attested year + source + page + ordinal +
-# tag + donor language + canonical form.
+# Within-DB-stable iteration order — same DB state, same row order.
+# Sort by (toponym_etymology_id, ordinal, tag) which uniquely orders
+# rows within one DB without a full content-key sort.
 #
 # Note: this ORDER BY is for DEBUGGABLE ITERATION (deterministic log
 # / trace output if extract_priors is observed mid-run). It is NOT
 # what guarantees byte-stable JSON dump output — that derives from
 # commutative dict-accumulation, content-PRIMARY-KEYs on the priors
 # tables, the dump SELECTs' own ORDER BY clauses, and _cell_records
-# re-sorting. See test_dump_json_byte_stable_across_independent_dbs
-# for the end-to-end pin.
+# re-sorting. A wider content-key ORDER BY would also give cross-DB
+# consistent iteration order, but no downstream contract depends on
+# that, and the 10-column sort cost showed up as a perf concern on
+# corpus-scale extracts (Gemini round-4 finding). See
+# test_dump_json_byte_stable_across_independent_dbs for the end-to-
+# end byte-stability pin.
 _EXTRACT_SQL_ORDERED = (
-    _EXTRACT_SQL + " ORDER BY t.country, t.modern_name, "
-    "COALESCE(t.region, ''), te.attested_year, te.source_id, "
-    "COALESCE(te.page, ''), tee.ordinal, "
-    "COALESCE(tag.tag, ''), e.language, e.canonical_form"
+    _EXTRACT_SQL + " ORDER BY tee.toponym_etymology_id, tee.ordinal, COALESCE(tag.tag, '')"
 )
 
 
@@ -589,7 +588,13 @@ def dump_empirical_priors_to_json(
         "native": _cell_records(native_rows, _NATIVE_CELL_FIELDS),
         "loan": _cell_records(loan_rows, _LOAN_CELL_FIELDS),
     }
-    output_path.write_text(json.dumps(artifact, indent=2, sort_keys=True) + "\n")
+    # Stream to the file handle rather than materializing the full
+    # JSON string in memory. At current corpus scale (~6k cells) the
+    # difference is negligible, but as the priors artifact grows the
+    # streaming form keeps peak memory bounded.
+    with output_path.open("w", encoding="utf-8") as f:
+        json.dump(artifact, f, indent=2, sort_keys=True)
+        f.write("\n")
     return {
         "native_cells": len(artifact["native"]),
         "loan_cells": len(artifact["loan"]),

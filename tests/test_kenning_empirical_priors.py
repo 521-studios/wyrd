@@ -872,7 +872,7 @@ def test_migration_helper_creates_tables_on_legacy_db(tmp_path):
 # ---------- CLI ----------------------------------------------------------
 
 
-def test_cli_extract_empirical_priors_dry_run(db, tmp_path):
+def test_cli_mine_empirical_baselines_dry_run(db, tmp_path):
     tid = _add_toponym(db, "X")
     e = _add_etymon(db, "x", "old-english", tags=("plant",))
     _add_etymology(db, toponym_id=tid, elements=[e], attested_year=950)
@@ -880,7 +880,7 @@ def test_cli_extract_empirical_priors_dry_run(db, tmp_path):
 
     result = runner.invoke(
         cli_root,
-        ["lexicon", "extract-empirical-priors", "--db", str(db.path)],
+        ["lexicon", "mine-empirical-baselines", "--db", str(db.path)],
     )
 
     assert result.exit_code == 0, result.output
@@ -888,7 +888,7 @@ def test_cli_extract_empirical_priors_dry_run(db, tmp_path):
     assert _table_count(db, "empirical_priors_native") == 0
 
 
-def test_cli_extract_empirical_priors_apply(db, tmp_path):
+def test_cli_mine_empirical_baselines_apply(db, tmp_path):
     tid = _add_toponym(db, "X")
     e = _add_etymon(db, "x", "old-english", tags=("plant",))
     _add_etymology(db, toponym_id=tid, elements=[e], attested_year=950)
@@ -898,7 +898,7 @@ def test_cli_extract_empirical_priors_apply(db, tmp_path):
         cli_root,
         [
             "lexicon",
-            "extract-empirical-priors",
+            "mine-empirical-baselines",
             "--db",
             str(db.path),
             "--apply",

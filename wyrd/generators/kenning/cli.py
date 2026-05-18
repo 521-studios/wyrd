@@ -8015,7 +8015,7 @@ def lexicon_project_period_forms(
         click.echo("(dry-run; pass --apply to write etymon_period_form rows)", err=True)
 
 
-@lexicon.command("extract-empirical-priors")
+@lexicon.command("mine-empirical-baselines")
 @click.option(
     "--db",
     "db_path",
@@ -8040,7 +8040,7 @@ def lexicon_project_period_forms(
     show_default=True,
     help="Emit a stderr progress line every N rows scanned. 0 = silent.",
 )
-def lexicon_extract_empirical_priors(
+def lexicon_mine_empirical_baselines(
     db_path: Path, apply_changes: bool, progress_every: int
 ) -> None:
     """wyrd-ecjp.2: extract empirical-baseline priors per (culture x
@@ -8061,7 +8061,7 @@ def lexicon_extract_empirical_priors(
     """
     with LexiconDB(db_path) as db:
         result = mine_empirical_baselines(db, apply=apply_changes, progress_every=progress_every)
-    click.echo("extract-empirical-priors:", err=True)
+    click.echo("mine-empirical-baselines:", err=True)
     click.echo(
         "  scanned={scanned:>6}  emitted={emitted:>6}  "
         "native_cells={nc:>5}  loan_cells={lc:>5}".format(
@@ -8118,7 +8118,7 @@ def lexicon_extract_empirical_priors(
 )
 def lexicon_dump_empirical_priors(db_path: Path, output_path: Path, version: str) -> None:
     """wyrd-ecjp.2: dump empirical_priors_* tables to a sorted, byte-
-    stable JSON artifact. Run after ``extract-empirical-priors --apply``.
+    stable JSON artifact. Run after ``mine-empirical-baselines --apply``.
 
     Output shape: a top-level dict with ``version`` (verbatim from
     --version) and two lists of cell records (``native``, ``loan``).
