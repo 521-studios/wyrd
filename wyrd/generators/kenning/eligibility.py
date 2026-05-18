@@ -21,15 +21,20 @@ The gate predicates implemented here:
 
 * **culture**: validation only — Meanings in the bundle's culture-
   specific slice already come pre-filtered by culture (upstream
-  pick uses ``<culture>_place_names.json``). The gate raises on an
-  unknown culture string so a misconfigured request fails loudly
-  rather than silently selecting from the union of all cultures.
+  pick uses the per-culture ``<culture>_proportions.json``). The
+  gate raises on an unknown culture string so a misconfigured
+  request fails loudly rather than silently selecting from the
+  union of all cultures. Validation runs ONCE per request in
+  ``filter_meanings``, not per Meaning — the per-Meaning hot path
+  would otherwise pay the membership-check cost on every iteration.
 * **era**: ``Meaning.attested_in_era_range`` — wraps the existing
-  D5-2 / wyrd-lyp era filter under the (era_min, era_max) tuple.
-  Meanings with no attested-year data pass any era filter (the
-  "no data ≠ evidence of absence" rule from D5-2).
-* **stratum**: ``Meaning.in_stratum`` — wraps the existing wyrd-lr4
-  Phase 3 stratum filter. Same "no data → pass" convention.
+  D5 / D5-3 (wyrd-lyp) era filter under the (era_min, era_max)
+  tuple. Meanings with no attested-year data pass any era filter
+  (the "no data ≠ evidence of absence" rule documented on
+  ``Meaning.attested_in_era_range``).
+* **stratum**: ``Meaning.in_stratum`` — wraps the existing D32
+  (wyrd-lr4 Phase 3) stratum filter. Same "no data → pass"
+  convention as the era filter.
 * **tag-required**: every requested tag must appear in
   ``meaning.tags``. Empty required-set means no constraint.
 * **tag-excluded**: no excluded tag may appear in ``meaning.tags``.
@@ -52,6 +57,7 @@ predicate logic.
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from collections.abc import Set as AbstractSet
 
 from wyrd.generators.kenning import CULTURES
 from wyrd.generators.kenning.meaning import Meaning
@@ -74,10 +80,14 @@ def passes_culture_gate(culture: str) -> bool:
 
     The gate does NOT filter per-Meaning on culture — Meanings in the
     bundle's per-culture slice already come from
-    ``<culture>_place_names.json`` (the per-culture vocabulary
+    ``<culture>_proportions.json`` (the per-culture vocabulary
     selection happens upstream of the eligibility gate). This
     predicate's job is to fail loudly on a misconfigured request
     rather than silently selecting from the union of all cultures.
+
+    Called ONCE from ``filter_meanings`` before the per-Meaning loop
+    starts, NOT from inside ``admits`` — putting it in the inner loop
+    would pay the membership-check cost for every Meaning in the pool.
     """
     if culture not in CULTURES:
         raise UnknownCultureError(f"unknown culture {culture!r}; expected one of {CULTURES}")
@@ -102,37 +112,46 @@ def passes_stratum_gate(meaning: Meaning, stratum: str | None) -> bool:
     return meaning.in_stratum(stratum)
 
 
-def passes_tag_required_gate(meaning: Meaning, required: frozenset[str]) -> bool:
+def passes_tag_required_gate(meaning: Meaning, required: AbstractSet[str]) -> bool:
     """True if every requested tag appears in ``meaning.tags``.
     Empty required-set → no filter.
 
     This is the AND semantics of ``--tag death --tag military``: a
     Meaning must carry both tags. For OR semantics use multiple
     separate generation requests + merge.
+
+    Implementation uses ``set.issubset(iterable)`` which is O(n+m)
+    over the iterable (linear in meaning.tags + required) rather
+    than the O(n*m) of a nested ``in``-on-list scan.
     """
     if not required:
         return True
-    return all(t in meaning.tags for t in required)
+    return required.issubset(meaning.tags)
 
 
-def passes_tag_excluded_gate(meaning: Meaning, excluded: frozenset[str]) -> bool:
+def passes_tag_excluded_gate(meaning: Meaning, excluded: AbstractSet[str]) -> bool:
     """True if NO excluded tag appears in ``meaning.tags``. Empty
     excluded-set → no filter.
 
     Pairs with the existing ``--exclude-tags`` knob (wyrd-yan).
+
+    Implementation uses ``set.isdisjoint(iterable)`` which is O(n+m)
+    over the iterable rather than the O(n*m) of a nested ``in``-on-
+    list scan inside ``any(...)``.
     """
     if not excluded:
         return True
-    return not any(t in meaning.tags for t in excluded)
+    return excluded.isdisjoint(meaning.tags)
 
 
 def passes_pack_gate(
-    meaning: Meaning,
+    meaning: Meaning,  # noqa: ARG001 — load-bearing for future pack metadata
     gate: EligibilityGate,
-    packs: Sequence[PackOverlay],  # noqa: ARG001 — load-bearing for future pack metadata
+    packs: Sequence[PackOverlay],  # noqa: ARG001 — same
 ) -> bool:
     """Pack admission + pack-tag filtering. Today a no-op because
-    Meanings in the v1 bundle don't carry scenario-pack metadata.
+    Meanings in the v1 bundle don't carry scenario-pack metadata —
+    BUT see the fail-loud guard below.
 
     The signature is stable for when scenario packs land in the
     bundle (wyrd-v2gm epic) and Meanings gain a ``pack_name``
@@ -145,21 +164,25 @@ def passes_pack_gate(
       3. If ``gate.excluded_pack_tags`` is non-empty, the meaning's
          tags must NOT contain any.
 
-    For now the gate returns True for every Meaning, which means
-    pack admission flows through the v1 culture-bundle path
-    (Meanings are either in the bundle or not; there's no third
-    "pack source" alternative yet). Even when
-    ``gate.allowed_pack_tags`` / ``excluded_pack_tags`` are set,
-    they have nothing to discriminate against — Meanings don't
-    carry pack-specific tags yet. The wyrd-sreb narrative-translator
-    epic will need the pack-tag-filter half of this predicate to
-    admit narrative-subset of pack lemmas.
+    For meanings WITHOUT pack metadata (every Meaning today), the
+    gate returns True — pack admission flows through the v1 culture-
+    bundle path. A caller passing non-empty ``allowed_pack_tags``
+    or ``excluded_pack_tags`` is expressing intent to filter by
+    pack tags; today the implementation can't honor that, so raise
+    ``NotImplementedError`` rather than silently returning True
+    and letting the caller's expectation drift unchecked. The
+    wyrd-sreb narrative-translator epic will need the pack-tag-
+    filter half of this predicate; the raise here makes the
+    not-yet-supported state visible until that lands.
     """
-    # gate.allowed_pack_tags / .excluded_pack_tags are read in the
-    # docstring above; the conditional that would consume them lives
-    # in the future scenario-pack rewrite. Keeping the signature
-    # stable so the call sites in admits/ filter_meanings don't move.
-    _ = gate.allowed_pack_tags, gate.excluded_pack_tags
+    if gate.allowed_pack_tags or gate.excluded_pack_tags:
+        raise NotImplementedError(
+            "pack-tag filtering is not yet supported. "
+            f"Got allowed_pack_tags={sorted(gate.allowed_pack_tags)!r}, "
+            f"excluded_pack_tags={sorted(gate.excluded_pack_tags)!r}. "
+            "See wyrd-v2gm (scenario-pack metadata) + wyrd-sreb "
+            "(narrative-driven subset admission)."
+        )
     return True
 
 
@@ -168,22 +191,22 @@ def admits(
     gate: EligibilityGate,
     *,
     packs: Sequence[PackOverlay] = (),
-    tag_required: frozenset[str] = frozenset(),
-    tag_excluded: frozenset[str] = frozenset(),
+    tag_required: AbstractSet[str] = frozenset(),
+    tag_excluded: AbstractSet[str] = frozenset(),
 ) -> bool:
     """True if ``meaning`` passes EVERY gate predicate.
 
     Gate predicates are checked in cheapest-first order so a Meaning
-    that fails an early gate doesn't pay the cost of the later ones.
-    Culture comes first because it's pure validation (no per-Meaning
-    work); tag gates are cheap dict/set lookups; era and stratum
-    iterate the per-form dicts.
+    that fails an early gate doesn't pay the cost of the later ones:
+    tag gates first (set membership), then era + stratum (per-form
+    dict iteration), then pack (stub today).
 
-    Pack gates are last because they're stubs today; ordering will
-    matter once scenario packs land.
+    Culture validation is handled ONCE by ``filter_meanings`` before
+    the per-Meaning loop, NOT here — putting it inside this hot path
+    would pay the membership-check cost on every iteration. Callers
+    that invoke ``admits`` directly (e.g. unit tests) MUST validate
+    the gate's culture themselves via ``passes_culture_gate``.
     """
-    # Validation gate — raises on unknown culture.
-    passes_culture_gate(gate.culture)
     if not passes_tag_required_gate(meaning, tag_required):
         return False
     if not passes_tag_excluded_gate(meaning, tag_excluded):
@@ -200,21 +223,26 @@ def filter_meanings(
     gate: EligibilityGate,
     *,
     packs: Sequence[PackOverlay] = (),
-    tag_required: frozenset[str] = frozenset(),
-    tag_excluded: frozenset[str] = frozenset(),
+    tag_required: AbstractSet[str] = frozenset(),
+    tag_excluded: AbstractSet[str] = frozenset(),
 ) -> list[Meaning]:
     """Apply ``admits`` to every Meaning, return the passing subset.
+
+    Validates the gate's culture string ONCE upfront (raises
+    ``UnknownCultureError`` on a misconfigured request). The
+    per-Meaning loop then skips the per-iteration validation cost.
 
     Caller-side concerns this function does NOT handle:
 
     * The per-culture vocabulary selection (the bundle's
-      ``<culture>_place_names.json`` keys the meaning pool to begin
+      ``<culture>_proportions.json`` keys the meaning pool to begin
       with). Callers must supply ``meanings`` already restricted to
       the culture's vocabulary.
     * Pre-computed indexes for fast cell-based lookup — that's the
       bundle-build layer's job (deferred wyrd-ecjp.3 follow-up).
     * Empirical scoring — that's Phase 4 (wyrd-ecjp.4).
     """
+    passes_culture_gate(gate.culture)
     return [
         m
         for m in meanings

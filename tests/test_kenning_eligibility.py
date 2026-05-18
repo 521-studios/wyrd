@@ -125,13 +125,29 @@ def test_era_gate_meaning_with_no_attested_years_passes():
 
 
 def test_era_gate_half_open_window():
-    """`[start, end)` half-open semantics matching D5-2 / wyrd-lyp."""
+    """`[start, end)` half-open semantics matching D5 / D5-3 (wyrd-lyp)."""
     m_at_start = _meaning(attested_years={"old_english": [("a", 800)]})
     m_at_end = _meaning(attested_years={"old_english": [("a", 1100)]})
     m_just_under_end = _meaning(attested_years={"old_english": [("a", 1099)]})
     assert passes_era_gate(m_at_start, 800, 1100) is True
     assert passes_era_gate(m_at_end, 800, 1100) is False
     assert passes_era_gate(m_just_under_end, 800, 1100) is True
+
+
+def test_era_gate_only_lower_bound_set():
+    """era_min set, era_max=None → 'attested after start' filter."""
+    m_after = _meaning(attested_years={"old_english": [("a", 1500)]})
+    m_before = _meaning(attested_years={"old_english": [("a", 500)]})
+    assert passes_era_gate(m_after, 800, None) is True
+    assert passes_era_gate(m_before, 800, None) is False
+
+
+def test_era_gate_only_upper_bound_set():
+    """era_min=None, era_max set → 'attested before end' filter."""
+    m_after = _meaning(attested_years={"old_english": [("a", 1500)]})
+    m_before = _meaning(attested_years={"old_english": [("a", 500)]})
+    assert passes_era_gate(m_after, None, 1100) is False
+    assert passes_era_gate(m_before, None, 1100) is True
 
 
 # ---------- passes_stratum_gate ----------------------------------------
@@ -148,7 +164,7 @@ def test_stratum_gate_meaning_in_stratum_passes():
 
 
 def test_stratum_gate_meaning_in_different_stratum_fails():
-    m = _meaning(stratum={"welsh": {"loanword": "english-loan"}})
+    m = _meaning(stratum={"welsh": {"tref": "english-loan"}})
     assert passes_stratum_gate(m, "native-welsh") is False
 
 
@@ -166,6 +182,22 @@ def test_stratum_gate_meaning_with_no_stratum_data_passes():
 
 def test_tag_required_empty_set_passes_everything():
     m = _meaning(tags=("plant",))
+    assert passes_tag_required_gate(m, frozenset()) is True
+
+
+def test_tag_required_meaning_with_empty_tags_fails_non_empty_required():
+    """Meaning with no tags at all and a non-empty required-set →
+    fails. Common production case (many bundle Meanings carry no
+    semantic tags); pin the behavior so a regression silently
+    flipping the rule is caught."""
+    m = _meaning(tags=())
+    assert passes_tag_required_gate(m, frozenset({"plant"})) is False
+
+
+def test_tag_required_meaning_with_empty_tags_passes_empty_required():
+    """Meaning with no tags + empty required-set → passes. Both
+    empty-set fast-paths exercised together."""
+    m = _meaning(tags=())
     assert passes_tag_required_gate(m, frozenset()) is True
 
 
@@ -226,22 +258,35 @@ def test_tag_excluded_multiple_tags_are_any_match():
 
 def test_pack_gate_returns_true_for_v1_meaning():
     """Pack gates are stubs today (no Meaning carries pack metadata).
-    Pins the documented no-op behavior so when scenario packs land
-    the change is visible — this test will need to be updated."""
+    Pins the no-op behavior for the empty-pack-tags case so when
+    scenario packs land this test will need to be updated."""
     m = _meaning()
     g = _gate()
     assert passes_pack_gate(m, g, ()) is True
 
 
-def test_pack_gate_returns_true_even_with_pack_tags_set():
-    """Even when the gate carries allowed_pack_tags, the predicate
-    is a no-op today. Locks the v1 behavior."""
+def test_pack_gate_raises_when_allowed_pack_tags_non_empty():
+    """A caller passing allowed_pack_tags is expressing intent to
+    filter — but pack-tag filtering isn't implemented yet. Raise
+    rather than silently returning True (which would silently
+    accept the caller's intent and produce wrong results)."""
     m = _meaning(tags=("plant",))
     g = _gate(allowed_pack_tags=frozenset({"khuzdul"}))
-    assert passes_pack_gate(m, g, ()) is True
+    with pytest.raises(NotImplementedError, match="pack-tag filtering"):
+        passes_pack_gate(m, g, ())
+
+
+def test_pack_gate_raises_when_excluded_pack_tags_non_empty():
+    """Same fail-loud behavior for excluded_pack_tags."""
+    m = _meaning(tags=("plant",))
+    g = _gate(excluded_pack_tags=frozenset({"khuzdul"}))
+    with pytest.raises(NotImplementedError, match="pack-tag filtering"):
+        passes_pack_gate(m, g, ())
 
 
 def test_pack_gate_returns_true_with_packs_argument():
+    """The ``packs`` argument is accepted today but not yet used
+    by the predicate; pin the signature-stable contract."""
     m = _meaning()
     g = _gate()
     packs = (
@@ -279,33 +324,53 @@ def test_admits_fails_when_any_one_gate_fails():
     assert admits(m, g, tag_required=frozenset({"plant"})) is False
 
 
-def test_admits_raises_on_unknown_culture():
-    """Culture validation runs unconditionally — even when the rest
-    of the gate is empty."""
+def test_admits_does_NOT_validate_culture():
+    """``admits`` is the per-Meaning hot path; culture validation
+    happens ONCE in ``filter_meanings`` before the loop. Unknown
+    culture passed straight to ``admits`` does not raise here —
+    callers that bypass ``filter_meanings`` are responsible for
+    validation."""
     m = _meaning()
-    g = _gate(culture="klingon")
-    with pytest.raises(UnknownCultureError):
-        admits(m, g)
+    g = _gate(culture="klingon")  # unknown — would raise via filter_meanings
+    # admits itself doesn't validate culture; it returns based on
+    # the other gate predicates. With an empty gate, returns True.
+    assert admits(m, g) is True
 
 
 def test_admits_short_circuits_on_first_failing_gate():
-    """A Meaning that fails the tag-required gate doesn't pay the cost
-    of the era/stratum/pack predicates. We verify this indirectly:
-    even when the era data would cause an exception (impossible
-    here, but the test pins the short-circuit behavior), the gate
-    chain stops early. Concretely: a Meaning with attested_years
-    set to a value that would raise on iteration won't raise if
-    tag_required fails first."""
+    """A Meaning that fails the tag-required gate doesn't pay the
+    cost of the era/stratum/pack predicates. Uses a Mock-like
+    subclass that raises if ``attested_in_era_range`` is ever
+    called — short-circuit semantics are pinned by the absence of
+    the raise."""
 
-    # Synthesize a Meaning where iterating attested_years would
-    # raise. attested_years is set directly to a non-iterable to
-    # simulate corruption.
-    m = _meaning(tags=())  # no plant tag — tag-required fails first
-    m.attested_years = "corrupted-non-dict"  # would raise on .values()
+    class _MeaningThatRaisesOnEra(Meaning):
+        def attested_in_era_range(self, era_range):  # type: ignore[override]
+            raise AssertionError("era gate should not have been reached — short-circuit failed")
+
+    m = _MeaningThatRaisesOnEra(usage="-x", tags=[], meanings=["test"], sources=[])
     g = _gate(era_min=800, era_max=1100)
-    # Should NOT raise because the tag-required check trips first
-    # and the era predicate is never called.
+    # tag_required fails first → era predicate never called → no AssertionError.
     assert admits(m, g, tag_required=frozenset({"plant"})) is False
+
+
+def test_admits_each_gate_fails_independently():
+    """Per-gate failure isolation: hand each gate a Meaning that
+    fails ONLY that gate (with all others passing). Pins that
+    admits returns False for each early-return path, not just for
+    the combined integration case."""
+    # Tag-required failure
+    m_no_required = _meaning(tags=("water",))
+    assert admits(m_no_required, _gate(), tag_required=frozenset({"plant"})) is False
+    # Tag-excluded failure
+    m_excluded = _meaning(tags=("plant", "fiction"))
+    assert admits(m_excluded, _gate(), tag_excluded=frozenset({"fiction"})) is False
+    # Era failure (attested data outside window)
+    m_late = _meaning(tags=("plant",), attested_years={"old_english": [("l", 1500)]})
+    assert admits(m_late, _gate(era_min=800, era_max=1100)) is False
+    # Stratum failure
+    m_wrong_stratum = _meaning(tags=("plant",), stratum={"welsh": {"x": "english-loan"}})
+    assert admits(m_wrong_stratum, _gate(stratum="native-welsh")) is False
 
 
 # ---------- filter_meanings ---------------------------------------------
@@ -326,6 +391,36 @@ def test_filter_meanings_returns_only_passing_meanings():
     assert m1 in result
     assert m3 in result
     assert m2 not in result
+
+
+def test_filter_meanings_all_fail_returns_empty():
+    """Pool of Meanings where EVERY one fails some gate → []. A
+    buggy gate that leaks one extra Meaning would silently pass
+    the existing 'integration with one winner' test; this test
+    pins the all-fail case."""
+    m1 = _meaning(usage="-a", tags=("water",))
+    m2 = _meaning(usage="-b", tags=("fish",))
+    m3 = _meaning(usage="-c", tags=("stone",))
+    g = _gate()
+    result = filter_meanings([m1, m2, m3], g, tag_required=frozenset({"plant"}))
+    assert result == []
+
+
+def test_filter_meanings_validates_culture_once_upfront():
+    """Unknown culture → UnknownCultureError raised BEFORE the
+    per-Meaning loop. Pins the validation-once-not-N-times contract."""
+    m = _meaning(tags=("plant",))
+    g = _gate(culture="klingon")
+    with pytest.raises(UnknownCultureError, match="unknown culture"):
+        filter_meanings([m], g, tag_required=frozenset({"plant"}))
+
+
+def test_filter_meanings_culture_validation_runs_even_for_empty_pool():
+    """Empty pool → validation still runs and still raises on
+    unknown culture. Pins the order (validation before iteration)."""
+    g = _gate(culture="klingon")
+    with pytest.raises(UnknownCultureError):
+        filter_meanings([], g)
 
 
 def test_filter_meanings_preserves_input_order():
@@ -377,6 +472,17 @@ def test_filter_meanings_with_all_gates_simultaneously():
         attested_years={"old_english": [("ld", 900)]},
         stratum={"old_english": {"ld": "norse-loan"}},
     )
+    # Has no era data (passes era via 'no data → pass') BUT has
+    # stratum data that fails the stratum gate. Confirms the two
+    # 'no data → pass' rules don't mask each other: a Meaning that
+    # passes one no-data rule still has to pass other gates that
+    # DO have data.
+    m_no_era_failing_stratum = _meaning(
+        usage="-mixed",
+        tags=("plant",),
+        attested_years={},
+        stratum={"old_english": {"mx": "norse-loan"}},
+    )
 
     g = _gate(
         culture="english",
@@ -385,7 +491,14 @@ def test_filter_meanings_with_all_gates_simultaneously():
         stratum="native-old-english",
     )
     result = filter_meanings(
-        [m_winner, m_late_era, m_no_plant, m_fiction, m_wrong_stratum],
+        [
+            m_winner,
+            m_late_era,
+            m_no_plant,
+            m_fiction,
+            m_wrong_stratum,
+            m_no_era_failing_stratum,
+        ],
         g,
         tag_required=frozenset({"plant"}),
         tag_excluded=frozenset({"fiction"}),
