@@ -5,7 +5,8 @@ canonical_form of an etymon in a DIFFERENT specified language, link
 them via ``merged_into_id`` (D22 OCR-cluster style — non-destructive,
 re-routes pre-existing redirects, preserves mining evidence on the
 loser). Useful for trivial cross-language matches like NF ``cot`` →
-OE ``cot`` that don't need phonological transformation.
+OE ``cot`` where the two languages happen to share the same surface
+form and no spelling normalization is needed.
 
 Sits alongside ``bridge_celtic_forms`` (Anglicized Celtic substrate)
 and ``bridge_phonological_oe`` / ``bridge_phonological_on``

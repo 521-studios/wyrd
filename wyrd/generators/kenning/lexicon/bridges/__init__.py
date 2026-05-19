@@ -14,7 +14,7 @@ reach.
   lookups (``ton`` → ``tūn``, ``lea`` → ``lēah``) so attested toponym
   spellings link to their canonical OE etymons.
 * ``on`` — same shape for Old Norse loanword forms in Northern
-  English place names (``by`` → ``býr``, ``holm`` → ``hólmr``).
+  English place names (``by`` → ``býr``, ``thwaite`` → ``þveit``).
 
 The OE + ON passes share ``_bridge_same_language_phonological`` in
 ``_common`` — same flat ``dict.get()`` lookup engine, different
