@@ -111,7 +111,7 @@ def lexicon_disambiguate_fuzzy(
     """
     # Local imports keep the disambiguator deps off the cold-start path
     # for unrelated CLI commands.
-    from wyrd.generators.kenning.gemini_extractor import GeminiClient
+    from wyrd.generators.kenning.extractors.gemini import GeminiClient
     from wyrd.generators.kenning.lexicon.disambiguator import (
         SnippetExpander,
         apply_disambiguator_result,

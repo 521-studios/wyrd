@@ -168,7 +168,7 @@ def lexicon_mine_toponym_mentions_staged(
     Output JSONL rows include ``extractor:"provider:model"`` so post-hoc
     analysis can attribute each mention to the stage that captured it.
     """
-    from wyrd.generators.kenning.toponym_mention_extractor import (
+    from wyrd.generators.kenning.extractors.toponym_mentions import (
         ToponymMention,
         mine_toponym_mentions,
         mine_toponym_mentions_from_chunks,

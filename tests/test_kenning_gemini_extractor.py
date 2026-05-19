@@ -15,7 +15,7 @@ from __future__ import annotations
 import pytest
 
 from wyrd.generators.kenning import gemini_extractor as gm
-from wyrd.generators.kenning.gemini_extractor import (
+from wyrd.generators.kenning.extractors.gemini import (
     GEMINI_RESPONSE_SCHEMA,
     GeminiClient,
 )

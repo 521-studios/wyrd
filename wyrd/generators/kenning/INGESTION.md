@@ -788,7 +788,7 @@ The CLI reports `unsupported_templates = N` when wiktextract entries
 contain etymology templates we haven't mapped. Supported set covers
 inh / bor / der / cal plus long-name variants. Extend
 `_UPWARD_TEMPLATE_TO_EDGE` or `_SKIPPED_TEMPLATE_NAMES` in
-`wyrd/generators/kenning/wiktextract_ingester.py` to add new kinds.
+`wyrd/generators/kenning/lexicon/wiktextract_ingester.py` to add new kinds.
 Descendants nodes never produce unsupported_templates (they're read
 as data, not via templates).
 

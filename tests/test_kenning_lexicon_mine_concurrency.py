@@ -16,7 +16,7 @@ import threading
 import time
 
 from wyrd.generators.kenning.cli import _mine_entries
-from wyrd.generators.kenning.llm_extractor import LLMResult, ValidationFailure
+from wyrd.generators.kenning.extractors.llm import LLMResult, ValidationFailure
 
 
 class _FakeEntry:

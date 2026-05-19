@@ -156,7 +156,7 @@ def lexicon_mine_toponym_mentions_tiered(
     """
     import time
 
-    from wyrd.generators.kenning.toponym_mention_extractor import (
+    from wyrd.generators.kenning.extractors.toponym_mentions import (
         FailedChunk,
         ToponymMention,
         mine_toponym_mentions_tiered,

@@ -13,6 +13,25 @@ from wyrd.generators.kenning.decomposition import (
     _signature_for_payload,
 )
 from wyrd.generators.kenning.era import era_cells_for_family, resolve_era_input
+
+# Back-compat re-exports for the wyrd-ru5d extractors/ subpackage. Older call
+# sites (especially in cli/lexicon/) import these modules as if they were
+# top-level kenning submodules — ``from wyrd.generators.kenning import
+# gemini_extractor``. After the move, the canonical home is
+# ``wyrd.generators.kenning.extractors.<short_name>`` (gemini, anthropic, llm,
+# fantasy, pfsrd2_monsters, toponym_mentions). Each old top-level alias is
+# preserved here so existing call sites keep working unchanged. New code should
+# import from ``wyrd.generators.kenning.extractors`` directly.
+from wyrd.generators.kenning.extractors import anthropic as anthropic_extractor  # noqa: F401
+from wyrd.generators.kenning.extractors import fantasy as fantasy_pipeline  # noqa: F401
+from wyrd.generators.kenning.extractors import gemini as gemini_extractor  # noqa: F401
+from wyrd.generators.kenning.extractors import llm as llm_extractor  # noqa: F401
+from wyrd.generators.kenning.extractors import (
+    pfsrd2_monsters as pfsrd2_monster_extractor,  # noqa: F401
+)
+from wyrd.generators.kenning.extractors import (
+    toponym_mentions as toponym_mention_extractor,  # noqa: F401
+)
 from wyrd.generators.kenning.lexicon.strata import (
     ALL_STRATA,
     FRENCH_STRATA,

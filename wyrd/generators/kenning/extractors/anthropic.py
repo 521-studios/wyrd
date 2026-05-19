@@ -14,7 +14,7 @@ Third provider option (alongside Ollama and Gemini), positioned as the
 
 Same `extract_one(client, ...)` signature as the other extractors so the
 review CLI can swap providers via `--provider anthropic`. Same shared
-SYSTEM_PROMPT, USER_TEMPLATE, and validation guard from llm_extractor.
+SYSTEM_PROMPT, USER_TEMPLATE, and validation guard from extractors.llm.
 
 Uses the Anthropic Messages API directly via urllib (no SDK dep, like our
 Gemini integration).
@@ -28,7 +28,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 
-from wyrd.generators.kenning.llm_extractor import (
+from wyrd.generators.kenning.extractors.llm import (
     SYSTEM_PROMPT,
     USER_TEMPLATE,
     LLMResult,
@@ -45,7 +45,7 @@ ANTHROPIC_API_VERSION = "2023-06-01"
 
 # Anthropic Messages API doesn't have JSON-schema constrained output the way
 # Ollama and Gemini do. We get reliable JSON via prompt engineering: tight
-# SYSTEM_PROMPT (already in llm_extractor) plus a final user instruction
+# SYSTEM_PROMPT (already in extractors.llm) plus a final user instruction
 # making the format explicit. The validate_response guard catches anything
 # that slips through.
 #

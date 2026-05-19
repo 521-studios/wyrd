@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from wyrd.generators.kenning.gemini_extractor import GeminiClient
+from wyrd.generators.kenning.extractors.gemini import GeminiClient
 from wyrd.generators.kenning.lexicon import levenshtein, normalize_ocr_form
 
 if TYPE_CHECKING:

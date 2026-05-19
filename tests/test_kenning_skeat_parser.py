@@ -127,7 +127,7 @@ def test_skeat_parser_source_quote_budget_matches_llm_extractor() -> None:
     re-exports it. This test pins the symbol-equality so a future
     divergence (someone redefines SOURCE_QUOTE_BUDGET in either module)
     gets caught."""
-    from wyrd.generators.kenning.llm_extractor import (
+    from wyrd.generators.kenning.extractors.llm import (
         SOURCE_QUOTE_BUDGET as EXTRACTOR_BUDGET,
     )
     from wyrd.generators.kenning.skeat_parser import SOURCE_QUOTE_BUDGET

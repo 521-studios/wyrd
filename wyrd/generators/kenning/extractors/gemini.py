@@ -1,6 +1,6 @@
 """Gemini-based etymology extraction.
 
-Parallel implementation of `llm_extractor`'s `extract_one` flow but pointed
+Parallel implementation of `extractors.llm`'s `extract_one` flow but pointed
 at Google's Gemini API instead of a local Ollama server. Same schema, same
 validation guard, same `LLMResult`/`ParsedEntry` outputs — `mine-llm` can
 swap providers via a `--provider` flag.
@@ -20,7 +20,7 @@ import urllib.request
 from dataclasses import dataclass
 from typing import ClassVar
 
-from wyrd.generators.kenning.llm_extractor import (
+from wyrd.generators.kenning.extractors.llm import (
     SYSTEM_PROMPT,
     USER_TEMPLATE,
     LLMResult,
@@ -36,7 +36,7 @@ DEFAULT_GEMINI_MODEL = os.environ.get("WYRD_GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 # Gemini's responseSchema is OpenAPI-3.0-like (not JSON Schema). It accepts
-# fewer keywords than llm_extractor.RESPONSE_SCHEMA — we hand-translate to
+# fewer keywords than extractors.llm.RESPONSE_SCHEMA — we hand-translate to
 # the supported subset. Notable absences vs JSON Schema:
 #   - additionalProperties (Gemini disallows extras by default in tight mode)
 #   - "type": ["string", "null"]  (Gemini uses nullable: true)
@@ -81,7 +81,7 @@ GEMINI_RESPONSE_SCHEMA: dict = {
         # dialect's enforcement of integer minimum / maximum has been
         # unreliable across model versions in our testing, so we don't
         # rely on it. The prompt asks for 100-1700 and validate_response
-        # (in llm_extractor) is the load-bearing range gate.
+        # (in extractors.llm) is the load-bearing range gate.
         "attested_forms": {
             "type": "ARRAY",
             "items": {
@@ -117,7 +117,7 @@ GEMINI_RESPONSE_SCHEMA: dict = {
 class GeminiClient:
     """Minimal Gemini generateContent client. Single-shot, no streaming."""
 
-    # Dispatch marker read by callers (e.g. toponym_mention_extractor) that
+    # Dispatch marker read by callers (e.g. extractors.toponym_mentions) that
     # need to pick between JSON Schema and Gemini's OpenAPI-3.0-ish
     # responseSchema dialect. ClassVar so dataclass treats this as a
     # class-level attribute, not a field on instances. wyrd-pe4g.

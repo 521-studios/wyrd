@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from wyrd.generators.kenning.pfsrd2_monster_extractor import (
+from wyrd.generators.kenning.extractors.pfsrd2_monsters import (
     _collect_section_texts,
     extract_corpus,
     extract_description,

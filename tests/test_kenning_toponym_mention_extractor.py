@@ -19,7 +19,7 @@ import pytest
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
-from wyrd.generators.kenning.toponym_mention_extractor import (
+from wyrd.generators.kenning.extractors.toponym_mentions import (
     _DATE_YEAR_MAX,
     _DATE_YEAR_MIN,
     RESPONSE_SCHEMA,
@@ -1187,7 +1187,7 @@ def test_cli_path_traversal_is_neutralized_against_planted_file(tmp_path, monkey
     # Stub the AnthropicClient so we don't need a real API call. The
     # FakeClient just records what chunk was processed.
     fake = FakeClient([{"mentions": []}])
-    import wyrd.generators.kenning.anthropic_extractor as ae_module
+    import wyrd.generators.kenning.extractors.anthropic as ae_module
 
     monkeypatch.setattr(ae_module, "AnthropicClient", lambda **kw: fake)
 
@@ -1216,7 +1216,7 @@ def _stub_anthropic_for_cli(monkeypatch, fake_client: FakeClient) -> None:
     function, so we patch the source module. If anyone moves that
     import to module-top, this stop mocking — leaving this guard as a
     visible coupling so the bug shows up loudly."""
-    import wyrd.generators.kenning.anthropic_extractor as ae_module
+    import wyrd.generators.kenning.extractors.anthropic as ae_module
 
     monkeypatch.setattr(ae_module, "AnthropicClient", lambda **kw: fake_client)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-used")
@@ -1431,7 +1431,7 @@ def test_cli_provider_gemini_routes_to_gemini_client(tmp_path, monkeypatch):
     # branch of extract_toponym_mentions_from_chunk's dispatch.
     fake.schema_dialect = "openapi"
 
-    import wyrd.generators.kenning.gemini_extractor as gemini_module
+    import wyrd.generators.kenning.extractors.gemini as gemini_module
 
     monkeypatch.setattr(gemini_module, "GeminiClient", lambda **kw: fake)
     monkeypatch.setenv("GEMINI_API_KEY", "test-not-used")
@@ -1476,7 +1476,7 @@ def test_extract_toponym_mentions_from_chunk_sends_openapi_schema_to_gemini_wire
     """
     from unittest.mock import patch
 
-    from wyrd.generators.kenning.gemini_extractor import GeminiClient
+    from wyrd.generators.kenning.extractors.gemini import GeminiClient
 
     monkeypatch.setenv("GEMINI_API_KEY", "test-not-used")
     calls: list[bytes] = []
@@ -1542,7 +1542,7 @@ def test_cli_provider_ollama_routes_to_ollama_client(tmp_path, monkeypatch):
     (sources_dir / "stub.txt").write_text("Edlingham.", encoding="utf-8")
     fake = FakeClient([{"mentions": []}])
 
-    import wyrd.generators.kenning.llm_extractor as llm_module
+    import wyrd.generators.kenning.extractors.llm as llm_module
 
     monkeypatch.setattr(llm_module, "OllamaClient", lambda **kw: fake)
 
@@ -1730,7 +1730,7 @@ def test_cli_model_override_flows_to_client_factory(tmp_path, monkeypatch):
         captured_kwargs.append(kw)
         return fake
 
-    import wyrd.generators.kenning.anthropic_extractor as ae_module
+    import wyrd.generators.kenning.extractors.anthropic as ae_module
 
     monkeypatch.setattr(ae_module, "AnthropicClient", recording_factory)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-not-used")
@@ -1770,7 +1770,7 @@ def test_cli_ollama_url_flows_to_client_factory(tmp_path, monkeypatch):
         captured.append(kw)
         return fake
 
-    import wyrd.generators.kenning.llm_extractor as llm_module
+    import wyrd.generators.kenning.extractors.llm as llm_module
 
     monkeypatch.setattr(llm_module, "OllamaClient", recording_factory)
 
@@ -3052,7 +3052,7 @@ def test_cli_staged_from_failures_resume_processes_non_monotonic_indices(tmp_pat
             return {"mentions": []}
 
     fake = _OrderingFakeClient()
-    import wyrd.generators.kenning.anthropic_extractor as ae_module
+    import wyrd.generators.kenning.extractors.anthropic as ae_module
 
     monkeypatch.setattr(ae_module, "AnthropicClient", lambda **kw: fake)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-used")
@@ -3125,7 +3125,7 @@ def test_cli_staged_from_failures_limit_applies_per_source(tmp_path, monkeypatch
             captured_inputs.append(user)
             return {"mentions": []}
 
-    import wyrd.generators.kenning.anthropic_extractor as ae_module
+    import wyrd.generators.kenning.extractors.anthropic as ae_module
 
     monkeypatch.setattr(ae_module, "AnthropicClient", lambda **kw: _CountingFakeClient())
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-used")

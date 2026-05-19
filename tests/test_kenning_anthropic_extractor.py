@@ -21,7 +21,7 @@ from unittest.mock import patch
 import pytest
 
 from wyrd.generators.kenning import anthropic_extractor as ae
-from wyrd.generators.kenning.anthropic_extractor import AnthropicClient, extract_one
+from wyrd.generators.kenning.extractors.anthropic import AnthropicClient, extract_one
 
 # --- API key resolution ----------------------------------------------------
 

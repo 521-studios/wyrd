@@ -24,7 +24,7 @@ import pytest
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
-from wyrd.generators.kenning.gemini_extractor import GeminiClient
+from wyrd.generators.kenning.extractors.gemini import GeminiClient
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.disambiguator import (
     AmbiguityCase,
