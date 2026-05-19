@@ -10,14 +10,15 @@ reach.
 * ``celtic`` — Anglicized Celtic-substrate place-name forms
   (``Kil-``, ``Bally-``, ``Glen-``) → Welsh / Irish / Scottish-Gaelic
   canonical Celtic morphemes.
-* ``oe`` — Old English phonological reductions (e.g. weakened
-  vowels, fricative shifts) so attested toponym spellings link to
-  their canonical OE etymons.
+* ``oe`` — Old English Anglicized/modernized → scholarly-orthography
+  lookups (``ton`` → ``tūn``, ``lea`` → ``lēah``) so attested toponym
+  spellings link to their canonical OE etymons.
 * ``on`` — same shape for Old Norse loanword forms in Northern
-  English place names.
+  English place names (``by`` → ``býr``, ``holm`` → ``hólmr``).
 
 The OE + ON passes share ``_bridge_same_language_phonological`` in
-``_common`` — same algorithm, different rule tables.
+``_common`` — same flat ``dict.get()`` lookup engine, different
+form→form lookup tables.
 
 This re-export shim lets callers keep
 ``from wyrd.generators.kenning.lexicon.bridges import bridge_generic_language``

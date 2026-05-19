@@ -5,7 +5,7 @@ Looks up each ON etymon's lowercased canonical_form in the
 → scholarly orthography with macrons, þ/ð, etc.) and links matches
 to the canonical etymon via ``merged_into_id``. The shared engine
 in ``bridges._common._bridge_same_language_phonological`` runs the
-table; this module only supplies the ON rule set for Old Norse
+table; this module only supplies the ON lookup table for Old Norse
 loanwords in Northern English place names.
 """
 

@@ -5,7 +5,7 @@ Looks up each OE etymon's lowercased canonical_form in the
 spelling → scholarly orthography with macrons, æ, þ/ð, etc.) and
 links matches to the canonical etymon via ``merged_into_id``. The
 shared engine in ``bridges._common._bridge_same_language_phonological``
-runs the table; this module only supplies the OE rule set.
+runs the table; this module only supplies the OE lookup table.
 
 Used alongside ``bridge_generic_language`` (cross-language exact-form
 lookups) and ``bridge_celtic_forms`` (Anglicized Celtic substrate) as

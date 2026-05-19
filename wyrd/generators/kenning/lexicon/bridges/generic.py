@@ -9,9 +9,9 @@ OE ``cot`` that don't need phonological transformation.
 
 Sits alongside ``bridge_celtic_forms`` (Anglicized Celtic substrate)
 and ``bridge_phonological_oe`` / ``bridge_phonological_on``
-(phonological-transform lookups) as parallel cross-corpus bridge
-passes. Each pass uses its own lookup mechanism; this module's is
-exact-form match.
+(modernized→scholarly-orthography form lookups) as parallel
+cross-corpus bridge passes. Each pass uses its own lookup mechanism;
+this module's is exact-form match.
 """
 
 from __future__ import annotations
