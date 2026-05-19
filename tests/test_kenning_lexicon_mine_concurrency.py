@@ -331,7 +331,7 @@ def test_cli_concurrency_flag_flows_through_to_mine_entries(tmp_path, monkeypatc
 
     from wyrd.generators.kenning import cli as cli_mod
     from wyrd.generators.kenning import llm_extractor
-    from wyrd.generators.kenning.skeat_parser import ParsedEntry
+    from wyrd.generators.kenning.parsers.skeat import ParsedEntry
 
     fake_parsed = [
         ParsedEntry(
@@ -403,7 +403,7 @@ def test_cli_concurrency_flag_default_is_one(tmp_path, monkeypatch):
     from wyrd.generators.kenning import cli as cli_mod
     from wyrd.generators.kenning import llm_extractor
     from wyrd.generators.kenning.lexicon import init_schema
-    from wyrd.generators.kenning.skeat_parser import ParsedEntry
+    from wyrd.generators.kenning.parsers.skeat import ParsedEntry
 
     fake_parsed = [
         ParsedEntry(

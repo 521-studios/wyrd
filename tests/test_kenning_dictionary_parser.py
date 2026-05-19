@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from wyrd.generators.kenning.dictionary_parser import (
+from wyrd.generators.kenning.parsers.dictionary import (
     _ENTRY_BODY_SIGNALS,
     _is_real_headword,
     _split_packed_paragraph,

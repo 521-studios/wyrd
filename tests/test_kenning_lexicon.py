@@ -82,7 +82,7 @@ from wyrd.generators.kenning.lexicon import (
 )
 from wyrd.generators.kenning.lexicon.sql import upgrade_head
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
-from wyrd.generators.kenning.skeat_parser import ParsedElement, ParsedEntry
+from wyrd.generators.kenning.parsers.skeat import ParsedElement, ParsedEntry
 
 
 @pytest.fixture

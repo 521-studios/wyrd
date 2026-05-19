@@ -29,14 +29,14 @@ from pathlib import Path
 import click
 
 from wyrd.generators.kenning.decomposition import decompose_with_canonical
-from wyrd.generators.kenning.dictionary_parser import (
+from wyrd.generators.kenning.lexicon import LexiconDB
+from wyrd.generators.kenning.name import Name
+from wyrd.generators.kenning.parsers.dictionary import (
     parse_alphabetical_text,
     parse_numbered_list_text,
 )
-from wyrd.generators.kenning.lexicon import LexiconDB
-from wyrd.generators.kenning.name import Name
+from wyrd.generators.kenning.parsers.skeat import parse_skeat_text
 from wyrd.generators.kenning.paths import default_lexicon_path
-from wyrd.generators.kenning.skeat_parser import parse_skeat_text
 
 
 def _select_parser_and_run(

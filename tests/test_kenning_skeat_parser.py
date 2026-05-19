@@ -7,7 +7,7 @@ without reproducing real entries verbatim.
 
 from __future__ import annotations
 
-from wyrd.generators.kenning.skeat_parser import (
+from wyrd.generators.kenning.parsers.skeat import (
     _split_form_by_suffix,
     parse_entry,
     parse_skeat_text,
@@ -123,14 +123,14 @@ def test_skeat_parser_source_quote_budget_matches_llm_extractor() -> None:
     source_quote budget so the SPA citation view sees consistent snippet
     sizes regardless of which parser produced the row.
 
-    Lives in skeat_parser (where ParsedEntry lives); llm_extractor
+    Lives in parsers.skeat (where ParsedEntry lives); llm_extractor
     re-exports it. This test pins the symbol-equality so a future
     divergence (someone redefines SOURCE_QUOTE_BUDGET in either module)
     gets caught."""
     from wyrd.generators.kenning.extractors.llm import (
         SOURCE_QUOTE_BUDGET as EXTRACTOR_BUDGET,
     )
-    from wyrd.generators.kenning.skeat_parser import SOURCE_QUOTE_BUDGET
+    from wyrd.generators.kenning.parsers.skeat import SOURCE_QUOTE_BUDGET
 
     assert SOURCE_QUOTE_BUDGET == EXTRACTOR_BUDGET
     assert SOURCE_QUOTE_BUDGET == 500
@@ -140,7 +140,7 @@ def test_skeat_parser_shorten_truncates_at_budget() -> None:
     """wyrd-9v1: _shorten's default cap is the shared SOURCE_QUOTE_BUDGET.
     A body longer than the budget gets truncated with an ellipsis; the
     truncation point sits at a word boundary, never mid-word."""
-    from wyrd.generators.kenning.skeat_parser import (
+    from wyrd.generators.kenning.parsers.skeat import (
         SOURCE_QUOTE_BUDGET,
         _shorten,
     )

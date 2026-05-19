@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import textwrap
 
-from wyrd.generators.kenning.dictionary_parser import parse_numbered_list_text
+from wyrd.generators.kenning.parsers.dictionary import parse_numbered_list_text
 
 
 def test_parse_numbered_list_segments_each_ordinal():
