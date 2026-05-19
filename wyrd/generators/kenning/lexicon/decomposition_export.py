@@ -1,12 +1,15 @@
 """Canonical decompositions export (consumed by the bundle build).
 
-``collect_canonical_decompositions`` walks every toponym +
-toponym_etymology pairing and emits the canonical decomposition
-that the bundle JSON serializes. The Norman manorial-family token
-filter (``_load_norman_manorial_family_tokens``) skips canonical
-forms whose tokens are personal/family names rather than
-landscape morphemes — those produce noisy decompositions that
-mislead the downstream era-reflex picker.
+``collect_canonical_decompositions`` walks every
+``toponym_decomposition`` row marked ``is_canonical = 1`` and
+projects ``{modern_name: {signature, source}}`` — the lookup the
+runtime ``KenningExplain`` uses to front-load the canonical
+reading among the matcher's alternatives. The Norman manorial-
+family token filter (``_load_norman_manorial_family_tokens``)
+skips toponyms whose final whitespace-split token names a known
+manorial family (``Castle Cary``, ``Stoke Mandeville``) — the
+runtime's manorial-affix detector synthesizes a more specific
+decomposition there than the build-time tiebreaker can.
 """
 
 from __future__ import annotations

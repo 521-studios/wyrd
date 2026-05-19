@@ -3,9 +3,19 @@
 Single public function ``ingest_parsed_entries`` writes
 ``ParsedEntry`` rows from any of the dictionary parsers
 (Mawer / Skeat / Ekwall / etc.) into ``toponym`` +
-``toponym_etymology`` + ``etymon`` + supporting tables. Idempotent
-per (source_id, page) and exposes the merge / dedupe semantics
-that mining-progress callers depend on.
+``toponym_etymology`` + ``etymon`` + supporting tables.
+
+Per-toponym dedupe is on ``(modern_name, country='', region)`` via
+``_upsert_toponym`` — re-running against the same source for the
+same place reuses the existing toponym row. The
+``toponym_etymology`` write itself is NOT idempotent: there is no
+UNIQUE constraint on ``(toponym_id, source_id)``, so re-ingesting
+the same source will produce duplicate etymology rows. Re-mining
+workflows are expected to clear the prior etymology rows for that
+source first.
+
+Returns a counts dict (``toponyms`` / ``etymologies`` /
+``elements`` / ``etymons_touched``) for mining-progress callers.
 """
 
 from __future__ import annotations

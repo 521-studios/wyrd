@@ -1,10 +1,19 @@
 """Fantasy-morpheme inventory export (consumed by the bundle build).
 
-``collect_fantasy_morphemes`` walks every etymon tagged with
-``fantasy-suitable`` (per the curation pipeline) and emits the
-{morpheme, language, gloss, source_book, source_page} inventory
-the bundle JSON serializes for the KenningWeaver / Fantasy
-generators to draw from.
+``collect_fantasy_morphemes`` walks ``fantasy_morpheme`` rows where
+``usable = 1`` (etymon successfully resolved during curation) and
+the linked etymon isn't an OCR-cluster tombstone
+(``merged_into_id IS NULL``). For each row it joins
+canonical_form / language / english_shaped from the merge-chain-
+resolved etymon, pulls glosses from ``etymon_gloss``, and
+pre-computes per-target-language era reflexes via
+``etymon_era_reflexes`` so the runtime KenningWeaver can render
+creature names at user-chosen eras without a DB.
+
+Output shape (wyrd-vz7f): ``{input_name: {input_name, etymon_id,
+language, canonical_form, english_shaped, glosses, citation,
+era_reflexes}}``. ``era_reflexes`` follows the wyrd-jbcu source-
+aware schema ``{lang: [{form, source}, ...]}``.
 """
 
 from __future__ import annotations
