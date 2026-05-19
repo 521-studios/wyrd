@@ -1,4 +1,17 @@
-"""CLI commands for Kenning. Mounted under `wyrd kenning <subcommand>`."""
+"""CLI commands for Kenning. Mounted under `wyrd kenning <subcommand>`.
+
+This module is the back-compat shim for the wyrd-g143 split. The
+top-level ``@cli`` group lives here; top-level subcommands and the
+``@lexicon`` sub-group live in their own modules under
+``wyrd/generators/kenning/cli/``. The remaining
+``@lexicon.command`` bodies in this file are pending extraction
+(slices 2-5 of wyrd-g143) — each will eventually move to its own
+module under ``cli/lexicon/<command>.py``.
+
+Tests that need package-internal helpers (currently
+``_select_parser_and_run``) import them from this module's
+back-compat re-exports below.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +22,7 @@ import time
 from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import partial
@@ -20,23 +33,74 @@ from typing import Any
 import click
 
 from wyrd.generators.kenning import (
-    _INTERNAL_TAGS,
     CULTURES,
-    MOODS,
-    Kenning,
-    KenningExplain,
-    _load_meanings,
     anthropic_extractor,
-    available_tags,
     etymonline_ingester,
     fantasy_pipeline,
     gemini_extractor,
     llm_extractor,
     pfsrd2_monster_extractor,
 )
-from wyrd.generators.kenning.dictionary_parser import (
-    parse_alphabetical_text,
-    parse_numbered_list_text,
+from wyrd.generators.kenning.cli import (
+    add_meaning as _add_meaning_module,
+)
+from wyrd.generators.kenning.cli import (
+    creature as _creature_module,
+)
+from wyrd.generators.kenning.cli import (
+    era_map as _era_map_module,
+)
+from wyrd.generators.kenning.cli import (
+    explain as _explain_module,
+)
+from wyrd.generators.kenning.cli import (
+    generate as _generate_module,
+)
+from wyrd.generators.kenning.cli import (
+    rebuild_proportions as _rebuild_proportions_module,
+)
+from wyrd.generators.kenning.cli import (
+    rewind as _rewind_module,
+)
+from wyrd.generators.kenning.cli import (
+    unaccounted as _unaccounted_module,
+)
+from wyrd.generators.kenning.cli import (
+    validate_meanings as _validate_meanings_module,
+)
+from wyrd.generators.kenning.cli.lexicon import (
+    add_to as _register_lexicon_group,
+)
+from wyrd.generators.kenning.cli.lexicon import (
+    lexicon,
+)
+
+# Back-compat re-exports of private helpers tests grab directly.
+# Keep this list narrow — anything here is part of the implicit test
+# surface and re-locating these helpers means coordinating with the
+# tests that reach in. ``tests/test_kenning_cooccurrence.py`` drives
+# the rebuild-proportions tag-cooccurrence math via these two helpers
+# without spinning up the full click invocation.
+from wyrd.generators.kenning.cli.rebuild_proportions import (  # noqa: F401
+    _ordered_tag_pairs,
+    _proportions_from,
+)
+
+# Re-exports from cli.utils. Three of the four names below are
+# actually used by the @lexicon.command bodies still in this file
+# (_DEFAULT_LEXICON_PATH on most lexicon commands' --db default,
+# _load_meanings_data on `lexicon build` and `lexicon export-meanings`,
+# _select_parser_and_run on the mine-* commands). _decompose_corpus
+# is re-exported purely for back-compat with
+# `tests/test_kenning_decomposition` which imports it via
+# `from wyrd.generators.kenning.cli import _decompose_corpus`; the
+# noqa: F401 below documents that the import is intentional even
+# though this module doesn't itself call it.
+from wyrd.generators.kenning.cli.utils import (  # noqa: F401  (_decompose_corpus)
+    _DEFAULT_LEXICON_PATH,
+    _decompose_corpus,
+    _load_meanings_data,
+    _select_parser_and_run,
 )
 from wyrd.generators.kenning.english_shaping import (
     PHASE2A_NON_LATIN_LANGS,
@@ -51,7 +115,6 @@ from wyrd.generators.kenning.lexicon import (
     LANGUAGE_FIELDS,
     RECOMMENDED_LANG_THRESHOLDS,
     LexiconDB,
-    annotate_fragments_with_corpus_evidence,
     assign_etymon_to_meaning_synset,
     backfill_citation_pages,
     bridge_celtic_forms,
@@ -86,15 +149,10 @@ from wyrd.generators.kenning.lexicon.empirical_priors import (
     dump_empirical_priors_to_json,
     mine_empirical_baselines,
 )
-from wyrd.generators.kenning.meaning import Meaning, load_meanings
-from wyrd.generators.kenning.name import load_names_with_regions
+from wyrd.generators.kenning.meaning import load_meanings
 from wyrd.generators.kenning.paths import (
     LEXICON_DB_DEFAULT_DISPLAY,
     default_lexicon_path,
-)
-from wyrd.generators.kenning.rewind import (
-    DEFAULT_ENGLISH_ERAS,
-    rewind_name,
 )
 from wyrd.generators.kenning.skeat_parser import parse_skeat_text
 from wyrd.generators.kenning.wiktextract_corpus_miner import (
@@ -105,75 +163,12 @@ from wyrd.generators.kenning.wiktextract_corpus_miner import (
     mine_corpus_forms,
 )
 from wyrd.generators.kenning.wiktextract_ingester import ingest_wiktextract_path
-from wyrd.seed import resolve_seed, rng_for
 
 # wyrd-hidb Phase 2: PHASE2A_NON_LATIN_LANGS lives in
 # english_shaping.py (the wrapper that consumes it lives there too).
 # The CLI imports it for the SELECT-filter on `lexicon derive-english-shaped`.
 _PHASE2A_NON_LATIN_LANGS = PHASE2A_NON_LATIN_LANGS
 
-
-def _select_parser_and_run(
-    text: str,
-    parser: str,
-    *,
-    min_entry_number: int = 1,
-    max_entry_number: int | None = None,
-) -> list:
-    """Pick the right parser for a book.
-
-    Modes:
-      skeat         - force Skeat-format parser
-      alphabetical  - force alphabetical-dictionary parser
-      numbered-list - force numbered-list parser (wyrd-5af). Right tool
-                      for chrestomathy / treatise sources whose etymology
-                      bodies are organized as ordinal-prefixed lists
-                      (Longnon vol 2 saint-names: '1659. Caradocus :
-                      Saint-Caradu (...)'). Skip on dictionary-shaped
-                      sources — alphabetical is the right tool there.
-      auto          - try Skeat first; if it returns ≥5 entries, use it.
-                      Otherwise use alphabetical. ``auto`` does NOT pick
-                      numbered-list — opt in explicitly because the
-                      numbered-list shape co-exists with body prose in
-                      treatise sources, and we don't want a few stray
-                      ordinals to flip a Mawer-shaped book onto the
-                      wrong parser.
-
-    ``min_entry_number`` / ``max_entry_number`` apply ONLY to the
-    numbered-list parser (the other modes don't have an ordinal axis).
-    Inclusive bounds; default to "no filter" so the historic
-    skeat/alphabetical paths stay bit-stable.
-    """
-    if parser == "skeat":
-        return parse_skeat_text(text)
-    if parser == "alphabetical":
-        return parse_alphabetical_text(text)
-    if parser == "numbered-list":
-        return parse_numbered_list_text(
-            text,
-            min_entry_number=min_entry_number,
-            max_entry_number=max_entry_number,
-        )
-    skeat_result = parse_skeat_text(text)
-    if len(skeat_result) >= 5:
-        return skeat_result
-    return parse_alphabetical_text(text)
-
-
-def _load_meanings_data(meanings: Path | None) -> dict:
-    """Load meanings.json from an optional override path or the bundled default."""
-    if meanings is None:
-        text = resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
-    else:
-        text = meanings.read_text()
-    return json.loads(text)
-
-
-# Default location for the authoring lexicon DB. The callable is
-# resolved per CLI invocation so the WYRD_LEXICON_DB env override and
-# the one-time legacy → ~/.wyrd migration both fire at call time, not
-# at module-import time. See wyrd/generators/kenning/paths.py.
-_DEFAULT_LEXICON_PATH = default_lexicon_path
 
 # Synthetic source row representing the meanings.json data inherited from the
 # Rando port. Authority unverified per-entry; entries flagged for review as
@@ -197,758 +192,26 @@ def cli() -> None:
     """Kenning — town name generation and authoring tools."""
 
 
-@cli.command()
-@click.argument("culture", type=click.Choice(CULTURES))
-@click.option("--tag", "tags", multiple=True, help="Filter by tag (repeatable).")
-@click.option(
-    "--count", "-n", type=click.IntRange(1, 10), default=5, help="Generate N names (1–10)."
-)
-@click.option("--seed", type=int, default=None, help="Reproducible 64-bit seed.")
-@click.option(
-    "--describe/--no-describe",
-    default=True,
-    help="Print the morpheme breakdown after each name.",
-)
-@click.option(
-    "--spelling-variety",
-    type=click.FloatRange(0.0, 1.0),
-    default=0.0,
-    show_default=True,
-    help=(
-        "D18 spelling-variant substitution probability (0..1). At >0, each morpheme "
-        "is rolled for replacement with an attested archaic spelling drawn from "
-        "the etymon's variant pool."
-    ),
-)
-@click.option(
-    "--novelty",
-    type=click.FloatRange(0.0, 1.0),
-    default=0.0,
-    show_default=True,
-    help=(
-        "D17 mixture knob (0..1). 0 = pure empirical-frequency sampling (today's "
-        "behavior); 1 = uniform marginal over in-bucket morphemes; intermediate "
-        "values blend, allowing plausible-but-unattested combinations."
-    ),
-)
-@click.option(
-    "--inflection-density",
-    type=click.FloatRange(0.0, 1.0),
-    default=0.0,
-    show_default=True,
-    help=(
-        "D8 inflection knob (0..1). Per-morpheme probability of substituting an "
-        "inflected form (cotum/cotan/cotes) for the lemma (cot)."
-    ),
-)
-@click.option(
-    "--mood",
-    "moods",
-    multiple=True,
-    help=(
-        "D6 stylistic-mood preset (repeatable). 'grim' applies a menacing "
-        "semantic-tag union; 'harsh' biases sampling toward stop-final / "
-        "cluster-heavy morphemes; 'harsh:VALUE' graduates the phonological "
-        "skew (e.g. 'harsh:0.5'). Multiple --mood flags compose."
-    ),
-)
-@click.option(
-    "--include-fiction",
-    "include_fiction",
-    is_flag=True,
-    default=False,
-    help=(
-        "wyrd-yan: allow morphemes tagged 'fiction' (constructed etymologies "
-        "for bestiary / NPC / homebrew content) to appear. Off by default — "
-        "realistic mode draws only from scholarly-attested morphemes."
-    ),
-)
-@click.option(
-    "--era",
-    type=str,
-    default=None,
-    help=(
-        "D5-2 era filter (wyrd-lyp). Pass a year (e.g. 1086), a cell label "
-        "('oe-late', 'me', 'middle-irish'), or 'family/label' to "
-        "disambiguate. Morphemes with no attested-year data pass through."
-    ),
-)
-@click.option(
-    "--stratum",
-    type=str,
-    default=None,
-    help=(
-        "wyrd-lr4 Phase 3 within-language stratum filter. Pass a register "
-        "tag — for Welsh: 'native-welsh', 'brittonic-substrate', "
-        "'medieval-welsh', 'latin-loan', 'english-loan'; for French: "
-        "'native-french', 'medieval-french', 'gallo-roman', "
-        "'gaulish-substrate', 'frankish-substrate'; for Old English: "
-        "'native-old-english', 'celtic-substrate', 'norse-loan', "
-        "'latin-loan'; for Old Norse: 'native-old-norse', 'east-norse', "
-        "'gaelic-substrate', 'english-loan', 'low-german-loan', "
-        "'latin-loan'. Morphemes with no stratum data pass through. "
-        "Composes with --era via intersection."
-    ),
-)
-@click.option(
-    "--cohesion",
-    type=click.FloatRange(0.0, 1.0),
-    default=0.0,
-    show_default=True,
-    help=(
-        "wyrd-mj2 tag co-occurrence bias (0..1). 0 keeps independent slot "
-        "sampling (today's behavior); higher values bias each slot toward "
-        "usages whose tags co-occur with previously-picked slots in the "
-        "empirical corpus. Composes orthogonally with --novelty."
-    ),
-)
-def generate(
-    culture: str,
-    tags: tuple[str, ...],
-    count: int,
-    seed: int | None,
-    describe: bool,
-    spelling_variety: float,
-    novelty: float,
-    inflection_density: float,
-    moods: tuple[str, ...],
-    include_fiction: bool,
-    era: str | None,
-    stratum: str | None,
-    cohesion: float,
-) -> None:
-    """Generate town names. Replaces Rando's `bin/generator`."""
-    # `available_tags()` already strips _INTERNAL_TAGS for the SPA dropdown,
-    # but the CLI needs to ACCEPT internal tags (some scripts pass them
-    # explicitly) — so widen the validation set with _INTERNAL_TAGS rather
-    # than the literal subset, which would silently desync as new internal
-    # markers (e.g. wyrd-yan's 'fiction') get added.
-    known_tags = set(available_tags()) | _INTERNAL_TAGS
-    bad = [t for t in tags if t not in known_tags]
-    if bad:
-        click.echo(f"Unknown tag(s): {', '.join(bad)}", err=True)
-        click.echo("Available tags:", err=True)
-        for t in sorted(known_tags - _INTERNAL_TAGS):
-            click.echo(f"  {t}", err=True)
-        sys.exit(1)
-    bad_moods = [m for m in moods if m.split(":", 1)[0] not in MOODS]
-    if bad_moods:
-        click.echo(f"Unknown mood(s): {', '.join(bad_moods)}", err=True)
-        click.echo(f"Available moods: {', '.join(sorted(MOODS))}", err=True)
-        sys.exit(1)
-
-    resolved = resolve_seed(seed)
-    seed_rng = rng_for(resolved)
-    kenning = Kenning()
-    params = {
-        "culture": culture,
-        "tags": list(tags),
-        "spelling_variety": spelling_variety,
-        "novelty": novelty,
-        "inflection_density": inflection_density,
-        "mood": list(moods),
-        "include_fiction": include_fiction,
-        "era": era,
-        "stratum": stratum,
-        "cohesion": cohesion,
-    }
-    for _ in range(count):
-        try:
-            result = kenning.generate(params, seed_rng.randrange(2**63))
-        except ValueError as exc:
-            # Surface user-input errors (bad --era, etc.) as friendly
-            # CLI messages on stderr + exit non-zero, matching the
-            # tags/moods pre-validation pattern above. Other unexpected
-            # exceptions still propagate so a real bug isn't silenced.
-            click.echo(f"Error: {exc}", err=True)
-            sys.exit(1)
-        click.echo(result.result)
-        if describe:
-            click.echo(result.explanation)
-    click.echo(f"(seed: {resolved})", err=True)
-
-
-def _aggregate_unaccounted_fragments(
-    resolved_names: list,
-    *,
-    min_length: int,
-    max_examples: int,
-) -> tuple[Counter, dict[str, list[str]], int]:
-    """Walk decomposed Names and tally their leftover string slots.
-
-    Per name, dedups fragments within that name (so 'ham' appearing
-    twice in one toponym counts once toward frequency). Examples are
-    capped at ``max_examples`` per fragment. Fragments shorter than
-    ``min_length`` are skipped.
-
-    Returns ``(fragments, examples_by_frag, imperfect_count)`` where
-    ``imperfect_count`` is the number of names contributing at least
-    one fragment (i.e. didn't reach zero unaccounted).
-    """
-    fragments: Counter = Counter()
-    examples_by_frag: dict[str, list[str]] = {}
-    imperfect_count = 0
-    for resolved in resolved_names:
-        if resolved.count_unaccounted() == 0:
-            continue
-        imperfect_count += 1
-        seen_in_name: set[str] = set()
-        for word_list in resolved.words.values():
-            for word in word_list:
-                for chunk in word.word:
-                    if not isinstance(chunk, str):
-                        continue
-                    frag = chunk.lower()
-                    if len(frag) < min_length or frag in seen_in_name:
-                        continue
-                    seen_in_name.add(frag)
-                    fragments[frag] += 1
-                    bucket = examples_by_frag.setdefault(frag, [])
-                    if resolved.name not in bucket and len(bucket) < max_examples:
-                        bucket.append(resolved.name)
-    return fragments, examples_by_frag, imperfect_count
-
-
-def _decompose_corpus(
-    name_entries: list,
-    word_db: dict,
-    db_path: Path | None,
-) -> tuple[list, Counter]:
-    """Decompose a corpus of Names, honouring canonical picks when a
-    lexicon DB path is supplied.
-
-    ``name_entries`` is a list of ``(Name, region)`` pairs from
-    ``load_names_with_regions`` (wyrd-8m87). Region is forwarded into
-    the canonical lookup so same-modern_name-different-region
-    collisions in the lexicon resolve to the right toponym row.
-    Bare ``Name`` entries (legacy ``load_names`` callers) are accepted
-    too — region defaults to ``None``, and the lookup fallback in
-    ``decompose_with_canonical`` handles NULL-region DBs gracefully.
-
-    Centralises (a) DB context-manager hygiene via ``nullcontext``,
-    (b) the per-name canonical-vs-heuristic branch, (c) the
-    ``canonical_hits`` Counter accumulation.
-
-    Returns ``(resolved_names, canonical_hits)``. ``canonical_hits`` is
-    empty when ``db_path`` is ``None`` so callers can use truthiness to
-    decide whether to surface the ``canonical[...]`` summary block.
-    """
-    from wyrd.generators.kenning.decomposition import decompose_with_canonical
-    from wyrd.generators.kenning.name import Name
-
-    canonical_hits: Counter = Counter()
-    resolved_names: list = []
-    db_context = LexiconDB(db_path) if db_path is not None else nullcontext()
-    with db_context as db:
-        for entry in name_entries:
-            if isinstance(entry, Name):
-                name, region = entry, None
-            else:
-                name, region = entry[0], entry[1]
-            if db is not None:
-                resolved, source = decompose_with_canonical(name.name, word_db, db, region=region)
-                canonical_hits[source or "heuristic"] += 1
-            else:
-                resolved = name
-                resolved.find_meaning(word_db)
-            resolved_names.append(resolved)
-    return resolved_names, canonical_hits
-
-
-@cli.command("rebuild-proportions")
-@click.argument("culture", type=click.Choice(CULTURES))
-@click.argument("place_names", type=click.Path(exists=True, dir_okay=False, path_type=Path))
-@click.option(
-    "--meanings",
-    type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    default=None,
-    help="Path to meanings.json (defaults to bundled).",
-)
-@click.option(
-    "--db",
-    "db_path",
-    type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    default=None,
-    help=(
-        "wyrd-70s0: lexicon DB to read canonical decompositions from. "
-        "When set, names with a canonical pick (from `lexicon decompose "
-        "--apply`) use that breakdown; names without one fall back to "
-        "the matcher's reduce=True heuristic. Without this flag the "
-        "command runs heuristic-only (legacy behaviour)."
-    ),
-)
-def rebuild_proportions(
-    culture: str,
-    place_names: Path,
-    meanings: Path | None,
-    db_path: Path | None,
-) -> None:
-    """Recompute a culture's proportions from a corpus + meanings DB.
-
-    Replaces Rando's `bin/load_names`. Reads place_names JSON (the same shape as
-    the bundled `<culture>_place_names.json` files), deconstructs each name
-    against the meaning DB, and emits a fresh proportions JSON to stdout.
-
-    With ``--db``, canonical decompositions (wyrd-08m / wyrd-70s0) drive
-    the proportion counts for toponyms with a registered canonical pick;
-    others fall back to the matcher heuristic. This makes counts stable
-    across re-runs and reflects scholarly attribution where available.
-    """
-    meanings_data = _load_meanings_data(meanings)
-
-    names_data = json.loads(place_names.read_text())
-    name_entries = load_names_with_regions(names_data)
-    word_db, _ = load_meanings(meanings_data)
-
-    resolved_names, canonical_hits = _decompose_corpus(name_entries, word_db, db_path)
-    good_names = [n for n in resolved_names if n.count_unaccounted() == 0]
-    word_names = sum(1 for n in resolved_names if n.has_name())
-    word_saints = sum(1 for n in resolved_names if n.has_saint())
-
-    summary = (
-        f"culture={culture} perfect={len(good_names)} names={word_names} "
-        f"saints={word_saints} total={len(name_entries)}"
-    )
-    if canonical_hits:
-        breakdown = " ".join(f"{src}={n}" for src, n in sorted(canonical_hits.items()))
-        summary += f" canonical[{breakdown}]"
-    click.echo(summary, err=True)
-    proportions = _proportions_from(good_names)
-    # wyrd-xmk3 review: sort_keys so the on-disk proportions JSON is
-    # deterministic across re-runs. Insertion-order dicts produced
-    # non-determinism in usages / single_usages / tag_cooccurrence
-    # maps, polluting the diff in every rebuild even when counts
-    # were identical. The structures array is a list of dicts; each
-    # 'words' position is iterated by index so the array order is
-    # already determined by the corpus walk — sort_keys handles the
-    # dict slots inside.
-    click.echo(json.dumps(proportions, sort_keys=True))
-
-
-def _proportions_from(names) -> dict:
-    part_proportions: Counter = Counter()
-    lone_proportions: Counter = Counter()
-    struct_proportions: Counter = Counter()
-    tag_cooccurrence: Counter = Counter()
-    tag_marginal: Counter = Counter()
-    for name in names:
-        for u in name.get_samples():
-            part_proportions[u] += 1
-        for u in name.get_lone_samples():
-            lone_proportions[u] += 1
-        for structure in name.get_structure():
-            struct_proportions[structure] += 1
-        # Tag co-occurrence: ordered consecutive Meaning pairs across the
-        # full name (within-word AND between-word). Each pair contributes
-        # the cartesian product of (left.tags × right.tags) — an etymon
-        # often has several tags (plant, food, tree), and any of them can
-        # legitimately drive co-occurrence.
-        for left_tags, right_tags in _ordered_tag_pairs(name):
-            for tl in left_tags:
-                tag_marginal[tl] += 1
-                for tr in right_tags:
-                    tag_cooccurrence[(tl, tr)] += 1
-            for tr in right_tags:
-                tag_marginal[tr] += 1
-    return {
-        "usages": dict(part_proportions),
-        "single_usages": dict(lone_proportions),
-        "structures": _encode_structs(struct_proportions),
-        # Serialize tag-pair keys as "left|right" so they survive a JSON
-        # round-trip. Generator side splits on the pipe.
-        "tag_cooccurrence": {f"{a}|{b}": v for (a, b), v in tag_cooccurrence.items()},
-        "tag_marginal": dict(tag_marginal),
-    }
-
-
-def _ordered_tag_pairs(name) -> list[tuple[list[str], list[str]]]:
-    """Walk a decomposed Name in order, yielding consecutive (left.tags,
-    right.tags) pairs across the entire name (within and between words).
-
-    For 'Bridgwater Gate' this yields:
-        (Bridg-.tags, -water.tags)   # within word 1
-        (-water.tags, Gate.tags)     # between words
-
-    When a word has multiple equivalent decompositions (e.g. mining surfaced
-    a bare-form synthesized usage that competes with the dashed reflex), prefer
-    the decomp with the most tag-bearing Meanings — that's the one that
-    actually feeds co-occurrence statistics rather than emitting empty
-    () pairs.
-    """
-
-    def _tag_density(word_obj) -> int:
-        if not hasattr(word_obj, "word"):
-            return -1
-        return sum(1 for c in word_obj.word if isinstance(c, Meaning) and c.tags)
-
-    flat_meanings: list[Meaning] = []
-    for word_text in name.name.split(" "):
-        word_options = name.words.get(word_text, [])
-        if not word_options:
-            continue
-        chosen = max(word_options, key=_tag_density)
-        if not hasattr(chosen, "word"):
-            continue
-        for chunk in chosen.word:
-            if isinstance(chunk, Meaning):
-                flat_meanings.append(chunk)
-
-    out: list[tuple[list[str], list[str]]] = []
-    for i in range(len(flat_meanings) - 1):
-        out.append((list(flat_meanings[i].tags), list(flat_meanings[i + 1].tags)))
-    return out
-
-
-def _encode_meaning(qualities) -> dict:
-    out: dict = {}
-    for quality in qualities:
-        if quality in ("pre", "post", "inner"):
-            out["location"] = quality
-        else:
-            out[quality] = True
-    return out
-
-
-def _encode_structs(struct: Counter) -> list:
-    """Serialize the structure → count map into the proportions-JSON
-    shape, sorted for deterministic output (wyrd-dxu2 review). Counter
-    iteration order is insertion-order, so the underlying corpus walk
-    determines initial order — but two re-runs against the same corpus
-    can iterate in slightly different orders if the matcher's
-    decomposition outputs change. Sorting by (-proportion, structure
-    key) gives a stable canonical order: most-frequent first, with the
-    structure tuple as deterministic tiebreaker."""
-    # Sort Counter.items() once before serializing so we don't need
-    # a temp _sort_key on each dict. Sort by (-proportion, key) for
-    # most-frequent-first with the structure tuple as a deterministic
-    # tiebreaker.
-    sorted_items = sorted(struct.items(), key=lambda item: (-item[1], item[0]))
-    return [
-        {
-            "proportion": value,
-            "words": [[_encode_meaning(meaning) for meaning in word] for word in key],
-        }
-        for key, value in sorted_items
-    ]
-
-
-@cli.command("add-meaning")
-@click.option("--tag", "tags", multiple=True, help="Modifier tag (repeatable).")
-def add_meaning(tags: tuple[str, ...]) -> None:
-    """Read names from stdin, emit JSON entries suitable for meanings.json.
-
-    Replaces Rando's `bin/generate_names`. One name per line; '/'-separated
-    forms become alternate `modern_usage` entries.
-    """
-    if not tags:
-        click.echo("At least one --tag is required.", err=True)
-        sys.exit(1)
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        forms = line.split("/")
-        entry = {
-            "meaning": [f"{n} (Name)" for n in forms],
-            "modifier_tags": list(tags),
-            "modifier_type": "Habitative",
-            "words": [{"modern_usage": f"{n}-"} for n in forms],
-        }
-        click.echo(json.dumps(entry) + ",")
-
-
-@cli.command("unaccounted")
-@click.argument("culture", type=click.Choice(CULTURES))
-@click.argument("place_names", type=click.Path(exists=True, dir_okay=False, path_type=Path))
-@click.option(
-    "--meanings",
-    type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    default=None,
-    help="Path to meanings.json (defaults to bundled).",
-)
-@click.option("--top", type=int, default=50, help="Show top N most-frequent fragments.")
-@click.option("--examples", type=int, default=3, help="Up to N example names per fragment.")
-@click.option("--min-length", type=int, default=2, help="Skip fragments shorter than this.")
-@click.option("--as-json", is_flag=True, default=False, help="Emit machine-readable JSON.")
-@click.option(
-    "--sources-dir",
-    type=click.Path(exists=True, file_okay=False, path_type=Path),
-    default=None,
-    help=(
-        "wyrd-bvp: when set, annotate each top-N fragment with "
-        "scholarly-corpus presence — count of source files where "
-        "the fragment appears at a word boundary, plus 1-2 sample "
-        "snippets with surrounding context. Strong-hit indicator "
-        "flags snippets that look like an etymology body."
-    ),
-)
-@click.option(
-    "--db",
-    "db_path",
-    type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    default=None,
-    help=(
-        "wyrd-70s0: lexicon DB to read canonical decompositions from. "
-        "When set, gap counts honour the canonical pick — a fragment "
-        "appears in the gap report only if it's unaccounted under the "
-        "toponym's canonical decomposition. False-gap fragments that "
-        "the heuristic surfaced but a zero-unaccounted alternate "
-        "covered will silently disappear from the report."
-    ),
-)
-def unaccounted(
-    culture: str,
-    place_names: Path,
-    meanings: Path | None,
-    top: int,
-    examples: int,
-    min_length: int,
-    as_json: bool,
-    sources_dir: Path | None,
-    db_path: Path | None,
-) -> None:
-    """Surface morpheme fragments the corpus uses but the meaning DB doesn't.
-
-    Decomposes every name in <place_names>; for names that don't fully decompose,
-    aggregates the leftover string fragments by frequency. The top fragments are
-    candidates for new entries in meanings.json — this is the mining tool that
-    surfaces what the previous deconstruction silently dropped.
-
-    With ``--db``, canonical decompositions (wyrd-08m / wyrd-70s0) drive
-    the gap counting: a fragment is reported as unaccounted only if it
-    appears in the toponym's canonical breakdown's leftovers. Names
-    without a canonical fall back to the heuristic. Operators see fewer
-    false-gap fragments at the cost of needing a recent
-    ``lexicon decompose --apply`` run.
-    """
-    meanings_data = _load_meanings_data(meanings)
-
-    names_data = json.loads(place_names.read_text())
-    name_entries = load_names_with_regions(names_data)
-    word_db, _ = load_meanings(meanings_data)
-
-    resolved_names, canonical_hits = _decompose_corpus(name_entries, word_db, db_path)
-    fragments, examples_by_frag, imperfect_count = _aggregate_unaccounted_fragments(
-        resolved_names, min_length=min_length, max_examples=examples
-    )
-
-    top_fragments = fragments.most_common(top)
-    # wyrd-bvp: when --sources-dir is set, scan all source-text
-    # files for each top-N fragment and annotate with corpus
-    # presence. The annotation is computed once and threaded
-    # through both JSON and text output paths so consumers see the
-    # same evidence shape regardless of format.
-    evidence_by_frag: dict[str, dict[str, Any]] = {}
-    if sources_dir is not None:
-        evidence_by_frag = annotate_fragments_with_corpus_evidence(
-            [frag for frag, _ in top_fragments],
-            sources_dir,
-        )
-
-    summary = (
-        f"culture={culture} imperfect_names={imperfect_count} unique_fragments={len(fragments)}"
-    )
-    if canonical_hits:
-        breakdown = " ".join(f"{src}={n}" for src, n in sorted(canonical_hits.items()))
-        summary += f" canonical[{breakdown}]"
-    click.echo(summary, err=True)
-
-    if as_json:
-        out = []
-        for frag, count in top_fragments:
-            entry = {"fragment": frag, "count": count, "examples": examples_by_frag[frag]}
-            if evidence_by_frag:
-                entry.update(evidence_by_frag.get(frag, {}))
-            out.append(entry)
-        click.echo(json.dumps(out, indent=2))
-        return
-
-    if evidence_by_frag:
-        click.echo(f"{'fragment':<20} {'count':>6}  {'corpus':>6}  {'strong':>6}  examples")
-    else:
-        click.echo(f"{'fragment':<20} {'count':>6}  examples")
-    click.echo("-" * 70)
-    for frag, count in top_fragments:
-        ex = ", ".join(examples_by_frag[frag])
-        if evidence_by_frag:
-            ev = evidence_by_frag.get(frag, {})
-            corpus = ev.get("corpus_hits", 0)
-            strong = ev.get("strong_hits", 0)
-            click.echo(f"{frag:<20} {count:>6}  {corpus:>6}  {strong:>6}  {ex}")
-        else:
-            click.echo(f"{frag:<20} {count:>6}  {ex}")
-
-
-@cli.command("explain")
-@click.argument("name")
-def explain(name: str) -> None:
-    """Decompose a name into morphemes; print every matching reading."""
-    explainer = KenningExplain()
-    results = explainer.generate_all({"name": name}, 0)
-    for r in results:
-        click.echo(r.explanation)
-
-
-@cli.command("rewind")
-@click.argument("name")
-@click.option(
-    "--db",
-    "db_path",
-    type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    default=_DEFAULT_LEXICON_PATH,
-    show_default=LEXICON_DB_DEFAULT_DISPLAY,
-)
-@click.option(
-    "--era",
-    "era_input",
-    multiple=True,
-    help=(
-        "Era stop to render. Pass multiple times for a custom ladder; "
-        "default is 'oe-late me modern' for the english family. "
-        "Each value is a cell label (oe-late) or family/label "
-        "(english/me). Year input not supported here — use cell labels "
-        "for predictable rewind output."
-    ),
-)
-def rewind(name: str, db_path: Path, era_input: tuple[str, ...]) -> None:
-    """wyrd-rni Phase 3.1: render NAME at multiple historical eras.
-
-    Decomposes the input via the kenning explainer, anchors each
-    morpheme to its source-language etymon (typically Old English),
-    and renders the compound at each requested era stop using the
-    cognate-cluster era-reflex picker (wyrd-skm Phase 3.0b).
-
-    Default ladder is three English-family stops: oe-late (800-1100),
-    me (1100-1500), modern (1700+). Pass ``--era`` repeatedly to
-    customise — e.g. ``--era oe-early --era oe-late --era me`` for a
-    five-cell pre-modern ladder.
-
-    Morphemes that don't anchor (no matching etymon row in the
-    lexicon DB, or anchor lacks both cognate_id and descent edges)
-    fall back to their modern usage and are flagged so the user can
-    see which morphemes 'don't have era data' for the requested
-    cell.
-    """
-    eras: tuple[tuple[str, str], ...]
-    if era_input:
-        try:
-            eras = tuple(era_cell_for_input(value, default_family="english") for value in era_input)
-        except ValueError as exc:
-            click.echo(str(exc), err=True)
-            raise click.exceptions.Exit(1) from exc
-    else:
-        eras = DEFAULT_ENGLISH_ERAS
-
-    meaning_db, _ = _load_meanings()
-
-    try:
-        with LexiconDB(db_path) as db:
-            result = rewind_name(name, db, meaning_db, eras=eras)
-    except ValueError as exc:
-        click.echo(f"Error: {exc}", err=True)
-        raise click.exceptions.Exit(1) from exc
-
-    if not result.eras:
-        click.echo("(no era stops requested)", err=True)
-        return
-
-    click.echo(f"{result.name} — decomposed: {result.decomposition}")
-    if result.unaccounted:
-        click.echo(f"  unaccounted: {' '.join(result.unaccounted)}", err=True)
-    # Bail early when nothing decomposed — printing empty era rows
-    # ('english/oe-late  ') with no rendered content clutters the
-    # output and confuses readers about what failed.
-    if not any(stop.morphemes for stop in result.eras):
-        return
-
-    width = max(len(f"{stop.family}/{stop.cell}") for stop in result.eras)
-    for stop in result.eras:
-        label = f"{stop.family}/{stop.cell}".ljust(width)
-        flag = " *" if any(m.fallback for m in stop.morphemes) else ""
-        click.echo(f"  {label}  {stop.rendered}{flag}")
-    if any(any(m.fallback for m in stop.morphemes) for stop in result.eras):
-        click.echo(
-            "  * one or more morphemes lacked era data; rendered with "
-            "the modern usage as fallback.",
-            err=True,
-        )
-
-
-@cli.command("era-map")
-@click.argument("culture", type=click.Choice(CULTURES))
-@click.option("--count", type=int, default=6, help="How many names to roll.")
-@click.option("--seed", type=int, default=0, help="RNG seed; successive names use seed+i.")
-@click.option("--as-json", is_flag=True, default=False, help="Emit JSON.")
-def era_map(culture: str, count: int, seed: int, as_json: bool) -> None:
-    """wyrd-381: bulk-generate N names AND render each at era stops.
-
-    The Domesday-vs-modern map demo. Composes the existing Kenning
-    name-generator with the wyrd-skm era-reflex rewinder: same roll,
-    same morpheme stack, multiple eras of paper.
-
-    Default ladder is the three English stops (oe-late / me / modern).
-    Names whose morphemes haven't been mined for era_reflexes render
-    uniformly across all eras (the bundle-only renderer falls back
-    to the modern usage); that's a coverage limit, not a bug.
-    """
-    from wyrd.generators.kenning import KenningEraMap
-
-    gen = KenningEraMap()
-    results = gen.generate_all({"culture": culture, "count": count}, seed)
-
-    if as_json:
-        out = []
-        for r in results:
-            comp = r.components[0] if r.components else {}
-            out.append(
-                {
-                    "name": comp.get("name"),
-                    "era_cells": comp.get("era_cells", []),
-                    "rendered_modern": r.result,
-                }
-            )
-        click.echo(json.dumps(out, indent=2))
-        return
-
-    click.echo(f"culture={culture} count={len(results)} (requested {count})", err=True)
-    for r in results:
-        comp = r.components[0] if r.components else {}
-        name = comp.get("name", "?")
-        cells = comp.get("era_cells", [])
-        click.echo(f"\n{name}")
-        for cell in cells:
-            label = f"{cell.get('family', '?')}/{cell.get('era', '?')}"
-            click.echo(f"  {label:<20} {cell.get('rendered', '?')}")
-
-
-@cli.command("creature")
-@click.argument("name")
-def creature(name: str) -> None:
-    """wyrd-vz7f: surface fantasy-creature etymology from the
-    wyrd-ami pipeline.
-
-    Looks up the creature name in the bundled ``fantasy_morphemes``
-    map (populated by ``lexicon export-meanings`` from the
-    ``fantasy_morpheme`` table). Prints the linked attested ancestor
-    (language, canonical form, glosses, citation) and any era
-    reflexes mined for that etymon's cluster.
-
-    Unknown names return a polite 'not found' rather than erroring,
-    so chaining ``wyrd kenning creature <random>`` against a list
-    is safe.
-    """
-    from wyrd.generators.kenning import KenningCreature
-
-    gen = KenningCreature()
-    result = gen.generate({"name": name}, seed=0)
-    click.echo(result.result)
-    if result.explanation:
-        click.echo(f"  {result.explanation}")
-
-
-@cli.group("lexicon")
-def lexicon() -> None:
-    """Manage the authoring lexicon DB (etymology data store)."""
+# Register the extracted top-level subcommands on the @cli group. Each
+# module exposes an ``add_to(parent)`` that wires its click command(s)
+# onto the parent group. Adding a new top-level subcommand means
+# creating a new ``cli/<name>.py`` module and adding an
+# ``<name>_module.add_to(cli)`` line below.
+_add_meaning_module.add_to(cli)
+_creature_module.add_to(cli)
+_era_map_module.add_to(cli)
+_explain_module.add_to(cli)
+_generate_module.add_to(cli)
+_rebuild_proportions_module.add_to(cli)
+_rewind_module.add_to(cli)
+_unaccounted_module.add_to(cli)
+_validate_meanings_module.add_to(cli)
+
+# Register the @lexicon sub-group. The group object is imported above so
+# the remaining ``@lexicon.command`` decorators in this file (pending
+# extraction in slices 2-5 of wyrd-g143) decorate against the same
+# shared group.
+_register_lexicon_group(cli)
 
 
 @lexicon.command("build")
@@ -10336,32 +9599,3 @@ def lexicon_synsets_candidates(
             f"  {r['canonical_form']:<24} {r['language']:<14} "
             f"{r['synset_label']:<28} (fit: {r['candidate_fit']})"
         )
-
-
-@cli.command("validate-meanings")
-@click.argument(
-    "meanings",
-    type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    required=False,
-)
-def validate_meanings(meanings: Path | None) -> None:
-    """Check meanings.json: every modern_usage must contain a hyphen.
-
-    Replaces Rando's `bin/validate_names`. Reads the path argument or stdin.
-    Exits non-zero if any entries are malformed.
-    """
-    raw = meanings.read_text() if meanings else sys.stdin.read()
-    data = json.loads(raw)
-
-    bad = []
-    for subject in data:
-        for word in subject["words"]:
-            if "-" not in word["modern_usage"]:
-                bad.append(word)
-
-    for word in bad:
-        click.echo(json.dumps(word), err=True)
-    if bad:
-        click.echo(f"{len(bad)} malformed entries.", err=True)
-        sys.exit(1)
-    click.echo(f"OK: {sum(len(s['words']) for s in data)} entries valid.", err=True)
