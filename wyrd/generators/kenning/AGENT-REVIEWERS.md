@@ -39,8 +39,8 @@ that touches the lexicon DB belongs in the package; the rest of
 **Acceptable** (don't flag):
 
 * Runtime-layer files (`__init__.py`, `meaning.py`, `name.py`,
-  `proportions.py`, `era.py`, `respelling.py`, `scripts.py`,
-  `trie_matcher.py`, `decomposition.py`, `rewind.py`,
+  `proportions.py`, `era/cells.py`, `respelling.py`, `scripts.py`,
+  `trie_matcher.py`, `decomposition.py`, `era/rewind.py`,
   `phonology.py`, `vectors/schemas.py`) — these read the bundled
   `meanings.json` and have no DB access.
 * `cli.py` — CLI wiring lives here per project convention; will be

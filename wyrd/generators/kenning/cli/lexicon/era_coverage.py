@@ -25,7 +25,7 @@ def lexicon_era_coverage(db_path: Path) -> None:
     each toponym is attested in, and the percent with >=3 dated eras
     — the headline 'is the cross-era story landing' number.
     """
-    from wyrd.generators.kenning.era_timeline import (
+    from wyrd.generators.kenning.era.timeline import (
         fetch_era_coverage,
         format_era_coverage,
     )

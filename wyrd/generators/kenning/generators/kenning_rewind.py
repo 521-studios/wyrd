@@ -17,7 +17,7 @@ from wyrd.registry import GenerationResult, Generator
 class KenningRewind(Generator):
     """wyrd-obpw Phase 3.3 — bundle-driven time-rewind explainer.
 
-    Mirrors the CLI rewinder (``wyrd/generators/kenning/rewind.py``)
+    Mirrors the CLI rewinder (``wyrd/generators/kenning/era/rewind.py``)
     but reads era data from the bundle (``Meaning.era_reflex_for``)
     instead of the lexicon DB. The Lambda has no DB access, so this
     Generator class is the SPA-renderable surface for the rewinder
@@ -72,7 +72,7 @@ class KenningRewind(Generator):
         return results[0]
 
     def generate_all(self, params: dict[str, Any], seed: int) -> list[GenerationResult]:
-        from wyrd.generators.kenning.era import canonical_language_for_cell
+        from wyrd.generators.kenning.era.cells import canonical_language_for_cell
 
         text = (params.get("name") or "").strip()
         if not text:

@@ -61,7 +61,7 @@ def collect_fantasy_morphemes(db: LexiconDB) -> dict[str, dict[str, Any]]:
     if not table_exists:
         return {}
 
-    from wyrd.generators.kenning.era import (
+    from wyrd.generators.kenning.era.cells import (
         CANONICAL_LANGUAGE_FOR_CELL,
         language_family,
     )

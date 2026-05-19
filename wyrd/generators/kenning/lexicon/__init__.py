@@ -12,7 +12,7 @@ from __future__ import annotations
 # ``lexicon.citations``, ``lexicon.seed``, ``lexicon.empirical_priors``,
 # ``lexicon.sql``). The blocks below re-export the PUBLIC surface — plus
 # the small set of underscore-prefixed names tests actually import — so
-# external callers (cli.py, rewind.py, disambiguator.py, the test suite)
+# external callers (cli/, era/rewind.py, disambiguator.py, the test suite)
 # keep their existing ``from wyrd.generators.kenning.lexicon import …``
 # imports unchanged. Underscore helpers without an external caller are
 # NOT re-exported; in-package callers reach them via the submodule path

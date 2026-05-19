@@ -164,7 +164,7 @@ def test_era_midpoint_for_language_resolves_old_english_year():
 
 
 def test_era_midpoint_for_language_returns_none_on_untracked_language():
-    # Greek isn't in LANGUAGE_TO_FAMILY (per era.py).
+    # Greek isn't in LANGUAGE_TO_FAMILY (per era/cells.py).
     assert _era_midpoint_for_language("ancient-greek", 500) is None
 
 
@@ -234,7 +234,7 @@ def test_known_era_midpoints_covers_every_cell():
         "latin",
         "norman-french",
     }
-    # English checks against the era.py table.
+    # English checks against the era/cells.py table.
     assert midpoints[("english", "oe-late")] == 950
     assert midpoints[("english", "me")] == 1300
 

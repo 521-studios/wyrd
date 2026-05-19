@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from wyrd.generators.kenning.era import (
+from wyrd.generators.kenning.era.cells import (
     canonical_language_for_cell,
     era_cells_for_family,
 )

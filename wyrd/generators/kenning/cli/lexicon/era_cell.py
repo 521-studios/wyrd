@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import click
 
-from wyrd.generators.kenning.era import era_cell, language_family
+from wyrd.generators.kenning.era.cells import era_cell, language_family
 
 
 @click.command("era-cell")

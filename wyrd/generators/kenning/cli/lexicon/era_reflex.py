@@ -7,7 +7,7 @@ from pathlib import Path
 import click
 
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
-from wyrd.generators.kenning.era import era_cell_for_input, language_family
+from wyrd.generators.kenning.era.cells import era_cell_for_input, language_family
 from wyrd.generators.kenning.lexicon import LexiconDB, etymon_era_reflexes
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
@@ -44,7 +44,7 @@ def lexicon_era_reflex(etymon_id: int, era_input: str, db_path: Path) -> None:
     Empty output when the etymon has no cognate_id (~76% of OE
     toponym etymons today — cluster_cognates coverage gap) or when
     the target cell has no canonical language tag (most Norse +
-    Latin late cells; see ``CANONICAL_LANGUAGE_FOR_CELL`` in era.py).
+    Latin late cells; see ``CANONICAL_LANGUAGE_FOR_CELL`` in era/cells.py).
     Extending coverage means adding entries to that dict; the picker
     surfaces any new entry the next call.
     """

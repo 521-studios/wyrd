@@ -1625,7 +1625,7 @@ falls back to alphabetical first, then `morpheme.canonical` when
 no era data. **No DB access** — reads exclusively from
 `Meaning.era_reflex_for`.
 
-The CLI rewinder (`rewind.py:rewind_name`) and `KenningRewind`
+The CLI rewinder (`era/rewind.py:rewind_name`) and `KenningRewind`
 have parallel small picker logic. The full `EraReflexProvider`
 protocol abstraction is **deliberately deferred** until wyrd-381
 (stratified era-map) lands as a second consumer — designing the
