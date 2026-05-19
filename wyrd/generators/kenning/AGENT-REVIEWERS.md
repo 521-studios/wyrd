@@ -165,3 +165,205 @@ structure makes path drift more likely than in flat packages. The
 underlying principle (use importlib.resources for package data) is
 universal; if other generators grow data sidecars, promote this
 reviewer to the repo-root `AGENT-REVIEWERS.md`.
+
+## docstring-grep-verify-reviewer
+
+Module and function docstrings that name specific tables, columns,
+function names, regex patterns, or output shapes must be
+grep-verified against the code before merge. The wyrd-67fv slice D
+review loop spent 5 fix rounds chasing 7 docstring inaccuracies
+(round 2 introduced a NEW inaccuracy while fixing round 1's
+fantasy_export claim — fixes can be wrong too) because NEW module
+docstrings were written without checking each claim against the
+function body. Examples included:
+
+* `ingest.py` claimed "Idempotent per `(source_id, page)`" — code
+  never references `page` and there's no UNIQUE constraint that
+  would make it idempotent.
+* `decomposition_export.py` claimed "walks every toponym +
+  toponym_etymology pairing" — SQL actually joins
+  `toponym_decomposition` and never touches `toponym_etymology`.
+* `fantasy_export.py` claimed source was "etymon tagged
+  fantasy-suitable" with output shape `{morpheme, language, gloss,
+  source_book, source_page}` — actual source is `fantasy_morpheme`
+  rows where `usable=1`, with a completely different output shape.
+* `bundle/_emit.py` claimed `_LANG_CODE_TO_JSON_FIELD` rolls
+  `welsh + old-welsh + middle-welsh → welsh` — actually they all
+  collapse into `celtic_mix` (a single shared bucket).
+* `bundle/_subject.py` `_emit_word_languages` and
+  `_WordLanguageAccumulators` docstrings listed 5 sibling field
+  families — the actual code emits 9 (wyrd-vsrn / wyrd-qhs0 /
+  wyrd-lr4 grew the set without updating prose).
+
+**FLAG when a NEW or MODIFIED docstring contains:**
+
+1. A SQL table or column name that doesn't appear in the function's
+   SQL string literal.
+2. A function name referenced as called/used that doesn't appear in
+   the function body (grep for the bare name).
+3. A regex count (e.g. "Three regex patterns", "Five precision
+   gates") that doesn't match `len(re.findall(r'^_[A-Z_]+_RE\b', ...))`
+   or the equivalent obvious count.
+4. An output-shape claim (`{key1, key2, ...}` or
+   `dict[K, V]`) where the keys don't match the actual `SELECT`
+   columns or dict construction in the function body.
+5. A field count or list ("5 dicts", "the four renderings", "the
+   nine sibling families") that doesn't match the actual dataclass
+   field count or list construction.
+
+**Acceptable** (don't flag):
+
+* Stable conceptual descriptions that don't name specific symbols
+  ("this module owns the per-language phonological-bridge pass").
+* Examples that use placeholder names (`<lang>_variants`).
+* Forward-looking docs that explicitly say "Phase 2 will add ...".
+
+**Review approach:**
+
+1. For each NEW module docstring (file added in the PR), open the
+   first function below it and grep-verify every named symbol /
+   table / regex count / output key.
+2. For MODIFIED module docstrings, compare the diff's new lines
+   against the function body line-by-line.
+3. For dataclass-bundle docstrings (`_BucketAccumulator`,
+   `_WordLanguageAccumulators`, etc.), count the actual
+   `field(default_factory=...)` declarations and compare to any
+   count words in the prose.
+4. If a count or shape claim is wrong: flag it. These are
+   factual errors that mislead future maintainers (and they
+   accumulate — slice D's `_WordLanguageAccumulators` doc was
+   wrong because three separate wyrd-ticket waves grew the set
+   without anyone re-reading the class doc).
+
+## dataclass-extraction-decorator-reviewer
+
+When a `@dataclass` class is extracted from one file into another
+via line-range copy, the `@dataclass` decorator line above the
+`class X:` line is often missed if the extraction range starts at
+`class`. The wyrd-67fv slice C caught this on `EraReflex` (lost the
+decorator during extraction, all era-reflex tests failed with
+"`EraReflex() takes no arguments`"); slice D caught it on
+`_BucketAccumulator` (bundle build failed with
+"`argument of type 'Field' is not iterable`" because the dataclass
+`field(default_factory=set)` became a literal `Field` object instead
+of an empty set).
+
+**FLAG when a PR adds a NEW file containing a class that uses
+`field(default_factory=...)` or `field(default=...)` without a
+`@dataclass` (or `@dataclass(...)`) decorator on the line above.**
+
+These two patterns are the load-bearing telltale (the imports are
+required for the example to run):
+
+```python
+from dataclasses import dataclass, field
+
+class X:
+    forms: list[str] = field(default_factory=list)  # ← needs @dataclass!
+    citations: set[str] = field(default_factory=set)
+```
+
+```python
+from dataclasses import dataclass, field
+
+class Y:
+    name: str = field(default="")  # ← needs @dataclass!
+```
+
+**Acceptable** (don't flag):
+
+* Plain `@dataclass`-decorated classes with `field(...)` defaults
+  (the decorator is what makes `field()` resolve to a Field
+  descriptor at class-construction time).
+* Classes that use `field` only as a typing annotation
+  (`x: dataclasses.Field[int]`) without calling it.
+* `attrs.field(...)` or `pydantic.Field(...)` — those have their
+  own decorator chains (`@attrs.define`, model inheritance) that
+  don't fit this rule's signature.
+
+**Review approach:**
+
+1. Grep new files for `field(default` — every hit must be inside
+   a `@dataclass`-decorated class.
+2. If a `field(...)` call is in a class without the decorator: flag
+   it. The bug surfaces at instance-construction time, not at
+   import time, so type-check tools and quick smoke imports won't
+   catch it.
+
+This rule fires almost exclusively on extraction PRs (you don't
+normally write `field(default_factory=...)` outside a dataclass on
+purpose). Promote to repo-root `AGENT-REVIEWERS.md` if other
+generator packages start growing extraction PRs.
+
+## pre-push-extraction-sweep (practice, not a reviewer)
+
+For PRs that extract >500 lines from one file into multiple new
+modules, run a comprehensive sweep agent BEFORE pushing. The
+wyrd-67fv slice D introduced this pattern and caught 5 things up
+front (a dead-code drag-in, a stranded constant block, a docstring
+inaccuracy, a missing production re-export that would have hit
+`ImportError` at collection time, a broken test monkey-patch).
+
+Slices A and B each landed in 1 review round; slice C needed 4
+rounds (the "rule/transform" terminology drift kept recurring
+across 6 bridges files because no up-front sweep). Slice D, with
+the sweep, still needed 5 docstring-fix rounds — the sweep didn't
+catch every claim — but the rounds were shorter and avoided the
+production-import break the sweep DID catch. The lesson isn't
+"sweep replaces review rounds"; it's "sweep catches the cheap
+class of problems (missing re-exports, broken monkey-patches,
+orphan comments) before they cost a round, leaving the review
+loop for the harder docstring-accuracy class".
+
+**When to use:**
+
+* Extraction PRs that touch >500 LOC across >3 new files.
+* Subpackage creation (the new `subpackage/__init__.py` is a public
+  surface that needs auditing before any external caller sees it).
+* PRs that move underscore-prefixed helpers callers depend on.
+
+**Don't bother:**
+
+* Bug-fix PRs, single-file refactors, or anything that fits in a
+  ~200-line diff.
+
+**Reusable sweep prompt template:**
+
+```
+Pre-push sweep for [refactor description] in [worktree path].
+
+CONTEXT: [what was extracted, why]
+NEW FILES: [list each new file + 1-line purpose]
+PACKAGE __init__: [path to the back-compat re-export shim, e.g.
+                   wyrd/generators/kenning/lexicon/__init__.py]
+PRE-EXISTING LESSON: [most recent slice's caught patterns, so
+                     the sweep doesn't waste time re-discovering them]
+
+YOUR TASK — comprehensive sweep, no fixes:
+
+1. ORPHAN COMMENTS: scan each new file for comment lines that
+   start mid-sentence (lowercase first word, no preceding
+   continuation). Extraction artifacts.
+2. DEAD CODE / DRAG-INS: identify any function or constant in the
+   new files that has NO call site anywhere in the repo (grep
+   wyrd/ tests/ for the name).
+3. DATACLASS DECORATORS: confirm @dataclass on every class that
+   uses field(default_factory=...) or field(default=...).
+4. DOCSTRING ACCURACY: for each NEW module docstring, verify every
+   factual claim against the code body (named tables/functions/
+   output shape match the SQL/dict construction).
+5. CROSS-MODULE IMPORTS: verify deferred imports and shared
+   helpers resolve through the back-compat re-export.
+6. RE-EXPORT-SURFACE: re-exports through the PACKAGE __init__ path
+   above must have at least one external caller. Grep production
+   code AND tests for each re-exported name; a missing re-export
+   is a worse failure than a dead one (the production caller
+   ImportErrors at test-collection time, not at import-time).
+
+REPORT: numbered list of concrete findings with file:line refs.
+"No issues found" if nothing of substance.
+```
+
+This is documented as a practice (not a reviewer) because it runs
+once per PR, before review starts, rather than as part of the
+review loop's per-round agents.
