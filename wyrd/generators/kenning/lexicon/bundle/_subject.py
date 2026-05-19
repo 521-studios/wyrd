@@ -423,12 +423,14 @@ def _absorb_member_citations(
 
 
 def _emit_word_languages(word: dict[str, Any], accs: _WordLanguageAccumulators) -> None:
-    """Stamp per-language form arrays + sibling _variants /
-    _inflections / _citations / _attested_years / _english_shaped
-    metadata onto the word dict. Per D26, the metadata fields are
-    sibling keys (``<lang>_variants``, ``<lang>_inflections``,
-    ``<lang>_citations``, ``<lang>_attested_years``,
-    ``<lang>_english_shaped``) so legacy loaders that ignore unknown
+    """Stamp per-language form arrays + the nine sibling metadata
+    families onto the word dict: ``<lang>_variants``,
+    ``<lang>_inflections``, ``<lang>_citations``,
+    ``<lang>_attested_years``, ``<lang>_english_shaped``,
+    ``<lang>_original_script``, ``<lang>_transliteration``,
+    ``<lang>_pronunciation`` (wyrd-qhs0 Phase 2d), and
+    ``<lang>_stratum`` (wyrd-lr4 Phase 2). Per D26, the metadata
+    fields are sibling keys so legacy loaders that ignore unknown
     fields keep working.
 
     Multiple lexicon codes can route to the SAME bundle bucket via
@@ -439,11 +441,11 @@ def _emit_word_languages(word: dict[str, Any], accs: _WordLanguageAccumulators) 
     `word[json_field]` on each iteration, only the last-sorted lexicon
     code's forms would survive.
 
-    Aggregation is done per bucket via `_BucketAccumulator` so the
-    forms / variants / inflections / citations / attested_years /
-    english_shaped fields all union under the same bucket key in one
-    pass; the final emit walks buckets in stable order so output is
-    deterministic regardless of source-lang sort order.
+    Aggregation is done per bucket via `_BucketAccumulator` so all
+    nine sibling families plus the forms array union under the same
+    bucket key in one pass; the final emit walks buckets in stable
+    order so output is deterministic regardless of source-lang sort
+    order.
     """
     buckets: dict[str, _BucketAccumulator] = {}
     for lang in sorted(accs.forms_by_lang):
