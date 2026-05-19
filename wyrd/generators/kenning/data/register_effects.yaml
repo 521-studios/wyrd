@@ -33,6 +33,22 @@
 # (wyrd/generators/kenning/__init__.py). New entries surfaced at the
 # 2026-05-16 design discussion: noble / mystical / melodic / sinister
 # / ancient / exotic / martial.
+#
+# v1.1 (wyrd-2166, 2026-05-19): per-weight scholarly grounding pass.
+# Existing weights documented against the phonaesthetics literature;
+# under-weighted dimensions (vowel_backness across noble/mystical/
+# sinister; aspirated_voiceless on harsh/martial; vowel_height on
+# noble/mystical/sinister) added with citations. See REGISTERS.md
+# in this directory for the full per-register grounding writeup.
+#
+# Citation key: UNIVERSAL = cross-linguistic sound-symbolic primitive
+# with experimental + cross-cultural replication (Blasi 2016, Ćwiek
+# 2022, Fort 2015, Whissell 2000, Ohala 1994). IE-CONVENTIONAL =
+# operator-side perception by English-speaking users without cross-
+# cultural backing (cluster_density, polysyllabic_bias, final_fortition
+# as "harsh/grand" — Mooshammer 2024 documents English perception).
+# IDENTITY-MARKING = features that mark a specific phonological color
+# without carrying crossmodal-perception payload (exotic register).
 
 # === Migrated from MOODS ==================================================
 
@@ -54,15 +70,32 @@ harsh:
   # Legacy MOODS: harshness=1.0 (phonology-only via _harshness_score
   # in proportions.py — coda harshness 45% + cluster density 35% +
   # consonant density 20%). Migrated into the named-dimension
-  # vector. Clusters / final fortition / final clusters dominate;
-  # soft-consonant + vowel-final biases push negative.
+  # vector.
+  #
+  # v1.1 grounding (see REGISTERS.md §5):
+  # - stop_vs_continuant + aspirated_voiceless: UNIVERSAL. Whissell
+  #   2000 rates every plosive as Harsh; Fort/Martin/Peperkamp 2015
+  #   + Sidhu & Pexman 2024 confirm manner is the strongest single
+  #   bouba-kiki predictor.
+  # - cluster_density / final_fortition / final_cluster_rate:
+  #   IE-CONVENTIONAL. Germanic-stereotype features; Mooshammer 2024
+  #   ("Does Orkish sound evil?") confirms English-speaker
+  #   perception but bouba-kiki literature is silent on clusters.
+  # - vowel_final_bias / soft_consonants: UNIVERSAL Gentle
+  #   suppressors (Whissell Gentle inventory).
+  # - vowel_backness / vowel_height: UNIVERSAL (Ohala 1994 frequency
+  #   code: high-front vowels for "small/sharp" signal; Knoeferle
+  #   2017 F2 as primary acoustic correlate).
   phonological:
     cluster_density: 0.6
     final_fortition: 0.5
     final_cluster_rate: 0.5
     vowel_final_bias: -0.4
     soft_consonants: -0.5
-    stop_vs_continuant: 0.4
+    stop_vs_continuant: 0.6      # v1: 0.4 → v1.1: 0.6 — bumped per Whissell 2000 (every plosive in Harsh) + Fort 2015 (manner = strongest single bouba-kiki predictor)
+    aspirated_voiceless: 0.4     # v1.1: added — Whissell 2000 "minor explosion of breath"; voiceless stops are her most-active phonemes
+    vowel_backness: -0.2         # v1.1: added — Knoeferle 2017 F2-driven sharpness (front vowels for spiky)
+    vowel_height: 0.2            # v1.1: added — Ohala 1994 p. 335 high-front vowels for "small/sharp" in the spiky register
   semantic_tags: {}
   position_bias: {}
 
@@ -70,10 +103,23 @@ pastoral:
   # Legacy MOODS: tags = (plant, animal, water, agriculture, tree,
   # bird). Soft phonology added — rural feel reads better when the
   # phonology matches the semantic register.
+  #
+  # v1.1 grounding: alongside `melodic`, the best-grounded register
+  # in this catalog. Sonorant-heavy + open-syllable + low-cluster is
+  # the "lullaby phonology" common across Japanese mimetics, Zulu,
+  # Indo-European (Blasi 2016 universal: nasals + sonorants for
+  # roundness/calmness).
+  # Caveat: `soft_consonants` is internally inconsistent — Whissell
+  # 2000 rates /l m n/ as Gentle but /r/ as firmly Harsh. A
+  # /r/-heavy lemma scores high on "softness" when it should read
+  # the opposite. Schema-level fix is filed as a follow-up; v1.1
+  # accepts the imprecision.
   phonological:
     vowel_final_bias: 0.3
     soft_consonants: 0.4
     cluster_density: -0.3
+    stop_vs_continuant: -0.3     # v1.1: added — Whissell 2000 continuants/sonorants dominate Gentle; the load-bearing dimension was missing
+    vowel_backness: 0.2          # v1.1: added — Knoeferle 2017 F2-roundness; back-rounded vowels for round-shape pastoral
   semantic_tags:
     plant: 0.5
     animal: 0.4
@@ -87,9 +133,18 @@ devotional:
   # Legacy MOODS: tags = (saint, religious). Polysyllabic + soft
   # phonology added — saintly/monastic naming reads better with
   # longer melodic words.
+  #
+  # v1.1 grounding: IE-CONVENTIONAL. No cross-linguistic universal
+  # signals "sacred"; the polysyllabic + Gentle-phoneme aesthetic
+  # is Latin/Hebrew/Sanskrit liturgical inheritance for English
+  # speakers. Operators forking for non-IE settings (Mesoamerican,
+  # West-African mythology) should expect this register to NOT
+  # transfer.
   phonological:
     polysyllabic_bias: 0.3
     soft_consonants: 0.2
+    vowel_final_bias: 0.2        # v1.1: added — open syllables for Latin/Romance feel + Whissell Gentle vowel-heavy inventory
+    stop_vs_continuant: -0.2     # v1.1: added — Whissell 2000 continuants dominate Gentle; reinforces the soft cluster
   semantic_tags:
     saint: 0.7
     religious: 0.6
@@ -111,20 +166,50 @@ noble:
   # Phonology-only at v1: polysyllabic + soft + vowel-final biases
   # give a grand-but-not-harsh feel. Semantic side waits on a
   # 'royalty' tag in the meaning DB (mining hasn't surfaced one).
+  #
+  # v1.1 grounding: MIXED. The v1 weights encode "refinement /
+  # politeness" (Whissell-Gentle: soft + vowel-final continuant
+  # aesthetic) but missed the second reading of "noble": dominance /
+  # authority signaling, which Ohala 1994's frequency code ties to
+  # LOW-back vowels (large vocalizer). v1.1 adds vowel_height +
+  # vowel_backness to ground the size-dominance signal — without
+  # them, v1 noble was reading as "polite/refined" only, not
+  # "authoritative/grand". polysyllabic_bias stays IE-CONVENTIONAL
+  # (Latinate prestige in English; Whissell 1999 has no
+  # syllable-count rating).
   phonological:
     polysyllabic_bias: 0.5
     soft_consonants: 0.3
     vowel_final_bias: 0.4
+    vowel_height: -0.3           # v1.1: added — Ohala 1994 p. 335 low vowels signal large/authoritative (frequency code)
+    vowel_backness: 0.3          # v1.1: added — Ohala 1994: back vowels = low F2 = large/dominant; Auracher 2010 back-vowels→dominance
+    stop_vs_continuant: -0.2     # v1.1: added — Whissell 2000 continuants pattern with Gentle/dignified
   semantic_tags: {}
   position_bias: {}
 
 mystical:
   # Sibilant + palatal + soft consonants; semantic tilt toward
   # magic / fantasy. Suitable for wizard-tower / fey naming.
+  #
+  # v1.1 grounding: MIXED. v1 chose phoneme features that read
+  # "active-otherworldly" (sibilance) + "small/sharp" (palatalization
+  # via Ohala's frequency-code chain: palatal = high-frequency =
+  # small = ethereal). Kochetov & Alderete 2011 document
+  # palatalization as the cross-cultural "small/cute/diminutive"
+  # marker; the chain to "ethereal/magical" is defensible but
+  # NOT direct. The primary acoustic carrier of "ethereal/light" is
+  # high-front vowels (Ohala 1994 p. 335), which v1 omitted.
+  # v1.1 adds vowel_height + vowel_backness for that direct signal.
+  # NOTE: v1's mystical conflates two readings — "pleasant-active
+  # elvish" (Cheery corner) vs "sibilant-hissing magical" (active-
+  # unpleasant). Splitting into mystical-ethereal vs mystical-eerie
+  # is filed as a follow-up.
   phonological:
     sibilance: 0.4
     palatalization: 0.3
     soft_consonants: 0.2
+    vowel_height: 0.5            # v1.1: added — Ohala 1994 high vowels = small/ethereal (primary frequency-code signal for the intent)
+    vowel_backness: -0.4         # v1.1: added — Ohala 1994: front vowels = small/sharp
   semantic_tags:
     magic: 0.6
     fantasy: 0.4
@@ -135,11 +220,19 @@ melodic:
   # Maximally vowel-final + polysyllabic + soft. Useful for elven /
   # romance-language-feel registers without picking a specific
   # culture. Phonology-only.
+  #
+  # v1.1 grounding: UNIVERSAL — alongside pastoral, the best-grounded
+  # register in the catalog. Sonorant-heavy + open-syllable + high-
+  # front vowel is "maximum-Gentle" by Whissell 2000 (her Gentle
+  # inventory is ~50% vowels with zero plosives). polysyllabic_bias
+  # is IE-CONVENTIONAL.
   phonological:
     vowel_final_bias: 0.5
     polysyllabic_bias: 0.4
     soft_consonants: 0.3
     vowel_height: 0.2
+    stop_vs_continuant: -0.4     # v1.1: added — Whissell 2000 max-Gentle = zero plosives; the load-bearing dimension was missing
+    vowel_backness: -0.2         # v1.1: added — front vowels = Whissell-pleasant (/iː ɛ/ both in Gentle inventory)
   semantic_tags: {}
   position_bias: {}
 
@@ -148,10 +241,25 @@ sinister:
   # from grim (which is tag-only) in that sinister biases the
   # phonology too, for a more menacing "feel" without going full
   # harsh.
+  #
+  # v1.1 grounding: MIXED. v1 sibilance pulls toward "creepy
+  # hissing" not "menacing dread" — Grawunder & Winter 2021 meta-
+  # analysis shows dominance/threat = LOW acoustic frequency, but
+  # sibilance is high-frequency. Uno et al. 2022 ("What's in a
+  # villain's name?") finds VOICED obstruents (/b d g dʒ v z/)
+  # favored in villain naming, not high-frequency sibilants. v1.1
+  # adds vowel_height + vowel_backness for the low-frequency
+  # dominance signal and slightly suppresses aspirated_voiceless to
+  # lean voiced. The sibilance + cluster combination is left in for
+  # the "creepy" sub-reading. Filed as follow-up: split into
+  # sinister-eerie vs sinister-dread.
   phonological:
     cluster_density: 0.4
     final_fortition: 0.3
     sibilance: 0.3
+    vowel_height: -0.3           # v1.1: added — Ohala 1994 low vowels = large/dominant for menacing
+    vowel_backness: 0.3          # v1.1: added — Ohala 1994 back vowels = large/dominant; Auracher 2010
+    aspirated_voiceless: -0.2    # v1.1: added — Uno 2022 voiced obstruents favored in villain naming; suppress voiceless to lean voiced
   semantic_tags:
     monster: 0.5
     magic: 0.3
@@ -162,6 +270,16 @@ ancient:
   # Longer / vowel-final phonology + landscape/topography semantics.
   # Suggests pre-Conquest / archaic-feel place names without binding
   # to a specific culture's register.
+  #
+  # v1.1 grounding: NO PHONOSYMBOLIC LITERATURE BACKING — pure genre
+  # convention. No frequency-code or sound-symbolism work speaks to
+  # perceptions of "age" in phonology. polysyllabic_bias + vowel_
+  # final_bias = Romance/Latinate archaism convention; pharyngeal =
+  # identity-marking (Semitic/pre-IE substrate association) without
+  # sound-symbolic payload. Defensible as IE-CONVENTIONAL but
+  # operators forking for non-IE settings should expect this
+  # register to NOT transfer. v1.1 keeps weights as-is; the
+  # citation gap is the point.
   phonological:
     polysyllabic_bias: 0.3
     vowel_final_bias: 0.2
@@ -178,6 +296,20 @@ exotic:
   # "exotic" feeling is structural, not semantic.
   # vowel_backness is positive: convention is +1 = back vowels,
   # -1 = front vowels.
+  #
+  # v1.1 grounding: IDENTITY-MARKING — functional design, not
+  # sound-symbolic. The four weighted features carry NO documented
+  # cross-cultural sound-symbolic payload (bouba-kiki / Whissell /
+  # Blasi 2016 are all silent on retroflex + pharyngeal as
+  # "spiky" or "round" or "pleasant"). The register's intent is
+  # exactly to mark "phonological color outside the English default"
+  # for naming use cases where the generator wants a phonologically
+  # distinct register — e.g. a desert / highland / overseas culture
+  # in a British-Isles-default world. The v1 weights are correct
+  # for that intent; the citation gap is that future readers
+  # shouldn't mis-cite bouba-kiki literature in support of these
+  # weights — they are operator-side phonological-identity-marking,
+  # not crossmodal perception.
   phonological:
     palatalization: 0.4
     retroflexion: 0.4
@@ -191,10 +323,20 @@ martial:
   # Distinct from harsh in that martial leans on stops specifically
   # (rather than clusters + final fortition broadly), giving a more
   # disciplined "soldier" feel than the chaotic-harsh register.
+  #
+  # v1.1 grounding: MIXED. stop_vs_continuant + aspirated_voiceless
+  # are UNIVERSAL (Whissell 2000 most-active phonemes are all stops;
+  # Auracher 2010 plosives = dominant/active). cluster_density +
+  # final_fortition are IE-CONVENTIONAL (Germanic stereotype). v1
+  # was missing aspirated_voiceless directly, and the vowel-side
+  # dominance signal (Ohala 1994 back vowels for authority) wasn't
+  # represented.
   phonological:
     final_fortition: 0.4
     cluster_density: 0.3
     stop_vs_continuant: 0.4
+    aspirated_voiceless: 0.3     # v1.1: added — Whissell 2000 voiceless stops are most-active; reinforces martial's active-dominant feel
+    vowel_backness: 0.2          # v1.1: added — Ohala 1994 back vowels for dominant authority; martial = disciplined-authoritative
   semantic_tags:
     military: 0.7
     monster: 0.3
