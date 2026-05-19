@@ -1,9 +1,12 @@
 """Phonological bridging for Old Norse place-name forms.
 
-Same shape as ``bridges.oe`` but for Old Norse loanwords in
-Northern English place names. Rule table lives below as
-``_ON_PHONOLOGICAL_BRIDGES``; the shared engine in
-``bridges._common._bridge_same_language_phonological`` runs it.
+Looks up each ON etymon's lowercased canonical_form in the
+``_ON_PHONOLOGICAL_BRIDGES`` table (modernized/Anglicized spelling
+→ scholarly orthography with macrons, þ/ð, etc.) and links matches
+to the canonical etymon via ``merged_into_id``. The shared engine
+in ``bridges._common._bridge_same_language_phonological`` runs the
+table; this module only supplies the ON rule set for Old Norse
+loanwords in Northern English place names.
 """
 
 from __future__ import annotations

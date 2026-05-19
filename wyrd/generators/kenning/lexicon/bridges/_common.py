@@ -1,12 +1,14 @@
-"""Shared rule-table driven phonological bridge (OE / ON).
+"""Shared lookup-table driven phonological bridge (OE / ON).
 
 Both OE and ON phonological bridges run the same algorithm against
-different rule tables: walk every etymon in the target language,
-apply each (pattern, replacement) rule, and link any etymon whose
-post-rule form matches a canonical-known form to that canonical
-lemma. Underscore-prefixed because it's package-private to
-``bridges.oe`` / ``bridges.on`` — callers that want a different
-language run their own table.
+different lookup tables: walk every canonical etymon in the target
+language, look the lowercased canonical_form up in the table (a flat
+``dict[str, str]`` mapping modernized / Anglicized spelling to its
+scholarly orthographic form), and link any matched etymon to the
+lookup target via ``merged_into_id`` (D22 non-destructive shape — the
+loser stays addressable through the merge chain). Underscore-prefixed
+because it's package-private to ``bridges.oe`` / ``bridges.on``;
+callers that want a different language supply their own table.
 """
 
 from __future__ import annotations
