@@ -6,7 +6,7 @@ from pathlib import Path
 
 import click
 
-from wyrd.generators.kenning.browse import fetch_etymon, format_etymon
+from wyrd.generators.kenning.bundle.browse import fetch_etymon, format_etymon
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_lexicon
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 

@@ -19,7 +19,7 @@ import sqlite3
 
 import pytest
 
-from wyrd.generators.kenning.browse import (
+from wyrd.generators.kenning.bundle.browse import (
     fetch_decompositions,
     fetch_etymon,
     fetch_source,

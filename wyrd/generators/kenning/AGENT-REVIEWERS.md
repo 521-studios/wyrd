@@ -69,8 +69,18 @@ that touches the lexicon DB belongs in the package; the rest of
   vs operator manual ingest) not by I/O target. Note: future
   wyrd-29mn shared-base extraction will land in
   `ingesters/_csv_base.py`.
-* Pre-existing files in `wyrd/generators/kenning/` that touch the
-  lexicon DB (above list). Their move is a known follow-up.
+* The `bundle/` subpackage (`bundle/browse.py`,
+  `bundle/rando_port_readiness.py`, `bundle/wikipedia_backfill_report.py`)
+  — these READ the lexicon DB to produce developer-facing reports and
+  browses, but do not OWN any DB-writing surface. The
+  bundle/-as-peer-package-to-lexicon/ shape is the intentional
+  read-vs-write split: lexicon/ owns DB-side authoring (build, mining,
+  enrichment, dump); bundle/ owns DB-side reading (browse helpers,
+  rando-server readiness, Wikipedia-seed retirement reports). Note
+  the parallel-name distinction with `kenning/lexicon/bundle/`
+  (which lives one level deeper and owns BUILDING the deploy
+  bundle from the lexicon DB) — both are correctly named for their
+  context but distinct subpackages.
 
 **Review approach:**
 1. Grep changed files for `CREATE TABLE` / `CREATE INDEX` /

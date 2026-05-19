@@ -6,7 +6,7 @@ from pathlib import Path
 
 import click
 
-from wyrd.generators.kenning.browse import (
+from wyrd.generators.kenning.bundle.browse import (
     fetch_toponym_detail,
     fetch_toponyms_matching,
     format_toponym,

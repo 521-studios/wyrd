@@ -8,8 +8,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from wyrd.generators.kenning.cli import cli as cli_root
-from wyrd.generators.kenning.rando_port_readiness import (
+from wyrd.generators.kenning.bundle.rando_port_readiness import (
     DEFAULT_COVERAGE_THRESHOLD,
     DEFAULT_TARGET_LANGUAGES,
     LanguageCriterion,
@@ -19,6 +18,7 @@ from wyrd.generators.kenning.rando_port_readiness import (
     format_readiness,
     load_bundle,
 )
+from wyrd.generators.kenning.cli import cli as cli_root
 
 # ---------------------------------------------------------------------------
 # _sibling_for_language

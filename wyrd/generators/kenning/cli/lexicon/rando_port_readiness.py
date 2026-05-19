@@ -47,7 +47,7 @@ def lexicon_rando_port_readiness(
     Exits 0 if all pass (gate OPEN, retirement can proceed); exit 1
     if any fail (gate CLOSED).
     """
-    from wyrd.generators.kenning.rando_port_readiness import (
+    from wyrd.generators.kenning.bundle.rando_port_readiness import (
         DEFAULT_TARGET_LANGUAGES,
         compute_readiness,
         format_readiness,

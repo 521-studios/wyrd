@@ -17,8 +17,8 @@ The module is split in two layers:
   Tests check that key fields appear in the output without coupling to
   exact whitespace.
 
-CLI commands in :mod:`wyrd.generators.kenning.cli` glue the two layers
-together and ``click.echo`` the result.
+CLI commands in :mod:`wyrd.generators.kenning.cli.lexicon.browse` glue
+the two layers together and ``click.echo`` the result.
 """
 
 from __future__ import annotations
