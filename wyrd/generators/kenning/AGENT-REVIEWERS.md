@@ -171,9 +171,11 @@ reviewer to the repo-root `AGENT-REVIEWERS.md`.
 Module and function docstrings that name specific tables, columns,
 function names, regex patterns, or output shapes must be
 grep-verified against the code before merge. The wyrd-67fv slice D
-review loop spent 5 rounds chasing 6 docstring inaccuracies because
-NEW module docstrings were written without checking each claim
-against the function body — examples included:
+review loop spent 5 fix rounds chasing 7 docstring inaccuracies
+(round 2 introduced a NEW inaccuracy while fixing round 1's
+fantasy_export claim — fixes can be wrong too) because NEW module
+docstrings were written without checking each claim against the
+function body. Examples included:
 
 * `ingest.py` claimed "Idempotent per `(source_id, page)`" — code
   never references `page` and there's no UNIQUE constraint that
@@ -250,18 +252,34 @@ of an empty set).
 `field(default_factory=...)` or `field(default=...)` without a
 `@dataclass` (or `@dataclass(...)`) decorator on the line above.**
 
-These two patterns are the load-bearing telltale:
+These two patterns are the load-bearing telltale (the imports are
+required for the example to run):
 
 ```python
+from dataclasses import dataclass, field
+
 class X:
     forms: list[str] = field(default_factory=list)  # ← needs @dataclass!
     citations: set[str] = field(default_factory=set)
 ```
 
 ```python
+from dataclasses import dataclass, field
+
 class Y:
     name: str = field(default="")  # ← needs @dataclass!
 ```
+
+**Acceptable** (don't flag):
+
+* Plain `@dataclass`-decorated classes with `field(...)` defaults
+  (the decorator is what makes `field()` resolve to a Field
+  descriptor at class-construction time).
+* Classes that use `field` only as a typing annotation
+  (`x: dataclasses.Field[int]`) without calling it.
+* `attrs.field(...)` or `pydantic.Field(...)` — those have their
+  own decorator chains (`@attrs.define`, model inheritance) that
+  don't fit this rule's signature.
 
 **Review approach:**
 
@@ -286,10 +304,16 @@ front (a dead-code drag-in, a stranded constant block, a docstring
 inaccuracy, a missing production re-export that would have hit
 `ImportError` at collection time, a broken test monkey-patch).
 
-Slices A / B / C — which didn't run the pre-push sweep — needed
-2–5 review rounds to catch comparable issues. Slice D still needed
-review rounds (the sweep didn't catch every docstring claim), but
-the rounds were shorter and avoided the production-import break.
+Slices A and B each landed in 1 review round; slice C needed 4
+rounds (the "rule/transform" terminology drift kept recurring
+across 6 bridges files because no up-front sweep). Slice D, with
+the sweep, still needed 5 docstring-fix rounds — the sweep didn't
+catch every claim — but the rounds were shorter and avoided the
+production-import break the sweep DID catch. The lesson isn't
+"sweep replaces review rounds"; it's "sweep catches the cheap
+class of problems (missing re-exports, broken monkey-patches,
+orphan comments) before they cost a round, leaving the review
+loop for the harder docstring-accuracy class".
 
 **When to use:**
 
@@ -310,6 +334,8 @@ Pre-push sweep for [refactor description] in [worktree path].
 
 CONTEXT: [what was extracted, why]
 NEW FILES: [list each new file + 1-line purpose]
+PACKAGE __init__: [path to the back-compat re-export shim, e.g.
+                   wyrd/generators/kenning/lexicon/__init__.py]
 PRE-EXISTING LESSON: [most recent slice's caught patterns, so
                      the sweep doesn't waste time re-discovering them]
 
@@ -328,10 +354,11 @@ YOUR TASK — comprehensive sweep, no fixes:
    output shape match the SQL/dict construction).
 5. CROSS-MODULE IMPORTS: verify deferred imports and shared
    helpers resolve through the back-compat re-export.
-6. RE-EXPORT-SURFACE: lexicon/__init__.py re-exports must have at
-   least one external caller. Grep production code AND tests for
-   each re-exported name; a missing re-export is a worse failure
-   than a dead one.
+6. RE-EXPORT-SURFACE: re-exports through the PACKAGE __init__ path
+   above must have at least one external caller. Grep production
+   code AND tests for each re-exported name; a missing re-export
+   is a worse failure than a dead one (the production caller
+   ImportErrors at test-collection time, not at import-time).
 
 REPORT: numbered list of concrete findings with file:line refs.
 "No issues found" if nothing of substance.
