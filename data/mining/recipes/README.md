@@ -4,7 +4,7 @@ One-liners for common queries over `data/mining/*.jsonl`. Every recipe
 assumes the canonical-state row shape emitted by `lexicon dump-jsonl`
 (no `_op` field; one `source` row + N typed list/keyed rows).
 
-The `_type` field is the primary dispatch key. See `wyrd/generators/kenning/jsonl_log.py`
+The `_type` field is the primary dispatch key. See `wyrd/generators/kenning/jsonl/log.py`
 (KEYED_TYPES + LIST_TYPES) for the full vocabulary.
 
 ## List every etymon cited by a source

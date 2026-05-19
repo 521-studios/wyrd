@@ -75,7 +75,7 @@ def lexicon_enrich(
         format_enrichment_run,
         run_full_enrichment,
     )
-    from wyrd.generators.kenning.jsonl_build import (
+    from wyrd.generators.kenning.jsonl.build import (
         collect_curation_overrides,
         jsonl_paths_in,
     )

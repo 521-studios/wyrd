@@ -25,7 +25,7 @@ def lexicon_compact_jsonl(jsonl_path: Path) -> None:
     is complete, compaction folds the events back into a clean canonical
     state for diff readability.
     """
-    from wyrd.generators.kenning.jsonl_log import compact_file
+    from wyrd.generators.kenning.jsonl.log import compact_file
 
     n = compact_file(jsonl_path)
     click.echo(f"Compacted {jsonl_path} → {n} canonical rows", err=True)

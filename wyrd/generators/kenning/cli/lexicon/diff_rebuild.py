@@ -51,7 +51,7 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
     import tempfile
     from urllib.parse import quote
 
-    from wyrd.generators.kenning.jsonl_build import (
+    from wyrd.generators.kenning.jsonl.build import (
         build_from_jsonl,
         diff_table_counts,
         format_diff_rebuild,
@@ -89,7 +89,7 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
 
         if with_enrichment:
             from wyrd.generators.kenning.enrichment import run_full_enrichment
-            from wyrd.generators.kenning.jsonl_build import collect_curation_overrides
+            from wyrd.generators.kenning.jsonl.build import collect_curation_overrides
 
             curation = collect_curation_overrides(paths) or None
             with LexiconDB(rebuilt_path) as db:

@@ -2,7 +2,7 @@
 
 Reads ``data/mining/*.jsonl`` (the L2 source-of-truth) and inserts the
 replayed state into a freshly-initialized SQLite lexicon. The companion
-to :mod:`jsonl_dump` — together they close the round-trip:
+to :mod:`.dump` — together they close the round-trip:
 
     dump → wipe → rebuild → dump-again → semantically identical L2
 
@@ -51,7 +51,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from .jsonl_log import ReplayState, replay_file
+from .log import ReplayState, replay_file
 
 
 class BuildError(ValueError):
@@ -896,7 +896,7 @@ def collect_curation_overrides(jsonl_paths: Iterable[Path]) -> dict[str, dict[st
     curation gets applied by ``enrichment.apply_curation_overrides``
     AFTER the auto-clustering passes have written their initial output.
     """
-    from .jsonl_log import replay_file
+    from .log import replay_file
 
     merged: dict[str, dict[str, Any]] = {}
     for path in sorted(Path(p) for p in jsonl_paths):

@@ -33,7 +33,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from .jsonl_log import write_jsonl
+from .jsonl.log import write_jsonl
 
 SPEED_1611_SOURCE_ID = "speed_1611"
 SPEED_1611_YEAR = 1611

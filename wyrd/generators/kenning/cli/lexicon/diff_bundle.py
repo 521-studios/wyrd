@@ -128,7 +128,7 @@ def lexicon_diff_bundle(
     included whenever both bundles parse as JSON. Use this before a
     bundle re-export PR to know what's about to change.
     """
-    # Deferred imports: bulk_sources, enrichment, jsonl_build pull in
+    # Deferred imports: bulk_sources, enrichment, jsonl.build pull in
     # heavy dependencies (LLM clients, sqlite extension setup) that
     # other lexicon commands don't need; deferring them keeps `wyrd
     # kenning --help` snappy. ``init_schema`` is already imported at
@@ -137,7 +137,7 @@ def lexicon_diff_bundle(
     from wyrd.generators.kenning.bulk_sources import ingest_all_slices
     from wyrd.generators.kenning.bundle_diff import compute_bundle_diff, format_bundle_diff
     from wyrd.generators.kenning.enrichment import run_full_enrichment
-    from wyrd.generators.kenning.jsonl_build import (
+    from wyrd.generators.kenning.jsonl.build import (
         build_from_jsonl,
         collect_curation_overrides,
         jsonl_paths_in,

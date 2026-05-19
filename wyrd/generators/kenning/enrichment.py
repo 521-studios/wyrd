@@ -96,7 +96,7 @@ def apply_curation_overrides(
     """Apply operator curation overrides to L3 enrichment columns (wyrd-2jhs).
 
     ``curation_state`` is the merged ``{etymon_ref: payload}`` dict
-    from :func:`jsonl_build.collect_curation_overrides`. For each
+    from :func:`jsonl.build.collect_curation_overrides`. For each
     curated etymon:
 
     - ``lemma_ref`` set → ``lemma_id`` pointed at that etymon, plus

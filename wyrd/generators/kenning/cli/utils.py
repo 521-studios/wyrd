@@ -195,7 +195,7 @@ def _append_remove_event(
             f"Use --jsonl-dir to point at the right directory."
         )
 
-    from wyrd.generators.kenning.jsonl_log import replay_file
+    from wyrd.generators.kenning.jsonl.log import replay_file
 
     state = replay_file(target_file)
     if ref not in state.keyed[row_type]:

@@ -32,8 +32,8 @@ from pathlib import Path
 from typing import Any
 
 from wyrd.generators.kenning.enrichment import run_full_enrichment
-from wyrd.generators.kenning.jsonl_build import build_from_jsonl, jsonl_paths_in
-from wyrd.generators.kenning.jsonl_dump import dump_all_sources
+from wyrd.generators.kenning.jsonl.build import build_from_jsonl, jsonl_paths_in
+from wyrd.generators.kenning.jsonl.dump import dump_all_sources
 from wyrd.generators.kenning.lexicon import (
     LexiconDB,
     collect_canonical_decompositions,

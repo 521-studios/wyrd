@@ -22,8 +22,8 @@ from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.enrichment import run_full_enrichment
-from wyrd.generators.kenning.jsonl_build import collect_curation_overrides, jsonl_paths_in
-from wyrd.generators.kenning.jsonl_dump import dump_all_sources
+from wyrd.generators.kenning.jsonl.build import collect_curation_overrides, jsonl_paths_in
+from wyrd.generators.kenning.jsonl.dump import dump_all_sources
 from wyrd.generators.kenning.lexicon import (
     LexiconDB,
     collect_canonical_decompositions,

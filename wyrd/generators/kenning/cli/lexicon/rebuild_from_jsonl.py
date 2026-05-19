@@ -92,7 +92,7 @@ def lexicon_rebuild_from_jsonl(
        All eight passes run in one invocation; standalone CLI commands
        remain for targeted reruns (e.g. with ``--force``).
     """
-    from wyrd.generators.kenning.jsonl_build import (
+    from wyrd.generators.kenning.jsonl.build import (
         build_from_jsonl,
         jsonl_paths_in,
     )
@@ -147,7 +147,7 @@ def lexicon_rebuild_from_jsonl(
             format_enrichment_run,
             run_full_enrichment,
         )
-        from wyrd.generators.kenning.jsonl_build import collect_curation_overrides
+        from wyrd.generators.kenning.jsonl.build import collect_curation_overrides
 
         curation_state = collect_curation_overrides(paths)
         click.echo("", err=True)

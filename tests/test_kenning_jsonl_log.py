@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from wyrd.generators.kenning.jsonl_log import (
+from wyrd.generators.kenning.jsonl.log import (
     KEYED_TYPES,
     LIST_TYPES,
     ReplayError,

@@ -3,7 +3,7 @@
 Reads the L3 SQLite lexicon (the build artifact) and emits L2 JSONL files
 at ``data/mining/<source_id>.jsonl`` — one file per ``source`` row in the
 DB. Each file is a list of canonical-state rows (no ``_op``); the
-:mod:`jsonl_log` kernel's :func:`replay` is what gives semantic meaning
+:mod:`.log` kernel's :func:`replay` is what gives semantic meaning
 to the row sequence.
 
 What goes IN a source file (L2-attributable facts)
@@ -83,7 +83,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from .jsonl_log import write_jsonl
+from .log import write_jsonl
 
 # Etymon columns that are L2-attributable facts. Order is significant
 # only for diff stability — the kernel doesn't care about field order.
@@ -365,7 +365,7 @@ def _dump_toponyms_and_etymologies(
 # Free-text source_doc prefixes that an ingester stamps onto
 # ``toponym_attestation.source_doc`` so dump-time can route the row
 # back to the right source.id. The build-side contract is documented
-# in jsonl_build.py:_insert_attestation. Add entries here when a new
+# in build.py:_insert_attestation. Add entries here when a new
 # ingester writes free-text source_doc that isn't an exact source.id
 # match. The most prominent example today is Open Domesday Hull
 # (wyrd-el93), whose ingester stamps "Phillimore <citation>" into
@@ -503,7 +503,7 @@ def _dump_attestations_for_source(
     """Yield ``attestation`` rows for every ``toponym_attestation``
     whose ``source_doc`` routes to ``source_id``. Build side already
     accepts the ``attestation`` _type per
-    :func:`jsonl_build._insert_attestation_rows` (wyrd-3ypp); this
+    :func:`.build._insert_attestation_rows` (wyrd-3ypp); this
     closes the documented one-way gap (ingester → JSONL → build but
     not back out of the DB)."""
     where_clause, params = _attestation_source_doc_filter(source_id)
