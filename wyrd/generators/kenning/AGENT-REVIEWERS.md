@@ -367,3 +367,198 @@ REPORT: numbered list of concrete findings with file:line refs.
 This is documented as a practice (not a reviewer) because it runs
 once per PR, before review starts, rather than as part of the
 review loop's per-round agents.
+
+### Extension from wyrd-g143 (cli.py 10k → 110-line shim, 5 slices)
+
+The cli.py refactor surfaced two new failure modes the slice-D
+sweep template above didn't cover. Add these checks to step 1 +
+step 2:
+
+7. **AUTO-RANGE HELPER OVERFLOW**: when extraction is driven by
+   "decorator → next anchor" line-range detection, the trailing
+   `def _helper` definitions between two commands get pulled into
+   the PRECEDING command's range — but they may belong to the
+   FOLLOWING command (or be shared). Scan each new module's last
+   ~50 lines for `def _` defs and decide if they belong with that
+   command, with the next one, or in a shared utils.
+   Concrete examples from wyrd-g143:
+   * slice 3 diff-bundle range auto-grabbed `_append_remove_event`
+     (actually a prune-toponym / prune-etymon helper). Range
+     hand-overridden to stop at the real end of `lexicon_diff_bundle`.
+   * slice 4 fuzzy-search range auto-grabbed
+     `_classify_dry_run_row_counts` + `_disambiguate_dispatch`
+     (actually disambiguate-fuzzy helpers). Moved post-hoc.
+
+8. **LAMBDA-BIND IN NEW TEST FIXTURES**: when an extraction
+   requires updating a test's monkeypatch site, do not introduce
+   `_stub = lambda x: ...` style assignments. ruff E731 rejects
+   them and CI will fail. Use `def _stub(x): return ...` instead.
+   wyrd-g143 slice 5 burned a CI cycle on this — 5 sites in
+   `tests/test_kenning_lexicon.py` had the lambda-bind shape after
+   the monkeypatch retargeting; the round-1 fix was mechanical.
+
+## cli-extraction-cross-module-imports-reviewer
+
+When `cli.py` is being split into per-subcommand modules under a
+`cli/` subpackage (the wyrd-g143 pattern), per-command modules must
+NOT import from the `cli/__init__.py` back-compat shim. Imports
+must go either (a) to a sibling per-command module
+(`from wyrd.generators.kenning.cli.lexicon.review import _build_llm_client`),
+(b) to a shared helper module like `cli/utils.py`
+(`from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH`),
+or (c) to a non-cli sibling package
+(`from wyrd.generators.kenning.lexicon import LexiconDB`).
+
+The back-compat shim re-exports test-direct private helpers; it
+must not become a load-bearing dependency for the production
+graph. Importing from it from a per-command module creates an
+import-time partial-init problem (the shim is in the middle of
+importing the per-command module when the per-command module
+asks the shim to resolve a name) and silently couples the
+production graph to a surface that exists for test back-compat
+only.
+
+**FLAG when a file under `wyrd/generators/kenning/cli/`
+(except cli/__init__.py itself) contains:**
+
+* `from wyrd.generators.kenning.cli import X` (any name, including
+  the `cli` click group object). Per-command modules should not
+  reach into the back-compat shim.
+
+**Acceptable patterns** (don't flag):
+
+* `from wyrd.generators.kenning.cli.utils import _X` — utils.py is
+  the explicit shared-helper module.
+* `from wyrd.generators.kenning.cli.<sibling> import _X` — sibling
+  per-command module re-using a co-located helper.
+* `from wyrd.generators.kenning.cli.lexicon import lexicon` from
+  inside `cli/lexicon/<sub>.py` — the @lexicon group is the parent
+  the sub-command's `add_to` registers against, NOT the back-compat
+  shim. This is a legitimate parent-package import.
+* `from wyrd.generators.kenning.cli.lexicon.<sibling> import _X` —
+  same shape; sibling lexicon command sharing a helper.
+
+**Review approach:**
+
+1. For each new file under `cli/` in the PR diff, grep for
+   `from wyrd.generators.kenning.cli ` (note the trailing space
+   to exclude `cli.utils` / `cli.lexicon`).
+2. Any hit is a flag — propose the right alternative
+   (cli.utils for genuinely shared; sibling module for co-located).
+
+## cli-extraction-test-monkeypatch-reviewer
+
+When a CLI helper moves from cli/__init__.py into a per-command
+module via the wyrd-g143 extraction pattern, tests that did
+`monkeypatch.setattr(cli_mod, "_helper", stub)` no longer
+intercept the consumer's call. The consumer (per-command module)
+imported the helper into its OWN module namespace at import time;
+patching the shim sets `cli_mod._helper = stub` but leaves the
+consumer's local-bound reference pointing at the original
+function. The test runs against the un-monkey-patched original
+without warning, and any assertions on the stub's captured state
+fail with bewildering `None`s and `0`s instead of an
+`AttributeError`.
+
+wyrd-g143 slice 5 burned a full CI cycle on this: 9 monkeypatch
+sites across 3 test files needed retargeting. Same pattern is
+likely to recur on every cli-extraction slice that moves a
+test-monkeypatched helper.
+
+**FLAG when a PR that extracts code from cli/__init__.py into a
+per-command module under cli/ leaves UNCHANGED test files that
+contain:**
+
+* `monkeypatch.setattr(cli_mod, "<helper_name>", ...)` where
+  `<helper_name>` is one of the helpers moved in this slice.
+* `monkeypatch.setattr("wyrd.generators.kenning.cli.<helper>", ...)`
+  (string-form variant — same problem).
+
+**Acceptable patterns** (don't flag):
+
+* Tests updated to patch the CONSUMER module:
+  `monkeypatch.setattr(_mine_llm_mod, "_select_parser_and_run", stub)`.
+* Tests updated to patch the SOURCE module path:
+  `monkeypatch.setattr("wyrd.generators.kenning.cli.utils._helper", stub)`
+  — works because cli.utils is the import source. (Per-consumer
+  patching is still preferred when the helper is consumed in only
+  a handful of modules; source-module patching is broader but
+  harder to reason about when N consumers vary.)
+* Tests that patch the back-compat shim for a helper that is NOT
+  in this slice's diff (the shim re-export is still the source for
+  that helper).
+
+**Review approach:**
+
+1. List the helpers extracted in this slice's diff (anything that
+   moved from `cli/__init__.py` into `cli/<name>.py` or
+   `cli/lexicon/<name>.py`).
+2. For each, grep `tests/` for
+   `monkeypatch.setattr(cli_mod, "<helper>"` and
+   `monkeypatch.setattr("wyrd.generators.kenning.cli.<helper>"`.
+3. Any hit is a stale patch — the test will run against the
+   original at the next pytest pass. Flag with the right
+   replacement.
+
+## cli-extraction-placement-reviewer
+
+When extracting from a monolithic CLI file, helper functions and
+module-level constants need a deliberate placement decision: the
+auto-range tooling tends to put everything between command N and
+command N+1 into command N's module, but the right home depends on
+the consumer set.
+
+**Placement rules:**
+
+1. **Single-consumer helper or constant**: co-locate with the
+   command that uses it, in the same per-command module. Example:
+   `_RANDO_SOURCE` is only used by `lexicon build` → moved to
+   `cli/lexicon/build.py`. NOT to `cli/utils.py` (which would
+   leak a one-off into a shared surface) and NOT left in
+   `cli/__init__.py` (which would block the shim from shrinking).
+
+2. **Multi-consumer helper SHARED across cli/ subpackages**:
+   move to `cli/utils.py`. Example: `_readonly_lexicon` (used by
+   browse + era-timeline + era-coverage + enrichment-status); the
+   wyrd-g143 slice 2 move from inline-in-browse-block to
+   cli/utils.py was the right call because consumers fan out
+   across multiple subcommand families.
+
+3. **Multi-consumer helper LOCAL to one family**: co-locate with
+   the natural-home command in that family; the other consumers
+   import from the sibling. Example: `_build_extractor_client` is
+   used by mine-toponym-mentions{,-tiered,-staged} + review;
+   defining it in mine_toponym_mentions.py and importing from
+   siblings is cleaner than promoting to cli/utils.py (where it
+   would be a single-family concern leaking into the cli-wide
+   shared surface).
+
+4. **Nested click sub-groups (`@lexicon.group("X")`)**: must live
+   in their own subpackage at `cli/lexicon/X/`, mirroring the
+   parent's structure (`__init__.py` for the group def + add_to
+   hook; one per-command module per sub-command). Example: the
+   wyrd-g143 browse + synsets groups both became subpackages. A
+   NEW `@click.group` inside a per-command module body is a
+   structural error — it would collide with the parent's add_to
+   contract and break the "every subcommand has its own module"
+   invariant.
+
+**FLAG when a CLI extraction PR contains:**
+
+* A helper/constant in `cli/utils.py` (or any other shared module)
+  whose only consumer is a single per-command module in the same
+  slice's diff (rule 1 violation).
+* A helper duplicated across multiple per-command modules in the
+  same family that could be co-located with one of them and
+  imported from siblings (rule 3 violation; usually shows up as
+  identical-body helpers in two files).
+* A `@click.group(...)` decorator on a function inside a
+  per-command module body — should be promoted to a subpackage
+  (rule 4 violation).
+
+**Review approach:**
+
+1. For each new module-level helper / constant in the PR, grep
+   `wyrd-*/` for its consumers. Apply rules 1–3.
+2. For each new `@click.group(`, confirm it's at the `__init__.py`
+   of a subpackage, not buried in a per-command module body.
