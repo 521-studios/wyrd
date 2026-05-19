@@ -36,7 +36,7 @@ def parse_etymon_ref(ref: str) -> tuple[str, str]:
     """Split ``"<language>:<canonical_form>"`` into ``(language, form)``.
 
     Both sides must be non-empty. The L2 round-trip kernel
-    (:mod:`jsonl_log`) allows empty ``form`` to preserve junk rows for
+    (:mod:`jsonl.log`) allows empty ``form`` to preserve junk rows for
     eventual cleanup, but a browser LOOKUP with empty form can't
     return a useful result — surface the bad input early."""
     if ":" not in ref:

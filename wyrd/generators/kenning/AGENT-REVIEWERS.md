@@ -45,6 +45,15 @@ that touches the lexicon DB belongs in the package; the rest of
   `meanings.json` and have no DB access.
 * `cli.py` — CLI wiring lives here per project convention; will be
   split separately under wyrd-g143.
+* The `jsonl/` subpackage (`jsonl/build.py`, `jsonl/dump.py`,
+  `jsonl/log.py`) — these own the L2 side of the L2/L3 boundary
+  per `L2_L3_BOUNDARY.md`. They DO touch the lexicon DB (build.py
+  replays events into it; dump.py reads from it) but the
+  jsonl/-as-peer-package-to-lexicon/ shape is the intentional
+  architectural split: lexicon/ owns the SQLite + enrichment
+  surface; jsonl/ owns the canonical-state event-log surface;
+  together they implement the contract that JSONL is the source of
+  truth and the DB is a rebuildable build artifact.
 * Pre-existing files in `wyrd/generators/kenning/` that touch the
   lexicon DB (above list). Their move is a known follow-up.
 

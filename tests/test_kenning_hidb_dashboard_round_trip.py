@@ -32,12 +32,12 @@ from pathlib import Path
 from typing import Any
 
 from wyrd.generators.kenning.enrichment import run_full_enrichment
-from wyrd.generators.kenning.jsonl_build import (
+from wyrd.generators.kenning.jsonl.build import (
     build_from_jsonl,
     collect_curation_overrides,
     jsonl_paths_in,
 )
-from wyrd.generators.kenning.jsonl_dump import dump_all_sources
+from wyrd.generators.kenning.jsonl.dump import dump_all_sources
 from wyrd.generators.kenning.language_quality import (
     LanguageQualityReport,
     compute_report,

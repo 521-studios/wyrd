@@ -2,7 +2,7 @@
 
 Two layers covered:
 
-1. ``collect_curation_overrides`` (jsonl_build.py) — replays JSONL
+1. ``collect_curation_overrides`` (jsonl/build.py) — replays JSONL
    files, returns the merged ``{etymon_ref: payload}`` curation state.
 2. ``apply_curation_overrides`` (enrichment.py) — looks up etymon IDs
    from refs and overrides lemma_id / merged_into_id / lemma_method
@@ -24,8 +24,8 @@ from wyrd.generators.kenning.enrichment import (
     format_curation_run,
     run_full_enrichment,
 )
-from wyrd.generators.kenning.jsonl_build import collect_curation_overrides
-from wyrd.generators.kenning.jsonl_log import write_jsonl
+from wyrd.generators.kenning.jsonl.build import collect_curation_overrides
+from wyrd.generators.kenning.jsonl.log import write_jsonl
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 
 

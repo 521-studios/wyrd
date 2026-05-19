@@ -3,7 +3,7 @@
 Fixture DB carries a minimal subset of the lexicon schema — just the
 tables the dump touches. Each test exercises one row-type slice
 through ``dump_source_to_rows``, asserting both the row shape and the
-:func:`jsonl_log.replay` round-trip (dumped rows must replay back to
+:func:`jsonl.log.replay` round-trip (dumped rows must replay back to
 the same canonical state without errors).
 """
 
@@ -12,7 +12,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from wyrd.generators.kenning.jsonl_dump import (
+from wyrd.generators.kenning.jsonl.dump import (
     _attestation_source_doc_filter,
     _source_for_attestation_doc,
     dump_all_sources,
@@ -24,7 +24,7 @@ from wyrd.generators.kenning.jsonl_dump import (
     list_source_ids,
     toponym_ref,
 )
-from wyrd.generators.kenning.jsonl_log import (
+from wyrd.generators.kenning.jsonl.log import (
     replay,
     replay_file,
 )
@@ -455,11 +455,11 @@ def test_attestation_round_trips_through_dump_and_build(tmp_path: Path):
     rebuild-from-jsonl cycle. Pre-wyrd-6gpy the attestation rows AND
     the orphan toponyms were silently lost — this test guards against
     regression of either gap."""
-    from wyrd.generators.kenning.jsonl_build import (
+    from wyrd.generators.kenning.jsonl.build import (
         build_from_jsonl,
         jsonl_paths_in,
     )
-    from wyrd.generators.kenning.jsonl_log import write_jsonl
+    from wyrd.generators.kenning.jsonl.log import write_jsonl
 
     # PRE: dump-source DB has the Domesday shape — a source row, two
     # toponyms attested via Phillimore source_doc, NO etymology rows.
@@ -883,7 +883,7 @@ def test_attestation_source_doc_filter_enforces_exact_match_wins_priority(monkey
     side would then see two emit paths.
 
     Pins Gemini round-2 finding."""
-    from wyrd.generators.kenning import jsonl_dump
+    from wyrd.generators.kenning.jsonl import dump as jsonl_dump
 
     # Inject the invariant-violating registration: source.id 'Mawer'
     # exists AND it's also a registered prefix routing to a different
@@ -929,8 +929,8 @@ def test_attestation_round_trips_through_dump_and_build_direct_source_id(tmp_pat
     source_doc = '<source_id>' directly). Without this test the
     direct-match SQL clause could be broken silently while the
     prefix-branch round-trip continues to pass."""
-    from wyrd.generators.kenning.jsonl_build import build_from_jsonl, jsonl_paths_in
-    from wyrd.generators.kenning.jsonl_log import write_jsonl
+    from wyrd.generators.kenning.jsonl.build import build_from_jsonl, jsonl_paths_in
+    from wyrd.generators.kenning.jsonl.log import write_jsonl
 
     pre = _build_fixture_db()
     _add_source(pre, id="mawer", title="Mawer — Northumberland and Durham")
@@ -1100,7 +1100,7 @@ def test_default_bulk_excluded_sources_excludes_fantasy_mining_from_dump_all():
     a competing per-source ``fantasy-mining.jsonl`` alongside the
     real ``_fantasy_morphemes.jsonl`` — pins the wyrd-2thc exclusion
     against accidental removal."""
-    from wyrd.generators.kenning.jsonl_dump import DEFAULT_BULK_EXCLUDED_SOURCES
+    from wyrd.generators.kenning.jsonl.dump import DEFAULT_BULK_EXCLUDED_SOURCES
 
     assert "fantasy-mining" in DEFAULT_BULK_EXCLUDED_SOURCES
 

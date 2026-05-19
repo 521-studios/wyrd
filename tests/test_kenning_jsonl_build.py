@@ -14,15 +14,15 @@ from pathlib import Path
 
 import pytest
 
-from wyrd.generators.kenning.jsonl_build import (
+from wyrd.generators.kenning.jsonl.build import (
     BuildError,
     build_from_jsonl,
     jsonl_paths_in,
 )
-from wyrd.generators.kenning.jsonl_dump import (
+from wyrd.generators.kenning.jsonl.dump import (
     dump_all_sources,
 )
-from wyrd.generators.kenning.jsonl_log import write_jsonl
+from wyrd.generators.kenning.jsonl.log import write_jsonl
 
 # ---------------------------------------------------------------------------
 # Fixture: schema matching the L2-touching slice + the build-target columns
@@ -343,7 +343,7 @@ def test_insert_etymon_raises_build_error_when_select_misses_after_conflict():
     deterministically: feed an explicit ``None`` past the early
     validation guard, watch INSERT OR IGNORE swallow it, then assert
     the BuildError pins the offending payload context."""
-    from wyrd.generators.kenning.jsonl_build import BuildError, _insert_etymon
+    from wyrd.generators.kenning.jsonl.build import BuildError, _insert_etymon
 
     conn = _build_fixture_db()
     # Payload satisfies the early ``key in payload`` validation but
@@ -534,7 +534,7 @@ def test_build_inserts_toponym_and_etymology_elements(tmp_path: Path):
 
 def test_table_counts_returns_zero_for_empty_table(tmp_path: Path):
     """table_counts reports 0 for empty tables (distinct from missing)."""
-    from wyrd.generators.kenning.jsonl_build import table_counts
+    from wyrd.generators.kenning.jsonl.build import table_counts
 
     conn = _build_fixture_db()
     # Empty schema — every L2 table is present but empty.
@@ -545,7 +545,7 @@ def test_table_counts_returns_zero_for_empty_table(tmp_path: Path):
 def test_table_counts_returns_negative_one_for_missing_table(tmp_path: Path):
     """Missing tables surface as -1 so schema mismatch shows up clearly
     instead of conflating with zero."""
-    from wyrd.generators.kenning.jsonl_build import table_counts
+    from wyrd.generators.kenning.jsonl.build import table_counts
 
     conn = _build_fixture_db()
     counts = table_counts(conn, ["source", "does_not_exist"])
@@ -554,7 +554,7 @@ def test_table_counts_returns_negative_one_for_missing_table(tmp_path: Path):
 
 
 def test_diff_table_counts_zero_delta_for_identical(tmp_path: Path):
-    from wyrd.generators.kenning.jsonl_build import diff_table_counts
+    from wyrd.generators.kenning.jsonl.build import diff_table_counts
 
     before = {"source": 5, "etymon": 100}
     after = {"source": 5, "etymon": 100}
@@ -563,7 +563,7 @@ def test_diff_table_counts_zero_delta_for_identical(tmp_path: Path):
 
 
 def test_diff_table_counts_signed_delta(tmp_path: Path):
-    from wyrd.generators.kenning.jsonl_build import diff_table_counts
+    from wyrd.generators.kenning.jsonl.build import diff_table_counts
 
     before = {"etymon": 100, "toponym": 50}
     after = {"etymon": 102, "toponym": 48}
@@ -576,7 +576,7 @@ def test_diff_table_counts_signed_delta(tmp_path: Path):
 def test_diff_table_counts_unions_tables(tmp_path: Path):
     """A table present only in one snapshot still shows up (with the
     missing side as -1). Catches schema-evolution drift."""
-    from wyrd.generators.kenning.jsonl_build import diff_table_counts
+    from wyrd.generators.kenning.jsonl.build import diff_table_counts
 
     before = {"etymon": 100}
     after = {"etymon": 100, "new_table": 5}
@@ -594,14 +594,14 @@ def test_diff_table_counts_missing_table_yields_none_delta():
     """When a table is missing (-1) on the source side but present on
     the rebuild side, delta is None (explicit "can't compare") rather
     than the misleading after - (-1)."""
-    from wyrd.generators.kenning.jsonl_build import diff_table_counts
+    from wyrd.generators.kenning.jsonl.build import diff_table_counts
 
     rows = diff_table_counts({"etymon": -1}, {"etymon": 100})
     assert rows[0]["delta"] is None
 
 
 def test_has_any_delta():
-    from wyrd.generators.kenning.jsonl_build import has_any_delta
+    from wyrd.generators.kenning.jsonl.build import has_any_delta
 
     assert not has_any_delta([{"table": "x", "before": 5, "after": 5, "delta": 0}])
     assert has_any_delta([{"table": "x", "before": 5, "after": 6, "delta": 1}])
@@ -611,7 +611,7 @@ def test_has_any_delta():
 
 
 def test_format_diff_rebuild_shows_signed_deltas():
-    from wyrd.generators.kenning.jsonl_build import format_diff_rebuild
+    from wyrd.generators.kenning.jsonl.build import format_diff_rebuild
 
     rows = [
         {"table": "etymon", "before": 100, "after": 102, "delta": 2},
@@ -631,7 +631,7 @@ def test_format_diff_rebuild_handles_wiktionary_scale_counts():
     """Number columns sized for 9-digit counts so the live wiktionary
     slice (2.37M etymons, 1.76M descent edges) renders without
     overflowing the column and corrupting the markdown table."""
-    from wyrd.generators.kenning.jsonl_build import format_diff_rebuild
+    from wyrd.generators.kenning.jsonl.build import format_diff_rebuild
 
     rows = [{"table": "etymon", "before": 2373985, "after": 6318, "delta": -2367667}]
     md = format_diff_rebuild(rows)
@@ -723,7 +723,7 @@ def _seed_toponym(conn, name: str, region: str | None = None) -> int:
 
 def test_insert_citation_rows_skips_unknown_etymon_ref():
     """Orphan citation → counted in citation_orphans + ref captured."""
-    from wyrd.generators.kenning.jsonl_build import _insert_citation_rows
+    from wyrd.generators.kenning.jsonl.build import _insert_citation_rows
 
     conn = _build_fixture_db()
     _seed_source(conn, "skeat")
@@ -741,7 +741,7 @@ def test_insert_citation_rows_skips_unknown_etymon_ref():
 
 def test_insert_descent_rows_skips_either_endpoint_missing():
     """Orphan descent edge → counted + ref pair captured."""
-    from wyrd.generators.kenning.jsonl_build import _insert_descent_rows
+    from wyrd.generators.kenning.jsonl.build import _insert_descent_rows
 
     conn = _build_fixture_db()
     _seed_source(conn, "wiki")
@@ -774,7 +774,7 @@ def test_insert_descent_rows_skips_either_endpoint_missing():
 
 def test_insert_mining_run_rows_no_orphan_path():
     """mining_run has no FK refs — every row inserts unconditionally."""
-    from wyrd.generators.kenning.jsonl_build import _insert_mining_run_rows
+    from wyrd.generators.kenning.jsonl.build import _insert_mining_run_rows
 
     conn = _build_fixture_db()
     _seed_source(conn, "skeat")
@@ -791,7 +791,7 @@ def test_insert_attestation_rows_basic(tmp_path: Path):
     """Per wyrd-3ypp: attestation rows from OS Open Names + future
     historical sources resolve their toponym_ref and insert into
     toponym_attestation. Unknown ref → orphan-skip pattern."""
-    from wyrd.generators.kenning.jsonl_build import _insert_attestation_rows
+    from wyrd.generators.kenning.jsonl.build import _insert_attestation_rows
 
     # Extended fixture with the toponym_attestation table.
     conn = _build_fixture_db()
@@ -836,7 +836,7 @@ def test_insert_attestation_rows_basic(tmp_path: Path):
 def test_insert_etymology_element_rows_per_source_dedup_and_orphan():
     """Helper handles BOTH dedup (wyrd-tzf2) and toponym-orphan skip
     (wyrd-lene) in one place."""
-    from wyrd.generators.kenning.jsonl_build import _insert_etymology_element_rows
+    from wyrd.generators.kenning.jsonl.build import _insert_etymology_element_rows
 
     conn = _build_fixture_db()
     _seed_source(conn, "mawer")
@@ -881,7 +881,7 @@ def test_format_diff_rebuild_renders_missing_and_none_delta():
     """When a table is missing on one side, the count column shows
     '(missing)' and the delta column shows '—' so neither can be
     mistaken for zero."""
-    from wyrd.generators.kenning.jsonl_build import format_diff_rebuild
+    from wyrd.generators.kenning.jsonl.build import format_diff_rebuild
 
     rows = [{"table": "new_table", "before": -1, "after": 5, "delta": None}]
     md = format_diff_rebuild(rows)
@@ -1186,7 +1186,7 @@ def test_build_orphan_refs_capped_at_sample_limit(tmp_path: Path):
     """Orphan-ref lists cap at ORPHAN_SAMPLE_LIMIT (50) so a bulk
     prune with hundreds of orphans doesn't bloat the result dict.
     Count remains accurate; only the ref-sample is bounded."""
-    from wyrd.generators.kenning.jsonl_build import ORPHAN_SAMPLE_LIMIT
+    from wyrd.generators.kenning.jsonl.build import ORPHAN_SAMPLE_LIMIT
 
     rows: list[dict] = [{"_type": "source", "ref": "x", "title": "X"}]
     n_orphans = ORPHAN_SAMPLE_LIMIT + 10
@@ -1626,7 +1626,7 @@ def test_fantasy_morpheme_round_trips_through_dump_and_build(tmp_path: Path):
     """End-to-end: seed DB → dump → build into fresh DB → assert
     fantasy_morpheme rows round-trip with etymon attribution
     preserved. Load-bearing test for wyrd-2thc."""
-    from wyrd.generators.kenning.jsonl_dump import (
+    from wyrd.generators.kenning.jsonl.dump import (
         dump_fantasy_morphemes_to_file,
         dump_source_to_file,
     )

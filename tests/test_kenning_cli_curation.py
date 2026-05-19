@@ -23,7 +23,7 @@ from pathlib import Path
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
-from wyrd.generators.kenning.jsonl_log import write_jsonl
+from wyrd.generators.kenning.jsonl.log import write_jsonl
 
 
 def _source_file_with(tmp_path: Path, source_id: str, rows: list[dict]) -> Path:

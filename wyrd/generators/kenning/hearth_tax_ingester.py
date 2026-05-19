@@ -41,7 +41,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from .jsonl_log import write_jsonl
+from .jsonl.log import write_jsonl
 
 HEARTH_TAX_SOURCE_ID = "hearth_tax_1660s"
 DEFAULT_HEARTH_TAX_YEAR = 1665

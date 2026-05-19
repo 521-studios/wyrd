@@ -68,7 +68,7 @@ def lexicon_dump_jsonl(
     """
     from urllib.parse import quote
 
-    from wyrd.generators.kenning.jsonl_dump import (
+    from wyrd.generators.kenning.jsonl.dump import (
         DEFAULT_BULK_EXCLUDED_SOURCES,
         dump_all_sources,
         dump_fantasy_morphemes_to_file,

@@ -44,10 +44,10 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from .jsonl_log import write_jsonl
+from .jsonl.log import write_jsonl
 
 # Source identity. Excluded from default dump-jsonl (see
-# jsonl_dump.DEFAULT_BULK_EXCLUDED_SOURCES) — the JSONL is regenerated
+# jsonl.dump.DEFAULT_BULK_EXCLUDED_SOURCES) — the JSONL is regenerated
 # from the L1 CSV rather than round-tripped from the DB.
 OS_OPEN_NAMES_SOURCE_ID = "os_open_names"
 
@@ -124,7 +124,7 @@ _SOURCE_ROW = {
 
 
 def _toponym_ref(modern_name: str, region: str | None) -> str:
-    """Cross-file toponym ref. Same shape as jsonl_dump.toponym_ref;
+    """Cross-file toponym ref. Same shape as jsonl.dump.toponym_ref;
     duplicated here to avoid a cross-module import cycle at module
     load."""
     return f"{modern_name}@{region or '-'}"
