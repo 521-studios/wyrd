@@ -1158,7 +1158,7 @@ def test_kenning_input_schema_era_options_match_era_family_per_culture():
     invariant: adding a new cell to era.ERA_CELLS automatically surfaces
     in the SPA dropdown without touching the input_schema."""
     from wyrd.generators.kenning import _CULTURE_TO_ERA_FAMILY, Kenning
-    from wyrd.generators.kenning.era import era_cells_for_family
+    from wyrd.generators.kenning.era.cells import era_cells_for_family
 
     schema = Kenning().input_schema()
     options = schema["properties"]["era"]["x-options-by-culture"]

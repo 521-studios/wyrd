@@ -8,7 +8,7 @@ import pytest
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
-from wyrd.generators.kenning.era_timeline import (
+from wyrd.generators.kenning.era.timeline import (
     ERA_ANGLO_SAXON,
     ERA_EARLY_MODERN,
     ERA_MIDDLE_ENGLISH,

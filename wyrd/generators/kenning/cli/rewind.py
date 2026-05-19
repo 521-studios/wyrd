@@ -8,10 +8,10 @@ import click
 
 from wyrd.generators.kenning import _load_meanings
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
-from wyrd.generators.kenning.era import era_cell_for_input
+from wyrd.generators.kenning.era.cells import era_cell_for_input
+from wyrd.generators.kenning.era.rewind import DEFAULT_ENGLISH_ERAS, rewind_name
 from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
-from wyrd.generators.kenning.rewind import DEFAULT_ENGLISH_ERAS, rewind_name
 
 
 @click.command("rewind")

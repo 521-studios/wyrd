@@ -21,7 +21,7 @@ import sqlite3
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from .browse import parse_toponym_ref
+from wyrd.generators.kenning.browse import parse_toponym_ref
 
 ERA_ANGLO_SAXON = "Anglo-Saxon"
 ERA_MIDDLE_ENGLISH = "Middle English"

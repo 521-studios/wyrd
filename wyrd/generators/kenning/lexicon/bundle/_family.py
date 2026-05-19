@@ -160,7 +160,7 @@ def _fetch_root_era_reflexes(
     Computed at bundle-build time only — the runtime caller doesn't
     have DB access and reads from the bundle's ``era_reflexes`` field.
     """
-    from wyrd.generators.kenning.era import (
+    from wyrd.generators.kenning.era.cells import (
         CANONICAL_LANGUAGE_FOR_CELL,
         language_family,
     )

@@ -43,7 +43,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from wyrd.generators.kenning.era import ERA_CELLS, LANGUAGE_TO_FAMILY, era_cell, era_year_range
+from wyrd.generators.kenning.era.cells import (
+    ERA_CELLS,
+    LANGUAGE_TO_FAMILY,
+    era_cell,
+    era_year_range,
+)
 from wyrd.generators.kenning.lexicon import LexiconDB
 
 # Culture inference from toponym.country. v1 covers the English slice

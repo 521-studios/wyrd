@@ -11,7 +11,7 @@ from wyrd.generators.kenning.decomposition import (
     _decomposition_payload,
     _signature_for_payload,
 )
-from wyrd.generators.kenning.era import era_cells_for_family, resolve_era_input
+from wyrd.generators.kenning.era.cells import era_cells_for_family, resolve_era_input
 
 # Back-compat re-exports for the wyrd-ru5d extractors/ subpackage. Older call
 # sites (especially in cli/lexicon/) import these modules as if they were
@@ -109,8 +109,8 @@ def _era_options_by_culture() -> dict[str, list[str]]:
 
     Empty string is prepended as the 'no era filter' option. The label
     set is derived from era_cells_for_family so adding a new cell to
-    era.py automatically surfaces in the dropdown without touching this
-    file. Re-evaluated at schema-render time, so era.ERA_CELLS edits
+    era/cells.py automatically surfaces in the dropdown without touching
+    this file. Re-evaluated at schema-render time, so era.cells.ERA_CELLS edits
     take effect after a manifest refresh.
     """
     return {

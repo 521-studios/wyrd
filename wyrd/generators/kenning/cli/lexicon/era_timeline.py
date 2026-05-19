@@ -29,7 +29,7 @@ def lexicon_era_timeline(query: str, db_path: Path) -> None:
     Era buckets: Anglo-Saxon (<1100), Middle English (1100-1500),
     Early Modern (1500-1800), Modern (>=1800), Undated.
     """
-    from wyrd.generators.kenning.era_timeline import (
+    from wyrd.generators.kenning.era.timeline import (
         fetch_era_timeline,
         format_era_timeline,
     )
