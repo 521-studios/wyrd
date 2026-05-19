@@ -1003,7 +1003,7 @@ If a book yields 0 or near-0 entries, the diagnostic order is:
 
 1. Run `find_body_bounds` directly:
    ```python
-   from wyrd.generators.kenning.dictionary_parser import find_body_bounds
+   from wyrd.generators.kenning.parsers.dictionary import find_body_bounds
    lines = open('sources/<id>.txt').read().split('\n')
    s, e = find_body_bounds(lines)
    print(f'body bounds: {s}..{e}  ({e - s} lines, {100*(e-s)//len(lines)}%)')
@@ -1014,7 +1014,7 @@ If a book yields 0 or near-0 entries, the diagnostic order is:
 
 2. Check `_ENTRY_BODY_SIGNALS` against the body text:
    ```python
-   from wyrd.generators.kenning.dictionary_parser import _ENTRY_BODY_SIGNALS
+   from wyrd.generators.kenning.parsers.dictionary import _ENTRY_BODY_SIGNALS
    import re
    text = open('sources/<id>.txt').read()
    sample = re.split(r'\n\s*\n', text)[100:120]   # mid-document paragraphs
@@ -1024,7 +1024,7 @@ If a book yields 0 or near-0 entries, the diagnostic order is:
 
 3. Check headword detection at paragraph starts:
    ```python
-   from wyrd.generators.kenning.dictionary_parser import _ENTRY_HEADWORD, _is_real_headword
+   from wyrd.generators.kenning.parsers.dictionary import _ENTRY_HEADWORD, _is_real_headword
    import re
    for p in re.split(r'\n\s*\n', text)[100:120]:
        m = _ENTRY_HEADWORD.match(p)

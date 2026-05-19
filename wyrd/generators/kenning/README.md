@@ -60,8 +60,8 @@ Two views drive the consensus model:
             │
             ▼
    ┌──────────────────────┐
-   │ parser               │   skeat_parser.py        (TOC + suffix sections)
-   │  → ParsedEntry list  │   dictionary_parser.py   (alphabetical headwords)
+   │ parser               │   parsers/skeat.py       (TOC + suffix sections)
+   │  → ParsedEntry list  │   parsers/dictionary.py  (alphabetical headwords)
    └──────────┬───────────┘
               │  (auto-detect by yield)
               ▼
@@ -94,8 +94,8 @@ Key invariants:
 | Module | Purpose |
 |---|---|
 | `lexicon.py` | DB schema init, ingest, OCR-variant clustering. The data layer. |
-| `skeat_parser.py` | Skeat-style books: TOC + "§ N. The suffix -X" body sections. Cambridgeshire/Bedfordshire/Suffolk. |
-| `dictionary_parser.py` | Alphabetical-headword books (Mawer, Ekwall, Watson, Johnston, Joyce, Morgan). Auto-detected fallback. |
+| `parsers/skeat.py` | Skeat-style books: TOC + "§ N. The suffix -X" body sections. Cambridgeshire/Bedfordshire/Suffolk. |
+| `parsers/dictionary.py` | Alphabetical-headword books (Mawer, Ekwall, Watson, Johnston, Joyce, Morgan). Auto-detected fallback. |
 | `extractors/llm.py` | Ollama client + shared SYSTEM_PROMPT, USER_TEMPLATE, RESPONSE_SCHEMA, `validate_response`. |
 | `extractors/gemini.py` | Gemini-API parallel implementation with the same `extract_one` shape. Slightly stronger on hedge-recognition and OE-form OCR garble; pay-per-call. |
 | `extractors/fantasy.py` | wyrd-ami: fantasy-name etymology research (Harpy → ancient-greek ἅρπυια, Djinni → arabic jinn). Resolves creature names against the etymon corpus via descent_walking_lookup pre-filter + Gemini Flash full-research fallback. Output rows in `fantasy_morpheme`. See OVERVIEW.md "Sibling pipeline" + INGESTION.md "Mining the wyrd-ami fantasy-name corpus". |
@@ -196,7 +196,7 @@ wyrd kenning lexicon mine-fantasy-name --batch /tmp/pfsrd2-monsters.jsonl \
 ## Extending
 
 - **New format of etymology book**: subclass parser style. If it's
-  alphabetical-headword-shaped, extend `dictionary_parser._ENTRY_HEADWORD`
+  alphabetical-headword-shaped, extend `parsers.dictionary._ENTRY_HEADWORD`
   patterns. If it's outline-shaped, write a third parser.
 - **New language family**: add to `LANGUAGE_FIELDS` in `lexicon.py` and the
   enum in both `RESPONSE_SCHEMA` and `GEMINI_RESPONSE_SCHEMA`.

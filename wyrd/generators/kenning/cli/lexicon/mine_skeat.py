@@ -12,8 +12,8 @@ import click
 from wyrd.generators.kenning.cli.lexicon.build import _KNOWN_SKEAT_BOOKS
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
 from wyrd.generators.kenning.lexicon import LexiconDB, ingest_parsed_entries
+from wyrd.generators.kenning.parsers.skeat import parse_skeat_text
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
-from wyrd.generators.kenning.skeat_parser import parse_skeat_text
 
 
 @click.command("mine-skeat")

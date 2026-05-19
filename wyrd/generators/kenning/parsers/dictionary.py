@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import re
 
-from wyrd.generators.kenning.skeat_parser import ParsedEntry, _shorten
+from .skeat import ParsedEntry, _shorten
 
 # --- body-section detection ------------------------------------------------
 

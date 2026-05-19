@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 
 if TYPE_CHECKING:
-    from wyrd.generators.kenning.skeat_parser import ParsedEntry
+    from wyrd.generators.kenning.parsers.skeat import ParsedEntry
 
 
 def _upsert_toponym(db: LexiconDB, modern_name: str, region: str | None) -> int:

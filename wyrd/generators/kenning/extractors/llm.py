@@ -21,7 +21,7 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Literal
 
-from wyrd.generators.kenning.skeat_parser import (
+from wyrd.generators.kenning.parsers.skeat import (
     SOURCE_QUOTE_BUDGET,
     ParsedElement,
     ParsedEntry,
@@ -50,8 +50,8 @@ _ALLOWED_POSITIONS = {"pre", "inner", "post"}
 
 
 # SOURCE_QUOTE_BUDGET (the source_quote cap for ParsedEntry rows the SPA
-# citation view consumes) lives in skeat_parser alongside ParsedEntry —
-# the regex parser (skeat_parser._shorten) and this LLM extractor share
+# citation view consumes) lives in parsers.skeat alongside ParsedEntry —
+# the regex parser (parsers.skeat._shorten) and this LLM extractor share
 # one constant. The reverse import direction would be a cycle.
 # Imported above; kept aliased here so existing readers see the symbol
 # without chasing the hop. wyrd-9v1.
