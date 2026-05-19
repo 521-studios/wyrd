@@ -6,7 +6,7 @@ import json
 
 import click
 
-from wyrd.generators.kenning import CULTURES
+from wyrd.generators.kenning import CULTURES, KenningEraMap
 
 
 @click.command("era-map")
@@ -26,8 +26,6 @@ def era_map(culture: str, count: int, seed: int, as_json: bool) -> None:
     uniformly across all eras (the bundle-only renderer falls back
     to the modern usage); that's a coverage limit, not a bug.
     """
-    from wyrd.generators.kenning import KenningEraMap
-
     gen = KenningEraMap()
     results = gen.generate_all({"culture": culture, "count": count}, seed)
 

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import click
 
+from wyrd.generators.kenning import KenningCreature
+
 
 @click.command("creature")
 @click.argument("name")
@@ -21,8 +23,6 @@ def creature(name: str) -> None:
     so chaining ``wyrd kenning creature <random>`` against a list
     is safe.
     """
-    from wyrd.generators.kenning import KenningCreature
-
     gen = KenningCreature()
     result = gen.generate({"name": name}, seed=0)
     click.echo(result.result)

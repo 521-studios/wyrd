@@ -86,10 +86,16 @@ from wyrd.generators.kenning.cli.rebuild_proportions import (  # noqa: F401
     _proportions_from,
 )
 
-# Re-exports from cli.utils — used internally by the @lexicon.command
-# bodies still in this file AND re-exported here so back-compat
-# imports (`from wyrd.generators.kenning.cli import _select_parser_and_run`)
-# keep working for tests + downstream callers.
+# Re-exports from cli.utils. Three of the four names below are
+# actually used by the @lexicon.command bodies still in this file
+# (_DEFAULT_LEXICON_PATH on most lexicon commands' --db default,
+# _load_meanings_data on `lexicon build` and `lexicon export-meanings`,
+# _select_parser_and_run on the mine-* commands). _decompose_corpus
+# is re-exported purely for back-compat with
+# `tests/test_kenning_decomposition` which imports it via
+# `from wyrd.generators.kenning.cli import _decompose_corpus`; the
+# noqa: F401 below documents that the import is intentional even
+# though this module doesn't itself call it.
 from wyrd.generators.kenning.cli.utils import (  # noqa: F401  (_decompose_corpus)
     _DEFAULT_LEXICON_PATH,
     _decompose_corpus,

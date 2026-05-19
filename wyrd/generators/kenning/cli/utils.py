@@ -24,11 +24,13 @@ from contextlib import nullcontext
 from importlib import resources
 from pathlib import Path
 
+from wyrd.generators.kenning.decomposition import decompose_with_canonical
 from wyrd.generators.kenning.dictionary_parser import (
     parse_alphabetical_text,
     parse_numbered_list_text,
 )
 from wyrd.generators.kenning.lexicon import LexiconDB
+from wyrd.generators.kenning.name import Name
 from wyrd.generators.kenning.paths import default_lexicon_path
 from wyrd.generators.kenning.skeat_parser import parse_skeat_text
 
@@ -113,9 +115,6 @@ def _decompose_corpus(
     empty when ``db_path`` is ``None`` so callers can use truthiness to
     decide whether to surface the ``canonical[...]`` summary block.
     """
-    from wyrd.generators.kenning.decomposition import decompose_with_canonical
-    from wyrd.generators.kenning.name import Name
-
     canonical_hits: Counter = Counter()
     resolved_names: list = []
     db_context = LexiconDB(db_path) if db_path is not None else nullcontext()

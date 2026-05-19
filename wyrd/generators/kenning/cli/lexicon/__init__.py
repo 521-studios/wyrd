@@ -34,4 +34,4 @@ def add_to(parent: click.Group) -> None:
     ``lexicon`` group; this function wires the group into the parent
     so ``wyrd kenning lexicon ...`` resolves.
     """
-    parent.add_command(lexicon, name="lexicon")
+    parent.add_command(lexicon)
