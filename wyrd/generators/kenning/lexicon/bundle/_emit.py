@@ -1,11 +1,14 @@
 """Output formatters for the bundle build (leaf module — no internal deps).
 
 Per-language buckets + serializer for the meanings.json output. The
-``_LANG_CODE_TO_JSON_FIELD`` rollup map collapses language tags
-(welsh + old-welsh + middle-welsh → ``welsh``; irish + old-irish +
-middle-irish → ``irish``) so the bundle JSON's per-language fields
-present one slot per language family rather than one per scholarly
-period tag.
+``_LANG_CODE_TO_JSON_FIELD`` rollup map collapses every Celtic-family
+language tag (welsh / old-welsh / middle-welsh / irish / old-irish /
+middle-irish / scottish-gaelic / breton / proto-celtic / …) into a
+single ``celtic_mix`` bundle bucket; wyrd-vsrn wave-2 stacks (he +
+hbo + sem-pro → ``hebrew``; sa + iir-pro + inc-pro → ``sanskrit``)
+collapse similarly. The fixed nine-bucket structure on the bundle
+side stays runtime-stable; the lexicon keeps finer-grained languages
+on the etymon row for future per-language queries.
 
 The ``_BucketAccumulator`` collects per-bucket evidence as a member
 is absorbed; the ``_emit_*_list`` formatters then turn the
