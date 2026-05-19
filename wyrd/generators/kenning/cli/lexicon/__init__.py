@@ -31,6 +31,9 @@ from wyrd.generators.kenning.cli.lexicon import (
 from wyrd.generators.kenning.cli.lexicon import (
     audit_short_quotes as _audit_short_quotes_module,
 )
+from wyrd.generators.kenning.cli.lexicon import (
+    backfill_fantasy_tags as _backfill_fantasy_tags_module,
+)
 from wyrd.generators.kenning.cli.lexicon import backfill_pages as _backfill_pages_module
 from wyrd.generators.kenning.cli.lexicon import (
     bridge_celtic_forms as _bridge_celtic_forms_module,
@@ -43,9 +46,16 @@ from wyrd.generators.kenning.cli.lexicon import (
     bridge_phonological_on as _bridge_phonological_on_module,
 )
 from wyrd.generators.kenning.cli.lexicon import browse as _browse_module
+from wyrd.generators.kenning.cli.lexicon import build as _build_module
+from wyrd.generators.kenning.cli.lexicon import (
+    canonicalize_toponym_etymology as _canonicalize_toponym_etymology_module,
+)
 from wyrd.generators.kenning.cli.lexicon import classify_stratum as _classify_stratum_module
 from wyrd.generators.kenning.cli.lexicon import clear_enrichment as _clear_enrichment_module
 from wyrd.generators.kenning.cli.lexicon import cluster_cognates as _cluster_cognates_module
+from wyrd.generators.kenning.cli.lexicon import (
+    commit_toponym_candidates as _commit_toponym_candidates_module,
+)
 from wyrd.generators.kenning.cli.lexicon import compact_jsonl as _compact_jsonl_module
 from wyrd.generators.kenning.cli.lexicon import curate_etymon as _curate_etymon_module
 from wyrd.generators.kenning.cli.lexicon import decompose as _decompose_module
@@ -55,6 +65,9 @@ from wyrd.generators.kenning.cli.lexicon import (
 from wyrd.generators.kenning.cli.lexicon import diff_bundle as _diff_bundle_module
 from wyrd.generators.kenning.cli.lexicon import diff_rebuild as _diff_rebuild_module
 from wyrd.generators.kenning.cli.lexicon import disambiguate_fuzzy as _disambiguate_fuzzy_module
+from wyrd.generators.kenning.cli.lexicon import (
+    dump_empirical_priors as _dump_empirical_priors_module,
+)
 from wyrd.generators.kenning.cli.lexicon import dump_jsonl as _dump_jsonl_module
 from wyrd.generators.kenning.cli.lexicon import enrich as _enrich_module
 from wyrd.generators.kenning.cli.lexicon import enrichment_status as _enrichment_status_module
@@ -63,8 +76,14 @@ from wyrd.generators.kenning.cli.lexicon import era_coverage as _era_coverage_mo
 from wyrd.generators.kenning.cli.lexicon import era_reflex as _era_reflex_module
 from wyrd.generators.kenning.cli.lexicon import era_timeline as _era_timeline_module
 from wyrd.generators.kenning.cli.lexicon import export_meanings as _export_meanings_module
+from wyrd.generators.kenning.cli.lexicon import (
+    extract_pfsrd2_monsters as _extract_pfsrd2_monsters_module,
+)
 from wyrd.generators.kenning.cli.lexicon import fetch_bulk_sources as _fetch_bulk_sources_module
 from wyrd.generators.kenning.cli.lexicon import fuzzy_search as _fuzzy_search_module
+from wyrd.generators.kenning.cli.lexicon import import_mining_log as _import_mining_log_module
+from wyrd.generators.kenning.cli.lexicon import ingest_domesday as _ingest_domesday_module
+from wyrd.generators.kenning.cli.lexicon import ingest_etymonline as _ingest_etymonline_module
 from wyrd.generators.kenning.cli.lexicon import ingest_hearth_tax as _ingest_hearth_tax_module
 from wyrd.generators.kenning.cli.lexicon import (
     ingest_hundred_rolls as _ingest_hundred_rolls_module,
@@ -73,6 +92,9 @@ from wyrd.generators.kenning.cli.lexicon import (
     ingest_os_open_names as _ingest_os_open_names_module,
 )
 from wyrd.generators.kenning.cli.lexicon import ingest_speed_1611 as _ingest_speed_1611_module
+from wyrd.generators.kenning.cli.lexicon import (
+    ingest_toponym_mentions as _ingest_toponym_mentions_module,
+)
 from wyrd.generators.kenning.cli.lexicon import ingest_wiktionary as _ingest_wiktionary_module
 from wyrd.generators.kenning.cli.lexicon import language_report as _language_report_module
 from wyrd.generators.kenning.cli.lexicon import link_lemmas as _link_lemmas_module
@@ -81,9 +103,33 @@ from wyrd.generators.kenning.cli.lexicon import (
 )
 from wyrd.generators.kenning.cli.lexicon import migrate as _migrate_module
 from wyrd.generators.kenning.cli.lexicon import mine_attestations as _mine_attestations_module
+from wyrd.generators.kenning.cli.lexicon import (
+    mine_empirical_baselines as _mine_empirical_baselines_module,
+)
+from wyrd.generators.kenning.cli.lexicon import mine_fantasy_name as _mine_fantasy_name_module
+from wyrd.generators.kenning.cli.lexicon import mine_llm as _mine_llm_module
+from wyrd.generators.kenning.cli.lexicon import mine_skeat as _mine_skeat_module
+from wyrd.generators.kenning.cli.lexicon import (
+    mine_toponym_mentions as _mine_toponym_mentions_module,
+)
+from wyrd.generators.kenning.cli.lexicon import (
+    mine_toponym_mentions_staged as _mine_toponym_mentions_staged_module,
+)
+from wyrd.generators.kenning.cli.lexicon import (
+    mine_toponym_mentions_tiered as _mine_toponym_mentions_tiered_module,
+)
+from wyrd.generators.kenning.cli.lexicon import (
+    mine_wiktextract_corpus as _mine_wiktextract_corpus_module,
+)
+from wyrd.generators.kenning.cli.lexicon import (
+    mine_wiktextract_forms as _mine_wiktextract_forms_module,
+)
 from wyrd.generators.kenning.cli.lexicon import normalize_ocr as _normalize_ocr_module
 from wyrd.generators.kenning.cli.lexicon import parse_pages as _parse_pages_module
 from wyrd.generators.kenning.cli.lexicon import path as _path_module
+from wyrd.generators.kenning.cli.lexicon import (
+    prepare_toponym_candidates as _prepare_toponym_candidates_module,
+)
 from wyrd.generators.kenning.cli.lexicon import (
     project_period_forms as _project_period_forms_module,
 )
@@ -102,8 +148,13 @@ from wyrd.generators.kenning.cli.lexicon import (
     report_wikipedia_backfill as _report_wikipedia_backfill_module,
 )
 from wyrd.generators.kenning.cli.lexicon import reverse_search as _reverse_search_module
+from wyrd.generators.kenning.cli.lexicon import (
+    reverse_search_toponyms as _reverse_search_toponyms_module,
+)
+from wyrd.generators.kenning.cli.lexicon import review as _review_module
 from wyrd.generators.kenning.cli.lexicon import set_stratum as _set_stratum_module
 from wyrd.generators.kenning.cli.lexicon import stats as _stats_module
+from wyrd.generators.kenning.cli.lexicon import synsets as _synsets_module
 from wyrd.generators.kenning.cli.lexicon import verify_bulk_sources as _verify_bulk_sources_module
 
 
@@ -119,18 +170,24 @@ def lexicon() -> None:
 # follows the same pattern at the package level (cli/lexicon/browse/).
 _audit_etymology_alignment_module.add_to(lexicon)
 _audit_short_quotes_module.add_to(lexicon)
+_backfill_fantasy_tags_module.add_to(lexicon)
 _backfill_pages_module.add_to(lexicon)
 _bridge_celtic_forms_module.add_to(lexicon)
 _bridge_language_module.add_to(lexicon)
 _bridge_phonological_oe_module.add_to(lexicon)
 _bridge_phonological_on_module.add_to(lexicon)
 _browse_module.add_to(lexicon)
+_build_module.add_to(lexicon)
+_canonicalize_toponym_etymology_module.add_to(lexicon)
 _classify_stratum_module.add_to(lexicon)
 _clear_enrichment_module.add_to(lexicon)
 _cluster_cognates_module.add_to(lexicon)
+_commit_toponym_candidates_module.add_to(lexicon)
 _compact_jsonl_module.add_to(lexicon)
 _curate_etymon_module.add_to(lexicon)
 _decompose_module.add_to(lexicon)
+_dump_empirical_priors_module.add_to(lexicon)
+_extract_pfsrd2_monsters_module.add_to(lexicon)
 _derive_english_shaped_module.add_to(lexicon)
 _diff_bundle_module.add_to(lexicon)
 _diff_rebuild_module.add_to(lexicon)
@@ -148,16 +205,30 @@ _fuzzy_search_module.add_to(lexicon)
 _ingest_hearth_tax_module.add_to(lexicon)
 _ingest_hundred_rolls_module.add_to(lexicon)
 _ingest_os_open_names_module.add_to(lexicon)
+_ingest_domesday_module.add_to(lexicon)
+_ingest_etymonline_module.add_to(lexicon)
 _ingest_speed_1611_module.add_to(lexicon)
+_ingest_toponym_mentions_module.add_to(lexicon)
 _ingest_wiktionary_module.add_to(lexicon)
+_import_mining_log_module.add_to(lexicon)
 _language_report_module.add_to(lexicon)
 _link_lemmas_module.add_to(lexicon)
 _lookup_attested_years_module.add_to(lexicon)
 _migrate_module.add_to(lexicon)
 _mine_attestations_module.add_to(lexicon)
+_mine_empirical_baselines_module.add_to(lexicon)
+_mine_fantasy_name_module.add_to(lexicon)
+_mine_llm_module.add_to(lexicon)
+_mine_skeat_module.add_to(lexicon)
+_mine_toponym_mentions_module.add_to(lexicon)
+_mine_toponym_mentions_staged_module.add_to(lexicon)
+_mine_toponym_mentions_tiered_module.add_to(lexicon)
+_mine_wiktextract_corpus_module.add_to(lexicon)
+_mine_wiktextract_forms_module.add_to(lexicon)
 _normalize_ocr_module.add_to(lexicon)
 _parse_pages_module.add_to(lexicon)
 _path_module.add_to(lexicon)
+_prepare_toponym_candidates_module.add_to(lexicon)
 _project_period_forms_module.add_to(lexicon)
 _prune_etymon_module.add_to(lexicon)
 _prune_toponym_module.add_to(lexicon)
@@ -165,6 +236,9 @@ _push_bulk_sources_module.add_to(lexicon)
 _rando_port_readiness_module.add_to(lexicon)
 _rebuild_from_jsonl_module.add_to(lexicon)
 _refill_short_quotes_module.add_to(lexicon)
+_reverse_search_toponyms_module.add_to(lexicon)
+_review_module.add_to(lexicon)
+_synsets_module.add_to(lexicon)
 _report_module.add_to(lexicon)
 _report_wikipedia_backfill_module.add_to(lexicon)
 _reverse_search_module.add_to(lexicon)

@@ -337,7 +337,14 @@ def test_cli_min_entry_max_entry_flags_flow_through_to_parser(tmp_path, monkeypa
         captured["max_entry_number"] = max_entry_number
         return []
 
-    monkeypatch.setattr(cli_mod, "_select_parser_and_run", stub_select)
+    # mine-llm imports `_select_parser_and_run` from cli.utils into its own
+    # module namespace (post-wyrd-g143 slice 5). Patch the reference the
+    # mine_llm module actually resolves to at call time, not the cli/utils
+    # re-export — local-bound imports don't follow monkeypatch on a different
+    # namespace.
+    from wyrd.generators.kenning.cli.lexicon import mine_llm as _mine_llm_mod
+
+    monkeypatch.setattr(_mine_llm_mod, "_select_parser_and_run", stub_select)
 
     class FakeClient:
         model = "fake"
@@ -395,7 +402,14 @@ def test_cli_min_entry_default_is_one_max_entry_default_is_none(tmp_path, monkey
         captured["max_entry_number"] = max_entry_number
         return []
 
-    monkeypatch.setattr(cli_mod, "_select_parser_and_run", stub_select)
+    # mine-llm imports `_select_parser_and_run` from cli.utils into its own
+    # module namespace (post-wyrd-g143 slice 5). Patch the reference the
+    # mine_llm module actually resolves to at call time, not the cli/utils
+    # re-export — local-bound imports don't follow monkeypatch on a different
+    # namespace.
+    from wyrd.generators.kenning.cli.lexicon import mine_llm as _mine_llm_mod
+
+    monkeypatch.setattr(_mine_llm_mod, "_select_parser_and_run", stub_select)
 
     class FakeClient:
         model = "fake"
