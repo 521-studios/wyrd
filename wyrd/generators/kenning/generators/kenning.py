@@ -1,0 +1,363 @@
+"""The main `kenning` Generator — composes morphemes into town names."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from wyrd.generators.kenning import (
+    _FICTION_TAG,
+    _LEGEND,
+    CULTURES,
+    MOODS,
+    _apply_joiner_insertion,
+    _apply_mood,
+    _coerce_bool,
+    _era_options_by_culture,
+    _load_culture,
+    _load_joiners,
+    _load_norman_manorial_families,
+    _resolve_era_param,
+    _resolve_stratum_param,
+    _stratum_options_by_culture,
+    available_tags,
+)
+from wyrd.generators.kenning.lexicon.strata import (
+    FRENCH_STRATA,
+    OLD_ENGLISH_STRATA,
+    OLD_NORSE_STRATA,
+    WELSH_STRATA,
+)
+from wyrd.registry import GenerationResult, Generator
+from wyrd.seed import rng_for
+
+
+class Kenning(Generator):
+    name = "kenning"
+    display_name = "Kenning — Town Names"
+    description = (
+        "Generates British Isles–style town names by composing Old English, Old Norse, "
+        "Old French, and Celtic morphemes. Pick a culture; optionally filter morphemes "
+        "by tag (e.g. 'tree', 'water', 'religion')."
+    )
+    details = (
+        "<p>"
+        "Town names from the British Isles aren't arbitrary — they're stitched from "
+        "old <strong>morphemes</strong>, the small meaning-bearing fragments inside "
+        "a word. Place-name scholars call the names themselves <strong>toponyms</strong>; "
+        'the morphemes are their building blocks. <em>Ashton</em> is "ash" + "-ton" '
+        '(Old English for an enclosed settlement). <em>Bridgwater</em> is "bridge" + '
+        '"water". The vocabulary is bounded; the combinations are nearly endless.'
+        "</p>"
+        "<p>"
+        "Kenning learned the patterns by analyzing roughly "
+        "<strong>66,000 real British Isles place names</strong> "
+        "(English, Scottish, Welsh, Irish) against a corpus of about "
+        "2,900 morphemes. For each culture it knows which morphemes show up, "
+        "in which structures (prefix + root, two words, saint's name, etc.), "
+        "and how often. Each rolled name is a fresh sample from those statistics."
+        "</p>"
+    )
+    legend = _LEGEND
+
+    def input_schema(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "culture": {
+                    "type": "string",
+                    "enum": CULTURES,
+                    "default": "english",
+                    "description": "Linguistic culture to draw morphemes and structures from.",
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {"type": "string", "enum": available_tags()},
+                    "default": [],
+                    "description": (
+                        "Optional tag filters. Each tag biases the name toward morphemes "
+                        "with that meaning category."
+                    ),
+                },
+                "count": {
+                    "type": "integer",
+                    "default": 5,
+                    "minimum": 1,
+                    "maximum": 10,
+                    "description": "How many names to generate (1–10).",
+                },
+                "seed": {
+                    "type": "integer",
+                    "description": "Optional 64-bit seed for reproducible output.",
+                },
+                "spelling_variety": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": (
+                        "Per-morpheme probability of substituting an attested archaic "
+                        "spelling variant for the canonical reflex (D18). 0 keeps the "
+                        "modern surface form; higher values mix in 19th-century "
+                        "scholarly spellings (e.g. 'Brycg' for 'Bridg-') for archaic "
+                        "feel. Variant pool is empty for most morphemes today, so the "
+                        "knob has limited reach until more mining lands."
+                    ),
+                },
+                "novelty": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": (
+                        "Mixture between empirical-frequency sampling and a uniform "
+                        "marginal (D17). 0 keeps today's bit-stable behavior, 1 makes "
+                        "every in-bucket morpheme equally likely — plausible-but-"
+                        "unattested combinations become possible without abandoning "
+                        "the corpus. Intermediate values softly blend."
+                    ),
+                },
+                "inflection_density": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": (
+                        "Per-morpheme probability of substituting an inflected form "
+                        "(genitive, dative, plural) for the lemma (D8). 0 always uses "
+                        "the unmarked headword; higher values surface morphological "
+                        "variety like 'Cotum-' instead of 'Cot-'. Inflection wins over "
+                        "spelling_variety when both knobs would fire on the same "
+                        "morpheme."
+                    ),
+                },
+                "mood": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "default": [],
+                    "description": (
+                        "D6 stylistic-mood presets (repeatable). Each entry is one of "
+                        f"{sorted(MOODS)!r}, optionally with a colon-suffix value "
+                        "(e.g. 'harsh:0.5' for graduated phonological skew). 'grim' "
+                        "applies a menacing semantic-tag union; 'harsh' biases sampling "
+                        "toward stop-final / cluster-heavy morphemes. Multiple moods "
+                        "compose: tags union, harshness takes the max."
+                    ),
+                },
+                "include_fiction": {
+                    "type": "boolean",
+                    "default": False,
+                    "description": (
+                        "wyrd-yan: when True, allow morphemes tagged 'fiction' "
+                        "(constructed etymologies for bestiary / NPC / homebrew "
+                        "content) to appear in generated names. Default False keeps "
+                        "realistic-mode generation drawing only from scholarly-attested "
+                        "morphemes. The bundle today carries no fiction-tagged data — "
+                        "the gate is in place for upcoming constructed-etymology "
+                        "pipelines (wyrd-0ab, wyrd-kjc)."
+                    ),
+                },
+                "harshness": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": (
+                        "D6 phonological-harshness skew (0..1). Power-user knob; for "
+                        "GM-facing usage prefer 'mood: [harsh]' or 'mood: [\"harsh:0.5\"]'. "
+                        "0 leaves sampling unchanged; 1 drops soft morphemes and gives "
+                        "stop-final / cluster-heavy ones 2x weight. The mood resolution "
+                        "uses max(harshness, mood-derived) so explicit harshness takes "
+                        "effect when it exceeds the mood preset."
+                    ),
+                },
+                "era": {
+                    "type": "string",
+                    "default": "",
+                    # wyrd-awo: dependent-select metadata read by the SPA.
+                    # Each culture surfaces only the cell labels defined in
+                    # its era family — picking 'oe-late' while culture is
+                    # 'irish' would 4xx at runtime, so the dropdown
+                    # filters to the family's labels to prevent it.
+                    # CLI/API still accept bare-year and 'family/label'
+                    # shapes; this property only constrains the SPA UX.
+                    "x-options-by-culture": _era_options_by_culture(),
+                    "description": (
+                        "D5-2 era filter (wyrd-lyp). Restricts the morpheme inventory "
+                        "to forms attested in a particular period. The SPA renders this "
+                        "as a dropdown filtered to the chosen culture's era family. "
+                        "CLI/API also accept a bare year (e.g. '1086' → the cell "
+                        "containing 1086 in the culture's era family) or an explicit "
+                        "'family/label' pair (e.g. 'english/oe-late') to disambiguate "
+                        "when a label is shared across families. Morphemes with no "
+                        "attested-year evidence pass through unconditionally — only "
+                        "~32% of bundle morphemes carry year data today, so the filter "
+                        "narrows the pool rather than gutting it."
+                    ),
+                },
+                "cohesion": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": (
+                        "wyrd-mj2 tag co-occurrence bias (0..1). 0 leaves each slot "
+                        "sampling independently from its marginal (today's behavior). "
+                        "Higher values bias each slot's pick toward usages whose tags "
+                        "co-occur with previously-picked slots' tags in the empirical "
+                        "corpus — so 'topography + plant' and 'water + plant' (both "
+                        "common) are preferred over 'religion + plant' (rare). Composes "
+                        "orthogonally with novelty: cohesion pulls toward attested "
+                        "tag-class pairings, novelty blends toward the uniform marginal."
+                    ),
+                },
+                "stratum": {
+                    "type": "string",
+                    "default": "",
+                    # wyrd-j3gy: dependent-select metadata read by the
+                    # SPA. Each culture surfaces only the stratum tags
+                    # valid for that culture's bundled language families
+                    # (e.g. picking 'east-norse' against a Welsh culture
+                    # would 4xx at runtime, so the dropdown filters to
+                    # the culture's allowed set). CLI/API still accept
+                    # any string the per-culture validator accepts;
+                    # this property only constrains the SPA UX. Same
+                    # shape + load-bearing semantics as the era
+                    # property's x-options-by-culture (wyrd-awo).
+                    "x-options-by-culture": _stratum_options_by_culture(),
+                    "description": (
+                        "wyrd-lr4 Phase 3 within-language stratum filter. Restricts the "
+                        "morpheme inventory to forms classified into a specific register "
+                        f"bucket — for Welsh: {', '.join(repr(s) for s in WELSH_STRATA)}; "
+                        f"for French: {', '.join(repr(s) for s in FRENCH_STRATA)}; for "
+                        f"Old English: {', '.join(repr(s) for s in OLD_ENGLISH_STRATA)}; "
+                        f"for Old Norse: {', '.join(repr(s) for s in OLD_NORSE_STRATA)}. "
+                        "The SPA renders this as a dropdown filtered to the chosen "
+                        "culture's allowed strata (wyrd-j3gy). CLI/API also accept any "
+                        "stratum tag valid for the culture's bundled language families. "
+                        "Rejects culturally-incoherent strata (e.g. east-norse on welsh) "
+                        "at request time, not just typos. Morphemes with no stratum data "
+                        "pass through (Welsh / French / Old English / Old Norse families "
+                        "are classified today). Composes with --era via intersection. "
+                        "Empty disables the filter — bit-stable behavior."
+                    ),
+                },
+                "manorial_affix": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": (
+                        "wyrd-obu Norman manorial-affix layering (0..1). "
+                        "Probability that a generated name gets an Anglo-Norman "
+                        "family surname appended (Stoke Mandeville, Ashby de la "
+                        "Zouch, Stanton Lacy). Encodes the post-Conquest political "
+                        "history layered onto English place-naming. At 0 (default) "
+                        "no affix is attached; at 0.5 about half of generated "
+                        "names get one; at 1 every name gets one. Only applies "
+                        "to the english culture today — Domesday-and-after "
+                        "manorial layering is an English place-naming pattern. "
+                        "Affix corpus is a curated set of 39 attested Norman "
+                        "families (Domesday + post-Conquest subsidy rolls)."
+                    ),
+                },
+                "joiner_density": {
+                    "type": "number",
+                    "default": 0.0,
+                    "minimum": 0.0,
+                    "maximum": 1.0,
+                    "description": (
+                        "Probability (0..1) of inserting a phonological "
+                        "joiner between adjacent morphemes that share a "
+                        "language family. At 0 (default) no joiners are "
+                        "inserted. Bundle currently ships no populated "
+                        "joiner pool, so this is a no-op until a future "
+                        "data update."
+                    ),
+                },
+            },
+            "required": [],
+        }
+
+    def generate(self, params: dict[str, Any], seed: int) -> GenerationResult:
+        culture = params.get("culture", "english")
+        raw_tags = params.get("tags", []) or []
+        if isinstance(raw_tags, str):
+            raw_tags = [raw_tags]
+        tags = list(raw_tags)
+        spelling_variety = float(params.get("spelling_variety", 0.0) or 0.0)
+        novelty = float(params.get("novelty", 0.0) or 0.0)
+        inflection_density = float(params.get("inflection_density", 0.0) or 0.0)
+        harshness = float(params.get("harshness", 0.0) or 0.0)
+        cohesion = float(params.get("cohesion", 0.0) or 0.0)
+        manorial_affix = float(params.get("manorial_affix", 0.0) or 0.0)
+        joiner_density = float(params.get("joiner_density", 0.0) or 0.0)
+        include_fiction = _coerce_bool(params.get("include_fiction", False))
+
+        moods = params.get("mood", []) or []
+        if isinstance(moods, str):
+            moods = [moods]
+        for spec in moods:
+            tags, harshness = _apply_mood(spec, tags, harshness)
+        tags = tuple(tags)
+        exclude_tags: tuple[str, ...] = () if include_fiction else (_FICTION_TAG,)
+
+        era_range = _resolve_era_param(params.get("era"), culture)
+        # wyrd-j3gy: _resolve_stratum_param validates against the
+        # per-culture allowed-set (with ALL_STRATA fallback for
+        # cultures without classifiers yet). A typo'd --stratum
+        # surfaces as a clean ValueError rather than silently
+        # no-opping.
+        stratum = _resolve_stratum_param(params.get("stratum"), culture)
+
+        name_gen, _ = _load_culture(culture)
+        rng = rng_for(seed)
+        new_name = name_gen.select(
+            rng,
+            *tags,
+            spelling_variety=spelling_variety,
+            novelty=novelty,
+            inflection_density=inflection_density,
+            harshness=harshness,
+            exclude_tags=exclude_tags,
+            era_range=era_range,
+            stratum=stratum,
+            cohesion=cohesion,
+        )
+        result_str = str(new_name)
+        explanation = new_name.description()
+        components = new_name.components()
+        # wyrd-q0g6 Phase 1.5: compose-time joiner insertion. Gated on
+        # density>0 + non-empty pool so legacy callers stay bit-stable.
+        if joiner_density > 0:
+            joiners = _load_joiners()
+            if joiners:
+                result_str, explanation, components = _apply_joiner_insertion(
+                    new_name, joiners, rng, joiner_density
+                )
+        # wyrd-obu: optional Norman manorial-family affix appended after
+        # the morpheme-compounded base name. English-culture only (the
+        # post-Conquest manorial-layering pattern is an English place-
+        # naming convention; pasting Norman affixes onto Welsh / Irish
+        # / Breton bases would be cosmetically jarring and historically
+        # wrong). Probability-gated so a region can have a few
+        # manorialized names mixed with non-affixed neighbors, which is
+        # how the historical pattern actually surfaces.
+        if manorial_affix > 0 and culture == "english" and rng.random() < manorial_affix:
+            family = rng.choice(_load_norman_manorial_families())
+            result_str = f"{result_str} {family}"
+            explanation = f"{explanation} + manorial: {family} (Norman family)"
+            components.append(
+                {
+                    "usage": family,
+                    "location": "manorial-affix",
+                    "meanings": [f"Norman manorial family: {family}"],
+                    "tags": ["manorial", "norman"],
+                    "roots": ["FR"],
+                    "citations": [],
+                }
+            )
+        return GenerationResult(
+            result=result_str,
+            explanation=explanation,
+            components=components,
+        )

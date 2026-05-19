@@ -168,7 +168,7 @@ def test_explain_marks_canonical_when_bundle_carries_signature(monkeypatch):
     fake_map = {"Bridgewater": {"signature": target_sig, "source": "scholar"}}
     _load_canonical_decompositions.cache_clear()
     monkeypatch.setattr(
-        "wyrd.generators.kenning._load_canonical_decompositions",
+        "wyrd.generators.kenning.generators.kenning_explain._load_canonical_decompositions",
         lambda: fake_map,
     )
 
@@ -190,7 +190,7 @@ def test_explain_no_canonical_when_bundle_lacks_map(monkeypatch):
 
     _load_canonical_decompositions.cache_clear()
     monkeypatch.setattr(
-        "wyrd.generators.kenning._load_canonical_decompositions",
+        "wyrd.generators.kenning.generators.kenning_explain._load_canonical_decompositions",
         lambda: {},
     )
 
@@ -212,7 +212,7 @@ def test_explain_falls_back_when_canonical_signature_no_match(monkeypatch):
     }
     _load_canonical_decompositions.cache_clear()
     monkeypatch.setattr(
-        "wyrd.generators.kenning._load_canonical_decompositions",
+        "wyrd.generators.kenning.generators.kenning_explain._load_canonical_decompositions",
         lambda: fake_map,
     )
 
@@ -243,7 +243,7 @@ def test_explain_canonical_surfaces_in_envelope(client, monkeypatch):
     fake_map = {"Bridgewater": {"signature": target_sig, "source": "scholar"}}
     _load_canonical_decompositions.cache_clear()
     monkeypatch.setattr(
-        "wyrd.generators.kenning._load_canonical_decompositions",
+        "wyrd.generators.kenning.generators.kenning_explain._load_canonical_decompositions",
         lambda: fake_map,
     )
 

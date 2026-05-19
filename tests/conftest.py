@@ -23,6 +23,7 @@ guards, not behavioural pins.
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import json
 from collections.abc import Iterator
@@ -149,12 +150,47 @@ def swap_bundle(fixture_data: dict[str, Any] | list) -> Iterator[None]:
     fake_load_canonical = functools.lru_cache(maxsize=1)(lambda: fake_canonical)
     fake_load_fantasy = functools.lru_cache(maxsize=1)(lambda: fake_fantasy)
 
-    with (
+    # wyrd-o9qi: the Generator subclasses (Kenning, KenningExplain, etc.)
+    # moved to wyrd.generators.kenning.generators.<name> and each module
+    # imports the loaders into its own namespace via
+    # `from wyrd.generators.kenning import _load_meanings`. Patching only
+    # `kenning_mod._load_meanings` would set the shim attribute but leave
+    # the local-bound references in the consumer modules pointing at the
+    # original function (the wyrd-g143 slice-5 monkey-patch class of
+    # regression). Patch every consumer module's namespace as well so
+    # the fixture reaches the call sites the Generator methods actually
+    # resolve at runtime.
+    from wyrd.generators.kenning.generators import (
+        kenning as _kenning_mod,
+    )
+    from wyrd.generators.kenning.generators import (
+        kenning_creature as _kenning_creature_mod,
+    )
+    from wyrd.generators.kenning.generators import (
+        kenning_explain as _kenning_explain_mod,
+    )
+    from wyrd.generators.kenning.generators import (
+        kenning_rewind as _kenning_rewind_mod,
+    )
+
+    patches = [
+        # shim namespace — kept for back-compat with any caller that grabs
+        # the helper via `from wyrd.generators.kenning import _load_meanings`
+        # OUTSIDE a generator module (e.g. tests or future runtime callers).
         patch.object(kenning_mod, "_load_meanings", fake_load_meanings),
         patch.object(kenning_mod, "_load_joiners", fake_load_joiners),
         patch.object(kenning_mod, "_load_canonical_decompositions", fake_load_canonical),
         patch.object(kenning_mod, "_load_fantasy_morphemes", fake_load_fantasy),
-    ):
+        # per-generator consumer namespaces (the load-bearing patches)
+        patch.object(_kenning_mod, "_load_joiners", fake_load_joiners),
+        patch.object(_kenning_explain_mod, "_load_meanings", fake_load_meanings),
+        patch.object(_kenning_explain_mod, "_load_canonical_decompositions", fake_load_canonical),
+        patch.object(_kenning_rewind_mod, "_load_meanings", fake_load_meanings),
+        patch.object(_kenning_creature_mod, "_load_fantasy_morphemes", fake_load_fantasy),
+    ]
+    with contextlib.ExitStack() as stack:
+        for p in patches:
+            stack.enter_context(p)
         yield
 
 
