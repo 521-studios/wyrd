@@ -21,7 +21,7 @@ from wyrd.generators.kenning.eligibility import (
     passes_tag_required_gate,
 )
 from wyrd.generators.kenning.meaning import Meaning
-from wyrd.generators.kenning.vector_schemas import (
+from wyrd.generators.kenning.vectors.schemas import (
     EligibilityGate,
     PackOverlay,
 )

@@ -41,7 +41,7 @@ that touches the lexicon DB belongs in the package; the rest of
 * Runtime-layer files (`__init__.py`, `meaning.py`, `name.py`,
   `proportions.py`, `era.py`, `respelling.py`, `scripts.py`,
   `trie_matcher.py`, `decomposition.py`, `rewind.py`,
-  `phonology.py`, `vector_schemas.py`) — these read the bundled
+  `phonology.py`, `vectors/schemas.py`) — these read the bundled
   `meanings.json` and have no DB access.
 * `cli.py` — CLI wiring lives here per project convention; will be
   split separately under wyrd-g143.

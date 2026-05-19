@@ -1,7 +1,7 @@
 """Smoke tests for the vector-driven generator schemas (wyrd-ecjp.1).
 
 These tests exercise the construction + composition contracts of the
-typed dataclasses in ``wyrd.generators.kenning.vector_schemas``. They
+typed dataclasses in ``wyrd.generators.kenning.vectors.schemas``. They
 do not test runtime scoring (that's Phase 4) — they pin the schema
 shapes the downstream phases consume.
 """
@@ -12,7 +12,7 @@ import math
 
 import pytest
 
-from wyrd.generators.kenning.vector_schemas import (
+from wyrd.generators.kenning.vectors.schemas import (
     CohesionContext,
     EligibilityGate,
     EmpiricalPriors,

@@ -79,7 +79,7 @@ _CULTURE_TO_FAMILY: dict[str, str] = {
 }
 
 # Era-midpoint convention for open-ended cells. The era schema in
-# vector_schemas requires an int; cells with only one bound use a
+# vectors.schemas requires an int; cells with only one bound use a
 # fixed-offset midpoint relative to the defined bound.
 #
 # Closed cell (start, end): (start + end) // 2.

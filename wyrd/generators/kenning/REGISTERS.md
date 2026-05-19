@@ -53,7 +53,7 @@ support) each weight.
 
 ## 1. The 14 phonological dimensions: grounding status
 
-The 14 dimensions enumerated in `PhonologicalFeatureName` (vector_schemas.py)
+The 14 dimensions enumerated in `PhonologicalFeatureName` (vectors/schemas.py)
 fall into three groups by literature backing:
 
 ### 1a. Universal sound-symbolic primitives
