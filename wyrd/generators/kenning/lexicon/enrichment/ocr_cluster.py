@@ -9,9 +9,11 @@ the loser exactly where they were originally written, and the
 the chain.
 
 The non-destructive shape lets ``clear_enrichment(stage="ocr")``
-revert clustering in one statement (``UPDATE etymon SET
-merged_into_id = NULL``) and re-run with a new heuristic — no
-re-mining needed.
+revert the ``merged_into_id`` tombstones and re-run clustering
+with a new heuristic — no re-mining needed. Note that ``stage="ocr"``
+alone leaves behind the ``lemma_id`` re-parenting this pass does
+to inflected children at merge time; for a fully clean revert
+use ``stage="all-derived"``, which clears both columns.
 
 Flatten-at-write-time rules keep the consensus rollup correct without
 recursive CTEs:

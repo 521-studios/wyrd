@@ -29,8 +29,6 @@ from wyrd.generators.kenning.lexicon.enrichment.fuzzy_search import (
     levenshtein,
 )
 from wyrd.generators.kenning.lexicon.enrichment.lemma_linking import (
-    INFLECTION_RULES,
-    MUTATION_RULES,
     derive_lemma_candidate,
     derive_lemma_candidates,
     derive_mutation_lemma_candidate,
@@ -42,9 +40,13 @@ from wyrd.generators.kenning.lexicon.enrichment.reverse_search import (
     reverse_search_attestations,
 )
 
+# INFLECTION_RULES / MUTATION_RULES are NOT re-exported — they're internal
+# to lemma_linking.py and have zero external callers. Reach them via the
+# canonical submodule path
+# ``from wyrd.generators.kenning.lexicon.enrichment.lemma_linking import …``
+# if you need them outside lemma_linking itself.
+
 __all__ = [
-    "INFLECTION_RULES",
-    "MUTATION_RULES",
     "annotate_fragments_with_corpus_evidence",
     "clear_enrichment",
     "cluster_ocr_variants",

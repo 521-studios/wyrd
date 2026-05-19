@@ -7,7 +7,7 @@ reverse + fuzzy search, etc. ``clear_enrichment`` walks one stage at
 a time and resets just its outputs, so an operator iterating on a
 heuristic can:
 
-    clear_enrichment(stage="ocr", apply=True)
+    clear_enrichment(db, stage="ocr", apply=True)
     cluster_ocr_variants(db, apply=True)   # new heuristic
 
 without re-mining. Stage names + their reset surface are documented
@@ -163,10 +163,3 @@ def clear_enrichment(db: LexiconDB, *, stage: str, apply: bool = False) -> dict:
         db.conn.execute("DELETE FROM etymon_period_form")
     db.commit()
     return counts
-
-
-# --- D27 / wyrd-81n: cognate clustering ------------------------------------
-
-
-_COGNATE_BRIDGING_EDGES = ("inheritance", "borrowing")
-_CLUSTER_COGNATES_METHOD = "cluster-cognates-v1"

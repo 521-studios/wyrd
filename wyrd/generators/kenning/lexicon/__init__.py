@@ -49,8 +49,6 @@ from wyrd.generators.kenning.lexicon.constants import (  # noqa: E402, F401
 )
 from wyrd.generators.kenning.lexicon.db import LexiconDB  # noqa: E402, F401
 from wyrd.generators.kenning.lexicon.enrichment import (  # noqa: E402, F401
-    INFLECTION_RULES,
-    MUTATION_RULES,
     annotate_fragments_with_corpus_evidence,
     clear_enrichment,
     cluster_ocr_variants,

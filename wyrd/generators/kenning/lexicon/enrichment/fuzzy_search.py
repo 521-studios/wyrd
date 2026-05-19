@@ -12,9 +12,14 @@ evidence when a gloss string from ``etymon_gloss`` appears within
 anchor the edit-distance match is too permissive (``bere`` / ``bera``
 — barley vs bear — are one edit apart and mean unrelated things).
 
-The fuzzy scan calls ``reverse_search_attestations`` first as a
-pre-filter so it only runs the expensive edit-distance scan on
-etymons that didn't already get exact-form attestation.
+The fuzzy scan and ``reverse_search`` are independent CLI steps; the
+orchestrator runs reverse-search first by convention. Within fuzzy,
+the pre-filter that avoids the expensive edit-distance scan on
+already-attested etymons lives inside
+``_select_rando_only_candidates_with_glosses`` — its NOT EXISTS
+subquery excludes etymons that already carry an
+``edit_distance = 0`` row in ``etymon_text_match`` (the canonical
+output of ``reverse_search``).
 """
 
 from __future__ import annotations
