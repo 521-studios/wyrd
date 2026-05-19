@@ -33,7 +33,7 @@ from wyrd.generators.kenning.lexicon.bridges import (  # noqa: E402, F401
 )
 from wyrd.generators.kenning.lexicon.bundle import (  # noqa: E402, F401
     _LANG_CODE_TO_JSON_FIELD,  # used by runtime/decomposition.py
-    RECOMMENDED_LANG_THRESHOLDS,  # used by language_quality.py
+    RECOMMENDED_LANG_THRESHOLDS,  # used by language_quality/audits.py
     export_meanings,
 )
 from wyrd.generators.kenning.lexicon.bundle._emit import (  # noqa: E402, F401
