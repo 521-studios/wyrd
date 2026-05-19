@@ -275,7 +275,7 @@ def _tier4_phonology_reflexes(
     target_language: str,
 ) -> list[EraReflex]:
     """Tier 4: phonology-rule fallback (wyrd-98cs). Walks the
-    registered sound-change cells (phonology_rules.py: OE→ME,
+    registered sound-change cells (registers/phonology_rules.py: OE→ME,
     ME→EModE, EModE→ModE, OW→ModW) forward or inverse to derive a
     target-era form from ``canonical_form``. Lower precision than
     Tier 1-3 (no mining evidence behind it), so the resulting

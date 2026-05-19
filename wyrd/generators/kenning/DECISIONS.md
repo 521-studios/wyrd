@@ -175,7 +175,7 @@ preset.
 Defaults to off (bit-stable historical behavior). The harshness score
 is a heuristic — meant for relative ranking, not phonotactic fidelity.
 Per-language phonology integration (using the IPA tables in
-`phonology.py` for a more principled score) is a future refinement.
+`registers/phonology.py` for a more principled score) is a future refinement.
 
 ## D7. Sensitivity heuristic for non-European corpora.
 
