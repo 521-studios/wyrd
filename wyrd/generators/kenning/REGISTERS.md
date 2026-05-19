@@ -304,9 +304,10 @@ voiceless stops) wrapped in IE-conventional cluster features.
 **Citations:**
 - `vowel_final_bias: 0.3` — UNIVERSAL. Open syllables, vowel exposure,
   Whissell Gentle inventory is ~50% vowels.
-- `soft_consonants: 0.4` — UNIVERSAL via /l m n/. BUT: includes /r/ in
-  the dimension definition, which Whissell rates as Harsh. Flagged for
-  schema-level split.
+- `soft_consonants: 0.4` — UNIVERSAL FOR /l m n/. BUT: includes /r/ in
+  the dimension definition, which Whissell rates as Harsh. See §1d on
+  the dimension-internal /r/-inconsistency; flagged for schema-level
+  split.
 - `cluster_density: -0.3` — Indirect universal support: sonorant-heavy
   + low-cluster patterns are the "lullaby phonology" common to
   Japanese mimetics, Zulu, IE.
@@ -440,8 +441,8 @@ vowel signals.
   Gentle vowel exposure.
 - `polysyllabic_bias: 0.4` — IE-conventional only (Whissell-
   independent). Keep but tag.
-- `soft_consonants: 0.3` — Universal /l m n/. Same /r/-inclusion
-  caveat.
+- `soft_consonants: 0.3` — UNIVERSAL FOR /l m n/; see §1d on the
+  dimension-internal /r/-inclusion inconsistency.
 - `vowel_height: 0.2` — Universal: high-front vowels are Whissell-
   pleasant (/iː/) and Cheery.
 
