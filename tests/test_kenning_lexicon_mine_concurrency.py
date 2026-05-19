@@ -343,7 +343,12 @@ def test_cli_concurrency_flag_flows_through_to_mine_entries(tmp_path, monkeypatc
             source_quote="Faketon. fake body.",
         ),
     ]
-    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser, **_: fake_parsed)
+    # wyrd-g143 slice 5: mine-llm imports _select_parser_and_run + _mine_entries
+    # into its own namespace; patch them at the consumer module so the local-bound
+    # references the CLI body resolves at call time pick up the stub.
+    from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
+
+    monkeypatch.setattr(_mll, "_select_parser_and_run", lambda text, parser, **_: fake_parsed)
 
     class FakeClient:
         model = "fake-model:0b"
@@ -360,7 +365,7 @@ def test_cli_concurrency_flag_flows_through_to_mine_entries(tmp_path, monkeypatc
         captured["concurrency"] = concurrency
         return [], 0, 0, {}
 
-    monkeypatch.setattr(cli_mod, "_mine_entries", stub_mine_entries)
+    monkeypatch.setattr(_mll, "_mine_entries", stub_mine_entries)
 
     src_path = tmp_path / "test_book.txt"
     src_path.write_text("Faketon. fake body.\n")
@@ -410,7 +415,12 @@ def test_cli_concurrency_flag_default_is_one(tmp_path, monkeypatch):
             source_quote="Faketon. fake body.",
         ),
     ]
-    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser, **_: fake_parsed)
+    # wyrd-g143 slice 5: mine-llm imports _select_parser_and_run + _mine_entries
+    # into its own namespace; patch them at the consumer module so the local-bound
+    # references the CLI body resolves at call time pick up the stub.
+    from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
+
+    monkeypatch.setattr(_mll, "_select_parser_and_run", lambda text, parser, **_: fake_parsed)
 
     class FakeClient:
         model = "fake-model:0b"
@@ -427,7 +437,7 @@ def test_cli_concurrency_flag_default_is_one(tmp_path, monkeypatch):
         captured["concurrency"] = concurrency
         return [], 0, 0, {}
 
-    monkeypatch.setattr(cli_mod, "_mine_entries", stub_mine_entries)
+    monkeypatch.setattr(_mll, "_mine_entries", stub_mine_entries)
 
     src_path = tmp_path / "test_book.txt"
     src_path.write_text("Faketon. fake body.\n")

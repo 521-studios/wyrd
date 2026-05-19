@@ -5019,7 +5019,20 @@ def test_lexicon_mine_llm_records_mining_run_at_end_of_run(
             source_quote="Otherton. other body.",
         ),
     ]
-    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser, **_: fake_parsed)
+    # wyrd-g143 slice 5: `_select_parser_and_run` is imported from
+    # cli.utils into each consumer's module namespace (mine_llm, review).
+    # Patching `cli_mod._select_parser_and_run` would set the re-export
+    # shim but not the local-bound references the CLI bodies actually
+    # resolve at call time. Patch both consumer modules so the test
+    # scaffold works regardless of which command the runner invokes below.
+    from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
+    from wyrd.generators.kenning.cli.lexicon import review as _rv
+
+    def _stub(text, parser, **_):
+        return fake_parsed
+
+    monkeypatch.setattr(_mll, "_select_parser_and_run", _stub)
+    monkeypatch.setattr(_rv, "_select_parser_and_run", _stub)
 
     # Fake OllamaClient — only needs .model and .base_url for echoed output.
     class FakeClient:
@@ -5125,7 +5138,20 @@ def test_lexicon_mine_llm_declines_only_skips_already_extracted(
             source_quote="StillUnmined. body.",
         ),
     ]
-    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser, **_: fake_parsed)
+    # wyrd-g143 slice 5: `_select_parser_and_run` is imported from
+    # cli.utils into each consumer's module namespace (mine_llm, review).
+    # Patching `cli_mod._select_parser_and_run` would set the re-export
+    # shim but not the local-bound references the CLI bodies actually
+    # resolve at call time. Patch both consumer modules so the test
+    # scaffold works regardless of which command the runner invokes below.
+    from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
+    from wyrd.generators.kenning.cli.lexicon import review as _rv
+
+    def _stub(text, parser, **_):
+        return fake_parsed
+
+    monkeypatch.setattr(_mll, "_select_parser_and_run", _stub)
+    monkeypatch.setattr(_rv, "_select_parser_and_run", _stub)
 
     class FakeClient:
         model = "fake-model:0b"
@@ -5229,7 +5255,20 @@ def test_lexicon_mine_llm_declines_only_no_op_when_fully_mined(
             source_quote="OnlyOne. body.",
         ),
     ]
-    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser, **_: fake_parsed)
+    # wyrd-g143 slice 5: `_select_parser_and_run` is imported from
+    # cli.utils into each consumer's module namespace (mine_llm, review).
+    # Patching `cli_mod._select_parser_and_run` would set the re-export
+    # shim but not the local-bound references the CLI bodies actually
+    # resolve at call time. Patch both consumer modules so the test
+    # scaffold works regardless of which command the runner invokes below.
+    from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
+    from wyrd.generators.kenning.cli.lexicon import review as _rv
+
+    def _stub(text, parser, **_):
+        return fake_parsed
+
+    monkeypatch.setattr(_mll, "_select_parser_and_run", _stub)
+    monkeypatch.setattr(_rv, "_select_parser_and_run", _stub)
 
     class FakeClient:
         model = "fake-model:0b"
@@ -6154,7 +6193,20 @@ def test_lexicon_review_low_conf_counts_as_declined_not_written(
             source_quote="Faketon. fake body text.",
         ),
     ]
-    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser, **_: fake_parsed)
+    # wyrd-g143 slice 5: `_select_parser_and_run` is imported from
+    # cli.utils into each consumer's module namespace (mine_llm, review).
+    # Patching `cli_mod._select_parser_and_run` would set the re-export
+    # shim but not the local-bound references the CLI bodies actually
+    # resolve at call time. Patch both consumer modules so the test
+    # scaffold works regardless of which command the runner invokes below.
+    from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
+    from wyrd.generators.kenning.cli.lexicon import review as _rv
+
+    def _stub(text, parser, **_):
+        return fake_parsed
+
+    monkeypatch.setattr(_mll, "_select_parser_and_run", _stub)
+    monkeypatch.setattr(_rv, "_select_parser_and_run", _stub)
 
     # Stub Gemini: return a "low"-confidence result with elements
     # present. The writer will silently drop this; the CLI must catch
@@ -6257,7 +6309,20 @@ def test_lexicon_review_dry_run_does_not_persist_or_count_writes(
             source_quote="Faketon. fake body.",
         ),
     ]
-    monkeypatch.setattr(cli_mod, "_select_parser_and_run", lambda text, parser, **_: fake_parsed)
+    # wyrd-g143 slice 5: `_select_parser_and_run` is imported from
+    # cli.utils into each consumer's module namespace (mine_llm, review).
+    # Patching `cli_mod._select_parser_and_run` would set the re-export
+    # shim but not the local-bound references the CLI bodies actually
+    # resolve at call time. Patch both consumer modules so the test
+    # scaffold works regardless of which command the runner invokes below.
+    from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
+    from wyrd.generators.kenning.cli.lexicon import review as _rv
+
+    def _stub(text, parser, **_):
+        return fake_parsed
+
+    monkeypatch.setattr(_mll, "_select_parser_and_run", _stub)
+    monkeypatch.setattr(_rv, "_select_parser_and_run", _stub)
 
     class FakeClient:
         model = "fake-gemini-model"
