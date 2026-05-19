@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 # NOT re-exported; in-package callers reach them via the submodule path
 # directly (``from wyrd.generators.kenning.lexicon.schema import …``).
 from wyrd.generators.kenning.lexicon.attestation_mining import (  # noqa: E402, F401
-    _extract_attestation_pairs,  # tested directly by test_kenning_lexicon
+    _extract_attestation_pairs,  # used by toponym_reverse_search + test_kenning_lexicon
     mine_toponym_attestations,
 )
 from wyrd.generators.kenning.lexicon.attestation_years import (  # noqa: E402, F401

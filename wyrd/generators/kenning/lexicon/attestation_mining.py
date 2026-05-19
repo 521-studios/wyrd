@@ -5,12 +5,14 @@ them to ``toponym_attestation``. Per-toponym dated historical spellings
 are the raw input the wyrd-unuo Phase 3.3 ``project_period_forms``
 projector consumes to derive per-etymon period forms.
 
-Five high-precision regex patterns cover the common scholarly
-shapes:
+Four compiled regex patterns cover the common scholarly shapes:
 
-* ``FORM in YEAR`` / ``FORM, YEAR`` / ``FORM, in YEAR``
-* ``FORM in Domesday[ Book]`` / ``Domesday has FORM`` / ``D.B. has FORM`` / ``FORM, D.B.``
-* ``;FORM YEAR`` (chain-anchored bare connector for trailing chain elements)
+* ``_ATTEST_FORM_YEAR_RE`` — ``FORM in YEAR`` / ``FORM, YEAR`` / ``FORM, in YEAR``
+* ``_ATTEST_CHAIN_FORM_YEAR_RE`` — ``;FORM YEAR`` (chain-anchored
+  bare connector for trailing chain elements)
+* ``_ATTEST_FORM_DOMESDAY_RE`` — ``FORM in Domesday[ Book]`` / ``FORM, D.B.``
+* ``_ATTEST_DOMESDAY_HAS_FORM_RE`` — ``Domesday has FORM`` /
+  ``D.B. has FORM``
 
 Three precision gates:
 * Connector requirement (comma, semicolon, or ``in``) between form and
@@ -41,6 +43,10 @@ from wyrd.generators.kenning.lexicon.attestation_years import (
 )
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 
+# Domesday Book (1086) is the load-bearing dated reference in English
+# toponym scholarship — almost every Mawer / Skeat / Ekwall entry cites
+# its Domesday spelling. We canonicalize it to the year so a single
+# regex captures both "Cestretone in Domesday Book" and "Domesday Book
 # has Chingestone". 'D.B.' is the same source, abbreviated.
 _DOMESDAY_YEAR = 1086
 

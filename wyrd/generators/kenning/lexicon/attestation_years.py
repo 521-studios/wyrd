@@ -29,6 +29,7 @@ _ATTESTED_YEAR_MIN_LOOKUP = 100
 _ATTESTED_YEAR_MAX_LOOKUP = 1700
 
 
+# Form-attached year-citation pattern. Three accepted shapes, all
 # requiring the year to follow the matched form within a small window of
 # punctuation / whitespace:
 #

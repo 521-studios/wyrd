@@ -1,15 +1,16 @@
 """Phonological bridging for Old English place-name forms.
 
-Apply per-rule phonological transformations (vowel weakening,
-fricative shifts, e/i flips, etc.) to OE etymon canonical_form
-values and link the post-rule form to any matching canonical etymon
-via lemma_id. Rule table lives below as ``_OE_PHONOLOGICAL_BRIDGES``;
-the shared engine in ``bridges._common._bridge_same_language_phonological``
-runs it.
+Looks up each OE etymon's lowercased canonical_form in the
+``_OE_PHONOLOGICAL_BRIDGES`` table (modernized/Anglicized
+spelling → scholarly orthography with macrons, æ, þ/ð, etc.) and
+links matches to the canonical etymon via ``merged_into_id``. The
+shared engine in ``bridges._common._bridge_same_language_phonological``
+runs the table; this module only supplies the OE rule set.
 
-Used together with ``bridge_generic_language`` (exact-form lookups)
-and ``bridge_celtic_forms`` (Anglicized Celtic) to close the
-cross-corpus consensus gap on Old English morphemes.
+Used alongside ``bridge_generic_language`` (cross-language exact-form
+lookups) and ``bridge_celtic_forms`` (Anglicized Celtic substrate) as
+parallel passes that each close a different slice of the cross-corpus
+consensus gap on Old English morphemes.
 """
 
 from __future__ import annotations

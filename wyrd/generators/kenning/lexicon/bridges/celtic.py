@@ -10,9 +10,15 @@ Celtic canonical form, so consensus counts split.
 Differs from ``bridge_generic_language``:
 * Maps a per-form lookup table (``_CELTIC_FORM_BRIDGES``) rather
   than relying on exact same-form matches.
-* Targets a specific (Anglicized → canonical) direction; not symmetric.
-* Routes through ``bridge_generic_language`` as a final-stage hook to
-  pick up any remaining same-form matches the table missed.
+* Iterates ALL celtic etymons (including pre-existing
+  ``merged_into_id`` tombstones) so a stale stub-bridge to an
+  unclustered target can be re-routed to a clustered alternative.
+* Among multiple matching candidate languages, prefers the one
+  whose target is in a cognate cluster, falling back to the caller's
+  priority order in ``candidate_langs``.
+
+See ``bridge_celtic_forms``'s own docstring for the full three-way
+contrast.
 """
 
 from __future__ import annotations

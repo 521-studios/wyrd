@@ -235,11 +235,10 @@ def _preload_binary_breakdowns(db: LexiconDB) -> dict[int, list[list[dict]]]:
     [breakdown, ...]}`` where each breakdown is a list of 2 element
     dicts ordered by ordinal.
 
-    Single SQL query (vs. ``_get_binary_breakdowns`` called per
-    toponym during the scan loop) — avoids the N+1 pattern when
-    project_period_forms iterates the attestation table. Filters
-    out breakdowns whose components are merged_into-id tombstones,
-    same rule as the per-toponym helper.
+    Single SQL query (vs. a per-toponym version called inside the
+    scan loop) — avoids the N+1 pattern when project_period_forms
+    iterates the attestation table. Filters out breakdowns whose
+    components are merged_into-id tombstones.
     """
     cur = db.conn.execute(
         """
@@ -276,51 +275,3 @@ def _preload_binary_breakdowns(db: LexiconDB) -> dict[int, list[list[dict]]]:
         if len(elements) == 2 and (topo_id, te_id) not in skip_te_keys:
             out.setdefault(topo_id, []).append(elements)
     return out
-
-
-def _get_binary_breakdowns(db: LexiconDB, toponym_id: int) -> list[list[dict]]:
-    """Return all toponym_etymology breakdowns for ``toponym_id``
-    that have exactly 2 elements (binary breakdowns), ordered by
-    ordinal. Each breakdown is a list of dicts.
-
-    Skips ternary+ breakdowns since v1's suffix-anchoring algorithm
-    only handles the binary case reliably. Multiple breakdowns per
-    toponym are common (different scholarly proposals); each is
-    projected independently.
-
-    Filters out breakdowns where ANY element points at a
-    merged_into_id-tagged tombstone — projecting a period form to
-    a loser etymon would surface stale rows via Tier 3 of the
-    era-reflex picker. The OCR-cluster winner is the canonical
-    voice; if a downstream pass needs the loser's projections,
-    it should re-resolve via the merge chain.
-    """
-    cur = db.conn.execute(
-        """
-        SELECT te.id AS te_id, tee.ordinal, tee.etymon_id,
-               e.canonical_form, e.language, e.cognate_id,
-               e.merged_into_id
-        FROM toponym_etymology te
-        JOIN toponym_etymology_element tee ON tee.toponym_etymology_id = te.id
-        JOIN etymon e ON tee.etymon_id = e.id
-        WHERE te.toponym_id = ?
-        ORDER BY te.id, tee.ordinal
-        """,
-        (toponym_id,),
-    )
-    grouped: dict[int, list[dict]] = {}
-    skip_te_ids: set[int] = set()
-    for row in cur:
-        if row["merged_into_id"] is not None:
-            skip_te_ids.add(row["te_id"])
-            continue
-        grouped.setdefault(row["te_id"], []).append(
-            {
-                "ordinal": row["ordinal"],
-                "etymon_id": row["etymon_id"],
-                "canonical_form": row["canonical_form"],
-                "language": row["language"],
-                "cognate_id": row["cognate_id"],
-            }
-        )
-    return [bd for te_id, bd in grouped.items() if len(bd) == 2 and te_id not in skip_te_ids]

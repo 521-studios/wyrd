@@ -2,12 +2,16 @@
 
 Walk every etymon and, if its canonical_form matches the
 canonical_form of an etymon in a DIFFERENT specified language, link
-them via lemma_id. Useful for trivial cross-language matches like NF
-``cot`` → OE ``cot`` that don't need phonological transformation.
+them via ``merged_into_id`` (D22 OCR-cluster style — non-destructive,
+re-routes pre-existing redirects, preserves mining evidence on the
+loser). Useful for trivial cross-language matches like NF ``cot`` →
+OE ``cot`` that don't need phonological transformation.
 
-``bridge_celtic_forms`` extends this for Anglicized Celtic-substrate
-toponyms; ``bridge_phonological_oe`` / ``bridge_phonological_on``
-extend it for phonological transformations.
+Sits alongside ``bridge_celtic_forms`` (Anglicized Celtic substrate)
+and ``bridge_phonological_oe`` / ``bridge_phonological_on``
+(phonological-transform lookups) as parallel cross-corpus bridge
+passes. Each pass uses its own lookup mechanism; this module's is
+exact-form match.
 """
 
 from __future__ import annotations

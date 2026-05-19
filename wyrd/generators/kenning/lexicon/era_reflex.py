@@ -10,14 +10,19 @@ Example: ``ceaster`` (OE, cluster_id=3617) at era=me → ME variants
 the same cluster. The wyrd-rni / wyrd-381 / KenningRewind demos
 consume this primitive to render compound names at user-chosen eras.
 
-Four-tier coverage ladder (each tier is tried in order until one
-returns a non-empty list):
+Four-tier coverage ladder. Tiers 1 + 2 are MUTUALLY EXCLUSIVE
+alternates — Tier 1 fires when the etymon has ``cognate_id``,
+otherwise Tier 2 fires; only one runs. Tiers 3 + 4 are SEQUENTIAL
+FALLBACKS that each run only if every prior tier returned empty.
 
 1. Cognate cluster — cluster_cognates output, the high-quality path.
+   Picked when ``cognate_id`` is set.
 2. Direct descent — for etymons WITHOUT cognate_id but with
-   etymon_descent edges; walks immediate descendants.
+   etymon_descent edges; walks immediate descendants. Picked when
+   ``cognate_id`` is NULL.
 3. Period-form projection — for etymons whose toponym_attestation
    rows yield period forms via the wyrd-unuo Phase 3.3 projector.
+   Requires ``target_family_cell``.
 4. Phonology-rule fallback — generate the form via
    ``phonology_rules.rule_form`` when no data path produces one.
 
@@ -104,7 +109,8 @@ def etymon_era_reflexes(
        ``target_family_cell``. Closes the ~72% coverage gap for
        isolated OE etymons.
     4. **Phonology rule** (wyrd-98cs) — derives the target-era form
-       via phonology_rules.apply_rules forward / inverse cell walks.
+       via ``phonology_rules.rule_form`` (which chains apply_rules
+       under the hood) for forward / inverse cell walks.
        Lower precision (no mining evidence); reflexes carry
        ``source='phonology-rule:v1'`` so consumers can mark inferred
        forms differently from attested ones.
