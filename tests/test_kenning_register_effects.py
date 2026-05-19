@@ -15,7 +15,7 @@ from wyrd.generators.kenning.register_effects import (
     load_register_effects,
     load_register_effects_from_text,
 )
-from wyrd.generators.kenning.vector_schemas import (
+from wyrd.generators.kenning.vectors.schemas import (
     RegisterEffect,
     compose_register_effects,
 )
@@ -534,7 +534,7 @@ def test_multi_effect_compose_clamps_overlapping_contributions(tmp_path):
 
 def test_bundled_catalog_exotic_uses_back_vowels():
     """exotic biases vowel_backness POSITIVE (+1=back, -1=front per
-    vector_schemas convention). The catalog comment claims 'back
+    vectors.schemas convention). The catalog comment claims 'back
     vowels'; the weight must match — a sign flip silently changes
     the register's intended phonological color."""
     catalog = _load_bundled_cached.__wrapped__()

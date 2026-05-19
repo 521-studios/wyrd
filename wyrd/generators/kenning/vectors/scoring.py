@@ -22,7 +22,7 @@ turns the eligible pool into a weighted distribution Phase 5
 This module implements the v1 reference shape:
 
 * ``phon_score`` uses the existing ``PhonologicalVector.dot`` from
-  vector_schemas.py — component-wise weighted sum against the
+  vectors/schemas.py — component-wise weighted sum against the
   composed request's phonological-feature weights.
 * ``sem_score`` sums the request's per-tag weights over the tags
   the lemma carries (lemma tag dot composed register tag-weight
@@ -66,7 +66,7 @@ What's NOT here:
   reverse index gives O(1) for the exact-match path and a small
   bounded walk for fallback levels; deferred to a follow-up perf
   ticket. The reference shape here is correctness-first.
-* The D17 cohesion adapter (CohesionContext from vector_schemas)
+* The D17 cohesion adapter (CohesionContext from vectors.schemas)
   isn't called here — that's the wrapper layer between Phase 4 and
   Phase 5 (NameGenerator slot-walk), per D36.5. The cohesion
   multiplier applies to the composed score returned by this
@@ -79,7 +79,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 
-from wyrd.generators.kenning.vector_schemas import (
+from wyrd.generators.kenning.vectors.schemas import (
     EmpiricalPriors,
     PackOverlay,
     PhonologicalVector,

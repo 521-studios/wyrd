@@ -11,7 +11,7 @@ refactor wyrd-kq7w). At catalog load time the loader validates:
 * Top-level shape is ``mapping[name -> mapping{phonological,
   semantic_tags, position_bias}]``.
 * Phonological feature names are in ``PhonologicalFeatureName``
-  (the canonical 14 v1 dimensions in ``vector_schemas.py``). Typos
+  (the canonical 14 v1 dimensions in ``vectors/schemas.py``). Typos
   raise loudly here rather than silently no-op via the dot()
   forgiveness path at scoring time.
 * Every weight is a finite float in ``[-1.0, +1.0]``. NaN / Inf /
@@ -53,7 +53,7 @@ from typing import Any
 
 import yaml
 
-from wyrd.generators.kenning.vector_schemas import (
+from wyrd.generators.kenning.vectors.schemas import (
     _DIMENSION_NAMES,
     RegisterEffect,
 )

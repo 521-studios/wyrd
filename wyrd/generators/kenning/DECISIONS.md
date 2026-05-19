@@ -1766,7 +1766,7 @@ language epic (wyrd-v2gm), the narrative-translator epic
 Nine sub-decisions locked 2026-05-16, consolidated here as
 the spec entry for Phase 1 (wyrd-ecjp.1). The in-memory
 representation lives in
-`wyrd/generators/kenning/vector_schemas.py`; the catalog
+`wyrd/generators/kenning/vectors/schemas.py`; the catalog
 authoring source is
 `wyrd/generators/kenning/data/register_effects.yaml` (Phase B,
 wyrd-kq7w.2). Both file paths are part of the API contract

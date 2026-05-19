@@ -1,7 +1,7 @@
 # Register-effect catalog — wyrd-kq7w.2.
 #
 # Each register effect is a triple of vectors that the request-vector
-# composition (wyrd/generators/kenning/vector_schemas.py
+# composition (wyrd/generators/kenning/vectors/schemas.py
 # compose_register_effects) sums and clamps to [-1, +1] per dimension:
 #
 #   <name>:
@@ -10,7 +10,7 @@
 #     position_bias:   {<position>: <weight in [-1, +1]>, ...}
 #
 # Phonological feature names MUST be in the PhonologicalFeatureName
-# Literal in vector_schemas.py (14 v1 dimensions): cluster_density,
+# Literal in vectors/schemas.py (14 v1 dimensions): cluster_density,
 # final_fortition, final_cluster_rate, vowel_final_bias,
 # soft_consonants, polysyllabic_bias, palatalization, sibilance,
 # retroflexion, pharyngeal, vowel_height, vowel_backness,

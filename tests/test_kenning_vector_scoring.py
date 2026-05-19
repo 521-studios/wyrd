@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from wyrd.generators.kenning.vector_schemas import (
+from wyrd.generators.kenning.vectors.schemas import (
     EligibilityGate,
     EmpiricalPriors,
     PackOverlay,
@@ -19,7 +19,7 @@ from wyrd.generators.kenning.vector_schemas import (
     RequestVector,
     ScoringWeights,
 )
-from wyrd.generators.kenning.vector_scoring import (
+from wyrd.generators.kenning.vectors.scoring import (
     _loan_lookup_with_fallback,
     _native_lookup_exact,
     _native_lookup_with_fallback,
