@@ -145,17 +145,25 @@ def _partition_families_by_reflex(
 class _WordLanguageAccumulators:
     """Per-language accumulators populated during family-walk emission.
 
-    Bundle of the 5 dicts that ``_word_for_reflex`` and
-    ``_synthesize_word_for_family`` independently maintain in lockstep
-    (same keys, populated by the same absorb_* helpers, drained into
-    ``_emit_word_languages`` together). Holding them in one object
-    keeps the call signature down to one positional arg per consumer
-    and makes 'add a new per-language sibling field' a one-line edit
-    (D26 pattern) rather than a 6-touch-site refactor.
+    Bundle of the ``forms_by_lang`` array plus nine per-language
+    sibling dicts (``variants`` / ``inflections`` / ``citations`` /
+    ``attested_years`` / ``english_shaped`` / ``original_script`` /
+    ``transliteration`` / ``pronunciation`` / ``stratum``) that
+    ``_word_for_reflex`` and ``_synthesize_word_for_family``
+    independently maintain in lockstep (same keys, populated by the
+    same absorb_* helpers, drained into ``_emit_word_languages``
+    together). Holding them in one object keeps the call signature
+    down to one positional arg per consumer and makes 'add a new
+    per-language sibling field' a one-line edit (D26 pattern) rather
+    than a 6-touch-site refactor.
 
-    wyrd-k55 (PR-review-loop deferred): consolidates what used to be
-    five separate locals declared / passed / absorbed in two parallel
-    functions.
+    Originally consolidated 5 separate locals (wyrd-k55) when only
+    forms + variants + inflections + citations + attested_years
+    existed; later waves grew the sibling set to 9 (wyrd-vsrn Phase
+    2c added english_shaped; wyrd-qhs0 Phase 2d added
+    original_script / transliteration / pronunciation; wyrd-lr4
+    Phase 2 added stratum). The one-line-add-a-field property held
+    across each wave.
     """
 
     forms_by_lang: dict[str, list[str]] = field(default_factory=dict)
