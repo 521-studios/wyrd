@@ -83,6 +83,14 @@ that touches the lexicon DB belongs in the package; the rest of
   (which lives one level deeper and owns BUILDING the deploy
   bundle from the lexicon DB) — both are correctly named for their
   context but distinct subpackages.
+* The `language_quality/` subpackage (`language_quality/models.py`,
+  `language_quality/audits.py`, `language_quality/reporting.py`)
+  — these READ the lexicon DB to compute per-language scorecard
+  metrics and produce the markdown / JSON dashboard report (wyrd-wzwa,
+  parent epic wyrd-eni4). Like `bundle/`, the audits surface opens
+  sqlite3 connections extensively but does not OWN any DB-writing
+  surface. Same read-vs-write split rationale: lexicon/ owns DB-side
+  authoring; language_quality/ owns the dashboard READING surface.
 
 **Review approach:**
 1. Grep changed files for `CREATE TABLE` / `CREATE INDEX` /
