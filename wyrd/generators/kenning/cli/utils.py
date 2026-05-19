@@ -26,6 +26,8 @@ from contextlib import contextmanager, nullcontext
 from importlib import resources
 from pathlib import Path
 
+import click
+
 from wyrd.generators.kenning.decomposition import decompose_with_canonical
 from wyrd.generators.kenning.dictionary_parser import (
     parse_alphabetical_text,
@@ -163,3 +165,54 @@ def _readonly_lexicon(db_path: Path) -> Iterator[sqlite3.Connection]:
         yield conn
     finally:
         conn.close()
+
+
+def _append_remove_event(
+    jsonl_dir: Path,
+    source_id: str,
+    row_type: str,
+    ref: str,
+    reason: str | None,
+    ref_format_hint: str,
+) -> Path:
+    """Shared implementation for `lexicon prune-toponym` and
+    `lexicon prune-etymon`. Validates that the source file exists and
+    that the named ref actually resolves inside it before appending
+    a remove event. Returns the target file path.
+
+    The validation step matters because the kernel's
+    `bucket.pop(ref, None)` silently swallows missing refs; combined
+    with orphan-skip a typo would produce a successful-looking rebuild
+    that doesn't actually prune anything.
+
+    ``ref_format_hint`` is per-row-type guidance for the error message
+    (etymon: ``lang:form``; toponym: ``name@region``).
+    """
+    target_file = jsonl_dir / f"{source_id}.jsonl"
+    if not target_file.exists():
+        raise click.UsageError(
+            f"Source file not found: {target_file}. "
+            f"Use --jsonl-dir to point at the right directory."
+        )
+
+    from wyrd.generators.kenning.jsonl_log import replay_file
+
+    state = replay_file(target_file)
+    if ref not in state.keyed[row_type]:
+        raise click.UsageError(
+            f"{row_type.capitalize()} ref {ref!r} not found in {target_file}. "
+            f"Check spelling ({ref_format_hint}) and confirm the source "
+            f"owns this row."
+        )
+
+    payload: dict[str, str] = {"_op": "remove", "_type": row_type, "ref": ref}
+    if reason is not None:
+        # Carried as a JSON key but ignored by the kernel (remove ops
+        # discard payload beyond _type + ref); useful for git blame.
+        payload["_reason"] = reason
+
+    with target_file.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(payload, ensure_ascii=False))
+        fh.write("\n")
+
+    return target_file
