@@ -44,7 +44,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from .jsonl.log import write_jsonl
+from wyrd.generators.kenning.jsonl.log import write_jsonl
 
 # Source identity. Excluded from default dump-jsonl (see
 # jsonl.dump.DEFAULT_BULK_EXCLUDED_SOURCES) — the JSONL is regenerated
@@ -214,7 +214,7 @@ def iter_csv_rows(csv_path: str | Path) -> Iterable[dict[str, str]]:
                         f"OS Open Names CSV has more columns than expected "
                         f"({len(_COLUMNS) + len(extras)} vs {len(_COLUMNS)}). "
                         f"Schema may have drifted in a new OS release — "
-                        f"update _COLUMNS in os_open_names_ingester.py."
+                        f"update _COLUMNS in os_open_names.py."
                     )
             yield row
 

@@ -9,7 +9,7 @@ import pytest
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
-from wyrd.generators.kenning.hearth_tax_ingester import (
+from wyrd.generators.kenning.ingesters.hearth_tax import (
     DEFAULT_HEARTH_TAX_YEAR,
     HEARTH_TAX_SOURCE_ID,
     CsvSchemaError,

@@ -36,7 +36,7 @@ def lexicon_ingest_hearth_tax(csv_path: Path, out_path: Path, apply_changes: boo
     year_specific captures the actual collection year (1662-1674);
     blank/unparseable falls back to 1665. Out-of-range integers warn.
     """
-    from wyrd.generators.kenning.hearth_tax_ingester import ingest
+    from wyrd.generators.kenning.ingesters.hearth_tax import ingest
 
     counts = ingest(csv_path, out_path, apply=apply_changes)
     click.echo(f"CSV rows scanned:    {counts['csv_rows_scanned']:>10}", err=True)

@@ -63,12 +63,12 @@ def lexicon_ingest_domesday(
     source_doc).
 
     License: Hull's data is CC-BY-NC-SA 4.0 (J.J.N. Palmer team).
-    See ``domesday_ingester.DOMESDAY_SOURCE_NOTES`` for the full
+    See ``ingesters.domesday.DOMESDAY_SOURCE_NOTES`` for the full
     attribution recorded in the ``source`` table.
     """
     from urllib.parse import quote
 
-    from wyrd.generators.kenning.domesday_ingester import ingest_domesday
+    from wyrd.generators.kenning.ingesters.domesday import ingest_domesday
 
     # URL-quote the path so spaces / reserved chars (?, #) in
     # operator-supplied paths don't get parsed as URI components.

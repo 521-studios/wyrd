@@ -40,7 +40,7 @@ def lexicon_ingest_hundred_rolls(csv_path: Path, out_path: Path, apply_changes: 
     modern_name matches a Domesday or OS Open Names toponym ref, all
     attestations attach to the same toponym in the rebuilt DB.
     """
-    from wyrd.generators.kenning.hundred_rolls_ingester import ingest
+    from wyrd.generators.kenning.ingesters.hundred_rolls import ingest
 
     counts = ingest(csv_path, out_path, apply=apply_changes)
     click.echo(f"CSV rows scanned:    {counts['csv_rows_scanned']:>10}", err=True)

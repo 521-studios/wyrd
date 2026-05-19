@@ -33,7 +33,7 @@ def lexicon_ingest_speed_1611(csv_path: Path, out_path: Path, apply_changes: boo
     Expected CSV columns (named header row):
       place_name (required), county, parish, country, modern_name
     """
-    from wyrd.generators.kenning.speed_1611_ingester import ingest
+    from wyrd.generators.kenning.ingesters.speed_1611 import ingest
 
     counts = ingest(csv_path, out_path, apply=apply_changes)
     click.echo(f"CSV rows scanned:    {counts['csv_rows_scanned']:>10}", err=True)

@@ -49,7 +49,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from .jsonl.log import write_jsonl
+from wyrd.generators.kenning.jsonl.log import write_jsonl
 
 HUNDRED_ROLLS_SOURCE_ID = "rotuli_hundredorum"
 HUNDRED_ROLLS_YEAR = 1279
