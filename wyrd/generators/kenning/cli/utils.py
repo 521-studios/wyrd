@@ -19,8 +19,10 @@ which re-exports the names from this module.
 from __future__ import annotations
 
 import json
+import sqlite3
 from collections import Counter
-from contextlib import nullcontext
+from collections.abc import Iterator
+from contextlib import contextmanager, nullcontext
 from importlib import resources
 from pathlib import Path
 
@@ -139,3 +141,25 @@ def _decompose_corpus(
 # the one-time legacy → ~/.wyrd migration both fire at call time, not
 # at module-import time. See wyrd/generators/kenning/paths.py.
 _DEFAULT_LEXICON_PATH = default_lexicon_path
+
+
+@contextmanager
+def _readonly_lexicon(db_path: Path) -> Iterator[sqlite3.Connection]:
+    """Yield a read-only ``sqlite3.Connection`` for browse / report
+    subcommands, closing it on exit.
+
+    Used as a context manager so the connection can't leak when a
+    command early-exits via ``raise SystemExit``. The connection
+    opens via the ``file:...?mode=ro`` URI form so any accidental
+    writes fail loudly at the driver level rather than silently
+    mutating the lexicon DB.
+    """
+    from urllib.parse import quote
+
+    db_uri = f"file:{quote(str(db_path.absolute()))}?mode=ro"
+    conn = sqlite3.connect(db_uri, uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+    finally:
+        conn.close()
