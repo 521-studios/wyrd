@@ -1,14 +1,15 @@
 """Fantasy-morpheme inventory export (consumed by the bundle build).
 
 ``collect_fantasy_morphemes`` walks ``fantasy_morpheme`` rows where
-``usable = 1`` (etymon successfully resolved during curation) and
-the linked etymon isn't an OCR-cluster tombstone
-(``merged_into_id IS NULL``). For each row it joins
-canonical_form / language / english_shaped from the merge-chain-
-resolved etymon, pulls glosses from ``etymon_gloss``, and
-pre-computes per-target-language era reflexes via
-``etymon_era_reflexes`` so the runtime KenningWeaver can render
-creature names at user-chosen eras without a DB.
+``usable = 1`` (etymon successfully resolved during curation).
+Tombstone-routing is non-destructive: a ``LEFT JOIN`` through
+``etymon.merged_into_id`` follows the OCR-cluster chain so a
+post-link merge transparently routes the row to its winner's
+canonical_form via ``COALESCE`` instead of dropping the row. For
+each row it pulls glosses from ``etymon_gloss`` and pre-computes
+per-target-language era reflexes via ``etymon_era_reflexes`` so
+the runtime KenningWeaver can render creature names at user-
+chosen eras without a DB.
 
 Output shape (wyrd-vz7f): ``{input_name: {input_name, etymon_id,
 language, canonical_form, english_shaped, glosses, citation,
@@ -31,8 +32,12 @@ def collect_fantasy_morphemes(db: LexiconDB) -> dict[str, dict[str, Any]]:
     generator can surface creature etymology without a DB.
 
     Walks ``fantasy_morpheme`` rows where ``usable=1`` (etymon
-    successfully resolved) and ``etymon.merged_into_id IS NULL`` (the
-    linked etymon isn't an OCR-cluster tombstone). For each, joins
+    successfully resolved). A ``LEFT JOIN`` through
+    ``etymon.merged_into_id`` follows the OCR-cluster chain so
+    tombstone rows route to their winner's canonical_form via
+    ``COALESCE`` instead of being dropped — the user's "Harpy"
+    → ancient-greek ἅρπυια lookup stays semantically valid even
+    after a post-link OCR merge moves the canonical voice. Joins
     canonical_form / language / english_shaped from ``etymon`` and
     pulls glosses from ``etymon_gloss``. Era reflexes are computed
     via ``etymon_era_reflexes`` for every target language in the
