@@ -159,7 +159,7 @@ single `--mood` flag.** Two axes ride under one GM-facing surface:
   military / monster axes.
 - Multiple `--mood` flags compose by tag-union and max-harshness.
 
-The mood vocabulary lives in `__init__.MOODS` as `{name: recipe}`. New
+The mood vocabulary lives in `registers/moods.MOODS` as `{name: recipe}`. New
 presets are picked from a tag-coverage audit (≥5 subjects per
 candidate tag, distinct semantic identity, minimal overlap with
 existing moods); `noble` was considered in wyrd-aky and deferred until

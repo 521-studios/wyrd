@@ -37,7 +37,7 @@ from dataclasses import dataclass
 
 from wyrd.generators.kenning.era.cells import canonical_language_for_cell, era_year_range
 from wyrd.generators.kenning.lexicon.db import LexiconDB
-from wyrd.generators.kenning.phonology_rules import rule_form as phonology_rule_form
+from wyrd.generators.kenning.registers.phonology_rules import rule_form as phonology_rule_form
 
 
 @dataclass

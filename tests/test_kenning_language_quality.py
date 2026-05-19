@@ -1003,7 +1003,7 @@ def test_tier4_phonology_coverage_counts_firing_etymons() -> None:
     assert 0 <= count <= 3
     # Skip the strict lower-bound assertion if the rules library has
     # been disabled — fail loud if rules are wired but nothing fires.
-    from wyrd.generators.kenning.phonology_rules import rule_form
+    from wyrd.generators.kenning.registers.phonology_rules import rule_form
 
     if rule_form("house", "modern-english", "old-english") is not None:
         assert count >= 1, "phonology rules fire on 'house' but T4 count says 0"

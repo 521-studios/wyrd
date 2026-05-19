@@ -8,7 +8,7 @@ disagree, we go with the most readable English approximation.
 
 from __future__ import annotations
 
-from wyrd.generators.kenning.phonology import (
+from wyrd.generators.kenning.registers.phonology import (
     PHONOLOGY,
     to_ipa,
     to_respelling,
