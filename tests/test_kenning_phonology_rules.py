@@ -24,7 +24,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from wyrd.generators.kenning.phonology_rules import (
+from wyrd.generators.kenning.registers.phonology_rules import (
     EMODE_TO_MODE_RULES,
     FAMILY_CHAINS,
     LANGUAGE_ALIASES,
@@ -524,7 +524,7 @@ def test_registered_cell_count_matches_expected() -> None:
     """Pin the count of registered cells. A future PR that
     accidentally drops a cell from the dispatch table would fail
     this; intentional additions should bump the count."""
-    from wyrd.generators.kenning.phonology_rules import _RULES
+    from wyrd.generators.kenning.registers.phonology_rules import _RULES
 
     assert len(_RULES) == 4, (
         f"expected 4 cells (OE→ME, ME→EModE, EModE→ModE, OW→ModW), got "

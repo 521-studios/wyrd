@@ -412,7 +412,7 @@ to off / 0 (bit-stable historical behavior):
   agriculture/tree/bird), `devotional` (saint/religious), `mortuary`
   (death/undead — narrower subset of grim). `harsh:0.5` graduates the
   phonological skew via colon-suffix. Multiple flags compose by
-  tag-union and max-harshness. Lives in `__init__.MOODS`.
+  tag-union and max-harshness. Lives in `registers/moods.MOODS`.
 
 **Recent infrastructure (2026-05-04 / 2026-05-05)**: meaning_synset
 layer (wyrd-7tz Phase 1, PR #61) — semantic-equivalence catalog for

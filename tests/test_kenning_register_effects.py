@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from wyrd.generators.kenning.register_effects import (
+from wyrd.generators.kenning.registers.effects import (
     RegisterEffectCatalogError,
     _load_bundled_cached,
     get_register_effect,

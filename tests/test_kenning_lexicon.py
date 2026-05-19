@@ -3819,7 +3819,7 @@ def test_etymon_era_reflexes_phonology_tier_chain_oe_to_modern_english(
 def test_phonology_rule_form_returns_none_for_unknown_language() -> None:
     """Languages absent from the phonology family chains map (Goidelic,
     Norse, Romance) get None — Tier 4 silently no-ops for them."""
-    from wyrd.generators.kenning.phonology_rules import rule_form as _phonology_rule_form
+    from wyrd.generators.kenning.registers.phonology_rules import rule_form as _phonology_rule_form
 
     # 'irish' is not in phonology_rules.FAMILY_CHAINS.
     assert _phonology_rule_form("baile", "irish", "old-irish") is None
@@ -3827,7 +3827,7 @@ def test_phonology_rule_form_returns_none_for_unknown_language() -> None:
 
 def test_phonology_rule_form_returns_none_for_same_language() -> None:
     """Same from/to language is a no-op — no transformation needed."""
-    from wyrd.generators.kenning.phonology_rules import rule_form as _phonology_rule_form
+    from wyrd.generators.kenning.registers.phonology_rules import rule_form as _phonology_rule_form
 
     assert _phonology_rule_form("dǣg", "old-english", "old-english") is None
 
@@ -3836,7 +3836,7 @@ def test_phonology_rule_form_returns_none_when_pass_through() -> None:
     """A form with no rule triggers returns None (rather than the
     same input echoed back). Consumers can use canonical_form directly
     when this happens."""
-    from wyrd.generators.kenning.phonology_rules import rule_form as _phonology_rule_form
+    from wyrd.generators.kenning.registers.phonology_rules import rule_form as _phonology_rule_form
 
     assert _phonology_rule_form("orphan", "old-english", "middle-english") is None
 
@@ -3847,7 +3847,7 @@ def test_phonology_rule_form_resolves_welsh_alias() -> None:
     lookup would fail with ValueError. Pin: the alias resolves to the
     canonical era so passing 'welsh' produces the same output as
     passing 'modern-welsh' (regardless of what that output is)."""
-    from wyrd.generators.kenning.phonology_rules import rule_form as _phonology_rule_form
+    from wyrd.generators.kenning.registers.phonology_rules import rule_form as _phonology_rule_form
 
     # Alias case: welsh (= modern-welsh) → old-welsh
     via_alias = _phonology_rule_form("kaer-uent", "welsh", "old-welsh")

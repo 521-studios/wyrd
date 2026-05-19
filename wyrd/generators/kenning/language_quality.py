@@ -55,7 +55,7 @@ from pathlib import Path
 from typing import Any
 
 from wyrd.generators.kenning.lexicon import RECOMMENDED_LANG_THRESHOLDS
-from wyrd.generators.kenning.phonology_rules import chain_for, rule_form
+from wyrd.generators.kenning.registers.phonology_rules import chain_for, rule_form
 
 # --- era chain config -----------------------------------------------------
 #
