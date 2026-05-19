@@ -7,8 +7,8 @@ import warnings
 
 import pytest
 
-from wyrd.generators.kenning.meaning import Meaning
-from wyrd.generators.kenning.trie_matcher import (
+from wyrd.generators.kenning.runtime.meaning import Meaning
+from wyrd.generators.kenning.runtime.trie_matcher import (
     DecompositionTruncatedWarning,
     MorphemeTrie,
     all_decompositions,
@@ -395,7 +395,7 @@ def test_compact_unaccounted_merges_consecutive_string_runs():
     runs of single-character unaccounted elements (the raw DFS shape)
     collapses into single contiguous strings (the public output
     shape)."""
-    from wyrd.generators.kenning.trie_matcher import _compact_unaccounted
+    from wyrd.generators.kenning.runtime.trie_matcher import _compact_unaccounted
 
     ham = _meaning("-ham-")
     # Mixed: leading run 'X','Y', a meaning, mid-run 'A','B','C',
@@ -410,7 +410,7 @@ def test_compact_unaccounted_handles_no_strings_or_no_meanings():
     """Boundary cases: a pure-meaning decomposition (no strings) and a
     pure-string decomposition (no meanings) both pass through
     correctly — the merger only acts on adjacent string elements."""
-    from wyrd.generators.kenning.trie_matcher import _compact_unaccounted
+    from wyrd.generators.kenning.runtime.trie_matcher import _compact_unaccounted
 
     ham = _meaning("-ham-")
     # All-meanings: no merge work.

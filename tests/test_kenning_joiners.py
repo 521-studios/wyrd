@@ -18,14 +18,14 @@ from __future__ import annotations
 
 import pytest
 
-from wyrd.generators.kenning.meaning import (
+from wyrd.generators.kenning.runtime.meaning import (
     Joiner,
     Meaning,
     _bundle_subjects,
     load_joiners,
     load_meanings,
 )
-from wyrd.generators.kenning.name import (
+from wyrd.generators.kenning.runtime.name import (
     Name,
     _build_joiner_lookup,
     _consume_joiners,
@@ -463,7 +463,7 @@ def test_joiner_does_not_count_in_word_has_name() -> None:
     """Word.has_name acts on Meaning instances; a Joiner is non-Meaning
     so it can't accidentally satisfy has_name()."""
     j = Joiner("en", lang_field="old_english")
-    from wyrd.generators.kenning.word import Word
+    from wyrd.generators.kenning.runtime.word import Word
 
     w = Word([j])  # only a Joiner, no Meanings
     assert w.has_name() is False
@@ -675,7 +675,7 @@ def test_apply_joiner_insertion_skips_when_no_shared_lang() -> None:
     import random
 
     from wyrd.generators.kenning import _apply_joiner_insertion
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     m1 = Meaning("Bridge-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
     m2 = Meaning("-water", tags=[], meanings=["Water"], sources={"celtic_mix": ["dwr"]})
@@ -697,7 +697,7 @@ def test_apply_joiner_insertion_inserts_joiner_when_shared_lang() -> None:
     import random
 
     from wyrd.generators.kenning import _apply_joiner_insertion
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     m1 = Meaning("Bridge-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
     m2 = Meaning("-water", tags=[], meanings=["Water"], sources={"old_english": ["wæter"]})
@@ -721,7 +721,7 @@ def test_apply_joiner_insertion_zero_density_is_no_op() -> None:
     import random
 
     from wyrd.generators.kenning import _apply_joiner_insertion
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     m1 = Meaning("Bridge-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
     m2 = Meaning("-water", tags=[], meanings=["Water"], sources={"old_english": ["wæter"]})
@@ -853,7 +853,7 @@ def test_apply_joiner_insertion_skips_none_elements() -> None:
     import random
 
     from wyrd.generators.kenning import _apply_joiner_insertion
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     m1 = Meaning("Bridge-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
     m2 = Meaning("-water", tags=[], meanings=["Water"], sources={"old_english": ["wæter"]})
@@ -876,7 +876,7 @@ def test_apply_joiner_insertion_single_element_word_no_op() -> None:
     import random
 
     from wyrd.generators.kenning import _apply_joiner_insertion
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     m1 = Meaning("Bridge-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
     meaning_db = {"Bridge-": [m1]}
@@ -895,7 +895,7 @@ def test_apply_joiner_insertion_uses_rendered_substitutions() -> None:
     import random
 
     from wyrd.generators.kenning import _apply_joiner_insertion
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     m1 = Meaning("Bridge-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
     m2 = Meaning("-water", tags=[], meanings=["Water"], sources={"old_english": ["wæter"]})
@@ -924,7 +924,7 @@ def test_apply_joiner_insertion_multi_word_within_each_word() -> None:
     import random
 
     from wyrd.generators.kenning import _apply_joiner_insertion
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     m1 = Meaning("Bridge-", tags=[], meanings=["Bridge"], sources={"old_english": ["brycg"]})
     m2 = Meaning("-water", tags=[], meanings=["Water"], sources={"old_english": ["wæter"]})

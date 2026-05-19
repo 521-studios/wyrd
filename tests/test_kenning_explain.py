@@ -151,7 +151,7 @@ def test_explain_marks_canonical_when_bundle_carries_signature(monkeypatch):
         _canonical_signature_for_words,
         _load_canonical_decompositions,
     )
-    from wyrd.generators.kenning.name import Name
+    from wyrd.generators.kenning.runtime.name import Name
 
     name_obj = Name("Bridgewater")
     from wyrd.generators.kenning import _load_meanings
@@ -229,7 +229,7 @@ def test_explain_canonical_surfaces_in_envelope(client, monkeypatch):
         _load_canonical_decompositions,
         _load_meanings,
     )
-    from wyrd.generators.kenning.name import Name
+    from wyrd.generators.kenning.runtime.name import Name
 
     meaning_db, _ = _load_meanings()
     name_obj = Name("Bridgewater")

@@ -858,7 +858,7 @@ bearing invariant: a word with two senses for one surface (-y =
 `-hamlet-` both in trie → 'hamlet' surfaces as both `ham + let` and
 `hamlet`) surfaces ALL parses.
 
-Public API (`wyrd/generators/kenning/trie_matcher.py`):
+Public API (`wyrd/generators/kenning/runtime/trie_matcher.py`):
 
 - `all_decompositions(word, trie)` — every parse, including
   partial-match alternatives that fall through the skip-into-

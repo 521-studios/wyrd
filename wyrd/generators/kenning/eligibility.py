@@ -60,7 +60,7 @@ from collections.abc import Iterable, Sequence
 from collections.abc import Set as AbstractSet
 
 from wyrd.generators.kenning import CULTURES
-from wyrd.generators.kenning.meaning import Meaning
+from wyrd.generators.kenning.runtime.meaning import Meaning
 from wyrd.generators.kenning.vectors.schemas import (
     EligibilityGate,
     PackOverlay,

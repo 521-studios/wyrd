@@ -43,7 +43,7 @@ def seed_from_meanings(
     # Deferred import: meaning.py is a runtime-layer module that the
     # lexicon package shouldn't pull at import time (Lambda cold-start
     # path). The seeder is operator-only, paid only when called.
-    from wyrd.generators.kenning.meaning import _bundle_subjects
+    from wyrd.generators.kenning.runtime.meaning import _bundle_subjects
 
     counts = {
         "etymons": 0,

@@ -15,8 +15,8 @@ This shrinks the unaccounted-fragment list in two ways:
 
 from __future__ import annotations
 
-from wyrd.generators.kenning.meaning import load_meanings
-from wyrd.generators.kenning.name import Name
+from wyrd.generators.kenning.runtime.meaning import load_meanings
+from wyrd.generators.kenning.runtime.name import Name
 
 
 def test_inflected_form_registers_in_meaning_db() -> None:

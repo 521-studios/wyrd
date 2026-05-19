@@ -16,8 +16,8 @@ import json
 from importlib import resources
 
 from wyrd.generators.kenning.cli import _ordered_tag_pairs, _proportions_from
-from wyrd.generators.kenning.meaning import load_meanings
-from wyrd.generators.kenning.name import Name
+from wyrd.generators.kenning.runtime.meaning import load_meanings
+from wyrd.generators.kenning.runtime.name import Name
 
 
 def _build_word_db():

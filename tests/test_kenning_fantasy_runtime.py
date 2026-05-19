@@ -18,7 +18,7 @@ from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
-from wyrd.generators.kenning.meaning import load_fantasy_morphemes
+from wyrd.generators.kenning.runtime.meaning import load_fantasy_morphemes
 
 
 def _seed_fantasy_db(db_path: Path) -> None:

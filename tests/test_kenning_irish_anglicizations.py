@@ -23,8 +23,8 @@ import json
 from importlib import resources
 
 from wyrd.generators.kenning import _load_meanings
-from wyrd.generators.kenning.meaning import load_meanings
-from wyrd.generators.kenning.name import Name, load_names
+from wyrd.generators.kenning.runtime.meaning import load_meanings
+from wyrd.generators.kenning.runtime.name import Name, load_names
 
 
 def test_sidecar_data_file_has_expected_anglicized_prefixes() -> None:

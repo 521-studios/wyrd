@@ -7,7 +7,7 @@ import random
 import textwrap
 from collections import Counter
 
-from wyrd.generators.kenning.proportions import (
+from wyrd.generators.kenning.runtime.proportions import (
     _blend_harsh,
     _blend_uniform,
     _harshness_score,
@@ -108,7 +108,7 @@ def test_blend_uniform_empty_input_returns_input_unchanged():
 def test_generator_select_novelty_zero_takes_fast_path():
     """At novelty=0, Generator.select hits weighted_choice directly with
     the unmodified empirical weights — bit-stable with the pre-D17 path."""
-    from wyrd.generators.kenning.proportions import Generator
+    from wyrd.generators.kenning.runtime.proportions import Generator
 
     rng_a = random.Random(42)
     rng_b = random.Random(42)
@@ -124,7 +124,7 @@ def test_generator_select_novelty_one_picks_uniformly():
     tolerance band against RNG variance."""
     from collections import Counter
 
-    from wyrd.generators.kenning.proportions import Generator
+    from wyrd.generators.kenning.runtime.proportions import Generator
 
     g = Generator(tag_db={}, elements={"a": 99, "b": 1})
     counts = Counter(g.select(random.Random(i), novelty=1.0) for i in range(2000))
@@ -137,8 +137,8 @@ def test_meaning_generator_select_threads_novelty():
     into Generator.select for the chosen bucket."""
     from collections import Counter
 
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
 
     # Two usages keyed by the same Meaning.key() = ('post',). Empirical
     # weights skewed 99:1; with novelty=1 the picks should split ~50:50.
@@ -159,8 +159,8 @@ def test_meaning_generator_select_threads_harshness():
     toward the stop-final key (-shuck) over the soft -baron bucket-mate."""
     from collections import Counter
 
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
 
     # Two usages keyed by the same Meaning.key() = ('post',). Empirical
     # weight 99 on the soft form, 1 on the harsh form; harshness=1 should
@@ -193,7 +193,7 @@ def _build_minimal_name_generator(meaning_db):
     test fixture uses single-element structures so the runtime can resolve
     the bucket via the "single"-suffixed key.
     """
-    from wyrd.generators.kenning.proportions import (
+    from wyrd.generators.kenning.runtime.proportions import (
         MeaningGenerator,
         NameGenerator,
     )
@@ -209,7 +209,7 @@ def _build_minimal_name_generator(meaning_db):
 def test_render_substitutions_falls_back_to_canonical_when_no_pool():
     """A meaning with no variant or inflection pool renders as the
     dash-stripped usage even at spelling_variety=1.0."""
-    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
 
     m = Meaning("-cot", [], [], {"old_english": ["cot"]})
     name_gen = _build_minimal_name_generator({"-cot": [m]})
@@ -221,7 +221,7 @@ def test_render_substitutions_falls_back_to_canonical_when_no_pool():
 def test_render_substitutions_substitutes_variant_with_case_mimic():
     """At spelling_variety=1 with a non-empty pool, the rendered surface
     form is the case-mimicked variant rather than the canonical."""
-    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
 
     m = Meaning(
         "Bridg-",
@@ -240,7 +240,7 @@ def test_render_substitutions_substitutes_variant_with_case_mimic():
 def test_render_substitutions_substitutes_inflection_with_label():
     """At inflection_density=1 with a non-empty inflection pool, the
     rendered form is the inflected child and the label is preserved."""
-    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
 
     m = Meaning(
         "-cot",
@@ -258,7 +258,7 @@ def test_render_substitutions_substitutes_inflection_with_label():
 def test_render_substitutions_inflection_wins_over_variant():
     """When both knobs would fire on the same morpheme, inflection wins
     (more specific morphological data)."""
-    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
 
     m = Meaning(
         "-cot",
@@ -280,7 +280,7 @@ def test_select_populates_inflection_labels_at_high_density():
     inflection_labels carry the picked label per element. Pins the
     integration boundary that _render_substitutions tests can't reach
     on their own."""
-    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
 
     m = Meaning(
         "-cot",
@@ -299,7 +299,7 @@ def test_select_default_skips_render_pass_entirely():
     """At default knobs (variety=0, density=0), select() doesn't populate
     rendered or inflection_labels — they stay None. Cheap fast-path
     confirmation that protects bit-stability."""
-    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
 
     m = Meaning(
         "-cot",
@@ -321,7 +321,7 @@ def test_render_substitutions_handles_none_usage():
     name_gen = _build_minimal_name_generator(
         {
             "-x": [
-                __import__("wyrd.generators.kenning.meaning", fromlist=["Meaning"]).Meaning(
+                __import__("wyrd.generators.kenning.runtime.meaning", fromlist=["Meaning"]).Meaning(
                     "-x", [], [], {}
                 )
             ]
@@ -335,7 +335,7 @@ def test_render_substitutions_handles_none_usage():
 def test_newname_str_uses_rendered_when_set():
     """When NewName.rendered is populated, __str__ emits the pre-rendered
     surface forms instead of stripping dashes from name."""
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     new_name = NewName(
         struct=None,
@@ -348,7 +348,7 @@ def test_newname_str_uses_rendered_when_set():
 
 def test_newname_str_falls_back_to_dash_stripped_when_rendered_none():
     """Without rendered set, __str__ keeps the historic dash-stripping path."""
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     new_name = NewName(
         struct=None,
@@ -361,7 +361,7 @@ def test_newname_str_falls_back_to_dash_stripped_when_rendered_none():
 def test_newname_str_falls_back_per_element_when_rendered_entry_is_none():
     """rendered is per-element optional; a None entry in the rendered list
     triggers per-element fallback to the dash-stripped usage."""
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     new_name = NewName(
         struct=None,
@@ -438,7 +438,7 @@ def test_blend_harsh_distribution_skews_toward_harsh_via_monte_carlo():
 def test_generator_select_harshness_zero_takes_fast_path():
     """At harshness=0, Generator.select hits weighted_choice directly with
     unmodified empirical weights — bit-stable with the pre-D6 path."""
-    from wyrd.generators.kenning.proportions import Generator
+    from wyrd.generators.kenning.runtime.proportions import Generator
 
     rng_a = random.Random(42)
     rng_b = random.Random(42)
@@ -451,7 +451,7 @@ def test_generator_select_harshness_zero_takes_fast_path():
 def test_generator_select_harshness_one_skews_toward_harsh_keys():
     """At harshness=1, monte-carlo over 2000 picks shifts the empirical
     90:10 split (ham:shuck) toward shuck enough to detect."""
-    from wyrd.generators.kenning.proportions import Generator
+    from wyrd.generators.kenning.runtime.proportions import Generator
 
     g = Generator(tag_db={}, elements={"-ham": 90, "-shuck": 10})
     counts = Counter(g.select(random.Random(i), harshness=1.0) for i in range(2000))
@@ -466,7 +466,7 @@ def test_generator_select_composes_harsh_and_novelty():
     """harshness=1 + novelty=1 → uniform over the bucket (novelty wipes
     empirical, including the harsh-skew). Same monte-carlo shape as the
     novelty-alone test."""
-    from wyrd.generators.kenning.proportions import Generator
+    from wyrd.generators.kenning.runtime.proportions import Generator
 
     g = Generator(tag_db={}, elements={"-ham": 99, "-shuck": 1})
     counts = Counter(g.select(random.Random(i), novelty=1.0, harshness=1.0) for i in range(2000))
@@ -480,8 +480,8 @@ def test_generator_select_composes_harsh_and_novelty():
 def test_description_no_inflection_labels_unchanged():
     """At default (inflection_labels=None), description() emits the historic
     `lemma (sources gloss)` form per element. Bit-stable with pre-D8."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     m = Meaning("-cot", [], ["cottage"], {"old_english": ["cot"]})
     new_name = NewName(
@@ -495,8 +495,8 @@ def test_description_no_inflection_labels_unchanged():
 def test_description_emits_at_label_when_inflection_picked():
     """When inflection_labels carries a non-None label for an element, the
     explainer surfaces `lemma@label (sources gloss)`."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     m = Meaning("-cot", [], ["cottage"], {"old_english": ["cot", "cotum"]})
     new_name = NewName(
@@ -512,8 +512,8 @@ def test_description_emits_at_label_when_inflection_picked():
 def test_description_handles_mixed_labels_within_word():
     """A multi-element word where only one position has an inflection label
     surfaces @label only on that position. The other element stays bare."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     bridg = Meaning("Bridg-", [], ["bridge"], {"old_english": ["brycg"]})
     water = Meaning("-water", [], ["water"], {"old_english": ["wæter"]})
@@ -536,8 +536,8 @@ def test_description_inflection_labels_shorter_than_name_does_not_crash():
     elsewhere — description() must fall through to the unlabelled form
     rather than raising IndexError. Pins the IndexError catch in
     _inflection_label_for."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     m = Meaning("-cot", [], ["cottage"], {"old_english": ["cot"]})
     new_name = NewName(
@@ -562,8 +562,8 @@ def test_description_inflection_labels_shorter_than_name_does_not_crash():
 def test_description_omits_citation_block():
     """description() carries gloss only — no inline citations regardless
     of whether the Meaning has them. wyrd-c0xn."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     m = Meaning(
         "-cot",
@@ -585,8 +585,8 @@ def test_components_carries_full_citation_list_unchanged():
     (not truncated) so the SPA can render attribution per element. The
     description-side truncation that wyrd-9kh.1 introduced was removed
     along with description-side citations entirely (wyrd-c0xn)."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     sources = [f"src_{i:02}" for i in range(7)]
     m = Meaning(
@@ -608,8 +608,8 @@ def test_components_carries_full_citation_list_unchanged():
 def test_components_includes_citation_list():
     """The API envelope's components carry the same citation list so the
     SPA can render attribution per element."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     m = Meaning(
         "-cot",
@@ -632,8 +632,8 @@ def test_components_citation_is_empty_list_when_no_citations():
     """Components always carry a 'citations' key so consumers don't have to
     branch on its presence — empty list signals 'no scholarly attestation
     yet' (the legacy rando-only case)."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     m = Meaning("-cot", [], ["cottage"], {"old_english": ["cot"]})
     new_name = NewName(
@@ -651,8 +651,8 @@ def test_components_renderings_is_empty_dict_when_no_phase2d_data():
     wyrd-ha9q rendering data' (Latin-script source langs, older
     bundles). The SPA's _renderProvenancePanel skips when ALL
     components have empty renderings."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     m = Meaning("-cot", [], ["cottage"], {"old_english": ["cot"]})
     new_name = NewName(
@@ -671,8 +671,8 @@ def test_components_renderings_aggregates_four_phase2d_columns():
     of (original_script, transliteration, english_shaped, ipa,
     dialect) the lexicon supplied. Pinned because this is the wire
     contract the SPA's _renderProvenancePanel reads."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     m = Meaning(
         "-golem",
@@ -709,8 +709,8 @@ def test_components_renderings_partial_data_only_surfaces_present_keys():
     the slot dict has only the keys that actually exist. Consumers
     rely on this: the SPA panel iterates known keys with .get() and
     skips missing ones rather than rendering 'None'."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import NewName
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
 
     m = Meaning(
         "-jinn",
@@ -742,7 +742,7 @@ def test_generator_select_exclude_tags_drops_matching_keys():
     that the tag_db lists under 'fiction'. Picks must come from the
     remaining keys only — pin via Monte Carlo with a tag_db that marks
     one key as fiction."""
-    from wyrd.generators.kenning.proportions import Generator
+    from wyrd.generators.kenning.runtime.proportions import Generator
 
     # tag_db reverse-index: key 'fake-' is fiction, 'real-' is not.
     g = Generator(
@@ -757,7 +757,7 @@ def test_generator_select_default_exclude_tags_is_noop():
     """Default exclude_tags=() must not change behavior — bit-stable with
     the pre-wyrd-yan path. A fiction-tagged key still draws when no
     exclusion is requested."""
-    from wyrd.generators.kenning.proportions import Generator
+    from wyrd.generators.kenning.runtime.proportions import Generator
 
     g = Generator(
         tag_db={"fiction": ["fake-"]},
@@ -774,7 +774,7 @@ def test_generator_select_exclude_composes_with_positive_tag_filter():
     """exclude_tags applies AFTER the positive tag include-filter, so a
     usage tagged BOTH 'tree' and 'fiction' is dropped from a --tag tree
     selection. Pin so a refactor can't silently invert the order."""
-    from wyrd.generators.kenning.proportions import Generator
+    from wyrd.generators.kenning.runtime.proportions import Generator
 
     g = Generator(
         tag_db={
@@ -793,7 +793,7 @@ def test_generator_select_exclude_returns_none_when_pool_empties():
     """If the exclude set covers every available key, Generator.select
     returns None — no infinite loop, no IndexError, just a clean
     'nothing to pick'."""
-    from wyrd.generators.kenning.proportions import Generator
+    from wyrd.generators.kenning.runtime.proportions import Generator
 
     g = Generator(
         tag_db={"fiction": ["only-key-"]},
@@ -805,8 +805,8 @@ def test_generator_select_exclude_returns_none_when_pool_empties():
 def test_meaning_generator_select_threads_exclude_tags():
     """MeaningGenerator.select forwards exclude_tags into Generator.select
     so the gate works end-to-end through the bucket dispatch."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
 
     m_real = Meaning("-real", [], [], {})
     m_fake = Meaning("-fake", [], [], {})
@@ -823,8 +823,8 @@ def test_name_generator_select_excludes_fiction_end_to_end():
     culture where the only available usage is fiction-tagged returns
     no morpheme under exclude_tags=('fiction',) and the morpheme under
     exclude_tags=()."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator, NameGenerator
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator, NameGenerator
 
     m = Meaning("-mythron", [], ["constructed"], {"old_english": ["mythron"]})
     meaning_db = {"-mythron": [m]}
@@ -876,7 +876,7 @@ def test_generator_select_keep_keys_drops_excluded_usages():
     """Generator.select with keep_keys={'a'} should never return 'b' even
     though 'b' has positive empirical weight. Pins the bucket-level filter
     that MeaningGenerator uses to apply the era keep-set."""
-    from wyrd.generators.kenning.proportions import Generator
+    from wyrd.generators.kenning.runtime.proportions import Generator
 
     g = Generator(tag_db={}, elements={"a": 50, "b": 50})
     for i in range(50):
@@ -889,7 +889,7 @@ def test_generator_select_keep_keys_none_disables_filter():
     treat None as an empty set."""
     from collections import Counter
 
-    from wyrd.generators.kenning.proportions import Generator
+    from wyrd.generators.kenning.runtime.proportions import Generator
 
     g = Generator(tag_db={}, elements={"a": 50, "b": 50})
     counts = Counter(g.select(random.Random(i), keep_keys=None) for i in range(200))
@@ -900,7 +900,7 @@ def test_generator_select_keep_keys_empty_set_returns_none():
     """An empty keep_keys is the legitimate 'no usage matches the era'
     signal — Generator.select should return None rather than crash on
     an empty items_list."""
-    from wyrd.generators.kenning.proportions import Generator
+    from wyrd.generators.kenning.runtime.proportions import Generator
 
     g = Generator(tag_db={}, elements={"a": 50, "b": 50})
     assert g.select(random.Random(0), keep_keys=frozenset()) is None
@@ -910,8 +910,8 @@ def test_meaning_generator_keep_keys_for_era_returns_none_for_none_range():
     """MeaningGenerator.keep_keys_for_era(None) returns None (the
     'no filter' signal) — the runtime threads this straight through to
     Generator.select."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
 
     m = Meaning("-cot", [], [], {})
     mg = MeaningGenerator({"-cot": [m]}, {}, {"-cot": 1})
@@ -922,8 +922,8 @@ def test_meaning_generator_keep_keys_for_era_filters_by_attestation():
     """A morpheme with year evidence outside the window is excluded;
     one with evidence inside the window is admitted; one with NO
     evidence passes through (the documented 'pass-through' rule)."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
 
     in_window = Meaning("-in", [], [], {}, attested_years={"old_english": [("in", 950)]})
     out_window = Meaning("-out", [], [], {}, attested_years={"old_english": [("out", 1500)]})
@@ -941,8 +941,8 @@ def test_meaning_generator_keep_keys_for_era_full_coverage_returns_none():
     carry attested_years data, so every era_range is full-coverage
     and the runtime takes the fast path. Pinned because two reviewers
     converged on the un-pinned-branch concern. wyrd-lyp."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
 
     # Mix: one in-era morpheme with attestation, one with NO data.
     # Both pass the (800, 1100) window — the no-data one passes by the
@@ -958,8 +958,8 @@ def test_meaning_generator_keep_keys_for_era_caches_per_range():
     the meaning_db isn't re-walked per bucket. Pin via identity (the
     cache returns the same frozenset object) so a perf regression
     that recomputes per call is caught."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
 
     m = Meaning("-cot", [], [], {}, attested_years={"old_english": [("cot", 950)]})
     mg = MeaningGenerator({"-cot": [m]}, {}, {"-cot": 1})
@@ -972,8 +972,8 @@ def test_meaning_generator_select_threads_keep_keys():
     """MeaningGenerator.select forwards keep_keys into Generator.select
     so an out-of-era usage never wins, even when its empirical weight
     dominates."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
 
     m_ok = Meaning("-ok", [], [], {}, attested_years={"old_english": [("ok", 950)]})
     m_too_late = Meaning("-too-late", [], [], {}, attested_years={"old_english": [("late", 1500)]})
@@ -991,8 +991,8 @@ def test_name_generator_select_drops_out_of_era_morphemes_at_pick_time():
     has both an in-era and an out-of-era usage; with empirical weights
     that favor the out-of-era one, the era_range argument should still
     force every pick onto the in-era usage."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import (
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import (
         MeaningGenerator,
         NameGenerator,
     )
@@ -1019,8 +1019,8 @@ def test_name_generator_select_era_range_threads_through_positive_tag_path():
     still land on the in-era usage. Pins the `_select_tag`/`_select_tags`
     branches that `test_..._drops_out_of_era_morphemes_at_pick_time`
     above doesn't reach. wyrd-lyp."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import (
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import (
         MeaningGenerator,
         NameGenerator,
     )
@@ -1044,8 +1044,8 @@ def test_name_generator_select_era_range_none_is_bit_stable():
     keep-set is None and Generator.select takes its bit-stable fast
     path. Pin by comparing seeded picks with vs without era_range=None
     to the historic no-kwarg call."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import (
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import (
         MeaningGenerator,
         NameGenerator,
     )
@@ -1078,8 +1078,8 @@ def test_name_generator_select_no_era_matches_pre_pr_weighted_choice():
     `NameGenerator.select` consumes one rng draw to pick the structure
     before reaching the bucket; the comparison RNG is advanced the same
     way to stay aligned with the seeded picks."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import (
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import (
         MeaningGenerator,
         NameGenerator,
         weighted_choice,
@@ -1353,8 +1353,8 @@ def test_kenning_input_schema_stratum_options_match_per_culture_allowed_set():
 def test_meaning_generator_keep_keys_for_stratum_returns_none_for_none_arg():
     """MeaningGenerator.keep_keys_for_stratum(None) returns None — the
     'no filter' bit-stable signal, mirrors keep_keys_for_era(None)."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
 
     m = Meaning("-cot", [], [], {})
     mg = MeaningGenerator({"-cot": [m]}, {}, {"-cot": 1})
@@ -1367,8 +1367,8 @@ def test_meaning_generator_keep_keys_for_stratum_filters_by_classified_data():
     data passes through (the documented Phase 3 'pass-through' rule —
     Welsh is the only family classified today, so unclassified
     languages must not be silently dropped)."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
 
     in_stratum = Meaning("-in", [], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}})
     other_stratum = Meaning("-out", [], [], {}, stratum={"celtic_mix": {"caer": "latin-loan"}})
@@ -1386,8 +1386,8 @@ def test_meaning_generator_keep_keys_for_stratum_full_coverage_returns_none():
     bit-stable fast path. Steady-state today: zero usages carry
     stratum data outside the welsh-family slice, so most --stratum
     values are full-coverage."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
 
     m_match = Meaning("-match", [], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}})
     m_no_data = Meaning("-no-data", [], [], {})
@@ -1409,8 +1409,8 @@ def test_meaning_generator_keep_keys_for_stratum_caches_per_tag():
     trivially regardless of caching). A perf regression that recomputes
     per call would reconstruct a fresh frozenset each time and break
     the identity check."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
 
     m_in = Meaning("-in", [], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}})
     m_out = Meaning("-out", [], [], {}, stratum={"celtic_mix": {"din": "latin-loan"}})
@@ -1427,8 +1427,8 @@ def test_name_generator_select_drops_out_of_stratum_morphemes_at_pick_time():
     stratum data so neither benefits from the no-data passthrough; the
     one with mismatching tag is filtered out even when its empirical
     weight dominates."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import (
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import (
         MeaningGenerator,
         NameGenerator,
     )
@@ -1458,8 +1458,8 @@ def test_keep_keys_for_stratum_returns_empty_when_no_usage_admits():
     they include at least one no-data Meaning that admits via
     passthrough. Phase 4 may produce realistic 'all classified, none
     matching' bundles that hit this exact edge."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
 
     only_other = Meaning("-other", [], [], {}, stratum={"celtic_mix": {"caer": "latin-loan"}})
     mg = MeaningGenerator({"-other": [only_other]}, {}, {"-other": 1})
@@ -1474,7 +1474,7 @@ def test_generator_select_with_empty_keep_keys_returns_none():
     in the stratum context so a refactor that accidentally diverges
     the two paths is caught. Reuses the existing
     'empty keep_keys → None' contract."""
-    from wyrd.generators.kenning.proportions import Generator
+    from wyrd.generators.kenning.runtime.proportions import Generator
 
     g = Generator(tag_db={}, elements={"a": 50, "b": 50})
     assert g.select(random.Random(0), keep_keys=frozenset()) is None
@@ -1487,8 +1487,8 @@ def test_name_generator_select_stratum_threads_through_positive_tag_path():
     be pinned: two usages tagged 'tree', one in-stratum and one not,
     with empirical weight on the wrong one. With tags=('tree',) AND
     stratum set, every pick must still land on the in-stratum usage."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import (
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import (
         MeaningGenerator,
         NameGenerator,
     )
@@ -1543,8 +1543,8 @@ def test_name_generator_select_stratum_none_is_bit_stable():
     """stratum=None matches the no-arg call exactly — the kwarg adds
     a None default rather than a behavior change. Pin via seeded
     sequence comparison."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import (
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import (
         MeaningGenerator,
         NameGenerator,
     )
@@ -1568,8 +1568,8 @@ def test_name_generator_select_era_and_stratum_compose_via_intersection():
     C wrong-era + in-stratum. With both filters set, only A survives;
     B and C are dropped despite passing one gate each. Pins the
     intersection semantics in _intersect_keep_keys."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import (
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import (
         MeaningGenerator,
         NameGenerator,
     )
@@ -1623,7 +1623,7 @@ def test_intersect_keep_keys_handles_none_and_set_combinations():
     a regression on the 'one None' path would silently widen the filter
     (producing more morphemes than intended) without breaking
     end-to-end seed-stability tests."""
-    from wyrd.generators.kenning.proportions import _intersect_keep_keys
+    from wyrd.generators.kenning.runtime.proportions import _intersect_keep_keys
 
     assert _intersect_keep_keys(None, None) is None
     assert _intersect_keep_keys(frozenset({"a", "b"}), None) == frozenset({"a", "b"})
@@ -1669,7 +1669,7 @@ def _build_cohesion_test_generator(meaning_db, proportions, structs, cooc, marg)
     """Construct a NameGenerator pre-loaded with a synthetic tag-cooccurrence
     bundle. Used by the cohesion tests to drive the bias deterministically
     rather than relying on whatever the bundled corpora happen to encode."""
-    from wyrd.generators.kenning.proportions import MeaningGenerator, NameGenerator
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator, NameGenerator
 
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
@@ -1679,7 +1679,7 @@ def _build_cohesion_test_generator(meaning_db, proportions, structs, cooc, marg)
 def test_name_generator_cohesion_zero_is_bit_stable_with_no_cooccurrence():
     """cohesion=0 must bypass the boost computation entirely. Pin via
     sequence equality across 30 seeds against the no-kwarg call."""
-    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
 
     m_a = Meaning("-a", ["water"], [], {})
     m_b = Meaning("-b", ["plant"], [], {})
@@ -1708,7 +1708,7 @@ def test_name_generator_cohesion_one_biases_second_slot_toward_cooccurring_tag()
     cohesion bias alone."""
     from collections import Counter
 
-    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
 
     river = Meaning("River-", ["water"], [], {})
     in_word = Meaning("-in", ["plant"], [], {})
@@ -1742,7 +1742,7 @@ def test_name_generator_cohesion_no_cooccurrence_data_is_no_op():
     """When the bundle carries no tag-cooccurrence data, even cohesion=1
     must be a no-op — no zero-divide, no crash, just bit-stable with
     cohesion=0. Legacy bundles (no co-occurrence keys) ride this path."""
-    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
 
     m_a = Meaning("-a", ["water"], [], {})
     m_b = Meaning("-b", ["plant"], [], {})
@@ -1760,7 +1760,7 @@ def test_name_generator_cohesion_no_prior_tags_first_slot_unaffected():
     Pin: with cohesion=1 but only one slot, the output sequence is
     identical to cohesion=0. Catches a regression that would try to
     apply the boost to the first pick (zero-divide on mean_raw)."""
-    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
 
     m_a = Meaning("-a", ["water"], [], {})
     m_b = Meaning("-b", ["plant"], [], {})
@@ -1785,7 +1785,7 @@ def test_name_generator_cohesion_no_signal_returns_none_boost():
     sampling skips the multiplication entirely. Pinned via direct call
     to the private helper because the no-signal path is hard to spot
     in end-to-end output."""
-    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
 
     m_a = Meaning("-a", ["plant"], [], {})
     m_b = Meaning("-b", ["religion"], [], {})
@@ -1809,7 +1809,7 @@ def test_name_generator_cohesion_unknown_bucket_returns_none_boost():
     """A key referenced by a structure but absent from MeaningGenerator's
     bucket map returns None — the caller hits the bit-stable path
     rather than crashing on an empty candidates iteration."""
-    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
 
     m = Meaning("-a", ["water"], [], {})
     meaning_db = {"-a": [m]}
@@ -1862,7 +1862,7 @@ def test_name_generator_cohesion_threads_through_single_positive_tag_path():
     `_select_tag` cohesion plumbing gets pinned."""
     from collections import Counter
 
-    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
 
     river = Meaning("River-", ["water", "tree"], [], {})
     in_word = Meaning("-in", ["plant", "tree"], [], {})
@@ -1893,7 +1893,7 @@ def test_name_generator_cohesion_threads_through_multi_tag_pool_path():
     rng-merges the per-pool picks. Pin the multi-tag-pool path with two
     positional tags + cohesion=1, and confirm sequence determinism by
     checking two same-seed calls produce identical names."""
-    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
 
     river = Meaning("River-", ["water", "tree", "plant"], [], {})
     in_word = Meaning("-in", ["plant", "tree"], [], {})
@@ -1916,7 +1916,7 @@ def test_name_generator_cohesion_composes_with_novelty():
     """test-coverage P3: cohesion=0 + novelty=X must still match a
     pre-PR novelty=X sample (proves the new key_boost is None branch in
     Generator.select doesn't disturb the existing novelty path)."""
-    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
 
     m_a = Meaning("-a", ["water"], [], {})
     m_b = Meaning("-b", ["plant"], [], {})
@@ -1943,7 +1943,7 @@ def test_name_generator_cohesion_one_normalization_respects_keep_keys():
     pool's effective mean drifts from 1.0 and the boost is over-
     weighted toward leftover candidates. Pinned at the helper level by
     passing keep_keys directly."""
-    from wyrd.generators.kenning.meaning import Meaning
+    from wyrd.generators.kenning.runtime.meaning import Meaning
 
     # Three candidates: -in (in-era, scores 1.0), -out (in-era, scores
     # 0.0), -filtered (era-filtered out, would have scored 9.0 → without
@@ -1988,8 +1988,8 @@ def test_meaning_generator_bucket_keys_returns_registered_usages():
     """test-coverage P3: pin the new MeaningGenerator.bucket_keys helper
     directly. Returns the tuple of usages registered under a key, or ()
     for an unknown key."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator
 
     m_a = Meaning("-a", [], [], {})
     m_b = Meaning("-b", [], [], {})
@@ -2002,8 +2002,8 @@ def test_meaning_generator_bucket_keys_returns_registered_usages():
 
 def test_raw_class_score_empty_inputs_return_zero():
     """test-coverage P3: pin the early-return branches in _raw_class_score."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator, NameGenerator
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator, NameGenerator
 
     mg = MeaningGenerator({"-a": [Meaning("-a", [], [], {})]}, {}, {"-a": 1})
     name_gen = NameGenerator(
@@ -2018,8 +2018,8 @@ def test_raw_class_score_empty_inputs_return_zero():
 def test_raw_class_score_sums_across_tag_cartesian():
     """test-coverage P3: pin the sum-vs-mean intent — two prior × two
     candidate tags additively contribute (sum, not max, not mean)."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import MeaningGenerator, NameGenerator
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator, NameGenerator
 
     mg = MeaningGenerator({"-a": [Meaning("-a", [], [], {})]}, {}, {"-a": 1})
     cooc = {
@@ -2053,8 +2053,8 @@ def test_raw_class_score_is_bit_stable_across_python_hash_seed():
     import sys
 
     script = textwrap.dedent("""
-        from wyrd.generators.kenning.meaning import Meaning
-        from wyrd.generators.kenning.proportions import MeaningGenerator, NameGenerator
+        from wyrd.generators.kenning.runtime.meaning import Meaning
+        from wyrd.generators.kenning.runtime.proportions import MeaningGenerator, NameGenerator
 
         mg = MeaningGenerator({"-a": [Meaning("-a", [], [], {})]}, {}, {"-a": 1})
         # Dense 20x20 cooccurrence so the sum has many addends — more
@@ -2104,7 +2104,7 @@ def test_filter_for_tag_is_bit_stable_across_python_hash_seed():
 
     script = textwrap.dedent("""
         import random
-        from wyrd.generators.kenning.proportions import Generator, weighted_choice
+        from wyrd.generators.kenning.runtime.proportions import Generator, weighted_choice
 
         # 20 keys on the same tag — enough distinct strings to exercise
         # several hash-bucket orderings. Skewed weights so the cumulative
@@ -2139,7 +2139,7 @@ def test_generator_select_key_boost_multiplies_weights():
     Strongly skewed boost should flip the empirical winner."""
     from collections import Counter
 
-    from wyrd.generators.kenning.proportions import Generator
+    from wyrd.generators.kenning.runtime.proportions import Generator
 
     g = Generator(tag_db={}, elements={"a": 70, "b": 30})
     # Without boost, 'a' should dominate ~70/30.
@@ -2157,8 +2157,8 @@ def test_load_proportions_handles_missing_cooccurrence_keys():
     both to empty dicts and the resulting NameGenerator has the no-op
     cohesion path. Pinned at the loader to catch silent rename drift
     between bundle keys and the loader's `.get(...)` lookup."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import load_proportions
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import load_proportions
 
     meaning_db = {"-a": [Meaning("-a", [], [], {})]}
     tag_db = {}
@@ -2176,8 +2176,8 @@ def test_load_proportions_handles_missing_cooccurrence_keys():
 def test_load_proportions_passes_cooccurrence_keys_through():
     """test-coverage P3: present-keys path. Confirms the loader actually
     reads from the bundle dict and threads to NameGenerator."""
-    from wyrd.generators.kenning.meaning import Meaning
-    from wyrd.generators.kenning.proportions import load_proportions
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import load_proportions
 
     meaning_db = {"-a": [Meaning("-a", [], [], {})]}
     tag_db = {}

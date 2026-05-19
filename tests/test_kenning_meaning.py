@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 from collections import Counter
 
-from wyrd.generators.kenning.meaning import Meaning, _mimic_case, load_meanings
+from wyrd.generators.kenning.runtime.meaning import Meaning, _mimic_case, load_meanings
 
 
 def make_meaning(usage, tags=None, meanings=None, sources=None):

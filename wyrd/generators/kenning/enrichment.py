@@ -34,7 +34,6 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
-from .decomposition import decompose_all
 from .lexicon import (
     LexiconDB,
     cluster_cognates,
@@ -44,6 +43,7 @@ from .lexicon import (
 )
 from .lexicon.english_shaping import derive_english_shaped_all
 from .lexicon.strata import classify_stratum_all
+from .runtime.decomposition import decompose_all
 
 # Method-version provenance currently lives in code (the writer-side
 # UPDATE statements stamp these strings). Surfacing them here in one

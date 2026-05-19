@@ -11,7 +11,7 @@ from __future__ import annotations
 import random
 from functools import lru_cache
 
-from wyrd.generators.kenning.meaning import _mimic_case
+from .meaning import _mimic_case
 
 
 class Generator:

@@ -20,8 +20,8 @@ from importlib import resources
 
 import pytest
 
-from wyrd.generators.kenning.meaning import load_meanings
-from wyrd.generators.kenning.name import Name, _trie_cache, load_names
+from wyrd.generators.kenning.runtime.meaning import load_meanings
+from wyrd.generators.kenning.runtime.name import Name, _trie_cache, load_names
 
 
 @pytest.fixture(autouse=True)

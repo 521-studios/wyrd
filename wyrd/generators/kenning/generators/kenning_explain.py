@@ -14,7 +14,7 @@ from wyrd.generators.kenning import (
     _load_canonical_decompositions,
     _load_meanings,
 )
-from wyrd.generators.kenning.name import Name
+from wyrd.generators.kenning.runtime.name import Name
 from wyrd.registry import GenerationResult, Generator
 
 
