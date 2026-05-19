@@ -132,7 +132,7 @@ def lexicon_diff_bundle(
     # heavy dependencies (LLM clients, sqlite extension setup) that
     # other lexicon commands don't need; deferring them keeps `wyrd
     # kenning --help` snappy. ``init_schema`` is already imported at
-    # module level (line 72) so we don't re-import it here.
+    # module level so we don't re-import it here.
 
     from wyrd.generators.kenning.bulk_sources import ingest_all_slices
     from wyrd.generators.kenning.bundle_diff import compute_bundle_diff, format_bundle_diff
