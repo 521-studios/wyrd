@@ -16,7 +16,7 @@ from pathlib import Path
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
-from wyrd.generators.kenning.os_open_names_ingester import (
+from wyrd.generators.kenning.ingesters.os_open_names import (
     OS_OPEN_NAMES_SOURCE_ID,
     _normalize_row,
     build_events,
@@ -140,7 +140,7 @@ def test_iter_csv_rows_detects_column_drift(tmp_path: Path):
     """OS Open Names schema has evolved across releases (e.g. CENSUS_CODE
     added). A CSV with surplus columns triggers ColumnDriftError instead
     of silently misaligning every column after the drift point."""
-    from wyrd.generators.kenning.os_open_names_ingester import ColumnDriftError
+    from wyrd.generators.kenning.ingesters.os_open_names import ColumnDriftError
 
     # 36 fields where _COLUMNS expects 34. csv.DictReader will put the
     # 2 extra values under the None key, which the guard checks for.

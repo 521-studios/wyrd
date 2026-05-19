@@ -9,7 +9,7 @@ import pytest
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
-from wyrd.generators.kenning.speed_1611_ingester import (
+from wyrd.generators.kenning.ingesters.speed_1611 import (
     SPEED_1611_SOURCE_ID,
     SPEED_1611_YEAR,
     CsvSchemaError,

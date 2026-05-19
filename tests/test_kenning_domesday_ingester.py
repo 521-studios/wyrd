@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from wyrd.generators.kenning.domesday_ingester import (
+from wyrd.generators.kenning.ingesters.domesday import (
     COUNTY_CODE_TO_NAME,
     DOMESDAY_SOURCE_ID,
     _ingest_from_tables,

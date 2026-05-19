@@ -43,7 +43,7 @@ def lexicon_ingest_os_open_names(csv_path: Path, out_path: Path, apply_changes: 
     the L1 CSV on demand. Source attribution: synthetic 'os_open_names'
     source, recorded with OGL v3 license notes.
     """
-    from wyrd.generators.kenning.os_open_names_ingester import ingest
+    from wyrd.generators.kenning.ingesters.os_open_names import ingest
 
     counts = ingest(csv_path, out_path, apply=apply_changes)
     click.echo(f"CSV rows scanned:       {counts['csv_rows_scanned']:>10}", err=True)

@@ -54,6 +54,21 @@ that touches the lexicon DB belongs in the package; the rest of
   surface; jsonl/ owns the canonical-state event-log surface;
   together they implement the contract that JSONL is the source of
   truth and the DB is a rebuildable build artifact.
+* The `ingesters/` subpackage (`ingesters/hundred_rolls.py`,
+  `ingesters/speed_1611.py`, `ingesters/hearth_tax.py`,
+  `ingesters/os_open_names.py`, `ingesters/domesday.py`) — these
+  own the operator-side data-ingest surface. The 4 CSV ingesters
+  route through `jsonl/log.py` (no direct DB writes); `domesday.py`
+  writes directly to the lexicon DB via sqlite3 (Open Domesday's
+  Hull-team data is bulk-imported into per-source tables for
+  attestation mining). The ingesters/-as-peer-package-to-lexicon/
+  shape is the intentional architectural split: lexicon/ owns
+  DB-side enrichment passes (wiktextract / etymonline / mining-LLM
+  output); ingesters/ owns operator-imports-CSV-or-gazetteer-data
+  paths. The split is by INTENT (who runs it: enrichment pipeline
+  vs operator manual ingest) not by I/O target. Note: future
+  wyrd-29mn shared-base extraction will land in
+  `ingesters/_csv_base.py`.
 * Pre-existing files in `wyrd/generators/kenning/` that touch the
   lexicon DB (above list). Their move is a known follow-up.
 
