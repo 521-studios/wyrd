@@ -1,0 +1,507 @@
+"""Subject + word assembly for the bundle build.
+
+Groups per-family rows from ``_gather_family`` into subjects (one
+subject = one canonical-form meaning), then assembles per-word
+language buckets by absorbing each member's evidence into per-
+language ``_BucketAccumulator`` instances.
+
+A "subject" maps to one meanings.json top-level entry; a "word"
+maps to one canonical reflex within that subject. The
+``_partition_families_by_reflex`` step demotes a family to a single
+synthesized word when its members don't carry distinct era reflexes;
+otherwise each reflex anchor produces its own word.
+
+The ``_absorb_member_*`` series is intentionally per-attribute (one
+function per JSON field — variants / inflections / attested-years /
+english-shaped / original-script / transliteration / pronunciation /
+stratum / citations) so a new bundle field plumbs through as a single
+absorb + a single ``_emit_*_list`` formatter addition.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+from wyrd.generators.kenning.lexicon.bundle._emit import (
+    _LANG_CODE_TO_JSON_FIELD,
+    _BucketAccumulator,
+    _emit_attested_years_list,
+    _emit_english_shaped_list,
+    _emit_inflection_list,
+    _emit_original_script_list,
+    _emit_pronunciation_list,
+    _emit_stratum_list,
+    _emit_transliteration_list,
+    _emit_variant_list,
+    _synthesize_modern_usage,
+)
+from wyrd.generators.kenning.lexicon.bundle._family import _better_era_reflex_source
+
+
+def _group_families_into_subjects(families: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Group families by (modifier_type, glosses, tags) into meanings.json subjects.
+
+    Each group becomes one subject. Reflexes linked to any family in the
+    group become "words"; families without any reflex contribute a synthesized
+    word using the family's canonical_form (for newly-mined etymons that
+    haven't been wired into a modern surface form yet).
+    """
+    groups: dict[tuple, list[dict[str, Any]]] = {}
+    for fam in families:
+        key = (
+            fam["modifier_type"] or "",
+            tuple(sorted(fam["glosses"])),
+            tuple(sorted(fam["tags"])),
+        )
+        groups.setdefault(key, []).append(fam)
+
+    subjects: list[dict[str, Any]] = []
+    for (mod_type, glosses_tuple, tags_tuple), fams in groups.items():
+        words = _build_words_for_group(fams)
+        if not words:
+            continue
+        subject: dict[str, Any] = {
+            "meaning": list(glosses_tuple),
+            "modifier_tags": list(tags_tuple),
+            "modifier_type": mod_type or None,
+            "words": words,
+        }
+        subjects.append(subject)
+
+    # Fully-discriminating sort key: every field that varies across subjects
+    # must be in the tuple. Otherwise ties fall back to dict insertion order,
+    # which traces back to AUTOINCREMENT root_ids and re-shuffles on rebuild.
+    subjects.sort(
+        key=lambda s: (
+            s.get("modifier_type") or "",
+            tuple(s["meaning"]),
+            tuple(s["modifier_tags"]),
+            tuple(w["modern_usage"] for w in s["words"]),
+        )
+    )
+    return subjects
+
+
+def _build_words_for_group(fams: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Assemble the `words` list for a subject grouping multiple families.
+
+    Sort families deterministically, partition into reflex-linked vs.
+    reflex-less, then dispatch each group to a focused word-builder.
+    """
+    # Sort families by canonical_form/language so the export output is
+    # deterministic — root_ids are AUTOINCREMENT and therefore unstable
+    # across DB rebuilds, which would otherwise churn the diff in version
+    # control even when no semantic content changed.
+    fams = sorted(fams, key=lambda f: (f["root_canonical_form"], f["root_language"]))
+
+    reflex_to_links, reflex_meta, families_without_reflex = _partition_families_by_reflex(fams)
+
+    words: list[dict[str, Any]] = []
+    for reflex_id in sorted(
+        reflex_to_links,
+        key=lambda rid: (reflex_meta[rid]["position"], reflex_meta[rid]["surface_form"]),
+    ):
+        words.append(_word_for_reflex(reflex_meta[reflex_id], reflex_to_links[reflex_id]))
+
+    for fam in families_without_reflex:
+        words.append(_synthesize_word_for_family(fam))
+
+    return words
+
+
+def _partition_families_by_reflex(
+    fams: list[dict[str, Any]],
+) -> tuple[
+    dict[int, list[tuple[dict[str, Any], list[int]]]],
+    dict[int, dict[str, Any]],
+    list[dict[str, Any]],
+]:
+    """Split families into reflex-linked and reflex-less groups.
+
+    Returns ``(reflex_to_links, reflex_meta, families_without_reflex)``.
+    ``reflex_to_links[reflex_id]`` is a list of ``(family, linked_member_ids)``
+    tuples so each reflex's word entry only includes language forms from
+    the etymons it's actually linked to, not from every family in the
+    subject. Per the original meanings.json shape (e.g. "Alder tree"),
+    reflexes are language-specific: '-farne' carries celtic_mix only,
+    'Alder-' carries old_english only. seed_from_meanings preserves this
+    in reflex_etymon, and the export must too.
+    """
+    reflex_to_links: dict[int, list[tuple[dict[str, Any], list[int]]]] = {}
+    reflex_meta: dict[int, dict[str, Any]] = {}
+    families_without_reflex: list[dict[str, Any]] = []
+    for fam in fams:
+        if not fam["reflexes"]:
+            families_without_reflex.append(fam)
+            continue
+        for r in fam["reflexes"]:
+            reflex_meta[r["id"]] = r
+            reflex_to_links.setdefault(r["id"], []).append((fam, r["linked_member_ids"]))
+    return reflex_to_links, reflex_meta, families_without_reflex
+
+
+@dataclass
+class _WordLanguageAccumulators:
+    """Per-language accumulators populated during family-walk emission.
+
+    Bundle of the 5 dicts that ``_word_for_reflex`` and
+    ``_synthesize_word_for_family`` independently maintain in lockstep
+    (same keys, populated by the same absorb_* helpers, drained into
+    ``_emit_word_languages`` together). Holding them in one object
+    keeps the call signature down to one positional arg per consumer
+    and makes 'add a new per-language sibling field' a one-line edit
+    (D26 pattern) rather than a 6-touch-site refactor.
+
+    wyrd-k55 (PR-review-loop deferred): consolidates what used to be
+    five separate locals declared / passed / absorbed in two parallel
+    functions.
+    """
+
+    forms_by_lang: dict[str, list[str]] = field(default_factory=dict)
+    variants: dict[str, dict[str, int]] = field(default_factory=dict)
+    inflections: dict[str, dict[str, str]] = field(default_factory=dict)
+    citations: dict[str, set[str]] = field(default_factory=dict)
+    attested_years: dict[str, dict[str, int]] = field(default_factory=dict)
+    # wyrd-vsrn Phase 2c: per-language english_shaped pool, keyed by
+    # (lang, canonical_form) → english_shaped. Sparse — only non-Latin-
+    # source-lang rows whose wyrd-ha9q derive_english_shaped produced a
+    # non-None value land here. Empty dict for Latin-script langs +
+    # rows that lacked sufficient transliteration / IPA input.
+    english_shaped: dict[str, dict[str, str]] = field(default_factory=dict)
+    # wyrd-qhs0 Phase 2d: the other three wyrd-ha9q rendering columns,
+    # all per-(lang, canonical_form). Together with english_shaped these
+    # are the four renderings the SPA's etymological-provenance panel
+    # surfaces (D31 four-rendering rule).
+    original_script: dict[str, dict[str, str]] = field(default_factory=dict)
+    transliteration: dict[str, dict[str, str]] = field(default_factory=dict)
+    # Pronunciation pairs IPA + dialect tag; the bucket value is a dict
+    # {"ipa": str, "dialect": str | None}. NULL pronunciation_dialect
+    # surfaces as a None value for "dialect".
+    pronunciation: dict[str, dict[str, dict[str, str | None]]] = field(default_factory=dict)
+    # wyrd-lr4 Phase 2: per-(lang, canonical_form) within-language
+    # stratum tag. Sparse — only languages with a Phase 1 classifier
+    # populate this (Welsh-family today). Other languages stay empty.
+    stratum: dict[str, dict[str, str]] = field(default_factory=dict)
+
+
+def _word_for_reflex(
+    meta: dict[str, Any], link_pairs: list[tuple[dict[str, Any], list[int]]]
+) -> dict[str, Any]:
+    """Assemble one word entry for a reflex linked to one or more families.
+
+    Walks each linked etymon's descendants so the reflex picks up the
+    lemma's inflected children (D8) and OCR-cluster losers (D22) —
+    not just the seeded etymon itself.
+    """
+    accs = _WordLanguageAccumulators()
+    for fam, linked_ids in link_pairs:
+        for member_id in linked_ids:
+            for descendant_id in fam["member_descendants"][member_id]:
+                lang, form = fam["member_form_by_id"][descendant_id]
+                bucket = accs.forms_by_lang.setdefault(lang, [])
+                if form not in bucket:
+                    bucket.append(form)
+                _absorb_member_variants(accs, fam, descendant_id, lang)
+                _absorb_member_inflection(accs, fam, descendant_id, lang, form)
+                _absorb_member_citations(accs, fam, descendant_id, lang)
+                _absorb_member_attested_years(accs, fam, descendant_id, lang, form)
+                _absorb_member_english_shaped(accs, fam, descendant_id, lang, form)
+                _absorb_member_original_script(accs, fam, descendant_id, lang, form)
+                _absorb_member_transliteration(accs, fam, descendant_id, lang, form)
+                _absorb_member_pronunciation(accs, fam, descendant_id, lang, form)
+                _absorb_member_stratum(accs, fam, descendant_id, lang, form)
+    word: dict[str, Any] = {"modern_usage": meta["surface_form"]}
+    _emit_word_languages(word, accs)
+    _emit_era_reflexes(word, link_pairs)
+    return word
+
+
+def _emit_era_reflexes(
+    word: dict[str, Any],
+    link_pairs: list[tuple[dict[str, Any], list[int]]],
+) -> None:
+    """wyrd-obpw Phase 3.3 + wyrd-jbcu source-aware schema: stamp the
+    family root's era_reflexes onto the word dict. Each linked family
+    contributes its root's per-target-language reflex list; multiple
+    linked families merge per target language with same-form
+    collisions resolved by source quality (higher-quality source wins).
+
+    Bundle field: ``era_reflexes`` is ``{target_language: [{form,
+    source}, ...]}`` per word. Empty / absent for words whose linked
+    families have no era data (proto-languages, untracked classical
+    families, or roots whose cluster has no English-family targets).
+    """
+    merged: dict[str, dict[str, str]] = {}
+    for fam, _linked_ids in link_pairs:
+        for target_language, entries in fam.get("era_reflexes", {}).items():
+            bucket = merged.setdefault(target_language, {})
+            for entry in entries:
+                form = entry["form"]
+                source = entry["source"]
+                existing = bucket.get(form)
+                if existing is None or _better_era_reflex_source(source, existing):
+                    bucket[form] = source
+    if merged:
+        word["era_reflexes"] = {
+            target_language: [{"form": form, "source": forms[form]} for form in sorted(forms)]
+            for target_language, forms in sorted(merged.items())
+        }
+
+
+def _synthesize_word_for_family(fam: dict[str, Any]) -> dict[str, Any]:
+    """Assemble a synthesized word for a family that has no linked reflex.
+
+    Uses the family's canonical_forms en bloc (no per-reflex narrowing
+    applies). The whole family's variants and inflections fold in by
+    matching language.
+    """
+    word: dict[str, Any] = {"modern_usage": _synthesize_modern_usage(fam)}
+    accs = _WordLanguageAccumulators(
+        forms_by_lang={lang: list(fam["forms_by_lang"][lang]) for lang in fam["forms_by_lang"]},
+    )
+    for member_id, (member_lang, member_form) in fam["member_form_by_id"].items():
+        _absorb_member_variants(accs, fam, member_id, member_lang)
+        _absorb_member_inflection(accs, fam, member_id, member_lang, member_form)
+        _absorb_member_citations(accs, fam, member_id, member_lang)
+        _absorb_member_attested_years(accs, fam, member_id, member_lang, member_form)
+        _absorb_member_english_shaped(accs, fam, member_id, member_lang, member_form)
+        _absorb_member_original_script(accs, fam, member_id, member_lang, member_form)
+        _absorb_member_transliteration(accs, fam, member_id, member_lang, member_form)
+        _absorb_member_pronunciation(accs, fam, member_id, member_lang, member_form)
+        _absorb_member_stratum(accs, fam, member_id, member_lang, member_form)
+    _emit_word_languages(word, accs)
+    # Synthesized word case: link_pairs structure isn't used here, so
+    # build a single-element link_pairs from the family directly.
+    _emit_era_reflexes(word, [(fam, list(fam["member_form_by_id"].keys()))])
+    return word
+
+
+def _absorb_member_variants(
+    accs: _WordLanguageAccumulators,
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+) -> None:
+    """Aggregate D18 spelling variants for one (member, language) into the
+    per-language pool, summing weights on collision. Caller guarantees
+    `lang` matches the member's language so callers don't accidentally
+    cross-pollinate across languages."""
+    for variant_form, weight in fam.get("member_variants", {}).get(member_id, []):
+        lang_variants = accs.variants.setdefault(lang, {})
+        lang_variants[variant_form] = lang_variants.get(variant_form, 0) + weight
+
+
+def _absorb_member_inflection(
+    accs: _WordLanguageAccumulators,
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+    form: str,
+) -> None:
+    """Record a member's D8 inflection label (if any) keyed by its surface
+    form. Lemmas have inflection=None and are skipped — only inflected
+    children carry a grammatical-case label worth surfacing."""
+    inflection = fam.get("member_inflection_by_id", {}).get(member_id)
+    if inflection:
+        accs.inflections.setdefault(lang, {})[form] = inflection
+
+
+def _absorb_member_attested_years(
+    accs: _WordLanguageAccumulators,
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+    form: str,
+) -> None:
+    """Record a member's earliest attested year (D5-1, wyrd-bag) keyed
+    by its surface form. Members with no attested year are skipped —
+    the runtime generator interprets the absence as 'no era constraint
+    applies' (treat the form as always-includable under any --era)."""
+    year = fam.get("member_attested_years", {}).get(member_id)
+    if year is not None:
+        accs.attested_years.setdefault(lang, {})[form] = year
+
+
+def _absorb_member_english_shaped(
+    accs: _WordLanguageAccumulators,
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+    form: str,
+) -> None:
+    """wyrd-vsrn Phase 2c: record a member's english_shaped rendering
+    keyed by its canonical_form. Skipped when the column is NULL or
+    empty: the runtime treats the absence as 'use canonical_form for
+    display' for that member. NULL is the documented case (Latin-script
+    source langs OR rows that lacked transliteration / IPA inputs);
+    empty-string would be an unexpected DB shape but the predicate
+    covers both for safety."""
+    shaped = fam.get("member_english_shaped_by_id", {}).get(member_id)
+    if shaped:
+        accs.english_shaped.setdefault(lang, {})[form] = shaped
+
+
+def _absorb_member_original_script(
+    accs: _WordLanguageAccumulators,
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+    form: str,
+) -> None:
+    """wyrd-qhs0 Phase 2d: record a member's vocalized native-script
+    form (Hebrew niqqud, Arabic harakat, Egyptian hieroglyphic markup)
+    keyed by canonical_form. NULL is the common case for Latin-script
+    rows; skip without absorbing."""
+    original = fam.get("member_original_script_by_id", {}).get(member_id)
+    if original:
+        accs.original_script.setdefault(lang, {})[form] = original
+
+
+def _absorb_member_transliteration(
+    accs: _WordLanguageAccumulators,
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+    form: str,
+) -> None:
+    """wyrd-qhs0 Phase 2d: record a member's academic Latin-script
+    transliteration (with diacritics — ʿifrīt, rakṣasa, kɛ́lɛḇ) keyed
+    by canonical_form."""
+    translit = fam.get("member_transliteration_by_id", {}).get(member_id)
+    if translit:
+        accs.transliteration.setdefault(lang, {})[form] = translit
+
+
+def _absorb_member_pronunciation(
+    accs: _WordLanguageAccumulators,
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+    form: str,
+) -> None:
+    """wyrd-qhs0 Phase 2d: record a member's IPA + dialect pair keyed
+    by canonical_form. The pair updates atomically (matches the upsert
+    semantics in lexicon.py.upsert_etymon's CASE expression on dialect
+    — wyrd-ha9q Phase 2a fix for IPA/dialect decoupling)."""
+    pron = fam.get("member_pronunciation_by_id", {}).get(member_id)
+    if pron:
+        ipa, dialect = pron
+        accs.pronunciation.setdefault(lang, {})[form] = {"ipa": ipa, "dialect": dialect}
+
+
+def _absorb_member_stratum(
+    accs: _WordLanguageAccumulators,
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+    form: str,
+) -> None:
+    """wyrd-lr4 Phase 2: record a member's within-language stratum tag
+    keyed by canonical_form. Skipped when stratum is NULL (the common
+    case for languages without a Phase 1 classifier — only Welsh-family
+    etymons are populated today). The runtime treats absence as 'no
+    stratum filter applies' for the consumer wired up in Phase 3."""
+    stratum = fam.get("member_stratum_by_id", {}).get(member_id)
+    if stratum:
+        accs.stratum.setdefault(lang, {})[form] = stratum
+
+
+def _absorb_member_citations(
+    accs: _WordLanguageAccumulators,
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+) -> None:
+    """Aggregate scholarly source_ids for one member into the per-language
+    citation set (wyrd-9kh.1). Set semantics dedupe across the descendant
+    walk; emit-time sorts deterministically. Caller guarantees `lang`
+    matches the member's language."""
+    citations = fam.get("member_citations", {}).get(member_id, [])
+    if citations:
+        accs.citations.setdefault(lang, set()).update(citations)
+
+
+def _emit_word_languages(word: dict[str, Any], accs: _WordLanguageAccumulators) -> None:
+    """Stamp per-language form arrays + sibling _variants /
+    _inflections / _citations / _attested_years / _english_shaped
+    metadata onto the word dict. Per D26, the metadata fields are
+    sibling keys (``<lang>_variants``, ``<lang>_inflections``,
+    ``<lang>_citations``, ``<lang>_attested_years``,
+    ``<lang>_english_shaped``) so legacy loaders that ignore unknown
+    fields keep working.
+
+    Multiple lexicon codes can route to the SAME bundle bucket via
+    `_LANG_CODE_TO_JSON_FIELD` — e.g. welsh + old-welsh + middle-welsh
+    all land in `celtic_mix`, and wyrd-vsrn's wave-2 stack collapses
+    he + hbo + sem-pro + sem-wes-pro + afa-pro into `hebrew`. We MUST
+    union (not overwrite) per bundle bucket: if the inner loop rewrote
+    `word[json_field]` on each iteration, only the last-sorted lexicon
+    code's forms would survive.
+
+    Aggregation is done per bucket via `_BucketAccumulator` so the
+    forms / variants / inflections / citations / attested_years /
+    english_shaped fields all union under the same bucket key in one
+    pass; the final emit walks buckets in stable order so output is
+    deterministic regardless of source-lang sort order.
+    """
+    buckets: dict[str, _BucketAccumulator] = {}
+    for lang in sorted(accs.forms_by_lang):
+        json_field = _LANG_CODE_TO_JSON_FIELD.get(lang)
+        if not json_field:
+            continue
+        bucket = buckets.setdefault(json_field, _BucketAccumulator())
+        for form in accs.forms_by_lang[lang]:
+            if form not in bucket.forms_set:
+                bucket.forms.append(form)
+                bucket.forms_set.add(form)
+        if lang in accs.variants:
+            for form, weight in accs.variants[lang].items():
+                bucket.variants[form] = bucket.variants.get(form, 0) + weight
+        if lang in accs.inflections:
+            bucket.inflections.update(accs.inflections[lang])
+        if lang in accs.citations:
+            bucket.citations.update(accs.citations[lang])
+        if lang in accs.attested_years:
+            for form, year in accs.attested_years[lang].items():
+                # Keep the earliest year on collision (matches the
+                # rest-of-pipeline ascending-year sort convention).
+                existing = bucket.attested_years.get(form)
+                if existing is None or year < existing:
+                    bucket.attested_years[form] = year
+        if lang in accs.english_shaped:
+            bucket.english_shaped.update(accs.english_shaped[lang])
+        if lang in accs.original_script:
+            bucket.original_script.update(accs.original_script[lang])
+        if lang in accs.transliteration:
+            bucket.transliteration.update(accs.transliteration[lang])
+        if lang in accs.pronunciation:
+            bucket.pronunciation.update(accs.pronunciation[lang])
+        if lang in accs.stratum:
+            bucket.stratum.update(accs.stratum[lang])
+
+    for json_field in sorted(buckets):
+        bucket = buckets[json_field]
+        word[json_field] = bucket.forms
+        if bucket.variants:
+            word[f"{json_field}_variants"] = _emit_variant_list(bucket.variants)
+        if bucket.inflections:
+            word[f"{json_field}_inflections"] = _emit_inflection_list(bucket.inflections)
+        if bucket.citations:
+            word[f"{json_field}_citations"] = sorted(bucket.citations)
+        if bucket.attested_years:
+            word[f"{json_field}_attested_years"] = _emit_attested_years_list(bucket.attested_years)
+        if bucket.english_shaped:
+            word[f"{json_field}_english_shaped"] = _emit_english_shaped_list(bucket.english_shaped)
+        if bucket.original_script:
+            word[f"{json_field}_original_script"] = _emit_original_script_list(
+                bucket.original_script
+            )
+        if bucket.transliteration:
+            word[f"{json_field}_transliteration"] = _emit_transliteration_list(
+                bucket.transliteration
+            )
+        if bucket.pronunciation:
+            word[f"{json_field}_pronunciation"] = _emit_pronunciation_list(bucket.pronunciation)
+        if bucket.stratum:
+            word[f"{json_field}_stratum"] = _emit_stratum_list(bucket.stratum)

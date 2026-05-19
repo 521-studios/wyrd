@@ -12864,14 +12864,17 @@ def test_seed_meaning_synsets_warns_on_unknown_hypernym(tmp_path: Path) -> None:
     with LexiconDB(db_path) as db:
         # Inject a synthetic catalog with a bad hypernym pointer by
         # patching _meaning_synsets_seed at module level — easier than
-        # writing a temp JSON file.
+        # writing a temp JSON file. seed_meaning_synsets resolves the
+        # helper from its OWN module globals (synsets.py), so the patch
+        # must target the submodule, not the lexicon-package re-export.
         import warnings
 
         from wyrd.generators.kenning import lexicon as lex
+        from wyrd.generators.kenning.lexicon import synsets as lex_synsets
 
-        original = lex._meaning_synsets_seed
+        original = lex_synsets._meaning_synsets_seed
         try:
-            lex._meaning_synsets_seed = lambda: {
+            lex_synsets._meaning_synsets_seed = lambda: {
                 "synsets": [
                     {"label": "water"},
                     {"label": "water/flowing", "hypernym": "ocean"},  # 'ocean' undefined
@@ -12881,7 +12884,7 @@ def test_seed_meaning_synsets_warns_on_unknown_hypernym(tmp_path: Path) -> None:
                 warnings.simplefilter("always")
                 lex.seed_meaning_synsets(db)
         finally:
-            lex._meaning_synsets_seed = original
+            lex_synsets._meaning_synsets_seed = original
     assert any("unknown hypernym 'ocean'" in str(w.message) for w in caught)
 
 
@@ -12892,11 +12895,12 @@ def test_seed_meaning_synsets_clears_removed_hypernym_link(tmp_path: Path) -> No
     init_schema(db_path)
     with LexiconDB(db_path) as db:
         from wyrd.generators.kenning import lexicon as lex
+        from wyrd.generators.kenning.lexicon import synsets as lex_synsets
 
-        original = lex._meaning_synsets_seed
+        original = lex_synsets._meaning_synsets_seed
         try:
             # First run: water/flowing → water hypernym
-            lex._meaning_synsets_seed = lambda: {
+            lex_synsets._meaning_synsets_seed = lambda: {
                 "synsets": [
                     {"label": "water"},
                     {"label": "water/flowing", "hypernym": "water"},
@@ -12909,7 +12913,7 @@ def test_seed_meaning_synsets_clears_removed_hypernym_link(tmp_path: Path) -> No
             ).fetchone()
             assert row["hypernym_id"] is not None
             # Second run: hypernym removed from the catalog
-            lex._meaning_synsets_seed = lambda: {
+            lex_synsets._meaning_synsets_seed = lambda: {
                 "synsets": [
                     {"label": "water"},
                     {"label": "water/flowing"},  # no hypernym key
@@ -12917,7 +12921,7 @@ def test_seed_meaning_synsets_clears_removed_hypernym_link(tmp_path: Path) -> No
             }
             lex.seed_meaning_synsets(db)
         finally:
-            lex._meaning_synsets_seed = original
+            lex_synsets._meaning_synsets_seed = original
         row = db.conn.execute(
             "SELECT hypernym_id FROM meaning_synset WHERE canonical_label = ?",
             ("water/flowing",),
