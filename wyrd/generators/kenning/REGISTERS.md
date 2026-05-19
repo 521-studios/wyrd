@@ -66,12 +66,12 @@ phoneme congruence).
 
 | Dimension | Universal mapping | Citation |
 |---|---|---|
-| `stop_vs_continuant` (+stops) | Sharp/threatening/active universally | Fort et al. 2015; Sidhu & Pexman 2024; Blasi 2016 ("bite"→/k/, "horn"→/k,r/); Whissell 2000 |
+| `stop_vs_continuant` (+stops) | Sharp/threatening/active universally | Fort et al. 2015; Sidhu & Pexman 2024; Blasi 2016 ("bite"→/k/, "horn"→/k,r/); Whissell 1999 |
 | `vowel_height` (+high) | Small/light/ethereal (high vowels = high F2/F0 = small vocalizer) | Ohala 1994 p. 335; Sidhu & Pexman 2018 review |
-| `vowel_backness` (+back) | Large/dominant (back vowels = low F2 = large vocalizer) | Ohala 1994 p. 335; Knoeferle et al. 2017 (F2 as primary acoustic correlate); Auracher et al. 2010 |
+| `vowel_backness` (+back) | Large/dominant (back vowels = low F2 = large vocalizer per Ohala's frequency code) | Ohala 1994 p. 335; Auracher et al. 2010; supported by acoustic-correlate work in Knoeferle et al. 2017 (which separately distinguishes sound-size cues from sound-shape cues at the acoustic level) |
 | `palatalization` | Small/diminutive/childish | Kochetov & Alderete 2011; Blasi 2016; Ohala 1994 p. 335 (palatal = sharp/small) |
-| `sibilance` | Active/arousing (mixed pleasant/unpleasant per phoneme: /z/ pleasant, /ʃ/ unpleasant) | Whissell 2000; Aryani et al. 2018; Sidhu & Pexman 2018 |
-| `aspirated_voiceless` (+1) | Active/sharp/explosive | Whissell 2000 ("minor explosion of breath"); Ohala 1994 voiceless > voiced for high-frequency code |
+| `sibilance` | Active/arousing (mixed pleasant/unpleasant per phoneme: /z/ pleasant, /ʃ/ unpleasant) | Whissell 1999; Aryani et al. 2018; Sidhu & Pexman 2018 |
+| `aspirated_voiceless` (+1) | Active/sharp/explosive | Whissell 1999 ("minor explosion of breath"); Ohala 1994 voiceless > voiced for high-frequency code |
 
 ### 1b. IE-conventional features
 
@@ -92,13 +92,14 @@ but should NOT be treated as perceptual primitives.
 
 These mark "foreign" or "non-English-typical" without carrying any
 documented sound-symbolic payload. Treat as register-marking
-identifiers, not perceptual primitives. Most heavily implicated in the
-`exotic` register's orientalism problem (see register grounding below).
+identifiers, not perceptual primitives. Used as the design basis of
+the `exotic` register (see §5 — identity-marking, not crossmodal-
+perception, is the intent).
 
 | Dimension | Notes |
 |---|---|
 | `retroflexion` | Unmarked in Indic languages; marked for English speakers |
-| `pharyngeal` | Unmarked in Semitic languages; marked for English speakers; Whissell 2000 hints at disgust/anger via back-of-throat articulation |
+| `pharyngeal` | Unmarked in Semitic languages; marked for English speakers; Whissell 1999 hints at disgust/anger via back-of-throat articulation |
 
 ### 1d. Internally inconsistent
 
@@ -159,8 +160,10 @@ t, p, ŋ, ɪ, ɔɪ/. Example: "shook, murder, tramp, gnaw, dying."
 
 Critical observations:
 - The Gentle inventory contains **zero plosives**.
-- The Harsh inventory contains **every voiceless stop and every voiced
-  stop** (no plosive escapes Harsh).
+- The Harsh inventory contains **every voiceless stop and most voiced
+  stops** (/p t k d g/ all rate Harsh; only /b/ is absent from both
+  the Gentle and Harsh extreme inventories — it sits closer to the
+  middle of Whissell's affective plane).
 - The /l/ vs /r/ contrast is the load-bearing sonorant split: /l/ is
   Gentle, /r/ is Harsh ("l as sweet, r as tough", 2017 p. 3).
 - Vowels do NOT split cleanly by height or backness. /iː/ (high-front
@@ -179,14 +182,27 @@ Critical observations:
    Dingemanse 2015)
 
 Blasi et al. 2016 (PNAS) is the gold standard: 6,452 word lists,
-~62% of world's languages, FDR-corrected at 5%. Five mappings
-survived as statistically robust universals:
+~62% of world's languages, FDR-corrected at 5%. The study reports
+~30+ statistically robust sound-meaning associations across 100
+basic-vocabulary concepts. The five thematic groupings below are
+the doc author's selection of the most relevant associations for
+register tuning — NOT Blasi's own taxonomy. Each grouping draws on
+multiple specific Blasi mappings + adjacent literature (bouba-kiki,
+Whissell):
 
-1. **roundness/calmness** → /r/, sonorants (/l m n/)
-2. **small/diminutive** → /i/ + palatals; -/a/, -/u/
-3. **large/heavy** → voiced obstruents /b d g/ + back vowels /u a/; -/i/
+1. **roundness/calmness** → sonorants (/l m n/) per Blasi (e.g.
+   "round"→/r/ is one of Blasi's individual robust associations);
+   sonorant-cluster roundness is reinforced by bouba-kiki (Fort
+   2015). NOTE: /r/ appears in Blasi's "round" mapping for the
+   lexical-statistical association but is rated firmly Harsh by
+   Whissell at the affective level — these are different layers
+   (see §3 caveats below).
+2. **small/diminutive** → /i/ + palatals; -/a/, -/u/ (Blasi).
+3. **large/heavy** → voiced obstruents /b d g/ + back vowels /u a/;
+   -/i/ (Blasi; corroborated by Ohala 1994 frequency code).
 4. **sharpness/threat** → voiceless stops /k t/; -sonorants
-5. **nasal/breath** → /n/, /m/
+   (Blasi + bouba-kiki literature).
+5. **nasal/breath** → /n/, /m/ (Blasi).
 
 **Bouba-kiki replication** (Ćwiek et al. 2022, *Phil. Trans. B*): 25
 languages, 917 speakers, 6 writing systems → 72% congruence overall,
@@ -201,9 +217,22 @@ overshoots and the sound-symbolic effect dies.
 - /gl-/ "light/shine" (glimmer, glow, glisten) — Proto-Indo-European
   *ghel-, NOT universal.
 - /fl-/ "flow", /sn-/ "nose/contempt", /sl-/ "slimy" — English-specific.
-- Sapir's /i/-small vs /a/-big lexically — failed Blasi 2016's
-  basic-vocabulary screen. The size mapping is real *perceptually* but
-  not encoded in word inventories worldwide.
+
+Reconciling perceptual vs lexicalized findings on vowel size: Sapir's
+classic /i/-small vs /a/-big effect is a perceptual robust universal
+(replicated as a crossmodal mapping in dozens of studies), AND it
+appears in Blasi 2016's individual robust associations for some
+concepts (e.g. SMALL→/i/), but does NOT appear in Blasi's basic-
+vocabulary screen for the concept "big/large" itself — the size
+mapping is real perceptually but not consistently encoded in word
+inventories worldwide for that specific concept. This is the
+perceptual-vs-lexicalized distinction that runs throughout this doc:
+Ohala 1994's frequency code is the perceptual primitive (universal);
+Whissell's English-corpus ratings are the lexicalized affective
+overlay (English-specific and non-monotonic in vowel height per the
+caveats in §3); Blasi's basic-vocabulary findings are a separate
+slice that asks "do languages tend to encode this mapping in their
+WORDS." Different layers, different load-bearing claims.
 
 ---
 
@@ -211,7 +240,7 @@ overshoots and the sound-symbolic effect dies.
 
 Each register below documents:
 - **Verdict** (UNIVERSAL / MIXED / IE-CONVENTIONAL / NO LITERATURE BACKING /
-  ORIENTALISM CONCERN)
+  IDENTITY-MARKING)
 - **Citations** supporting (or failing to support) each non-trivial weight
 - **v1 weights** (current catalog state as of wyrd-kq7w.2)
 - **v1.1 proposed adjustments** with rationale
@@ -249,8 +278,9 @@ voiceless stops) wrapped in IE-conventional cluster features.
   underlying stop-vs-continuant effect, not a separate primitive.
 - `final_cluster_rate: 0.5` — Same as cluster_density.
 - `vowel_final_bias: -0.4` — UNIVERSAL. Open-syllable endings load
-  Gentle; closed endings load Harsh (Whissell 2000).
-- `soft_consonants: -0.5` — UNIVERSAL. Sonorants /l m n/ are firmly
+  Gentle; closed endings load Harsh (Whissell 1999).
+- `soft_consonants: -0.5` — UNIVERSAL FOR /l m n/ (with the dimension-
+  internal /r/-inconsistency caveat noted in §1d). Sonorants /l m n/ are firmly
   Gentle (Whissell). Keep but flag the /r/ inconsistency.
 - `stop_vs_continuant: 0.4` — UNIVERSAL. **Under-weighted at v1.**
   Whissell rates every plosive as Harsh; Fort et al. 2015 + Sidhu &
@@ -258,10 +288,10 @@ voiceless stops) wrapped in IE-conventional cluster features.
   predictor. v1.1: bump to 0.6.
 
 **v1 → v1.1 adjustments:**
-- `stop_vs_continuant: 0.4 → 0.6` (Whissell 2000; Fort 2015)
-- Add `aspirated_voiceless: 0.4` (Whissell 2000: voiceless stops most-
+- `stop_vs_continuant: 0.4 → 0.6` (Whissell 1999; Fort 2015)
+- Add `aspirated_voiceless: 0.4` (Whissell 1999: voiceless stops most-
   active phonemes; "minor explosion of breath")
-- Add `vowel_backness: -0.2` (Knoeferle 2017: F2-driven sharpness)
+- Add `vowel_backness: -0.2` (Ohala 1994 frequency code: front vowels for spiky/small; supported by Knoeferle 2017 acoustic-correlate work distinguishing size from shape cues)
 - Add `vowel_height: 0.2` (Ohala 1994: high front for "small/sharp"
   signal in Harsh's spiky register)
 
@@ -282,10 +312,12 @@ voiceless stops) wrapped in IE-conventional cluster features.
   cultural overlay; no phonological claim.
 
 **v1 → v1.1 adjustments:**
-- Add `stop_vs_continuant: -0.3` (Whissell 2000; the load-bearing
+- Add `stop_vs_continuant: -0.3` (Whissell 1999; the load-bearing
   dimension was missing).
 - Add `vowel_backness: 0.2` (back-rounded vowels for round-shape
-  pastoral via bouba-kiki + Knoeferle 2017 F2-roundness).
+  pastoral via Ohala 1994 + bouba-kiki literature; back-rounded
+  vowels for round-shape pastoral, distinct from the size-dominance
+  reading that motivates noble's +vowel_backness).
 
 ### devotional
 
@@ -328,7 +360,13 @@ inheritance).
 
 ### noble
 
-**Verdict:** IE-CONVENTIONAL with mis-applied frequency-code reasoning.
+**Verdict:** MIXED — IE-conventional Latinate-prestige weights (`polysyllabic_bias`,
+`vowel_final_bias`) combined with universal frequency-code dimensions
+(`vowel_height`, `vowel_backness`) added in v1.1. v1 was IE-conventional-
+only; the v1.1 additions ground the size-dominance signal. Note: the
+register intentionally serves both "refinement/politeness" (Whissell
+Gentle) and "dominance/authority" (Ohala frequency code) readings; an
+operator can compose with another register if they want only one half.
 
 **Citations:**
 - `polysyllabic_bias: 0.5` — Latinate prestige convention. Not
@@ -403,7 +441,7 @@ vowel signals.
   pleasant (/iː/) and Cheery.
 
 **v1 → v1.1 adjustments:**
-- Add `stop_vs_continuant: -0.4` (Whissell 2000; the load-bearing
+- Add `stop_vs_continuant: -0.4` (Whissell 1999; the load-bearing
   dimension was missing; melodic should max-suppress stops to maximize
   Gentle inventory).
 - Add `vowel_backness: -0.2` (front vowels = Whissell-pleasant).
@@ -438,7 +476,13 @@ toward "creepy hissing" not "menacing dread."
 
 ### ancient
 
-**Verdict:** NO LITERATURE BACKING — pure genre convention.
+**Verdict:** IE-CONVENTIONAL — no phonosymbolic literature backs
+"perception of age" as a phonological signal, but the v1 weights
+themselves (polysyllabic + vowel-final + pharyngeal) ARE
+conventionally-coded as archaic in English-speaker register
+perception (Latinate-archaism + Semitic/pre-IE-substrate cues). The
+distinction from other IE-conventional registers is that ancient
+has NO universal-primitive layer — every weight is convention.
 
 **Citations:**
 - No frequency-code or sound-symbolism literature speaks to
@@ -500,12 +544,12 @@ toward "creepy hissing" not "menacing dread."
   active phonemes are all stops, so word-final stops do concentrate
   activation.
 - `cluster_density: 0.3` — IE-conventional.
-- `stop_vs_continuant: 0.4` — UNIVERSAL. Whissell 2000; Auracher
+- `stop_vs_continuant: 0.4` — UNIVERSAL. Whissell 1999; Auracher
   2010 (plosives = dominant/active).
 - Semantic tags (military, monster) — cultural.
 
 **v1 → v1.1 adjustments:**
-- Add `aspirated_voiceless: 0.3` (Whissell 2000: voiceless stops are
+- Add `aspirated_voiceless: 0.3` (Whissell 1999: voiceless stops are
   most-active; reinforces martial's active-dominant feel).
 - Add `vowel_backness: 0.2` (Ohala 1994: back vowels for dominant
   authority; martial = disciplined-authoritative).
@@ -516,20 +560,41 @@ toward "creepy hissing" not "menacing dread."
 
 These are out of scope for wyrd-2166 but surfaced repeatedly:
 
-1. **Split `soft_consonants` dimension.** Whissell 2000 + Fort 2015
-   consistently rate /l m n/ as Gentle but /r/ as Harsh. Lumping them
-   makes /r/-heavy lemmas score "soft" when they read harsh. Schema
-   change: split into `liquid_l_m_n` and `rhotic_r` (or finer-grained
-   place-of-articulation features). Requires coordinating with
-   wyrd-kq7w.1 corpus enrichment pass.
+Tickets filed as part of this PR (see also the PR description's
+follow-up list):
 
-2. **Tense vs lax vowel distinction.** Whissell's vowel ratings are
-   non-monotonic in height: /iː/ Gentle, /ɪ/ Harsh; /ɔ/ Gentle, /uː/
-   Harsh. The 14 v1 dimensions don't capture tense/lax. Schema change:
-   add `vowel_tenseness` dimension or split existing vowel features
-   by tenseness.
+1. **Split `soft_consonants` dimension** (`wyrd-7zhd`). Whissell 1999
+   + Fort 2015 consistently rate /l m n/ as Gentle but /r/ as Harsh.
+   Lumping them makes /r/-heavy lemmas score "soft" when they read
+   harsh. Schema change: split into `liquid_l_m_n` and `rhotic_r` (or
+   finer-grained place-of-articulation features). Requires
+   coordinating with wyrd-kq7w.1 corpus enrichment pass.
 
-3. **Optional: split `exotic` into concrete identity-marker registers**
+2. **Tense vs lax vowel distinction** (`wyrd-mkry`). Whissell's vowel
+   ratings are non-monotonic in height: /iː/ Gentle, /ɪ/ Harsh; /ɔ/
+   Gentle, /uː/ Harsh. The 14 v1 dimensions don't capture tense/lax.
+   Schema change: add `vowel_tenseness` dimension or split existing
+   vowel features by tenseness.
+
+3. **Split `mystical` into `mystical-ethereal` vs `mystical-eerie`**
+   (`wyrd-j3vs`). v1 conflates two readings — pleasant-active
+   (Cheery, elvish) and active-unpleasant (sibilant, hissing).
+   Different operators want different things; one register can't
+   serve both.
+
+4. **Split `sinister` into `sinister-eerie` vs `sinister-dread`**
+   (`wyrd-fuab`). Same conflation: sibilance-driven creepy vs low-
+   back-vowel + voiced-obstruent menacing dread. Uno 2022 finds these
+   are distinct in actual villain naming.
+
+5. **Tag register-effect weights with universal vs IE-conventional
+   metadata** (`wyrd-we1u`). Currently the taxonomy is comment-only;
+   programmatic encoding helps non-IE forks audit which weights are
+   perceptual primitives vs Western literary conventions.
+
+Tickets identified during this research pass but not yet filed:
+
+6. **Optional: split `exotic` into concrete identity-marker registers**
    (`palatalized`, `pharyngeal`, `retroflex`) so operators can pick a
    specific phonological color instead of a generic non-English mix.
    The current `exotic` register works fine for "non-default
@@ -537,28 +602,13 @@ These are out of scope for wyrd-2166 but surfaced repeatedly:
    start asking for finer-grained control. Not a defect, just a
    potential ergonomic refinement.
 
-4. **Split `mystical` into `mystical-ethereal` vs `mystical-eerie`.**
-   v1 conflates two readings — pleasant-active (Cheery, elvish) and
-   active-unpleasant (sibilant, hissing). Different operators want
-   different things; one register can't serve both.
-
-5. **Split `sinister` into `sinister-eerie` vs `sinister-dread`.**
-   Same conflation: sibilance-driven creepy vs low-back-vowel +
-   voiced-obstruent menacing dread. Uno 2022 finds these are distinct
-   in actual villain naming.
-
-6. **Add `liturgical` register alongside `devotional`.** Per ticket
+7. **Add `liturgical` register alongside `devotional`.** Per ticket
    notes: devotional vs liturgical (open-syllable + Latin-shaped
    polysyllables) may want to be separate registers.
 
-7. **Add `monumental` register.** Per ticket notes: extra-long
+8. **Add `monumental` register.** Per ticket notes: extra-long
    syllables + low-formant vowels for "epic-scale" naming distinct
    from `noble` (refined-dignified).
-
-8. **Tag each weight with `universal` vs `IE-conventional`
-   metadata.** Allows future forks (non-IE fantasy settings) to know
-   which weights are perceptual primitives vs Western literary
-   conventions.
 
 9. **Calibrate semantic_tags weights.** Current values in [0.2, 0.8]
    are intuition; an empirical pass would look at meaning-DB tag

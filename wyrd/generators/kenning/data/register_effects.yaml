@@ -43,7 +43,7 @@
 #
 # Citation key: UNIVERSAL = cross-linguistic sound-symbolic primitive
 # with experimental + cross-cultural replication (Blasi 2016, Ćwiek
-# 2022, Fort 2015, Whissell 2000, Ohala 1994). IE-CONVENTIONAL =
+# 2022, Fort 2015, Whissell 1999, Ohala 1994). IE-CONVENTIONAL =
 # operator-side perception by English-speaking users without cross-
 # cultural backing (cluster_density, polysyllabic_bias, final_fortition
 # as "harsh/grand" — Mooshammer 2024 documents English perception).
@@ -85,16 +85,16 @@ harsh:
   #   suppressors (Whissell Gentle inventory).
   # - vowel_backness / vowel_height: UNIVERSAL (Ohala 1994 frequency
   #   code: high-front vowels for "small/sharp" signal; Knoeferle
-  #   2017 F2 as primary acoustic correlate).
+  #   2017 acoustic-correlate work supports the directionality).
   phonological:
     cluster_density: 0.6
     final_fortition: 0.5
     final_cluster_rate: 0.5
     vowel_final_bias: -0.4
     soft_consonants: -0.5
-    stop_vs_continuant: 0.6      # v1: 0.4 → v1.1: 0.6 — bumped per Whissell 2000 (every plosive in Harsh) + Fort 2015 (manner = strongest single bouba-kiki predictor)
-    aspirated_voiceless: 0.4     # v1.1: added — Whissell 2000 "minor explosion of breath"; voiceless stops are her most-active phonemes
-    vowel_backness: -0.2         # v1.1: added — Knoeferle 2017 F2-driven sharpness (front vowels for spiky)
+    stop_vs_continuant: 0.6      # v1: 0.4 → v1.1: 0.6 — bumped per Whissell 1999 (every plosive in Harsh) + Fort 2015 (manner = strongest single bouba-kiki predictor)
+    aspirated_voiceless: 0.4     # v1.1: added — Whissell 1999 "minor explosion of breath"; voiceless stops are her most-active phonemes
+    vowel_backness: -0.2         # v1.1: added — Ohala 1994 frequency code (front vowels for spiky/small in the Harsh register); acoustic-correlate work in Knoeferle 2017 supports this directionality
     vowel_height: 0.2            # v1.1: added — Ohala 1994 p. 335 high-front vowels for "small/sharp" in the spiky register
   semantic_tags: {}
   position_bias: {}
@@ -118,8 +118,8 @@ pastoral:
     vowel_final_bias: 0.3
     soft_consonants: 0.4
     cluster_density: -0.3
-    stop_vs_continuant: -0.3     # v1.1: added — Whissell 2000 continuants/sonorants dominate Gentle; the load-bearing dimension was missing
-    vowel_backness: 0.2          # v1.1: added — Knoeferle 2017 F2-roundness; back-rounded vowels for round-shape pastoral
+    stop_vs_continuant: -0.3     # v1.1: added — Whissell 1999 continuants/sonorants dominate Gentle; the load-bearing dimension was missing
+    vowel_backness: 0.2          # v1.1: added — back-rounded vowels for round-shape pastoral (Ohala 1994 + bouba-kiki literature; distinct from the size-dominance reading that motivates noble's +vowel_backness)
   semantic_tags:
     plant: 0.5
     animal: 0.4
@@ -144,7 +144,7 @@ devotional:
     polysyllabic_bias: 0.3
     soft_consonants: 0.2
     vowel_final_bias: 0.2        # v1.1: added — open syllables for Latin/Romance feel + Whissell Gentle vowel-heavy inventory
-    stop_vs_continuant: -0.2     # v1.1: added — Whissell 2000 continuants dominate Gentle; reinforces the soft cluster
+    stop_vs_continuant: -0.2     # v1.1: added — Whissell 1999 continuants dominate Gentle; reinforces the soft cluster
   semantic_tags:
     saint: 0.7
     religious: 0.6
@@ -183,7 +183,7 @@ noble:
     vowel_final_bias: 0.4
     vowel_height: -0.3           # v1.1: added — Ohala 1994 p. 335 low vowels signal large/authoritative (frequency code)
     vowel_backness: 0.3          # v1.1: added — Ohala 1994: back vowels = low F2 = large/dominant; Auracher 2010 back-vowels→dominance
-    stop_vs_continuant: -0.2     # v1.1: added — Whissell 2000 continuants pattern with Gentle/dignified
+    stop_vs_continuant: -0.2     # v1.1: added — Whissell 1999 continuants pattern with Gentle/dignified
   semantic_tags: {}
   position_bias: {}
 
@@ -223,7 +223,7 @@ melodic:
   #
   # v1.1 grounding: UNIVERSAL — alongside pastoral, the best-grounded
   # register in the catalog. Sonorant-heavy + open-syllable + high-
-  # front vowel is "maximum-Gentle" by Whissell 2000 (her Gentle
+  # front vowel is "maximum-Gentle" by Whissell 1999 (her Gentle
   # inventory is ~50% vowels with zero plosives). polysyllabic_bias
   # is IE-CONVENTIONAL.
   phonological:
@@ -231,7 +231,7 @@ melodic:
     polysyllabic_bias: 0.4
     soft_consonants: 0.3
     vowel_height: 0.2
-    stop_vs_continuant: -0.4     # v1.1: added — Whissell 2000 max-Gentle = zero plosives; the load-bearing dimension was missing
+    stop_vs_continuant: -0.4     # v1.1: added — Whissell 1999 max-Gentle = zero plosives; the load-bearing dimension was missing
     vowel_backness: -0.2         # v1.1: added — front vowels = Whissell-pleasant (/iː ɛ/ both in Gentle inventory)
   semantic_tags: {}
   position_bias: {}
@@ -325,7 +325,7 @@ martial:
   # disciplined "soldier" feel than the chaotic-harsh register.
   #
   # v1.1 grounding: MIXED. stop_vs_continuant + aspirated_voiceless
-  # are UNIVERSAL (Whissell 2000 most-active phonemes are all stops;
+  # are UNIVERSAL (Whissell 1999 most-active phonemes are all stops;
   # Auracher 2010 plosives = dominant/active). cluster_density +
   # final_fortition are IE-CONVENTIONAL (Germanic stereotype). v1
   # was missing aspirated_voiceless directly, and the vowel-side
@@ -335,7 +335,7 @@ martial:
     final_fortition: 0.4
     cluster_density: 0.3
     stop_vs_continuant: 0.4
-    aspirated_voiceless: 0.3     # v1.1: added — Whissell 2000 voiceless stops are most-active; reinforces martial's active-dominant feel
+    aspirated_voiceless: 0.3     # v1.1: added — Whissell 1999 voiceless stops are most-active; reinforces martial's active-dominant feel
     vowel_backness: 0.2          # v1.1: added — Ohala 1994 back vowels for dominant authority; martial = disciplined-authoritative
   semantic_tags:
     military: 0.7

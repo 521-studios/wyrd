@@ -543,3 +543,63 @@ def test_bundled_catalog_exotic_uses_back_vowels():
         "exotic.vowel_backness must be positive to match the catalog "
         "comment claim that exotic biases toward back vowels"
     )
+
+
+def test_bundled_catalog_noble_grand_authoritative_signs():
+    """noble's v1.1 vowel additions ground the Ohala 1994 frequency-
+    code size-dominance signal: low-back vowels = large vocalizer =
+    authoritative. Pinning the signs (vowel_height NEGATIVE for low,
+    vowel_backness POSITIVE for back) prevents a silent flip turning
+    noble into "small/ethereal" — which is mystical's territory."""
+    catalog = _load_bundled_cached.__wrapped__()
+    noble = catalog["noble"]
+    assert noble.phonological.get("vowel_height", 0) < 0, (
+        "noble.vowel_height must be negative to ground the Ohala "
+        "frequency-code 'large vocalizer' signal (low vowels). See "
+        "REGISTERS.md §5 noble."
+    )
+    assert noble.phonological.get("vowel_backness", 0) > 0, (
+        "noble.vowel_backness must be positive to ground the Ohala "
+        "frequency-code 'large vocalizer' signal (back vowels)."
+    )
+
+
+def test_bundled_catalog_mystical_small_ethereal_signs():
+    """mystical's v1.1 vowel additions ground the Ohala 1994
+    frequency-code size signal in the opposite direction from noble:
+    high-front vowels = small vocalizer = ethereal/light. Pinning
+    the signs (vowel_height POSITIVE for high, vowel_backness NEGATIVE
+    for front) prevents a silent flip turning mystical into the
+    grand/authoritative noble register."""
+    catalog = _load_bundled_cached.__wrapped__()
+    mystical = catalog["mystical"]
+    assert mystical.phonological.get("vowel_height", 0) > 0, (
+        "mystical.vowel_height must be positive to ground the Ohala "
+        "frequency-code 'small/ethereal' signal (high vowels). See "
+        "REGISTERS.md §5 mystical."
+    )
+    assert mystical.phonological.get("vowel_backness", 0) < 0, (
+        "mystical.vowel_backness must be negative to ground the "
+        "Ohala frequency-code 'small/ethereal' signal (front vowels)."
+    )
+
+
+def test_bundled_catalog_sinister_menacing_signs():
+    """sinister's v1.1 vowel additions ground the Ohala 1994
+    frequency-code dominance signal — same direction as noble
+    (low-back = large) but in service of "menacing dread" rather than
+    "authoritative grandeur" (Grawunder & Winter 2021 meta-analysis:
+    dominance/threat = LOW acoustic frequency). Pinning the signs
+    prevents a silent flip turning sinister into the small/sharp
+    direction, which would be mystical-eerie territory."""
+    catalog = _load_bundled_cached.__wrapped__()
+    sinister = catalog["sinister"]
+    assert sinister.phonological.get("vowel_height", 0) < 0, (
+        "sinister.vowel_height must be negative to ground the Ohala "
+        "frequency-code 'large/dominant' signal (low vowels) for "
+        "menacing dread. See REGISTERS.md §5 sinister."
+    )
+    assert sinister.phonological.get("vowel_backness", 0) > 0, (
+        "sinister.vowel_backness must be positive to ground the "
+        "Ohala frequency-code 'large/dominant' signal (back vowels)."
+    )
