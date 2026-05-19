@@ -4373,13 +4373,21 @@ def test_kenning_rewind_generator_renders_three_era_stops() -> None:
         }
     ]
     fake_db, fake_tags = load_meanings(fixture_data)
+    # wyrd-o9qi: KenningRewind moved to wyrd.generators.kenning.generators.kenning_rewind
+    # which imports _load_meanings into its own namespace. Patch BOTH the shim and the
+    # consumer module so the method body's local-bound reference picks up the fake.
+    from wyrd.generators.kenning.generators import kenning_rewind as _kenning_rewind_mod
+
     original = kenning_mod._load_meanings
+    original_rewind = _kenning_rewind_mod._load_meanings
     kenning_mod._load_meanings = lambda: (fake_db, fake_tags)
+    _kenning_rewind_mod._load_meanings = lambda: (fake_db, fake_tags)
     try:
         gen = KenningRewind()
         results = gen.generate_all({"name": "ham"}, 0)
     finally:
         kenning_mod._load_meanings = original
+        _kenning_rewind_mod._load_meanings = original_rewind
 
     assert len(results) == 3
     cells = [r.components[0]["era"] for r in results]
@@ -4585,13 +4593,21 @@ def test_kenning_rewind_components_carry_respelling() -> None:
         }
     ]
     fake_db, fake_tags = load_meanings(fixture_data)
+    # wyrd-o9qi: KenningRewind moved to wyrd.generators.kenning.generators.kenning_rewind
+    # which imports _load_meanings into its own namespace. Patch BOTH the shim and the
+    # consumer module so the method body's local-bound reference picks up the fake.
+    from wyrd.generators.kenning.generators import kenning_rewind as _kenning_rewind_mod
+
     original = kenning_mod._load_meanings
+    original_rewind = _kenning_rewind_mod._load_meanings
     kenning_mod._load_meanings = lambda: (fake_db, fake_tags)
+    _kenning_rewind_mod._load_meanings = lambda: (fake_db, fake_tags)
     try:
         gen = KenningRewind()
         results = gen.generate_all({"name": "ham"}, 0)
     finally:
         kenning_mod._load_meanings = original
+        _kenning_rewind_mod._load_meanings = original_rewind
 
     by_cell = {r.components[0]["era"]: r.components[0] for r in results}
     # OE: target language has a respeller, so morphemes carry one.
