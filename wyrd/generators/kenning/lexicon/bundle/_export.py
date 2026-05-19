@@ -9,7 +9,7 @@ orphan-reflex subjects via ``_emit._orphan_reflex_subjects``.
 ``RECOMMENDED_LANG_THRESHOLDS`` is the curated minimum-witness
 threshold per language tag — looser for thinly-attested languages
 (OE) and tighter for densely-attested ones. Exposed via the
-package re-export shim for ``language_quality.py``'s own
+package re-export shim for ``language_quality``'s own
 quality-tier gating.
 
 ``_select_promoted_root_ids`` is the witness-count + tag-quality

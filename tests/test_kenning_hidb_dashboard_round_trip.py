@@ -264,7 +264,7 @@ def _format_dashboard_drift(
 
     # Pair languages by their ``language`` field. Currently a LanguageQualityReport
     # has exactly one scorecard per language (per compute_report's loop in
-    # language_quality.py). The .get-from-list-comprehension below silently
+    # language_quality). The .get-from-list-comprehension below silently
     # collapses duplicates if that invariant ever breaks — guard against
     # the silent data loss with an explicit check so a future schema
     # change fails loudly here instead of producing a misleading drift
