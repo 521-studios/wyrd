@@ -19,7 +19,7 @@ from typing import Any
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
-from wyrd.generators.kenning.toponym_mention_extractor import (
+from wyrd.generators.kenning.extractors.toponym_mentions import (
     FailedChunk,
     MineToponymMentionsReport,
     chunk_source_body,
@@ -400,14 +400,14 @@ def test_tiered_log_warning_emits_per_failure():
 
 
 def _stub_anthropic_for_cli(monkeypatch, fake_client: FakeClient) -> None:
-    import wyrd.generators.kenning.anthropic_extractor as ae_module
+    import wyrd.generators.kenning.extractors.anthropic as ae_module
 
     monkeypatch.setattr(ae_module, "AnthropicClient", lambda **kw: fake_client)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-used")
 
 
 def _stub_ollama_for_cli(monkeypatch, fake_client: FakeClient) -> None:
-    import wyrd.generators.kenning.llm_extractor as llm_module
+    import wyrd.generators.kenning.extractors.llm as llm_module
 
     monkeypatch.setattr(llm_module, "OllamaClient", lambda **kw: fake_client)
 
@@ -1078,11 +1078,11 @@ def test_cli_primary_model_flows_to_client_factory(tmp_path, monkeypatch):
         captured.append(kw)
         return fake
 
-    import wyrd.generators.kenning.llm_extractor as llm_module
+    import wyrd.generators.kenning.extractors.llm as llm_module
 
     monkeypatch.setattr(llm_module, "OllamaClient", recording_factory)
     monkeypatch.setattr(
-        "wyrd.generators.kenning.anthropic_extractor.AnthropicClient",
+        "wyrd.generators.kenning.extractors.anthropic.AnthropicClient",
         lambda **kw: FakeClient([]),
     )
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
@@ -1120,11 +1120,11 @@ def test_cli_fallback_model_flows_to_client_factory(tmp_path, monkeypatch):
         captured.append(kw)
         return fake
 
-    import wyrd.generators.kenning.anthropic_extractor as ae_module
+    import wyrd.generators.kenning.extractors.anthropic as ae_module
 
     monkeypatch.setattr(ae_module, "AnthropicClient", recording_factory)
     monkeypatch.setattr(
-        "wyrd.generators.kenning.llm_extractor.OllamaClient",
+        "wyrd.generators.kenning.extractors.llm.OllamaClient",
         lambda **kw: FakeClient([{"mentions": []}]),
     )
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
@@ -1234,11 +1234,11 @@ def test_cli_gemini_primary_provider_routes_to_gemini_client(tmp_path, monkeypat
     (sources_dir / "src_a.txt").write_text("Edlingham.", encoding="utf-8")
 
     gemini_fake = FakeClient([{"mentions": []}])
-    import wyrd.generators.kenning.gemini_extractor as gemini_module
+    import wyrd.generators.kenning.extractors.gemini as gemini_module
 
     monkeypatch.setattr(gemini_module, "GeminiClient", lambda **kw: gemini_fake)
     monkeypatch.setattr(
-        "wyrd.generators.kenning.anthropic_extractor.AnthropicClient",
+        "wyrd.generators.kenning.extractors.anthropic.AnthropicClient",
         lambda **kw: FakeClient([]),
     )
     monkeypatch.setenv("GEMINI_API_KEY", "test")
@@ -1287,9 +1287,9 @@ def test_cli_skip_existing_defers_client_construction(tmp_path, monkeypatch):
         anthropic_built["n"] += 1
         return FakeClient([])
 
-    monkeypatch.setattr("wyrd.generators.kenning.llm_extractor.OllamaClient", ollama_factory)
+    monkeypatch.setattr("wyrd.generators.kenning.extractors.llm.OllamaClient", ollama_factory)
     monkeypatch.setattr(
-        "wyrd.generators.kenning.anthropic_extractor.AnthropicClient",
+        "wyrd.generators.kenning.extractors.anthropic.AnthropicClient",
         anthropic_factory,
     )
 
@@ -1332,7 +1332,7 @@ def test_tiered_propagates_non_runtime_exception_to_fallback():
         ]
     )
     body = "A" * 7995 + " Edlin"
-    from wyrd.generators.kenning.toponym_mention_extractor import (
+    from wyrd.generators.kenning.extractors.toponym_mentions import (
         mine_toponym_mentions_tiered,
     )
 
@@ -1370,7 +1370,7 @@ def test_tiered_propagates_unknown_dialect_value_error_does_not_mask_via_fallbac
     body = "A" * 7995 + " Edlin"
     import pytest
 
-    from wyrd.generators.kenning.toponym_mention_extractor import (
+    from wyrd.generators.kenning.extractors.toponym_mentions import (
         mine_toponym_mentions_tiered,
     )
 
@@ -1387,7 +1387,7 @@ def test_tiered_both_tiers_non_runtime_exception_failed_chunk_recorded():
     primary = FakeClient([TimeoutError("primary timeout")])
     fallback = FakeClient([OSError("disk full")])
     body = "A" * 7995 + " Edlin"
-    from wyrd.generators.kenning.toponym_mention_extractor import (
+    from wyrd.generators.kenning.extractors.toponym_mentions import (
         mine_toponym_mentions_tiered,
     )
 
@@ -1416,11 +1416,11 @@ def test_cli_ollama_url_flows_to_ollama_client(tmp_path, monkeypatch):
         captured.append(kw)
         return fake
 
-    import wyrd.generators.kenning.llm_extractor as llm_module
+    import wyrd.generators.kenning.extractors.llm as llm_module
 
     monkeypatch.setattr(llm_module, "OllamaClient", recording_factory)
     monkeypatch.setattr(
-        "wyrd.generators.kenning.anthropic_extractor.AnthropicClient",
+        "wyrd.generators.kenning.extractors.anthropic.AnthropicClient",
         lambda **kw: FakeClient([]),
     )
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
@@ -1461,7 +1461,7 @@ def test_tiered_reraises_programmer_errors_from_primary():
             raise AttributeError("missing method (simulated programmer bug)")
 
     body = "A" * 7995 + " Edlin"
-    from wyrd.generators.kenning.toponym_mention_extractor import (
+    from wyrd.generators.kenning.extractors.toponym_mentions import (
         mine_toponym_mentions_tiered,
     )
 
@@ -1491,7 +1491,7 @@ def test_tiered_reraises_programmer_errors_from_fallback():
 
     primary = FakeClient([RuntimeError("primary transport fail")])
     body = "A" * 7995 + " Edlin"
-    from wyrd.generators.kenning.toponym_mention_extractor import (
+    from wyrd.generators.kenning.extractors.toponym_mentions import (
         mine_toponym_mentions_tiered,
     )
 
@@ -1517,7 +1517,7 @@ def test_single_tier_reraises_programmer_errors():
             raise NameError("undefined variable (simulated programmer bug)")
 
     body = "A" * 7995 + " Edlin"
-    from wyrd.generators.kenning.toponym_mention_extractor import (
+    from wyrd.generators.kenning.extractors.toponym_mentions import (
         mine_toponym_mentions,
     )
 
@@ -2362,7 +2362,7 @@ def test_run_hallucination_rescue_failure_path_returns_fresh_list():
     — not a current bug (caller only `.extend()`s the result) but
     a latent hazard the R5 fix was specifically meant to prevent.
     Until now this contract had no test."""
-    from wyrd.generators.kenning.toponym_mention_extractor import (
+    from wyrd.generators.kenning.extractors.toponym_mentions import (
         ToponymMention,
         ValidationCounters,
         _run_hallucination_rescue,
@@ -2610,7 +2610,7 @@ def test_cli_summary_reports_silent_empty_fallback_as_gap(tmp_path, monkeypatch)
         ]
     )
     _stub_ollama_for_cli(monkeypatch, primary)
-    import wyrd.generators.kenning.anthropic_extractor as ae_module
+    import wyrd.generators.kenning.extractors.anthropic as ae_module
 
     monkeypatch.setattr(ae_module, "AnthropicClient", lambda **kw: _SilentEmptyFallback())
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-used")
@@ -2788,7 +2788,7 @@ def test_cli_summary_reports_broken_fallback_as_gap(tmp_path, monkeypatch):
     _stub_ollama_for_cli(monkeypatch, primary)
     # Plug a failing fallback in by monkeypatching AnthropicClient
     # construction to return the failing stub.
-    import wyrd.generators.kenning.anthropic_extractor as ae_module
+    import wyrd.generators.kenning.extractors.anthropic as ae_module
 
     monkeypatch.setattr(ae_module, "AnthropicClient", lambda **kw: _FailingFallback())
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-used")

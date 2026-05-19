@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 import pytest
 
-from wyrd.generators.kenning.llm_extractor import (
+from wyrd.generators.kenning.extractors.llm import (
     RESPONSE_SCHEMA,
     SOURCE_QUOTE_BUDGET,
     SYSTEM_PROMPT,
@@ -574,7 +574,7 @@ def test_transport_error_result_packs_failure_into_llmresult():
     transport_error failure carrying the message — uniform shape across
     Ollama/Gemini/Anthropic providers so the mining loop can count it as
     a 'rejected' regardless of which client raised."""
-    from wyrd.generators.kenning.llm_extractor import transport_error_result
+    from wyrd.generators.kenning.extractors.llm import transport_error_result
 
     result = transport_error_result("HTTP 503 Service Unavailable")
     assert result.accepted is False
@@ -592,7 +592,7 @@ def test_assemble_extraction_result_not_found_emits_low_confidence_entry():
     provider notes_prefix so a later query can distinguish 'Gemini
     declined this' from 'Qwen declined' — matches the accepted-path
     composition."""
-    from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
+    from wyrd.generators.kenning.extractors.llm import assemble_extraction_result
 
     body = "Foobar — origin unknown."
     result = assemble_extraction_result(
@@ -616,7 +616,7 @@ def test_assemble_extraction_result_decline_path_distinguishes_providers():
     """wyrd-6hd: two providers declining the same body land different
     source_quote prefixes — pins the audit-query shape that motivated
     the change ('show me Gemini's declines' vs 'show me Qwen's')."""
-    from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
+    from wyrd.generators.kenning.extractors.llm import assemble_extraction_result
 
     body = "Foobar — origin unknown."
     gemini = assemble_extraction_result(
@@ -643,7 +643,7 @@ def test_assemble_extraction_result_validation_failure_marks_rejected():
     the result is rejected — not an accepted-with-warnings entry. This is
     the load-bearing safety guard; assemble_extraction_result must not
     swallow it."""
-    from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
+    from wyrd.generators.kenning.extractors.llm import assemble_extraction_result
 
     response = {
         "found": True,
@@ -677,7 +677,7 @@ def test_assemble_extraction_result_tags_source_quote_with_prefix():
     relies on this for per-provider attribution. Truncated to 500 chars
     (wyrd-9kh.2 raised the budget from 200 to give the SPA citation view
     enough context)."""
-    from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
+    from wyrd.generators.kenning.extractors.llm import assemble_extraction_result
 
     body = "Foobar — said to be from Old English foo, a foo."
     response = {
@@ -715,7 +715,7 @@ def test_assemble_extraction_result_truncates_long_body_at_budget():
     drops the truncation gets caught before the SPA citation view
     starts emitting megabyte-sized rows.
     """
-    from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
+    from wyrd.generators.kenning.extractors.llm import assemble_extraction_result
 
     # 1200-char body — well over the 500 budget. The form 'foo' must
     # appear in body to pass the form-in-body check.
@@ -775,7 +775,7 @@ def test_assemble_extraction_result_outer_cap_truncates_long_notes_prefix():
     drops the outer cap would silently let the source_quote grow
     unbounded for verbose notes_prefixes.
     """
-    from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
+    from wyrd.generators.kenning.extractors.llm import assemble_extraction_result
 
     body = "Foobar — from Old English foo, a foo. " + ("x " * 250)
     long_prefix = "extracted_by:test:" + ("a" * 300)  # ~318 chars
@@ -815,7 +815,7 @@ def test_assemble_extraction_result_short_total_preserves_full_body():
     artificial inner slice — so a short notes_prefix gives the body the
     maximum available context.
     """
-    from wyrd.generators.kenning.llm_extractor import assemble_extraction_result
+    from wyrd.generators.kenning.extractors.llm import assemble_extraction_result
 
     short_prefix = "p"
     body = "Foobar — from Old English foo, a foo." + ("y" * 100)

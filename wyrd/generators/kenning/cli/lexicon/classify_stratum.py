@@ -64,7 +64,7 @@ def lexicon_classify_stratum(
     'welsh': latin-loan, english-loan, brittonic-substrate,
     medieval-welsh, native-welsh) so generation can filter to a
     specific register. Strata are language-specific — see
-    ``wyrd/generators/kenning/strata.py`` for the per-language
+    ``wyrd/generators/kenning/lexicon/strata.py`` for the per-language
     vocabularies and the heuristic rules that drive classification.
     """
     classifier, strata_order = _resolve_stratum_classifier(language)

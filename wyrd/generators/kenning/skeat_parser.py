@@ -344,7 +344,7 @@ class ParsedElement:
 # Budget for the source_quote text on a ParsedEntry — kept on this side of
 # the parser/extractor boundary so the regex parser (here) and the LLM
 # extractor (which imports ParsedEntry from this module) share one cap.
-# Lives here rather than in llm_extractor because the inverse import
+# Lives here rather than in extractors.llm because the inverse import
 # direction would be a cycle. wyrd-9v1.
 SOURCE_QUOTE_BUDGET = 500
 

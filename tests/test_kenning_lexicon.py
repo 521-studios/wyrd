@@ -24,6 +24,7 @@ from wyrd.generators.kenning.era import (
     canonical_language_for_cell,
     era_cell_for_input,
 )
+from wyrd.generators.kenning.extractors.llm import LLMResult
 from wyrd.generators.kenning.lexicon import (
     _LANG_CODE_TO_JSON_FIELD,
     LANGUAGE_FIELDS,
@@ -74,7 +75,6 @@ from wyrd.generators.kenning.lexicon import (
     seed_meaning_synsets,
 )
 from wyrd.generators.kenning.lexicon.sql import upgrade_head
-from wyrd.generators.kenning.llm_extractor import LLMResult
 from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.rewind import (
     MorphemeRewind,

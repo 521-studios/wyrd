@@ -89,7 +89,7 @@ def lexicon_mine_toponym_mentions(
     to existing toponyms (via the form→toponym lookup from Phase 1)
     OR creates new toponym rows for unresolved mentions.
     """
-    from wyrd.generators.kenning.toponym_mention_extractor import (
+    from wyrd.generators.kenning.extractors.toponym_mentions import (
         ToponymMention,
         mine_toponym_mentions,
     )
@@ -223,7 +223,7 @@ def _build_extractor_client(provider: str, model: str | None, ollama_url: str | 
     None falls back to DEFAULT_OLLAMA_URL ($WYRD_OLLAMA_URL or
     localhost). Other providers ignore the kwarg."""
     if provider == "anthropic":
-        from wyrd.generators.kenning.anthropic_extractor import (
+        from wyrd.generators.kenning.extractors.anthropic import (
             DEFAULT_ANTHROPIC_MODEL,
             AnthropicClient,
         )
@@ -233,14 +233,14 @@ def _build_extractor_client(provider: str, model: str | None, ollama_url: str | 
             max_tokens=_ANTHROPIC_MAX_TOKENS_FOR_MENTION_EXTRACTION,
         )
     if provider == "gemini":
-        from wyrd.generators.kenning.gemini_extractor import (
+        from wyrd.generators.kenning.extractors.gemini import (
             DEFAULT_GEMINI_MODEL,
             GeminiClient,
         )
 
         return GeminiClient(model=model or DEFAULT_GEMINI_MODEL)
     if provider == "ollama":
-        from wyrd.generators.kenning.llm_extractor import (
+        from wyrd.generators.kenning.extractors.llm import (
             DEFAULT_OLLAMA_MODEL,
             DEFAULT_OLLAMA_URL,
             OllamaClient,

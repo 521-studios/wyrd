@@ -32,7 +32,7 @@ mismatch.
 Provider choice: the module accepts any client with the
 ``chat_json(system, user, schema=None) -> dict`` interface — same
 contract as :class:`AnthropicClient` / Ollama / Gemini wrappers in
-``llm_extractor.py``. The tiered-extraction pattern (Qwen bulk →
+``extractors/llm.py``. The tiered-extraction pattern (Qwen bulk →
 Anthropic on the residual) is implemented inline as
 :func:`mine_toponym_mentions_tiered` below.
 
@@ -513,8 +513,8 @@ _OVERSIZED_PARAGRAPH_MULTIPLIER = 1.5
 # For this carve-out to stay scoped to configuration errors, every
 # transport-layer path that produces a ValueError-subclass must
 # funnel it into RuntimeError. Three classes to keep in sync across
-# all three clients (anthropic_extractor.py / gemini_extractor.py /
-# llm_extractor.py):
+# all three clients (extractors/anthropic.py / extractors/gemini.py /
+# extractors/llm.py):
 #   1. UnicodeDecodeError from `.decode("utf-8")` on the success
 #      response body (wyrd-pe4g round-5: silent-failure-hunter)
 #   2. JSONDecodeError from outer `json.loads(body)` envelope parse

@@ -304,7 +304,7 @@ def parse_transport_json(
         concern: model emitted malformed JSON despite the schema/prompt).
 
     Why route JSONDecodeError → RuntimeError (wyrd-pe4g cross-module
-    invariant): the chunk loop in ``toponym_mention_extractor.py`` lists
+    invariant): the chunk loop in ``extractors/toponym_mentions.py`` lists
     ``ValueError`` in ``_PROGRAMMER_ERROR_EXCEPTIONS`` so a typo'd
     ``schema_dialect`` surfaces as a Python traceback rather than 100%
     chunks_failed. ``json.JSONDecodeError`` is a ``ValueError`` subclass —

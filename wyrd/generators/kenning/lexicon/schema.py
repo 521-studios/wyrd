@@ -782,7 +782,7 @@ def _create_fantasy_morpheme_table(db: LexiconDB, applied: dict[str, bool]) -> N
     `approach_version` carries the pipeline-version marker the user asked
     for: when we ship a stronger pipeline (e.g. after wyrd-gpif lands
     alt-form ingestion), bump the version constant in
-    `fantasy_pipeline.APPROACH_VERSION` and re-process any rows from
+    `extractors.fantasy.APPROACH_VERSION` and re-process any rows from
     earlier versions.
     """
     existing = {

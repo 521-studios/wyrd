@@ -314,7 +314,7 @@ ANTHROPIC_API_KEY=...
 ```
 
 Qwen requires `"think": false` in the chat payload — already wired
-into `OllamaClient` in `llm_extractor.py`. The thinking variant
+into `OllamaClient` in `extractors/llm.py`. The thinking variant
 consumes all tokens in the reasoning channel and emits empty content
 otherwise.
 
@@ -788,7 +788,7 @@ The CLI reports `unsupported_templates = N` when wiktextract entries
 contain etymology templates we haven't mapped. Supported set covers
 inh / bor / der / cal plus long-name variants. Extend
 `_UPWARD_TEMPLATE_TO_EDGE` or `_SKIPPED_TEMPLATE_NAMES` in
-`wyrd/generators/kenning/wiktextract_ingester.py` to add new kinds.
+`wyrd/generators/kenning/lexicon/wiktextract_ingester.py` to add new kinds.
 Descendants nodes never produce unsupported_templates (they're read
 as data, not via templates).
 
@@ -1164,7 +1164,7 @@ much smaller than 3,670).
 
 ### Approved languages
 
-`fantasy_pipeline.APPROVED_LANGUAGES` is the gate that decides whether
+`extractors.fantasy.APPROVED_LANGUAGES` is the gate that decides whether
 a real etymon counts as "in family" for fantasy generation. The set
 covers:
 
@@ -1212,7 +1212,7 @@ with `--skip-resolved` — already-processed inputs are skipped at the
 filter (case-insensitive match against the COLLATE NOCASE column).
 
 To force re-processing of a resolved row (e.g. after an LLM-prompt
-change or new language approval), bump `fantasy_pipeline.APPROACH_VERSION`
+change or new language approval), bump `extractors.fantasy.APPROACH_VERSION`
 and re-run; the (input_name, approach_version) UNIQUE means rows
 under the new version write fresh entries, and `--skip-resolved`
 reads its skip-set scoped to the *current* version only.

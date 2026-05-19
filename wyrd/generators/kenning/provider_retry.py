@@ -11,7 +11,7 @@ jitter on 429 responses only. Non-429 HTTP errors and socket-level
 errors propagate immediately so the existing error-handling paths in
 each provider's ``chat_json`` keep working unchanged.
 
-Local Ollama (``llm_extractor.py``) doesn't rate-limit, so it doesn't
+Local Ollama (``extractors/llm.py``) doesn't rate-limit, so it doesn't
 use this helper.
 """
 
