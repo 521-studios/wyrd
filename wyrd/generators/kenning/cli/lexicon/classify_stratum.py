@@ -93,7 +93,7 @@ def _resolve_stratum_classifier(language: str) -> tuple[Any, tuple[str, ...]]:
     Local import keeps the cold-start path lean for unrelated CLI
     commands; same pattern as other lexicon subcommands.
     """
-    from wyrd.generators.kenning.strata import (
+    from wyrd.generators.kenning.lexicon.strata import (
         FRENCH_STRATA,
         OLD_ENGLISH_STRATA,
         OLD_NORSE_STRATA,

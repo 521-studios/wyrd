@@ -177,7 +177,7 @@ def _validate_set_stratum_family_match(row: Any, stratum: str | None) -> None:
     --clear callers pass ``stratum=None`` and skip this check
     entirely (clearing has no family-validity question).
     """
-    from wyrd.generators.kenning.strata import STRATA_BY_FAMILY, family_for_language
+    from wyrd.generators.kenning.lexicon.strata import STRATA_BY_FAMILY, family_for_language
 
     if stratum is None:
         return  # --clear path — no family validation needed
@@ -200,7 +200,7 @@ def _validate_set_stratum_value(stratum: str | None, clear: bool) -> None:
     required, and the stratum value (when given) must be in the
     cross-family ALL_STRATA registry for typo protection. The
     failed-validation path exits non-zero with a friendly error."""
-    from wyrd.generators.kenning.strata import ALL_STRATA
+    from wyrd.generators.kenning.lexicon.strata import ALL_STRATA
 
     if stratum is not None and clear:
         click.echo(

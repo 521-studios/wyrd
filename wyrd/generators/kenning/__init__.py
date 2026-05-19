@@ -13,6 +13,14 @@ from wyrd.generators.kenning.decomposition import (
     _signature_for_payload,
 )
 from wyrd.generators.kenning.era import era_cells_for_family, resolve_era_input
+from wyrd.generators.kenning.lexicon.strata import (
+    ALL_STRATA,
+    FRENCH_STRATA,
+    OLD_ENGLISH_STRATA,
+    OLD_NORSE_STRATA,
+    WELSH_STRATA,
+    valid_strata_for_culture,
+)
 from wyrd.generators.kenning.meaning import (
     Meaning,
     load_canonical_decompositions,
@@ -22,14 +30,6 @@ from wyrd.generators.kenning.meaning import (
 )
 from wyrd.generators.kenning.name import Name
 from wyrd.generators.kenning.proportions import load_proportions
-from wyrd.generators.kenning.strata import (
-    ALL_STRATA,
-    FRENCH_STRATA,
-    OLD_ENGLISH_STRATA,
-    OLD_NORSE_STRATA,
-    WELSH_STRATA,
-    valid_strata_for_culture,
-)
 from wyrd.generators.kenning.word import Word
 from wyrd.registry import GenerationResult, Generator, register
 from wyrd.seed import rng_for

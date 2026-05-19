@@ -864,7 +864,7 @@ def test_ingest_all_slices_calls_ingester_per_slice(tmp_path: Path, monkeypatch)
         return {"lines_read": 100, "entries_parsed": 50}
 
     monkeypatch.setattr(
-        "wyrd.generators.kenning.wiktextract_ingester.ingest_wiktextract_path",
+        "wyrd.generators.kenning.lexicon.wiktextract_ingester.ingest_wiktextract_path",
         fake_ingest,
     )
 
@@ -945,7 +945,7 @@ def test_ingest_all_slices_with_fetch_downloads_first(tmp_path: Path, monkeypatc
 
     fake = _FakeS3Client({slice_.s3_key: payload})
     monkeypatch.setattr(
-        "wyrd.generators.kenning.wiktextract_ingester.ingest_wiktextract_path",
+        "wyrd.generators.kenning.lexicon.wiktextract_ingester.ingest_wiktextract_path",
         lambda db, path, **kw: {"lines_read": 1},
     )
 
@@ -995,7 +995,7 @@ def test_ingest_all_slices_ingester_exception_routes_to_failed(tmp_path: Path, m
         return {"lines_read": 5}
 
     monkeypatch.setattr(
-        "wyrd.generators.kenning.wiktextract_ingester.ingest_wiktextract_path",
+        "wyrd.generators.kenning.lexicon.wiktextract_ingester.ingest_wiktextract_path",
         fake_ingest,
     )
 

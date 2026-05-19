@@ -8,8 +8,8 @@ import click
 
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
 from wyrd.generators.kenning.lexicon import LexiconDB
+from wyrd.generators.kenning.lexicon.wiktextract_ingester import ingest_wiktextract_path
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
-from wyrd.generators.kenning.wiktextract_ingester import ingest_wiktextract_path
 
 
 @click.command("ingest-wiktionary")

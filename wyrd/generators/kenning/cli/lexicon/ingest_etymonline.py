@@ -7,9 +7,8 @@ from pathlib import Path
 
 import click
 
-from wyrd.generators.kenning import etymonline_ingester
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
-from wyrd.generators.kenning.lexicon import LexiconDB
+from wyrd.generators.kenning.lexicon import LexiconDB, etymonline_ingester
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 

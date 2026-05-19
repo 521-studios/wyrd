@@ -12,12 +12,6 @@ from pathlib import Path
 
 import pytest
 
-from wyrd.generators.kenning.etymonline_ingester import (
-    ETYMONLINE_SOURCE_ID,
-    ensure_source,
-    ingest_sense,
-    ingest_text,
-)
 from wyrd.generators.kenning.etymonline_parser import (
     ChainLink,
     parse_chain,
@@ -26,6 +20,12 @@ from wyrd.generators.kenning.etymonline_parser import (
     split_senses,
 )
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema, migrate_schema
+from wyrd.generators.kenning.lexicon.etymonline_ingester import (
+    ETYMONLINE_SOURCE_ID,
+    ensure_source,
+    ingest_sense,
+    ingest_text,
+)
 
 
 @pytest.fixture
@@ -476,7 +476,7 @@ def test_split_senses_headword_with_no_summary_terminates_cleanly():
 def test_confidence_label_unknown_string_falls_back_to_low(fresh_db: Path) -> None:
     """_confidence_label maps unrecognized confidence values to 'low'
     so the etymon_descent CHECK constraint never sees a bad string."""
-    from wyrd.generators.kenning.etymonline_ingester import _confidence_label
+    from wyrd.generators.kenning.lexicon.etymonline_ingester import _confidence_label
 
     assert _confidence_label("high") == "high"
     assert _confidence_label("medium") == "medium"
