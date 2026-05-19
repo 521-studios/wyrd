@@ -29,7 +29,7 @@ support) each weight.
    et al. 2024 on Orkish confirms English-speaker perception) but
    bouba-kiki literature gives them zero direct support. Tag as
    `IE-conventional`, not `universal`.
-5. **`soft_consonants` is internally inconsistent.** Whissell (2000)
+5. **`soft_consonants` is internally inconsistent.** Whissell (1999)
    shows /l, m, n/ are firmly Gentle but /r/ is firmly Harsh. Treating
    them as one bucket means /r/-heavy lemmas score high on
    "softness" when they should score the opposite. Filed for a
@@ -190,13 +190,16 @@ register tuning — NOT Blasi's own taxonomy. Each grouping draws on
 multiple specific Blasi mappings + adjacent literature (bouba-kiki,
 Whissell):
 
-1. **roundness/calmness** → sonorants (/l m n/) per Blasi (e.g.
-   "round"→/r/ is one of Blasi's individual robust associations);
-   sonorant-cluster roundness is reinforced by bouba-kiki (Fort
-   2015). NOTE: /r/ appears in Blasi's "round" mapping for the
-   lexical-statistical association but is rated firmly Harsh by
-   Whissell at the affective level — these are different layers
-   (see §3 caveats below).
+1. **roundness/calmness** → sonorants /l m n/ + nasal/breath
+   associations (Blasi 2016 robust mappings include "round"→/r/
+   and nasal/sonorant associations for breath-like words);
+   sonorant-roundness is reinforced by bouba-kiki (Fort 2015).
+   NOTE: Blasi's /r/-as-round is a lexical-statistical association
+   (which words languages assign to round-meaning concepts); at
+   the affective level Whissell rates /r/ firmly Harsh — these
+   are different layers (see §3 caveats below). For register-
+   tuning purposes, the load-bearing sonorant set is /l m n/;
+   /r/ should NOT be treated as round at the affective layer.
 2. **small/diminutive** → /i/ + palatals; -/a/, -/u/ (Blasi).
 3. **large/heavy** → voiced obstruents /b d g/ + back vowels /u a/;
    -/i/ (Blasi; corroborated by Ohala 1994 frequency code).
@@ -239,8 +242,7 @@ WORDS." Different layers, different load-bearing claims.
 ## 5. Per-register grounding
 
 Each register below documents:
-- **Verdict** (UNIVERSAL / MIXED / IE-CONVENTIONAL / NO LITERATURE BACKING /
-  IDENTITY-MARKING)
+- **Verdict** (UNIVERSAL / MIXED / IE-CONVENTIONAL / IDENTITY-MARKING)
 - **Citations** supporting (or failing to support) each non-trivial weight
 - **v1 weights** (current catalog state as of wyrd-kq7w.2)
 - **v1.1 proposed adjustments** with rationale
@@ -329,8 +331,9 @@ inheritance).
 - `polysyllabic_bias: 0.3` — Pure Latinate convention. English
   liturgical register inherits from Latin → polysyllabic = formal/
   sacred.
-- `soft_consonants: 0.2` — Universal Gentle phonemes (Whissell /l m/),
-  but applied for cultural reasons (monastic naming aesthetic).
+- `soft_consonants: 0.2` — UNIVERSAL FOR /l m n/ (Whissell /l m/),
+  but applied for cultural reasons (monastic naming aesthetic). See
+  §1d on the dimension-internal /r/-inconsistency.
 - `semantic_tags: {saint, religious}` — Pure semantic, no phonological
   claim.
 
@@ -373,9 +376,10 @@ operator can compose with another register if they want only one half.
   frequency-coded (Whissell 1999 doesn't distinguish "pleasant" from
   "dignified"; Ohala 1994 size-signaling is segmental, not length-
   based). Keep as IE-conventional.
-- `soft_consonants: 0.3` — Gentle phonemes for refinement
-  (Whissell). BUT note: refinement ≠ dominance. "Noble" intent
-  conflates two readings:
+- `soft_consonants: 0.3` — UNIVERSAL FOR /l m n/ (Whissell Gentle)
+  for refinement; see §1d on the /r/-inclusion inconsistency. BUT
+  note: refinement ≠ dominance. "Noble" intent conflates two
+  readings:
   - Refinement/politeness (Whissell Gentle) → soft + vowel-final
   - Dominance/authority (Ohala frequency code) → low-back vowels +
     voiced obstruents
@@ -409,7 +413,8 @@ vowel signals.
   (Kochetov & Alderete 2011), NOT specifically "magical." The
   small-signal CHAINS to ethereal via Ohala frequency code (small =
   ethereal), but it's chained, not direct.
-- `soft_consonants: 0.2` — Universal Gentle phonemes.
+- `soft_consonants: 0.2` — UNIVERSAL FOR /l m n/ (Whissell Gentle);
+  see §1d on the /r/-inclusion inconsistency.
 - Semantic tags (magic, fantasy, monster) — cultural overlay.
 - **Missing**: `vowel_height` + `vowel_backness` weights. Ohala
   frequency code is unambiguous: ethereal = small = high-frequency =

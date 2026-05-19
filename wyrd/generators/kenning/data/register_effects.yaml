@@ -74,7 +74,7 @@ harsh:
   #
   # v1.1 grounding (see REGISTERS.md §5):
   # - stop_vs_continuant + aspirated_voiceless: UNIVERSAL. Whissell
-  #   2000 rates every plosive as Harsh; Fort/Martin/Peperkamp 2015
+  #   1999 rates every plosive as Harsh; Fort/Martin/Peperkamp 2015
   #   + Sidhu & Pexman 2024 confirm manner is the strongest single
   #   bouba-kiki predictor.
   # - cluster_density / final_fortition / final_cluster_rate:
@@ -110,7 +110,7 @@ pastoral:
   # Indo-European (Blasi 2016 universal: nasals + sonorants for
   # roundness/calmness).
   # Caveat: `soft_consonants` is internally inconsistent — Whissell
-  # 2000 rates /l m n/ as Gentle but /r/ as firmly Harsh. A
+  # 1999 rates /l m n/ as Gentle but /r/ as firmly Harsh. A
   # /r/-heavy lemma scores high on "softness" when it should read
   # the opposite. Schema-level fix is filed as a follow-up; v1.1
   # accepts the imprecision.
@@ -271,15 +271,15 @@ ancient:
   # Suggests pre-Conquest / archaic-feel place names without binding
   # to a specific culture's register.
   #
-  # v1.1 grounding: NO PHONOSYMBOLIC LITERATURE BACKING — pure genre
-  # convention. No frequency-code or sound-symbolism work speaks to
-  # perceptions of "age" in phonology. polysyllabic_bias + vowel_
-  # final_bias = Romance/Latinate archaism convention; pharyngeal =
-  # identity-marking (Semitic/pre-IE substrate association) without
-  # sound-symbolic payload. Defensible as IE-CONVENTIONAL but
-  # operators forking for non-IE settings should expect this
-  # register to NOT transfer. v1.1 keeps weights as-is; the
-  # citation gap is the point.
+  # v1.1 grounding: IE-CONVENTIONAL — no phonosymbolic literature
+  # backs "perception of age" as a phonological signal, but the v1
+  # weights themselves (polysyllabic + vowel-final + pharyngeal) ARE
+  # conventionally-coded as archaic in English-speaker register
+  # perception (Latinate-archaism + Semitic/pre-IE-substrate cues).
+  # The distinction from other IE-conventional registers is that
+  # ancient has NO universal-primitive layer — every weight is
+  # convention. Operators forking for non-IE settings should expect
+  # this register to NOT transfer; the citation gap is the point.
   phonological:
     polysyllabic_bias: 0.3
     vowel_final_bias: 0.2
