@@ -264,7 +264,9 @@ class SnippetExpander:
         # Local import: keep the disambiguator deps off the cold-start
         # path for unrelated CLI commands. Same pattern as the CLI's
         # local imports in ``lexicon_disambiguate_fuzzy``.
-        from wyrd.generators.kenning.lexicon import _load_normalized_source_texts
+        from wyrd.generators.kenning.lexicon.enrichment.reverse_search import (
+            _load_normalized_source_texts,
+        )
 
         if self.sources_dir is None:
             self._cache = {}
