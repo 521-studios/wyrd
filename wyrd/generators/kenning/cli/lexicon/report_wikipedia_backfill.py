@@ -81,7 +81,7 @@ def lexicon_report_wikipedia_backfill(
     against ``toponym.modern_name`` (case- and punctuation-sensitive
     otherwise); fuzzy-matching is a follow-up.
     """
-    from wyrd.generators.kenning.wikipedia_backfill_report import (
+    from wyrd.generators.kenning.bundle.wikipedia_backfill_report import (
         UnknownLanguageError,
         compute_backfill_report,
         format_report,

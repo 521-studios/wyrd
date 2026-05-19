@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .language_quality import _bundle_attestation_breakdown
+from wyrd.generators.kenning.language_quality import _bundle_attestation_breakdown
 
 # Bundle-sibling keys this gate cares about. These are the runtime
 # bundle's column names (underscore-separated), not the DB's

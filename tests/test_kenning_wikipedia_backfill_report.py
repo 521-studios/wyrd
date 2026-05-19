@@ -14,9 +14,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from wyrd.generators.kenning.cli import cli as cli_root
-from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
-from wyrd.generators.kenning.wikipedia_backfill_report import (
+from wyrd.generators.kenning.bundle.wikipedia_backfill_report import (
     CountyReport,
     FileReport,
     RegionReport,
@@ -24,6 +22,8 @@ from wyrd.generators.kenning.wikipedia_backfill_report import (
     format_report,
     report_to_dict,
 )
+from wyrd.generators.kenning.cli import cli as cli_root
+from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 
 # ---------- fixtures -----------------------------------------------------
 
@@ -561,7 +561,7 @@ def test_report_to_dict_totals_aggregate_across_multiple_files(db, tmp_path):
     sum must reflect ALL of them (a producer bug skipping or double-
     counting one file's contribution wouldn't fail any current test).
     R2 test-coverage MEDIUM."""
-    from wyrd.generators.kenning.wikipedia_backfill_report import report_to_dict
+    from wyrd.generators.kenning.bundle.wikipedia_backfill_report import report_to_dict
 
     full_id = _add_toponym(db, "FullPlace")
     _add_attestation(db, full_id)
