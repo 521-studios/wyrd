@@ -304,7 +304,7 @@ batch can run in parallel and double the throughput.
 **Required env (Ollama):**
 
 ```bash
-WYRD_OLLAMA_URL=http://10.5.2.31:11434  # the project's GPU host (NOT the dev box)
+WYRD_OLLAMA_URL=http://10.5.2.31:11434  # operator's macbook (Ollama host)
 ```
 
 **Required env (Haiku):**

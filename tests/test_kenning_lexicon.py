@@ -5028,7 +5028,9 @@ def test_lexicon_mine_llm_records_mining_run_at_end_of_run(
     from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
     from wyrd.generators.kenning.cli.lexicon import review as _rv
 
-    _stub = lambda text, parser, **_: fake_parsed
+    def _stub(text, parser, **_):
+        return fake_parsed
+
     monkeypatch.setattr(_mll, "_select_parser_and_run", _stub)
     monkeypatch.setattr(_rv, "_select_parser_and_run", _stub)
 
@@ -5145,7 +5147,9 @@ def test_lexicon_mine_llm_declines_only_skips_already_extracted(
     from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
     from wyrd.generators.kenning.cli.lexicon import review as _rv
 
-    _stub = lambda text, parser, **_: fake_parsed
+    def _stub(text, parser, **_):
+        return fake_parsed
+
     monkeypatch.setattr(_mll, "_select_parser_and_run", _stub)
     monkeypatch.setattr(_rv, "_select_parser_and_run", _stub)
 
@@ -5260,7 +5264,9 @@ def test_lexicon_mine_llm_declines_only_no_op_when_fully_mined(
     from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
     from wyrd.generators.kenning.cli.lexicon import review as _rv
 
-    _stub = lambda text, parser, **_: fake_parsed
+    def _stub(text, parser, **_):
+        return fake_parsed
+
     monkeypatch.setattr(_mll, "_select_parser_and_run", _stub)
     monkeypatch.setattr(_rv, "_select_parser_and_run", _stub)
 
@@ -6196,7 +6202,9 @@ def test_lexicon_review_low_conf_counts_as_declined_not_written(
     from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
     from wyrd.generators.kenning.cli.lexicon import review as _rv
 
-    _stub = lambda text, parser, **_: fake_parsed
+    def _stub(text, parser, **_):
+        return fake_parsed
+
     monkeypatch.setattr(_mll, "_select_parser_and_run", _stub)
     monkeypatch.setattr(_rv, "_select_parser_and_run", _stub)
 
@@ -6310,7 +6318,9 @@ def test_lexicon_review_dry_run_does_not_persist_or_count_writes(
     from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
     from wyrd.generators.kenning.cli.lexicon import review as _rv
 
-    _stub = lambda text, parser, **_: fake_parsed
+    def _stub(text, parser, **_):
+        return fake_parsed
+
     monkeypatch.setattr(_mll, "_select_parser_and_run", _stub)
     monkeypatch.setattr(_rv, "_select_parser_and_run", _stub)
 
