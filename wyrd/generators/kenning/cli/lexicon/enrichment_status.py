@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
 
 import click
 
-from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
+from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_lexicon
+from wyrd.generators.kenning.enrichment import (
+    enrichment_status,
+    format_enrichment_status,
+)
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 
@@ -27,20 +30,8 @@ def lexicon_enrichment_status(db_path: Path) -> None:
     `lexicon enrich --apply` to see what's already done, and AFTER to
     verify the passes populated what was expected.
     """
-    from urllib.parse import quote
-
-    from wyrd.generators.kenning.enrichment import (
-        enrichment_status,
-        format_enrichment_status,
-    )
-
-    db_uri = f"file:{quote(str(db_path.absolute()))}?mode=ro"
-    conn = sqlite3.connect(db_uri, uri=True)
-    conn.row_factory = sqlite3.Row
-    try:
+    with _readonly_lexicon(db_path) as conn:
         status = enrichment_status(conn)
-    finally:
-        conn.close()
     click.echo(format_enrichment_status(status))
 
 
