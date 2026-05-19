@@ -395,7 +395,7 @@ class Meaning:
         ``lang_field`` for non-modern-English readers.
 
         Computed via per-language grapheme→phonetic-respelling
-        rules in ``wyrd.generators.kenning.respelling``. Returns
+        rules in ``wyrd.generators.kenning.runtime.respelling``. Returns
         None when:
 
         * the language has no respeller (modern English, untracked
@@ -412,7 +412,7 @@ class Meaning:
         bracket-notation (wyrd-17t source #1, deferred) before
         falling through to rules.
         """
-        from wyrd.generators.kenning.respelling import respell
+        from .respelling import respell
 
         return respell(form, lang_field)
 

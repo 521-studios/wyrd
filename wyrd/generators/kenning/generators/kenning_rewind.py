@@ -9,8 +9,8 @@ from wyrd.generators.kenning import (
     _bundle_era_form,
     _load_meanings,
 )
-from wyrd.generators.kenning.meaning import Meaning
-from wyrd.generators.kenning.name import Name
+from wyrd.generators.kenning.runtime.meaning import Meaning
+from wyrd.generators.kenning.runtime.name import Name
 from wyrd.registry import GenerationResult, Generator
 
 

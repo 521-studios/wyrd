@@ -30,7 +30,8 @@ from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import _decompose_corpus
 from wyrd.generators.kenning.cli import cli as cli_root
-from wyrd.generators.kenning.decomposition import (
+from wyrd.generators.kenning.lexicon import LexiconDB, init_schema, migrate_schema
+from wyrd.generators.kenning.runtime.decomposition import (
     _candidates_for_usage,
     _cross_product_decompositions,
     _decomposition_payload,
@@ -46,9 +47,8 @@ from wyrd.generators.kenning.decomposition import (
     pick_canonical_decomposition,
     populate_and_pick,
 )
-from wyrd.generators.kenning.lexicon import LexiconDB, init_schema, migrate_schema
-from wyrd.generators.kenning.meaning import Meaning, load_meanings
-from wyrd.generators.kenning.name import Name, load_names, load_names_with_regions
+from wyrd.generators.kenning.runtime.meaning import Meaning, load_meanings
+from wyrd.generators.kenning.runtime.name import Name, load_names, load_names_with_regions
 
 
 @pytest.fixture
@@ -910,7 +910,7 @@ def test_cross_product_caps_pathological_combo_count(caplog) -> None:
     before bulk --apply against the production corpus."""
     import logging
 
-    from wyrd.generators.kenning import decomposition
+    from wyrd.generators.kenning.runtime import decomposition
 
     name = Name("a b c d")
 
@@ -922,7 +922,7 @@ def test_cross_product_caps_pathological_combo_count(caplog) -> None:
     for word_str in name.name.split(" "):
         name.words[word_str] = [_FakeWord([f"{word_str}_{i}"]) for i in range(5)]
 
-    with caplog.at_level(logging.WARNING, logger="wyrd.generators.kenning.decomposition"):
+    with caplog.at_level(logging.WARNING, logger="wyrd.generators.kenning.runtime.decomposition"):
         combos = decomposition._cross_product_decompositions(name)
 
     assert len(combos) <= decomposition._MAX_CROSS_PRODUCT_COMBOS
@@ -941,7 +941,7 @@ def test_cross_product_cap_persists_full_length_combos_when_truncating_first_wor
     emit prefix-only combos. Pinned because the original
     early-termination implementation produced length-1 combos in this
     pathological case."""
-    from wyrd.generators.kenning import decomposition
+    from wyrd.generators.kenning.runtime import decomposition
 
     name = Name("a b c d")
 
@@ -965,7 +965,7 @@ def test_cross_product_cap_persists_full_length_combos_when_truncating_first_wor
 def test_cap_per_word_options_returns_input_when_under_cap() -> None:
     """``_cap_per_word_options`` is a no-op when the projected product
     fits under the cap."""
-    from wyrd.generators.kenning import decomposition
+    from wyrd.generators.kenning.runtime import decomposition
 
     per_word_lists = [[[1], [2], [3]], [[4], [5]]]  # 3*2 = 6
     capped = decomposition._cap_per_word_options(per_word_lists, "test")
@@ -978,7 +978,7 @@ def test_cap_per_word_options_trims_longest_list_first(caplog) -> None:
     possible."""
     import logging
 
-    from wyrd.generators.kenning import decomposition
+    from wyrd.generators.kenning.runtime import decomposition
 
     # 100 + 4 + 4 + 4 — projected 100*4*4*4 = 6400, way over cap.
     # Trimming should reduce list 0 (the 100-list) most.
@@ -988,7 +988,7 @@ def test_cap_per_word_options_trims_longest_list_first(caplog) -> None:
         [[i] for i in range(4)],
         [[i] for i in range(4)],
     ]
-    with caplog.at_level(logging.WARNING, logger="wyrd.generators.kenning.decomposition"):
+    with caplog.at_level(logging.WARNING, logger="wyrd.generators.kenning.runtime.decomposition"):
         capped = decomposition._cap_per_word_options(per_word_lists, "test")
     projected = 1
     for pw in capped:
@@ -1004,7 +1004,7 @@ def test_cross_product_under_cap_is_unchanged() -> None:
     """A name whose cross product fits under the cap is unchanged —
     no truncation, no warning. Bit-stable with the pre-cap version
     for the typical-input case."""
-    from wyrd.generators.kenning import decomposition
+    from wyrd.generators.kenning.runtime import decomposition
 
     name = Name("a b")
 
@@ -1025,7 +1025,7 @@ def test_scholar_form_sequences_logs_unmapped_language(fresh_db: Path, caplog) -
     log. Surfaces the failure mode for future operators."""
     import logging
 
-    from wyrd.generators.kenning.decomposition import _scholar_form_sequences
+    from wyrd.generators.kenning.runtime.decomposition import _scholar_form_sequences
 
     with LexiconDB(fresh_db) as db:
         _seed_source(db)
@@ -1044,7 +1044,7 @@ def test_scholar_form_sequences_logs_unmapped_language(fresh_db: Path, caplog) -
             (etymology_id, unmapped),
         )
         db.commit()
-        with caplog.at_level(logging.DEBUG, logger="wyrd.generators.kenning.decomposition"):
+        with caplog.at_level(logging.DEBUG, logger="wyrd.generators.kenning.runtime.decomposition"):
             seqs = _scholar_form_sequences(db, topo_id)
     assert seqs == []
     assert any(
@@ -1060,7 +1060,7 @@ def test_load_stored_decompositions_returns_rows_in_id_order(fresh_db: Path) -> 
     """``_load_stored_decompositions`` returns rows ordered by id.
     Pinned so a caller relying on insert order stays correct after
     the refactor."""
-    from wyrd.generators.kenning.decomposition import _load_stored_decompositions
+    from wyrd.generators.kenning.runtime.decomposition import _load_stored_decompositions
 
     word_db = _word_db_for(_two_morpheme_subjects())
     with LexiconDB(fresh_db) as db:
@@ -1091,7 +1091,7 @@ def _row(row_id: int, unacc: int) -> dict:
 def test_try_rule_unique_zero_returns_none_when_multiple_zero_rows() -> None:
     """When multiple stored rows have unaccounted_count==0,
     _try_rule_unique_zero returns None (Phase 2 tiebreaker territory)."""
-    from wyrd.generators.kenning.decomposition import _try_rule_unique_zero
+    from wyrd.generators.kenning.runtime.decomposition import _try_rule_unique_zero
 
     rows = [_row(1, 0), _row(2, 0), _row(3, 1)]
     assert _try_rule_unique_zero(rows) is None
@@ -1100,7 +1100,7 @@ def test_try_rule_unique_zero_returns_none_when_multiple_zero_rows() -> None:
 def test_try_rule_unique_zero_returns_id_when_exactly_one_zero() -> None:
     """The unique-zero rule fires only when exactly one zero-row
     exists."""
-    from wyrd.generators.kenning.decomposition import _try_rule_unique_zero
+    from wyrd.generators.kenning.runtime.decomposition import _try_rule_unique_zero
 
     rows = [_row(1, 1), _row(2, 0), _row(3, 2)]
     assert _try_rule_unique_zero(rows) == 2
@@ -1108,7 +1108,7 @@ def test_try_rule_unique_zero_returns_id_when_exactly_one_zero() -> None:
 
 def test_try_rule_unique_zero_returns_none_for_empty_rows() -> None:
     """No rows at all → None (defensive)."""
-    from wyrd.generators.kenning.decomposition import _try_rule_unique_zero
+    from wyrd.generators.kenning.runtime.decomposition import _try_rule_unique_zero
 
     assert _try_rule_unique_zero([]) is None
 
@@ -1116,7 +1116,7 @@ def test_try_rule_unique_zero_returns_none_for_empty_rows() -> None:
 def test_try_rule_scholar_returns_none_when_no_match(fresh_db: Path) -> None:
     """``_try_rule_scholar`` returns None when no scholar etymology
     matches any stored decomposition's slot candidates."""
-    from wyrd.generators.kenning.decomposition import (
+    from wyrd.generators.kenning.runtime.decomposition import (
         _build_slot_candidates_per_row,
         _load_stored_decompositions,
         _try_rule_scholar,
@@ -1137,7 +1137,7 @@ def test_try_rule_scholar_returns_none_when_no_match(fresh_db: Path) -> None:
 def test_try_rule_scholar_returns_scholar_for_single_match(fresh_db: Path) -> None:
     """``_try_rule_scholar`` returns ('scholar', [row_ids]) when one
     distinct scholar breakdown matches a stored decomposition."""
-    from wyrd.generators.kenning.decomposition import (
+    from wyrd.generators.kenning.runtime.decomposition import (
         _build_slot_candidates_per_row,
         _load_stored_decompositions,
         _try_rule_scholar,
@@ -1165,7 +1165,7 @@ def test_try_rule_scholar_returns_scholar_for_single_match(fresh_db: Path) -> No
 def test_reset_canonical_clears_prior_assignment(fresh_db: Path) -> None:
     """``_reset_canonical`` resets is_canonical=0 and
     canonical_source=NULL on every row for the given toponym."""
-    from wyrd.generators.kenning.decomposition import _reset_canonical
+    from wyrd.generators.kenning.runtime.decomposition import _reset_canonical
 
     word_db = _word_db_for(_two_morpheme_subjects())
     with LexiconDB(fresh_db) as db:
@@ -1201,7 +1201,7 @@ def test_scholar_form_sequences_logs_empty_canonical_form(fresh_db: Path, caplog
     Phase 2's debug log surfaces this distinct failure mode."""
     import logging
 
-    from wyrd.generators.kenning.decomposition import _scholar_form_sequences
+    from wyrd.generators.kenning.runtime.decomposition import _scholar_form_sequences
 
     with LexiconDB(fresh_db) as db:
         _seed_source(db)
@@ -1224,7 +1224,7 @@ def test_scholar_form_sequences_logs_empty_canonical_form(fresh_db: Path, caplog
             (etymology_id, empty_etymon_id),
         )
         db.commit()
-        with caplog.at_level(logging.DEBUG, logger="wyrd.generators.kenning.decomposition"):
+        with caplog.at_level(logging.DEBUG, logger="wyrd.generators.kenning.runtime.decomposition"):
             seqs = _scholar_form_sequences(db, topo_id)
     assert seqs == []
     assert any(
@@ -1237,7 +1237,7 @@ def test_build_slot_candidates_per_row_uses_word_db(fresh_db: Path) -> None:
     from stored morpheme_ids JSON. Each Meaning slot becomes a
     candidate set drawn from the live word_db; each unaccounted slot
     stays a string."""
-    from wyrd.generators.kenning.decomposition import (
+    from wyrd.generators.kenning.runtime.decomposition import (
         _build_slot_candidates_per_row,
         _load_stored_decompositions,
     )
@@ -2193,7 +2193,7 @@ def test_collect_canonical_decompositions_skips_manorial_affix_toponyms(
 def test_load_canonical_decompositions_dict_shape() -> None:
     """``load_canonical_decompositions`` reads the dict-shape bundle's
     ``canonical_decompositions`` field and skips malformed entries."""
-    from wyrd.generators.kenning.meaning import load_canonical_decompositions
+    from wyrd.generators.kenning.runtime.meaning import load_canonical_decompositions
 
     bundle = {
         "subjects": [],
@@ -2214,7 +2214,7 @@ def test_load_canonical_decompositions_legacy_list_shape() -> None:
     """Legacy list-shape bundles return an empty map without
     crashing — KenningExplain's canonical surfacing becomes a
     transparent no-op."""
-    from wyrd.generators.kenning.meaning import load_canonical_decompositions
+    from wyrd.generators.kenning.runtime.meaning import load_canonical_decompositions
 
     assert load_canonical_decompositions([]) == {}
     assert load_canonical_decompositions([{"meaning": [], "words": []}]) == {}
@@ -2223,7 +2223,7 @@ def test_load_canonical_decompositions_legacy_list_shape() -> None:
 def test_load_canonical_decompositions_dict_without_field() -> None:
     """A dict-shape bundle missing the canonical_decompositions key
     returns empty."""
-    from wyrd.generators.kenning.meaning import load_canonical_decompositions
+    from wyrd.generators.kenning.runtime.meaning import load_canonical_decompositions
 
     assert load_canonical_decompositions({"subjects": []}) == {}
     assert load_canonical_decompositions({"subjects": [], "joiners": {}}) == {}

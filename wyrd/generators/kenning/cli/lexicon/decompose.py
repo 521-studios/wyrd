@@ -8,8 +8,8 @@ import click
 
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _load_meanings_data
 from wyrd.generators.kenning.lexicon import LexiconDB
-from wyrd.generators.kenning.meaning import load_meanings
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
+from wyrd.generators.kenning.runtime.meaning import load_meanings
 
 
 @click.command("decompose")
@@ -77,7 +77,7 @@ def lexicon_decompose(
     meanings_data = _load_meanings_data(meanings)
     word_db, _ = load_meanings(meanings_data)
 
-    from wyrd.generators.kenning.decomposition import populate_and_pick
+    from wyrd.generators.kenning.runtime.decomposition import populate_and_pick
 
     with LexiconDB(db_path) as db:
         if toponym_id is not None:

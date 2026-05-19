@@ -40,8 +40,9 @@ from importlib import resources
 from typing import TYPE_CHECKING
 
 from wyrd.generators.kenning.lexicon import _LANG_CODE_TO_JSON_FIELD
-from wyrd.generators.kenning.meaning import Meaning, load_meanings
-from wyrd.generators.kenning.name import Name
+
+from .meaning import Meaning, load_meanings
+from .name import Name
 
 if TYPE_CHECKING:
     from wyrd.generators.kenning.lexicon import LexiconDB

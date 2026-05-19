@@ -10,8 +10,8 @@ import click
 
 from wyrd.generators.kenning import CULTURES
 from wyrd.generators.kenning.cli.utils import _decompose_corpus, _load_meanings_data
-from wyrd.generators.kenning.meaning import Meaning, load_meanings
-from wyrd.generators.kenning.name import load_names_with_regions
+from wyrd.generators.kenning.runtime.meaning import Meaning, load_meanings
+from wyrd.generators.kenning.runtime.name import load_names_with_regions
 
 
 @click.command("rebuild-proportions")

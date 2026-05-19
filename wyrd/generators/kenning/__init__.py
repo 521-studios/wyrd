@@ -7,10 +7,6 @@ from functools import lru_cache
 from importlib import resources
 from typing import Any
 
-from wyrd.generators.kenning.decomposition import (
-    _decomposition_payload,
-    _signature_for_payload,
-)
 from wyrd.generators.kenning.era.cells import era_cells_for_family, resolve_era_input
 
 # Back-compat re-exports for the wyrd-ru5d extractors/ subpackage. Older call
@@ -39,15 +35,19 @@ from wyrd.generators.kenning.lexicon.strata import (  # noqa: F401  (STRATA cons
     WELSH_STRATA,
     valid_strata_for_culture,
 )
-from wyrd.generators.kenning.meaning import (
+from wyrd.generators.kenning.runtime.decomposition import (
+    _decomposition_payload,
+    _signature_for_payload,
+)
+from wyrd.generators.kenning.runtime.meaning import (
     Meaning,
     load_canonical_decompositions,
     load_fantasy_morphemes,
     load_joiners,
     load_meanings,
 )
-from wyrd.generators.kenning.proportions import load_proportions
-from wyrd.generators.kenning.word import Word
+from wyrd.generators.kenning.runtime.proportions import load_proportions
+from wyrd.generators.kenning.runtime.word import Word
 from wyrd.registry import GenerationResult, register
 
 _LEGEND = [
@@ -686,7 +686,7 @@ def _build_decomposition_result(
 
 def _canonical_signature_for_words(words) -> str:
     """Compute the SHA-1-of-JSON-payload signature used by
-    decomposition.py over a flat slot list across the words of a name.
+    runtime/decomposition.py over a flat slot list across the words of a name.
 
     The canonical map projected into the bundle (wyrd-h8k1) keys on
     this signature; KenningExplain re-derives it per candidate so the

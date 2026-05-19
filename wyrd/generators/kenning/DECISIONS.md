@@ -858,7 +858,7 @@ bearing invariant: a word with two senses for one surface (-y =
 `-hamlet-` both in trie → 'hamlet' surfaces as both `ham + let` and
 `hamlet`) surfaces ALL parses.
 
-Public API (`wyrd/generators/kenning/trie_matcher.py`):
+Public API (`wyrd/generators/kenning/runtime/trie_matcher.py`):
 
 - `all_decompositions(word, trie)` — every parse, including
   partial-match alternatives that fall through the skip-into-
@@ -1665,7 +1665,7 @@ introduces new data; all compose existing primitives.
 ### wyrd-17t: pronunciation respelling (PR #125)
 
 `Meaning.respelling_for(form, language)` delegates to
-`respelling.py`, a per-language SAMPA-lite rule table
+`runtime/respelling.py`, a per-language SAMPA-lite rule table
 (Old English, Welsh, Old Norse, Latin, Greek, Norman-French).
 `KenningRewind` components surface respellings inline so users
 who can't sound out a non-modern-English morpheme see a
@@ -1676,7 +1676,7 @@ against rule-chaining bugs (`ff → f → v` → `ffynon` becoming
 
 ### wyrd-y10: alternate-script transliteration (PR #127)
 
-`scripts.py` exposes `transliterate(text, script)` and
+`runtime/scripts.py` exposes `transliterate(text, script)` and
 `SUPPORTED_SCRIPTS = ("shavian",)`. `KenningRender` Generator
 wraps it. v1 ships Shavian (~48 glyphs, U+10450-U+1047F);
 Tengwar / Cirth / Elder Futhark / Ogham drop in as additional

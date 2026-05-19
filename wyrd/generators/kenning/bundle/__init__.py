@@ -25,7 +25,7 @@ Modules:
 
 Split between ``bundle/`` and ``runtime/`` (wyrd-7cg7): ``runtime/``
 owns code the Lambda Generator subclasses consume at request time
-(meaning.py, name.py, decomposition.py, trie_matcher.py, etc.);
+(runtime/meaning.py, runtime/name.py, runtime/decomposition.py, runtime/trie_matcher.py, etc.);
 ``bundle/`` owns code that consumes the DB / bundle to produce
 developer-facing reports.
 """

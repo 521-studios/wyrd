@@ -422,7 +422,7 @@ Phase 2 (LLM-assisted etymon classification of the production
 lexicon) and Phase 3 (transform integration) deferred. Plus the
 trie-indexed segmentation DAG matcher (wyrd-k8e Phase 1, PR #64) —
 foundation for wyrd-08m (decomposition multiplicity) and wyrd-cv3
-(corpus DB ingest); standalone in `trie_matcher.py` for now, Phase 2
+(corpus DB ingest); standalone in `runtime/trie_matcher.py` for now, Phase 2
 wires it into `Name.find_meaning`. And the etymon.synset_id →
 etymon.cognate_id rename (wyrd-44a, PR #63) cleared the naming
 collision between cognate-cluster IDs and meaning_synset IDs. The
@@ -473,7 +473,7 @@ era-reflex foundation. **wyrd-17t** pronunciation respelling
 (SAMPA-lite per-language rule tables; `Meaning.respelling_for`
 surfaces inline in `KenningRewind` components). **wyrd-y10**
 alternate-script transliteration (`KenningRender` Generator;
-`scripts.py` ships Shavian, Tengwar / Cirth / Elder Futhark
+`runtime/scripts.py` ships Shavian, Tengwar / Cirth / Elder Futhark
 slot in as future dispatch arms). **wyrd-bvp** corpus-evidence
 annotations on `unaccounted` fragments (`--sources-dir` flag
 counts distinct sources + samples 60-char snippets +

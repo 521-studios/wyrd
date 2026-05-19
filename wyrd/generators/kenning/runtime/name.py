@@ -14,14 +14,14 @@ from __future__ import annotations
 import itertools
 from collections import OrderedDict
 
-from wyrd.generators.kenning.meaning import Joiner, Meaning
-from wyrd.generators.kenning.trie_matcher import (
+from .meaning import Joiner, Meaning
+from .trie_matcher import (
     MorphemeTrie,
     all_decompositions,
     build_morpheme_trie,
     canonical_decompositions,
 )
-from wyrd.generators.kenning.word import Word
+from .word import Word
 
 # Bounded LRU memoization of the trie per word_db identity. Building
 # the trie is O(M) where M is the morpheme count (~4ms on a 2.9K-

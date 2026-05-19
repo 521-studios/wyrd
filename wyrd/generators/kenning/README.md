@@ -102,8 +102,8 @@ Key invariants:
 | `extractors/pfsrd2_monsters.py` | Walks the Pathfinder 2 SRD bestiary JSON corpus (`pfsrd2-data`) and emits `{name, description}` JSONL records for `mine-fantasy-name --batch`. Emits both family root + single-word variants. |
 | `cli/` | All `wyrd kenning lexicon …` commands (split into per-subcommand modules via wyrd-g143). |
 
-Generator runtime (`__init__.py`, `name.py`, `word.py`, `meaning.py`,
-`proportions.py`) reads the bundled `meanings.json`, which is now exported
+Generator runtime (`__init__.py`, `runtime/name.py`, `runtime/word.py`, `runtime/meaning.py`,
+`runtime/proportions.py`) reads the bundled `meanings.json`, which is now exported
 from the lexicon DB by `wyrd kenning lexicon export-meanings` (closes
 the D1 loop). The runtime keeps the historical "load JSON, sample" shape
 — the lexicon DB is invisible to the runtime.

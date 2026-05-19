@@ -81,8 +81,8 @@ from wyrd.generators.kenning.lexicon import (
     seed_meaning_synsets,
 )
 from wyrd.generators.kenning.lexicon.sql import upgrade_head
-from wyrd.generators.kenning.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.parsers.skeat import ParsedElement, ParsedEntry
+from wyrd.generators.kenning.runtime.meaning import Meaning, load_meanings
 
 
 @pytest.fixture
@@ -4202,7 +4202,7 @@ def test_load_meanings_normalize_era_reflexes_skips_malformed() -> None:
     are skipped silently rather than crashing the load. Pin the
     defensive parse so a future bundle export bug doesn't take down
     the entire runtime."""
-    from wyrd.generators.kenning.meaning import _normalize_era_reflexes
+    from wyrd.generators.kenning.runtime.meaning import _normalize_era_reflexes
 
     raw = {
         "middle-english": [
@@ -4414,7 +4414,7 @@ def test_kenning_rewind_generator_raises_on_empty_input() -> None:
 def test_respell_old_english_handles_macrons_and_special_chars() -> None:
     """OE rules: macrons drop, æ → a, ð / þ → th, palatalised c
     before front vowels → ch."""
-    from wyrd.generators.kenning.respelling import respell
+    from wyrd.generators.kenning.runtime.respelling import respell
 
     assert respell("tūn", "old-english") == "tun"
     assert respell("Hædan", "old-english") == "Hadan"
@@ -4425,7 +4425,7 @@ def test_respell_old_english_handles_macrons_and_special_chars() -> None:
 
 def test_respell_welsh_handles_digraphs() -> None:
     """Welsh rules: ll → hl, dd → th, f → v, ff → f, ch → kh."""
-    from wyrd.generators.kenning.respelling import respell
+    from wyrd.generators.kenning.runtime.respelling import respell
 
     assert respell("llan", "welsh") == "hlan"
     # 'dd' → th, 'w' between consonants → 'oo', 'f' → 'v'
@@ -4435,7 +4435,7 @@ def test_respell_welsh_handles_digraphs() -> None:
 
 def test_respell_old_norse_handles_thorn_and_eth() -> None:
     """ON: þ + ð both → th; j → y; á / ó / ú drop accents."""
-    from wyrd.generators.kenning.respelling import respell
+    from wyrd.generators.kenning.runtime.respelling import respell
 
     assert respell("þorp", "old-norse") == "thorp"
     assert respell("ǫss", "old-norse") == "oss"
@@ -4445,7 +4445,7 @@ def test_respell_old_norse_handles_thorn_and_eth() -> None:
 
 def test_respell_old_french_drops_silent_final_e() -> None:
     """OF: ç → s, é → ay, final-e after consonant → silent."""
-    from wyrd.generators.kenning.respelling import respell
+    from wyrd.generators.kenning.runtime.respelling import respell
 
     assert respell("ville", "norman-french") == "vill"
     assert respell("château", "old-french") == "chateau"  # â → a
@@ -4458,7 +4458,7 @@ def test_respell_old_french_drops_silent_final_e() -> None:
 def test_respell_returns_none_for_modern_english_and_unknown() -> None:
     """Modern English passes through with None (no respeller registered).
     Unknown languages also return None."""
-    from wyrd.generators.kenning.respelling import has_respeller, respell
+    from wyrd.generators.kenning.runtime.respelling import has_respeller, respell
 
     assert respell("town", "english") is None
     assert respell("village", "modern-english") is None
@@ -4469,7 +4469,7 @@ def test_respell_returns_none_for_modern_english_and_unknown() -> None:
 
 def test_respell_handles_empty_form() -> None:
     """Empty input returns None instead of crashing the rule pipeline."""
-    from wyrd.generators.kenning.respelling import respell
+    from wyrd.generators.kenning.runtime.respelling import respell
 
     assert respell("", "old-english") is None
 
@@ -4489,7 +4489,7 @@ def test_meaning_respelling_for_delegates_to_module() -> None:
 def test_transliterate_shavian_renders_basic_input() -> None:
     """End-to-end: Shavian transliteration produces plane-1 glyph
     output for English-orthography input."""
-    from wyrd.generators.kenning.scripts import transliterate
+    from wyrd.generators.kenning.runtime.scripts import transliterate
 
     out = transliterate("Whitchurch", "shavian")
     assert out
@@ -4500,7 +4500,7 @@ def test_transliterate_shavian_renders_basic_input() -> None:
 def test_transliterate_shavian_preserves_hyphens() -> None:
     """Hyphenated compounds keep their structure so 'Pont-Dwfr'
     renders as two glyph runs separated by a hyphen."""
-    from wyrd.generators.kenning.scripts import transliterate
+    from wyrd.generators.kenning.runtime.scripts import transliterate
 
     out = transliterate("Pont-Dwfr", "shavian")
     assert "-" in out
@@ -4513,14 +4513,14 @@ def test_transliterate_shavian_handles_digraphs() -> None:
     """Digraph rules fire before single-char so 'ch' produces a
     single ch-glyph (not separate c+h glyphs). Glyph-count for
     'church' should be smaller than its 6-char input length."""
-    from wyrd.generators.kenning.scripts import transliterate
+    from wyrd.generators.kenning.runtime.scripts import transliterate
 
     out_church = transliterate("church", "shavian")
     assert len(out_church) < len("church")
 
 
 def test_transliterate_empty_returns_empty() -> None:
-    from wyrd.generators.kenning.scripts import transliterate
+    from wyrd.generators.kenning.runtime.scripts import transliterate
 
     assert transliterate("", "shavian") == ""
 
@@ -4529,7 +4529,7 @@ def test_transliterate_unknown_script_raises() -> None:
     """Defensive: unknown script raises ValueError with the
     supported-list in the message so SPA / CLI surface immediately
     rather than silently passing input through."""
-    from wyrd.generators.kenning.scripts import transliterate
+    from wyrd.generators.kenning.runtime.scripts import transliterate
 
     with pytest.raises(ValueError, match="unsupported script"):
         transliterate("hello", "klingon")

@@ -34,7 +34,7 @@ from unittest.mock import patch
 import pytest
 
 import wyrd.generators.kenning as kenning_mod
-from wyrd.generators.kenning.meaning import (
+from wyrd.generators.kenning.runtime.meaning import (
     load_canonical_decompositions,
     load_fantasy_morphemes,
     load_joiners,

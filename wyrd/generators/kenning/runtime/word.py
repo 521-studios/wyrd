@@ -5,7 +5,7 @@ Ported from Rando (rando/word.py) — Python 2 → 3.
 
 from __future__ import annotations
 
-from wyrd.generators.kenning.meaning import Meaning
+from .meaning import Meaning
 
 
 class Word:

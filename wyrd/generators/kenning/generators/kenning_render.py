@@ -21,7 +21,7 @@ class KenningRender(Generator):
     Initial target: Shavian (~48 glyphs, plane-1 codepoints
     U+10450-U+1047F). Future scripts (Tengwar / Cirth / Elder Futhark
     / Ogham) drop in via additional ``transliterate`` dispatch arms
-    in ``wyrd.generators.kenning.scripts``.
+    in ``wyrd.generators.kenning.runtime.scripts``.
     """
 
     name = "kenning-render"
@@ -36,7 +36,7 @@ class KenningRender(Generator):
     multi_result = False
 
     def input_schema(self) -> dict[str, Any]:
-        from wyrd.generators.kenning.scripts import SUPPORTED_SCRIPTS
+        from wyrd.generators.kenning.runtime.scripts import SUPPORTED_SCRIPTS
 
         return {
             "type": "object",
@@ -56,7 +56,7 @@ class KenningRender(Generator):
         }
 
     def generate(self, params: dict[str, Any], seed: int) -> GenerationResult:
-        from wyrd.generators.kenning.scripts import transliterate
+        from wyrd.generators.kenning.runtime.scripts import transliterate
 
         text = (params.get("name") or "").strip()
         if not text:

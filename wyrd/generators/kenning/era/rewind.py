@@ -34,8 +34,8 @@ from wyrd.generators.kenning.lexicon import (
     LexiconDB,
     etymon_era_reflexes,
 )
-from wyrd.generators.kenning.meaning import Meaning
-from wyrd.generators.kenning.name import Name
+from wyrd.generators.kenning.runtime.meaning import Meaning
+from wyrd.generators.kenning.runtime.name import Name
 
 # Default era ladder for English-family rewind: three cells across
 # 800-present. wyrd-rni's "this name through time" output reads as a
