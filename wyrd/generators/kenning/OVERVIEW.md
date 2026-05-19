@@ -242,7 +242,7 @@ the family root (Djinni, Efreeti, Marid under Genie). Multi-word
 variant names are dropped; "Ancient Black Dragon" with no family
 field is the canonical "no clean morpheme" case.
 
-Approved languages live in `fantasy_pipeline.APPROVED_LANGUAGES` —
+Approved languages live in `extractors.fantasy.APPROVED_LANGUAGES` —
 keep it dashed-lowercase for descriptive names ('old-english',
 'ancient-greek') and ISO-code form for languages where the etymon
 table uses ISO codes ('he', 'ar', 'fa', 'sa', 'akk', 'egy', 'arc',
@@ -250,7 +250,7 @@ table uses ISO codes ('he', 'ar', 'fa', 'sa', 'akk', 'egy', 'arc',
 'sa', 'arabic' → 'ar', 'ancient-egyptian' → 'egy') so descriptive
 names from the LLM resolve against ISO etymon rows.
 
-`approach_version` (in `fantasy_pipeline.APPROACH_VERSION`) is a
+`approach_version` (in `extractors.fantasy.APPROACH_VERSION`) is a
 pipeline-version stamp: the (input_name, approach_version) UNIQUE
 on `fantasy_morpheme` lets a stronger pipeline re-process all rows
 by bumping the version. The `--skip-resolved` flag on

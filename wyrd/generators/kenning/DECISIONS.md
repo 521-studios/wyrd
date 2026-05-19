@@ -1089,7 +1089,7 @@ Two related implementation knobs:
 
 ### approach_version
 
-`fantasy_pipeline.APPROACH_VERSION` is a pipeline-version stamp.
+`extractors.fantasy.APPROACH_VERSION` is a pipeline-version stamp.
 The (input_name, approach_version) UNIQUE means re-running with the
 same version updates rows in place; bumping the version (e.g. when a
 stronger pipeline ships) writes parallel rows so the old results stay
@@ -1111,7 +1111,7 @@ Reasons:
   migration that re-shapes canonical_form for ~85k Hebrew/Arabic/
   Persian rows changes the meaning of every existing reference: every
   descent edge that resolves a parent by canonical_form, every
-  fantasy_pipeline LLM-anchor lookup, every fuzzy-search index.
+  extractors.fantasy LLM-anchor lookup, every fuzzy-search index.
 - The wiktextract ingester writes `canonical_form = entry.word`. A
   migration that diverges from this would need both a one-time bulk
   UPDATE and an ongoing translation layer in the ingester.

@@ -66,7 +66,7 @@ Two views drive the consensus model:
               │  (auto-detect by yield)
               ▼
    ┌──────────────────────┐
-   │ LLM extractor        │   llm_extractor.py       (Ollama, local, free)
+   │ LLM extractor        │   extractors/llm.py      (Ollama, local, free)
    │  + form-in-body      │   gemini_extractor.py    (paid, more accurate)
    │  validation guard    │   shared validate_response, USER_TEMPLATE,
    └──────────┬───────────┘   SYSTEM_PROMPT
@@ -96,7 +96,7 @@ Key invariants:
 | `lexicon.py` | DB schema init, ingest, OCR-variant clustering. The data layer. |
 | `skeat_parser.py` | Skeat-style books: TOC + "§ N. The suffix -X" body sections. Cambridgeshire/Bedfordshire/Suffolk. |
 | `dictionary_parser.py` | Alphabetical-headword books (Mawer, Ekwall, Watson, Johnston, Joyce, Morgan). Auto-detected fallback. |
-| `llm_extractor.py` | Ollama client + shared SYSTEM_PROMPT, USER_TEMPLATE, RESPONSE_SCHEMA, `validate_response`. |
+| `extractors/llm.py` | Ollama client + shared SYSTEM_PROMPT, USER_TEMPLATE, RESPONSE_SCHEMA, `validate_response`. |
 | `gemini_extractor.py` | Gemini-API parallel implementation with the same `extract_one` shape. Slightly stronger on hedge-recognition and OE-form OCR garble; pay-per-call. |
 | `fantasy_pipeline.py` | wyrd-ami: fantasy-name etymology research (Harpy → ancient-greek ἅρπυια, Djinni → arabic jinn). Resolves creature names against the etymon corpus via descent_walking_lookup pre-filter + Gemini Flash full-research fallback. Output rows in `fantasy_morpheme`. See OVERVIEW.md "Sibling pipeline" + INGESTION.md "Mining the wyrd-ami fantasy-name corpus". |
 | `pfsrd2_monster_extractor.py` | Walks the Pathfinder 2 SRD bestiary JSON corpus (`pfsrd2-data`) and emits `{name, description}` JSONL records for `mine-fantasy-name --batch`. Emits both family root + single-word variants. |
@@ -208,7 +208,7 @@ wyrd kenning lexicon mine-fantasy-name --batch /tmp/pfsrd2-monsters.jsonl \
   and route through `load_meanings` into a dedicated `Meaning` attribute.
 - **New LLM provider**: implement `chat_json(system, user, schema)` and
   `extract_one(client, toponym, body, suffix_hint)`. Reuse
-  `validate_response` from `llm_extractor.py`. Wire as a `--provider`
+  `validate_response` from `extractors/llm.py`. Wire as a `--provider`
   option in `cli.py`.
 - **Time-aware generation**, **cross-cultural rendering**, **name
   families**, **stratified maps**: see the open tickets in `bd list`.

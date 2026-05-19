@@ -80,7 +80,7 @@ _LANG_CODE_TO_JSON_FIELD = {
     "proto-greek": "greek",
     # wyrd-vsrn Phase 2c: wave-2 non-Latin source-language buckets.
     # Each canonical wave-2 language gets its own bundle field; the
-    # precursor / postcursor stack codes (per fantasy_pipeline's
+    # precursor / postcursor stack codes (per extractors.fantasy's
     # _PRECURSOR_POSTCURSOR_STACK) all funnel into the canonical
     # bucket for their family — same pattern as celtic_mix bundles
     # welsh / old-welsh / middle-welsh / etc.
