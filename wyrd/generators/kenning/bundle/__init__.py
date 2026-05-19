@@ -15,8 +15,8 @@ lexicon-side package builds the bundle in the first place.
 Modules:
 
 * ``browse.py`` — read-only DB browse helpers (``parse_toponym_ref``,
-  ``browse_toponym``, etc.). Consumed by ``cli/lexicon/browse/*``
-  click subcommands and by ``era/timeline.py``.
+  ``fetch_toponym_detail``, ``format_toponym``, etc.). Consumed by
+  ``cli/lexicon/browse/*`` click subcommands and by ``era/timeline.py``.
 * ``rando_port_readiness.py`` — Rando port readiness reporting
   (toponym coverage analytics for the rando-server adopter).
 * ``wikipedia_backfill_report.py`` — Wikipedia-seed retirement
