@@ -23,7 +23,7 @@ The pipeline splits across four internal modules:
 This re-export shim keeps existing
 ``from wyrd.generators.kenning.lexicon.bundle import export_meanings``
 callers working and exposes the two public constants that callers
-(``language_quality.py``, ``decomposition.py``) read directly.
+(``language_quality.py``, ``runtime/decomposition.py``) read directly.
 """
 
 from wyrd.generators.kenning.lexicon.bundle._emit import _LANG_CODE_TO_JSON_FIELD

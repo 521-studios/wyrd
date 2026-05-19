@@ -11,7 +11,7 @@ Enforce that lexicon-DB concerns live under
 split out of a 7,272-line `lexicon.py` into a package. Every file
 that touches the lexicon DB belongs in the package; the rest of
 `wyrd/generators/kenning/` stays runtime-only (`__init__.py`,
-`meaning.py`, `name.py`, `proportions.py`, `trie_matcher.py`, etc.).
+`runtime/meaning.py`, `runtime/name.py`, `runtime/proportions.py`, `runtime/trie_matcher.py`, etc.).
 
 **FLAG when a file outside `lexicon/` contains:**
 
@@ -38,9 +38,11 @@ that touches the lexicon DB belongs in the package; the rest of
 
 **Acceptable** (don't flag):
 
-* Runtime-layer files (`__init__.py`, `meaning.py`, `name.py`,
-  `proportions.py`, `era/cells.py`, `respelling.py`, `scripts.py`,
-  `trie_matcher.py`, `decomposition.py`, `era/rewind.py`,
+* Runtime-layer files — the `runtime/` subpackage
+  (`runtime/__init__.py`, `runtime/meaning.py`, `runtime/name.py`,
+  `runtime/word.py`, `runtime/proportions.py`, `runtime/respelling.py`,
+  `runtime/scripts.py`, `runtime/trie_matcher.py`,
+  `runtime/decomposition.py`) plus `era/cells.py`, `era/rewind.py`,
   `registers/phonology.py`, `vectors/schemas.py`) — these read the bundled
   `meanings.json` and have no DB access.
 * `cli.py` — CLI wiring lives here per project convention; will be

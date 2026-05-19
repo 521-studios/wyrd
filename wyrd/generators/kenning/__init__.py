@@ -686,7 +686,7 @@ def _build_decomposition_result(
 
 def _canonical_signature_for_words(words) -> str:
     """Compute the SHA-1-of-JSON-payload signature used by
-    decomposition.py over a flat slot list across the words of a name.
+    runtime/decomposition.py over a flat slot list across the words of a name.
 
     The canonical map projected into the bundle (wyrd-h8k1) keys on
     this signature; KenningExplain re-derives it per candidate so the

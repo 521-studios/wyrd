@@ -156,7 +156,7 @@ Post-epic deploy chain ran:
 
 Discovered during deploy: rebuild-proportions OOMs on the 58-char
 'Llanfairpwllgwyngyllgogerychwyrndrobwyllllantysiliogogogoch' due
-to a cartesian explosion in trie_matcher.py:all_decompositions.
+to a cartesian explosion in runtime/trie_matcher.py:all_decompositions.
 Workaround: removed from welsh_place_names.json (welsh corpus
 1916 → 1915 names). Tracked as wyrd-p8ve (algorithmic fix:
 score-prune during the canonical_decompositions walk) and
