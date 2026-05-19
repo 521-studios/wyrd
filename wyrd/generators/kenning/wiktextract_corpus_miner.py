@@ -31,14 +31,14 @@ from typing import Any
 import click
 
 from wyrd.generators.kenning.lexicon import LexiconDB
-from wyrd.generators.kenning.meaning import load_meanings
-from wyrd.generators.kenning.name import load_names
-from wyrd.generators.kenning.wiktextract_ingester import (
+from wyrd.generators.kenning.lexicon.wiktextract_ingester import (
     _canonical_language,
     _extract_head_template_renderings,
     _extract_pronunciation,
     _map_categories_to_tags,
 )
+from wyrd.generators.kenning.meaning import load_meanings
+from wyrd.generators.kenning.name import load_names
 
 # Synthetic source row written on first --apply run.
 WIKTIONARY_EMPIRICAL_SOURCE_ID = "wiktionary-empirical"

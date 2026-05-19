@@ -8,7 +8,8 @@ import pytest
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as kenning_cli
-from wyrd.generators.kenning.english_shaping import (
+from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
+from wyrd.generators.kenning.lexicon.english_shaping import (
     KNOWN_FORM_OVERRIDES,
     _apply_digraphs,
     _apply_single_chars,
@@ -17,7 +18,6 @@ from wyrd.generators.kenning.english_shaping import (
     _strip_transliteration,
     derive_english_shaped,
 )
-from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 
 
 @pytest.fixture

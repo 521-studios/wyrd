@@ -17,7 +17,7 @@ from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as kenning_cli
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
-from wyrd.generators.kenning.wiktextract_ingester import (
+from wyrd.generators.kenning.lexicon.wiktextract_ingester import (
     _canonical_language,
     _classify_form_variant,
     _extract_head_template_renderings,

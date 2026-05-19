@@ -591,7 +591,7 @@ def ingest_all_slices(
     ingester transitively imports ``bulk_sources.open_jsonl`` for
     .zst handling.
     """
-    from wyrd.generators.kenning.wiktextract_ingester import (
+    from wyrd.generators.kenning.lexicon.wiktextract_ingester import (
         ingest_wiktextract_path,
     )
 

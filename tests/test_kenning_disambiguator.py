@@ -24,7 +24,9 @@ import pytest
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
-from wyrd.generators.kenning.disambiguator import (
+from wyrd.generators.kenning.gemini_extractor import GeminiClient
+from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
+from wyrd.generators.kenning.lexicon.disambiguator import (
     AmbiguityCase,
     Candidate,
     DisambiguatorResult,
@@ -35,8 +37,6 @@ from wyrd.generators.kenning.disambiguator import (
     disambiguate_one_agentic,
     find_ambiguous_rows,
 )
-from wyrd.generators.kenning.gemini_extractor import GeminiClient
-from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 
 
 @pytest.fixture

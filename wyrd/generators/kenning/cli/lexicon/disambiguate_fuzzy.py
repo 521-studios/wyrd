@@ -111,12 +111,12 @@ def lexicon_disambiguate_fuzzy(
     """
     # Local imports keep the disambiguator deps off the cold-start path
     # for unrelated CLI commands.
-    from wyrd.generators.kenning.disambiguator import (
+    from wyrd.generators.kenning.gemini_extractor import GeminiClient
+    from wyrd.generators.kenning.lexicon.disambiguator import (
         SnippetExpander,
         apply_disambiguator_result,
         find_ambiguous_rows,
     )
-    from wyrd.generators.kenning.gemini_extractor import GeminiClient
 
     if agentic and sources_dir is None:
         raise click.UsageError("--agentic requires --sources-dir")
@@ -228,7 +228,7 @@ def _disambiguate_dispatch(
     ``stats`` is None on the single-shot path. Raises RuntimeError on
     transport failure — caller increments the error counter and
     continues."""
-    from wyrd.generators.kenning.disambiguator import (
+    from wyrd.generators.kenning.lexicon.disambiguator import (
         disambiguate_one,
         disambiguate_one_agentic,
     )

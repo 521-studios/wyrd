@@ -30,7 +30,7 @@ from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema, migrate_schema
-from wyrd.generators.kenning.strata import (
+from wyrd.generators.kenning.lexicon.strata import (
     FRENCH_STRATA,
     OLD_ENGLISH_STRATA,
     OLD_NORSE_STRATA,
@@ -2087,7 +2087,7 @@ def test_all_strata_includes_every_family_bucket() -> None:
     ALL_STRATA is built from the four constants directly, but a
     refactor that swaps to an explicit listing would silently drop
     coverage)."""
-    from wyrd.generators.kenning.strata import ALL_STRATA
+    from wyrd.generators.kenning.lexicon.strata import ALL_STRATA
 
     for stratum in WELSH_STRATA + FRENCH_STRATA + OLD_ENGLISH_STRATA + OLD_NORSE_STRATA:
         assert stratum in ALL_STRATA, stratum
@@ -2100,7 +2100,7 @@ def test_family_for_language_classifies_every_known_language() -> None:
     that's also a key of ``STRATA_BY_FAMILY``. Pins the cross-map
     invariant: a Phase 4e classifier addition that adds to one map
     but not the other would surface here as a KeyError."""
-    from wyrd.generators.kenning.strata import (
+    from wyrd.generators.kenning.lexicon.strata import (
         LANGUAGE_TO_FAMILY,
         STRATA_BY_FAMILY,
         family_for_language,
@@ -2116,7 +2116,7 @@ def test_family_for_language_returns_none_for_unclassified() -> None:
     appear in the live DB but aren't in any ``_*_SELF_LANGUAGE_TO_STRATUM``
     map) return None, signalling 'fall back to ALL_STRATA typo-check'
     in set-stratum."""
-    from wyrd.generators.kenning.strata import family_for_language
+    from wyrd.generators.kenning.lexicon.strata import family_for_language
 
     # ofs / goh / ga are real Wiktextract codes for Old Frisian /
     # Old High German / Irish — none classified today.
@@ -2132,7 +2132,7 @@ def test_valid_strata_for_culture_known_and_unknown() -> None:
     for cultures with a per-culture restriction (english/scottish/
     welsh today), an empty frozenset for cultures without one
     (irish/breton, plus unknown cultures via dict.get default)."""
-    from wyrd.generators.kenning.strata import valid_strata_for_culture
+    from wyrd.generators.kenning.lexicon.strata import valid_strata_for_culture
 
     assert valid_strata_for_culture("english")  # non-empty
     assert valid_strata_for_culture("welsh")  # non-empty
@@ -2151,7 +2151,7 @@ def test_language_to_family_values_are_known_families() -> None:
     catch). Complements ``test_family_for_language_classifies_every_known_language``
     by validating the structural invariant directly rather than via
     the helper."""
-    from wyrd.generators.kenning.strata import LANGUAGE_TO_FAMILY, STRATA_BY_FAMILY
+    from wyrd.generators.kenning.lexicon.strata import LANGUAGE_TO_FAMILY, STRATA_BY_FAMILY
 
     families_used = set(LANGUAGE_TO_FAMILY.values())
     families_known = set(STRATA_BY_FAMILY.keys())

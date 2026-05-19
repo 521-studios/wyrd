@@ -7,11 +7,11 @@ from pathlib import Path
 import click
 
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
-from wyrd.generators.kenning.english_shaping import (
+from wyrd.generators.kenning.lexicon import LexiconDB
+from wyrd.generators.kenning.lexicon.english_shaping import (
     PHASE2A_NON_LATIN_LANGS as _PHASE2A_NON_LATIN_LANGS,
 )
-from wyrd.generators.kenning.english_shaping import derive_english_shaped
-from wyrd.generators.kenning.lexicon import LexiconDB
+from wyrd.generators.kenning.lexicon.english_shaping import derive_english_shaped
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 
