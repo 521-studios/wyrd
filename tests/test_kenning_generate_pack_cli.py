@@ -46,7 +46,7 @@ def single_pack(monkeypatch):
         "subjects": [
             {
                 "meaning": ["Fortress"],
-                "modifier_tags": ["war"],
+                "modifier_tags": ["architecture"],
                 "modifier_type": "Topographical",
                 "words": [{"modern_usage": "-keep", "old_english": ["cȳpe"]}],
             }
@@ -231,7 +231,7 @@ def test_pack_params_reach_dispatch(single_pack, monkeypatch):
             "--pack",
             "test-pack:0.7",
             "--pack-tag-filter",
-            "test-pack:war",
+            "test-pack:architecture",
         ],
     )
     assert "packs_raw" in captured
@@ -240,7 +240,7 @@ def test_pack_params_reach_dispatch(single_pack, monkeypatch):
         {
             "pack_name": "test-pack",
             "weight_override": 0.7,
-            "allowed_pack_tags": ["war"],
+            "allowed_pack_tags": ["architecture"],
         }
     ]
 
@@ -308,39 +308,47 @@ def test_pack_flags_in_proportions_mode_silent_no_op(single_pack, monkeypatch):
 
 
 def test_vector_mode_with_pack_can_produce_pack_lemma(single_pack):
-    """End-to-end smoke: vector mode with a pack admits the pack's
-    lemmas into the pool. With a high weight + a register favouring
-    the pack's tag, the pack lemma should appear at least sometimes
-    across enough seeds.
+    """End-to-end smoke: vector mode with a pack must not crash and
+    must produce either generated output or a friendly ValueError
+    diagnostic across a seed sweep. Whether the pack lemma actually
+    surfaces is a function of the synthetic fixture's lemma
+    placement + the live English struct distribution; we don't
+    pin a "pack lemma appears" assertion against unstable inputs.
 
-    The test pack has -keep tagged 'war'; we boost via --mood harsh
-    (provides phon register) and over-weight the pack (--pack
-    test-pack:5.0). We don't pin a specific seed → output assertion;
-    we just verify no crash + non-empty output."""
+    What this test DOES guard: silent crashes (the pack pipeline
+    raising an uncaught exception that's neither a clean Error
+    message nor a generated name)."""
     runner = CliRunner()
-    result = runner.invoke(
-        generate,
-        [
-            "english",
-            "--count",
-            "3",
-            "--seed",
-            "42",
-            "--no-describe",
-            "--scoring-mode",
-            "vector",
-            "--mood",
-            "harsh",
-            "--pack",
-            "test-pack:5.0",
-        ],
-    )
-    # The vector path may raise ValueError ('no eligible name')
-    # depending on the gate predicates and seeded sampling. Both
-    # outcomes (success + friendly diagnostic) are acceptable; what
-    # we're verifying is that the pack flow doesn't crash.
-    if result.exit_code != 0:
-        assert "Error" in result.output, result.output
+    saw_clean_outcome = False
+    for seed in range(10):
+        result = runner.invoke(
+            generate,
+            [
+                "english",
+                "--count",
+                "3",
+                "--seed",
+                str(seed),
+                "--no-describe",
+                "--scoring-mode",
+                "vector",
+                "--tag",
+                "architecture",
+                "--pack",
+                "test-pack:5.0",
+            ],
+        )
+        if result.exit_code == 0:
+            # Successfully generated a name — clean outcome
+            assert result.output.strip()
+            saw_clean_outcome = True
+        else:
+            # Friendly ValueError fallback ('no eligible name') is
+            # also acceptable — must surface as Error: prefix per
+            # the CLI's existing user-error-handling pattern.
+            assert "Error" in result.output, result.output
+            saw_clean_outcome = True
+    assert saw_clean_outcome, "no seed in the sweep reached the dispatch"
 
 
 # ---- positive parse of the params dict shape --------------------------
@@ -411,11 +419,12 @@ def test_kenning_generate_pack_with_no_weight_uses_manifest_default(single_pack,
             "test-pack",  # no :weight
         ],
     )
-    # If we captured a PackOverlay init, weight should be 0.5
-    # (manifest default). If the CLI never reached the dispatch
-    # (e.g., earlier validation failed), the test is degenerate but
-    # not a regression — assert only what was actually called.
-    if captured:
-        assert any(call.get("weight") == 0.5 for call in captured), (
-            f"expected weight=0.5 (manifest default), got {captured}"
-        )
+    # The dispatch MUST have constructed at least one PackOverlay;
+    # an `if captured:` guard would let a silent-broken pipeline
+    # pass the test. The fixture's pack has default_weight=0.5,
+    # and --pack test-pack (no :weight) means weight_override is
+    # None → manifest default takes over.
+    assert captured, "_generate_via_vector never constructed a PackOverlay"
+    assert any(call.get("weight") == 0.5 for call in captured), (
+        f"expected weight=0.5 (manifest default), got {captured}"
+    )
