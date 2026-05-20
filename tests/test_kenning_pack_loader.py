@@ -72,6 +72,24 @@ def test_parse_manifest_missing_required_raises():
         )
 
 
+def test_parse_manifest_explicit_null_default_weight_uses_default():
+    """A manifest with `"default_weight": null` should fall back to
+    1.0, not raise TypeError from float(None). Guards against
+    hand-edits or tooling-generated manifests that clear the field
+    with null instead of omitting the key."""
+    manifest = _parse_manifest(
+        {
+            "pack_name": "test-pack",
+            "template_donor": "old-norse",
+            "template_recipient": "old-english",
+            "default_weight": None,
+            "version": None,
+        }
+    )
+    assert manifest.default_weight == 1.0
+    assert manifest.version == "unversioned"
+
+
 def test_parse_manifest_missing_multiple_required_lists_all():
     """All missing required fields surface in one error so the
     operator doesn't fix-rerun-fix one at a time."""

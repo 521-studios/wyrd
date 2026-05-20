@@ -123,6 +123,46 @@ def test_load_empirical_priors_from_json_matches_payload_path(tmp_path: Path):
 # ---- kenning._load_empirical_priors fallback behavior -------------------
 
 
+def test_load_empirical_priors_reads_bundled_sidecar_when_present(tmp_path: Path, monkeypatch):
+    """Positive-path: when _data_path resolves to a real priors.json
+    on disk, the loader reads + parses it into a populated
+    EmpiricalPriors. Closes the integration-coverage gap from the
+    payload-only + absent-file tests."""
+    import wyrd.generators.kenning as kenning_mod
+
+    payload = {
+        "version": "test-v1",
+        "native": [
+            {
+                "culture": "english",
+                "position": "post",
+                "tag": "fortified",
+                "era_midpoint": 1086,
+                "lemmas": {"burh": 100.0},
+            }
+        ],
+        "loan": [],
+    }
+    priors_file = tmp_path / "priors.json"
+    priors_file.write_text(json.dumps(payload))
+
+    def fake_data_path(filename: str):
+        if filename == "priors.json":
+            return priors_file
+        return kenning_mod._data_path.__wrapped__(filename)  # type: ignore[attr-defined]
+
+    monkeypatch.setattr(kenning_mod, "_data_path", fake_data_path)
+    kenning_mod._load_empirical_priors.cache_clear()
+    try:
+        result = kenning_mod._load_empirical_priors()
+        assert result.version == "test-v1"
+        key = ("english", "post", "fortified", 1086)
+        assert key in result.native
+        assert result.native[key] == {"burh": 100.0}
+    finally:
+        kenning_mod._load_empirical_priors.cache_clear()
+
+
 def test_load_empirical_priors_returns_empty_when_no_bundled_priors(monkeypatch):
     """When the bundle has no priors.json, the bundled-priors loader
     returns an empty EmpiricalPriors. The vector-scoring fallback

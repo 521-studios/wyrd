@@ -47,16 +47,23 @@ def _parse_manifest(payload: dict[str, Any]) -> PackManifest:
     missing = [k for k in required if k not in payload]
     if missing:
         raise ValueError(f"pack manifest missing required field(s): {', '.join(missing)}")
+    # Explicit-null handling: payload.get("default_weight", 1.0) returns
+    # None if the key is present-but-null (a hand-edit gone wrong or a
+    # default cleared by tooling). Passing None to float() raises
+    # TypeError; the explicit `is not None` guard treats null as
+    # "use the default" rather than crashing the bundle load.
+    raw_weight = payload.get("default_weight")
+    raw_version = payload.get("version")
     return PackManifest(
         pack_name=payload["pack_name"],
         template_donor=payload["template_donor"],
         template_recipient=payload["template_recipient"],
-        default_weight=float(payload.get("default_weight", 1.0)),
-        version=str(payload.get("version", "unversioned")),
+        default_weight=float(raw_weight) if raw_weight is not None else 1.0,
+        version=str(raw_version) if raw_version is not None else "unversioned",
     )
 
 
-def load_packs_from_traversable(packs_root) -> dict[str, PackBundle]:
+def load_packs_from_traversable(packs_root: Any) -> dict[str, PackBundle]:
     """Scan ``packs_root`` for per-pack subdirectories. Each subdir
     that contains both manifest.json and meanings.json becomes a
     :class:`PackBundle` in the returned dict, keyed by the
