@@ -499,7 +499,7 @@ def _generate_via_vector(
         build_request_vector,
         era_midpoint_from_range,
     )
-    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors, ScoringWeights
+    from wyrd.generators.kenning.vectors.schemas import ScoringWeights
 
     era_min = era_range[0] if era_range else None
     era_max = era_range[1] if era_range else None
@@ -536,9 +536,15 @@ def _generate_via_vector(
     if priors_path:
         priors = load_empirical_priors_from_json(Path(priors_path))
     else:
-        # Empty priors → baseline axis contributes 0; score falls back
-        # to phon + sem + pos. Operator's choice not to pass a path.
-        priors = EmpiricalPriors()
+        # wyrd-ecjp.10b: fall back to the bundled priors.json sidecar
+        # (if shipped) before degrading to empty. Operator who passes
+        # --priors-path explicitly still overrides the bundle (path-
+        # arg wins). When neither path arg nor bundled sidecar exists,
+        # priors is empty + baseline axis contributes 0 (legacy
+        # behavior preserved).
+        from wyrd.generators.kenning import _load_empirical_priors
+
+        priors = _load_empirical_priors()
 
     era_midpoint = era_midpoint_from_range(era_min, era_max)
 
