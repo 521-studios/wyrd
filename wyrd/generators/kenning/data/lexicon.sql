@@ -638,6 +638,12 @@ CREATE INDEX idx_toponym_name       ON toponym(modern_name);
 CREATE INDEX idx_etymology_toponym  ON toponym_etymology(toponym_id);
 CREATE INDEX idx_etymology_source   ON toponym_etymology(source_id);
 CREATE INDEX idx_attestation_topo   ON toponym_attestation(toponym_id);
+-- wyrd-rhnw: dedicated source_doc index. idx_attestation_unique has
+-- source_doc as the LAST composite column, so a `SELECT WHERE
+-- source_doc=?` falls back to a full-table scan without this. Phase
+-- 2b.2 corpus extraction needs the dedicated index for the bulk
+-- preflight to stay sub-linear.
+CREATE INDEX idx_attestation_source_doc ON toponym_attestation(source_doc);
 -- wyrd-skm Phase 3.0a: keeps mine-attestations re-runs idempotent.
 -- Allows multiple attestations per toponym (different form, year, or
 -- scholarly source) without duplicating identical (toponym, form, year,

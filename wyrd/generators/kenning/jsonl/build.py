@@ -972,6 +972,10 @@ DIFF_REBUILD_TABLES: tuple[str, ...] = (
     "etymon_descent",
     "mining_run",
     "toponym",
+    # wyrd-jr37: attestation round-trips since PR #204; needed in the
+    # monitored set so a regression that silently drops attestations
+    # produces a non-zero diff instead of going invisible.
+    "toponym_attestation",
     "toponym_etymology",
     "toponym_etymology_element",
     # wyrd-11zh: Briggs PN ingest round-trip.

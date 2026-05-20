@@ -78,6 +78,12 @@ class ReverseSearchReport:
     unmatched: int = 0
     inserted: int = 0
     already_present: int = 0
+    # wyrd-9ekl: count of source-attribution-chain pattern matches in
+    # the body. With context_is_body=True the extractor admits these
+    # as legitimate attestations rather than suppressing, but the
+    # counter still surfaces pattern prevalence so operators can see
+    # how often the `<year> FORM, <year>` shape occurs.
+    suppressed_by_source_chain: int = 0
     unmatched_samples: list[tuple[str, int]] = field(default_factory=list)
 
 
@@ -213,7 +219,14 @@ def reverse_search_source(
     body = _load_source_body(sources_dir, source_id)
     if body is None:
         return report
-    pairs = _extract_attestation_pairs(body)
+    # wyrd-9ekl: body-text context — disable the source-attribution-
+    # chain guard (calibrated for short notes strings; over-suppresses
+    # in long body text where `<year> FORM, <year>` is dominantly a
+    # legitimate attestation chain). Telemetry dict surfaces any
+    # would-be suppressions even though the guard is now off.
+    telemetry: dict[str, int] = {}
+    pairs = _extract_attestation_pairs(body, context_is_body=True, telemetry=telemetry)
+    report.suppressed_by_source_chain = telemetry.get("suppressed_by_source_chain", 0)
     report.pairs_extracted = len(pairs)
     for form, year in pairs:
         key = _normalize_for_match(form)

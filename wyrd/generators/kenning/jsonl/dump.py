@@ -78,12 +78,15 @@ contract.
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
 from .log import write_jsonl
+
+_logger = logging.getLogger(__name__)
 
 # Etymon columns that are L2-attributable facts. Order is significant
 # only for diff stability — the kernel doesn't care about field order.
@@ -710,6 +713,32 @@ def dump_source_to_file(
     return path, n
 
 
+def count_orphan_attestations(conn: sqlite3.Connection) -> int:
+    """Count ``toponym_attestation`` rows whose ``source_doc`` routes
+    nowhere — neither matches any ``source.id`` exactly nor starts with
+    any registered prefix in :data:`_ATTESTATION_DOC_PREFIX_TO_SOURCE`.
+
+    These rows are silently dropped by :func:`dump_all_sources` (no
+    per-source file would carry them). wyrd-2t28: surface the count so
+    a new ingester or a typo introducing un-routable source_docs shows
+    up in operator output instead of disappearing after rebuild."""
+    prefix_globs = [p + "*" for p, _sid in _ATTESTATION_DOC_PREFIX_TO_SOURCE]
+    clauses = ["ta.source_doc IS NOT NULL", "ta.source_doc NOT IN (SELECT id FROM source)"]
+    params: list[Any] = []
+    if prefix_globs:
+        # Exclude rows whose source_doc matches a registered prefix —
+        # those are routed to a real source, not orphans.
+        prefix_check = " AND ".join(["ta.source_doc NOT GLOB ?"] * len(prefix_globs))
+        clauses.append(prefix_check)
+        params.extend(prefix_globs)
+    where = " AND ".join(clauses)
+    row = conn.execute(
+        f"SELECT COUNT(*) FROM toponym_attestation ta WHERE {where}",  # noqa: S608
+        params,
+    ).fetchone()
+    return int(row[0])
+
+
 def dump_all_sources(
     conn: sqlite3.Connection,
     out_dir: str | Path,
@@ -723,11 +752,37 @@ def dump_all_sources(
     contribution is re-derivable from L1 raw inputs — see
     :data:`DEFAULT_BULK_EXCLUDED_SOURCES`. Pass ``exclude=()`` to dump
     everything.
+
+    Emits a stderr warning via :mod:`logging` when one or more
+    ``toponym_attestation`` rows would be silently dropped because
+    their ``source_doc`` routes nowhere (wyrd-2t28). Programmatic
+    callers can read the count back via :func:`count_orphan_attestations`.
     """
     counts: dict[str, int] = {}
     for sid in list_source_ids(conn, exclude=exclude):
         _, n = dump_source_to_file(conn, sid, out_dir)
         counts[sid] = n
+    orphan_count = count_orphan_attestations(conn)
+    if orphan_count > 0:
+        # Build a SQL that mirrors count_orphan_attestations exactly —
+        # without the NOT GLOB excludes, the suggested SELECT returns
+        # every prefix-routed row alongside the true orphans, drowning
+        # the actual signal.
+        prefix_excludes = " ".join(
+            f"AND source_doc NOT GLOB '{p}*'" for p, _sid in _ATTESTATION_DOC_PREFIX_TO_SOURCE
+        )
+        _logger.warning(
+            "dump_all_sources: %d toponym_attestation row(s) have "
+            "source_doc that routes nowhere — neither matches a source.id "
+            "exactly nor starts with a registered prefix in "
+            "_ATTESTATION_DOC_PREFIX_TO_SOURCE. These rows will not appear "
+            "in any per-source JSONL and will be lost on rebuild. Inspect "
+            "with: SELECT DISTINCT source_doc FROM toponym_attestation "
+            "WHERE source_doc IS NOT NULL "
+            "AND source_doc NOT IN (SELECT id FROM source) %s.",
+            orphan_count,
+            prefix_excludes,
+        )
     return counts
 
 

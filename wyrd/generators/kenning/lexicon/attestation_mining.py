@@ -257,14 +257,37 @@ _ATTEST_FORM_BLACKLIST = frozenset(
 )
 
 
-def _extract_attestation_pairs(notes: str | None) -> list[tuple[str, int]]:
+def _extract_attestation_pairs(
+    notes: str | None,
+    *,
+    context_is_body: bool = False,
+    telemetry: dict[str, int] | None = None,
+) -> list[tuple[str, int]]:
     """Extract ``(form, year)`` attestation pairs from a
-    ``toponym_etymology.notes`` value.
+    ``toponym_etymology.notes`` value or a long source-body string.
 
     Returns deduped tuples ordered by year ascending, with ties broken
     by form (alphabetical). The ordering is deterministic so callers
     can rely on first-row-per-key idempotency under the unique-index
     DB constraint.
+
+    ``context_is_body``: when False (the default — appropriate for
+    short toponym_etymology.notes strings), the
+    _SOURCE_CHAIN_PRECEDING_YEAR_RE + _SOURCE_CHAIN_FOLLOWING_YEAR_RE
+    guard fires to suppress source-name FPs like ``1539 Wills, 1544 LP``
+    where ``Wills`` is the FP. When True (toponym_reverse_search loading
+    a multi-page scholar body), the guard is disabled because the
+    ``<year> FORM, <year>`` pattern is COMMON in body text and represents
+    legitimate attestation chains like ``1086 Suttone, 1210``.
+
+    ``telemetry``: optional mutable dict the function bumps when the
+    source-chain pattern matches, regardless of whether the guard
+    actually suppresses. Keys: ``suppressed_by_source_chain``. The
+    counter measures how often the ``<year> FORM, <year>`` shape
+    occurs in the input — body-mode callers see the prevalence even
+    though the guard doesn't fire for them. Pass ``{}`` to surface;
+    pass ``None`` (default) for callers that don't care. wyrd-9ekl
+    observability seam.
 
     Pattern set (highest precision first):
 
@@ -341,13 +364,23 @@ def _extract_attestation_pairs(notes: str | None) -> list[tuple[str, int]]:
         # AND followed by `, <year>` is the source-name FP shape
         # (`Wills, 1544 LP`). Both conditions required so real
         # attestation chains (`Edreston ; 1242 ...`) aren't
-        # suppressed.
+        # suppressed. Calibrated for short notes strings; body-text
+        # callers (context_is_body=True) disable suppression because
+        # in body text the same pattern is dominantly legitimate
+        # (wyrd-9ekl). Telemetry bumps on every pattern match — even
+        # in body mode — so callers see how often the shape occurs in
+        # their input, decoupled from whether the guard suppressed.
         form_start = m.start("form")
         form_end = m.end("form")
         if _SOURCE_CHAIN_PRECEDING_YEAR_RE.search(
             notes, 0, form_start
         ) and _SOURCE_CHAIN_FOLLOWING_YEAR_RE.match(notes, form_end):
-            return
+            if telemetry is not None:
+                telemetry["suppressed_by_source_chain"] = (
+                    telemetry.get("suppressed_by_source_chain", 0) + 1
+                )
+            if not context_is_body:
+                return
         pairs.add((form, year))
 
     # Year-anchored pattern: explicit connector between form and year.

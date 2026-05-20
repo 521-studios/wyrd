@@ -329,8 +329,8 @@ def test_init_schema_stamps_alembic_version_at_head(fresh_db: Path) -> None:
         row = conn.execute("SELECT version_num FROM alembic_version").fetchone()
     assert row is not None, "alembic_version row missing"
     # Head revision id per the wyrd-67fv layered migrations.
-    assert row[0] == "0011_fantasy_morpheme", (
-        f"expected head '0011_fantasy_morpheme', got {row[0]!r}"
+    assert row[0] == "0012_attestation_source_doc_index", (
+        f"expected head '0012_attestation_source_doc_index', got {row[0]!r}"
     )
 
 
@@ -1054,7 +1054,7 @@ def test_upgrade_head_is_idempotent(fresh_db: Path) -> None:
 
     with sqlite3.connect(fresh_db) as conn:
         version = conn.execute("SELECT version_num FROM alembic_version").fetchone()
-    assert version[0] == "0011_fantasy_morpheme"
+    assert version[0] == "0012_attestation_source_doc_index"
 
 
 def test_idx_attestation_unique_dedups_null_year_and_source(fresh_db: Path) -> None:
@@ -2768,6 +2768,55 @@ def test_extract_attestation_pairs_requires_connector_between_form_and_year() ->
     extract, _ = _import_attestation_helpers()
     pairs = extract("After 1066 the Norman conquest. Source 1234 mentions it.")
     assert pairs == []
+
+
+def test_extract_attestation_pairs_source_chain_guard_default_suppresses() -> None:
+    """Default behavior (context_is_body=False) suppresses the source-
+    chain shape `<year> FORM, <year>` because in toponym_etymology.notes
+    this is dominantly a multi-source citation FP (e.g. `1539 Wills,
+    1544 LP` where Wills is a source name)."""
+    extract, _ = _import_attestation_helpers()
+    pairs = extract("1539 Wills, 1544 LP")
+    # Both 'Wills' and 'LP' should be suppressed — 'Wills' by the
+    # source-chain guard, 'LP' by the uppercase-abbreviation filter.
+    assert ("Wills", 1539) not in pairs
+
+
+def test_extract_attestation_pairs_context_is_body_disables_chain_guard() -> None:
+    """context_is_body=True disables the source-chain guard. The
+    `<year> FORM, <year>` shape — where the year-anchored extractor
+    matches the FOLLOWING year — survives admission in body mode but
+    is suppressed by the guard in default mode. Pins both branches
+    against the same fixture so the seam is visible. wyrd-9ekl."""
+    extract, _ = _import_attestation_helpers()
+    # In body mode, Suttone(1210) survives (form is followed by ", 1210").
+    pairs_body = extract("1086 Suttone, 1210", context_is_body=True)
+    assert ("Suttone", 1210) in pairs_body
+    # In default mode (notes-string calibration), the same input is
+    # suppressed by the source-chain guard.
+    pairs_default = extract("1086 Suttone, 1210")
+    assert ("Suttone", 1210) not in pairs_default
+
+
+def test_extract_attestation_pairs_telemetry_bumps_on_pattern_match() -> None:
+    """The telemetry counter bumps whenever the source-chain PATTERN
+    matches, decoupled from whether suppression actually fires. Body-
+    mode callers see how often the shape occurs in their input even
+    though the guard admits the row. Default-mode callers see how
+    often suppression dropped a row (same counter — body mode is the
+    measurement, default mode is the action). wyrd-9ekl decoupling
+    per Gemini round-2 review."""
+    extract, _ = _import_attestation_helpers()
+    # Default mode: pattern matches → counter bumps AND row suppressed.
+    telemetry: dict[str, int] = {}
+    pairs_default = extract("1086 Suttone, 1210", telemetry=telemetry)
+    assert telemetry.get("suppressed_by_source_chain", 0) >= 1
+    assert ("Suttone", 1210) not in pairs_default
+    # Body mode: pattern matches → counter still bumps, row admitted.
+    telemetry_body: dict[str, int] = {}
+    pairs_body = extract("1086 Suttone, 1210", context_is_body=True, telemetry=telemetry_body)
+    assert telemetry_body.get("suppressed_by_source_chain", 0) >= 1
+    assert ("Suttone", 1210) in pairs_body
 
 
 def test_extract_attestation_pairs_dedupes_by_form_and_year() -> None:
