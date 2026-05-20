@@ -259,6 +259,7 @@ def test_round_trip_rebuild_enrich_export_byte_identical(tmp_path: Path) -> None
         "cluster-cognates",
         "classify-stratum",
         "derive-english-shaped",
+        "tag-phonological-vectors",
         "project-period-forms",
     ], "orchestrator skipped a pass — fixture doesn't exercise the full chain"
     assert pre_result["curation"] is not None, "apply-curation pass didn't run"

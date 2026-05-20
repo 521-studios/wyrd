@@ -140,9 +140,10 @@ state, project-period-forms needs lemma_id state, etc.).
 | `cluster-cognates` | `cognate_id`, `cognate_method` | `cluster-cognates-v1` | ✅ wyrd-hidb |
 | `classify-stratum` | `stratum` | hardcoded heuristics | ✅ wyrd-hidb |
 | `derive-english-shaped` | `english_shaped` | hardcoded rules | ✅ wyrd-hidb |
+| `tag-phonological-vectors` | `phonological_vector` (JSON) | `compute-phon-vector-v1` | ✅ wyrd-kq7w.1 |
 | `project-period-forms` | (`etymon_period_form` table) | hardcoded rules | ✅ wyrd-hidb |
 
-All eight passes run via `run_full_enrichment` in canonical order
+All nine passes run via `run_full_enrichment` in canonical order
 (`lexicon enrich` and `lexicon rebuild-from-jsonl --with-enrichment`).
 Each pass keeps its standalone CLI command for targeted reruns
 (e.g. with `--force`).

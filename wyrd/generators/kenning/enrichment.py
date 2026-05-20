@@ -14,7 +14,7 @@ the L3 chain in dependency order:
 
     cluster-ocr → link-lemmas → apply-curation → decompose →
     cluster-cognates → classify-stratum → derive-english-shaped →
-    project-period-forms
+    tag-phonological-vectors → project-period-forms
 
 Each pass keeps its existing standalone CLI command for operators
 who want fine-grained control; the wrappers
@@ -42,6 +42,9 @@ from .lexicon import (
     project_period_forms,
 )
 from .lexicon.english_shaping import derive_english_shaped_all
+from .lexicon.phonological_vector_enrichment import (
+    tag_phonological_vectors_all,
+)
 from .lexicon.strata import classify_stratum_all
 from .runtime.decomposition import decompose_all
 
@@ -349,6 +352,7 @@ def run_full_enrichment(
     cognate_result: dict[str, Any] | None = None
     stratum_result: dict[str, Any] | None = None
     english_shaped_result: dict[str, Any] | None = None
+    phonological_vector_result: dict[str, Any] | None = None
     period_form_result: dict[str, Any] | None = None
 
     if not skip_l3_derivations:
@@ -360,6 +364,13 @@ def run_full_enrichment(
         order.append("classify-stratum")
         english_shaped_result = derive_english_shaped_all(db, apply=apply)
         order.append("derive-english-shaped")
+        # wyrd-kq7w.1: tag phonological vectors after english_shaped so
+        # both passes have settled IPA + canonical_form values to read
+        # from. Incremental (NULL-only) by default; the standalone
+        # ``lexicon tag-phonological-vectors --force`` recomputes the
+        # whole corpus.
+        phonological_vector_result = tag_phonological_vectors_all(db, apply=apply)
+        order.append("tag-phonological-vectors")
         period_form_result = project_period_forms(db, apply=apply)
         order.append("project-period-forms")
 
@@ -382,6 +393,7 @@ def run_full_enrichment(
         "cognates": cognate_result,
         "stratum": stratum_result,
         "english_shaped": english_shaped_result,
+        "phonological_vectors": phonological_vector_result,
         "period_forms": period_form_result,
     }
 
@@ -410,12 +422,13 @@ def enrichment_status(conn: sqlite3.Connection) -> dict[str, Any]:
     conn.row_factory = sqlite3.Row
     try:
         counts = conn.execute(
-            """SELECT COUNT(*)              AS total,
-                      COUNT(lemma_id)       AS lemma_id_pop,
-                      COUNT(merged_into_id) AS merged_into_id_pop,
-                      COUNT(cognate_id)     AS cognate_id_pop,
-                      COUNT(stratum)        AS stratum_pop,
-                      COUNT(english_shaped) AS english_shaped_pop
+            """SELECT COUNT(*)                   AS total,
+                      COUNT(lemma_id)            AS lemma_id_pop,
+                      COUNT(merged_into_id)      AS merged_into_id_pop,
+                      COUNT(cognate_id)          AS cognate_id_pop,
+                      COUNT(stratum)             AS stratum_pop,
+                      COUNT(english_shaped)      AS english_shaped_pop,
+                      COUNT(phonological_vector) AS phonological_vector_pop
                  FROM etymon"""
         ).fetchone()
 
@@ -462,6 +475,14 @@ def enrichment_status(conn: sqlite3.Connection) -> dict[str, Any]:
             },
             "english_shaped": {
                 "populated": counts["english_shaped_pop"],
+                "methods": [],
+            },
+            "phonological_vector": {
+                "populated": counts["phonological_vector_pop"],
+                # tag_phonological_vectors_all stamps the version
+                # implicitly via PHON_VECTOR_METHOD_VERSION; the per-row
+                # column doesn't carry it. When a future version-bump
+                # adds a per-row method column the methods list grows.
                 "methods": [],
             },
         },

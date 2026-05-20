@@ -169,6 +169,17 @@ def _add_etymon_columns(db: LexiconDB, applied: dict[str, bool]) -> None:
     if "stratum" not in cols:
         db.conn.execute("ALTER TABLE etymon ADD COLUMN stratum TEXT")
         applied["etymon.stratum"] = True
+    # wyrd-kq7w.1: per-etymon phonological vector — JSON blob of the
+    # 14 named PhonologicalVector dimensions + optional extras. NULL
+    # on rows that haven't been processed by the
+    # ``lexicon tag-phonological-vectors`` enrichment pass. Computed
+    # from ``canonical_form`` + ``pronunciation_ipa`` per
+    # :mod:`wyrd.generators.kenning.registers.phonological_vector_compute`.
+    # Deterministic + idempotent — re-running the enrichment pass on
+    # an unchanged DB produces the same JSON blob.
+    if "phonological_vector" not in cols:
+        db.conn.execute("ALTER TABLE etymon ADD COLUMN phonological_vector TEXT")
+        applied["etymon.phonological_vector"] = True
 
 
 def _create_etymon_indexes(db: LexiconDB, applied: dict[str, bool]) -> None:

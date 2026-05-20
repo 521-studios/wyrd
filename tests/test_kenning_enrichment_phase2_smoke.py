@@ -1,5 +1,5 @@
 """Phase 2 smoke: run_full_enrichment without skip_l3_derivations
-on a synthetic DB exercises all 8 passes without crashing."""
+on a synthetic DB exercises all passes without crashing."""
 
 from pathlib import Path
 
@@ -21,10 +21,18 @@ def test_run_full_enrichment_phase2_chain_smoke(tmp_path: Path):
         "cluster-cognates",
         "classify-stratum",
         "derive-english-shaped",
+        "tag-phonological-vectors",
         "project-period-forms",
     ]
     # Every L3 result is non-None (since we didn't skip)
-    for key in ("decompose", "cognates", "stratum", "english_shaped", "period_forms"):
+    for key in (
+        "decompose",
+        "cognates",
+        "stratum",
+        "english_shaped",
+        "phonological_vectors",
+        "period_forms",
+    ):
         assert result[key] is not None, f"missing {key} section"
     # Curation absent without curation_state
     assert result["curation"] is None
