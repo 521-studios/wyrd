@@ -460,20 +460,22 @@ def test_alembic_head_collation_matches_tables_metadata(fresh_db: Path) -> None:
             "SELECT name, sql FROM sqlite_master WHERE type='table'"
         ).fetchall():
             for line in sql.splitlines():
-                if "COLLATE " not in line:
+                if "COLLATE " not in line.upper():
                     continue
                 tokens = line.strip().split()
                 if not tokens:
                     continue
-                column_name = tokens[0]
-                # tokens after "COLLATE": find next token.
+                # Strip identifier quoting — current migrations don't
+                # quote, but harden against a future migration that does.
+                column_name = tokens[0].strip("\"'`[]")
                 for i, tok in enumerate(tokens):
-                    if tok == "COLLATE" and i + 1 < len(tokens):
+                    if tok.upper() == "COLLATE" and i + 1 < len(tokens):
                         # SQLite treats collation names case-insensitively
-                        # (COLLATE nocase == COLLATE NOCASE) so normalize
-                        # before comparison.
+                        # (COLLATE nocase == COLLATE NOCASE). Also strip
+                        # trailing punctuation / quotes / close parens
+                        # that may follow the collation name.
                         ddl_collations[(table_name, column_name)] = (
-                            tokens[i + 1].rstrip(",").upper()
+                            tokens[i + 1].strip(" ,()\"'`").upper()
                         )
                         break
 
