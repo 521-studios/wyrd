@@ -607,10 +607,11 @@ def _insert_fantasy_morpheme_rows(
             counts["fantasy_morpheme"] += 1
 
 
-# wyrd-11zh: Briggs personal-name insert columns. ``id`` is allocated
-# by SQLite (AUTOINCREMENT) but consumed via the headform→id lookup
-# map built at insert time. All other columns map 1:1 from the
-# JSONL payload.
+# wyrd-11zh: Briggs personal-name insert columns. The ``id`` column
+# is omitted — SQLite allocates it via AUTOINCREMENT, and
+# ``_insert_personal_name`` recovers the value via the post-insert
+# lookup against the UNIQUE(headform, source_doc) index. All other
+# columns map 1:1 from the JSONL payload.
 _PERSONAL_NAME_INSERT_COLUMNS: tuple[str, ...] = (
     "headform",
     "normalized_form",
@@ -643,7 +644,7 @@ def _insert_personal_name(conn: sqlite3.Connection, payload: dict[str, Any]) -> 
         f"INSERT OR IGNORE INTO personal_name ({', '.join(cols)}) VALUES ({placeholders})",
         tuple(vals),
     )
-    if cur.lastrowid and cur.rowcount > 0:
+    if cur.rowcount > 0:
         return int(cur.lastrowid)
     # INSERT OR IGNORE hit the UNIQUE(headform, source_doc); look up.
     row = conn.execute(

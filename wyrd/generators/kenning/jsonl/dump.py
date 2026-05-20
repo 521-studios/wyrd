@@ -531,11 +531,16 @@ def _personal_name_tables_exist(conn: sqlite3.Connection) -> bool:
     """Briggs PN tables are added by migration 0010; tests + legacy
     snapshots that build a partial schema may not have them. Guard
     the dump helpers so they no-op rather than raising OperationalError
-    when the tables are absent."""
-    row = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='personal_name'"
-    ).fetchone()
-    return row is not None
+    when the tables are absent.
+
+    Checks BOTH tables — partial-migration states where one exists
+    but not the other are also treated as "missing" so the dump path
+    doesn't silently emit half the data."""
+    rows = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name IN ('personal_name', 'personal_name_toponym_attestation')"
+    ).fetchall()
+    return len(rows) == 2
 
 
 def _dump_personal_names_for_source(
@@ -556,21 +561,7 @@ def _dump_personal_names_for_source(
     ).fetchall()
     for pn in pns:
         row: dict[str, Any] = {"_type": "personal_name", "ref": pn["headform"]}
-        row.update(
-            _drop_nulls(
-                {
-                    "headform": pn["headform"],
-                    "normalized_form": pn["normalized_form"],
-                    "language_hints": pn["language_hints"],
-                    "is_feminine": pn["is_feminine"],
-                    "pase_count": pn["pase_count"],
-                    "has_dlv": pn["has_dlv"],
-                    "ascharter_refs": pn["ascharter_refs"],
-                    "source_doc": pn["source_doc"],
-                    "raw_entry": pn["raw_entry"],
-                }
-            )
-        )
+        row.update(_drop_nulls(dict(pn)))
         yield row
 
 
@@ -597,20 +588,7 @@ def _dump_personal_name_attestations_for_source(
     for r in rows:
         yield {
             "_type": "personal_name_toponym_attestation",
-            **_drop_nulls(
-                {
-                    "personal_name_ref": r["personal_name_ref"],
-                    "toponym_form": r["toponym_form"],
-                    "attested_variant": r["attested_variant"],
-                    "county_code": r["county_code"],
-                    "county_canonical": r["county_canonical"],
-                    "date_qualifier": r["date_qualifier"],
-                    "is_uncertain": r["is_uncertain"],
-                    "is_serious_doubt": r["is_serious_doubt"],
-                    "source_doc": r["source_doc"],
-                    "raw_text": r["raw_text"],
-                }
-            ),
+            **_drop_nulls(dict(r)),
         }
 
 
@@ -626,9 +604,9 @@ def dump_source_to_rows(conn: sqlite3.Connection, source_id: str) -> list[dict[s
     rows.extend(_dump_toponyms_and_etymologies(conn, source_id))
     rows.extend(_dump_attestation_only_toponyms(conn, source_id))
     rows.extend(_dump_attestations_for_source(conn, source_id))
-    # wyrd-11zh: Briggs PN ingest round-trip. Only emits rows when
-    # personal_name rows actually exist for this source — non-PN
-    # sources see zero overhead.
+    # wyrd-11zh: Briggs PN ingest round-trip. Each helper's
+    # ``_personal_name_tables_exist`` guard makes these no-ops on
+    # legacy / pre-migration-0010 schemas.
     rows.extend(_dump_personal_names_for_source(conn, source_id))
     rows.extend(_dump_personal_name_attestations_for_source(conn, source_id))
     return rows

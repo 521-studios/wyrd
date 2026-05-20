@@ -34,9 +34,10 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TextIO
 
 # ---------------------------------------------------------------- constants
 
@@ -676,7 +677,7 @@ _BRIGGS_SOURCE_TITLE = (
 )
 
 
-def _emit_source_row(sink) -> None:
+def _emit_source_row(sink: TextIO) -> None:
     """Write the canonical ``_type: source`` row that anchors every L2
     JSONL file (the build pipeline requires exactly one per file)."""
     row = {
@@ -688,7 +689,7 @@ def _emit_source_row(sink) -> None:
     sink.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
-def _emit_personal_name_row(sink, entry: ParsedEntry) -> None:
+def _emit_personal_name_row(sink: TextIO, entry: ParsedEntry) -> None:
     """One ``_type: personal_name`` keyed-state row per Briggs entry.
     JSON-encoded list payloads (language_hints, ascharter_refs) match
     the column shapes the DB inserter expects."""
@@ -712,7 +713,7 @@ def _emit_personal_name_row(sink, entry: ParsedEntry) -> None:
     sink.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
-def _emit_attestation_row(sink, headform: str, att: AttestationRecord) -> None:
+def _emit_attestation_row(sink: TextIO, headform: str, att: AttestationRecord) -> None:
     """One ``_type: personal_name_toponym_attestation`` list row per
     (PN, toponym, county) occurrence. ``personal_name_ref`` is the FK
     the build pipeline resolves to a ``personal_name.id`` via the
@@ -740,16 +741,21 @@ def emit_briggs_jsonl(
     txt_path: Path,
     jsonl_path: Path,
     *,
-    on_progress=None,
+    on_progress: Callable[[IngestStats], None] | None = None,
 ) -> IngestStats:
     """Parse a Briggs .txt and write its events as a self-contained
     L2 JSONL file at ``jsonl_path`` (wyrd-11zh).
 
     The file is the canonical artifact — once written, the DB can be
     blown away and reconstructed via ``rebuild-from-jsonl`` without
-    re-parsing the source PDF. Per-entry flushes mean a SIGTERM
-    leaves a still-loadable partial file (every committed entry's
-    rows are followed by a flush).
+    re-parsing the source PDF. Per-entry ``sink.flush()`` pushes
+    completed entries to the OS so a SIGTERM/kill leaves a loadable
+    prefix; this does NOT fsync, so an OS-level crash or power-loss
+    can still lose page-cache pages, but that's outside the threat
+    model (process-kill recovery, not host-crash recovery).
+
+    Truncates and rewrites ``jsonl_path`` on every call. A previously
+    complete artifact at the same path is replaced.
 
     Does NOT touch the DB. Use :func:`ingest_briggs_index` for the
     parse-then-load CLI path.
@@ -778,10 +784,12 @@ def emit_briggs_jsonl(
                 stats.pn_rows_emitted += 1
             for att in entry.attestations:
                 if att.county_code not in COUNTY_CODE_TO_NAME:
+                    # Skip emit (and therefore skip the DB) — the
+                    # build pipeline has no county-membership filter,
+                    # so emitting unknown-county rows would persist
+                    # them on rebuild. Counted for operator visibility.
                     stats.attestations_unknown_county += 1
-                    # Still emit the row so the artifact is faithful;
-                    # the build pipeline drops unknown-county rows via
-                    # the same path so dump→rebuild stays consistent.
+                    continue
                 _emit_attestation_row(sink, entry.name.headform, att)
                 stats.attestation_rows_emitted += 1
             sink.flush()
@@ -797,7 +805,7 @@ def ingest_briggs_index(
     txt_path: Path,
     *,
     jsonl_path: Path | None = None,
-    on_progress=None,
+    on_progress: Callable[[IngestStats], None] | None = None,
 ) -> IngestStats:
     """Parse a Briggs .txt, emit JSONL events to ``jsonl_path``, AND
     load them into the lexicon DB via the shared
@@ -811,14 +819,19 @@ def ingest_briggs_index(
     must reproduce the Briggs rows from the JSONL alone — no .txt
     re-parse, no PDF re-fetch.
 
-    Idempotent: the build pipeline uses INSERT OR IGNORE with UNIQUE
-    indexes on (headform, source_doc) and the COALESCE-padded
-    attestation dedup tuple. Re-running on an already-populated DB
-    is a no-op.
+    Idempotent on the DB side: the build pipeline uses INSERT OR
+    IGNORE with UNIQUE indexes on (headform, source_doc) and the
+    COALESCE-padded attestation dedup tuple. Re-running on an
+    already-populated DB writes no net new rows. The JSONL artifact
+    at ``jsonl_path``, by contrast, is rewritten in place on every
+    call — atomic at the per-entry flush boundary, not across runs.
 
     ``db`` is a ``LexiconDB`` (needs ``.conn`` and ``.commit()``).
     ``jsonl_path`` defaults to ``data/mining/<SOURCE_DOC>.jsonl``.
     """
+    # Deferred import: keeps the parse-only ``__main__`` debugging
+    # entry point (below) from pulling in the jsonl.build pipeline.
+    # Promote to module-level once the parse-only path is removed.
     from wyrd.generators.kenning.jsonl.build import build_from_jsonl
 
     if jsonl_path is None:
