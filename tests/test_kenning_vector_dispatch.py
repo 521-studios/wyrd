@@ -139,6 +139,33 @@ def test_kenning_seed_stable_within_mode():
     assert r1.result == r2.result
 
 
+def test_kenning_seed_stable_within_vector_mode():
+    """Same seed + scoring_mode='vector' → same result. The vector
+    path's bit-stability is critical for ecjp.6/7 drift measurement —
+    if two runs at the same seed diverge, the drift signal is noise.
+    Round-1 reviewer caught the gap that legacy was pinned but the
+    vector path wasn't."""
+    k = Kenning()
+    params = {
+        "culture": "english",
+        "tags": ["water"],
+        "harshness": 0.5,
+        "scoring_mode": "vector",
+    }
+    # Either both raise OR both succeed with identical output. The
+    # contract isn't "vector mode succeeds against the live bundle"
+    # (that depends on data not yet shipped); it's "same inputs →
+    # same outputs whatever those outputs are".
+    try:
+        r1 = k.generate(params, seed=7)
+        r2 = k.generate(params, seed=7)
+        assert r1.result == r2.result
+    except ValueError:
+        # If the first raised, the second must raise identically too.
+        with pytest.raises(ValueError):
+            k.generate(params, seed=7)
+
+
 def test_kenning_scoring_mode_unknown_value_validated_by_schema():
     """Per the schema's enum, 'banana' is invalid. The generator
     itself doesn't validate (relies on the schema layer); but a

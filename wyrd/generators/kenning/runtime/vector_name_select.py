@@ -261,7 +261,15 @@ def select_via_vector_scoring(
             non_position_eligible.append(m)
 
     for element in structure:
-        slot_position = _slot_position_label(element)
+        # Accept either a structural-element string ("X-"/"-X-"/"-X")
+        # the heuristic decodes, or a bare position label ("pre"/
+        # "inner"/"post") — caller's choice. Bare labels skip the
+        # encode/decode round-trip the legacy struct walker uses to
+        # synthesize a string from its key tuples.
+        if element in ("pre", "inner", "post"):
+            slot_position = element
+        else:
+            slot_position = _slot_position_label(element)
         # Position-gate the pre-filtered pool
         eligible = [m for m in non_position_eligible if _matches_position(m, slot_position)]
         if not eligible:

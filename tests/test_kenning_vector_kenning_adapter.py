@@ -79,12 +79,16 @@ def test_mood_expansion_preserves_existing_higher_harshness():
     assert harshness == 0.7
 
 
-def test_mood_expansion_unknown_mood_silently_skipped():
-    """Unknown mood names don't raise — matches the legacy
-    _apply_mood's tolerance for typos / future-mood-names."""
-    tags, harshness = _mood_to_tags_and_harshness(["unknown_mood"], ["x"], 0.5)
-    assert tags == ["x"]
-    assert harshness == 0.5
+def test_mood_expansion_unknown_mood_raises():
+    """Unknown mood names raise ValueError — matches the legacy
+    _apply_mood's loud-failure behavior. Round-1 reviewer caught that
+    the earlier silent-skip drift would let typo'd moods sneak through
+    the vector path while the legacy path raised — splitting behavior
+    across the two scoring modes."""
+    import pytest
+
+    with pytest.raises(ValueError, match=r"unknown mood"):
+        _mood_to_tags_and_harshness(["unknown_mood"], ["x"], 0.5)
 
 
 def test_mood_expansion_dedups_tags():

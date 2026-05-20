@@ -501,11 +501,10 @@ class NameGenerator:
               through; legacy and vector cohesion live in two
               independent code paths until ecjp.6/7 reconciles.
         """
-        # Lazy import to avoid a load-time cycle with vector_name_select
-        # (which imports from vectors.scoring which imports… nothing
-        # from runtime; a top-level import would still be fine, but the
-        # lazy import keeps the legacy path's cold-start cost flat for
-        # callers that never reach scoring_mode='vector').
+        # Lazy import: no actual cycle (vector_name_select imports
+        # only from vectors.{schemas,scoring}, not runtime), but the
+        # lazy form keeps the legacy proportions path's cold-start
+        # cost flat for callers that never reach scoring_mode='vector'.
         from wyrd.generators.kenning.runtime.vector_name_select import (
             select_via_vector_scoring,
         )
@@ -520,22 +519,9 @@ class NameGenerator:
         # is tuple-of-keys, each key is a feature-tuple (e.g.
         # ("pre", "single"), ("post", "name")) — the first element is
         # the position label per ``word_to_key`` in this module.
-        flat_positions: list[str] = []
-        for word in struct:
-            for key in word:
-                # Synthesize a structural-element string the vector
-                # primitive's _slot_position_label can read. Trailing
-                # dash for 'pre', leading dash for 'post', both for
-                # 'inner', matching the convention in
-                # vector_name_select._slot_position_label.
-                location = key[0]
-                if location == "pre":
-                    flat_positions.append("X-")
-                elif location == "inner":
-                    flat_positions.append("-X-")
-                else:
-                    # 'post' or unknown — matches Meaning's default
-                    flat_positions.append("-X")
+        # The primitive accepts bare position labels directly, so no
+        # encode/decode round-trip required.
+        flat_positions: list[str] = [key[0] for word in struct for key in word]
 
         picked = select_via_vector_scoring(
             rng,
@@ -548,7 +534,10 @@ class NameGenerator:
             tag_cooccurrence=self.tag_cooccurrence or None,
             exclude_tags=frozenset(exclude_tags),
         )
-        if not picked or len(picked) != len(flat_positions):
+        # The primitive returns either [] (empty pool / no positive
+        # scores) or a list with exactly one Meaning per requested
+        # slot — never a partial. The empty check is sufficient.
+        if not picked:
             return None
 
         # Reconstruct the words list-of-lists from the flat picks,

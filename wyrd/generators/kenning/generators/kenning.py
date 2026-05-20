@@ -330,10 +330,14 @@ class Kenning(Generator):
         moods = params.get("mood", []) or []
         if isinstance(moods, str):
             moods = [moods]
-        # Capture original mood specs BEFORE _apply_mood mutates the
-        # tags+harshness state; the vector adapter consumes mood
-        # specs directly for symmetric expansion semantics.
+        # Capture original mood + harshness BEFORE _apply_mood mutates
+        # the tags+harshness state; the vector adapter consumes mood
+        # specs + base harshness directly for symmetric expansion
+        # semantics. Without capturing these, the adapter would
+        # double-apply MOODS (once via the mutated tags/harshness and
+        # again via the mood specs the adapter expands itself).
         original_moods = tuple(moods)
+        original_harshness = harshness
         for spec in moods:
             tags, harshness = _apply_mood(spec, tags, harshness)
         tags = tuple(tags)
@@ -354,12 +358,16 @@ class Kenning(Generator):
                 name_gen,
                 rng,
                 culture=culture,
-                tags=list(tags),
-                # Use original moods (pre-_apply_mood mutation) since
-                # the adapter does its own MOODS expansion. Passing
-                # mutated tags would double-count.
+                # Pre-_apply_mood tags + original harshness — the adapter
+                # does its own MOODS expansion via original_moods. Passing
+                # the mutated post-_apply_mood values would double-count.
+                # The legacy `tags` variable above is mutated by mood
+                # expansion, so derive vector-side tags from raw_tags
+                # instead. (raw_tags was normalized to list[str] earlier
+                # but not mutated by mood expansion.)
+                tags=list(raw_tags),
                 mood=original_moods,
-                harshness=float(params.get("harshness", 0.0) or 0.0),
+                harshness=original_harshness,
                 era_range=era_range,
                 stratum=stratum,
                 cohesion=cohesion,

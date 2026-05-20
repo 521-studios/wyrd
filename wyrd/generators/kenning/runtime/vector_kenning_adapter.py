@@ -99,6 +99,10 @@ def _mood_to_tags_and_harshness(
     ``base_harshness`` — matching the legacy max-harshness
     composition rule.
 
+    Unknown mood names raise ``ValueError`` matching the legacy
+    ``_apply_mood`` behavior — a typo'd mood is loud-failure rather
+    than silently ignored. (Round-1 reviewer caught this divergence.)
+
     Returns a (tags, harshness) tuple; the caller threads these into
     the RequestVector construction.
     """
@@ -112,9 +116,9 @@ def _mood_to_tags_and_harshness(
         else:
             name = spec
             override_value = None
-        mood = MOODS.get(name)
-        if mood is None:
-            continue
+        if name not in MOODS:
+            raise ValueError(f"unknown mood {name!r}; expected one of {sorted(MOODS)}")
+        mood = MOODS[name]
         if "tags" in mood:
             for t in mood["tags"]:
                 if t not in tags:
