@@ -55,16 +55,16 @@ expression, and facts aren't copyrightable (*Feist v. Rural Telephone*,
 - `gover_stenton_1936_warwickshire.txt` — J.E.B. Gover, A. Mawer & F.M. Stenton,
   *The Place-Names of Warwickshire* (1936). EPNS vol XIII.
 - `smith_1937_east_riding_yorkshire.txt` — A.H. Smith, *The Place-Names of
-  the East Riding of Yorkshire and York* (1937). EPNS vol XIV; with
-  `smith_1928` (North) and `smith_1961`/`smith_1986` (West) below, completes
-  the Yorkshire-Ridings trio.
+  the East Riding of Yorkshire and York* (1937). EPNS vol XIV; with the
+  1928 (North) and 1961/1986 (West) volumes below, completes the
+  Yorkshire-Ridings trio.
 - `smith_1961_west_riding_yorkshire_pt1.txt` — A.H. Smith, *The Place-Names
   of the West Riding of Yorkshire*, pt 1 (1961). EPNS vol XXX. West Riding
   is an eight-part EPNS survey; this scan covers pt 1 — Lower Strafforth,
   Upper Strafforth, and Staincross wapentakes.
 - `smith_1986_west_riding_yorkshire_pt2.txt` — A.H. Smith, *The Place-Names
-  of the West Riding of Yorkshire*, pt 2 (EPNS reissue 1986). EPNS vol XXXI;
-  Osgoldcross and Agbrigg wapentakes.
+  of the West Riding of Yorkshire*, pt 2 (EPNS reissue 1986). EPNS vol XXXI
+  — Osgoldcross and Agbrigg wapentakes.
 - `roberts_1914_sussex.txt` — Richard G. Roberts, *The Place-Names of Sussex*
   (Cambridge University Press, 1914). Earlier non-EPNS Sussex volume,
   superseded by the 1930 EPNS edition but useful as an independent witness.
@@ -88,6 +88,10 @@ expression, and facts aren't copyrightable (*Feist v. Rural Telephone*,
 - `zachrisson_1909_anglo_norman_influence.txt` — R.E. Zachrisson, *A
   Contribution to the Study of Anglo-Norman Influence on English Place-Names*
   (1909).
+- `bannister_1871_cornish_names.txt` — Rev. J. Bannister, *A Glossary of
+  Cornish Names* (1871). Cornish-Brythonic substrate corpus for Cornwall —
+  distinct from the Anglo-Saxon / Old-Norse strata dominating most
+  England-regional sources. Early dictionary-style alphabetical headwords.
 - `bannister_1916_herefordshire.txt` — A.T. Bannister, *The Place-Names of
   Herefordshire* (Cambridge: Clay, 1916). Welsh-Marches county; Bannister
   explicitly characterizes Herefordshire as "the most thoroughly Normanized
@@ -96,10 +100,6 @@ expression, and facts aren't copyrightable (*Feist v. Rural Telephone*,
   *Alan de Plokenet*) plus Welsh-substrate Celtic strata (`allt`, `dwr`,
   `ynys`). Targeted as the Norman-French corpus expansion via the
   Welsh-Marches angle (wyrd-hub).
-- `bannister_1871_cornish_names.txt` — Rev. J. Bannister, *A Glossary of
-  Cornish Names* (1871). Cornish-Brythonic substrate corpus for Cornwall —
-  distinct from the Anglo-Saxon / Old-Norse strata dominating most
-  England-regional sources. Early dictionary-style alphabetical headwords.
 - `sedgefield_1915_cumberland_westmorland.txt` — W.J. Sedgefield, *The
   Place-Names of Cumberland and Westmorland* (1915). North-West English
   counties; rich Old Norse / Cumbric / Old English stratification along
