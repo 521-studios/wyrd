@@ -677,6 +677,7 @@ def mine_toponym_mentions(
     limit: int | None = None,
     on_chunk_done: Callable[[int, int, int], None] | None = None,
     on_chunk_failed: Callable[[FailedChunk], None] | None = None,
+    on_chunk_mentions: Callable[[int, list[ToponymMention]], None] | None = None,
     log_warning: Callable[[str], None] | None = None,
 ) -> MineToponymMentionsReport:
     """Walk a source body chunk-by-chunk, accumulating extracted
@@ -695,6 +696,17 @@ def mine_toponym_mentions(
       staged-cascade CLI to stream failures to a JSONL file as they
       happen (wyrd-srd2) — bypassing the report's in-memory cap.
       Defaults to None (silent).
+    * ``on_chunk_mentions`` — invoked for every SUCCESSFUL chunk with
+      ``(chunk_index, mentions_in_this_chunk)`` BEFORE the report's
+      counters are bumped and before ``on_chunk_done``. Used by the
+      staged-cascade CLI (wyrd-w7i3) to stream per-chunk mentions to
+      a durable in-progress log so SIGTERM/crash mid-source doesn't
+      lose hours of LLM inference. The list is the chunk's mentions
+      only (not the cumulative report). Exceptions raised by this
+      callback are NOT caught — they propagate and abort the source.
+      This is intentional: a persistence failure (e.g. fsync OSError)
+      must not silently flip a chunk from "failed" to "processed".
+      Defaults to None.
     * ``log_warning`` — optional sink for diagnostic warnings
       (oversize paragraph, etc.). Defaults to silent; the CLI wires
       ``click.echo(..., err=True)``.
@@ -709,6 +721,7 @@ def mine_toponym_mentions(
         target_chunk_size=target_chunk_size,
         on_chunk_done=on_chunk_done,
         on_chunk_failed=on_chunk_failed,
+        on_chunk_mentions=on_chunk_mentions,
         log_warning=log_warning,
     )
 
@@ -721,6 +734,7 @@ def mine_toponym_mentions_from_chunks(
     target_chunk_size: int = 20000,
     on_chunk_done: Callable[[int, int, int], None] | None = None,
     on_chunk_failed: Callable[[FailedChunk], None] | None = None,
+    on_chunk_mentions: Callable[[int, list[ToponymMention]], None] | None = None,
     log_warning: Callable[[str], None] | None = None,
 ) -> MineToponymMentionsReport:
     """Mine a list of pre-chunked ``(chunk_index, chunk_body)`` tuples.
@@ -744,6 +758,7 @@ def mine_toponym_mentions_from_chunks(
         target_chunk_size=target_chunk_size,
         on_chunk_done=on_chunk_done,
         on_chunk_failed=on_chunk_failed,
+        on_chunk_mentions=on_chunk_mentions,
         log_warning=log_warning,
     )
 
@@ -756,6 +771,7 @@ def _process_indexed_chunks(
     target_chunk_size: int,
     on_chunk_done: Callable[[int, int, int], None] | None,
     on_chunk_failed: Callable[[FailedChunk], None] | None,
+    on_chunk_mentions: Callable[[int, list[ToponymMention]], None] | None,
     log_warning: Callable[[str], None] | None,
 ) -> MineToponymMentionsReport:
     """Inner per-chunk loop shared by :func:`mine_toponym_mentions`
@@ -814,6 +830,19 @@ def _process_indexed_chunks(
             if log_warning is not None:
                 log_warning(f"chunk {i} failed: {type(e).__name__}: {e}")
             continue
+        # wyrd-w7i3 crash-safety ordering: on_chunk_mentions fires
+        # FIRST, before any mutation of `report` and before the
+        # operator-visible progress echo. If the callback raises
+        # (e.g. fsync OSError on a full disk), `chunks_processed`
+        # stays accurate — the chunk is treated as not-yet-processed
+        # and the exception propagates to abort the source. Without
+        # this ordering, a fsync failure would leave the report
+        # claiming a chunk was processed that has no durable record.
+        # Any exception raised by on_chunk_mentions is intentionally
+        # NOT caught here; persistence failures should abort the
+        # source rather than silently skip a chunk.
+        if on_chunk_mentions is not None:
+            on_chunk_mentions(i, mentions)
         report.mentions.extend(mentions)
         report.chunks_processed += 1
         report.hallucinations_dropped += chunk_counters.hallucinations_dropped
