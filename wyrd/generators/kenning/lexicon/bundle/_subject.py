@@ -20,6 +20,7 @@ absorb + a single ``_emit_*_list`` formatter addition.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -30,6 +31,7 @@ from wyrd.generators.kenning.lexicon.bundle._emit import (
     _emit_english_shaped_list,
     _emit_inflection_list,
     _emit_original_script_list,
+    _emit_phonological_vector_list,
     _emit_pronunciation_list,
     _emit_stratum_list,
     _emit_transliteration_list,
@@ -191,6 +193,14 @@ class _WordLanguageAccumulators:
     # stratum tag. Sparse — only languages with a Phase 1 classifier
     # populate this (Welsh-family today). Other languages stay empty.
     stratum: dict[str, dict[str, str]] = field(default_factory=dict)
+    # wyrd-ecjp.10a: per-(lang, canonical_form) phonological_vector dict
+    # (kq7w.1 corpus enrichment populates etymon.phonological_vector,
+    # which the bundle deserializes back into the runtime D36.1
+    # PhonologicalVector). Sparse — only forms whose etymons have been
+    # phon-enriched populate this. Value type is dict[str, float]
+    # (already JSON-parsed) so emit-time can drop directly into the
+    # bundle without re-serialization.
+    phonological_vector: dict[str, dict[str, dict[str, float]]] = field(default_factory=dict)
 
 
 def _word_for_reflex(
@@ -219,6 +229,7 @@ def _word_for_reflex(
                 _absorb_member_transliteration(accs, fam, descendant_id, lang, form)
                 _absorb_member_pronunciation(accs, fam, descendant_id, lang, form)
                 _absorb_member_stratum(accs, fam, descendant_id, lang, form)
+                _absorb_member_phonological_vector(accs, fam, descendant_id, lang, form)
     word: dict[str, Any] = {"modern_usage": meta["surface_form"]}
     _emit_word_languages(word, accs)
     _emit_era_reflexes(word, link_pairs)
@@ -278,6 +289,7 @@ def _synthesize_word_for_family(fam: dict[str, Any]) -> dict[str, Any]:
         _absorb_member_transliteration(accs, fam, member_id, member_lang, member_form)
         _absorb_member_pronunciation(accs, fam, member_id, member_lang, member_form)
         _absorb_member_stratum(accs, fam, member_id, member_lang, member_form)
+        _absorb_member_phonological_vector(accs, fam, member_id, member_lang, member_form)
     _emit_word_languages(word, accs)
     # Synthesized word case: link_pairs structure isn't used here, so
     # build a single-element link_pairs from the family directly.
@@ -415,6 +427,39 @@ def _absorb_member_stratum(
         accs.stratum.setdefault(lang, {})[form] = stratum
 
 
+def _absorb_member_phonological_vector(
+    accs: _WordLanguageAccumulators,
+    fam: dict[str, Any],
+    member_id: int,
+    lang: str,
+    form: str,
+) -> None:
+    """wyrd-ecjp.10a: record a member's phonological_vector keyed by
+    (lang, canonical_form). The DB blob is a JSON string emitted by
+    ``vector_to_json``; we parse it here so emit-time can drop the
+    dict directly into the bundle without re-serialization (the
+    bundle JSON serializer handles nested dicts).
+
+    Skipped when phonological_vector is NULL (kq7w.1 enrichment
+    hasn't reached this row) or when JSON parse fails (malformed
+    blob from an interrupted enrichment run). Per-row exception
+    isolation matches the rest of the absorb-helper pattern: one
+    bad row shouldn't abort a whole-bundle export. The runtime's
+    loader is also defensive (`_parse_phon_vector` returns None on
+    parse failure), so a malformed blob that slips through still
+    degrades gracefully to "no vector for this form."
+    """
+    blob = fam.get("member_phonological_vector_by_id", {}).get(member_id)
+    if not blob:
+        return
+    try:
+        vector = json.loads(blob)
+    except (ValueError, TypeError):
+        return
+    if isinstance(vector, dict):
+        accs.phonological_vector.setdefault(lang, {})[form] = vector
+
+
 def _absorb_member_citations(
     accs: _WordLanguageAccumulators,
     fam: dict[str, Any],
@@ -489,6 +534,8 @@ def _emit_word_languages(word: dict[str, Any], accs: _WordLanguageAccumulators) 
             bucket.pronunciation.update(accs.pronunciation[lang])
         if lang in accs.stratum:
             bucket.stratum.update(accs.stratum[lang])
+        if lang in accs.phonological_vector:
+            bucket.phonological_vector.update(accs.phonological_vector[lang])
 
     for json_field in sorted(buckets):
         bucket = buckets[json_field]
@@ -515,3 +562,7 @@ def _emit_word_languages(word: dict[str, Any], accs: _WordLanguageAccumulators) 
             word[f"{json_field}_pronunciation"] = _emit_pronunciation_list(bucket.pronunciation)
         if bucket.stratum:
             word[f"{json_field}_stratum"] = _emit_stratum_list(bucket.stratum)
+        if bucket.phonological_vector:
+            word[f"{json_field}_phonological_vector"] = _emit_phonological_vector_list(
+                bucket.phonological_vector
+            )

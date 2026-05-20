@@ -132,6 +132,12 @@ class _BucketAccumulator:
     pronunciation: dict[str, dict[str, str | None]] = field(default_factory=dict)
     # wyrd-lr4 Phase 2: per-canonical_form within-language stratum tag.
     stratum: dict[str, str] = field(default_factory=dict)
+    # wyrd-ecjp.10a: per-canonical_form phonological_vector dict
+    # (kq7w.1 corpus enrichment). Value type is dict[str, float] —
+    # already JSON-parsed at absorb time so the bundle emit drops it
+    # in without re-serialization. Sparse: only forms reached by the
+    # phon-vector enrichment pass populate this.
+    phonological_vector: dict[str, dict[str, float]] = field(default_factory=dict)
 
 
 def _emit_original_script_list(scripts: dict[str, str]) -> list[dict[str, str]]:
@@ -170,6 +176,22 @@ def _emit_pronunciation_list(
         {"form": form, "ipa": data["ipa"], "dialect": data.get("dialect")}
         for form, data in sorted(pronunciations.items())
     ]
+
+
+def _emit_phonological_vector_list(
+    vectors: dict[str, dict[str, float]],
+) -> list[dict[str, Any]]:
+    """wyrd-ecjp.10a: serialize {canonical_form: phon_vector_dict} into
+    the meanings.json <lang>_phonological_vector entry shape. Each
+    entry is {"form": canonical_form, "phonological_vector": {<dim>:
+    <float>, ...}}. Sorted by form for deterministic output.
+
+    The inner phon vector dict goes through unchanged — it's already
+    in the runtime D36.1 shape (cluster_density, final_fortition,
+    etc.) since absorb-time parsed the etymon column's JSON blob.
+    The runtime's _parse_phon_vector accepts this shape directly.
+    """
+    return [{"form": form, "phonological_vector": vectors[form]} for form in sorted(vectors)]
 
 
 def _emit_stratum_list(strata: dict[str, str]) -> list[dict[str, str]]:
