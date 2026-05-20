@@ -118,6 +118,14 @@ def test_init_schema_creates_tables(fresh_db: Path) -> None:
         "toponym_attestation",
         "toponym_etymology",
         "toponym_etymology_element",
+        # wyrd-1ed9: every table that the JSONL replay path INSERTs
+        # into MUST be enumerated here, so a future migration that
+        # fails to create one trips this test. The original wyrd-rrse
+        # bug (fantasy_morpheme missing from init_schema) shipped
+        # under 848 green tests because this set didn't pin it.
+        "fantasy_morpheme",
+        "personal_name",
+        "personal_name_toponym_attestation",
     }
     assert expected.issubset(tables)
 
