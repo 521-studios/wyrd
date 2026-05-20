@@ -860,9 +860,7 @@ def test_alembic_head_indexes_match_tables_metadata(fresh_db: Path) -> None:
         # produce ``sqlite_autoindex_*`` indexes that we exclude
         # from the DDL side below.
         md_indexes.update(
-            c.name
-            for c in table.constraints
-            if isinstance(c, UniqueConstraint) and c.name
+            c.name for c in table.constraints if isinstance(c, UniqueConstraint) and c.name
         )
     ddl_named = {n for n in ddl_indexes if not n.startswith("sqlite_autoindex_")}
 
