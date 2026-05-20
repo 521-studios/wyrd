@@ -35,18 +35,25 @@ def _check_inprogress_clear(inprogress: Path, output_dir: Path) -> None:
     """Refuse to mine a source whose in-progress log already exists —
     silently overwriting would lose the prior crash's recovery candidate.
 
-    The operator must either run ``recover-inprogress-chunks`` (which
-    promotes/merges the log into the canonical file and removes it)
-    or delete the file explicitly. wyrd-w7i3.
+    The operator must either run ``recover-inprogress-chunks`` or
+    delete the file explicitly. wyrd-w7i3.
+
+    Exception: a 0-byte log carries no recovery value (the crash hit
+    before chunk 0 succeeded). Auto-clear it so the operator isn't
+    blocked by a stale marker with nothing to recover.
     """
-    if inprogress.exists():
-        raise click.ClickException(
-            f"in-progress chunk log already exists: {inprogress}\n"
-            f"This indicates a prior mining run was interrupted mid-source.\n"
-            f"Recover the data first:\n"
-            f"  wyrd kenning lexicon recover-inprogress-chunks --output-dir {output_dir}\n"
-            f"Or, to discard, remove the file manually."
-        )
+    if not inprogress.exists():
+        return
+    if inprogress.stat().st_size == 0:
+        inprogress.unlink()
+        return
+    raise click.ClickException(
+        f"in-progress chunk log already exists: {inprogress}\n"
+        f"This indicates a prior mining run was interrupted mid-source.\n"
+        f"Recover the data first:\n"
+        f"  wyrd kenning lexicon recover-inprogress-chunks --output-dir {output_dir}\n"
+        f"Or, to discard, remove the file manually."
+    )
 
 
 def _make_chunk_mentions_writer(
@@ -66,15 +73,22 @@ def _make_chunk_mentions_writer(
     can persist chunk boundaries without a format break.
     """
 
-    def _write(chunk_index: int, mentions: list[ToponymMention]) -> None:
-        del chunk_index  # reserved for future resume-mid-source use
+    def _write(_chunk_index: int, mentions: list[ToponymMention]) -> None:
+        # _chunk_index is reserved for a future resume-mid-source feature
+        # that needs chunk-boundary metadata in the log; underscore-prefix
+        # signals "intentionally unused" without runtime ceremony.
         for m in mentions:
             sink.write(line_fn(source_id, m) + "\n")
         sink.flush()
-        # fsync once per chunk (not per mention) — SIGTERM after this
-        # returns is guaranteed to leave the chunk's mentions on disk.
-        # Per-mention fsync would be too expensive for the volumes
-        # involved (thousands of mentions per source).
+        # fsync once per chunk pushes the chunk's mentions out of the
+        # kernel page cache. After this returns, a SIGTERM/process-kill
+        # cannot lose the chunk's work (file data is durable). Note this
+        # does NOT fsync the parent directory, so power-loss durability
+        # of a brand-new in-progress file would additionally require a
+        # parent-dir fsync — out of scope for the wyrd-w7i3 threat model
+        # (process kill, not host crash). Per-mention fsync would be too
+        # expensive for the volumes involved (thousands of mentions per
+        # source).
         os.fsync(sink.fileno())
 
     return _write
@@ -232,7 +246,11 @@ def lexicon_mine_toponym_mentions_staged(
     Output JSONL rows include ``extractor:"provider:model"`` so post-hoc
     analysis can attribute each mention to the stage that captured it.
     """
-    # ToponymMention is imported at module scope (used by _make_chunk_mentions_writer).
+    # Lazy import: the extractor module pulls in heavy LLM-prompt
+    # plumbing; defer until this CLI is actually invoked so the
+    # `wyrd --help` discovery path stays cheap. ToponymMention itself
+    # is imported at module scope because _make_chunk_mentions_writer
+    # needs the type annotation.
     from wyrd.generators.kenning.extractors.toponym_mentions import (
         mine_toponym_mentions,
         mine_toponym_mentions_from_chunks,
@@ -468,10 +486,18 @@ def _run_resume_from_failures(
         # log holds the NEW mentions for this resume invocation. On
         # crash, the canonical file (still intact via atomic-write) +
         # the in-progress log are merged by recover-inprogress-chunks.
+        # The try block wraps mine_fn AND the atomic-merge — a crash
+        # in the merge (e.g. ENOSPC during the verbatim-copy of
+        # existing rows) leaves the canonical file untouched and the
+        # in-progress log behind for recovery. wyrd-w7i3 CRITICAL-1.
         inprogress = _inprogress_path(output_dir, source_id)
         _check_inprogress_clear(inprogress, output_dir)
         inprogress.parent.mkdir(parents=True, exist_ok=True)
         inprogress_sink = inprogress.open("w", encoding="utf-8")
+        new_count = 0
+        dup_count = 0
+        purged_count = 0
+        canonical_completed = False
         try:
             chunk_writer = _make_chunk_mentions_writer(inprogress_sink, source_id, line_fn)
             report = mine_fn(
@@ -484,60 +510,72 @@ def _run_resume_from_failures(
                 on_chunk_mentions=chunk_writer,
                 log_warning=warn,
             )
-        except BaseException:
-            inprogress_sink.close()
-            raise
 
-        # Atomic-write append: build the union (existing + new-deduped)
-        # in a .tmp file, then replace the original. A killed process
-        # mid-write leaves the original intact, vs. a direct
-        # ``open("a")`` which could leave a half-written final line
-        # that downstream commands would silently drop or stumble on.
-        # wyrd-srd2 R1 silent-failure-hunter HIGH.
-        new_count = 0
-        dup_count = 0
-        purged_count = 0
-        tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
-        with tmp_path.open("w", encoding="utf-8") as sink:
-            if out_path.exists():
-                # Preserve well-formed existing rows verbatim (don't
-                # re-serialize: stage-specific fields like ``extractor``
-                # must keep their original value through the cascade).
-                # DROP malformed rows (non-JSON, non-dict) — without
-                # this the corruption persists every resume and the
-                # file's bad-row count grows forever. R3 silent-failure
-                # MEDIUM. ``_load_existing_mention_keys`` already
-                # surfaced the malformed_count to the operator; here
-                # we also remove them.
-                with out_path.open("r", encoding="utf-8") as src:
-                    for line in src:
-                        stripped = line.rstrip("\n")
-                        if not stripped:
-                            continue
-                        try:
-                            row = json.loads(stripped)
-                        except json.JSONDecodeError:
-                            purged_count += 1
-                            continue
-                        if not isinstance(row, dict):
-                            purged_count += 1
-                            continue
-                        sink.write(stripped + "\n")
-            for m in report.mentions:
-                key = (m.form, m.date_year, m.region_hint, m.context)
-                if key in existing_keys:
-                    dup_count += 1
-                    continue
-                sink.write(line_fn(source_id, m) + "\n")
-                existing_keys.add(key)
-                new_count += 1
-        tmp_path.replace(out_path)
-        # Canonical merge succeeded → in-progress log is now redundant.
-        # wyrd-w7i3. On exception above (BaseException branch), the log
-        # remains for recover-inprogress-chunks to merge into the
-        # (still-intact) canonical file.
-        inprogress_sink.close()
-        inprogress.unlink(missing_ok=True)
+            # Atomic-write append: build the union (existing + new-deduped)
+            # in a .tmp file, then replace the original. A killed process
+            # mid-write leaves the original intact, vs. a direct
+            # ``open("a")`` which could leave a half-written final line
+            # that downstream commands would silently drop or stumble on.
+            # wyrd-srd2 R1 silent-failure-hunter HIGH.
+            tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+            with tmp_path.open("w", encoding="utf-8") as sink:
+                if out_path.exists():
+                    # Preserve well-formed existing rows verbatim (don't
+                    # re-serialize: stage-specific fields like ``extractor``
+                    # must keep their original value through the cascade).
+                    # DROP malformed rows (non-JSON, non-dict) — without
+                    # this the corruption persists every resume and the
+                    # file's bad-row count grows forever. R3 silent-failure
+                    # MEDIUM. ``_load_existing_mention_keys`` already
+                    # surfaced the malformed_count to the operator; here
+                    # we also remove them.
+                    with out_path.open("r", encoding="utf-8") as src:
+                        for line in src:
+                            stripped = line.rstrip("\n")
+                            if not stripped:
+                                continue
+                            try:
+                                row = json.loads(stripped)
+                            except json.JSONDecodeError:
+                                purged_count += 1
+                                continue
+                            if not isinstance(row, dict):
+                                purged_count += 1
+                                continue
+                            sink.write(stripped + "\n")
+                for m in report.mentions:
+                    key = (m.form, m.date_year, m.region_hint, m.context)
+                    if key in existing_keys:
+                        dup_count += 1
+                        continue
+                    sink.write(line_fn(source_id, m) + "\n")
+                    existing_keys.add(key)
+                    new_count += 1
+            tmp_path.replace(out_path)
+            canonical_completed = True
+        except BaseException:
+            # Tell the operator the work is recoverable. The canonical
+            # file is still intact (atomic-write contract), and the
+            # in-progress log holds the NEW mentions from this resume.
+            click.echo(
+                f"  → in-progress log preserved at {inprogress}\n"
+                f"    canonical file {out_path} is unchanged\n"
+                f"    recover with: wyrd kenning lexicon recover-inprogress-chunks "
+                f"--output-dir {output_dir}",
+                err=True,
+            )
+            raise
+        finally:
+            try:
+                inprogress_sink.close()
+            except Exception as close_err:
+                click.echo(
+                    f"  warning: in-progress log close failed: {close_err}",
+                    err=True,
+                )
+        # Only unlink once the canonical merge is durably in place.
+        if canonical_completed:
+            inprogress.unlink(missing_ok=True)
         if purged_count:
             click.echo(
                 f"    purged {purged_count} malformed row(s) from {out_path}",
@@ -638,6 +676,7 @@ def _run_fresh_mining(
         _check_inprogress_clear(inprogress, output_dir)
         inprogress.parent.mkdir(parents=True, exist_ok=True)
         inprogress_sink = inprogress.open("w", encoding="utf-8")
+        canonical_completed = False
         try:
             chunk_writer = _make_chunk_mentions_writer(inprogress_sink, source_id, line_fn)
             report = mine_fn(
@@ -658,13 +697,35 @@ def _run_fresh_mining(
                 for m in report.mentions:
                     sink.write(line_fn(source_id, m) + "\n")
             tmp_path.replace(out_path)
+            canonical_completed = True
+        except BaseException:
+            # Tell the operator the work is recoverable BEFORE the
+            # exception propagates — otherwise a SIGINT'd run looks
+            # like data loss to anyone who doesn't know the recovery
+            # CLI exists. (wyrd-w7i3 HIGH-3.)
+            click.echo(
+                f"  → in-progress log preserved at {inprogress}\n"
+                f"    recover with: wyrd kenning lexicon recover-inprogress-chunks "
+                f"--output-dir {output_dir}",
+                err=True,
+            )
+            raise
         finally:
-            inprogress_sink.close()
-        # Canonical file was atomically written above; the in-progress
-        # log is now redundant. Remove it so the next source mine starts
-        # with a clean slate. (On exception above, we deliberately
-        # DO NOT unlink — the file is the recovery candidate.)
-        inprogress.unlink(missing_ok=True)
+            # Suppress close-time errors so they can't mask the original
+            # cause (e.g. flush hitting ENOSPC would otherwise replace an
+            # LLM-side failure). wyrd-w7i3 HIGH-4.
+            try:
+                inprogress_sink.close()
+            except Exception as close_err:
+                click.echo(
+                    f"  warning: in-progress log close failed: {close_err}",
+                    err=True,
+                )
+        # Only unlink once the canonical file is durably in place. On
+        # any exception above, canonical_completed stays False and the
+        # in-progress log survives as the recovery candidate.
+        if canonical_completed:
+            inprogress.unlink(missing_ok=True)
 
         click.echo(
             f"  → {out_path} | chunks={report.chunks_processed} "

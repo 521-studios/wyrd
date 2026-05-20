@@ -9,9 +9,8 @@ from pathlib import Path
 
 import click
 
-# Local-import the in-progress conventions to keep them defined exactly
-# once. If the directory/suffix ever changes, the staged miner and the
-# recovery tool stay in lockstep.
+# Re-use the in-progress conventions defined by the staged miner so
+# the directory/suffix stay in lockstep. Single source of truth.
 from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions_staged import (
     _INPROGRESS_SUBDIR,
     _INPROGRESS_SUFFIX,
@@ -158,21 +157,18 @@ def lexicon_recover_inprogress_chunks(output_dir: Path, dry_run: bool) -> None:
                 err=True,
             )
 
+        # _read_jsonl_rows has already dropped malformed lines and
+        # non-dict rows, so json.loads here is guaranteed to succeed
+        # and return a dict. No defensive try/except needed.
         existing_keys: set[tuple[str, int | None, str | None, str]] = set()
         for line in existing_lines:
-            try:
-                existing_keys.add(_dedup_key(json.loads(line)))
-            except json.JSONDecodeError:
-                continue
+            existing_keys.add(_dedup_key(json.loads(line)))
 
         union: list[str] = list(existing_lines)
         dup_count = 0
         added_count = 0
         for line in new_lines:
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError:
-                continue
+            row = json.loads(line)
             key = _dedup_key(row)
             if key in existing_keys:
                 dup_count += 1

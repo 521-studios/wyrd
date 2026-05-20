@@ -40,7 +40,11 @@ class FakeClient:
         if not self._responses:
             raise StopIteration("FakeClient ran out of canned responses")
         nxt = self._responses.pop(0)
-        if isinstance(nxt, Exception):
+        # BaseException covers KeyboardInterrupt/SystemExit/GeneratorExit
+        # too, which Exception alone misses — necessary so a test can
+        # simulate a true crash (SIGTERM-equivalent) and not a routine
+        # per-chunk LLM error.
+        if isinstance(nxt, BaseException):
             raise nxt
         return nxt
 
@@ -340,3 +344,224 @@ def test_check_inprogress_clear_passes_when_no_log(tmp_path: Path):
     inprogress = _inprogress_path(output_dir, "src")
     # File does not exist; should not raise.
     _check_inprogress_clear(inprogress, output_dir)
+
+
+def test_check_inprogress_clear_auto_clears_empty_log(tmp_path: Path):
+    """A 0-byte log carries no recovery value (crash hit before chunk 0
+    succeeded). Auto-clear so operators aren't blocked by a stale marker
+    pointing at nothing. wyrd-w7i3 HIGH-1."""
+    from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions_staged import (
+        _check_inprogress_clear,
+        _inprogress_path,
+    )
+
+    output_dir = tmp_path / "phase2"
+    inprogress = _inprogress_path(output_dir, "src")
+    inprogress.parent.mkdir(parents=True)
+    inprogress.write_text("", encoding="utf-8")
+    assert inprogress.exists()
+
+    # Should auto-clear, not raise.
+    _check_inprogress_clear(inprogress, output_dir)
+    assert not inprogress.exists()
+
+
+# ---------- _make_chunk_mentions_writer durability invariant ------------
+
+
+def test_chunk_mentions_writer_flushes_and_fsyncs_per_chunk(tmp_path: Path, monkeypatch):
+    """The writer's durability contract — flush + fsync after each chunk —
+    is the entire foundation of crash-safety. Pin it directly so a
+    refactor that drops or reorders the flush/fsync calls trips a test.
+    wyrd-w7i3."""
+    import os as os_module
+
+    from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions_staged import (
+        _make_chunk_mentions_writer,
+    )
+    from wyrd.generators.kenning.extractors.toponym_mentions import ToponymMention
+
+    fsync_calls: list[int] = []
+
+    def _record_fsync(fd: int) -> None:
+        fsync_calls.append(fd)
+
+    monkeypatch.setattr(os_module, "fsync", _record_fsync)
+
+    log_path = tmp_path / "src.chunks.jsonl"
+    sink = log_path.open("w", encoding="utf-8")
+    try:
+        writer = _make_chunk_mentions_writer(
+            sink,
+            "src",
+            lambda sid, m: f'{{"source_id":"{sid}","form":"{m.form}"}}',
+        )
+        # Two successful chunks → two fsync calls.
+        writer(0, [ToponymMention(form="Foo", date_year=None, region_hint=None, context="Foo")])
+        writer(
+            1,
+            [
+                ToponymMention(form="Bar", date_year=None, region_hint=None, context="Bar"),
+                ToponymMention(form="Baz", date_year=None, region_hint=None, context="Baz"),
+            ],
+        )
+    finally:
+        sink.close()
+
+    assert len(fsync_calls) == 2
+    rows = [ln for ln in log_path.read_text(encoding="utf-8").splitlines() if ln]
+    assert len(rows) == 3
+    assert '"form":"Foo"' in rows[0]
+    assert '"form":"Bar"' in rows[1]
+    assert '"form":"Baz"' in rows[2]
+
+
+# ---------- staged-CLI integration: fresh + resume × happy + crash ------
+
+
+def _stub_ollama_for_cli(monkeypatch, fake_client) -> None:
+    """Replace OllamaClient at its construction site so the staged CLI
+    uses the FakeClient instead of probing http://10.5.2.31:11434."""
+    import wyrd.generators.kenning.extractors.llm as llm_module
+
+    monkeypatch.setattr(llm_module, "OllamaClient", lambda **kw: fake_client)
+
+
+def test_cli_fresh_happy_path_unlinks_inprogress_log(tmp_path: Path, monkeypatch):
+    """Clean completion: canonical file written, in-progress log
+    unlinked. Regression-pin for a refactor that misses the unlink.
+    wyrd-w7i3 HIGH (pr-test-analyzer)."""
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_a.txt").write_text("Edlingham in Northumberland.", encoding="utf-8")
+    output_dir = tmp_path / "out"
+
+    client = FakeClient(
+        [{"mentions": [{"form": "Edlingham", "context": "Edlingham in Northumberland."}]}]
+    )
+    _stub_ollama_for_cli(monkeypatch, client)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "ollama",
+            "--model",
+            "fake-test-model",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    canonical = output_dir / "src_a.jsonl"
+    inprogress = output_dir / "_inprogress" / "src_a.chunks.jsonl"
+    assert canonical.exists()
+    assert not inprogress.exists()
+
+
+def test_cli_fresh_crash_preserves_inprogress_log(tmp_path: Path, monkeypatch):
+    """SIGTERM-equivalent: BaseException raised by the LLM client mid-source.
+    In-progress log must hold the pre-crash chunk's mentions; canonical
+    file must NOT exist. Operator-recovery message must point at the
+    recovery CLI. wyrd-w7i3 HIGH (pr-test-analyzer)."""
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    p1 = "A" * 7995 + " Edlin"
+    p2 = "B" * 7996 + " Tyne"
+    (sources_dir / "src_b.txt").write_text(f"{p1}\n\n{p2}", encoding="utf-8")
+    output_dir = tmp_path / "out"
+
+    # Chunk 0 succeeds; chunk 1 raises KeyboardInterrupt (BaseException
+    # subclass — bypasses the chunk-loop's bare-Exception catch so the
+    # mine aborts the source). This is the canonical mid-source crash
+    # scenario the PR is designed to handle.
+    client = FakeClient(
+        [
+            {"mentions": [{"form": "Edlin", "context": "Edlin"}]},
+            KeyboardInterrupt(),
+        ]
+    )
+    _stub_ollama_for_cli(monkeypatch, client)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "ollama",
+            "--model",
+            "fake-test-model",
+            "--chunk-size",
+            "10000",
+        ],
+    )
+    assert result.exit_code != 0, "mid-source crash must produce non-zero exit"
+
+    canonical = output_dir / "src_b.jsonl"
+    inprogress = output_dir / "_inprogress" / "src_b.chunks.jsonl"
+    assert not canonical.exists(), "canonical file must not exist after mid-source crash"
+    assert inprogress.exists(), "in-progress log must survive for recovery"
+
+    # The surviving log contains chunk 0's mentions in canonical form.
+    rows = _read_jsonl(inprogress)
+    assert [r["form"] for r in rows] == ["Edlin"]
+
+    # Operator-visible recovery message names the recovery CLI.
+    combined = (result.stderr or "") + (result.output or "")
+    assert "recover-inprogress-chunks" in combined
+
+
+def test_cli_pre_existing_inprogress_log_blocks_mining(tmp_path: Path, monkeypatch):
+    """The staged CLI surfaces _check_inprogress_clear as a non-zero
+    exit. A regression that swallows the ClickException would bypass
+    the data-loss guard. wyrd-w7i3 MEDIUM (pr-test-analyzer)."""
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "src_c.txt").write_text("Edlingham.", encoding="utf-8")
+    output_dir = tmp_path / "out"
+    inprogress = output_dir / "_inprogress" / "src_c.chunks.jsonl"
+    inprogress.parent.mkdir(parents=True)
+    inprogress.write_text(
+        '{"source_id":"src_c","form":"OldRun","date_year":null,"region_hint":null,'
+        '"context":"OldRun","extractor":"x:y"}\n',
+        encoding="utf-8",
+    )
+
+    # The client must not be invoked — the guard fires first.
+    client = FakeClient([{"mentions": []}])
+    _stub_ollama_for_cli(monkeypatch, client)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "ollama",
+            "--model",
+            "fake-test-model",
+        ],
+    )
+    assert result.exit_code != 0
+    combined = (result.stderr or "") + (result.output or "")
+    assert "recover-inprogress-chunks" in combined
+    # Guard didn't touch the existing log; canonical was never written.
+    assert inprogress.exists()
+    assert not (output_dir / "src_c.jsonl").exists()

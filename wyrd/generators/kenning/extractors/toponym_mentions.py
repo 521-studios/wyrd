@@ -697,11 +697,16 @@ def mine_toponym_mentions(
       happen (wyrd-srd2) — bypassing the report's in-memory cap.
       Defaults to None (silent).
     * ``on_chunk_mentions`` — invoked for every SUCCESSFUL chunk with
-      ``(chunk_index, mentions_in_this_chunk)`` BEFORE ``on_chunk_done``.
-      Used by the staged-cascade CLI (wyrd-w7i3) to stream per-chunk
-      mentions to a durable in-progress log so SIGTERM/crash mid-source
-      doesn't lose hours of LLM inference. The list is the chunk's
-      mentions only (not the cumulative report). Defaults to None.
+      ``(chunk_index, mentions_in_this_chunk)`` BEFORE the report's
+      counters are bumped and before ``on_chunk_done``. Used by the
+      staged-cascade CLI (wyrd-w7i3) to stream per-chunk mentions to
+      a durable in-progress log so SIGTERM/crash mid-source doesn't
+      lose hours of LLM inference. The list is the chunk's mentions
+      only (not the cumulative report). Exceptions raised by this
+      callback are NOT caught — they propagate and abort the source.
+      This is intentional: a persistence failure (e.g. fsync OSError)
+      must not silently flip a chunk from "failed" to "processed".
+      Defaults to None.
     * ``log_warning`` — optional sink for diagnostic warnings
       (oversize paragraph, etc.). Defaults to silent; the CLI wires
       ``click.echo(..., err=True)``.
@@ -825,16 +830,23 @@ def _process_indexed_chunks(
             if log_warning is not None:
                 log_warning(f"chunk {i} failed: {type(e).__name__}: {e}")
             continue
+        # wyrd-w7i3 crash-safety ordering: on_chunk_mentions fires
+        # FIRST, before any mutation of `report` and before the
+        # operator-visible progress echo. If the callback raises
+        # (e.g. fsync OSError on a full disk), `chunks_processed`
+        # stays accurate — the chunk is treated as not-yet-processed
+        # and the exception propagates to abort the source. Without
+        # this ordering, a fsync failure would leave the report
+        # claiming a chunk was processed that has no durable record.
+        # Any exception raised by on_chunk_mentions is intentionally
+        # NOT caught here; persistence failures should abort the
+        # source rather than silently skip a chunk.
+        if on_chunk_mentions is not None:
+            on_chunk_mentions(i, mentions)
         report.mentions.extend(mentions)
         report.chunks_processed += 1
         report.hallucinations_dropped += chunk_counters.hallucinations_dropped
         report.years_clamped += chunk_counters.years_clamped
-        # on_chunk_mentions fires BEFORE on_chunk_done so a durable
-        # write completes before the operator-visible progress line
-        # (wyrd-w7i3 crash-safety: SIGTERM after the progress echo
-        # but before persistence would still lose data).
-        if on_chunk_mentions is not None:
-            on_chunk_mentions(i, mentions)
         if on_chunk_done is not None:
             on_chunk_done(done, total, len(report.mentions))
     # Merge head + tail. List shape preserves indices for the CLI's
