@@ -1061,17 +1061,25 @@ def test_migration_adds_unapproved_columns_to_existing_table(tmp_path: Path) -> 
     db_path = tmp_path / "lexicon.db"
     init_schema(db_path)
     with LexiconDB(db_path) as db:
-        # Drop the alembic-created fantasy_morpheme (head=0011) and
-        # rebuild it WITHOUT the unapproved_language / unapproved_form
-        # columns. This simulates a legacy DB created before those
-        # columns shipped — the scenario migrate_schema's ADD COLUMN
-        # branch is supposed to handle for in-place upgrades.
-        db.conn.executescript("DROP TABLE IF EXISTS fantasy_morpheme;")
+        # Drop the alembic-created fantasy_morpheme and rebuild it
+        # WITHOUT the unapproved_language / unapproved_form columns.
+        # This simulates a legacy DB created before those columns
+        # shipped — the scenario migrate_schema's ADD COLUMN branch
+        # is supposed to handle for in-place upgrades. No IF EXISTS
+        # so a future regression where alembic stops creating the
+        # table fails loudly here instead of silently no-op'ing into
+        # a freshly-created-legacy-shape state.
+        #
+        # COLLATE NOCASE on input_name matches the alembic shape so
+        # _create_fantasy_morpheme_table's recreate-for-collation
+        # branch doesn't fire and mask the ADD COLUMN behavior we're
+        # actually asserting on.
+        db.conn.executescript("DROP TABLE fantasy_morpheme;")
         db.conn.executescript(
             """
             CREATE TABLE fantasy_morpheme (
               id                INTEGER PRIMARY KEY AUTOINCREMENT,
-              input_name        TEXT NOT NULL,
+              input_name        TEXT NOT NULL COLLATE NOCASE,
               input_description TEXT,
               usable            INTEGER NOT NULL CHECK (usable IN (0, 1)),
               etymon_id         INTEGER REFERENCES etymon(id) ON DELETE SET NULL,
