@@ -65,6 +65,7 @@ from wyrd.generators.kenning.cli.lexicon import (
 from wyrd.generators.kenning.cli.lexicon import diff_bundle as _diff_bundle_module
 from wyrd.generators.kenning.cli.lexicon import diff_rebuild as _diff_rebuild_module
 from wyrd.generators.kenning.cli.lexicon import disambiguate_fuzzy as _disambiguate_fuzzy_module
+from wyrd.generators.kenning.cli.lexicon import drift_report as _drift_report_module
 from wyrd.generators.kenning.cli.lexicon import (
     dump_empirical_priors as _dump_empirical_priors_module,
 )
@@ -198,6 +199,7 @@ _derive_english_shaped_module.add_to(lexicon)
 _diff_bundle_module.add_to(lexicon)
 _diff_rebuild_module.add_to(lexicon)
 _disambiguate_fuzzy_module.add_to(lexicon)
+_drift_report_module.add_to(lexicon)
 _dump_jsonl_module.add_to(lexicon)
 _enrich_module.add_to(lexicon)
 _enrichment_status_module.add_to(lexicon)
