@@ -209,6 +209,7 @@ def select_via_vector_scoring(
     cohesion: float = 0.0,
     tag_cooccurrence: dict[str, dict[str, float]] | None = None,
     exclude_tags: frozenset[str] = frozenset(),
+    pack_meaning_dbs: dict[str, dict[str, list[Meaning]]] | None = None,
 ) -> list[Meaning]:
     """Pick one Meaning per slot in the structure via the D36.2
     composition rule.
@@ -220,6 +221,10 @@ def select_via_vector_scoring(
         structure: iterable of structural element strings (e.g.
             ``["Place-", "-shire"]``). One slot per element.
         request: composed :class:`RequestVector` from the front-end.
+            ``request.packs`` (a tuple of :class:`PackOverlay`)
+            declares which scenario-pack overlays are in play; the
+            per-pack lemmas come from ``pack_meaning_dbs`` (keyed by
+            pack name).
         priors: loaded :class:`EmpiricalPriors` (the JSON sidecar).
         era_midpoint: int year used by ``baseline_score``'s era axis
             (typically the midpoint of the requested era_min / era_max
@@ -233,6 +238,14 @@ def select_via_vector_scoring(
         exclude_tags: meanings carrying ANY tag in this set are
             filtered out pre-score. Used by the fiction / curated-
             exclusion paths.
+        pack_meaning_dbs: per-pack lemma DBs keyed by pack name. Each
+            value is a meaning_db (same shape as the native
+            ``meaning_db`` arg) holding that pack's lemmas. Only
+            packs declared in ``request.packs`` are walked; an
+            unknown pack name in request.packs (no matching
+            pack_meaning_dbs key) contributes no lemmas (pack still
+            scores 0 via ``baseline_score_pack`` for any native
+            lemma that happens to share lemma_ref). wyrd-ecjp.8.
 
     Returns:
         list[Meaning] — one Meaning per structural slot, in order.
@@ -259,6 +272,41 @@ def select_via_vector_scoring(
             if exclude_tags and any(t in exclude_tags for t in m.tags):
                 continue
             non_position_eligible.append(m)
+
+    # wyrd-ecjp.8: admit pack lemmas alongside native lemmas. Each
+    # declared pack contributes its meaning_db's lemmas, filtered by
+    # the pack's allowed_pack_tags / excluded_pack_tags (gate-level
+    # filter from PackOverlay) AND the gate's era / stratum / exclude
+    # predicates (shared with native). Pack lemmas score via the
+    # baseline_score_pack path inside score(), which uses the pack's
+    # template_donor/template_recipient + pack.weight to compose the
+    # multi-source baseline contribution per D36.4 Option B.
+    if pack_meaning_dbs:
+        for pack in request.packs:
+            pack_db = pack_meaning_dbs.get(pack.pack_name)
+            if pack_db is None:
+                continue
+            for meanings_for_usage in pack_db.values():
+                for m in meanings_for_usage:
+                    if not _matches_era(m, gate.era_min, gate.era_max):
+                        continue
+                    if not _matches_stratum(m, gate.stratum):
+                        continue
+                    if exclude_tags and any(t in exclude_tags for t in m.tags):
+                        continue
+                    # Pack-tag filter: PackOverlay.allowed_pack_tags
+                    # narrows to a subset (e.g. only the 'war' slice
+                    # of the Tatar pack); excluded_pack_tags drops a
+                    # subset (e.g. drop the religious slice).
+                    if pack.allowed_pack_tags and not any(
+                        t in pack.allowed_pack_tags for t in m.tags
+                    ):
+                        continue
+                    if pack.excluded_pack_tags and any(
+                        t in pack.excluded_pack_tags for t in m.tags
+                    ):
+                        continue
+                    non_position_eligible.append(m)
 
     for element in structure:
         # Accept either a structural-element string ("X-"/"-X-"/"-X")
