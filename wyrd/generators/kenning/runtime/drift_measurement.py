@@ -80,6 +80,7 @@ class DriftReport:
     tag_kl_divergence: float = 0.0
     tag_total_variation: float = 0.0
     top_n_name_overlap: float = 0.0
+    top_n_overlap_n: int = 0
     decomposition_rate_a: float = 0.0
     decomposition_rate_b: float = 0.0
     decomposition_rate_delta: float = 0.0
@@ -116,11 +117,16 @@ def kl_divergence(p: dict[str, float], q: dict[str, float]) -> float:
     Per the standard definition: ``sum_over_t( p[t] * log(p[t] /
     q[t]) )``. When q[t] is zero, p[t]/q[t] is undefined; we apply
     additive smoothing (add a small epsilon to q for keys p covers).
-    The smoothing is deterministic + symmetric for the same input
-    pair so re-runs produce byte-identical drift values.
+    The smoothing constant is fixed (1e-9), so re-runs produce
+    byte-identical drift values for the same input pair (determinism,
+    not symmetry — KL is asymmetric by definition).
 
-    Returns 0 when p is empty (no information to compare); always
-    >= 0 otherwise (KL is non-negative).
+    Returns 0 when p is empty (no information to compare); for
+    non-empty p, the result is mathematically >= 0 but may surface
+    a tiny negative artifact (~1e-9) when p == q exactly because
+    the epsilon shifts q without shifting p. Callers comparing
+    against zero should use a tolerance (e.g. ``abs(kl) < 1e-6``)
+    rather than ``kl == 0``.
     """
     if not p:
         return 0.0
@@ -330,6 +336,7 @@ def compute_drift_report(
         tag_kl_divergence=kl_divergence(tag_dist_a, tag_dist_b),
         tag_total_variation=total_variation_distance(tag_dist_a, tag_dist_b),
         top_n_name_overlap=top_n_name_overlap(samples_a_list, samples_b_list, n=top_n_overlap),
+        top_n_overlap_n=top_n_overlap,
         decomposition_rate_a=decomp_a,
         decomposition_rate_b=decomp_b,
         decomposition_rate_delta=decomp_b - decomp_a,
@@ -360,7 +367,7 @@ def format_drift_report_markdown(report: DriftReport) -> str:
         "(0..1; 0 = identical; 1 = disjoint supports)",
         "",
         "## Top-N name overlap",
-        f"- Jaccard(top-{report.morpheme_rank_top_k}): **{report.top_n_name_overlap:.4f}** "
+        f"- Jaccard(top-{report.top_n_overlap_n}): **{report.top_n_name_overlap:.4f}** "
         "(0..1; 1 = same top names; 0 = disjoint)",
         "",
         "## Decomposition rate",
@@ -401,6 +408,7 @@ def format_drift_report_json(report: DriftReport) -> dict[str, Any]:
         "tag_kl_divergence": report.tag_kl_divergence,
         "tag_total_variation": report.tag_total_variation,
         "top_n_name_overlap": report.top_n_name_overlap,
+        "top_n_overlap_n": report.top_n_overlap_n,
         "decomposition_rate_a": report.decomposition_rate_a,
         "decomposition_rate_b": report.decomposition_rate_b,
         "decomposition_rate_delta": report.decomposition_rate_delta,

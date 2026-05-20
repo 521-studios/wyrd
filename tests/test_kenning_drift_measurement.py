@@ -228,6 +228,13 @@ def test_spearman_constant_returns_zero():
     assert _spearman_correlation(ranks_a, ranks_b) == 0.0
 
 
+def test_spearman_constant_other_side_returns_zero():
+    """Symmetric coverage: zero variance on the OTHER side also → 0."""
+    ranks_a = {"x": 1, "y": 2}
+    ranks_b = {"x": 5, "y": 5}
+    assert _spearman_correlation(ranks_a, ranks_b) == 0.0
+
+
 # ---- morpheme_rank_correlation -------------------------------------------
 
 
@@ -334,6 +341,25 @@ def test_format_drift_report_markdown_contains_culture():
     assert "Drift Report" in md
 
 
+def test_format_drift_report_markdown_uses_correct_top_n_label():
+    """Round-1 reviewer caught: an earlier version labeled the
+    Top-N overlap line with morpheme_rank_top_k (the morpheme
+    correlation parameter) instead of top_n_overlap_n. Verify the
+    field is the right one + the label matches the n we passed to
+    compute_drift_report."""
+    samples = [NameSample(surface=f"n{i}") for i in range(5)]
+    report = compute_drift_report(
+        "english", samples, samples, top_n_overlap=50, top_k_correlation=200
+    )
+    md = format_drift_report_markdown(report)
+    # Top-N overlap label says 'top-50' (not 'top-200'); morpheme
+    # rank correlation label says 'top-200' (not 'top-50').
+    assert "top-50" in md
+    assert "top-200" in md
+    assert report.top_n_overlap_n == 50
+    assert report.morpheme_rank_top_k == 200
+
+
 def test_format_drift_report_json_round_trips():
     import json
 
@@ -351,3 +377,11 @@ def test_format_drift_report_json_round_trips():
     assert parsed["culture"] == "english"
     assert parsed["tag_kl_divergence"] == 0.5
     assert parsed["decomposition_rate_a"] == 0.95
+
+
+def test_format_drift_report_json_includes_top_n_overlap_n():
+    """Round-1 reviewer fix: the JSON shape now carries top_n_overlap_n
+    so consumers can correctly label the overlap value's parameter."""
+    report = DriftReport(culture="english", sample_size_a=10, sample_size_b=10, top_n_overlap_n=50)
+    j = format_drift_report_json(report)
+    assert j["top_n_overlap_n"] == 50

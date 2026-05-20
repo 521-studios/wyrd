@@ -49,7 +49,10 @@ def _sample_from_generation_result(result: Any) -> NameSample:
     framework is set up to surface noise-shifted drift if a future
     path produces unaccounted-bearing names.
     """
-    components = getattr(result, "components", None) or []
+    # GenerationResult is a dataclass with .result + .components — no
+    # need for defensive getattr. Drop in if the registry contract
+    # ever changes.
+    components = result.components or []
     tags: list[str] = []
     positions: list[str] = []
     morphemes: list[str] = []
@@ -64,7 +67,16 @@ def _sample_from_generation_result(result: Any) -> NameSample:
             # convention (matches _lemma_ref_for in vector_name_select)
             morphemes.append(str(usage).replace("-", ""))
     return NameSample(
-        surface=getattr(result, "result", "") or "",
+        # TODO(wyrd-ecjp.6 follow-up): the current Kenning generator
+        # always returns fully-decomposed names by construction, so
+        # decomposes=True is constant across both scoring modes and
+        # the decomposition_rate metric is currently degenerate (both
+        # sides 1.0, delta=0). The metric is in place for a future
+        # path that could produce unaccounted-bearing names (e.g. a
+        # vector scoring that picks lemmas whose surface doesn't
+        # trie-decompose). Until then, treat decomposition_rate as
+        # confirmatory rather than discriminating.
+        surface=result.result or "",
         tags=tuple(tags),
         positions=tuple(positions),
         decomposes=True,
@@ -124,26 +136,25 @@ def run_drift_samples(
 
     for i in range(count):
         seed = base_seed + i
-        # Proportions path — bit-stable legacy
-        try:
-            r_prop = k.generate({**base_params, "scoring_mode": "proportions"}, seed=seed)
-            samples_proportions.append(_sample_from_generation_result(r_prop))
-        except Exception:  # noqa: BLE001 — per-sample isolation
-            # Legacy path shouldn't normally raise, but a seed that
-            # hits a bundle edge case shouldn't abort the whole run.
-            pass
+        # Proportions path — bit-stable legacy; no expected raise path
+        # so we run it without try/except (any exception is a real bug
+        # the operator should see, not a per-seed skip).
+        r_prop = k.generate({**base_params, "scoring_mode": "proportions"}, seed=seed)
+        samples_proportions.append(_sample_from_generation_result(r_prop))
 
-        # Vector path — opt-in, may raise on empty
+        # Vector path — opt-in, may raise ValueError on empty pick.
+        # Narrow the except to (ValueError,) so programming errors
+        # (AttributeError, TypeError, etc.) still surface loudly.
         vector_params: dict[str, Any] = {**base_params, "scoring_mode": "vector"}
         if priors_path:
             vector_params["priors_path"] = priors_path
         try:
             r_vec = k.generate(vector_params, seed=seed)
             samples_vector.append(_sample_from_generation_result(r_vec))
-        except Exception:  # noqa: BLE001
-            # Vector raises on empty pick; that's expected when the
-            # bundle / priors / register combo can't produce a non-
-            # zero score for any slot. Skip this seed.
+        except ValueError:
+            # Vector raises ValueError on empty pick — expected when
+            # the bundle / priors / register combo can't produce a
+            # non-zero score for any slot. Skip this seed.
             pass
 
     return samples_proportions, samples_vector
