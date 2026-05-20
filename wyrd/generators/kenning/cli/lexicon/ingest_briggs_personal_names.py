@@ -79,7 +79,10 @@ def lexicon_ingest_briggs_personal_names(
 
         def _report(stats: IngestStats) -> None:
             elapsed = time.monotonic() - start_ts
-            rate = stats.entries_seen / elapsed if elapsed > 0 else 0.0
+            # CLAUDE.md mining-progress convention: emit s/entry, not
+            # entries/s — operators extrapolate ETA from the per-record
+            # cost.
+            s_per_entry = elapsed / stats.entries_seen if stats.entries_seen > 0 else 0.0
             click.echo(
                 f"  [{stats.entries_seen}] "
                 f"pn_inserted={stats.personal_names_inserted} "
@@ -87,7 +90,7 @@ def lexicon_ingest_briggs_personal_names(
                 f"att_inserted={stats.attestations_inserted} "
                 f"att_skipped={stats.attestations_skipped} "
                 f"att_unknown_county={stats.attestations_unknown_county} "
-                f"({rate:.1f} entries/s)",
+                f"({s_per_entry:.3f}s/entry)",
                 err=True,
             )
 

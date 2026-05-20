@@ -31,6 +31,7 @@ are single-number lines (centered with whitespace padding).
 
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
 from collections.abc import Iterator
@@ -43,17 +44,18 @@ from pathlib import Path
 # supersede/re-ingest logic keys on it.
 SOURCE_DOC = "briggs_2024_personal_names_index"
 
-# Column boundary measured from the pdftotext output. The left
-# column ends at char 38 (inclusive of the trailing pad space); the
-# right column begins at char 38. Verified by inspection of the
-# index opening at page 19 (Aalfra DLV. ... Abbud PASE2.).
+# Column boundary measured from the pdftotext output. The left column
+# occupies chars 0–37 and the right column begins at char 38. Verified
+# by inspection of the index opening at page 19 (Aalfra DLV. ...
+# Abbud PASE2.).
 COLUMN_BOUNDARY = 38
 
-# Line where the index proper begins (first "—A—" marker). Everything
-# before this is front-matter (title page, preface, county-code
-# coverage list, editorial conventions, bibliography). Indexed
-# zero-based when used by enumerate.
-INDEX_FIRST_LINE_NUM = 794  # 0-based; line 795 in the file
+# Zero-based slice index — everything before this line of the .txt is
+# front-matter (title page, preface, county-code coverage list,
+# editorial conventions, bibliography). Used in a `raw[N:]` slice in
+# ``_reconstruct_index_stream``. Equivalent to line 795 of the .txt
+# (1-based), where the first "—A—" section marker appears.
+INDEX_FIRST_LINE_NUM = 794
 
 # County codes → canonical county name. Extracted from §1.2 Coverage
 # (pages 1-3 of the PDF). Includes the two non-county sigla used by
@@ -152,38 +154,22 @@ RE_PASE = re.compile(r"^PASE(\d+)$")
 RE_DLV = re.compile(r"^DLV$")
 RE_ASCH = re.compile(r"^ASCh[\d–\-]+(?:\.\d+)?$")
 
-# Headform-start heuristic: a non-indented line beginning with a
-# capital letter (possibly preceded by a diacritic-letter or ?, ??).
-# After column reconstruction, every entry's first line starts at
-# col 0 (left-of-left-col) or col 38 (left-of-right-col); after
-# stream reconstruction both become col 0.
-RE_HEADFORM_START = re.compile(
-    r"^(\?{0,2})"  # optional ?, ??
-    r"([A-ZĀĒĪŌŪÆǢÐÞŒŁǷǺ]"  # capital incl. common Old-English / Norse diacritics
-    r"[A-Za-zĀāĒēĪīŌōŪūÆæǢǣÐðÞþŒœǷƿǺǻĠġȳȲ̄̆̃̇̈ \-(),fem]*?"
-    r"(?:\([a-zA-Z]+\))?)"  # optional (b)a-style insertion
-    r"(?:\s|$)"
-)
-
-# A toponym attestation looks like ``Toponym (CC)``, ``Toponym CC``
-# (no parens), with optional date qualifier and uncertainty marker.
-# Date qualifiers: 4-digit year, Hy3, Edw1, 13th, n.d., 1278×84,
-# Hy3, 1257, etc.
-RE_DATE_QUALIFIER = re.compile(
-    r"^(?:n\.d\.|\d+(?:[×-]\d+)?(?:th)?|"
-    r"Hy[1-8]|Edw[1-3]|Ric[1-3]|John|Steph|Ric)$"
-)
-
 
 # ---------------------------------------------------------------- data shapes
 
 
 @dataclass
 class PersonalNameRecord:
-    """One PN headform parsed from the index."""
+    """One PN headform parsed from the index.
+
+    ``normalized_form`` is auto-derived from ``headform`` in
+    ``__post_init__`` so callers can't construct one with a mismatched
+    pair. Pass ``normalized_form=""`` (the default) and let the
+    post-init compute it.
+    """
 
     headform: str
-    normalized_form: str
+    normalized_form: str = ""
     language_hints: list[str] = field(default_factory=list)
     is_feminine: bool = False
     pase_count: int | None = None
@@ -191,20 +177,47 @@ class PersonalNameRecord:
     ascharter_refs: list[str] = field(default_factory=list)
     raw_entry: str = ""
 
+    def __post_init__(self) -> None:
+        # Always re-derive so a caller passing a stale value can't
+        # introduce drift between the two fields.
+        self.normalized_form = _normalize_form(self.headform)
+
 
 @dataclass
 class AttestationRecord:
-    """One (PN, toponym, county) attestation row."""
+    """One (PN, toponym, county) attestation row.
+
+    ``county_canonical`` is exposed as a property derived from
+    ``county_code`` against ``COUNTY_CODE_TO_NAME`` so the two fields
+    can't drift apart. Unknown county codes return an empty string
+    instead of raising — the ingester counts and drops those rows
+    via the ``attestations_unknown_county`` counter, which keeps the
+    schema-validation seam in one place.
+
+    The ``is_serious_doubt`` flag implies ``is_uncertain`` (``??`` is
+    a strict refinement of ``?``); ``__post_init__`` enforces this.
+    """
 
     toponym_form: str
     attested_variant: str | None
     county_code: str
-    county_canonical: str
     date_qualifier: str | None
     is_uncertain: bool
     is_serious_doubt: bool
-    source_citation: str | None
     raw_text: str
+
+    def __post_init__(self) -> None:
+        if self.is_serious_doubt and not self.is_uncertain:
+            # ?? is a strict refinement of ? — silently promote rather
+            # than reject so an upstream parser bug doesn't lose the row.
+            self.is_uncertain = True
+
+    @property
+    def county_canonical(self) -> str:
+        """Canonical county name for ``county_code``; empty string if
+        the code isn't in ``COUNTY_CODE_TO_NAME`` (caller should treat
+        empty-canonical as an unknown-county skip signal)."""
+        return COUNTY_CODE_TO_NAME.get(self.county_code, "")
 
 
 @dataclass
@@ -331,10 +344,10 @@ def _reconstruct_index_stream(path: Path) -> Iterator[str]:
 # Sentence-terminator period: a period followed by whitespace and a
 # capital-letter (or ?-prefixed capital) start. This is the most
 # reliable signal we have post-bold-stripping for "this entry just
-# ended; next entry starts here." The lookbehind/lookahead deliberately
-# avoid splitting on intra-body abbreviation periods like ``n.d.``
-# (which are followed by lowercase, not capital) and ``pp.61–4`` (which
-# are followed by digit).
+# ended; next entry starts here." The positive lookahead deliberately
+# avoids splitting on intra-body abbreviation periods: ``pp.61–4`` is
+# followed by digits (not capital) and ``n.d.`` ends in a period
+# followed by lowercase ``in`` / ``and`` (not capital).
 RE_ENTRY_TERMINATOR = re.compile(r"\.\s+(?=\?{0,2}[A-ZĀĒĪŌŪÆǢÐÞŒŁǷǺ])")
 
 # Section markers like ``—A—`` / ``—B—`` head each alphabet group;
@@ -433,8 +446,9 @@ def _parse_entry(entry_text: str) -> ParsedEntry | None:
     consumed = 0
     for tok in tokens:
         cleaned = tok.rstrip(",;.")
-        if RE_PASE.match(cleaned):
-            pase_count = int(RE_PASE.match(cleaned).group(1))
+        pase_m = RE_PASE.match(cleaned)
+        if pase_m:
+            pase_count = int(pase_m.group(1))
             consumed += 1
             continue
         if RE_DLV.match(cleaned):
@@ -467,7 +481,6 @@ def _parse_entry(entry_text: str) -> ParsedEntry | None:
 
     name = PersonalNameRecord(
         headform=raw_headform,
-        normalized_form=_normalize_form(raw_headform),
         language_hints=language_hints,
         is_feminine=is_feminine,
         pase_count=pase_count,
@@ -547,9 +560,9 @@ def _parse_attestations(body: str) -> Iterator[AttestationRecord]:
         if county_code in LANGUAGE_HINTS:
             # False positive: this paren group is a language-hint tail.
             continue
-        if county_code not in COUNTY_CODE_TO_NAME:
-            continue
-        county_canonical = COUNTY_CODE_TO_NAME[county_code]
+        # Don't filter unknown county codes here — let the ingester
+        # see them, increment its unknown-county counter, and drop the
+        # row at insert time. Single seam for the visibility signal.
         head = group[: m.start()].strip().rstrip(",")
         if not head:
             continue
@@ -558,41 +571,47 @@ def _parse_attestations(body: str) -> Iterator[AttestationRecord]:
             if not item:
                 continue
             cleaned, is_unc, is_doubt = _strip_uncertainty(item)
-            # Pull a date qualifier embedded in the item.
+            # Pull a date qualifier embedded in the item. The
+            # surrounding shape can be:
+            #   "Abington×2"                  — no date, no "in Y"
+            #   "Adelwesdenn in Rolvenden"    — no date, "X in Y"
+            #   "Abington 1257"               — date, no "in Y"
+            #   "Abban wylle 996 in Benson"   — date AND "X date in Y"
+            # In all forms with " in ", X is the attested orthographic
+            # variant of the PN in that toponym and Y is the modern
+            # toponym. The date (if any) sits between X and "in Y".
+            date_qualifier: str | None = None
+            attested_variant: str | None = None
             date_match = RE_DATE_PREFIX.search(cleaned)
             if date_match:
                 date_qualifier = date_match.group(1)
-                # Toponym is everything before the date; anything
-                # after the date (e.g. "in Asthall") is parenthetical
-                # context. We keep the leading toponym only.
-                toponym_form = cleaned[: date_match.start()].strip()
+                pre_date = cleaned[: date_match.start()].strip()
+                post_date = cleaned[date_match.end() :].strip()
+                if post_date.startswith("in "):
+                    # "X <date> in Y": X is attested variant, Y is the
+                    # modern toponym. Without this branch we'd silently
+                    # drop "in Benson" and treat "Abban wylle" as the
+                    # toponym.
+                    attested_variant = pre_date.rstrip(",")
+                    toponym_form = post_date[3:].strip()
+                else:
+                    toponym_form = pre_date
             else:
-                date_qualifier = None
                 toponym_form = cleaned.strip()
+                if " in " in toponym_form:
+                    left, right = toponym_form.split(" in ", 1)
+                    attested_variant = left.strip().rstrip(",")
+                    toponym_form = right.strip()
             toponym_form = toponym_form.rstrip(",;")
             if not toponym_form:
                 continue
-            # Some Briggs items embed an attested-orthographic-variant
-            # in their toponym form via "X in Y" — e.g.
-            # "Adelwesdenn in Rolvenden". We treat "Rolvenden" (post-
-            # "in") as the modern toponym and "Adelwesdenn" (pre-"in")
-            # as the attested variant of the PN's surface in that
-            # location. Date qualifier (if any) is parsed FIRST so the
-            # "in" split sees no date-bearing fragments.
-            attested_variant: str | None = None
-            if " in " in toponym_form:
-                left, right = toponym_form.split(" in ", 1)
-                attested_variant = left.strip().rstrip(",")
-                toponym_form = right.strip()
             yield AttestationRecord(
                 toponym_form=toponym_form,
                 attested_variant=attested_variant,
                 county_code=county_code,
-                county_canonical=county_canonical,
                 date_qualifier=date_qualifier,
                 is_uncertain=is_unc,
                 is_serious_doubt=is_doubt,
-                source_citation=None,
                 raw_text=raw_item.strip(),
             )
 
@@ -622,7 +641,6 @@ def parse_briggs_index(path: Path) -> Iterator[ParsedEntry]:
             for variant in variants:
                 cloned_name = PersonalNameRecord(
                     headform=variant,
-                    normalized_form=_normalize_form(variant),
                     language_hints=list(entry.name.language_hints),
                     is_feminine=entry.name.is_feminine,
                     pase_count=entry.name.pase_count,
@@ -668,8 +686,6 @@ def ingest_briggs_index(
     ``.commit()``). Import-cycle-avoiding duck-type to keep this
     module light.
     """
-    import json
-
     stats = IngestStats()
     conn = db.conn
     for entry in parse_briggs_index(txt_path):
@@ -753,14 +769,16 @@ def ingest_briggs_index(
 
 
 if __name__ == "__main__":
-    # Quick visual sanity check against the staged file.
+    # Parser-debugging entry point. Use the CLI subcommand
+    # ``wyrd kenning lexicon ingest-briggs-personal-names`` for
+    # production ingest; this is just a visual smoke check.
     import sys
 
-    src = Path(
-        sys.argv[1]
-        if len(sys.argv) > 1
-        else "/home/devon/521Studios/wyrd-source-staging/briggs_2024_personal_names_index.txt"
-    )
+    if len(sys.argv) < 2:
+        sys.exit(
+            "Usage: python -m wyrd.generators.kenning.briggs_personal_names_ingester <path_to_briggs.txt>"
+        )
+    src = Path(sys.argv[1])
     count_entries = 0
     count_attestations = 0
     for entry in parse_briggs_index(src):
