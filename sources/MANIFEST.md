@@ -7,13 +7,11 @@ lands in `data/mining/phase2/<source_id>.jsonl`. The `source_id` is the
 filename without `.txt`; it becomes a foreign key in downstream artifacts —
 don't rename a source after it has been mined.
 
-Most of the corpus is Internet Archive `_djvu.txt` OCR of pre-1930 works
-that are public domain in the US (95-year rule). Post-1930 entries are
-included because **we extract facts** (attested forms, dates, citations)
-**rather than copying creative expression**. Facts aren't copyrightable
-in the US (*Feist v. Rural Telephone*, 1991), so PD-year gating is not
-a filter on what enters the corpus — any source that yields good factual
-extractions is eligible.
+Most sources are Internet Archive `_djvu.txt` OCR of pre-1930
+public-domain works (US 95-year rule). Post-1930 entries are eligible
+too: we extract facts (attested forms, dates, citations), not creative
+expression, and facts aren't copyrightable (*Feist v. Rural Telephone*,
+1991).
 
 ## England — general
 
@@ -57,16 +55,16 @@ extractions is eligible.
 - `gover_stenton_1936_warwickshire.txt` — J.E.B. Gover, A. Mawer & F.M. Stenton,
   *The Place-Names of Warwickshire* (1936). EPNS vol XIII.
 - `smith_1937_east_riding_yorkshire.txt` — A.H. Smith, *The Place-Names of
-  the East Riding of Yorkshire and York* (1937). EPNS vol XIV; completes the
-  Yorkshire-Ridings trio together with `smith_1928_north_riding_yorkshire.txt`
-  and the `smith_1961`/`smith_1986` West Riding volumes below.
+  the East Riding of Yorkshire and York* (1937). EPNS vol XIV; with
+  `smith_1928` (North) and `smith_1961`/`smith_1986` (West) below, completes
+  the Yorkshire-Ridings trio.
 - `smith_1961_west_riding_yorkshire_pt1.txt` — A.H. Smith, *The Place-Names
-  of the West Riding of Yorkshire*, pt 1 (1961). EPNS vol XXX (West Riding
-  was an eight-part EPNS survey; this scan covers pt 1 — Lower & Upper
-  Strafforth, Staincross, Osgoldcross wapentakes).
+  of the West Riding of Yorkshire*, pt 1 (1961). EPNS vol XXX. West Riding
+  is an eight-part EPNS survey; this scan covers pt 1 — Lower Strafforth,
+  Upper Strafforth, and Staincross wapentakes.
 - `smith_1986_west_riding_yorkshire_pt2.txt` — A.H. Smith, *The Place-Names
-  of the West Riding of Yorkshire*, pt 2 (EPNS reissue 1986). Continuation
-  of the West Riding survey; pairs with `smith_1961_west_riding_yorkshire_pt1.txt`.
+  of the West Riding of Yorkshire*, pt 2 (EPNS reissue 1986). EPNS vol XXXI;
+  Osgoldcross and Agbrigg wapentakes.
 - `roberts_1914_sussex.txt` — Richard G. Roberts, *The Place-Names of Sussex*
   (Cambridge University Press, 1914). Earlier non-EPNS Sussex volume,
   superseded by the 1930 EPNS edition but useful as an independent witness.
@@ -98,10 +96,10 @@ extractions is eligible.
   *Alan de Plokenet*) plus Welsh-substrate Celtic strata (`allt`, `dwr`,
   `ynys`). Targeted as the Norman-French corpus expansion via the
   Welsh-Marches angle (wyrd-hub).
-- `bannister_1871_cornish_names.txt` — H. Bannister, *Cornish Names*
-  (1871). Cornish-Brythonic substrate corpus for Cornwall — distinct
-  from the Anglo-Saxon / Old-Norse strata dominating most England-regional
-  sources. Early dictionary-style alphabetical headwords.
+- `bannister_1871_cornish_names.txt` — Rev. J. Bannister, *A Glossary of
+  Cornish Names* (1871). Cornish-Brythonic substrate corpus for Cornwall —
+  distinct from the Anglo-Saxon / Old-Norse strata dominating most
+  England-regional sources. Early dictionary-style alphabetical headwords.
 - `sedgefield_1915_cumberland_westmorland.txt` — W.J. Sedgefield, *The
   Place-Names of Cumberland and Westmorland* (1915). North-West English
   counties; rich Old Norse / Cumbric / Old English stratification along
@@ -111,11 +109,11 @@ extractions is eligible.
   substrate.
 - `horsley_1921_kent.txt` — J.W. Horsley, *Place Names in Kent* (1921).
   Kent place-names; complements the Anglo-Norman and Old-English elements
-  prominent in South-East England. Project Gutenberg eBook #63263 sourcing.
+  prominent in South-East England. Sourced from Project Gutenberg
+  (eBook #63263), not Internet Archive.
 - `coates_2020_grimsby_cleethorpes.txt` — Richard Coates, *The Place-Names
   of Grimsby and Cleethorpes* (2020). Focused modern Lincolnshire study;
-  Old Norse / Anglian density along the Humber estuary. Fact-extraction
-  source under the Feist-1991 framing — not used for narrative reuse.
+  Old Norse / Anglian density along the Humber estuary.
 
 ## Scotland
 
