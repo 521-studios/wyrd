@@ -263,14 +263,19 @@ def _select_promoted_root_ids(
         ):
             promoted.add(root_of(row["etymon_id"]))
     if include_wave2_enriched:
-        # wyrd-z3cp: wave-2 non-Latin etymons (he, ar, fa, sa, akk, egy, arc)
-        # come from the wiktextract bulk path WITHOUT a wiktionary-empirical
-        # citation row, so neither the consensus nor the citation branches
-        # admit them. english_shaped IS NOT NULL is the per-row marker that
+        # wyrd-z3cp: wave-2 non-Latin etymons (every code in
+        # english_shaping.PHASE2A_NON_LATIN_LANGS — canonical wave-2 plus
+        # precursor / postcursor stack codes) come from the wiktextract
+        # bulk path WITHOUT a wiktionary-empirical citation row, so
+        # neither the consensus nor the citation branches admit them.
+        # ``english_shaped IS NOT NULL`` is the per-row marker that
         # derive_english_shaped (wyrd-vsrn Phase 2c) produced a usable
-        # rendering — admitting these as their own promotion class lets the
-        # <lang>_english_shaped and <lang>_transliteration sibling fields
-        # actually appear in the bundle.
+        # rendering — admitting any row with that marker (no language
+        # gate; derive_english_shaped already short-circuited on
+        # Latin-script source langs at ingest time, so non-NULL implies
+        # the row was a wave-2 admit) lets the <lang>_english_shaped
+        # and <lang>_transliteration sibling fields actually appear in
+        # the bundle.
         for row in db.conn.execute("SELECT id FROM etymon WHERE english_shaped IS NOT NULL"):
             promoted.add(root_of(row["id"]))
     return sorted(promoted)

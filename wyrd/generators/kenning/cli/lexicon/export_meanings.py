@@ -79,8 +79,10 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
     show_default=True,
     help="wyrd-z3cp: Include families containing any etymon with non-NULL "
     "english_shaped, regardless of witness count or citation. Covers the "
-    "wyrd-vsrn Phase 2c non-Latin source languages (he, ar, fa, sa, akk, "
-    "egy, arc) that the wiktextract bulk path ingested without "
+    "wyrd-vsrn Phase 2c non-Latin source languages — every entry in "
+    "PHASE2A_NON_LATIN_LANGS (he, ar, fa, sa, akk, egy, arc, plus the "
+    "precursor / postcursor stack codes hbo, peo, pal, fa-cls, xpr, syc, "
+    "cop, axm, pra, pi) that the wiktextract bulk path ingested without "
     "wiktionary-empirical citations. Without this, the bundle's "
     "<lang>_english_shaped / _transliteration siblings have no data.",
 )
