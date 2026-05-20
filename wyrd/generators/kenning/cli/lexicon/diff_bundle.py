@@ -202,10 +202,16 @@ def _rebuild_lexicon_db(
         with LexiconDB(rebuilt_path) as db:
             bulk_result = ingest_all_slices(db, apply=True, fetch=fetch_bulk)
         if bulk_result.failed:
-            click.echo(f"Bulk ingest failed: {len(bulk_result.failed)} slice(s)", err=True)
-            for name, reason in bulk_result.failed:
-                click.echo(f"  ! {name}: {reason}", err=True)
-            raise SystemExit(1)
+            details = [
+                f"Bulk ingest failed: {len(bulk_result.failed)} slice(s)",
+                *(f"  ! {name}: {reason}" for name, reason in bulk_result.failed),
+            ]
+            # ClickException renders to stderr + exits with status 1 at
+            # the click command boundary, so the helper can stay pure
+            # (no SystemExit inside a library function) while preserving
+            # the same operator-visible failure behavior. Gemini round-2
+            # review on PR #285.
+            raise click.ClickException("\n".join(details))
 
     click.echo("L2 replay...", err=True)
     paths = jsonl_paths_in(jsonl_dir)
