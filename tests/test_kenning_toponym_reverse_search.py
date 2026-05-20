@@ -641,3 +641,63 @@ def test_cli_reverse_search_toponyms_verbose_shows_all_samples(tmp_path: Path):
     # All 8 unmatched should appear (CLI no longer slices to 5).
     for s in suffixes:
         assert f"Bozzz{s}berg" in result.output
+
+
+# ---------------------------------------------------------------------
+# wyrd-9ekl: body-text source-chain guard wiring
+# ---------------------------------------------------------------------
+#
+# The extractor-level tests in test_kenning_lexicon.py pin
+# _extract_attestation_pairs(context_is_body=True) in isolation.
+# These pin the wiring through reverse_search_source — a regression
+# that dropped the context_is_body kwarg (or stopped reading the
+# telemetry into ReverseSearchReport) would still pass those isolated
+# tests but trip these.
+
+
+def test_reverse_search_source_recovers_year_form_year_chain(tmp_path: Path):
+    """Body text with the ``<year> FORM, <year>`` shape — which the
+    default extractor guard suppresses for short notes strings — must
+    yield the inner attestation when called via reverse_search_source.
+    Pins that reverse_search_source passes context_is_body=True. Without
+    that, the chain pattern silently drops the row and matched stays 0."""
+    conn = _build_fixture_db()
+    conn.execute("INSERT INTO source (id, title) VALUES ('mawer', 'Mawer')")
+    conn.execute("INSERT INTO toponym (id, modern_name) VALUES (1, 'Suttone')")
+    conn.commit()
+    # The ``1086 Suttone, 1210`` shape is the canonical body-text chain
+    # the default guard over-suppresses. With context_is_body=True the
+    # year-anchored extractor admits Suttone(1210) as a legitimate
+    # attestation.
+    (tmp_path / "mawer.txt").write_text(
+        "Earlier attestations of the place include 1086 Suttone, 1210 as recorded."
+    )
+
+    lookup = _build_form_to_toponym_lookup(conn)
+    report = reverse_search_source(conn, "mawer", tmp_path, lookup, apply=False)
+
+    assert report.matched == 1, (
+        "Suttone(1210) should survive body-mode extraction; matched=0 means "
+        "the source-chain guard is still suppressing the chain attestation"
+    )
+
+
+def test_reverse_search_source_reports_suppressed_count_field(tmp_path: Path):
+    """ReverseSearchReport.suppressed_by_source_chain is populated from
+    the extractor's telemetry dict. With context_is_body=True the guard
+    doesn't fire, so the counter stays at 0 — but the field must exist
+    and be threaded through. Pins the wiring."""
+    conn = _build_fixture_db()
+    conn.execute("INSERT INTO source (id, title) VALUES ('mawer', 'Mawer')")
+    conn.execute("INSERT INTO toponym (id, modern_name) VALUES (1, 'Suttone')")
+    conn.commit()
+    (tmp_path / "mawer.txt").write_text("1086 Suttone, 1210 reference.")
+
+    lookup = _build_form_to_toponym_lookup(conn)
+    report = reverse_search_source(conn, "mawer", tmp_path, lookup, apply=False)
+
+    # The field must exist on the dataclass (regression catcher for
+    # accidental dataclass-field removal).
+    assert hasattr(report, "suppressed_by_source_chain")
+    # Body mode disables the guard → counter stays at 0.
+    assert report.suppressed_by_source_chain == 0
