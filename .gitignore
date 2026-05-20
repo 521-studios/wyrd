@@ -45,3 +45,9 @@ data/mining/os_open_names.jsonl
 uv.lock
 .claude/worktrees/
 data/mining/phase2_failures/
+
+# Staged-miner per-chunk crash-safety logs (wyrd-w7i3).
+# Transient; promoted to canonical data/mining/phase2/<source>.jsonl
+# on source completion via recover-inprogress-chunks. Committing
+# these would risk rolling back canonical files (see wyrd-4yze).
+data/mining/phase2/_inprogress/
