@@ -381,6 +381,17 @@ class PackOverlay:
     template_donor: str
     template_recipient: str
     weight: float = 1.0
+    # wyrd-ecjp.8: pack-tag narrowing. ``allowed_pack_tags`` admits
+    # only pack lemmas carrying at least one matching tag; empty set
+    # (default) admits all pack lemmas. ``excluded_pack_tags`` drops
+    # pack lemmas carrying any matching tag (applied after the
+    # allowed filter). Both predicates run pre-score so the gate
+    # cost stays O(N) in the pack's lemma count rather than full
+    # scoring. Used by '--pack-tag-filter <pack>:<tag1,tag2>' (the
+    # operator-facing narrowing for narrative subset selection per
+    # wyrd-sreb).
+    allowed_pack_tags: frozenset[str] = frozenset()
+    excluded_pack_tags: frozenset[str] = frozenset()
 
 
 # ---- request vector (ecjp.1 four-axis composed request) -----------------
