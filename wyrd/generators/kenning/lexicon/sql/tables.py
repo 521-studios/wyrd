@@ -93,6 +93,7 @@ etymon = Table(
     Column("transliteration", Text),
     Column("english_shaped", Text),
     Column("stratum", Text),
+    Column("phonological_vector", Text),
     UniqueConstraint("canonical_form", "language"),
 )
 Index("idx_etymon_lemma", etymon.c.lemma_id)

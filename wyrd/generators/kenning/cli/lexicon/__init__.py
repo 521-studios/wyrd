@@ -155,6 +155,9 @@ from wyrd.generators.kenning.cli.lexicon import review as _review_module
 from wyrd.generators.kenning.cli.lexicon import set_stratum as _set_stratum_module
 from wyrd.generators.kenning.cli.lexicon import stats as _stats_module
 from wyrd.generators.kenning.cli.lexicon import synsets as _synsets_module
+from wyrd.generators.kenning.cli.lexicon import (
+    tag_phonological_vectors as _tag_phonological_vectors_module,
+)
 from wyrd.generators.kenning.cli.lexicon import verify_bulk_sources as _verify_bulk_sources_module
 
 
@@ -244,6 +247,7 @@ _report_wikipedia_backfill_module.add_to(lexicon)
 _reverse_search_module.add_to(lexicon)
 _set_stratum_module.add_to(lexicon)
 _stats_module.add_to(lexicon)
+_tag_phonological_vectors_module.add_to(lexicon)
 _verify_bulk_sources_module.add_to(lexicon)
 
 
