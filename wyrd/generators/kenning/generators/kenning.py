@@ -306,6 +306,27 @@ class Kenning(Generator):
                         "score falls back to phon + sem + pos."
                     ),
                 },
+                "scoring_weights": {
+                    "type": "object",
+                    "description": (
+                        "wyrd-ecjp.9: per-axis ScoringWeights overrides "
+                        "(D36.2). Keys: 'phon_w', 'sem_w', 'pos_w', "
+                        "'base_w', each a float scalar on its axis. "
+                        "Defaults to 1.0 across all four axes "
+                        "(ScoringWeights()) — the canonical balanced "
+                        "composition. Only consulted when "
+                        "scoring_mode='vector'; ignored in 'proportions' "
+                        "mode. Used by the operator-facing CLI flags "
+                        "--baseline-weight / --phonological-weight / "
+                        "--semantic-weight / --position-weight."
+                    ),
+                    "properties": {
+                        "phon_w": {"type": "number"},
+                        "sem_w": {"type": "number"},
+                        "pos_w": {"type": "number"},
+                        "base_w": {"type": "number"},
+                    },
+                },
             },
             "required": [],
         }
@@ -326,6 +347,12 @@ class Kenning(Generator):
         include_fiction = _coerce_bool(params.get("include_fiction", False))
         scoring_mode = params.get("scoring_mode", "proportions") or "proportions"
         priors_path = params.get("priors_path")
+        # wyrd-ecjp.9: per-axis ScoringWeights (vector mode only). The
+        # CLI flag layer composes a dict {phon_w, sem_w, pos_w, base_w}
+        # which we'll instantiate into a ScoringWeights dataclass at
+        # the dispatch boundary. Absent / None → use ScoringWeights()
+        # defaults (1.0 across all four axes).
+        scoring_weights_raw = params.get("scoring_weights")
 
         moods = params.get("mood", []) or []
         if isinstance(moods, str):
@@ -373,6 +400,7 @@ class Kenning(Generator):
                 cohesion=cohesion,
                 exclude_tags=exclude_tags,
                 priors_path=priors_path,
+                scoring_weights_raw=scoring_weights_raw,
             )
             if new_name is None:
                 # Vector path filtered everything (empty register +
@@ -451,6 +479,7 @@ def _generate_via_vector(
     cohesion: float,
     exclude_tags: tuple[str, ...],
     priors_path: str | None,
+    scoring_weights_raw: dict[str, float] | None = None,
 ):
     """Dispatch helper for scoring_mode='vector'.
 
@@ -470,10 +499,17 @@ def _generate_via_vector(
         build_request_vector,
         era_midpoint_from_range,
     )
-    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors, ScoringWeights
 
     era_min = era_range[0] if era_range else None
     era_max = era_range[1] if era_range else None
+
+    # wyrd-ecjp.9: build a ScoringWeights from the CLI-supplied dict
+    # if present, else fall back to defaults (1.0 across all axes).
+    # The dict shape is {phon_w, sem_w, pos_w, base_w} — keys mirror
+    # the dataclass field names directly so this stays a thin pass-
+    # through with no key remapping.
+    weights = ScoringWeights(**scoring_weights_raw) if scoring_weights_raw else ScoringWeights()
 
     request = build_request_vector(
         culture=culture,
@@ -483,6 +519,7 @@ def _generate_via_vector(
         era_min=era_min,
         era_max=era_max,
         stratum=stratum,
+        weights=weights,
     )
 
     if priors_path:

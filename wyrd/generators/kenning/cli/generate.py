@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import click
 
@@ -14,6 +15,8 @@ from wyrd.generators.kenning import (
     available_tags,
 )
 from wyrd.seed import resolve_seed, rng_for
+
+_VALID_SCORING_MODES = ("proportions", "vector")
 
 
 @click.command()
@@ -121,6 +124,80 @@ from wyrd.seed import resolve_seed, rng_for
         "empirical corpus. Composes orthogonally with --novelty."
     ),
 )
+@click.option(
+    "--scoring-mode",
+    type=click.Choice(_VALID_SCORING_MODES),
+    default="proportions",
+    show_default=True,
+    help=(
+        "wyrd-ecjp.5: per-slot sampling pipeline. 'proportions' (default) "
+        "uses the pre-baked per-(culture × tag × position) tables — "
+        "bit-stable with the legacy path. 'vector' uses the D36.2 "
+        "gate→score→sample primitive: each slot's per-lemma weight is "
+        "computed at request time from phon + sem + pos + empirical-"
+        "baseline axes. 'vector' requires per-lemma phonological_vector "
+        "data in the bundle (kq7w.1) and benefits from --priors-path; "
+        "without either, the baseline axis contributes 0 and the score "
+        "falls back to phon + sem + pos."
+    ),
+)
+@click.option(
+    "--priors-path",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help=(
+        "wyrd-ecjp.5 PR C: filesystem path to a JSON empirical-priors "
+        "sidecar (emitted by 'wyrd kenning lexicon dump-empirical-"
+        "priors'). Only consulted when --scoring-mode=vector. When "
+        "absent, the vector path's baseline axis contributes 0."
+    ),
+)
+@click.option(
+    "--baseline-weight",
+    type=click.FloatRange(0.0, 10.0),
+    default=1.0,
+    show_default=True,
+    help=(
+        "wyrd-ecjp.9: weight scalar on the empirical-baseline axis "
+        "(D36.2). 0 disables the baseline contribution entirely (like "
+        "running without --priors-path). 1.0 is the canonical "
+        "weighting; >1 over-weights baseline at the expense of phon / "
+        "sem / pos. Only meaningful with --scoring-mode=vector."
+    ),
+)
+@click.option(
+    "--phonological-weight",
+    type=click.FloatRange(0.0, 10.0),
+    default=1.0,
+    show_default=True,
+    help=(
+        "wyrd-ecjp.9: weight scalar on the phonological axis (D36.2). "
+        "1.0 is canonical; >1 over-weights phonological character "
+        "(harshness / softness etc.) relative to other axes. Only "
+        "meaningful with --scoring-mode=vector."
+    ),
+)
+@click.option(
+    "--semantic-weight",
+    type=click.FloatRange(0.0, 10.0),
+    default=1.0,
+    show_default=True,
+    help=(
+        "wyrd-ecjp.9: weight scalar on the semantic-tag axis (D36.2). "
+        "1.0 is canonical; >1 over-weights tag matching relative to "
+        "other axes. Only meaningful with --scoring-mode=vector."
+    ),
+)
+@click.option(
+    "--position-weight",
+    type=click.FloatRange(0.0, 10.0),
+    default=1.0,
+    show_default=True,
+    help=(
+        "wyrd-ecjp.9: weight scalar on the position axis (D36.2). "
+        "1.0 is canonical. Only meaningful with --scoring-mode=vector."
+    ),
+)
 def generate(
     culture: str,
     tags: tuple[str, ...],
@@ -135,6 +212,12 @@ def generate(
     era: str | None,
     stratum: str | None,
     cohesion: float,
+    scoring_mode: str,
+    priors_path: Path | None,
+    baseline_weight: float,
+    phonological_weight: float,
+    semantic_weight: float,
+    position_weight: float,
 ) -> None:
     """Generate town names. Replaces Rando's `bin/generator`."""
     # `available_tags()` already strips _INTERNAL_TAGS for the SPA dropdown,
@@ -170,7 +253,24 @@ def generate(
         "era": era,
         "stratum": stratum,
         "cohesion": cohesion,
+        "scoring_mode": scoring_mode,
     }
+    if priors_path is not None:
+        params["priors_path"] = str(priors_path)
+    # ScoringWeights only fire when scoring_mode=vector — passing them
+    # in proportions mode is a no-op (Kenning.generate ignores the
+    # vector-side params when not in vector mode), but the explicit
+    # parameter set keeps the CLI surface uniform: same params dict
+    # shape regardless of mode. Avoiding the special-case here makes
+    # the schema doc (kenning.py) one canonical surface, not a
+    # per-CLI-flag-set variant.
+    if scoring_mode == "vector":
+        params["scoring_weights"] = {
+            "phon_w": phonological_weight,
+            "sem_w": semantic_weight,
+            "pos_w": position_weight,
+            "base_w": baseline_weight,
+        }
     for _ in range(count):
         try:
             result = kenning.generate(params, seed_rng.randrange(2**63))
