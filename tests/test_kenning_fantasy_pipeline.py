@@ -1061,8 +1061,12 @@ def test_migration_adds_unapproved_columns_to_existing_table(tmp_path: Path) -> 
     db_path = tmp_path / "lexicon.db"
     init_schema(db_path)
     with LexiconDB(db_path) as db:
-        # Build the table WITHOUT the new columns, simulating the older
-        # version that shipped before the unapproved-language tracking.
+        # Drop the alembic-created fantasy_morpheme (head=0011) and
+        # rebuild it WITHOUT the unapproved_language / unapproved_form
+        # columns. This simulates a legacy DB created before those
+        # columns shipped — the scenario migrate_schema's ADD COLUMN
+        # branch is supposed to handle for in-place upgrades.
+        db.conn.executescript("DROP TABLE IF EXISTS fantasy_morpheme;")
         db.conn.executescript(
             """
             CREATE TABLE fantasy_morpheme (
