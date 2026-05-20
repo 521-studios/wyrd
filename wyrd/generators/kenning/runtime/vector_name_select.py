@@ -85,30 +85,30 @@ def _matches_era(
     era_min: int | None,
     era_max: int | None,
 ) -> bool:
-    """Era-gate predicate. Delegates to Meaning.attested_in_era_range
-    where available; defaults to pass-through when the era range is
-    open (None on both sides) or when the meaning has no attested-
-    years evidence (the same convention as the legacy path)."""
+    """Era-gate predicate. Delegates to ``Meaning.attested_in_era_range``
+    — open range (None on both sides) is pass-through; meanings with
+    no attested-years evidence also pass through (the same convention
+    as the legacy path).
+    """
     if era_min is None and era_max is None:
         return True
-    range_arg = (era_min, era_max)
-    attested_in = getattr(meaning, "attested_in_era_range", None)
-    if callable(attested_in):
-        return attested_in(range_arg)
-    # Meaning predates the era-range method; default open (don't drop).
-    return True
+    return meaning.attested_in_era_range((era_min, era_max))
 
 
 def _matches_stratum(meaning: Meaning, stratum: str | None) -> bool:
-    """Stratum-gate predicate. Mirrors the legacy path: meanings with
-    no stratum data pass through (only Welsh-family is classified
-    today). ``None`` stratum disables the filter."""
+    """Stratum-gate predicate. Delegates to ``Meaning.in_stratum`` —
+    meanings with no stratum data pass through (only Welsh-family is
+    classified today). ``None`` stratum disables the filter.
+
+    Round-1 reviewer caught a bug here: an earlier defensive
+    ``getattr(meaning, "has_stratum", None)`` looked up the wrong
+    method name (Meaning's actual method is ``in_stratum``) and
+    silently bypassed the stratum gate for every meaning. The fix
+    is a direct call to the right method.
+    """
     if stratum is None:
         return True
-    matches_stratum_method = getattr(meaning, "has_stratum", None)
-    if callable(matches_stratum_method):
-        return matches_stratum_method(stratum)
-    return True
+    return meaning.in_stratum(stratum)
 
 
 def _cohesion_multiplier(
@@ -121,14 +121,21 @@ def _cohesion_multiplier(
     based on tag co-occurrence overlap with previously-picked slots'
     tags.
 
-    At ``cohesion == 0`` (default) returns 1.0 — no bias, every slot
-    scores independently. At ``cohesion == 1`` and the strongest
-    overlap, returns up to ``1.0 + max_cooccurrence_bias`` (currently
-    capped at 2.0). Intermediate cohesion values linearly blend.
+    Formula: ``1.0 + cohesion * avg_p`` where ``avg_p`` is the mean
+    co-occurrence probability across all (lemma_tag, prior_tag)
+    pairs that have data in ``tag_cooccurrence``.
 
-    No tag_cooccurrence data (legacy / empty bundle) short-circuits
-    to 1.0 — same bit-stable degradation pattern as the legacy
-    cohesion path.
+    Edge values:
+      * ``cohesion == 0`` (default) — returns 1.0 (no bias, every
+        slot scores independently)
+      * empty ``prior_tags`` (first slot in a name) — returns 1.0
+      * ``tag_cooccurrence is None`` (legacy / empty bundle) — returns
+        1.0 (same bit-stable degradation pattern as the legacy cohesion
+        path)
+      * ``cohesion == 1`` + ``avg_p == 1.0`` — returns 2.0 (the
+        maximum bias under the formula; ``avg_p`` is bounded in
+        [0, 1] since it's an average of co-occurrence probabilities).
+      * Intermediate values linearly blend.
 
     The bias is per-slot multiplicative on top of the base score, so
     the composition stays consistent with the canonical formula:
@@ -164,22 +171,21 @@ def _cohesion_multiplier(
 def _slot_position_label(structural_element: str) -> str:
     """Resolve the slot position label from a structural element string.
 
-    Structural elements in the legacy bundle are strings like
-    ``"Place-suffix"`` / ``"prefix-Place"`` / ``"prefix-Place-suffix"``.
-    The Meaning.location field convention is ``pre`` / ``inner`` /
-    ``post`` matching ``usage.startswith('-')`` / both / neither.
+    Matches ``Meaning._set_location`` exactly so a slot-position
+    string returned here can be compared directly to ``meaning.location``
+    by ``_matches_position``. The mapping (from
+    ``runtime/meaning.py:_set_location``):
 
-    For the vector-scoring path, we treat each STRUCTURAL slot
-    independently:
-      * ``"prefix"`` / token at index 0 with trailing dash → ``"pre"``
-      * ``"suffix"`` / token at index -1 with leading dash → ``"post"``
-      * anything else → ``"inner"``
+    * ``"-inner-"`` (both dashes) → ``"inner"``
+    * ``"Place-"`` (trailing dash only) → ``"pre"``
+    * ``"-shire"`` (leading dash only) → ``"post"``
+    * ``"Bare"`` (no dashes) → ``"post"``
 
-    This is a heuristic — the structure walk's actual slot mechanics
-    in the legacy path is more nuanced. For ecjp.5 v1, the heuristic
-    is correct for the common pre/post compound shapes the corpus
-    exhibits; the few outlier inner-slot cases get scored against
-    pos_score(inner) which is the fallback intent.
+    Round-1 reviewer caught: an earlier draft treated bare elements
+    as ``"inner"``, but Meaning maps no-dashes usage to ``post``, so
+    bare structural elements would yield an empty eligible pool
+    (no meaning matches an ``"inner"`` slot against a bare element).
+    Fixed to mirror Meaning's exact convention.
     """
     s = structural_element.strip()
     has_leading = s.startswith("-")
@@ -188,11 +194,8 @@ def _slot_position_label(structural_element: str) -> str:
         return "inner"
     if has_trailing:
         return "pre"
-    if has_leading:
-        return "post"
-    # No dashes (bare nominal element). Treat as inner — it sits
-    # between the pre + post slots conceptually.
-    return "inner"
+    # leading-only OR no-dashes → "post" (matches Meaning._set_location)
+    return "post"
 
 
 def select_via_vector_scoring(
@@ -240,21 +243,27 @@ def select_via_vector_scoring(
     prior_tags: set[str] = set()
     gate = request.gate
 
+    # Pre-compute the non-position eligibility pool ONCE — era,
+    # stratum, and exclude_tags don't depend on the slot. Position is
+    # the only per-slot predicate. Round-1 reviewer caught the O(S*N)
+    # redundancy and turned it into O(N + S*P) where P is the
+    # per-slot position-filtered subset (typically ~N/3 for
+    # pre/inner/post-balanced corpora).
+    non_position_eligible: list[Meaning] = []
+    for meanings_for_usage in meaning_db.values():
+        for m in meanings_for_usage:
+            if not _matches_era(m, gate.era_min, gate.era_max):
+                continue
+            if not _matches_stratum(m, gate.stratum):
+                continue
+            if exclude_tags and any(t in exclude_tags for t in m.tags):
+                continue
+            non_position_eligible.append(m)
+
     for element in structure:
         slot_position = _slot_position_label(element)
-        # Gate: walk every meaning, filter to eligible
-        eligible: list[Meaning] = []
-        for meanings_for_usage in meaning_db.values():
-            for m in meanings_for_usage:
-                if not _matches_position(m, slot_position):
-                    continue
-                if not _matches_era(m, gate.era_min, gate.era_max):
-                    continue
-                if not _matches_stratum(m, gate.stratum):
-                    continue
-                if exclude_tags and any(t in exclude_tags for t in m.tags):
-                    continue
-                eligible.append(m)
+        # Position-gate the pre-filtered pool
+        eligible = [m for m in non_position_eligible if _matches_position(m, slot_position)]
         if not eligible:
             return []
         # Score: per-meaning canonical composition + cohesion bias
@@ -294,17 +303,24 @@ def select_via_vector_scoring(
 
 def _lemma_ref_for(meaning: Meaning) -> str:
     """Resolve the ``lemma_ref`` string the priors-baseline lookup
-    keys on. The convention from the lexicon side
-    (:mod:`lexicon.empirical_priors`) is ``"<language>:<canonical_form>"``.
+    keys on.
 
-    Meaning instances don't carry language directly — the language
-    is implicit in the bundle subject's lang_field keys (old_english,
-    celtic_mix, etc.). For ecjp.5 v1 we use the meaning's ``usage``
-    string as the lemma_ref; this matches the empirical-priors
-    extraction's lemma_ref shape on the English slice. Future
-    expansion (per-language baselines) would derive a richer
-    lemma_ref from the meaning's lang_field mapping; that's
-    wyrd-ecjp.8 / Phase 7 territory.
+    Round-1 reviewer caught a shape mismatch: the lexicon-side
+    convention (per ``empirical_priors.py:extract_priors``) is
+    ``f"{language}:{canonical_form}"`` (e.g. ``"old-english:wulf"``).
+    Meaning instances don't carry language directly — language is
+    implicit in the bundle subject's lang_field keys (old_english,
+    celtic_mix, etc.). For ecjp.5 v1 we return only the bare usage
+    form (decoration dashes stripped); the baseline-axis lookup
+    therefore MISSES on every priors-table key, contributes 0 to the
+    composition, and the score falls back to phon/sem/pos — same
+    graceful-degrade pattern as a meaning without
+    phonological_vector. Per D36.7's hierarchical fallback the
+    baseline_score then walks the tag-wildcard / all-wildcard cells,
+    surfacing whatever data the priors carry at coarser granularity.
+    Wiring per-meaning ``language`` through Meaning + emitting the
+    full ``language:canonical_form`` form here is wyrd-ecjp.8 / Phase 7
+    territory.
 
     Returns the meaning's usage stripped of decoration dashes — so
     ``"Place-"`` → ``"Place"`` and ``"-shire"`` → ``"shire"``. The

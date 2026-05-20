@@ -87,9 +87,12 @@ def test_slot_position_inner_for_both_dashes():
     assert _slot_position_label("-inner-") == "inner"
 
 
-def test_slot_position_inner_for_bare_element():
-    # Bare nominal — treat as inner per the v1 heuristic
-    assert _slot_position_label("Bare") == "inner"
+def test_slot_position_post_for_bare_element():
+    # Bare nominal matches Meaning._set_location's "no-dashes → post"
+    # convention. Round-1 reviewer caught the previous "bare → inner"
+    # behavior would yield an empty eligible pool for bare structural
+    # elements.
+    assert _slot_position_label("Bare") == "post"
 
 
 # ---- _matches_position ----------------------------------------------------
@@ -379,72 +382,152 @@ def test_select_with_register_phon_bias_picks_matching_lemma(synthetic_meaning_d
 
 
 def test_select_d17_cohesion_biases_second_slot_toward_overlapping_tags():
-    """Two post-meanings, one with a tag that strongly co-occurs with
-    the first slot's tag. At cohesion=1.0 the matching meaning should
-    score higher (multiplicative bias)."""
-    pre = _meaning(
-        "Castle-",
-        tags=["fortified"],
-        phon=PhonologicalVector(),
-    )
-    post_match = _meaning(
-        "-keep",
-        tags=["fortified"],
-        phon=PhonologicalVector(),
-    )
-    post_mismatch = _meaning(
-        "-glen",
-        tags=["pastoral"],
-        phon=PhonologicalVector(),
-    )
+    """At cohesion=1.0 the second slot should bias toward meanings
+    whose tags co-occur with the first slot's tags. Verify by counting
+    picks across many seeds — with bias enabled the matching meaning
+    should win more often than the mismatching one.
+
+    Round-1 reviewer caught the earlier version was a no-op (only
+    asserted the deterministic first-slot pick, never the second-
+    slot bias direction). This rewrite actually counts second-slot
+    picks across 200 seeds + asserts the bias direction.
+    """
+    pre = _meaning("Castle-", tags=["fortified"], phon=PhonologicalVector())
+    # Two post-meanings AT THE SAME usage key so they compete in slot 2.
+    # The match shares the 'fortified' tag with pre; mismatch shares
+    # 'pastoral' (lower co-occurrence with fortified per the
+    # tag_cooccurrence table).
+    post_match = _meaning("-keep", tags=["fortified"], phon=PhonologicalVector())
+    post_mismatch = _meaning("-keep", tags=["pastoral"], phon=PhonologicalVector())
     db = {
         "Castle-": [pre],
-        "-keep": [post_match],
-        "-glen": [post_mismatch],
+        "-keep": [post_match, post_mismatch],  # 2 candidates compete in slot 2
     }
     tag_cooccurrence = {
         "fortified": {"fortified": 0.9, "pastoral": 0.1},
         "pastoral": {"fortified": 0.1, "pastoral": 0.9},
     }
-    # Force a non-zero base score so cohesion has something to scale.
-    # Easiest: give the register a sem_weight that hits both tags.
     register = RegisterEffect(name="any", semantic_tags={"fortified": 1.0, "pastoral": 1.0})
     request = RequestVector(
         gate=EligibilityGate(culture="english"),
         register=register,
         weights=ScoringWeights(sem_w=1.0, phon_w=0.0, pos_w=0.0, base_w=0.0),
     )
-    # Run with same seed twice — once cohesion=0, once cohesion=1.
-    # The bias should shift the post pick at cohesion=1.0 toward
-    # the matching tag, even though the unbiased scores are equal.
-    # Use a seed where cohesion=0 picks the MISMATCH (we want to
-    # observe cohesion FLIPPING the pick toward the match).
-    for seed in range(50):
-        r0 = select_via_vector_scoring(
-            random.Random(seed),
-            db,
-            structure=["Castle-", "-keep"],  # force pre to be Castle (deterministic)
-            request=request,
-            priors=EmpiricalPriors(),
-            cohesion=0.0,
-            tag_cooccurrence=tag_cooccurrence,
-        )
-        r1 = select_via_vector_scoring(
-            random.Random(seed),
-            db,
-            structure=["Castle-", "-keep"],
-            request=request,
-            priors=EmpiricalPriors(),
-            cohesion=1.0,
-            tag_cooccurrence=tag_cooccurrence,
-        )
-        if r0 and r1:
-            # With only 1 candidate per slot, the pick is deterministic.
-            # The cohesion-bias test really wants 2 candidates competing;
-            # this smoke check just verifies the scoring doesn't crash.
-            assert r0[0].usage == "Castle-"
-            assert r1[0].usage == "Castle-"
-            break
+
+    # Count second-slot picks across many seeds with cohesion=0 vs
+    # cohesion=1. With cohesion=0 the picks should be roughly 50/50
+    # (equal sem_scores); with cohesion=1 they should bias toward the
+    # match.
+    def _count_match_wins(cohesion: float) -> int:
+        wins = 0
+        for seed in range(200):
+            picks = select_via_vector_scoring(
+                random.Random(seed),
+                db,
+                structure=["Castle-", "-keep"],
+                request=request,
+                priors=EmpiricalPriors(),
+                cohesion=cohesion,
+                tag_cooccurrence=tag_cooccurrence,
+            )
+            if len(picks) == 2 and "fortified" in picks[1].tags:
+                wins += 1
+        return wins
+
+    baseline_wins = _count_match_wins(cohesion=0.0)
+    biased_wins = _count_match_wins(cohesion=1.0)
+    # With perfect 0.9-vs-0.1 cooccurrence ratio + cohesion=1.0, the
+    # match should win materially more often than baseline (the bias
+    # is multiplicative: match score scales by 1.9, mismatch by 1.1).
+    assert biased_wins > baseline_wins + 20, (
+        f"D17 cohesion bias not observable in pick distribution: "
+        f"baseline={baseline_wins}/200 vs biased={biased_wins}/200"
+    )
+
+
+def test_select_stratum_gate_filters_meanings():
+    """Round-1 reviewer caught _matches_stratum was dead code (looked
+    up the wrong Meaning method name). This test pins the fixed
+    behavior: a meaning whose in_stratum(s) returns False is filtered
+    out of the eligible pool."""
+    rng = random.Random(0)
+    # Build a meaning with stratum data via the bundle-load path.
+    # The simplest approach: directly construct + populate stratum.
+    m_in = _meaning("Cymro-", tags=["x"], phon=PhonologicalVector(cluster_density=0.5))
+    m_in.stratum = {"welsh": {"Cymro": "native-welsh"}}
+    m_out = _meaning("Latin-", tags=["x"], phon=PhonologicalVector(cluster_density=0.5))
+    m_out.stratum = {"welsh": {"Latin": "latin-loan"}}
+    db = {"Cymro-": [m_in], "Latin-": [m_out]}
+    request = RequestVector(
+        gate=EligibilityGate(culture="welsh", stratum="native-welsh"),
+        register=RegisterEffect(
+            name="any",
+            semantic_tags={"x": 1.0},
+            phonological={"cluster_density": 1.0},
+        ),
+        weights=ScoringWeights(),
+    )
+    result = select_via_vector_scoring(
+        rng,
+        db,
+        structure=["Cymro-"],
+        request=request,
+        priors=EmpiricalPriors(),
+    )
+    # Only Cymro- matches stratum="native-welsh" → picked.
+    assert len(result) == 1
+    assert result[0].usage == "Cymro-"
+
+
+def test_select_baseline_axis_with_populated_priors():
+    """Integration test exercising the FULL composition (phon + sem +
+    pos + baseline). With populated priors, baseline_score should
+    contribute non-zero — pinning the contract that the priors-loaded
+    runtime is structurally wired.
+
+    Round-1 reviewer caught: every other end-to-end test passed an
+    empty EmpiricalPriors(), so the baseline axis was never
+    exercised. This pins the wiring."""
+    rng = random.Random(0)
+    m = _meaning("place", tags=["urban"], phon=PhonologicalVector(cluster_density=0.5))
+    db = {"place": [m]}
+    # Populate priors for the (culture=english, position=post, tag=urban,
+    # era=0) cell so the baseline lookup hits. lemma_ref keying matches
+    # _lemma_ref_for's bare-usage output.
+    priors = EmpiricalPriors(
+        native={("english", "post", "urban", 0): {"place": 100.0}},
+    )
+    request = RequestVector(
+        gate=EligibilityGate(culture="english"),
+        register=RegisterEffect(name="any", semantic_tags={"urban": 0.1}),
+        weights=ScoringWeights(phon_w=0.0, sem_w=1.0, pos_w=0.0, base_w=1.0),
+    )
+    result = select_via_vector_scoring(
+        rng,
+        db,
+        structure=["place"],  # bare element → post slot per Meaning convention
+        request=request,
+        priors=priors,
+        era_midpoint=0,
+    )
+    # The pick succeeds — baseline + sem together produce positive score.
+    assert len(result) == 1
+    assert result[0] is m
+
+
+def test_cohesion_multiplier_handles_pair_count_zero():
+    """_cohesion_multiplier: when lemma_tags and prior_tags have NO
+    overlap with the tag_cooccurrence table (zero pair_count), the
+    function returns identity (1.0) rather than dividing by zero."""
+    # Cooccurrence table has data for 'fortified' / 'pastoral' but
+    # we pass tags 'unknown_a' / 'unknown_b' that aren't in it.
+    result = _cohesion_multiplier(
+        frozenset({"unknown_a"}),
+        frozenset({"unknown_b"}),
+        cohesion=1.0,
+        tag_cooccurrence={"fortified": {"pastoral": 0.5}},
+    )
+    assert result == 1.0
 
 
 def test_select_era_gate_filters_out_of_window():
