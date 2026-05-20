@@ -274,6 +274,38 @@ class Kenning(Generator):
                         "data update."
                     ),
                 },
+                "scoring_mode": {
+                    "type": "string",
+                    "enum": ["proportions", "vector"],
+                    "default": "proportions",
+                    "description": (
+                        "wyrd-ecjp.5: select the per-slot sampling "
+                        "pipeline. 'proportions' (default) uses the pre-"
+                        "baked per-(culture × tag × position) tables — "
+                        "bit-stable with the legacy path. 'vector' uses "
+                        "the D36.2 gate→score→sample primitive: each "
+                        "slot's per-lemma weight is computed at request "
+                        "time from phon + sem + pos + empirical-baseline "
+                        "axes. 'vector' requires per-lemma "
+                        "phonological_vector data in the bundle (kq7w.1) "
+                        "and a loaded EmpiricalPriors instance via the "
+                        "priors_path knob; with neither, the score falls "
+                        "back to whatever axes have data. Default "
+                        "'proportions' until ecjp.6/7's realism-retention "
+                        "drift measurement confirms parity."
+                    ),
+                },
+                "priors_path": {
+                    "type": "string",
+                    "description": (
+                        "wyrd-ecjp.5 PR C: filesystem path to a JSON "
+                        "empirical-priors sidecar (emitted by 'lexicon "
+                        "dump-empirical-priors'). Only consulted when "
+                        "scoring_mode='vector'. When absent, the vector "
+                        "path's baseline axis contributes 0 and the "
+                        "score falls back to phon + sem + pos."
+                    ),
+                },
             },
             "required": [],
         }
@@ -292,10 +324,20 @@ class Kenning(Generator):
         manorial_affix = float(params.get("manorial_affix", 0.0) or 0.0)
         joiner_density = float(params.get("joiner_density", 0.0) or 0.0)
         include_fiction = _coerce_bool(params.get("include_fiction", False))
+        scoring_mode = params.get("scoring_mode", "proportions") or "proportions"
+        priors_path = params.get("priors_path")
 
         moods = params.get("mood", []) or []
         if isinstance(moods, str):
             moods = [moods]
+        # Capture original mood + harshness BEFORE _apply_mood mutates
+        # the tags+harshness state; the vector adapter consumes mood
+        # specs + base harshness directly for symmetric expansion
+        # semantics. Without capturing these, the adapter would
+        # double-apply MOODS (once via the mutated tags/harshness and
+        # again via the mood specs the adapter expands itself).
+        original_moods = tuple(moods)
+        original_harshness = harshness
         for spec in moods:
             tags, harshness = _apply_mood(spec, tags, harshness)
         tags = tuple(tags)
@@ -311,18 +353,51 @@ class Kenning(Generator):
 
         name_gen, _ = _load_culture(culture)
         rng = rng_for(seed)
-        new_name = name_gen.select(
-            rng,
-            *tags,
-            spelling_variety=spelling_variety,
-            novelty=novelty,
-            inflection_density=inflection_density,
-            harshness=harshness,
-            exclude_tags=exclude_tags,
-            era_range=era_range,
-            stratum=stratum,
-            cohesion=cohesion,
-        )
+        if scoring_mode == "vector":
+            new_name = _generate_via_vector(
+                name_gen,
+                rng,
+                culture=culture,
+                # Pre-_apply_mood tags + original harshness — the adapter
+                # does its own MOODS expansion via original_moods. Passing
+                # the mutated post-_apply_mood values would double-count.
+                # The legacy `tags` variable above is mutated by mood
+                # expansion, so derive vector-side tags from raw_tags
+                # instead. (raw_tags was normalized to list[str] earlier
+                # but not mutated by mood expansion.)
+                tags=list(raw_tags),
+                mood=original_moods,
+                harshness=original_harshness,
+                era_range=era_range,
+                stratum=stratum,
+                cohesion=cohesion,
+                exclude_tags=exclude_tags,
+                priors_path=priors_path,
+            )
+            if new_name is None:
+                # Vector path filtered everything (empty register +
+                # empty priors, or every meaning gated out). Loud
+                # failure with operator-readable diagnostic.
+                raise ValueError(
+                    "scoring_mode='vector' produced no eligible name — "
+                    "check that the bundle carries phonological_vector "
+                    "data (kq7w.1), priors_path is set (or the register "
+                    "carries non-trivial weights), and the gate predicates "
+                    "(culture / era / stratum) match available meanings."
+                )
+        else:
+            new_name = name_gen.select(
+                rng,
+                *tags,
+                spelling_variety=spelling_variety,
+                novelty=novelty,
+                inflection_density=inflection_density,
+                harshness=harshness,
+                exclude_tags=exclude_tags,
+                era_range=era_range,
+                stratum=stratum,
+                cohesion=cohesion,
+            )
         result_str = str(new_name)
         explanation = new_name.description()
         components = new_name.components()
@@ -361,3 +436,69 @@ class Kenning(Generator):
             explanation=explanation,
             components=components,
         )
+
+
+def _generate_via_vector(
+    name_gen,
+    rng,
+    *,
+    culture: str,
+    tags: list[str],
+    mood: tuple[str, ...],
+    harshness: float,
+    era_range: tuple[int | None, int | None] | None,
+    stratum: str | None,
+    cohesion: float,
+    exclude_tags: tuple[str, ...],
+    priors_path: str | None,
+):
+    """Dispatch helper for scoring_mode='vector'.
+
+    Translates the per-call knobs into a RequestVector via the
+    adapter, loads priors from disk if provided, and calls
+    NameGenerator.select_via_vector.
+
+    Returns a NewName-compatible object or None when the vector
+    path's gate / scoring filtered every candidate.
+    """
+    from pathlib import Path
+
+    from wyrd.generators.kenning.lexicon.empirical_priors import (
+        load_empirical_priors_from_json,
+    )
+    from wyrd.generators.kenning.runtime.vector_kenning_adapter import (
+        build_request_vector,
+        era_midpoint_from_range,
+    )
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    era_min = era_range[0] if era_range else None
+    era_max = era_range[1] if era_range else None
+
+    request = build_request_vector(
+        culture=culture,
+        tags=tags,
+        harshness=harshness,
+        mood=mood,
+        era_min=era_min,
+        era_max=era_max,
+        stratum=stratum,
+    )
+
+    if priors_path:
+        priors = load_empirical_priors_from_json(Path(priors_path))
+    else:
+        # Empty priors → baseline axis contributes 0; score falls back
+        # to phon + sem + pos. Operator's choice not to pass a path.
+        priors = EmpiricalPriors()
+
+    era_midpoint = era_midpoint_from_range(era_min, era_max)
+
+    return name_gen.select_via_vector(
+        rng,
+        request=request,
+        priors=priors,
+        era_midpoint=era_midpoint,
+        cohesion=cohesion,
+        exclude_tags=exclude_tags,
+    )
