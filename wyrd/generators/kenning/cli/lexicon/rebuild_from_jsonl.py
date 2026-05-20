@@ -92,6 +92,10 @@ def lexicon_rebuild_from_jsonl(
        All eight passes run in one invocation; standalone CLI commands
        remain for targeted reruns (e.g. with ``--force``).
     """
+    # Deferred imports: jsonl.build pulls the heavy alembic-driven
+    # init_schema chain; init_schema itself imports the alembic Config
+    # builder. Other lexicon commands (e.g. status, report) don't need
+    # any of this, so deferring keeps `wyrd kenning --help` snappy.
     from wyrd.generators.kenning.jsonl.build import (
         build_from_jsonl,
         jsonl_paths_in,

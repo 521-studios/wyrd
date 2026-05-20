@@ -48,6 +48,10 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
 
     Exit status: 0 when no table changed row count; 1 when any did.
     """
+    # Deferred imports: jsonl.build + init_schema pull alembic-driven
+    # schema setup that other lexicon commands don't touch. Deferring
+    # keeps `wyrd kenning --help` snappy. tempfile + urllib.parse are
+    # deferred for symmetry with the other heavy imports in this body.
     import tempfile
     from urllib.parse import quote
 

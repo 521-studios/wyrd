@@ -46,12 +46,15 @@ Out of scope for this v0
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
 from .log import ReplayState, replay_file
+
+_logger = logging.getLogger(__name__)
 
 
 class BuildError(ValueError):
@@ -71,6 +74,13 @@ _SOURCE_INSERT_COLUMNS: tuple[str, ...] = (
     "notes",
 )
 
+# L2 etymon-row columns the build pipeline writes on INSERT. Allowlist
+# scope: only scalar L2-authored fields appear here. L3 enrichment
+# columns (lemma_id, merged_into_id, cognate_id, stratum, english_shaped,
+# phonological_vector, etc.) are deliberately absent — they're populated
+# by the post-build enrichment chain, not by L2 replay. Keeping them out
+# of this tuple is the load-bearing seam that prevents L2 replay from
+# clobbering L3-derived state on rebuild.
 _ETYMON_INSERT_COLUMNS: tuple[str, ...] = (
     "canonical_form",
     "language",
@@ -141,6 +151,55 @@ def _upsert_source(conn: sqlite3.Connection, source_id: str, payload: dict[str, 
     )
 
 
+def _merge_etymon_conflict(
+    conn: sqlite3.Connection,
+    payload: dict[str, Any],
+    cols: list[str],
+) -> int:
+    """Look up the existing etymon row that triggered an INSERT OR
+    IGNORE conflict, UPDATE non-key scalar columns from the L2 payload,
+    and return its id.
+
+    INSERT OR IGNORE swallows constraint failures of every kind (UNIQUE,
+    NOT NULL, CHECK, FK), so rowcount=0 doesn't strictly prove the cause
+    was a UNIQUE conflict. But here it does in practice: canonical_form
+    and language were validated non-null in the caller; etymon has no
+    CHECK constraints; AUTOINCREMENT id makes PK conflict impossible
+    without an explicit id (we never supply one). The only constraint
+    left that can trigger rowcount=0 is the (canonical_form, language)
+    UNIQUE — so the SELECT below is guaranteed to find the row. The
+    None check is belt-and-braces: a future schema change that
+    introduced a new constraint would fail loudly here rather than
+    TypeError on the missing row.
+
+    Fields the L2 payload doesn't touch (omitted from ``cols``) are
+    left at whatever the prior write left them — typically L1's value,
+    matching the "L2 explicitly overrides; L1 wins when L2 is silent"
+    model.
+    """
+    row = conn.execute(
+        "SELECT id FROM etymon WHERE canonical_form = ? AND language = ?",
+        (payload["canonical_form"], payload["language"]),
+    ).fetchone()
+    if row is None:
+        raise BuildError(
+            "etymon INSERT OR IGNORE was rejected but the "
+            f"(canonical_form, language) row could not be located: "
+            f"{payload['canonical_form']!r} / {payload['language']!r}"
+        )
+    # row[0] works whether the connection has sqlite3.Row row_factory
+    # set or returns plain tuples — sidesteps a hasattr check.
+    eid = row[0]
+    update_cols = [c for c in cols if c not in ("canonical_form", "language")]
+    if update_cols:
+        set_clause = ", ".join(f"{c} = ?" for c in update_cols)
+        conn.execute(
+            f"UPDATE etymon SET {set_clause} WHERE id = ?",
+            tuple(payload[c] for c in update_cols) + (eid,),
+        )
+    return eid
+
+
 def _insert_etymon(conn: sqlite3.Connection, payload: dict[str, Any]) -> int:
     """Insert (or merge into) an etymon row. Returns the row id.
 
@@ -148,11 +207,11 @@ def _insert_etymon(conn: sqlite3.Connection, payload: dict[str, Any]) -> int:
     bulk ingest already wrote — e.g. wyrd-4hx7 wiktionary-empirical
     citations name canonical forms shipped by the L1 slices. On
     conflict against the ``(canonical_form, language)`` UNIQUE index,
-    SELECT the existing row's id and UPDATE the non-key scalar columns
-    the L2 payload specifies. Glosses + tags use INSERT OR IGNORE so
-    the merge is a set-union (matches ``_merge_etymon``'s in-memory
-    semantics across multiple L2 files; here we just extend it to
-    handle the L1-already-wrote-this-row case)."""
+    :func:`_merge_etymon_conflict` handles the SELECT-then-UPDATE merge.
+    Glosses + tags use INSERT OR IGNORE so the merge is a set-union
+    (matches ``_merge_etymon``'s in-memory semantics across multiple L2
+    files; here we just extend it to handle the L1-already-wrote-this-
+    row case)."""
     cols = [c for c in _ETYMON_INSERT_COLUMNS if c in payload]
     if "canonical_form" not in cols or "language" not in cols:
         raise BuildError(f"etymon row missing canonical_form or language: {payload}")
@@ -163,47 +222,9 @@ def _insert_etymon(conn: sqlite3.Connection, payload: dict[str, Any]) -> int:
         tuple(vals),
     )
     if cur.rowcount > 0:
-        # Fresh insert — no existing row to merge against.
         eid = cur.lastrowid
     else:
-        # Conflict on (canonical_form, language). Look up the existing
-        # row's id, then UPDATE the non-key scalar columns the L2
-        # payload specifies. Fields the L2 payload doesn't touch
-        # (omitted from ``cols``) are left at whatever the prior write
-        # left them — typically L1's value, matching the
-        # "L2 explicitly overrides; L1 wins when L2 is silent" model.
-        row = conn.execute(
-            "SELECT id FROM etymon WHERE canonical_form = ? AND language = ?",
-            (payload["canonical_form"], payload["language"]),
-        ).fetchone()
-        # INSERT OR IGNORE swallows constraint failures of every kind
-        # (UNIQUE, NOT NULL, CHECK, FK), so rowcount=0 doesn't strictly
-        # prove the cause was a UNIQUE conflict. But here it does in
-        # practice: canonical_form and language were validated non-null
-        # above; etymon has no CHECK constraints; and AUTOINCREMENT id
-        # makes PK conflict impossible without an explicit id (we never
-        # supply one). The only constraint left that can trigger
-        # rowcount=0 is the (canonical_form, language) UNIQUE — so the
-        # SELECT below is guaranteed to find the row. The None check
-        # is belt-and-braces: a future schema change that introduced a
-        # new constraint would fail loudly here rather than TypeError
-        # on the missing row.
-        if row is None:
-            raise BuildError(
-                "etymon INSERT OR IGNORE was rejected but the "
-                f"(canonical_form, language) row could not be located: "
-                f"{payload['canonical_form']!r} / {payload['language']!r}"
-            )
-        # row[0] works whether the connection has sqlite3.Row row_factory
-        # set or returns plain tuples — sidesteps a hasattr check.
-        eid = row[0]
-        update_cols = [c for c in cols if c not in ("canonical_form", "language")]
-        if update_cols:
-            set_clause = ", ".join(f"{c} = ?" for c in update_cols)
-            conn.execute(
-                f"UPDATE etymon SET {set_clause} WHERE id = ?",
-                tuple(payload[c] for c in update_cols) + (eid,),
-            )
+        eid = _merge_etymon_conflict(conn, payload, cols)
     for gloss in payload.get("glosses", []):
         conn.execute(
             "INSERT OR IGNORE INTO etymon_gloss (etymon_id, gloss) VALUES (?, ?)",
@@ -218,6 +239,13 @@ def _insert_etymon(conn: sqlite3.Connection, payload: dict[str, Any]) -> int:
 
 
 def _insert_toponym(conn: sqlite3.Connection, payload: dict[str, Any]) -> int:
+    """Plain INSERT (no OR IGNORE / no merge), unlike :func:`_insert_etymon`.
+    Currently safe: the toponym table has no UNIQUE constraint (multiple
+    villages share modern_name + region; uniqueness is enforced via the
+    COALESCE-padded ``idx_toponym_unique`` index at the bridge layer,
+    not as a table-level UNIQUE). If a future schema change adds a
+    plain UNIQUE here, this function will need the same conflict-merge
+    path _insert_etymon uses."""
     cur = conn.execute(
         "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
         (
@@ -963,7 +991,12 @@ def table_counts(
         try:
             row = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
             counts[table] = row[0]
-        except sqlite3.OperationalError:
+        except sqlite3.OperationalError as exc:
+            # Logged so a "database is locked" or schema-mismatch case
+            # in CI surfaces a diagnostic instead of silently flipping
+            # has_any_delta True. counts[table] = -1 is still the wire
+            # signal to downstream consumers.
+            _logger.warning("table_counts: cannot read %s: %s", table, exc)
             counts[table] = -1
     return counts
 

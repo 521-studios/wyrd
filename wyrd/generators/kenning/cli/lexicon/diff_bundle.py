@@ -9,10 +9,11 @@ from typing import Any
 
 import click
 
-from wyrd.generators.kenning.cli.lexicon.export_meanings import _load_joiners_sidecar
+from wyrd.generators.kenning.cli.lexicon.export_meanings import (
+    _load_joiners_sidecar,
+    _parse_lang_thresholds,
+)
 from wyrd.generators.kenning.lexicon import (
-    LANGUAGE_FIELDS,
-    RECOMMENDED_LANG_THRESHOLDS,
     LexiconDB,
     collect_canonical_decompositions,
     collect_fantasy_morphemes,
@@ -134,85 +135,32 @@ def lexicon_diff_bundle(
     # kenning --help` snappy. ``init_schema`` is already imported at
     # module level so we don't re-import it here.
 
-    from wyrd.generators.kenning.bulk_sources import ingest_all_slices
     from wyrd.generators.kenning.bundle_diff import compute_bundle_diff, format_bundle_diff
-    from wyrd.generators.kenning.enrichment import run_full_enrichment
-    from wyrd.generators.kenning.jsonl.build import (
-        build_from_jsonl,
-        collect_curation_overrides,
-        jsonl_paths_in,
-    )
 
-    # Mirror the lang-threshold parsing from `export-meanings` — keeping
-    # the two CLIs accepting identical flag shapes means operators can
-    # validate the actual command that produced the committed bundle.
-    lang_thresholds: dict[str, int] = dict(RECOMMENDED_LANG_THRESHOLDS) if use_preset else {}
-    for spec in lang_threshold_specs:
-        if "=" not in spec:
-            raise click.BadParameter(f"--lang-threshold expects LANG=N, got {spec!r}")
-        lang, _, n_str = spec.partition("=")
-        lang = lang.strip()
-        n_str = n_str.strip()
-        if not lang or not n_str:
-            raise click.BadParameter(
-                f"--lang-threshold {spec!r}: both LANG and N must be non-empty"
-            )
-        try:
-            n = int(n_str)
-        except ValueError as exc:
-            raise click.BadParameter(f"--lang-threshold {spec!r}: N must be an integer") from exc
-        lang = LANGUAGE_FIELDS.get(lang, lang)
-        lang_thresholds[lang] = n
+    # Shared with `export-meanings` so the two CLIs accept identical
+    # flag shapes — operators validating the committed bundle can pass
+    # the same `--lang-threshold` flags the export used.
+    lang_thresholds = _parse_lang_thresholds(lang_threshold_specs, use_preset=use_preset)
 
     joiners = _load_joiners_sidecar(joiners_path) if joiners_path is not None else {}
 
     with tempfile.TemporaryDirectory(prefix="wyrd-diff-bundle-") as tmpdir:
         rebuilt_path = Path(tmpdir) / "rebuilt.db"
         init_schema(rebuilt_path)
-
-        if not skip_bulk:
-            click.echo("Bulk ingest (L1)...", err=True)
-            with LexiconDB(rebuilt_path) as db:
-                bulk_result = ingest_all_slices(db, apply=True, fetch=fetch_bulk)
-            if bulk_result.failed:
-                click.echo(f"Bulk ingest failed: {len(bulk_result.failed)} slice(s)", err=True)
-                for name, reason in bulk_result.failed:
-                    click.echo(f"  ! {name}: {reason}", err=True)
-                raise SystemExit(1)
-
-        click.echo("L2 replay...", err=True)
-        paths = jsonl_paths_in(jsonl_dir)
-        with LexiconDB(rebuilt_path) as db:
-            build_from_jsonl(db.conn, paths)
-
-        click.echo("L3 enrichment chain...", err=True)
-        curation_state = collect_curation_overrides(paths)
-        with LexiconDB(rebuilt_path) as db:
-            run_full_enrichment(db, apply=True, curation_state=curation_state or None)
-
-        click.echo("Building bundle from rebuild...", err=True)
-        with LexiconDB(rebuilt_path) as db:
-            subjects = export_meanings(
-                db,
-                min_witnesses=min_witnesses,
-                lang_thresholds=lang_thresholds,
-                include_rando=include_rando,
-                include_wiktionary_empirical=include_wiktionary_empirical,
-            )
-            canonical_decompositions = collect_canonical_decompositions(db)
-            fantasy_morphemes = collect_fantasy_morphemes(db)
-
-    # Build the bundle dict the same way lexicon_export_meanings does
-    # (around cli.py:1354). If these two builders ever drift, the
-    # round-trip test in tests/test_kenning_hidb_phase3_round_trip.py +
-    # the integration test for this command will catch it.
-    bundle: dict[str, Any] = {"subjects": subjects}
-    if canonical_decompositions:
-        bundle["canonical_decompositions"] = canonical_decompositions
-    if joiners:
-        bundle["joiners"] = joiners
-    if fantasy_morphemes:
-        bundle["fantasy_morphemes"] = fantasy_morphemes
+        _rebuild_lexicon_db(
+            rebuilt_path,
+            jsonl_dir=jsonl_dir,
+            fetch_bulk=fetch_bulk,
+            skip_bulk=skip_bulk,
+        )
+        bundle = _assemble_bundle_dict(
+            rebuilt_path,
+            min_witnesses=min_witnesses,
+            lang_thresholds=lang_thresholds,
+            include_rando=include_rando,
+            include_wiktionary_empirical=include_wiktionary_empirical,
+            joiners=joiners,
+        )
 
     rebuilt_text = json.dumps(bundle, ensure_ascii=False, indent=2) + "\n"
     committed_text = bundle_path.read_text(encoding="utf-8")
@@ -222,6 +170,80 @@ def lexicon_diff_bundle(
 
     if not diff.bytes_match:
         raise SystemExit(1)
+
+
+def _rebuild_lexicon_db(
+    rebuilt_path: Path,
+    *,
+    jsonl_dir: Path,
+    fetch_bulk: bool,
+    skip_bulk: bool,
+) -> None:
+    """Run the L1 bulk ingest (unless --skip-bulk), L2 JSONL replay, and
+    L3 enrichment chain against an already-init_schema'd DB at
+    ``rebuilt_path``. The caller owns the tmpdir lifetime — this helper
+    only writes; it does not delete."""
+    from wyrd.generators.kenning.bulk_sources import ingest_all_slices
+    from wyrd.generators.kenning.enrichment import run_full_enrichment
+    from wyrd.generators.kenning.jsonl.build import (
+        build_from_jsonl,
+        collect_curation_overrides,
+        jsonl_paths_in,
+    )
+
+    if not skip_bulk:
+        click.echo("Bulk ingest (L1)...", err=True)
+        with LexiconDB(rebuilt_path) as db:
+            bulk_result = ingest_all_slices(db, apply=True, fetch=fetch_bulk)
+        if bulk_result.failed:
+            click.echo(f"Bulk ingest failed: {len(bulk_result.failed)} slice(s)", err=True)
+            for name, reason in bulk_result.failed:
+                click.echo(f"  ! {name}: {reason}", err=True)
+            raise SystemExit(1)
+
+    click.echo("L2 replay...", err=True)
+    paths = jsonl_paths_in(jsonl_dir)
+    with LexiconDB(rebuilt_path) as db:
+        build_from_jsonl(db.conn, paths)
+
+    click.echo("L3 enrichment chain...", err=True)
+    curation_state = collect_curation_overrides(paths)
+    with LexiconDB(rebuilt_path) as db:
+        run_full_enrichment(db, apply=True, curation_state=curation_state or None)
+
+
+def _assemble_bundle_dict(
+    rebuilt_path: Path,
+    *,
+    min_witnesses: int,
+    lang_thresholds: dict[str, int],
+    include_rando: bool,
+    include_wiktionary_empirical: bool,
+    joiners: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the bundle dict the same way lexicon_export_meanings does.
+    If these two builders ever drift, the round-trip test in
+    tests/test_kenning_hidb_phase3_round_trip.py + the integration
+    test for this command will catch it."""
+    click.echo("Building bundle from rebuild...", err=True)
+    with LexiconDB(rebuilt_path) as db:
+        subjects = export_meanings(
+            db,
+            min_witnesses=min_witnesses,
+            lang_thresholds=lang_thresholds,
+            include_rando=include_rando,
+            include_wiktionary_empirical=include_wiktionary_empirical,
+        )
+        canonical_decompositions = collect_canonical_decompositions(db)
+        fantasy_morphemes = collect_fantasy_morphemes(db)
+    bundle: dict[str, Any] = {"subjects": subjects}
+    if canonical_decompositions:
+        bundle["canonical_decompositions"] = canonical_decompositions
+    if joiners:
+        bundle["joiners"] = joiners
+    if fantasy_morphemes:
+        bundle["fantasy_morphemes"] = fantasy_morphemes
+    return bundle
 
 
 def add_to(parent: click.Group) -> None:

@@ -242,6 +242,75 @@ def compute_bundle_diff(committed_text: str, rebuilt_text: str) -> BundleDiff:
     return diff
 
 
+def _emit_capped_list(
+    lines: list[str],
+    items: list[Any],
+    cap: int,
+    item_indent: str,
+    item_prefix: str,
+    render: Any,
+) -> None:
+    """Append up to ``cap`` items, then ``... and N more`` if truncated.
+
+    ``render(item) -> str`` formats one item; we prepend ``item_indent``
+    + ``item_prefix`` per line so callers control prefix marker
+    (``+``/``-``/``~``) without duplicating the cap logic."""
+    for item in items[:cap]:
+        lines.append(f"{item_indent}{item_prefix}{render(item)}")
+    extra = len(items) - cap
+    if extra > 0:
+        lines.append(f"{item_indent}... and {extra} more")
+
+
+def _format_subjects_section(
+    lines: list[str], diff: BundleDiff, max_subjects_per_section: int
+) -> None:
+    if not (diff.subjects_added or diff.subjects_removed or diff.subjects_changed):
+        return
+    lines.append("")
+    lines.append(
+        f"Subjects: "
+        f"+{len(diff.subjects_added)} added, "
+        f"-{len(diff.subjects_removed)} removed, "
+        f"~{len(diff.subjects_changed)} changed"
+    )
+    if diff.subjects_added:
+        lines.append("  Added (sample):")
+        _emit_capped_list(lines, diff.subjects_added, max_subjects_per_section, "    ", "+ ", str)
+    if diff.subjects_removed:
+        lines.append("  Removed (sample):")
+        _emit_capped_list(lines, diff.subjects_removed, max_subjects_per_section, "    ", "- ", str)
+    if diff.subjects_changed:
+        lines.append("  Changed (sample):")
+        _emit_capped_list(
+            lines,
+            diff.subjects_changed,
+            max_subjects_per_section,
+            "    ",
+            "~ ",
+            lambda pair: f"{pair[0]}: {', '.join(pair[1])}",
+        )
+
+
+def _format_other_fields_section(lines: list[str], diff: BundleDiff) -> None:
+    if not any(
+        (
+            diff.canonical_decompositions_changed,
+            diff.joiners_changed,
+            diff.fantasy_morphemes_changed,
+        )
+    ):
+        return
+    lines.append("")
+    lines.append("Other top-level fields with churn:")
+    if diff.canonical_decompositions_changed:
+        lines.append(f"  canonical_decompositions: {diff.canonical_decompositions_changed} changed")
+    if diff.joiners_changed:
+        lines.append(f"  joiners: {diff.joiners_changed} changed")
+    if diff.fantasy_morphemes_changed:
+        lines.append(f"  fantasy_morphemes: {diff.fantasy_morphemes_changed} changed")
+
+
 def format_bundle_diff(diff: BundleDiff, max_subjects_per_section: int = 10) -> str:
     """Render a BundleDiff as a human-readable summary string.
 
@@ -286,54 +355,8 @@ def format_bundle_diff(diff: BundleDiff, max_subjects_per_section: int = 10) -> 
         if diff.top_level_keys_removed:
             lines.append(f"  - removed: {', '.join(diff.top_level_keys_removed)}")
 
-    if diff.subjects_added or diff.subjects_removed or diff.subjects_changed:
-        lines.append("")
-        lines.append(
-            f"Subjects: "
-            f"+{len(diff.subjects_added)} added, "
-            f"-{len(diff.subjects_removed)} removed, "
-            f"~{len(diff.subjects_changed)} changed"
-        )
-        if diff.subjects_added:
-            lines.append("  Added (sample):")
-            for s in diff.subjects_added[:max_subjects_per_section]:
-                lines.append(f"    + {s}")
-            extra = len(diff.subjects_added) - max_subjects_per_section
-            if extra > 0:
-                lines.append(f"    ... and {extra} more")
-        if diff.subjects_removed:
-            lines.append("  Removed (sample):")
-            for s in diff.subjects_removed[:max_subjects_per_section]:
-                lines.append(f"    - {s}")
-            extra = len(diff.subjects_removed) - max_subjects_per_section
-            if extra > 0:
-                lines.append(f"    ... and {extra} more")
-        if diff.subjects_changed:
-            lines.append("  Changed (sample):")
-            for ident, notes in diff.subjects_changed[:max_subjects_per_section]:
-                lines.append(f"    ~ {ident}: {', '.join(notes)}")
-            extra = len(diff.subjects_changed) - max_subjects_per_section
-            if extra > 0:
-                lines.append(f"    ... and {extra} more")
-
-    if any(
-        (
-            diff.canonical_decompositions_changed,
-            diff.joiners_changed,
-            diff.fantasy_morphemes_changed,
-        )
-    ):
-        lines.append("")
-        lines.append("Other top-level fields with churn:")
-        if diff.canonical_decompositions_changed:
-            lines.append(
-                f"  canonical_decompositions: {diff.canonical_decompositions_changed} changed"
-            )
-        if diff.joiners_changed:
-            lines.append(f"  joiners: {diff.joiners_changed} changed")
-        if diff.fantasy_morphemes_changed:
-            lines.append(f"  fantasy_morphemes: {diff.fantasy_morphemes_changed} changed")
-
+    _format_subjects_section(lines, diff, max_subjects_per_section)
+    _format_other_fields_section(lines, diff)
     return "\n".join(lines)
 
 

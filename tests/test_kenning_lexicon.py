@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import time
 from importlib import resources
 from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
 
+import wyrd.generators.kenning as kenning_mod
 from wyrd.generators.kenning import (
+    KenningEraMap,
+    KenningRender,
+    KenningRewind,
     _load_meanings,
     gemini_extractor,
     llm_extractor,
@@ -20,6 +25,8 @@ from wyrd.generators.kenning import (
     cli as cli_mod,
 )
 from wyrd.generators.kenning.cli import cli as kenning_cli
+from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
+from wyrd.generators.kenning.cli.lexicon import review as _rv
 from wyrd.generators.kenning.era.cells import (
     canonical_language_for_cell,
     era_cell_for_input,
@@ -31,21 +38,30 @@ from wyrd.generators.kenning.era.rewind import (
     supported_eras_for_family,
 )
 from wyrd.generators.kenning.extractors.llm import LLMResult
+from wyrd.generators.kenning.generators import kenning_rewind as _kenning_rewind_mod
 from wyrd.generators.kenning.lexicon import (
     _LANG_CODE_TO_JSON_FIELD,
     LANGUAGE_FIELDS,
     NON_LANGUAGE_FIELDS,
     RECOMMENDED_LANG_THRESHOLDS,
+    EraReflex,
     LexiconDB,
     _build_witness_filter,
     _earliest_year_in_notes,
+    _emit_era_reflexes,
     _emit_inflection_list,
     _emit_variant_list,
     _extract_attestation_pairs,
+    _fetch_cluster_mate_tags,
+    _fetch_root_era_reflexes,
     _filter_concatenation_glosses,
+    _find_longest_suffix_match,
+    _gather_family,
     _normalize_for_quote_match,
     _position_from_usage,
     _quote_body_excerpt,
+    _strip_diacritics,
+    annotate_fragments_with_corpus_evidence,
     assign_etymon_to_meaning_synset,
     backfill_citation_pages,
     bridge_celtic_forms,
@@ -57,6 +73,7 @@ from wyrd.generators.kenning.lexicon import (
     cluster_ocr_variants,
     derive_lemma_candidate,
     derive_lemma_candidates,
+    derive_mutation_lemma_candidate,
     detect_running_headers,
     etymon_era_reflexes,
     export_meanings,
@@ -82,7 +99,14 @@ from wyrd.generators.kenning.lexicon import (
 )
 from wyrd.generators.kenning.lexicon.sql import upgrade_head
 from wyrd.generators.kenning.parsers.skeat import ParsedElement, ParsedEntry
-from wyrd.generators.kenning.runtime.meaning import Meaning, load_meanings
+from wyrd.generators.kenning.registers.phonology_rules import rule_form as _phonology_rule_form
+from wyrd.generators.kenning.runtime.meaning import (
+    Meaning,
+    _normalize_era_reflexes,
+    load_meanings,
+)
+from wyrd.generators.kenning.runtime.respelling import has_respeller, respell
+from wyrd.generators.kenning.runtime.scripts import transliterate
 
 
 @pytest.fixture
@@ -1354,7 +1378,6 @@ def test_normalize_ocr_form_perf_floor_on_large_body() -> None:
     runs land 10-50x faster — and would still trip an order-of-
     magnitude regression (e.g. accidentally putting the function
     inside a quadratic loop)."""
-    import time
 
     # 1MB synthetic body. Mix of plain ASCII, OE ligatures, and the
     # 'cs'/'ce' OCR-confusion patterns so the multi-char branches of
@@ -4374,7 +4397,6 @@ def test_era_reflex_dataclass_carries_source_field_default_cluster() -> None:
     """``EraReflex.source`` defaults to 'cluster' for back-compat with
     existing call sites that didn't pass an explicit source. Pin so a
     future refactor can't silently drop the default."""
-    from wyrd.generators.kenning.lexicon import EraReflex
 
     ref = EraReflex(etymon_id=1, form="x", language="old-english")
     assert ref.source == "cluster"
@@ -4541,7 +4563,6 @@ def test_etymon_era_reflexes_phonology_tier_chain_oe_to_modern_english(
 def test_phonology_rule_form_returns_none_for_unknown_language() -> None:
     """Languages absent from the phonology family chains map (Goidelic,
     Norse, Romance) get None — Tier 4 silently no-ops for them."""
-    from wyrd.generators.kenning.registers.phonology_rules import rule_form as _phonology_rule_form
 
     # 'irish' is not in phonology_rules.FAMILY_CHAINS.
     assert _phonology_rule_form("baile", "irish", "old-irish") is None
@@ -4549,7 +4570,6 @@ def test_phonology_rule_form_returns_none_for_unknown_language() -> None:
 
 def test_phonology_rule_form_returns_none_for_same_language() -> None:
     """Same from/to language is a no-op — no transformation needed."""
-    from wyrd.generators.kenning.registers.phonology_rules import rule_form as _phonology_rule_form
 
     assert _phonology_rule_form("dǣg", "old-english", "old-english") is None
 
@@ -4558,7 +4578,6 @@ def test_phonology_rule_form_returns_none_when_pass_through() -> None:
     """A form with no rule triggers returns None (rather than the
     same input echoed back). Consumers can use canonical_form directly
     when this happens."""
-    from wyrd.generators.kenning.registers.phonology_rules import rule_form as _phonology_rule_form
 
     assert _phonology_rule_form("orphan", "old-english", "middle-english") is None
 
@@ -4569,7 +4588,6 @@ def test_phonology_rule_form_resolves_welsh_alias() -> None:
     lookup would fail with ValueError. Pin: the alias resolves to the
     canonical era so passing 'welsh' produces the same output as
     passing 'modern-welsh' (regardless of what that output is)."""
-    from wyrd.generators.kenning.registers.phonology_rules import rule_form as _phonology_rule_form
 
     # Alias case: welsh (= modern-welsh) → old-welsh
     via_alias = _phonology_rule_form("kaer-uent", "welsh", "old-welsh")
@@ -4665,7 +4683,6 @@ def test_strip_diacritics_normalizes_macrons_and_circumflexes() -> None:
     (ūīāēō) and Welsh circumflex set (ŵâêôûŷ) that show up as
     bundle-source forms; the projector compares stripped variants
     against historical-form suffixes."""
-    from wyrd.generators.kenning.lexicon import _strip_diacritics
 
     assert _strip_diacritics("tūn") == "tun"
     assert _strip_diacritics("Hædan") == "Hædan"  # æ is a base char, not a combining mark
@@ -4677,7 +4694,6 @@ def test_strip_diacritics_normalizes_macrons_and_circumflexes() -> None:
 def test_find_longest_suffix_match_picks_longest_candidate() -> None:
     """Direct unit test: when multiple candidates are valid suffixes,
     the longest wins (so 'tone' wins over 'one' for 'Cestretone')."""
-    from wyrd.generators.kenning.lexicon import _find_longest_suffix_match
 
     assert _find_longest_suffix_match("Cestretone", {"tone", "one", "ne"}) == "tone"
     assert _find_longest_suffix_match("Bradeford", {"ford", "ord", "rd"}) == "ford"
@@ -4689,7 +4705,6 @@ def test_find_longest_suffix_match_diacritic_insensitive() -> None:
     is responsible for adding both unstripped + stripped forms to
     the candidate set; the matcher checks whether either the raw or
     diacritic-stripped attested form ends with any candidate."""
-    from wyrd.generators.kenning.lexicon import _find_longest_suffix_match
 
     # Caller-provided candidates include both: 'tūn' (raw) + 'tun'
     # (stripped). Match against 'tun' via either af.endswith path.
@@ -4702,7 +4717,6 @@ def test_find_longest_suffix_match_diacritic_insensitive() -> None:
 def test_find_longest_suffix_match_returns_none_for_no_match() -> None:
     """When no candidate is a suffix of the form, the matcher returns
     None (caller skips the projection)."""
-    from wyrd.generators.kenning.lexicon import _find_longest_suffix_match
 
     assert _find_longest_suffix_match("Cestretone", {"xyz", "abc"}) is None
     assert _find_longest_suffix_match("Cestretone", set()) is None
@@ -4712,7 +4726,6 @@ def test_find_longest_suffix_match_rejects_single_char_candidates() -> None:
     """Single-char candidates (a trailing 'e' / 's') are rejected to
     avoid spurious 1-char hits — too noisy to project as a morpheme
     surface."""
-    from wyrd.generators.kenning.lexicon import _find_longest_suffix_match
 
     assert _find_longest_suffix_match("Cestretone", {"e"}) is None
 
@@ -4924,7 +4937,6 @@ def test_load_meanings_normalize_era_reflexes_skips_malformed() -> None:
     are skipped silently rather than crashing the load. Pin the
     defensive parse so a future bundle export bug doesn't take down
     the entire runtime."""
-    from wyrd.generators.kenning.runtime.meaning import _normalize_era_reflexes
 
     raw = {
         "middle-english": [
@@ -4944,7 +4956,6 @@ def test_fetch_root_era_reflexes_walks_cognate_cluster(fresh_db: Path) -> None:
     """Bundle-side integration: _fetch_root_era_reflexes returns the
     cluster mates for each canonical-language target. Verifies the
     bundle-build helper plumbs through etymon_era_reflexes correctly."""
-    from wyrd.generators.kenning.lexicon import _fetch_root_era_reflexes
 
     with LexiconDB(fresh_db) as db:
         ids = _seed_cluster(
@@ -4972,7 +4983,6 @@ def test_fetch_root_era_reflexes_returns_empty_for_unfamilied_root(
     """Roots whose language has no era family (proto-languages,
     untracked classical languages) return an empty dict — the bundle
     omits the era_reflexes field for these words."""
-    from wyrd.generators.kenning.lexicon import _fetch_root_era_reflexes
 
     with LexiconDB(fresh_db) as db:
         eid = db.upsert_etymon("*tūnaz", "proto-germanic")
@@ -4990,7 +5000,6 @@ def test_fetch_root_era_reflexes_carries_phonology_rule_source_tag(
     inferred forms from attested cluster mates. Pin the round-trip
     so a regression that drops the tag (or filters Tier 4 entirely)
     surfaces here."""
-    from wyrd.generators.kenning.lexicon import _fetch_root_era_reflexes
 
     with LexiconDB(fresh_db) as db:
         # OE etymon with a rule trigger (ǣ → e) but no cluster /
@@ -5014,7 +5023,6 @@ def test_fetch_root_era_reflexes_prefers_higher_quality_source(
     phonology rule (low quality), the higher-quality source wins in
     the bundle output. Pinned so a future schema edit can't silently
     flip the priority."""
-    from wyrd.generators.kenning.lexicon import _fetch_root_era_reflexes
 
     with LexiconDB(fresh_db) as db:
         # 'dǣg' with cluster mate 'deg' in ME — Tier 1 also produces
@@ -5038,7 +5046,6 @@ def test_emit_era_reflexes_merges_cross_family_with_quality_preference() -> None
     quality source wins. Pin the cross-family priority resolution in
     _emit_era_reflexes (the same logic as the per-tier path in
     _fetch_root_era_reflexes — both share _better_era_reflex_source)."""
-    from wyrd.generators.kenning.lexicon import _emit_era_reflexes
 
     fam_a = {
         "era_reflexes": {
@@ -5074,8 +5081,6 @@ def test_kenning_rewind_generator_renders_three_era_stops() -> None:
     returns one GenerationResult per English-family era stop
     (oe-late / me / modern). Each carries a rendered compound built
     from per-Meaning era_reflex_for lookups."""
-    import wyrd.generators.kenning as kenning_mod
-    from wyrd.generators.kenning import KenningRewind
 
     fixture_data = [
         {
@@ -5098,7 +5103,6 @@ def test_kenning_rewind_generator_renders_three_era_stops() -> None:
     # wyrd-o9qi: KenningRewind moved to wyrd.generators.kenning.generators.kenning_rewind
     # which imports _load_meanings into its own namespace. Patch BOTH the shim and the
     # consumer module so the method body's local-bound reference picks up the fake.
-    from wyrd.generators.kenning.generators import kenning_rewind as _kenning_rewind_mod
 
     original = kenning_mod._load_meanings
     original_rewind = _kenning_rewind_mod._load_meanings
@@ -5121,7 +5125,6 @@ def test_kenning_rewind_generator_renders_three_era_stops() -> None:
 def test_kenning_rewind_generator_raises_on_empty_input() -> None:
     """Defensive: empty / whitespace-only input raises ValueError so
     a buggy SPA caller failing-soft to '' surfaces immediately."""
-    from wyrd.generators.kenning import KenningRewind
 
     gen = KenningRewind()
     with pytest.raises(ValueError, match="name is required"):
@@ -5136,7 +5139,6 @@ def test_kenning_rewind_generator_raises_on_empty_input() -> None:
 def test_respell_old_english_handles_macrons_and_special_chars() -> None:
     """OE rules: macrons drop, æ → a, ð / þ → th, palatalised c
     before front vowels → ch."""
-    from wyrd.generators.kenning.runtime.respelling import respell
 
     assert respell("tūn", "old-english") == "tun"
     assert respell("Hædan", "old-english") == "Hadan"
@@ -5147,7 +5149,6 @@ def test_respell_old_english_handles_macrons_and_special_chars() -> None:
 
 def test_respell_welsh_handles_digraphs() -> None:
     """Welsh rules: ll → hl, dd → th, f → v, ff → f, ch → kh."""
-    from wyrd.generators.kenning.runtime.respelling import respell
 
     assert respell("llan", "welsh") == "hlan"
     # 'dd' → th, 'w' between consonants → 'oo', 'f' → 'v'
@@ -5157,7 +5158,6 @@ def test_respell_welsh_handles_digraphs() -> None:
 
 def test_respell_old_norse_handles_thorn_and_eth() -> None:
     """ON: þ + ð both → th; j → y; á / ó / ú drop accents."""
-    from wyrd.generators.kenning.runtime.respelling import respell
 
     assert respell("þorp", "old-norse") == "thorp"
     assert respell("ǫss", "old-norse") == "oss"
@@ -5167,7 +5167,6 @@ def test_respell_old_norse_handles_thorn_and_eth() -> None:
 
 def test_respell_old_french_drops_silent_final_e() -> None:
     """OF: ç → s, é → ay, final-e after consonant → silent."""
-    from wyrd.generators.kenning.runtime.respelling import respell
 
     assert respell("ville", "norman-french") == "vill"
     assert respell("château", "old-french") == "chateau"  # â → a
@@ -5180,7 +5179,6 @@ def test_respell_old_french_drops_silent_final_e() -> None:
 def test_respell_returns_none_for_modern_english_and_unknown() -> None:
     """Modern English passes through with None (no respeller registered).
     Unknown languages also return None."""
-    from wyrd.generators.kenning.runtime.respelling import has_respeller, respell
 
     assert respell("town", "english") is None
     assert respell("village", "modern-english") is None
@@ -5191,7 +5189,6 @@ def test_respell_returns_none_for_modern_english_and_unknown() -> None:
 
 def test_respell_handles_empty_form() -> None:
     """Empty input returns None instead of crashing the rule pipeline."""
-    from wyrd.generators.kenning.runtime.respelling import respell
 
     assert respell("", "old-english") is None
 
@@ -5211,7 +5208,6 @@ def test_meaning_respelling_for_delegates_to_module() -> None:
 def test_transliterate_shavian_renders_basic_input() -> None:
     """End-to-end: Shavian transliteration produces plane-1 glyph
     output for English-orthography input."""
-    from wyrd.generators.kenning.runtime.scripts import transliterate
 
     out = transliterate("Whitchurch", "shavian")
     assert out
@@ -5222,7 +5218,6 @@ def test_transliterate_shavian_renders_basic_input() -> None:
 def test_transliterate_shavian_preserves_hyphens() -> None:
     """Hyphenated compounds keep their structure so 'Pont-Dwfr'
     renders as two glyph runs separated by a hyphen."""
-    from wyrd.generators.kenning.runtime.scripts import transliterate
 
     out = transliterate("Pont-Dwfr", "shavian")
     assert "-" in out
@@ -5235,14 +5230,12 @@ def test_transliterate_shavian_handles_digraphs() -> None:
     """Digraph rules fire before single-char so 'ch' produces a
     single ch-glyph (not separate c+h glyphs). Glyph-count for
     'church' should be smaller than its 6-char input length."""
-    from wyrd.generators.kenning.runtime.scripts import transliterate
 
     out_church = transliterate("church", "shavian")
     assert len(out_church) < len("church")
 
 
 def test_transliterate_empty_returns_empty() -> None:
-    from wyrd.generators.kenning.runtime.scripts import transliterate
 
     assert transliterate("", "shavian") == ""
 
@@ -5251,7 +5244,6 @@ def test_transliterate_unknown_script_raises() -> None:
     """Defensive: unknown script raises ValueError with the
     supported-list in the message so SPA / CLI surface immediately
     rather than silently passing input through."""
-    from wyrd.generators.kenning.runtime.scripts import transliterate
 
     with pytest.raises(ValueError, match="unsupported script"):
         transliterate("hello", "klingon")
@@ -5260,7 +5252,6 @@ def test_transliterate_unknown_script_raises() -> None:
 def test_kenning_render_generator_produces_shavian() -> None:
     """End-to-end Generator smoke: KenningRender renders Shavian
     and returns it as a GenerationResult."""
-    from wyrd.generators.kenning import KenningRender
 
     gen = KenningRender()
     result = gen.generate({"name": "Bradford", "script": "shavian"}, 0)
@@ -5271,7 +5262,6 @@ def test_kenning_render_generator_produces_shavian() -> None:
 def test_kenning_render_generator_defaults_to_shavian() -> None:
     """When ``script`` isn't passed, the generator falls back to
     Shavian (the default per input_schema)."""
-    from wyrd.generators.kenning import KenningRender
 
     gen = KenningRender()
     result = gen.generate({"name": "Bradford"}, 0)
@@ -5280,7 +5270,6 @@ def test_kenning_render_generator_defaults_to_shavian() -> None:
 
 def test_kenning_render_generator_raises_on_empty_input() -> None:
     """Defensive: empty / whitespace-only input raises ValueError."""
-    from wyrd.generators.kenning import KenningRender
 
     gen = KenningRender()
     with pytest.raises(ValueError, match="name is required"):
@@ -5294,8 +5283,6 @@ def test_kenning_rewind_components_carry_respelling() -> None:
     SAMPA-lite respelling when the target language has a respeller.
     OE-late stop (target='old-english') gets a respelling on each
     morpheme; modern stop (target='modern-english') has None."""
-    import wyrd.generators.kenning as kenning_mod
-    from wyrd.generators.kenning import KenningRewind
 
     fixture_data = [
         {
@@ -5318,7 +5305,6 @@ def test_kenning_rewind_components_carry_respelling() -> None:
     # wyrd-o9qi: KenningRewind moved to wyrd.generators.kenning.generators.kenning_rewind
     # which imports _load_meanings into its own namespace. Patch BOTH the shim and the
     # consumer module so the method body's local-bound reference picks up the fake.
-    from wyrd.generators.kenning.generators import kenning_rewind as _kenning_rewind_mod
 
     original = kenning_mod._load_meanings
     original_rewind = _kenning_rewind_mod._load_meanings
@@ -5348,7 +5334,6 @@ def test_kenning_era_map_generates_n_names_with_era_cells() -> None:
     """End-to-end: KenningEraMap composes Kenning (roll N names)
     with KenningRewind (render each at era stops). Each result
     carries a single ``name`` + the era_cells table."""
-    from wyrd.generators.kenning import KenningEraMap
 
     gen = KenningEraMap()
     results = gen.generate_all({"culture": "english", "count": 3}, 42)
@@ -5368,7 +5353,6 @@ def test_kenning_era_map_generates_n_names_with_era_cells() -> None:
 def test_kenning_era_map_dedupes_collisions() -> None:
     """Successive seeds may roll the same name; the era-map drops
     duplicates rather than rendering the same map cell twice."""
-    from wyrd.generators.kenning import KenningEraMap
 
     gen = KenningEraMap()
     results = gen.generate_all({"culture": "english", "count": 5}, 100)
@@ -5381,7 +5365,6 @@ def test_kenning_era_map_modern_form_anchors_result() -> None:
     """Each result's ``result`` field is the modern-era rendering
     of the name — that's what shows up in single-result fallback
     paths (e.g. SPA cards that don't unfold the era table)."""
-    from wyrd.generators.kenning import KenningEraMap
 
     gen = KenningEraMap()
     results = gen.generate_all({"culture": "english", "count": 2}, 7)
@@ -5398,7 +5381,6 @@ def test_kenning_era_map_modern_form_anchors_result() -> None:
 def test_kenning_era_map_explanation_traces_era_progression() -> None:
     """The result's ``explanation`` joins each era's rendering with
     arrows so the SPA / CLI can render a single-line summary."""
-    from wyrd.generators.kenning import KenningEraMap
 
     gen = KenningEraMap()
     results = gen.generate_all({"culture": "english", "count": 1}, 7)
@@ -5418,10 +5400,6 @@ def test_annotate_fragments_counts_corpus_hits(tmp_path: Path) -> None:
     """End-to-end: scan a synthetic sources/ dir for word-boundary
     matches of each fragment. corpus_hits is the count of distinct
     source files where the fragment appears."""
-    from wyrd.generators.kenning.lexicon import (
-        annotate_fragments_with_corpus_evidence,
-    )
-
     sources = tmp_path / "sources"
     sources.mkdir()
     (sources / "skeat.txt").write_text(
@@ -5445,10 +5423,6 @@ def test_annotate_fragments_flags_etym_body_snippets(tmp_path: Path) -> None:
     a year-citation OR a source marker (A.S. / O.E. / M.E. / cf. /
     from) get flagged True. Pure prose without those markers is
     flagged False."""
-    from wyrd.generators.kenning.lexicon import (
-        annotate_fragments_with_corpus_evidence,
-    )
-
     sources = tmp_path / "sources"
     sources.mkdir()
     # Prose mention only — no etym markers in the LEFT half.
@@ -5475,10 +5449,6 @@ def test_annotate_fragments_handles_empty_and_missing_fragments(
     corpus_hits=0 and empty snippets — caller can render a 'no
     evidence' marker uniformly. Empty-string fragments are skipped
     entirely."""
-    from wyrd.generators.kenning.lexicon import (
-        annotate_fragments_with_corpus_evidence,
-    )
-
     sources = tmp_path / "sources"
     sources.mkdir()
     (sources / "skeat.txt").write_text("Some text without the fragment we're searching for.")
@@ -5497,10 +5467,6 @@ def test_annotate_fragments_raises_on_missing_sources_dir(tmp_path: Path) -> Non
     """Defensive: a non-existent sources_dir raises ValueError so
     a typo at the CLI surface immediately rather than silently
     returning empty."""
-    from wyrd.generators.kenning.lexicon import (
-        annotate_fragments_with_corpus_evidence,
-    )
-
     with pytest.raises(ValueError, match="not found"):
         annotate_fragments_with_corpus_evidence(["court"], sources_path=tmp_path / "does-not-exist")
 
@@ -5597,7 +5563,6 @@ def test_record_mining_run_rejects_invalid_mode(fresh_db: Path) -> None:
 def test_import_mining_log_inserts_jsonl_records(fresh_db: Path, tmp_path: Path) -> None:
     """The back-fill CLI parses JSONL mining-run records and inserts them
     via record_mining_run, idempotently."""
-    from click.testing import CliRunner
 
     # Seed two source rows so FK on mining_run.source_id passes.
     with LexiconDB(fresh_db) as db:
@@ -5656,7 +5621,6 @@ def test_import_mining_log_tolerates_malformed_records(fresh_db: Path, tmp_path:
     mode (non-object JSON, non-numeric counts, by_failure not a dict,
     invalid mode hitting the CHECK constraint) surfaces as an error and
     the rest of the file proceeds."""
-    from click.testing import CliRunner
 
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="real-src", title="Real")
@@ -5711,7 +5675,6 @@ def test_import_mining_log_tolerates_malformed_records(fresh_db: Path, tmp_path:
 def test_import_mining_log_skips_unknown_sources(fresh_db: Path, tmp_path: Path) -> None:
     """Records pointing at sources not in the source table get skipped with
     an error count, not a hard FK failure."""
-    from click.testing import CliRunner
 
     log_path = tmp_path / "runs.jsonl"
     log_path.write_text(
@@ -5736,7 +5699,6 @@ def test_lexicon_mine_llm_records_mining_run_at_end_of_run(
     a stubbed extractor must persist a mining_run row. Without this test,
     a regression that drops the record_mining_run call in lexicon_mine_llm
     passes CI silently — only the helper's unit tests would notice."""
-    from click.testing import CliRunner
 
     # Fake parsed entries — bypasses the regex parser.
     fake_parsed = [
@@ -5763,8 +5725,6 @@ def test_lexicon_mine_llm_records_mining_run_at_end_of_run(
     # shim but not the local-bound references the CLI bodies actually
     # resolve at call time. Patch both consumer modules so the test
     # scaffold works regardless of which command the runner invokes below.
-    from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
-    from wyrd.generators.kenning.cli.lexicon import review as _rv
 
     def _stub(text, parser, **_):
         return fake_parsed
@@ -5856,7 +5816,6 @@ def test_lexicon_mine_llm_declines_only_skips_already_extracted(
     decline-recovery workflow: pre-seed an etymology row for one toponym,
     then run mine-llm with the flag and verify only the unseeded toponym
     reaches the extractor."""
-    from click.testing import CliRunner
 
     fake_parsed = [
         ParsedEntry(
@@ -5882,8 +5841,6 @@ def test_lexicon_mine_llm_declines_only_skips_already_extracted(
     # shim but not the local-bound references the CLI bodies actually
     # resolve at call time. Patch both consumer modules so the test
     # scaffold works regardless of which command the runner invokes below.
-    from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
-    from wyrd.generators.kenning.cli.lexicon import review as _rv
 
     def _stub(text, parser, **_):
         return fake_parsed
@@ -5981,7 +5938,6 @@ def test_lexicon_mine_llm_declines_only_no_op_when_fully_mined(
     """When every parsed toponym already has a row, --declines-only exits
     cleanly without calling the extractor and without writing a mining_run
     (no work was done)."""
-    from click.testing import CliRunner
 
     fake_parsed = [
         ParsedEntry(
@@ -5999,8 +5955,6 @@ def test_lexicon_mine_llm_declines_only_no_op_when_fully_mined(
     # shim but not the local-bound references the CLI bodies actually
     # resolve at call time. Patch both consumer modules so the test
     # scaffold works regardless of which command the runner invokes below.
-    from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
-    from wyrd.generators.kenning.cli.lexicon import review as _rv
 
     def _stub(text, parser, **_):
         return fake_parsed
@@ -6899,7 +6853,6 @@ def test_lexicon_review_low_conf_counts_as_declined_not_written(
     incremented `written` even when the writer dropped the row,
     overstating real persistence by ~60% on books where Gemini was
     uncertain."""
-    from click.testing import CliRunner
 
     # Pre-seed: one source, one toponym, one Qwen-tagged low-conf
     # etymology row that's eligible for Tier-2 review.
@@ -6937,8 +6890,6 @@ def test_lexicon_review_low_conf_counts_as_declined_not_written(
     # shim but not the local-bound references the CLI bodies actually
     # resolve at call time. Patch both consumer modules so the test
     # scaffold works regardless of which command the runner invokes below.
-    from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
-    from wyrd.generators.kenning.cli.lexicon import review as _rv
 
     def _stub(text, parser, **_):
         return fake_parsed
@@ -7018,7 +6969,6 @@ def test_lexicon_review_dry_run_does_not_persist_or_count_writes(
     Regression for an extraction bug caught on PR #12: an early version of
     the refactor moved `counts['written'] += 1` outside the apply guard, so
     dry-run reported nonzero writes that didn't exist in the DB."""
-    from click.testing import CliRunner
 
     sources_dir = tmp_path / "sources"
     sources_dir.mkdir()
@@ -7053,8 +7003,6 @@ def test_lexicon_review_dry_run_does_not_persist_or_count_writes(
     # shim but not the local-bound references the CLI bodies actually
     # resolve at call time. Patch both consumer modules so the test
     # scaffold works regardless of which command the runner invokes below.
-    from wyrd.generators.kenning.cli.lexicon import mine_llm as _mll
-    from wyrd.generators.kenning.cli.lexicon import review as _rv
 
     def _stub(text, parser, **_):
         return fake_parsed
@@ -7260,7 +7208,6 @@ def test_derive_mutation_lemma_candidate_strips_irish_eclipsis() -> None:
     prefixes are unambiguous in Goidelic since they're never real
     word-initial sequences in lemmas. Pin one case per registered
     eclipsis rule."""
-    from wyrd.generators.kenning.lexicon import derive_mutation_lemma_candidate
 
     # mb- → b-
     assert derive_mutation_lemma_candidate("mboga", "irish") == ("boga", "eclipsis")
@@ -7282,7 +7229,6 @@ def test_derive_mutation_lemma_candidate_strips_irish_lenition() -> None:
     """wyrd-jott Phase 1: Goidelic lenition (séimhiú). Safe subset
     only — m/b/d/g/p/f/s rarely have the lenited digraph as a real
     lemma-initial spelling. ch- and th- are excluded."""
-    from wyrd.generators.kenning.lexicon import derive_mutation_lemma_candidate
 
     # mh- → m-
     assert derive_mutation_lemma_candidate("mhór", "irish") == ("mór", "lenition")
@@ -7296,7 +7242,6 @@ def test_derive_mutation_lemma_candidate_works_across_goidelic_languages() -> No
     """All four Goidelic languages register the same rule set;
     Scottish Gaelic + Old Irish + Middle Irish all behave like Irish
     for the prefix-strip path."""
-    from wyrd.generators.kenning.lexicon import derive_mutation_lemma_candidate
 
     assert derive_mutation_lemma_candidate("bhith", "scottish-gaelic") == (
         "bith",
@@ -7311,7 +7256,6 @@ def test_derive_mutation_lemma_candidate_works_across_goidelic_languages() -> No
 def test_derive_mutation_lemma_candidate_returns_none_for_non_goidelic() -> None:
     """Non-Goidelic languages have no mutation rules registered —
     Welsh / OE / etc. fall through to None."""
-    from wyrd.generators.kenning.lexicon import derive_mutation_lemma_candidate
 
     assert derive_mutation_lemma_candidate("mhór", "welsh") is None
     assert derive_mutation_lemma_candidate("mboga", "old-english") is None
@@ -7321,7 +7265,6 @@ def test_derive_mutation_lemma_candidate_skips_excluded_prefixes() -> None:
     """ch- and th- are DELIBERATELY OMITTED — both are real digraph-
     initial Irish lemmas (chéile, cheap, thart, thiar). Pin so a
     future rule addition is intentional."""
-    from wyrd.generators.kenning.lexicon import derive_mutation_lemma_candidate
 
     # 'chéile' looks like lenition of 'céile' but ch- isn't in the
     # rules list, so the function returns None.
@@ -7335,7 +7278,6 @@ def test_derive_mutation_lemma_candidate_respects_min_stem_length() -> None:
     """Stems shorter than 3 characters are rejected — same floor as
     the suffix-strip path. Stripping 'mb' from 'mb' would give a 1-
     char stem."""
-    from wyrd.generators.kenning.lexicon import derive_mutation_lemma_candidate
 
     # 'mba' would strip to 'ba' (2 chars) — rejected.
     assert derive_mutation_lemma_candidate("mba", "irish") is None
@@ -7346,7 +7288,6 @@ def test_derive_mutation_lemma_candidate_longest_prefix_wins() -> None:
     'bh' (lenition of b-) so 'bhfuil' resolves to 'fuil' (eclipsis)
     rather than mis-resolving via the shorter 'bh' prefix to a non-
     existent 'b' + 'fuil' hybrid."""
-    from wyrd.generators.kenning.lexicon import derive_mutation_lemma_candidate
 
     assert derive_mutation_lemma_candidate("bhfuil", "irish") == ("fuil", "eclipsis")
 
@@ -8036,7 +7977,6 @@ def test_lexicon_export_meanings_cli_no_include_wiktionary_empirical_flag(
     """wyrd-7bu1: the CLI's ``--no-include-wiktionary-empirical`` flag
     suppresses the empirical admit branch, mirroring the existing
     ``--no-include-rando``. End-to-end via CliRunner."""
-    from click.testing import CliRunner
 
     with LexiconDB(fresh_db) as db:
         db.upsert_source(id="wiktionary-empirical", title="Wiktionary (empirical)")
@@ -13933,7 +13873,6 @@ def test_fetch_cluster_mate_tags_returns_other_languages_tags(fresh_db: Path) ->
     root's _fetch_cluster_mate_tags output. Without this, the ME
     semantic signal would never reach the bundle subject the OE root
     grounds."""
-    from wyrd.generators.kenning.lexicon import _fetch_cluster_mate_tags
 
     with LexiconDB(fresh_db) as db:
         oe_id = db.upsert_etymon("ceaster", "old-english")
@@ -13953,7 +13892,6 @@ def test_fetch_cluster_mate_tags_returns_other_languages_tags(fresh_db: Path) ->
 def test_fetch_cluster_mate_tags_excludes_root_itself(fresh_db: Path) -> None:
     """The root's own tags ride in via _fetch_member_tags — the cluster-
     mate helper must skip the root to avoid double-counting."""
-    from wyrd.generators.kenning.lexicon import _fetch_cluster_mate_tags
 
     with LexiconDB(fresh_db) as db:
         oe_id = db.upsert_etymon("ceaster", "old-english")
@@ -13972,7 +13910,6 @@ def test_fetch_cluster_mate_tags_skips_merged_into_losers(fresh_db: Path) -> Non
     """OCR-cluster losers (merged_into_id IS NOT NULL) are tombstones —
     their tags belong to the merge winner via the existing rollup, not
     to the cluster mate's tag pool."""
-    from wyrd.generators.kenning.lexicon import _fetch_cluster_mate_tags
 
     with LexiconDB(fresh_db) as db:
         oe_id = db.upsert_etymon("ceaster", "old-english")
@@ -13998,7 +13935,6 @@ def test_fetch_cluster_mate_tags_skips_merged_into_losers(fresh_db: Path) -> Non
 
 def test_fetch_cluster_mate_tags_returns_empty_for_no_cognate(fresh_db: Path) -> None:
     """An etymon without a cognate_id has no cluster — empty list."""
-    from wyrd.generators.kenning.lexicon import _fetch_cluster_mate_tags
 
     with LexiconDB(fresh_db) as db:
         oe_id = db.upsert_etymon("orphan", "old-english")
@@ -14013,7 +13949,6 @@ def test_gather_family_unions_member_and_cluster_tags(fresh_db: Path) -> None:
     member-rollup tags AND cluster-mate tags. Pinned via a family
     where the root has its own tag AND a cluster mate has a different
     tag — both surface in the family's tags list."""
-    from wyrd.generators.kenning.lexicon import _gather_family
 
     with LexiconDB(fresh_db) as db:
         oe_id = db.upsert_etymon("ceaster", "old-english")
@@ -14040,7 +13975,6 @@ def test_fetch_cluster_mate_tags_includes_same_language_mates(fresh_db: Path) ->
     that adds a language-mismatch filter wouldn't silently exclude
     same-language siblings (e.g. two OE etymons in the same cognate
     cluster, like a doublet pair)."""
-    from wyrd.generators.kenning.lexicon import _fetch_cluster_mate_tags
 
     with LexiconDB(fresh_db) as db:
         a = db.upsert_etymon("ceaster", "old-english")
