@@ -83,6 +83,9 @@ from wyrd.generators.kenning.cli.lexicon import (
 from wyrd.generators.kenning.cli.lexicon import fetch_bulk_sources as _fetch_bulk_sources_module
 from wyrd.generators.kenning.cli.lexicon import fuzzy_search as _fuzzy_search_module
 from wyrd.generators.kenning.cli.lexicon import import_mining_log as _import_mining_log_module
+from wyrd.generators.kenning.cli.lexicon import (
+    ingest_briggs_personal_names as _ingest_briggs_personal_names_module,
+)
 from wyrd.generators.kenning.cli.lexicon import ingest_domesday as _ingest_domesday_module
 from wyrd.generators.kenning.cli.lexicon import ingest_etymonline as _ingest_etymonline_module
 from wyrd.generators.kenning.cli.lexicon import ingest_hearth_tax as _ingest_hearth_tax_module
@@ -210,6 +213,7 @@ _era_timeline_module.add_to(lexicon)
 _export_meanings_module.add_to(lexicon)
 _fetch_bulk_sources_module.add_to(lexicon)
 _fuzzy_search_module.add_to(lexicon)
+_ingest_briggs_personal_names_module.add_to(lexicon)
 _ingest_hearth_tax_module.add_to(lexicon)
 _ingest_hundred_rolls_module.add_to(lexicon)
 _ingest_os_open_names_module.add_to(lexicon)
