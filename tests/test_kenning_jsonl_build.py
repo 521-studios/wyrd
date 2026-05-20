@@ -1852,9 +1852,44 @@ def test_build_fantasy_morpheme_via_init_schema(tmp_path: Path):
         counts = build_from_jsonl(conn, jsonl_paths_in(jsonl_dir))
         assert counts["fantasy_morpheme"] == 1
         row = conn.execute("SELECT input_name FROM fantasy_morpheme").fetchone()
+        assert row is not None, "expected one fantasy_morpheme row after build"
         assert row["input_name"] == "Angel"
     finally:
         conn.close()
+
+
+def test_init_schema_fantasy_morpheme_input_name_is_nocase(tmp_path: Path):
+    """Pin COLLATE NOCASE at the column level via PRAGMA, independent
+    of the UNIQUE(input_name, approach_version) constraint shape.
+
+    The behavioral dedup test below catches a NOCASE drop only via
+    its observable consequence under the CURRENT UNIQUE shape. If a
+    future change widens / re-orders / renames the UNIQUE (e.g. adds
+    a tertiary column or splits the constraint), the conflict no
+    longer fires the same way and a NOCASE regression on the column
+    silently slips through the behavioral test. This PRAGMA pin
+    catches it regardless of UNIQUE shape."""
+    from wyrd.generators.kenning.lexicon import init_schema
+
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+
+    # PRAGMA table_info doesn't expose collation directly — read it
+    # from sqlite_master's CREATE TABLE DDL, which preserves the
+    # column-level COLLATE clause verbatim.
+    conn = sqlite3.connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='fantasy_morpheme'"
+        ).fetchone()
+    finally:
+        conn.close()
+    assert row is not None, "fantasy_morpheme table missing from sqlite_master"
+    ddl = row[0]
+    assert "input_name" in ddl
+    assert "COLLATE NOCASE" in ddl, (
+        f"input_name COLLATE NOCASE missing from init_schema DDL:\n{ddl}"
+    )
 
 
 def test_build_fantasy_morpheme_via_init_schema_dedups_case_insensitively(tmp_path: Path):

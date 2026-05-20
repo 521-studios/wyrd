@@ -122,10 +122,14 @@ def test_init_schema_creates_tables(fresh_db: Path) -> None:
         # into MUST be enumerated here, so a future migration that
         # fails to create one trips this test. The original wyrd-rrse
         # bug (fantasy_morpheme missing from init_schema) shipped
-        # under 848 green tests because this set didn't pin it.
+        # under green tests because this set didn't pin it. The
+        # complete INSERT-target list is grep-able via
+        # ``grep -n "_insert_" wyrd/generators/kenning/jsonl/build.py``.
         "fantasy_morpheme",
         "personal_name",
         "personal_name_toponym_attestation",
+        "etymon_descent",
+        "mining_run",
     }
     assert expected.issubset(tables)
 
