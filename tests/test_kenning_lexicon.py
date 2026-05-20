@@ -700,6 +700,324 @@ def test_alembic_head_check_constraints_match_tables_metadata(fresh_db: Path) ->
     )
 
 
+def test_alembic_head_server_default_matches_tables_metadata(fresh_db: Path) -> None:
+    """wyrd-jaur: bidirectional ``DEFAULT`` clause parity check.
+
+    ``compare_metadata`` with ``compare_server_default=True`` does NOT
+    detect server_default drift on SQLite — empirically verified by
+    deliberately changing a Column's ``server_default`` to a sentinel
+    string and seeing zero ``modify_default`` diffs surface. Same
+    SQLite reflection blind spot as collation and ondelete.
+
+    The schema has 17 ``server_default=text(...)`` declarations
+    (mostly ``text("0")`` boolean-as-int defaults plus one
+    ``text("(datetime('now'))")`` and one
+    ``text("'reverse-search-v1'")``). A migration that
+    adds/removes/changes a column DEFAULT without updating MetaData
+    silently produces different insert-time behavior between fresh
+    DBs and MetaData-derived query builders.
+
+    Use ``PRAGMA table_info(<table>)`` to read each column's
+    ``dflt_value`` directly — SQLite parses the CREATE TABLE DDL and
+    surfaces the default expression as a string, sidestepping all
+    the DDL-tokenization fragility of an earlier round (shlex /
+    paren-balancing). Reconcile bidirectionally against MetaData's
+    ``column.server_default``.
+    """
+    import re
+
+    from wyrd.generators.kenning.lexicon.sql.tables import metadata
+
+    def _normalize_default(expr: str) -> str:
+        # Collapse whitespace, strip outer parens (MetaData may
+        # declare ``(datetime('now'))`` while PRAGMA returns the
+        # inner ``datetime('now')`` after SQLite parses the DDL).
+        expr = re.sub(r"\s+", " ", expr).strip()
+        if expr.startswith("(") and expr.endswith(")"):
+            expr = expr[1:-1].strip()
+        return expr.upper()
+
+    ddl_defaults: dict[tuple[str, str], str] = {}
+    with sqlite3.connect(fresh_db) as conn:
+        conn.row_factory = sqlite3.Row
+        for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        ).fetchall():
+            table_name = row["name"]
+            # Quote the table identifier so a future table named
+            # after a reserved word doesn't break the PRAGMA.
+            for col in conn.execute(f'PRAGMA table_info("{table_name}")').fetchall():
+                if col["dflt_value"] is not None:
+                    ddl_defaults[(table_name, col["name"])] = _normalize_default(col["dflt_value"])
+
+    md_defaults: dict[tuple[str, str], str] = {}
+    for table in metadata.tables.values():
+        for column in table.columns:
+            if column.server_default is None:
+                continue
+            sd = column.server_default
+            # server_default may be a DefaultClause wrapping TextClause.
+            arg = getattr(sd, "arg", sd)
+            md_defaults[(table.name, column.name)] = _normalize_default(str(arg))
+
+    missing_in_ddl = set(md_defaults) - set(ddl_defaults)
+    missing_in_md = set(ddl_defaults) - set(md_defaults)
+    mismatched = {
+        k for k in set(md_defaults) & set(ddl_defaults) if md_defaults[k] != ddl_defaults[k]
+    }
+
+    errors: list[str] = []
+    for k in sorted(missing_in_ddl):
+        errors.append(
+            f"  {k[0]}.{k[1]}: MetaData declares server_default={md_defaults[k]!r} "
+            f"but live DDL has no DEFAULT clause"
+        )
+    for k in sorted(missing_in_md):
+        errors.append(
+            f"  {k[0]}.{k[1]}: live DDL has DEFAULT {ddl_defaults[k]!r} "
+            f"but MetaData declares no server_default"
+        )
+    for k in sorted(mismatched):
+        errors.append(f"  {k[0]}.{k[1]}: MetaData={md_defaults[k]!r} but DDL={ddl_defaults[k]!r}")
+
+    assert not errors, "server_default drift between alembic head DDL and MetaData:\n" + "\n".join(
+        errors
+    )
+
+
+def test_alembic_head_indexes_match_tables_metadata(fresh_db: Path) -> None:
+    """wyrd-jaur: index-name parity between alembic head and MetaData.
+
+    ``compare_metadata`` warns and skips expression-based unique
+    indexes on SQLite (``idx_etymon_citation_unique``,
+    ``idx_pn_toponym_dedup``, ``idx_toponym_unique``,
+    ``idx_attestation_unique``) — drift in their shape can't be
+    caught at the diff level. As a coarser canary, verify the SET
+    of index names in MetaData matches the SET of index names in
+    alembic head. Catches "migration adds an index without adding
+    the matching ``Index(...)`` declaration in tables.py" and the
+    inverse.
+
+    Does NOT catch shape drift in the body of expression-indexes
+    (e.g., ``COALESCE(page, '')`` → ``COALESCE(page, '<none>')``).
+    That gap is wider than this PR; the right canary would be a
+    DDL-byte-equality check, which is fragile against migration
+    whitespace differences and out of scope here.
+    """
+    from wyrd.generators.kenning.lexicon.sql.tables import metadata
+
+    with sqlite3.connect(fresh_db) as conn:
+        # No `sql IS NOT NULL` filter — that would exclude indexes
+        # SQLite auto-generates for UNIQUE constraints (their DDL
+        # lives inside the parent CREATE TABLE, so sqlite_master.sql
+        # is NULL). The sqlite_autoindex_ prefix filter below strips
+        # the unnamed auto-indexes; named UniqueConstraints get a
+        # caller-controlled name and SHOULD appear in this set so
+        # they match the matching md_indexes entry.
+        # Filter SQLite-internal indexes at the query level — both
+        # the ``sqlite_autoindex_*`` indexes auto-generated for
+        # unnamed UNIQUE constraints AND any other ``sqlite_*``
+        # internal objects (sqlite_stat1, etc.) that may surface
+        # in some configurations.
+        ddl_indexes = {
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%'"
+            ).fetchall()
+        }
+
+    from sqlalchemy import PrimaryKeyConstraint, UniqueConstraint
+
+    md_indexes: set[str] = set()
+    for table in metadata.tables.values():
+        md_indexes.update(idx.name for idx in table.indexes if idx.name)
+        # Named UniqueConstraints / PrimaryKeyConstraints also surface
+        # as indexes in SQLite but live in table.constraints, not
+        # table.indexes. Include them so a future
+        # ``UniqueConstraint(..., name="...")`` is caught by this
+        # parity check. Unnamed UniqueConstraints produce
+        # ``sqlite_autoindex_*`` indexes which the DDL-side query
+        # filters out at the SQL level.
+        md_indexes.update(
+            c.name
+            for c in table.constraints
+            if isinstance(c, (UniqueConstraint, PrimaryKeyConstraint)) and c.name
+        )
+
+    missing_in_ddl = md_indexes - ddl_indexes
+    missing_in_md = ddl_indexes - md_indexes
+
+    errors: list[str] = []
+    for name in sorted(missing_in_ddl):
+        errors.append(f"  {name}: MetaData declares index but alembic head does not")
+    for name in sorted(missing_in_md):
+        errors.append(f"  {name}: alembic head has index but MetaData does not")
+
+    assert not errors, "Index name drift between alembic head and MetaData:\n" + "\n".join(errors)
+
+
+# Views live in alembic migrations (per tables.py docstring), not in
+# the SA Core MetaData. Pin the expected set explicitly so a migration
+# that accidentally drops one — or adds one without updating this list
+# — surfaces here.
+_EXPECTED_VIEWS = {
+    "etymon_canonical",
+    "etymon_consensus",
+    "etymon_gloss_canonical",
+    "etymon_tag_canonical",
+    "etymon_text_match_canonical",
+    "toponym_breakdown_signature",
+    "toponym_etymology_canonical",
+}
+
+
+def test_alembic_head_views_match_expected_set(fresh_db: Path) -> None:
+    """wyrd-jaur: pin the set of views the alembic chain produces.
+
+    ``compare_metadata`` ignores views entirely (SA Core has no
+    first-class view object). A migration that renames a view, drops
+    one, or adds one without consumer updates can ship undetected.
+    When this test fails, update ``_EXPECTED_VIEWS`` to match what
+    the migration produced — the failure is the signal to update
+    callers that consume the view set."""
+    with sqlite3.connect(fresh_db) as conn:
+        actual = {
+            row[0]
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='view'").fetchall()
+        }
+    missing = _EXPECTED_VIEWS - actual
+    unexpected = actual - _EXPECTED_VIEWS
+    errors: list[str] = []
+    if missing:
+        errors.append(
+            f"  views in _EXPECTED_VIEWS but missing from alembic head: {sorted(missing)}"
+        )
+    if unexpected:
+        errors.append(
+            f"  views in alembic head but not in _EXPECTED_VIEWS: {sorted(unexpected)} "
+            f"— update the constant if this addition is intentional"
+        )
+    assert not errors, "View set drift between alembic head and _EXPECTED_VIEWS:\n" + "\n".join(
+        errors
+    )
+
+
+# ---------------------------------------------------------------------------
+# wyrd-jaur item 6: direct branch tests for _filter_sqlite_reflection_artifacts.
+# Each filter branch (FK pairs, PK nullable, modify_type collation) was
+# previously exercised only incidentally by the live-schema integration
+# test. If a future schema change stops producing one of the three diff
+# shapes, the corresponding branch silently rots. These unit tests pin
+# each branch directly against hand-crafted diff lists.
+# ---------------------------------------------------------------------------
+
+
+def _make_test_metadata():
+    """Build a minimal SA MetaData fixture exercising all three filter
+    branches (PK column, FK with ondelete, column with collation)."""
+    from sqlalchemy import (
+        Column,
+        ForeignKey,
+        Integer,
+        MetaData,
+        String,
+        Table,
+        Text,
+    )
+
+    md = MetaData()
+    Table(
+        "parent",
+        md,
+        Column("id", Integer, primary_key=True),
+        Column("name", String(collation="NOCASE"), nullable=False),
+    )
+    Table(
+        "child",
+        md,
+        Column("id", Integer, primary_key=True),
+        Column("parent_id", Integer, ForeignKey("parent.id", ondelete="CASCADE")),
+        Column("note", Text),
+    )
+    return md
+
+
+def test_filter_drops_pk_modify_nullable_artifacts() -> None:
+    """The PK ``modify_nullable`` filter must drop SQLite's "PK is
+    nullable" reflection artifact AND let through real nullability
+    drift on non-PK columns."""
+    md = _make_test_metadata()
+    pk_artifact = [
+        ("modify_nullable", None, "parent", "id", {}, True, False),
+    ]
+    real_drift = [
+        ("modify_nullable", None, "child", "note", {}, False, True),
+    ]
+    filtered = _filter_sqlite_reflection_artifacts([pk_artifact, real_drift], md, {})
+    assert filtered == [real_drift], (
+        f"PK filter should drop pk_artifact and keep real_drift; got {filtered!r}"
+    )
+
+
+def test_filter_drops_paired_fk_artifacts() -> None:
+    """The FK pair filter must drop reflection-roundtrip pairs (same
+    column-tuple + referred-table). A solo remove_fk or add_fk (no
+    pair) must fall through as real drift."""
+    md = _make_test_metadata()
+    child = md.tables["child"]
+    fk = next(iter(child.foreign_key_constraints))
+    # Build a second table with its own FK so we have a "solo" FK
+    # that doesn't have a matching pair in the diff list.
+    from sqlalchemy import Column, ForeignKey, Integer, Table
+
+    orphan = Table(
+        "orphan",
+        md,
+        Column("id", Integer, primary_key=True),
+        Column("ref_id", Integer, ForeignKey("parent.id", ondelete="SET NULL")),
+    )
+    other_fk = next(iter(orphan.foreign_key_constraints))
+
+    paired_remove = ("remove_fk", fk)
+    paired_add = ("add_fk", fk)
+    solo_remove = ("remove_fk", other_fk)
+
+    filtered = _filter_sqlite_reflection_artifacts([paired_remove, paired_add, solo_remove], md, {})
+    assert filtered == [solo_remove], (
+        f"FK pair filter should drop the pair and keep the solo; got {filtered!r}"
+    )
+
+
+def test_filter_drops_collation_modify_type_when_ddl_has_collate() -> None:
+    """The ``modify_type`` filter must drop the SA-reflection-drops-
+    collation artifact when the DDL actually carries COLLATE, AND
+    let through real drift (DDL doesn't have COLLATE)."""
+    from sqlalchemy import String
+    from sqlalchemy import Text as SAText
+
+    md = _make_test_metadata()
+
+    # Branch A: DDL has COLLATE — should filter.
+    new_type_with_coll = String(collation="NOCASE")
+    artifact = [
+        ("modify_type", None, "parent", "name", {}, SAText(), new_type_with_coll),
+    ]
+    table_ddl_with_collate = {
+        "parent": "CREATE TABLE parent (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL COLLATE NOCASE\n)"
+    }
+    filtered = _filter_sqlite_reflection_artifacts([artifact], md, table_ddl_with_collate)
+    assert filtered == [], f"Should filter when DDL has COLLATE; got {filtered!r}"
+
+    # Branch B: DDL is missing COLLATE — should NOT filter.
+    table_ddl_no_collate = {
+        "parent": "CREATE TABLE parent (\n  id INTEGER PRIMARY KEY,\n  name TEXT NOT NULL\n)"
+    }
+    filtered = _filter_sqlite_reflection_artifacts([artifact], md, table_ddl_no_collate)
+    assert filtered == [artifact], (
+        f"Should keep real drift when DDL lacks COLLATE; got {filtered!r}"
+    )
+
+
 def test_upgrade_head_is_idempotent(fresh_db: Path) -> None:
     """Running ``upgrade_head`` against a DB that's already at head
     must be a no-op. ``init_schema`` runs it once; tests + the CLI
