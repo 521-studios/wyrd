@@ -198,6 +198,38 @@ _VALID_SCORING_MODES = ("proportions", "vector")
         "1.0 is canonical. Only meaningful with --scoring-mode=vector."
     ),
 )
+@click.option(
+    "--pack",
+    "pack_specs",
+    multiple=True,
+    metavar="NAME[:WEIGHT]",
+    help=(
+        "wyrd-ecjp.11: declare a scenario-pack overlay (D36.4). NAME "
+        "must match a bundled pack (see 'wyrd kenning generate --help' "
+        "for the available list once packs are bundled). Optional "
+        ":WEIGHT (float in [0, 10]) overrides the pack manifest's "
+        "default_weight. Repeatable for multi-pack composition. Only "
+        "meaningful with --scoring-mode=vector. Pack lemmas enter the "
+        "eligible pool alongside native lemmas and inherit their "
+        "manifest's template (donor → recipient) for baseline scoring."
+    ),
+)
+@click.option(
+    "--pack-tag-filter",
+    "pack_tag_filter_specs",
+    multiple=True,
+    metavar="PACK:TAG1,TAG2,...",
+    help=(
+        "wyrd-ecjp.11: narrow a declared pack's lemmas to those "
+        "carrying at least one matching tag (PackOverlay."
+        "allowed_pack_tags). PACK must match a --pack declaration. "
+        "Repeatable for filtering multiple packs (one entry per pack "
+        "max). Used for narrative subset selection (wyrd-sreb): a "
+        "war scene can pull only the 'war'-tagged subset of a "
+        "Tatar-9c pack while leaving the religious / trade subsets "
+        "behind."
+    ),
+)
 def generate(
     culture: str,
     tags: tuple[str, ...],
@@ -218,6 +250,8 @@ def generate(
     phonological_weight: float,
     semantic_weight: float,
     position_weight: float,
+    pack_specs: tuple[str, ...],
+    pack_tag_filter_specs: tuple[str, ...],
 ) -> None:
     """Generate town names. Replaces Rando's `bin/generator`."""
     # `available_tags()` already strips _INTERNAL_TAGS for the SPA dropdown,
@@ -270,6 +304,37 @@ def generate(
             "pos_w": position_weight,
             "base_w": baseline_weight,
         }
+    # wyrd-ecjp.11: pack overlays. Parse + validate at the CLI
+    # boundary so invalid input surfaces as a friendly Click error
+    # before reaching the generator. Pack-related flags in
+    # proportions mode are deliberate silent no-ops (same contract
+    # as the weight flags); the parsed packs land in params anyway
+    # so the schema stays uniform, but Kenning.generate only
+    # consumes them in vector mode.
+    if pack_specs or pack_tag_filter_specs:
+        from wyrd.generators.kenning import _load_packs
+        from wyrd.generators.kenning.cli._pack_args import (
+            parse_pack_specs,
+            parse_pack_tag_filter_specs,
+            validate_packs_against_catalog,
+        )
+
+        try:
+            parsed_packs = parse_pack_specs(pack_specs)
+            declared = {s.pack_name for s in parsed_packs}
+            tag_filters = parse_pack_tag_filter_specs(pack_tag_filter_specs, declared)
+            validate_packs_against_catalog(parsed_packs, set(_load_packs().keys()))
+        except click.BadParameter as exc:
+            click.echo(f"Error: {exc.format_message()}", err=True)
+            sys.exit(1)
+        params["packs"] = [
+            {
+                "pack_name": spec.pack_name,
+                "weight_override": spec.weight_override,
+                "allowed_pack_tags": sorted(tag_filters.get(spec.pack_name, ())),
+            }
+            for spec in parsed_packs
+        ]
     for _ in range(count):
         try:
             result = kenning.generate(params, seed_rng.randrange(2**63))

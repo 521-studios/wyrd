@@ -459,6 +459,7 @@ class NameGenerator:
         era_midpoint: int = 0,
         cohesion: float = 0.0,
         exclude_tags: tuple[str, ...] = (),
+        pack_meaning_dbs: dict | None = None,
     ):
         """Vector-scoring counterpart to :meth:`select` (wyrd-ecjp.5 PR C).
 
@@ -482,6 +483,11 @@ class NameGenerator:
                 to the vector primitive's :func:`_cohesion_multiplier`.
             exclude_tags: meanings carrying any of these tags are
                 filtered out pre-score.
+            pack_meaning_dbs: optional ``{pack_name: meaning_db}`` from
+                the bundled pack catalog (wyrd-ecjp.10b / .11). When
+                ``request.packs`` declares overlays, pack lemmas enter
+                the eligible pool via this map. ``None`` (default) =
+                no pack lemmas (pure native generation).
 
         Returns:
             A :class:`NewName` or None when the vector path's gate or
@@ -533,6 +539,7 @@ class NameGenerator:
             cohesion=cohesion,
             tag_cooccurrence=self.tag_cooccurrence or None,
             exclude_tags=frozenset(exclude_tags),
+            pack_meaning_dbs=pack_meaning_dbs,
         )
         # The primitive returns either [] (empty pool / no positive
         # scores) or a list with exactly one Meaning per requested

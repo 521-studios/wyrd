@@ -45,6 +45,7 @@ from collections.abc import Iterable
 from wyrd.generators.kenning.registers.moods import MOODS
 from wyrd.generators.kenning.vectors.schemas import (
     EligibilityGate,
+    PackOverlay,
     RegisterEffect,
     RequestVector,
     ScoringWeights,
@@ -139,6 +140,7 @@ def build_request_vector(
     era_max: int | None = None,
     stratum: str | None = None,
     weights: ScoringWeights | None = None,
+    packs: tuple[PackOverlay, ...] = (),
 ) -> RequestVector:
     """Translate Kenning's existing per-call knobs into a fully-built
     :class:`RequestVector` for the vector-scoring runtime.
@@ -159,6 +161,13 @@ def build_request_vector(
             ``latin-loan``, etc.). ``None`` disables the filter.
         weights: per-axis scoring weights. Defaults to
             ``ScoringWeights()`` (1.0 across all four axes).
+        packs: tuple of :class:`PackOverlay` declaring scenario-pack
+            overlays for this request (wyrd-ecjp.11). Empty tuple
+            (default) means no packs — pure native generation. The
+            runtime's :func:`select_via_vector_scoring` consumes
+            ``request.packs`` for the baseline-axis pack composition
+            (D36.4 Option B) and a sibling ``pack_meaning_dbs`` arg
+            for admitting pack lemmas into the eligible pool.
 
     Returns:
         A :class:`RequestVector` ready to feed
@@ -194,6 +203,7 @@ def build_request_vector(
         gate=gate,
         register=register,
         weights=weights or ScoringWeights(),
+        packs=tuple(packs),
     )
 
 
