@@ -91,6 +91,11 @@ _PRONUNCIATION_SUFFIX = "_pronunciation"
 # wires the generator filter; Phase 2 just plumbs the data through so
 # the bundle carries it.
 _STRATUM_SUFFIX = "_stratum"
+# wyrd-ecjp.10a: per-language phonological_vector sibling per the D26
+# pattern. Each entry is {"form": canonical_form,
+# "phonological_vector": {<dim>: <float>, ...}}. Sparse — only forms
+# whose etymons have been kq7w.1-enriched populate this.
+_PHONOLOGICAL_VECTOR_SUFFIX = "_phonological_vector"
 
 
 class Joiner:
@@ -151,6 +156,7 @@ class Meaning:
         stratum=None,
         era_reflexes=None,
         phonological_vector=None,
+        phonological_vectors=None,
     ):
         self.usage = usage
         self.tags = tags
@@ -240,6 +246,14 @@ class Meaning:
         # returns 0 in that case and the score falls back to the
         # sem/pos/baseline axes.
         self.phonological_vector = phonological_vector
+        # wyrd-ecjp.10a Phase 7: per-(lang, canonical_form) phonological
+        # vectors from the <lang>_phonological_vector bundle siblings.
+        # Shape: dict[lang_field, dict[canonical_form, PhonologicalVector]].
+        # The singular `phonological_vector` above is the "primary"
+        # vector (first non-empty in deterministic lang × form walk) for
+        # back-compat with callers that read one-vector-per-meaning.
+        # Empty dict for legacy bundles that pre-date wyrd-ecjp.10a.
+        self.phonological_vectors = phonological_vectors or {}
         self._set_location()
 
     def _set_location(self):
@@ -840,6 +854,7 @@ def load_meanings(data):
                 and not k.endswith(_TRANSLITERATION_SUFFIX)
                 and not k.endswith(_PRONUNCIATION_SUFFIX)
                 and not k.endswith(_STRATUM_SUFFIX)
+                and not k.endswith(_PHONOLOGICAL_VECTOR_SUFFIX)
             }
             variants = {
                 k[: -len(_VARIANT_SUFFIX)]: [(entry["form"], entry["weight"]) for entry in v]
@@ -923,13 +938,42 @@ def load_meanings(data):
             era_reflexes_field = word.get("era_reflexes") or {}
             era_reflexes = _normalize_era_reflexes(era_reflexes_field)
             # wyrd-ecjp.5 / wyrd-kq7w.1: per-meaning phonological vector.
-            # Bundle-export wires this through under wyrd-ecjp.8 (Phase
-            # 7 bundle changes); legacy bundles emit no field, so the
-            # default is None. Reading happens here once at bundle-load
-            # time; the vector-scoring runtime path reads
-            # ``meaning.phonological_vector`` per scoring call.
-            phon_blob = word.get("phonological_vector")
-            phonological_vector = _parse_phon_vector(phon_blob)
+            # wyrd-ecjp.10a Phase 7: bundle now emits per-language
+            # siblings (<lang>_phonological_vector) per the D26 pattern.
+            # Each sibling is a list of {"form": canonical_form,
+            # "phonological_vector": {<dim>: <float>, ...}} entries.
+            # The per-language dict lands on Meaning.phonological_vectors
+            # (plural) keyed by (lang, canonical_form); for back-compat
+            # with callers that read the singular Meaning.phonological_vector
+            # we also pick a primary vector (first non-empty across the
+            # deterministic lang × form walk). Legacy bundles that emit
+            # a top-level "phonological_vector" key (pre-10a) still
+            # work — we read it first and only fall back to the
+            # per-language walk when absent.
+            phonological_vectors: dict[str, dict[str, PhonologicalVector]] = {}
+            for k, v in word.items():
+                if not k.endswith(_PHONOLOGICAL_VECTOR_SUFFIX):
+                    continue
+                lang_key = k[: -len(_PHONOLOGICAL_VECTOR_SUFFIX)]
+                per_form: dict[str, PhonologicalVector] = {}
+                for entry in v:
+                    parsed = _parse_phon_vector(entry.get("phonological_vector"))
+                    if parsed is not None:
+                        per_form[entry["form"]] = parsed
+                if per_form:
+                    phonological_vectors[lang_key] = per_form
+            legacy_top_level = word.get("phonological_vector")
+            if legacy_top_level is not None:
+                phonological_vector = _parse_phon_vector(legacy_top_level)
+            else:
+                phonological_vector = None
+                for lang_key in sorted(phonological_vectors):
+                    per_form = phonological_vectors[lang_key]
+                    for form in sorted(per_form):
+                        phonological_vector = per_form[form]
+                        break
+                    if phonological_vector is not None:
+                        break
             # Singular and plural Meanings share every constructor arg
             # except `usage`. Bundle them so a future kwarg addition can't
             # silently drop on one branch and not the other.
@@ -948,6 +992,7 @@ def load_meanings(data):
                 "stratum": stratum,
                 "era_reflexes": era_reflexes,
                 "phonological_vector": phonological_vector,
+                "phonological_vectors": phonological_vectors,
             }
             meaning = Meaning(usage, **common_kwargs)
             for tag in tags:

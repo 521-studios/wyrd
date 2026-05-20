@@ -51,7 +51,8 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
         f"""
         SELECT id, canonical_form, language, lemma_id, merged_into_id, inflection,
                english_shaped, original_script, transliteration,
-               pronunciation_ipa, pronunciation_dialect, stratum
+               pronunciation_ipa, pronunciation_dialect, stratum,
+               phonological_vector
         FROM etymon
         WHERE id IN ({placeholders})
         ORDER BY language, canonical_form
@@ -92,6 +93,15 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
     # languages without a Phase 1 classifier and for legacy DBs that
     # pre-date the column.
     member_stratum_by_id: dict[int, str | None] = {r["id"]: r["stratum"] for r in member_rows}
+    # wyrd-ecjp.10a: per-member phonological_vector JSON blob (kq7w.1
+    # corpus enrichment populates etymon.phonological_vector). NULL for
+    # rows the enrichment pass hasn't reached + legacy DBs that
+    # pre-date the column. The bundle emit walks these per descendant
+    # in _absorb_member_phonological_vector and stamps them as
+    # <lang>_phonological_vector siblings per the D26 pattern.
+    member_phonological_vector_by_id: dict[int, str | None] = {
+        r["id"]: r["phonological_vector"] for r in member_rows
+    }
     canonical_forms_lower = {f.lower() for _lang, f in member_form_by_id.values()}
 
     reflex_links = _fetch_member_reflex_links(db, member_ids)
@@ -112,6 +122,7 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
         "member_transliteration_by_id": member_transliteration_by_id,
         "member_pronunciation_by_id": member_pronunciation_by_id,
         "member_stratum_by_id": member_stratum_by_id,
+        "member_phonological_vector_by_id": member_phonological_vector_by_id,
         "member_citations": _fetch_member_citations(db, member_ids),
         "member_attested_years": _fetch_member_attested_years(db, member_ids),
         "glosses": _fetch_member_glosses(db, member_ids),
