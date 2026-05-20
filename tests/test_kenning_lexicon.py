@@ -740,7 +740,9 @@ def test_alembic_head_server_default_matches_tables_metadata(fresh_db: Path) -> 
     ddl_defaults: dict[tuple[str, str], str] = {}
     with sqlite3.connect(fresh_db) as conn:
         conn.row_factory = sqlite3.Row
-        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall():
+        for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        ).fetchall():
             table_name = row["name"]
             # Quote the table identifier so a future table named
             # after a reserved word doesn't break the PRAGMA.
@@ -812,29 +814,38 @@ def test_alembic_head_indexes_match_tables_metadata(fresh_db: Path) -> None:
         # the unnamed auto-indexes; named UniqueConstraints get a
         # caller-controlled name and SHOULD appear in this set so
         # they match the matching md_indexes entry.
+        # Filter SQLite-internal indexes at the query level — both
+        # the ``sqlite_autoindex_*`` indexes auto-generated for
+        # unnamed UNIQUE constraints AND any other ``sqlite_*``
+        # internal objects (sqlite_stat1, etc.) that may surface
+        # in some configurations.
         ddl_indexes = {
             row[0]
-            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='index'").fetchall()
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%'"
+            ).fetchall()
         }
 
-    from sqlalchemy import UniqueConstraint
+    from sqlalchemy import PrimaryKeyConstraint, UniqueConstraint
 
     md_indexes: set[str] = set()
     for table in metadata.tables.values():
         md_indexes.update(idx.name for idx in table.indexes if idx.name)
-        # Named UniqueConstraints also surface as indexes in SQLite
-        # but live in table.constraints, not table.indexes. Include
-        # them so a future ``UniqueConstraint(..., name="...")`` is
-        # caught by this parity check. Unnamed UniqueConstraints
-        # produce ``sqlite_autoindex_*`` indexes that we exclude
-        # from the DDL side below.
+        # Named UniqueConstraints / PrimaryKeyConstraints also surface
+        # as indexes in SQLite but live in table.constraints, not
+        # table.indexes. Include them so a future
+        # ``UniqueConstraint(..., name="...")`` is caught by this
+        # parity check. Unnamed UniqueConstraints produce
+        # ``sqlite_autoindex_*`` indexes which the DDL-side query
+        # filters out at the SQL level.
         md_indexes.update(
-            c.name for c in table.constraints if isinstance(c, UniqueConstraint) and c.name
+            c.name
+            for c in table.constraints
+            if isinstance(c, (UniqueConstraint, PrimaryKeyConstraint)) and c.name
         )
-    ddl_named = {n for n in ddl_indexes if not n.startswith("sqlite_autoindex_")}
 
-    missing_in_ddl = md_indexes - ddl_named
-    missing_in_md = ddl_named - md_indexes
+    missing_in_ddl = md_indexes - ddl_indexes
+    missing_in_md = ddl_indexes - md_indexes
 
     errors: list[str] = []
     for name in sorted(missing_in_ddl):
