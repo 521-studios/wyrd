@@ -808,3 +808,39 @@ CREATE INDEX idx_pn_toponym_form
   ON personal_name_toponym_attestation(toponym_form, county_canonical);
 CREATE INDEX idx_pn_toponym_personal_name
   ON personal_name_toponym_attestation(personal_name_id);
+
+
+-- wyrd-ami / wyrd-rrse: fantasy_morpheme records (name, description) →
+-- LLM-research-derived resolution. One row per input fed to
+-- ``lexicon mine-fantasy-name`` regardless of whether the morpheme
+-- was usable; barred rows carry ``bar_reason`` so later pipelines can
+-- revisit them.
+--
+-- ``input_name COLLATE NOCASE`` dedupes "Harpy" / "harpy" under
+-- UNIQUE(input_name, approach_version) so repeat LLM calls don't fire
+-- for the same name in different casings. ``approach_version`` is the
+-- wyrd-ami APPROACH_VERSION constant; bumping it lets us re-process
+-- older-version rows when the pipeline gets stronger. ``etymon_id``
+-- is nullable + ON DELETE SET NULL so barred morphemes can record
+-- ``bar_reason`` without a real etymon link.
+CREATE TABLE fantasy_morpheme (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  input_name          TEXT NOT NULL COLLATE NOCASE,
+  input_description   TEXT,
+  usable              INTEGER NOT NULL CHECK (usable IN (0, 1)),
+  etymon_id           INTEGER REFERENCES etymon(id) ON DELETE SET NULL,
+  bar_reason          TEXT,
+  resolution_method   TEXT NOT NULL,
+  approach_version    TEXT NOT NULL,
+  confidence          TEXT,
+  citation            TEXT,
+  reasoning           TEXT,
+  unapproved_language TEXT,
+  unapproved_form     TEXT,
+  processed_at        TEXT NOT NULL,
+  UNIQUE (input_name, approach_version)
+);
+CREATE INDEX idx_fantasy_morpheme_approach    ON fantasy_morpheme(approach_version);
+CREATE INDEX idx_fantasy_morpheme_etymon      ON fantasy_morpheme(etymon_id);
+CREATE INDEX idx_fantasy_morpheme_usable      ON fantasy_morpheme(usable);
+CREATE INDEX idx_fantasy_morpheme_unapproved  ON fantasy_morpheme(unapproved_language);

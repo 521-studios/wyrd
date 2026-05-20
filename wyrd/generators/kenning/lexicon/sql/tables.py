@@ -525,3 +525,109 @@ Index(
     empirical_priors_loan.c.era_midpoint,
 )
 Index("idx_priors_loan_lemma", empirical_priors_loan.c.lemma_ref)
+
+# ---------------------------------------------------------------------------
+# Briggs EPNS personal-names index (wyrd-uzoh / 0010)
+#
+# Missing from tables.py when migration 0010 shipped — pre-existing
+# drift caught during the wyrd-rrse audit. Same class of bug as
+# fantasy_morpheme below: alembic migration added the tables, but
+# the SA Core MetaData wasn't updated in lockstep, so future
+# autogenerate runs would have produced a spurious "drop these
+# tables" diff.
+# ---------------------------------------------------------------------------
+
+personal_name = Table(
+    "personal_name",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("headform", Text, nullable=False),
+    Column("normalized_form", Text, nullable=False),
+    Column("language_hints", Text),
+    Column("is_feminine", Integer, nullable=False, server_default=text("0")),
+    Column("pase_count", Integer),
+    Column("has_dlv", Integer, nullable=False, server_default=text("0")),
+    Column("ascharter_refs", Text),
+    Column("source_doc", Text, nullable=False),
+    Column("raw_entry", Text),
+)
+Index(
+    "idx_personal_name_headform_source",
+    personal_name.c.headform,
+    personal_name.c.source_doc,
+    unique=True,
+)
+Index("idx_personal_name_normalized", personal_name.c.normalized_form)
+
+personal_name_toponym_attestation = Table(
+    "personal_name_toponym_attestation",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column(
+        "personal_name_id",
+        Integer,
+        ForeignKey("personal_name.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    Column("toponym_form", Text, nullable=False),
+    Column("attested_variant", Text),
+    Column("county_code", Text, nullable=False),
+    Column("county_canonical", Text, nullable=False),
+    Column("date_qualifier", Text),
+    Column("is_uncertain", Integer, nullable=False, server_default=text("0")),
+    Column("is_serious_doubt", Integer, nullable=False, server_default=text("0")),
+    Column("source_doc", Text, nullable=False),
+    Column("raw_text", Text),
+)
+# COALESCE-padded UNIQUE on the dedup tuple — see migration 0010.
+Index(
+    "idx_pn_toponym_dedup",
+    personal_name_toponym_attestation.c.personal_name_id,
+    personal_name_toponym_attestation.c.toponym_form,
+    personal_name_toponym_attestation.c.county_code,
+    text("COALESCE(attested_variant, '')"),
+    text("COALESCE(date_qualifier, '')"),
+    unique=True,
+)
+Index(
+    "idx_pn_toponym_form",
+    personal_name_toponym_attestation.c.toponym_form,
+    personal_name_toponym_attestation.c.county_canonical,
+)
+Index(
+    "idx_pn_toponym_personal_name",
+    personal_name_toponym_attestation.c.personal_name_id,
+)
+
+# ---------------------------------------------------------------------------
+# Fantasy-morpheme research log (wyrd-ami / wyrd-rrse 0011)
+# ---------------------------------------------------------------------------
+
+fantasy_morpheme = Table(
+    "fantasy_morpheme",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    # COLLATE NOCASE so "Harpy" / "harpy" dedup under
+    # UNIQUE(input_name, approach_version) — see migration 0011.
+    # Same idiom as etymon_variant.form (line 201). Without the
+    # collation here, ``alembic revision --autogenerate`` would
+    # produce a spurious "drop COLLATE" diff against a live DB.
+    Column("input_name", String(collation="NOCASE"), nullable=False),
+    Column("input_description", Text),
+    Column("usable", Integer, CheckConstraint("usable IN (0, 1)"), nullable=False),
+    Column("etymon_id", Integer, ForeignKey("etymon.id", ondelete="SET NULL")),
+    Column("bar_reason", Text),
+    Column("resolution_method", Text, nullable=False),
+    Column("approach_version", Text, nullable=False),
+    Column("confidence", Text),
+    Column("citation", Text),
+    Column("reasoning", Text),
+    Column("unapproved_language", Text),
+    Column("unapproved_form", Text),
+    Column("processed_at", Text, nullable=False),
+    UniqueConstraint("input_name", "approach_version"),
+)
+Index("idx_fantasy_morpheme_approach", fantasy_morpheme.c.approach_version)
+Index("idx_fantasy_morpheme_etymon", fantasy_morpheme.c.etymon_id)
+Index("idx_fantasy_morpheme_usable", fantasy_morpheme.c.usable)
+Index("idx_fantasy_morpheme_unapproved", fantasy_morpheme.c.unapproved_language)
