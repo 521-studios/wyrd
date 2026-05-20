@@ -74,6 +74,19 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
     "count (wyrd-4hx7 corpus-mined gap-fills, treated like rando-port).",
 )
 @click.option(
+    "--include-wave2-enriched/--no-include-wave2-enriched",
+    default=True,
+    show_default=True,
+    help="wyrd-z3cp: Include families containing any etymon with non-NULL "
+    "english_shaped, regardless of witness count or citation. Covers the "
+    "wyrd-vsrn Phase 2c non-Latin source languages — every entry in "
+    "PHASE2A_NON_LATIN_LANGS (he, ar, fa, sa, akk, egy, arc, plus the "
+    "precursor / postcursor stack codes hbo, peo, pal, fa-cls, xpr, syc, "
+    "cop, axm, pra, pi) that the wiktextract bulk path ingested without "
+    "wiktionary-empirical citations. Without this, the bundle's "
+    "<lang>_english_shaped / _transliteration siblings have no data.",
+)
+@click.option(
     "--joiners-from",
     "joiners_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
@@ -93,6 +106,7 @@ def lexicon_export_meanings(
     use_preset: bool,
     include_rando: bool,
     include_wiktionary_empirical: bool,
+    include_wave2_enriched: bool,
     joiners_path: Path | None,
 ) -> None:
     """Export the lexicon DB as a meanings.json document for the runtime.
@@ -115,6 +129,7 @@ def lexicon_export_meanings(
             lang_thresholds=lang_thresholds,
             include_rando=include_rando,
             include_wiktionary_empirical=include_wiktionary_empirical,
+            include_wave2_enriched=include_wave2_enriched,
         )
         canonical_decompositions = collect_canonical_decompositions(db)
         fantasy_morphemes = collect_fantasy_morphemes(db)

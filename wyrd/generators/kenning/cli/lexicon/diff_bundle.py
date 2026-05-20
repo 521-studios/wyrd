@@ -101,6 +101,12 @@ from wyrd.generators.kenning.lexicon import (
     default=True,
     show_default=True,
 )
+@click.option(
+    "--include-wave2-enriched/--no-include-wave2-enriched",
+    default=True,
+    show_default=True,
+    help="wyrd-z3cp: matches export-meanings's flag of the same name.",
+)
 def lexicon_diff_bundle(
     jsonl_dir: Path,
     bundle_path: Path,
@@ -112,6 +118,7 @@ def lexicon_diff_bundle(
     use_preset: bool,
     include_rando: bool,
     include_wiktionary_empirical: bool,
+    include_wave2_enriched: bool,
 ) -> None:
     """Operator-runnable real-data round-trip drift check (wyrd-w3x0).
 
@@ -159,6 +166,7 @@ def lexicon_diff_bundle(
             lang_thresholds=lang_thresholds,
             include_rando=include_rando,
             include_wiktionary_empirical=include_wiktionary_empirical,
+            include_wave2_enriched=include_wave2_enriched,
             joiners=joiners,
         )
 
@@ -231,6 +239,7 @@ def _assemble_bundle_dict(
     lang_thresholds: dict[str, int],
     include_rando: bool,
     include_wiktionary_empirical: bool,
+    include_wave2_enriched: bool,
     joiners: dict[str, Any],
 ) -> dict[str, Any]:
     """Build the bundle dict the same way lexicon_export_meanings does.
@@ -245,6 +254,7 @@ def _assemble_bundle_dict(
             lang_thresholds=lang_thresholds,
             include_rando=include_rando,
             include_wiktionary_empirical=include_wiktionary_empirical,
+            include_wave2_enriched=include_wave2_enriched,
         )
         canonical_decompositions = collect_canonical_decompositions(db)
         fantasy_morphemes = collect_fantasy_morphemes(db)

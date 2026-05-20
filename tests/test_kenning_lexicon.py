@@ -8637,6 +8637,86 @@ def test_export_meanings_partial_english_shaped_emits_only_populated(fresh_db: P
     ]
 
 
+def test_export_meanings_wave2_enriched_promotes_uncited_etymons(fresh_db: Path) -> None:
+    """wyrd-z3cp: an etymon with non-NULL english_shaped is admitted to
+    the bundle even when it has zero scholar citations + zero
+    wiktionary-empirical citations. Without this promotion path the
+    wave-2 non-Latin source-language enrichment (wyrd-vsrn Phase 2c)
+    never reaches the bundle — they're ingested by the wiktextract
+    bulk path WITHOUT citations and would fail every other promotion
+    rule.
+
+    Reproduction: seed a Hebrew etymon WITHOUT any citation, set its
+    english_shaped, run export_meanings with include_rando=False +
+    include_wiktionary_empirical=False (so only the wave-2 path can
+    admit it), and confirm the bundle contains the family + its
+    hebrew_english_shaped sibling."""
+    with LexiconDB(fresh_db) as db:
+        # No citation seed — drop directly into etymon.
+        cur = db.conn.execute(
+            "INSERT INTO etymon (canonical_form, language, english_shaped) "
+            "VALUES ('גולם', 'he', 'golem')"
+        )
+        db.conn.execute(
+            "INSERT INTO etymon_gloss (etymon_id, gloss) VALUES (?, 'monster')",
+            (cur.lastrowid,),
+        )
+        db.commit()
+
+        # With include_wave2_enriched=False (default would admit it):
+        # only the rando + wiktionary-empirical paths apply → no admit.
+        subjects_off = export_meanings(
+            db,
+            include_rando=False,
+            include_wiktionary_empirical=False,
+            include_wave2_enriched=False,
+        )
+        # With include_wave2_enriched=True: the english_shaped value
+        # alone admits the family.
+        subjects_on = export_meanings(
+            db,
+            include_rando=False,
+            include_wiktionary_empirical=False,
+            include_wave2_enriched=True,
+        )
+
+    assert subjects_off == [], (
+        "with include_wave2_enriched=False the uncited Hebrew etymon must NOT "
+        "appear in the bundle — the other three promotion paths can't admit it"
+    )
+    assert len(subjects_on) >= 1, (
+        "include_wave2_enriched=True should admit the Hebrew family via "
+        "the non-NULL english_shaped marker"
+    )
+    # The promoted subject carries the hebrew form array + its
+    # english_shaped sibling — closing the bug-report loop on wyrd-z3cp.
+    word = subjects_on[0]["words"][0]
+    assert "hebrew" in word
+    assert word["hebrew_english_shaped"] == [
+        {"form": "גולם", "english_shaped": "golem"},
+    ]
+
+
+def test_export_meanings_wave2_enriched_defaults_to_true(fresh_db: Path) -> None:
+    """Default behavior includes wave-2 enriched families — operators
+    who don't pass the flag get the new admit path. Pinning the default
+    so a future toggle to False (which would hide ~23K live-DB families
+    from the bundle) trips this test loudly."""
+    with LexiconDB(fresh_db) as db:
+        cur = db.conn.execute(
+            "INSERT INTO etymon (canonical_form, language, english_shaped) "
+            "VALUES ('גולם', 'he', 'golem')"
+        )
+        db.conn.execute(
+            "INSERT INTO etymon_gloss (etymon_id, gloss) VALUES (?, 'monster')",
+            (cur.lastrowid,),
+        )
+        db.commit()
+        # No explicit flag — exercise the default.
+        subjects = export_meanings(db, include_rando=False, include_wiktionary_empirical=False)
+    assert len(subjects) >= 1, "wave-2 enriched admit must be on by default"
+
+
 def test_export_meanings_emits_stratum_per_language(fresh_db: Path) -> None:
     """wyrd-lr4 Phase 2: a Welsh-family word entry carries a
     ``celtic_mix_stratum`` array when at least one member etymon has a
