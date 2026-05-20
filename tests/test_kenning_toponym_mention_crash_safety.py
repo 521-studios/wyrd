@@ -1,0 +1,342 @@
+"""Tests for crash-safe mining (wyrd-w7i3).
+
+The staged miner streams each successful chunk's mentions to an
+in-progress log under ``<output_dir>/_inprogress/<source>.chunks.jsonl``
+and fsyncs after every chunk. SIGTERM/crash mid-source leaves the
+log behind; ``recover-inprogress-chunks`` promotes/merges it into
+the canonical ``<source>.jsonl``.
+
+These tests exercise the contract at the extractor level (the
+``on_chunk_mentions`` callback) and the CLI level (the recovery
+command), avoiding real LLM calls via the FakeClient pattern.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+from click.testing import CliRunner
+
+from wyrd.generators.kenning.cli import cli as cli_root
+from wyrd.generators.kenning.extractors.toponym_mentions import (
+    ToponymMention,
+    chunk_source_body,
+    mine_toponym_mentions,
+)
+
+
+class FakeClient:
+    """Replays canned chat_json responses; raise on Exception slots."""
+
+    def __init__(self, responses: list[Any]):
+        self.model = "fake-test-model"
+        self._responses = list(responses)
+        self.calls: list[tuple[str, str, dict | None]] = []
+
+    def chat_json(self, system: str, user: str, schema: dict | None = None) -> dict:
+        self.calls.append((system, user, schema))
+        if not self._responses:
+            raise StopIteration("FakeClient ran out of canned responses")
+        nxt = self._responses.pop(0)
+        if isinstance(nxt, Exception):
+            raise nxt
+        return nxt
+
+
+def _three_chunk_body() -> str:
+    """Deterministically 3-chunk body at target_chunk_size=10000."""
+    p1 = "A" * 7995 + " Edlin"
+    p2 = "B" * 7996 + " Wear"
+    p3 = "C" * 7996 + " Tyne"
+    return f"{p1}\n\n{p2}\n\n{p3}"
+
+
+def test_three_chunk_body_indeed_chunks_to_three():
+    assert len(chunk_source_body(_three_chunk_body(), target_chunk_size=10000)) == 3
+
+
+# ---------- extractor-level on_chunk_mentions callback ------------------
+
+
+def test_on_chunk_mentions_fires_per_successful_chunk():
+    """Callback is invoked once per SUCCESSFUL chunk with that chunk's
+    mentions only — not the cumulative report."""
+    client = FakeClient(
+        [
+            {"mentions": [{"form": "Edlin", "context": "Edlin"}]},
+            {"mentions": []},
+            {"mentions": [{"form": "Tyne", "context": "Tyne"}]},
+        ]
+    )
+    seen: list[tuple[int, list[str]]] = []
+
+    def _capture(chunk_index: int, mentions: list[ToponymMention]) -> None:
+        seen.append((chunk_index, [m.form for m in mentions]))
+
+    report = mine_toponym_mentions(
+        client,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        on_chunk_mentions=_capture,
+    )
+    assert report.chunks_processed == 3
+    assert seen == [(0, ["Edlin"]), (1, []), (2, ["Tyne"])]
+
+
+def test_on_chunk_mentions_skipped_on_failed_chunk():
+    """Failed chunks (LLM raised) do NOT invoke on_chunk_mentions —
+    only on_chunk_failed. The chunk_index increments are gap-aware."""
+    client = FakeClient(
+        [
+            {"mentions": [{"form": "Edlin", "context": "Edlin"}]},
+            RuntimeError("transport boom"),
+            {"mentions": [{"form": "Tyne", "context": "Tyne"}]},
+        ]
+    )
+    seen_ok: list[tuple[int, list[str]]] = []
+
+    def _capture(chunk_index: int, mentions: list[ToponymMention]) -> None:
+        seen_ok.append((chunk_index, [m.form for m in mentions]))
+
+    report = mine_toponym_mentions(
+        client,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+        on_chunk_mentions=_capture,
+    )
+    assert report.chunks_processed == 2
+    assert report.chunks_failed == 1
+    # The skipped chunk_index (1) is absent from the mentions stream.
+    assert seen_ok == [(0, ["Edlin"]), (2, ["Tyne"])]
+
+
+# ---------- recover-inprogress-chunks CLI -------------------------------
+
+
+def _write_jsonl(path: Path, rows: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as fh:
+        for row in rows:
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def _read_jsonl(path: Path) -> list[dict]:
+    return [json.loads(ln) for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+
+
+def test_recover_promotes_when_canonical_missing(tmp_path: Path):
+    """Fresh-mining crash: in-progress log exists, canonical does NOT.
+    Recovery renames the log to the canonical path."""
+    output_dir = tmp_path / "phase2"
+    inprogress = output_dir / "_inprogress" / "src_a.chunks.jsonl"
+    _write_jsonl(
+        inprogress,
+        [
+            {
+                "source_id": "src_a",
+                "form": "Foo",
+                "date_year": None,
+                "region_hint": None,
+                "context": "Foo",
+                "extractor": "x:y",
+            },
+            {
+                "source_id": "src_a",
+                "form": "Bar",
+                "date_year": 1066,
+                "region_hint": "Wessex",
+                "context": "Bar in Wessex",
+                "extractor": "x:y",
+            },
+        ],
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root, ["lexicon", "recover-inprogress-chunks", "--output-dir", str(output_dir)]
+    )
+    assert result.exit_code == 0, result.output
+
+    canonical = output_dir / "src_a.jsonl"
+    assert canonical.exists()
+    assert not inprogress.exists()
+    rows = _read_jsonl(canonical)
+    assert [r["form"] for r in rows] == ["Foo", "Bar"]
+
+
+def test_recover_merges_with_dedup_when_canonical_exists(tmp_path: Path):
+    """Resume-from-failures crash: canonical exists (with existing
+    rows); in-progress log has some new + some duplicate rows.
+    Recovery preserves canonical rows verbatim and adds only the
+    novel ones."""
+    output_dir = tmp_path / "phase2"
+    canonical = output_dir / "src_b.jsonl"
+    inprogress = output_dir / "_inprogress" / "src_b.chunks.jsonl"
+
+    _write_jsonl(
+        canonical,
+        [
+            {
+                "source_id": "src_b",
+                "form": "Alpha",
+                "date_year": None,
+                "region_hint": None,
+                "context": "Alpha",
+                "extractor": "stage1:gemma",
+            },
+        ],
+    )
+    _write_jsonl(
+        inprogress,
+        [
+            # Duplicate (same form/year/region/context as Alpha above).
+            {
+                "source_id": "src_b",
+                "form": "Alpha",
+                "date_year": None,
+                "region_hint": None,
+                "context": "Alpha",
+                "extractor": "stage2:gemini",
+            },
+            # Novel.
+            {
+                "source_id": "src_b",
+                "form": "Beta",
+                "date_year": 1100,
+                "region_hint": None,
+                "context": "Beta",
+                "extractor": "stage2:gemini",
+            },
+        ],
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root, ["lexicon", "recover-inprogress-chunks", "--output-dir", str(output_dir)]
+    )
+    assert result.exit_code == 0, result.output
+
+    assert not inprogress.exists()
+    rows = _read_jsonl(canonical)
+    assert len(rows) == 2
+    # Existing row preserved verbatim (extractor field unchanged).
+    assert rows[0]["form"] == "Alpha"
+    assert rows[0]["extractor"] == "stage1:gemma"
+    # Novel row added, keeps its own extractor.
+    assert rows[1]["form"] == "Beta"
+    assert rows[1]["extractor"] == "stage2:gemini"
+
+
+def test_recover_dry_run_writes_nothing(tmp_path: Path):
+    """--dry-run reports what would happen but leaves all files intact."""
+    output_dir = tmp_path / "phase2"
+    inprogress = output_dir / "_inprogress" / "src_c.chunks.jsonl"
+    _write_jsonl(
+        inprogress,
+        [
+            {
+                "source_id": "src_c",
+                "form": "Foo",
+                "date_year": None,
+                "region_hint": None,
+                "context": "Foo",
+                "extractor": "x:y",
+            }
+        ],
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        ["lexicon", "recover-inprogress-chunks", "--output-dir", str(output_dir), "--dry-run"],
+    )
+    assert result.exit_code == 0, result.output
+
+    canonical = output_dir / "src_c.jsonl"
+    assert not canonical.exists()
+    assert inprogress.exists()
+    assert "dry-run" in result.stderr
+
+
+def test_recover_handles_empty_inprogress_log(tmp_path: Path):
+    """Edge case: source was started but no chunk succeeded before the
+    crash. The empty log is cleaned up; no canonical file is created."""
+    output_dir = tmp_path / "phase2"
+    inprogress = output_dir / "_inprogress" / "src_d.chunks.jsonl"
+    inprogress.parent.mkdir(parents=True, exist_ok=True)
+    inprogress.write_text("", encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root, ["lexicon", "recover-inprogress-chunks", "--output-dir", str(output_dir)]
+    )
+    assert result.exit_code == 0, result.output
+
+    assert not inprogress.exists()
+    assert not (output_dir / "src_d.jsonl").exists()
+
+
+def test_recover_no_inprogress_dir_is_no_op(tmp_path: Path):
+    """Pristine output_dir with no _inprogress subdir → command emits a
+    notice and exits cleanly."""
+    output_dir = tmp_path / "phase2"
+    output_dir.mkdir(parents=True)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root, ["lexicon", "recover-inprogress-chunks", "--output-dir", str(output_dir)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "No in-progress logs" in result.stderr
+
+
+# ---------- staged-miner in-progress helpers ----------------------------
+
+
+def test_inprogress_path_layout(tmp_path: Path):
+    """In-progress logs live under <output_dir>/_inprogress/<source>.chunks.jsonl —
+    the recovery CLI greps for that layout, so the convention is load-bearing."""
+    from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions_staged import (
+        _inprogress_path,
+    )
+
+    p = _inprogress_path(tmp_path / "phase2", "ekwall_1922_lancashire")
+    assert p == tmp_path / "phase2" / "_inprogress" / "ekwall_1922_lancashire.chunks.jsonl"
+
+
+def test_check_inprogress_clear_rejects_existing_log(tmp_path: Path):
+    """Pre-existing in-progress log blocks mining — silently overwriting
+    it would lose the prior crash's recovery candidate."""
+    import click
+    import pytest
+
+    from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions_staged import (
+        _check_inprogress_clear,
+        _inprogress_path,
+    )
+
+    output_dir = tmp_path / "phase2"
+    inprogress = _inprogress_path(output_dir, "src")
+    inprogress.parent.mkdir(parents=True)
+    inprogress.write_text("partial-data\n", encoding="utf-8")
+
+    with pytest.raises(click.ClickException) as exc:
+        _check_inprogress_clear(inprogress, output_dir)
+    assert "recover-inprogress-chunks" in str(exc.value.message)
+
+
+def test_check_inprogress_clear_passes_when_no_log(tmp_path: Path):
+    """No log → mining proceeds without exception."""
+    from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions_staged import (
+        _check_inprogress_clear,
+        _inprogress_path,
+    )
+
+    output_dir = tmp_path / "phase2"
+    inprogress = _inprogress_path(output_dir, "src")
+    # File does not exist; should not raise.
+    _check_inprogress_clear(inprogress, output_dir)

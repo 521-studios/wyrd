@@ -140,6 +140,9 @@ from wyrd.generators.kenning.cli.lexicon import rando_port_readiness as _rando_p
 from wyrd.generators.kenning.cli.lexicon import (
     rebuild_from_jsonl as _rebuild_from_jsonl_module,
 )
+from wyrd.generators.kenning.cli.lexicon import (
+    recover_inprogress_chunks as _recover_inprogress_chunks_module,
+)
 from wyrd.generators.kenning.cli.lexicon import refill_short_quotes as _refill_short_quotes_module
 from wyrd.generators.kenning.cli.lexicon import (
     report as _report_module,
@@ -238,6 +241,7 @@ _prune_toponym_module.add_to(lexicon)
 _push_bulk_sources_module.add_to(lexicon)
 _rando_port_readiness_module.add_to(lexicon)
 _rebuild_from_jsonl_module.add_to(lexicon)
+_recover_inprogress_chunks_module.add_to(lexicon)
 _refill_short_quotes_module.add_to(lexicon)
 _reverse_search_toponyms_module.add_to(lexicon)
 _review_module.add_to(lexicon)

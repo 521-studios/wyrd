@@ -677,6 +677,7 @@ def mine_toponym_mentions(
     limit: int | None = None,
     on_chunk_done: Callable[[int, int, int], None] | None = None,
     on_chunk_failed: Callable[[FailedChunk], None] | None = None,
+    on_chunk_mentions: Callable[[int, list[ToponymMention]], None] | None = None,
     log_warning: Callable[[str], None] | None = None,
 ) -> MineToponymMentionsReport:
     """Walk a source body chunk-by-chunk, accumulating extracted
@@ -695,6 +696,12 @@ def mine_toponym_mentions(
       staged-cascade CLI to stream failures to a JSONL file as they
       happen (wyrd-srd2) — bypassing the report's in-memory cap.
       Defaults to None (silent).
+    * ``on_chunk_mentions`` — invoked for every SUCCESSFUL chunk with
+      ``(chunk_index, mentions_in_this_chunk)`` BEFORE ``on_chunk_done``.
+      Used by the staged-cascade CLI (wyrd-w7i3) to stream per-chunk
+      mentions to a durable in-progress log so SIGTERM/crash mid-source
+      doesn't lose hours of LLM inference. The list is the chunk's
+      mentions only (not the cumulative report). Defaults to None.
     * ``log_warning`` — optional sink for diagnostic warnings
       (oversize paragraph, etc.). Defaults to silent; the CLI wires
       ``click.echo(..., err=True)``.
@@ -709,6 +716,7 @@ def mine_toponym_mentions(
         target_chunk_size=target_chunk_size,
         on_chunk_done=on_chunk_done,
         on_chunk_failed=on_chunk_failed,
+        on_chunk_mentions=on_chunk_mentions,
         log_warning=log_warning,
     )
 
@@ -721,6 +729,7 @@ def mine_toponym_mentions_from_chunks(
     target_chunk_size: int = 20000,
     on_chunk_done: Callable[[int, int, int], None] | None = None,
     on_chunk_failed: Callable[[FailedChunk], None] | None = None,
+    on_chunk_mentions: Callable[[int, list[ToponymMention]], None] | None = None,
     log_warning: Callable[[str], None] | None = None,
 ) -> MineToponymMentionsReport:
     """Mine a list of pre-chunked ``(chunk_index, chunk_body)`` tuples.
@@ -744,6 +753,7 @@ def mine_toponym_mentions_from_chunks(
         target_chunk_size=target_chunk_size,
         on_chunk_done=on_chunk_done,
         on_chunk_failed=on_chunk_failed,
+        on_chunk_mentions=on_chunk_mentions,
         log_warning=log_warning,
     )
 
@@ -756,6 +766,7 @@ def _process_indexed_chunks(
     target_chunk_size: int,
     on_chunk_done: Callable[[int, int, int], None] | None,
     on_chunk_failed: Callable[[FailedChunk], None] | None,
+    on_chunk_mentions: Callable[[int, list[ToponymMention]], None] | None,
     log_warning: Callable[[str], None] | None,
 ) -> MineToponymMentionsReport:
     """Inner per-chunk loop shared by :func:`mine_toponym_mentions`
@@ -818,6 +829,12 @@ def _process_indexed_chunks(
         report.chunks_processed += 1
         report.hallucinations_dropped += chunk_counters.hallucinations_dropped
         report.years_clamped += chunk_counters.years_clamped
+        # on_chunk_mentions fires BEFORE on_chunk_done so a durable
+        # write completes before the operator-visible progress line
+        # (wyrd-w7i3 crash-safety: SIGTERM after the progress echo
+        # but before persistence would still lose data).
+        if on_chunk_mentions is not None:
+            on_chunk_mentions(i, mentions)
         if on_chunk_done is not None:
             on_chunk_done(done, total, len(report.mentions))
     # Merge head + tail. List shape preserves indices for the CLI's

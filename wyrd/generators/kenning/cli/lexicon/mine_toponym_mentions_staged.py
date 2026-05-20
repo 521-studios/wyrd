@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import click
@@ -14,6 +16,68 @@ from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions_tiered import (
     _make_chunk_callbacks,
     _read_failures_jsonl,
 )
+from wyrd.generators.kenning.extractors.toponym_mentions import ToponymMention
+
+# wyrd-w7i3: in-progress chunk-log directory under each --output-dir.
+# A SIGTERM/crash mid-source leaves <_INPROGRESS_SUBDIR>/<source>.chunks.jsonl
+# behind, which the ``recover-inprogress-chunks`` CLI promotes/merges
+# into the canonical <source>.jsonl on next operator pass.
+_INPROGRESS_SUBDIR = "_inprogress"
+_INPROGRESS_SUFFIX = ".chunks.jsonl"
+
+
+def _inprogress_path(output_dir: Path, source_id: str) -> Path:
+    """Per-source in-progress chunk-log path (wyrd-w7i3)."""
+    return output_dir / _INPROGRESS_SUBDIR / f"{source_id}{_INPROGRESS_SUFFIX}"
+
+
+def _check_inprogress_clear(inprogress: Path, output_dir: Path) -> None:
+    """Refuse to mine a source whose in-progress log already exists —
+    silently overwriting would lose the prior crash's recovery candidate.
+
+    The operator must either run ``recover-inprogress-chunks`` (which
+    promotes/merges the log into the canonical file and removes it)
+    or delete the file explicitly. wyrd-w7i3.
+    """
+    if inprogress.exists():
+        raise click.ClickException(
+            f"in-progress chunk log already exists: {inprogress}\n"
+            f"This indicates a prior mining run was interrupted mid-source.\n"
+            f"Recover the data first:\n"
+            f"  wyrd kenning lexicon recover-inprogress-chunks --output-dir {output_dir}\n"
+            f"Or, to discard, remove the file manually."
+        )
+
+
+def _make_chunk_mentions_writer(
+    sink,
+    source_id: str,
+    line_fn: Callable[[str, ToponymMention], str],
+) -> Callable[[int, list[ToponymMention]], None]:
+    """Build the ``on_chunk_mentions`` callback that streams per-chunk
+    mentions to the in-progress log and fsyncs them so SIGTERM cannot
+    lose the chunk's work (wyrd-w7i3).
+
+    Each chunk's mentions are written in canonical JSONL form (same
+    ``line_fn`` used by the final atomic-write path), so the in-progress
+    log IS a valid canonical file in the fresh-mining case. The
+    chunk_index parameter is currently unused but is part of the
+    callback contract — kept so a future resume-mid-source feature
+    can persist chunk boundaries without a format break.
+    """
+
+    def _write(chunk_index: int, mentions: list[ToponymMention]) -> None:
+        del chunk_index  # reserved for future resume-mid-source use
+        for m in mentions:
+            sink.write(line_fn(source_id, m) + "\n")
+        sink.flush()
+        # fsync once per chunk (not per mention) — SIGTERM after this
+        # returns is guaranteed to leave the chunk's mentions on disk.
+        # Per-mention fsync would be too expensive for the volumes
+        # involved (thousands of mentions per source).
+        os.fsync(sink.fileno())
+
+    return _write
 
 
 @click.command("mine-toponym-mentions-staged")
@@ -168,8 +232,8 @@ def lexicon_mine_toponym_mentions_staged(
     Output JSONL rows include ``extractor:"provider:model"`` so post-hoc
     analysis can attribute each mention to the stage that captured it.
     """
+    # ToponymMention is imported at module scope (used by _make_chunk_mentions_writer).
     from wyrd.generators.kenning.extractors.toponym_mentions import (
-        ToponymMention,
         mine_toponym_mentions,
         mine_toponym_mentions_from_chunks,
     )
@@ -399,15 +463,30 @@ def _run_resume_from_failures(
             err=True,
         )
 
-        report = mine_fn(
-            client_box["client"],
-            source_id,
-            indexed_chunks,
-            target_chunk_size=chunk_size,
-            on_chunk_done=progress,
-            on_chunk_failed=on_fail,
-            log_warning=warn,
-        )
+        # wyrd-w7i3: crash-safe per-chunk persistence (resume path).
+        # See _run_fresh_mining for the design; here the in-progress
+        # log holds the NEW mentions for this resume invocation. On
+        # crash, the canonical file (still intact via atomic-write) +
+        # the in-progress log are merged by recover-inprogress-chunks.
+        inprogress = _inprogress_path(output_dir, source_id)
+        _check_inprogress_clear(inprogress, output_dir)
+        inprogress.parent.mkdir(parents=True, exist_ok=True)
+        inprogress_sink = inprogress.open("w", encoding="utf-8")
+        try:
+            chunk_writer = _make_chunk_mentions_writer(inprogress_sink, source_id, line_fn)
+            report = mine_fn(
+                client_box["client"],
+                source_id,
+                indexed_chunks,
+                target_chunk_size=chunk_size,
+                on_chunk_done=progress,
+                on_chunk_failed=on_fail,
+                on_chunk_mentions=chunk_writer,
+                log_warning=warn,
+            )
+        except BaseException:
+            inprogress_sink.close()
+            raise
 
         # Atomic-write append: build the union (existing + new-deduped)
         # in a .tmp file, then replace the original. A killed process
@@ -453,6 +532,12 @@ def _run_resume_from_failures(
                 existing_keys.add(key)
                 new_count += 1
         tmp_path.replace(out_path)
+        # Canonical merge succeeded → in-progress log is now redundant.
+        # wyrd-w7i3. On exception above (BaseException branch), the log
+        # remains for recover-inprogress-chunks to merge into the
+        # (still-intact) canonical file.
+        inprogress_sink.close()
+        inprogress.unlink(missing_ok=True)
         if purged_count:
             click.echo(
                 f"    purged {purged_count} malformed row(s) from {out_path}",
@@ -544,23 +629,42 @@ def _run_fresh_mining(
         start_ts = time.monotonic()
         progress, warn, on_fail = _make_chunk_callbacks(source_id, start_ts, emit_failure)
 
-        report = mine_fn(
-            client_box["client"],
-            source_id,
-            body,
-            target_chunk_size=chunk_size,
-            limit=limit,
-            on_chunk_done=progress,
-            on_chunk_failed=on_fail,
-            log_warning=warn,
-        )
+        # wyrd-w7i3: crash-safe per-chunk persistence. Open the
+        # in-progress log BEFORE invoking mine_fn so each successful
+        # chunk's mentions are durably on disk before the next chunk
+        # starts. SIGTERM kills the process between chunks → the log
+        # survives → recover-inprogress-chunks promotes it.
+        inprogress = _inprogress_path(output_dir, source_id)
+        _check_inprogress_clear(inprogress, output_dir)
+        inprogress.parent.mkdir(parents=True, exist_ok=True)
+        inprogress_sink = inprogress.open("w", encoding="utf-8")
+        try:
+            chunk_writer = _make_chunk_mentions_writer(inprogress_sink, source_id, line_fn)
+            report = mine_fn(
+                client_box["client"],
+                source_id,
+                body,
+                target_chunk_size=chunk_size,
+                limit=limit,
+                on_chunk_done=progress,
+                on_chunk_failed=on_fail,
+                on_chunk_mentions=chunk_writer,
+                log_warning=warn,
+            )
 
-        # Atomic write: fresh per-source files use full rewrite.
-        tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
-        with tmp_path.open("w", encoding="utf-8") as sink:
-            for m in report.mentions:
-                sink.write(line_fn(source_id, m) + "\n")
-        tmp_path.replace(out_path)
+            # Atomic write: fresh per-source files use full rewrite.
+            tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+            with tmp_path.open("w", encoding="utf-8") as sink:
+                for m in report.mentions:
+                    sink.write(line_fn(source_id, m) + "\n")
+            tmp_path.replace(out_path)
+        finally:
+            inprogress_sink.close()
+        # Canonical file was atomically written above; the in-progress
+        # log is now redundant. Remove it so the next source mine starts
+        # with a clean slate. (On exception above, we deliberately
+        # DO NOT unlink — the file is the recovery candidate.)
+        inprogress.unlink(missing_ok=True)
 
         click.echo(
             f"  → {out_path} | chunks={report.chunks_processed} "
