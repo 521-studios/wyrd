@@ -527,6 +527,93 @@ def _dump_attestations_for_source(
         yield row
 
 
+def _personal_name_tables_exist(conn: sqlite3.Connection) -> bool:
+    """Briggs PN tables are added by migration 0010; tests + legacy
+    snapshots that build a partial schema may not have them. Guard
+    the dump helpers so they no-op rather than raising OperationalError
+    when the tables are absent."""
+    row = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='personal_name'"
+    ).fetchone()
+    return row is not None
+
+
+def _dump_personal_names_for_source(
+    conn: sqlite3.Connection, source_id: str
+) -> Iterable[dict[str, Any]]:
+    """One ``personal_name`` canonical-state row per PN headform whose
+    ``source_doc`` matches this source (wyrd-11zh). The ``ref`` is the
+    headform — sufficient for the build pass's FK resolution map."""
+    if not _personal_name_tables_exist(conn):
+        return
+    pns = conn.execute(
+        """SELECT headform, normalized_form, language_hints, is_feminine,
+                  pase_count, has_dlv, ascharter_refs, source_doc, raw_entry
+             FROM personal_name
+            WHERE source_doc = ?
+            ORDER BY headform""",
+        (source_id,),
+    ).fetchall()
+    for pn in pns:
+        row: dict[str, Any] = {"_type": "personal_name", "ref": pn["headform"]}
+        row.update(
+            _drop_nulls(
+                {
+                    "headform": pn["headform"],
+                    "normalized_form": pn["normalized_form"],
+                    "language_hints": pn["language_hints"],
+                    "is_feminine": pn["is_feminine"],
+                    "pase_count": pn["pase_count"],
+                    "has_dlv": pn["has_dlv"],
+                    "ascharter_refs": pn["ascharter_refs"],
+                    "source_doc": pn["source_doc"],
+                    "raw_entry": pn["raw_entry"],
+                }
+            )
+        )
+        yield row
+
+
+def _dump_personal_name_attestations_for_source(
+    conn: sqlite3.Connection, source_id: str
+) -> Iterable[dict[str, Any]]:
+    """One ``personal_name_toponym_attestation`` row per (PN, toponym,
+    county) occurrence in this source (wyrd-11zh). Carries
+    ``personal_name_ref`` (= the PN's headform) so the build pass can
+    resolve it against the per-file PN insert map."""
+    if not _personal_name_tables_exist(conn):
+        return
+    rows = conn.execute(
+        """SELECT pn.headform AS personal_name_ref,
+                  a.toponym_form, a.attested_variant, a.county_code,
+                  a.county_canonical, a.date_qualifier,
+                  a.is_uncertain, a.is_serious_doubt, a.source_doc, a.raw_text
+             FROM personal_name_toponym_attestation a
+             JOIN personal_name pn ON pn.id = a.personal_name_id
+            WHERE a.source_doc = ?
+            ORDER BY pn.headform, a.toponym_form, a.county_code""",
+        (source_id,),
+    ).fetchall()
+    for r in rows:
+        yield {
+            "_type": "personal_name_toponym_attestation",
+            **_drop_nulls(
+                {
+                    "personal_name_ref": r["personal_name_ref"],
+                    "toponym_form": r["toponym_form"],
+                    "attested_variant": r["attested_variant"],
+                    "county_code": r["county_code"],
+                    "county_canonical": r["county_canonical"],
+                    "date_qualifier": r["date_qualifier"],
+                    "is_uncertain": r["is_uncertain"],
+                    "is_serious_doubt": r["is_serious_doubt"],
+                    "source_doc": r["source_doc"],
+                    "raw_text": r["raw_text"],
+                }
+            ),
+        }
+
+
 def dump_source_to_rows(conn: sqlite3.Connection, source_id: str) -> list[dict[str, Any]]:
     """Return the full canonical-state row list for one source. Useful
     for tests + for stream-then-write workflows."""
@@ -539,6 +626,11 @@ def dump_source_to_rows(conn: sqlite3.Connection, source_id: str) -> list[dict[s
     rows.extend(_dump_toponyms_and_etymologies(conn, source_id))
     rows.extend(_dump_attestation_only_toponyms(conn, source_id))
     rows.extend(_dump_attestations_for_source(conn, source_id))
+    # wyrd-11zh: Briggs PN ingest round-trip. Only emits rows when
+    # personal_name rows actually exist for this source — non-PN
+    # sources see zero overhead.
+    rows.extend(_dump_personal_names_for_source(conn, source_id))
+    rows.extend(_dump_personal_name_attestations_for_source(conn, source_id))
     return rows
 
 

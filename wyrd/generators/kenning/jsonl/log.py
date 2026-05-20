@@ -73,6 +73,12 @@ KEYED_TYPES: frozenset[str] = frozenset(
         "etymon_curation",
         "toponym",
         "source",
+        # wyrd-11zh: Briggs EPNS personal-names index. ``ref`` is the
+        # PN headform (e.g. ``"Ēadwulf"``). Payload carries PASE count,
+        # DLV/ASCh refs, language hints, feminine marker. Per-file
+        # contract: every Briggs source file contains one ``source``
+        # row plus one ``personal_name`` row per unique headform.
+        "personal_name",
     }
 )
 
@@ -88,6 +94,11 @@ LIST_TYPES: frozenset[str] = frozenset(
         "etymon_descent",
         "mining_run",
         "fantasy_morpheme",
+        # wyrd-11zh: one row per (PN, toponym, county) occurrence from
+        # Briggs. FKs to ``personal_name`` via ``personal_name_ref`` (=
+        # the PN's headform). Same shape as ``attestation`` — append-
+        # only fact rows, no event semantics.
+        "personal_name_toponym_attestation",
     }
 )
 
@@ -140,7 +151,7 @@ class ReplayState:
         writes back to disk.
         """
         out: list[dict[str, Any]] = []
-        for _type in ("etymon", "etymon_curation", "toponym", "source"):
+        for _type in ("etymon", "etymon_curation", "toponym", "source", "personal_name"):
             entries = self.keyed.get(_type, {})
             for ref in sorted(entries):
                 row = {"_type": _type, "ref": ref}
@@ -153,6 +164,7 @@ class ReplayState:
             "etymon_descent",
             "mining_run",
             "fantasy_morpheme",
+            "personal_name_toponym_attestation",
         ):
             for fact in self.lists.get(_type, []):
                 row = {"_type": _type}
