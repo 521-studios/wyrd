@@ -9,7 +9,10 @@ inflected morphological form instead of the modern reflex.
 
 from __future__ import annotations
 
+import json
 import random
+
+from wyrd.generators.kenning.vectors.schemas import PhonologicalVector
 
 # Suffix used in meanings.json to mark per-language variant pools, e.g.
 # "old_english" canonical forms have their variants in "old_english_variants".
@@ -147,6 +150,7 @@ class Meaning:
         pronunciation=None,
         stratum=None,
         era_reflexes=None,
+        phonological_vector=None,
     ):
         self.usage = usage
         self.tags = tags
@@ -227,6 +231,15 @@ class Meaning:
         # dict). Empty for legacy proto-language roots and untracked
         # classical families.
         self.era_reflexes: dict[str, list[tuple[str, str]]] = era_reflexes or {}
+        # wyrd-ecjp.5 / wyrd-kq7w.1: per-meaning phonological vector
+        # consumed by the vector-scoring path's phon_score sub-scorer.
+        # None when the bundle doesn't carry the field (legacy bundles
+        # pre-kq7w.1, or bundles emitted before wyrd-ecjp.8 wires the
+        # column through bundle export). The vector-scoring path treats
+        # None as a default-empty PhonologicalVector — phon_score
+        # returns 0 in that case and the score falls back to the
+        # sem/pos/baseline axes.
+        self.phonological_vector = phonological_vector
         self._set_location()
 
     def _set_location(self):
@@ -580,6 +593,90 @@ def _mimic_case(template: str, variant: str) -> str:
     return variant.lower()
 
 
+def _parse_phon_vector(raw):
+    """wyrd-ecjp.5: parse a per-meaning phonological vector from the
+    bundle's ``phonological_vector`` field. Accepts:
+
+    * ``None`` / missing — return None (legacy bundles, pre-kq7w.1).
+    * a dict — already-parsed JSON shape (bundle-export emits this
+      directly under wyrd-ecjp.8); construct a PhonologicalVector
+      from it, dropping unknown keys silently.
+    * a str — JSON blob (the raw etymon.phonological_vector column
+      shape, in case a bundle embeds the column verbatim).
+
+    Returns a PhonologicalVector or None. Never raises — a malformed
+    vector blob (non-numeric value, nested-dict / list / None at a
+    dimension key, JSON decode failure, non-dict extras) falls back
+    to None and the vector-scoring path treats it as a default-empty
+    vector (phon_score returns 0). The contract is "best-effort
+    parse; degrade silently rather than crash NameGenerator startup
+    on one bad bundle row."
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (ValueError, TypeError):
+            return None
+    if not isinstance(raw, dict):
+        return None
+    # Build the dataclass kwargs from the known dimension names; drop
+    # unknowns to extras for forward-compat with future dimension
+    # additions. Wrap the float() coercions in try/except: a malformed
+    # value at any dimension key (None, nested dict, non-numeric str)
+    # would otherwise raise TypeError / ValueError and propagate out
+    # of load_meanings — the "never raises" contract requires the
+    # whole-row fallback to None.
+    try:
+        kwargs = {k: float(v) for k, v in raw.items() if k in _PHON_KNOWN_DIM_NAMES}
+        extras_in = raw.get("extras")
+        if isinstance(extras_in, dict):
+            extras_in = {k: float(v) for k, v in extras_in.items()}
+        else:
+            # Non-dict extras (e.g. operator hand-edit gone wrong) →
+            # treat as absent rather than crashing.
+            extras_in = {}
+        # Capture any unknown top-level keys as extras alongside the
+        # explicit extras dict (forward-compat: bundle may emit new
+        # dims at top level before the schema's named-fields list
+        # catches up).
+        extra_kwargs = {
+            k: float(v) for k, v in raw.items() if k not in _PHON_KNOWN_DIM_NAMES and k != "extras"
+        }
+    except (TypeError, ValueError):
+        return None
+    extras = {**extras_in, **extra_kwargs}
+    if extras:
+        return PhonologicalVector(extras=extras, **kwargs)
+    return PhonologicalVector(**kwargs)
+
+
+# Module-level constant: the 14 canonical PhonologicalVector dimensions
+# (cluster_density, final_fortition, etc.). Used by _parse_phon_vector
+# to route bundle-emitted keys to dataclass kwargs vs the extras
+# forward-compat slot. Hoisted from a function-local set so it's built
+# once at import time rather than per-Meaning load.
+_PHON_KNOWN_DIM_NAMES = frozenset(
+    {
+        "cluster_density",
+        "final_fortition",
+        "final_cluster_rate",
+        "vowel_final_bias",
+        "soft_consonants",
+        "polysyllabic_bias",
+        "palatalization",
+        "sibilance",
+        "retroflexion",
+        "pharyngeal",
+        "vowel_height",
+        "vowel_backness",
+        "stop_vs_continuant",
+        "aspirated_voiceless",
+    }
+)
+
+
 def _normalize_era_reflexes(
     raw: dict,
 ) -> dict[str, list[tuple[str, str]]]:
@@ -825,6 +922,14 @@ def load_meanings(data):
             # (form, source) tuple shape.
             era_reflexes_field = word.get("era_reflexes") or {}
             era_reflexes = _normalize_era_reflexes(era_reflexes_field)
+            # wyrd-ecjp.5 / wyrd-kq7w.1: per-meaning phonological vector.
+            # Bundle-export wires this through under wyrd-ecjp.8 (Phase
+            # 7 bundle changes); legacy bundles emit no field, so the
+            # default is None. Reading happens here once at bundle-load
+            # time; the vector-scoring runtime path reads
+            # ``meaning.phonological_vector`` per scoring call.
+            phon_blob = word.get("phonological_vector")
+            phonological_vector = _parse_phon_vector(phon_blob)
             # Singular and plural Meanings share every constructor arg
             # except `usage`. Bundle them so a future kwarg addition can't
             # silently drop on one branch and not the other.
@@ -842,6 +947,7 @@ def load_meanings(data):
                 "pronunciation": pronunciation,
                 "stratum": stratum,
                 "era_reflexes": era_reflexes,
+                "phonological_vector": phonological_vector,
             }
             meaning = Meaning(usage, **common_kwargs)
             for tag in tags:
