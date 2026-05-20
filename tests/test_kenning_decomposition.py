@@ -2841,3 +2841,70 @@ def test_decompose_all_empty_db_fast_path(fresh_db: Path) -> None:
         "no-canonical",
     ):
         assert result[key] == 0
+
+
+def test_decompose_all_accumulates_per_rule_firings(fresh_db: Path) -> None:
+    """A mixed-rule fixture exercises three of the five rule-firing
+    paths in one pass and proves the rule_counts dict accumulates
+    per-toponym, not just per-DB. Pins wyrd-s9z3 acceptance: rule
+    distribution coverage beyond the empty-DB fast path.
+
+    Setup:
+      - First Stratford: has a scholar etymology that aligns with the
+        decomposition (strat- + -ford) → rule "scholar".
+      - Second Stratford: same decomposable name, no scholar row → the
+        single [Strat-, -ford] decomp is the only zero-unaccounted
+        candidate → rule "unique-zero-unaccounted".
+      - Xyzname: no morpheme matches anywhere → no canonical pick →
+        rule "no-canonical".
+    """
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        scholar_topo = _insert_toponym(db, "Stratford")
+        _insert_scholar_etymology(
+            db,
+            toponym_id=scholar_topo,
+            elements=[("stræt", "old-english"), ("ford", "old-english")],
+        )
+        # Second Stratford in a different region — same decomposable
+        # name, no scholar etymology row. (modern_name, country, region)
+        # uniqueness lets the same name appear under different regions.
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, region) VALUES ('Stratford', 'Yorkshire')"
+        )
+        _insert_toponym(db, "Xyzname")
+        db.commit()
+        result = decompose_all(db, apply=True, word_db=word_db)
+    assert result["toponyms_scanned"] == 3
+    assert result["scholar"] == 1
+    assert result["unique-zero-unaccounted"] == 1
+    assert result["no-canonical"] == 1
+    # Total firings sum to toponyms_scanned — every toponym lands in
+    # exactly one bucket.
+    total = sum(
+        result[k]
+        for k in (
+            "scholar",
+            "scholar-disagreement",
+            "unique-zero-unaccounted",
+            "tiebreaker",
+            "no-canonical",
+        )
+    )
+    assert total == result["toponyms_scanned"]
+
+
+def test_decompose_all_apply_persists_to_disk(fresh_db: Path) -> None:
+    """apply=True commits — a fresh connection sees the decompositions.
+    Companion to the dry-run test that proves apply=False does NOT."""
+    word_db = _word_db_for(_two_morpheme_subjects())
+    with LexiconDB(fresh_db) as db:
+        topo_id = _insert_toponym(db, "Stratford")
+        decompose_all(db, apply=True, word_db=word_db)
+    with LexiconDB(fresh_db) as db2:
+        persisted = db2.conn.execute(
+            "SELECT COUNT(*) AS c FROM toponym_decomposition WHERE toponym_id = ?",
+            (topo_id,),
+        ).fetchone()["c"]
+    assert persisted >= 1, "apply=True writes were lost across connection boundary"

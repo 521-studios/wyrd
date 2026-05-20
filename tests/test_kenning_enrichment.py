@@ -333,3 +333,155 @@ def test_format_status_handles_empty_db():
     md = format_enrichment_status(status)
     assert "Total etymons: 0" in md
     assert "0.0%" in md
+
+
+# ---------------------------------------------------------------------
+# format_enrichment_run: per-section coverage (wyrd-s9z3)
+# ---------------------------------------------------------------------
+#
+# The existing tests above cover ocr+lemmas + stratum's by_stratum
+# section. Each optional section (decompose, cognates, english_shaped,
+# period_forms) had zero direct render coverage; the absent-section
+# branch was also untested. Without these pins, a future field addition
+# to the result dict could break the renderer for one chain (CLI vs
+# bundled enrichment) without the test suite noticing.
+
+
+def _base_result(**overrides):
+    """Minimal valid result with ocr + lemmas — required by the
+    renderer's unconditional prefix."""
+    base = {
+        "order": ["normalize-ocr", "link-lemmas"],
+        "applied": True,
+        "ocr": {"method_version": OCR_METHOD_VERSION, "groups": 0, "etymons_merged": 0},
+        "lemmas": {"method_version": LEMMA_METHOD_VERSION, "candidates": 0},
+    }
+    base.update(overrides)
+    return base
+
+
+def test_format_run_renders_decompose_section_when_present():
+    """The decompose section prints toponyms_scanned + decompositions
+    + a single-line rule-firings breakdown matching the dict keys
+    decompose_all returns."""
+    result = _base_result(
+        decompose={
+            "applied": 1,
+            "toponyms_scanned": 12,
+            "decompositions": 30,
+            "scholar": 4,
+            "scholar-disagreement": 1,
+            "unique-zero-unaccounted": 5,
+            "tiebreaker": 2,
+            "no-canonical": 0,
+        }
+    )
+    md = format_enrichment_run(result)
+    assert "### Decomposition" in md
+    assert "Toponyms scanned: 12" in md
+    assert "Decompositions written: 30" in md
+    assert "scholar=4" in md
+    assert "scholar-disagreement=1" in md
+    assert "unique-zero=5" in md
+    assert "tiebreaker=2" in md
+    assert "no-canonical=0" in md
+
+
+def test_format_run_omits_decompose_section_when_absent():
+    """When the result dict has no 'decompose' key, the section is
+    absent from the rendered markdown. Pins the optional-section
+    branch."""
+    md = format_enrichment_run(_base_result())
+    assert "### Decomposition" not in md
+
+
+def test_format_run_renders_cognates_section_when_present():
+    result = _base_result(cognates={"roots": 17, "candidates": 42})
+    md = format_enrichment_run(result)
+    assert "### Cognate clustering" in md
+    assert "Roots walked: 17" in md
+    assert "Cognate_id assignments: 42" in md
+
+
+def test_format_run_omits_cognates_section_when_absent():
+    md = format_enrichment_run(_base_result())
+    assert "### Cognate clustering" not in md
+
+
+def test_format_run_renders_english_shaped_section_when_present():
+    """The english_shaped section prints candidates / written /
+    skipped — the three counters derive_english_shaped_all returns."""
+    result = _base_result(english_shaped={"candidates": 50, "written": 47, "skipped_no_input": 3})
+    md = format_enrichment_run(result)
+    assert "### English-shaped derivation" in md
+    assert "Candidates: 50" in md
+    assert "Written: 47" in md
+    assert "Skipped (no input): 3" in md
+
+
+def test_format_run_omits_english_shaped_section_when_absent():
+    md = format_enrichment_run(_base_result())
+    assert "### English-shaped derivation" not in md
+
+
+def test_format_run_renders_period_forms_section_when_present():
+    result = _base_result(
+        period_forms={
+            "rows_scanned": 100,
+            "rows_projected": 80,
+            "candidates": 200,
+            "rows_written": 75,
+        }
+    )
+    md = format_enrichment_run(result)
+    assert "### Period-form projection" in md
+    assert "Rows scanned: 100" in md
+    assert "Projected: 80" in md
+    assert "Candidates: 200" in md
+    assert "Rows written: 75" in md
+
+
+def test_format_run_omits_period_forms_section_when_absent():
+    md = format_enrichment_run(_base_result())
+    assert "### Period-form projection" not in md
+
+
+def test_format_run_renders_all_optional_sections_together():
+    """A full-chain run populates every optional section. Pin the
+    section ordering so the rendered report stays grep-friendly."""
+    result = _base_result(
+        decompose={
+            "applied": 1,
+            "toponyms_scanned": 1,
+            "decompositions": 1,
+            "scholar": 1,
+            "scholar-disagreement": 0,
+            "unique-zero-unaccounted": 0,
+            "tiebreaker": 0,
+            "no-canonical": 0,
+        },
+        cognates={"roots": 1, "candidates": 1},
+        stratum={
+            "applied": 1,
+            "languages": {
+                "welsh": {"proposed": 1, "written": 1, "skipped": 0},
+            },
+        },
+        english_shaped={"candidates": 1, "written": 1, "skipped_no_input": 0},
+        period_forms={
+            "rows_scanned": 1,
+            "rows_projected": 1,
+            "candidates": 1,
+            "rows_written": 1,
+        },
+    )
+    md = format_enrichment_run(result)
+    # Each headline appears exactly once.
+    for heading in (
+        "### Decomposition",
+        "### Cognate clustering",
+        "### Stratum classification",
+        "### English-shaped derivation",
+        "### Period-form projection",
+    ):
+        assert md.count(heading) == 1, f"section heading {heading!r} count mismatch"
