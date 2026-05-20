@@ -42,6 +42,58 @@ Apply these heuristics:
    - **Second choice**: Extract to a sibling helper module under the same generator package.
    - **Last choice**: Keep as an internal function if truly tied to the parent's context.
 
+4. **Nested ternaries**: Chained `x if a else y if b else z` is hard to read once you go past one level. Recommend `match`/`case`, an `if/elif/else` chain, or a dict-dispatch lookup.
+
+   ```python
+   # BAD — three levels, eyes can't follow
+   status = "critical" if cpu > 90 else "warning" if cpu > 70 else "ok" if cpu > 0 else "unknown"
+
+   # GOOD
+   if cpu > 90:
+       status = "critical"
+   elif cpu > 70:
+       status = "warning"
+   elif cpu > 0:
+       status = "ok"
+   else:
+       status = "unknown"
+   ```
+
+   A single ternary (`x if a else y`) is fine; flag at the second `if/else` inside an expression.
+
+5. **Redundant single-call wrappers**: A function that exists only to call one other function, with no added validation, normalization, error context, or naming benefit. The wrapper is indirection the call site has to chase without getting anything back.
+
+   ```python
+   # BAD — wraps str.upper() for no reason
+   def to_upper(s):
+       return s.upper()
+
+   # call site:
+   shouted = to_upper(name)  # why not name.upper()?
+   ```
+
+   Wrappers that add validation, normalization, error context, or are reused enough that the rename earns its keep are fine. The pattern to flag is single-call, single-caller, no-added-meaning.
+
+6. **Generic identifiers in long functions**: Variables and functions named `data`, `temp`, `result`, `value`, `obj`, `thing` in a function with multiple of each. At the call site, the reader has to look up the definition to know what `result` actually is.
+
+   ```python
+   # BAD — three different "result" variables
+   def process(rows):
+       result = parse(rows)
+       result = filter(result)
+       result = serialize(result)
+       return result
+
+   # GOOD — each transformation has a meaningful name
+   def process(rows):
+       parsed = parse(rows)
+       filtered = filter(parsed)
+       serialized = serialize(filtered)
+       return serialized
+   ```
+
+   Flag only when the function is long enough that the generic name actively misleads at the call site. Short helper functions (≤10 lines) can use generic names — the body is small enough that the name is recoverable from context.
+
 **Review approach:**
 1. Skip test files.
 2. For each new/modified function, try to describe it in one sentence without "and"/"or".
