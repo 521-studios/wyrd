@@ -13,8 +13,9 @@ Hayes' "Introductory Phonology" (2009) chapter on phonological features.
 
 Calibration anchors (per the kq7w.1 ticket's calibration plan):
   - Whissell's "Dictionary of Affect in Language" phonemic-emotion
-    scores: harsh phonemes (k, t, sk, kr) score high on harshness;
-    soft phonemes (l, m, w, ʃ) score low.
+    scores: angular/abrupt phonemes (k, t, stop clusters) drive low
+    ``soft_consonants`` + high ``cluster_density``; sonorant phonemes
+    (l, m, w, ʃ) drive high ``soft_consonants``.
   - Hinton/Nichols/Ohala (1994) "Sound Symbolism": the bouba/kiki
     effect maps to softness vs angularity → roughly soft_consonants
     vs cluster_density.
@@ -40,6 +41,7 @@ Fallback chain when IPA is sparse:
 
 from __future__ import annotations
 
+import json
 import unicodedata
 
 from wyrd.generators.kenning.vectors.schemas import PhonologicalVector
@@ -106,9 +108,13 @@ _MULTI_CHAR_IPA: tuple[str, ...] = (
     "pʼ",
     "qʼ",
     "tsʼ",
-    # diphthongs we want to count as 1 syllable (English ai/oi/au/ei
-    # etc.). Heuristic: vowel + glide. The syllable counter uses this
-    # to avoid double-counting diphthong nuclei.
+    # diphthongs we want to count as 1 syllable. Heuristic: vowel +
+    # glide / vowel pair. The syllable counter uses this to avoid
+    # double-counting diphthong nuclei. Covers both English-style
+    # (aɪ/eɪ/aʊ/oʊ — IPA narrow) and the bare-glide forms
+    # (ai/ei/au/oi/ou — Hawaiian, Italian, Latin, French) so the
+    # syllable count tracks linguistic intuition across transcription
+    # conventions.
     "aɪ",
     "eɪ",
     "ɔɪ",
@@ -117,7 +123,14 @@ _MULTI_CHAR_IPA: tuple[str, ...] = (
     "ɪə",
     "ʊə",
     "eə",
-    "aʊ",
+    "ai",
+    "ei",
+    "au",
+    "oi",
+    "ou",
+    "iu",
+    "ie",
+    "uo",
 )
 
 # Stress markers + secondary stress + length marks — strip during parse,
@@ -219,7 +232,10 @@ _NASALS = set("mnɲŋɴɱɳ") | {"nʲ"}
 _LIQUIDS = set("lɭʎʟrɾɽɹɻʀʁɬɮ") | {"lʲ", "rʲ", "ɫˤ"}
 
 # Fricatives: turbulent airflow. Subdivides into sibilants below.
-_FRICATIVES = set("fvθðszʃʒçʝxɣχʁħʕhɦɸβʂʐɬɮ") | {"sʲ", "fʲ", "vʲ", "sˤ", "ðˤ"}
+# Includes alveolo-palatal ɕ / ʑ (Mandarin pinyin x/j, Polish ś/ź,
+# Japanese しゃ, Serbo-Croatian ć/đ) so they propagate via the union
+# into ``_CONSONANTS`` — round-1 reviewer caught the omission.
+_FRICATIVES = set("fvθðszʃʒçʝxɣχʁħʕhɦɸβʂʐɕʑɬɮ") | {"sʲ", "fʲ", "vʲ", "sˤ", "ðˤ"}
 
 # Sibilants: high-frequency fricatives. s/z + post-alveolar +
 # retroflex sibilants + the sibilant component of affricates.
@@ -245,7 +261,7 @@ _APPROXIMANTS = set("wjɥɰʋ")
 
 # Palatal phonemes (including palatalized variants from the multi-char
 # table). Used for the palatalization dimension.
-_PALATALS = set("ɲʎçʝjɕʑcɟʝ") | {
+_PALATALS = set("ɲʎçʝjɕʑcɟ") | {
     "tʃ",
     "dʒ",
     "tɕ",
@@ -690,8 +706,6 @@ def vector_to_json(v: PhonologicalVector) -> str:
     (float-formatting drift between platforms shouldn't surface as a
     no-op diff after re-running the enrichment pass).
     """
-    import json
-
     payload: dict[str, float | dict[str, float]] = {
         "cluster_density": round(v.cluster_density, 4),
         "final_fortition": round(v.final_fortition, 4),
@@ -719,8 +733,6 @@ def vector_from_json(blob: str) -> PhonologicalVector:
     Tolerant of older blobs that omit dimensions added since the JSON
     was written — missing dimensions default to 0.0 (the corpus mean).
     """
-    import json
-
     data = json.loads(blob)
     extras = data.pop("extras", None) or {}
     kwargs: dict[str, float | dict[str, float]] = {k: float(v) for k, v in data.items()}

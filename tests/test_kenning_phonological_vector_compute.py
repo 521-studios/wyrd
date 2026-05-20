@@ -205,6 +205,11 @@ class TestPalatalization:
         v = compute_phonological_vector("tema", "tʲema")
         assert _approx(v.palatalization, 0.25)
 
+    def test_english_no_palatals_negative_anchor(self):
+        # English 'strict' has no palatal phonemes → 0.0
+        v = compute_phonological_vector("strict", "strɪkt")
+        assert v.palatalization == 0.0
+
 
 class TestRetroflexion:
     """Retroflex consonant share. Sanskrit/Mandarin/Norwegian read high."""
@@ -213,6 +218,11 @@ class TestRetroflexion:
         # 'paʈa' (cloth) — paʈa = p a ʈ a → 1/4 = 0.25
         v = compute_phonological_vector("pata", "paʈa")
         assert _approx(v.retroflexion, 0.25)
+
+    def test_italian_no_retroflexion_negative_anchor(self):
+        # Italian 'casa' has no retroflex phonemes → 0.0
+        v = compute_phonological_vector("casa", "kaza")
+        assert v.retroflexion == 0.0
 
 
 class TestPharyngeal:
@@ -223,6 +233,59 @@ class TestPharyngeal:
         # 'ħikma' = ħ i k m a → 1/5 = 0.2
         v = compute_phonological_vector("hikma", "ħikma")
         assert _approx(v.pharyngeal, 0.2)
+
+    def test_english_no_pharyngeal_negative_anchor(self):
+        # English 'cat' has no pharyngeal phonemes → 0.0
+        v = compute_phonological_vector("cat", "kæt")
+        assert v.pharyngeal == 0.0
+
+
+class TestAspiratedVoicelessNegativeAnchor:
+    """Aspirated voiceless rate paired with the Sanskrit positive
+    anchor in CALIBRATION_CORPUS."""
+
+    def test_english_no_aspiration_marked_in_ipa(self):
+        # English /k/ is phonetically aspirated but typically transcribed
+        # without ʰ in lexical IPA → dimension reads 0.0 here.
+        v = compute_phonological_vector("cat", "kæt")
+        assert v.aspirated_voiceless == 0.0
+
+
+class TestFinalClusterRate:
+    """Final-cluster rate (CC+) — coda-rich languages high, CV-shape
+    languages 0."""
+
+    def test_english_final_cluster_strict(self):
+        # 'strict' = s t r ɪ k t → ends in k t (CC) → 1.0
+        v = compute_phonological_vector("strict", "strɪkt")
+        assert v.final_cluster_rate == 1.0
+
+    def test_italian_no_final_cluster(self):
+        v = compute_phonological_vector("casa", "kaza")
+        assert v.final_cluster_rate == 0.0
+
+
+class TestAlveoloPalatalSibilants:
+    """Round-1 reviewer caught a bug where ɕ/ʑ (Mandarin pinyin x/j,
+    Polish ś/ź, Japanese しゃ, Serbo-Croatian ć/đ) were in _SIBILANTS
+    but missing from _FRICATIVES, so they fell through _is_consonant.
+    These tests pin the contract that they classify correctly across
+    sibilance + soft_consonants + stop_vs_continuant."""
+
+    def test_mandarin_xi_sibilance(self):
+        # 'xi' = ɕ i → 1 sibilant / 2 phonemes = 0.5
+        v = compute_phonological_vector("xi", "ɕi")
+        assert _approx(v.sibilance, 0.5)
+
+    def test_mandarin_xi_classified_as_consonant(self):
+        # ɕ should be in _CONSONANTS via _FRICATIVES propagation, so
+        # cluster_density's denominator includes it, and
+        # stop_vs_continuant reads ɕ as a continuant fricative.
+        v = compute_phonological_vector("xi", "ɕi")
+        # ɕ is a continuant fricative — stops/(stops+cont) = 0/(0+1) = 0 → -1.0
+        assert v.stop_vs_continuant == -1.0
+        # ɕ is a soft consonant (fricative) → 1/1 = 1.0
+        assert v.soft_consonants == 1.0
 
 
 class TestVowelHeight:

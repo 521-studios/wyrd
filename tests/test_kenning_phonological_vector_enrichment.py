@@ -201,6 +201,49 @@ def test_method_version_stamp_is_stable():
     assert PHON_VECTOR_METHOD_VERSION == "compute-phon-vector-v1"
 
 
+# ---- per-row exception isolation -----------------------------------------
+
+
+def test_per_row_failure_does_not_abort_batch(tmp_path: Path):
+    """If a single etymon raises during compute, the rest of the batch
+    still runs. The failure surfaces in the result dict's `failed`
+    count + `sample_failures` list rather than crashing the whole
+    enrichment pass mid-batch. Caught by round-1 silent-failure-hunter."""
+    db_path = tmp_path / "test.db"
+    init_schema(db_path)
+    db = LexiconDB(db_path)
+    # Seed a valid row + an invalid one + another valid row.
+    # Use the IPA column to inject a value of the wrong type — sqlite
+    # silently stores bytes when given bytes, which trips the NFC
+    # normalize step on read.
+    db.conn.execute(
+        "INSERT INTO etymon (language, canonical_form, pronunciation_ipa) VALUES (?, ?, ?)",
+        ("modern-english", "good_pre", "kæt"),
+    )
+    db.conn.execute(
+        "INSERT INTO etymon (language, canonical_form, pronunciation_ipa) VALUES (?, ?, ?)",
+        ("modern-english", "bad_row", b"\xff\xfe"),  # bytes; raises in NFC
+    )
+    db.conn.execute(
+        "INSERT INTO etymon (language, canonical_form, pronunciation_ipa) VALUES (?, ?, ?)",
+        ("modern-english", "good_post", "dɒg"),
+    )
+    db.conn.commit()
+    result = tag_phonological_vectors_all(db, apply=True)
+    # The 2 good rows still got written even though one row failed
+    assert result["written"] == 2
+    assert result["failed"] == 1
+    # Failure sample surfaces the offending etymon's canonical_form for
+    # operator audit
+    assert any(canonical == "bad_row" for _id, canonical, _msg in result["sample_failures"])
+    # Coverage reflects partial state
+    row = db.conn.execute(
+        "SELECT canonical_form FROM etymon WHERE phonological_vector IS NOT NULL"
+    ).fetchall()
+    canonical_forms = {r["canonical_form"] for r in row}
+    assert canonical_forms == {"good_pre", "good_post"}
+
+
 # ---- coverage report -----------------------------------------------------
 
 

@@ -7,9 +7,11 @@ command directly to:
 
   * Force-recompute the corpus after a classifier change
     (``--force``).
-  * Smoke-test the enrichment pass on a single language
-    (``--language``).
   * Preview without writing (default; ``--apply`` for the real write).
+
+Progress + per-row failure isolation are baked into the underlying
+pass — see the ``[N/total] written=X failed=Y`` lines emitted to
+stderr every 5,000 rows during ``--apply`` runs.
 """
 
 from __future__ import annotations

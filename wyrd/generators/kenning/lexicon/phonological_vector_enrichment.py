@@ -24,6 +24,7 @@ column's value stable through the chain).
 from __future__ import annotations
 
 import sqlite3
+import sys
 from typing import Any
 
 from wyrd.generators.kenning.registers.phonological_vector_compute import (
@@ -75,15 +76,29 @@ def tag_phonological_vectors_all(
 
     candidates = len(rows)
     written = 0
+    failed = 0
     sample: list[tuple[int, str, str]] = []
+    sample_failures: list[tuple[int, str, str]] = []
+    PROGRESS_EVERY = 5000  # one line per 5K rows on full-corpus runs
 
     if apply:
-        for row in rows:
+        for i, row in enumerate(rows, start=1):
             etymon_id = row["id"]
             canonical_form = row["canonical_form"] or ""
             ipa = row["pronunciation_ipa"]
-            vector = compute_phonological_vector(canonical_form, ipa)
-            blob = vector_to_json(vector)
+            try:
+                vector = compute_phonological_vector(canonical_form, ipa)
+                blob = vector_to_json(vector)
+            except Exception as exc:  # noqa: BLE001 — per-row isolation
+                # Per-row exception isolation: one malformed IPA / row
+                # shouldn't abort a 77K-row batch. Count + sample the
+                # failure so an operator can audit afterward.
+                failed += 1
+                if len(sample_failures) < 5:
+                    sample_failures.append(
+                        (etymon_id, canonical_form, f"{type(exc).__name__}: {exc}")
+                    )
+                continue
             conn.execute(
                 "UPDATE etymon SET phonological_vector = ? WHERE id = ?",
                 (blob, etymon_id),
@@ -91,7 +106,18 @@ def tag_phonological_vectors_all(
             written += 1
             if len(sample) < 5:
                 sample.append((etymon_id, canonical_form, blob))
+            if i % PROGRESS_EVERY == 0:
+                print(
+                    f"  [{i}/{candidates}]  written={written} failed={failed}",
+                    file=sys.stderr,
+                )
         conn.commit()
+        # Final progress line — always emit so the last partial chunk
+        # shows up per the kenning mining-progress convention.
+        print(
+            f"  [{candidates}/{candidates}]  written={written} failed={failed}",
+            file=sys.stderr,
+        )
     else:
         # Dry-run: still computes a few vectors so the sample is
         # populated for operator spot-check. Don't materialize the
@@ -100,14 +126,19 @@ def tag_phonological_vectors_all(
             etymon_id = row["id"]
             canonical_form = row["canonical_form"] or ""
             ipa = row["pronunciation_ipa"]
-            vector = compute_phonological_vector(canonical_form, ipa)
-            sample.append((etymon_id, canonical_form, vector_to_json(vector)))
+            try:
+                vector = compute_phonological_vector(canonical_form, ipa)
+                sample.append((etymon_id, canonical_form, vector_to_json(vector)))
+            except Exception as exc:  # noqa: BLE001
+                sample_failures.append((etymon_id, canonical_form, f"{type(exc).__name__}: {exc}"))
 
     return {
         "method_version": PHON_VECTOR_METHOD_VERSION,
         "candidates": candidates,
         "written": written,
+        "failed": failed,
         "sample": sample,
+        "sample_failures": sample_failures,
         "force": force,
     }
 
