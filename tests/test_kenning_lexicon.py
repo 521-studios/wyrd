@@ -310,6 +310,200 @@ def test_init_schema_stamps_alembic_version_at_head(fresh_db: Path) -> None:
     )
 
 
+def _filter_sqlite_reflection_artifacts(diffs: list, metadata, table_ddl: dict[str, str]) -> list:
+    """compare_metadata has three well-known SQLite reflection blind
+    spots that produce false-positive diffs. Filter each out:
+
+    1. ``modify_nullable`` on PRIMARY KEY columns — SQLite reports PKs
+       as nullable; SA Core treats PKs as implicitly NOT NULL.
+    2. ``remove_fk`` + ``add_fk`` paired by (column-keys, referred-table)
+       — SQLite FK reflection drops the ``on_delete`` clause, so any FK
+       with ondelete in MetaData produces a paired drop+add.
+    3. ``modify_type`` where MetaData declares a collation and the live
+       DDL (``sqlite_master.sql``) actually carries ``COLLATE NOCASE``
+       on the named column — SQLite reflection drops collation
+       attributes from reflected types. Verify against the DDL string.
+       If the DDL DOESN'T have COLLATE on that column, the diff is
+       real drift and we let it through.
+    """
+    # Pass 1: index fk pairs by (table, column_keys, referred_table).
+    fk_pairs: dict[tuple, dict[str, list]] = {}
+    for d in diffs:
+        if not isinstance(d, tuple) or d[0] not in ("remove_fk", "add_fk"):
+            continue
+        op, fk = d[0], d[1]
+        key = (
+            fk.table.name,
+            tuple(fk.column_keys),
+            fk.referred_table.name,
+        )
+        fk_pairs.setdefault(key, {"remove_fk": [], "add_fk": []})[op].append(d)
+    paired_fk_diffs = set()
+    for pair in fk_pairs.values():
+        if pair["remove_fk"] and pair["add_fk"]:
+            # Mark each paired diff by Python id so we can drop them.
+            for d in pair["remove_fk"] + pair["add_fk"]:
+                paired_fk_diffs.add(id(d))
+
+    filtered = []
+    for d in diffs:
+        if isinstance(d, tuple) and id(d) in paired_fk_diffs:
+            continue
+        if isinstance(d, list) and len(d) == 1 and d[0][0] == "modify_nullable":
+            _, _, table, col, _, _, _ = d[0]
+            t = metadata.tables.get(table)
+            if t is not None and col in t.c and t.c[col].primary_key:
+                continue
+        if isinstance(d, list) and len(d) == 1 and d[0][0] == "modify_type":
+            _, _, table, col, _, _, new_type = d[0]
+            collation = getattr(new_type, "collation", None)
+            if collation:
+                ddl = table_ddl.get(table, "")
+                if _column_has_collation_in_ddl(ddl, col, collation):
+                    # Reflection dropped the collation but the DDL has
+                    # it — false positive, not real drift.
+                    continue
+        filtered.append(d)
+    return filtered
+
+
+def _column_has_collation_in_ddl(ddl: str, column: str, collation: str) -> bool:
+    """Look for ``<column> ... COLLATE <collation>`` in a SQLite CREATE
+    TABLE DDL string. Each column is on its own line."""
+    for line in ddl.splitlines():
+        stripped = line.lstrip()
+        # Column lines start with the bare identifier (no quoting in
+        # this codebase's migrations); guard on word boundary.
+        if stripped.startswith(column + " ") or stripped.startswith(column + "\t"):
+            return f"COLLATE {collation}" in line
+    return False
+
+
+def test_alembic_head_schema_matches_tables_metadata(fresh_db: Path) -> None:
+    """wyrd-hd28: SA Core MetaData in ``lexicon/sql/tables.py`` must
+    declare the same schema that the alembic chain produces. Drift
+    between them silently breaks future ``alembic revision
+    --autogenerate`` runs (which would generate ALTER TABLE diffs for
+    "phantom" changes that exist only in reflection).
+
+    Two real bugs of this class shipped to main before this test:
+
+    - wyrd-uzoh / PR #276 added ``personal_name`` +
+      ``personal_name_toponym_attestation`` migrations but forgot to
+      mirror them in tables.py.
+    - wyrd-rrse / PR #281 round-1 added ``COLLATE NOCASE`` to the
+      ``fantasy_morpheme`` migration but forgot the matching
+      ``collation="NOCASE"`` arg in the tables.py Column declaration.
+
+    Both went undetected for an entire PR cycle. This test pins the
+    invariant directly: feed init_schema's DB (= alembic head) and
+    tables.py MetaData into ``compare_metadata``, filter known SQLite
+    reflection artifacts, assert the rest is empty.
+
+    Filtered artifacts (false positives that must NOT mask real
+    drift) — see ``_filter_sqlite_reflection_artifacts`` docstring
+    for the rules.
+    """
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+    from sqlalchemy import create_engine
+
+    from wyrd.generators.kenning.lexicon.sql.tables import metadata
+
+    # Read sqlite_master.sql for every table — this is the source of
+    # truth for "what the DB actually has." Used to verify collation
+    # claims when compare_metadata flags a modify_type.
+    with sqlite3.connect(fresh_db) as conn:
+        table_ddl = {
+            row[0]: row[1]
+            for row in conn.execute(
+                "SELECT name, sql FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+
+    engine = create_engine(f"sqlite:///{fresh_db}")
+    with engine.connect() as alembic_conn:
+        ctx = MigrationContext.configure(alembic_conn, opts={"compare_type": True})
+        diffs = compare_metadata(ctx, metadata)
+    engine.dispose()
+
+    real_drift = _filter_sqlite_reflection_artifacts(diffs, metadata, table_ddl)
+    assert not real_drift, "alembic head ↔ tables.py MetaData drift detected:\n" + "\n".join(
+        f"  {d!r}" for d in real_drift
+    )
+
+
+def test_alembic_head_collation_matches_tables_metadata(fresh_db: Path) -> None:
+    """wyrd-hd28: bidirectional COLLATE parity check between alembic
+    head and ``tables.py`` MetaData. ``compare_metadata`` cannot detect
+    collation drift on SQLite — the dialect's reflector drops the
+    ``COLLATE`` clause from reflected column types, so both
+    "MetaData declares NOCASE but DB doesn't" and the inverse
+    silently produce zero diffs.
+
+    The wyrd-rrse round-1 drift was exactly this shape:
+    ``fantasy_morpheme.input_name`` had ``COLLATE NOCASE`` in the
+    migration's CREATE TABLE but the SA Core ``Column`` was declared
+    as plain ``Text`` (missing ``collation="NOCASE"``).
+    ``compare_metadata`` saw no drift; only manual audit caught it.
+
+    This test does a direct DDL parity check: every column in MetaData
+    with a declared collation MUST appear with that ``COLLATE`` clause
+    in ``sqlite_master.sql``, and every ``COLLATE`` clause in
+    ``sqlite_master.sql`` MUST have a matching MetaData declaration.
+    """
+    from wyrd.generators.kenning.lexicon.sql.tables import metadata
+
+    ddl_collations: dict[tuple[str, str], str] = {}
+    with sqlite3.connect(fresh_db) as conn:
+        for table_name, sql in conn.execute(
+            "SELECT name, sql FROM sqlite_master WHERE type='table'"
+        ).fetchall():
+            for line in sql.splitlines():
+                if "COLLATE " not in line:
+                    continue
+                tokens = line.strip().split()
+                if not tokens:
+                    continue
+                column_name = tokens[0]
+                # tokens after "COLLATE": find next token.
+                for i, tok in enumerate(tokens):
+                    if tok == "COLLATE" and i + 1 < len(tokens):
+                        ddl_collations[(table_name, column_name)] = tokens[i + 1].rstrip(",")
+                        break
+
+    md_collations: dict[tuple[str, str], str] = {}
+    for table in metadata.tables.values():
+        for column in table.columns:
+            collation = getattr(column.type, "collation", None)
+            if collation:
+                md_collations[(table.name, column.name)] = collation
+
+    missing_in_ddl = set(md_collations) - set(ddl_collations)
+    missing_in_md = set(ddl_collations) - set(md_collations)
+    mismatched = {
+        k for k in set(md_collations) & set(ddl_collations) if md_collations[k] != ddl_collations[k]
+    }
+
+    errors: list[str] = []
+    for k in sorted(missing_in_ddl):
+        errors.append(
+            f"  {k[0]}.{k[1]}: MetaData declares COLLATE {md_collations[k]} "
+            f"but live DDL has no COLLATE clause"
+        )
+    for k in sorted(missing_in_md):
+        errors.append(
+            f"  {k[0]}.{k[1]}: live DDL has COLLATE {ddl_collations[k]} "
+            f"but MetaData declares no collation"
+        )
+    for k in sorted(mismatched):
+        errors.append(f"  {k[0]}.{k[1]}: MetaData={md_collations[k]} but DDL={ddl_collations[k]}")
+
+    assert not errors, "Collation drift between alembic head DDL and MetaData:\n" + "\n".join(
+        errors
+    )
+
+
 def test_upgrade_head_is_idempotent(fresh_db: Path) -> None:
     """Running ``upgrade_head`` against a DB that's already at head
     must be a no-op. ``init_schema`` runs it once; tests + the CLI
