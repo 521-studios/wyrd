@@ -475,7 +475,7 @@ def test_alembic_head_collation_matches_tables_metadata(fresh_db: Path) -> None:
                         # trailing punctuation / quotes / close parens
                         # that may follow the collation name.
                         ddl_collations[(table_name, column_name)] = (
-                            tokens[i + 1].strip(" ,()\"'`").upper()
+                            tokens[i + 1].strip(" ,;()\"'`").upper()
                         )
                         break
 
