@@ -450,6 +450,123 @@ class NameGenerator:
             new_name.inflection_labels = labels
         return new_name
 
+    def select_via_vector(
+        self,
+        rng,
+        *,
+        request,
+        priors,
+        era_midpoint: int = 0,
+        cohesion: float = 0.0,
+        exclude_tags: tuple[str, ...] = (),
+    ):
+        """Vector-scoring counterpart to :meth:`select` (wyrd-ecjp.5 PR C).
+
+        Pick a structure from ``self.structs`` via the usual weighted
+        choice, then dispatch into
+        :func:`runtime.vector_name_select.select_via_vector_scoring`
+        for the per-slot meaning pick. Returns a :class:`NewName`
+        compatible with the same output surface as :meth:`select`
+        (``__str__`` / ``description`` / ``components`` /
+        ``inflection_labels``).
+
+        Args:
+            rng: seeded ``random.Random`` instance.
+            request: pre-built :class:`RequestVector` (use
+                :func:`vector_kenning_adapter.build_request_vector`
+                to translate Kenning's per-call knobs).
+            priors: loaded :class:`EmpiricalPriors` (the JSON sidecar
+                via :func:`lexicon.empirical_priors.load_empirical_priors_from_json`).
+            era_midpoint: int year for the baseline-axis lookup.
+            cohesion: D17 cohesion knob in [0, 1]. Threads through
+                to the vector primitive's :func:`_cohesion_multiplier`.
+            exclude_tags: meanings carrying any of these tags are
+                filtered out pre-score.
+
+        Returns:
+            A :class:`NewName` or None when the vector path's gate or
+            scoring filtered every candidate (caller decides whether
+            to raise or fall back).
+
+        Out of scope for v1:
+            * D8 inflection / D18 variant substitution at render time
+              (no ``rendered`` / ``inflection_labels`` produced; surface
+              renders the dash-stripped usage). The legacy path's
+              substitution helpers can plug in here as a separate
+              follow-up.
+            * Cohesion uses the simple-overlap form from
+              ``vector_name_select._cohesion_multiplier``, not the
+              legacy ``_cohesion_boost`` / ``tag_marginal`` form.
+              Tag-cooccurrence data from the bundle is threaded
+              through; legacy and vector cohesion live in two
+              independent code paths until ecjp.6/7 reconciles.
+        """
+        # Lazy import to avoid a load-time cycle with vector_name_select
+        # (which imports from vectors.scoring which imports… nothing
+        # from runtime; a top-level import would still be fine, but the
+        # lazy import keeps the legacy path's cold-start cost flat for
+        # callers that never reach scoring_mode='vector').
+        from wyrd.generators.kenning.runtime.vector_name_select import (
+            select_via_vector_scoring,
+        )
+
+        items = list(self.structs.items())
+        struct = weighted_choice(rng, items)
+        if struct is None:
+            return None
+
+        # Flatten the struct into a list of position labels for the
+        # primitive. The struct shape is tuple-of-words, each word
+        # is tuple-of-keys, each key is a feature-tuple (e.g.
+        # ("pre", "single"), ("post", "name")) — the first element is
+        # the position label per ``word_to_key`` in this module.
+        flat_positions: list[str] = []
+        for word in struct:
+            for key in word:
+                # Synthesize a structural-element string the vector
+                # primitive's _slot_position_label can read. Trailing
+                # dash for 'pre', leading dash for 'post', both for
+                # 'inner', matching the convention in
+                # vector_name_select._slot_position_label.
+                location = key[0]
+                if location == "pre":
+                    flat_positions.append("X-")
+                elif location == "inner":
+                    flat_positions.append("-X-")
+                else:
+                    # 'post' or unknown — matches Meaning's default
+                    flat_positions.append("-X")
+
+        picked = select_via_vector_scoring(
+            rng,
+            self.meaning_db,
+            structure=flat_positions,
+            request=request,
+            priors=priors,
+            era_midpoint=era_midpoint,
+            cohesion=cohesion,
+            tag_cooccurrence=self.tag_cooccurrence or None,
+            exclude_tags=frozenset(exclude_tags),
+        )
+        if not picked or len(picked) != len(flat_positions):
+            return None
+
+        # Reconstruct the words list-of-lists from the flat picks,
+        # matching the original struct's word-grouping shape so the
+        # NewName surfaces with the same word-boundary semantics as
+        # the legacy path. Each picked meaning's usage string is what
+        # NewName.__str__ renders (dash-stripped).
+        words: list[list[str | None]] = []
+        idx = 0
+        for word in struct:
+            word_keys: list[str | None] = []
+            for _ in word:
+                word_keys.append(picked[idx].usage)
+                idx += 1
+            words.append(word_keys)
+
+        return NewName(struct, self.meaning_db, words)
+
     def _render_substitutions(self, rng, name, spelling_variety, inflection_density):
         """Walk the picked usages and produce two parallel lists: surface
         forms (with D8 inflection or D18 variant substitution applied) and
