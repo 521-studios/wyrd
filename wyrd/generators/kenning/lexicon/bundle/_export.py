@@ -68,6 +68,7 @@ def export_meanings(
     lang_thresholds: dict[str, int] | None = None,
     include_rando: bool = True,
     include_wiktionary_empirical: bool = True,
+    include_wave2_enriched: bool = True,
 ) -> list[dict[str, Any]]:
     """Walk the lexicon and emit a meanings.json structure.
 
@@ -79,7 +80,15 @@ def export_meanings(
     (c) any etymon in the family is cited by 'wiktionary-empirical' AND
         ``include_wiktionary_empirical`` is true (empirical class — wyrd-4hx7
         corpus-mining headwords matched against unaccounted-fragment misses;
-        treated like rando-port: bypass the scholar-witness gate).
+        treated like rando-port: bypass the scholar-witness gate), OR
+    (d) any etymon in the family has a non-NULL ``english_shaped`` value AND
+        ``include_wave2_enriched`` is true (wyrd-z3cp — wave-2 non-Latin
+        etymons enriched by ``derive_english_shaped`` per wyrd-vsrn Phase 2c.
+        These rows come from the wiktextract bulk path WITHOUT a
+        ``wiktionary-empirical`` citation, so neither (b) nor (c) admits
+        them — without (d) the bundle's user-visible multi-script rendering
+        siblings (``<lang>_english_shaped``, ``<lang>_transliteration``)
+        have nowhere to land).
 
     The threshold per language is taken from ``lang_thresholds`` (defaults to
     ``RECOMMENDED_LANG_THRESHOLDS``); languages absent from the map use
@@ -107,6 +116,7 @@ def export_meanings(
         lang_thresholds=lang_thresholds,
         include_rando=include_rando,
         include_wiktionary_empirical=include_wiktionary_empirical,
+        include_wave2_enriched=include_wave2_enriched,
     )
     subjects = _group_families_into_subjects(families)
     if include_rando:
@@ -146,17 +156,22 @@ def _collect_families(
     lang_thresholds: dict[str, int],
     include_rando: bool,
     include_wiktionary_empirical: bool = True,
+    include_wave2_enriched: bool = True,
 ) -> list[dict[str, Any]]:
     """Build per-family-root data: forms-by-language, glosses, tags, reflexes.
 
-    Three admission paths feed ``promoted``:
+    Four admission paths feed ``promoted``:
       * scholar-witness threshold (``etymon_consensus``)
       * rando-port seed admit (legacy Wikipedia-derived bundle)
       * wiktionary-empirical admit (wyrd-4hx7 corpus-mined gap-fills)
+      * wave-2 enrichment admit (wyrd-z3cp — etymons with non-NULL
+        english_shaped; covers the wyrd-vsrn Phase 2c non-Latin source
+        languages that have no citations)
 
     Each empirical-class admit is gated by its own boolean flag so callers
-    can A/B by toggling either branch (e.g. ``--no-include-rando`` or
-    ``--no-include-wiktionary-empirical``) without disturbing the other.
+    can A/B by toggling any branch (e.g. ``--no-include-rando``,
+    ``--no-include-wiktionary-empirical``, ``--no-include-wave2-enriched``)
+    without disturbing the others.
     """
     members_by_root, root_of = _build_family_rollup(db)
     root_ids = _select_promoted_root_ids(
@@ -165,6 +180,7 @@ def _collect_families(
         min_witnesses=min_witnesses,
         include_rando=include_rando,
         include_wiktionary_empirical=include_wiktionary_empirical,
+        include_wave2_enriched=include_wave2_enriched,
         root_of=root_of,
     )
     return _iterate_families_with_progress(db, root_ids, members_by_root)
@@ -213,16 +229,19 @@ def _select_promoted_root_ids(
     min_witnesses: int,
     include_rando: bool,
     include_wiktionary_empirical: bool,
+    include_wave2_enriched: bool,
     root_of: Callable[[int], int],
 ) -> list[int]:
-    """Promoted root_ids come from three sources:
+    """Promoted root_ids come from four sources:
 
     * consensus witness threshold per language (the etymon_consensus view
       already keys on lemma_id, no rollup needed),
     * any etymon cited by 'rando-port' (legacy seed),
-    * any etymon cited by 'wiktionary-empirical' (wyrd-4hx7).
+    * any etymon cited by 'wiktionary-empirical' (wyrd-4hx7),
+    * any etymon with non-NULL english_shaped (wyrd-z3cp — wave-2
+      enrichment class; covers wyrd-vsrn Phase 2c non-Latin source langs).
 
-    For the two empirical-class branches we SELECT the cited etymon_ids
+    For the three empirical-class branches we SELECT the source etymon_ids
     flat and roll them up via ``root_of`` — much faster than the JOIN-
     based CTE.
     """
@@ -243,6 +262,17 @@ def _select_promoted_root_ids(
             "SELECT etymon_id FROM etymon_citation WHERE source_id = 'wiktionary-empirical'"
         ):
             promoted.add(root_of(row["etymon_id"]))
+    if include_wave2_enriched:
+        # wyrd-z3cp: wave-2 non-Latin etymons (he, ar, fa, sa, akk, egy, arc)
+        # come from the wiktextract bulk path WITHOUT a wiktionary-empirical
+        # citation row, so neither the consensus nor the citation branches
+        # admit them. english_shaped IS NOT NULL is the per-row marker that
+        # derive_english_shaped (wyrd-vsrn Phase 2c) produced a usable
+        # rendering — admitting these as their own promotion class lets the
+        # <lang>_english_shaped and <lang>_transliteration sibling fields
+        # actually appear in the bundle.
+        for row in db.conn.execute("SELECT id FROM etymon WHERE english_shaped IS NOT NULL"):
+            promoted.add(root_of(row["id"]))
     return sorted(promoted)
 
 
