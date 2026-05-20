@@ -57,7 +57,7 @@ expression, and facts aren't copyrightable (*Feist v. Rural Telephone*,
 - `smith_1937_east_riding_yorkshire.txt` — A.H. Smith, *The Place-Names of
   the East Riding of Yorkshire and York* (1937). EPNS vol XIV; with the
   1928 (North) above and the 1961/1986 (West) volumes below, completes
-  the Yorkshire-Ridings trio.
+  the Yorkshire Ridings trio.
 - `smith_1961_west_riding_yorkshire_pt1.txt` — A.H. Smith, *The Place-Names
   of the West Riding of Yorkshire*, pt 1 (1961). EPNS vol XXX. West Riding
   is an eight-part EPNS survey; this scan covers pt 1 — Lower Strafforth,
@@ -90,7 +90,7 @@ expression, and facts aren't copyrightable (*Feist v. Rural Telephone*,
   (1909).
 - `bannister_1871_cornish_names.txt` — Rev. J. Bannister, *A Glossary of
   Cornish Names* (1871). Cornish-Brythonic substrate corpus for Cornwall —
-  distinct from the Anglo-Saxon / Old-Norse strata dominating most
+  distinct from the Anglo-Saxon / Old Norse strata dominating most
   England-regional sources. Early dictionary-style alphabetical headwords.
 - `bannister_1916_herefordshire.txt` — A.T. Bannister, *The Place-Names of
   Herefordshire* (Cambridge: Clay, 1916). Welsh-Marches county; Bannister
@@ -108,7 +108,7 @@ expression, and facts aren't copyrightable (*Feist v. Rural Telephone*,
   (1914). South-West English county; Old English layered over Brythonic
   substrate.
 - `horsley_1921_kent.txt` — J.W. Horsley, *Place Names in Kent* (1921).
-  Kent place-names; complements the Anglo-Norman and Old-English elements
+  Kent place-names; complements the Anglo-Norman and Old English elements
   prominent in South-East England. Sourced from Project Gutenberg
   (eBook #63263), not Internet Archive.
 - `coates_2020_grimsby_cleethorpes.txt` — Richard Coates, *The Place-Names
