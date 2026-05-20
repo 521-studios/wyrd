@@ -65,7 +65,9 @@ def upgrade() -> None:
     op.execute("CREATE INDEX idx_fantasy_morpheme_approach ON fantasy_morpheme(approach_version)")
     op.execute("CREATE INDEX idx_fantasy_morpheme_etymon ON fantasy_morpheme(etymon_id)")
     op.execute("CREATE INDEX idx_fantasy_morpheme_usable ON fantasy_morpheme(usable)")
-    op.execute("CREATE INDEX idx_fantasy_morpheme_unapproved ON fantasy_morpheme(unapproved_language)")
+    op.execute(
+        "CREATE INDEX idx_fantasy_morpheme_unapproved ON fantasy_morpheme(unapproved_language)"
+    )
 
 
 def downgrade() -> None:
