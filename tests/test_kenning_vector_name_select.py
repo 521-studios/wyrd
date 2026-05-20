@@ -480,14 +480,23 @@ def test_select_stratum_gate_filters_meanings():
 
 
 def test_select_baseline_axis_with_populated_priors():
-    """Integration test exercising the FULL composition (phon + sem +
-    pos + baseline). With populated priors, baseline_score should
-    contribute non-zero — pinning the contract that the priors-loaded
-    runtime is structurally wired.
+    """Integration test isolating the baseline axis. With sem_w=0 and
+    phon_w=0 and pos_w=0, the ONLY axis with weight is the baseline —
+    so if the pick succeeds, the baseline lookup demonstrably hit.
 
-    Round-1 reviewer caught: every other end-to-end test passed an
-    empty EmpiricalPriors(), so the baseline axis was never
-    exercised. This pins the wiring."""
+    Per D36.7 the baseline_score aggregator is GATED on the request's
+    semantic_tags weights (``baseline = sum_over(tag in lemma.tags) of
+    request_tag_weights[tag] * lookup(...)``). The register must carry
+    a tag weight for the lemma's tags or baseline returns 0 even when
+    priors are populated. Set semantic_tags='urban': 1.0 but keep
+    sem_w=0 — the per-tag weight gates baseline lookup; sem_w=0 zeros
+    out the sem-axis CONTRIBUTION to the composite score.
+
+    Round-1 reviewer caught: every other end-to-end test passed empty
+    EmpiricalPriors() so the baseline axis was never exercised.
+    Round-2 reviewer tightened: the first cut also weighted sem_w=1.0,
+    so the pick could have succeeded via sem alone. Now sem_w=0 —
+    the score's only non-zero contribution is the baseline axis."""
     rng = random.Random(0)
     m = _meaning("place", tags=["urban"], phon=PhonologicalVector(cluster_density=0.5))
     db = {"place": [m]}
@@ -499,8 +508,10 @@ def test_select_baseline_axis_with_populated_priors():
     )
     request = RequestVector(
         gate=EligibilityGate(culture="english"),
-        register=RegisterEffect(name="any", semantic_tags={"urban": 0.1}),
-        weights=ScoringWeights(phon_w=0.0, sem_w=1.0, pos_w=0.0, base_w=1.0),
+        # semantic_tags gates baseline lookup; sem_w=0 zeros the
+        # sem-axis contribution.
+        register=RegisterEffect(name="any", semantic_tags={"urban": 1.0}),
+        weights=ScoringWeights(phon_w=0.0, sem_w=0.0, pos_w=0.0, base_w=1.0),
     )
     result = select_via_vector_scoring(
         rng,
@@ -510,9 +521,35 @@ def test_select_baseline_axis_with_populated_priors():
         priors=priors,
         era_midpoint=0,
     )
-    # The pick succeeds — baseline + sem together produce positive score.
+    # If this assert succeeds, the baseline axis contributed non-zero —
+    # nothing else could have (sem_w=0 zeros out the sem axis).
     assert len(result) == 1
     assert result[0] is m
+
+
+def test_select_baseline_axis_returns_empty_when_priors_miss():
+    """Counterpart to test_select_baseline_axis_with_populated_priors:
+    same setup but with EMPTY priors. The baseline lookup misses
+    every cell → total score 0 → empty result. Confirms the previous
+    test's pass was genuinely the baseline doing work, not a phantom
+    non-zero from another path."""
+    rng = random.Random(0)
+    m = _meaning("place", tags=["urban"], phon=PhonologicalVector(cluster_density=0.5))
+    db = {"place": [m]}
+    request = RequestVector(
+        gate=EligibilityGate(culture="english"),
+        register=RegisterEffect(name="any", semantic_tags={"urban": 1.0}),
+        weights=ScoringWeights(phon_w=0.0, sem_w=0.0, pos_w=0.0, base_w=1.0),
+    )
+    result = select_via_vector_scoring(
+        rng,
+        db,
+        structure=["place"],
+        request=request,
+        priors=EmpiricalPriors(),  # empty
+        era_midpoint=0,
+    )
+    assert result == []
 
 
 def test_cohesion_multiplier_handles_pair_count_zero():
