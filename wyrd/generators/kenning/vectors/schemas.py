@@ -394,6 +394,49 @@ class PackOverlay:
     excluded_pack_tags: frozenset[str] = frozenset()
 
 
+# ---- pack manifest (bundle authoring shape) -----------------------------
+
+
+@dataclass(frozen=True)
+class PackManifest:
+    """The authoring-side descriptor for a scenario pack (wyrd-ecjp.10b).
+
+    Each pack lives in its own ``packs/<pack_name>/`` directory
+    alongside the main bundle's meanings.json (operator chose per-pack
+    directories for max flexibility — see ecjp.10 design notes). The
+    directory contains:
+
+    * ``manifest.json`` — this dataclass serialized.
+    * ``meanings.json`` — the pack's lemma set, in the same shape as
+      the main bundle's meanings.json (list of subjects with words).
+
+    The runtime's pack-overlay support (wyrd-ecjp.8
+    ``select_via_vector_scoring(pack_meaning_dbs=...)``) consumes the
+    loaded packs to admit pack lemmas into the eligible pool. The
+    PackOverlay request-side dataclass references a manifest by
+    ``pack_name``; load_packs returns ``{pack_name: PackBundle}`` so
+    the dispatch layer can resolve overlay → meaning_db at request
+    time.
+
+    ``default_weight`` is the pack's default contribution scalar when
+    the operator doesn't override via ``--pack <name>:<weight>``. 1.0
+    matches the empirical loan rate; 0.3 (a reasonable v2gm starting
+    point) under-weights so packs feel like minority influence rather
+    than overwhelming the native register.
+
+    ``version`` is a versioning string the operator manages — content
+    hash, semver, or date string. Used by the loader to surface drift
+    when a deploy includes packs with different versions than
+    expected.
+    """
+
+    pack_name: str
+    template_donor: str
+    template_recipient: str
+    default_weight: float = 1.0
+    version: str = "unversioned"
+
+
 # ---- request vector (ecjp.1 four-axis composed request) -----------------
 
 

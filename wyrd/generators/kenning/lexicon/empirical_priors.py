@@ -593,7 +593,16 @@ def load_empirical_priors_from_json(input_path: Path) -> EmpiricalPriors:
     """
     with input_path.open(encoding="utf-8") as f:
         artifact = json.load(f)
+    return load_empirical_priors_from_payload(artifact)
 
+
+def load_empirical_priors_from_payload(artifact: dict) -> EmpiricalPriors:
+    """wyrd-ecjp.10b: same parsing as :func:`load_empirical_priors_from_json`
+    but takes an already-parsed JSON payload. Used by the bundled-priors
+    loader (``kenning._load_empirical_priors``) which reads the JSON
+    from an ``importlib.resources`` Traversable and can't depend on a
+    filesystem Path.
+    """
     version = artifact.get("version", "unversioned")
     native: dict[tuple, dict[str, float]] = {}
     loan: dict[tuple, dict[str, float]] = {}

@@ -310,6 +310,52 @@ def _load_fantasy_morphemes() -> dict[str, dict]:
     return load_fantasy_morphemes(data)
 
 
+@lru_cache(maxsize=1)
+def _load_empirical_priors():
+    """wyrd-ecjp.10b: load the bundled empirical priors sidecar
+    (priors.json) if present, else return an empty EmpiricalPriors.
+
+    Operator chose sidecar over embedded (max isolation from
+    meanings.json shape changes; matches the dump-empirical-priors
+    output format). The runtime's vector-scoring dispatch uses this
+    as the fallback when --priors-path isn't passed: the bundle
+    ships its own priors, so the baseline axis has data even without
+    an operator-supplied sidecar.
+
+    Empty EmpiricalPriors returned when priors.json is absent
+    (legacy bundles, dev environments that haven't run
+    dump-empirical-priors yet). Vector-scoring path degrades to phon
+    + sem + pos in that case — same fallback as no --priors-path."""
+    from wyrd.generators.kenning.lexicon.empirical_priors import (
+        load_empirical_priors_from_payload,
+    )
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    priors_path = _data_path("priors.json")
+    if not priors_path.is_file():
+        return EmpiricalPriors()
+    with priors_path.open(encoding="utf-8") as f:
+        payload = json.load(f)
+    return load_empirical_priors_from_payload(payload)
+
+
+@lru_cache(maxsize=1)
+def _load_packs():
+    """wyrd-ecjp.10b: load all bundled scenario packs from the
+    ``packs/`` subdir of the data root. Returns
+    ``{pack_name: PackBundle}`` (empty when packs/ is absent —
+    bundles that ship no packs work unchanged).
+
+    Each pack lives in ``packs/<pack_name>/`` with manifest.json +
+    meanings.json (operator chose per-pack dirs for max flexibility).
+    The bundle loader is the data-layer half of pack support; the
+    runtime CLI wiring (--pack flag) is deferred to wyrd-ecjp.11.
+    """
+    from wyrd.generators.kenning.lexicon.pack_loader import load_packs_from_traversable
+
+    return load_packs_from_traversable(_data_path("packs"))
+
+
 @lru_cache(maxsize=len(CULTURES))
 def _load_culture(culture: str):
     if culture not in CULTURES:
@@ -352,6 +398,8 @@ def _coupled_cache_clear() -> None:
     _load_joiners.cache_clear()
     _load_canonical_decompositions.cache_clear()
     _load_fantasy_morphemes.cache_clear()
+    _load_empirical_priors.cache_clear()
+    _load_packs.cache_clear()
 
 
 # mypy flags reassigning a bound method on the lru_cache wrapper as
