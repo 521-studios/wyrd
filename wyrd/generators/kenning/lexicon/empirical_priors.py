@@ -41,7 +41,10 @@ from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
 
 from wyrd.generators.kenning.era.cells import (
     ERA_CELLS,
@@ -553,6 +556,79 @@ def _cell_records(
 
 _NATIVE_CELL_FIELDS = ("culture", "position", "tag", "era_midpoint")
 _LOAN_CELL_FIELDS = ("donor", "recipient", "position", "tag", "era_midpoint")
+
+
+def load_empirical_priors_from_json(input_path: Path) -> EmpiricalPriors:
+    """Counterpart to :func:`dump_empirical_priors_to_json`. Reads the
+    JSON sidecar that the lexicon emits + returns a populated
+    :class:`EmpiricalPriors` instance.
+
+    Used by the runtime path (wyrd-ecjp.5 NameGenerator rewrite — the
+    vector-scoring branch reads priors at Lambda startup once, then
+    every per-request scoring call hits the in-memory mapping). Bundle
+    builders may also embed the JSON directly into ``meanings.json``
+    for single-file deploys (wyrd-ecjp.8).
+
+    JSON shape (per :func:`dump_empirical_priors_to_json`):
+        {
+          "version": str,
+          "native": [
+            {"culture": str, "position": str, "tag": str,
+             "era_midpoint": int, "lemmas": {lemma_ref: count}}, ...
+          ],
+          "loan": [
+            {"donor": str, "recipient": str, "position": str,
+             "tag": str, "era_midpoint": int,
+             "lemmas": {lemma_ref: count}}, ...
+          ]
+        }
+
+    Tolerant of missing keys: an artifact emitted by an older
+    revision (pre-loan-priors, say) loads cleanly with the missing
+    side defaulting to an empty dict — the scoring runtime degrades
+    gracefully when a pack lookup misses.
+
+    Deterministic: same JSON input -> same EmpiricalPriors instance
+    contents (Python dict iteration order doesn't matter for the
+    scoring callers; the JSON's sorted shape preserves bit-stability
+    of the underlying lemma->count mappings).
+    """
+    # Local import deferred to avoid a circular import at module-load
+    # time. The schema module imports nothing from lexicon; the lexicon
+    # module imports nothing from vectors except inside this function.
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    with input_path.open(encoding="utf-8") as f:
+        artifact = json.load(f)
+
+    version = artifact.get("version", "unversioned")
+    native: dict[tuple, dict[str, float]] = {}
+    loan: dict[tuple, dict[str, float]] = {}
+
+    for cell in artifact.get("native", []):
+        key = (
+            cell["culture"],
+            cell["position"],
+            cell["tag"],
+            int(cell["era_midpoint"]),
+        )
+        native[key] = {ref: float(c) for ref, c in cell["lemmas"].items()}
+
+    for cell in artifact.get("loan", []):
+        key = (
+            cell["donor"],
+            cell["recipient"],
+            cell["position"],
+            cell["tag"],
+            int(cell["era_midpoint"]),
+        )
+        loan[key] = {ref: float(c) for ref, c in cell["lemmas"].items()}
+
+    return EmpiricalPriors(
+        native=native,
+        loan_relationship=loan,
+        version=version,
+    )
 
 
 def dump_empirical_priors_to_json(
