@@ -1044,6 +1044,9 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
         # wyrd-ecjp.2: vector-driven empirical-baseline priors.
         "empirical_priors_native_table": False,
         "empirical_priors_loan_table": False,
+        # wyrd-uzoh: Briggs EPNS personal-names-index ingest.
+        "personal_name_table": False,
+        "personal_name_toponym_attestation_table": False,
     }
     # wyrd-44a: rename the legacy cognate-cluster column from synset_id
     # to cognate_id BEFORE the add-columns helper runs — otherwise
@@ -1072,8 +1075,77 @@ def migrate_schema(db: LexiconDB) -> dict[str, bool]:
     _create_etymon_period_form_table(db, applied)
     _create_toponym_decomposition_table(db, applied)
     _create_empirical_priors_tables(db, applied)
+    _create_personal_name_tables(db, applied)
     db.commit()
     return applied
+
+
+def _create_personal_name_tables(db: LexiconDB, applied: dict[str, bool]) -> None:
+    """Create personal_name + personal_name_toponym_attestation if
+    missing (wyrd-uzoh).
+
+    Carries the Briggs EPNS personal-names-index data. Schema mirrors
+    data/lexicon.sql and the 0010_briggs_personal_names alembic
+    migration. Idempotent — checks for the tables before creating.
+    """
+    existing = {
+        row["name"]
+        for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
+    if "personal_name" not in existing:
+        db.conn.executescript(
+            """
+            CREATE TABLE personal_name (
+              id              INTEGER PRIMARY KEY AUTOINCREMENT,
+              headform        TEXT NOT NULL,
+              normalized_form TEXT NOT NULL,
+              language_hints  TEXT,
+              is_feminine     INTEGER NOT NULL DEFAULT 0,
+              pase_count      INTEGER,
+              has_dlv         INTEGER NOT NULL DEFAULT 0,
+              ascharter_refs  TEXT,
+              source_doc      TEXT NOT NULL,
+              raw_entry       TEXT
+            );
+            CREATE UNIQUE INDEX idx_personal_name_headform_source
+              ON personal_name(headform, source_doc);
+            CREATE INDEX idx_personal_name_normalized
+              ON personal_name(normalized_form);
+            """
+        )
+        applied["personal_name_table"] = True
+    if "personal_name_toponym_attestation" not in existing:
+        db.conn.executescript(
+            """
+            CREATE TABLE personal_name_toponym_attestation (
+              id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+              personal_name_id   INTEGER NOT NULL
+                                 REFERENCES personal_name(id) ON DELETE CASCADE,
+              toponym_form       TEXT NOT NULL,
+              attested_variant   TEXT,
+              county_code        TEXT NOT NULL,
+              county_canonical   TEXT NOT NULL,
+              date_qualifier     TEXT,
+              is_uncertain       INTEGER NOT NULL DEFAULT 0,
+              is_serious_doubt   INTEGER NOT NULL DEFAULT 0,
+              source_doc         TEXT NOT NULL,
+              raw_text           TEXT
+            );
+            CREATE UNIQUE INDEX idx_pn_toponym_dedup
+              ON personal_name_toponym_attestation(
+                personal_name_id,
+                toponym_form,
+                county_code,
+                COALESCE(attested_variant, ''),
+                COALESCE(date_qualifier, '')
+              );
+            CREATE INDEX idx_pn_toponym_form
+              ON personal_name_toponym_attestation(toponym_form, county_canonical);
+            CREATE INDEX idx_pn_toponym_personal_name
+              ON personal_name_toponym_attestation(personal_name_id);
+            """
+        )
+        applied["personal_name_toponym_attestation_table"] = True
 
 
 def _rename_synset_to_cognate(db: LexiconDB, applied: dict[str, bool]) -> None:
