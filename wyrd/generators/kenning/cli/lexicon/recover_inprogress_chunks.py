@@ -29,15 +29,19 @@ def _dedup_key(row: dict) -> tuple[str, int | None, str | None, str]:
     )
 
 
-def _read_jsonl_rows(path: Path) -> tuple[list[str], int]:
-    """Read a JSONL file as ``(verbatim_lines, malformed_count)``.
+def _read_jsonl_rows(path: Path) -> tuple[list[tuple[str, dict]], int]:
+    """Read a JSONL file as ``(rows, malformed_count)`` where each row
+    is ``(verbatim_line, parsed_dict)``.
 
-    Preserves the original line text so stage-specific fields like
-    ``extractor`` survive the round-trip unchanged. Malformed (non-JSON
-    or non-dict) rows are dropped from the output — the operator sees
-    a count on stderr.
+    Returning both shapes saves the caller a second ``json.loads`` pass
+    when it needs both the raw text (to preserve stage-specific fields
+    like ``extractor`` verbatim) AND the parsed dict (for dedup-key
+    extraction).
+
+    Malformed (non-JSON or non-dict) rows are dropped — the operator
+    sees a count on stderr.
     """
-    lines: list[str] = []
+    rows: list[tuple[str, dict]] = []
     malformed = 0
     with path.open("r", encoding="utf-8") as fh:
         for line in fh:
@@ -52,8 +56,8 @@ def _read_jsonl_rows(path: Path) -> tuple[list[str], int]:
             if not isinstance(row, dict):
                 malformed += 1
                 continue
-            lines.append(stripped)
-    return lines, malformed
+            rows.append((stripped, row))
+    return rows, malformed
 
 
 def _atomic_write_lines(out_path: Path, lines: list[str]) -> None:
@@ -116,14 +120,14 @@ def lexicon_recover_inprogress_chunks(output_dir: Path, dry_run: bool) -> None:
         source_id = ip_path.name[: -len(_INPROGRESS_SUFFIX)]
         out_path = output_dir / f"{source_id}.jsonl"
 
-        new_lines, new_malformed = _read_jsonl_rows(ip_path)
+        new_rows, new_malformed = _read_jsonl_rows(ip_path)
         if new_malformed:
             click.echo(
                 f"  warning: {ip_path.name}: dropped {new_malformed} malformed row(s)",
                 err=True,
             )
 
-        if not new_lines:
+        if not new_rows:
             click.echo(
                 f"  [{source_id}] in-progress log empty — removing",
                 err=True,
@@ -138,7 +142,7 @@ def lexicon_recover_inprogress_chunks(output_dir: Path, dry_run: bool) -> None:
             # canonical file. Atomic rename preserves on-disk content
             # bit-for-bit.
             click.echo(
-                f"  [{source_id}] PROMOTE → {out_path} ({len(new_lines)} mention(s))",
+                f"  [{source_id}] PROMOTE → {out_path} ({len(new_rows)} mention(s))",
                 err=True,
             )
             if not dry_run:
@@ -149,7 +153,7 @@ def lexicon_recover_inprogress_chunks(output_dir: Path, dry_run: bool) -> None:
         # MERGE: build the union, deduped against existing canonical
         # rows. Preserve existing rows verbatim (stage-specific fields
         # like ``extractor`` must keep their original value).
-        existing_lines, existing_malformed = _read_jsonl_rows(out_path)
+        existing_rows, existing_malformed = _read_jsonl_rows(out_path)
         if existing_malformed:
             click.echo(
                 f"  warning: {out_path.name}: dropped {existing_malformed} "
@@ -157,18 +161,14 @@ def lexicon_recover_inprogress_chunks(output_dir: Path, dry_run: bool) -> None:
                 err=True,
             )
 
-        # _read_jsonl_rows has already dropped malformed lines and
-        # non-dict rows, so json.loads here is guaranteed to succeed
-        # and return a dict. No defensive try/except needed.
         existing_keys: set[tuple[str, int | None, str | None, str]] = set()
-        for line in existing_lines:
-            existing_keys.add(_dedup_key(json.loads(line)))
+        for _, row in existing_rows:
+            existing_keys.add(_dedup_key(row))
 
-        union: list[str] = list(existing_lines)
+        union: list[str] = [line for line, _ in existing_rows]
         dup_count = 0
         added_count = 0
-        for line in new_lines:
-            row = json.loads(line)
+        for line, row in new_rows:
             key = _dedup_key(row)
             if key in existing_keys:
                 dup_count += 1
@@ -180,7 +180,7 @@ def lexicon_recover_inprogress_chunks(output_dir: Path, dry_run: bool) -> None:
         click.echo(
             f"  [{source_id}] MERGE → {out_path} "
             f"(added {added_count}, deduped {dup_count}, "
-            f"existing {len(existing_lines)})",
+            f"existing {len(existing_rows)})",
             err=True,
         )
         if not dry_run:
