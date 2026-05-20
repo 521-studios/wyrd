@@ -469,7 +469,12 @@ def test_alembic_head_collation_matches_tables_metadata(fresh_db: Path) -> None:
                 # tokens after "COLLATE": find next token.
                 for i, tok in enumerate(tokens):
                     if tok == "COLLATE" and i + 1 < len(tokens):
-                        ddl_collations[(table_name, column_name)] = tokens[i + 1].rstrip(",")
+                        # SQLite treats collation names case-insensitively
+                        # (COLLATE nocase == COLLATE NOCASE) so normalize
+                        # before comparison.
+                        ddl_collations[(table_name, column_name)] = (
+                            tokens[i + 1].rstrip(",").upper()
+                        )
                         break
 
     md_collations: dict[tuple[str, str], str] = {}
@@ -477,7 +482,7 @@ def test_alembic_head_collation_matches_tables_metadata(fresh_db: Path) -> None:
         for column in table.columns:
             collation = getattr(column.type, "collation", None)
             if collation:
-                md_collations[(table.name, column.name)] = collation
+                md_collations[(table.name, column.name)] = collation.upper()
 
     missing_in_ddl = set(md_collations) - set(ddl_collations)
     missing_in_md = set(ddl_collations) - set(md_collations)
@@ -501,6 +506,182 @@ def test_alembic_head_collation_matches_tables_metadata(fresh_db: Path) -> None:
 
     assert not errors, "Collation drift between alembic head DDL and MetaData:\n" + "\n".join(
         errors
+    )
+
+
+def test_alembic_head_fk_ondelete_matches_tables_metadata(fresh_db: Path) -> None:
+    """wyrd-hd28: bidirectional FK ``ON DELETE`` parity check.
+
+    ``compare_metadata`` cannot reliably detect ondelete drift on SQLite
+    because reflection strips the ``ondelete`` clause — every FK with
+    ``ondelete=`` in MetaData generates a paired ``remove_fk``+``add_fk``
+    that the structural-drift filter must drop as a known reflection
+    artifact. The filter drops the pair on column-tuple match alone,
+    NOT on ondelete value match — so a real drift where MetaData says
+    ``ondelete="SET NULL"`` while the migration DDL says
+    ``ON DELETE CASCADE`` is silently masked.
+
+    Same shape as the COLLATE drift class; same fix pattern. Read
+    each FK's ``on_delete`` clause via ``PRAGMA foreign_key_list`` —
+    that pragma reports the literal DDL clause faithfully (unlike SA
+    reflection, which drops it for SQLite) — and reconcile against
+    MetaData's FK declarations.
+    """
+    from wyrd.generators.kenning.lexicon.sql.tables import metadata
+
+    ddl_ondeletes: dict[tuple[str, tuple[str, ...]], str] = {}
+    with sqlite3.connect(fresh_db) as conn:
+        for (table_name,) in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall():
+            # PRAGMA foreign_key_list returns one row per FK column:
+            # (id, seq, referred_table, from_col, to_col, on_update,
+            #  on_delete, match). Group rows by (id) to reconstruct
+            # multi-column FK constraints.
+            fk_rows = conn.execute(f"PRAGMA foreign_key_list({table_name})").fetchall()
+            by_id: dict[int, list[tuple[int, str, str]]] = {}
+            for fk_id, seq, _ref_table, from_col, _to_col, _on_upd, on_del, _ in fk_rows:
+                by_id.setdefault(fk_id, []).append((seq, from_col, on_del))
+            for cols_info in by_id.values():
+                cols_info.sort()
+                cols = tuple(c[1] for c in cols_info)
+                # All seq entries for one FK share the same on_delete.
+                ondelete = (cols_info[0][2] or "NO ACTION").upper()
+                ddl_ondeletes[(table_name, cols)] = ondelete
+
+    md_ondeletes: dict[tuple[str, tuple[str, ...]], str] = {}
+    for table in metadata.tables.values():
+        for fk in table.foreign_key_constraints:
+            cols = tuple(fk.column_keys)
+            ondelete = (fk.ondelete or "NO ACTION").upper()
+            md_ondeletes[(table.name, cols)] = ondelete
+
+    missing_in_ddl = set(md_ondeletes) - set(ddl_ondeletes)
+    missing_in_md = set(ddl_ondeletes) - set(md_ondeletes)
+    mismatched = {
+        k for k in set(md_ondeletes) & set(ddl_ondeletes) if md_ondeletes[k] != ddl_ondeletes[k]
+    }
+
+    errors: list[str] = []
+    for k in sorted(missing_in_ddl):
+        errors.append(
+            f"  {k[0]}({','.join(k[1])}): MetaData FK with ondelete={md_ondeletes[k]} "
+            f"has no matching FK in live DDL"
+        )
+    for k in sorted(missing_in_md):
+        errors.append(
+            f"  {k[0]}({','.join(k[1])}): live DDL has FK with ON DELETE {ddl_ondeletes[k]} "
+            f"but MetaData has no matching FK"
+        )
+    for k in sorted(mismatched):
+        errors.append(
+            f"  {k[0]}({','.join(k[1])}): MetaData ondelete={md_ondeletes[k]} "
+            f"but DDL ON DELETE {ddl_ondeletes[k]}"
+        )
+
+    assert not errors, "FK ondelete drift between alembic head DDL and MetaData:\n" + "\n".join(
+        errors
+    )
+
+
+def test_alembic_head_check_constraints_match_tables_metadata(fresh_db: Path) -> None:
+    """wyrd-hd28: bidirectional CHECK constraint parity check.
+
+    ``compare_metadata`` does not compare CHECK constraints at all —
+    drift between migration CHECKs and MetaData ``CheckConstraint``
+    declarations is invisible to autogenerate. The schema has many
+    enum-style CHECKs (e.g.,
+    ``position_pref IN ('pre','post','inner','free')``,
+    ``edge_type IN ('inheritance','borrowing',...)``,
+    ``usable IN (0,1)``). A migration that adds an allowed value
+    without updating MetaData (or vice versa) lets the DB accept rows
+    the code's MetaData-derived validators believe impossible.
+
+    Compare normalized CHECK clauses extracted from ``sqlite_master.sql``
+    to the ``sqltext`` of each MetaData ``CheckConstraint``. Whitespace
+    is normalized to a single space; both sides upper-cased for token
+    casing tolerance.
+    """
+    import re
+
+    from sqlalchemy import CheckConstraint
+
+    from wyrd.generators.kenning.lexicon.sql.tables import metadata
+
+    def _normalize(expr: str) -> str:
+        expr = re.sub(r"\s+", " ", expr).strip()
+        # Drop whitespace adjacent to parens so DDL "( 'x' )" matches
+        # MetaData's "('x')". SQL is whitespace-insensitive here.
+        expr = re.sub(r"\(\s+", "(", expr)
+        expr = re.sub(r"\s+\)", ")", expr)
+        return expr.upper()
+
+    def _extract_check_exprs(sql: str) -> set[str]:
+        """Extract every ``CHECK(...)`` body, balancing nested parens.
+        Required because the body itself often contains parenthesized
+        sub-expressions (e.g., ``usable IN (0, 1)``)."""
+        exprs: set[str] = set()
+        i = 0
+        upper = sql.upper()
+        while True:
+            start = upper.find("CHECK", i)
+            if start == -1:
+                break
+            j = start + 5
+            while j < len(sql) and sql[j].isspace():
+                j += 1
+            if j >= len(sql) or sql[j] != "(":
+                i = start + 5
+                continue
+            depth = 1
+            k = j + 1
+            while k < len(sql) and depth > 0:
+                if sql[k] == "(":
+                    depth += 1
+                elif sql[k] == ")":
+                    depth -= 1
+                k += 1
+            if depth == 0:
+                exprs.add(_normalize(sql[j + 1 : k - 1]))
+            i = k
+        return exprs
+
+    ddl_checks: dict[str, set[str]] = {}
+    with sqlite3.connect(fresh_db) as conn:
+        for table_name, sql in conn.execute(
+            "SELECT name, sql FROM sqlite_master WHERE type='table'"
+        ).fetchall():
+            checks = _extract_check_exprs(sql)
+            if checks:
+                ddl_checks[table_name] = checks
+
+    md_checks: dict[str, set[str]] = {}
+    for table in metadata.tables.values():
+        constraints = {
+            _normalize(str(c.sqltext)) for c in table.constraints if isinstance(c, CheckConstraint)
+        }
+        # Column-level CheckConstraints attach to the column, not the table.
+        for column in table.columns:
+            for c in column.constraints:
+                if isinstance(c, CheckConstraint):
+                    constraints.add(_normalize(str(c.sqltext)))
+        if constraints:
+            md_checks[table.name] = constraints
+
+    errors: list[str] = []
+    all_tables = set(ddl_checks) | set(md_checks)
+    for t in sorted(all_tables):
+        ddl_set = ddl_checks.get(t, set())
+        md_set = md_checks.get(t, set())
+        only_ddl = ddl_set - md_set
+        only_md = md_set - ddl_set
+        for expr in sorted(only_ddl):
+            errors.append(f"  {t}: live DDL has CHECK({expr}) but MetaData does not")
+        for expr in sorted(only_md):
+            errors.append(f"  {t}: MetaData has CheckConstraint({expr}) but DDL does not")
+
+    assert not errors, (
+        "CHECK constraint drift between alembic head DDL and MetaData:\n" + "\n".join(errors)
     )
 
 
