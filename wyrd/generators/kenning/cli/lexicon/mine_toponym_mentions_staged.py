@@ -10,6 +10,7 @@ from pathlib import Path
 
 import click
 
+from wyrd.generators.kenning.cli.lexicon._dedup import dedup_key_from_mention
 from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions import _build_extractor_client
 from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions_tiered import (
     _load_existing_mention_keys,
@@ -544,7 +545,7 @@ def _run_resume_from_failures(
                                 continue
                             sink.write(stripped + "\n")
                 for m in report.mentions:
-                    key = (m.form, m.date_year, m.region_hint, m.context)
+                    key = dedup_key_from_mention(m)
                     if key in existing_keys:
                         dup_count += 1
                         continue
@@ -620,36 +621,23 @@ def _run_fresh_mining(
 ) -> None:
     """Fresh-mining mode body, extracted out of the click command. mine_fn
     is injected (matches mine_toponym_mentions at the only call site)."""
-    if sources:
-        source_ids = []
-        for sid in sources:
-            txt = sources_dir / f"{Path(sid).name}.txt"
-            if not txt.exists():
-                raise click.ClickException(f"source body not found: {txt}")
-            source_ids.append(Path(sid).name)
-    else:
-        source_ids = sorted(p.stem for p in sources_dir.glob("*.txt") if p.name != "MANIFEST.md")
-    if not source_ids:
-        raise click.ClickException(f"no sources under {sources_dir}")
+    source_ids = _resolve_source_ids(sources, sources_dir)
 
     click.echo(f"Sources to process: {len(source_ids)}", err=True)
     click.echo(f"Provider: {provider} (model={model or 'default'})", err=True)
 
     for src_i, source_id in enumerate(source_ids, start=1):
         out_path = output_dir / f"{source_id}.jsonl"
-        if out_path.exists():
-            if skip_existing:
-                click.echo(
-                    f"[{src_i}/{len(source_ids)}] {source_id}: SKIP (output exists)",
-                    err=True,
-                )
-                totals["sources_skipped"] += 1
-                continue
-            if not force:
-                raise click.ClickException(
-                    f"output {out_path} exists; pass --skip-existing to leave it "
-                    f"or --force to overwrite"
-                )
+        if _should_skip_existing_output(
+            out_path,
+            source_id,
+            src_i,
+            len(source_ids),
+            skip_existing=skip_existing,
+            force=force,
+            totals=totals,
+        ):
+            continue
 
         txt_path = sources_dir / f"{source_id}.txt"
         body = txt_path.read_text(encoding="utf-8", errors="replace")
@@ -741,6 +729,64 @@ def _run_fresh_mining(
         totals["hallucinations_dropped"] += report.hallucinations_dropped
         totals["years_clamped"] += report.years_clamped
         totals["mentions"] += len(report.mentions)
+
+
+def _resolve_source_ids(sources: tuple[str, ...], sources_dir: Path) -> list[str]:
+    """Resolve the operator's ``--source`` selection (returned in
+    caller-supplied order) or, when empty, every ``.txt`` file under
+    ``sources_dir`` (returned sorted). Raises ClickException on any
+    explicit selection that doesn't correspond to an existing .txt
+    file, or when the all-files branch finds zero sources."""
+    if sources:
+        source_ids = []
+        for sid in sources:
+            txt = sources_dir / f"{Path(sid).name}.txt"
+            if not txt.exists():
+                raise click.ClickException(f"source body not found: {txt}")
+            source_ids.append(Path(sid).name)
+    else:
+        source_ids = sorted(p.stem for p in sources_dir.glob("*.txt") if p.name != "MANIFEST.md")
+    if not source_ids:
+        raise click.ClickException(f"no sources under {sources_dir}")
+    return source_ids
+
+
+def _should_skip_existing_output(
+    out_path: Path,
+    source_id: str,
+    src_i: int,
+    total: int,
+    *,
+    skip_existing: bool,
+    force: bool,
+    totals: dict,
+) -> bool:
+    """Decide whether the per-source mining loop should skip this
+    source's already-existing canonical output.
+
+    Three outcomes encoded as bool-return + side-effect-or-raise:
+      - ``False`` (proceed): no canonical exists OR ``force`` is set →
+        caller mines and overwrites.
+      - ``True`` (skip): canonical exists AND ``skip_existing`` is set →
+        emits the SKIP progress line and bumps
+        ``totals['sources_skipped']`` for the run summary.
+      - ``raise ClickException``: canonical exists AND neither flag is
+        set → operator must pick one explicitly.
+    """
+    if not out_path.exists():
+        return False
+    if skip_existing:
+        click.echo(
+            f"[{src_i}/{total}] {source_id}: SKIP (output exists)",
+            err=True,
+        )
+        totals["sources_skipped"] += 1
+        return True
+    if not force:
+        raise click.ClickException(
+            f"output {out_path} exists; pass --skip-existing to leave it or --force to overwrite"
+        )
+    return False
 
 
 def add_to(parent: click.Group) -> None:

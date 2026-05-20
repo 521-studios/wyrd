@@ -107,27 +107,7 @@ def lexicon_export_meanings(
     extraction noise out, while corpus-thin languages (old-norse, latin) gate
     at 2. See RECOMMENDED_LANG_THRESHOLDS in lexicon.py for rationale.
     """
-    lang_thresholds: dict[str, int] = dict(RECOMMENDED_LANG_THRESHOLDS) if use_preset else {}
-    for spec in lang_threshold_specs:
-        if "=" not in spec:
-            raise click.BadParameter(f"--lang-threshold expects LANG=N, got {spec!r}")
-        lang, _, n_str = spec.partition("=")
-        lang = lang.strip()
-        n_str = n_str.strip()
-        if not lang or not n_str:
-            raise click.BadParameter(
-                f"--lang-threshold {spec!r}: both LANG and N must be non-empty"
-            )
-        try:
-            n = int(n_str)
-        except ValueError as exc:
-            raise click.BadParameter(f"--lang-threshold {spec!r}: N must be an integer") from exc
-        # Accept JSON-field aliases ('old_english', 'celtic_mix') and map them to
-        # the lexicon's canonical codes ('old-english', 'celtic'). Without this,
-        # an override like --lang-threshold old_english=2 silently fails to match
-        # any consensus row and the preset fallback applies instead.
-        lang = LANGUAGE_FIELDS.get(lang, lang)
-        lang_thresholds[lang] = n
+    lang_thresholds = _parse_lang_thresholds(lang_threshold_specs, use_preset=use_preset)
     with LexiconDB(db_path) as db:
         subjects = export_meanings(
             db,
@@ -177,6 +157,37 @@ def lexicon_export_meanings(
             f"Wrote {len(subjects)} subjects{suffix} to {output_path}",
             err=True,
         )
+
+
+def _parse_lang_thresholds(specs: tuple[str, ...], *, use_preset: bool) -> dict[str, int]:
+    """Parse a tuple of ``LANG=N`` strings into a {lang_code: threshold}
+    dict, starting from the recommended preset when ``use_preset`` is
+    True. Used by both ``export-meanings`` and ``diff-bundle`` so the
+    flag shape can't drift across them.
+
+    Accepts JSON-field aliases (``old_english`` → ``old-english``,
+    ``celtic_mix`` → ``celtic``) via LANGUAGE_FIELDS. Without the
+    alias step an override like ``--lang-threshold old_english=2``
+    silently fails to match any consensus row and the preset fallback
+    applies instead."""
+    lang_thresholds: dict[str, int] = dict(RECOMMENDED_LANG_THRESHOLDS) if use_preset else {}
+    for spec in specs:
+        if "=" not in spec:
+            raise click.BadParameter(f"--lang-threshold expects LANG=N, got {spec!r}")
+        lang, _, n_str = spec.partition("=")
+        lang = lang.strip()
+        n_str = n_str.strip()
+        if not lang or not n_str:
+            raise click.BadParameter(
+                f"--lang-threshold {spec!r}: both LANG and N must be non-empty"
+            )
+        try:
+            n = int(n_str)
+        except ValueError as exc:
+            raise click.BadParameter(f"--lang-threshold {spec!r}: N must be an integer") from exc
+        lang = LANGUAGE_FIELDS.get(lang, lang)
+        lang_thresholds[lang] = n
+    return lang_thresholds
 
 
 def _load_joiners_sidecar(path: Path) -> dict[str, list[dict[str, Any]]]:

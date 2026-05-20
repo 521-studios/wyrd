@@ -9,24 +9,14 @@ from pathlib import Path
 
 import click
 
+from wyrd.generators.kenning.cli.lexicon._dedup import dedup_key
+
 # Re-use the in-progress conventions defined by the staged miner so
 # the directory/suffix stay in lockstep. Single source of truth.
 from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions_staged import (
     _INPROGRESS_SUBDIR,
     _INPROGRESS_SUFFIX,
 )
-
-
-def _dedup_key(row: dict) -> tuple[str, int | None, str | None, str]:
-    """Dedup key matches ``_run_resume_from_failures``'s logic exactly
-    so a fresh-mining→crash→recover and a resume→crash→recover both
-    converge on the same canonical file shape."""
-    return (
-        row.get("form", ""),
-        row.get("date_year"),
-        row.get("region_hint"),
-        row.get("context", ""),
-    )
 
 
 def _read_jsonl_rows(path: Path) -> tuple[list[tuple[str, dict]], int]:
@@ -128,64 +118,16 @@ def lexicon_recover_inprogress_chunks(output_dir: Path, dry_run: bool) -> None:
             )
 
         if not new_rows:
-            click.echo(
-                f"  [{source_id}] in-progress log empty — removing",
-                err=True,
-            )
-            if not dry_run:
-                ip_path.unlink(missing_ok=True)
+            _handle_empty_log(ip_path, source_id, dry_run=dry_run)
             empty += 1
             continue
 
         if not out_path.exists():
-            # PROMOTE: no canonical file → in-progress log IS the
-            # canonical file. Atomic rename preserves on-disk content
-            # bit-for-bit.
-            click.echo(
-                f"  [{source_id}] PROMOTE → {out_path} ({len(new_rows)} mention(s))",
-                err=True,
-            )
-            if not dry_run:
-                ip_path.rename(out_path)
+            _promote_candidate(ip_path, out_path, source_id, new_rows, dry_run=dry_run)
             promoted += 1
             continue
 
-        # MERGE: build the union, deduped against existing canonical
-        # rows. Preserve existing rows verbatim (stage-specific fields
-        # like ``extractor`` must keep their original value).
-        existing_rows, existing_malformed = _read_jsonl_rows(out_path)
-        if existing_malformed:
-            click.echo(
-                f"  warning: {out_path.name}: dropped {existing_malformed} "
-                f"malformed row(s) from canonical",
-                err=True,
-            )
-
-        existing_keys: set[tuple[str, int | None, str | None, str]] = set()
-        for _, row in existing_rows:
-            existing_keys.add(_dedup_key(row))
-
-        union: list[str] = [line for line, _ in existing_rows]
-        dup_count = 0
-        added_count = 0
-        for line, row in new_rows:
-            key = _dedup_key(row)
-            if key in existing_keys:
-                dup_count += 1
-                continue
-            existing_keys.add(key)
-            union.append(line)
-            added_count += 1
-
-        click.echo(
-            f"  [{source_id}] MERGE → {out_path} "
-            f"(added {added_count}, deduped {dup_count}, "
-            f"existing {len(existing_rows)})",
-            err=True,
-        )
-        if not dry_run:
-            _atomic_write_lines(out_path, union)
-            ip_path.unlink(missing_ok=True)
+        _merge_candidate(ip_path, out_path, source_id, new_rows, dry_run=dry_run)
         merged += 1
 
     suffix = " (dry-run, no changes written)" if dry_run else ""
@@ -193,6 +135,81 @@ def lexicon_recover_inprogress_chunks(output_dir: Path, dry_run: bool) -> None:
         f"recover-inprogress-chunks: promoted={promoted} merged={merged} empty={empty}{suffix}",
         err=True,
     )
+
+
+def _handle_empty_log(ip_path: Path, source_id: str, *, dry_run: bool) -> None:
+    """Empty in-progress log (zero parseable rows): announce + remove."""
+    click.echo(
+        f"  [{source_id}] in-progress log empty — removing",
+        err=True,
+    )
+    if not dry_run:
+        ip_path.unlink(missing_ok=True)
+
+
+def _promote_candidate(
+    ip_path: Path,
+    out_path: Path,
+    source_id: str,
+    new_rows: list[tuple[str, dict]],
+    *,
+    dry_run: bool,
+) -> None:
+    """No canonical file → in-progress log IS the canonical file. Atomic
+    rename preserves on-disk content bit-for-bit."""
+    click.echo(
+        f"  [{source_id}] PROMOTE → {out_path} ({len(new_rows)} mention(s))",
+        err=True,
+    )
+    if not dry_run:
+        ip_path.rename(out_path)
+
+
+def _merge_candidate(
+    ip_path: Path,
+    out_path: Path,
+    source_id: str,
+    new_rows: list[tuple[str, dict]],
+    *,
+    dry_run: bool,
+) -> None:
+    """Canonical file exists → build the union deduped against existing
+    rows and atomic-write back. Existing rows are preserved verbatim —
+    stage-specific fields like ``extractor`` must keep their original
+    value through the cascade."""
+    existing_rows, existing_malformed = _read_jsonl_rows(out_path)
+    if existing_malformed:
+        click.echo(
+            f"  warning: {out_path.name}: dropped {existing_malformed} "
+            f"malformed row(s) from canonical",
+            err=True,
+        )
+
+    existing_keys: set[tuple[str, int | None, str | None, str]] = set()
+    for _, row in existing_rows:
+        existing_keys.add(dedup_key(row))
+
+    union: list[str] = [line for line, _ in existing_rows]
+    dup_count = 0
+    added_count = 0
+    for line, row in new_rows:
+        key = dedup_key(row)
+        if key in existing_keys:
+            dup_count += 1
+            continue
+        existing_keys.add(key)
+        union.append(line)
+        added_count += 1
+
+    click.echo(
+        f"  [{source_id}] MERGE → {out_path} "
+        f"(added {added_count}, deduped {dup_count}, "
+        f"existing {len(existing_rows)})",
+        err=True,
+    )
+    if not dry_run:
+        _atomic_write_lines(out_path, union)
+        ip_path.unlink(missing_ok=True)
 
 
 def add_to(parent: click.Group) -> None:

@@ -508,6 +508,76 @@ def format_enrichment_status(status: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _format_decompose_section(d: dict[str, Any]) -> list[str]:
+    return [
+        "### Decomposition",
+        f"- Toponyms scanned: {d['toponyms_scanned']}",
+        f"- Decompositions written: {d['decompositions']}",
+        f"- Rule firings: scholar={d.get('scholar', 0)}, "
+        f"scholar-disagreement={d.get('scholar-disagreement', 0)}, "
+        f"unique-zero={d.get('unique-zero-unaccounted', 0)}, "
+        f"tiebreaker={d.get('tiebreaker', 0)}, "
+        f"no-canonical={d.get('no-canonical', 0)}",
+    ]
+
+
+def _format_cognates_section(c: dict[str, Any]) -> list[str]:
+    return [
+        "### Cognate clustering",
+        f"- Roots walked: {c.get('roots', 0)}",
+        f"- Cognate_id assignments: {c.get('candidates', 0)}",
+    ]
+
+
+def _format_stratum_section(s: dict[str, Any]) -> list[str]:
+    out = ["### Stratum classification"]
+    for lang, counts in s["languages"].items():
+        out.append(
+            f"- {lang}: proposed={counts['proposed']}, "
+            f"written={counts.get('written', 0)}, "
+            f"skipped={counts.get('skipped', 0)}"
+        )
+        # Sorted for deterministic report output (the underlying dict is
+        # built by classify_stratum_all in proposal-iteration order).
+        by_stratum = counts.get("by_stratum") or {}
+        if by_stratum:
+            breakdown = ", ".join(f"{stratum}={n}" for stratum, n in sorted(by_stratum.items()))
+            out.append(f"  - by stratum: {breakdown}")
+    return out
+
+
+def _format_english_shaped_section(e: dict[str, Any]) -> list[str]:
+    return [
+        "### English-shaped derivation",
+        f"- Candidates: {e['candidates']}",
+        f"- Written: {e['written']}",
+        f"- Skipped (no input): {e['skipped_no_input']}",
+    ]
+
+
+def _format_period_forms_section(p: dict[str, Any]) -> list[str]:
+    return [
+        "### Period-form projection",
+        f"- Rows scanned: {p.get('rows_scanned', 0)}",
+        f"- Projected: {p.get('rows_projected', 0)}",
+        f"- Candidates: {p.get('candidates', 0)}",
+        f"- Rows written: {p.get('rows_written', 0)}",
+    ]
+
+
+# Table of optional sections: (result-dict key, render function). Order
+# here drives section ordering in the rendered markdown. To add a new
+# pass: append a (key, render_fn) tuple and write a _format_<x>_section
+# helper. No edits to format_enrichment_run needed.
+_OPTIONAL_SECTIONS: tuple[tuple[str, Any], ...] = (
+    ("decompose", _format_decompose_section),
+    ("cognates", _format_cognates_section),
+    ("stratum", _format_stratum_section),
+    ("english_shaped", _format_english_shaped_section),
+    ("period_forms", _format_period_forms_section),
+)
+
+
 def format_enrichment_run(result: dict[str, Any]) -> str:
     """Render :func:`run_full_enrichment` output as markdown."""
     verb_ocr = "merged" if result["applied"] else "mergeable"
@@ -528,71 +598,10 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
     if result.get("curation"):
         lines.append("")
         lines.append(format_curation_run(result["curation"]))
-
-    if result.get("decompose") is not None:
-        d = result["decompose"]
-        lines.extend(
-            [
-                "",
-                "### Decomposition",
-                f"- Toponyms scanned: {d['toponyms_scanned']}",
-                f"- Decompositions written: {d['decompositions']}",
-                f"- Rule firings: scholar={d.get('scholar', 0)}, "
-                f"scholar-disagreement={d.get('scholar-disagreement', 0)}, "
-                f"unique-zero={d.get('unique-zero-unaccounted', 0)}, "
-                f"tiebreaker={d.get('tiebreaker', 0)}, "
-                f"no-canonical={d.get('no-canonical', 0)}",
-            ]
-        )
-    if result.get("cognates") is not None:
-        c = result["cognates"]
-        lines.extend(
-            [
-                "",
-                "### Cognate clustering",
-                f"- Roots walked: {c.get('roots', 0)}",
-                f"- Cognate_id assignments: {c.get('candidates', 0)}",
-            ]
-        )
-    if result.get("stratum") is not None:
-        s = result["stratum"]
+    for key, render in _OPTIONAL_SECTIONS:
+        payload = result.get(key)
+        if payload is None:
+            continue
         lines.append("")
-        lines.append("### Stratum classification")
-        for lang, counts in s["languages"].items():
-            lines.append(
-                f"- {lang}: proposed={counts['proposed']}, "
-                f"written={counts.get('written', 0)}, "
-                f"skipped={counts.get('skipped', 0)}"
-            )
-            # Stratum distribution: same shape as the rule-firings line
-            # in the decomposition section. Sorted for deterministic
-            # report output (the underlying dict is built by
-            # classify_stratum_all in proposal-iteration order).
-            by_stratum = counts.get("by_stratum") or {}
-            if by_stratum:
-                breakdown = ", ".join(f"{stratum}={n}" for stratum, n in sorted(by_stratum.items()))
-                lines.append(f"  - by stratum: {breakdown}")
-    if result.get("english_shaped") is not None:
-        e = result["english_shaped"]
-        lines.extend(
-            [
-                "",
-                "### English-shaped derivation",
-                f"- Candidates: {e['candidates']}",
-                f"- Written: {e['written']}",
-                f"- Skipped (no input): {e['skipped_no_input']}",
-            ]
-        )
-    if result.get("period_forms") is not None:
-        p = result["period_forms"]
-        lines.extend(
-            [
-                "",
-                "### Period-form projection",
-                f"- Rows scanned: {p.get('rows_scanned', 0)}",
-                f"- Projected: {p.get('rows_projected', 0)}",
-                f"- Candidates: {p.get('candidates', 0)}",
-                f"- Rows written: {p.get('rows_written', 0)}",
-            ]
-        )
+        lines.extend(render(payload))
     return "\n".join(lines)

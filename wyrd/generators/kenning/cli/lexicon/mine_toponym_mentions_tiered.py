@@ -9,6 +9,7 @@ from pathlib import Path
 
 import click
 
+from wyrd.generators.kenning.cli.lexicon._dedup import dedup_key
 from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions import _build_extractor_client
 
 
@@ -529,14 +530,7 @@ def _load_existing_mention_keys(
             if not isinstance(row, dict):
                 malformed += 1
                 continue
-            keys.add(
-                (
-                    row.get("form"),
-                    row.get("date_year"),
-                    row.get("region_hint"),
-                    row.get("context"),
-                )
-            )
+            keys.add(dedup_key(row))
     if malformed and log_warning is not None:
         log_warning(
             f"{malformed} malformed row(s) in {out_path} can't be deduped "
