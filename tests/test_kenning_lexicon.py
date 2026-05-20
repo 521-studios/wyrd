@@ -619,9 +619,12 @@ def test_alembic_head_check_constraints_match_tables_metadata(fresh_db: Path) ->
         return expr.upper()
 
     def _extract_check_exprs(sql: str) -> set[str]:
-        """Extract every ``CHECK(...)`` body, balancing nested parens.
-        Required because the body itself often contains parenthesized
-        sub-expressions (e.g., ``usable IN (0, 1)``)."""
+        """Extract every ``CHECK(...)`` body, balancing nested parens
+        and ignoring parens inside SQL string literals. Required
+        because the body itself often contains parenthesized
+        sub-expressions (e.g., ``usable IN (0, 1)``). String-literal
+        handling is defensive — no current CHECK in this schema
+        contains parens inside a string, but a future one might."""
         exprs: set[str] = set()
         i = 0
         upper = sql.upper()
@@ -637,11 +640,21 @@ def test_alembic_head_check_constraints_match_tables_metadata(fresh_db: Path) ->
                 continue
             depth = 1
             k = j + 1
+            in_string = False
             while k < len(sql) and depth > 0:
-                if sql[k] == "(":
-                    depth += 1
-                elif sql[k] == ")":
-                    depth -= 1
+                ch = sql[k]
+                if ch == "'":
+                    # Doubled '' inside a string is an escaped quote;
+                    # otherwise toggle the string flag.
+                    if k + 1 < len(sql) and sql[k + 1] == "'":
+                        k += 1
+                    else:
+                        in_string = not in_string
+                elif not in_string:
+                    if ch == "(":
+                        depth += 1
+                    elif ch == ")":
+                        depth -= 1
                 k += 1
             if depth == 0:
                 exprs.add(_normalize(sql[j + 1 : k - 1]))
