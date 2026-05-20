@@ -2034,3 +2034,92 @@ Blocks: `wyrd-ecjp.2` (Phase 2 priors extraction),
 `wyrd-ecjp.9` (Phase 8 CLI + integration + docs). Downstream
 consumers (wyrd-v2gm, wyrd-sreb, wyrd-kq7w) listed in the
 introduction above.
+
+### Implementation status (2026-05-19).
+
+Nine phase tickets shipped via PRs #237 / #240 / #245 / #260 /
+#264 / #265 / #268 / #269 / #270 / #271 / #272 / #273.
+Module locations as built:
+
+* **Schemas** — `vectors/schemas.py` carries
+  `PhonologicalVector`, `EligibilityGate`, `RegisterEffect`,
+  `ScoringWeights`, `PackOverlay`, `RequestVector`, and
+  `EmpiricalPriors` dataclasses. `PackOverlay` grew
+  `allowed_pack_tags` + `excluded_pack_tags` in ecjp.8 for
+  the pack-tag-filter operator knob.
+* **Scoring primitives** — `vectors/scoring.py` ships
+  `phon_score`, `sem_score`, `pos_score`, `baseline_score`
+  (native + multi-pack composition via `baseline_score_pack`),
+  `aggregate_score`, and the orchestrating `score(...)`
+  function. Pack-baseline composition follows Option B
+  (template-donor inheritance).
+* **Empirical priors** — `lexicon/empirical_priors.py` carries
+  the JSON-sidecar dump format + loader; CLI exposed as
+  `wyrd kenning lexicon dump-empirical-priors`. Priors are
+  versioned by emission timestamp; the loader validates
+  schema on parse.
+* **Vector selection primitive** —
+  `runtime/vector_name_select.py:select_via_vector_scoring`
+  implements gate → score → weighted-sample with optional
+  `pack_meaning_dbs` for scenario-pack overlay support.
+* **Adapter** — `runtime/vector_kenning_adapter.py:
+  build_request_vector` translates Kenning's per-call knobs
+  (culture / tags / mood / harshness / era / stratum /
+  weights) into a `RequestVector`.
+* **Dispatch** — `runtime/proportions.py:
+  NameGenerator.select_via_vector` is the vector-mode entry
+  point; `generators/kenning.py:_generate_via_vector` is the
+  Kenning-level dispatcher. `Kenning.generate` reads
+  `scoring_mode` from params and routes accordingly.
+* **Drift measurement** — `runtime/drift_measurement.py` ships
+  pure-Python metric primitives (KL divergence,
+  total-variation distance, top-N name overlap,
+  decomposition-rate delta, position-distribution delta,
+  Spearman rank correlation). `runtime/drift_runner.py`
+  bridges metrics to the live `Kenning.generate` for per-seed
+  isolation. CLI: `wyrd kenning lexicon drift-report`.
+* **Tolerance bands** — `runtime/realism_tolerance.py` ships
+  the `ToleranceBand` dataclass + `check_drift_against_tolerance`
+  primitive. Default bands are wide-open today (regression
+  suite is INACTIVE as a drift gate per the explicit Phase 6b
+  review-then-codify cycle); operator tightens via
+  `PER_CULTURE_TOLERANCES`.
+* **Regression suite** —
+  `tests/test_kenning_realism_regression.py` parametrizes
+  per-culture (english / welsh / irish / breton) +
+  register-composition smoke tests. Per-culture tests
+  `pytest.skip` when one side returns 0 samples (today's
+  expected state for cultures without operator-supplied
+  `--priors-path` — meaningless drift comparison shouldn't
+  bogusly fail).
+* **CLI surface** — `cli/generate.py` adds `--scoring-mode`,
+  `--priors-path`, `--baseline-weight`,
+  `--phonological-weight`, `--semantic-weight`,
+  `--position-weight`. Vector-only flags in proportions mode
+  are a silent no-op (deliberate operator-friendly contract:
+  'I forgot --scoring-mode=vector' produces a normal
+  proportions name).
+
+Deferred work (filed as follow-up tickets in the ecjp epic):
+
+* `wyrd-ecjp.10` — Phase 7 bundle export changes (per-lemma
+  `phonological_vector` emission from `etymon_consensus`,
+  embedded `empirical_baselines` section, pack manifest
+  format). Required for ecjp.11 / .12 to wire packs from
+  real bundles rather than synthetic fixtures.
+* `wyrd-ecjp.11` — `--pack <name>[:<weight>]` /
+  `--pack-tag-filter <pack>:<tag1,tag2>` CLI flags. Blocked
+  on ecjp.10 (needs pack manifest to resolve template
+  donor/recipient).
+* `wyrd-ecjp.12` — SPA / Lambda integration (Lambda handler
+  schema updates, KenningRewind / KenningRender / KenningEraMap
+  bundle-shape propagation, SPA generator class updates).
+  Blocked on ecjp.10.
+
+Default `--scoring-mode` stays `proportions` until tolerance
+bands are tightened from the review-then-codify cycle. The
+legacy proportions path remains bit-stable throughout the
+ecjp epic; no `<culture>_proportions.json` deprecation has
+been triggered yet (planned as part of the ecjp.10 bundle
+work — one release period of warning-not-error during
+transition).
