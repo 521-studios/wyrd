@@ -1801,3 +1801,156 @@ def test_build_fantasy_morpheme_counter_reflects_inserts_only(tmp_path: Path):
     assert counts["fantasy_morpheme"] == 0, (
         "duplicate UNIQUE conflict was IGNORE'd; counter must not double-count"
     )
+
+
+# ---------------------------------------------------------------------------
+# wyrd-1ed9: regression tests that exercise the REAL init_schema-produced
+# schema, not the hand-rolled _build_fixture_db. The wyrd-rrse bug
+# (fantasy_morpheme missing from init_schema-produced DBs) shipped under
+# 848 green tests precisely because all existing fantasy_morpheme tests
+# above use _build_fixture_db, which creates the table directly via
+# CREATE TABLE — bypassing init_schema and masking the alembic gap.
+# ---------------------------------------------------------------------------
+
+
+def test_build_fantasy_morpheme_via_init_schema(tmp_path: Path):
+    """End-to-end regression for wyrd-rrse: the literal crash scenario
+    was ``init_schema(tmp) → build_from_jsonl(_fantasy_morphemes.jsonl)``
+    failing with ``no such table: fantasy_morpheme`` because the table
+    lived only in the legacy ``migrate_schema`` helper, not in alembic.
+
+    This test exercises the real init_schema path (which runs alembic
+    upgrade head to 0011_fantasy_morpheme) and writes one
+    fantasy_morpheme row. Crashes immediately if init_schema ever
+    stops producing the table — the gap _build_fixture_db masked."""
+    from wyrd.generators.kenning.lexicon import init_schema
+
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+
+    jsonl_dir = tmp_path / "mining"
+    jsonl_dir.mkdir()
+    _write_jsonl(
+        jsonl_dir,
+        "_fantasy_morphemes",
+        [
+            {"_type": "source", "ref": "fantasy-mining", "title": "Fantasy mining"},
+            {
+                "_type": "fantasy_morpheme",
+                "input_name": "Angel",
+                "usable": 1,
+                "resolution_method": "descent_lookup",
+                "approach_version": "fantasy-v1",
+                "processed_at": "2026-05-15T00:00:00+00:00",
+            },
+        ],
+    )
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        counts = build_from_jsonl(conn, jsonl_paths_in(jsonl_dir))
+        assert counts["fantasy_morpheme"] == 1
+        row = conn.execute("SELECT input_name FROM fantasy_morpheme").fetchone()
+        assert row is not None, "expected one fantasy_morpheme row after build"
+        assert row["input_name"] == "Angel"
+    finally:
+        conn.close()
+
+
+def test_init_schema_fantasy_morpheme_input_name_is_nocase(tmp_path: Path):
+    """Pin COLLATE NOCASE at the column level via PRAGMA, independent
+    of the UNIQUE(input_name, approach_version) constraint shape.
+
+    The behavioral dedup test below catches a NOCASE drop only via
+    its observable consequence under the CURRENT UNIQUE shape. If a
+    future change widens / re-orders / renames the UNIQUE (e.g. adds
+    a tertiary column or splits the constraint), the conflict no
+    longer fires the same way and a NOCASE regression on the column
+    silently slips through the behavioral test. This PRAGMA pin
+    catches it regardless of UNIQUE shape."""
+    from wyrd.generators.kenning.lexicon import init_schema
+
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+
+    # PRAGMA table_info doesn't expose collation directly — read it
+    # from sqlite_master's CREATE TABLE DDL, which preserves the
+    # column-level COLLATE clause verbatim.
+    conn = sqlite3.connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='fantasy_morpheme'"
+        ).fetchone()
+    finally:
+        conn.close()
+    assert row is not None, "fantasy_morpheme table missing from sqlite_master"
+    ddl = row[0]
+    assert "input_name" in ddl
+    assert "COLLATE NOCASE" in ddl, (
+        f"input_name COLLATE NOCASE missing from init_schema DDL:\n{ddl}"
+    )
+
+
+def test_build_fantasy_morpheme_via_init_schema_dedups_case_insensitively(tmp_path: Path):
+    """Pin the COLLATE NOCASE invariant added in PR #281 round-1.
+    The fantasy_morpheme.input_name column is COLLATE NOCASE so a
+    later "harpy" doesn't double-research an earlier "Harpy". The
+    UNIQUE(input_name, approach_version) constraint relies on
+    this collation for the dedup to fire.
+
+    Uses init_schema (not _build_fixture_db) so a future regression
+    that drops the COLLATE NOCASE from the alembic migration / SA
+    MetaData fails this test — the fixture DB has its own COLLATE
+    NOCASE hardcoded and would mask such a regression."""
+    from wyrd.generators.kenning.lexicon import init_schema
+
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+
+    # Pre-populate with title-case "Angel".
+    pre = sqlite3.connect(db_path)
+    try:
+        pre.execute(
+            "INSERT INTO fantasy_morpheme "
+            "(input_name, usable, resolution_method, approach_version, processed_at) "
+            "VALUES ('Angel', 1, 'descent_lookup', 'fantasy-v1', '2026-05-01T00:00:00+00:00')"
+        )
+        pre.commit()
+    finally:
+        pre.close()
+
+    # JSONL replay with lowercase "angel" — case-insensitive UNIQUE
+    # should treat this as a duplicate and IGNORE the insert,
+    # preserving the title-case row.
+    jsonl_dir = tmp_path / "mining"
+    jsonl_dir.mkdir()
+    _write_jsonl(
+        jsonl_dir,
+        "_fantasy_morphemes",
+        [
+            {"_type": "source", "ref": "fantasy-mining", "title": "Fantasy mining"},
+            {
+                "_type": "fantasy_morpheme",
+                "input_name": "angel",
+                "usable": 1,
+                "resolution_method": "descent_lookup",
+                "approach_version": "fantasy-v1",
+                "processed_at": "2026-05-20T00:00:00+00:00",
+            },
+        ],
+    )
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        counts = build_from_jsonl(conn, jsonl_paths_in(jsonl_dir))
+        assert counts["fantasy_morpheme"] == 0  # IGNORE'd
+        rows = conn.execute("SELECT input_name, processed_at FROM fantasy_morpheme").fetchall()
+        assert len(rows) == 1
+        assert rows[0]["input_name"] == "Angel", (
+            "INSERT OR IGNORE must preserve the original-case row"
+        )
+        assert rows[0]["processed_at"] == "2026-05-01T00:00:00+00:00"
+    finally:
+        conn.close()
