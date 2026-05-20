@@ -327,6 +327,36 @@ class Kenning(Generator):
                         "base_w": {"type": "number"},
                     },
                 },
+                "packs": {
+                    "type": "array",
+                    "description": (
+                        "wyrd-ecjp.11: scenario-pack overlay declarations "
+                        "(D36.4). Each entry is an object with keys "
+                        "'pack_name' (must exist in the bundled pack "
+                        "catalog), optional 'weight_override' (float in "
+                        "[0, 10]; falls back to the pack manifest's "
+                        "default_weight when null/absent), and optional "
+                        "'allowed_pack_tags' (list of tags narrowing the "
+                        "pack's lemma subset per PackOverlay."
+                        "allowed_pack_tags). Only consulted when "
+                        "scoring_mode='vector'. Used by the operator-"
+                        "facing CLI flags --pack / --pack-tag-filter; "
+                        "unknown pack_name surfaces as ValueError at "
+                        "dispatch time."
+                    ),
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "pack_name": {"type": "string"},
+                            "weight_override": {"type": ["number", "null"]},
+                            "allowed_pack_tags": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                        },
+                        "required": ["pack_name"],
+                    },
+                },
             },
             "required": [],
         }
@@ -353,6 +383,12 @@ class Kenning(Generator):
         # the dispatch boundary. Absent / None → use ScoringWeights()
         # defaults (1.0 across all four axes).
         scoring_weights_raw = params.get("scoring_weights")
+        # wyrd-ecjp.11: pack overlays (vector mode only). The CLI flag
+        # layer composes a list of {pack_name, weight_override,
+        # allowed_pack_tags} dicts; the dispatch helper resolves each
+        # entry against the bundled pack catalog to construct
+        # PackOverlay + pack_meaning_dbs.
+        packs_raw = params.get("packs") or []
 
         moods = params.get("mood", []) or []
         if isinstance(moods, str):
@@ -401,6 +437,7 @@ class Kenning(Generator):
                 exclude_tags=exclude_tags,
                 priors_path=priors_path,
                 scoring_weights_raw=scoring_weights_raw,
+                packs_raw=packs_raw,
             )
             if new_name is None:
                 # Vector path filtered everything (empty register +
@@ -480,6 +517,7 @@ def _generate_via_vector(
     exclude_tags: tuple[str, ...],
     priors_path: str | None,
     scoring_weights_raw: dict[str, float] | None = None,
+    packs_raw: list[dict[str, Any]] | None = None,
 ):
     """Dispatch helper for scoring_mode='vector'.
 
@@ -499,7 +537,7 @@ def _generate_via_vector(
         build_request_vector,
         era_midpoint_from_range,
     )
-    from wyrd.generators.kenning.vectors.schemas import ScoringWeights
+    from wyrd.generators.kenning.vectors.schemas import PackOverlay, ScoringWeights
 
     era_min = era_range[0] if era_range else None
     era_max = era_range[1] if era_range else None
@@ -522,6 +560,44 @@ def _generate_via_vector(
     else:
         weights = ScoringWeights()
 
+    # wyrd-ecjp.11: resolve declared packs against the bundled pack
+    # catalog. Each parsed pack-spec dict references a pack_name; the
+    # bundle's PackBundle supplies template_donor + template_recipient
+    # + default_weight (used when the operator's weight_override is
+    # None). Pack-tag filters land on PackOverlay.allowed_pack_tags
+    # (ecjp.8's pre-score gate). The CLI layer already validated that
+    # every declared pack exists in _load_packs() — but we re-resolve
+    # here because non-CLI callers (Lambda, SPA, tests) bypass that
+    # validation and could supply an unknown pack_name. Unknown pack
+    # names raise KeyError here rather than failing silently.
+    pack_overlays: tuple[PackOverlay, ...] = ()
+    pack_meaning_dbs: dict[str, dict] = {}
+    if packs_raw:
+        from wyrd.generators.kenning import _load_packs
+
+        loaded = _load_packs()
+        overlays: list[PackOverlay] = []
+        for spec in packs_raw:
+            pack_name = spec["pack_name"]
+            if pack_name not in loaded:
+                available = ", ".join(sorted(loaded.keys())) or "(no packs bundled)"
+                raise ValueError(f"unknown pack {pack_name!r}; available: {available}")
+            bundle = loaded[pack_name]
+            weight = spec.get("weight_override")
+            if weight is None:
+                weight = bundle.manifest.default_weight
+            overlays.append(
+                PackOverlay(
+                    pack_name=pack_name,
+                    template_donor=bundle.manifest.template_donor,
+                    template_recipient=bundle.manifest.template_recipient,
+                    weight=float(weight),
+                    allowed_pack_tags=frozenset(spec.get("allowed_pack_tags") or ()),
+                )
+            )
+            pack_meaning_dbs[pack_name] = bundle.meaning_db
+        pack_overlays = tuple(overlays)
+
     request = build_request_vector(
         culture=culture,
         tags=tags,
@@ -531,6 +607,7 @@ def _generate_via_vector(
         era_max=era_max,
         stratum=stratum,
         weights=weights,
+        packs=pack_overlays,
     )
 
     if priors_path:
@@ -555,4 +632,5 @@ def _generate_via_vector(
         era_midpoint=era_midpoint,
         cohesion=cohesion,
         exclude_tags=exclude_tags,
+        pack_meaning_dbs=pack_meaning_dbs or None,
     )
