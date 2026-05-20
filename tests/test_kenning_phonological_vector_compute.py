@@ -287,6 +287,14 @@ class TestAlveoloPalatalSibilants:
         # ɕ is a soft consonant (fricative) → 1/1 = 1.0
         assert v.soft_consonants == 1.0
 
+    def test_polish_voiced_alveolo_palatal(self):
+        # Polish 'ź' = ʑ → 1 sibilant phoneme / 2 (ʑ + i) = 0.5.
+        # Voiced counterpart of ɕ — same propagation contract.
+        v = compute_phonological_vector("zi", "ʑi")
+        assert _approx(v.sibilance, 0.5)
+        assert v.stop_vs_continuant == -1.0
+        assert v.soft_consonants == 1.0
+
 
 class TestVowelHeight:
     """Mean F1 signed [-1=close, +1=open]. All-/a/-heavy forms score

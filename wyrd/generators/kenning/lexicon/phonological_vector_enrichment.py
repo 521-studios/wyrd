@@ -62,8 +62,16 @@ def tag_phonological_vectors_all(
             (re)processed.
             ``written`` — count of rows that actually got a new blob
             (only meaningful when ``apply=True``).
+            ``failed`` — count of rows whose compute / serialize step
+            raised, so they were skipped (counted but not written).
+            Per-row exception isolation lets one malformed row not
+            abort a 77K-row batch.
             ``sample`` — up to 5 (etymon_id, canonical_form,
             phonological_vector_json) tuples for spot-check / debug.
+            ``sample_failures`` — up to 5 (etymon_id, canonical_form,
+            "<ExceptionType>: <message>") tuples for the first failures
+            so an operator can audit without scanning logs.
+            ``force`` — echo of the input flag (operator-friendly).
     """
     conn: sqlite3.Connection = db.conn
 

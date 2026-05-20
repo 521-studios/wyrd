@@ -90,6 +90,7 @@ def lexicon_tag_phonological_vectors(
         )
         if apply_changes:
             click.echo(f"  written:    {result['written']}", err=True)
+            click.echo(f"  failed:     {result['failed']}", err=True)
         click.echo(
             f"  coverage:   {coverage['tagged']:,} / {coverage['total']:,} "
             f"({coverage['ratio'] * 100:.1f}%)",
@@ -99,6 +100,10 @@ def lexicon_tag_phonological_vectors(
             click.echo("  sample:", err=True)
             for etymon_id, canonical_form, blob in result["sample"]:
                 click.echo(f"    [{etymon_id}] {canonical_form}: {blob}", err=True)
+        if result["sample_failures"]:
+            click.echo("  sample_failures:", err=True)
+            for etymon_id, canonical_form, msg in result["sample_failures"]:
+                click.echo(f"    [{etymon_id}] {canonical_form}: {msg}", err=True)
     finally:
         db.close()
 

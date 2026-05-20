@@ -25,10 +25,21 @@ from wyrd.generators.kenning.runtime.name import Name, _trie_cache, load_names
 
 
 @pytest.fixture(autouse=True)
-def _clear_trie_cache():
+def _clear_trie_cache(request):
     """Each test gets a fresh trie cache. Without this, a prior test's
     word_db id() can collide with a freshly-built one and serve a stale
-    trie, making failures look like spooky action."""
+    trie, making failures look like spooky action.
+
+    Skip the clear when ``bundle_word_db`` is in scope: that fixture is
+    module-scoped, so its dict id is stable across the parametrized
+    runs of ``test_find_meaning_runs_full_bundled_corpus_without_crashing``
+    and clearing the cache between them just forces 5 redundant trie
+    rebuilds against the now-18k-word post-Phase-3 bundle. The stale-id
+    safety only matters when test-local word_dbs get GC'd between
+    runs."""
+    if "bundle_word_db" in request.fixturenames:
+        yield
+        return
     _trie_cache.clear()
     yield
     _trie_cache.clear()
