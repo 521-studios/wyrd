@@ -56,8 +56,8 @@ expression, and facts aren't copyrightable (*Feist v. Rural Telephone*,
   *The Place-Names of Warwickshire* (1936). EPNS vol XIII.
 - `smith_1937_east_riding_yorkshire.txt` — A.H. Smith, *The Place-Names of
   the East Riding of Yorkshire and York* (1937). EPNS vol XIV; with the
-  1928 (North) and 1961/1986 (West) volumes below, completes the
-  Yorkshire-Ridings trio.
+  1928 (North) above and the 1961/1986 (West) volumes below, completes
+  the Yorkshire-Ridings trio.
 - `smith_1961_west_riding_yorkshire_pt1.txt` — A.H. Smith, *The Place-Names
   of the West Riding of Yorkshire*, pt 1 (1961). EPNS vol XXX. West Riding
   is an eight-part EPNS survey; this scan covers pt 1 — Lower Strafforth,
