@@ -299,6 +299,12 @@ toponym_attestation = Table(
     Column("source_doc", Text),
 )
 Index("idx_attestation_topo", toponym_attestation.c.toponym_id)
+# wyrd-rhnw: dedicated source_doc index. idx_attestation_unique has
+# source_doc as the LAST composite column, so a `SELECT WHERE
+# source_doc=?` falls back to a full-table scan without this. Phase
+# 2b.2 corpus extraction needs the dedicated index for the bulk
+# preflight to stay sub-linear.
+Index("idx_attestation_source_doc", toponym_attestation.c.source_doc)
 # COALESCE on the nullable columns matches idx_toponym_unique
 # (country / region) and idx_etymon_citation_unique (page). Without
 # the wrap, SQLite treats every NULL as distinct under UNIQUE, so

@@ -15,6 +15,7 @@ from pathlib import Path
 from wyrd.generators.kenning.jsonl.dump import (
     _attestation_source_doc_filter,
     _source_for_attestation_doc,
+    count_orphan_attestations,
     dump_all_sources,
     dump_fantasy_morphemes_to_file,
     dump_fantasy_morphemes_to_rows,
@@ -1111,3 +1112,92 @@ def test_default_bulk_excluded_sources_excludes_fantasy_mining_from_dump_all():
     sids = list_source_ids(conn, exclude=DEFAULT_BULK_EXCLUDED_SOURCES)
     assert "fantasy-mining" not in sids
     assert "skeat" in sids
+
+
+# ---------------------------------------------------------------------
+# wyrd-2t28: orphan-attestation telemetry
+# ---------------------------------------------------------------------
+
+
+def test_count_orphan_attestations_zero_when_all_routed() -> None:
+    """Attestations whose source_doc exactly matches a source.id route
+    cleanly and aren't counted as orphans."""
+    conn = _build_fixture_db()
+    _add_source(conn, id="skeat", title="X")
+    tid = _add_toponym(conn, "Stratford")
+    _add_attestation(conn, toponym_id=tid, form="Streatfort", source_doc="skeat")
+    assert count_orphan_attestations(conn) == 0
+
+
+def test_count_orphan_attestations_counts_unrouted_source_doc() -> None:
+    """A source_doc that neither matches a source.id nor a registered
+    prefix is counted as an orphan."""
+    conn = _build_fixture_db()
+    _add_source(conn, id="skeat", title="X")
+    tid = _add_toponym(conn, "Stratford")
+    _add_attestation(conn, toponym_id=tid, form="Streatfort", source_doc="unknown_ingester")
+    assert count_orphan_attestations(conn) == 1
+
+
+def test_count_orphan_attestations_ignores_null_source_doc() -> None:
+    """Rows with NULL source_doc aren't orphans — they're un-attributed
+    by design, not misrouted."""
+    conn = _build_fixture_db()
+    tid = _add_toponym(conn, "Stratford")
+    _add_attestation(conn, toponym_id=tid, form="Streatfort", source_doc=None)
+    assert count_orphan_attestations(conn) == 0
+
+
+def test_count_orphan_attestations_excludes_registered_prefix() -> None:
+    """A source_doc matching a prefix in _ATTESTATION_DOC_PREFIX_TO_SOURCE
+    (e.g. 'Phillimore ...') routes to its target source and is NOT an
+    orphan. Pins the prefix-exclusion path."""
+    conn = _build_fixture_db()
+    _add_source(conn, id="open_domesday_hull", title="Hull")
+    tid = _add_toponym(conn, "Settlement")
+    _add_attestation(
+        conn,
+        toponym_id=tid,
+        form="Settlentum",
+        source_doc="Phillimore 1L1.2",
+    )
+    assert count_orphan_attestations(conn) == 0
+
+
+def test_dump_all_sources_warns_on_orphan_attestations(tmp_path: Path, caplog) -> None:
+    """dump_all_sources logs a warning when orphan_count > 0 so the
+    operator notices silently-dropped rows."""
+    import logging
+
+    conn = _build_fixture_db()
+    _add_source(conn, id="skeat", title="X")
+    tid = _add_toponym(conn, "Stratford")
+    _add_attestation(conn, toponym_id=tid, form="Streatfort", source_doc="unknown_ingester")
+    with caplog.at_level(logging.WARNING, logger="wyrd.generators.kenning.jsonl.dump"):
+        dump_all_sources(conn, tmp_path, exclude=())
+    warnings = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert any("toponym_attestation row(s)" in r.message for r in warnings), (
+        f"expected orphan-attestation warning, got: {[r.message for r in warnings]}"
+    )
+
+
+def test_dump_all_sources_does_not_warn_when_all_attestations_routed(
+    tmp_path: Path, caplog
+) -> None:
+    """When every source_doc routes cleanly, no orphan warning fires
+    — pins the silent-default path so a regression that started
+    spuriously warning would surface here."""
+    import logging
+
+    conn = _build_fixture_db()
+    _add_source(conn, id="skeat", title="X")
+    tid = _add_toponym(conn, "Stratford")
+    _add_attestation(conn, toponym_id=tid, form="Streatfort", source_doc="skeat")
+    with caplog.at_level(logging.WARNING, logger="wyrd.generators.kenning.jsonl.dump"):
+        dump_all_sources(conn, tmp_path, exclude=())
+    warnings = [
+        r
+        for r in caplog.records
+        if r.levelno >= logging.WARNING and "toponym_attestation" in r.message
+    ]
+    assert warnings == []

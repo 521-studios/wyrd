@@ -1297,6 +1297,16 @@ def _populate_realistic_db() -> sqlite3.Connection:
         "INSERT INTO mining_run (source_id, provider, model, mode, parsed_count) "
         "VALUES ('mawer', 'anthropic', 'claude', 'mine', 42)"
     )
+    # wyrd-jr37: at least one attestation row so the round-trip test
+    # actually exercises the attestation dump+rebuild path. Without it,
+    # toponym_attestation enters the DIFF_REBUILD_TABLES set with zero
+    # rows on both sides — a regression that silently drops attestations
+    # would still produce a 0-vs-0 diff.
+    conn.execute(
+        "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+        "VALUES (?, 'Cotuna', 1086, 'mawer')",
+        (tid,),
+    )
     return conn
 
 
@@ -1385,6 +1395,17 @@ def _l2_state_snapshot(conn: sqlite3.Connection) -> dict:
                 JOIN toponym_etymology te ON te.id = el.toponym_etymology_id
                 JOIN toponym t ON t.id = te.toponym_id
                 JOIN etymon e ON e.id = el.etymon_id
+            """)
+        ),
+        # wyrd-jr37: attestation rows in the snapshot so dump→rebuild→
+        # dump pins (form, date_year, source_doc) identity. Without
+        # this, a regression dropping all attestations would pass the
+        # snapshot equality check.
+        "toponym_attestation": sorted(
+            (r["modern_name"], r["region"], r["form"], r["date_year"], r["source_doc"])
+            for r in conn.execute("""
+                SELECT t.modern_name, t.region, ta.form, ta.date_year, ta.source_doc
+                FROM toponym_attestation ta JOIN toponym t ON t.id = ta.toponym_id
             """)
         ),
     }
