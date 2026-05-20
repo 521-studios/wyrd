@@ -957,6 +957,14 @@ def load_meanings(data):
                 lang_key = k[: -len(_PHONOLOGICAL_VECTOR_SUFFIX)]
                 per_form: dict[str, PhonologicalVector] = {}
                 for entry in v:
+                    # Skip malformed entries: a non-dict entry or a
+                    # dict missing the "form" key would crash the
+                    # parse loop. Bundles can in principle ship
+                    # arbitrary JSON, and the "best-effort parse;
+                    # degrade silently" contract that _parse_phon_vector
+                    # documents extends to the surrounding entry shape.
+                    if not isinstance(entry, dict) or "form" not in entry:
+                        continue
                     parsed = _parse_phon_vector(entry.get("phonological_vector"))
                     if parsed is not None:
                         per_form[entry["form"]] = parsed
@@ -966,14 +974,18 @@ def load_meanings(data):
             if legacy_top_level is not None:
                 phonological_vector = _parse_phon_vector(legacy_top_level)
             else:
-                phonological_vector = None
-                for lang_key in sorted(phonological_vectors):
-                    per_form = phonological_vectors[lang_key]
-                    for form in sorted(per_form):
-                        phonological_vector = per_form[form]
-                        break
-                    if phonological_vector is not None:
-                        break
+                # Deterministic lang × form walk: pick the first
+                # non-empty vector. next(gen, None) is the Pythonic
+                # form of "first match or None" — avoids the
+                # nested-break pattern.
+                phonological_vector = next(
+                    (
+                        phonological_vectors[lang_key][form]
+                        for lang_key in sorted(phonological_vectors)
+                        for form in sorted(phonological_vectors[lang_key])
+                    ),
+                    None,
+                )
             # Singular and plural Meanings share every constructor arg
             # except `usage`. Bundle them so a future kwarg addition can't
             # silently drop on one branch and not the other.

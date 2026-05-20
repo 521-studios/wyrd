@@ -243,6 +243,49 @@ def test_load_meanings_phon_vector_suffix_excluded_from_sources():
     assert "old_english" in meaning.sources
 
 
+def test_load_meanings_non_dict_entry_silently_skipped():
+    """A bundle could in principle ship a non-dict entry in the
+    sibling list (operator hand-edit gone wrong, third-party tooling).
+    The load path skips rather than raising AttributeError —
+    'best-effort parse' contract extends to surrounding entry shape."""
+    bundle = _bundle_with_word(
+        {
+            "modern_usage": "-foo",
+            "old_english": ["good"],
+            "old_english_phonological_vector": [
+                "not a dict",  # entry must be dict
+                {"form": "good", "phonological_vector": {"cluster_density": 0.5}},
+            ],
+        }
+    )
+    meaning_db, _ = load_meanings(bundle)
+    meaning = meaning_db["-foo"][0]
+    # The valid entry still landed; the non-dict was silently dropped
+    assert meaning.phonological_vectors["old_english"]["good"] == PhonologicalVector(
+        cluster_density=0.5
+    )
+
+
+def test_load_meanings_entry_missing_form_key_silently_skipped():
+    """Similar: an entry-shaped dict missing the 'form' key would
+    KeyError on the per_form[entry['form']] assignment. Skip it."""
+    bundle = _bundle_with_word(
+        {
+            "modern_usage": "-foo",
+            "old_english": ["good"],
+            "old_english_phonological_vector": [
+                {"phonological_vector": {"cluster_density": 0.9}},  # missing form
+                {"form": "good", "phonological_vector": {"cluster_density": 0.5}},
+            ],
+        }
+    )
+    meaning_db, _ = load_meanings(bundle)
+    meaning = meaning_db["-foo"][0]
+    assert meaning.phonological_vectors["old_english"]["good"] == PhonologicalVector(
+        cluster_density=0.5
+    )
+
+
 def test_load_meanings_malformed_phon_vector_entry_silently_skipped():
     """A malformed sibling entry (non-dict phon_vector value, missing
     form key on entry, etc.) shouldn't crash load_meanings. Drop to
