@@ -71,6 +71,46 @@ def test_parse_handles_malformed_json_string():
     assert _parse_phon_vector("{not valid json") is None
 
 
+def test_parse_handles_non_floatable_dimension_value():
+    """Round-1 silent-failure-hunter caught: ``float("not-a-number")``
+    raises ValueError. The 'Never raises' contract requires the
+    whole-row fallback to None when any dimension's value can't be
+    coerced."""
+    raw = {"cluster_density": "not-a-number", "final_fortition": 0.5}
+    assert _parse_phon_vector(raw) is None
+
+
+def test_parse_handles_none_value_at_dimension():
+    """Similar: ``float(None)`` raises TypeError. Fallback to None."""
+    raw = {"cluster_density": None}
+    assert _parse_phon_vector(raw) is None
+
+
+def test_parse_handles_nested_dict_at_dimension():
+    """``float({...})`` raises TypeError. Fallback to None."""
+    raw = {"cluster_density": {"nested": 0.5}}
+    assert _parse_phon_vector(raw) is None
+
+
+def test_parse_handles_non_dict_extras_block():
+    """``raw["extras"]`` may arrive as a non-dict (string, list, int) from
+    a malformed bundle. The loader should treat it as absent rather
+    than crashing or silently dropping other dims."""
+    raw = {"cluster_density": 0.4, "extras": "not-a-dict"}
+    v = _parse_phon_vector(raw)
+    # Doesn't raise; the known dim still loads, extras drops cleanly.
+    assert v is not None
+    assert v.cluster_density == 0.4
+    assert v.extras == {}
+
+
+def test_parse_handles_non_floatable_extras_value():
+    """A bad value INSIDE extras shouldn't crash — same fallback as
+    a bad value in a named dim."""
+    raw = {"cluster_density": 0.4, "extras": {"experimental": "nan-str"}}
+    assert _parse_phon_vector(raw) is None
+
+
 def test_parse_drops_unknown_dim_keys_to_extras():
     """Forward-compat: unknown top-level keys land in extras so the
     bundle can ship new dimensions before the schema's named-fields

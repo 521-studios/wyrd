@@ -252,3 +252,14 @@ def test_load_raises_on_missing_file(tmp_path: Path):
     p = tmp_path / "does-not-exist.json"
     with pytest.raises(FileNotFoundError):
         load_empirical_priors_from_json(p)
+
+
+def test_load_raises_on_malformed_json(tmp_path: Path):
+    """Malformed JSON → json.JSONDecodeError propagates. Same loud-
+    failure rationale as missing-file: an operator shouldn't be able
+    to Lambda-deploy a corrupted priors artifact and silently get
+    empty priors. JSONDecodeError is a ValueError subclass."""
+    p = tmp_path / "broken.json"
+    p.write_text("{not valid json")
+    with pytest.raises(ValueError):
+        load_empirical_priors_from_json(p)

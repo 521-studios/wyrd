@@ -41,10 +41,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
-
-if TYPE_CHECKING:
-    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+from typing import Literal
 
 from wyrd.generators.kenning.era.cells import (
     ERA_CELLS,
@@ -53,6 +50,7 @@ from wyrd.generators.kenning.era.cells import (
     era_year_range,
 )
 from wyrd.generators.kenning.lexicon import LexiconDB
+from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
 
 # Culture inference from toponym.country. v1 covers the English slice
 # only (where the lexicon DB actually has toponym coverage). Future
@@ -593,11 +591,6 @@ def load_empirical_priors_from_json(input_path: Path) -> EmpiricalPriors:
     scoring callers; the JSON's sorted shape preserves bit-stability
     of the underlying lemma->count mappings).
     """
-    # Local import deferred to avoid a circular import at module-load
-    # time. The schema module imports nothing from lexicon; the lexicon
-    # module imports nothing from vectors except inside this function.
-    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
-
     with input_path.open(encoding="utf-8") as f:
         artifact = json.load(f)
 
