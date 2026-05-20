@@ -245,21 +245,23 @@ def compute_bundle_diff(committed_text: str, rebuilt_text: str) -> BundleDiff:
 def _emit_capped_list(
     lines: list[str],
     items: list[Any],
+    *,
     cap: int,
-    item_indent: str,
-    item_prefix: str,
+    indent: str,
+    prefix: str,
     render: Any,
 ) -> None:
     """Append up to ``cap`` items, then ``... and N more`` if truncated.
 
-    ``render(item) -> str`` formats one item; we prepend ``item_indent``
-    + ``item_prefix`` per line so callers control prefix marker
-    (``+``/``-``/``~``) without duplicating the cap logic."""
+    ``render(item) -> str`` formats one item; we prepend ``indent`` +
+    ``prefix`` per line so callers control the marker (``+``/``-``/``~``)
+    without duplicating the cap logic. Keyword-only after ``items`` keeps
+    call sites readable at the cost of a tiny bit of verbosity."""
     for item in items[:cap]:
-        lines.append(f"{item_indent}{item_prefix}{render(item)}")
+        lines.append(f"{indent}{prefix}{render(item)}")
     extra = len(items) - cap
     if extra > 0:
-        lines.append(f"{item_indent}... and {extra} more")
+        lines.append(f"{indent}... and {extra} more")
 
 
 def _format_subjects_section(
@@ -276,19 +278,33 @@ def _format_subjects_section(
     )
     if diff.subjects_added:
         lines.append("  Added (sample):")
-        _emit_capped_list(lines, diff.subjects_added, max_subjects_per_section, "    ", "+ ", str)
+        _emit_capped_list(
+            lines,
+            diff.subjects_added,
+            cap=max_subjects_per_section,
+            indent="    ",
+            prefix="+ ",
+            render=str,
+        )
     if diff.subjects_removed:
         lines.append("  Removed (sample):")
-        _emit_capped_list(lines, diff.subjects_removed, max_subjects_per_section, "    ", "- ", str)
+        _emit_capped_list(
+            lines,
+            diff.subjects_removed,
+            cap=max_subjects_per_section,
+            indent="    ",
+            prefix="- ",
+            render=str,
+        )
     if diff.subjects_changed:
         lines.append("  Changed (sample):")
         _emit_capped_list(
             lines,
             diff.subjects_changed,
-            max_subjects_per_section,
-            "    ",
-            "~ ",
-            lambda pair: f"{pair[0]}: {', '.join(pair[1])}",
+            cap=max_subjects_per_section,
+            indent="    ",
+            prefix="~ ",
+            render=lambda pair: f"{pair[0]}: {', '.join(pair[1])}",
         )
 
 

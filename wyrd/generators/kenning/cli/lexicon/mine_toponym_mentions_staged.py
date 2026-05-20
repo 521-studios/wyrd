@@ -10,6 +10,7 @@ from pathlib import Path
 
 import click
 
+from wyrd.generators.kenning.cli.lexicon._dedup import dedup_key_from_mention
 from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions import _build_extractor_client
 from wyrd.generators.kenning.cli.lexicon.mine_toponym_mentions_tiered import (
     _load_existing_mention_keys,
@@ -544,7 +545,7 @@ def _run_resume_from_failures(
                                 continue
                             sink.write(stripped + "\n")
                 for m in report.mentions:
-                    key = (m.form, m.date_year, m.region_hint, m.context)
+                    key = dedup_key_from_mention(m)
                     if key in existing_keys:
                         dup_count += 1
                         continue
@@ -627,7 +628,7 @@ def _run_fresh_mining(
 
     for src_i, source_id in enumerate(source_ids, start=1):
         out_path = output_dir / f"{source_id}.jsonl"
-        if _should_skip_or_overwrite(
+        if _should_skip_existing_output(
             out_path,
             source_id,
             src_i,
@@ -731,10 +732,11 @@ def _run_fresh_mining(
 
 
 def _resolve_source_ids(sources: tuple[str, ...], sources_dir: Path) -> list[str]:
-    """Resolve the operator's ``--source`` selection (or all .txt files
-    under sources_dir if empty) into a sorted list of source IDs.
-    Raises ClickException on any explicit selection that doesn't
-    correspond to an existing .txt file."""
+    """Resolve the operator's ``--source`` selection (returned in
+    caller-supplied order) or, when empty, every ``.txt`` file under
+    ``sources_dir`` (returned sorted). Raises ClickException on any
+    explicit selection that doesn't correspond to an existing .txt
+    file, or when the all-files branch finds zero sources."""
     if sources:
         source_ids = []
         for sid in sources:
@@ -749,7 +751,7 @@ def _resolve_source_ids(sources: tuple[str, ...], sources_dir: Path) -> list[str
     return source_ids
 
 
-def _should_skip_or_overwrite(
+def _should_skip_existing_output(
     out_path: Path,
     source_id: str,
     src_i: int,
@@ -759,9 +761,18 @@ def _should_skip_or_overwrite(
     force: bool,
     totals: dict,
 ) -> bool:
-    """Return True if this source should be skipped (existing canonical
-    + --skip-existing). Raise on existing canonical without --force or
-    --skip-existing. False means proceed with mining."""
+    """Decide whether the per-source mining loop should skip this
+    source's already-existing canonical output.
+
+    Three outcomes encoded as bool-return + side-effect-or-raise:
+      - ``False`` (proceed): no canonical exists OR ``force`` is set →
+        caller mines and overwrites.
+      - ``True`` (skip): canonical exists AND ``skip_existing`` is set →
+        emits the SKIP progress line and bumps
+        ``totals['sources_skipped']`` for the run summary.
+      - ``raise ClickException``: canonical exists AND neither flag is
+        set → operator must pick one explicitly.
+    """
     if not out_path.exists():
         return False
     if skip_existing:

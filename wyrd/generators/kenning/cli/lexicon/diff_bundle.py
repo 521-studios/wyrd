@@ -183,6 +183,12 @@ def _rebuild_lexicon_db(
     L3 enrichment chain against an already-init_schema'd DB at
     ``rebuilt_path``. The caller owns the tmpdir lifetime — this helper
     only writes; it does not delete."""
+    # Deferred imports: bulk_sources, enrichment, jsonl.build pull in
+    # heavy dependencies (LLM clients, sqlite extension setup) that
+    # other lexicon commands don't need. Mirrors the deferral in the
+    # parent lexicon_diff_bundle docstring — kept here too because
+    # this helper is also reachable from future internal callers that
+    # may want the same `wyrd kenning --help` snappiness guarantee.
     from wyrd.generators.kenning.bulk_sources import ingest_all_slices
     from wyrd.generators.kenning.enrichment import run_full_enrichment
     from wyrd.generators.kenning.jsonl.build import (
