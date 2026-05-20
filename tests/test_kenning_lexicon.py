@@ -709,17 +709,23 @@ def test_alembic_head_server_default_matches_tables_metadata(fresh_db: Path) -> 
     string and seeing zero ``modify_default`` diffs surface. Same
     SQLite reflection blind spot as collation and ondelete.
 
-    The schema has ~15 ``server_default=text(...)`` declarations
-    (mostly ``text("0")`` boolean-as-int defaults). A migration that
+    The schema has 17 ``server_default=text(...)`` declarations
+    (mostly ``text("0")`` boolean-as-int defaults plus one
+    ``text("(datetime('now'))")`` and one
+    ``text("'reverse-search-v1'")``). A migration that
     adds/removes/changes a column DEFAULT without updating MetaData
     silently produces different insert-time behavior between fresh
     DBs and MetaData-derived query builders.
 
     Parse ``DEFAULT <expr>`` out of each column line in
     ``sqlite_master.sql`` and reconcile bidirectionally against
-    MetaData's ``column.server_default``.
+    MetaData's ``column.server_default``. Uses ``shlex.split(posix=
+    False)`` for tokenization so quoted strings (including those
+    containing spaces) and paren-wrapped expressions are each
+    treated as single tokens.
     """
     import re
+    import shlex
 
     from wyrd.generators.kenning.lexicon.sql.tables import metadata
 
@@ -740,40 +746,28 @@ def test_alembic_head_server_default_matches_tables_metadata(fresh_db: Path) -> 
             for line in sql.splitlines():
                 if "DEFAULT" not in line.upper():
                     continue
-                tokens = line.strip().split()
+                try:
+                    tokens = shlex.split(line.strip(), posix=False)
+                except ValueError:
+                    # Unterminated quote etc. — skip the line rather
+                    # than treat it as a real drift signal.
+                    continue
                 if not tokens:
                     continue
                 column_name = tokens[0].strip("\"'`[]")
-                upper_tokens = [t.upper() for t in tokens]
-                if "DEFAULT" not in upper_tokens:
+                try:
+                    idx = [t.upper() for t in tokens].index("DEFAULT")
+                except ValueError:
                     continue
-                idx = upper_tokens.index("DEFAULT")
                 if idx + 1 >= len(tokens):
                     continue
-                next_tok = tokens[idx + 1]
-                # Two cases: paren-wrapped expression (may span
-                # tokens after whitespace split) vs single-token
-                # literal followed by another clause (CHECK, NOT
-                # NULL, REFERENCES, ...).
-                if next_tok.startswith("("):
-                    rest = " ".join(tokens[idx + 1 :])
-                    depth = 0
-                    end = -1
-                    for i, ch in enumerate(rest):
-                        if ch == "(":
-                            depth += 1
-                        elif ch == ")":
-                            depth -= 1
-                            if depth == 0:
-                                end = i + 1
-                                break
-                    value = rest[:end] if end > 0 else rest
-                else:
-                    # Single-token literal. Strip trailing comma
-                    # (column separator) / semicolon / close-paren
-                    # (table terminator); leave any interior content
-                    # alone.
-                    value = next_tok.rstrip(",;)")
+                # shlex.split(posix=False) keeps each quoted string AND
+                # each paren-wrapped expression as a single token, so
+                # the value is always tokens[idx+1]. Strip only the
+                # column-separator comma / semicolon — NOT trailing
+                # parens, which are part of paren-wrapped expressions
+                # like ``(datetime('now'))``.
+                value = tokens[idx + 1].rstrip(",;")
                 ddl_defaults[(table_name, column_name)] = _normalize_default(value)
 
     md_defaults: dict[tuple[str, str], str] = {}
