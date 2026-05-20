@@ -742,7 +742,9 @@ def test_alembic_head_server_default_matches_tables_metadata(fresh_db: Path) -> 
         conn.row_factory = sqlite3.Row
         for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall():
             table_name = row["name"]
-            for col in conn.execute(f"PRAGMA table_info({table_name})").fetchall():
+            # Quote the table identifier so a future table named
+            # after a reserved word doesn't break the PRAGMA.
+            for col in conn.execute(f'PRAGMA table_info("{table_name}")').fetchall():
                 if col["dflt_value"] is not None:
                     ddl_defaults[(table_name, col["name"])] = _normalize_default(col["dflt_value"])
 
