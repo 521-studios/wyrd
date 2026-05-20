@@ -730,9 +730,15 @@ def test_alembic_head_server_default_matches_tables_metadata(fresh_db: Path) -> 
     from wyrd.generators.kenning.lexicon.sql.tables import metadata
 
     def _normalize_default(expr: str) -> str:
-        # Collapse whitespace, strip outer parens (DDL may wrap exprs
-        # like ``(datetime('now'))`` while MetaData may not).
+        # Collapse whitespace, drop whitespace adjacent to parens
+        # (so the paren-collection's space-joined reconstruction
+        # of ``( datetime('now') )`` matches MetaData's literal
+        # ``(datetime('now'))``), then strip outer parens (DDL may
+        # wrap exprs while MetaData may not). NOT normalizing
+        # whitespace around commas — that would change the meaning
+        # of string literals like ``'foo, bar'`` vs ``'foo,bar'``.
         expr = re.sub(r"\s+", " ", expr).strip()
+        expr = re.sub(r"\s*([()])\s*", r"\1", expr)
         if expr.startswith("(") and expr.endswith(")"):
             expr = expr[1:-1].strip()
         return expr.upper()
@@ -761,13 +767,21 @@ def test_alembic_head_server_default_matches_tables_metadata(fresh_db: Path) -> 
                     continue
                 if idx + 1 >= len(tokens):
                     continue
-                # shlex.split(posix=False) keeps each quoted string AND
-                # each paren-wrapped expression as a single token, so
-                # the value is always tokens[idx+1]. Strip only the
-                # column-separator comma / semicolon — NOT trailing
-                # parens, which are part of paren-wrapped expressions
-                # like ``(datetime('now'))``.
-                value = tokens[idx + 1].rstrip(",;")
+                # shlex.split(posix=False) keeps quoted strings as
+                # single tokens, but splits at whitespace, so a
+                # paren-wrapped expression with internal whitespace
+                # like ``( datetime('now') )`` gets split into
+                # multiple tokens. Collect tokens after DEFAULT
+                # until parens balance to capture the full
+                # expression in either shape.
+                val_tokens: list[str] = []
+                depth = 0
+                for t in tokens[idx + 1 :]:
+                    val_tokens.append(t)
+                    depth += t.count("(") - t.count(")")
+                    if depth <= 0:
+                        break
+                value = " ".join(val_tokens).rstrip(",;")
                 ddl_defaults[(table_name, column_name)] = _normalize_default(value)
 
     md_defaults: dict[tuple[str, str], str] = {}
@@ -834,14 +848,22 @@ def test_alembic_head_indexes_match_tables_metadata(fresh_db: Path) -> None:
             ).fetchall()
         }
 
+    from sqlalchemy import UniqueConstraint
+
     md_indexes: set[str] = set()
     for table in metadata.tables.values():
-        for idx in table.indexes:
-            md_indexes.add(idx.name)
-        # UniqueConstraint with a named index also surfaces as an
-        # auto-index in sqlite_master under sqlite_autoindex_<table>_N;
-        # exclude SQLite-generated auto-indexes (UNIQUE without
-        # explicit Index name produces them).
+        md_indexes.update(idx.name for idx in table.indexes if idx.name)
+        # Named UniqueConstraints also surface as indexes in SQLite
+        # but live in table.constraints, not table.indexes. Include
+        # them so a future ``UniqueConstraint(..., name="...")`` is
+        # caught by this parity check. Unnamed UniqueConstraints
+        # produce ``sqlite_autoindex_*`` indexes that we exclude
+        # from the DDL side below.
+        md_indexes.update(
+            c.name
+            for c in table.constraints
+            if isinstance(c, UniqueConstraint) and c.name
+        )
     ddl_named = {n for n in ddl_indexes if not n.startswith("sqlite_autoindex_")}
 
     missing_in_ddl = md_indexes - ddl_named
