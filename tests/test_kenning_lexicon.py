@@ -717,72 +717,34 @@ def test_alembic_head_server_default_matches_tables_metadata(fresh_db: Path) -> 
     silently produces different insert-time behavior between fresh
     DBs and MetaData-derived query builders.
 
-    Parse ``DEFAULT <expr>`` out of each column line in
-    ``sqlite_master.sql`` and reconcile bidirectionally against
-    MetaData's ``column.server_default``. Uses ``shlex.split(posix=
-    False)`` for tokenization so quoted strings (including those
-    containing spaces) and paren-wrapped expressions are each
-    treated as single tokens.
+    Use ``PRAGMA table_info(<table>)`` to read each column's
+    ``dflt_value`` directly — SQLite parses the CREATE TABLE DDL and
+    surfaces the default expression as a string, sidestepping all
+    the DDL-tokenization fragility of an earlier round (shlex /
+    paren-balancing). Reconcile bidirectionally against MetaData's
+    ``column.server_default``.
     """
     import re
-    import shlex
 
     from wyrd.generators.kenning.lexicon.sql.tables import metadata
 
     def _normalize_default(expr: str) -> str:
-        # Collapse whitespace, drop whitespace adjacent to parens
-        # (so the paren-collection's space-joined reconstruction
-        # of ``( datetime('now') )`` matches MetaData's literal
-        # ``(datetime('now'))``), then strip outer parens (DDL may
-        # wrap exprs while MetaData may not). NOT normalizing
-        # whitespace around commas — that would change the meaning
-        # of string literals like ``'foo, bar'`` vs ``'foo,bar'``.
+        # Collapse whitespace, strip outer parens (MetaData may
+        # declare ``(datetime('now'))`` while PRAGMA returns the
+        # inner ``datetime('now')`` after SQLite parses the DDL).
         expr = re.sub(r"\s+", " ", expr).strip()
-        expr = re.sub(r"\s*([()])\s*", r"\1", expr)
         if expr.startswith("(") and expr.endswith(")"):
             expr = expr[1:-1].strip()
         return expr.upper()
 
-    # Per-table per-column DDL DEFAULT clauses.
     ddl_defaults: dict[tuple[str, str], str] = {}
     with sqlite3.connect(fresh_db) as conn:
-        for table_name, sql in conn.execute(
-            "SELECT name, sql FROM sqlite_master WHERE type='table'"
-        ).fetchall():
-            for line in sql.splitlines():
-                if "DEFAULT" not in line.upper():
-                    continue
-                try:
-                    tokens = shlex.split(line.strip(), posix=False)
-                except ValueError:
-                    # Unterminated quote etc. — skip the line rather
-                    # than treat it as a real drift signal.
-                    continue
-                if not tokens:
-                    continue
-                column_name = tokens[0].strip("\"'`[]")
-                try:
-                    idx = [t.upper() for t in tokens].index("DEFAULT")
-                except ValueError:
-                    continue
-                if idx + 1 >= len(tokens):
-                    continue
-                # shlex.split(posix=False) keeps quoted strings as
-                # single tokens, but splits at whitespace, so a
-                # paren-wrapped expression with internal whitespace
-                # like ``( datetime('now') )`` gets split into
-                # multiple tokens. Collect tokens after DEFAULT
-                # until parens balance to capture the full
-                # expression in either shape.
-                val_tokens: list[str] = []
-                depth = 0
-                for t in tokens[idx + 1 :]:
-                    val_tokens.append(t)
-                    depth += t.count("(") - t.count(")")
-                    if depth <= 0:
-                        break
-                value = " ".join(val_tokens).rstrip(",;")
-                ddl_defaults[(table_name, column_name)] = _normalize_default(value)
+        conn.row_factory = sqlite3.Row
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall():
+            table_name = row["name"]
+            for col in conn.execute(f"PRAGMA table_info({table_name})").fetchall():
+                if col["dflt_value"] is not None:
+                    ddl_defaults[(table_name, col["name"])] = _normalize_default(col["dflt_value"])
 
     md_defaults: dict[tuple[str, str], str] = {}
     for table in metadata.tables.values():
@@ -841,11 +803,16 @@ def test_alembic_head_indexes_match_tables_metadata(fresh_db: Path) -> None:
     from wyrd.generators.kenning.lexicon.sql.tables import metadata
 
     with sqlite3.connect(fresh_db) as conn:
+        # No `sql IS NOT NULL` filter — that would exclude indexes
+        # SQLite auto-generates for UNIQUE constraints (their DDL
+        # lives inside the parent CREATE TABLE, so sqlite_master.sql
+        # is NULL). The sqlite_autoindex_ prefix filter below strips
+        # the unnamed auto-indexes; named UniqueConstraints get a
+        # caller-controlled name and SHOULD appear in this set so
+        # they match the matching md_indexes entry.
         ddl_indexes = {
             row[0]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='index' AND sql IS NOT NULL"
-            ).fetchall()
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='index'").fetchall()
         }
 
     from sqlalchemy import UniqueConstraint
