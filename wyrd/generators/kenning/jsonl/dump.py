@@ -764,6 +764,13 @@ def dump_all_sources(
         counts[sid] = n
     orphan_count = count_orphan_attestations(conn)
     if orphan_count > 0:
+        # Build a SQL that mirrors count_orphan_attestations exactly —
+        # without the NOT GLOB excludes, the suggested SELECT returns
+        # every prefix-routed row alongside the true orphans, drowning
+        # the actual signal.
+        prefix_excludes = " ".join(
+            f"AND source_doc NOT GLOB '{p}*'" for p, _sid in _ATTESTATION_DOC_PREFIX_TO_SOURCE
+        )
         _logger.warning(
             "dump_all_sources: %d toponym_attestation row(s) have "
             "source_doc that routes nowhere — neither matches a source.id "
@@ -771,8 +778,10 @@ def dump_all_sources(
             "_ATTESTATION_DOC_PREFIX_TO_SOURCE. These rows will not appear "
             "in any per-source JSONL and will be lost on rebuild. Inspect "
             "with: SELECT DISTINCT source_doc FROM toponym_attestation "
-            "WHERE source_doc NOT IN (SELECT id FROM source).",
+            "WHERE source_doc IS NOT NULL "
+            "AND source_doc NOT IN (SELECT id FROM source) %s.",
             orphan_count,
+            prefix_excludes,
         )
     return counts
 

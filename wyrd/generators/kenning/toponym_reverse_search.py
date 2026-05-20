@@ -78,10 +78,11 @@ class ReverseSearchReport:
     unmatched: int = 0
     inserted: int = 0
     already_present: int = 0
-    # wyrd-9ekl: pairs the source-attribution-chain guard suppressed
-    # when context_is_body=False would have run it. Now zero because
-    # the body-text caller passes context_is_body=True. Kept on the
-    # report as a defensive observability seam.
+    # wyrd-9ekl: count of source-attribution-chain pattern matches in
+    # the body. With context_is_body=True the extractor admits these
+    # as legitimate attestations rather than suppressing, but the
+    # counter still surfaces pattern prevalence so operators can see
+    # how often the `<year> FORM, <year>` shape occurs.
     suppressed_by_source_chain: int = 0
     unmatched_samples: list[tuple[str, int]] = field(default_factory=list)
 

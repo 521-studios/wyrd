@@ -2457,19 +2457,25 @@ def test_extract_attestation_pairs_context_is_body_disables_chain_guard() -> Non
     assert ("Suttone", 1210) not in pairs_default
 
 
-def test_extract_attestation_pairs_telemetry_bumps_suppression_counter() -> None:
-    """Passing a mutable telemetry dict surfaces source-chain
-    suppression counts so callers can audit what's being dropped.
-    Default-mode (guard on) bumps the counter; body-text mode (guard
-    off) leaves it at zero."""
+def test_extract_attestation_pairs_telemetry_bumps_on_pattern_match() -> None:
+    """The telemetry counter bumps whenever the source-chain PATTERN
+    matches, decoupled from whether suppression actually fires. Body-
+    mode callers see how often the shape occurs in their input even
+    though the guard admits the row. Default-mode callers see how
+    often suppression dropped a row (same counter — body mode is the
+    measurement, default mode is the action). wyrd-9ekl decoupling
+    per Gemini round-2 review."""
     extract, _ = _import_attestation_helpers()
+    # Default mode: pattern matches → counter bumps AND row suppressed.
     telemetry: dict[str, int] = {}
-    extract("1086 Suttone, 1210", telemetry=telemetry)
+    pairs_default = extract("1086 Suttone, 1210", telemetry=telemetry)
     assert telemetry.get("suppressed_by_source_chain", 0) >= 1
-    # Body-text mode: the guard doesn't run, so no bump.
+    assert ("Suttone", 1210) not in pairs_default
+    # Body mode: pattern matches → counter still bumps, row admitted.
     telemetry_body: dict[str, int] = {}
-    extract("1086 Suttone, 1210", context_is_body=True, telemetry=telemetry_body)
-    assert telemetry_body.get("suppressed_by_source_chain", 0) == 0
+    pairs_body = extract("1086 Suttone, 1210", context_is_body=True, telemetry=telemetry_body)
+    assert telemetry_body.get("suppressed_by_source_chain", 0) >= 1
+    assert ("Suttone", 1210) in pairs_body
 
 
 def test_extract_attestation_pairs_dedupes_by_form_and_year() -> None:

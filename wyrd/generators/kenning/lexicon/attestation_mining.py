@@ -280,10 +280,14 @@ def _extract_attestation_pairs(
     ``<year> FORM, <year>`` pattern is COMMON in body text and represents
     legitimate attestation chains like ``1086 Suttone, 1210``.
 
-    ``telemetry``: optional mutable dict the function bumps for each
-    skip path. Keys: ``suppressed_by_source_chain``. Pass ``{}`` from
-    callers that want to surface what's being dropped; pass ``None``
-    (default) for callers that don't care. wyrd-9ekl observability seam.
+    ``telemetry``: optional mutable dict the function bumps when the
+    source-chain pattern matches, regardless of whether the guard
+    actually suppresses. Keys: ``suppressed_by_source_chain``. The
+    counter measures how often the ``<year> FORM, <year>`` shape
+    occurs in the input — body-mode callers see the prevalence even
+    though the guard doesn't fire for them. Pass ``{}`` to surface;
+    pass ``None`` (default) for callers that don't care. wyrd-9ekl
+    observability seam.
 
     Pattern set (highest precision first):
 
@@ -361,18 +365,21 @@ def _extract_attestation_pairs(
         # (`Wills, 1544 LP`). Both conditions required so real
         # attestation chains (`Edreston ; 1242 ...`) aren't
         # suppressed. Calibrated for short notes strings; body-text
-        # callers (context_is_body=True) disable because in body text
-        # the same pattern is dominantly legitimate (wyrd-9ekl).
-        if not context_is_body:
-            form_start = m.start("form")
-            form_end = m.end("form")
-            if _SOURCE_CHAIN_PRECEDING_YEAR_RE.search(
-                notes, 0, form_start
-            ) and _SOURCE_CHAIN_FOLLOWING_YEAR_RE.match(notes, form_end):
-                if telemetry is not None:
-                    telemetry["suppressed_by_source_chain"] = (
-                        telemetry.get("suppressed_by_source_chain", 0) + 1
-                    )
+        # callers (context_is_body=True) disable suppression because
+        # in body text the same pattern is dominantly legitimate
+        # (wyrd-9ekl). Telemetry bumps on every pattern match — even
+        # in body mode — so callers see how often the shape occurs in
+        # their input, decoupled from whether the guard suppressed.
+        form_start = m.start("form")
+        form_end = m.end("form")
+        if _SOURCE_CHAIN_PRECEDING_YEAR_RE.search(
+            notes, 0, form_start
+        ) and _SOURCE_CHAIN_FOLLOWING_YEAR_RE.match(notes, form_end):
+            if telemetry is not None:
+                telemetry["suppressed_by_source_chain"] = (
+                    telemetry.get("suppressed_by_source_chain", 0) + 1
+                )
+            if not context_is_body:
                 return
         pairs.add((form, year))
 

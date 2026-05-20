@@ -682,11 +682,12 @@ def test_reverse_search_source_recovers_year_form_year_chain(tmp_path: Path):
     )
 
 
-def test_reverse_search_source_reports_suppressed_count_field(tmp_path: Path):
+def test_reverse_search_source_reports_pattern_match_count(tmp_path: Path):
     """ReverseSearchReport.suppressed_by_source_chain is populated from
-    the extractor's telemetry dict. With context_is_body=True the guard
-    doesn't fire, so the counter stays at 0 — but the field must exist
-    and be threaded through. Pins the wiring."""
+    the extractor's telemetry dict and reflects pattern-match
+    prevalence — bumps whenever the `<year> FORM, <year>` shape occurs
+    even in body mode where the guard admits the row (per Gemini
+    round-2 decoupling). Pins the wiring + the new semantics."""
     conn = _build_fixture_db()
     conn.execute("INSERT INTO source (id, title) VALUES ('mawer', 'Mawer')")
     conn.execute("INSERT INTO toponym (id, modern_name) VALUES (1, 'Suttone')")
@@ -696,8 +697,8 @@ def test_reverse_search_source_reports_suppressed_count_field(tmp_path: Path):
     lookup = _build_form_to_toponym_lookup(conn)
     report = reverse_search_source(conn, "mawer", tmp_path, lookup, apply=False)
 
-    # The field must exist on the dataclass (regression catcher for
-    # accidental dataclass-field removal).
+    # The field must exist on the dataclass (regression catcher).
     assert hasattr(report, "suppressed_by_source_chain")
-    # Body mode disables the guard → counter stays at 0.
-    assert report.suppressed_by_source_chain == 0
+    # Pattern matched once → counter bumped (even though body mode
+    # admitted the row, the prevalence is still surfaced).
+    assert report.suppressed_by_source_chain == 1
