@@ -413,6 +413,38 @@ to off / 0 (bit-stable historical behavior):
   (death/undead — narrower subset of grim). `harsh:0.5` graduates the
   phonological skew via colon-suffix. Multiple flags compose by
   tag-union and max-harshness. Lives in `registers/moods.MOODS`.
+- `--scoring-mode {proportions,vector}` (D36 / ecjp epic, 2026-05-19):
+  switches the per-slot sampling pipeline. `proportions` (default)
+  uses the pre-baked per-(culture × tag × position) tables — bit-stable
+  with the legacy path. `vector` uses the D36.2 canonical composition
+  rule, computing each lemma's score at request time from four
+  axes: phonological (D36.1, kq7w.1 per-lemma feature vectors),
+  semantic (D36.1, tag matching against the register's tag weights),
+  position (D36.1, slot-label fit), and empirical-baseline (D36.3,
+  per-(culture × position × tag × era) frequency tables loaded from
+  the priors sidecar). Each axis is independently weighted via
+  `--phonological-weight / --semantic-weight / --position-weight /
+  --baseline-weight` (default 1.0 each; 0 disables; >1 over-weights).
+  The empirical-baseline axis benefits from `--priors-path`
+  (sidecar JSON emitted by `wyrd kenning lexicon
+  dump-empirical-priors`); without it the baseline contributes 0 and
+  scoring falls back to phon + sem + pos. Vector mode is the
+  foundation for scenario-pack composition (ecjp.8 runtime, ecjp.10
+  bundle): pack lemmas inherit their template's empirical baseline
+  (D36.4 Option B), so a Khuzdul pack templated on Old Norse →
+  Old English borrowing rates produces names with the historical
+  loan rhythm of that contact, scaled by pack weight. Pack CLI
+  flags (`--pack`, `--pack-tag-filter`) deferred to ecjp.11 since
+  they need ecjp.10's pack manifest format to resolve template
+  donor/recipient.
+- `--priors-path` (D36.3, ecjp.5 PR A): filesystem path to a JSON
+  empirical-priors sidecar (emitted by `wyrd kenning lexicon
+  dump-empirical-priors`). Only consulted when
+  `--scoring-mode=vector`. The sidecar carries per-(culture ×
+  position × tag × era) native priors and per-(donor × recipient ×
+  position × tag × era) loan-relationship priors; the vector path's
+  baseline axis indexes into both. Sidecars are versioned by
+  generation timestamp; the loader validates schema on parse.
 
 **Recent infrastructure (2026-05-04 / 2026-05-05)**: meaning_synset
 layer (wyrd-7tz Phase 1, PR #61) — semantic-equivalence catalog for
@@ -487,6 +519,36 @@ D33: era progression is data-coverage-bound, not code-bound.
 Five cultures: `english`, `scottish`, `welsh`, `irish`, **`breton`**.
 The breton register was added with a 1214-commune corpus pulled from
 Wikidata (CC0); morpheme corpus expansion still pending — wyrd-fmg.
+
+**Recent infrastructure (2026-05-16 → 2026-05-19, wyrd-ecjp epic)**:
+vector-driven generator architecture (D36) shipped in nine phase
+tickets. Phase 1 — ecjp.1/.2: schema catalog (`vectors/schemas.py`)
++ per-axis scoring primitives (`vectors/scoring.py`) defining the
+D36.2 canonical composition `score = phon_w·phon + sem_w·sem +
+pos_w·pos + base_w·baseline`. Phase 2 — ecjp.3: empirical-priors
+extractor (`lexicon dump-empirical-priors`) emitting the JSON
+sidecar of per-(culture × position × tag × era) frequency tables.
+Phase 3 — ecjp.4: pack-baseline composition (`baseline_score_pack`,
+D36.4 Option B: pack lemmas inherit their template loan-relationship
+priors). Phase 5 — ecjp.5 PRs A/B/C: priors loader +
+`vector_name_select` primitive + `Kenning.generate` dispatch +
+adapter (`vector_kenning_adapter.py`). Phase 6 — ecjp.6/.7: drift
+measurement infrastructure (`drift_measurement.py` pure-Python
+metrics: KL divergence, total variation, top-N name overlap,
+decomposition-rate delta, Spearman rank correlation) + tolerance-
+band scaffolding (`realism_tolerance.py`, regression test suite).
+Phase 7 — ecjp.8: runtime scenario-pack overlay
+(`select_via_vector_scoring` admits pack lemmas via `pack_meaning_dbs`
++ per-pack `allowed_pack_tags` / `excluded_pack_tags` filters).
+Phase 8 — ecjp.9: CLI vector-knob wiring (`--scoring-mode`,
+`--priors-path`, `--baseline-weight` / `--phonological-weight` /
+`--semantic-weight` / `--position-weight`). Default `--scoring-mode`
+stays `proportions` until tolerance bands are tightened from the
+review-then-codify cycle; the legacy path remains bit-stable.
+Follow-ups: ecjp.10 (bundle export changes for per-lemma
+phonological_vector + empirical_baselines + pack manifest), ecjp.11
+(`--pack` / `--pack-tag-filter` CLI), ecjp.12 (SPA / Lambda
+integration), ecjp.13 (this docs pass).
 
 ## Pointers to the other docs
 
