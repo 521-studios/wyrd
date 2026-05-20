@@ -135,6 +135,18 @@ def lexicon_ingest_briggs_personal_names(
         f"att_unknown_county={stats.attestations_unknown_county}",
         err=True,
     )
+    # Silent-skip visibility line (wyrd-jac1): each non-zero value here
+    # is a parse-time drop the operator should know about.
+    click.echo(
+        f"Silent-skip counters: "
+        f"entries_unparsed={stats.entries_unparsed} "
+        f"att_groups_no_county={stats.attestation_groups_skipped_no_county} "
+        f"att_groups_lang_only={stats.attestation_groups_skipped_lang_only} "
+        f"entries_no_atts={stats.entries_with_zero_attestations} "
+        f"entries_citation_only={stats.entries_citation_only} "
+        f"pn_lookup_failed={stats.personal_names_lookup_failed}",
+        err=True,
+    )
     click.echo(f"  JSONL artifact: {stats.jsonl_path}", err=True)
 
 

@@ -11,12 +11,14 @@ from wyrd.generators.kenning.cli import cli as kenning_cli
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.english_shaping import (
     KNOWN_FORM_OVERRIDES,
+    PHASE2A_NON_LATIN_LANGS,
     _apply_digraphs,
     _apply_single_chars,
     _ipa_to_english_fallback,
     _looks_english_readable,
     _strip_transliteration,
     derive_english_shaped,
+    derive_english_shaped_all,
 )
 
 
@@ -667,3 +669,158 @@ def test_cli_derive_english_shaped_reshape_redoes_non_null_rows(fresh_db: Path) 
     assert result.exit_code == 0, result.output + (result.stderr or "")
     with LexiconDB(fresh_db) as db:
         assert _english_shaped(db, eid) == "jinn"
+
+
+# ---------------------------------------------------------------------
+# derive_english_shaped_all (L3 wrapper)
+# ---------------------------------------------------------------------
+#
+# wyrd-s9z3: pin the wrapper's gates separately from the row-by-row
+# transformer. The wrapper drives the enrichment-chain entry point; if
+# its language filter, reshape gate, or by_language counter shape
+# regresses, the lower-level derive_english_shaped tests would still
+# pass while the chain output silently shifted.
+
+
+def test_derive_english_shaped_all_apply_writes_only_non_latin_rows(
+    fresh_db: Path,
+) -> None:
+    """Default languages filter is PHASE2A_NON_LATIN_LANGS — Latin-script
+    languages (old-english, latin, welsh) are SELECTed out before
+    derive_english_shaped sees them. Pins the cheap-pre-filter contract:
+    the wrapper avoids walking the 1.4M ModE rows whose canonical_form is
+    already English-readable."""
+    with LexiconDB(fresh_db) as db:
+        ar = _seed_etymon_with_translit(
+            db, canonical_form="جن", language="ar", transliteration="ǧinn"
+        )
+        oe = _seed_etymon_with_translit(
+            db, canonical_form="tūn", language="old-english", transliteration="tun"
+        )
+        db.commit()
+        result = derive_english_shaped_all(db, apply=True)
+        ar_shaped = _english_shaped(db, ar)
+        oe_shaped = _english_shaped(db, oe)
+    assert ar_shaped == "jinn"
+    assert oe_shaped is None
+    assert result["written"] == 1
+    # candidates count reflects the SELECT scope, not the etymon table.
+    assert result["candidates"] == 1
+
+
+def test_derive_english_shaped_all_dry_run_skips_writes(fresh_db: Path) -> None:
+    """apply=False walks the candidate set + returns counts but does NOT
+    UPDATE the rows. Pins the dry-run gate parity with the apply=True
+    branch (which DOES persist)."""
+    with LexiconDB(fresh_db) as db:
+        eid = _seed_etymon_with_translit(
+            db, canonical_form="جن", language="ar", transliteration="ǧinn"
+        )
+        db.commit()
+        result = derive_english_shaped_all(db, apply=False)
+    with LexiconDB(fresh_db) as db:
+        assert _english_shaped(db, eid) is None
+    assert result["applied"] == 0
+    assert result["written"] == 1  # would-write count is reported even on dry-run
+
+
+def test_derive_english_shaped_all_default_reshape_false_skips_already_shaped(
+    fresh_db: Path,
+) -> None:
+    """reshape=False is the default — the SELECT WHERE includes
+    ``english_shaped IS NULL``, so a row whose english_shaped was set
+    by a prior pass is silently skipped on re-run. Pins the idempotency
+    gate that lets the enrichment chain re-run cheaply."""
+    with LexiconDB(fresh_db) as db:
+        eid = _seed_etymon_with_translit(
+            db, canonical_form="جن", language="ar", transliteration="ǧinn"
+        )
+        # Pre-populate the column with a sentinel an override-only run
+        # would have left alone.
+        db.conn.execute(
+            "UPDATE etymon SET english_shaped = ? WHERE id = ?",
+            ("preserved-sentinel", eid),
+        )
+        db.commit()
+        result = derive_english_shaped_all(db, apply=True)
+        shaped = _english_shaped(db, eid)
+    assert shaped == "preserved-sentinel"
+    assert result["candidates"] == 0
+    assert result["written"] == 0
+
+
+def test_derive_english_shaped_all_reshape_true_revisits_populated_rows(
+    fresh_db: Path,
+) -> None:
+    """reshape=True drops the IS NULL filter — every wave-2 row is
+    re-derived. Lets an operator re-run the pass after a rule change."""
+    with LexiconDB(fresh_db) as db:
+        eid = _seed_etymon_with_translit(
+            db, canonical_form="جن", language="ar", transliteration="ǧinn"
+        )
+        db.conn.execute(
+            "UPDATE etymon SET english_shaped = ? WHERE id = ?",
+            ("stale-value", eid),
+        )
+        db.commit()
+        result = derive_english_shaped_all(db, apply=True, reshape=True)
+        shaped = _english_shaped(db, eid)
+    assert shaped == "jinn"
+    assert result["candidates"] == 1
+
+
+def test_derive_english_shaped_all_languages_override_restricts_select(
+    fresh_db: Path,
+) -> None:
+    """Passing a languages tuple overrides the default. Lets the CLI's
+    --language filter reuse this wrapper without copy-pasting the
+    SELECT."""
+    with LexiconDB(fresh_db) as db:
+        _seed_etymon_with_translit(db, canonical_form="جن", language="ar", transliteration="ǧinn")
+        he_id = _seed_etymon_with_translit(
+            db, canonical_form="גולם", language="he", transliteration="gōlem"
+        )
+        db.commit()
+        result = derive_english_shaped_all(db, apply=True, languages=("he",))
+        ar_shaped = db.conn.execute(
+            "SELECT english_shaped FROM etymon WHERE language = 'ar'"
+        ).fetchone()["english_shaped"]
+        he_shaped = _english_shaped(db, he_id)
+    assert he_shaped == "golem"
+    assert ar_shaped is None
+    assert result["candidates"] == 1
+
+
+def test_derive_english_shaped_all_by_language_counter_shape(
+    fresh_db: Path,
+) -> None:
+    """``by_language`` is keyed by source-language code and counts
+    only WRITTEN rows (not candidates). Pins the shape so the
+    format_enrichment_run renderer can iterate it deterministically."""
+    with LexiconDB(fresh_db) as db:
+        _seed_etymon_with_translit(db, canonical_form="جن", language="ar", transliteration="ǧinn")
+        _seed_etymon_with_translit(
+            db, canonical_form="גולם", language="he", transliteration="gōlem"
+        )
+        # A row with no usable input — counts as candidate but not written.
+        _seed_etymon_with_translit(db, canonical_form="x", language="he", transliteration=None)
+        db.commit()
+        result = derive_english_shaped_all(db, apply=True)
+    by_lang = result["by_language"]
+    assert by_lang == {"ar": 1, "he": 1}
+    assert result["skipped_no_input"] == 1
+    assert result["written"] == 2
+
+
+def test_derive_english_shaped_all_phase2a_default_is_immutable() -> None:
+    """PHASE2A_NON_LATIN_LANGS is exposed as a public constant so the
+    CLI + wrapper can share it. Pinning the set membership prevents a
+    drift between the wrapper's default and the CLI's --language enum."""
+    assert "he" in PHASE2A_NON_LATIN_LANGS
+    assert "ar" in PHASE2A_NON_LATIN_LANGS
+    assert "sa" in PHASE2A_NON_LATIN_LANGS
+    # Latin-script families must NOT be in the set — they'd be skipped
+    # by derive_english_shaped anyway, but inclusion would bloat the
+    # candidate SELECT pointlessly.
+    assert "old-english" not in PHASE2A_NON_LATIN_LANGS
+    assert "latin" not in PHASE2A_NON_LATIN_LANGS

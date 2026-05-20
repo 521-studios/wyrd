@@ -2572,3 +2572,49 @@ def test_classify_stratum_all_dry_run_excludes_already_classified(
     # Dry-run didn't touch the DB.
     assert rows[eid_blank] is None
     assert rows[eid_preset] == "native-welsh"
+
+
+def test_classify_stratum_all_apply_is_idempotent_on_rerun(
+    fresh_db: Path,
+) -> None:
+    """apply=True is idempotent — re-running on a fully-classified DB
+    writes zero new rows and marks every prior row as skipped. Pins the
+    wyrd-s9z3 acceptance: idempotency gate parity between dry-run and
+    apply branches."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        db.upsert_etymon("rhydoldfoel", "welsh")
+        db.upsert_etymon("aberystwyth", "welsh")
+        first = classify_stratum_all(db, apply=True)
+        second = classify_stratum_all(db, apply=True)
+    first_welsh = first["languages"]["welsh"]
+    second_welsh = second["languages"]["welsh"]
+    assert first_welsh["written"] == 2
+    assert first_welsh["skipped"] == 0
+    # Second run: every prior write trips the "stratum already set"
+    # skip — no new writes.
+    assert second_welsh["written"] == 0
+    assert second_welsh["skipped"] == 2
+    # by_stratum on the second run reflects WOULD-BE writes only; since
+    # nothing was written, the dict is empty.
+    assert second_welsh.get("by_stratum", {}) == {}
+
+
+def test_classify_stratum_all_by_stratum_dict_keyed_by_assignment(
+    fresh_db: Path,
+) -> None:
+    """by_stratum maps stratum-name → count-of-writes for that name.
+    Distinct strata each get their own key; total across keys equals
+    ``written``. Pins the renderer's iteration contract."""
+    with LexiconDB(fresh_db) as db:
+        _seed_source(db)
+        # Two welsh etymons, both classify as 'native-welsh' (the
+        # classifier defaults when no descent row pulls them off-path).
+        db.upsert_etymon("rhydoldfoel", "welsh")
+        db.upsert_etymon("aberystwyth", "welsh")
+        result = classify_stratum_all(db, apply=True)
+    welsh = result["languages"]["welsh"]
+    assert welsh["written"] == 2
+    assert welsh.get("by_stratum") == {"native-welsh": 2}
+    # by_stratum sums to written.
+    assert sum(welsh["by_stratum"].values()) == welsh["written"]

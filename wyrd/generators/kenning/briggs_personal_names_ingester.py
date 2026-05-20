@@ -418,10 +418,13 @@ def _expand_bracket_variants(name: str) -> list[str]:
     return out or [name]
 
 
-def _parse_entry(entry_text: str) -> ParsedEntry | None:
+def _parse_entry(entry_text: str, *, stats: IngestStats | None = None) -> ParsedEntry | None:
     """Parse one entry blob. Returns ``None`` for blobs we couldn't
     recognise as a PN entry (alphabet headers etc. should already be
-    filtered by ``_entry_blocks`` but the safety net stays)."""
+    filtered by ``_entry_blocks`` but the safety net stays).
+
+    Pass a mutable ``stats`` to thread through to
+    ``_parse_attestations``'s skip counters."""
     m = RE_HEADFORM_TOKEN.match(entry_text)
     if not m:
         return None
@@ -490,7 +493,7 @@ def _parse_entry(entry_text: str) -> ParsedEntry | None:
         raw_entry=entry_text,
     )
 
-    attestations = list(_parse_attestations(body))
+    attestations = list(_parse_attestations(body, stats=stats))
 
     return ParsedEntry(name=name, attestations=attestations)
 
@@ -526,7 +529,9 @@ RE_DATE_PREFIX = re.compile(
 )
 
 
-def _parse_attestations(body: str) -> Iterator[AttestationRecord]:
+def _parse_attestations(
+    body: str, *, stats: IngestStats | None = None
+) -> Iterator[AttestationRecord]:
     """Yield AttestationRecord rows from the body text.
 
     The grammar (loosely): groups are separated by ``;``; within a
@@ -539,6 +544,9 @@ def _parse_attestations(body: str) -> Iterator[AttestationRecord]:
     leave validation to the caller (county_canonical lookup). Forms
     that don't end in a recognisable (CC) marker are skipped (front-
     matter noise, language-only tokens, etc.).
+
+    Pass a mutable ``stats`` to record skip-site counts; ``None``
+    keeps the function pure for unit tests that only check yields.
     """
     if not body:
         return
@@ -556,10 +564,14 @@ def _parse_attestations(body: str) -> Iterator[AttestationRecord]:
             # e.g. "Acca PASE10 DLV; ASCh7–8.72; Accott, Acland (D);"
             # The middle "ASCh7–8.72" group is a citation; not an
             # attestation. Drop.
+            if stats is not None:
+                stats.attestation_groups_skipped_no_county += 1
             continue
         county_code = m.group(1)
         if county_code in LANGUAGE_HINTS:
             # False positive: this paren group is a language-hint tail.
+            if stats is not None:
+                stats.attestation_groups_skipped_lang_only += 1
             continue
         # Don't filter unknown county codes here — let the ingester
         # see them, increment its unknown-county counter, and drop the
@@ -620,19 +632,35 @@ def _parse_attestations(body: str) -> Iterator[AttestationRecord]:
 # ---------------------------------------------------------------- top-level
 
 
-def parse_briggs_index(path: Path) -> Iterator[ParsedEntry]:
+def parse_briggs_index(path: Path, *, stats: IngestStats | None = None) -> Iterator[ParsedEntry]:
     """Yield ParsedEntry instances for every PN entry in the index.
 
     The top-level orchestrator: reconstructs the two-column stream,
     splits into entry blobs, and parses each. Entries with no
     toponym attestations (Aalfra DLV.) are still yielded — they
     carry useful citation metadata.
-    """
+
+    Pass a mutable ``stats`` to record silent-skip events
+    (entries_unparsed, entries_with_zero_attestations,
+    entries_citation_only, plus attestation-side counters threaded
+    through ``_parse_entry`` → ``_parse_attestations``)."""
     for page_stream in _reconstruct_index_stream(path):
         for blob in _entry_blocks(page_stream):
-            entry = _parse_entry(blob)
+            entry = _parse_entry(blob, stats=stats)
             if entry is None:
+                if stats is not None:
+                    stats.entries_unparsed += 1
                 continue
+            if stats is not None and not entry.attestations:
+                stats.entries_with_zero_attestations += 1
+                # Citation-only is a strict subset of zero-attestations:
+                # the entry HAS at least one PASE/DLV/ASCh reference.
+                if (
+                    entry.name.pase_count is not None
+                    or entry.name.has_dlv
+                    or entry.name.ascharter_refs
+                ):
+                    stats.entries_citation_only += 1
             # Expand bracket-variant headforms into separate entries
             # that share the same attestations.
             variants = _expand_bracket_variants(entry.name.headform)
@@ -657,7 +685,16 @@ def parse_briggs_index(path: Path) -> Iterator[ParsedEntry]:
 
 @dataclass
 class IngestStats:
-    """Per-run counters reported on stderr."""
+    """Per-run counters reported on stderr.
+
+    The ``*_skipped_*`` / ``*_unparsed`` fields surface silent-skip
+    sites in the parser so operators can spot dropped data without
+    re-reading the source against a debugger. Most map to a single
+    ``continue`` in the parsing pipeline; the exceptions are
+    ``entries_with_zero_attestations`` / ``entries_citation_only``
+    (observational — the entry still yields), and
+    ``personal_names_lookup_failed`` (pulled post-parse from the
+    ``personal_name_orphans`` count returned by ``build_from_jsonl``)."""
 
     entries_seen: int = 0
     pn_rows_emitted: int = 0
@@ -665,6 +702,17 @@ class IngestStats:
     attestations_unknown_county: int = 0
     personal_names_inserted: int = 0
     attestations_inserted: int = 0
+    # Silent-skip visibility counters (wyrd-jac1).
+    entries_unparsed: int = 0
+    attestation_groups_skipped_no_county: int = 0
+    attestation_groups_skipped_lang_only: int = 0
+    entries_with_zero_attestations: int = 0
+    entries_citation_only: int = 0
+    # Pulled from build_from_jsonl's per-file counts during
+    # ingest_briggs_index. Non-zero means the SELECT-after-INSERT-OR-
+    # IGNORE guard failed for some personal-name rows (malformed payload
+    # missing headform/source_doc, or a UNIQUE-conflict lookup miss).
+    personal_names_lookup_failed: int = 0
     jsonl_path: Path | None = None
 
 
@@ -776,7 +824,7 @@ def emit_briggs_jsonl(
     with jsonl_path.open("w", encoding="utf-8") as sink:
         _emit_source_row(sink)
         sink.flush()
-        for entry in parse_briggs_index(txt_path):
+        for entry in parse_briggs_index(txt_path, stats=stats):
             stats.entries_seen += 1
             if entry.name.headform not in seen_headforms:
                 seen_headforms.add(entry.name.headform)
@@ -840,6 +888,7 @@ def ingest_briggs_index(
     counts = build_from_jsonl(db.conn, [jsonl_path])
     stats.personal_names_inserted = counts.get("personal_name", 0)
     stats.attestations_inserted = counts.get("personal_name_toponym_attestation", 0)
+    stats.personal_names_lookup_failed = counts.get("personal_name_orphans", 0)
     return stats
 
 
