@@ -508,8 +508,19 @@ def _generate_via_vector(
     # if present, else fall back to defaults (1.0 across all axes).
     # The dict shape is {phon_w, sem_w, pos_w, base_w} — keys mirror
     # the dataclass field names directly so this stays a thin pass-
-    # through with no key remapping.
-    weights = ScoringWeights(**scoring_weights_raw) if scoring_weights_raw else ScoringWeights()
+    # through with no key remapping. Unknown keys are silently dropped
+    # rather than raising TypeError: the CLI controls its own keys
+    # tightly, but SPA / Lambda callers may send extra params from
+    # forward-compat client versions; ignoring unknown keys keeps the
+    # generator entry point resilient. The set of known keys is the
+    # ScoringWeights dataclass's own field names (single source of
+    # truth — no hard-coded list to drift).
+    if scoring_weights_raw:
+        known = set(ScoringWeights.__dataclass_fields__)
+        filtered = {k: v for k, v in scoring_weights_raw.items() if k in known}
+        weights = ScoringWeights(**filtered)
+    else:
+        weights = ScoringWeights()
 
     request = build_request_vector(
         culture=culture,

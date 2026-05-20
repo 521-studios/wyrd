@@ -257,13 +257,12 @@ def generate(
     }
     if priors_path is not None:
         params["priors_path"] = str(priors_path)
-    # ScoringWeights only fire when scoring_mode=vector — passing them
-    # in proportions mode is a no-op (Kenning.generate ignores the
-    # vector-side params when not in vector mode), but the explicit
-    # parameter set keeps the CLI surface uniform: same params dict
-    # shape regardless of mode. Avoiding the special-case here makes
-    # the schema doc (kenning.py) one canonical surface, not a
-    # per-CLI-flag-set variant.
+    # ScoringWeights only fire when scoring_mode=vector. In proportions
+    # mode the legacy path doesn't read scoring_weights — adding it
+    # would be inert but cluttering, so we omit. This is the operator-
+    # friendly contract: weight flags in proportions mode become a
+    # silent no-op (also covered by
+    # test_proportions_mode_ignores_vector_only_flags).
     if scoring_mode == "vector":
         params["scoring_weights"] = {
             "phon_w": phonological_weight,

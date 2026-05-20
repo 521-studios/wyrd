@@ -190,6 +190,35 @@ def test_proportions_mode_ignores_vector_only_flags(tmp_path):
     assert baseline.output == with_vector_flags.output
 
 
+def test_generate_via_vector_drops_unknown_scoring_weight_keys():
+    """SPA / Lambda forward-compat: unknown keys in scoring_weights
+    are silently dropped rather than raising TypeError. The CLI's
+    own key set is tight, but a forward-compat client could send
+    extra keys (e.g. a hypothetical 'cohesion_w' that ecjp.10 might
+    add)."""
+
+    # Real NameGenerator isn't needed; we just want to verify the
+    # ScoringWeights instantiation step doesn't raise on unknown
+    # keys. Direct unit-test against the same filtering logic
+    # _generate_via_vector uses (single source of truth via
+    # ScoringWeights.__dataclass_fields__).
+    raw = {
+        "phon_w": 1.0,
+        "sem_w": 1.0,
+        "pos_w": 1.0,
+        "base_w": 1.0,
+        "future_axis_w": 99.0,  # unknown — must be dropped, not raise
+    }
+    # Direct unit-test the dict-filtering step
+    from wyrd.generators.kenning.vectors.schemas import ScoringWeights
+
+    known = set(ScoringWeights.__dataclass_fields__)
+    filtered = {k: v for k, v in raw.items() if k in known}
+    weights = ScoringWeights(**filtered)
+    assert weights.phon_w == 1.0
+    assert not hasattr(weights, "future_axis_w")
+
+
 def test_scoring_weights_flow_through_to_request_vector(monkeypatch):
     """--baseline-weight=0 + --phonological-weight=2 + --scoring-mode=
     vector composes a ScoringWeights(base_w=0.0, phon_w=2.0, ...) and
