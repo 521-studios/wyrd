@@ -609,7 +609,10 @@ fantasy_morpheme = Table(
     Column("id", Integer, primary_key=True, autoincrement=True),
     # COLLATE NOCASE so "Harpy" / "harpy" dedup under
     # UNIQUE(input_name, approach_version) — see migration 0011.
-    Column("input_name", Text, nullable=False),
+    # Same idiom as etymon_variant.form (line 201). Without the
+    # collation here, ``alembic revision --autogenerate`` would
+    # produce a spurious "drop COLLATE" diff against a live DB.
+    Column("input_name", String(collation="NOCASE"), nullable=False),
     Column("input_description", Text),
     Column("usable", Integer, CheckConstraint("usable IN (0, 1)"), nullable=False),
     Column("etymon_id", Integer, ForeignKey("etymon.id", ondelete="SET NULL")),
