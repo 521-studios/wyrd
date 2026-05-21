@@ -113,5 +113,13 @@ function renderName(wordsList) {
       .filter(Boolean)
       .join(' ');
   });
-  return wordRenders.filter((s) => s.trim()).join(' ');
+  const name = wordRenders.filter((s) => s.trim()).join(' ');
+  // wyrd-hpjg round 3 (Gemini MED): always capitalize the very
+  // first letter — a name that happens to lead with a particle
+  // (rare in real corpus, but possible after a Swap) reads as
+  // 'Of Avon' not 'of Avon'. Diverges slightly from the Python
+  // render_form_particle_pairs which leaves leading particles
+  // lowercase; the divergence is unobservable in real corpus
+  // names but defends against the synthetic-input edge case.
+  return name ? name[0].toUpperCase() + name.slice(1) : '';
 }
