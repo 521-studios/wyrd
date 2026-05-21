@@ -4930,6 +4930,39 @@ def test_new_name_to_dict_emits_per_word_morpheme_metadata() -> None:
     assert first["sources"] == {"old_english": ["hwīt"]}
     assert first["tags"] == ["color"]
     assert first["meanings"] == ["white"]
+    # Sparse rendering: Latin-script-only sources omit the renderings
+    # key entirely (no noisy '{}' clutter).
+    assert "renderings" not in first
+
+
+def test_new_name_to_dict_includes_renderings_when_meaning_has_pronunciation() -> None:
+    """wyrd-cp2d round 3: pronunciation + cross-script renderings
+    (IPA, original_script, transliteration, english_shaped) carry
+    into the JSON when a Meaning has wyrd-ha9q rendering data on
+    any source-language form. Pins parity with components()'s
+    renderings field — both surface the same panel data, just
+    grouped per-morpheme vs flat."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    m = Meaning(
+        "Whit-",
+        tags=[],
+        meanings=["white"],
+        sources={"old_english": ["hwīt"]},
+    )
+    # Inject wyrd-ha9q rendering data via the documented Meaning
+    # attributes _collect_renderings consumes.
+    m.pronunciation = {"old_english": {"hwīt": {"ipa": "/xwiːt/", "dialect": "WS"}}}
+    m.english_shaped = {"old_english": {"hwīt": "hweet"}}
+    m.original_script = {}
+    m.transliteration = {}
+    meaning_db = {"Whit-": [m]}
+    new_name = NewName(struct=None, meaning_db=meaning_db, name=[["Whit-"]])
+    out = new_name.to_dict()
+    rend = out["words"][0][0].get("renderings", {})
+    assert rend.get("old_english", {}).get("hwīt", {}).get("ipa") == "/xwiːt/"
+    assert rend["old_english"]["hwīt"]["english_shaped"] == "hweet"
 
 
 def test_new_name_to_dict_includes_rendered_d18_d8_substitution() -> None:

@@ -1113,6 +1113,17 @@ class NewName:
                     }
                     morpheme["tags"] = list(first.tags)
                     morpheme["meanings"] = list(first.meanings)
+                    # wyrd-cp2d round 3: pronunciation + cross-script
+                    # renderings (wyrd-ha9q's original_script /
+                    # transliteration / english_shaped / IPA) so the
+                    # JSON continuity flow carries the same panel data
+                    # ``components()`` exposes to the SPA. Sparse by
+                    # design — only emit the field when the
+                    # _collect_renderings dict isn't empty so Latin-
+                    # script-only morphemes don't carry a noisy '{}'.
+                    renderings = _collect_renderings(meanings_list)
+                    if renderings:
+                        morpheme["renderings"] = renderings
                 # D18 variant / D8 inflection substitute if present
                 if self.rendered is not None and self.rendered[wi][ei] is not None:
                     morpheme["rendered"] = self.rendered[wi][ei]
