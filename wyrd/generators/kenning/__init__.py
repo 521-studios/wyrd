@@ -164,8 +164,8 @@ _INTERNAL_TAGS = {
 }
 
 # wyrd-kq7w.3: the legacy MOODS dict (formerly registers/moods.py) was
-# replaced by the catalog at registers/data/register_effects.yaml. Mood
-# specs resolve through ``parse_mood_spec`` / ``mood_spec_to_legacy_form``
+# replaced by the catalog at wyrd/generators/kenning/data/register_effects.yaml.
+# Mood specs resolve through ``parse_mood_spec`` / ``mood_spec_to_legacy_form``
 # in ``registers.effects``. The catalog is the single source of truth
 # for mood-name resolution + graduation; the proportion-table sampler's
 # legacy (tags, harshness) tuple is derived from catalog entries via
