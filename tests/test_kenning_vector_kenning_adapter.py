@@ -121,6 +121,20 @@ def test_mood_expansion_empty_input_returns_empty_list() -> None:
     assert _mood_specs_to_register_effects([]) == []
 
 
+def test_mood_expansion_unparseable_graduation_suffix_bubbles_value_error() -> None:
+    """parse_mood_spec raises ValueError on unparseable colon-suffix
+    (``harsh:x``). The adapter only catches KeyError (unknown name)
+    + re-raises as ValueError; the graduation-suffix ValueError flows
+    through unchanged with the per-spec message intact, so operators
+    see ``"graduation suffix"`` not the catch-all
+    ``"unknown mood; expected one of ..."``. Pins the divergent error-
+    path message at the adapter boundary."""
+    import pytest
+
+    with pytest.raises(ValueError, match="graduation suffix"):
+        _mood_specs_to_register_effects(["harsh:x"])
+
+
 # ---- build_request_vector ------------------------------------------------
 
 

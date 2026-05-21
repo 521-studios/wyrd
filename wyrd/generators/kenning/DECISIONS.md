@@ -159,7 +159,7 @@ single `--mood` flag.** Two axes ride under one GM-facing surface:
   military / monster axes.
 - Multiple `--mood` flags compose by tag-union and max-harshness.
 
-The mood vocabulary lives in `registers/data/register_effects.yaml`
+The mood vocabulary lives in `wyrd/generators/kenning/data/register_effects.yaml`
 (catalog-driven since wyrd-kq7w.3 — the legacy `registers/moods.MOODS`
 dict was ripped and replaced). New presets are picked from a tag-coverage
 audit (≥5 subjects per candidate tag, distinct semantic identity, minimal

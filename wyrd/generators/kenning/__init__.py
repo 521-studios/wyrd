@@ -35,6 +35,7 @@ from wyrd.generators.kenning.lexicon.strata import (  # noqa: F401  (STRATA cons
     WELSH_STRATA,
     valid_strata_for_culture,
 )
+from wyrd.generators.kenning.registers.effects import mood_spec_to_legacy_form
 from wyrd.generators.kenning.runtime.decomposition import (
     _decomposition_payload,
     _signature_for_payload,
@@ -530,8 +531,6 @@ def _apply_mood(spec: str, tags: list[str], harshness: float) -> tuple[list[str]
             shape (callers grep for ``"unknown mood"``) is
             preserved bit-compatibly.
     """
-    from wyrd.generators.kenning.registers.effects import mood_spec_to_legacy_form
-
     mood_tags, mood_harshness = mood_spec_to_legacy_form(spec)
     new_tags = list(tags)
     for t in mood_tags:

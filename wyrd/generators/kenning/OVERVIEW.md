@@ -414,7 +414,7 @@ to off / 0 (bit-stable historical behavior):
   catalog effect uniformly via colon-suffix. Multiple flags compose:
   vector path sums component-wise + clamps; legacy proportion-table
   path takes tag-union + max-harshness. Lives in
-  `registers/data/register_effects.yaml` (catalog-driven since
+  `wyrd/generators/kenning/data/register_effects.yaml` (catalog-driven since
   wyrd-kq7w.3 ripped the MOODS dict).
 - `--scoring-mode {proportions,vector}` (D36 / ecjp epic, 2026-05-19):
   switches the per-slot sampling pipeline. `proportions` (default)

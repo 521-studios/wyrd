@@ -137,7 +137,7 @@ class Kenning(Generator):
                     "description": (
                         "D6 stylistic-mood presets (repeatable). Each entry is a "
                         "register-effect name from the bundled catalog "
-                        "(registers/data/register_effects.yaml — see "
+                        "(wyrd/generators/kenning/data/register_effects.yaml — see "
                         f"{available_register_effects()!r}), optionally with a "
                         "colon-suffix multiplier (e.g. 'harsh:0.5' for graduated "
                         "strength). 'grim' applies a menacing semantic-tag union; "

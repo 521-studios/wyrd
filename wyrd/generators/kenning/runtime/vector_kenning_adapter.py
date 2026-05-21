@@ -98,21 +98,34 @@ def _mood_specs_to_register_effects(
 
     Each spec is either a bare name (``grim``) or graduated form
     (``harsh:0.5``) per the catalog's :func:`parse_mood_spec`
-    contract. Unknown mood names raise ``KeyError`` (the catalog
-    API's shape — translated from the legacy ``ValueError``;
-    callers catching generic ``Exception`` stay compatible).
-    Replaces the pre-rip MOODS-dict + harshness-scalar extraction
-    that lossily compressed catalog dims through a single legacy
-    harshness float; the catalog now flows through end-to-end on
-    the vector path.
+    contract. Replaces the pre-rip MOODS-dict + harshness-scalar
+    extraction that lossily compressed catalog dims through a
+    single legacy harshness float; the catalog now flows through
+    end-to-end on the vector path.
+
+    Raises:
+        ValueError: when ``name`` (the part before any colon) is
+            unknown — the catalog's ``KeyError`` gets translated
+            here so callers grepping ``"unknown mood"`` stay bug-
+            compatible with the legacy ``_apply_mood`` error shape.
+            Also raised by :func:`parse_mood_spec` itself when the
+            graduation suffix is unparseable as a float
+            (``"harsh:x"``); that path bubbles through unchanged
+            with the per-spec error message intact.
     """
-    try:
-        return [parse_mood_spec(spec) for spec in mood_specs]
-    except KeyError as exc:
-        # Re-raise as ValueError with the operator-facing available-
-        # names list, matching the legacy ``_apply_mood`` error
-        # shape so existing callers' diagnostics don't regress.
-        raise ValueError(f"unknown mood; expected one of {available_register_effects()}") from exc
+    out: list[RegisterEffect] = []
+    for spec in mood_specs:
+        try:
+            out.append(parse_mood_spec(spec))
+        except KeyError as exc:
+            # Re-raise as ValueError with the operator-facing
+            # available-names list, matching the legacy
+            # ``_apply_mood`` error shape so existing callers'
+            # diagnostics don't regress.
+            raise ValueError(
+                f"unknown mood; expected one of {available_register_effects()}"
+            ) from exc
+    return out
 
 
 def build_request_vector(
