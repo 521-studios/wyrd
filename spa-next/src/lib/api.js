@@ -17,6 +17,27 @@ export async function fetchManifest() {
 }
 
 /**
+ * wyrd-kppy: POST /api/kenning-rewind with pre-picked morphemes
+ * (wyrd-y9aa input-schema addition). Skips trie re-decomposition —
+ * uses the supplied morphemes so the era stops respect the
+ * generator's actual morpheme picks. Returns the standard envelope:
+ *   { results: [{ result, components: [{ era, family, rendered, ... }] }, ...] }
+ * with one entry per era stop (oe-late / me / modern).
+ */
+export async function rewindWithMorphemes(name, morphemesByWord) {
+  const resp = await fetch('/api/kenning-rewind', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, words: morphemesByWord }),
+  });
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`rewind failed: HTTP ${resp.status} — ${text.slice(0, 200)}`);
+  }
+  return resp.json();
+}
+
+/**
  * Roll one generator with the supplied params + seed. POSTs to
  * /api/<generator>. Returns the envelope: { generator, parameters,
  * seed, results: [{ result, explanation, components, morphemes_by_word, ... }] }.
