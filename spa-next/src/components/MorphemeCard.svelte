@@ -11,17 +11,23 @@
 
   let { morpheme } = $props();
 
-  // Sources is a sparse dict {lang: [form, ...]}. Order isn't
-  // guaranteed; we sort with the most common British-place-name
-  // languages first so OE / Norse / Celtic land at the top.
+  // Language display order, mirroring _ANCHOR_LANG_PREFERENCE in
+  // wyrd/generators/kenning/era/rewind.py — the etymological-anchor
+  // priority that the CLI rewinder uses to pick a source-language
+  // for time-rewind. OE first, then Norse (Danelaw), then OF/Celtic,
+  // then modern_english as a last-resort anchor. Frequency-wise
+  // modern_english is the most common rendering in the bundle, but
+  // showing it first would bury the historically-interesting forms
+  // — the inspector's point is to surface etymology, not
+  // distribution. Unknown languages fall through to alphabetical.
   const LANG_PRIORITY = [
     'old_english',
     'old _english',
     'old_scandinavian',
     'old_scandanavian',
-    'celtic_mix',
     'old_french',
-    'norman_french',
+    'celtic_mix',
+    'latin',
     'modern_english',
   ];
 
@@ -64,9 +70,15 @@
   }
 </script>
 
-<article class="morpheme">
+<article class="morpheme" aria-labelledby="m-{morpheme.usage}-{morpheme._wordIndex}">
   <header>
-    <span class="usage">{morpheme.usage}</span>
+    <!-- h5 for AT heading-nav: h3 (result name) → h4 (Morphemes
+         section) → h5 (per-morpheme card). Visual styling stays
+         the same; this just gives screen readers a real heading
+         label for the card. -->
+    <h5 class="usage" id="m-{morpheme.usage}-{morpheme._wordIndex}">
+      {morpheme.usage}
+    </h5>
     {#if morpheme.rendered && morpheme.rendered !== morpheme.usage}
       <span class="rendered" title="D18/D8 substituted variant">
         → {morpheme.rendered}
@@ -90,6 +102,14 @@
     <section class="source-lang">
       <h4>{languageLabel(lang)}</h4>
       <table class="forms">
+        <thead class="sr-only">
+          <tr>
+            <th>Form</th>
+            <th>IPA</th>
+            <th>Reader pronunciation</th>
+            <th>Dialect</th>
+          </tr>
+        </thead>
         <tbody>
           {#each forms as form (form)}
             {@const r = renderingFor(lang, form)}
@@ -129,11 +149,23 @@
     gap: 8px;
     margin-bottom: 6px;
   }
-  .usage {
+  h5.usage {
+    margin: 0;
     font-size: 16px;
     font-weight: 700;
     color: var(--accent);
     font-variant-numeric: tabular-nums;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
   .rendered {
     font-size: 12px;

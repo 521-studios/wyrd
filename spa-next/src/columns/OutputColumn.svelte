@@ -11,13 +11,11 @@
   // wyrd-34tn (PR #6).
   import { appState } from '../lib/appState.svelte.js';
 
-  // wyrd-yxf6: selection state lifted from local to appState so
-  // InspectorColumn (col 3) reads it reactively. Reset on re-roll
-  // so a stale index doesn't silently highlight a different result.
-  $effect(() => {
-    void appState.results; // dep
-    appState.currentResultIndex = null;
-  });
+  // wyrd-yxf6: selection state lives in appState so InspectorColumn
+  // reads it reactively. The re-roll-reset of currentResultIndex
+  // lives in ConfigureColumn.roll() (next to the results
+  // assignment) rather than an OutputColumn $effect, so the reset
+  // survives OutputColumn unmounting (mobile drawer per wyrd-jh75).
 
   function selectResult(i) {
     appState.currentResultIndex =

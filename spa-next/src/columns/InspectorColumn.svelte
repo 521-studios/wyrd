@@ -57,7 +57,7 @@
           This generator doesn't expose per-morpheme metadata.
         </p>
       {:else}
-        {#each allMorphemes as morpheme, i (i)}
+        {#each allMorphemes as morpheme, i (morpheme._wordIndex + ':' + morpheme.usage + ':' + i)}
           <MorphemeCard {morpheme} />
         {/each}
       {/if}

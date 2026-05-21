@@ -48,6 +48,11 @@
       appState.results = envelope.results;
       appState.resultsGenerator = envelope.generator;
       appState.seed = envelope.seed; // echo back the seed the server used
+      // wyrd-yxf6 round 2: clear the inspector's selection inline
+      // with the results assignment. Pre-fix this lived in an
+      // OutputColumn $effect — fragile if OutputColumn ever
+      // unmounts (mobile drawer per wyrd-jh75 may toggle it).
+      appState.currentResultIndex = null;
     } catch (err) {
       appState.rollError = err.message;
     } finally {
