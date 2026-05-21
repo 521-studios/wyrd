@@ -66,6 +66,13 @@ _DATE_YEAR_MAX = 1700
 _WHITESPACE_RUN = re.compile(r"\s+")
 
 
+# Compiled at module scope to avoid per-mention recompilation. The
+# fast-path identity-preservation of CPython's ``re.sub`` (no match →
+# original object returned) is what lets _sanitize_for_utf8 cheaply
+# handle the common no-surrogate case.
+_LONE_SURROGATE_RE = re.compile(r"[\ud800-\udfff]")
+
+
 def _collapse_whitespace(text: str) -> str:
     """Collapse every whitespace run (spaces, tabs, newlines,
     soft-wrap hyphen + newline) to a single space. Used to make the
@@ -74,7 +81,7 @@ def _collapse_whitespace(text: str) -> str:
     return _WHITESPACE_RUN.sub(" ", text).strip()
 
 
-def _sanitize_for_utf8(s: str) -> str:
+def _sanitize_for_utf8(text: str) -> str:
     """Replace unpaired surrogate codepoints (U+D800..U+DFFF) with
     U+FFFD so the string can round-trip through a utf-8 file write.
 
@@ -85,21 +92,24 @@ def _sanitize_for_utf8(s: str) -> str:
     writer (wyrd-8wa4: concrete failure 2026-05-21 on
     longnon_1920_v2 mid-source crashed mining).
 
-    A surrogate landing in ``form`` will subsequently fail the
-    form-in-chunk anti-hallucination check (the source body is
-    decoded with errors='replace', so a real surrogate never appears
-    there) — the mention drops via the existing
-    ``hallucinations_dropped`` accounting. A surrogate in
-    ``context`` / ``region_hint`` gets replaced and the mention is
-    admitted with a U+FFFD marker visible to operators.
+    Applied to every LLM-emitted str field before validation. A
+    surrogate landing in ``form`` becomes U+FFFD and then almost
+    always fails the form-in-chunk anti-hallucination check (the
+    source body is decoded with errors='replace' on read, so
+    legitimate U+FFFD appears only at corruption sites — the LLM-
+    introduced U+FFFD is unlikely to align with one) — the mention
+    drops via the existing ``hallucinations_dropped`` accounting. A
+    surrogate in ``context`` / ``region_hint`` gets replaced and the
+    mention is admitted with a U+FFFD marker visible to operators.
+    Either way ``surrogates_sanitized`` bumps on the run's counters
+    so operators can spot a model emitting bad codepoints at scale.
     """
-    if not s:
-        return s
-    # Fast-path: surrogates are vanishingly rare in real text, so a
-    # single any() scan beats unconditionally rebuilding the string.
-    if not any(0xD800 <= ord(ch) <= 0xDFFF for ch in s):
-        return s
-    return "".join("�" if 0xD800 <= ord(ch) <= 0xDFFF else ch for ch in s)
+    if not text:
+        return text
+    # CPython's re.sub returns the original string object identity-
+    # equal when no substitution occurs, so the no-surrogate common
+    # case allocates nothing.
+    return _LONE_SURROGATE_RE.sub("�", text)
 
 
 @dataclass(frozen=True)
@@ -294,11 +304,19 @@ class ValidationCounters:
     admitted: int = 0
     hallucinations_dropped: int = 0
     years_clamped: int = 0  # any year value the LLM emitted that we coerced to None
+    # any LLM-emitted str field that contained a lone surrogate the
+    # validator had to replace with U+FFFD (wyrd-8wa4). Tracked so
+    # operators can spot a model regression where surrogates start
+    # appearing at scale — silent rewrites would otherwise look like
+    # inflated hallucinations_dropped (when the surrogate is in form)
+    # or invisible quality decay (when it's in context/region_hint).
+    surrogates_sanitized: int = 0
 
     def __iadd__(self, other: ValidationCounters) -> ValidationCounters:
         self.admitted += other.admitted
         self.hallucinations_dropped += other.hallucinations_dropped
         self.years_clamped += other.years_clamped
+        self.surrogates_sanitized += other.surrogates_sanitized
         return self
 
 
@@ -391,12 +409,37 @@ def _validated_mentions(
     for m in raw:
         if not isinstance(m, dict):
             continue
-        # Sanitize lone surrogates from every LLM-emitted str before
-        # validation. Without this, a single mention with `\udaaa` in
-        # any field crashes the entire source mid-mining at the utf-8
-        # writer (wyrd-8wa4). A surrogate-bearing form then fails the
-        # form-in-chunk check below and counts as a hallucination.
-        form = _sanitize_for_utf8((m.get("form") or "").strip())
+        # Sanitize lone surrogates on EVERY LLM-emitted str field up
+        # front, before any validation that might short-circuit. The
+        # surrogates_sanitized counter must reflect what the upstream
+        # model actually emitted, not what survived later validation —
+        # otherwise a model regression that smears surrogates across
+        # every field looks identical to one that only damaged form
+        # (which would short-circuit at form-in-chunk before the
+        # validator ever inspects region_hint / context). Identity-
+        # preserving on the common no-surrogate case via re.sub; only
+        # dirty inputs allocate. (wyrd-8wa4.)
+        raw_form = (m.get("form") or "").strip()
+        form = _sanitize_for_utf8(raw_form)
+        if form is not raw_form:
+            counters.surrogates_sanitized += 1
+        raw_region = m.get("region_hint")
+        if isinstance(raw_region, str):
+            # Strip before sanitize so the sanitizer operates on a
+            # potentially shorter string and the processing order
+            # matches the form/context paths.
+            stripped_region = raw_region.strip()
+            sanitized_region = _sanitize_for_utf8(stripped_region)
+            if sanitized_region is not stripped_region:
+                counters.surrogates_sanitized += 1
+            region_hint: str | None = sanitized_region or None
+        else:
+            region_hint = None
+        raw_context = _WHITESPACE_RUN.sub(" ", (m.get("context") or "")).strip()
+        context = _sanitize_for_utf8(raw_context)
+        if context is not raw_context:
+            counters.surrogates_sanitized += 1
+        # Validation gates fire AFTER full sanitization above.
         if not form:
             continue
         if not _form_in_chunk(form, chunk_collapsed):
@@ -405,12 +448,6 @@ def _validated_mentions(
         date_year, was_clamped = _coerce_year(m.get("date_year"))
         if was_clamped:
             counters.years_clamped += 1
-        region_hint = m.get("region_hint")
-        if isinstance(region_hint, str):
-            region_hint = _sanitize_for_utf8(region_hint).strip() or None
-        else:
-            region_hint = None
-        context = _sanitize_for_utf8(_WHITESPACE_RUN.sub(" ", (m.get("context") or "")).strip())
         if not context:
             # Synthesize a context window from the chunk if the LLM
             # left it empty — gives operators something to inspect.
@@ -690,6 +727,11 @@ class MineToponymMentionsReport:
     chunks_hallucination_rescue_succeeded: int = 0
     hallucinations_dropped: int = 0
     years_clamped: int = 0
+    # Lone-surrogate codepoints we replaced with U+FFFD across all
+    # validated fields (wyrd-8wa4). A non-zero value here is operator
+    # signal: the upstream model produced strings the utf-8 writer
+    # would have rejected. Per-source; rolled up by the CLI.
+    surrogates_sanitized: int = 0
     mentions: list[ToponymMention] = field(default_factory=list)
     # First _FAILED_CHUNKS_HEAD failures concatenated with the most-
     # recent _FAILED_CHUNKS_TAIL failures (half-and-half retention so
@@ -849,9 +891,14 @@ def _process_indexed_chunks(
             # re-raised in the prior clause; KeyboardInterrupt and
             # SystemExit (BaseException) still propagate naturally.
             report.chunks_failed += 1
+            # Sanitize the error string — provider-SDK exceptions can
+            # carry LLM response excerpts (or stringified JSON parse
+            # offsets) containing lone surrogates. Without this the
+            # writer that persists failed-chunk records would hit the
+            # same wyrd-8wa4 crash class one layer downstream.
             failure = FailedChunk(
                 index=i,
-                error=f"{type(e).__name__}: {e}",
+                error=_sanitize_for_utf8(f"{type(e).__name__}: {e}"),
                 chunk_body=chunk,
             )
             if len(head_failures) < _FAILED_CHUNKS_HEAD:
@@ -880,6 +927,7 @@ def _process_indexed_chunks(
         report.chunks_processed += 1
         report.hallucinations_dropped += chunk_counters.hallucinations_dropped
         report.years_clamped += chunk_counters.years_clamped
+        report.surrogates_sanitized += chunk_counters.surrogates_sanitized
         if on_chunk_done is not None:
             on_chunk_done(done, total, len(report.mentions))
     # Merge head + tail. List shape preserves indices for the CLI's
@@ -1054,9 +1102,12 @@ def _run_primary_failure_fallback(
         # full failure chain (transient vs. genuinely-hard chunk are
         # distinguishable from the pair).
         fallback_error = f"{type(e).__name__}: {e}"
+        # Sanitize for the same reason as the single-tier path above:
+        # both primary_error and fallback_error can carry surrogate-
+        # bearing fragments from LLM responses (wyrd-8wa4).
         failure = FailedChunk(
             index=chunk_index,
-            error=f"primary={primary_error}; fallback={fallback_error}",
+            error=_sanitize_for_utf8(f"primary={primary_error}; fallback={fallback_error}"),
             chunk_body=chunk,
         )
         if log_warning is not None:
@@ -1253,6 +1304,7 @@ def mine_toponym_mentions_tiered(
         report.chunks_processed += 1
         report.hallucinations_dropped += chunk_counters.hallucinations_dropped
         report.years_clamped += chunk_counters.years_clamped
+        report.surrogates_sanitized += chunk_counters.surrogates_sanitized
         if on_chunk_done is not None:
             on_chunk_done(i + 1, total, len(report.mentions))
     report.failed_chunks.extend(head_failures)

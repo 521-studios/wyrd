@@ -346,6 +346,7 @@ def lexicon_mine_toponym_mentions_staged(
         "chunks_failed": 0,
         "hallucinations_dropped": 0,
         "years_clamped": 0,
+        "surrogates_sanitized": 0,
         "mentions": 0,
         "mentions_deduped": 0,
         "malformed_purged": 0,
@@ -397,6 +398,7 @@ def lexicon_mine_toponym_mentions_staged(
         f"failed={totals['chunks_failed']} "
         f"halluc={totals['hallucinations_dropped']} "
         f"clamped={totals['years_clamped']} "
+        f"surrogates={totals['surrogates_sanitized']} "
         f"mentions={totals['mentions']}"
     )
     if from_failures is not None:
@@ -587,7 +589,8 @@ def _run_resume_from_failures(
             f"  → {out_path} | chunks={report.chunks_processed} "
             f"failed={report.chunks_failed} new_mentions={new_count} "
             f"deduped={dup_count} halluc={report.hallucinations_dropped} "
-            f"clamped={report.years_clamped}",
+            f"clamped={report.years_clamped} "
+            f"surrogates={report.surrogates_sanitized}",
             err=True,
         )
 
@@ -596,6 +599,7 @@ def _run_resume_from_failures(
         totals["chunks_failed"] += report.chunks_failed
         totals["hallucinations_dropped"] += report.hallucinations_dropped
         totals["years_clamped"] += report.years_clamped
+        totals["surrogates_sanitized"] += report.surrogates_sanitized
         totals["mentions"] += new_count
         totals["mentions_deduped"] += dup_count
         totals["malformed_purged"] += purged_count
@@ -719,7 +723,8 @@ def _run_fresh_mining(
             f"  → {out_path} | chunks={report.chunks_processed} "
             f"failed={report.chunks_failed} mentions={len(report.mentions)} "
             f"halluc={report.hallucinations_dropped} "
-            f"clamped={report.years_clamped}",
+            f"clamped={report.years_clamped} "
+            f"surrogates={report.surrogates_sanitized}",
             err=True,
         )
 
@@ -728,6 +733,7 @@ def _run_fresh_mining(
         totals["chunks_failed"] += report.chunks_failed
         totals["hallucinations_dropped"] += report.hallucinations_dropped
         totals["years_clamped"] += report.years_clamped
+        totals["surrogates_sanitized"] += report.surrogates_sanitized
         totals["mentions"] += len(report.mentions)
 
 

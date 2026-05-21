@@ -162,7 +162,8 @@ def lexicon_mine_toponym_mentions(
         f"chunks_failed={report.chunks_failed} "
         f"mentions={len(report.mentions)} "
         f"hallucinations_dropped={report.hallucinations_dropped} "
-        f"years_clamped={report.years_clamped}",
+        f"years_clamped={report.years_clamped} "
+        f"surrogates_sanitized={report.surrogates_sanitized}",
         err=True,
     )
     if report.failed_chunks:
