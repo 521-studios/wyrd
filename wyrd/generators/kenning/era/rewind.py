@@ -74,6 +74,89 @@ _ANCHOR_LANG_PREFERENCE: tuple[str, ...] = (
     "modern_english",
 )
 
+# wyrd-085k: free particles that scribes historically wrote as
+# separate tokens in place names — Stratford **on** Avon, Henley
+# **upon** Thames, Bury Saint Edmunds (the **of** would be a
+# separator in 'Bury of Saint Edmunds'-style historical citations).
+#
+# Intentionally EXCLUDED (despite being prepositions in modern
+# English):
+#   * ``by`` — common Old Norse settlement suffix (Whitby = OE
+#     'white' + ON 'býr'; Derby = OE 'deer' + ON 'býr'). Treating
+#     'by' as a particle would mis-render every Norse-suffix name
+#     in the corpus.
+#   * ``in`` — rare standalone preposition in English place names;
+#     more often a Germanic locative reduction ('in' + 'wood' →
+#     Inwood = solid compound).
+#   * ``at`` — same as 'in', plus the OE form 'æt' was a fully
+#     productive prefix that did concatenate.
+# The detection rule pairs lowercased-form membership with the
+# absence of hyphen markers in the morpheme's original modern_usage:
+# a morpheme written ``"-by"`` (post-marker) is a settlement suffix
+# regardless of whether 'by' is in this set, so the hyphen-check
+# is a second guard against the by/by-suffix collision.
+_FREE_PARTICLES: frozenset[str] = frozenset({"on", "upon", "under", "of"})
+
+
+def _is_free_particle(meaning: Meaning) -> bool:
+    """wyrd-085k: classify a morpheme as a free particle for the
+    smart-join renderer.
+
+    A morpheme is a free particle when BOTH conditions hold:
+      1. Its modern_usage has no hyphen markers — a hyphen-marked
+         usage is a positional suffix / prefix / infix (``-by``,
+         ``Whit-``, ``-on-``) that scribes concatenated into the
+         compound regardless of whether the bare word matches a
+         preposition. Checked FIRST so the comparison is short-
+         circuited before lowercase / membership.
+      2. The lowercased ``modern_usage`` is in ``_FREE_PARTICLES``.
+    """
+    usage = meaning.usage
+    if "-" in usage:
+        return False
+    return usage.lower() in _FREE_PARTICLES
+
+
+def _render_morphemes_as_name(morphemes: list[MorphemeRewind]) -> str:
+    """wyrd-085k: join morpheme forms into a medieval-style name.
+
+    Free particles (``on``, ``upon``, ``under``, ``of``) get
+    surrounded by spaces so they read as separate tokens, matching
+    historical scribal practice (Stratford **on** Avon, Henley
+    **upon** Thames). Adjacent non-particle morphemes concatenate
+    directly. Each space-separated token gets its first letter
+    title-cased; particles stay fully lowercase to match modern
+    typesetting convention for prepositions in proper names.
+
+    Empty input returns the empty string. A single non-particle
+    morpheme returns its form title-cased. A leading or trailing
+    particle is preserved as its own token (rendering
+    ``[on, foo]`` as ``"on Foo"``, not as a malformed compound).
+    """
+    if not morphemes:
+        return ""
+    tokens: list[str] = []  # space-separated output tokens
+    pending: list[str] = []  # buffer of adjacent non-particle forms
+    for m in morphemes:
+        form = _pick_form(m)
+        if m.is_free_particle:
+            if pending:
+                tokens.append("".join(pending))
+                pending = []
+            tokens.append(form.lower())
+        else:
+            pending.append(form)
+    if pending:
+        tokens.append("".join(pending))
+    # Title-case each non-particle token; particles stay lowercase.
+    rendered: list[str] = []
+    for token in tokens:
+        if token in _FREE_PARTICLES:
+            rendered.append(token)
+        elif token:
+            rendered.append(token[0].upper() + token[1:])
+    return " ".join(rendered)
+
 
 @dataclass
 class MorphemeRewind:
@@ -104,6 +187,25 @@ class MorphemeRewind:
     anchor exists). Flagged so the user can see which morphemes
     'don't have era data' for the requested cell."""
 
+    is_free_particle: bool = False
+    """wyrd-085k: True when this morpheme is a free preposition /
+    particle (``on``, ``upon``, ``under``, ``of``) that scribes
+    historically wrote as a separate token rather than concatenating
+    into the compound (Stratford **on** Avon, Henley **upon**
+    Thames). The smart-join renderer uses this to surround the
+    morpheme with spaces instead of concatenating it inline.
+
+    Detection: the morpheme's modern_usage has no hyphen markers
+    AND its lowercased form is in the particle list. The hyphen-
+    absence guard catches the by / by-suffix collision — a
+    hyphen-marked usage (``-by``, the Old Norse settlement marker
+    in Whitby / Derby) is a positional suffix regardless of whether
+    the bare string matches a preposition. ``by`` and ``in`` are
+    intentionally NOT in the particle list either, since both have
+    common settlement-suffix uses in English place names; treating
+    them as particles would mis-join the Norse-origin names even
+    when the hyphen guard didn't catch them."""
+
 
 @dataclass
 class EraStop:
@@ -113,7 +215,14 @@ class EraStop:
     cell: str
     morphemes: list[MorphemeRewind]
     rendered: str
-    """Composed surface form joining the morphemes with hyphens."""
+    """wyrd-085k: composed surface form rendered as a medieval-style
+    place name. Adjacent non-particle morphemes concatenate directly;
+    free particles (``on``, ``upon``, ``under``, ``of``) sit as their
+    own space-separated tokens. Each non-particle token gets its
+    first letter title-cased. See ``_render_morphemes_as_name`` for
+    the join algorithm. Pre-wyrd-085k this was hyphen-separated
+    (``elm-tūn``); the analytical view is still available via
+    ``wyrd kenning explain``."""
 
 
 @dataclass
@@ -189,7 +298,7 @@ def rewind_name(
             _render_morpheme_at_era(meaning, anchor, family, cell, db)
             for meaning, anchor in morpheme_anchors
         ]
-        rendered = "-".join(_pick_form(m) for m in morphemes)
+        rendered = _render_morphemes_as_name(morphemes)
         era_stops.append(EraStop(family=family, cell=cell, morphemes=morphemes, rendered=rendered))
 
     return Rewind(
@@ -349,6 +458,7 @@ def _render_morpheme_at_era(
       ``fallback=False``).
     """
     canonical = meaning.usage.replace("-", "")
+    particle = _is_free_particle(meaning)
     if anchor is None:
         return MorphemeRewind(
             canonical=canonical,
@@ -357,6 +467,7 @@ def _render_morpheme_at_era(
             source_etymon_id=None,
             era_form=None,
             fallback=True,
+            is_free_particle=particle,
         )
 
     target_language = canonical_language_for_cell(family, cell)
@@ -368,6 +479,7 @@ def _render_morpheme_at_era(
             source_etymon_id=anchor.etymon_id,
             era_form=None,
             fallback=True,
+            is_free_particle=particle,
         )
 
     # When the anchor's own language IS the target (era=oe-late and
@@ -381,6 +493,7 @@ def _render_morpheme_at_era(
             source_etymon_id=anchor.etymon_id,
             era_form=anchor.canonical_form,
             fallback=False,
+            is_free_particle=particle,
         )
 
     reflexes: list[EraReflex] = etymon_era_reflexes(
@@ -394,6 +507,7 @@ def _render_morpheme_at_era(
             source_etymon_id=anchor.etymon_id,
             era_form=None,
             fallback=True,
+            is_free_particle=particle,
         )
     # Three-tier picker preference, falling through alphabetical:
     #
@@ -427,6 +541,7 @@ def _render_morpheme_at_era(
         source_etymon_id=anchor.etymon_id,
         era_form=selected.form,
         fallback=False,
+        is_free_particle=particle,
     )
 
 
