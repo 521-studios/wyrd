@@ -196,6 +196,32 @@ class PhonologicalVector:
 # ---- register-effect catalog (kq7w.2 catalog format) --------------------
 
 
+# wyrd-we1u: tier vocabulary for per-weight scholarly-grounding
+# metadata. Three rated categories + an "untagged" default so the
+# parser can accept old-shape bare-float weights without forcing
+# the migration to be atomic. Definitions:
+#   * universal — cross-linguistic sound-symbolic primitive with
+#     experimental + cross-cultural replication (Blasi 2016,
+#     Ćwiek 2022, Fort 2015, Whissell 1999, Ohala 1994). Applies
+#     across speech communities.
+#   * ie-conventional — perceptual association documented for
+#     English-speaking operators (e.g. cluster_density,
+#     polysyllabic_bias, final_fortition as "harsh / grand" per
+#     Mooshammer 2024) but without cross-cultural support.
+#   * identity-marking — features that mark a specific phonological
+#     color without carrying crossmodal-perception payload (the
+#     exotic register's role; see REGISTERS.md §6).
+#   * untagged — no scholarly grounding assigned yet. Default for
+#     weights written in the bare-float (pre-wyrd-we1u) shape.
+UNIVERSAL_TIER = "universal"
+IE_CONVENTIONAL_TIER = "ie-conventional"
+IDENTITY_MARKING_TIER = "identity-marking"
+UNTAGGED_TIER = "untagged"
+WEIGHT_TIERS: frozenset[str] = frozenset(
+    {UNIVERSAL_TIER, IE_CONVENTIONAL_TIER, IDENTITY_MARKING_TIER, UNTAGGED_TIER}
+)
+
+
 @dataclass(frozen=True)
 class RegisterEffect:
     """A named register effect (mood/aesthetic primitive) — kq7w.2.
@@ -242,16 +268,58 @@ class RegisterEffect:
     phonological: dict[str, float] = field(default_factory=dict)
     semantic_tags: dict[str, float] = field(default_factory=dict)
     position_bias: dict[str, float] = field(default_factory=dict)
+    # wyrd-we1u: per-weight tier metadata. Each tier dict mirrors
+    # its sibling weight dict (same keys). Values are one of
+    # WEIGHT_TIERS. Keys absent from the tier dict are conventionally
+    # 'untagged' — consumers that filter by tier treat untagged as
+    # "no scholarly grounding yet" rather than as one of the three
+    # rated categories. Parallel-dict shape (rather than per-weight
+    # wrapping) keeps the existing scoring callers — dot(), composed
+    # weights, the legacy mood-translation helper — unchanged; tier
+    # is a sidecar that filters / audits consult but the scoring
+    # math itself ignores. See D37.4 + REGISTERS.md for the scholarly
+    # citations behind each tier assignment.
+    phonological_tiers: dict[str, str] = field(default_factory=dict)
+    semantic_tag_tiers: dict[str, str] = field(default_factory=dict)
+    position_bias_tiers: dict[str, str] = field(default_factory=dict)
 
     def scaled(self, weight: float) -> RegisterEffect:
         """Return a copy of this effect with all component weights
         scaled by ``weight``. Used for graduation (``harsh:0.5``).
+        Tier metadata is preserved unchanged — scaling a weight
+        doesn't change the scholarly grounding it carries.
         """
         return RegisterEffect(
             name=self.name,
             phonological={k: v * weight for k, v in self.phonological.items()},
             semantic_tags={k: v * weight for k, v in self.semantic_tags.items()},
             position_bias={k: v * weight for k, v in self.position_bias.items()},
+            phonological_tiers=dict(self.phonological_tiers),
+            semantic_tag_tiers=dict(self.semantic_tag_tiers),
+            position_bias_tiers=dict(self.position_bias_tiers),
+        )
+
+    def tier_for(self, axis: str, dim: str) -> str:
+        """wyrd-we1u: look up the tier for a single (axis, dim) pair.
+
+        ``axis`` is one of ``"phonological"`` / ``"semantic_tags"`` /
+        ``"position_bias"``. ``dim`` is the per-axis key (e.g.
+        ``"cluster_density"``, ``"death"``). Returns the catalog-
+        assigned tier string or ``"untagged"`` when no metadata
+        exists for that key. Stable consumer API — tier-filtered
+        generation + audit-trail exporters call through this rather
+        than reaching into the parallel dicts directly so a future
+        schema change to a wrapped per-weight shape won't break
+        their call sites.
+        """
+        if axis == "phonological":
+            return self.phonological_tiers.get(dim, UNTAGGED_TIER)
+        if axis == "semantic_tags":
+            return self.semantic_tag_tiers.get(dim, UNTAGGED_TIER)
+        if axis == "position_bias":
+            return self.position_bias_tiers.get(dim, UNTAGGED_TIER)
+        raise ValueError(
+            f"unknown axis {axis!r}; expected 'phonological' / 'semantic_tags' / 'position_bias'"
         )
 
 
@@ -291,6 +359,12 @@ def compose_register_effects(effects: list[RegisterEffect]) -> RegisterEffect:
     _clamp_in_place(out_phon)
     _clamp_in_place(out_sem)
     _clamp_in_place(out_pos)
+    # wyrd-we1u: composed effects intentionally drop per-weight tier
+    # metadata. A dim that accumulated from a UNIVERSAL grim weight
+    # plus an IE-CONVENTIONAL harsh weight has no single tier to
+    # report; consumers that filter by tier (wyrd-kz2b.33.1) apply
+    # the filter on the per-effect inputs BEFORE composition rather
+    # than trying to attribute composed values back to source tiers.
     return RegisterEffect(
         name="+".join(e.name for e in effects) or "<empty>",
         phonological=out_phon,

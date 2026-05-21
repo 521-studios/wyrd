@@ -55,6 +55,7 @@ import yaml
 
 from wyrd.generators.kenning.vectors.schemas import (
     _DIMENSION_NAMES,
+    WEIGHT_TIERS,
     RegisterEffect,
 )
 
@@ -94,22 +95,81 @@ def _validate_weight(value: Any, label: str) -> float:
     return weight
 
 
+def _validate_tier(value: Any, label: str) -> str:
+    """wyrd-we1u: validate a tier-string is one of WEIGHT_TIERS.
+
+    A typo'd tier (``universla`` for ``universal``) is loud-failure
+    rather than silent-untagged so an editor reorganization of
+    REGISTERS.md → YAML doesn't quietly drop the grounding metadata.
+    """
+    if not isinstance(value, str):
+        raise RegisterEffectCatalogError(
+            f"{label}: tier must be a string, got {type(value).__name__} {value!r}"
+        )
+    if value not in WEIGHT_TIERS:
+        raise RegisterEffectCatalogError(
+            f"{label}: unknown tier {value!r}; expected one of {sorted(WEIGHT_TIERS)}"
+        )
+    return value
+
+
+def _validate_weight_entry(value: Any, label: str) -> tuple[float, str | None]:
+    """wyrd-we1u: parse one per-weight value supporting both shapes.
+
+    * Bare numeric (``cluster_density: 0.6``) — back-compat shape.
+      Returns ``(weight, None)`` meaning "no tier metadata; caller
+      uses the parallel tier-dict's default-on-missing behavior".
+    * Mapping with ``value`` + optional ``tier`` keys
+      (``cluster_density: {value: 0.6, tier: universal}``) — the
+      tier-tagged shape. Returns ``(weight, tier_string)``.
+
+    Returning ``None`` for the bare-float path (rather than
+    ``UNTAGGED_TIER``) keeps the parallel-dict authoring sparse:
+    only explicitly-tagged keys land in the tier dict, so a
+    ``RegisterEffect`` with no migrated weights at all carries
+    empty tier dicts rather than every-key-mapped-to-untagged
+    bookkeeping. Consumers query through ``tier_for`` which
+    defaults missing keys to ``UNTAGGED_TIER`` anyway.
+    """
+    if isinstance(value, dict):
+        # Tier-tagged shape: must have 'value', optional 'tier'.
+        extra = set(value.keys()) - {"value", "tier"}
+        if extra:
+            raise RegisterEffectCatalogError(
+                f"{label}: unexpected per-weight keys {sorted(extra)}; "
+                "expected 'value' [+ optional 'tier']"
+            )
+        if "value" not in value:
+            raise RegisterEffectCatalogError(f"{label}: per-weight mapping must include 'value'")
+        weight = _validate_weight(value["value"], f"{label}.value")
+        tier = _validate_tier(value["tier"], f"{label}.tier") if "tier" in value else None
+        return weight, tier
+    return _validate_weight(value, label), None
+
+
 def _validate_weight_dict(
     value: Any, label: str, allowed_keys: frozenset[str] | None = None
-) -> dict[str, float]:
+) -> tuple[dict[str, float], dict[str, str]]:
     """Validate one of the three per-effect weight dicts.
 
-    ``value`` must be a (possibly empty) mapping of string-keyed
-    finite floats in [-1, +1]. ``allowed_keys`` restricts which
-    keys are permitted (used for phonological); when ``None``, any
-    string key is accepted (semantic_tags / position_bias are
-    open-set).
+    ``value`` must be a (possibly empty) mapping. Each entry is
+    either a bare finite float in [-1, +1] (back-compat shape) or
+    a mapping ``{value: float, tier: str}`` (wyrd-we1u shape).
+    ``allowed_keys`` restricts which keys are permitted (used for
+    phonological); when ``None``, any string key is accepted
+    (semantic_tags / position_bias are open-set).
+
+    Returns ``(weights, tiers)`` — two parallel dicts. Tier dict
+    contains only entries whose YAML carried an explicit tier;
+    bare-float entries are absent from the tier dict (consumers
+    default-on-missing via ``tier_for``).
     """
     if value is None:
-        return {}
+        return {}, {}
     if not isinstance(value, dict):
         raise RegisterEffectCatalogError(f"{label}: must be a mapping, got {type(value).__name__}")
-    out: dict[str, float] = {}
+    out_weights: dict[str, float] = {}
+    out_tiers: dict[str, str] = {}
     for key, raw in value.items():
         if not isinstance(key, str) or not key:
             raise RegisterEffectCatalogError(
@@ -119,8 +179,11 @@ def _validate_weight_dict(
             raise RegisterEffectCatalogError(
                 f"{label}: unknown key {key!r}; expected one of {sorted(allowed_keys)}"
             )
-        out[key] = _validate_weight(raw, f"{label}.{key}")
-    return out
+        weight, tier = _validate_weight_entry(raw, f"{label}.{key}")
+        out_weights[key] = weight
+        if tier is not None:
+            out_tiers[key] = tier
+    return out_weights, out_tiers
 
 
 def _validate_entry(name: str, entry: Any) -> RegisterEffect:
@@ -141,13 +204,19 @@ def _validate_entry(name: str, entry: Any) -> RegisterEffect:
         if extra:
             problem_parts.append(f"unexpected fields {sorted(extra)}")
         raise RegisterEffectCatalogError(f"{name}: " + "; ".join(problem_parts))
+    phon_weights, phon_tiers = _validate_weight_dict(
+        entry["phonological"], f"{name}.phonological", _DIMENSION_NAMES
+    )
+    sem_weights, sem_tiers = _validate_weight_dict(entry["semantic_tags"], f"{name}.semantic_tags")
+    pos_weights, pos_tiers = _validate_weight_dict(entry["position_bias"], f"{name}.position_bias")
     return RegisterEffect(
         name=name,
-        phonological=_validate_weight_dict(
-            entry["phonological"], f"{name}.phonological", _DIMENSION_NAMES
-        ),
-        semantic_tags=_validate_weight_dict(entry["semantic_tags"], f"{name}.semantic_tags"),
-        position_bias=_validate_weight_dict(entry["position_bias"], f"{name}.position_bias"),
+        phonological=phon_weights,
+        semantic_tags=sem_weights,
+        position_bias=pos_weights,
+        phonological_tiers=phon_tiers,
+        semantic_tag_tiers=sem_tiers,
+        position_bias_tiers=pos_tiers,
     )
 
 
@@ -216,6 +285,9 @@ def _copy_effect(effect: RegisterEffect) -> RegisterEffect:
         phonological=dict(effect.phonological),
         semantic_tags=dict(effect.semantic_tags),
         position_bias=dict(effect.position_bias),
+        phonological_tiers=dict(effect.phonological_tiers),
+        semantic_tag_tiers=dict(effect.semantic_tag_tiers),
+        position_bias_tiers=dict(effect.position_bias_tiers),
     )
 
 
