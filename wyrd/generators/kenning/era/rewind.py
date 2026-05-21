@@ -103,13 +103,13 @@ def _is_free_particle(meaning: Meaning) -> bool:
     smart-join renderer.
 
     A morpheme is a free particle when BOTH conditions hold:
-      1. Its modern_usage (with dash markers stripped, lowercased)
-         is in ``_FREE_PARTICLES``.
-      2. Its original modern_usage carries no hyphen markers — a
-         hyphen-marked usage is a positional suffix / prefix / infix
-         (``-by``, ``Whit-``, ``-on-``) that scribes concatenated
-         into the compound regardless of whether the bare word is
-         in the particle list.
+      1. Its modern_usage has no hyphen markers — a hyphen-marked
+         usage is a positional suffix / prefix / infix (``-by``,
+         ``Whit-``, ``-on-``) that scribes concatenated into the
+         compound regardless of whether the bare word matches a
+         preposition. Checked FIRST so the comparison is short-
+         circuited before lowercase / membership.
+      2. The lowercased ``modern_usage`` is in ``_FREE_PARTICLES``.
     """
     usage = meaning.usage
     if "-" in usage:
@@ -195,16 +195,16 @@ class MorphemeRewind:
     Thames). The smart-join renderer uses this to surround the
     morpheme with spaces instead of concatenating it inline.
 
-    Detection: lowercased modern_usage (with dash markers stripped)
-    is in the particle list AND the original modern_usage has no
-    hyphen markers (a hyphen marker means it's a positional suffix
-    like ``-by``, a Norse settlement marker that's lexically the
-    same string as the preposition ``by`` but functionally a
-    suffix — those still get concatenated). ``by`` and ``in`` are
-    intentionally NOT in the particle list because both have common
-    settlement-suffix uses in English place names; treating them
-    as particles would mis-join historical Norse-origin names like
-    Whitby / Derby."""
+    Detection: the morpheme's modern_usage has no hyphen markers
+    AND its lowercased form is in the particle list. The hyphen-
+    absence guard catches the by / by-suffix collision — a
+    hyphen-marked usage (``-by``, the Old Norse settlement marker
+    in Whitby / Derby) is a positional suffix regardless of whether
+    the bare string matches a preposition. ``by`` and ``in`` are
+    intentionally NOT in the particle list either, since both have
+    common settlement-suffix uses in English place names; treating
+    them as particles would mis-join the Norse-origin names even
+    when the hyphen guard didn't catch them."""
 
 
 @dataclass

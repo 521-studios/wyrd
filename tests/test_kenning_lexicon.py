@@ -4893,6 +4893,80 @@ def test_rewind_does_not_treat_norse_settlement_suffix_by_as_particle(
     assert by_cell["oe-late"].count(" ") == 0
 
 
+@pytest.mark.parametrize("particle", ["on", "upon", "under", "of"])
+def test_rewind_preserves_every_free_particle_as_separate_token(
+    fresh_db: Path, particle: str
+) -> None:
+    """wyrd-085k: every member of _FREE_PARTICLES must surround with
+    spaces. Parameterized over the whole set so a typo (or accidental
+    drop) on any one of them surfaces immediately rather than only
+    via the one-member positive test above."""
+    with LexiconDB(fresh_db) as db:
+        for root, member in (
+            ("*hwītaz", "hwīt"),
+            (f"*{particle}", particle),
+            ("*hām", "hām"),
+        ):
+            _seed_cluster(
+                db,
+                cluster_root_form=root,
+                cluster_root_lang="proto-germanic",
+                members=[(member, "old-english")],
+            )
+        meaning_db = _make_rewind_meaning_db(
+            ("Whit-", {"old_english": ["hwīt"]}),
+            (particle, {"old_english": [particle]}),
+            ("-ham", {"old_english": ["hām"]}),
+        )
+        result = rewind_name(f"whit {particle} ham", db, meaning_db)
+
+    by_cell = {stop.cell: stop.rendered for stop in result.eras}
+    assert by_cell["oe-late"] == f"Hwīt {particle} Hām"
+
+
+def test_rewind_hyphen_guard_catches_particle_member_used_as_suffix(
+    fresh_db: Path,
+) -> None:
+    """wyrd-085k regression guard for the hyphen-check in
+    _is_free_particle: even a morpheme whose bare string IS in
+    _FREE_PARTICLES gets treated as suffix-not-particle if its
+    modern_usage carries hyphen markers. Without this branch a
+    real corpus morpheme like '-on-' (inner-position usage of
+    'on', if mined) would mis-split a compound.
+
+    Constructs a Meaning whose usage is '-on-' (mock infix shape).
+    The renderer must NOT space-separate it; the morpheme
+    concatenates inline as a positional infix."""
+    with LexiconDB(fresh_db) as db:
+        for root, member in (
+            ("*hwītaz", "hwīt"),
+            ("*on", "on"),
+            ("*hām", "hām"),
+        ):
+            _seed_cluster(
+                db,
+                cluster_root_form=root,
+                cluster_root_lang="proto-germanic",
+                members=[(member, "old-english")],
+            )
+        # Note '-on-' usage marker — bare 'on' IS in _FREE_PARTICLES
+        # but the hyphen-marked positional usage disqualifies it.
+        meaning_db = _make_rewind_meaning_db(
+            ("Whit-", {"old_english": ["hwīt"]}),
+            ("-on-", {"old_english": ["on"]}),
+            ("-ham", {"old_english": ["hām"]}),
+        )
+        result = rewind_name("whitonham", db, meaning_db)
+
+    by_cell = {stop.cell: stop.rendered for stop in result.eras}
+    # No space-around-on — the hyphen-marked usage disqualified
+    # the particle treatment, so 'on' concatenates inline.
+    assert " on " not in by_cell["oe-late"]
+    # Should still be a single concatenated token containing 'on'.
+    assert "on" in by_cell["oe-late"].lower()
+    assert by_cell["oe-late"].count(" ") == 0
+
+
 def test_rewind_handles_leading_particle(fresh_db: Path) -> None:
     """wyrd-085k edge case: a particle as the first morpheme emits
     a lowercase leading token rather than mid-word inlining. Real-
