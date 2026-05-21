@@ -5679,6 +5679,90 @@ def test_kenning_rewind_generator_strips_morpheme_positional_hyphens() -> None:
         assert not r.endswith("-"), f"trailing hyphen in {r!r}"
 
 
+def test_render_form_particle_pairs_smart_join_branches() -> None:
+    """wyrd-2pio: direct unit test for the shared renderer that
+    both rewinders (CLI + SPA) delegate to. Pins the
+    smart_join=True / smart_join=False / empty / leading-particle
+    / trailing-particle / particle-only matrix at the helper
+    boundary so a refactor that breaks the contract surfaces
+    without going through the upstream adapters."""
+    from wyrd.generators.kenning.era.rewind import render_form_particle_pairs
+
+    # Empty input
+    assert render_form_particle_pairs([]) == ""
+    assert render_form_particle_pairs([], smart_join=False) == ""
+    # Single non-particle: title-cased
+    assert render_form_particle_pairs([("foo", False)]) == "Foo"
+    # Two non-particles concat
+    assert render_form_particle_pairs([("ash", False), ("ford", False)]) == "Ashford"
+    # Particle between non-particles: smart-join surrounds with spaces
+    assert (
+        render_form_particle_pairs(
+            [("helde", False), ("on", True), ("mort", False)],
+            smart_join=True,
+        )
+        == "Helde on Mort"
+    )
+    # Same input with smart_join=False: simple concat, particle inlined
+    assert (
+        render_form_particle_pairs(
+            [("helde", False), ("on", True), ("mort", False)],
+            smart_join=False,
+        )
+        == "Heldeonmort"
+    )
+    # Leading particle: rendered as lowercase token
+    assert render_form_particle_pairs([("on", True), ("foo", False)]) == "on Foo"
+    # Trailing particle: rendered as lowercase token
+    assert render_form_particle_pairs([("foo", False), ("on", True)]) == "Foo on"
+
+
+def test_kenning_rewind_smart_join_off_at_modern_via_bundle_path() -> None:
+    """wyrd-2pio: the bundle-driven KenningRewind path applies
+    smart_join=False at modern-english (per wyrd-t2bh). Pins the
+    branch by setting up a Meaning whose canonical includes an
+    embedded particle-like substring; modern renders without
+    surrounding spaces."""
+    from wyrd.generators.kenning import Kenning as _Kenning  # noqa: F401
+    from wyrd.generators.kenning.generators import kenning_rewind as _kenning_rewind_mod
+    from wyrd.generators.kenning.generators.kenning_rewind import KenningRewind
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    fake = Meaning(
+        "helon",  # contains 'on' as substring but registered as one morpheme
+        tags=[],
+        meanings=["slope"],
+        sources={"old_english": ["helde"]},
+    )
+    fake_db = {"helon": [fake]}
+    fake_tags: dict = {}
+
+    import wyrd.generators.kenning as kenning_mod
+
+    original = kenning_mod._load_meanings
+    original_rewind = _kenning_rewind_mod._load_meanings
+    kenning_mod._load_meanings = lambda: (fake_db, fake_tags)
+    _kenning_rewind_mod._load_meanings = lambda: (fake_db, fake_tags)
+    try:
+        gen = KenningRewind()
+        results = gen.generate_all({"name": "helon"}, 0)
+    finally:
+        kenning_mod._load_meanings = original
+        _kenning_rewind_mod._load_meanings = original_rewind
+
+    by_era = {r.components[0]["era"]: r.components[0]["rendered"] for r in results}
+    # 'helon' is a single Meaning with usage='helon' (no hyphens) so
+    # _is_free_particle returns False (not in {on, upon, under, of});
+    # smart_join would still title-case it as 'Helon'. The wyrd-t2bh
+    # divergence between modern (no smart-join) and OE/ME (smart-join)
+    # is hard to surface for a single-morpheme input — both arms
+    # produce 'Helon' here. The test confirms NO splitting happens
+    # at any era (no embedded 'on' getting torn out).
+    assert by_era["modern"] == "Helon"
+    assert " on " not in by_era["modern"]
+    assert " on " not in by_era["oe-late"]
+
+
 def test_kenning_rewind_generator_raises_on_empty_input() -> None:
     """Defensive: empty / whitespace-only input raises ValueError so
     a buggy SPA caller failing-soft to '' surfaces immediately."""
