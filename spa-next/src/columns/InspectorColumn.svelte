@@ -12,6 +12,7 @@
   // re-runs the pipeline whenever the original (col-2 selection)
   // or the step list changes — the "editable recipe" model from
   // the design session (vs an undo/redo snapshot history).
+  import { untrack } from 'svelte';
   import { appState } from '../lib/appState.svelte.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
   import MorphemeCard from '../components/MorphemeCard.svelte';
@@ -47,11 +48,16 @@
     // loading flag, regardless of whether idx actually changed. If
     // a user loads a saved workspace for the result they're already
     // inspecting, idx won't change — but the flag still needs to be
-    // cleared so the NEXT subject change behaves normally. The
-    // pipeline.clear() suppression only kicks in when there IS an
-    // index change AND we're loading.
-    const isLoad = appState.isLoadingSavedWorkspace;
-    if (isLoad) appState.isLoadingSavedWorkspace = false;
+    // cleared so the NEXT subject change behaves normally.
+    // wyrd-34tn round 3 (Gemini MED): untrack() the read+write so
+    // clearing the flag doesn't re-trigger this effect (which would
+    // double-run pipeline.run; the runToken protects state but the
+    // wasted run is inefficient).
+    const isLoad = untrack(() => {
+      const val = appState.isLoadingSavedWorkspace;
+      if (val) appState.isLoadingSavedWorkspace = false;
+      return val;
+    });
     if (idx !== lastResultIndex) {
       lastResultIndex = idx;
       if (!isLoad) pipeline.clear();

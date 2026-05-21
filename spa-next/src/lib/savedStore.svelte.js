@@ -63,9 +63,15 @@ function writeToStorage(entries) {
 
 // wyrd-34tn round 2 (frontend HIGH): deep-clone via JSON round-trip
 // so persisted entries don't alias live $state objects (params,
-// original, pipeline). Without this, subsequent edits to the form /
-// pipeline would silently mutate the in-memory entry, and the next
-// write-to-storage call would corrupt the saved JSON.
+// original, pipeline). Subsequent edits to the form / pipeline don't
+// silently mutate the in-memory entry; the next writeToStorage doesn't
+// corrupt the saved JSON.
+//
+// wyrd-34tn round 3: NOT structuredClone — Svelte 5 $state values are
+// Proxy-wrapped and structuredClone throws on Proxies. JSON.stringify
+// works because it iterates enumerable properties via the proxy and
+// extracts plain values. Since we're already persisting as JSON, the
+// round-trip is the right shape anyway.
 function deepClone(obj) {
   if (obj === null || obj === undefined) return obj;
   return JSON.parse(JSON.stringify(obj));
@@ -108,22 +114,28 @@ class SavedStore {
       pipeline: deepClone(pipeline),
     };
     this.entries = [entry, ...this.entries];
-    writeToStorage(this.entries);
-    return entry.id;
+    // wyrd-34tn round 3 (Gemini HIGH): propagate the write error to
+    // the caller so the UI can show "save failed (quota?)". In-memory
+    // state is still updated (the session keeps working); only the
+    // disk persist failed.
+    const err = writeToStorage(this.entries);
+    if (err) return { id: null, error: err };
+    return { id: entry.id, error: null };
   }
 
-  /** Update a save's user-editable label. */
+  /** Update a save's user-editable label. Returns the write error
+   *  (or null on success) so callers can surface quota failures. */
   rename(id, label) {
     this.entries = this.entries.map((e) =>
       e.id === id ? { ...e, label } : e,
     );
-    writeToStorage(this.entries);
+    return writeToStorage(this.entries);
   }
 
-  /** Remove a save by id. */
+  /** Remove a save by id. Returns the write error (or null). */
   remove(id) {
     this.entries = this.entries.filter((e) => e.id !== id);
-    writeToStorage(this.entries);
+    return writeToStorage(this.entries);
   }
 
   /** Get a save by id (for the load-back-into-workspace flow). */

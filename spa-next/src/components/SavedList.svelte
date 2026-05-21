@@ -37,14 +37,23 @@
     renamingId = null;
   }
 
-  function load(entry) {
-    // wyrd-34tn: clear the pipeline + set our own steps BEFORE
-    // mutating appState.currentResultIndex, then flag the
-    // InspectorColumn effect to skip its auto-clear. Without the
-    // gate the effect would wipe our just-set steps on the
-    // subject-change. Manual clear is safe even if the load is to
-    // the same subject — pipeline.clear() bumps #runToken so any
-    // stale run is also dropped.
+  function load(savedEntry) {
+    // wyrd-34tn round 3 (Gemini HIGH): deep-clone the saved entry
+    // before writing into appState. Without this, paramsByGenerator
+    // + results aliases the savedStore entry; subsequent edits to
+    // the live workspace silently mutate the saved bookmark in
+    // memory, which the next writeToStorage call would persist —
+    // corrupting the user's saved bookmark. JSON round-trip (not
+    // structuredClone) because the savedStore entry is plain JSON
+    // already + structuredClone throws on Svelte 5 $state proxies
+    // if a future entry shape ever leaks them.
+    const entry = JSON.parse(JSON.stringify(savedEntry));
+    // Clear pipeline + set our own steps BEFORE mutating
+    // appState.currentResultIndex, then flag the InspectorColumn
+    // effect to skip its auto-clear. Without the gate the effect
+    // would wipe our just-set steps on the subject-change. Manual
+    // clear is safe even if the load is to the same subject —
+    // pipeline.clear() bumps #runToken so any stale run is dropped.
     pipeline.clear();
     for (const step of entry.pipeline || []) {
       pipeline.addStep(step.kind, step.params);
@@ -54,13 +63,8 @@
     appState.selectedGeneratorName = entry.generator;
     appState.seed = entry.seed;
     if (entry.params) {
-      // Replace the per-generator params dict so the form re-renders
-      // with the saved values.
-      appState.paramsByGenerator[entry.generator] = { ...entry.params };
+      appState.paramsByGenerator[entry.generator] = entry.params;
     }
-    // Synthesize a single-result roll so col 2's result list shows
-    // the saved original highlighted via currentResultIndex=0.
-    // Mutating these together queues a single Svelte tick.
     appState.results = [
       {
         result: entry.original.name,

@@ -33,7 +33,7 @@
       }, 2500);
       return;
     }
-    savedStore.add({
+    const { error } = savedStore.add({
       generator: appState.resultsGenerator,
       params: appState.currentParams,
       seed: appState.seed,
@@ -50,7 +50,13 @@
         params: { ...s.params },
       })),
     });
-    savedNote = `Saved as "${r.result}"`;
+    // wyrd-34tn round 3 (Gemini HIGH): surface localStorage write
+    // failures (quota / private browsing) so the user knows the save
+    // didn't persist — the in-memory state still works for this
+    // session, but they should export soon.
+    savedNote = error
+      ? `Save failed: ${error.message || 'storage error'}`
+      : `Saved as "${r.result}"`;
     setTimeout(() => {
       savedNote = '';
     }, 2500);
