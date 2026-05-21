@@ -32,6 +32,7 @@ from wyrd.generators.kenning.extractors.toponym_mentions import (
     _coerce_year,
     _collapse_whitespace,
     _form_in_chunk,
+    _sanitize_for_utf8,
     _validated_mentions,
     chunk_source_body,
     extract_toponym_mentions_from_chunk,
@@ -385,6 +386,107 @@ def test_validated_mentions_collapses_all_whitespace_in_context(sep):
     assert "\r" not in out[0].context
     assert "\t" not in out[0].context
     assert out[0].context == "line one line two line three"
+
+
+# ---------- _sanitize_for_utf8 (wyrd-8wa4) -------------------------------
+
+
+@pytest.mark.parametrize("codepoint", [0xD800, 0xD8AA, 0xDAAA, 0xDBFF, 0xDC00, 0xDFFF])
+def test_sanitize_for_utf8_replaces_lone_surrogates(codepoint):
+    """The crash was specifically U+DAAA from gemma4:26b output. Cover the
+    full surrogate range U+D800..U+DFFF (high + low halves) — Python str
+    can hold any of these, but utf-8 encode rejects all of them."""
+    s = f"Edling{chr(codepoint)}ham"
+    cleaned = _sanitize_for_utf8(s)
+    # Cleaned string must round-trip through utf-8 — that's the contract.
+    cleaned.encode("utf-8")
+    # The surrogate position becomes U+FFFD; surrounding chars survive.
+    assert cleaned == "Edling�ham"
+
+
+def test_sanitize_for_utf8_preserves_clean_strings():
+    """Positive control: no-surrogate input must pass through unchanged
+    (and identity-equal so a future caller can fast-path on `is`)."""
+    s = "Newcastle upon Tyne"
+    assert _sanitize_for_utf8(s) is s
+
+
+def test_sanitize_for_utf8_preserves_legitimate_fffd():
+    """A U+FFFD already in the input (e.g. from the source body being
+    read with errors='replace') is itself a valid utf-8 codepoint and
+    must pass through. We can't distinguish "LLM emitted bad data" from
+    "OCR read bad bytes" at this point — both end up as U+FFFD downstream."""
+    s = "Stoke �-on-Trent"
+    assert _sanitize_for_utf8(s) == "Stoke �-on-Trent"
+
+
+def test_sanitize_for_utf8_empty_string():
+    assert _sanitize_for_utf8("") == ""
+
+
+def test_validated_mentions_drops_form_with_surrogate_as_hallucination(tmp_path):
+    """A lone-surrogate form is by construction NOT in the source chunk
+    (the source body is decoded with errors='replace' on read, so no
+    raw surrogate ever survives there). After sanitization the form
+    contains U+FFFD which still doesn't match — the existing
+    hallucination-counter machinery drops the mention. This regression
+    pins the wyrd-8wa4 crash: before the fix, this raw input crashed
+    the writer; after, it's a counted-and-dropped hallucination."""
+    chunk = "Edlingham is the homestead of the sons of Eadwulf."
+    raw = [
+        {"form": "Edling\udaaaham", "context": "valid"},
+        {"form": "Edlingham", "context": "valid positive control"},
+    ]
+    counters = ValidationCounters()
+    out = _validated_mentions(raw, chunk, counters=counters)
+    # Positive control survives; surrogate form is dropped.
+    assert [m.form for m in out] == ["Edlingham"]
+    assert counters.hallucinations_dropped == 1
+    assert counters.admitted == 1
+    # Round-trip the survivor through utf-8 to confirm no surrogates leak.
+    for m in out:
+        json.dumps(m.__dict__, ensure_ascii=False).encode("utf-8")
+
+
+def test_validated_mentions_sanitizes_surrogate_in_context_admits_mention():
+    """A surrogate in `context` (descriptive field) sanitizes to U+FFFD;
+    the mention is still admitted with the cleaned context. Operators
+    see the U+FFFD marker as a model-quality signal but don't lose the
+    mention. The fix preserves utf-8-encodability end-to-end."""
+    chunk = "Edlingham is the homestead"
+    raw = [
+        {"form": "Edlingham", "context": "context with \udaaa surrogate"},
+    ]
+    counters = ValidationCounters()
+    out = _validated_mentions(raw, chunk, counters=counters)
+    assert len(out) == 1
+    assert counters.admitted == 1
+    assert "\udaaa" not in out[0].context
+    assert "�" in out[0].context
+    # Critical: the result must round-trip through utf-8 — that's the
+    # write-path contract this fix restores.
+    json.dumps(out[0].__dict__, ensure_ascii=False).encode("utf-8")
+
+
+def test_validated_mentions_sanitizes_surrogate_in_region_hint():
+    """A surrogate in `region_hint` (descriptive field) sanitizes to
+    U+FFFD; the mention is admitted with the cleaned region. Same
+    invariant as the context-field case but covers a separate field —
+    we sanitize EACH str field, not just one."""
+    chunk = "Edlingham mentioned"
+    raw = [
+        {
+            "form": "Edlingham",
+            "region_hint": "North\udaaaumberland",
+            "context": "ok",
+        },
+    ]
+    counters = ValidationCounters()
+    out = _validated_mentions(raw, chunk, counters=counters)
+    assert len(out) == 1
+    assert counters.admitted == 1
+    assert out[0].region_hint == "North�umberland"
+    json.dumps(out[0].__dict__, ensure_ascii=False).encode("utf-8")
 
 
 # ---------- chunk_source_body --------------------------------------------

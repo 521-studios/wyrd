@@ -74,6 +74,34 @@ def _collapse_whitespace(text: str) -> str:
     return _WHITESPACE_RUN.sub(" ", text).strip()
 
 
+def _sanitize_for_utf8(s: str) -> str:
+    """Replace unpaired surrogate codepoints (U+D800..U+DFFF) with
+    U+FFFD so the string can round-trip through a utf-8 file write.
+
+    json.loads accepts strings containing lone surrogates from a
+    permissive LLM response, but a subsequent utf-8 write of the
+    same string raises UnicodeEncodeError ('surrogates not allowed').
+    Sanitizing at validation time keeps the crash from reaching the
+    writer (wyrd-8wa4: concrete failure 2026-05-21 on
+    longnon_1920_v2 mid-source crashed mining).
+
+    A surrogate landing in ``form`` will subsequently fail the
+    form-in-chunk anti-hallucination check (the source body is
+    decoded with errors='replace', so a real surrogate never appears
+    there) — the mention drops via the existing
+    ``hallucinations_dropped`` accounting. A surrogate in
+    ``context`` / ``region_hint`` gets replaced and the mention is
+    admitted with a U+FFFD marker visible to operators.
+    """
+    if not s:
+        return s
+    # Fast-path: surrogates are vanishingly rare in real text, so a
+    # single any() scan beats unconditionally rebuilding the string.
+    if not any(0xD800 <= ord(ch) <= 0xDFFF for ch in s):
+        return s
+    return "".join("�" if 0xD800 <= ord(ch) <= 0xDFFF else ch for ch in s)
+
+
 @dataclass(frozen=True)
 class ToponymMention:
     """One place-name mention extracted from a scholar source body.
@@ -363,7 +391,12 @@ def _validated_mentions(
     for m in raw:
         if not isinstance(m, dict):
             continue
-        form = (m.get("form") or "").strip()
+        # Sanitize lone surrogates from every LLM-emitted str before
+        # validation. Without this, a single mention with `\udaaa` in
+        # any field crashes the entire source mid-mining at the utf-8
+        # writer (wyrd-8wa4). A surrogate-bearing form then fails the
+        # form-in-chunk check below and counts as a hallucination.
+        form = _sanitize_for_utf8((m.get("form") or "").strip())
         if not form:
             continue
         if not _form_in_chunk(form, chunk_collapsed):
@@ -374,10 +407,10 @@ def _validated_mentions(
             counters.years_clamped += 1
         region_hint = m.get("region_hint")
         if isinstance(region_hint, str):
-            region_hint = region_hint.strip() or None
+            region_hint = _sanitize_for_utf8(region_hint).strip() or None
         else:
             region_hint = None
-        context = _WHITESPACE_RUN.sub(" ", (m.get("context") or "")).strip()
+        context = _sanitize_for_utf8(_WHITESPACE_RUN.sub(" ", (m.get("context") or "")).strip())
         if not context:
             # Synthesize a context window from the chunk if the LLM
             # left it empty — gives operators something to inspect.
