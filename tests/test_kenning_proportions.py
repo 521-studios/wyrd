@@ -2206,3 +2206,92 @@ def test_kenning_generate_cohesion_one_shifts_distribution_against_seeds():
         plain.add(k.generate({"culture": "english"}, seed=seed).result)
         cohered.add(k.generate({"culture": "english", "cohesion": 1.0}, seed=seed).result)
     assert plain != cohered
+
+
+# ---- wyrd-3xdb: NewName.__str__ title-cases each word's first letter -----
+
+
+def test_new_name_str_title_cases_lowercase_morpheme_compound() -> None:
+    """wyrd-3xdb: a word built entirely from lowercase morphemes
+    (post-modifiers / inner-modifiers) gets its first letter title-
+    cased so the output reads as a proper noun. Pre-PR behavior:
+    'holmr' + 'wood' -> 'holmrwood' (lowercase, broken). Post-PR:
+    'Holmrwood'."""
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    new_name = NewName(struct=None, meaning_db={}, name=[["-holmr", "-wood"]])
+    assert str(new_name) == "Holmrwood"
+
+
+def test_new_name_str_title_cases_each_word_in_multi_word_name() -> None:
+    """wyrd-3xdb: multi-word names get title-casing applied per word.
+    'ward' + ' ' + 'green' -> 'Ward Green', not 'ward green'. Pins
+    the per-word capitalization invariant that fixes the demo's
+    'ward green' / 'holmrwood common' broken outputs."""
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    new_name = NewName(struct=None, meaning_db={}, name=[["-ward"], ["green"]])
+    assert str(new_name) == "Ward Green"
+
+
+def test_new_name_str_preserves_already_capitalized_word() -> None:
+    """wyrd-3xdb: a word that already opens with an uppercase
+    letter passes through unchanged (ch.upper() == ch for already-
+    uppercase letters). 'Hunlock' + 'Forest' stays 'Hunlock Forest',
+    NOT mangled."""
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    new_name = NewName(struct=None, meaning_db={}, name=[["Hunlock"], ["Forest"]])
+    assert str(new_name) == "Hunlock Forest"
+
+
+def test_new_name_str_skips_none_chunks_in_word() -> None:
+    """wyrd-3xdb regression: word slots can carry None entries
+    (when a joiner slot is empty). The renderer must skip None
+    without crashing or emitting a stray space, and the title-
+    casing still applies to the first non-None chunk's first
+    letter."""
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    new_name = NewName(struct=None, meaning_db={}, name=[["bridge-", None, "-water"]])
+    assert str(new_name) == "Bridgewater"
+
+
+def test_new_name_str_uses_rendered_when_present() -> None:
+    """wyrd-3xdb: the optional ``rendered`` parameter (D18 variant /
+    D8 inflection substitution) still wins over the dash-stripped
+    morpheme string, and the substituted form gets the same title-
+    case treatment. ``rendered`` strings flow through verbatim
+    (legacy behavior — no dash stripping; rendered values are
+    expected to already be in surface form); the title-case only
+    touches the first letter of the concatenated word."""
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    new_name = NewName(
+        struct=None,
+        meaning_db={},
+        name=[["cot-", "-an"]],
+        rendered=[["cotum", "an"]],
+    )
+    assert str(new_name) == "Cotuman"
+
+
+def test_new_name_str_drops_fully_empty_words() -> None:
+    """wyrd-3xdb edge case: a word slot containing only None entries
+    (no surviving morpheme after joiner-pruning) emits nothing —
+    not a stray space. The ``if w`` guard at the join boundary
+    handles this. Mixed empty + populated words produce the
+    populated word in isolation, no leading/trailing blanks."""
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    # All-None word slot
+    empty_only = NewName(struct=None, meaning_db={}, name=[[None, None]])
+    assert str(empty_only) == ""
+
+    # Empty word slot adjacent to a populated one
+    mixed = NewName(struct=None, meaning_db={}, name=[[None], ["-wood"]])
+    assert str(mixed) == "Wood"
+
+    # Fully-empty input
+    empty_all = NewName(struct=None, meaning_db={}, name=[])
+    assert str(empty_all) == ""

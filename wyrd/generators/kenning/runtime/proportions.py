@@ -878,17 +878,37 @@ class NewName:
         self.inflection_labels = inflection_labels
 
     def __str__(self):
-        words = []
+        # wyrd-3xdb: title-case the first letter of each space-
+        # separated word so generated names always read as proper
+        # nouns. The bundle stores pre-modifiers cap'd ('Whit-',
+        # 'Ash-') and post-modifiers / inner-modifiers lowercase
+        # ('-ham', '-ton', '-ward'); a word constructed entirely
+        # from lowercase morphemes used to land lowercase in the
+        # output ('ward green', 'castle', 'holmrwood common'),
+        # leaking bundle-implementation detail into operator
+        # output.
+        #
+        # Algorithm: build each word by concatenating its morpheme
+        # strings (dash-stripped) inside the word, then capitalize
+        # the first character of the joined word. Words join with
+        # spaces. Already-cased openings pass through unchanged
+        # because ``ch.upper() == ch`` for already-uppercase
+        # letters.
+        words: list[str] = []
         for wi, w in enumerate(self.name):
+            chunks: list[str] = []
             for ei, e in enumerate(w):
                 if e is None:
                     continue
                 if self.rendered is not None and self.rendered[wi][ei] is not None:
-                    words.append(self.rendered[wi][ei])
+                    chunks.append(self.rendered[wi][ei])
                 else:
-                    words.append(e.replace("-", ""))
-            words.append(" ")
-        return "".join(words).strip()
+                    chunks.append(e.replace("-", ""))
+            joined = "".join(chunks)
+            if joined:
+                joined = joined[0].upper() + joined[1:]
+            words.append(joined)
+        return " ".join(w for w in words if w)
 
     def __repr__(self):
         words = []
