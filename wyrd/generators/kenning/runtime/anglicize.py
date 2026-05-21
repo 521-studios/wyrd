@@ -11,7 +11,7 @@ This module exposes ``anglicize_ipa(ipa)`` — a deterministic mapper
 covering the OE / ME / Welsh / Old French / Celtic phonemic inventory
 that actually appears in the corpus. Output is a single uppercase
 ASCII token suitable for inline rendering next to the source form
-(``hām`` /xɑːm/ KHAHM).
+(``hām`` /xɑːm/ KHAAM).
 
 Scope: best-effort, not a substitute for hand-curated english_shaped
 data when it exists. Returns ``None`` on input that's not IPA-shaped
@@ -157,9 +157,11 @@ def anglicize_ipa(ipa: str | None) -> str | None:
     syllable markers, ties, and combining diacritics. Maps the
     remaining IPA phonemes via ``_DIGRAPH_MAP`` (multi-char clusters
     first) then ``_PHONEME_MAP`` (singles). The ``ː`` length marker
-    doubles the preceding vowel (``/xɑːm/`` → ``KHAHM`` — the AH from
-    ɑ, length-doubled to AHAH, then collapsed because the same
-    grapheme repeats).
+    doubles the preceding vowel letter (``/xɑːm/`` → ``KHAAM`` — the
+    ``A`` from ``ɑ`` doubles to ``AA``). Vowels intentionally map to
+    single letters (not multi-char digraphs) so the doubling rule
+    fires reliably; short/long-vowel distinctions collapse to the
+    same base letter, which matches dictionary respelling convention.
 
     Returns ``None`` for empty input or for input whose phonemes are
     all stripped (no recognizable content). Returns the rendered
@@ -218,9 +220,10 @@ def anglicize_ipa(ipa: str | None) -> str | None:
     result = "".join(out)
     if not result:
         return None
-    # Collapse runs of the same letter to at most 2 (KHAHAHM → KHAHM,
-    # but preserve intentional doubled letters like 'LLIN' which come
-    # from a single ɬ digraph).
+    # Collapse runs of 3+ same letter to 2. Preserves intentional
+    # doubled letters ('LL' from ɬ; 'AA' from length-marked vowel)
+    # while clipping pathological triples (a hypothetical /ɑːː/
+    # would produce AAA which reads as a typo, collapsed to AA).
     return _collapse_runs(result)
 
 
