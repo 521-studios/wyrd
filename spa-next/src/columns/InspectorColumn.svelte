@@ -1,26 +1,68 @@
 <script>
-  // wyrd-yxf6: col 3 — morpheme detail inspector.
+  // wyrd-yxf6 + wyrd-kppy: col 3 — morpheme detail inspector +
+  // transform pipeline.
   //
   // Reads appState.currentResult (set by OutputColumn when the user
-  // clicks a result card). Renders the rendered name + per-morpheme
-  // cards carrying sources/IPA/reader_pronunciation/original_script
-  // — the wyrd-cp2d + wyrd-03cx + wyrd-pr9g data now flowing through
-  // the API envelope's morphemes_by_word field.
+  // clicks a result card). Renders the CURRENT name (post-pipeline
+  // if steps exist, else the original) + per-morpheme cards carrying
+  // sources/IPA/reader_pronunciation/original_script.
   //
-  // The "Transforms" section below the morphemes is a stub; wyrd-kppy
-  // (PR #4) wires the pipeline editor + Rewind transform.
+  // wyrd-kppy: the pipeline engine (lib/pipeline.svelte.js) tracks
+  // a user-editable stack of transform steps. An \$effect below
+  // re-runs the pipeline whenever the original (col-2 selection)
+  // or the step list changes — the "editable recipe" model from
+  // the design session (vs an undo/redo snapshot history).
   import { appState } from '../lib/appState.svelte.js';
+  import { pipeline } from '../lib/pipeline.svelte.js';
   import MorphemeCard from '../components/MorphemeCard.svelte';
+  import TransformStack from '../components/TransformStack.svelte';
 
   let result = $derived(appState.currentResult);
 
-  // Flatten morphemes_by_word into a single ordered list. The
-  // per-card layout doesn't currently visually emphasize word
-  // boundaries (the rendered name already shows the space-shape).
+  // The "original" state the pipeline feeds — the col-2 selection.
+  // Snapshotting to { name, morphemes_by_word } pins the shape the
+  // pipeline engine expects (transforms return the same shape).
+  let original = $derived.by(() => {
+    if (!result) return null;
+    return {
+      name: result.result,
+      morphemes_by_word: result.morphemes_by_word || [],
+    };
+  });
+
+  // wyrd-kppy round 2: unified subject-change + pipeline-run
+  // effect so the clear-then-run ordering is atomic (pre-fix two
+  // sibling effects depended on currentResultIndex; declaration
+  // order made it work but it was fragile to file reorganization).
+  // When the user clicks a different result we clear the pipeline
+  // synchronously THEN kick off a fresh run; child reads see the
+  // post-clear state immediately. wyrd-34tn (PR #6 save/load) is
+  // where users will get explicit "keep this pipeline" preservation.
+  let lastResultIndex = $state(null);
+  $effect(() => {
+    // Deep-snapshot the steps so any nested change (a step's params,
+    // not just the array reference) re-triggers the effect. Svelte 5
+    // deep-proxies propagate writes upward in practice, but reading
+    // the full snapshot here is the explicit + future-proof contract.
+    const stepsSnapshot = $state.snapshot(pipeline.steps);
+    const idx = appState.currentResultIndex;
+    if (idx !== lastResultIndex) {
+      lastResultIndex = idx;
+      pipeline.clear();
+    }
+    if (!original) return;
+    pipeline.run(original);
+    void stepsSnapshot;
+  });
+
+  // The currently-displayed state — post-pipeline if any, else the
+  // original. Drives the head + morpheme cards.
+  let displayState = $derived(pipeline.currentState);
+
   let allMorphemes = $derived.by(() => {
-    if (!result?.morphemes_by_word) return [];
+    if (!displayState?.morphemes_by_word) return [];
     const out = [];
-    result.morphemes_by_word.forEach((word, wi) => {
+    displayState.morphemes_by_word.forEach((word, wi) => {
       word.forEach((m) => out.push({ ...m, _wordIndex: wi }));
     });
     return out;
@@ -35,14 +77,26 @@
       Click a result in the middle column to inspect its morphemes,
       etymology, and pronunciation.
     </p>
+  {:else if !displayState}
+    <p class="placeholder">Computing…</p>
   {:else}
     <header class="head">
-      <h3 class="name">{result.result}</h3>
-      {#if result.morphemes_by_word?.length > 0}
+      <h3 class="name">
+        {displayState.name}
+        {#if pipeline.isRunning}
+          <span class="pending-flag" title="pipeline running">…</span>
+        {/if}
+      </h3>
+      {#if displayState.morphemes_by_word?.length > 0}
         <p class="breakdown">
-          {result.morphemes_by_word
+          {displayState.morphemes_by_word
             .map((word) => word.map((m) => m.usage).join(' '))
             .join(' · ')}
+        </p>
+      {/if}
+      {#if pipeline.steps.length > 0 && displayState.name !== original.name}
+        <p class="provenance">
+          from <span class="orig">{original.name}</span>
         </p>
       {/if}
     </header>
@@ -65,10 +119,7 @@
 
     <section class="transforms">
       <h4 class="section-head">Transforms</h4>
-      <p class="placeholder">
-        Pipeline editor + Rewind / Swap / Anglicize transforms land
-        in PR #4 (wyrd-kppy).
-      </p>
+      <TransformStack />
     </section>
   {/if}
 </section>
@@ -85,11 +136,26 @@
     font-weight: 700;
     color: var(--fg);
   }
+  .pending-flag {
+    font-size: 14px;
+    color: var(--fg-muted);
+    margin-left: 4px;
+  }
   .breakdown {
     margin: 6px 0 0;
     font-size: 12px;
     color: var(--fg-muted);
     font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  }
+  .provenance {
+    margin: 4px 0 0;
+    font-size: 11px;
+    color: var(--fg-muted);
+    font-style: italic;
+  }
+  .provenance .orig {
+    color: var(--fg);
+    font-style: normal;
   }
   .section-head {
     font-size: 11px;
