@@ -4896,19 +4896,22 @@ def test_rewind_does_not_treat_norse_settlement_suffix_by_as_particle(
     assert by_cell["oe-late"].count(" ") == 0
 
 
-def test_rewind_modern_cell_bypasses_smart_join_for_embedded_particles(
+def test_rewind_modern_cell_bypasses_smart_join_for_particles_across_words(
     fresh_db: Path,
 ) -> None:
-    """wyrd-t2bh: at the modern cell, a single input word with an
-    embedded particle morpheme should round-trip as a single
-    concatenated word (not get re-split). The OE / ME cells still
-    smart-join because that's the historical scribal pattern.
+    """wyrd-t2bh: at the modern cell, smart-join is bypassed entirely
+    — particle morphemes title-case as standalone words just like
+    every other word, instead of being surrounded by spaces as
+    lowercase particles.
 
-    Real-world bug observed 2026-05-21: 'wyrd kenning rewind Helon'
-    decomposed to [Hel, on] and the modern cell rendered 'Hel on'
-    (smart-join surrounding 'on' with spaces) — wrong: operator
-    typed one word, modern should reflect that. wyrd-t2bh bypasses
-    smart-join at modern; OE/ME stops keep it."""
+    Test setup uses space-separated input 'whit on' (two words) so
+    the trie's matching is deterministic. The wyrd-t2bh bug origin
+    was 'Helon' (single word, embedded particle morpheme) being
+    re-split into 'Hel on' at modern; that single-word case relies
+    on bundle-corpus morphemes that aren't easily mocked in this
+    test's _make_rewind_meaning_db setup, so this test pins the
+    cross-axis invariant: smart-join is OFF at modern (each word
+    title-cases regardless of particle membership)."""
     with LexiconDB(fresh_db) as db:
         for root, member in (
             ("*hwītaz", "hwīt"),
@@ -4924,22 +4927,48 @@ def test_rewind_modern_cell_bypasses_smart_join_for_embedded_particles(
             ("Whit", {"old_english": ["hwīt"]}),
             ("on", {"old_english": ["on"]}),
         )
-        # Single-word input 'whiton' — trie should NOT split on word
-        # boundary (no space). All morphemes belong to one word.
-        # Use space here so the test's matching is deterministic
-        # (the trie behavior on single-word concatenation depends on
-        # the meaning_db registration shape).
         result = rewind_name("whit on", db, meaning_db)
 
     by_cell = {stop.cell: stop.rendered for stop in result.eras}
     # OE cell: smart-join treats 'on' as particle → 'Hwīt on'
-    # ('hwīt' from anchor + ' on' as particle).
+    # (lowercase 'on' surrounded as a free particle).
     assert by_cell["oe-late"] == "Hwīt on"
-    # Modern cell: NO smart-join inside a word. But the input has
-    # 2 words ('whit on'), so the renderer joins per-word with
-    # spaces → 'Whit On'. The 'on' word is title-cased because
-    # smart-join is OFF — particle-handling doesn't apply.
+    # Modern cell: smart-join OFF — 'on' title-cases as a regular
+    # word ('On'), not as a lowercase particle.
     assert by_cell["modern"] == "Whit On"
+
+
+def test_rewind_multi_word_input_with_one_fully_unaccounted_word(
+    fresh_db: Path,
+) -> None:
+    """wyrd-t2bh: a multi-word input where one word fully fails to
+    decompose (no morphemes match) still renders the OTHER words
+    cleanly. The unaccounted word lands in result.unaccounted; the
+    successful words pass through the per-word renderer with their
+    space structure preserved. Pins the morpheme_anchors_per_word's
+    'if word_anchors:' guard at the rewind.py boundary so a future
+    refactor doesn't crash on an empty word-anchors list."""
+    with LexiconDB(fresh_db) as db:
+        _seed_cluster(
+            db,
+            cluster_root_form="*hwītaz",
+            cluster_root_lang="proto-germanic",
+            members=[("hwīt", "old-english")],
+        )
+        meaning_db = _make_rewind_meaning_db(
+            ("Whit", {"old_english": ["hwīt"]}),
+        )
+        # 'whit nomatch' — 'whit' decomposes cleanly, 'nomatch' has
+        # no matching morpheme so its whole word is unaccounted.
+        result = rewind_name("whit nomatch", db, meaning_db)
+
+    by_cell = {stop.cell: stop.rendered for stop in result.eras}
+    # Only the decomposable word renders; rendered output drops the
+    # all-empty word group.
+    assert by_cell["oe-late"] == "Hwīt"
+    assert by_cell["modern"] == "Whit"
+    # The unaccounted word lands in result.unaccounted.
+    assert "nomatch" in result.unaccounted
 
 
 def test_rewind_modern_cell_preserves_input_spacing_across_multiword(

@@ -117,7 +117,27 @@ def _is_free_particle(meaning: Meaning) -> bool:
     return usage.lower() in _FREE_PARTICLES
 
 
-def _render_morphemes_as_name(morphemes: list[MorphemeRewind], *, smart_join: bool = True) -> str:
+def _concat_morphemes_simple(morphemes: list[MorphemeRewind]) -> str:
+    """wyrd-t2bh: simple concatenation of morpheme forms, title-case
+    first letter.
+
+    Used at the modern-english era stop where the canonical short-
+    circuit (wyrd-8qbi) already produces the operator's input shape;
+    smart-join's particle handling would re-split inputs like
+    ``Helon`` into ``Hel on``, contradicting the round-trip-to-input
+    invariant. Extracted from ``_render_morphemes_as_name`` to keep
+    its cyclomatic complexity under the C901 floor."""
+    if not morphemes:
+        return ""
+    joined = "".join(_pick_form(m) for m in morphemes)
+    if joined:
+        joined = joined[0].upper() + joined[1:]
+    return joined
+
+
+def _render_morphemes_as_name(
+    morphemes: list[MorphemeRewind], *, smart_join: bool = True
+) -> str:
     """wyrd-085k: join morpheme forms into a medieval-style name.
 
     Free particles (``on``, ``upon``, ``under``, ``of``) get
@@ -128,14 +148,9 @@ def _render_morphemes_as_name(morphemes: list[MorphemeRewind], *, smart_join: bo
     title-cased; particles stay fully lowercase to match modern
     typesetting convention for prepositions in proper names.
 
-    wyrd-t2bh: ``smart_join=False`` bypasses the particle-handling
-    pass and concatenates ALL morphemes into a single title-cased
-    token. Used at the modern-english era stop where canonical
-    short-circuits already produce the operator's input shape —
-    layering smart-join on top would re-split inputs like
-    ``Helon`` (one word with embedded 'on') into ``Hel on``,
-    contradicting the round-trip-to-input invariant pinned by
-    wyrd-8qbi. OE / ME stops still smart-join (smart_join=True).
+    wyrd-t2bh: ``smart_join=False`` delegates to
+    ``_concat_morphemes_simple`` — particle handling is bypassed.
+    Used at the modern-english era stop.
 
     Empty input returns the empty string. A single non-particle
     morpheme returns its form title-cased. A leading or trailing
@@ -143,16 +158,10 @@ def _render_morphemes_as_name(morphemes: list[MorphemeRewind], *, smart_join: bo
     ``[on, foo]`` as ``"on Foo"``, not as a malformed compound)
     — only with smart_join=True.
     """
+    if not smart_join:
+        return _concat_morphemes_simple(morphemes)
     if not morphemes:
         return ""
-    if not smart_join:
-        # wyrd-t2bh: simple concat, no particle-separation. Mirrors
-        # the NewName.__str__ within-word concatenation pattern used
-        # by the generator (wyrd-3xdb).
-        joined = "".join(_pick_form(m) for m in morphemes)
-        if joined:
-            joined = joined[0].upper() + joined[1:]
-        return joined
     tokens: list[str] = []  # space-separated output tokens
     pending: list[str] = []  # buffer of adjacent non-particle forms
     for m in morphemes:
