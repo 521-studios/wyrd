@@ -41,33 +41,51 @@ _DIGRAPH_MAP: dict[str, str] = {
     "ʤ": "J",
 }
 
-# Single-char IPA → reader letter(s). Vowels lean conservative — we
-# pick the most common English-orthography spelling for each rather
-# than chasing dialectal nuance.
+# Single-char IPA → reader letter. wyrd-03cx round 2: vowels are
+# single-letter so the length marker (ː) can double them cleanly
+# (``/xɑːm/`` → ``KH + A + A (doubled) + M`` → ``KHAAM``). The pre-
+# round-2 multi-char vowels (ɑ → "AH", ə → "UH", ɔ → "AW") had the
+# length marker silently no-op because ``out[-1][-1]`` was a consonant
+# letter — preserving the bug for one edge case isn't worth the
+# multi-char distinctiveness. Short/long vowel distinctions collapse
+# to the same base letter; that's normal for English respelling.
 _PHONEME_MAP: dict[str, str] = {
     # consonants
     "x": "KH",  # OE 'h' before back vowel (hām, niht)
     "ʔ": "",  # glottal stop — drop
     "ɣ": "GH",
-    "ç": "KH",
+    "ç": "KH",  # German-style ich-laut
+    "χ": "KH",  # uvular fricative
     "j": "Y",
     "ɹ": "R",
     "ɾ": "R",
     "ʁ": "R",
+    # wyrd-03cx round 2: explicit IPA consonants that real-corpus
+    # samples hit but the round-1 table dropped silently. ɡ (U+0261)
+    # vs ASCII g (U+0067) is the critical one — ɡ is the IPA voiced
+    # velar stop and appears in '/ˈinˌɡɑː/'-style transcriptions in
+    # meanings.json. Without an entry it dropped to nothing.
+    "ɡ": "G",
+    "ɲ": "NY",  # Castilian ñ, Italian gn
+    "β": "V",  # Spanish 'b' between vowels — closest English bucket
+    "ɫ": "L",  # velarized 'l' (English 'dark l')
+    "ɟ": "J",  # voiced palatal stop
+    "ʝ": "Y",  # voiced palatal fricative
+    "ʰ": "",  # aspiration mark — drop (audible 'h' is rare next-letter)
     # vowels
-    "ɑ": "AH",
+    "ɑ": "A",
     "æ": "A",
     "ɛ": "E",
     "ɪ": "I",
     "ʊ": "U",
     "ʌ": "U",
-    "ɔ": "AW",
-    "ə": "UH",
+    "ɔ": "O",
+    "ə": "U",
     "ɨ": "I",
     "ʏ": "I",
-    "œ": "EU",
-    "ø": "EU",
-    "ɒ": "AW",
+    "œ": "U",
+    "ø": "U",
+    "ɒ": "O",
     "y": "I",  # OE /y/ — front-rounded; modern reflex usually /i/
     # base ASCII vowels that survive unchanged in IPA + need uppercasing
     "a": "A",
@@ -148,13 +166,13 @@ def anglicize_ipa(ipa: str | None) -> str | None:
     token otherwise.
 
     Examples:
-        /xɑːm/   → 'KHAHM'
+        /xɑːm/   → 'KHAAM'  (KH + A + length-doubled A + M)
         /wyrm/   → 'WIRM'
         /kumb/   → 'KUMB'
         /byrjj/  → 'BIRYY'  (jj is two glides, both map to Y)
         /ɬɨ̞n/   → 'LLIN'
-        /æ͜ɑː/  → 'AAH'    (æ → A; ͜ stripped; ɑː → AH)
-        /ˈbɛrən/ → 'BERUHN' (stress stripped; ə → UH)
+        /æ͜ɑː/  → 'AAA'    (æ→A, ͜ stripped, ɑ→A, ː doubles → AAA)
+        /ˈbɛrən/ → 'BERUN'  (stress stripped; ə → U)
     """
     if ipa is None:
         return None
@@ -207,9 +225,10 @@ def anglicize_ipa(ipa: str | None) -> str | None:
 
 
 def _collapse_runs(s: str) -> str:
-    """Collapse 3+ runs of the same letter to 2. The length-marker
-    expansion can produce AHAH-style doubles which read naturally;
-    a triple-run (AHAHAH from a hypothetical ɑːː) reads as a typo."""
+    """Collapse runs of 3+ same letter to 2. The length-marker
+    expansion produces a doubled vowel (single-char vowel mappings
+    + the length-extend rule); two ː markers in a row (rare,
+    pathological) would produce AAA which collapses back to AA."""
     if len(s) < 3:
         return s
     out: list[str] = [s[0], s[1]]

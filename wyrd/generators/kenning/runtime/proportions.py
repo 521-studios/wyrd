@@ -1262,23 +1262,37 @@ def _collect_renderings(meanings):
                 _set(slot, "ipa", pron.get("ipa"))
                 _set(slot, "dialect", pron.get("dialect"))
     # wyrd-03cx: derive reader_pronunciation from ipa when no hand-
-    # curated english_shaped value already filled the slot. The
-    # deterministic mapper covers the OE/ME/Welsh/Old French/Celtic
-    # phonemic inventory in the corpus — best-effort fallback so
-    # every IPA-bearing morpheme carries a reader-friendly rail.
-    # english_shaped (when populated) wins because it's hand-curated.
+    # curated english_shaped value already filled the slot. Extracted
+    # to a helper to keep _collect_renderings under the C901 ceiling
+    # (the per-Meaning loop above already pushed cyclomatic close to
+    # threshold pre-PR; the fallback walk adds a nested loop + branch).
+    _fill_reader_pronunciations(by_lang_form)
+    return by_lang_form
+
+
+def _fill_reader_pronunciations(
+    by_lang_form: dict[str, dict[str, dict[str, str]]],
+) -> None:
+    """wyrd-03cx: walk the renderings dict in place, deriving
+    reader_pronunciation from ipa via the deterministic anglicize
+    mapper. english_shaped (when populated) wins because it's hand-
+    curated; an existing reader_pronunciation (theoretically pre-
+    populated by a future direct-from-bundle path) also wins.
+
+    Best-effort: silent skip when anglicize_ipa returns None
+    (input had no recognizable phonemes after stripping markers)."""
     from wyrd.generators.kenning.runtime.anglicize import anglicize_ipa
 
-    for _lang, forms in by_lang_form.items():
-        for _form, slot in forms.items():
+    for forms in by_lang_form.values():
+        for slot in forms.values():
             if "reader_pronunciation" in slot or "english_shaped" in slot:
                 continue
             ipa = slot.get("ipa")
-            if ipa:
-                rendered = anglicize_ipa(ipa)
-                if rendered:
-                    slot["reader_pronunciation"] = rendered
-    return by_lang_form
+            if not ipa:
+                continue
+            rendered = anglicize_ipa(ipa)
+            if rendered:
+                slot["reader_pronunciation"] = rendered
 
 
 # Compact display max for description()'s citation block. Above this, the

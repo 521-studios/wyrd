@@ -8,8 +8,11 @@ from wyrd.generators.kenning.runtime.anglicize import anglicize_ipa
 
 def test_anglicize_handles_real_oe_corpus_samples():
     """Common OE morphemes from the bundle should produce readable
-    uppercase tokens — no IPA characters surviving in output."""
-    assert anglicize_ipa("/xɑːm/") == "KHAHM"
+    uppercase tokens — no IPA characters surviving in output.
+
+    wyrd-03cx round 2: vowel mappings collapsed to single letters
+    so the length marker doubles cleanly (KHAAM not KHAHM)."""
+    assert anglicize_ipa("/xɑːm/") == "KHAAM"
     assert anglicize_ipa("/wyrm/") == "WIRM"  # OE dragon-word
     assert anglicize_ipa("/kumb/") == "KUMB"  # OE valley
     assert anglicize_ipa("/hwiːt/") == "HWIIT"  # length-doubled vowel
@@ -30,9 +33,9 @@ def test_anglicize_strips_markers_and_diacritics():
     """Length / stress / syllable separators / brackets / combining
     diacritics all drop without breaking the mapping."""
     # ˈ stress marker
-    assert anglicize_ipa("/ˈbɛrən/") == "BERUHN"
-    # Syllable separator (ɑ → AH, m. drops separator)
-    assert anglicize_ipa("/ˈxɑm.mɑs/") == "KHAHMMAHS"
+    assert anglicize_ipa("/ˈbɛrən/") == "BERUN"
+    # Syllable separator (ɑ → A, m. drops separator)
+    assert anglicize_ipa("/ˈxɑm.mɑs/") == "KHAMMAS"
     # Square-bracket transcription
     assert anglicize_ipa("[haːmˠ]") == "HAAM"
 
@@ -42,7 +45,7 @@ def test_anglicize_clusters_render_as_english_orthography():
     English-spelling forms."""
     assert anglicize_ipa("/t͡ʃɛst/") == "CHEST"
     assert anglicize_ipa("/brɪd͡ʒ/") == "BRIJ"
-    assert anglicize_ipa("/θɔrn/") == "THAWRN"
+    assert anglicize_ipa("/θɔrn/") == "THORN"
     assert anglicize_ipa("/ðæt/") == "DHAT"
     assert anglicize_ipa("/ʃeːp/") == "SHEEP"
     assert anglicize_ipa("/ŋ/") == "NG"
@@ -55,6 +58,31 @@ def test_anglicize_returns_none_on_empty_or_unrecognized():
     assert anglicize_ipa("") is None
     assert anglicize_ipa("   ") is None
     assert anglicize_ipa("///") is None  # just brackets
+
+
+def test_anglicize_handles_corpus_specific_consonants_beyond_ascii():
+    """wyrd-03cx round 2: IPA ɡ (U+0261, distinct from ASCII g
+    U+0067), ɫ (dark l), ɲ (palatal n), ʝ (palatal fricative),
+    β (Spanish-style fricative-b), χ (uvular fricative) all appear
+    in real meanings.json transcriptions and must NOT silently
+    drop. Round 1's table missed all of these — '/ˈinˌɡɑː/'
+    would render as 'INAH' instead of 'INGA'."""
+    # ɡ is the critical one — voiced velar stop, U+0261, NOT
+    # the same codepoint as ASCII 'g' (U+0067).
+    assert "G" in (anglicize_ipa("/ˈinˌɡɑː/") or "")
+    assert anglicize_ipa("/ɡɑː/") == "GAA"
+    # ɫ (dark l, English 'l' in 'wall')
+    assert anglicize_ipa("/wɫ/") == "WL"
+    # ɲ (Spanish ñ, Italian gn)
+    assert anglicize_ipa("/ɲ/") == "NY"
+    # ʝ (voiced palatal fricative)
+    assert anglicize_ipa("/ʝ/") == "Y"
+    # β (Spanish v/b)
+    assert anglicize_ipa("/β/") == "V"
+    # χ (uvular voiceless fricative)
+    assert anglicize_ipa("/χ/") == "KH"
+    # ʰ (aspiration mark) drops cleanly
+    assert anglicize_ipa("/tʰɑ/") == "TA"
 
 
 def test_anglicize_collapses_excessive_runs():
@@ -84,7 +112,8 @@ def test_collect_renderings_derives_reader_pronunciation_from_ipa():
     result = _collect_renderings([m])
     slot = result["old_english"]["hām"]
     assert slot["ipa"] == "/xɑːm/"
-    assert slot["reader_pronunciation"] == "KHAHM"
+    # Round 2: vowels mapped to single letters so ː doubles cleanly.
+    assert slot["reader_pronunciation"] == "KHAAM"
 
 
 def test_collect_renderings_prefers_english_shaped_over_anglicize():
@@ -110,6 +139,48 @@ def test_collect_renderings_prefers_english_shaped_over_anglicize():
     assert slot["english_shaped"] == "haam"
     # Auto-anglicized form should NOT overwrite the curated one.
     assert "reader_pronunciation" not in slot
+
+
+def test_kenning_generate_json_surfaces_reader_pronunciation_end_to_end():
+    """wyrd-03cx round 2: end-to-end CLI test pinning that the
+    reader_pronunciation field actually flows all the way through
+    `kenning generate --json` to operator-visible output. Pre-fix
+    only the unit _collect_renderings tests covered the derivation;
+    a wiring regression (e.g. components() bypassed) would slip
+    past."""
+    import json as _json
+
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.generate import generate
+
+    runner = CliRunner()
+    # Seed 42 lands on names with rich pronunciation data ('-ham',
+    # '-bridge') per the wyrd-cp2d demo session output.
+    result = runner.invoke(generate, ["english", "-n", "3", "--seed", "42", "--json"])
+    assert result.exit_code == 0, result.output
+    json_lines = [line for line in result.output.splitlines() if line.strip().startswith("{")]
+    assert json_lines
+
+    # At least one morpheme across the batch must carry a
+    # reader_pronunciation; without that the integration is broken.
+    found_reader_pron = False
+    for line in json_lines:
+        obj = _json.loads(line)
+        for word in obj.get("words", []):
+            for morph in word:
+                renderings = morph.get("renderings", {})
+                for forms in renderings.values():
+                    for slot in forms.values():
+                        rp = slot.get("reader_pronunciation")
+                        if rp:
+                            found_reader_pron = True
+                            # Reader pronunciations are uppercase ASCII +
+                            # never contain IPA artifacts.
+                            assert rp.isupper() or rp.isdigit(), rp
+                            for ipa_artifact in ["ɑ", "ə", "ː", "ˈ", "ʃ", "θ"]:
+                                assert ipa_artifact not in rp, rp
+    assert found_reader_pron, "No reader_pronunciation surfaced in --json output"
 
 
 def test_collect_renderings_omits_reader_pronunciation_when_no_ipa():
