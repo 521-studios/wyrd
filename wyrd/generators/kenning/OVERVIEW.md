@@ -411,8 +411,11 @@ to off / 0 (bit-stable historical behavior):
   stop-final/cluster-heavy bias), `pastoral` (plant/animal/water/
   agriculture/tree/bird), `devotional` (saint/religious), `mortuary`
   (death/undead — narrower subset of grim). `harsh:0.5` graduates the
-  phonological skew via colon-suffix. Multiple flags compose by
-  tag-union and max-harshness. Lives in `registers/moods.MOODS`.
+  catalog effect uniformly via colon-suffix. Multiple flags compose:
+  vector path sums component-wise + clamps; legacy proportion-table
+  path takes tag-union + max-harshness. Lives in
+  `registers/data/register_effects.yaml` (catalog-driven since
+  wyrd-kq7w.3 ripped the MOODS dict).
 - `--scoring-mode {proportions,vector}` (D36 / ecjp epic, 2026-05-19):
   switches the per-slot sampling pipeline. `proportions` (default)
   uses the pre-baked per-(culture × tag × position) tables — bit-stable

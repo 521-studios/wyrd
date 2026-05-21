@@ -8,7 +8,6 @@ from wyrd.generators.kenning import (
     _FICTION_TAG,
     _LEGEND,
     CULTURES,
-    MOODS,
     _apply_joiner_insertion,
     _apply_mood,
     _coerce_bool,
@@ -27,6 +26,7 @@ from wyrd.generators.kenning.lexicon.strata import (
     OLD_NORSE_STRATA,
     WELSH_STRATA,
 )
+from wyrd.generators.kenning.registers.effects import available_register_effects
 from wyrd.registry import GenerationResult, Generator
 from wyrd.seed import rng_for
 
@@ -135,12 +135,16 @@ class Kenning(Generator):
                     "items": {"type": "string"},
                     "default": [],
                     "description": (
-                        "D6 stylistic-mood presets (repeatable). Each entry is one of "
-                        f"{sorted(MOODS)!r}, optionally with a colon-suffix value "
-                        "(e.g. 'harsh:0.5' for graduated phonological skew). 'grim' "
-                        "applies a menacing semantic-tag union; 'harsh' biases sampling "
-                        "toward stop-final / cluster-heavy morphemes. Multiple moods "
-                        "compose: tags union, harshness takes the max."
+                        "D6 stylistic-mood presets (repeatable). Each entry is a "
+                        "register-effect name from the bundled catalog "
+                        "(registers/data/register_effects.yaml — see "
+                        f"{available_register_effects()!r}), optionally with a "
+                        "colon-suffix multiplier (e.g. 'harsh:0.5' for graduated "
+                        "strength). 'grim' applies a menacing semantic-tag union; "
+                        "'harsh' biases sampling toward stop-final / cluster-heavy "
+                        "morphemes. Multiple moods compose: register effects sum "
+                        "component-wise (vector path) or tag-union + max-harshness "
+                        "(legacy proportion-table path)."
                     ),
                 },
                 "include_fiction": {
@@ -397,8 +401,9 @@ class Kenning(Generator):
         # the tags+harshness state; the vector adapter consumes mood
         # specs + base harshness directly for symmetric expansion
         # semantics. Without capturing these, the adapter would
-        # double-apply MOODS (once via the mutated tags/harshness and
-        # again via the mood specs the adapter expands itself).
+        # double-apply catalog effects (once via the mutated tags /
+        # harshness and again via the mood specs the adapter expands
+        # itself through the register-effect catalog).
         original_moods = tuple(moods)
         original_harshness = harshness
         for spec in moods:
@@ -422,8 +427,9 @@ class Kenning(Generator):
                 rng,
                 culture=culture,
                 # Pre-_apply_mood tags + original harshness — the adapter
-                # does its own MOODS expansion via original_moods. Passing
-                # the mutated post-_apply_mood values would double-count.
+                # does its own catalog-effect expansion via original_moods.
+                # Passing the mutated post-_apply_mood values would double-
+                # count.
                 # The legacy `tags` variable above is mutated by mood
                 # expansion, so derive vector-side tags from raw_tags
                 # instead. (raw_tags was normalized to list[str] earlier

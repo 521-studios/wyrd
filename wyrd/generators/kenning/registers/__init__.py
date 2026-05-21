@@ -1,36 +1,30 @@
 """The kenning ``registers/`` subpackage — register/mood/phonology surface.
 
 Owns the "what does this name SOUND like / FEEL like" axis of the
-generation system. Three concerns live here today; the wyrd-kq7w /
-D36 rip-and-replace will fold them into a single catalog-driven
-register-effect surface over time.
+generation system.
 
 Modules:
 
-* ``moods.py`` (extracted from ``kenning/__init__.py`` in wyrd-a83i) —
-  ``MOODS`` dict: code-defined D6 mood presets (grim, harsh,
-  pastoral, devotional, mortuary). Each entry bundles a semantic-tag
-  union and/or a harshness float. Migrates to ``register_effects.yaml``
-  entries under wyrd-kq7w.
+* ``effects.py`` (was ``register_effects.py``) — register-effect
+  catalog loader (D36.5 / wyrd-kq7w.2 Phase B). Reads
+  ``data/register_effects.yaml`` and returns
+  ``dict[str, RegisterEffect]``. Owns the catalog-driven mood
+  resolution (``parse_mood_spec``, ``mood_spec_to_legacy_form``,
+  ``available_register_effects``) since wyrd-kq7w.3.
 * ``phonology.py`` — per-language IPA tables and phoneme-class
   membership lookups used by the harshness skew + cluster-density
   scoring.
 * ``phonology_rules.py`` — the sound-change rule library used by
   the lexicon's era-reflex projection (ME→OE, NF→ME, etc.) and by
   the language-quality dashboard's rule-coverage metric.
-* ``effects.py`` (was ``register_effects.py``) — register-effect
-  catalog loader (D36.5 / wyrd-kq7w.2 Phase B). Reads
-  ``data/register_effects.yaml`` and returns
-  ``dict[str, RegisterEffect]``.
+* ``phonological_vector_compute.py`` — IPA → PhonologicalVector
+  computation (wyrd-kq7w.1). Used by the enrichment pass + by the
+  bundle exporter to attach per-lemma vectors.
 
-Future modules (deferred): ``catalog.py`` + ``composition.py`` for the
-D36 vector-composition pipeline (wyrd-ecjp Phase 2-5).
-
-Back-compat re-export covers ``MOODS`` so
-``from wyrd.generators.kenning import MOODS`` keeps working
-unchanged. Loaders + helpers from ``effects.py`` /
-``phonology.py`` / ``phonology_rules.py`` were never imported
-via the bare-module path, so no shim was needed for those.
+Historical: ``moods.py`` (extracted in wyrd-a83i, ripped in
+wyrd-kq7w.3) once held a code-defined MOODS dict mirroring D6 mood
+presets. The catalog at ``data/register_effects.yaml`` is now the
+single source of truth for mood resolution; ``effects.parse_mood_spec``
++ ``effects.mood_spec_to_legacy_form`` cover the lookup + legacy-
+shape translation.
 """
-
-from wyrd.generators.kenning.registers.moods import MOODS  # noqa: F401

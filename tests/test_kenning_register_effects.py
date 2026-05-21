@@ -11,9 +11,12 @@ import pytest
 from wyrd.generators.kenning.registers.effects import (
     RegisterEffectCatalogError,
     _load_bundled_cached,
+    available_register_effects,
     get_register_effect,
     load_register_effects,
     load_register_effects_from_text,
+    mood_spec_to_legacy_form,
+    parse_mood_spec,
 )
 from wyrd.generators.kenning.vectors.schemas import (
     RegisterEffect,
@@ -603,3 +606,84 @@ def test_bundled_catalog_sinister_menacing_signs():
         "sinister.vowel_backness must be positive to ground the "
         "Ohala frequency-code 'large/dominant' signal (back vowels)."
     )
+
+
+# ---------- mood-spec resolution (wyrd-kq7w.3) -----------------------------
+
+
+def test_available_register_effects_returns_sorted_catalog_names() -> None:
+    """available_register_effects surfaces the operator-facing mood
+    vocabulary without the legacy MOODS-dict dependency. Sorted so
+    --help / JSON-schema descriptions read deterministically."""
+    names = available_register_effects()
+    assert "grim" in names
+    assert "harsh" in names
+    assert names == sorted(names)
+
+
+def test_parse_mood_spec_bare_name_returns_catalog_effect() -> None:
+    """``"grim"`` resolves to the catalog's grim effect at full
+    strength (multiplier 1.0). Returns a fresh copy — caller can
+    mutate without polluting the cached catalog."""
+    effect = parse_mood_spec("grim")
+    assert isinstance(effect, RegisterEffect)
+    assert effect.name == "grim"
+    assert effect.semantic_tags == get_register_effect("grim").semantic_tags
+
+
+def test_parse_mood_spec_graduated_form_scales_weights() -> None:
+    """``"harsh:0.5"`` scales every dim of the catalog's harsh effect
+    by 0.5 (RegisterEffect.scaled semantics)."""
+    effect = parse_mood_spec("harsh:0.5")
+    full = get_register_effect("harsh")
+    assert effect.phonological["cluster_density"] == full.phonological["cluster_density"] * 0.5
+
+
+def test_parse_mood_spec_unknown_name_raises_key_error() -> None:
+    """``KeyError`` matches the catalog's get_register_effect contract.
+    Callers that want a ValueError use mood_spec_to_legacy_form or
+    catch + re-raise themselves."""
+    with pytest.raises(KeyError, match="unknown register effect"):
+        parse_mood_spec("whimsical")
+
+
+def test_parse_mood_spec_unparseable_graduation_raises_value_error() -> None:
+    """``"harsh:x"`` — typo'd graduation suffix is loud-failure, not
+    silent 1.0 fallback."""
+    with pytest.raises(ValueError, match="graduation suffix"):
+        parse_mood_spec("harsh:x")
+
+
+def test_mood_spec_to_legacy_form_grim_returns_tags_zero_harshness() -> None:
+    """grim is a tag-driven catalog effect (no phonological dims),
+    so the legacy translation returns its semantic_tag keys + 0
+    harshness."""
+    tags, harshness = mood_spec_to_legacy_form("grim")
+    assert "death" in tags
+    assert "military" in tags
+    assert harshness == 0.0
+
+
+def test_mood_spec_to_legacy_form_harsh_returns_cluster_density_proxy() -> None:
+    """harsh's harshness scalar derives from the catalog's
+    cluster_density dim (0.6). Slightly softer than the legacy
+    MOODS hardcoded 1.0 — the bit-stability gate accepts this
+    'distribution match within tolerance' drift."""
+    tags, harshness = mood_spec_to_legacy_form("harsh")
+    # harsh's catalog semantic_tags is empty, so no tags surface.
+    assert tags == []
+    assert harshness == 0.6
+
+
+def test_mood_spec_to_legacy_form_graduated_harsh_scales_harshness() -> None:
+    """harsh:0.5 = catalog's harsh.cluster_density (0.6) * 0.5 = 0.3."""
+    _, harshness = mood_spec_to_legacy_form("harsh:0.5")
+    assert harshness == 0.3
+
+
+def test_mood_spec_to_legacy_form_unknown_name_raises_value_error() -> None:
+    """ValueError preserves the legacy _apply_mood error shape so
+    callers grep-matching ``"unknown mood"`` stay bug-compatible
+    after the rip-and-replace."""
+    with pytest.raises(ValueError, match="unknown mood"):
+        mood_spec_to_legacy_form("whimsical")
