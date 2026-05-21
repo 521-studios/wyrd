@@ -149,8 +149,9 @@ def _bucket_keys_matching_surface(
     """wyrd-gzvr: expand a surface form into the set of bucket keys
     whose dash-stripped lowercased form matches it. Used by
     ``_select_no_tag`` to dedup on surface form (not bucket key)
-    so cross-bucket duplicates like 'bridge-' / '-bridge' both get
-    filtered when the previous slot rendered 'bridge'.
+    so cross-bucket duplicates like '-bridge' (post-marker) /
+    '-bridge-' (infix-marker) both get filtered when the previous
+    slot rendered 'bridge'.
 
     Returns ``None`` when ``surface`` is None (no previous pick to
     dedup against) or when no bucket key matches — both paths
@@ -675,8 +676,8 @@ class NameGenerator:
         # dupe — 'North North' / 'Bridge Bridge' / 'Portes Portes'
         # surface when independent buckets each contain a key that
         # renders to the same surface. Comparing bucket keys directly
-        # misses cross-bucket dupes: 'bridge-' (pre-slot key) and
-        # '-bridge' (post-slot key) are different keys with the same
+        # misses cross-bucket dupes: '-bridge' (post-slot key) and
+        # '-bridge-' (infix-slot key) are different keys with the same
         # render. The exclude_keys filter expands per-slot to all
         # bucket keys whose stripped-lowercased form matches the
         # previous surface. Fallback: if the dedup empties the
@@ -802,10 +803,22 @@ class NameGenerator:
     ):
         words = []
         prior_tags: set[str] = set()
+        # wyrd-gzvr: mirror the surface-form anti-dup from _select_no_tag
+        # so the multi-tag generation path (--tag X) doesn't surface
+        # adjacent-duplicate words either. Same algorithm: track
+        # prev_surface, expand to all bucket keys matching that
+        # surface, exclude them from the next pick; fall back when
+        # the exclusion empties the eligible bucket.
+        prev_surface: str | None = None
         for w in struct:
             keys = []
             for key in w:
                 key_boost = self._cohesion_boost(key, prior_tags, cohesion, keep_keys=keep_keys)
+                exclude_for_dedup = (
+                    _bucket_keys_matching_surface(self.meaning_gen.bucket_keys(key), prev_surface)
+                    if prev_surface is not None
+                    else None
+                )
                 picked = self.meaning_gen.select(
                     rng,
                     key,
@@ -813,12 +826,25 @@ class NameGenerator:
                     novelty=novelty,
                     harshness=harshness,
                     exclude_tags=exclude_tags,
+                    exclude_keys=exclude_for_dedup,
                     keep_keys=keep_keys,
                     key_boost=key_boost,
                 )
+                if picked is None and exclude_for_dedup:
+                    picked = self.meaning_gen.select(
+                        rng,
+                        key,
+                        tag,
+                        novelty=novelty,
+                        harshness=harshness,
+                        exclude_tags=exclude_tags,
+                        keep_keys=keep_keys,
+                        key_boost=key_boost,
+                    )
                 keys.append(picked)
                 if picked is not None:
                     prior_tags.update(self._tags_for_usage(picked))
+                    prev_surface = picked.replace("-", "").lower()
             words.append(keys)
         return NewName(struct, self.meaning_db, words)
 

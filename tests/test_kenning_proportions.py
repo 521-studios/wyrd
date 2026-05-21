@@ -2354,6 +2354,38 @@ def test_name_generator_no_adjacent_duplicate_words_across_50_seeds() -> None:
     )
 
 
+def test_name_generator_no_adjacent_duplicate_words_under_tag_filter() -> None:
+    """wyrd-gzvr: the surface-form dedup also applies on the multi-
+    tag path (_select_tags / _select_tag). Pre-PR the dedup was only
+    in _select_no_tag, so a call with --tag would still surface
+    'X X' adjacents. Tag-filter restricts vocabulary so the
+    probability of a dup is higher — making the gap especially
+    visible at tag-driven generation."""
+    from wyrd.generators.kenning import Kenning
+
+    k = Kenning()
+    duplicates: list[str] = []
+    # Run a smaller sweep — tag-filtered generation is slower per
+    # call and the bucket vocabularies are smaller, so 25 seeds is
+    # enough to catch the regression if it returns.
+    for tag in ("water", "religion", "topography"):
+        for seed in range(1, 26):
+            result = k.generate({"culture": "english", "tags": [tag], "count": 10}, seed=seed)
+            for line in result.result.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                words = line.split()
+                for i in range(len(words) - 1):
+                    if words[i] == words[i + 1]:
+                        duplicates.append(f"tag={tag}/seed={seed}: {line}")
+                        break
+    assert not duplicates, (
+        f"adjacent-duplicate words on tag-filtered path "
+        f"in {len(duplicates)} outputs: {duplicates[:5]}"
+    )
+
+
 def test_new_name_str_drops_fully_empty_words() -> None:
     """wyrd-3xdb edge case: a word slot containing only None entries
     (no surviving morpheme after joiner-pruning) emits nothing —
