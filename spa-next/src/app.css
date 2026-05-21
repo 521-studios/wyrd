@@ -1,0 +1,61 @@
+/* wyrd-z3lp: minimal scaffold styles. The 3-column layout +
+   per-column borders + a basic typographic baseline. Later PRs
+   add panel-specific styles (provenance rows, transform-step
+   cards, mobile drawer transitions). */
+
+:root {
+  --bg: #1a1a1c;
+  --bg-elev: #232327;
+  --fg: #e8e6e3;
+  --fg-muted: #8b8a87;
+  --accent: #b89dfb;
+  --border: #2d2d31;
+  --col-1-width: 280px;
+  --col-2-width: 360px;
+  --gap: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: var(--col-1-width) var(--col-2-width) 1fr;
+  height: 100vh;
+}
+
+.column {
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.column:last-child {
+  border-right: none;
+}
+
+.column h2 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+  margin: 0 0 16px;
+}
+
+.placeholder {
+  color: var(--fg-muted);
+  font-style: italic;
+  padding: 24px 0;
+}
