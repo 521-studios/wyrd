@@ -5630,7 +5630,53 @@ def test_kenning_rewind_generator_renders_three_era_stops() -> None:
     cells = [r.components[0]["era"] for r in results]
     assert cells == ["oe-late", "me", "modern"]
     rendered = [r.components[0]["rendered"] for r in results]
-    assert rendered == ["hām", "ham", "ham"]
+    # wyrd-2pio: KenningRewind now shares the title-case + smart-
+    # join renderer with the CLI rewinder (lowercase 'hām' → title-
+    # cased 'Hām').
+    assert rendered == ["Hām", "Ham", "Ham"]
+
+
+def test_kenning_rewind_generator_strips_morpheme_positional_hyphens() -> None:
+    """wyrd-2pio regression guard: morphemes with positional hyphens
+    ('-ham', 'Whit-') shouldn't bleed into the rendered output as
+    leading or trailing dashes. The pre-fix bug produced output
+    like '-healdteoruell' at OE because the dash was concatenated
+    inline. Synthetic fixture: a morpheme whose era-form happens
+    to carry a hyphen position marker."""
+    from wyrd.generators.kenning import (
+        Kenning as _Kenning,  # noqa: F401 — ensures kenning module side-effects load
+    )
+    from wyrd.generators.kenning.generators import kenning_rewind as _kenning_rewind_mod
+    from wyrd.generators.kenning.generators.kenning_rewind import KenningRewind
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    fake = Meaning(
+        "-ham",
+        tags=[],
+        meanings=["dwelling"],
+        sources={"old_english": ["-hām"]},
+    )
+    fake_db = {"-ham": [fake], "ham": [fake]}
+    fake_tags: dict = {}
+
+    import wyrd.generators.kenning as kenning_mod
+
+    original = kenning_mod._load_meanings
+    original_rewind = _kenning_rewind_mod._load_meanings
+    kenning_mod._load_meanings = lambda: (fake_db, fake_tags)
+    _kenning_rewind_mod._load_meanings = lambda: (fake_db, fake_tags)
+    try:
+        gen = KenningRewind()
+        results = gen.generate_all({"name": "ham"}, 0)
+    finally:
+        kenning_mod._load_meanings = original
+        _kenning_rewind_mod._load_meanings = original_rewind
+
+    rendered = [r.components[0]["rendered"] for r in results]
+    # No leading/trailing dashes on any rendered cell.
+    for r in rendered:
+        assert not r.startswith("-"), f"leading hyphen in {r!r}"
+        assert not r.endswith("-"), f"trailing hyphen in {r!r}"
 
 
 def test_kenning_rewind_generator_raises_on_empty_input() -> None:

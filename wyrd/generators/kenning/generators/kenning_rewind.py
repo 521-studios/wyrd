@@ -73,6 +73,10 @@ class KenningRewind(Generator):
 
     def generate_all(self, params: dict[str, Any], seed: int) -> list[GenerationResult]:
         from wyrd.generators.kenning.era.cells import canonical_language_for_cell
+        from wyrd.generators.kenning.era.rewind import (
+            _is_free_particle,
+            render_form_particle_pairs,
+        )
 
         text = (params.get("name") or "").strip()
         if not text:
@@ -87,21 +91,47 @@ class KenningRewind(Generator):
         )
         # Per-era rendered output. Each era-stop becomes one
         # GenerationResult so the SPA can render them as a sequence.
+        #
+        # wyrd-2pio: reuse the shared rewinder renderer from
+        # era.rewind so the SPA-facing path (and downstream era-map)
+        # inherits the same smart-join + title-case + modern round-
+        # trip + free-particle treatment that the CLI rewinder uses.
+        # Pre-fix this module had its own hyphenated-join (the
+        # pre-wyrd-085k shape) plus no title-case, so era-map output
+        # diverged from the CLI rewind output for the same input.
         outputs: list[GenerationResult] = []
         for family, cell in era_stops:
             target_language = canonical_language_for_cell(family, cell)
-            rendered_morphemes: list[str] = []
             morpheme_components: list[dict[str, Any]] = []
             unaccounted: list[str] = []
+            # Per-word morpheme grouping so render_form_particle_pairs
+            # gets called once per input word; outputs join across
+            # words with a space (preserves operator's input shape
+            # per wyrd-t2bh).
+            words_pairs: list[list[tuple[str, bool]]] = []
             for word_str in text.split():
                 candidates = name_obj.words.get(word_str, [])
                 if not candidates:
                     unaccounted.append(word_str)
                     continue
+                word_pairs: list[tuple[str, bool]] = []
                 for chunk in candidates[0].word:
                     if isinstance(chunk, Meaning):
                         form = _bundle_era_form(chunk, target_language)
-                        rendered_morphemes.append(form)
+                        # wyrd-8qbi: at modern, prefer the morpheme's
+                        # canonical (modern_usage with dashes stripped)
+                        # over _bundle_era_form's cluster pick — the
+                        # operator already knows the modern form.
+                        if target_language == "modern-english":
+                            form = chunk.usage.replace("-", "")
+                        # wyrd-2pio: strip leading/trailing positional
+                        # hyphens (the per-morpheme positional marker
+                        # '-ham' style) so they don't leak into the
+                        # joined output as '-healdteoruell'-style
+                        # artifacts. Matches era.rewind._pick_form's
+                        # strip behavior.
+                        form = form.strip("-")
+                        word_pairs.append((form, _is_free_particle(chunk)))
                         # wyrd-17t: surface SAMPA-lite respelling next to
                         # the rendered form when the target language has
                         # a respeller (OE / Welsh / ON / Latin / Greek /
@@ -120,7 +150,16 @@ class KenningRewind(Generator):
                         )
                     elif isinstance(chunk, str) and chunk:
                         unaccounted.append(chunk)
-            rendered = "-".join(m.strip("-") for m in rendered_morphemes if m)
+                if word_pairs:
+                    words_pairs.append(word_pairs)
+            # wyrd-t2bh: smart-join at OE/ME (historical scribal
+            # pattern); simple concat at modern (round-trip operator
+            # input shape).
+            smart_join = target_language != "modern-english"
+            word_renders = [
+                render_form_particle_pairs(word, smart_join=smart_join) for word in words_pairs
+            ]
+            rendered = " ".join(r for r in word_renders if r)
             outputs.append(
                 GenerationResult(
                     result=rendered or text,

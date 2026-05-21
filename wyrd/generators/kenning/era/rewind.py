@@ -117,26 +117,11 @@ def _is_free_particle(meaning: Meaning) -> bool:
     return usage.lower() in _FREE_PARTICLES
 
 
-def _concat_morphemes_simple(morphemes: list[MorphemeRewind]) -> str:
-    """wyrd-t2bh: simple concatenation of morpheme forms, title-case
-    first letter.
-
-    Used at the modern-english era stop where the canonical short-
-    circuit (wyrd-8qbi) already produces the operator's input shape;
-    smart-join's particle handling would re-split inputs like
-    ``Helon`` into ``Hel on``, contradicting the round-trip-to-input
-    invariant. Extracted from ``_render_morphemes_as_name`` to keep
-    its cyclomatic complexity under the C901 floor."""
-    if not morphemes:
-        return ""
-    joined = "".join(_pick_form(m) for m in morphemes)
-    if joined:
-        joined = joined[0].upper() + joined[1:]
-    return joined
-
-
-def _render_morphemes_as_name(morphemes: list[MorphemeRewind], *, smart_join: bool = True) -> str:
-    """wyrd-085k: join morpheme forms into a medieval-style name.
+def render_form_particle_pairs(pairs: list[tuple[str, bool]], *, smart_join: bool = True) -> str:
+    """wyrd-085k / wyrd-2pio: shared name renderer used by both
+    rewinders (CLI + SPA-facing KenningRewind via era-map). Takes
+    a list of ``(form, is_particle)`` tuples — agnostic to the
+    upstream's morpheme dataclass shape.
 
     Free particles (``on``, ``upon``, ``under``, ``of``) get
     surrounded by spaces so they read as separate tokens, matching
@@ -146,25 +131,24 @@ def _render_morphemes_as_name(morphemes: list[MorphemeRewind], *, smart_join: bo
     title-cased; particles stay fully lowercase to match modern
     typesetting convention for prepositions in proper names.
 
-    wyrd-t2bh: ``smart_join=False`` delegates to
-    ``_concat_morphemes_simple`` — particle handling is bypassed.
-    Used at the modern-english era stop.
+    ``smart_join=False`` delegates to ``_concat_form_pairs_simple``
+    — particle handling is bypassed. Used at the modern-english
+    era stop (wyrd-t2bh).
 
     Empty input returns the empty string. A single non-particle
     morpheme returns its form title-cased. A leading or trailing
     particle is preserved as its own token (rendering
-    ``[on, foo]`` as ``"on Foo"``, not as a malformed compound)
-    — only with smart_join=True.
+    ``[('on', True), ('foo', False)]`` as ``"on Foo"``, not as a
+    malformed compound) — only with smart_join=True.
     """
     if not smart_join:
-        return _concat_morphemes_simple(morphemes)
-    if not morphemes:
+        return _concat_form_pairs_simple(pairs)
+    if not pairs:
         return ""
     tokens: list[str] = []  # space-separated output tokens
     pending: list[str] = []  # buffer of adjacent non-particle forms
-    for m in morphemes:
-        form = _pick_form(m)
-        if m.is_free_particle:
+    for form, is_particle in pairs:
+        if is_particle:
             if pending:
                 tokens.append("".join(pending))
                 pending = []
@@ -181,6 +165,36 @@ def _render_morphemes_as_name(morphemes: list[MorphemeRewind], *, smart_join: bo
         elif token:
             rendered.append(token[0].upper() + token[1:])
     return " ".join(rendered)
+
+
+def _concat_form_pairs_simple(pairs: list[tuple[str, bool]]) -> str:
+    """wyrd-t2bh / wyrd-2pio: simple concatenation of form-particle
+    pairs, title-case first letter. The pair-shaped twin of
+    _concat_morphemes_simple. Used at the modern-english era stop
+    where canonical short-circuit (wyrd-8qbi) already produces the
+    operator's input shape."""
+    if not pairs:
+        return ""
+    joined = "".join(form for form, _ in pairs)
+    if joined:
+        joined = joined[0].upper() + joined[1:]
+    return joined
+
+
+def _concat_morphemes_simple(morphemes: list[MorphemeRewind]) -> str:
+    """wyrd-t2bh: simple concatenation of MorphemeRewind forms. Thin
+    adapter over ``_concat_form_pairs_simple`` that pulls each
+    morpheme's picked form."""
+    return _concat_form_pairs_simple([(_pick_form(m), False) for m in morphemes])
+
+
+def _render_morphemes_as_name(morphemes: list[MorphemeRewind], *, smart_join: bool = True) -> str:
+    """wyrd-085k: join MorphemeRewind forms into a medieval-style
+    name. Thin adapter over ``render_form_particle_pairs`` that
+    pulls each morpheme's picked form + is_free_particle flag.
+    See the shared renderer's docstring for the join contract."""
+    pairs = [(_pick_form(m), m.is_free_particle) for m in morphemes]
+    return render_form_particle_pairs(pairs, smart_join=smart_join)
 
 
 @dataclass
