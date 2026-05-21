@@ -1,4 +1,4 @@
-"""Compute a 14-dim PhonologicalVector from an IPA string (wyrd-kq7w.1).
+"""Compute a PhonologicalVector from an IPA string (wyrd-kq7w.1).
 
 The vector schema lives at :mod:`wyrd.generators.kenning.vectors.schemas`
 (``PhonologicalVector``). This module owns the IPA → vector computation:
@@ -52,7 +52,7 @@ from wyrd.generators.kenning.vectors.schemas import PhonologicalVector
 # sets. A single phoneme can be in multiple sets (e.g. ``ʃ`` is both
 # fricative and sibilant and palatal). The aggregation pass counts
 # set memberships and normalizes by the relevant denominator (phoneme
-# count, consonant count, syllable count) per the 14 dimensions.
+# count, consonant count, syllable count) per the dimensions.
 
 # Multi-character IPA tokens that should parse as ONE phoneme. Matched
 # greedily before single-char tokens. Affricates + aspirated stops are
@@ -179,6 +179,24 @@ _VOWELS: dict[str, tuple[float, float]] = {
     "ɒ": (+1.0, -1.0),
 }
 
+# wyrd-mkry: tense vs lax vowel classification. Whissell 2000 found
+# tense/lax matters MORE than front/back for valence — but the
+# mapping is NON-MONOTONIC: /iː/ is Gentle while /ɪ/ is Harsh, and
+# /ɔ/ is Gentle while /uː/ is Harsh. The dimension surfaces the
+# tense/lax signal (length marks are stripped upstream so iː → i)
+# and lets the register-effect catalog decide direction per-effect
+# rather than baking in a global "tense = Gentle" assumption.
+#
+# Tense set (closed + peripheral monophthongs from the _VOWELS chart):
+#   i, u, e, o, y, ø, ɨ, ʉ, ɯ, ɵ, ɤ, ɶ, ɑ (13 entries).
+# Lax set (near-close + open-mid + near-open centralized vowels):
+#   ɪ, ʊ, ɛ, ɔ, æ, ʌ, ʏ, ɜ, ɞ, ɐ (10 entries).
+# Schwa (ə) is intentionally in neither set — contributes 0 to the
+# tenseness dimension, matching its corpus-mean neutrality on
+# vowel_height / vowel_backness.
+_TENSE_VOWELS = set("iueoyøɵɤɨʉɯɶɑ")
+_LAX_VOWELS = set("ɪʊɛɔæʌʏɜɞɐ")
+
 # Consonant feature classifications (sets — a phoneme can appear in
 # multiple). Derived from the IPA pulmonic consonant chart with
 # adjustments for the loan-relationship sources the corpus covers.
@@ -226,10 +244,24 @@ _STOPS = set("pbtdʈɖcɟkgqɢʔ") | {
 # ɳ (retroflex). Plus palatalized nasals.
 _NASALS = set("mnɲŋɴɱɳ") | {"nʲ"}
 
+# wyrd-119p: laterals (the gentler half — l, ɭ, ʎ, ʟ, ɬ, ɮ + plus
+# the palatalized + pharyngealized variants). Whissell 2000 rates the
+# lateral / nasal sonorants firmly Gentle.
+_LATERALS = set("lɭʎʟɬɮ") | {"lʲ", "ɫˤ"}
+
+# wyrd-119p: rhotics (the harsh half — r, ɾ, ɽ, ɹ, ɻ, ʀ, ʁ + the
+# palatalized variant). Whissell 2000 rates /r/ firmly Harsh.
+# Kept disjoint from _LATERALS so the new liquid_l_m_n / rhotic_r
+# dimensions partition the historical "liquid" class cleanly.
+_RHOTICS = set("rɾɽɹɻʀʁ") | {"rʲ"}
+
 # Liquids: laterals + rhotics. Welsh ɬ + ɮ are voiceless lateral
 # fricatives; we count them in fricatives + liquids both (they ARE
-# liquids by manner, fricatives by phonation).
-_LIQUIDS = set("lɭʎʟrɾɽɹɻʀʁɬɮ") | {"lʲ", "rʲ", "ɫˤ"}
+# liquids by manner, fricatives by phonation). Kept as the union of
+# _LATERALS + _RHOTICS so existing consumers (soft_consonants share,
+# _CONSONANTS denominator) behave unchanged; the new wyrd-119p
+# dimensions read the two halves directly.
+_LIQUIDS = _LATERALS | _RHOTICS
 
 # Fricatives: turbulent airflow. Subdivides into sibilants below.
 # Includes alveolo-palatal ɕ / ʑ (Mandarin pinyin x/j, Polish ś/ź,
@@ -454,12 +486,73 @@ def _soft_consonants_share(phonemes: list[str]) -> float:
     melodic/sonorant cluster (vs the 'hard' stop/obstruent cluster).
     Range [0, 1] of consonant inventory. Returns 0 when there are no
     consonants (avoids divide-by-zero).
+
+    wyrd-119p note: lumps Gentle laterals/nasals with Harsh rhotics;
+    use ``_liquid_l_m_n_share`` + ``_rhotic_r_share`` for finer
+    Whissell-accurate distinctions. Kept for back-compat — existing
+    stored vectors have this dimension populated and the deprecation
+    runs through register-effect catalog evolution, not a schema
+    drop.
     """
     consonants = [p for p in phonemes if _is_consonant(p)]
     if not consonants:
         return 0.0
     soft = sum(1 for p in consonants if p in _SOFT_CONSONANTS)
     return soft / len(consonants)
+
+
+def _liquid_l_m_n_share(phonemes: list[str]) -> float:
+    """wyrd-119p: share of phonemes that are lateral liquids OR nasals.
+    The Gentle half of the historical soft_consonants compound, per
+    Whissell 2000 ('l as sweet'). Range [0, 1] of total phoneme count
+    (matches the share-in-set shape used by palatalization /
+    sibilance / retroflexion etc.)."""
+    if not phonemes:
+        return 0.0
+    feature_set = _LATERALS | _NASALS
+    return sum(1 for p in phonemes if p in feature_set) / len(phonemes)
+
+
+def _rhotic_r_share(phonemes: list[str]) -> float:
+    """wyrd-119p: share of phonemes that are rhotics. The Harsh half
+    of the historical soft_consonants compound, per Whissell 2000
+    ('r as tough'). Range [0, 1] of total phoneme count."""
+    if not phonemes:
+        return 0.0
+    return sum(1 for p in phonemes if p in _RHOTICS) / len(phonemes)
+
+
+def _vowel_tenseness(phonemes: list[str]) -> float:
+    """wyrd-mkry: mean (in _TENSE_VOWELS = +1, in _LAX_VOWELS = -1,
+    other = 0) across monophthong vowel phonemes. The result is a
+    [-1, +1] tenseness score; mapping that score to a register
+    direction (Gentle vs Harsh) is the catalog's job — Whissell 2000
+    shows the partition isn't monotonic.
+
+    Filters to ``p in _VOWELS`` (single-char monophthong dict) for
+    consistency with ``_vowel_height`` / ``_vowel_backness`` — both
+    of those exclude diphthong tokens like 'ie' / 'au' from their
+    F1/F2 averages because the multi-char tokens have no single
+    formant-position. Same choice here: diphthongs contribute
+    nothing to the tense/lax score; only clean monophthongs do.
+
+    Returns 0.0 when no monophthongs are present, when every vowel is
+    neutral (schwa-only), or when tense and lax exactly balance —
+    matches the corpus-mean default for the [-1, +1] signed-feature
+    family. Vowels not in either classification set (e.g. schwa,
+    less-common IPA glyphs) contribute 0 individually but still
+    count in the denominator so a single schwa doesn't inflate the
+    magnitude of a paired tense / lax vowel's signal."""
+    monophthongs = [p for p in phonemes if p in _VOWELS]
+    if not monophthongs:
+        return 0.0
+    total = 0.0
+    for v in monophthongs:
+        if v in _TENSE_VOWELS:
+            total += 1.0
+        elif v in _LAX_VOWELS:
+            total -= 1.0
+    return total / len(monophthongs)
 
 
 def _count_syllables(phonemes: list[str]) -> int:
@@ -638,6 +731,12 @@ def _orthographic_vector(canonical_form: str) -> PhonologicalVector:
     if (stops + continuants) > 0:
         stop_cont = (stops - continuants) / (stops + continuants)
 
+    # wyrd-119p: orthographic l/m/n vs r partition. Coarse — the
+    # fallback path can't distinguish palatalized lʲ / rʲ etc. — but
+    # the IPA path covers that fidelity when pronunciation is present.
+    liquid_lmn = sum(1 for c in letters if c in "lmnLMN") / n
+    rhotic_share = sum(1 for c in letters if c in "rR") / n
+
     return PhonologicalVector(
         cluster_density=in_cluster / n,
         final_fortition=1.0 if last in _FALLBACK_STOPS else 0.0,
@@ -649,10 +748,14 @@ def _orthographic_vector(canonical_form: str) -> PhonologicalVector:
         polysyllabic_bias=min(1.0, len(vowels) / max(1, len(canonical_form))),
         sibilance=sib_share,
         stop_vs_continuant=stop_cont,
-        # The remaining 6 dimensions read 0 in the fallback path —
-        # we can't reliably classify palatalization / retroflexion /
+        liquid_l_m_n=liquid_lmn,
+        rhotic_r=rhotic_share,
+        # The remaining dimensions read 0 in the fallback path — we
+        # can't reliably classify palatalization / retroflexion /
         # pharyngeal / aspirated_voiceless / vowel_height /
-        # vowel_backness from orthography alone.
+        # vowel_backness / vowel_tenseness from orthography alone.
+        # Latin-script orthography doesn't preserve tense / lax
+        # distinctions (English "bit" vs "beet" both contain "i").
     )
 
 
@@ -663,7 +766,7 @@ def compute_phonological_vector(
     canonical_form: str,
     ipa: str | None,
 ) -> PhonologicalVector:
-    """Compute the 14-dim PhonologicalVector for an etymon.
+    """Compute the PhonologicalVector for an etymon.
 
     Preferred path: IPA-driven (when ``ipa`` is non-empty). Fallback:
     orthographic approximation from ``canonical_form`` alone.
@@ -695,6 +798,9 @@ def compute_phonological_vector(
         vowel_backness=_vowel_backness(phonemes),
         stop_vs_continuant=_stop_vs_continuant(phonemes),
         aspirated_voiceless=_share_in_set(phonemes, _ASPIRATED_VOICELESS),
+        liquid_l_m_n=_liquid_l_m_n_share(phonemes),
+        rhotic_r=_rhotic_r_share(phonemes),
+        vowel_tenseness=_vowel_tenseness(phonemes),
     )
 
 
@@ -721,6 +827,14 @@ def vector_to_json(v: PhonologicalVector) -> str:
         "vowel_backness": round(v.vowel_backness, 4),
         "stop_vs_continuant": round(v.stop_vs_continuant, 4),
         "aspirated_voiceless": round(v.aspirated_voiceless, 4),
+        # wyrd-119p + wyrd-mkry new dimensions. Older stored blobs
+        # missing these will round-trip through vector_from_json with
+        # 0.0 defaults — that path's tolerance is the back-compat
+        # seam until the enrichment pass is re-run against the
+        # corpus.
+        "liquid_l_m_n": round(v.liquid_l_m_n, 4),
+        "rhotic_r": round(v.rhotic_r, 4),
+        "vowel_tenseness": round(v.vowel_tenseness, 4),
     }
     if v.extras:
         payload["extras"] = {k: round(val, 4) for k, val in v.extras.items()}

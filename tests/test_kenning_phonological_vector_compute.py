@@ -693,3 +693,150 @@ def test_compute_is_idempotent_through_json():
     v1 = compute_phonological_vector("aloha", "aloha")
     v2 = vector_from_json(vector_to_json(v1))
     assert vector_to_json(v1) == vector_to_json(v2)
+
+
+# ---- wyrd-119p: liquid_l_m_n vs rhotic_r ----------------------------------
+
+
+def test_liquid_l_m_n_share_lateral_only_form_is_one() -> None:
+    """All-lateral form: lateral / total = 1.0 on liquid_l_m_n;
+    rhotic_r stays at 0.0. Pins the partition cleanly."""
+    v = compute_phonological_vector("lll", "lll")
+    assert v.liquid_l_m_n == 1.0
+    assert v.rhotic_r == 0.0
+
+
+def test_rhotic_r_share_rhotic_only_form_is_one() -> None:
+    """All-rhotic form: rhotic / total = 1.0; liquid_l_m_n stays 0."""
+    v = compute_phonological_vector("rrr", "rrr")
+    assert v.rhotic_r == 1.0
+    assert v.liquid_l_m_n == 0.0
+
+
+def test_liquid_and_rhotic_partition_soft_consonants() -> None:
+    """A mixed lateral+rhotic+vowel form populates both new dims with
+    non-overlapping membership (no phoneme counted in both)."""
+    # `lara` = l + a + r + a → 1 lateral + 1 rhotic + 2 vowels = 4 phonemes.
+    v = compute_phonological_vector("lara", "lara")
+    assert isclose(v.liquid_l_m_n, 0.25)  # 1 lateral / 4 total
+    assert isclose(v.rhotic_r, 0.25)  # 1 rhotic / 4 total
+
+
+def test_nasal_only_form_lifts_liquid_l_m_n_dimension() -> None:
+    """Whissell groups nasals with laterals on the Gentle side, so
+    nasals contribute to liquid_l_m_n (not to rhotic_r)."""
+    v = compute_phonological_vector("mnm", "mnm")
+    assert v.liquid_l_m_n == 1.0
+    assert v.rhotic_r == 0.0
+
+
+def test_soft_consonants_backwards_compat_still_populated() -> None:
+    """The legacy soft_consonants dimension still gets a value — it's
+    the union (laterals + rhotics + nasals + fricatives + approximants)
+    over the CONSONANT denominator, not phoneme denominator. A form
+    that's all-soft has soft_consonants == 1.0 even after the partition.
+    Pins back-compat for stored vectors + register-effect catalogs
+    that still weight soft_consonants directly."""
+    v = compute_phonological_vector("lmn", "lmn")
+    assert v.soft_consonants == 1.0
+
+
+def test_orthographic_fallback_populates_liquid_and_rhotic() -> None:
+    """When IPA is absent, the orthographic fallback can still
+    distinguish l/m/n from r based on Latin letters. Coarse but
+    enough that wave-2 etymons without IPA still get non-zero
+    Whissell-partition signals."""
+    v_lateral = compute_phonological_vector("milam", None)  # m, i, l, a, m
+    assert v_lateral.liquid_l_m_n > 0
+    assert v_lateral.rhotic_r == 0.0
+    v_rhotic = compute_phonological_vector("ririr", None)
+    assert v_rhotic.rhotic_r > 0
+    # liquid_l_m_n stays 0 because the form has no l/m/n.
+    assert v_rhotic.liquid_l_m_n == 0.0
+
+
+# ---- wyrd-mkry: vowel_tenseness -------------------------------------------
+
+
+def test_vowel_tenseness_all_tense_vowels_is_plus_one() -> None:
+    """Form with only tense monophthongs (i, u, e, o) reads +1.0.
+    Vowels separated by consonants so parse_ipa doesn't greedily
+    bind them into multi-char diphthongs (ie, uo, etc. are real
+    multi-char IPA tokens) — vowel_tenseness uses the monophthong-
+    only counter shared with vowel_height / vowel_backness."""
+    v = compute_phonological_vector("xx", "iketupo")  # i, e, u, o monophthongs
+    assert v.vowel_tenseness == 1.0
+
+
+def test_vowel_tenseness_all_lax_vowels_is_minus_one() -> None:
+    """Form with only lax monophthongs (ɪ, ʊ, ɛ, ɔ) reads -1.0."""
+    v = compute_phonological_vector("xx", "ɪkʊtɛsɔ")
+    assert v.vowel_tenseness == -1.0
+
+
+def test_vowel_tenseness_balanced_form_reads_near_zero() -> None:
+    """Equal tense and lax monophthongs cancel out — mean = 0.0."""
+    # 1 tense (i) + 1 lax (ɪ), separated so neither participates in
+    # a diphthong-greedy match.
+    v = compute_phonological_vector("xx", "ikɪ")
+    assert v.vowel_tenseness == 0.0
+
+
+def test_vowel_tenseness_schwa_neutral_contribution() -> None:
+    """Schwa (ə) is intentionally neither tense nor lax — it counts in
+    the denominator but contributes 0 to the numerator. Pins Whissell's
+    schwa-as-neutral treatment."""
+    # 1 tense (i) + 1 schwa (ə), consonant-separated.
+    v = compute_phonological_vector("xx", "ikə")
+    assert v.vowel_tenseness == 0.5
+
+
+def test_vowel_tenseness_no_vowels_returns_zero() -> None:
+    """All-consonant form has no vowel signal; default to 0.0
+    (corpus-mean)."""
+    v = compute_phonological_vector("strngth", "strŋθ")
+    assert v.vowel_tenseness == 0.0
+
+
+# ---- wyrd-119p + wyrd-mkry: schema round-trip -----------------------------
+
+
+def test_new_dims_round_trip_through_json() -> None:
+    """The 3 wyrd-119p + wyrd-mkry dimensions serialize / deserialize
+    without precision loss beyond the 4-decimal rounding."""
+    v1 = compute_phonological_vector("rara", "rara")  # rhotic + tense vowel
+    v2 = vector_from_json(vector_to_json(v1))
+    assert vector_to_json(v1) == vector_to_json(v2)
+    assert isclose(v1.rhotic_r, v2.rhotic_r)
+    assert isclose(v1.vowel_tenseness, v2.vowel_tenseness)
+    assert isclose(v1.liquid_l_m_n, v2.liquid_l_m_n)
+
+
+def test_legacy_json_blob_without_new_dims_loads_with_zero_defaults() -> None:
+    """A blob written before wyrd-119p / wyrd-mkry landed should still
+    parse cleanly — the new dimensions default to 0.0. Pins the
+    back-compat contract until the enrichment pass is re-run."""
+    legacy_blob = json.dumps(
+        {
+            "cluster_density": 0.4,
+            "final_fortition": 1.0,
+            "soft_consonants": 0.5,
+            "polysyllabic_bias": 0.5,
+            "palatalization": 0.0,
+            "sibilance": 0.0,
+            "retroflexion": 0.0,
+            "pharyngeal": 0.0,
+            "vowel_height": 0.0,
+            "vowel_backness": 0.0,
+            "stop_vs_continuant": 0.0,
+            "aspirated_voiceless": 0.0,
+            "vowel_final_bias": 0.0,
+            "final_cluster_rate": 0.0,
+        }
+    )
+    v = vector_from_json(legacy_blob)
+    assert v.liquid_l_m_n == 0.0
+    assert v.rhotic_r == 0.0
+    assert v.vowel_tenseness == 0.0
+    # Pre-existing dimensions read through unchanged.
+    assert v.soft_consonants == 0.5

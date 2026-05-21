@@ -73,6 +73,10 @@ PhonologicalFeatureName = Literal[
     "final_fortition",
     "final_cluster_rate",
     "vowel_final_bias",
+    # ``soft_consonants`` lumps /l m n/ (Gentle per Whissell) with /r/
+    # (Harsh per Whissell) — kept for back-compat with already-stored
+    # vectors but new catalog entries should prefer ``liquid_l_m_n`` /
+    # ``rhotic_r`` instead. wyrd-119p.
     "soft_consonants",
     "polysyllabic_bias",
     "palatalization",
@@ -83,6 +87,24 @@ PhonologicalFeatureName = Literal[
     "vowel_backness",
     "stop_vs_continuant",
     "aspirated_voiceless",
+    # wyrd-119p: Whissell 2000 splits the sonorant-consonant cluster.
+    # Lumping them under soft_consonants made /r/-heavy lemmas score
+    # high on softness when they should read the opposite. These two
+    # dimensions disjointly cover what soft_consonants used to roll up.
+    "liquid_l_m_n",
+    "rhotic_r",
+    # wyrd-mkry: Whissell 2000's vowel ratings are non-monotonic in
+    # height (/iː/ Gentle, /ɪ/ Harsh; /ɔ/ Gentle, /uː/ Harsh) — tense
+    # / lax matters more than front / back, but the mapping does NOT
+    # cleanly partition into Gentle vs Harsh on its own (/uː/ is
+    # tense AND Harsh; /ɔ/ is lax AND Gentle). Signed dimension in
+    # [-1, +1] like vowel_height / vowel_backness: +1 = every
+    # monophthong is in _TENSE_VOWELS (13-glyph set including all
+    # close + close-mid + the open back vowels), -1 = every
+    # monophthong is in _LAX_VOWELS (10-glyph set: near-close +
+    # open-mid + near-open centralized vowels). Catalog entries
+    # decide per-effect direction.
+    "vowel_tenseness",
 ]
 _DIMENSION_NAMES: frozenset[str] = frozenset(get_args(PhonologicalFeatureName))
 
@@ -94,7 +116,7 @@ class PhonologicalVector:
     Stored alongside each etymon (either inline columns or a sibling
     table — schema-side decision deferred to kq7w.1's data-modeling
     phase). Computed once per lemma from its canonical form + IPA,
-    re-computable deterministically. The 14 named scalars are the v1
+    re-computable deterministically. The named scalars are the v1
     dimension set; later dimensions append via ``extras`` so adding a
     feature doesn't require a schema migration on every consumer.
 
@@ -131,6 +153,17 @@ class PhonologicalVector:
     vowel_backness: float = 0.0
     stop_vs_continuant: float = 0.0
     aspirated_voiceless: float = 0.0
+    # wyrd-119p: laterals + nasals (the Gentle half of the historical
+    # soft_consonants compound). Rate feature in [0, 1].
+    liquid_l_m_n: float = 0.0
+    # wyrd-119p: rhotics (the Harsh half). Rate feature in [0, 1].
+    rhotic_r: float = 0.0
+    # wyrd-mkry: signed +1 (all-tense-monophthong) to -1 (all-lax)
+    # vowel-tenseness score, corpus-centered at 0. The mapping to
+    # Whissell Gentle / Harsh isn't monotonic — see the Literal
+    # comment above + _TENSE_VOWELS / _LAX_VOWELS in compute.
+    # Mirrors the shape of vowel_height / vowel_backness.
+    vowel_tenseness: float = 0.0
     # Forward-compat slot for future-added dimensions. Consumers that
     # don't know a name in extras must ignore it (additive only).
     extras: dict[str, float] = field(default_factory=dict)

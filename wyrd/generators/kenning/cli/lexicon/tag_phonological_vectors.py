@@ -1,5 +1,5 @@
 """``wyrd kenning lexicon tag-phonological-vectors`` — compute + persist
-the 14-dim PhonologicalVector for every etymon (wyrd-kq7w.1).
+the PhonologicalVector for every etymon (wyrd-kq7w.1).
 
 Standalone CLI command. Also runs as part of the canonical L3
 enrichment chain (``lexicon enrich``); operators reach for this
@@ -64,7 +64,7 @@ def lexicon_tag_phonological_vectors(
     apply_changes: bool,
     force: bool,
 ) -> None:
-    """Compute + persist the 14-dim PhonologicalVector for every etymon.
+    """Compute + persist the PhonologicalVector for every etymon.
 
     Reads ``canonical_form`` + ``pronunciation_ipa`` per etymon, runs
     ``compute_phonological_vector``, and stores the result as a JSON
