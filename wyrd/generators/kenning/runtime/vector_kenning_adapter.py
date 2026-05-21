@@ -42,13 +42,17 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from wyrd.generators.kenning.registers.moods import MOODS
+from wyrd.generators.kenning.registers.effects import (
+    available_register_effects,
+    parse_mood_spec,
+)
 from wyrd.generators.kenning.vectors.schemas import (
     EligibilityGate,
     PackOverlay,
     RegisterEffect,
     RequestVector,
     ScoringWeights,
+    compose_register_effects,
 )
 
 
@@ -83,51 +87,45 @@ def _harshness_to_phonological(harshness: float) -> dict[str, float]:
     }
 
 
-def _mood_to_tags_and_harshness(
+def _mood_specs_to_register_effects(
     mood_specs: Iterable[str],
-    base_tags: list[str],
-    base_harshness: float,
-) -> tuple[list[str], float]:
-    """Expand ``--mood`` flag values through the MOODS catalog into
-    additional tags + harshness. Matches the legacy ``_apply_mood``
-    semantics so the same operator input produces equivalent
-    behavior on the vector path.
+) -> list[RegisterEffect]:
+    """wyrd-kq7w.3: resolve each mood spec to a graduated catalog
+    register effect. The returned list composes via
+    :func:`compose_register_effects` (sum-then-clamp) into the
+    request's register, alongside the adapter's harshness-driven
+    phonological effect + the explicit-tags effect.
 
-    Each mood spec is either a bare name (``grim``) or a graduated
-    form (``harsh:0.5``). For tag-bearing moods, the mood's tags
-    union into ``base_tags``. For harshness-bearing moods, the
-    spec's value (or the MOODS default) is max'd into
-    ``base_harshness`` — matching the legacy max-harshness
-    composition rule.
+    Each spec is either a bare name (``grim``) or graduated form
+    (``harsh:0.5``) per the catalog's :func:`parse_mood_spec`
+    contract. Replaces the pre-rip MOODS-dict + harshness-scalar
+    extraction that lossily compressed catalog dims through a
+    single legacy harshness float; the catalog now flows through
+    end-to-end on the vector path.
 
-    Unknown mood names raise ``ValueError`` matching the legacy
-    ``_apply_mood`` behavior — a typo'd mood is loud-failure rather
-    than silently ignored. (Round-1 reviewer caught this divergence.)
-
-    Returns a (tags, harshness) tuple; the caller threads these into
-    the RequestVector construction.
+    Raises:
+        ValueError: when ``name`` (the part before any colon) is
+            unknown — the catalog's ``KeyError`` gets translated
+            here so callers grepping ``"unknown mood"`` stay bug-
+            compatible with the legacy ``_apply_mood`` error shape.
+            Also raised by :func:`parse_mood_spec` itself when the
+            graduation suffix is unparseable as a float
+            (``"harsh:x"``); that path bubbles through unchanged
+            with the per-spec error message intact.
     """
-    tags = list(base_tags)
-    harshness = base_harshness
+    out: list[RegisterEffect] = []
     for spec in mood_specs:
-        # Spec may be "grim" or "harsh:0.5"
-        if ":" in spec:
-            name, _, value_str = spec.partition(":")
-            override_value = float(value_str)
-        else:
-            name = spec
-            override_value = None
-        if name not in MOODS:
-            raise ValueError(f"unknown mood {name!r}; expected one of {sorted(MOODS)}")
-        mood = MOODS[name]
-        if "tags" in mood:
-            for t in mood["tags"]:
-                if t not in tags:
-                    tags.append(t)
-        if "harshness" in mood:
-            mood_harshness = override_value if override_value is not None else mood["harshness"]
-            harshness = max(harshness, mood_harshness)
-    return tags, harshness
+        try:
+            out.append(parse_mood_spec(spec))
+        except KeyError as exc:
+            # Re-raise as ValueError with the operator-facing
+            # available-names list, matching the legacy
+            # ``_apply_mood`` error shape so existing callers'
+            # diagnostics don't regress.
+            raise ValueError(
+                f"unknown mood; expected one of {available_register_effects()}"
+            ) from exc
+    return out
 
 
 def build_request_vector(
@@ -183,14 +181,20 @@ def build_request_vector(
         * **base** — driven by the loaded priors at request time; the
           adapter doesn't touch it here.
     """
-    # Expand mood into tag + harshness contributions
-    expanded_tags, expanded_harshness = _mood_to_tags_and_harshness(mood, list(tags), harshness)
+    # wyrd-kq7w.3: mood specs resolve to graduated catalog effects
+    # that compose component-wise (sum + clamp) into the request
+    # register. The adapter's explicit-tags + harshness-scalar knobs
+    # produce a separate adapter-shape RegisterEffect; the final
+    # request register is the composition of [adapter, *catalog].
+    mood_effects = _mood_specs_to_register_effects(mood)
 
-    register = RegisterEffect(
+    adapter_effect = RegisterEffect(
         name="adapter",
-        phonological=_harshness_to_phonological(expanded_harshness),
-        semantic_tags=dict.fromkeys(expanded_tags, 1.0),
+        phonological=_harshness_to_phonological(harshness),
+        semantic_tags=dict.fromkeys(tags, 1.0),
     )
+
+    register = compose_register_effects([adapter_effect, *mood_effects])
 
     gate = EligibilityGate(
         culture=culture,

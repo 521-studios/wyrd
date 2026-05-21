@@ -9,11 +9,12 @@ from __future__ import annotations
 
 from wyrd.generators.kenning.runtime.vector_kenning_adapter import (
     _harshness_to_phonological,
-    _mood_to_tags_and_harshness,
+    _mood_specs_to_register_effects,
     build_request_vector,
     era_midpoint_from_range,
 )
 from wyrd.generators.kenning.vectors.schemas import (
+    RegisterEffect,
     RequestVector,
     ScoringWeights,
 )
@@ -47,54 +48,91 @@ def test_harshness_half_scales_linearly():
     assert result["soft_consonants"] == -0.25
 
 
-# ---- _mood_to_tags_and_harshness -----------------------------------------
+# ---- _mood_specs_to_register_effects (wyrd-kq7w.3) ------------------------
 
 
-def test_mood_expansion_adds_tag_mood_tags():
-    """'grim' is a tag-bearing mood → its tags union into base_tags."""
-    tags, harshness = _mood_to_tags_and_harshness(["grim"], [], 0.0)
-    # grim's tags include 'death', 'military', 'monster', 'undead', 'magic'
-    assert "death" in tags
-    assert "military" in tags
-    assert harshness == 0.0  # grim isn't a harshness mood
+def test_mood_expansion_returns_catalog_effect_for_grim() -> None:
+    """'grim' resolves to the catalog's grim RegisterEffect with the
+    catalog's semantic-tag weights intact (no MOODS-style key-drop).
+    Verifies the catalog → effect path replaces the legacy
+    MOODS-dict tag-union extraction."""
+    effects = _mood_specs_to_register_effects(["grim"])
+    assert len(effects) == 1
+    effect = effects[0]
+    assert isinstance(effect, RegisterEffect)
+    assert effect.name == "grim"
+    # grim's catalog semantic_tags weights (not key-only) propagate
+    # through end-to-end on the vector path.
+    assert effect.semantic_tags["death"] > 0
+    assert effect.semantic_tags["military"] > 0
+    # grim has no phonological dims in the catalog (tag-driven only).
+    assert effect.phonological == {}
 
 
-def test_mood_expansion_max_harshness():
-    """'harsh' is a harshness-bearing mood with default 1.0; max'd
-    against base_harshness per the legacy composition rule."""
-    _, harshness = _mood_to_tags_and_harshness(["harsh"], [], 0.0)
-    assert harshness == 1.0
+def test_mood_expansion_returns_catalog_effect_for_harsh() -> None:
+    """'harsh' resolves to the catalog's harsh phonological weights.
+    Earlier MOODS-dict path collapsed the catalog's 9 phon dims into
+    a single harshness scalar — verifying the rip-and-replace preserves
+    the catalog's fidelity."""
+    effects = _mood_specs_to_register_effects(["harsh"])
+    assert len(effects) == 1
+    effect = effects[0]
+    assert effect.name == "harsh"
+    # Catalog harsh carries cluster_density 0.6 + 8 other dims (not the
+    # MOODS-dict harshness=1.0 scalar).
+    assert effect.phonological["cluster_density"] == 0.6
+    assert effect.phonological["final_fortition"] == 0.5
+    assert "stop_vs_continuant" in effect.phonological
 
 
-def test_mood_expansion_graduated_form_overrides_default():
-    """'harsh:0.5' overrides the mood's default 1.0 with the
-    operator-supplied 0.5."""
-    _, harshness = _mood_to_tags_and_harshness(["harsh:0.5"], [], 0.0)
-    assert harshness == 0.5
+def test_mood_expansion_graduation_scales_catalog_weights() -> None:
+    """'harsh:0.5' resolves to the catalog's harsh effect with every
+    weight scaled by 0.5 — matches RegisterEffect.scaled semantics."""
+    effects = _mood_specs_to_register_effects(["harsh:0.5"])
+    effect = effects[0]
+    assert effect.phonological["cluster_density"] == 0.3  # 0.6 * 0.5
+    assert effect.phonological["final_fortition"] == 0.25  # 0.5 * 0.5
 
 
-def test_mood_expansion_preserves_existing_higher_harshness():
-    """Already-higher base_harshness is preserved (max-composition)."""
-    _, harshness = _mood_to_tags_and_harshness(["harsh:0.3"], [], 0.7)
-    assert harshness == 0.7
+def test_mood_expansion_multiple_specs_return_list_in_order() -> None:
+    """Multiple specs produce a list in input order — caller composes
+    them via compose_register_effects which sums + clamps."""
+    effects = _mood_specs_to_register_effects(["grim", "harsh:0.4"])
+    assert [e.name for e in effects] == ["grim", "harsh"]
 
 
-def test_mood_expansion_unknown_mood_raises():
-    """Unknown mood names raise ValueError — matches the legacy
-    _apply_mood's loud-failure behavior. Round-1 reviewer caught that
-    the earlier silent-skip drift would let typo'd moods sneak through
-    the vector path while the legacy path raised — splitting behavior
-    across the two scoring modes."""
+def test_mood_expansion_unknown_mood_raises_value_error_with_catalog_names() -> None:
+    """Unknown mood names raise ValueError — preserves the legacy
+    _apply_mood error shape (callers grepping for 'unknown mood' still
+    match). Catalog's KeyError gets re-raised as ValueError so the
+    vector path's failure mode stays bug-compatible with the legacy
+    proportion-table path."""
     import pytest
 
     with pytest.raises(ValueError, match=r"unknown mood"):
-        _mood_to_tags_and_harshness(["unknown_mood"], ["x"], 0.5)
+        _mood_specs_to_register_effects(["unknown_mood"])
 
 
-def test_mood_expansion_dedups_tags():
-    """If a mood adds a tag already in base_tags, it doesn't dupe."""
-    tags, _ = _mood_to_tags_and_harshness(["grim"], ["death"], 0.0)
-    assert tags.count("death") == 1
+def test_mood_expansion_empty_input_returns_empty_list() -> None:
+    """No mood specs → no effects → adapter's composed register is
+    just the adapter-shape effect (explicit tags + harshness scalar).
+    Pins the no-mood bit-stability gate (composed catalog vector is
+    zero, no contribution to the request's register)."""
+    assert _mood_specs_to_register_effects([]) == []
+
+
+def test_mood_expansion_unparseable_graduation_suffix_bubbles_value_error() -> None:
+    """parse_mood_spec raises ValueError on unparseable colon-suffix
+    (``harsh:x``). The adapter only catches KeyError (unknown name)
+    + re-raises as ValueError; the graduation-suffix ValueError flows
+    through unchanged with the per-spec message intact, so operators
+    see ``"graduation suffix"`` not the catch-all
+    ``"unknown mood; expected one of ..."``. Pins the divergent error-
+    path message at the adapter boundary."""
+    import pytest
+
+    with pytest.raises(ValueError, match="graduation suffix"):
+        _mood_specs_to_register_effects(["harsh:x"])
 
 
 # ---- build_request_vector ------------------------------------------------
@@ -126,12 +164,22 @@ def test_build_request_vector_with_harshness():
 
 
 def test_build_request_vector_with_mood_expansion():
-    """mood expands tags and harshness into the register."""
+    """wyrd-kq7w.3: mood specs compose into the request register
+    component-wise (sum + clamp). Catalog effects replace the legacy
+    MOODS-dict harshness-scalar collapse, so the composed register
+    reflects each effect's per-dimension weights at their graduated
+    strength (NOT the scalar harshness mapping in
+    _harshness_to_phonological)."""
     rv = build_request_vector(culture="english", mood=["grim", "harsh:0.5"])
-    # grim adds tags
+    # grim contributes its catalog semantic_tags (with weights).
     assert "death" in rv.register.semantic_tags
-    # harsh:0.5 sets harshness which maps to phonological
-    assert rv.register.phonological["cluster_density"] == 0.5
+    assert rv.register.semantic_tags["death"] > 0
+    # harsh:0.5 is the catalog's harsh effect scaled by 0.5, so
+    # cluster_density = 0.6 * 0.5 = 0.3 (NOT 0.5 from the legacy
+    # _harshness_to_phonological(0.5) path). The rip-and-replace
+    # preserves catalog fidelity over the legacy scalar drift.
+    assert rv.register.phonological["cluster_density"] == 0.3
+    assert rv.register.phonological["final_fortition"] == 0.25  # 0.5 * 0.5
 
 
 def test_build_request_vector_with_era_and_stratum():

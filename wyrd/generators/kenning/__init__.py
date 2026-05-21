@@ -35,6 +35,7 @@ from wyrd.generators.kenning.lexicon.strata import (  # noqa: F401  (STRATA cons
     WELSH_STRATA,
     valid_strata_for_culture,
 )
+from wyrd.generators.kenning.registers.effects import mood_spec_to_legacy_form
 from wyrd.generators.kenning.runtime.decomposition import (
     _decomposition_payload,
     _signature_for_payload,
@@ -162,9 +163,14 @@ _INTERNAL_TAGS = {
     _FICTION_TAG,
 }
 
-# D6 MOODS preset dict lives in registers/moods.py since wyrd-a83i;
-# re-exported here so `kenning.MOODS` still resolves for callers.
-from wyrd.generators.kenning.registers.moods import MOODS  # noqa: E402, F401
+# wyrd-kq7w.3: the legacy MOODS dict (formerly registers/moods.py) was
+# replaced by the catalog at wyrd/generators/kenning/data/register_effects.yaml.
+# Mood specs resolve through ``parse_mood_spec`` / ``mood_spec_to_legacy_form``
+# in ``registers.effects``. The catalog is the single source of truth
+# for mood-name resolution + graduation; the proportion-table sampler's
+# legacy (tags, harshness) tuple is derived from catalog entries via
+# the translation helper, so this rip-and-replace doesn't break the
+# scoring_mode != 'vector' path.
 
 
 def _data_path(filename: str):
@@ -507,25 +513,30 @@ def _resolve_stratum_param(stratum: Any, culture: str) -> str | None:
 
 def _apply_mood(spec: str, tags: list[str], harshness: float) -> tuple[list[str], float]:
     """Resolve one mood spec ('grim' or 'harsh:0.5') into tag and harshness
-    contributions, returning the updated tuple. Multiple moods compose by
-    tag-union and max-harshness — repeated mood specs are idempotent on
-    tags and only ratchet harshness up.
+    contributions for the legacy proportion-table sampler.
+
+    wyrd-kq7w.3: routes through the register-effect catalog
+    (``parse_mood_spec`` / ``mood_spec_to_legacy_form``) now that the
+    MOODS dict is gone. Multiple moods compose by tag-union + max-
+    harshness exactly as before — repeated mood specs are idempotent
+    on tags and only ratchet harshness up. The vector path
+    (scoring_mode='vector') composes catalog effects directly via
+    :func:`vector_kenning_adapter.build_request_vector`; this helper
+    exists for the proportion-table fallback.
+
+    Raises:
+        ValueError: if ``name`` is not in the catalog —
+            ``mood_spec_to_legacy_form`` translates the catalog's
+            ``KeyError`` into ``ValueError`` so the legacy error
+            shape (callers grep for ``"unknown mood"``) is
+            preserved bit-compatibly.
     """
-    if ":" in spec:
-        name, value = spec.split(":", 1)
-    else:
-        name, value = spec, None
-    if name not in MOODS:
-        raise ValueError(f"unknown mood {name!r}; expected one of {sorted(MOODS)}")
-    recipe = MOODS[name]
+    mood_tags, mood_harshness = mood_spec_to_legacy_form(spec)
     new_tags = list(tags)
-    for t in recipe.get("tags", ()):
+    for t in mood_tags:
         if t not in new_tags:
             new_tags.append(t)
-    if "harshness" in recipe:
-        v = float(value) if value is not None else recipe["harshness"]
-        harshness = max(harshness, v)
-    return new_tags, harshness
+    return new_tags, max(harshness, mood_harshness)
 
 
 def _roots(meaning: Meaning) -> list[str]:

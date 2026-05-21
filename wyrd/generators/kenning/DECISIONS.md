@@ -159,11 +159,17 @@ single `--mood` flag.** Two axes ride under one GM-facing surface:
   military / monster axes.
 - Multiple `--mood` flags compose by tag-union and max-harshness.
 
-The mood vocabulary lives in `registers/moods.MOODS` as `{name: recipe}`. New
-presets are picked from a tag-coverage audit (≥5 subjects per
-candidate tag, distinct semantic identity, minimal overlap with
-existing moods); `noble` was considered in wyrd-aky and deferred until
-mining surfaces a `royalty` tag.
+The mood vocabulary lives in `wyrd/generators/kenning/data/register_effects.yaml`
+(catalog-driven since wyrd-kq7w.3 — the legacy `registers/moods.MOODS`
+dict was ripped and replaced). New presets are picked from a tag-coverage
+audit (≥5 subjects per candidate tag, distinct semantic identity, minimal
+overlap with existing moods); `noble` was considered in wyrd-aky and
+deferred until mining surfaced a `royalty` tag — landed in the kq7w.2
+catalog migration. Lookup goes through `registers/effects.parse_mood_spec`
+(vector path) or `registers/effects.mood_spec_to_legacy_form`
+(proportion-table path); both consult the same catalog so a mood added
+to YAML is immediately operator-visible on both scoring modes without
+code changes.
 
 Power-user JSON API still exposes `harshness` (number, 0..1) for
 graduated control without the colon syntax; `harshness` and

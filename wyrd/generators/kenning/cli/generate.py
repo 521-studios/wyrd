@@ -10,10 +10,10 @@ import click
 from wyrd.generators.kenning import (
     _INTERNAL_TAGS,
     CULTURES,
-    MOODS,
     Kenning,
     available_tags,
 )
+from wyrd.generators.kenning.registers.effects import available_register_effects
 from wyrd.seed import resolve_seed, rng_for
 
 _VALID_SCORING_MODES = ("proportions", "vector")
@@ -267,10 +267,11 @@ def generate(
         for t in sorted(known_tags - _INTERNAL_TAGS):
             click.echo(f"  {t}", err=True)
         sys.exit(1)
-    bad_moods = [m for m in moods if m.split(":", 1)[0] not in MOODS]
+    known_moods = available_register_effects()
+    bad_moods = [m for m in moods if m.split(":", 1)[0] not in known_moods]
     if bad_moods:
         click.echo(f"Unknown mood(s): {', '.join(bad_moods)}", err=True)
-        click.echo(f"Available moods: {', '.join(sorted(MOODS))}", err=True)
+        click.echo(f"Available moods: {', '.join(known_moods)}", err=True)
         sys.exit(1)
 
     resolved = resolve_seed(seed)

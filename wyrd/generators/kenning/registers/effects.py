@@ -273,3 +273,90 @@ def get_register_effect(name: str) -> RegisterEffect:
     if name not in catalog:
         raise KeyError(f"unknown register effect {name!r}; catalog has {sorted(catalog.keys())}")
     return _copy_effect(catalog[name])
+
+
+def available_register_effects() -> list[str]:
+    """Return the sorted list of register-effect names in the bundled
+    catalog. Used by CLI / JSON-schema layers that need to surface
+    the operator-facing mood vocabulary without depending on the
+    legacy MOODS dict."""
+    return sorted(_load_bundled_cached().keys())
+
+
+def parse_mood_spec(spec: str) -> RegisterEffect:
+    """Resolve a single mood spec (``"harsh"`` or ``"harsh:0.5"``) to
+    a graduated :class:`RegisterEffect` from the catalog.
+
+    The bare-name form returns the catalog entry at full strength
+    (multiplier 1.0). The colon-suffix form parses the value as a
+    float and returns the catalog entry scaled by it. Negative or
+    >1.0 multipliers are NOT rejected here — graduation past the
+    catalog's per-dimension weights is the caller's choice; the
+    final ``compose_register_effects`` clamp keeps composed
+    requests bounded. Replaces the wyrd-kq7w pre-rip MOODS-dict
+    lookups; the catalog is now the single source of truth for
+    mood-name resolution.
+
+    Raises:
+        KeyError: if ``name`` (the part before any colon) is not in
+            the catalog.
+        ValueError: if the colon-suffix is present but not parseable
+            as a float (matches the legacy ``_apply_mood`` error
+            shape — a typo like ``harsh:x`` is loud-failure rather
+            than silently no-op'd).
+    """
+    if ":" in spec:
+        name, _, value_str = spec.partition(":")
+        try:
+            multiplier = float(value_str)
+        except ValueError as exc:
+            raise ValueError(
+                f"mood spec {spec!r} graduation suffix {value_str!r} is not a float"
+            ) from exc
+    else:
+        name, multiplier = spec, 1.0
+    effect = get_register_effect(name)
+    if multiplier == 1.0:
+        return effect
+    return effect.scaled(multiplier)
+
+
+def mood_spec_to_legacy_form(spec: str) -> tuple[list[str], float]:
+    """Translate a mood spec into the legacy ``(tags, harshness)`` tuple
+    the proportion-table sampler consumes (wyrd-kq7w.3 transition).
+
+    The vector path consumes RegisterEffect dicts directly via
+    :func:`parse_mood_spec`. The legacy path (Kenning's
+    ``scoring_mode != 'vector'`` branch) still asks the sampler for
+    a tag union + harshness scalar — this helper bridges those calls
+    against the catalog so the MOODS dict can be deleted.
+
+    Translation rules:
+      * **tags**: the keys of the catalog effect's ``semantic_tags``
+        dict, dropping the per-weight value. Matches the legacy
+        MOODS recipe shape (which was tag-only, no weights).
+      * **harshness**: the (graduated) value of the
+        ``cluster_density`` dimension if positive, else 0. The
+        legacy MOODS rule was hardcoded ``harsh = 1.0``; the
+        catalog's harsh has ``cluster_density: 0.6``, so the
+        legacy translation reads slightly softer (acceptable per
+        wyrd-kq7w.3's "distribution match within tolerance" bit-
+        stability gate — not byte-identical).
+
+    Raises:
+        ValueError: if the mood name is not in the catalog. The
+            catalog's :func:`get_register_effect` raises ``KeyError``;
+            this helper re-raises as ``ValueError`` so the legacy
+            ``_apply_mood`` error shape (callers grep for
+            ``"unknown mood"``) stays bug-compatible.
+    """
+    try:
+        effect = parse_mood_spec(spec)
+    except KeyError as exc:
+        raise ValueError(
+            f"unknown mood {spec.split(':', 1)[0]!r}; "
+            f"expected one of {available_register_effects()}"
+        ) from exc
+    tags = list(effect.semantic_tags.keys())
+    harshness = max(0.0, effect.phonological.get("cluster_density", 0.0))
+    return tags, harshness
