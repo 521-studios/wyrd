@@ -63,6 +63,31 @@ class KenningRewind(Generator):
                     "type": "string",
                     "description": "Modern (or invented) British place name.",
                 },
+                # wyrd-y9aa: pre-picked morpheme list (same shape as
+                # 'kenning generate --json' output's per-result 'words'
+                # / API envelope's morphemes_by_word). When provided,
+                # skip the trie-based string decomposition + use the
+                # supplied picks directly — fixes the 'render then age
+                # this name' SPA flow where re-decomposition can land
+                # on a different etymological cluster than the
+                # generator picked.
+                "words": {
+                    "type": "array",
+                    "description": (
+                        "Optional: pre-picked morpheme breakdown from a "
+                        "prior 'kenning generate' (the morphemes_by_word "
+                        "API field). When provided, the rewinder skips "
+                        "trie re-decomposition and uses these picks."
+                    ),
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {"usage": {"type": "string"}},
+                            "required": ["usage"],
+                        },
+                    },
+                },
             },
             "required": ["name"],
         }
@@ -78,9 +103,19 @@ class KenningRewind(Generator):
         text = (params.get("name") or "").strip()
         if not text:
             raise ValueError("name is required")
+        supplied_words = params.get("words")
         meaning_db, _ = _load_meanings()
-        name_obj = Name(text)
-        name_obj.find_meaning(meaning_db, reduce=True)
+        # wyrd-y9aa: branch on whether the caller supplied pre-picked
+        # morphemes. When yes, build the per-word Meaning lists from
+        # meaning_db lookup (no trie); when no, fall back to the
+        # existing string-decompose path.
+        if supplied_words:
+            per_word_meanings = _meanings_from_supplied_words(supplied_words, meaning_db)
+            name_obj = None
+        else:
+            name_obj = Name(text)
+            name_obj.find_meaning(meaning_db, reduce=True)
+            per_word_meanings = None
         era_stops = (
             ("english", "oe-late"),
             ("english", "me"),
@@ -106,19 +141,30 @@ class KenningRewind(Generator):
             # words with a space (preserves operator's input shape
             # per wyrd-t2bh).
             words_pairs: list[list[tuple[str, bool]]] = []
-            for word_str in text.split():
-                candidates = name_obj.words.get(word_str, [])
-                if not candidates:
-                    unaccounted.append(word_str)
-                    continue
-                word_pairs = _decompose_word_at_era(
-                    candidates[0],
-                    target_language,
-                    morpheme_components,
-                    unaccounted,
-                )
-                if word_pairs:
-                    words_pairs.append(word_pairs)
+            if per_word_meanings is not None:
+                # wyrd-y9aa: pre-picked morphemes path.
+                for word_meanings in per_word_meanings:
+                    word_pairs = _meanings_to_word_pairs(
+                        word_meanings,
+                        target_language,
+                        morpheme_components,
+                    )
+                    if word_pairs:
+                        words_pairs.append(word_pairs)
+            else:
+                for word_str in text.split():
+                    candidates = name_obj.words.get(word_str, [])
+                    if not candidates:
+                        unaccounted.append(word_str)
+                        continue
+                    word_pairs = _decompose_word_at_era(
+                        candidates[0],
+                        target_language,
+                        morpheme_components,
+                        unaccounted,
+                    )
+                    if word_pairs:
+                        words_pairs.append(word_pairs)
             # wyrd-t2bh: smart-join at OE/ME (historical scribal
             # pattern); simple concat at modern (round-trip operator
             # input shape).
@@ -194,4 +240,59 @@ def _decompose_word_at_era(
             )
         elif isinstance(chunk, str) and chunk:
             unaccounted.append(chunk)
+    return word_pairs
+
+
+def _meanings_from_supplied_words(
+    supplied_words: list[Any],
+    meaning_db: dict[str, list[Meaning]],
+) -> list[list[Meaning]]:
+    """wyrd-y9aa: resolve the per-word morpheme picks from a 'kenning
+    generate --json' / API morphemes_by_word payload into Meaning
+    objects via meaning_db lookup. Missing usages are silently
+    dropped (the unaccounted bookkeeping happens later, per-era).
+    First Meaning wins for ambiguous usages, mirroring NewName.to_dict.
+    """
+    per_word: list[list[Meaning]] = []
+    for word_morphs in supplied_words or []:
+        word_meanings: list[Meaning] = []
+        for morph in word_morphs or []:
+            usage = morph.get("usage") if isinstance(morph, dict) else None
+            if not usage:
+                continue
+            candidates = meaning_db.get(usage, [])
+            if candidates:
+                word_meanings.append(candidates[0])
+        per_word.append(word_meanings)
+    return per_word
+
+
+def _meanings_to_word_pairs(
+    word_meanings: list[Meaning],
+    target_language: str | None,
+    morpheme_components: list[dict[str, Any]],
+) -> list[tuple[str, bool]]:
+    """wyrd-y9aa: per-word morpheme walk for the pre-picked-input path.
+    Mirrors _decompose_word_at_era's body but takes a list of Meaning
+    directly (no chunk-walking, no str fallback) since the upstream
+    JSON shape only ever contains Meaning-shaped entries. Same
+    8qbi / 2pio / 085k / 17t per-morpheme treatments + same side-
+    effects on morpheme_components."""
+    from wyrd.generators.kenning.era.rewind import _is_free_particle
+
+    word_pairs: list[tuple[str, bool]] = []
+    for meaning in word_meanings:
+        form = _bundle_era_form(meaning, target_language)
+        if target_language == "modern-english":
+            form = meaning.usage.replace("-", "")
+        form = form.strip("-")
+        word_pairs.append((form, _is_free_particle(meaning)))
+        respelling = meaning.respelling_for(form, target_language) if target_language else None
+        morpheme_components.append(
+            {
+                "form": form,
+                "respelling": respelling,
+                "language": target_language,
+            }
+        )
     return word_pairs
