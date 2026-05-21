@@ -911,6 +911,16 @@ def build_from_jsonl(
 
     conn.commit()
 
+    # wyrd-2n1: backfill per-element confidence from parent for any
+    # rebuilt elements that the JSONL didn't carry the field on (pre-2n1
+    # JSONL is the common case — the parent row's confidence is present
+    # but the element-level field hasn't been mined yet). Same SQL
+    # shape as migration 0013's backfill so a rebuilt DB and a
+    # migrated-legacy DB land at the same state. Idempotent — the
+    # WHERE-confidence-IS-NULL guard makes this a no-op for post-2n1
+    # JSONL whose elements already carry the field.
+    _backfill_element_confidence_from_parent(conn)
+
     # wyrd-14p: chain the productivity recompute at the rebuild tail so
     # `rm db && rebuild-from-jsonl` produces a complete DB. The recompute
     # is deterministic + cheap (one CTE-driven SELECT + one UPDATE per
@@ -923,6 +933,32 @@ def build_from_jsonl(
     _recompute_reflex_productivity_after_build(conn)
 
     return counts
+
+
+def _backfill_element_confidence_from_parent(conn: sqlite3.Connection) -> None:
+    """wyrd-2n1 post-build hook: copy parent toponym_etymology.confidence
+    onto every NULL-confidence element. Same SQL the migration's
+    upgrade() runs on first init so a rebuilt-from-JSONL DB matches
+    the migrated-legacy DB. No-op when the column or the parent are
+    absent (minimal-schema test fixtures + pre-init schemas)."""
+    has_column = any(
+        row[1] == "confidence"
+        for row in conn.execute("PRAGMA table_info(toponym_etymology_element)")
+    )
+    if not has_column:
+        return
+    with conn:
+        conn.execute(
+            """
+            UPDATE toponym_etymology_element
+               SET confidence = (
+                    SELECT te.confidence
+                      FROM toponym_etymology AS te
+                     WHERE te.id = toponym_etymology_element.toponym_etymology_id
+               )
+             WHERE confidence IS NULL
+            """
+        )
 
 
 def _recompute_reflex_productivity_after_build(conn: sqlite3.Connection) -> None:
