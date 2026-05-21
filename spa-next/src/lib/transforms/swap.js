@@ -93,25 +93,33 @@ function renderName(wordsList) {
     // Per-word: smart-join particles as separate tokens, concat the
     // rest, title-case the non-particle tokens. Mirrors
     // render_form_particle_pairs with smart_join=True.
+    //
+    // wyrd-hpjg round 4 (Gemini MED): title-case non-particle
+    // tokens DURING the loop so we don't have to redo the
+    // particle-vs-pending classification at the end. Pre-fix, the
+    // final .map checked tokens against FREE_PARTICLES — a pending-
+    // joined token that happened to spell a particle (e.g. a dashed
+    // '-on-' infix whose stripped form is 'on') would be wrongly
+    // lowercased.
     const tokens = [];
     let pending = [];
+    const flushPending = () => {
+      if (pending.length === 0) return;
+      const joined = pending.join('');
+      if (joined) tokens.push(joined[0].toUpperCase() + joined.slice(1));
+      pending = [];
+    };
     for (const m of w) {
       const form = (m.usage || '').replace(/^-+|-+$/g, '');
       if (isFreeParticle(m.usage)) {
-        if (pending.length > 0) {
-          tokens.push(pending.join(''));
-          pending = [];
-        }
+        flushPending();
         tokens.push(form.toLowerCase());
       } else {
         pending.push(form);
       }
     }
-    if (pending.length > 0) tokens.push(pending.join(''));
-    return tokens
-      .map((t) => (FREE_PARTICLES.has(t) ? t : t ? t[0].toUpperCase() + t.slice(1) : ''))
-      .filter(Boolean)
-      .join(' ');
+    flushPending();
+    return tokens.filter(Boolean).join(' ');
   });
   const name = wordRenders.filter((s) => s.trim()).join(' ');
   // wyrd-hpjg round 3 (Gemini MED): always capitalize the very
@@ -119,7 +127,6 @@ function renderName(wordsList) {
   // (rare in real corpus, but possible after a Swap) reads as
   // 'Of Avon' not 'of Avon'. Diverges slightly from the Python
   // render_form_particle_pairs which leaves leading particles
-  // lowercase; the divergence is unobservable in real corpus
-  // names but defends against the synthetic-input edge case.
+  // lowercase; defended against the synthetic-input edge case.
   return name ? name[0].toUpperCase() + name.slice(1) : '';
 }
