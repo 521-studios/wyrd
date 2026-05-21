@@ -2452,6 +2452,48 @@ def test_name_generator_no_triple_letter_runs_across_50_seeds() -> None:
     assert not violations, f"triple-letter runs in {len(violations)} outputs: {violations[:5]}"
 
 
+def test_name_generator_no_triple_letter_runs_under_tag_filter() -> None:
+    """wyrd-ovsv: the collapse pass also applies on the tag-filtered
+    generation path (NewName.__str__ is shared). Tag-filter narrows
+    vocabulary so collision probability rises — mirror the wyrd-gzvr
+    pattern of pinning both paths."""
+    import re as _re
+
+    from wyrd.generators.kenning import Kenning
+
+    triple = _re.compile(r"(.)\1\1")
+    k = Kenning()
+    violations: list[str] = []
+    for tag in ("water", "religion", "topography"):
+        for seed in range(1, 26):
+            result = k.generate({"culture": "english", "tags": [tag], "count": 10}, seed=seed)
+            for line in result.result.splitlines():
+                line = line.strip()
+                if line and triple.search(line):
+                    violations.append(f"tag={tag}/seed={seed}: {line}")
+    assert not violations, (
+        f"triple-letter runs on tag-filtered path in {len(violations)} outputs: {violations[:5]}"
+    )
+
+
+def test_new_name_str_collapse_is_per_word_not_cross_space() -> None:
+    """wyrd-ovsv: the collapse runs per-word at the morpheme-join step
+    (BEFORE words are space-joined). A name where word 1 ends in 'll'
+    and word 2 starts with 'l' renders as '... Ll...' (space-
+    separated, no triple) — the space prevents the visual triple,
+    so per-word collapse is sufficient. Pins the design intent so a
+    future refactor that joins-then-collapses doesn't accidentally
+    fire across word boundaries (which would alter both words'
+    surface forms, e.g. 'Bell Lake' → '...wat? collapse weirdness')."""
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    # Word 1 morphemes concatenate to 'Bell'; word 2 to 'Lake'. The
+    # 'll' (word 1 end) + 'L' (word 2 start) is space-separated —
+    # no triple to collapse. Output: 'Bell Lake' unchanged.
+    new_name = NewName(struct=None, meaning_db={}, name=[["Bell-"], ["Lake-"]])
+    assert str(new_name) == "Bell Lake"
+
+
 def test_new_name_str_drops_fully_empty_words() -> None:
     """wyrd-3xdb edge case: a word slot containing only None entries
     (no surviving morpheme after joiner-pruning) emits nothing —

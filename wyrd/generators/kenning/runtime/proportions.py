@@ -150,15 +150,16 @@ def _collapse_triple_letters(text: str) -> str:
     """wyrd-ovsv: collapse runs of 3+ identical letters down to 2.
 
     Used by ``NewName.__str__`` to clean up morpheme-join artifacts
-    like 'Kill' + 'len' → 'Killlen' (triple l) → 'Killen' (double l).
-    Real English / Celtic place names always elide the triple
-    (Killarney NOT Killlarney; Newcastle NOT Newccastle); this is
-    the orthographic-normalization version of that convention.
+    like 'Kill' + 'llen' → 'Killlen' (triple l) → 'Killen' (double l).
+    Real English / Celtic place names always elide the triple at
+    a morpheme boundary (Killarney NOT Killlarney; Llanelli NOT
+    Llanellli); this is the orthographic-normalization version of
+    that convention.
 
     Conservative: doesn't touch legitimate doubles (Kill, Ball,
-    Cromwell stay intact when standalone). Only fires on 3+ runs,
-    which only arise from morpheme-join concatenation in this
-    codebase.
+    Cromwell, Newcastle, Llanelli stay intact when standalone) —
+    only fires on 3+ runs, which only arise from morpheme-join
+    concatenation in this codebase.
     """
     return _TRIPLE_LETTER_RUN_RE.sub(r"\1\1", text)
 
@@ -990,14 +991,15 @@ class NewName:
         # output.
         #
         # wyrd-ovsv: also collapse 3+-letter runs at the join
-        # boundary down to 2 (e.g. 'Kill' + 'len' → 'Killlen'
+        # boundary down to 2 (e.g. 'Kill' + 'llen' → 'Killlen'
         # becomes 'Killen'). The doubling-then-tripling artifact
         # surfaces when one morpheme ends in 'XX' and the next
         # starts with 'X'; real English / Celtic place names
-        # always elide this (Killarney NOT Killlarney; Newcastle
-        # NOT Newccastle). Conservative regex normalization that
-        # doesn't touch single morphemes' own legitimate double
-        # letters (Kill, Ball stay intact when standalone).
+        # always elide this at the morpheme boundary (Killarney
+        # NOT Killlarney; Llanelli NOT Llanellli). Conservative
+        # regex normalization that doesn't touch single morphemes'
+        # own legitimate double letters (Kill, Ball, Newcastle
+        # stay intact when standalone).
         #
         # Algorithm: build each word by concatenating its morpheme
         # strings (dash-stripped) inside the word, collapse any 3+
