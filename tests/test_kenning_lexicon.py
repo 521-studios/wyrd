@@ -5023,7 +5023,11 @@ def test_kenning_rewind_from_json_pipe_end_to_end(fresh_db: Path) -> None:
     """wyrd-cp2d: end-to-end pipe test — capture 'generate --json'
     output, feed it into 'rewind --from-json -' via stdin, verify
     the rewind output respects the per-line JSON objects' supplied
-    usages (each input line produces one rewind output block)."""
+    usages (each input line produces one rewind output block).
+
+    --db is passed explicitly so CI (which has no ~/.wyrd/lexicon.db)
+    doesn't fail the click.Path(exists=True) check before the test
+    body runs. wyrd-nyzb regression pin."""
     import json as _json
 
     from click.testing import CliRunner
@@ -5032,7 +5036,8 @@ def test_kenning_rewind_from_json_pipe_end_to_end(fresh_db: Path) -> None:
     from wyrd.generators.kenning.cli.rewind import rewind
 
     runner = CliRunner()
-    # Step 1: capture generate --json output
+    # Step 1: capture generate --json output (generate reads the
+    # bundled meanings.json; no --db needed)
     gen = runner.invoke(generate, ["english", "-n", "2", "--seed", "100", "--json"])
     assert gen.exit_code == 0
     json_lines = [line for line in gen.output.splitlines() if line.strip().startswith("{")]
@@ -5041,39 +5046,53 @@ def test_kenning_rewind_from_json_pipe_end_to_end(fresh_db: Path) -> None:
 
     # Step 2: feed into rewind --from-json -
     stdin_input = "\n".join(json_lines)
-    rewind_result = runner.invoke(rewind, ["--from-json", "-"], input=stdin_input)
+    rewind_result = runner.invoke(
+        rewind, ["--from-json", "-", "--db", str(fresh_db)], input=stdin_input
+    )
     assert rewind_result.exit_code == 0, rewind_result.output
     # Verify the rewind output mentions both input names (one block per).
     for obj in parsed:
         assert obj["name"] in rewind_result.output
 
 
-def test_kenning_rewind_from_json_malformed_json_raises() -> None:
+def test_kenning_rewind_from_json_malformed_json_raises(fresh_db: Path) -> None:
     """wyrd-cp2d: malformed JSON in --from-json input surfaces a
     friendly error + non-zero exit. Pre-PR a JSON decode error would
-    propagate as an unhandled exception."""
+    propagate as an unhandled exception.
+
+    --db is passed explicitly so CI (which has no ~/.wyrd/lexicon.db)
+    doesn't fail the click.Path(exists=True) check before the JSON
+    decode-error path fires. wyrd-nyzb regression pin."""
     from click.testing import CliRunner
 
     from wyrd.generators.kenning.cli.rewind import rewind
 
     runner = CliRunner()
-    result = runner.invoke(rewind, ["--from-json", "-"], input="{not valid json")
+    result = runner.invoke(
+        rewind, ["--from-json", "-", "--db", str(fresh_db)], input="{not valid json"
+    )
     assert result.exit_code != 0
     assert "malformed JSON" in result.output
 
 
-def test_kenning_rewind_no_name_no_from_json_fails_with_friendly_error() -> None:
+def test_kenning_rewind_no_name_no_from_json_fails_with_friendly_error(
+    fresh_db: Path,
+) -> None:
     """wyrd-cp2d: invoking 'kenning rewind' with no NAME and no
     --from-json must surface a friendly error + non-zero exit. Pre-
     PR NAME was a required positional; the wyrd-cp2d change made it
     optional in service of --from-json, so we need explicit
-    validation that one or the other is supplied."""
+    validation that one or the other is supplied.
+
+    --db is passed explicitly so CI (which has no ~/.wyrd/lexicon.db)
+    doesn't fail the click.Path(exists=True) check before the
+    NAME-required validation fires. wyrd-nyzb regression pin."""
     from click.testing import CliRunner
 
     from wyrd.generators.kenning.cli.rewind import rewind
 
     runner = CliRunner()
-    result = runner.invoke(rewind, [])
+    result = runner.invoke(rewind, ["--db", str(fresh_db)])
     assert result.exit_code != 0
     assert "NAME argument is required" in result.output
 
