@@ -127,7 +127,7 @@
             {@const r = renderingFor(lang, form)}
             <tr
               class="form-row"
-              class:current={morpheme.usage === form ||
+              class:current={(morpheme.usage || '') === form ||
                 (morpheme.usage || '').replace(/^-+|-+$/g, '') === form}
             >
               <td class="form">
