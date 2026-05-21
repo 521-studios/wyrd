@@ -12,10 +12,12 @@
   // re-runs the pipeline whenever the original (col-2 selection)
   // or the step list changes — the "editable recipe" model from
   // the design session (vs an undo/redo snapshot history).
+  import { untrack } from 'svelte';
   import { appState } from '../lib/appState.svelte.js';
   import { pipeline } from '../lib/pipeline.svelte.js';
   import MorphemeCard from '../components/MorphemeCard.svelte';
   import TransformStack from '../components/TransformStack.svelte';
+  import SaveWorkspaceButton from '../components/SaveWorkspaceButton.svelte';
 
   let result = $derived(appState.currentResult);
 
@@ -40,15 +42,25 @@
   // where users will get explicit "keep this pipeline" preservation.
   let lastResultIndex = $state(null);
   $effect(() => {
-    // Deep-snapshot the steps so any nested change (a step's params,
-    // not just the array reference) re-triggers the effect. Svelte 5
-    // deep-proxies propagate writes upward in practice, but reading
-    // the full snapshot here is the explicit + future-proof contract.
     const stepsSnapshot = $state.snapshot(pipeline.steps);
     const idx = appState.currentResultIndex;
+    // wyrd-34tn round 2 (Gemini HIGH): always consume + clear the
+    // loading flag, regardless of whether idx actually changed. If
+    // a user loads a saved workspace for the result they're already
+    // inspecting, idx won't change — but the flag still needs to be
+    // cleared so the NEXT subject change behaves normally.
+    // wyrd-34tn round 3 (Gemini MED): untrack() the read+write so
+    // clearing the flag doesn't re-trigger this effect (which would
+    // double-run pipeline.run; the runToken protects state but the
+    // wasted run is inefficient).
+    const isLoad = untrack(() => {
+      const val = appState.isLoadingSavedWorkspace;
+      if (val) appState.isLoadingSavedWorkspace = false;
+      return val;
+    });
     if (idx !== lastResultIndex) {
       lastResultIndex = idx;
-      pipeline.clear();
+      if (!isLoad) pipeline.clear();
     }
     if (!original) return;
     pipeline.run(original);
@@ -134,6 +146,7 @@
     <section class="transforms">
       <h4 class="section-head">Transforms</h4>
       <TransformStack />
+      <SaveWorkspaceButton />
     </section>
   {/if}
 </section>

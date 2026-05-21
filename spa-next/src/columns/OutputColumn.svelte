@@ -1,21 +1,19 @@
 <script>
-  // wyrd-hcmc: col 2 — list of results from the most recent roll.
-  //
-  // Each result renders as a card with the rendered name, the
-  // explanation, and the seed badge. Click → selects the result
-  // for col 3 inspection (wired in wyrd-yxf6 PR #3 — for now the
-  // click handler just toggles a 'selected' visual state for
-  // verification).
-  //
-  // Saved/Current toggle + star-icon save affordance lands in
-  // wyrd-34tn (PR #6).
+  // wyrd-hcmc + wyrd-34tn: col 2 — toggle between the most recent
+  // roll output and the Saved bookmark library. Each result in the
+  // roll view gets a ★ toggle (StarToggle) for inline save. The
+  // Saved view (SavedList) shows persisted entries; clicking one
+  // rehydrates all 3 columns to that workspace state.
   import { appState } from '../lib/appState.svelte.js';
+  import { savedStore } from '../lib/savedStore.svelte.js';
+  import StarToggle from '../components/StarToggle.svelte';
+  import SavedList from '../components/SavedList.svelte';
 
-  // wyrd-yxf6: selection state lives in appState so InspectorColumn
-  // reads it reactively. The re-roll-reset of currentResultIndex
-  // lives in ConfigureColumn.roll() (next to the results
-  // assignment) rather than an OutputColumn $effect, so the reset
-  // survives OutputColumn unmounting (mobile drawer per wyrd-jh75).
+  // Local-only view toggle. Lives in OutputColumn (not appState)
+  // because no other column needs to react to it; if a future
+  // feature needs to navigate to Saved from elsewhere (e.g., share-
+  // link landing in wyrd-tz35), promote to appState.
+  let view = $state('current'); // 'current' | 'saved'
 
   function selectResult(i) {
     appState.currentResultIndex =
@@ -26,7 +24,26 @@
 <section class="column">
   <h2>Output</h2>
 
-  {#if appState.results.length === 0}
+  <div class="view-toggle" role="tablist">
+    <button
+      role="tab"
+      class="toggle-btn"
+      class:active={view === 'current'}
+      aria-selected={view === 'current'}
+      onclick={() => (view = 'current')}
+    >Current roll</button>
+    <button
+      role="tab"
+      class="toggle-btn"
+      class:active={view === 'saved'}
+      aria-selected={view === 'saved'}
+      onclick={() => (view = 'saved')}
+    >Saved ({savedStore.entries.length})</button>
+  </div>
+
+  {#if view === 'saved'}
+    <SavedList />
+  {:else if appState.results.length === 0}
     <p class="placeholder">
       No rolls yet. Configure a generator on the left + hit Roll.
     </p>
@@ -42,16 +59,19 @@
     <ul class="results">
       {#each appState.results as r, i (i)}
         <li>
-          <button
-            class="result"
-            class:selected={appState.currentResultIndex === i}
-            onclick={() => selectResult(i)}
-          >
-            <span class="name">{r.result}</span>
-            {#if r.explanation}
-              <span class="explanation">{r.explanation}</span>
-            {/if}
-          </button>
+          <div class="result-row">
+            <button
+              class="result"
+              class:selected={appState.currentResultIndex === i}
+              onclick={() => selectResult(i)}
+            >
+              <span class="name">{r.result}</span>
+              {#if r.explanation}
+                <span class="explanation">{r.explanation}</span>
+              {/if}
+            </button>
+            <StarToggle result={r} />
+          </div>
         </li>
       {/each}
     </ul>
@@ -59,6 +79,34 @@
 </section>
 
 <style>
+  .view-toggle {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 16px;
+    background: var(--bg-elev);
+    border-radius: 4px;
+    padding: 2px;
+  }
+  .toggle-btn {
+    flex: 1;
+    background: transparent;
+    color: var(--fg-muted);
+    border: none;
+    border-radius: 3px;
+    padding: 6px 8px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .toggle-btn.active {
+    background: var(--bg);
+    color: var(--fg);
+  }
+  .toggle-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
   .meta {
     font-size: 11px;
     color: var(--fg-muted);
@@ -79,11 +127,16 @@
   .results li {
     margin-bottom: 6px;
   }
+  .result-row {
+    display: flex;
+    align-items: stretch;
+    gap: 4px;
+  }
   .result {
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    width: 100%;
     text-align: left;
     background: var(--bg-elev);
     border: 1px solid var(--border);
@@ -109,12 +162,6 @@
     font-size: 11px;
     color: var(--fg-muted);
     line-height: 1.4;
-    /* Long etymological explanations from KenningExplain can be
-       multi-line — clip with ellipsis at 3 lines so cards stay
-       skimmable. Click → col 3 (PR #3) shows full detail.
-       The unprefixed line-clamp companion appeases svelte-check
-       (a11y/standards lint) — browsers without -webkit- still
-       honor the standard property when it ships. */
     display: -webkit-box;
     -webkit-line-clamp: 3;
     line-clamp: 3;
