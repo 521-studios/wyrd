@@ -178,6 +178,14 @@ boolean / `--harsh` float flags were superseded by `--mood` because
 two parallel flags muddled axes that conceptually belong under one
 preset.
 
+**Superseded by D37 (2026-05-21, wyrd-kq7w epic):** the 5-entry
+preset list above is historical. The post-kq7w catalog has 12
+entries (five legacy + noble, mystical, melodic, sinister, ancient,
+exotic, martial) with per-dimension phonological + semantic +
+position weights instead of the legacy `{tags, harshness}` recipe
+shape. See D37 for the phonaesthetic-vector composition framework
+that replaced the MOODS-dict + harshness-scalar approach.
+
 Defaults to off (bit-stable historical behavior). The harshness score
 is a heuristic — meant for relative ranking, not phonotactic fidelity.
 Per-language phonology integration (using the IPA tables in
@@ -2129,3 +2137,166 @@ ecjp epic; no `<culture>_proportions.json` deprecation has
 been triggered yet (planned as part of the ecjp.10 bundle
 work — one release period of warning-not-error during
 transition).
+
+## D37. Phonaesthetic-vector framework supersedes the legacy MOODS dict (wyrd-kq7w, 2026-05-21).
+
+D6 originally specified moods as a code-defined `MOODS` dict of
+`{name: {tags, harshness}}` recipes living in
+`registers/moods.py`. The wyrd-kq7w epic ripped that approach and
+replaced it with a catalog-driven composition framework where each
+named effect is a per-dimension vector triple. The MOODS dict is
+gone (deleted in wyrd-kq7w.3); the catalog at
+`wyrd/generators/kenning/data/register_effects.yaml` is the single
+source of truth for mood-name resolution on both scoring modes.
+
+Why the rip:
+
+* **Composition was lossy.** Legacy `--mood harsh:0.5,grim:0.8`
+  computed a max-harshness scalar + tag union — the harsh effect
+  collapsed to a single 0..1 scalar even though it conceptually
+  pulls on cluster density AND final fortition AND vowel-final bias
+  AND soft-consonant share AND stop-vs-continuant AND aspirated-
+  voiceless dims. Per-dimension composition (sum + clamp) preserves
+  the multi-axis pull intact.
+* **Mood vs register were conflated.** Calling a phonological-only
+  effect ('harsh') and a tag-only effect ('grim') by the same word
+  ('mood') made GMs treat them as if they were on a single axis.
+  The catalog explicitly separates `phonological` / `semantic_tags`
+  / `position_bias` per effect, so 'harsh' is phonological-only
+  and 'grim' is tag-only by construction. Operators compose them
+  by listing multiple effects; the result is a single composed
+  vector with the contributions explicitly visible in the catalog
+  source.
+* **New register names needed to ship without code changes.** The
+  2026-05-16 design discussion surfaced 7 new names (noble,
+  mystical, melodic, sinister, ancient, exotic, martial) that
+  would have required hand-editing the MOODS dict. The YAML catalog
+  + dynamic JSON-schema description (wyrd-3uzp) means a YAML edit
+  is the entire addition surface — operator help / SPA UI /
+  Lambda input docs all pick up the new name automatically on the
+  next process restart.
+
+### D37.1. Composition rule.
+
+A request's register is the sum-then-clamp composition of every
+effect in the request:
+
+```
+register.phonological[k]    = clamp(sum over effects: effect.phonological.get(k, 0), -1, +1)
+register.semantic_tags[k]   = clamp(sum over effects: effect.semantic_tags.get(k, 0), -1, +1)
+register.position_bias[k]   = clamp(sum over effects: effect.position_bias.get(k, 0), -1, +1)
+```
+
+Each effect can be graduated (`harsh:0.5` scales every dimension
+uniformly by 0.5) before composition via `RegisterEffect.scaled`.
+Negative weights are first-class — a register with
+`vowel_final_bias: -0.4` actively penalizes vowel-final morphemes
+rather than just declining to boost them.
+
+### D37.2. Catalog format.
+
+Each entry in `register_effects.yaml`:
+
+```yaml
+<name>:
+  phonological:   {<feature>: <weight in [-1, +1]>, ...}
+  semantic_tags:  {<tag>: <weight in [-1, +1]>, ...}
+  position_bias:  {<position>: <weight in [-1, +1]>, ...}
+```
+
+Phonological feature names MUST be in the `PhonologicalFeatureName`
+Literal in `vectors/schemas.py`. The loader validates at parse
+time; typos raise loudly rather than silently no-op'ing. Semantic
+tag names are open-set against the meaning-database tag set
+(loader does not validate — a tag the meaning DB doesn't carry
+simply contributes nothing to the semantic axis). Position bias
+keys are free-form strings matching D36.1's position vocabulary.
+
+### D37.3. Two-path resolution.
+
+Mood-spec resolution flows through two helpers in
+`registers/effects.py`:
+
+* **Vector path** (`scoring_mode='vector'`): `parse_mood_spec(spec)`
+  returns a graduated `RegisterEffect`. The dispatch composes
+  `[adapter_effect, *catalog_effects]` via
+  `compose_register_effects` into the request's register, and the
+  per-lemma scoring loop dot-products this register against each
+  lemma's stored `PhonologicalVector`.
+* **Legacy proportion-table path** (`scoring_mode='proportions'`,
+  default): `mood_spec_to_legacy_form(spec)` returns the legacy
+  `(tags_list, harshness_scalar)` tuple by extracting
+  `effect.semantic_tags.keys()` for tags + the catalog's
+  `cluster_density` dim for the harshness scalar. Bit-stability
+  drift is bounded — the catalog's `harsh: cluster_density=0.6`
+  reads slightly softer than the legacy `MOODS["harsh"]=1.0`
+  (acceptable per the kq7w.3 "distribution match within tolerance"
+  gate; not byte-identical).
+
+### D37.4. Sourcing.
+
+Per-effect weight directions are documented against the
+phonaesthetics literature in `REGISTERS.md` (wyrd-2166 grounding
+pass). Anchor sources: Whissell 1999/2000/2017 (Dictionary of
+Affect in Language phonemic-emotion scores), Fort/Martin/Peperkamp
+2015 (bouba/kiki replication), Ohala 1994 (frequency-code:
+high-F2 = small/light, low-F2 = large/heavy), Sidhu & Pexman
+2024 (meta-analysis of cross-linguistic sound symbolism),
+Mooshammer 2024 (English-perception conventions for cluster /
+polysyllabic dims). Citation key in `register_effects.yaml`
+header: UNIVERSAL (cross-linguistic primitive), IE-CONVENTIONAL
+(English-speaking operator perception), IDENTITY-MARKING
+(features that mark a specific phonological color).
+
+### D37.5. Schema dimensions.
+
+The `PhonologicalVector` carries 17 named dimensions after the
+wyrd-119p + wyrd-mkry tightenings (was 14):
+
+* Rate features [0, 1]: `cluster_density`, `final_fortition`,
+  `final_cluster_rate`, `vowel_final_bias`, `soft_consonants`,
+  `polysyllabic_bias`, `palatalization`, `sibilance`,
+  `retroflexion`, `pharyngeal`, `aspirated_voiceless`,
+  `liquid_l_m_n` (Whissell-gentle laterals + nasals),
+  `rhotic_r` (Whissell-harsh rhotics).
+* Signed features [-1, +1] centered on the corpus mean:
+  `vowel_height`, `vowel_backness`, `stop_vs_continuant`,
+  `vowel_tenseness`.
+
+`soft_consonants` is kept for back-compat with stored vectors
+but composed `_LATERALS ∪ _RHOTICS ∪ _NASALS ∪ _APPROXIMANTS`
+(disjoint with Whissell's valence findings; new catalog entries
+should prefer `liquid_l_m_n` / `rhotic_r` for that distinction).
+`vowel_tenseness` captures the non-monotonic tense / lax signal
+Whissell 2000 documented (/iː/ Gentle, /ɪ/ Harsh; /ɔ/ Gentle,
+/uː/ Harsh — catalog entries decide per-effect direction
+rather than baking in a global tense → Gentle assumption).
+
+### D37.6. What did NOT change.
+
+D36 (vector-driven generator architecture) remains the umbrella;
+D37 specifies the register-effect catalog half of D36 in
+detail. The eligibility-gate predicates (culture / era / stratum
+/ pack-allowlist / pack-tag-filter) are unaffected — they apply
+OUTSIDE vector composition. The `harshness` scalar knob on
+`Kenning.generate` still works (power-user back door); it's
+translated to `_harshness_to_phonological` weights via the same
+catalog-composition seam. The legacy proportion-table sampler
+still runs (default `scoring_mode='proportions'`); the rip
+swapped its mood-resolution source from MOODS to catalog, not
+the sampler itself.
+
+### D37.7. Calibration owed.
+
+The wyrd-kq7w.4 acceptance gate calls for two operator-judgment
+calibration passes that this PR doesn't satisfy:
+
+* **1000-name side-by-side**: generate 1000 names per legacy mood
+  pre/post rip; spot-check operator-graded equivalence.
+* **100-etymon vector audit**: 100-row sample of `etymon.phonological_vector`
+  manually graded for "does this lemma's vector match its
+  intuitive register?" Iterate the feature-extraction algorithm
+  if precision is <80%.
+
+Filed as a separate operator-driven follow-up under the kq7w epic
+since neither can run autonomously.

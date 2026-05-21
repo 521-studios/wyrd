@@ -406,16 +406,27 @@ to off / 0 (bit-stable historical behavior):
   an attested archaic spelling for the canonical reflex.
 - `--inflection-density` (D8): per-morpheme probability of substituting
   an inflected form (genitive/dative/plural) for the lemma.
-- `--mood` (D6, repeatable): stylistic-mood preset. Five entries today —
-  `grim` (death/military/monster/undead/magic), `harsh` (phonological
-  stop-final/cluster-heavy bias), `pastoral` (plant/animal/water/
-  agriculture/tree/bird), `devotional` (saint/religious), `mortuary`
-  (death/undead — narrower subset of grim). `harsh:0.5` graduates the
-  catalog effect uniformly via colon-suffix. Multiple flags compose:
-  vector path sums component-wise + clamps; legacy proportion-table
-  path takes tag-union + max-harshness. Lives in
-  `wyrd/generators/kenning/data/register_effects.yaml` (catalog-driven since
-  wyrd-kq7w.3 ripped the MOODS dict).
+- `--mood` (D6 / D37, repeatable): stylistic-mood preset. Twelve
+  catalog entries today — five legacy (`grim`, `harsh`, `pastoral`,
+  `devotional`, `mortuary`) plus seven from the 2026-05-16 design
+  pass (`noble`, `mystical`, `melodic`, `sinister`, `ancient`,
+  `exotic`, `martial`). Each entry is a per-dimension vector
+  triple (`phonological` + `semantic_tags` + `position_bias`).
+  `harsh:0.5` graduates a single effect uniformly via colon-
+  suffix (`RegisterEffect.scaled`). Multiple flags compose:
+  vector path sums component-wise + clamps via
+  `compose_register_effects`; legacy proportion-table path takes
+  tag-union + max-harshness via `mood_spec_to_legacy_form`. The
+  catalog lives in
+  `wyrd/generators/kenning/data/register_effects.yaml` —
+  catalog-driven since wyrd-kq7w.3 ripped the legacy MOODS dict,
+  so adding a register effect is a YAML edit (no code change).
+  Per-weight scholarly grounding lives in
+  `wyrd/generators/kenning/REGISTERS.md` (wyrd-2166 pass:
+  Whissell / Fort / Ohala / Sidhu & Pexman / Mooshammer / Ćwiek
+  citations against each catalog dim). The full architectural
+  narrative is D37 in DECISIONS.md; the catalog format spec is
+  D37.2.
 - `--scoring-mode {proportions,vector}` (D36 / ecjp epic, 2026-05-19):
   switches the per-slot sampling pipeline. `proportions` (default)
   uses the pre-baked per-(culture × tag × position) tables — bit-stable
