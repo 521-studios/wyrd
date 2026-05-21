@@ -14114,3 +14114,56 @@ def test_fetch_cluster_mate_tags_includes_same_language_mates(fresh_db: Path) ->
         db.commit()
         result = _fetch_cluster_mate_tags(db, a)
     assert result == ["topography"]
+
+
+# ---------------------------------------------------------------------
+# wyrd-h0u1 CLI smoke for `lexicon report`
+# ---------------------------------------------------------------------
+#
+# `lexicon report` had no direct CLI coverage before — the refactor to
+# _readonly_lexicon would have passed every existing test even if the
+# command was completely broken. Smoke test invokes against a small
+# seeded DB and pins exit-code + the headline sections so a regression
+# (missing section, raised exception, leaked connection on early exit)
+# trips here.
+
+
+def test_cli_lexicon_report_runs_against_seeded_db(fresh_db: Path) -> None:
+    """End-to-end smoke for `wyrd kenning lexicon report` — exit-code
+    zero against a small populated DB + every headline section shows
+    up in the output. wyrd-h0u1 follow-up after agent-reviewer P2 on
+    PR #289 (no direct CLI coverage before)."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="skeat-1901", title="Skeat 1901", year=1901)
+        db.upsert_source(id="mawer-1920", title="Mawer 1920", year=1920)
+        eid_cot = db.upsert_etymon("cot", "old-english")
+        eid_tun = db.upsert_etymon("tūn", "old-english")
+        db.add_gloss(eid_cot, "cottage")
+        db.add_tag(eid_cot, "habitation")
+        db.add_citation(eid_cot, "skeat-1901", page="15")
+        db.add_citation(eid_tun, "mawer-1920", page="7")
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(kenning_cli, ["lexicon", "report", "--db", str(fresh_db)])
+
+    assert result.exit_code == 0, result.output + (result.stderr or "")
+    # Each headline section appears (regression catcher for the
+    # _section_* extraction in PR #289 round 2 — if a section helper
+    # got dropped from the sequencer the section disappears silently).
+    for marker in (
+        "=== sources ===",
+        "=== totals ===",
+        "=== consensus ===",
+        "=== top",  # top {N} etymons by witnesses ===
+        "=== languages of mined etymons ===",
+        "=== confidence distribution",
+        "=== toponyms per source ===",
+        "=== disagreements ===",
+    ):
+        assert marker in result.output, (
+            f"missing '{marker}' section in `lexicon report` output:\n{result.output}"
+        )
+    # Sanity: the seeded sources surface in the sources section.
+    assert "skeat-1901" in result.output
+    assert "mawer-1920" in result.output

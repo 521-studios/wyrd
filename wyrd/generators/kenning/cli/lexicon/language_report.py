@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 from importlib import resources
 from pathlib import Path
 
 import click
 
-from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
+from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_lexicon
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 
@@ -184,9 +183,7 @@ def lexicon_language_report(
     if source_filter is not None and tag_filter is not None:
         raise click.UsageError("--source and --tag are mutually exclusive")
 
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-    conn.row_factory = sqlite3.Row
-    try:
+    with _readonly_lexicon(db_path) as conn:
         report = compute_report(
             conn,
             bundle,
@@ -198,8 +195,6 @@ def lexicon_language_report(
             source_filter=source_filter,
             tag_filter=tag_filter,
         )
-    finally:
-        conn.close()
 
     if json_path is not None:
         json_path.write_text(report_to_json(report))

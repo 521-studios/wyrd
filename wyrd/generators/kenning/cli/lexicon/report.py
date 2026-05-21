@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
 
 import click
 
-from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
+from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_lexicon
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 
@@ -28,22 +27,36 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 )
 def lexicon_report(db_path: Path, top: int) -> None:
     """Read-only summary of the lexicon: who said what, where it agrees."""
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-    conn.row_factory = sqlite3.Row
+    with _readonly_lexicon(db_path) as conn:
+        _emit_report(conn, top)
 
-    def q(sql: str, *args) -> list:
-        return conn.execute(sql, args).fetchall()
 
-    def count(sql: str, *args) -> int:
-        return conn.execute(sql, args).fetchone()[0]
+def _emit_report(conn, top: int) -> None:
+    """Body of the report command. Thin sequencer over the per-section
+    helpers below — each section is its own function so adding a new
+    one is a one-line append here + a new ``_section_*`` helper, and
+    the overall function stays under the C901 cyclomatic threshold.
+    wyrd-h0u1 + wyrd-h6x7 round-2 complexity fix."""
+    _section_sources(conn)
+    _section_totals(conn)
+    _section_consensus(conn)
+    _section_top_etymons(conn, top)
+    _section_languages(conn)
+    _section_confidence(conn)
+    _section_toponyms_per_source(conn)
+    _section_disagreements(conn, top)
 
+
+def _section_sources(conn) -> None:
     click.echo("=== sources ===")
-    for r in q("SELECT id, year, region FROM source ORDER BY year, id"):
+    for r in conn.execute("SELECT id, year, region FROM source ORDER BY year, id").fetchall():
         year = r["year"] or "?"
         region = r["region"] or "?"
         click.echo(f"  {r['id']:50}  {year}  {region}")
-
     click.echo("")
+
+
+def _section_totals(conn) -> None:
     click.echo("=== totals ===")
     for tbl in (
         "etymon",
@@ -56,66 +69,82 @@ def lexicon_report(db_path: Path, top: int) -> None:
         "toponym_etymology",
         "toponym_etymology_element",
     ):
-        click.echo(f"  {tbl:32} {count(f'SELECT COUNT(*) FROM {tbl}'):>8}")
-
+        n = conn.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]  # noqa: S608
+        click.echo(f"  {tbl:32} {n:>8}")
     click.echo("")
+
+
+def _section_consensus(conn) -> None:
     click.echo("=== consensus ===")
-    consensus_dist = q(
+    rows = conn.execute(
         "SELECT witnesses, COUNT(*) AS n FROM etymon_consensus "
         "GROUP BY witnesses ORDER BY witnesses DESC"
-    )
-    for r in consensus_dist:
+    ).fetchall()
+    for r in rows:
         click.echo(f"  etymons cited by {r['witnesses']:>2} sources: {r['n']:>5}")
-
     click.echo("")
+
+
+def _section_top_etymons(conn, top: int) -> None:
     click.echo(f"=== top {top} etymons by witnesses ===")
-    rows = q(
+    rows = conn.execute(
         "SELECT canonical_form, language, witnesses FROM etymon_consensus "
         "WHERE witnesses > 1 ORDER BY witnesses DESC, canonical_form LIMIT ?",
-        top,
-    )
+        (top,),
+    ).fetchall()
     for r in rows:
         click.echo(f"  {r['canonical_form']:24} ({r['language']:14})  {r['witnesses']:>2} sources")
-
     click.echo("")
+
+
+def _section_languages(conn) -> None:
     click.echo("=== languages of mined etymons ===")
-    rows = q("SELECT language, COUNT(*) AS n FROM etymon GROUP BY language ORDER BY n DESC")
+    rows = conn.execute(
+        "SELECT language, COUNT(*) AS n FROM etymon GROUP BY language ORDER BY n DESC"
+    ).fetchall()
     for r in rows:
         click.echo(f"  {r['language']:20} {r['n']:>6}")
-
     click.echo("")
+
+
+def _section_confidence(conn) -> None:
     click.echo("=== confidence distribution (toponym_etymology) ===")
-    rows = q(
+    rows = conn.execute(
         "SELECT confidence, COUNT(*) AS n FROM toponym_etymology "
         "GROUP BY confidence ORDER BY n DESC"
-    )
+    ).fetchall()
     for r in rows:
         click.echo(f"  {r['confidence'] or '(null)':12} {r['n']:>6}")
-
     click.echo("")
+
+
+def _section_toponyms_per_source(conn) -> None:
     click.echo("=== toponyms per source ===")
-    rows = q(
+    rows = conn.execute(
         "SELECT source_id, COUNT(*) AS n FROM toponym_etymology GROUP BY source_id ORDER BY n DESC"
-    )
+    ).fetchall()
     for r in rows:
         click.echo(f"  {r['source_id']:50} {r['n']:>5}")
-
     click.echo("")
+
+
+def _section_disagreements(conn, top: int) -> None:
     click.echo("=== disagreements ===")
     # A toponym with >1 distinct breakdown signature has scholars disagreeing.
-    disagreement_count = count("""
+    disagreement_count = conn.execute(
+        """
         SELECT COUNT(*) FROM (
             SELECT toponym_id
             FROM toponym_breakdown_signature
             GROUP BY toponym_id
             HAVING COUNT(DISTINCT signature) > 1
         )
-        """)
+        """
+    ).fetchone()[0]
     click.echo(f"  toponyms with conflicting breakdowns: {disagreement_count}")
-
     if disagreement_count > 0 and top > 0:
         click.echo(f"  examples (first {min(top, disagreement_count)}):")
-        rows = q(
+        rows = conn.execute(
             """
             SELECT t.modern_name,
                    GROUP_CONCAT(DISTINCT tbs.signature) AS sigs,
@@ -126,12 +155,10 @@ def lexicon_report(db_path: Path, top: int) -> None:
             HAVING COUNT(DISTINCT tbs.signature) > 1
             LIMIT ?
             """,
-            top,
-        )
+            (top,),
+        ).fetchall()
         for r in rows:
             click.echo(f"    {r['modern_name']:24} sources={r['srcs']}")
-
-    conn.close()
 
 
 def add_to(parent: click.Group) -> None:
