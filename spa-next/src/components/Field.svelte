@@ -16,6 +16,10 @@
 
   let { fieldKey, prop } = $props();
 
+  // wyrd-o7lp round 2 (Gemini MED): single derivation for the
+  // humanized label, used by both label branches below.
+  let humanLabel = $derived(fieldKey.replace(/_/g, ' '));
+
   // Initialize the param from schema default if not already set.
   // Wrapped in $effect because Svelte 5 warns when $props values are
   // read at the top level of <script> — they're tracked reactively
@@ -111,10 +115,16 @@
        text / checkbox), `for` associates label with id. For composite
        widgets (tag-grid, chips), we render the label as a generic
        group caption + use aria-labelledby on the group container. -->
+  <!-- wyrd-o7lp (PR #314 Gemini MED): humanize snake_case keys
+       like 'spelling_variety' to 'spelling variety'. CSS already
+       capitalizes; rendered output reads 'Spelling Variety'.
+       wyrd-o7lp round 2: DRY'd via the humanLabel $derived
+       (defined in <script>) — {@const} can't be a direct child
+       of <div> in Svelte 5. -->
   {#if (prop.type === 'array')}
-    <span class="label" id="label-{fieldKey}">{fieldKey}</span>
+    <span class="label" id="label-{fieldKey}">{humanLabel}</span>
   {:else}
-    <label for="field-{fieldKey}">{fieldKey}</label>
+    <label for="field-{fieldKey}">{humanLabel}</label>
   {/if}
 
   {#if isDependentSelect(prop)}

@@ -77,9 +77,12 @@
       Click a result in the middle column to inspect its morphemes,
       etymology, and pronunciation.
     </p>
-  {:else if !displayState}
-    <p class="placeholder">Computing…</p>
   {:else}
+    <!-- wyrd-o7lp (PR #316 Gemini MED): dropped the {:else if
+         !displayState} branch — it was unreachable since
+         pipeline.currentState falls back to the original whenever
+         appState.currentResult is non-null, which is the very
+         condition that brought us into this {:else}. -->
     <header class="head">
       <h3 class="name">
         {displayState.name}
@@ -91,6 +94,7 @@
         <p class="breakdown">
           {displayState.morphemes_by_word
             .map((word) => word.map((m) => m.usage).join(' '))
+            .filter((s) => s.trim())
             .join(' · ')}
         </p>
       {/if}

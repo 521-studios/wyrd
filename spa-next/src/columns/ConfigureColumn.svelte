@@ -26,6 +26,18 @@
     }
   });
 
+  // wyrd-o7lp (PR #314 Gemini HIGH): init the per-generator params
+  // dict via $effect.pre, which runs BEFORE child effects on the
+  // same render pass. That means Field components see currentParams
+  // populated by their own $effect's first read — no render-before-
+  // effect race like the earlier failed attempt with plain $effect.
+  // Pre-fix, the lazy-init lived inside appState.currentParams's
+  // getter (state mutation during render path = Svelte anti-pattern).
+  $effect.pre(() => {
+    if (appState.selectedGeneratorName) {
+      appState.ensureParams(appState.selectedGeneratorName);
+    }
+  });
 
   let fieldPartition = $derived.by(() => {
     const gen = appState.selectedGenerator;

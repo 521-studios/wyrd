@@ -103,11 +103,21 @@ class PipelineState {
   }
 
   /** Reset the entire pipeline. Called when the inspector subject
-   *  changes (user picks a different result in col 2). */
+   *  changes (user picks a different result in col 2).
+   *
+   *  wyrd-o7lp (PR #316 Gemini HIGH): bumps #runToken so any
+   *  run already in flight commits no state when it finishes
+   *  (its token no longer matches), AND resets isRunning so the
+   *  pending indicator doesn't latch across the subject change.
+   *  Pre-fix, a fast subject switch with a slow run in flight
+   *  could commit the prior subject's pipeline output against
+   *  the new subject — concurrency corruption under fast clicks. */
   clear() {
+    this.#runToken += 1;
     this.steps = [];
     this.states = [];
     this.errors = [];
+    this.isRunning = false;
   }
 
   /** Run the pipeline against the supplied original state. Sequential
