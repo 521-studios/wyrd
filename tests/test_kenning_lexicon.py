@@ -3828,13 +3828,15 @@ def test_rewind_renders_morphemes_at_each_era_stop(fresh_db: Path) -> None:
     assert result.decomposition == "Whit"
     assert len(result.eras) == 3
     by_cell = {stop.cell: stop.rendered for stop in result.eras}
-    assert by_cell["oe-late"] == "hwīt"  # short-circuit on anchor
+    # wyrd-085k: rendered output is now title-cased (name-style),
+    # not lowercase (analytical-style).
+    assert by_cell["oe-late"] == "Hwīt"  # short-circuit on anchor
     # ME: cluster has 'whit' which case-insensitive matches the
     # canonical 'Whit', so picker prefers it over 'white'.
-    assert by_cell["me"] == "whit"
+    assert by_cell["me"] == "Whit"
     # Modern: cluster has 'white' (no case-insensitive match for
     # 'Whit'), alphabetical first.
-    assert by_cell["modern"] == "white"
+    assert by_cell["modern"] == "White"
 
 
 def test_rewind_resolves_anchor_across_meaning_siblings(fresh_db: Path) -> None:
@@ -3866,7 +3868,7 @@ def test_rewind_resolves_anchor_across_meaning_siblings(fresh_db: Path) -> None:
     # The anchor resolver should find the OE sibling and use it,
     # NOT the ON form (which has no etymon row in our seeded DB).
     by_cell = {stop.cell: stop.rendered for stop in result.eras}
-    assert by_cell["oe-late"] == "hwīt"
+    assert by_cell["oe-late"] == "Hwīt"  # wyrd-085k: title-cased
 
 
 def test_rewind_falls_back_when_no_anchor_or_reflex(fresh_db: Path) -> None:
@@ -3913,7 +3915,8 @@ def test_rewind_strips_morpheme_hyphens_when_composing(fresh_db: Path) -> None:
     by_cell = {stop.cell: stop.rendered for stop in result.eras}
     # No leading/trailing hyphens on the rendered single-morpheme
     # output even when the cluster mate's form carries one.
-    assert by_cell["modern"] == "ham"
+    # wyrd-085k: rendered output is now title-cased.
+    assert by_cell["modern"] == "Ham"
 
 
 def test_rewind_records_unaccounted_fragments(fresh_db: Path) -> None:
@@ -4013,7 +4016,8 @@ def test_rewind_picker_prefers_anchor_match_over_alphabetical(fresh_db: Path) ->
     by_cell = {stop.cell: stop.rendered for stop in result.eras}
     # Tier-1: canonical match — 'minster' in ME cluster? No.
     # Tier-2: anchor match — 'mynster' in ME cluster? Yes — prefer it.
-    assert by_cell["me"] == "mynster"
+    # wyrd-085k: rendered output is now title-cased.
+    assert by_cell["me"] == "Mynster"
 
 
 def test_pick_form_strips_morpheme_hyphens() -> None:
@@ -4781,6 +4785,139 @@ def test_rewind_anchor_resolves_across_hyphen_variants(fresh_db: Path) -> None:
     by_cell = {stop.cell: stop.morphemes[0] for stop in result.eras}
     assert by_cell["oe-late"].source_form == "tūn"
     assert by_cell["oe-late"].source_language == "old-english"
+
+
+# --- wyrd-085k: smart-join name renderer ---------------------------------
+
+
+def test_rewind_concatenates_adjacent_non_particle_morphemes(fresh_db: Path) -> None:
+    """wyrd-085k: a two-morpheme compound with no particles renders
+    as a single concatenated word (no hyphen, first letter capped).
+    Pins the standard ``Elm-tūn`` → ``Elmtūn`` rendering — the
+    most common medieval place-name shape (OE Brādtūn, Hēafodcroft,
+    Cinubrycg)."""
+    with LexiconDB(fresh_db) as db:
+        _seed_cluster(
+            db,
+            cluster_root_form="*haimaz",
+            cluster_root_lang="proto-germanic",
+            members=[("hām", "old-english")],
+        )
+        _seed_cluster(
+            db,
+            cluster_root_form="*hwītaz",
+            cluster_root_lang="proto-germanic",
+            members=[("hwīt", "old-english")],
+        )
+        meaning_db = _make_rewind_meaning_db(
+            ("Whit-", {"old_english": ["hwīt"]}),
+            ("-ham", {"old_english": ["hām"]}),
+        )
+        result = rewind_name("Whitham", db, meaning_db)
+
+    by_cell = {stop.cell: stop.rendered for stop in result.eras}
+    # Hwīt + hām -> concatenated, first letter title-cased,
+    # no hyphen separator.
+    assert by_cell["oe-late"] == "Hwīthām"
+
+
+def test_rewind_preserves_free_particle_as_separate_token(fresh_db: Path) -> None:
+    """wyrd-085k: a morpheme matching the free-particle set
+    (``on``, ``upon``, ``under``, ``of``) sits as its own
+    space-separated token instead of concatenating into the
+    surrounding compound. Pins the 'Stratford on Avon' /
+    'Henley upon Thames' shape — the second-most-common medieval
+    multi-token name pattern in the corpus."""
+    with LexiconDB(fresh_db) as db:
+        for root, member in (
+            ("*hwītaz", "hwīt"),
+            ("*on", "on"),
+            ("*hām", "hām"),
+        ):
+            _seed_cluster(
+                db,
+                cluster_root_form=root,
+                cluster_root_lang="proto-germanic",
+                members=[(member, "old-english")],
+            )
+        meaning_db = _make_rewind_meaning_db(
+            ("Whit-", {"old_english": ["hwīt"]}),
+            ("on", {"old_english": ["on"]}),  # free particle (no hyphens)
+            ("-ham", {"old_english": ["hām"]}),
+        )
+        result = rewind_name("whit on ham", db, meaning_db)
+
+    by_cell = {stop.cell: stop.rendered for stop in result.eras}
+    # 'on' is a particle: surround with spaces; surrounding
+    # morphemes title-case + concatenate around it.
+    assert by_cell["oe-late"] == "Hwīt on Hām"
+
+
+def test_rewind_does_not_treat_norse_settlement_suffix_by_as_particle(
+    fresh_db: Path,
+) -> None:
+    """wyrd-085k regression guard: the morpheme '-by' (Norse
+    settlement suffix in Whitby / Derby / Grimsby) is lexically the
+    same string as the English preposition 'by' but functionally a
+    SUFFIX, not a free particle. The presence of leading-hyphen in
+    its modern_usage disqualifies it from particle-treatment so
+    'whit + -by' renders 'Whitby', not 'Whit by'."""
+    with LexiconDB(fresh_db) as db:
+        _seed_cluster(
+            db,
+            cluster_root_form="*hwītaz",
+            cluster_root_lang="proto-germanic",
+            members=[("hwīt", "old-english")],
+        )
+        _seed_cluster(
+            db,
+            cluster_root_form="*býr",
+            cluster_root_lang="proto-germanic",
+            members=[("býr", "old-scandinavian")],
+        )
+        meaning_db = _make_rewind_meaning_db(
+            ("Whit-", {"old_english": ["hwīt"]}),
+            ("-by", {"old_scandinavian": ["býr"]}),  # SUFFIX, not particle
+        )
+        result = rewind_name("whitby", db, meaning_db)
+
+    by_cell = {stop.cell: stop.rendered for stop in result.eras}
+    # '-by' is post-position (leading hyphen) so NOT a particle.
+    # Renders as a single concatenated token whether the era reflex
+    # lands the ON form 'býr' or falls back to the modern 'by';
+    # the regression guarded against is splitting it as 'Whit by'.
+    assert " by" not in by_cell["oe-late"]
+    assert " by" not in by_cell["me"]
+    assert " by" not in by_cell["modern"]
+    # Sanity: each rendered string is a single title-cased token.
+    assert by_cell["oe-late"].count(" ") == 0
+
+
+def test_rewind_handles_leading_particle(fresh_db: Path) -> None:
+    """wyrd-085k edge case: a particle as the first morpheme emits
+    a lowercase leading token rather than mid-word inlining. Real-
+    world shape: 'on the moor' / 'under the bridge' style names
+    where the locative preposition opens the compound."""
+    with LexiconDB(fresh_db) as db:
+        for root, member in (("*on", "on"), ("*hām", "hām")):
+            _seed_cluster(
+                db,
+                cluster_root_form=root,
+                cluster_root_lang="proto-germanic",
+                members=[(member, "old-english")],
+            )
+        meaning_db = _make_rewind_meaning_db(
+            ("on", {"old_english": ["on"]}),
+            ("ham", {"old_english": ["hām"]}),
+        )
+        # Space-separated input — the multi-word path decomposes each
+        # word independently; the renderer sees a 2-morpheme stream
+        # with the particle first.
+        result = rewind_name("on ham", db, meaning_db)
+
+    by_cell = {stop.cell: stop.rendered for stop in result.eras}
+    # Leading particle is its own lowercase token.
+    assert by_cell["oe-late"] == "on Hām"
 
 
 def test_strip_diacritics_normalizes_macrons_and_circumflexes() -> None:
