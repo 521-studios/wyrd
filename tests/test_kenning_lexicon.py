@@ -5967,6 +5967,181 @@ def test_kenning_rewind_generator_strips_morpheme_positional_hyphens() -> None:
         assert not r.endswith("-"), f"trailing hyphen in {r!r}"
 
 
+def test_kenning_rewind_generator_uses_supplied_words_skipping_trie() -> None:
+    """wyrd-y9aa: when params['words'] is supplied, KenningRewind
+    bypasses trie re-decomposition + uses the pre-picked morphemes
+    directly. Synthetic fixture has TWO morphemes whose usages don't
+    naturally trie-decompose from the surface string — the supplied
+    path resolves both via meaning_db lookup, exercising the new
+    branch end-to-end."""
+    from wyrd.generators.kenning import (
+        Kenning as _Kenning,  # noqa: F401
+    )
+    from wyrd.generators.kenning.generators import kenning_rewind as _kenning_rewind_mod
+    from wyrd.generators.kenning.generators.kenning_rewind import KenningRewind
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    # Two morphemes; the surface string 'Foobar' doesn't trie-
+    # decompose into these usages, so the supplied path is the ONLY
+    # way they'd resolve.
+    m1 = Meaning("Foo-", tags=[], meanings=["a"], sources={"old_english": ["foo"]})
+    m2 = Meaning("-bar", tags=[], meanings=["b"], sources={"old_english": ["bar"]})
+    fake_db = {"Foo-": [m1], "-bar": [m2]}
+
+    original = _kenning_rewind_mod._load_meanings
+    _kenning_rewind_mod._load_meanings = lambda: (fake_db, set())
+    try:
+        gen = KenningRewind()
+        results = gen.generate_all(
+            {
+                "name": "Foobar",
+                "words": [[{"usage": "Foo-"}, {"usage": "-bar"}]],
+            },
+            0,
+        )
+    finally:
+        _kenning_rewind_mod._load_meanings = original
+
+    assert len(results) == 3
+    # At least one cell should render something derived from Foo/bar,
+    # not just echo the input string — proving the supplied path resolved
+    # the morphemes via meaning_db (not via trie re-decomp of 'Foobar').
+    modern_components = results[-1].components[0]
+    assert modern_components["morphemes"]
+    rendered_forms = {comp["form"] for comp in modern_components["morphemes"]}
+    assert {"Foo", "bar"} & rendered_forms, (
+        f"Expected supplied morphemes to surface; got {modern_components}"
+    )
+
+
+def test_kenning_rewind_generator_input_schema_exposes_words_field() -> None:
+    """wyrd-y9aa: schema discovery — the SPA introspects input_schema
+    to render the params form, so the new 'words' field must surface
+    + be marked optional (not in required[])."""
+    from wyrd.generators.kenning.generators.kenning_rewind import KenningRewind
+
+    schema = KenningRewind().input_schema()
+    assert "words" in schema["properties"]
+    assert "words" not in schema.get("required", [])
+    # 'name' stays required so the existing form-driven UX keeps working.
+    assert "name" in schema["required"]
+    # Per-word + per-morpheme shape exposed so the SPA renders the
+    # field hint accurately (or in operator JSON-paste UX validates
+    # the input).
+    words_schema = schema["properties"]["words"]
+    assert words_schema["type"] == "array"
+    morpheme_schema = words_schema["items"]["items"]
+    assert "usage" in morpheme_schema["properties"]
+
+
+def test_kenning_rewind_generator_supplied_words_surfaces_missing_usages() -> None:
+    """wyrd-y9aa round 2: when a supplied morpheme's usage isn't in
+    meaning_db (the bundle dropped it since the JSON was captured),
+    the missing usage must surface in each era's unaccounted list so
+    the operator sees the same 'lacked era data' signal the trie
+    path produces. Pre-round-2 the supplied path silently dropped
+    missing usages."""
+    from wyrd.generators.kenning import (
+        Kenning as _Kenning,  # noqa: F401
+    )
+    from wyrd.generators.kenning.generators import kenning_rewind as _kenning_rewind_mod
+    from wyrd.generators.kenning.generators.kenning_rewind import KenningRewind
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    m = Meaning("Foo-", tags=[], meanings=["a"], sources={"old_english": ["foo"]})
+    fake_db = {"Foo-": [m]}  # '-bar' deliberately absent
+
+    original = _kenning_rewind_mod._load_meanings
+    _kenning_rewind_mod._load_meanings = lambda: (fake_db, set())
+    try:
+        gen = KenningRewind()
+        results = gen.generate_all(
+            {
+                "name": "Foobar",
+                "words": [[{"usage": "Foo-"}, {"usage": "-bar"}]],
+            },
+            0,
+        )
+    finally:
+        _kenning_rewind_mod._load_meanings = original
+
+    for res in results:
+        unaccounted = res.components[0]["unaccounted"]
+        assert "-bar" in unaccounted, (
+            f"Missing usage '-bar' did not surface in era {res.components[0]['era']}: {unaccounted}"
+        )
+
+
+def test_kenning_rewind_generator_supplied_words_multi_word_grouping() -> None:
+    """wyrd-y9aa round 2: multi-word inputs (outer list has multiple
+    entries) preserve word boundaries — the per-era rendered string
+    joins across words with a space, mirroring wyrd-t2bh's per-word
+    grouping semantics. Single-word tests would miss a regression
+    where the outer-list iteration flattened."""
+    from wyrd.generators.kenning import (
+        Kenning as _Kenning,  # noqa: F401
+    )
+    from wyrd.generators.kenning.generators import kenning_rewind as _kenning_rewind_mod
+    from wyrd.generators.kenning.generators.kenning_rewind import KenningRewind
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    m1 = Meaning("Whit-", tags=[], meanings=["white"], sources={"old_english": ["hwit"]})
+    m2 = Meaning("-ham", tags=[], meanings=["village"], sources={"old_english": ["ham"]})
+    fake_db = {"Whit-": [m1], "-ham": [m2]}
+    original = _kenning_rewind_mod._load_meanings
+    _kenning_rewind_mod._load_meanings = lambda: (fake_db, set())
+    try:
+        gen = KenningRewind()
+        # Two-word payload: each outer entry is one input word.
+        results = gen.generate_all(
+            {
+                "name": "Whit Ham",
+                "words": [
+                    [{"usage": "Whit-"}],
+                    [{"usage": "-ham"}],
+                ],
+            },
+            0,
+        )
+    finally:
+        _kenning_rewind_mod._load_meanings = original
+
+    # The rendered modern cell should preserve the space between the
+    # two input words — a flattening regression would produce 'Whitham'.
+    modern = results[-1].components[0]["rendered"]
+    assert " " in modern, f"Expected space between words, got {modern!r}"
+    assert modern.split() == ["Whit", "Ham"], modern
+
+
+def test_kenning_rewind_generator_falls_back_to_trie_when_no_words() -> None:
+    """wyrd-y9aa: the new 'words' input is OPTIONAL. When absent the
+    existing string-decompose-via-trie path stays in effect — pre-PR
+    behavior must not regress."""
+    from wyrd.generators.kenning import (
+        Kenning as _Kenning,  # noqa: F401
+    )
+    from wyrd.generators.kenning.generators import kenning_rewind as _kenning_rewind_mod
+    from wyrd.generators.kenning.generators.kenning_rewind import KenningRewind
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    m = Meaning("-ham", tags=[], meanings=["village"], sources={"old_english": ["ham"]})
+    fake_db = {"-ham": [m], "ham": [m]}
+    original = _kenning_rewind_mod._load_meanings
+    _kenning_rewind_mod._load_meanings = lambda: (fake_db, set())
+    try:
+        gen = KenningRewind()
+        # No 'words' — uses trie path.
+        results = gen.generate_all({"name": "ham"}, 0)
+    finally:
+        _kenning_rewind_mod._load_meanings = original
+
+    assert len(results) == 3
+    rendered = [r.components[0]["rendered"] for r in results]
+    # Trie path resolves 'ham' via meaning_db['ham'] same as the pre-
+    # PR behavior — output must NOT echo the bare input.
+    assert any(r != "ham" for r in rendered), rendered
+
+
 def test_render_form_particle_pairs_smart_join_branches() -> None:
     """wyrd-2pio: direct unit test for the shared renderer that
     both rewinders (CLI + SPA) delegate to. Pins the
