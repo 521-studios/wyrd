@@ -903,3 +903,58 @@ def test_bundled_catalog_has_no_tiered_weights_yet() -> None:
         )
         assert effect.semantic_tag_tiers == {}
         assert effect.position_bias_tiers == {}
+
+
+def test_position_bias_axis_loads_tier_tagged_weights() -> None:
+    """The third axis (position_bias) was an oversight gap in the
+    initial tier-tagged tests — both phonological and semantic_tags
+    had explicit tier-tagged YAML coverage but position_bias was only
+    ever loaded as {}. Pin the third axis's parser branch so a
+    regression in _validate_weight_dict for that axis would surface."""
+    catalog = load_register_effects_from_text(
+        """
+posbias:
+  phonological: {}
+  semantic_tags: {}
+  position_bias:
+    pre: {value: 0.5, tier: ie-conventional}
+    post: 0.2
+"""
+    )
+    effect = catalog["posbias"]
+    assert effect.position_bias == {"pre": 0.5, "post": 0.2}
+    assert effect.position_bias_tiers == {"pre": "ie-conventional"}
+    assert effect.tier_for("position_bias", "pre") == "ie-conventional"
+    assert effect.tier_for("position_bias", "post") == "untagged"
+
+
+def test_get_register_effect_preserves_nonempty_tier_dicts() -> None:
+    """_copy_effect (invoked through get_register_effect) must carry
+    the tier dicts through to the returned fresh instance. The
+    bundled-catalog test only exercises the empty-tier-dict path, so
+    a regression dropping one of the three tier-dict copy lines
+    would slip past without this assertion."""
+    catalog = load_register_effects_from_text(
+        """
+multi:
+  phonological:
+    cluster_density: {value: 0.4, tier: universal}
+  semantic_tags:
+    death: {value: 0.6, tier: ie-conventional}
+  position_bias:
+    pre: {value: 0.3, tier: identity-marking}
+"""
+    )
+    # Round through _copy_effect via the catalog dict (the loader's
+    # output is already pre-copied; emulate the get_register_effect
+    # invariant by importing and calling _copy_effect directly).
+    from wyrd.generators.kenning.registers.effects import _copy_effect
+
+    copied = _copy_effect(catalog["multi"])
+    assert copied.phonological_tiers == {"cluster_density": "universal"}
+    assert copied.semantic_tag_tiers == {"death": "ie-conventional"}
+    assert copied.position_bias_tiers == {"pre": "identity-marking"}
+    # Mutation isolation: copying the source's tier dict and then
+    # mutating it doesn't bleed into the original.
+    copied.phonological_tiers["other"] = "untagged"
+    assert "other" not in catalog["multi"].phonological_tiers

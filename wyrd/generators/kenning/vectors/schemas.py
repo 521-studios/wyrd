@@ -210,7 +210,8 @@ class PhonologicalVector:
 #     Mooshammer 2024) but without cross-cultural support.
 #   * identity-marking — features that mark a specific phonological
 #     color without carrying crossmodal-perception payload (the
-#     exotic register's role; see REGISTERS.md §6).
+#     exotic register's role; see REGISTERS.md §5 ('exotic')
+#     + §1c for the 'identity-marking' framing).
 #   * untagged — no scholarly grounding assigned yet. Default for
 #     weights written in the bare-float (pre-wyrd-we1u) shape.
 UNIVERSAL_TIER = "universal"
