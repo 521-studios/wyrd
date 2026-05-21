@@ -598,6 +598,82 @@ def test_mine_toponym_mentions_sanitizes_surrogate_in_failure_message():
     assert "bad" in fc.error
 
 
+def test_mine_toponym_mentions_rolls_up_surrogates_sanitized_across_chunks():
+    """Pin the `report.surrogates_sanitized += chunk_counters.surrogates_sanitized`
+    line — the chunk→report rollup is a separate code path from
+    ValidationCounters.__iadd__ (it's a plain `int +=` on the report
+    field). Without this test, a regression that drops the rollup
+    line would pass every unit test (the iadd test exercises counter-
+    to-counter folding, not the report's int field) but silently
+    report 0 surrogates_sanitized at the source level even when the
+    model emitted dozens. test-coverage-reviewer + pr-test-analyzer
+    convergent finding."""
+    body = _three_chunk_body()
+    client = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "ctx\udaaa chunk0"},
+                ]
+            },
+            {"mentions": []},  # Clean middle chunk — positive control for
+            # "rollup sums across, not last-chunk".
+            {
+                "mentions": [
+                    {"form": "Tyne", "context": "ctx\ud800 chunk2"},
+                ]
+            },
+        ]
+    )
+    report = mine_toponym_mentions(client, "test_source", body, target_chunk_size=10000)
+    # Two distinct chunks each contributed one surrogate; rollup must SUM.
+    assert report.surrogates_sanitized == 2
+    # Positive control: mentions were still admitted (the surrogate was
+    # in context, not form), so the rollup isn't being masked by
+    # everything dropping as hallucination.
+    assert len(report.mentions) == 2
+    # Last-chunk-only regression would land here as 1 (whichever chunk
+    # processed last). The assertion above (== 2) rules that out.
+
+
+def test_cli_mine_toponym_mentions_emits_surrogates_in_summary(tmp_path, monkeypatch):
+    """The CLI's TOTAL stderr line must surface the surrogates_sanitized
+    counter — otherwise the operator running interactively has no way
+    to spot a model emitting bad codepoints at scale. Pinning the
+    literal format string is what catches typos (`surrogates_sanitised=`,
+    `surrogates=`, missing the value) that pass unit tests because the
+    field on the report is correct. Mirrors
+    `test_cli_summary_includes_validation_counters` for the existing
+    `hallucinations_dropped=` / `years_clamped=` surfaces."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "stub.txt").write_text("Edlingham was attested in the area.", encoding="utf-8")
+    fake = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlingham", "context": "ctx\udaaa with surrogate"},
+                ]
+            }
+        ]
+    )
+    _stub_anthropic_for_cli(monkeypatch, fake)
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions",
+            "--source",
+            "stub",
+            "--sources-dir",
+            str(sources_dir),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "surrogates_sanitized=1" in result.output
+
+
 def test_validation_counters_iadd_folds_surrogates_sanitized():
     """Counters must fold via += across chunks — the rollup target is
     the per-source report. Without folding, the report's

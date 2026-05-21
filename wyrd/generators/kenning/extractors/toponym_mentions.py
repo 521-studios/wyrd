@@ -112,6 +112,24 @@ def _sanitize_for_utf8(text: str) -> str:
     return _LONE_SURROGATE_RE.sub("�", text)
 
 
+def _sanitize_and_count(text: str, counters: ValidationCounters) -> str:
+    """Sanitize ``text`` and bump ``counters.surrogates_sanitized`` iff
+    the sanitizer actually substituted anything.
+
+    Defined here (not inline) so the three sanitize-and-count sites in
+    ``_validated_mentions`` can't drift: extracting the pattern means a
+    new free-text field added to ``ToponymMention`` only needs one
+    extra call here, not a paired call+if. Relies on
+    ``_sanitize_for_utf8``'s identity-preserving fast path — ``is not``
+    on the input vs. output distinguishes "we did work" from "we
+    returned the input unchanged."
+    """
+    sanitized = _sanitize_for_utf8(text)
+    if sanitized is not text:
+        counters.surrogates_sanitized += 1
+    return sanitized
+
+
 @dataclass(frozen=True)
 class ToponymMention:
     """One place-name mention extracted from a scholar source body.
@@ -409,36 +427,30 @@ def _validated_mentions(
     for m in raw:
         if not isinstance(m, dict):
             continue
-        # Sanitize lone surrogates on EVERY LLM-emitted str field up
-        # front, before any validation that might short-circuit. The
-        # surrogates_sanitized counter must reflect what the upstream
-        # model actually emitted, not what survived later validation —
-        # otherwise a model regression that smears surrogates across
-        # every field looks identical to one that only damaged form
-        # (which would short-circuit at form-in-chunk before the
-        # validator ever inspects region_hint / context). Identity-
-        # preserving on the common no-surrogate case via re.sub; only
-        # dirty inputs allocate. (wyrd-8wa4.)
-        raw_form = (m.get("form") or "").strip()
-        form = _sanitize_for_utf8(raw_form)
-        if form is not raw_form:
-            counters.surrogates_sanitized += 1
+        # Sanitize lone surrogates on each free-text LLM-emitted str
+        # field (form, region_hint, context) up front, before any
+        # validation that might short-circuit. The surrogates_sanitized
+        # counter must reflect what the upstream model actually
+        # emitted, not what survived later validation — otherwise a
+        # model regression that smears surrogates across every field
+        # looks identical to one that only damaged form (which would
+        # short-circuit at form-in-chunk before the validator ever
+        # inspects region_hint / context). date_year is also LLM-
+        # emitted, but `_coerce_year` below enforces a digit-only
+        # regex that drops any surrogate-bearing value to None+clamped
+        # — no separate sanitization needed on that path. (wyrd-8wa4.)
+        form = _sanitize_and_count((m.get("form") or "").strip(), counters)
         raw_region = m.get("region_hint")
         if isinstance(raw_region, str):
             # Strip before sanitize so the sanitizer operates on a
             # potentially shorter string and the processing order
             # matches the form/context paths.
-            stripped_region = raw_region.strip()
-            sanitized_region = _sanitize_for_utf8(stripped_region)
-            if sanitized_region is not stripped_region:
-                counters.surrogates_sanitized += 1
-            region_hint: str | None = sanitized_region or None
+            region_hint: str | None = _sanitize_and_count(raw_region.strip(), counters) or None
         else:
             region_hint = None
-        raw_context = _WHITESPACE_RUN.sub(" ", (m.get("context") or "")).strip()
-        context = _sanitize_for_utf8(raw_context)
-        if context is not raw_context:
-            counters.surrogates_sanitized += 1
+        context = _sanitize_and_count(
+            _WHITESPACE_RUN.sub(" ", (m.get("context") or "")).strip(), counters
+        )
         # Validation gates fire AFTER full sanitization above.
         if not form:
             continue
