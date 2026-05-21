@@ -94,7 +94,7 @@
         <p class="breakdown">
           {displayState.morphemes_by_word
             .map((word) => word.map((m) => m.usage).join(' '))
-            .filter(Boolean)
+            .filter((s) => s.trim())
             .join(' · ')}
         </p>
       {/if}
