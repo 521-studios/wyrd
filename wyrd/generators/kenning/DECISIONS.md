@@ -2263,10 +2263,13 @@ wyrd-119p + wyrd-mkry tightenings (was 14):
   `vowel_height`, `vowel_backness`, `stop_vs_continuant`,
   `vowel_tenseness`.
 
-`soft_consonants` is kept for back-compat with stored vectors
-but composed `_LATERALS ∪ _RHOTICS ∪ _NASALS ∪ _APPROXIMANTS`
-(disjoint with Whissell's valence findings; new catalog entries
-should prefer `liquid_l_m_n` / `rhotic_r` for that distinction).
+`soft_consonants` is kept for back-compat with stored vectors;
+its set is `_FRICATIVES ∪ _LIQUIDS ∪ _NASALS ∪ _APPROXIMANTS`
+(where `_LIQUIDS = _LATERALS ∪ _RHOTICS` post-wyrd-119p). The
+fricatives + rhotics inclusions are the misalignment Whissell
+flagged — new catalog entries should prefer `liquid_l_m_n` /
+`rhotic_r` for the Gentle / Harsh distinction rather than
+weighting `soft_consonants` directly.
 `vowel_tenseness` captures the non-monotonic tense / lax signal
 Whissell 2000 documented (/iː/ Gentle, /ɪ/ Harsh; /ɔ/ Gentle,
 /uː/ Harsh — catalog entries decide per-effect direction
