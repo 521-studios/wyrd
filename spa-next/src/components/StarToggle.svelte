@@ -40,6 +40,9 @@
       original: {
         name: result.result,
         morphemes_by_word: result.morphemes_by_word || [],
+        // wyrd-34tn round 2 (Gemini MED): preserve etymological
+        // explanation so SavedList load restores the full output card.
+        explanation: result.explanation || '',
       },
       // No pipeline — col 2 saves just the original. Col 3's save
       // captures the whole workspace including transforms.

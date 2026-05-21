@@ -17,6 +17,22 @@
   function save() {
     const r = appState.currentResult;
     if (!r) return;
+    // wyrd-34tn round 2 (frontend MED): dedupe — if this generator
+    // + original-name is already saved AND has no pipeline steps
+    // beyond what we'd save, skip the duplicate (the existing entry
+    // covers it). Pipeline-bearing saves can be duplicated since
+    // each pipeline is its own work.
+    const existingId = savedStore.findId({
+      generator: appState.resultsGenerator,
+      originalName: r.result,
+    });
+    if (existingId && pipeline.steps.length === 0) {
+      savedNote = `Already saved`;
+      setTimeout(() => {
+        savedNote = '';
+      }, 2500);
+      return;
+    }
     savedStore.add({
       generator: appState.resultsGenerator,
       params: appState.currentParams,
@@ -24,6 +40,10 @@
       original: {
         name: r.result,
         morphemes_by_word: r.morphemes_by_word || [],
+        // wyrd-34tn round 2 (Gemini MED): preserve etymological
+        // explanation so SavedList load restores the full output
+        // card, not a stripped version.
+        explanation: r.explanation || '',
       },
       pipeline: pipeline.steps.map((s) => ({
         kind: s.kind,

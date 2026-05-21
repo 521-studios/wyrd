@@ -43,18 +43,18 @@
   $effect(() => {
     const stepsSnapshot = $state.snapshot(pipeline.steps);
     const idx = appState.currentResultIndex;
+    // wyrd-34tn round 2 (Gemini HIGH): always consume + clear the
+    // loading flag, regardless of whether idx actually changed. If
+    // a user loads a saved workspace for the result they're already
+    // inspecting, idx won't change — but the flag still needs to be
+    // cleared so the NEXT subject change behaves normally. The
+    // pipeline.clear() suppression only kicks in when there IS an
+    // index change AND we're loading.
+    const isLoad = appState.isLoadingSavedWorkspace;
+    if (isLoad) appState.isLoadingSavedWorkspace = false;
     if (idx !== lastResultIndex) {
       lastResultIndex = idx;
-      // wyrd-34tn: SavedList load() sets isLoadingSavedWorkspace
-      // before mutating appState. When that's true, suppress the
-      // auto-clear — load is responsible for setting up the
-      // pipeline itself. Reset the flag so the NEXT subject change
-      // clears as usual.
-      if (appState.isLoadingSavedWorkspace) {
-        appState.isLoadingSavedWorkspace = false;
-      } else {
-        pipeline.clear();
-      }
+      if (!isLoad) pipeline.clear();
     }
     if (!original) return;
     pipeline.run(original);

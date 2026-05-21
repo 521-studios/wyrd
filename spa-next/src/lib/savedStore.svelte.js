@@ -27,10 +27,10 @@ function loadFromStorage() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    // wyrd-34tn: future schema bumps land migration logic here.
-    // For v1, accept entries with matching or unset version; drop
-    // entries with a NEWER schema_version (user downgraded the app
-    // — better than corrupting their data).
+    // wyrd-34tn round 2 (clarity P3): strict-equality check — drops
+    // entries from older / newer / unset schemas. Future migrations
+    // land here: branch on parsed.schema_version, transform entries,
+    // re-tag with CURRENT_SCHEMA. v1 has nothing to migrate.
     if (parsed.schema_version !== CURRENT_SCHEMA) {
       console.warn(
         `saved-store: schema ${parsed.schema_version} != ${CURRENT_SCHEMA}; treating as empty`,
@@ -50,12 +50,25 @@ function writeToStorage(entries) {
       STORAGE_KEY,
       JSON.stringify({ schema_version: CURRENT_SCHEMA, entries }),
     );
+    return null;
   } catch (err) {
-    // Quota exceeded is the most likely failure. Surface it loudly
-    // but don't crash — the user's session keeps working, they just
-    // don't get a persisted save.
-    console.error('saved-store: write failed (quota?)', err);
+    // wyrd-34tn round 2 (frontend MED): return the error to the
+    // caller so the UI can surface "save failed (quota?)". Quota
+    // exceeded, Safari private mode, and disabled storage all
+    // surface as setItem throws.
+    console.error('saved-store: write failed', err);
+    return err;
   }
+}
+
+// wyrd-34tn round 2 (frontend HIGH): deep-clone via JSON round-trip
+// so persisted entries don't alias live $state objects (params,
+// original, pipeline). Without this, subsequent edits to the form /
+// pipeline would silently mutate the in-memory entry, and the next
+// write-to-storage call would corrupt the saved JSON.
+function deepClone(obj) {
+  if (obj === null || obj === undefined) return obj;
+  return JSON.parse(JSON.stringify(obj));
 }
 
 /**
@@ -78,7 +91,10 @@ class SavedStore {
 
   /** Add a new save. Returns the new entry's id. Accepts a payload
    *  with everything needed to rehydrate the workspace (generator,
-   *  params, seed, original, pipeline) + an optional user label. */
+   *  params, seed, original, pipeline) + an optional user label.
+   *  wyrd-34tn round 2 (HIGH x2): every nested payload field is
+   *  deep-cloned so subsequent edits to the live $state forms /
+   *  pipeline don't alias-mutate the saved entry. */
   add({ label, generator, params, seed, original, pipeline }) {
     const entry = {
       id: newId(),
@@ -86,10 +102,10 @@ class SavedStore {
       saved_at: new Date().toISOString(),
       label: label || (original?.name ?? '(unlabeled)'),
       generator,
-      params,
+      params: deepClone(params),
       seed,
-      original,
-      pipeline,
+      original: deepClone(original),
+      pipeline: deepClone(pipeline),
     };
     this.entries = [entry, ...this.entries];
     writeToStorage(this.entries);
@@ -165,8 +181,14 @@ class SavedStore {
     if (!Array.isArray(parsed.entries)) {
       return { added: 0, skipped: 0, error: 'entries is not an array' };
     }
+    // wyrd-34tn round 2 (frontend LOW): validate per-entry shape so
+    // malformed entries don't crash SavedList.load on entry.original.name.
+    // Minimum shape: id + original.name. Drop anything missing those.
+    const valid = parsed.entries.filter(
+      (e) => e && typeof e.id === 'string' && e.original && typeof e.original.name === 'string',
+    );
     const existingIds = new Set(this.entries.map((e) => e.id));
-    const fresh = parsed.entries.filter((e) => e.id && !existingIds.has(e.id));
+    const fresh = valid.filter((e) => !existingIds.has(e.id));
     const skipped = parsed.entries.length - fresh.length;
     if (fresh.length > 0) {
       this.entries = [...fresh, ...this.entries];

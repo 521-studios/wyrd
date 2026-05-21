@@ -65,7 +65,9 @@
       {
         result: entry.original.name,
         morphemes_by_word: entry.original.morphemes_by_word || [],
-        explanation: '',
+        // wyrd-34tn round 2 (Gemini MED): restore the saved
+        // etymological explanation instead of defaulting to empty.
+        explanation: entry.original.explanation || '',
         components: [],
       },
     ];
