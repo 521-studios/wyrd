@@ -1,6 +1,6 @@
 # wyrd SPA (next)
 
-Svelte 5 + Vite rewrite of the wyrd generator UI. Part of the [wyrd-ga8h](../) SPA epic — built alongside the existing `spa/` so the old SPA stays deployable until the wyrd-20pz cutover.
+Svelte 5 + Vite rewrite of the wyrd generator UI. Part of the wyrd-ga8h SPA epic — built alongside the existing `spa/` so the old SPA stays deployable until the wyrd-20pz cutover. See beads for the per-PR sequence.
 
 ## Layout
 
@@ -10,9 +10,10 @@ Three columns: **Configure** (params + roll), **Output** (results + saved librar
 
 ```bash
 # In one terminal: Flask API
+# (Flask serves /api/*; the SPA itself is served by Vite below)
 cd ..
 . .venv/bin/activate
-WYRD_SPA_DIR=spa flask --app wyrd.app run
+flask --app wyrd.app run
 
 # In another: Vite dev server (proxies /api/* to Flask)
 cd spa-next
