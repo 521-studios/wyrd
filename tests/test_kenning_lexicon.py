@@ -4932,6 +4932,119 @@ def test_new_name_to_dict_emits_per_word_morpheme_metadata() -> None:
     assert first["meanings"] == ["white"]
 
 
+def test_new_name_to_dict_includes_rendered_d18_d8_substitution() -> None:
+    """wyrd-cp2d: to_dict's optional ``rendered`` field carries the
+    D18 spelling-variant or D8 inflection substitute when the
+    generator picked one. Without this branch tested, a regression
+    that drops the rendered key would slip past."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    m1 = Meaning("cot-", tags=[], meanings=["cottage"], sources={"old_english": ["cot"]})
+    m2 = Meaning("-an", tags=[], meanings=["genitive"], sources={"old_english": ["an"]})
+    meaning_db = {"cot-": [m1], "-an": [m2]}
+    new_name = NewName(
+        struct=None,
+        meaning_db=meaning_db,
+        name=[["cot-", "-an"]],
+        rendered=[["cotum", "an"]],  # D8 inflection substitution
+    )
+    out = new_name.to_dict()
+    # The rendered field carries the substituted form per morpheme.
+    assert out["words"][0][0]["rendered"] == "cotum"
+    assert out["words"][0][1]["rendered"] == "an"
+
+
+def test_kenning_generate_json_flag_emits_morpheme_metadata_per_line() -> None:
+    """wyrd-cp2d: kenning generate --json emits one JSON object per
+    line carrying name + culture + words. End-to-end CLI test pinning
+    the schema operators (and the webapp) consume."""
+    import json as _json
+
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.generate import generate
+
+    runner = CliRunner()
+    result = runner.invoke(generate, ["english", "-n", "2", "--seed", "100", "--json"])
+    assert result.exit_code == 0, result.output
+    # Filter to JSON-shaped lines (the '(seed: ...)' progress line
+    # is on stderr but CliRunner mixes streams by default).
+    lines = [line for line in result.output.splitlines() if line.strip().startswith("{")]
+    assert len(lines) == 2  # one JSON object per name
+    for line in lines:
+        obj = _json.loads(line)
+        assert "name" in obj
+        assert "culture" in obj
+        assert obj["culture"] == "english"
+        assert "words" in obj
+        assert isinstance(obj["words"], list)
+        # Each word has at least one morpheme; each morpheme has usage.
+        for word in obj["words"]:
+            assert isinstance(word, list)
+            for morph in word:
+                assert "usage" in morph
+
+
+def test_kenning_rewind_from_json_pipe_end_to_end(fresh_db: Path) -> None:
+    """wyrd-cp2d: end-to-end pipe test — capture 'generate --json'
+    output, feed it into 'rewind --from-json -' via stdin, verify
+    the rewind output respects the per-line JSON objects' supplied
+    usages (each input line produces one rewind output block)."""
+    import json as _json
+
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.generate import generate
+    from wyrd.generators.kenning.cli.rewind import rewind
+
+    runner = CliRunner()
+    # Step 1: capture generate --json output
+    gen = runner.invoke(generate, ["english", "-n", "2", "--seed", "100", "--json"])
+    assert gen.exit_code == 0
+    json_lines = [line for line in gen.output.splitlines() if line.strip().startswith("{")]
+    parsed = [_json.loads(line) for line in json_lines]
+    assert len(parsed) == 2
+
+    # Step 2: feed into rewind --from-json -
+    stdin_input = "\n".join(json_lines)
+    rewind_result = runner.invoke(rewind, ["--from-json", "-"], input=stdin_input)
+    assert rewind_result.exit_code == 0, rewind_result.output
+    # Verify the rewind output mentions both input names (one block per).
+    for obj in parsed:
+        assert obj["name"] in rewind_result.output
+
+
+def test_kenning_rewind_from_json_malformed_json_raises() -> None:
+    """wyrd-cp2d: malformed JSON in --from-json input surfaces a
+    friendly error + non-zero exit. Pre-PR a JSON decode error would
+    propagate as an unhandled exception."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.rewind import rewind
+
+    runner = CliRunner()
+    result = runner.invoke(rewind, ["--from-json", "-"], input="{not valid json")
+    assert result.exit_code != 0
+    assert "malformed JSON" in result.output
+
+
+def test_kenning_rewind_no_name_no_from_json_fails_with_friendly_error() -> None:
+    """wyrd-cp2d: invoking 'kenning rewind' with no NAME and no
+    --from-json must surface a friendly error + non-zero exit. Pre-
+    PR NAME was a required positional; the wyrd-cp2d change made it
+    optional in service of --from-json, so we need explicit
+    validation that one or the other is supplied."""
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.rewind import rewind
+
+    runner = CliRunner()
+    result = runner.invoke(rewind, [])
+    assert result.exit_code != 0
+    assert "NAME argument is required" in result.output
+
+
 # --- wyrd-085k: smart-join name renderer ---------------------------------
 
 

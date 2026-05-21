@@ -20,6 +20,34 @@ from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 
+def _load_json_objects(from_json: Path) -> list[dict]:
+    """wyrd-cp2d: parse newline-delimited JSON from FILE (or stdin
+    via '-'). Returns one dict per non-blank line.
+
+    Extracted from ``rewind`` to keep the CLI body under the C901
+    cyclomatic-complexity floor. Loud-failure on malformed JSON or
+    empty input (matching the existing pre-validation pattern for
+    bad --era / --culture values)."""
+    if str(from_json) == "-":
+        raw = sys.stdin.read()
+    else:
+        raw = from_json.read_text()
+    objects: list[dict] = []
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            objects.append(json.loads(line))
+        except json.JSONDecodeError as exc:
+            click.echo(f"Error: malformed JSON line: {exc}", err=True)
+            raise click.exceptions.Exit(1) from exc
+    if not objects:
+        click.echo("Error: --from-json input had no JSON objects", err=True)
+        raise click.exceptions.Exit(1)
+    return objects
+
+
 @click.command("rewind")
 @click.argument("name", required=False)
 @click.option(
@@ -92,31 +120,11 @@ def rewind(
 
     meaning_db, _ = _load_meanings()
 
-    # wyrd-cp2d: --from-json path. Parse JSON object(s) from the
-    # supplied file (or stdin via '-'), use pre-picked morphemes
-    # via rewind_from_morphemes. Each line is one JSON object so
-    # operators can pipe `kenning generate --json | kenning rewind
-    # --from-json -` for the continuity flow. When the file has
-    # multiple lines, each produces its own rewind output block.
-    json_objects: list[dict] = []
-    if from_json is not None:
-        if str(from_json) == "-":
-            raw = sys.stdin.read()
-        else:
-            raw = from_json.read_text()
-        for line in raw.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                json_objects.append(json.loads(line))
-            except json.JSONDecodeError as exc:
-                click.echo(f"Error: malformed JSON line: {exc}", err=True)
-                raise click.exceptions.Exit(1) from exc
-        if not json_objects:
-            click.echo("Error: --from-json input had no JSON objects", err=True)
-            raise click.exceptions.Exit(1)
-    elif not name:
+    # wyrd-cp2d: --from-json path. Parse JSON object(s); each line
+    # is one object so operators can pipe `kenning generate --json
+    # | kenning rewind --from-json -` for the continuity flow.
+    json_objects = _load_json_objects(from_json) if from_json is not None else []
+    if not json_objects and not name:
         click.echo("Error: NAME argument is required when --from-json is not set", err=True)
         raise click.exceptions.Exit(1)
 
