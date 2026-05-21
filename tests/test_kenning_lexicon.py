@@ -6034,6 +6034,85 @@ def test_kenning_rewind_generator_input_schema_exposes_words_field() -> None:
     assert "usage" in morpheme_schema["properties"]
 
 
+def test_kenning_rewind_generator_supplied_words_surfaces_missing_usages() -> None:
+    """wyrd-y9aa round 2: when a supplied morpheme's usage isn't in
+    meaning_db (the bundle dropped it since the JSON was captured),
+    the missing usage must surface in each era's unaccounted list so
+    the operator sees the same 'lacked era data' signal the trie
+    path produces. Pre-round-2 the supplied path silently dropped
+    missing usages."""
+    from wyrd.generators.kenning import (
+        Kenning as _Kenning,  # noqa: F401
+    )
+    from wyrd.generators.kenning.generators import kenning_rewind as _kenning_rewind_mod
+    from wyrd.generators.kenning.generators.kenning_rewind import KenningRewind
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    m = Meaning("Foo-", tags=[], meanings=["a"], sources={"old_english": ["foo"]})
+    fake_db = {"Foo-": [m]}  # '-bar' deliberately absent
+
+    original = _kenning_rewind_mod._load_meanings
+    _kenning_rewind_mod._load_meanings = lambda: (fake_db, set())
+    try:
+        gen = KenningRewind()
+        results = gen.generate_all(
+            {
+                "name": "Foobar",
+                "words": [[{"usage": "Foo-"}, {"usage": "-bar"}]],
+            },
+            0,
+        )
+    finally:
+        _kenning_rewind_mod._load_meanings = original
+
+    for res in results:
+        unaccounted = res.components[0]["unaccounted"]
+        assert "-bar" in unaccounted, (
+            f"Missing usage '-bar' did not surface in era {res.components[0]['era']}: {unaccounted}"
+        )
+
+
+def test_kenning_rewind_generator_supplied_words_multi_word_grouping() -> None:
+    """wyrd-y9aa round 2: multi-word inputs (outer list has multiple
+    entries) preserve word boundaries — the per-era rendered string
+    joins across words with a space, mirroring wyrd-t2bh's per-word
+    grouping semantics. Single-word tests would miss a regression
+    where the outer-list iteration flattened."""
+    from wyrd.generators.kenning import (
+        Kenning as _Kenning,  # noqa: F401
+    )
+    from wyrd.generators.kenning.generators import kenning_rewind as _kenning_rewind_mod
+    from wyrd.generators.kenning.generators.kenning_rewind import KenningRewind
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    m1 = Meaning("Whit-", tags=[], meanings=["white"], sources={"old_english": ["hwit"]})
+    m2 = Meaning("-ham", tags=[], meanings=["village"], sources={"old_english": ["ham"]})
+    fake_db = {"Whit-": [m1], "-ham": [m2]}
+    original = _kenning_rewind_mod._load_meanings
+    _kenning_rewind_mod._load_meanings = lambda: (fake_db, set())
+    try:
+        gen = KenningRewind()
+        # Two-word payload: each outer entry is one input word.
+        results = gen.generate_all(
+            {
+                "name": "Whit Ham",
+                "words": [
+                    [{"usage": "Whit-"}],
+                    [{"usage": "-ham"}],
+                ],
+            },
+            0,
+        )
+    finally:
+        _kenning_rewind_mod._load_meanings = original
+
+    # The rendered modern cell should preserve the space between the
+    # two input words — a flattening regression would produce 'Whitham'.
+    modern = results[-1].components[0]["rendered"]
+    assert " " in modern, f"Expected space between words, got {modern!r}"
+    assert modern.split() == ["Whit", "Ham"], modern
+
+
 def test_kenning_rewind_generator_falls_back_to_trie_when_no_words() -> None:
     """wyrd-y9aa: the new 'words' input is OPTIONAL. When absent the
     existing string-decompose-via-trie path stays in effect — pre-PR
