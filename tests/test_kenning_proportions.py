@@ -2274,3 +2274,24 @@ def test_new_name_str_uses_rendered_when_present() -> None:
         rendered=[["cotum", "an"]],
     )
     assert str(new_name) == "Cotuman"
+
+
+def test_new_name_str_drops_fully_empty_words() -> None:
+    """wyrd-3xdb edge case: a word slot containing only None entries
+    (no surviving morpheme after joiner-pruning) emits nothing —
+    not a stray space. The ``if w`` guard at the join boundary
+    handles this. Mixed empty + populated words produce the
+    populated word in isolation, no leading/trailing blanks."""
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    # All-None word slot
+    empty_only = NewName(struct=None, meaning_db={}, name=[[None, None]])
+    assert str(empty_only) == ""
+
+    # Empty word slot adjacent to a populated one
+    mixed = NewName(struct=None, meaning_db={}, name=[[None], ["-wood"]])
+    assert str(mixed) == "Wood"
+
+    # Fully-empty input
+    empty_all = NewName(struct=None, meaning_db={}, name=[])
+    assert str(empty_all) == ""
