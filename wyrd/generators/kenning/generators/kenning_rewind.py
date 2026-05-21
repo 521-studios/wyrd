@@ -73,6 +73,7 @@ class KenningRewind(Generator):
 
     def generate_all(self, params: dict[str, Any], seed: int) -> list[GenerationResult]:
         from wyrd.generators.kenning.era.cells import canonical_language_for_cell
+        from wyrd.generators.kenning.era.rewind import render_form_particle_pairs
 
         text = (params.get("name") or "").strip()
         if not text:
@@ -87,40 +88,45 @@ class KenningRewind(Generator):
         )
         # Per-era rendered output. Each era-stop becomes one
         # GenerationResult so the SPA can render them as a sequence.
+        #
+        # wyrd-2pio: reuse the shared rewinder renderer from
+        # era.rewind so the SPA-facing path (and downstream era-map)
+        # inherits the same smart-join + title-case + modern round-
+        # trip + free-particle treatment that the CLI rewinder uses.
+        # Pre-fix this module had its own hyphenated-join (the
+        # pre-wyrd-085k shape) plus no title-case, so era-map output
+        # diverged from the CLI rewind output for the same input.
         outputs: list[GenerationResult] = []
         for family, cell in era_stops:
             target_language = canonical_language_for_cell(family, cell)
-            rendered_morphemes: list[str] = []
             morpheme_components: list[dict[str, Any]] = []
             unaccounted: list[str] = []
+            # Per-word morpheme grouping so render_form_particle_pairs
+            # gets called once per input word; outputs join across
+            # words with a space (preserves operator's input shape
+            # per wyrd-t2bh).
+            words_pairs: list[list[tuple[str, bool]]] = []
             for word_str in text.split():
                 candidates = name_obj.words.get(word_str, [])
                 if not candidates:
                     unaccounted.append(word_str)
                     continue
-                for chunk in candidates[0].word:
-                    if isinstance(chunk, Meaning):
-                        form = _bundle_era_form(chunk, target_language)
-                        rendered_morphemes.append(form)
-                        # wyrd-17t: surface SAMPA-lite respelling next to
-                        # the rendered form when the target language has
-                        # a respeller (OE / Welsh / ON / Latin / Greek /
-                        # Norman-French). Modern-English passes through
-                        # with respelling=None since users can already
-                        # sound those out.
-                        respelling = (
-                            chunk.respelling_for(form, target_language) if target_language else None
-                        )
-                        morpheme_components.append(
-                            {
-                                "form": form,
-                                "respelling": respelling,
-                                "language": target_language,
-                            }
-                        )
-                    elif isinstance(chunk, str) and chunk:
-                        unaccounted.append(chunk)
-            rendered = "-".join(m.strip("-") for m in rendered_morphemes if m)
+                word_pairs = _decompose_word_at_era(
+                    candidates[0],
+                    target_language,
+                    morpheme_components,
+                    unaccounted,
+                )
+                if word_pairs:
+                    words_pairs.append(word_pairs)
+            # wyrd-t2bh: smart-join at OE/ME (historical scribal
+            # pattern); simple concat at modern (round-trip operator
+            # input shape).
+            smart_join = target_language != "modern-english"
+            word_renders = [
+                render_form_particle_pairs(word, smart_join=smart_join) for word in words_pairs
+            ]
+            rendered = " ".join(r for r in word_renders if r)
             outputs.append(
                 GenerationResult(
                     result=rendered or text,
@@ -137,3 +143,55 @@ class KenningRewind(Generator):
                 )
             )
         return outputs
+
+
+def _decompose_word_at_era(
+    word: Any,
+    target_language: str | None,
+    morpheme_components: list[dict[str, Any]],
+    unaccounted: list[str],
+) -> list[tuple[str, bool]]:
+    """wyrd-2pio: per-word morpheme walk for KenningRewind.
+
+    Extracted from ``KenningRewind.generate_all`` to drop that
+    method's nesting depth and length below the complexity-reviewer
+    ceiling. For each Meaning chunk: pick the bundle's era-form,
+    short-circuit to canonical at modern (wyrd-8qbi), strip
+    positional hyphens (wyrd-2pio), classify as free particle
+    (wyrd-085k), and append to the (form, is_particle) word-list.
+    Side-effects on ``morpheme_components`` + ``unaccounted`` mirror
+    the pre-extraction inline loop.
+    """
+    from wyrd.generators.kenning.era.rewind import _is_free_particle
+
+    word_pairs: list[tuple[str, bool]] = []
+    for chunk in word.word:
+        if isinstance(chunk, Meaning):
+            form = _bundle_era_form(chunk, target_language)
+            # wyrd-8qbi: at modern, prefer the morpheme's canonical
+            # (modern_usage with dashes stripped) over _bundle_era_form's
+            # cluster pick — the operator already knows the modern form.
+            if target_language == "modern-english":
+                form = chunk.usage.replace("-", "")
+            # wyrd-2pio: strip leading/trailing positional hyphens (the
+            # per-morpheme positional marker '-ham' style) so they don't
+            # leak into the joined output as '-healdteoruell'-style
+            # artifacts. Matches era.rewind._pick_form's strip behavior.
+            form = form.strip("-")
+            word_pairs.append((form, _is_free_particle(chunk)))
+            # wyrd-17t: surface SAMPA-lite respelling next to the
+            # rendered form when the target language has a respeller
+            # (OE / Welsh / ON / Latin / Greek / Norman-French).
+            # Modern-English passes through with respelling=None since
+            # users can already sound those out.
+            respelling = chunk.respelling_for(form, target_language) if target_language else None
+            morpheme_components.append(
+                {
+                    "form": form,
+                    "respelling": respelling,
+                    "language": target_language,
+                }
+            )
+        elif isinstance(chunk, str) and chunk:
+            unaccounted.append(chunk)
+    return word_pairs
