@@ -5,9 +5,19 @@
 # compose_register_effects) sums and clamps to [-1, +1] per dimension:
 #
 #   <name>:
-#     phonological:    {<feature>: <weight in [-1, +1]>, ...}
-#     semantic_tags:   {<tag>: <weight in [-1, +1]>, ...}
-#     position_bias:   {<position>: <weight in [-1, +1]>, ...}
+#     phonological:    {<feature>: {value: <weight>, tier: <tier>}, ...}
+#     semantic_tags:   {<tag>: {value: <weight>, tier: <tier>}, ...}
+#     position_bias:   {<position>: {value: <weight>, tier: <tier>}, ...}
+#
+# wyrd-we1u / wyrd-g2kh: each weight carries a `tier` field — one of
+# `universal` (cross-linguistic sound-symbolic primitive),
+# `ie-conventional` (English-speaker perception only),
+# `identity-marking` (phonological-color marker), or `untagged` (no
+# grounding assigned yet). The loader (registers/effects.py) accepts
+# bare-float entries too for back-compat, defaulting to `untagged` —
+# but the post-wyrd-g2kh catalog tags every weight, so consumers
+# (audit-trail exporter wyrd-kz2b.32, tier-filtered generation
+# wyrd-kz2b.33.1) can rely on every catalog entry carrying a tier.
 #
 # Phonological feature names MUST be in the PhonologicalFeatureName
 # Literal in vectors/schemas.py (14 v1 dimensions): cluster_density,
@@ -57,13 +67,18 @@ grim:
   # Tag-driven mood; phonology stays neutral so the operator can
   # compose with --register grim,harsh for "grim AND phonologically
   # menacing" without double-counting harshness.
+  #
+  # wyrd-g2kh tier tagging: all semantic_tags are IE-CONVENTIONAL —
+  # they inherit cultural intent from the legacy MOODS dict with no
+  # cross-linguistic phonosymbolic claim. Operators forking for
+  # non-IE settings should expect the tag set to NOT transfer.
   phonological: {}
   semantic_tags:
-    death: 0.7
-    military: 0.3
-    monster: 0.5
-    undead: 0.6
-    magic: 0.4
+    death: {value: 0.7, tier: ie-conventional}
+    military: {value: 0.3, tier: ie-conventional}
+    monster: {value: 0.5, tier: ie-conventional}
+    undead: {value: 0.6, tier: ie-conventional}
+    magic: {value: 0.4, tier: ie-conventional}
   position_bias: {}
 
 harsh:
@@ -87,15 +102,15 @@ harsh:
   #   code: high-front vowels for "small/sharp" signal; Knoeferle
   #   2017 acoustic-correlate work supports the directionality).
   phonological:
-    cluster_density: 0.6
-    final_fortition: 0.5
-    final_cluster_rate: 0.5
-    vowel_final_bias: -0.4
-    soft_consonants: -0.5
-    stop_vs_continuant: 0.6      # v1: 0.4 → v1.1: 0.6 — bumped per Whissell 1999 (every plosive in Harsh) + Fort 2015 (manner = strongest single bouba-kiki predictor)
-    aspirated_voiceless: 0.4     # v1.1: added — Whissell 1999 "minor explosion of breath"; voiceless stops are her most-active phonemes
-    vowel_backness: -0.2         # v1.1: added — Ohala 1994 frequency code (front vowels for spiky/small in the Harsh register); acoustic-correlate work in Knoeferle 2017 supports this directionality
-    vowel_height: 0.2            # v1.1: added — Ohala 1994 p. 335 high-front vowels for "small/sharp" in the spiky register
+    cluster_density: {value: 0.6, tier: ie-conventional}
+    final_fortition: {value: 0.5, tier: ie-conventional}
+    final_cluster_rate: {value: 0.5, tier: ie-conventional}
+    vowel_final_bias: {value: -0.4, tier: universal}
+    soft_consonants: {value: -0.5, tier: universal}
+    stop_vs_continuant: {value: 0.6, tier: universal}      # v1: 0.4 → v1.1: 0.6 — bumped per Whissell 1999 (every plosive in Harsh) + Fort 2015 (manner = strongest single bouba-kiki predictor)
+    aspirated_voiceless: {value: 0.4, tier: universal}     # v1.1: added — Whissell 1999 "minor explosion of breath"; voiceless stops are her most-active phonemes
+    vowel_backness: {value: -0.2, tier: universal}         # v1.1: added — Ohala 1994 frequency code (front vowels for spiky/small in the Harsh register); acoustic-correlate work in Knoeferle 2017 supports this directionality
+    vowel_height: {value: 0.2, tier: universal}            # v1.1: added — Ohala 1994 p. 335 high-front vowels for "small/sharp" in the spiky register
   semantic_tags: {}
   position_bias: {}
 
@@ -115,18 +130,18 @@ pastoral:
   # the opposite. Schema-level fix is filed as a follow-up; v1.1
   # accepts the imprecision.
   phonological:
-    vowel_final_bias: 0.3
-    soft_consonants: 0.4
-    cluster_density: -0.3
-    stop_vs_continuant: -0.3     # v1.1: added — Whissell 1999 continuants/sonorants dominate Gentle; the load-bearing dimension was missing
-    vowel_backness: 0.2          # v1.1: added — back-rounded vowels for round-shape pastoral (Ohala 1994 + bouba-kiki literature; distinct from the size-dominance reading that motivates noble's +vowel_backness)
+    vowel_final_bias: {value: 0.3, tier: universal}
+    soft_consonants: {value: 0.4, tier: universal}
+    cluster_density: {value: -0.3, tier: universal}
+    stop_vs_continuant: {value: -0.3, tier: universal}     # v1.1: added — Whissell 1999 continuants/sonorants dominate Gentle; the load-bearing dimension was missing
+    vowel_backness: {value: 0.2, tier: universal}          # v1.1: added — back-rounded vowels for round-shape pastoral (Ohala 1994 + bouba-kiki literature; distinct from the size-dominance reading that motivates noble's +vowel_backness)
   semantic_tags:
-    plant: 0.5
-    animal: 0.4
-    water: 0.5
-    agriculture: 0.6
-    tree: 0.4
-    bird: 0.4
+    plant: {value: 0.5, tier: ie-conventional}
+    animal: {value: 0.4, tier: ie-conventional}
+    water: {value: 0.5, tier: ie-conventional}
+    agriculture: {value: 0.6, tier: ie-conventional}
+    tree: {value: 0.4, tier: ie-conventional}
+    bird: {value: 0.4, tier: ie-conventional}
   position_bias: {}
 
 devotional:
@@ -141,13 +156,13 @@ devotional:
   # West-African mythology) should expect this register to NOT
   # transfer.
   phonological:
-    polysyllabic_bias: 0.3
-    soft_consonants: 0.2
-    vowel_final_bias: 0.2        # v1.1: added — open syllables for Latin/Romance feel + Whissell Gentle vowel-heavy inventory
-    stop_vs_continuant: -0.2     # v1.1: added — Whissell 1999 continuants dominate Gentle; reinforces the soft cluster
+    polysyllabic_bias: {value: 0.3, tier: ie-conventional}
+    soft_consonants: {value: 0.2, tier: universal}
+    vowel_final_bias: {value: 0.2, tier: universal}        # v1.1: added — open syllables for Latin/Romance feel + Whissell Gentle vowel-heavy inventory
+    stop_vs_continuant: {value: -0.2, tier: universal}     # v1.1: added — Whissell 1999 continuants dominate Gentle; reinforces the soft cluster
   semantic_tags:
-    saint: 0.7
-    religious: 0.6
+    saint: {value: 0.7, tier: ie-conventional}
+    religious: {value: 0.6, tier: ie-conventional}
   position_bias: {}
 
 mortuary:
@@ -156,8 +171,8 @@ mortuary:
   # military / monster axes.
   phonological: {}
   semantic_tags:
-    death: 0.8
-    undead: 0.6
+    death: {value: 0.8, tier: ie-conventional}
+    undead: {value: 0.6, tier: ie-conventional}
   position_bias: {}
 
 # === New entries (2026-05-16 design discussion) ===========================
@@ -178,12 +193,12 @@ noble:
   # (Latinate prestige in English; Whissell 1999 has no
   # syllable-count rating).
   phonological:
-    polysyllabic_bias: 0.5
-    soft_consonants: 0.3
-    vowel_final_bias: 0.4
-    vowel_height: -0.3           # v1.1: added — Ohala 1994 p. 335 low vowels signal large/authoritative (frequency code)
-    vowel_backness: 0.3          # v1.1: added — Ohala 1994: back vowels = low F2 = large/dominant; Auracher 2010 back-vowels→dominance
-    stop_vs_continuant: -0.2     # v1.1: added — Whissell 1999 continuants pattern with Gentle/dignified
+    polysyllabic_bias: {value: 0.5, tier: ie-conventional}
+    soft_consonants: {value: 0.3, tier: universal}
+    vowel_final_bias: {value: 0.4, tier: ie-conventional}
+    vowel_height: {value: -0.3, tier: universal}           # v1.1: added — Ohala 1994 p. 335 low vowels signal large/authoritative (frequency code)
+    vowel_backness: {value: 0.3, tier: universal}          # v1.1: added — Ohala 1994: back vowels = low F2 = large/dominant; Auracher 2010 back-vowels→dominance
+    stop_vs_continuant: {value: -0.2, tier: universal}     # v1.1: added — Whissell 1999 continuants pattern with Gentle/dignified
   semantic_tags: {}
   position_bias: {}
 
@@ -205,15 +220,15 @@ mystical:
   # unpleasant). Splitting into mystical-ethereal vs mystical-eerie
   # is filed as a follow-up.
   phonological:
-    sibilance: 0.4
-    palatalization: 0.3
-    soft_consonants: 0.2
-    vowel_height: 0.5            # v1.1: added — Ohala 1994 high vowels = small/ethereal (primary frequency-code signal for the intent)
-    vowel_backness: -0.4         # v1.1: added — Ohala 1994: front vowels = small/sharp
+    sibilance: {value: 0.4, tier: ie-conventional}
+    palatalization: {value: 0.3, tier: universal}
+    soft_consonants: {value: 0.2, tier: universal}
+    vowel_height: {value: 0.5, tier: universal}            # v1.1: added — Ohala 1994 high vowels = small/ethereal (primary frequency-code signal for the intent)
+    vowel_backness: {value: -0.4, tier: universal}         # v1.1: added — Ohala 1994: front vowels = small/sharp
   semantic_tags:
-    magic: 0.6
-    fantasy: 0.4
-    monster: 0.2
+    magic: {value: 0.6, tier: ie-conventional}
+    fantasy: {value: 0.4, tier: ie-conventional}
+    monster: {value: 0.2, tier: ie-conventional}
   position_bias: {}
 
 melodic:
@@ -227,12 +242,12 @@ melodic:
   # inventory is ~50% vowels with zero plosives). polysyllabic_bias
   # is IE-CONVENTIONAL.
   phonological:
-    vowel_final_bias: 0.5
-    polysyllabic_bias: 0.4
-    soft_consonants: 0.3
-    vowel_height: 0.2
-    stop_vs_continuant: -0.4     # v1.1: added — Whissell 1999 max-Gentle = zero plosives; the load-bearing dimension was missing
-    vowel_backness: -0.2         # v1.1: added — front vowels = Whissell-pleasant (/iː ɛ/ both in Gentle inventory)
+    vowel_final_bias: {value: 0.5, tier: universal}
+    polysyllabic_bias: {value: 0.4, tier: ie-conventional}
+    soft_consonants: {value: 0.3, tier: universal}
+    vowel_height: {value: 0.2, tier: universal}
+    stop_vs_continuant: {value: -0.4, tier: universal}     # v1.1: added — Whissell 1999 max-Gentle = zero plosives; the load-bearing dimension was missing
+    vowel_backness: {value: -0.2, tier: universal}         # v1.1: added — front vowels = Whissell-pleasant (/iː ɛ/ both in Gentle inventory)
   semantic_tags: {}
   position_bias: {}
 
@@ -254,16 +269,16 @@ sinister:
   # the "creepy" sub-reading. Filed as follow-up: split into
   # sinister-eerie vs sinister-dread.
   phonological:
-    cluster_density: 0.4
-    final_fortition: 0.3
-    sibilance: 0.3
-    vowel_height: -0.3           # v1.1: added — Ohala 1994 low vowels = large/dominant for menacing
-    vowel_backness: 0.3          # v1.1: added — Ohala 1994 back vowels = large/dominant; Auracher 2010
-    aspirated_voiceless: -0.2    # v1.1: added — Uno 2022 voiced obstruents favored in villain naming; suppress voiceless to lean voiced
+    cluster_density: {value: 0.4, tier: ie-conventional}
+    final_fortition: {value: 0.3, tier: ie-conventional}
+    sibilance: {value: 0.3, tier: ie-conventional}
+    vowel_height: {value: -0.3, tier: universal}           # v1.1: added — Ohala 1994 low vowels = large/dominant for menacing
+    vowel_backness: {value: 0.3, tier: universal}          # v1.1: added — Ohala 1994 back vowels = large/dominant; Auracher 2010
+    aspirated_voiceless: {value: -0.2, tier: universal}    # v1.1: added — Uno 2022 voiced obstruents favored in villain naming; suppress voiceless to lean voiced
   semantic_tags:
-    monster: 0.5
-    magic: 0.3
-    undead: 0.4
+    monster: {value: 0.5, tier: ie-conventional}
+    magic: {value: 0.3, tier: ie-conventional}
+    undead: {value: 0.4, tier: ie-conventional}
   position_bias: {}
 
 ancient:
@@ -281,13 +296,13 @@ ancient:
   # convention. Operators forking for non-IE settings should expect
   # this register to NOT transfer; the citation gap is the point.
   phonological:
-    polysyllabic_bias: 0.3
-    vowel_final_bias: 0.2
-    pharyngeal: 0.2
+    polysyllabic_bias: {value: 0.3, tier: ie-conventional}
+    vowel_final_bias: {value: 0.2, tier: ie-conventional}
+    pharyngeal: {value: 0.2, tier: identity-marking}
   semantic_tags:
-    topography: 0.3
-    geology: 0.2
-    descriptive: 0.2
+    topography: {value: 0.3, tier: ie-conventional}
+    geology: {value: 0.2, tier: ie-conventional}
+    descriptive: {value: 0.2, tier: ie-conventional}
   position_bias: {}
 
 exotic:
@@ -311,10 +326,10 @@ exotic:
   # weights — they are operator-side phonological-identity-marking,
   # not crossmodal perception.
   phonological:
-    palatalization: 0.4
-    retroflexion: 0.4
-    pharyngeal: 0.3
-    vowel_backness: 0.2
+    palatalization: {value: 0.4, tier: identity-marking}
+    retroflexion: {value: 0.4, tier: identity-marking}
+    pharyngeal: {value: 0.3, tier: identity-marking}
+    vowel_backness: {value: 0.2, tier: identity-marking}
   semantic_tags: {}
   position_bias: {}
 
@@ -332,12 +347,12 @@ martial:
   # dominance signal (Ohala 1994 back vowels for authority) wasn't
   # represented.
   phonological:
-    final_fortition: 0.4
-    cluster_density: 0.3
-    stop_vs_continuant: 0.4
-    aspirated_voiceless: 0.3     # v1.1: added — Whissell 1999 voiceless stops are most-active; reinforces martial's active-dominant feel
-    vowel_backness: 0.2          # v1.1: added — Ohala 1994 back vowels for dominant authority; martial = disciplined-authoritative
+    final_fortition: {value: 0.4, tier: ie-conventional}
+    cluster_density: {value: 0.3, tier: ie-conventional}
+    stop_vs_continuant: {value: 0.4, tier: universal}
+    aspirated_voiceless: {value: 0.3, tier: universal}     # v1.1: added — Whissell 1999 voiceless stops are most-active; reinforces martial's active-dominant feel
+    vowel_backness: {value: 0.2, tier: universal}          # v1.1: added — Ohala 1994 back vowels for dominant authority; martial = disciplined-authoritative
   semantic_tags:
-    military: 0.7
-    monster: 0.3
+    military: {value: 0.7, tier: ie-conventional}
+    monster: {value: 0.3, tier: ie-conventional}
   position_bias: {}

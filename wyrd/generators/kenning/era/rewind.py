@@ -135,9 +135,7 @@ def _concat_morphemes_simple(morphemes: list[MorphemeRewind]) -> str:
     return joined
 
 
-def _render_morphemes_as_name(
-    morphemes: list[MorphemeRewind], *, smart_join: bool = True
-) -> str:
+def _render_morphemes_as_name(morphemes: list[MorphemeRewind], *, smart_join: bool = True) -> str:
     """wyrd-085k: join morpheme forms into a medieval-style name.
 
     Free particles (``on``, ``upon``, ``under``, ``of``) get
@@ -348,8 +346,7 @@ def rewind_name(
         target_language = canonical_language_for_cell(family, cell)
         smart_join = target_language != "modern-english"
         word_renders = [
-            _render_morphemes_as_name(word, smart_join=smart_join)
-            for word in morphemes_per_word
+            _render_morphemes_as_name(word, smart_join=smart_join) for word in morphemes_per_word
         ]
         rendered = " ".join(r for r in word_renders if r)
         # Flatten morphemes for back-compat with EraStop.morphemes
