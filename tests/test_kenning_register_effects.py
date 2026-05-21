@@ -890,19 +890,58 @@ b:
     assert composed.tier_for("phonological", "cluster_density") == "untagged"
 
 
-def test_bundled_catalog_has_no_tiered_weights_yet() -> None:
-    """wyrd-we1u Phase 1: schema + loader land first; the per-weight
-    tier migration of ~80 weights against REGISTERS.md prose is a
-    separate PR (Phase 2). Pin Phase 1's end-state so the migration
-    PR has a clear baseline to compare against."""
+def test_bundled_catalog_every_weight_carries_tier_post_g2kh() -> None:
+    """wyrd-g2kh: every catalog weight (across all 12 entries x
+    phonological + semantic_tags axes) carries an explicit tier
+    after the data migration. Pre-g2kh asserted empty tier dicts
+    (wyrd-we1u Phase 1 baseline); post-g2kh asserts the inverse —
+    every populated weight key has a corresponding tier-dict entry.
+
+    Consumers downstream (wyrd-kz2b.32 audit-trail exporter +
+    wyrd-kz2b.33.1 tier-filtered generation) can rely on every
+    catalog weight carrying a tier from this point forward; new
+    YAML entries should follow the {value, tier} shape rather than
+    the back-compat bare-float shape."""
     catalog = _load_bundled_cached.__wrapped__()
-    for effect in catalog.values():
-        # Every weight is still bare-float in YAML; tier dicts are empty.
-        assert effect.phonological_tiers == {}, (
-            f"{effect.name} has unexpected phonological tiers: {effect.phonological_tiers}"
-        )
-        assert effect.semantic_tag_tiers == {}
-        assert effect.position_bias_tiers == {}
+    untagged_violations: list[str] = []
+    for name, effect in catalog.items():
+        for key in effect.phonological:
+            if key not in effect.phonological_tiers:
+                untagged_violations.append(f"{name}.phonological.{key}")
+        for key in effect.semantic_tags:
+            if key not in effect.semantic_tag_tiers:
+                untagged_violations.append(f"{name}.semantic_tags.{key}")
+        for key in effect.position_bias:
+            if key not in effect.position_bias_tiers:
+                untagged_violations.append(f"{name}.position_bias.{key}")
+    assert not untagged_violations, (
+        f"weights missing tier metadata post wyrd-g2kh: "
+        f"{untagged_violations[:5]} (total: {len(untagged_violations)})"
+    )
+
+
+def test_bundled_catalog_tier_distribution_matches_registers_md_grounding() -> None:
+    """wyrd-g2kh: spot-check the tier distribution against REGISTERS.md
+    verdicts so a wholesale typo doesn't slip past (e.g. accidentally
+    setting every weight to 'untagged' or 'universal'). Anchor
+    checks pin specific weights whose tier is documented unambiguously
+    in the prose."""
+    catalog = _load_bundled_cached.__wrapped__()
+    # harsh: cluster_density is the textbook IE-conventional weight
+    # (REGISTERS.md §5: "Cluster-as-harsh is operator-side perception").
+    assert catalog["harsh"].tier_for("phonological", "cluster_density") == "ie-conventional"
+    # harsh: stop_vs_continuant is the textbook universal
+    # (REGISTERS.md §5: "UNIVERSAL ... Fort 2015 confirm manner is
+    # the strongest single bouba-kiki predictor").
+    assert catalog["harsh"].tier_for("phonological", "stop_vs_continuant") == "universal"
+    # exotic: pharyngeal is the textbook identity-marking
+    # (REGISTERS.md §5: "IDENTITY-MARKING — functional design, not
+    # sound-symbolic").
+    assert catalog["exotic"].tier_for("phonological", "pharyngeal") == "identity-marking"
+    # grim: every semantic_tag is ie-conventional (cultural overlay
+    # from legacy MOODS).
+    for tag in ("death", "military", "monster", "undead", "magic"):
+        assert catalog["grim"].tier_for("semantic_tags", tag) == "ie-conventional"
 
 
 def test_position_bias_axis_loads_tier_tagged_weights() -> None:
