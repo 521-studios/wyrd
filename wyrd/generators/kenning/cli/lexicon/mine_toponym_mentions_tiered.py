@@ -252,6 +252,7 @@ def lexicon_mine_toponym_mentions_tiered(
         "chunks_failed": 0,
         "hallucinations_dropped": 0,
         "years_clamped": 0,
+        "surrogates_sanitized": 0,
         "mentions": 0,
     }
 
@@ -382,7 +383,8 @@ def lexicon_mine_toponym_mentions_tiered(
                 f"{report.chunks_hallucination_rescue_attempted} "
                 f"failed={report.chunks_failed}) mentions={len(report.mentions)} "
                 f"halluc={report.hallucinations_dropped} "
-                f"clamped={report.years_clamped}",
+                f"clamped={report.years_clamped} "
+                f"surrogates={report.surrogates_sanitized}",
                 err=True,
             )
 
@@ -398,6 +400,7 @@ def lexicon_mine_toponym_mentions_tiered(
             totals["chunks_failed"] += report.chunks_failed
             totals["hallucinations_dropped"] += report.hallucinations_dropped
             totals["years_clamped"] += report.years_clamped
+            totals["surrogates_sanitized"] += report.surrogates_sanitized
             totals["mentions"] += len(report.mentions)
     finally:
         if failure_sink is not None:
@@ -414,6 +417,7 @@ def lexicon_mine_toponym_mentions_tiered(
         f"failed={totals['chunks_failed']} "
         f"halluc={totals['hallucinations_dropped']} "
         f"clamped={totals['years_clamped']} "
+        f"surrogates={totals['surrogates_sanitized']} "
         f"mentions={totals['mentions']}",
         err=True,
     )

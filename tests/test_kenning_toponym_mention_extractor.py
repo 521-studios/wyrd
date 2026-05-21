@@ -32,6 +32,7 @@ from wyrd.generators.kenning.extractors.toponym_mentions import (
     _coerce_year,
     _collapse_whitespace,
     _form_in_chunk,
+    _sanitize_for_utf8,
     _validated_mentions,
     chunk_source_body,
     extract_toponym_mentions_from_chunk,
@@ -385,6 +386,303 @@ def test_validated_mentions_collapses_all_whitespace_in_context(sep):
     assert "\r" not in out[0].context
     assert "\t" not in out[0].context
     assert out[0].context == "line one line two line three"
+
+
+# ---------- _sanitize_for_utf8 (wyrd-8wa4) -------------------------------
+
+
+@pytest.mark.parametrize("codepoint", [0xD800, 0xD8AA, 0xDAAA, 0xDBFF, 0xDC00, 0xDFFF])
+def test_sanitize_for_utf8_replaces_lone_surrogates(codepoint):
+    """The crash was specifically U+DAAA from gemma4:26b output. Cover the
+    full surrogate range U+D800..U+DFFF (high + low halves) — Python str
+    can hold any of these, but utf-8 encode rejects all of them."""
+    s = f"Edling{chr(codepoint)}ham"
+    cleaned = _sanitize_for_utf8(s)
+    # Cleaned string must round-trip through utf-8 — that's the contract.
+    cleaned.encode("utf-8")
+    # The surrogate position becomes U+FFFD; surrounding chars survive.
+    assert cleaned == "Edling�ham"
+
+
+def test_sanitize_for_utf8_preserves_clean_strings():
+    """Positive control: no-surrogate input must pass through unchanged
+    (and identity-equal so a future caller can fast-path on `is`)."""
+    s = "Newcastle upon Tyne"
+    assert _sanitize_for_utf8(s) is s
+
+
+def test_sanitize_for_utf8_preserves_legitimate_fffd():
+    """A U+FFFD already in the input (e.g. from the source body being
+    read with errors='replace') is itself a valid utf-8 codepoint and
+    must pass through. We can't distinguish "LLM emitted bad data" from
+    "OCR read bad bytes" at this point — both end up as U+FFFD downstream."""
+    s = "Stoke �-on-Trent"
+    assert _sanitize_for_utf8(s) == "Stoke �-on-Trent"
+
+
+def test_sanitize_for_utf8_empty_string():
+    assert _sanitize_for_utf8("") == ""
+
+
+def test_validated_mentions_drops_form_with_surrogate_as_hallucination():
+    """A lone-surrogate form, after sanitization to U+FFFD, almost
+    never matches the source chunk (the chunk is read with
+    errors='replace' so legitimate U+FFFD only appears at OCR-
+    corruption sites; the LLM-introduced U+FFFD is unlikely to align).
+    The existing hallucination-counter machinery drops it. AND the
+    new surrogates_sanitized counter bumps so operators see the
+    upstream model produced bad codepoints. This regression pins the
+    wyrd-8wa4 crash: before the fix, this raw input crashed the
+    writer; after, it's a counted hallucination plus a counted
+    sanitization."""
+    chunk = "Edlingham is the homestead of the sons of Eadwulf."
+    raw = [
+        {"form": "Edling\udaaaham", "context": "valid"},
+        {"form": "Edlingham", "context": "valid positive control"},
+    ]
+    counters = ValidationCounters()
+    out = _validated_mentions(raw, chunk, counters=counters)
+    # Positive control survives; surrogate form is dropped.
+    assert [m.form for m in out] == ["Edlingham"]
+    assert counters.hallucinations_dropped == 1
+    assert counters.admitted == 1
+    # Surrogate-sanitize counter bumps even though the mention was
+    # ultimately dropped — operator signal must reflect what the LLM
+    # actually emitted, not what survived the validator.
+    assert counters.surrogates_sanitized == 1
+    # Round-trip the survivor through utf-8 to confirm no surrogates leak.
+    for m in out:
+        json.dumps(m.__dict__, ensure_ascii=False).encode("utf-8")
+
+
+def test_validated_mentions_sanitizes_surrogate_in_context_admits_mention():
+    """A surrogate in `context` (descriptive field) sanitizes to U+FFFD;
+    the mention is still admitted with the cleaned context. Operators
+    see the U+FFFD marker as a model-quality signal but don't lose the
+    mention. The fix preserves utf-8-encodability end-to-end."""
+    chunk = "Edlingham is the homestead"
+    raw = [
+        {"form": "Edlingham", "context": "context with \udaaa surrogate"},
+    ]
+    counters = ValidationCounters()
+    out = _validated_mentions(raw, chunk, counters=counters)
+    assert len(out) == 1
+    assert counters.admitted == 1
+    assert counters.surrogates_sanitized == 1
+    assert "\udaaa" not in out[0].context
+    assert "�" in out[0].context
+    # Critical: the result must round-trip through utf-8 — that's the
+    # write-path contract this fix restores.
+    json.dumps(out[0].__dict__, ensure_ascii=False).encode("utf-8")
+
+
+def test_validated_mentions_sanitizes_surrogate_in_region_hint():
+    """A surrogate in `region_hint` (descriptive field) sanitizes to
+    U+FFFD; the mention is admitted with the cleaned region. Same
+    invariant as the context-field case but covers a separate field —
+    we sanitize EACH str field, not just one."""
+    chunk = "Edlingham mentioned"
+    raw = [
+        {
+            "form": "Edlingham",
+            "region_hint": "North\udaaaumberland",
+            "context": "ok",
+        },
+    ]
+    counters = ValidationCounters()
+    out = _validated_mentions(raw, chunk, counters=counters)
+    assert len(out) == 1
+    assert counters.admitted == 1
+    assert counters.surrogates_sanitized == 1
+    assert out[0].region_hint == "North�umberland"
+    json.dumps(out[0].__dict__, ensure_ascii=False).encode("utf-8")
+
+
+def test_validated_mentions_surrogates_in_all_fields_bump_counter_three_times():
+    """When the LLM emits surrogates in form AND region AND context of
+    a single mention, the counter bumps once per affected field. The
+    form's surrogate still drops the mention (form sanitized to U+FFFD
+    almost never matches the chunk), but operator signal must still
+    reflect that THREE fields needed sanitization. Otherwise a model
+    regression that smears surrogates across every field looks
+    identical to one that affects a single field — and the upstream
+    diagnostic cost is much higher in the first case."""
+    chunk = "Edlingham mentioned"
+    raw = [
+        {
+            "form": "Edling\udaaaham",
+            "region_hint": "North\ud800umberland",
+            "context": "ctx\udfffstring",
+        },
+    ]
+    counters = ValidationCounters()
+    out = _validated_mentions(raw, chunk, counters=counters)
+    assert out == []
+    assert counters.hallucinations_dropped == 1
+    assert counters.surrogates_sanitized == 3
+
+
+def test_validated_mentions_admits_when_sanitized_form_matches_corrupted_chunk():
+    """Edge case (pr-test-analyzer 5/10): the chunk was OCR-read with
+    errors='replace', so a legitimate U+FFFD CAN appear at a corruption
+    site. If the LLM faithfully reproduces the corruption (after sanitize,
+    its form contains U+FFFD at the same position), the form-in-chunk
+    check legitimately matches and the mention is ADMITTED — the LLM is
+    correctly reflecting what's in the source, garbage character and all.
+    Operators see U+FFFD in the form and know to treat the toponym as
+    suspect. This pins admit (not drop) as the intended behavior for
+    this case."""
+    chunk = "Edling�ham is the homestead"  # OCR'd chunk has U+FFFD
+    raw = [
+        {"form": "Edling\udaaaham", "context": "Edling\udaaaham is the homestead"},
+    ]
+    counters = ValidationCounters()
+    out = _validated_mentions(raw, chunk, counters=counters)
+    assert len(out) == 1
+    # Surrogate-sanitized form now matches the U+FFFD-bearing chunk.
+    assert out[0].form == "Edling�ham"
+    assert counters.admitted == 1
+    assert counters.hallucinations_dropped == 0
+    # Both form and context contained surrogates → 2 bumps.
+    assert counters.surrogates_sanitized == 2
+    json.dumps(out[0].__dict__, ensure_ascii=False).encode("utf-8")
+
+
+def test_validated_mentions_clean_input_does_not_bump_sanitized_counter():
+    """Negative control for the sanitization counter — without this, a
+    bug that bumped the counter on EVERY mention would pass the other
+    surrogate-counter assertions. The identity-fast-path is what
+    distinguishes "we did real work" from "we sanitized nothing"."""
+    chunk = "Edlingham is the homestead of the sons of Eadwulf."
+    raw = [
+        {"form": "Edlingham", "region_hint": "Durham", "context": "ok"},
+    ]
+    counters = ValidationCounters()
+    out = _validated_mentions(raw, chunk, counters=counters)
+    assert len(out) == 1
+    assert counters.admitted == 1
+    assert counters.surrogates_sanitized == 0
+
+
+def test_mine_toponym_mentions_sanitizes_surrogate_in_failure_message():
+    """The error string captured on FailedChunk MUST round-trip through
+    a utf-8 file write — the staged miner persists failures to a JSONL
+    sink, and a surrogate in the exception message would crash the
+    same writer the in-band fix protects (wyrd-8wa4 second crash
+    class). The fix sanitizes at FailedChunk construction; this test
+    pins that contract. Without it, an LLM response excerpt embedded
+    in a parse error (e.g. RuntimeError(f"bad JSON: {raw_body[:50]}"))
+    re-introduces the crash one layer downstream."""
+    body = _three_chunk_body()
+    client = FakeClient(
+        [
+            {"mentions": [{"form": "Edlin", "context": "Edlin"}]},
+            # Exception message itself contains a lone surrogate —
+            # mimics a provider SDK that stringifies an LLM response
+            # excerpt verbatim into its error message.
+            RuntimeError("Anthropic parse failed near token: bad\udaaa"),
+            {"mentions": [{"form": "Tyne", "context": "Tyne"}]},
+        ]
+    )
+    report = mine_toponym_mentions(client, "test_source", body, target_chunk_size=10000)
+    assert report.chunks_failed == 1
+    fc = report.failed_chunks[0]
+    # The persistence contract — the writer call:
+    #   sink.write(json.dumps({"error": fc.error, ...}, ensure_ascii=False) + "\n")
+    # — must not raise UnicodeEncodeError. Sanitizing at FailedChunk
+    # construction is what makes that true.
+    json.dumps({"error": fc.error}, ensure_ascii=False).encode("utf-8")
+    # The surrogate becomes U+FFFD; the rest of the error message survives.
+    assert "\udaaa" not in fc.error
+    assert "RuntimeError" in fc.error
+    assert "bad" in fc.error
+
+
+def test_mine_toponym_mentions_rolls_up_surrogates_sanitized_across_chunks():
+    """Pin the `report.surrogates_sanitized += chunk_counters.surrogates_sanitized`
+    line — the chunk→report rollup is a separate code path from
+    ValidationCounters.__iadd__ (it's a plain `int +=` on the report
+    field). Without this test, a regression that drops the rollup
+    line would pass every unit test (the iadd test exercises counter-
+    to-counter folding, not the report's int field) but silently
+    report 0 surrogates_sanitized at the source level even when the
+    model emitted dozens. test-coverage-reviewer + pr-test-analyzer
+    convergent finding."""
+    body = _three_chunk_body()
+    client = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "ctx\udaaa chunk0"},
+                ]
+            },
+            {"mentions": []},  # Clean middle chunk — positive control for
+            # "rollup sums across, not last-chunk".
+            {
+                "mentions": [
+                    {"form": "Tyne", "context": "ctx\ud800 chunk2"},
+                ]
+            },
+        ]
+    )
+    report = mine_toponym_mentions(client, "test_source", body, target_chunk_size=10000)
+    # Two distinct chunks each contributed one surrogate; rollup must SUM.
+    assert report.surrogates_sanitized == 2
+    # Positive control: mentions were still admitted (the surrogate was
+    # in context, not form), so the rollup isn't being masked by
+    # everything dropping as hallucination.
+    assert len(report.mentions) == 2
+    # Last-chunk-only regression would land here as 1 (whichever chunk
+    # processed last). The assertion above (== 2) rules that out.
+
+
+def test_cli_mine_toponym_mentions_emits_surrogates_in_summary(tmp_path, monkeypatch):
+    """The CLI's TOTAL stderr line must surface the surrogates_sanitized
+    counter — otherwise the operator running interactively has no way
+    to spot a model emitting bad codepoints at scale. Pinning the
+    literal format string is what catches typos (`surrogates_sanitised=`,
+    `surrogates=`, missing the value) that pass unit tests because the
+    field on the report is correct. Mirrors
+    `test_cli_summary_includes_validation_counters` for the existing
+    `hallucinations_dropped=` / `years_clamped=` surfaces."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "stub.txt").write_text("Edlingham was attested in the area.", encoding="utf-8")
+    fake = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlingham", "context": "ctx\udaaa with surrogate"},
+                ]
+            }
+        ]
+    )
+    _stub_anthropic_for_cli(monkeypatch, fake)
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions",
+            "--source",
+            "stub",
+            "--sources-dir",
+            str(sources_dir),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "surrogates_sanitized=1" in result.output
+
+
+def test_validation_counters_iadd_folds_surrogates_sanitized():
+    """Counters must fold via += across chunks — the rollup target is
+    the per-source report. Without folding, the report's
+    surrogates_sanitized would always be the last-chunk value."""
+    acc = ValidationCounters(surrogates_sanitized=2, admitted=5)
+    delta = ValidationCounters(surrogates_sanitized=3, admitted=1)
+    acc += delta
+    assert acc.surrogates_sanitized == 5
+    assert acc.admitted == 6
 
 
 # ---------- chunk_source_body --------------------------------------------
