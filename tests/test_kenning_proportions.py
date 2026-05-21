@@ -2386,6 +2386,72 @@ def test_name_generator_no_adjacent_duplicate_words_under_tag_filter() -> None:
     )
 
 
+# ---- wyrd-ovsv: collapse triple-letter join artifacts ------------------
+
+
+def test_collapse_triple_letters_collapses_triple_run_to_double() -> None:
+    """wyrd-ovsv: a run of 3+ identical letters from morpheme join
+    collapses down to 2. Pins 'Killlen' (Kill + llen) → 'Killen'."""
+    from wyrd.generators.kenning.runtime.proportions import _collapse_triple_letters
+
+    assert _collapse_triple_letters("Killlen") == "Killen"
+    assert _collapse_triple_letters("Bronferrrhedyn") == "Bronferrhedyn"
+    assert _collapse_triple_letters("Nettton") == "Netton"
+
+
+def test_collapse_triple_letters_preserves_legitimate_doubles() -> None:
+    """wyrd-ovsv conservative-fix invariant: morphemes that already
+    have legitimate double letters (Kill, Ball, Cromwell, Newcastle)
+    pass through unchanged when they stand alone."""
+    from wyrd.generators.kenning.runtime.proportions import _collapse_triple_letters
+
+    for word in ("Kill", "Ball", "Cromwell", "Newcastle", "Ellen", "Llanelli"):
+        assert _collapse_triple_letters(word) == word
+
+
+def test_collapse_triple_letters_collapses_quadruple_or_longer_runs() -> None:
+    """wyrd-ovsv defensive: a 4+ run (e.g. Kill + llll) collapses
+    all the way down to 2 in one pass. Pathological but pinned so a
+    bundle edit that creates a 4+ join doesn't silently leak past
+    the regex's quantifier."""
+    from wyrd.generators.kenning.runtime.proportions import _collapse_triple_letters
+
+    # 'Killlll' = K + i + 5 l's; collapse to K + i + 2 l's = 'Kill'.
+    assert _collapse_triple_letters("Killlll") == "Kill"
+
+
+def test_new_name_str_applies_triple_letter_collapse() -> None:
+    """wyrd-ovsv end-to-end through __str__: a NewName whose
+    morphemes join to produce a triple-letter run renders with the
+    collapse applied."""
+    from wyrd.generators.kenning.runtime.proportions import NewName
+
+    new_name = NewName(struct=None, meaning_db={}, name=[["Kill-", "-llen"]])
+    assert str(new_name) == "Killen"
+
+
+def test_name_generator_no_triple_letter_runs_across_50_seeds() -> None:
+    """wyrd-ovsv end-to-end: across 50 seeds × 5 cultures the
+    generator produces zero outputs containing 3+-letter runs.
+    Pre-PR scan surfaced 12 such outputs (Killlen, Alllas,
+    Bronferrrhedyn, ...) — the collapse pass eliminates them."""
+    import re as _re
+
+    from wyrd.generators.kenning import Kenning
+
+    triple = _re.compile(r"(.)\1\1")
+    k = Kenning()
+    violations: list[str] = []
+    for culture in ("english", "welsh", "scottish", "irish", "breton"):
+        for seed in range(1, 51):
+            result = k.generate({"culture": culture, "count": 10}, seed=seed)
+            for line in result.result.splitlines():
+                line = line.strip()
+                if line and triple.search(line):
+                    violations.append(f"{culture}/{seed}: {line}")
+    assert not violations, f"triple-letter runs in {len(violations)} outputs: {violations[:5]}"
+
+
 def test_new_name_str_drops_fully_empty_words() -> None:
     """wyrd-3xdb edge case: a word slot containing only None entries
     (no surviving morpheme after joiner-pruning) emits nothing —

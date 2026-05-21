@@ -9,6 +9,7 @@ so generation is reproducible from the seed param.
 from __future__ import annotations
 
 import random
+import re
 from functools import lru_cache
 
 from .meaning import _mimic_case
@@ -140,6 +141,26 @@ class Generator:
         if not excluded:
             return dict(items)
         return {k: v for k, v in items if k not in excluded}
+
+
+_TRIPLE_LETTER_RUN_RE = re.compile(r"(.)\1{2,}")
+
+
+def _collapse_triple_letters(text: str) -> str:
+    """wyrd-ovsv: collapse runs of 3+ identical letters down to 2.
+
+    Used by ``NewName.__str__`` to clean up morpheme-join artifacts
+    like 'Kill' + 'len' → 'Killlen' (triple l) → 'Killen' (double l).
+    Real English / Celtic place names always elide the triple
+    (Killarney NOT Killlarney; Newcastle NOT Newccastle); this is
+    the orthographic-normalization version of that convention.
+
+    Conservative: doesn't touch legitimate doubles (Kill, Ball,
+    Cromwell stay intact when standalone). Only fires on 3+ runs,
+    which only arise from morpheme-join concatenation in this
+    codebase.
+    """
+    return _TRIPLE_LETTER_RUN_RE.sub(r"\1\1", text)
 
 
 def _bucket_keys_matching_surface(
@@ -968,12 +989,22 @@ class NewName:
         # leaking bundle-implementation detail into operator
         # output.
         #
+        # wyrd-ovsv: also collapse 3+-letter runs at the join
+        # boundary down to 2 (e.g. 'Kill' + 'len' → 'Killlen'
+        # becomes 'Killen'). The doubling-then-tripling artifact
+        # surfaces when one morpheme ends in 'XX' and the next
+        # starts with 'X'; real English / Celtic place names
+        # always elide this (Killarney NOT Killlarney; Newcastle
+        # NOT Newccastle). Conservative regex normalization that
+        # doesn't touch single morphemes' own legitimate double
+        # letters (Kill, Ball stay intact when standalone).
+        #
         # Algorithm: build each word by concatenating its morpheme
-        # strings (dash-stripped) inside the word, then capitalize
-        # the first character of the joined word. Words join with
-        # spaces. Already-cased openings pass through unchanged
-        # because ``ch.upper() == ch`` for already-uppercase
-        # letters.
+        # strings (dash-stripped) inside the word, collapse any 3+
+        # run, then capitalize the first character of the joined
+        # word. Words join with spaces. Already-cased openings
+        # pass through unchanged because ``ch.upper() == ch`` for
+        # already-uppercase letters.
         words: list[str] = []
         for wi, w in enumerate(self.name):
             chunks: list[str] = []
@@ -986,6 +1017,7 @@ class NewName:
                     chunks.append(e.replace("-", ""))
             joined = "".join(chunks)
             if joined:
+                joined = _collapse_triple_letters(joined)
                 joined = joined[0].upper() + joined[1:]
             words.append(joined)
         return " ".join(w for w in words if w)
