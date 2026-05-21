@@ -687,3 +687,274 @@ def test_mood_spec_to_legacy_form_unknown_name_raises_value_error() -> None:
     after the rip-and-replace."""
     with pytest.raises(ValueError, match="unknown mood"):
         mood_spec_to_legacy_form("whimsical")
+
+
+# ---------- wyrd-we1u: per-weight tier metadata --------------------------
+
+
+def test_bare_float_weight_loads_with_empty_tier_dict() -> None:
+    """Back-compat: bare-float weights (the pre-we1u shape) carry no
+    tier metadata. The parallel tier dicts stay empty rather than
+    being populated with every-key-mapped-to-untagged bookkeeping —
+    consumers default missing keys to 'untagged' via tier_for."""
+    catalog = load_register_effects_from_text(
+        """
+plain:
+  phonological: {cluster_density: 0.5}
+  semantic_tags: {death: 0.3}
+  position_bias: {}
+"""
+    )
+    effect = catalog["plain"]
+    assert effect.phonological == {"cluster_density": 0.5}
+    assert effect.phonological_tiers == {}
+    assert effect.semantic_tag_tiers == {}
+
+
+def test_tagged_weight_loads_value_and_tier_into_parallel_dicts() -> None:
+    """wyrd-we1u shape: per-weight {value, tier} mappings populate
+    both the weight dict and the tier dict. Both halves are
+    independently queryable."""
+    catalog = load_register_effects_from_text(
+        """
+tagged:
+  phonological:
+    cluster_density: {value: 0.6, tier: universal}
+    polysyllabic_bias: {value: 0.3, tier: ie-conventional}
+  semantic_tags:
+    death: {value: 0.7, tier: untagged}
+  position_bias: {}
+"""
+    )
+    effect = catalog["tagged"]
+    assert effect.phonological == {"cluster_density": 0.6, "polysyllabic_bias": 0.3}
+    assert effect.phonological_tiers == {
+        "cluster_density": "universal",
+        "polysyllabic_bias": "ie-conventional",
+    }
+    assert effect.semantic_tags == {"death": 0.7}
+    assert effect.semantic_tag_tiers == {"death": "untagged"}
+
+
+def test_mixed_bare_and_tagged_weights_in_one_register() -> None:
+    """A register can carry some tier-tagged weights and some bare-
+    float weights simultaneously — supports the incremental data-
+    migration pattern (tag the universal/grounded weights first;
+    untagged weights stay bare while their grounding gets researched)."""
+    catalog = load_register_effects_from_text(
+        """
+mixed:
+  phonological:
+    cluster_density: {value: 0.6, tier: universal}
+    palatalization: 0.2
+  semantic_tags: {}
+  position_bias: {}
+"""
+    )
+    effect = catalog["mixed"]
+    assert effect.phonological == {"cluster_density": 0.6, "palatalization": 0.2}
+    # Only the tagged one appears in the tier dict.
+    assert effect.phonological_tiers == {"cluster_density": "universal"}
+    # tier_for returns the explicit value for the tagged key and the
+    # default 'untagged' for the bare-float key.
+    assert effect.tier_for("phonological", "cluster_density") == "universal"
+    assert effect.tier_for("phonological", "palatalization") == "untagged"
+
+
+def test_tier_for_returns_untagged_for_missing_key() -> None:
+    """tier_for defaults missing keys to 'untagged' across all three
+    axes. Consumers querying a register that doesn't carry a given
+    dim get the safe default instead of KeyError."""
+    catalog = load_register_effects_from_text(
+        """
+sparse:
+  phonological: {}
+  semantic_tags: {}
+  position_bias: {}
+"""
+    )
+    effect = catalog["sparse"]
+    assert effect.tier_for("phonological", "cluster_density") == "untagged"
+    assert effect.tier_for("semantic_tags", "death") == "untagged"
+    assert effect.tier_for("position_bias", "pre") == "untagged"
+
+
+def test_tier_for_unknown_axis_raises_value_error() -> None:
+    """tier_for rejects axis-name typos at the boundary so callers
+    don't silently lose tier filtering on a misspelled axis."""
+    catalog = load_register_effects_from_text(
+        """
+e:
+  phonological: {}
+  semantic_tags: {}
+  position_bias: {}
+"""
+    )
+    effect = catalog["e"]
+    with pytest.raises(ValueError, match="unknown axis"):
+        effect.tier_for("semantics", "death")  # typo: should be 'semantic_tags'
+
+
+def test_unknown_tier_value_raises_at_parse() -> None:
+    """Typo'd tier (universla → universal) is loud-failure. A silent
+    fallback to 'untagged' would drop the grounding metadata an
+    editor intended to assign, surfacing only as a tier-filter miss
+    much later."""
+    with pytest.raises(RegisterEffectCatalogError, match="unknown tier"):
+        load_register_effects_from_text(
+            """
+typo:
+  phonological:
+    cluster_density: {value: 0.6, tier: universla}
+  semantic_tags: {}
+  position_bias: {}
+"""
+        )
+
+
+def test_tier_tagged_weight_missing_value_key_raises() -> None:
+    """A per-weight mapping without 'value' is an authoring error
+    (almost certainly a copy-paste mistake) rather than 'weight is 0'."""
+    with pytest.raises(RegisterEffectCatalogError, match="must include 'value'"):
+        load_register_effects_from_text(
+            """
+bad:
+  phonological:
+    cluster_density: {tier: universal}
+  semantic_tags: {}
+  position_bias: {}
+"""
+        )
+
+
+def test_tier_tagged_weight_unexpected_key_raises() -> None:
+    """Per-weight mapping rejects unknown keys at parse time. Without
+    this guard, a typo like 'val' or 'rating' would silently produce
+    a missing-value error AFTER the catalog had loaded a partial
+    state."""
+    with pytest.raises(RegisterEffectCatalogError, match="unexpected per-weight keys"):
+        load_register_effects_from_text(
+            """
+bad:
+  phonological:
+    cluster_density: {value: 0.6, tier: universal, source: "Whissell 1999"}
+  semantic_tags: {}
+  position_bias: {}
+"""
+        )
+
+
+def test_scaled_preserves_tier_metadata() -> None:
+    """Graduation (RegisterEffect.scaled) preserves tiers unchanged —
+    scaling a weight by 0.5 doesn't change the scholarly grounding
+    behind it. Pins the contract so consumers reading post-scale
+    tiers (e.g. audit-trail exporters) see the same tier as the
+    pre-scale catalog entry."""
+    catalog = load_register_effects_from_text(
+        """
+e:
+  phonological:
+    cluster_density: {value: 0.6, tier: universal}
+  semantic_tags: {}
+  position_bias: {}
+"""
+    )
+    scaled = catalog["e"].scaled(0.5)
+    assert scaled.phonological["cluster_density"] == 0.3
+    assert scaled.phonological_tiers["cluster_density"] == "universal"
+
+
+def test_compose_register_effects_drops_tier_metadata() -> None:
+    """A composed effect has no source-tier attribution: a dim that
+    accumulates from a UNIVERSAL weight + an IE-CONVENTIONAL weight
+    has no single tier to report. Consumers that filter by tier
+    apply the filter on the per-effect inputs BEFORE composition."""
+    catalog = load_register_effects_from_text(
+        """
+a:
+  phonological:
+    cluster_density: {value: 0.3, tier: universal}
+  semantic_tags: {}
+  position_bias: {}
+b:
+  phonological:
+    cluster_density: {value: 0.4, tier: ie-conventional}
+  semantic_tags: {}
+  position_bias: {}
+"""
+    )
+    composed = compose_register_effects([catalog["a"], catalog["b"]])
+    assert composed.phonological["cluster_density"] == 0.7
+    # Composed effect deliberately carries no tier metadata.
+    assert composed.phonological_tiers == {}
+    assert composed.tier_for("phonological", "cluster_density") == "untagged"
+
+
+def test_bundled_catalog_has_no_tiered_weights_yet() -> None:
+    """wyrd-we1u Phase 1: schema + loader land first; the per-weight
+    tier migration of ~80 weights against REGISTERS.md prose is a
+    separate PR (Phase 2). Pin Phase 1's end-state so the migration
+    PR has a clear baseline to compare against."""
+    catalog = _load_bundled_cached.__wrapped__()
+    for effect in catalog.values():
+        # Every weight is still bare-float in YAML; tier dicts are empty.
+        assert effect.phonological_tiers == {}, (
+            f"{effect.name} has unexpected phonological tiers: {effect.phonological_tiers}"
+        )
+        assert effect.semantic_tag_tiers == {}
+        assert effect.position_bias_tiers == {}
+
+
+def test_position_bias_axis_loads_tier_tagged_weights() -> None:
+    """The third axis (position_bias) was an oversight gap in the
+    initial tier-tagged tests — both phonological and semantic_tags
+    had explicit tier-tagged YAML coverage but position_bias was only
+    ever loaded as {}. Pin the third axis's parser branch so a
+    regression in _validate_weight_dict for that axis would surface."""
+    catalog = load_register_effects_from_text(
+        """
+posbias:
+  phonological: {}
+  semantic_tags: {}
+  position_bias:
+    pre: {value: 0.5, tier: ie-conventional}
+    post: 0.2
+"""
+    )
+    effect = catalog["posbias"]
+    assert effect.position_bias == {"pre": 0.5, "post": 0.2}
+    assert effect.position_bias_tiers == {"pre": "ie-conventional"}
+    assert effect.tier_for("position_bias", "pre") == "ie-conventional"
+    assert effect.tier_for("position_bias", "post") == "untagged"
+
+
+def test_get_register_effect_preserves_nonempty_tier_dicts() -> None:
+    """_copy_effect (invoked through get_register_effect) must carry
+    the tier dicts through to the returned fresh instance. The
+    bundled-catalog test only exercises the empty-tier-dict path, so
+    a regression dropping one of the three tier-dict copy lines
+    would slip past without this assertion."""
+    catalog = load_register_effects_from_text(
+        """
+multi:
+  phonological:
+    cluster_density: {value: 0.4, tier: universal}
+  semantic_tags:
+    death: {value: 0.6, tier: ie-conventional}
+  position_bias:
+    pre: {value: 0.3, tier: identity-marking}
+"""
+    )
+    # Round through _copy_effect via the catalog dict (the loader's
+    # output is already pre-copied; emulate the get_register_effect
+    # invariant by importing and calling _copy_effect directly).
+    from wyrd.generators.kenning.registers.effects import _copy_effect
+
+    copied = _copy_effect(catalog["multi"])
+    assert copied.phonological_tiers == {"cluster_density": "universal"}
+    assert copied.semantic_tag_tiers == {"death": "ie-conventional"}
+    assert copied.position_bias_tiers == {"pre": "identity-marking"}
+    # Mutation isolation: copying the source's tier dict and then
+    # mutating it doesn't bleed into the original.
+    copied.phonological_tiers["other"] = "untagged"
+    assert "other" not in catalog["multi"].phonological_tiers
