@@ -16,6 +16,7 @@
   import { pipeline } from '../lib/pipeline.svelte.js';
   import MorphemeCard from '../components/MorphemeCard.svelte';
   import TransformStack from '../components/TransformStack.svelte';
+  import SaveWorkspaceButton from '../components/SaveWorkspaceButton.svelte';
 
   let result = $derived(appState.currentResult);
 
@@ -40,15 +41,20 @@
   // where users will get explicit "keep this pipeline" preservation.
   let lastResultIndex = $state(null);
   $effect(() => {
-    // Deep-snapshot the steps so any nested change (a step's params,
-    // not just the array reference) re-triggers the effect. Svelte 5
-    // deep-proxies propagate writes upward in practice, but reading
-    // the full snapshot here is the explicit + future-proof contract.
     const stepsSnapshot = $state.snapshot(pipeline.steps);
     const idx = appState.currentResultIndex;
     if (idx !== lastResultIndex) {
       lastResultIndex = idx;
-      pipeline.clear();
+      // wyrd-34tn: SavedList load() sets isLoadingSavedWorkspace
+      // before mutating appState. When that's true, suppress the
+      // auto-clear — load is responsible for setting up the
+      // pipeline itself. Reset the flag so the NEXT subject change
+      // clears as usual.
+      if (appState.isLoadingSavedWorkspace) {
+        appState.isLoadingSavedWorkspace = false;
+      } else {
+        pipeline.clear();
+      }
     }
     if (!original) return;
     pipeline.run(original);
@@ -134,6 +140,7 @@
     <section class="transforms">
       <h4 class="section-head">Transforms</h4>
       <TransformStack />
+      <SaveWorkspaceButton />
     </section>
   {/if}
 </section>

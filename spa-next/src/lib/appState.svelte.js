@@ -39,6 +39,15 @@ class AppState {
   // reactively. Cleared on re-roll via the OutputColumn $effect.
   currentResultIndex = $state(null);
 
+  // wyrd-34tn: gate for SavedList load() flow. InspectorColumn's
+  // subject-change effect normally clears the pipeline on
+  // currentResultIndex change; a load() restores both the result
+  // AND the saved pipeline, so we need to suppress that one
+  // auto-clear. SavedList sets true → mutates appState → the
+  // effect observes the change, skips the clear, and resets the
+  // flag.
+  isLoadingSavedWorkspace = $state(false);
+
   // Roll in flight. Lets the button disable + show a pending state.
   isRolling = $state(false);
   rollError = $state(null);
