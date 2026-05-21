@@ -33,9 +33,21 @@ class AppState {
   results = $state([]);
   resultsGenerator = $state(null); // which generator produced `results`
 
+  // wyrd-yxf6: which result is currently selected for col 3 inspection.
+  // null = nothing selected, show placeholder. Lifted out of
+  // OutputColumn's local state so InspectorColumn can read it
+  // reactively. Cleared on re-roll via the OutputColumn $effect.
+  currentResultIndex = $state(null);
+
   // Roll in flight. Lets the button disable + show a pending state.
   isRolling = $state(false);
   rollError = $state(null);
+
+  /** The result that col 3 is currently inspecting, or null. */
+  get currentResult() {
+    if (this.currentResultIndex === null) return null;
+    return this.results[this.currentResultIndex] || null;
+  }
 
   /** Look up the currently-selected generator's manifest entry. */
   get selectedGenerator() {
