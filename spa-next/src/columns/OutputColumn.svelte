@@ -11,24 +11,17 @@
   // wyrd-34tn (PR #6).
   import { appState } from '../lib/appState.svelte.js';
 
-  let selectedIndex = $state(null);
-
-  // wyrd-hcmc round 2: reset the local selection when results
-  // change (e.g. user re-rolls). Without this, after a re-roll a
-  // stale index silently highlights a DIFFERENT result — the row
-  // at that index is now an unrelated name. Same bug would
-  // propagate when wyrd-yxf6 (PR #3) lifts this into
-  // appState.currentResultIndex.
+  // wyrd-yxf6: selection state lifted from local to appState so
+  // InspectorColumn (col 3) reads it reactively. Reset on re-roll
+  // so a stale index doesn't silently highlight a different result.
   $effect(() => {
-    // Touch the dep so the effect re-runs on result-list changes.
-    void appState.results;
-    selectedIndex = null;
+    void appState.results; // dep
+    appState.currentResultIndex = null;
   });
 
   function selectResult(i) {
-    selectedIndex = i === selectedIndex ? null : i;
-    // PR #3 (wyrd-yxf6) wires this to appState.currentResultIndex
-    // so InspectorColumn re-renders with the picked result.
+    appState.currentResultIndex =
+      i === appState.currentResultIndex ? null : i;
   }
 </script>
 
@@ -53,7 +46,7 @@
         <li>
           <button
             class="result"
-            class:selected={selectedIndex === i}
+            class:selected={appState.currentResultIndex === i}
             onclick={() => selectResult(i)}
           >
             <span class="name">{r.result}</span>
