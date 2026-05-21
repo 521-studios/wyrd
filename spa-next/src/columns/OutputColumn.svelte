@@ -35,7 +35,7 @@
       {appState.results.length}
       {appState.results.length === 1 ? 'result' : 'results'}
       from <strong>{appState.resultsGenerator}</strong>
-      {#if appState.seed !== null && appState.seed !== undefined}
+      {#if appState.seed != null}
         <span class="seed">seed {appState.seed}</span>
       {/if}
     </p>

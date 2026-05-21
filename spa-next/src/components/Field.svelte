@@ -111,10 +111,14 @@
        text / checkbox), `for` associates label with id. For composite
        widgets (tag-grid, chips), we render the label as a generic
        group caption + use aria-labelledby on the group container. -->
+  <!-- wyrd-o7lp (PR #314 Gemini MED): humanize snake_case keys
+       like 'spelling_variety' to 'spelling variety'. CSS already
+       capitalizes the first letter; runs result as 'Spelling
+       Variety'. -->
   {#if (prop.type === 'array')}
-    <span class="label" id="label-{fieldKey}">{fieldKey}</span>
+    <span class="label" id="label-{fieldKey}">{fieldKey.replace(/_/g, ' ')}</span>
   {:else}
-    <label for="field-{fieldKey}">{fieldKey}</label>
+    <label for="field-{fieldKey}">{fieldKey.replace(/_/g, ' ')}</label>
   {/if}
 
   {#if isDependentSelect(prop)}

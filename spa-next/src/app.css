@@ -13,7 +13,13 @@
   --col-1-width: 280px;
   --col-2-width: 360px;
   --gap: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* wyrd-o7lp (PR #310 Gemini MED): Inter dropped — was referenced
+     but never imported, so it silently fell back to system fonts
+     anyway. System-font stack is reliable, zero asset cost, and
+     looks native on every OS; if we want Inter later we can
+     @import it from Google Fonts then. */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   color: var(--fg);
@@ -26,13 +32,16 @@
 
 body {
   margin: 0;
-  min-height: 100vh;
+  /* wyrd-o7lp (PR #310 Gemini MED): dvh ('dynamic viewport height')
+     accounts for mobile browser address bars overlaying content;
+     vh measures the maximum viewport height which clips on mobile. */
+  min-height: 100dvh;
 }
 
 .layout {
   display: grid;
   grid-template-columns: var(--col-1-width) var(--col-2-width) 1fr;
-  height: 100vh;
+  height: 100dvh;
 }
 
 .column {
