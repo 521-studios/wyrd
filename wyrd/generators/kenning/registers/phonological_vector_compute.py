@@ -180,12 +180,20 @@ _VOWELS: dict[str, tuple[float, float]] = {
 }
 
 # wyrd-mkry: tense vs lax vowel classification. Whissell 2000 found
-# tense/lax matters more than front/back for valence: tense vowels
-# (i, u, e, o + their long allophones — length marks are stripped
-# upstream so iː → i, uː → u, etc.) rate Gentle; lax vowels
-# (ɪ, ʊ, ɛ, ɔ, æ, ʌ) rate Harsh. Schwa is intentionally absent from
-# both sets — it contributes 0 to vowel_tenseness, matching its
-# corpus-mean neutrality on vowel_height / vowel_backness.
+# tense/lax matters MORE than front/back for valence — but the
+# mapping is NON-MONOTONIC: /iː/ is Gentle while /ɪ/ is Harsh, and
+# /ɔ/ is Gentle while /uː/ is Harsh. The dimension surfaces the
+# tense/lax signal (length marks are stripped upstream so iː → i)
+# and lets the register-effect catalog decide direction per-effect
+# rather than baking in a global "tense = Gentle" assumption.
+#
+# Tense set (closed + peripheral monophthongs from the _VOWELS chart):
+#   i, u, e, o, y, ø, ɨ, ʉ, ɯ, ɵ, ɤ, ɶ, ɑ (13 entries).
+# Lax set (near-close + open-mid + near-open centralized vowels):
+#   ɪ, ʊ, ɛ, ɔ, æ, ʌ, ʏ, ɜ, ɞ, ɐ (10 entries).
+# Schwa (ə) is intentionally in neither set — contributes 0 to the
+# tenseness dimension, matching its corpus-mean neutrality on
+# vowel_height / vowel_backness.
 _TENSE_VOWELS = set("iueoyøɵɤɨʉɯɶɑ")
 _LAX_VOWELS = set("ɪʊɛɔæʌʏɜɞɐ")
 
@@ -515,8 +523,11 @@ def _rhotic_r_share(phonemes: list[str]) -> float:
 
 
 def _vowel_tenseness(phonemes: list[str]) -> float:
-    """wyrd-mkry: mean (tense=+1, lax=-1) across monophthong vowel
-    phonemes.
+    """wyrd-mkry: mean (in _TENSE_VOWELS = +1, in _LAX_VOWELS = -1,
+    other = 0) across monophthong vowel phonemes. The result is a
+    [-1, +1] tenseness score; mapping that score to a register
+    direction (Gentle vs Harsh) is the catalog's job — Whissell 2000
+    shows the partition isn't monotonic.
 
     Filters to ``p in _VOWELS`` (single-char monophthong dict) for
     consistency with ``_vowel_height`` / ``_vowel_backness`` — both

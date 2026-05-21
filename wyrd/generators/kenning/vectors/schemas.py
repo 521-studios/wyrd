@@ -95,9 +95,15 @@ PhonologicalFeatureName = Literal[
     "rhotic_r",
     # wyrd-mkry: Whissell 2000's vowel ratings are non-monotonic in
     # height (/iː/ Gentle, /ɪ/ Harsh; /ɔ/ Gentle, /uː/ Harsh) — tense
-    # / lax matters more than front / back. Signed dimension in
-    # [-1, +1] like vowel_height / vowel_backness: +1 = all tense
-    # (i, u, e, o), -1 = all lax (ɪ, ʊ, ɛ, ɔ, æ, ʌ).
+    # / lax matters more than front / back, but the mapping does NOT
+    # cleanly partition into Gentle vs Harsh on its own (/uː/ is
+    # tense AND Harsh; /ɔ/ is lax AND Gentle). Signed dimension in
+    # [-1, +1] like vowel_height / vowel_backness: +1 = every
+    # monophthong is in _TENSE_VOWELS (13-glyph set including all
+    # close + close-mid + the open back vowels), -1 = every
+    # monophthong is in _LAX_VOWELS (10-glyph set: near-close +
+    # open-mid + near-open centralized vowels). Catalog entries
+    # decide per-effect direction.
     "vowel_tenseness",
 ]
 _DIMENSION_NAMES: frozenset[str] = frozenset(get_args(PhonologicalFeatureName))
@@ -152,9 +158,11 @@ class PhonologicalVector:
     liquid_l_m_n: float = 0.0
     # wyrd-119p: rhotics (the Harsh half). Rate feature in [0, 1].
     rhotic_r: float = 0.0
-    # wyrd-mkry: signed tense (+1) vs lax (-1) vowel preference,
-    # corpus-centered at 0. Mirrors the shape of vowel_height /
-    # vowel_backness.
+    # wyrd-mkry: signed +1 (all-tense-monophthong) to -1 (all-lax)
+    # vowel-tenseness score, corpus-centered at 0. The mapping to
+    # Whissell Gentle / Harsh isn't monotonic — see the Literal
+    # comment above + _TENSE_VOWELS / _LAX_VOWELS in compute.
+    # Mirrors the shape of vowel_height / vowel_backness.
     vowel_tenseness: float = 0.0
     # Forward-compat slot for future-added dimensions. Consumers that
     # don't know a name in extras must ignore it (additive only).
