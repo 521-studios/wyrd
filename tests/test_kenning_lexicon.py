@@ -3834,9 +3834,12 @@ def test_rewind_renders_morphemes_at_each_era_stop(fresh_db: Path) -> None:
     # ME: cluster has 'whit' which case-insensitive matches the
     # canonical 'Whit', so picker prefers it over 'white'.
     assert by_cell["me"] == "Whit"
-    # Modern: cluster has 'white' (no case-insensitive match for
-    # 'Whit'), alphabetical first.
-    assert by_cell["modern"] == "White"
+    # Modern: wyrd-8qbi short-circuits to the morpheme's canonical
+    # (modern_usage with dashes stripped) instead of consulting the
+    # cluster picker. Previously surfaced 'white' (alphabetical-
+    # first sibling cognate). The operator already knows the modern
+    # form is 'Whit'; round-trip is the right answer.
+    assert by_cell["modern"] == "Whit"
 
 
 def test_rewind_resolves_anchor_across_meaning_siblings(fresh_db: Path) -> None:
@@ -4965,6 +4968,90 @@ def test_rewind_hyphen_guard_catches_particle_member_used_as_suffix(
     # Should still be a single concatenated token containing 'on'.
     assert "on" in by_cell["oe-late"].lower()
     assert by_cell["oe-late"].count(" ") == 0
+
+
+# --- wyrd-8qbi: modern-cell round-trip --------------------------------------
+
+
+def test_rewind_modern_cell_round_trips_canonical_not_cluster_mate(
+    fresh_db: Path,
+) -> None:
+    """wyrd-8qbi: at the modern-english target the renderer must use
+    the morpheme's canonical (modern_usage) directly instead of
+    consulting the cluster-mate picker.
+
+    Real-world bug observed 2026-05-21: 'wyrd kenning rewind Elmton'
+    produced 'Amherstton' at modern because 'Amherst' is a sibling
+    cognate of OE 'elm'. The picker alphabetical-first chose
+    'Amherst' over 'elm' even though the operator typed 'Elm'.
+
+    Seed: OE 'elm' + a noise cognate 'Amherst' at modern. Verify
+    the modern cell renders the canonical 'elm'-derived form, NOT
+    'Amherst'."""
+    with LexiconDB(fresh_db) as db:
+        _seed_cluster(
+            db,
+            cluster_root_form="*elmaz",
+            cluster_root_lang="proto-germanic",
+            members=[
+                ("elm", "old-english"),
+                # Noise cognate at modern — alphabetical-first would
+                # surface 'Amherst' if the cluster picker ran.
+                ("Amherst", "modern-english"),
+                ("elm", "modern-english"),
+            ],
+        )
+        meaning_db = _make_rewind_meaning_db(
+            ("Elm", {"old_english": ["elm"]}),
+        )
+        result = rewind_name("Elm", db, meaning_db)
+
+    by_cell = {stop.cell: stop.rendered for stop in result.eras}
+    # Modern cell: canonical short-circuit → 'Elm', not 'Amherst'.
+    assert by_cell["modern"] == "Elm"
+    assert "Amherst" not in by_cell["modern"]
+    # OE cell still works through the existing anchor short-circuit.
+    assert by_cell["oe-late"] == "Elm"
+
+
+def test_rewind_modern_cell_round_trips_compound_input(fresh_db: Path) -> None:
+    """wyrd-8qbi: multi-morpheme compounds round-trip through modern
+    cleanly too. Each morpheme's canonical concatenates at the modern
+    target regardless of how noisy the cluster is."""
+    with LexiconDB(fresh_db) as db:
+        _seed_cluster(
+            db,
+            cluster_root_form="*newjaz",
+            cluster_root_lang="proto-germanic",
+            members=[("new", "old-english"), ("new", "modern-english")],
+        )
+        _seed_cluster(
+            db,
+            cluster_root_form="*tunaz",
+            cluster_root_lang="proto-germanic",
+            members=[
+                ("tūn", "old-english"),
+                # Multiple modern cognates — picker would pick
+                # alphabetical first WITHOUT the short-circuit.
+                ("Newton", "modern-english"),
+                ("ton", "modern-english"),
+            ],
+        )
+        meaning_db = _make_rewind_meaning_db(
+            ("New", {"old_english": ["new"]}),
+            ("ton", {"old_english": ["tūn"]}),
+        )
+        # Space-separated input so the multi-word path decomposes
+        # each token independently — matches the leading-particle
+        # test's setup pattern.
+        result = rewind_name("New ton", db, meaning_db)
+
+    by_cell = {stop.cell: stop.rendered for stop in result.eras}
+    # Modern cell: each morpheme's canonical concatenates cleanly,
+    # round-tripping the operator's input rather than surfacing the
+    # noise mate 'Newton' (sibling cognate of '-ton') at the second
+    # morpheme position.
+    assert by_cell["modern"] == "Newton"
 
 
 def test_rewind_handles_leading_particle(fresh_db: Path) -> None:

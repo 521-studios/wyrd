@@ -496,6 +496,27 @@ def _render_morpheme_at_era(
             is_free_particle=particle,
         )
 
+    # wyrd-8qbi: at the modern-english target, the morpheme's
+    # canonical (Meaning.usage with dash markers stripped) IS by
+    # construction the modern reflex — that's what 'modern_usage'
+    # means in the bundle. Running the cluster-mate picker here
+    # adds noise rather than information: it surfaces sibling
+    # cognates that happen to share an OE root but aren't the
+    # morpheme the operator typed (the demo run produced 'Elmton'
+    # -> 'Amherstton' at modern, picking the place-name cognate
+    # 'Amherst' over the morpheme 'elm' itself). Short-circuit
+    # to canonical so the modern cell round-trips the input.
+    if target_language == "modern-english":
+        return MorphemeRewind(
+            canonical=canonical,
+            source_form=anchor.canonical_form,
+            source_language=anchor.language,
+            source_etymon_id=anchor.etymon_id,
+            era_form=canonical,
+            fallback=False,
+            is_free_particle=particle,
+        )
+
     reflexes: list[EraReflex] = etymon_era_reflexes(
         db, anchor.etymon_id, target_family_cell=(family, cell)
     )
