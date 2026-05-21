@@ -2276,6 +2276,116 @@ def test_new_name_str_uses_rendered_when_present() -> None:
     assert str(new_name) == "Cotuman"
 
 
+# ---- wyrd-gzvr: exclude_keys filter on Generator.select -----------------
+
+
+def test_generator_select_exclude_keys_drops_named_usage() -> None:
+    """wyrd-gzvr: exclude_keys filters specific usages from the bucket
+    before sampling. Used by NameGenerator to break adjacent-slot
+    duplicates ('North North'). Pins the filter applies AFTER
+    keep_keys + tag filters — narrowing only, never widening."""
+    from wyrd.generators.kenning.runtime.proportions import Generator
+
+    gen = Generator(tag_db={}, elements={"a": 10, "b": 10})
+    picked = gen.select(random.Random(0), exclude_keys=frozenset({"a"}))
+    assert picked == "b"  # 'a' excluded → only 'b' remains
+
+
+def test_generator_select_exclude_keys_none_is_bit_stable() -> None:
+    """wyrd-gzvr: exclude_keys=None is the bit-stable no-filter path.
+    Same seed produces the same pick as a call without exclude_keys
+    at all."""
+    from wyrd.generators.kenning.runtime.proportions import Generator
+
+    gen = Generator(tag_db={}, elements={"x": 5, "y": 3})
+    with_none = gen.select(random.Random(42), exclude_keys=None)
+    without_arg = gen.select(random.Random(42))
+    assert with_none == without_arg
+
+
+def test_generator_select_exclude_keys_empty_frozenset_is_no_op() -> None:
+    """wyrd-gzvr: empty frozenset exclude_keys is also no-op (defensive
+    against callers building an empty exclusion). Same pick as
+    exclude_keys=None at the same seed."""
+    from wyrd.generators.kenning.runtime.proportions import Generator
+
+    gen = Generator(tag_db={}, elements={"x": 5, "y": 3})
+    empty = gen.select(random.Random(42), exclude_keys=frozenset())
+    no_filter = gen.select(random.Random(42))
+    assert empty == no_filter
+
+
+def test_generator_select_exclude_keys_emptying_bucket_returns_none() -> None:
+    """wyrd-gzvr: when exclude_keys removes EVERY eligible item, the
+    sampler returns None — the caller (_select_no_tag) handles this
+    by falling back to a non-excluded sample. Pins the contract so
+    a future refactor doesn't crash on the empty-post-filter case."""
+    from wyrd.generators.kenning.runtime.proportions import Generator
+
+    gen = Generator(tag_db={}, elements={"only": 10})
+    result = gen.select(random.Random(0), exclude_keys=frozenset({"only"}))
+    assert result is None
+
+
+def test_name_generator_no_adjacent_duplicate_words_across_50_seeds() -> None:
+    """wyrd-gzvr end-to-end: across 50 seeds × 5 cultures the
+    generator produces zero outputs containing adjacent-duplicate
+    words. Pre-PR scan surfaced 'North North' / 'East East' / 'Green
+    Green' / 'Pentre Pentre' / 'Les Les' patterns — the
+    exclude_keys filter eliminates them."""
+    from wyrd.generators.kenning import Kenning
+
+    k = Kenning()
+    duplicates: list[str] = []
+    for culture in ("english", "welsh", "scottish", "irish", "breton"):
+        for seed in range(1, 51):
+            result = k.generate({"culture": culture, "count": 10}, seed=seed)
+            for line in result.result.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                words = line.split()
+                for i in range(len(words) - 1):
+                    if words[i] == words[i + 1]:
+                        duplicates.append(f"{culture}/{seed}: {line}")
+                        break
+    assert not duplicates, (
+        f"adjacent-duplicate words in {len(duplicates)} outputs: {duplicates[:5]}"
+    )
+
+
+def test_name_generator_no_adjacent_duplicate_words_under_tag_filter() -> None:
+    """wyrd-gzvr: the surface-form dedup also applies on the multi-
+    tag path (_select_tags / _select_tag). Pre-PR the dedup was only
+    in _select_no_tag, so a call with --tag would still surface
+    'X X' adjacents. Tag-filter restricts vocabulary so the
+    probability of a dup is higher — making the gap especially
+    visible at tag-driven generation."""
+    from wyrd.generators.kenning import Kenning
+
+    k = Kenning()
+    duplicates: list[str] = []
+    # Run a smaller sweep — tag-filtered generation is slower per
+    # call and the bucket vocabularies are smaller, so 25 seeds is
+    # enough to catch the regression if it returns.
+    for tag in ("water", "religion", "topography"):
+        for seed in range(1, 26):
+            result = k.generate({"culture": "english", "tags": [tag], "count": 10}, seed=seed)
+            for line in result.result.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                words = line.split()
+                for i in range(len(words) - 1):
+                    if words[i] == words[i + 1]:
+                        duplicates.append(f"tag={tag}/seed={seed}: {line}")
+                        break
+    assert not duplicates, (
+        f"adjacent-duplicate words on tag-filtered path "
+        f"in {len(duplicates)} outputs: {duplicates[:5]}"
+    )
+
+
 def test_new_name_str_drops_fully_empty_words() -> None:
     """wyrd-3xdb edge case: a word slot containing only None entries
     (no surviving morpheme after joiner-pruning) emits nothing —
