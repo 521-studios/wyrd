@@ -3,9 +3,11 @@
 // Calque, Drift) plug in by adding an entry here.
 
 import { rewindTransform } from './rewind.js';
+import { swapTransform } from './swap.js';
 
 const TRANSFORMS = {
   [rewindTransform.kind]: rewindTransform,
+  [swapTransform.kind]: swapTransform,
 };
 
 /** Lookup by kind. Throws if unknown — surfaces transform-kind

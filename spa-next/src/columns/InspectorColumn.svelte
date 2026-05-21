@@ -63,7 +63,12 @@
     if (!displayState?.morphemes_by_word) return [];
     const out = [];
     displayState.morphemes_by_word.forEach((word, wi) => {
-      word.forEach((m) => out.push({ ...m, _wordIndex: wi }));
+      // wyrd-hpjg: thread the in-word morpheme index too so
+      // MorphemeCard's click-to-swap UX can target the right
+      // (wordIndex, morphemeIndex) cell on the pipeline state.
+      word.forEach((m, mi) =>
+        out.push({ ...m, _wordIndex: wi, _morphemeIndex: mi }),
+      );
     });
     return out;
   });
@@ -115,8 +120,13 @@
           This generator doesn't expose per-morpheme metadata.
         </p>
       {:else}
-        {#each allMorphemes as morpheme, i (morpheme._wordIndex + ':' + morpheme.usage + ':' + i)}
-          <MorphemeCard {morpheme} />
+        <!-- wyrd-hpjg round 2 (Gemini MED): key by position, not
+             usage. Pre-fix, swapping a morpheme's usage changed
+             the key, causing MorphemeCard destroy/recreate (lose
+             focus + scroll state on the card). Position-based key
+             is stable across swaps. -->
+        {#each allMorphemes as morpheme (morpheme._wordIndex + ':' + morpheme._morphemeIndex)}
+          <MorphemeCard {morpheme} morphemeIndex={morpheme._morphemeIndex} />
         {/each}
       {/if}
     </section>
