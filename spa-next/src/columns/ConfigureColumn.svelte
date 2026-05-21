@@ -83,7 +83,21 @@
   {:else}
     <div class="field">
       <label for="gen-select">Generator</label>
-      <select id="gen-select" bind:value={appState.selectedGeneratorName}>
+      <!-- wyrd-o7lp round 2 (Gemini HIGH belt-and-suspenders):
+           ensureParams synchronously on user-driven picker change,
+           in addition to the $effect.pre that handles the
+           onMount/manifest-load case. The $effect.pre is actually
+           correct per Svelte 5 internals (parent-first depth-first
+           traversal, render_effects flush before regular effects),
+           but the onchange handler is a cheap defense if a future
+           call site sets selectedGeneratorName outside ConfigureColumn
+           (deep-link restore in wyrd-tz35, save/load rehydration in
+           wyrd-34tn). -->
+      <select
+        id="gen-select"
+        bind:value={appState.selectedGeneratorName}
+        onchange={(e) => appState.ensureParams(e.currentTarget.value)}
+      >
         {#each appState.manifest.generators as gen}
           <option value={gen.name}>{gen.display_name || gen.name}</option>
         {/each}
