@@ -45,9 +45,25 @@ class AppState {
     );
   }
 
-  /** Get-or-init the params object for the current generator. */
+  /** Get-or-init the params object for the current generator.
+   *  Lazy-init lives in the getter for atomicity: child Fields
+   *  render before any $effect can run, so any deferred init
+   *  produces a null-read race. Returns null only when no
+   *  generator is selected (manifest hasn't loaded yet) — at that
+   *  point no Field is rendered either, so the null return is
+   *  unobservable in practice but defends downstream callers
+   *  against an unexpected fresh {}.
+   *
+   *  Reviewer note (round 2): a prior version of this getter was
+   *  pure (lazy init moved to an $effect in ConfigureColumn) per
+   *  a "render-time tracked-field mutation risks reactive-loop
+   *  warnings" concern. In practice no loop materialized, but
+   *  the deferred init opened a render-before-effect race where
+   *  child Fields read undefined → null and threw. Reverted to
+   *  the lazy-init pattern; the Svelte 5 warning would surface
+   *  IF triggered, and we'd revisit then. */
   get currentParams() {
-    if (!this.selectedGeneratorName) return {};
+    if (!this.selectedGeneratorName) return null;
     if (!this.paramsByGenerator[this.selectedGeneratorName]) {
       this.paramsByGenerator[this.selectedGeneratorName] = {};
     }

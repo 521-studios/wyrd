@@ -13,6 +13,18 @@
 
   let selectedIndex = $state(null);
 
+  // wyrd-hcmc round 2: reset the local selection when results
+  // change (e.g. user re-rolls). Without this, after a re-roll a
+  // stale index silently highlights a DIFFERENT result — the row
+  // at that index is now an unrelated name. Same bug would
+  // propagate when wyrd-yxf6 (PR #3) lifts this into
+  // appState.currentResultIndex.
+  $effect(() => {
+    // Touch the dep so the effect re-runs on result-list changes.
+    void appState.results;
+    selectedIndex = null;
+  });
+
   function selectResult(i) {
     selectedIndex = i === selectedIndex ? null : i;
     // PR #3 (wyrd-yxf6) wires this to appState.currentResultIndex
@@ -108,9 +120,13 @@
     line-height: 1.4;
     /* Long etymological explanations from KenningExplain can be
        multi-line — clip with ellipsis at 3 lines so cards stay
-       skimmable. Click → col 3 (PR #3) shows full detail. */
+       skimmable. Click → col 3 (PR #3) shows full detail.
+       The unprefixed line-clamp companion appeases svelte-check
+       (a11y/standards lint) — browsers without -webkit- still
+       honor the standard property when it ships. */
     display: -webkit-box;
     -webkit-line-clamp: 3;
+    line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }

@@ -26,6 +26,7 @@
     }
   });
 
+
   let fieldPartition = $derived.by(() => {
     const gen = appState.selectedGenerator;
     if (!gen) return { headline: [], advanced: [] };

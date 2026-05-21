@@ -23,15 +23,23 @@
   // bugs. For us the props never change for a given Field instance,
   // so the effect runs exactly once at mount.
   $effect(() => {
-    if (appState.currentParams[fieldKey] === undefined) {
+    // wyrd-hcmc round 2: guard currentParams=null — that's the
+    // pre-ensureParams race window between selectedGeneratorName
+    // being set and ConfigureColumn's $effect calling ensureParams.
+    // In practice we never render Field before ensureParams (col 1
+    // does both before mounting child components) but the null
+    // check defends against future restructuring.
+    const params = appState.currentParams;
+    if (!params) return;
+    if (params[fieldKey] === undefined) {
       if (prop.default !== undefined) {
-        appState.currentParams[fieldKey] = prop.default;
+        params[fieldKey] = prop.default;
       } else if (prop.type === 'array') {
-        appState.currentParams[fieldKey] = [];
+        params[fieldKey] = [];
       } else if (prop.type === 'boolean') {
-        appState.currentParams[fieldKey] = false;
+        params[fieldKey] = false;
       } else {
-        appState.currentParams[fieldKey] = '';
+        params[fieldKey] = '';
       }
     }
   });
@@ -41,8 +49,10 @@
   }
 
   // Dependent select: options depend on currently-selected culture.
-  // Re-derive the option list whenever culture changes; preserve the
-  // current selection when it's still valid for the new culture.
+  // The derivation + snap-to-valid live in a single effect so we
+  // avoid the round-1 footgun where the init effect set a default
+  // and the snap effect immediately overwrote it (two renders for
+  // one decision).
   let dependentOptions = $derived.by(() => {
     if (!isDependentSelect(prop)) return [];
     const culture = appState.currentParams.culture;
@@ -50,18 +60,15 @@
     return map[culture] || Object.values(map)[0] || [];
   });
 
-  // If the current value isn't in the new option set, snap to the
-  // default or first option. This handles the "switch culture →
-  // current era cell is invalid" case from the legacy SPA.
   $effect(() => {
     if (!isDependentSelect(prop)) return;
+    if (dependentOptions.length === 0) return;
     const value = appState.currentParams[fieldKey];
-    if (dependentOptions.length > 0 && !dependentOptions.includes(value)) {
-      if (prop.default !== undefined && dependentOptions.includes(prop.default)) {
-        appState.currentParams[fieldKey] = prop.default;
-      } else {
-        appState.currentParams[fieldKey] = dependentOptions[0];
-      }
+    if (dependentOptions.includes(value)) return;
+    if (prop.default !== undefined && dependentOptions.includes(prop.default)) {
+      appState.currentParams[fieldKey] = prop.default;
+    } else {
+      appState.currentParams[fieldKey] = dependentOptions[0];
     }
   });
 
@@ -100,7 +107,15 @@
 </script>
 
 <div class="field">
-  <label for="field-{fieldKey}">{fieldKey}</label>
+  <!-- For inputs with a single underlying element (select / number /
+       text / checkbox), `for` associates label with id. For composite
+       widgets (tag-grid, chips), we render the label as a generic
+       group caption + use aria-labelledby on the group container. -->
+  {#if (prop.type === 'array')}
+    <span class="label" id="label-{fieldKey}">{fieldKey}</span>
+  {:else}
+    <label for="field-{fieldKey}">{fieldKey}</label>
+  {/if}
 
   {#if isDependentSelect(prop)}
     <select id="field-{fieldKey}" bind:value={appState.currentParams[fieldKey]}>
@@ -115,7 +130,7 @@
       {/each}
     </select>
   {:else if prop.type === 'array' && prop.items?.enum}
-    <div class="tag-grid">
+    <div class="tag-grid" role="group" aria-labelledby="label-{fieldKey}">
       {#each prop.items.enum as tag}
         <label class="tag">
           <input
@@ -128,7 +143,7 @@
       {/each}
     </div>
   {:else if prop.type === 'array'}
-    <div class="chips">
+    <div class="chips" role="group" aria-labelledby="label-{fieldKey}">
       {#each appState.currentParams[fieldKey] || [] as chip, i}
         <span class="chip">
           {chip}
@@ -143,6 +158,7 @@
         type="text"
         class="chip-input"
         placeholder="add + Enter"
+        aria-label="add {fieldKey} value"
         bind:value={chipInput}
         onkeydown={onChipKeydown}
       />
@@ -157,6 +173,9 @@
       bind:value={appState.currentParams[fieldKey]}
     />
   {:else if prop.type === 'boolean'}
+    <!-- wyrd-yan: render booleans as checkboxes, NOT text inputs.
+         A text-input fallback ships stringified "false" to the
+         server where bool("false") is True — silent gate inversion. -->
     <input
       id="field-{fieldKey}"
       type="checkbox"
@@ -186,7 +205,8 @@
   .field {
     margin-bottom: 14px;
   }
-  label {
+  label,
+  .label {
     display: block;
     font-size: 11px;
     font-weight: 600;
