@@ -905,7 +905,52 @@ def build_from_jsonl(
         )
 
     conn.commit()
+
+    # wyrd-14p: chain the productivity recompute at the rebuild tail so
+    # `rm db && rebuild-from-jsonl` produces a complete DB. The recompute
+    # is deterministic + cheap (one CTE-driven SELECT + one UPDATE per
+    # reflex with corpus support), and JSONL doesn't carry productivity
+    # values — the column is derivable from toponym_etymology_element
+    # joins alone. Without this chain the rebuild leaves every
+    # reflex.productivity at 0 and the runtime weighting collapses to
+    # flat-uniform until an operator remembers to run
+    # `lexicon recompute-reflex-productivity` separately.
+    _recompute_reflex_productivity_after_build(conn)
+
     return counts
+
+
+def _recompute_reflex_productivity_after_build(conn: sqlite3.Connection) -> None:
+    """Post-build hook: derive reflex.productivity from the rebuilt
+    corpus. Imported lazily so the build.py module doesn't pull the
+    helper at import time (the build.py + helper sit on opposite
+    sides of the SQL-queries / DB-handle boundary; importing eagerly
+    would inflate the lambda cold-start budget for cases that don't
+    rebuild).
+
+    No-ops when the reflex table is absent from the connection's
+    schema — test fixtures use a minimal L2-only schema slice
+    (``_build_fixture_db``) that omits the L3 reflex layer, and the
+    post-build hook shouldn't error on those. Production callers
+    always run against the full ``init_schema``-built DB which
+    includes reflex.
+    """
+    has_reflex = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'reflex'"
+    ).fetchone()
+    if not has_reflex:
+        return
+
+    from wyrd.generators.kenning.lexicon.sql.queries.reflex import (
+        RESET_REFLEX_PRODUCTIVITY,
+        SELECT_REFLEX_PRODUCTIVITY_COUNTS,
+        UPDATE_REFLEX_PRODUCTIVITY,
+    )
+
+    with conn:
+        conn.execute(RESET_REFLEX_PRODUCTIVITY)
+        for reflex_id, productivity in conn.execute(SELECT_REFLEX_PRODUCTIVITY_COUNTS):
+            conn.execute(UPDATE_REFLEX_PRODUCTIVITY, (productivity, reflex_id))
 
 
 # Cap on how many orphan refs the build retains in its result dict.
