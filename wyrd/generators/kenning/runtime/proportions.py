@@ -1060,6 +1060,67 @@ class NewName:
         except IndexError:
             return None
 
+    def to_dict(self) -> dict:
+        """wyrd-cp2d: structured dump preserving per-word morpheme
+        grouping + per-morpheme source-language picks. Consumed by
+        downstream commands that want to skip re-decomposition
+        (``kenning rewind --from-json``, ``kenning era-map
+        --from-json``) and by the webapp's render → rewind
+        continuity flow.
+
+        Without this, downstream consumers receive only the rendered
+        string and must re-run the trie matcher to decompose it,
+        which can pick DIFFERENT morpheme lemmas than the generator
+        did (the 'Cranwith → Cornlandian' situation observed in the
+        2026-05-22 demo).
+
+        Shape:
+            {
+              "name": str,                # rendered output (post-PR 299 title-case)
+              "words": [                  # per-word, per-morpheme
+                [
+                  {"usage": str,          # bucket key (with dash markers)
+                   "sources": {lang: [forms]},  # per-language lemmas
+                   "tags": [tag],
+                   "meanings": [gloss],
+                   "rendered": str        # OPTIONAL: D18 variant / D8 inflection
+                  },
+                  ...
+                ],
+                ...
+              ]
+            }
+
+        Multi-meaning ambiguity: a single bucket key can map to
+        multiple Meaning objects (different etymological histories).
+        Following ``components()``'s precedent we capture the FIRST
+        Meaning for sources / tags / meanings. The full ambiguity
+        stays available to downstream consumers that need it via
+        their own meaning_db lookup using ``usage``.
+        """
+        words: list[list[dict]] = []
+        for wi, word in enumerate(self.name):
+            morphemes: list[dict] = []
+            for ei, e in enumerate(word):
+                if e is None:
+                    continue
+                meanings_list = self.meaning_db.get(e, [])
+                first = meanings_list[0] if meanings_list else None
+                morpheme: dict = {"usage": e}
+                if first is not None:
+                    morpheme["sources"] = {
+                        lang: list(forms) for lang, forms in first.sources.items()
+                    }
+                    morpheme["tags"] = list(first.tags)
+                    morpheme["meanings"] = list(first.meanings)
+                # D18 variant / D8 inflection substitute if present
+                if self.rendered is not None and self.rendered[wi][ei] is not None:
+                    morpheme["rendered"] = self.rendered[wi][ei]
+                morphemes.append(morpheme)
+            if morphemes:
+                words.append(morphemes)
+        return {"name": str(self), "words": words}
+
     def components(self):
         """Structured component breakdown for the API envelope.
 

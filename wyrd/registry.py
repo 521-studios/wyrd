@@ -23,6 +23,16 @@ class GenerationResult:
     # that don't surface canonical info.
     canonical: bool = False
     canonical_source: str | None = None
+    # wyrd-cp2d: per-word morpheme breakdown preserving the bucket-key
+    # picks the generator committed to (with per-language source-lemma
+    # data). Optional; populated by name-shaped generators (Kenning)
+    # whose output downstream commands (rewind, era-map) might want
+    # to re-process without re-running the trie decomposition.
+    # ``None`` for generators that don't surface morpheme structure.
+    # Per-word grouping preserves the operator's space-shape so
+    # multi-word names round-trip cleanly through the json continuity
+    # flow.
+    morphemes_by_word: list[list[dict[str, Any]]] | None = None
 
 
 class Generator(ABC):

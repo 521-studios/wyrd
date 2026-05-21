@@ -502,10 +502,20 @@ class Kenning(Generator):
                     "citations": [],
                 }
             )
+        # wyrd-cp2d: per-word morpheme breakdown for continuity flow.
+        # Captured AFTER joiner insertion / manorial-affix so the dump
+        # mirrors the rendered output's morpheme stack. The dict
+        # includes per-language source lemmas so 'rewind --from-json'
+        # can skip re-decomposition and use the actual picks the
+        # generator committed to (avoiding the 'Cranwith → corn /
+        # Cornlandian' situation where trie re-decomposition picks
+        # a different etymological cluster).
+        morphemes_by_word = new_name.to_dict()["words"]
         return GenerationResult(
             result=result_str,
             explanation=explanation,
             components=components,
+            morphemes_by_word=morphemes_by_word,
         )
 
 

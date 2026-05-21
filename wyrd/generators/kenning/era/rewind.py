@@ -376,6 +376,94 @@ def rewind_name(
     )
 
 
+def rewind_from_morphemes(
+    name: str,
+    words: list[list[dict]],
+    db: LexiconDB,
+    meaning_db: dict[str, list[Meaning]],
+    *,
+    eras: tuple[tuple[str, str], ...] = DEFAULT_ENGLISH_ERAS,
+) -> Rewind:
+    """wyrd-cp2d: bypass trie re-decomposition + use pre-picked
+    morphemes from a 'kenning generate --json' dump.
+
+    Same per-word grouping + anchor + era-render pipeline as
+    ``rewind_name`` but skips the trie matcher entirely. Each
+    morpheme dict in ``words`` carries its ``usage`` (bucket key);
+    the Meaning is looked up directly in ``meaning_db[usage]``,
+    preserving the generator's committed pick rather than the trie's
+    re-decomposition (which can land on a DIFFERENT etymological
+    cluster mate — the Cranwith → corn / Cornlandian situation).
+
+    Each morpheme in the JSON ``sources`` dict CAN be used to
+    pre-select a specific Meaning sibling when meaning_db[usage]
+    has multiple entries (different etymological histories under
+    the same modern usage). v1 keeps the components()-style "first
+    Meaning wins" rule for simplicity; downstream consumers that
+    need the exact sibling can filter meaning_db[usage] themselves
+    before passing the words list.
+
+    Missing usages (the bundle has dropped a morpheme since the
+    JSON was generated) fall back to the unaccounted list with
+    the usage string preserved so the rewind output still notes
+    the gap.
+    """
+    text = (name or "").strip()
+    if not text:
+        raise ValueError("name is required")
+
+    decomposition_parts: list[str] = []
+    morpheme_anchors_per_word: list[list[tuple[Meaning, _Anchor | None]]] = []
+    unaccounted: list[str] = []
+
+    for word_morphemes in words:
+        word_anchors: list[tuple[Meaning, _Anchor | None]] = []
+        for morph in word_morphemes:
+            usage = morph.get("usage")
+            if not usage:
+                continue
+            candidates = meaning_db.get(usage, [])
+            if not candidates:
+                # Bundle dropped this morpheme since the JSON was
+                # generated; flag in unaccounted with the usage.
+                unaccounted.append(usage)
+                continue
+            # v1: first Meaning wins, matching components() precedent.
+            meaning = candidates[0]
+            anchor = _resolve_anchor(meaning, meaning_db, db)
+            word_anchors.append((meaning, anchor))
+            decomposition_parts.append(usage.replace("-", ""))
+        if word_anchors:
+            morpheme_anchors_per_word.append(word_anchors)
+
+    decomposition = " + ".join(decomposition_parts) or "no morphemes recognized"
+
+    era_stops: list[EraStop] = []
+    for family, cell in eras:
+        morphemes_per_word: list[list[MorphemeRewind]] = [
+            [
+                _render_morpheme_at_era(meaning, anchor, family, cell, db)
+                for meaning, anchor in word_anchors
+            ]
+            for word_anchors in morpheme_anchors_per_word
+        ]
+        target_language = canonical_language_for_cell(family, cell)
+        smart_join = target_language != "modern-english"
+        word_renders = [
+            _render_morphemes_as_name(word, smart_join=smart_join) for word in morphemes_per_word
+        ]
+        rendered = " ".join(r for r in word_renders if r)
+        morphemes = [m for word in morphemes_per_word for m in word]
+        era_stops.append(EraStop(family=family, cell=cell, morphemes=morphemes, rendered=rendered))
+
+    return Rewind(
+        name=text,
+        decomposition=decomposition,
+        eras=era_stops,
+        unaccounted=unaccounted,
+    )
+
+
 @dataclass
 class _Anchor:
     """The etymon row that anchors a morpheme to the lexicon DB."""

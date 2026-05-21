@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import sys
 from pathlib import Path
 
 import click
@@ -9,13 +11,17 @@ import click
 from wyrd.generators.kenning import _load_meanings
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
 from wyrd.generators.kenning.era.cells import era_cell_for_input
-from wyrd.generators.kenning.era.rewind import DEFAULT_ENGLISH_ERAS, rewind_name
+from wyrd.generators.kenning.era.rewind import (
+    DEFAULT_ENGLISH_ERAS,
+    rewind_from_morphemes,
+    rewind_name,
+)
 from wyrd.generators.kenning.lexicon import LexiconDB
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 
 @click.command("rewind")
-@click.argument("name")
+@click.argument("name", required=False)
 @click.option(
     "--db",
     "db_path",
@@ -35,7 +41,27 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
         "for predictable rewind output."
     ),
 )
-def rewind(name: str, db_path: Path, era_input: tuple[str, ...]) -> None:
+@click.option(
+    "--from-json",
+    "from_json",
+    type=click.Path(dir_okay=False, allow_dash=True, path_type=Path),
+    default=None,
+    help=(
+        "wyrd-cp2d: read a 'kenning generate --json' object (one per "
+        "line) from FILE (or '-' for stdin) instead of re-decomposing "
+        "the NAME argument. Bypasses the trie matcher and uses the "
+        "generator's actual morpheme picks — eliminates the 'Cranwith → "
+        "Cornlandian' situation where re-decomposition lands on a "
+        "different etymological cluster. NAME argument is optional "
+        "when --from-json is set; if both are present, the JSON wins."
+    ),
+)
+def rewind(
+    name: str | None,
+    db_path: Path,
+    era_input: tuple[str, ...],
+    from_json: Path | None,
+) -> None:
     """wyrd-rni Phase 3.1: render NAME at multiple historical eras.
 
     Decomposes the input via the kenning explainer, anchors each
@@ -66,13 +92,57 @@ def rewind(name: str, db_path: Path, era_input: tuple[str, ...]) -> None:
 
     meaning_db, _ = _load_meanings()
 
+    # wyrd-cp2d: --from-json path. Parse JSON object(s) from the
+    # supplied file (or stdin via '-'), use pre-picked morphemes
+    # via rewind_from_morphemes. Each line is one JSON object so
+    # operators can pipe `kenning generate --json | kenning rewind
+    # --from-json -` for the continuity flow. When the file has
+    # multiple lines, each produces its own rewind output block.
+    json_objects: list[dict] = []
+    if from_json is not None:
+        if str(from_json) == "-":
+            raw = sys.stdin.read()
+        else:
+            raw = from_json.read_text()
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                json_objects.append(json.loads(line))
+            except json.JSONDecodeError as exc:
+                click.echo(f"Error: malformed JSON line: {exc}", err=True)
+                raise click.exceptions.Exit(1) from exc
+        if not json_objects:
+            click.echo("Error: --from-json input had no JSON objects", err=True)
+            raise click.exceptions.Exit(1)
+    elif not name:
+        click.echo("Error: NAME argument is required when --from-json is not set", err=True)
+        raise click.exceptions.Exit(1)
+
     try:
         with LexiconDB(db_path) as db:
-            result = rewind_name(name, db, meaning_db, eras=eras)
+            if json_objects:
+                results = [
+                    rewind_from_morphemes(
+                        obj.get("name", ""), obj.get("words", []), db, meaning_db, eras=eras
+                    )
+                    for obj in json_objects
+                ]
+            else:
+                results = [rewind_name(name or "", db, meaning_db, eras=eras)]
     except ValueError as exc:
         click.echo(f"Error: {exc}", err=True)
         raise click.exceptions.Exit(1) from exc
 
+    for i, result in enumerate(results):
+        if i > 0:
+            click.echo("")  # blank line between multiple rewinds
+        _emit_rewind(result)
+
+
+def _emit_rewind(result) -> None:
+    """Print one Rewind result in the CLI's standard table shape."""
     if not result.eras:
         click.echo("(no era stops requested)", err=True)
         return

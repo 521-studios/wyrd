@@ -32,6 +32,21 @@ _VALID_SCORING_MODES = ("proportions", "vector")
     help="Print the morpheme breakdown after each name.",
 )
 @click.option(
+    "--json",
+    "json_output",
+    is_flag=True,
+    default=False,
+    help=(
+        "wyrd-cp2d: emit JSON instead of plain text. One JSON object per "
+        "line (newline-delimited) carrying the name + per-word morpheme "
+        "breakdown with per-language source lemmas. Consumed by 'kenning "
+        "rewind --from-json' / 'kenning era-map --from-json' to skip "
+        "re-decomposition and use the generator's actual morpheme "
+        "picks. Suppresses --describe (the morpheme structure is in "
+        "the JSON itself)."
+    ),
+)
+@click.option(
     "--spelling-variety",
     type=click.FloatRange(0.0, 1.0),
     default=0.0,
@@ -236,6 +251,7 @@ def generate(
     count: int,
     seed: int | None,
     describe: bool,
+    json_output: bool,
     spelling_variety: float,
     novelty: float,
     inflection_density: float,
@@ -346,9 +362,28 @@ def generate(
             # exceptions still propagate so a real bug isn't silenced.
             click.echo(f"Error: {exc}", err=True)
             sys.exit(1)
-        click.echo(result.result)
-        if describe:
-            click.echo(result.explanation)
+        if json_output:
+            # wyrd-cp2d: newline-delimited JSON, one object per name.
+            # Includes the rendered string + per-word morpheme breakdown
+            # (with per-language source lemmas) so downstream commands
+            # can skip re-decomposition and use the generator's actual
+            # morpheme picks.
+            import json
+
+            click.echo(
+                json.dumps(
+                    {
+                        "name": result.result,
+                        "culture": culture,
+                        "words": result.morphemes_by_word or [],
+                    },
+                    sort_keys=True,
+                )
+            )
+        else:
+            click.echo(result.result)
+            if describe:
+                click.echo(result.explanation)
     click.echo(f"(seed: {resolved})", err=True)
 
 
