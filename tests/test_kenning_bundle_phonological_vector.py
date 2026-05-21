@@ -310,3 +310,43 @@ def test_load_meanings_malformed_phon_vector_entry_silently_skipped():
     # Bad entry dropped (would've crashed without the _parse_phon_vector
     # guard's "best-effort" contract)
     assert "bad" not in meaning.phonological_vectors["old_english"]
+
+
+# ---- wyrd-3uzp: new-dim round trip (PR #290 schema tightenings) ----------
+
+
+def test_load_meanings_round_trips_pr290_new_dimensions():
+    """wyrd-3uzp: the 3 wyrd-119p + wyrd-mkry dimensions (liquid_l_m_n,
+    rhotic_r, vowel_tenseness) round-trip through the bundle to the
+    runtime PhonologicalVector without loss. Pins the per-(lang, form)
+    bundle path's tolerance for the post-rip schema set; future dim
+    additions also flow through the same dict-driven seam unchanged."""
+    bundle = _bundle_with_word(
+        {
+            "modern_usage": "-foo",
+            "old_english": ["lara"],
+            "old_english_phonological_vector": [
+                {
+                    "form": "lara",
+                    "phonological_vector": {
+                        # Subset of PR #290 dims; the loader's tolerance
+                        # for missing dims is covered by other tests.
+                        "liquid_l_m_n": 0.25,
+                        "rhotic_r": 0.25,
+                        "vowel_tenseness": 1.0,
+                        # One legacy dim alongside to verify the new and
+                        # old families coexist on the same vector.
+                        "cluster_density": 0.2,
+                    },
+                },
+            ],
+        }
+    )
+    meaning_db, _ = load_meanings(bundle)
+    vec = meaning_db["-foo"][0].phonological_vectors["old_english"]["lara"]
+    assert vec.liquid_l_m_n == 0.25
+    assert vec.rhotic_r == 0.25
+    assert vec.vowel_tenseness == 1.0
+    assert vec.cluster_density == 0.2
+    # Unspecified dims default to 0.0 (vector_from_json tolerance).
+    assert vec.soft_consonants == 0.0
