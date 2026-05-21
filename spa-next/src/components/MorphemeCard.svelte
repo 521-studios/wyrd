@@ -127,8 +127,8 @@
             {@const r = renderingFor(lang, form)}
             <tr
               class="form-row"
-              class:current={(morpheme.usage || '') === form ||
-                (morpheme.usage || '').replace(/^-+|-+$/g, '') === form}
+              class:current={(morpheme.usage || '').replace(/^-+|-+$/g, '') ===
+                form.replace(/^-+|-+$/g, '')}
             >
               <td class="form">
                 <!-- wyrd-hpjg: each form is a click-to-swap button.
