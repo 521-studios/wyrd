@@ -383,6 +383,16 @@ toponym_etymology_element = Table(
     ),
     Column("inflection", Text),
     Column("surface_in_modern", Text),
+    # wyrd-2n1: per-element confidence (the parent-row
+    # ``toponym_etymology.confidence`` aggregate is kept for back-
+    # compat queries). NULL = scholars didn't hedge this element
+    # explicitly; the three rated levels match the parent's
+    # constraint.
+    Column(
+        "confidence",
+        Text,
+        CheckConstraint("confidence IN ('high', 'medium', 'low')"),
+    ),
     PrimaryKeyConstraint("toponym_etymology_id", "ordinal"),
 )
 

@@ -120,6 +120,7 @@ def _build_fixture_db() -> sqlite3.Connection:
             etymon_id INTEGER NOT NULL,
             inflection TEXT,
             surface_in_modern TEXT,
+            confidence TEXT,
             PRIMARY KEY (toponym_etymology_id, ordinal)
         );
         CREATE TABLE toponym_attestation (

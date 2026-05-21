@@ -382,14 +382,19 @@ def _insert_etymology_element(
             )
         conn.execute(
             """INSERT INTO toponym_etymology_element
-               (toponym_etymology_id, ordinal, etymon_id, inflection, surface_in_modern)
-               VALUES (?, ?, ?, ?, ?)""",
+               (toponym_etymology_id, ordinal, etymon_id, inflection, surface_in_modern, confidence)
+               VALUES (?, ?, ?, ?, ?, ?)""",
             (
                 etymology_id,
                 el["ordinal"],
                 eid,
                 el.get("inflection"),
                 el.get("surface_in_modern"),
+                # wyrd-2n1: per-element confidence flows through the
+                # JSONL alongside inflection / surface_in_modern. Old
+                # JSONL files (pre-2n1) won't carry the field; .get()
+                # returns None which the schema accepts as "no rating".
+                el.get("confidence"),
             ),
         )
 

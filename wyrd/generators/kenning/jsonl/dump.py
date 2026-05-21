@@ -324,7 +324,7 @@ def _dump_toponyms_and_etymologies(
         elements: list[dict[str, Any]] = []
         for el in conn.execute(
             """
-            SELECT el.ordinal, el.inflection, el.surface_in_modern,
+            SELECT el.ordinal, el.inflection, el.surface_in_modern, el.confidence,
                    e.language, e.canonical_form
               FROM toponym_etymology_element el
               JOIN etymon e ON e.id = el.etymon_id
@@ -342,6 +342,11 @@ def _dump_toponyms_and_etymologies(
                     {
                         "inflection": el["inflection"],
                         "surface_in_modern": el["surface_in_modern"],
+                        # wyrd-2n1: per-element confidence; round-trips
+                        # alongside inflection / surface_in_modern.
+                        # NULL elements drop the key entirely, matching
+                        # the surrounding _drop_nulls pattern.
+                        "confidence": el["confidence"],
                     }
                 )
             )

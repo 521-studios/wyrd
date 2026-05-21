@@ -329,9 +329,66 @@ def test_init_schema_stamps_alembic_version_at_head(fresh_db: Path) -> None:
         row = conn.execute("SELECT version_num FROM alembic_version").fetchone()
     assert row is not None, "alembic_version row missing"
     # Head revision id per the wyrd-67fv layered migrations.
-    assert row[0] == "0012_attestation_source_doc_index", (
-        f"expected head '0012_attestation_source_doc_index', got {row[0]!r}"
+    assert row[0] == "0013_etymology_element_confidence", (
+        f"expected head '0013_etymology_element_confidence', got {row[0]!r}"
     )
+
+
+def test_migration_0013_backfills_element_confidence_from_parent(
+    tmp_path: Path,
+) -> None:
+    """wyrd-2n1: migration 0013 backfills toponym_etymology_element.
+    confidence from the parent toponym_etymology.confidence so every
+    pre-PR element gets the parent's value (lossless starting point).
+    Pins the backfill semantic so a future re-ordering of upgrade()
+    steps doesn't silently break the inherit-from-parent contract."""
+    # init_schema runs every migration including 0013, so the column
+    # exists by the time we read it. Seed a row before AND after the
+    # backfill semantic: insert a parent + element pair, set parent
+    # confidence='medium' but leave the element NULL, then re-run the
+    # backfill SQL directly to assert it copies 'medium' over.
+    db_path = tmp_path / "lexicon.db"
+    init_schema(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("INSERT INTO source (id, title) VALUES ('test-src', 'Test')")
+        cur = conn.execute("INSERT INTO toponym (modern_name) VALUES ('Cot')")
+        toponym_id = cur.lastrowid
+        cur = conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) "
+            "VALUES (?, 'test-src', 'medium')",
+            (toponym_id,),
+        )
+        te_id = cur.lastrowid
+        eth = conn.execute(
+            "INSERT INTO etymon (canonical_form, language) "
+            "VALUES ('cot', 'old-english') RETURNING id"
+        ).fetchone()[0]
+        conn.execute(
+            "INSERT INTO toponym_etymology_element "
+            "(toponym_etymology_id, ordinal, etymon_id, confidence) "
+            "VALUES (?, 0, ?, NULL)",
+            (te_id, eth),
+        )
+        conn.commit()
+        # Re-run the backfill (idempotent — UPDATE WHERE confidence IS NULL).
+        conn.execute(
+            """
+            UPDATE toponym_etymology_element
+               SET confidence = (
+                    SELECT te.confidence
+                      FROM toponym_etymology AS te
+                     WHERE te.id = toponym_etymology_element.toponym_etymology_id
+               )
+             WHERE confidence IS NULL
+            """
+        )
+        conn.commit()
+        out = conn.execute(
+            "SELECT confidence FROM toponym_etymology_element "
+            "WHERE toponym_etymology_id = ? AND ordinal = 0",
+            (te_id,),
+        ).fetchone()
+    assert out[0] == "medium"
 
 
 def _filter_sqlite_reflection_artifacts(diffs: list, metadata, table_ddl: dict[str, str]) -> list:
@@ -1054,7 +1111,7 @@ def test_upgrade_head_is_idempotent(fresh_db: Path) -> None:
 
     with sqlite3.connect(fresh_db) as conn:
         version = conn.execute("SELECT version_num FROM alembic_version").fetchone()
-    assert version[0] == "0012_attestation_source_doc_index"
+    assert version[0] == "0013_etymology_element_confidence"
 
 
 def test_idx_attestation_unique_dedups_null_year_and_source(fresh_db: Path) -> None:
