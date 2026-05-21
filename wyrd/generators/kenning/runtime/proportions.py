@@ -1261,6 +1261,23 @@ def _collect_renderings(meanings):
                 slot = _ensure(lang_field, form)
                 _set(slot, "ipa", pron.get("ipa"))
                 _set(slot, "dialect", pron.get("dialect"))
+    # wyrd-03cx: derive reader_pronunciation from ipa when no hand-
+    # curated english_shaped value already filled the slot. The
+    # deterministic mapper covers the OE/ME/Welsh/Old French/Celtic
+    # phonemic inventory in the corpus — best-effort fallback so
+    # every IPA-bearing morpheme carries a reader-friendly rail.
+    # english_shaped (when populated) wins because it's hand-curated.
+    from wyrd.generators.kenning.runtime.anglicize import anglicize_ipa
+
+    for _lang, forms in by_lang_form.items():
+        for _form, slot in forms.items():
+            if "reader_pronunciation" in slot or "english_shaped" in slot:
+                continue
+            ipa = slot.get("ipa")
+            if ipa:
+                rendered = anglicize_ipa(ipa)
+                if rendered:
+                    slot["reader_pronunciation"] = rendered
     return by_lang_form
 
 
