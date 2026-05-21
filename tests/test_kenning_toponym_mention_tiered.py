@@ -163,6 +163,97 @@ def test_tiered_both_tiers_fail_records_failed_chunk():
     assert "429" in fc.error
 
 
+def test_tiered_sanitizes_surrogate_in_chained_failure_message():
+    """wyrd-8wa4 round 3: the tiered both-tiers-failed path constructs
+    `FailedChunk(error=f"primary={...}; fallback={...}")`. If either
+    fragment carries a lone surrogate from a provider SDK that
+    stringified an LLM response excerpt, the persistence writer that
+    serializes the FailedChunk JSONL hits the same UnicodeEncodeError
+    crash class. The single-tier mirror is pinned by
+    `test_mine_toponym_mentions_sanitizes_surrogate_in_failure_message`
+    in the extractor test file; this is the tiered-path symmetric
+    pin (pr-test-analyzer round 3, criticality 5)."""
+    primary = FakeClient(
+        [
+            {"mentions": [{"form": "Edlin", "context": "Edlin"}]},
+            # Primary's exception message carries a lone surrogate
+            # (e.g. provider SDK echoing an LLM token).
+            RuntimeError("primary parse near token: bad\udaaa"),
+            {"mentions": [{"form": "Tyne", "context": "Tyne"}]},
+        ]
+    )
+    fallback = FakeClient(
+        [
+            # Fallback ALSO fails with a surrogate, so both fragments
+            # exercise the sanitizer at the FailedChunk construction
+            # site.
+            RuntimeError("fallback 429: limit\udbff hit"),
+        ]
+    )
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+    )
+    assert report.chunks_failed == 1
+    fc = report.failed_chunks[0]
+    # Contract: the persistence writer's json.dumps(..., ensure_ascii=False)
+    # + utf-8 file write must not raise. Sanitization at FailedChunk
+    # construction is what makes this true.
+    json.dumps({"error": fc.error}, ensure_ascii=False).encode("utf-8")
+    # Both fragments survive (sanitized), so operators get the full
+    # diagnostic chain.
+    assert "primary" in fc.error
+    assert "fallback" in fc.error
+    assert "429" in fc.error
+    # Lone surrogates were replaced with U+FFFD.
+    assert "\udaaa" not in fc.error
+    assert "\udbff" not in fc.error
+
+
+def test_tiered_rolls_up_surrogates_sanitized_across_chunks():
+    """wyrd-8wa4 round 3: the tiered orchestrator has its own
+    `report.surrogates_sanitized += chunk_counters.surrogates_sanitized`
+    rollup site distinct from the single-tier mirror. Both are plain
+    `int +=` operations; both have the same drop-the-line regression
+    class. The single-tier rollup is pinned by
+    `test_mine_toponym_mentions_rolls_up_surrogates_sanitized_across_chunks`
+    in the extractor test file; this is the tiered-path symmetric
+    pin (pr-test-analyzer round 3, criticality 5)."""
+    primary = FakeClient(
+        [
+            {
+                "mentions": [
+                    {"form": "Edlin", "context": "ctx\udaaa chunk0"},
+                ]
+            },
+            {"mentions": []},  # Clean middle chunk — positive control.
+            {
+                "mentions": [
+                    {"form": "Tyne", "context": "ctx\ud800 chunk2"},
+                ]
+            },
+        ]
+    )
+    # Fallback never invoked (primary succeeds every chunk).
+    fallback = FakeClient([])
+    report = mine_toponym_mentions_tiered(
+        primary,
+        fallback,
+        "test_source",
+        _three_chunk_body(),
+        target_chunk_size=10000,
+    )
+    # Rollup must SUM across chunks; last-chunk-only regression would
+    # land here as 1.
+    assert report.surrogates_sanitized == 2
+    # Positive control: both mentions admitted (the surrogate was in
+    # context, not form).
+    assert len(report.mentions) == 2
+
+
 def test_tiered_on_chunk_failed_fires_per_both_tiers_failure():
     """wyrd-3gbx: the tiered orchestrator must invoke on_chunk_failed
     on every chunk where BOTH tiers failed, passing the FailedChunk
