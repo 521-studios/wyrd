@@ -9,7 +9,7 @@
 </script>
 
 <div class="stack">
-  {#each pipeline.steps as step, i (i + ':' + step.kind)}
+  {#each pipeline.steps as step, i (step.id)}
     <TransformStep {step} index={i} />
   {/each}
   <TransformPalette />

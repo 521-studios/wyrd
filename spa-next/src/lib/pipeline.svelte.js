@@ -17,12 +17,12 @@
 //   - `name` is what col 3's head displays
 //   - `morphemes_by_word` is what the morpheme cards iterate
 //
-// Pipeline run is debounced by the natural async/await — we
-// snapshot the steps + original at the start of a run, do the
-// API calls sequentially, and update results at the end. If a
-// new edit lands mid-run we'd ideally cancel, but for v1 the
-// last-finished-wins behavior is acceptable (network calls are
-// ~50ms locally; user edits arrive slower).
+// Pipeline runs are sequential async/await. Each call to run()
+// bumps an internal #runToken; the run only commits its state
+// writes if its token still matches when the loop finishes — so
+// a stale slow run can't clobber a newer fast run's output.
+// "Newest-wins" is the real cancellation semantics (vs the
+// last-finished-wins shape v0 had).
 
 import { appState } from './appState.svelte.js';
 import { getTransform } from './transforms/index.js';
@@ -43,14 +43,18 @@ class PipelineState {
   errors = $state([]);
 
   // True while a run is in flight. Step cards + the inspector head
-  // can show a pending state. Run-cancellation isn't implemented —
-  // a new run just starts; the older one's writes are discarded.
+  // can show a pending state. wyrd-kppy round 2: actually
+  // implemented via #runToken — a stale slow run's results are
+  // dropped + its isRunning reset is suppressed; the newest
+  // run's reset is the only one that commits. Module-header
+  // comment pre-round-2 claimed "cancellation isn't implemented";
+  // it is.
   isRunning = $state(false);
 
   // wyrd-kppy: cancellation token. Bumped on each run start; the
-  // run only commits results if its token matches the current
-  // value (so a stale run that finishes after a newer run started
-  // doesn't clobber the newer's output).
+  // run only commits results (or resets isRunning) if its token
+  // matches the current value, so a stale run that finishes after
+  // a newer run started doesn't clobber state.
   #runToken = 0;
 
   /** The current effective state — bottom of the pipeline if
@@ -68,15 +72,21 @@ class PipelineState {
     };
   }
 
-  /** Add a new step at the end of the pipeline. Subsequent reactive
-   *  re-run picks it up via the $effect in InspectorColumn. */
+  /** Add a new step at the end of the pipeline. Each step gets a
+   *  stable id (monotonic counter) so each-block keying is robust to
+   *  reorder / insert-at-middle (which is on the wyrd-hpjg roadmap
+   *  for the swap-step UX). Subsequent reactive re-run picks it up
+   *  via the $effect in InspectorColumn. */
   addStep(kind) {
     const t = getTransform(kind);
+    this.#nextStepId += 1;
     this.steps = [
       ...this.steps,
-      { kind, params: { ...t.defaultParams } },
+      { id: this.#nextStepId, kind, params: { ...t.defaultParams } },
     ];
   }
+
+  #nextStepId = 0;
 
   /** Replace step at index i with a new params object (callers
    *  mutate the step's params in-place via bind:value; this
@@ -132,7 +142,11 @@ class PipelineState {
     while (nextErrors.length < stepsSnapshot.length) {
       nextErrors.push(null);
     }
-    // Commit only if we're still the freshest run.
+    // Commit only if we're still the freshest run. wyrd-kppy
+    // round 2: isRunning reset moved inside the token guard so a
+    // stale slow run can't clear isRunning while a newer fast
+    // run is still in flight. The newer run's own reset is the
+    // single source of truth for the spinner clearing.
     if (myToken === this.#runToken) {
       this.states = nextStates;
       this.errors = nextErrors;

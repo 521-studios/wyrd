@@ -30,30 +30,29 @@
     };
   });
 
-  // wyrd-kppy: clear the pipeline when the inspector subject
-  // changes. Without this, the user's steps would silently re-run
-  // against a different name when they click a new result. v2
-  // (wyrd-34tn save/load) lets users explicitly preserve pipelines
-  // across switches.
+  // wyrd-kppy round 2: unified subject-change + pipeline-run
+  // effect so the clear-then-run ordering is atomic (pre-fix two
+  // sibling effects depended on currentResultIndex; declaration
+  // order made it work but it was fragile to file reorganization).
+  // When the user clicks a different result we clear the pipeline
+  // synchronously THEN kick off a fresh run; child reads see the
+  // post-clear state immediately. wyrd-34tn (PR #6 save/load) is
+  // where users will get explicit "keep this pipeline" preservation.
   let lastResultIndex = $state(null);
   $effect(() => {
-    if (appState.currentResultIndex !== lastResultIndex) {
-      lastResultIndex = appState.currentResultIndex;
+    // Deep-snapshot the steps so any nested change (a step's params,
+    // not just the array reference) re-triggers the effect. Svelte 5
+    // deep-proxies propagate writes upward in practice, but reading
+    // the full snapshot here is the explicit + future-proof contract.
+    const stepsSnapshot = $state.snapshot(pipeline.steps);
+    const idx = appState.currentResultIndex;
+    if (idx !== lastResultIndex) {
+      lastResultIndex = idx;
       pipeline.clear();
     }
-  });
-
-  // Run the pipeline reactively. Dependencies: original (when col-2
-  // selection changes) + pipeline.steps (when user edits the stack).
-  // The engine itself handles cancellation of stale runs.
-  $effect(() => {
     if (!original) return;
-    // Touch the deps so the effect re-runs on either change.
-    const stepsDep = pipeline.steps;
     pipeline.run(original);
-    // Reference stepsDep so Svelte tracks it; the run uses its own
-    // snapshot inside.
-    void stepsDep;
+    void stepsSnapshot;
   });
 
   // The currently-displayed state — post-pipeline if any, else the
