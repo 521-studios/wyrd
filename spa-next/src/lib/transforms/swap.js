@@ -53,8 +53,11 @@ export const swapTransform = {
     if (!morph) {
       throw new Error(`morpheme ${morphemeIndex} not in word ${wordIndex}`);
     }
-    // Deep-clone morphemes_by_word so the prior state isn't mutated
-    // (pipeline.states keeps each step's output separately).
+    // Shallow-clone the outer + inner arrays so the prior state's
+    // morphemes_by_word reference isn't aliased; the targeted
+    // morpheme is REPLACED with a new object (rest are reused).
+    // Nothing downstream mutates morphemes_by_word so the shared
+    // references are safe.
     const nextWords = state.morphemes_by_word.map((w, wi) =>
       w.map((m, mi) =>
         wi === wordIndex && mi === morphemeIndex
@@ -62,21 +65,53 @@ export const swapTransform = {
           : m,
       ),
     );
-    // Re-render the name by concat-within-word + space-between-words.
-    // Drop dash markers from the joined output (wyrd-2pio behavior
-    // matches: '-ham' as a positional suffix shouldn't bleed dashes
-    // into the rendered name). Title-case the first letter of each
-    // word so 'beggarhamm bridge' renders as 'Beggarhamm Bridge'
-    // (mirrors the legacy render_form_particle_pairs title-casing).
-    const name = nextWords
-      .map((w) => {
-        const joined = w
-          .map((m) => (m.usage || '').replace(/^-+|-+$/g, ''))
-          .join('');
-        return joined ? joined[0].toUpperCase() + joined.slice(1) : '';
-      })
-      .filter((s) => s.trim())
-      .join(' ');
+    const name = renderName(nextWords);
     return { name, morphemes_by_word: nextWords };
   },
 };
+
+// wyrd-hpjg round 2 (frontend MED): port of the Python rewinder's
+// render_form_particle_pairs particle handling. The pre-fix renderer
+// concat'd everything in a word — a morpheme whose usage was 'on'
+// produced 'Whitonfoo' instead of 'Whit on Foo'. Free particles
+// (on / upon / under / of) render as their own lowercase tokens
+// surrounded by spaces, matching scribal place-name convention
+// (Stratford on Avon, Henley upon Thames).
+const FREE_PARTICLES = new Set(['on', 'upon', 'under', 'of']);
+
+function isFreeParticle(usage) {
+  if (!usage) return false;
+  // Mirrors wyrd-085k _is_free_particle: lowercase membership AND
+  // no hyphen markers (a dashed morpheme like '-by' is a settlement
+  // suffix even if its bare form would match the particle set).
+  if (usage.includes('-')) return false;
+  return FREE_PARTICLES.has(usage.toLowerCase());
+}
+
+function renderName(wordsList) {
+  const wordRenders = wordsList.map((w) => {
+    // Per-word: smart-join particles as separate tokens, concat the
+    // rest, title-case the non-particle tokens. Mirrors
+    // render_form_particle_pairs with smart_join=True.
+    const tokens = [];
+    let pending = [];
+    for (const m of w) {
+      const form = (m.usage || '').replace(/^-+|-+$/g, '');
+      if (isFreeParticle(m.usage)) {
+        if (pending.length > 0) {
+          tokens.push(pending.join(''));
+          pending = [];
+        }
+        tokens.push(form.toLowerCase());
+      } else {
+        pending.push(form);
+      }
+    }
+    if (pending.length > 0) tokens.push(pending.join(''));
+    return tokens
+      .map((t) => (FREE_PARTICLES.has(t) ? t : t ? t[0].toUpperCase() + t.slice(1) : ''))
+      .filter(Boolean)
+      .join(' ');
+  });
+  return wordRenders.filter((s) => s.trim()).join(' ');
+}

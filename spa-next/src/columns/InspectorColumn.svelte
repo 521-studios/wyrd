@@ -120,7 +120,12 @@
           This generator doesn't expose per-morpheme metadata.
         </p>
       {:else}
-        {#each allMorphemes as morpheme, i (morpheme._wordIndex + ':' + morpheme.usage + ':' + i)}
+        <!-- wyrd-hpjg round 2 (Gemini MED): key by position, not
+             usage. Pre-fix, swapping a morpheme's usage changed
+             the key, causing MorphemeCard destroy/recreate (lose
+             focus + scroll state on the card). Position-based key
+             is stable across swaps. -->
+        {#each allMorphemes as morpheme (morpheme._wordIndex + ':' + morpheme._morphemeIndex)}
           <MorphemeCard {morpheme} morphemeIndex={morpheme._morphemeIndex} />
         {/each}
       {/if}

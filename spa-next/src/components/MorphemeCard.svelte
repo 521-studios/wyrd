@@ -128,7 +128,7 @@
             <tr
               class="form-row"
               class:current={morpheme.usage === form ||
-                morpheme.usage.replace(/^-+|-+$/g, '') === form}
+                (morpheme.usage || '').replace(/^-+|-+$/g, '') === form}
             >
               <td class="form">
                 <!-- wyrd-hpjg: each form is a click-to-swap button.
@@ -262,6 +262,14 @@
     color: var(--accent);
     text-decoration: underline;
     text-underline-offset: 3px;
+  }
+  /* wyrd-hpjg round 2 (frontend MED): keyboard focus indicator.
+     Without this, Tab users had no visible affordance on the
+     swap targets (transparent bg + no border + no outline). */
+  .form-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 2px;
   }
   .form-row.current .form-btn {
     color: var(--accent);
