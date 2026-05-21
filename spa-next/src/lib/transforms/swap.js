@@ -106,7 +106,15 @@ function renderName(wordsList) {
     const flushPending = () => {
       if (pending.length === 0) return;
       const joined = pending.join('');
-      if (joined) tokens.push(joined[0].toUpperCase() + joined.slice(1));
+      // wyrd-hpjg round 5 (Gemini MED): title-case lowers the tail
+      // too so case-inconsistent inputs (a user-supplied JSON, a
+      // future cluster-sibling endpoint) normalize. Bundle data is
+      // already correctly-cased so this is defensive against
+      // fabricated inputs; macron letters (ē, ā) are unaffected
+      // since toLowerCase is identity on them.
+      if (joined) {
+        tokens.push(joined[0].toUpperCase() + joined.slice(1).toLowerCase());
+      }
       pending = [];
     };
     for (const m of w) {
