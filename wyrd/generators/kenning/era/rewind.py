@@ -117,7 +117,27 @@ def _is_free_particle(meaning: Meaning) -> bool:
     return usage.lower() in _FREE_PARTICLES
 
 
-def _render_morphemes_as_name(morphemes: list[MorphemeRewind]) -> str:
+def _concat_morphemes_simple(morphemes: list[MorphemeRewind]) -> str:
+    """wyrd-t2bh: simple concatenation of morpheme forms, title-case
+    first letter.
+
+    Used at the modern-english era stop where the canonical short-
+    circuit (wyrd-8qbi) already produces the operator's input shape;
+    smart-join's particle handling would re-split inputs like
+    ``Helon`` into ``Hel on``, contradicting the round-trip-to-input
+    invariant. Extracted from ``_render_morphemes_as_name`` to keep
+    its cyclomatic complexity under the C901 floor."""
+    if not morphemes:
+        return ""
+    joined = "".join(_pick_form(m) for m in morphemes)
+    if joined:
+        joined = joined[0].upper() + joined[1:]
+    return joined
+
+
+def _render_morphemes_as_name(
+    morphemes: list[MorphemeRewind], *, smart_join: bool = True
+) -> str:
     """wyrd-085k: join morpheme forms into a medieval-style name.
 
     Free particles (``on``, ``upon``, ``under``, ``of``) get
@@ -128,11 +148,18 @@ def _render_morphemes_as_name(morphemes: list[MorphemeRewind]) -> str:
     title-cased; particles stay fully lowercase to match modern
     typesetting convention for prepositions in proper names.
 
+    wyrd-t2bh: ``smart_join=False`` delegates to
+    ``_concat_morphemes_simple`` — particle handling is bypassed.
+    Used at the modern-english era stop.
+
     Empty input returns the empty string. A single non-particle
     morpheme returns its form title-cased. A leading or trailing
     particle is preserved as its own token (rendering
-    ``[on, foo]`` as ``"on Foo"``, not as a malformed compound).
+    ``[on, foo]`` as ``"on Foo"``, not as a malformed compound)
+    — only with smart_join=True.
     """
+    if not smart_join:
+        return _concat_morphemes_simple(morphemes)
     if not morphemes:
         return ""
     tokens: list[str] = []  # space-separated output tokens
@@ -267,7 +294,14 @@ def rewind_name(
     name_obj = Name(text)
     name_obj.find_meaning(meaning_db, reduce=True)
     decomposition_parts: list[str] = []
-    morpheme_anchors: list[tuple[Meaning, _Anchor | None]] = []
+    # wyrd-t2bh: per-word morpheme groups so the renderer can preserve
+    # the operator's input shape — a multi-word input like
+    # 'Helon Mortborough' decomposes into two words ([Hel, on] +
+    # [Mort, borough]), and the modern-cell renderer concatenates
+    # within each word but joins across words with the original space.
+    # The flat list (used by the CLI's fallback-flag scan via
+    # EraStop.morphemes) gets rebuilt at the end.
+    morpheme_anchors_per_word: list[list[tuple[Meaning, _Anchor | None]]] = []
     unaccounted: list[str] = []
 
     # ``Name.words[word_str]`` is a list of Word objects (alternative
@@ -281,24 +315,46 @@ def rewind_name(
             unaccounted.append(word_str)
             continue
         decomposition = candidates[0]
+        word_anchors: list[tuple[Meaning, _Anchor | None]] = []
         for chunk in decomposition.word:
             if isinstance(chunk, Meaning):
                 anchor = _resolve_anchor(chunk, meaning_db, db)
-                morpheme_anchors.append((chunk, anchor))
+                word_anchors.append((chunk, anchor))
                 fragment = chunk.usage.replace("-", "")
                 decomposition_parts.append(fragment)
             elif isinstance(chunk, str) and chunk:
                 unaccounted.append(chunk)
+        if word_anchors:
+            morpheme_anchors_per_word.append(word_anchors)
 
     decomposition = " + ".join(decomposition_parts) or "no morphemes recognized"
 
     era_stops: list[EraStop] = []
     for family, cell in eras:
-        morphemes = [
-            _render_morpheme_at_era(meaning, anchor, family, cell, db)
-            for meaning, anchor in morpheme_anchors
+        # wyrd-t2bh: per-word render so multi-word inputs like
+        # 'Helon Mortborough' preserve the operator's space-shape.
+        morphemes_per_word: list[list[MorphemeRewind]] = [
+            [
+                _render_morpheme_at_era(meaning, anchor, family, cell, db)
+                for meaning, anchor in word_anchors
+            ]
+            for word_anchors in morpheme_anchors_per_word
         ]
-        rendered = _render_morphemes_as_name(morphemes)
+        # wyrd-t2bh: modern era stop short-circuits to canonical per
+        # wyrd-8qbi; bypass smart-join so the rendered output matches
+        # the operator's input shape rather than re-splitting words
+        # like 'Helon' into 'Hel on'. OE/ME cells still smart-join
+        # (historical scribal practice).
+        target_language = canonical_language_for_cell(family, cell)
+        smart_join = target_language != "modern-english"
+        word_renders = [
+            _render_morphemes_as_name(word, smart_join=smart_join)
+            for word in morphemes_per_word
+        ]
+        rendered = " ".join(r for r in word_renders if r)
+        # Flatten morphemes for back-compat with EraStop.morphemes
+        # consumers (CLI fallback-flag scan).
+        morphemes = [m for word in morphemes_per_word for m in word]
         era_stops.append(EraStop(family=family, cell=cell, morphemes=morphemes, rendered=rendered))
 
     return Rewind(
