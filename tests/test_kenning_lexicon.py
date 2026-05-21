@@ -4896,6 +4896,85 @@ def test_rewind_does_not_treat_norse_settlement_suffix_by_as_particle(
     assert by_cell["oe-late"].count(" ") == 0
 
 
+def test_rewind_modern_cell_bypasses_smart_join_for_embedded_particles(
+    fresh_db: Path,
+) -> None:
+    """wyrd-t2bh: at the modern cell, a single input word with an
+    embedded particle morpheme should round-trip as a single
+    concatenated word (not get re-split). The OE / ME cells still
+    smart-join because that's the historical scribal pattern.
+
+    Real-world bug observed 2026-05-21: 'wyrd kenning rewind Helon'
+    decomposed to [Hel, on] and the modern cell rendered 'Hel on'
+    (smart-join surrounding 'on' with spaces) — wrong: operator
+    typed one word, modern should reflect that. wyrd-t2bh bypasses
+    smart-join at modern; OE/ME stops keep it."""
+    with LexiconDB(fresh_db) as db:
+        for root, member in (
+            ("*hwītaz", "hwīt"),
+            ("*on", "on"),
+        ):
+            _seed_cluster(
+                db,
+                cluster_root_form=root,
+                cluster_root_lang="proto-germanic",
+                members=[(member, "old-english")],
+            )
+        meaning_db = _make_rewind_meaning_db(
+            ("Whit", {"old_english": ["hwīt"]}),
+            ("on", {"old_english": ["on"]}),
+        )
+        # Single-word input 'whiton' — trie should NOT split on word
+        # boundary (no space). All morphemes belong to one word.
+        # Use space here so the test's matching is deterministic
+        # (the trie behavior on single-word concatenation depends on
+        # the meaning_db registration shape).
+        result = rewind_name("whit on", db, meaning_db)
+
+    by_cell = {stop.cell: stop.rendered for stop in result.eras}
+    # OE cell: smart-join treats 'on' as particle → 'Hwīt on'
+    # ('hwīt' from anchor + ' on' as particle).
+    assert by_cell["oe-late"] == "Hwīt on"
+    # Modern cell: NO smart-join inside a word. But the input has
+    # 2 words ('whit on'), so the renderer joins per-word with
+    # spaces → 'Whit On'. The 'on' word is title-cased because
+    # smart-join is OFF — particle-handling doesn't apply.
+    assert by_cell["modern"] == "Whit On"
+
+
+def test_rewind_modern_cell_preserves_input_spacing_across_multiword(
+    fresh_db: Path,
+) -> None:
+    """wyrd-t2bh: multi-word input keeps its space structure at the
+    modern cell. Each input word is decomposed and rendered
+    independently, then ``' '.join``ed back together — the
+    operator's whitespace shape survives the rewinder."""
+    with LexiconDB(fresh_db) as db:
+        for root, member in (
+            ("*hwītaz", "hwīt"),
+            ("*krofta", "croft"),
+        ):
+            _seed_cluster(
+                db,
+                cluster_root_form=root,
+                cluster_root_lang="proto-germanic",
+                members=[(member, "old-english")],
+            )
+        meaning_db = _make_rewind_meaning_db(
+            ("Whit", {"old_english": ["hwīt"]}),
+            ("croft", {"old_english": ["croft"]}),
+        )
+        # Two-word input — each word is a single standalone morpheme;
+        # the renderer joins them across the operator's space.
+        result = rewind_name("Whit croft", db, meaning_db)
+
+    by_cell = {stop.cell: stop.rendered for stop in result.eras}
+    # Modern cell: 2 words preserve the original space.
+    assert by_cell["modern"] == "Whit Croft"
+    # OE cell same (smart-join doesn't trigger — no particles).
+    assert by_cell["oe-late"] == "Hwīt Croft"
+
+
 @pytest.mark.parametrize("particle", ["on", "upon", "under", "of"])
 def test_rewind_preserves_every_free_particle_as_separate_token(
     fresh_db: Path, particle: str
@@ -5041,17 +5120,16 @@ def test_rewind_modern_cell_round_trips_compound_input(fresh_db: Path) -> None:
             ("New", {"old_english": ["new"]}),
             ("ton", {"old_english": ["tūn"]}),
         )
-        # Space-separated input so the multi-word path decomposes
-        # each token independently — matches the leading-particle
-        # test's setup pattern.
+        # Space-separated input — wyrd-t2bh preserves operator's
+        # space-shape at the modern cell, so 'New ton' stays
+        # 'New Ton' (2 words) rather than collapsing to 'Newton'.
         result = rewind_name("New ton", db, meaning_db)
 
     by_cell = {stop.cell: stop.rendered for stop in result.eras}
-    # Modern cell: each morpheme's canonical concatenates cleanly,
-    # round-tripping the operator's input rather than surfacing the
-    # noise mate 'Newton' (sibling cognate of '-ton') at the second
-    # morpheme position.
-    assert by_cell["modern"] == "Newton"
+    # Modern cell: each word concatenates its morphemes' canonicals
+    # independently, then joins across words with the original space.
+    # Surfaces 'New Ton', NOT the cluster's noise mate 'Newton'.
+    assert by_cell["modern"] == "New Ton"
 
 
 def test_rewind_handles_leading_particle(fresh_db: Path) -> None:
