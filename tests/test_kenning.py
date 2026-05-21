@@ -681,6 +681,52 @@ def test_post_endpoint_accepts_json_body():
     assert len(body["results"]) == 1
 
 
+def test_envelope_forwards_morphemes_by_word_field():
+    """wyrd-pr9g: the API envelope must surface morphemes_by_word so
+    the SPA can plumb the same render → age continuity flow the CLI
+    exposes via 'kenning generate --json | kenning rewind --from-json'.
+    Pre-fix envelope() silently dropped the field; the per-word morpheme
+    breakdown was only visible to CLI consumers."""
+    app = create_app()
+    client = app.test_client()
+    resp = client.get("/api/kenning?culture=english&seed=42&count=1")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    result = body["results"][0]
+    # Field must be present (None or list — never absent).
+    assert "morphemes_by_word" in result, (
+        "envelope did not forward morphemes_by_word — SPA continuity flow broken; see wyrd-pr9g."
+    )
+    # Kenning DOES surface morpheme structure, so the field is non-None.
+    assert result["morphemes_by_word"] is not None
+    assert isinstance(result["morphemes_by_word"], list)
+    # Each word has at least one morpheme with a usage key (mirrors
+    # the 'kenning generate --json' shape pinned by wyrd-cp2d tests).
+    assert len(result["morphemes_by_word"]) >= 1
+    for word in result["morphemes_by_word"]:
+        assert isinstance(word, list)
+        for morph in word:
+            assert "usage" in morph
+
+
+def test_envelope_morphemes_by_word_is_none_for_non_morphemic_generators():
+    """wyrd-pr9g: generators that don't surface morpheme structure
+    (e.g. KenningExplain — analytical, not a name builder) leave the
+    field at its default None. Envelope shape must stay uniform across
+    generators so SPA-side consumers can branch on truthiness without
+    a KeyError."""
+    from wyrd.envelope import envelope
+    from wyrd.registry import GenerationResult
+
+    body = envelope(
+        generator="dummy",
+        parameters={},
+        seed=0,
+        results=[GenerationResult(result="x", explanation="")],
+    )
+    assert body["results"][0]["morphemes_by_word"] is None
+
+
 def test_default_count_is_five():
     app = create_app()
     client = app.test_client()

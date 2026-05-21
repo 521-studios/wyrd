@@ -28,6 +28,13 @@ def envelope(
                 ],
                 "canonical": r.canonical,
                 "canonical_source": r.canonical_source,
+                # wyrd-pr9g: forward the morpheme-pick breakdown so the
+                # SPA can plumb the same continuity flow CLI exposes
+                # via 'generate --json | rewind --from-json'. Generators
+                # that don't surface morpheme structure leave the field
+                # None; the API echoes None rather than omitting so the
+                # response shape stays uniform across generators.
+                "morphemes_by_word": r.morphemes_by_word,
             }
             for r in results
         ],
