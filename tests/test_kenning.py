@@ -214,6 +214,24 @@ def test_mood_harsh_with_graduated_value_is_seed_stable():
     assert a == b
 
 
+def test_input_schema_mood_description_surfaces_catalog_dynamically():
+    """wyrd-3uzp: the Kenning input_schema's 'mood' description must
+    list the catalog's effect names at runtime (not a hardcoded set),
+    so adding a register effect to the YAML catalog immediately
+    shows up in /help / SPA UI / Lambda-input docs without code
+    changes. Pins the post-kq7w.3 dynamic-catalog contract."""
+    k = Kenning()
+    schema = k.input_schema()
+    mood_desc = schema["properties"]["mood"]["description"]
+    # Each catalog entry should be enumerated in the description string.
+    for name in ("grim", "harsh", "pastoral", "noble", "mystical", "ancient"):
+        assert name in mood_desc, (
+            f"catalog entry {name!r} missing from input_schema mood description; "
+            "the description should consume available_register_effects() at "
+            "call time so YAML edits propagate without a code change"
+        )
+
+
 def test_mood_harsh_graduated_differs_from_full():
     """'harsh:0.5' produces a different distribution than full 'harsh'
     (which defaults to 1.0). Sweep seeds — at least one should diverge."""

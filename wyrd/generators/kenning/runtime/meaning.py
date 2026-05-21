@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import random
 
-from wyrd.generators.kenning.vectors.schemas import PhonologicalVector
+from wyrd.generators.kenning.vectors.schemas import _DIMENSION_NAMES, PhonologicalVector
 
 # Suffix used in meanings.json to mark per-language variant pools, e.g.
 # "old_english" canonical forms have their variants in "old_english_variants".
@@ -666,29 +666,20 @@ def _parse_phon_vector(raw):
     return PhonologicalVector(**kwargs)
 
 
-# Module-level constant: the 14 canonical PhonologicalVector dimensions
-# (cluster_density, final_fortition, etc.). Used by _parse_phon_vector
-# to route bundle-emitted keys to dataclass kwargs vs the extras
-# forward-compat slot. Hoisted from a function-local set so it's built
-# once at import time rather than per-Meaning load.
-_PHON_KNOWN_DIM_NAMES = frozenset(
-    {
-        "cluster_density",
-        "final_fortition",
-        "final_cluster_rate",
-        "vowel_final_bias",
-        "soft_consonants",
-        "polysyllabic_bias",
-        "palatalization",
-        "sibilance",
-        "retroflexion",
-        "pharyngeal",
-        "vowel_height",
-        "vowel_backness",
-        "stop_vs_continuant",
-        "aspirated_voiceless",
-    }
-)
+# Module-level constant: the canonical PhonologicalVector dimensions.
+# Used by ``_parse_phon_vector`` to route bundle-emitted keys to
+# dataclass kwargs vs the ``extras`` forward-compat slot.
+#
+# Derived directly from the schema's ``_DIMENSION_NAMES`` frozenset
+# (itself built from the ``PhonologicalFeatureName`` Literal via
+# ``get_args``) so adding a dim to the schema automatically flows
+# through the runtime loader on the next import — no second hand-
+# maintained name list to drift. wyrd-3uzp caught the pre-derivation
+# drift: wyrd-119p + wyrd-mkry's new dimensions (liquid_l_m_n,
+# rhotic_r, vowel_tenseness) were silently routing into ``extras``
+# instead of the named fields because this set carried a 14-name
+# copy that hadn't been updated.
+_PHON_KNOWN_DIM_NAMES = _DIMENSION_NAMES
 
 
 def _normalize_era_reflexes(
