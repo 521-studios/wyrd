@@ -41,6 +41,13 @@
         {/if}
       </label>
     {/each}
+    <!-- wyrd-hpjg: transforms with no paramSchema entries (e.g.,
+         Swap — its params are baked at click-time, not user-edited
+         inline) get a summary() string instead so the step card
+         still shows what the step is doing. -->
+    {#if Object.keys(transform.paramSchema).length === 0 && typeof transform.summary === 'function'}
+      <p class="summary">{transform.summary(step.params)}</p>
+    {/if}
   </div>
 
   {#if stepError}
@@ -134,6 +141,12 @@
     font-size: 11px;
     color: var(--fg-muted);
     font-style: italic;
+  }
+  .summary {
+    margin: 0;
+    font-size: 11px;
+    color: var(--fg-muted);
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
   }
   .error {
     margin: 6px 0 0;

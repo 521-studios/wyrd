@@ -73,16 +73,25 @@ class PipelineState {
   }
 
   /** Add a new step at the end of the pipeline. Each step gets a
-   *  stable id (monotonic counter) so each-block keying is robust to
-   *  reorder / insert-at-middle (which is on the wyrd-hpjg roadmap
-   *  for the swap-step UX). Subsequent reactive re-run picks it up
-   *  via the $effect in InspectorColumn. */
-  addStep(kind) {
+   *  stable id (monotonic counter) so each-block keying is robust
+   *  to reorder / insert-at-middle. Subsequent reactive re-run
+   *  picks it up via the $effect in InspectorColumn.
+   *
+   *  wyrd-hpjg: optional `paramOverrides` lets callers pre-populate
+   *  step params at create time. Used by the direct-manipulation
+   *  Swap UX (MorphemeCard click bakes in wordIndex / morphemeIndex
+   *  / to). The palette path doesn't pass overrides and gets the
+   *  transform's defaultParams. */
+  addStep(kind, paramOverrides = {}) {
     const t = getTransform(kind);
     this.#nextStepId += 1;
     this.steps = [
       ...this.steps,
-      { id: this.#nextStepId, kind, params: { ...t.defaultParams } },
+      {
+        id: this.#nextStepId,
+        kind,
+        params: { ...t.defaultParams, ...paramOverrides },
+      },
     ];
   }
 

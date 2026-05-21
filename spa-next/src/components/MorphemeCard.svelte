@@ -1,15 +1,27 @@
 <script>
-  // wyrd-yxf6: one card per morpheme in InspectorColumn. Shows
-  // usage as the card header + meanings + tags + per-source-language
-  // panels carrying form / IPA / reader_pronunciation / original_script /
-  // dialect (the wyrd-cp2d + wyrd-03cx data that the morphemes_by_word
-  // / renderings dicts now carry through the API envelope).
+  // wyrd-yxf6 + wyrd-hpjg: one card per morpheme in InspectorColumn.
+  // Shows usage as the card header + meanings + tags + per-source-
+  // language panels carrying form / IPA / reader_pronunciation /
+  // original_script / dialect (wyrd-cp2d + wyrd-03cx data).
   //
-  // wyrd-hpjg (PR #5) will make the form chips clickable + open a
-  // popover of cluster siblings for direct manipulation.
+  // wyrd-hpjg: form rows are clickable buttons — picking one adds a
+  // Swap step to the pipeline (replaces this morpheme's usage with
+  // the picked form). v1 "siblings" = the alternate forms within
+  // THIS morpheme's own sources/renderings; cluster-walking (other
+  // morphemes sharing an etymon) requires a backend endpoint and
+  // lands in a follow-up.
   import { languageLabel } from '../lib/languageLabels.js';
+  import { pipeline } from '../lib/pipeline.svelte.js';
 
-  let { morpheme } = $props();
+  let { morpheme, morphemeIndex } = $props();
+
+  function swapTo(form) {
+    pipeline.addStep('swap', {
+      wordIndex: morpheme._wordIndex,
+      morphemeIndex,
+      to: form,
+    });
+  }
 
   // Language display order, mirroring _ANCHOR_LANG_PREFERENCE in
   // wyrd/generators/kenning/era/rewind.py — the etymological-anchor
@@ -113,15 +125,30 @@
         <tbody>
           {#each forms as form (form)}
             {@const r = renderingFor(lang, form)}
-            <tr>
+            <tr
+              class="form-row"
+              class:current={morpheme.usage === form ||
+                morpheme.usage.replace(/^-+|-+$/g, '') === form}
+            >
               <td class="form">
-                {#if r.original_script && r.original_script !== form}
-                  <span class="original" title="original script"
-                    >{r.original_script}</span>
-                  <span class="translit">({form})</span>
-                {:else}
-                  {form}
-                {/if}
+                <!-- wyrd-hpjg: each form is a click-to-swap button.
+                     Picks the form + appends a Swap step to the
+                     pipeline targeting this (word, morpheme) cell.
+                     The button approach is keyboard- + screen-reader-
+                     accessible; the table semantics still apply. -->
+                <button
+                  type="button"
+                  class="form-btn"
+                  onclick={() => swapTo(form)}
+                  title="Swap this morpheme's surface to: {form}"
+                >
+                  {#if r.original_script && r.original_script !== form}
+                    <span class="original">{r.original_script}</span>
+                    <span class="translit">({form})</span>
+                  {:else}
+                    {form}
+                  {/if}
+                </button>
               </td>
               <td class="ipa">{r.ipa || ''}</td>
               <td class="reader" title="reader-friendly pronunciation"
@@ -220,6 +247,29 @@
     font-weight: 600;
     color: var(--fg);
     min-width: 60px;
+  }
+  .form-btn {
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+    padding: 0;
+    text-align: left;
+  }
+  .form-btn:hover {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .form-row.current .form-btn {
+    color: var(--accent);
+  }
+  .form-row.current .form-btn::before {
+    content: '● ';
+    font-size: 8px;
+    vertical-align: middle;
   }
   .original {
     font-family: serif;
