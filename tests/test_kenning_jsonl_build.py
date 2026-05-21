@@ -120,6 +120,7 @@ def _build_fixture_db() -> sqlite3.Connection:
             etymon_id INTEGER NOT NULL,
             inflection TEXT,
             surface_in_modern TEXT,
+            confidence TEXT,
             PRIMARY KEY (toponym_etymology_id, ordinal)
         );
         CREATE TABLE toponym_attestation (
@@ -525,6 +526,105 @@ def test_build_inserts_toponym_and_etymology_elements(tmp_path: Path):
     assert len(elements) == 2
     assert elements[0][0] == 1 and elements[1][0] == 2
     assert elements[1][2] == "oblique"
+
+
+def test_build_round_trips_per_element_confidence_when_present(tmp_path: Path):
+    """wyrd-2n1: per-element confidence from the JSONL lands on the
+    rebuilt toponym_etymology_element rows. Pins the build-side
+    INSERT parameter directly — without it, a regression that always
+    inserted NULL would pass the existing test (which doesn't read
+    el.confidence)."""
+    _write_jsonl(
+        tmp_path,
+        "mawer",
+        [
+            {"_type": "source", "ref": "mawer", "title": "N&D"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:cot",
+                "language": "old-english",
+                "canonical_form": "cot",
+            },
+            {
+                "_type": "etymon",
+                "ref": "old-english:tun",
+                "language": "old-english",
+                "canonical_form": "tun",
+            },
+            {
+                "_type": "toponym",
+                "ref": "Cotton@Norfolk",
+                "modern_name": "Cotton",
+                "country": "England",
+                "region": "Norfolk",
+            },
+            {
+                "_type": "etymology_element",
+                "toponym_ref": "Cotton@Norfolk",
+                "confidence": "medium",  # parent aggregate
+                "elements": [
+                    # Mixed-confidence elements — the scenario the
+                    # whole migration exists for.
+                    {"ordinal": 1, "etymon_ref": "old-english:cot", "confidence": "high"},
+                    {"ordinal": 2, "etymon_ref": "old-english:tun", "confidence": "low"},
+                ],
+            },
+        ],
+    )
+    conn = _build_fixture_db()
+    build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    elements = [
+        (r["ordinal"], r["confidence"])
+        for r in conn.execute(
+            "SELECT ordinal, confidence FROM toponym_etymology_element ORDER BY ordinal"
+        )
+    ]
+    assert elements == [(1, "high"), (2, "low")]
+
+
+def test_build_backfills_per_element_confidence_from_parent_when_jsonl_omits_it(
+    tmp_path: Path,
+):
+    """wyrd-2n1 reconstructibility gate: rebuilding from pre-2n1 JSONL
+    (which doesn't carry per-element confidence) lands the parent's
+    value on every element, matching the migration's lossless-
+    starting-point promise. Without the post-build hook, a rebuilt
+    DB would silently differ from a migrated-legacy DB on the new
+    column."""
+    _write_jsonl(
+        tmp_path,
+        "mawer",
+        [
+            {"_type": "source", "ref": "mawer", "title": "N&D"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:cot",
+                "language": "old-english",
+                "canonical_form": "cot",
+            },
+            {
+                "_type": "toponym",
+                "ref": "Cot@Norfolk",
+                "modern_name": "Cot",
+                "country": "England",
+                "region": "Norfolk",
+            },
+            {
+                "_type": "etymology_element",
+                "toponym_ref": "Cot@Norfolk",
+                "confidence": "high",  # parent only — no per-element field
+                "elements": [
+                    {"ordinal": 1, "etymon_ref": "old-english:cot"},
+                ],
+            },
+        ],
+    )
+    conn = _build_fixture_db()
+    build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    confidence = conn.execute("SELECT confidence FROM toponym_etymology_element").fetchone()[0]
+    # Parent value propagated to the per-element row via the post-
+    # build backfill hook.
+    assert confidence == "high"
 
 
 # ---------------------------------------------------------------------------
@@ -1284,13 +1384,21 @@ def _populate_realistic_db() -> sqlite3.Connection:
         (tid,),
     )
     eid = cur.lastrowid
+    # wyrd-2n1: seed per-element confidence to match the parent's
+    # 'high' so the dump→rebuild→dump round-trip is byte-identical.
+    # Without this seed, the post-build backfill hook would inherit
+    # the parent's value during rebuild and the second dump would
+    # surface a confidence key the first dump didn't (breaks the
+    # round-trip equality).
     conn.execute(
-        "INSERT INTO toponym_etymology_element (toponym_etymology_id, ordinal, etymon_id) VALUES (?, 1, ?)",
+        "INSERT INTO toponym_etymology_element "
+        "(toponym_etymology_id, ordinal, etymon_id, confidence) VALUES (?, 1, ?, 'high')",
         (eid, cot_id),
     )
     conn.execute(
-        "INSERT INTO toponym_etymology_element (toponym_etymology_id, ordinal, etymon_id, inflection) "
-        "VALUES (?, 2, ?, 'oblique')",
+        "INSERT INTO toponym_etymology_element "
+        "(toponym_etymology_id, ordinal, etymon_id, inflection, confidence) "
+        "VALUES (?, 2, ?, 'oblique', 'high')",
         (eid, tun_id),
     )
     conn.execute(

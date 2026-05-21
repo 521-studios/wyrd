@@ -137,6 +137,8 @@ def _build_fixture_db() -> sqlite3.Connection:
             etymon_id INTEGER NOT NULL,
             inflection TEXT,
             surface_in_modern TEXT,
+            -- wyrd-2n1: per-element confidence; matches schema/0013.
+            confidence TEXT,
             PRIMARY KEY (toponym_etymology_id, ordinal)
         );
         CREATE TABLE toponym_attestation (
@@ -417,6 +419,78 @@ def test_dump_toponym_and_etymology_elements():
 def test_toponym_ref_handles_null_region():
     assert toponym_ref("Acton", None) == "Acton@-"
     assert toponym_ref("Acton", "Cheshire") == "Acton@Cheshire"
+
+
+def test_dump_emits_per_element_confidence_when_present():
+    """wyrd-2n1: per-element confidence flows through the dump's
+    elements list alongside inflection / surface_in_modern. NULL
+    elements drop the key (_drop_nulls convention). Mixed-confidence
+    elements within one breakdown are the whole point of the per-
+    element migration — a scholar can mark the prefix 'high' and the
+    suffix 'low' on the same toponym."""
+    conn = _build_fixture_db()
+    _add_source(conn, id="mawer", title="English Place-Names")
+    cot = _add_etymon(conn, "old-english", "cot")
+    tun = _add_etymon(conn, "old-english", "tun")
+    cur = conn.execute(
+        "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
+        ("Mixedton", "England", "Norfolk"),
+    )
+    tid = cur.lastrowid
+    cur = conn.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) "
+        "VALUES (?, 'mawer', 'medium')",
+        (tid,),
+    )
+    eid = cur.lastrowid
+    # Prefix marked high (scholars confident on cot-); suffix low
+    # (scholars hedging on -tun); aggregate stays 'medium' on parent.
+    conn.execute(
+        "INSERT INTO toponym_etymology_element "
+        "(toponym_etymology_id, ordinal, etymon_id, confidence) VALUES (?, 1, ?, 'high')",
+        (eid, cot),
+    )
+    conn.execute(
+        "INSERT INTO toponym_etymology_element "
+        "(toponym_etymology_id, ordinal, etymon_id, confidence) VALUES (?, 2, ?, 'low')",
+        (eid, tun),
+    )
+    rows = dump_source_to_rows(conn, "mawer")
+    el = next(r for r in rows if r["_type"] == "etymology_element")
+    assert el["elements"] == [
+        {"ordinal": 1, "etymon_ref": "old-english:cot", "confidence": "high"},
+        {"ordinal": 2, "etymon_ref": "old-english:tun", "confidence": "low"},
+    ]
+    # Parent aggregate flows through unchanged.
+    assert el["confidence"] == "medium"
+
+
+def test_dump_drops_null_per_element_confidence_key():
+    """Elements with NULL confidence drop the key entirely (matches
+    the _drop_nulls convention used for inflection / surface_in_modern).
+    Without this, every pre-migration element would carry a redundant
+    `confidence: null` in the JSONL."""
+    conn = _build_fixture_db()
+    _add_source(conn, id="mawer", title="English Place-Names")
+    cot = _add_etymon(conn, "old-english", "cot")
+    cur = conn.execute(
+        "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
+        ("Cot", "England", "Norfolk"),
+    )
+    tid = cur.lastrowid
+    cur = conn.execute(
+        "INSERT INTO toponym_etymology (toponym_id, source_id) VALUES (?, 'mawer')",
+        (tid,),
+    )
+    eid = cur.lastrowid
+    conn.execute(
+        "INSERT INTO toponym_etymology_element "
+        "(toponym_etymology_id, ordinal, etymon_id) VALUES (?, 1, ?)",
+        (eid, cot),
+    )
+    rows = dump_source_to_rows(conn, "mawer")
+    el = next(r for r in rows if r["_type"] == "etymology_element")
+    assert "confidence" not in el["elements"][0]
 
 
 def test_etymon_ref_format():

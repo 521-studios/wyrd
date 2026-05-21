@@ -863,7 +863,8 @@ def test_migration_adds_columns_to_legacy_db(tmp_path):
             ordinal INTEGER NOT NULL,
             etymon_id INTEGER NOT NULL REFERENCES etymon(id),
             inflection TEXT,
-            surface_in_modern TEXT
+            surface_in_modern TEXT,
+            confidence TEXT  -- wyrd-2n1
         );
         """
     )
