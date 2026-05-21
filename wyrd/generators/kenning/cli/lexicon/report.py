@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
 
 import click
 
-from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
+from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH, _readonly_lexicon
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
 
@@ -28,8 +27,13 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 )
 def lexicon_report(db_path: Path, top: int) -> None:
     """Read-only summary of the lexicon: who said what, where it agrees."""
-    conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-    conn.row_factory = sqlite3.Row
+    with _readonly_lexicon(db_path) as conn:
+        _emit_report(conn, top)
+
+
+def _emit_report(conn, top: int) -> None:
+    """Body of the report command, factored out so the click handler is
+    just argument plumbing + context-manager scope. wyrd-h0u1."""
 
     def q(sql: str, *args) -> list:
         return conn.execute(sql, args).fetchall()
@@ -130,8 +134,6 @@ def lexicon_report(db_path: Path, top: int) -> None:
         )
         for r in rows:
             click.echo(f"    {r['modern_name']:24} sources={r['srcs']}")
-
-    conn.close()
 
 
 def add_to(parent: click.Group) -> None:
