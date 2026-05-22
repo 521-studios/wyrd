@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
+from difflib import SequenceMatcher
 from functools import lru_cache
 from importlib import resources
 from typing import Any
@@ -706,12 +708,68 @@ def _split_senses_for_display(senses: list[str]) -> tuple[list[str], list[str]]:
     return derivative, []
 
 
-def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
-    """wyrd-ywm9 + wyrd-emlb: filter + rank sibling Meanings under one
-    usage bucket so the highest-quality etymon's senses + tags surface
-    first in the SPA's morpheme inspector.
+@lru_cache(maxsize=4096)
+def _normalize_for_similarity(s: str) -> str:
+    """Lowercase + strip dashes + strip whitespace + strip ASCII-fold
+    diacritics ('ē' → 'e', 'ā' → 'a'). The bundle's OE lemmas use
+    macrons (hȳll, brād) and the modern_usage forms don't, so we
+    fold before comparing surface similarity.
 
-    Two passes:
+    wyrd-ubbc round 4 (Gemini MED): @lru_cache because the lexicon
+    is static and the same forms get normalized many times per
+    decomposition (same usages reappear, same source lemmas appear
+    in multiple buckets). 4096 caps memory in pathological corpora;
+    typical bundle has ~10K distinct forms so the cache mostly
+    fills once and stays warm."""
+    if not s:
+        return ""
+    cleaned = s.strip().strip("-").lower()
+    # NFD splits combined chars; then drop the combining marks.
+    return "".join(c for c in unicodedata.normalize("NFD", cleaned) if not unicodedata.combining(c))
+
+
+def _max_form_similarity(matcher: SequenceMatcher, usage_norm: str, m: Meaning) -> float:
+    """Highest difflib ratio between the normalized usage (already
+    pinned as sequence a on `matcher`) and any source-language lemma
+    in this Meaning.
+
+    wyrd-ubbc: catches folk-etymology cluster pollution like the
+    '-hill' bucket containing OE 'hyll' (highly similar to 'hill'),
+    OE 'holt' (less similar), and OE 'cyln' (kiln; less similar).
+    Pre-fix all three tied on meaning count; surface match now
+    breaks the tie so the morpheme card shows 'Hill' instead of
+    'Forest/Grove' or 'Kiln'.
+
+    Caller responsibilities (wyrd-ubbc round 5 Gemini MED): construct
+    the SequenceMatcher ONCE per ranking with
+    `SequenceMatcher(autojunk=False, a=usage_norm)` and pass it in;
+    pass the matching `usage_norm` so the exact-match shortcut can
+    string-compare without re-fetching from the matcher. This
+    avoids re-preprocessing usage_norm for each sibling in the
+    bucket."""
+    if not usage_norm:
+        return 0.0
+    best = 0.0
+    for forms in m.sources.values():
+        for f in forms:
+            if not isinstance(f, str):
+                continue
+            f_norm = _normalize_for_similarity(f)
+            if f_norm == usage_norm:
+                return 1.0
+            matcher.set_seq2(f_norm)
+            score = matcher.ratio()
+            if score > best:
+                best = score
+    return best
+
+
+def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
+    """Filter + rank sibling Meanings under one usage bucket so the
+    highest-quality etymon's senses + tags surface first in the SPA's
+    morpheme inspector.
+
+    Three passes:
 
     1. FILTER (wyrd-ywm9): when ANY sibling has a historical-stratum
        etymon (i.e. _roots() returns non-empty — one of OE / ON / OF /
@@ -728,6 +786,17 @@ def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
        OE 'grēne (Green / Village green, 9 tags, attested 1275)' over
        the Celtic 'grianán (Bright / Shining / Sunny, 1 tag)'.
 
+    3. SURFACE TIEBREAKER (wyrd-ubbc): within a stratum, prefer
+       etymons whose source lemma surface-matches the usage best
+       (continuous similarity via difflib.SequenceMatcher.ratio()
+       after NFD-stripping diacritics). Catches folk-etymology
+       cluster pollution like the '-hill' bucket where OE 'hyll'
+       scores 1.00 (exact after macron-strip), 'holt' 0.50, 'roth'
+       /' cyln' 0.25 — hyll wins the within-stratum sort even
+       though all four tie on meaning count. Without this, 'holt'
+       or 'cyln' could win and the morpheme card would show
+       'Forest' or 'Kiln' for a -hill suffix.
+
     The downstream consumers (_all_senses, _all_roots) preserve
     first-seen order, so the BEST Meaning's data appears first in
     the union — the rest of the senses still ride along, just lower
@@ -740,22 +809,40 @@ def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
         return list(siblings)
 
     # Pass 1: filter out modern_english-only siblings when historical
-    # etymons are present. _roots() returns the codes for sources in
-    # _ROOT_CODES; a Meaning whose only source is 'modern_english'
-    # (not in _ROOT_CODES) gets [].
+    # etymons are present.
     historical = [m for m in siblings if _roots(m)]
     filtered = historical if historical else list(siblings)
 
-    # Pass 2: rank by (stratum priority, meaning count, tag count).
-    # _ROOT_CODES is ordered most-canonical first; a smaller index =
-    # more canonical, so we negate for sort.
-    # _STRATUM_PRIORITY lives at module scope (built once at load).
+    # wyrd-ubbc round 4 (Gemini MED): early-return when filtering
+    # leaves ≤1 candidate. Skips the similarity computation + sort
+    # for the common case of a single-historical-etymon bucket.
+    if len(filtered) <= 1:
+        return filtered
+
+    # Pass 2 + 3: combined sort key. All siblings share the same
+    # usage (.usage attribute), so the normalized usage is computed
+    # once and the SequenceMatcher is constructed once
+    # (wyrd-ubbc round 5 Gemini MED) — was per-sibling before.
+    # filtered has >= 1 element at this point (single-element early
+    # return above + non-empty-fallback in pass 1) so we can index
+    # directly without guarding (wyrd-ubbc round 6 Gemini MED).
+    usage_norm = _normalize_for_similarity(filtered[0].usage)
+    matcher = SequenceMatcher(autojunk=False, a=usage_norm) if usage_norm else None
+
     def _signal(m: Meaning) -> tuple:
         stratum_rank = min(
             (_STRATUM_PRIORITY[s] for s in m.sources if s in _STRATUM_PRIORITY),
             default=len(_ROOT_CODES),
         )
-        return (-stratum_rank, len(m.meanings), len(m.tags))
+        # wyrd-ubbc: surface similarity is sorted AFTER stratum
+        # (canonicity wins over surface similarity — an OE etymon
+        # still beats a Celtic etymon at the same surface match)
+        # but BEFORE meaning/tag counts (so 'hyll' beats 'holt'
+        # inside OE for the -hill bucket).
+        surface_similarity = (
+            _max_form_similarity(matcher, usage_norm, m) if matcher else 0.0
+        )
+        return (-stratum_rank, surface_similarity, len(m.meanings), len(m.tags))
 
     return sorted(filtered, key=_signal, reverse=True)
 
