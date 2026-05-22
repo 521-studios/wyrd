@@ -18,15 +18,51 @@
 
   let col1Open = $state(false);
   let col3Open = $state(false);
+  let isMobileViewport = $state(false);
 
-  // wyrd-jh75: auto-open the inspector sheet when the user taps a
-  // result on mobile. Desktop ignores this — the column is always
-  // visible. The effect reads currentResultIndex and opens col 3
-  // when it becomes non-null. Closing the sheet doesn't deselect
-  // (so re-opening shows the same result); explicit dismiss via the
-  // ✕ button or backdrop tap.
+  // wyrd-jh75 round 2 (frontend MED): track viewport size so the
+  // auto-open effect only fires on mobile. Resize between mobile
+  // and desktop also auto-dismisses any open drawer/sheet (their
+  // state becomes irrelevant on desktop).
   $effect(() => {
-    if (appState.currentResultIndex !== null) col3Open = true;
+    const mq = window.matchMedia('(max-width: 899px)');
+    isMobileViewport = mq.matches;
+    const onChange = (e) => {
+      isMobileViewport = e.matches;
+      if (!e.matches) {
+        col1Open = false;
+        col3Open = false;
+      }
+    };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  });
+
+  // Auto-open the inspector sheet when the user taps a result on
+  // mobile. The viewport guard means desktop never sets col3Open
+  // (which would be a no-op anyway since CSS hides the sheet
+  // chrome on desktop, but the state stays clean).
+  $effect(() => {
+    if (isMobileViewport && appState.currentResultIndex !== null) {
+      col3Open = true;
+    }
+  });
+
+  // wyrd-jh75 round 2 (frontend HIGH): Esc closes any open
+  // drawer/sheet; body scroll-lock when a sheet is open so iOS
+  // Safari touchmove doesn't bleed through to col-2 underneath.
+  $effect(() => {
+    if (!col1Open && !col3Open) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') closeAll();
+    };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
   });
 
   function closeAll() {
@@ -48,7 +84,13 @@
     <span class="bar-title">wyrd</span>
   </header>
 
-  <div class="col col-1">
+  <div
+    class="col col-1"
+    role={isMobileViewport ? 'dialog' : undefined}
+    aria-modal={isMobileViewport && col1Open ? 'true' : undefined}
+    aria-label={isMobileViewport ? 'Configure' : undefined}
+    aria-hidden={isMobileViewport && !col1Open ? 'true' : undefined}
+  >
     <button
       class="close-btn"
       type="button"
@@ -62,7 +104,13 @@
     <OutputColumn />
   </div>
 
-  <div class="col col-3">
+  <div
+    class="col col-3"
+    role={isMobileViewport ? 'dialog' : undefined}
+    aria-modal={isMobileViewport && col3Open ? 'true' : undefined}
+    aria-label={isMobileViewport ? 'Inspect and Transform' : undefined}
+    aria-hidden={isMobileViewport && !col3Open ? 'true' : undefined}
+  >
     <button
       class="close-btn"
       type="button"
@@ -133,12 +181,16 @@
       z-index: 10;
     }
     .bar-btn {
+      /* wyrd-jh75 round 2 (frontend HIGH): 44x44 minimum touch
+         target per WCAG / iOS HIG. Pre-fix the visible icon at
+         20px font + 4/8 padding gave ~28x28. */
       background: transparent;
       border: none;
       color: var(--fg);
       font-size: 20px;
       cursor: pointer;
-      padding: 4px 8px;
+      min-width: 44px;
+      min-height: 44px;
       line-height: 1;
     }
     .bar-title {
@@ -196,14 +248,16 @@
     .close-btn {
       display: block;
       position: absolute;
-      top: 6px;
-      right: 8px;
+      top: 0;
+      right: 0;
       background: transparent;
       border: none;
       color: var(--fg-muted);
       font-size: 20px;
       cursor: pointer;
-      padding: 4px 8px;
+      /* wyrd-jh75 round 2 (frontend HIGH): 44x44 min touch target. */
+      min-width: 44px;
+      min-height: 44px;
       line-height: 1;
       z-index: 1;
     }
