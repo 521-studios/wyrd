@@ -27,8 +27,16 @@
       {#if appState.lastSeed != null}
         <!-- wyrd-hia1: meta shows the seed that PRODUCED this
              roll's results (lastSeed). appState.seed is the input
-             value and may be blank (random-each-roll mode). -->
-        <span class="seed">seed {appState.lastSeed}</span>
+             value and may be blank (random-each-roll mode).
+             wyrd-c8rb: click the seed to populate the Header
+             input — one-tap reproducibility instead of select-
+             text-copy-paste. -->
+        <button
+          type="button"
+          class="seed seed-btn"
+          title="Click to use this seed for the next roll"
+          onclick={() => (appState.seed = appState.lastSeed)}
+        >seed {appState.lastSeed}</button>
       {/if}
     </p>
     <ul class="results">
@@ -65,6 +73,22 @@
     background: var(--bg-elev);
     border-radius: 3px;
     font-variant-numeric: tabular-nums;
+  }
+  /* wyrd-c8rb: seed is now a button — strip native chrome and
+     make it feel like a clickable chip. Hover hints reproducibility. */
+  .seed-btn {
+    border: 1px solid transparent;
+    color: var(--fg);
+    cursor: pointer;
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    transition: border-color 120ms ease, background 120ms ease;
+  }
+  .seed-btn:hover,
+  .seed-btn:focus-visible {
+    border-color: var(--accent);
+    background: color-mix(in oklab, var(--accent) 12%, var(--bg-elev));
+    outline: none;
   }
   .results {
     list-style: none;
