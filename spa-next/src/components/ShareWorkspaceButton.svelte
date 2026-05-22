@@ -13,6 +13,7 @@
   import { encodeWorkspace, buildShareUrl } from '../lib/shareLink.js';
 
   let shareNote = $state('');
+  let fallbackUrl = $state('');
 
   async function share() {
     const r = appState.currentResult;
@@ -35,15 +36,25 @@
     try {
       await navigator.clipboard.writeText(url);
       shareNote = `Link copied (${url.length} chars)`;
+      fallbackUrl = '';
+      setTimeout(() => {
+        shareNote = '';
+      }, 3000);
     } catch (err) {
-      // Clipboard permission denied — surface the URL inline so the
-      // user can copy it manually.
-      shareNote = `Copy failed; URL: ${url.slice(0, 80)}…`;
+      // wyrd-tz35 round 2 (frontend MED): clipboard write failed
+      // (non-secure context, permission denied). Render the FULL
+      // URL in an auto-selecting readonly textarea so the user can
+      // ⌘C / Ctrl-C it manually. No timeout — leave visible until
+      // the user dismisses by clicking Share again.
+      shareNote = 'Copy failed — select the link below + ⌘C / Ctrl-C:';
+      fallbackUrl = url;
       console.warn('share: clipboard write failed', err);
     }
-    setTimeout(() => {
-      shareNote = '';
-    }, 3000);
+  }
+
+  function selectAll(node) {
+    node.focus();
+    node.select();
   }
 </script>
 
@@ -52,6 +63,14 @@
 </button>
 {#if shareNote}
   <p class="note">{shareNote}</p>
+{/if}
+{#if fallbackUrl}
+  <textarea
+    class="fallback"
+    readonly
+    rows="3"
+    use:selectAll
+  >{fallbackUrl}</textarea>
 {/if}
 
 <style>
@@ -81,5 +100,19 @@
     font-size: 11px;
     color: var(--accent);
     font-style: italic;
+  }
+  .fallback {
+    width: 100%;
+    margin-top: 6px;
+    background: var(--bg);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+    font-size: 11px;
+    line-height: 1.4;
+    resize: vertical;
+    word-break: break-all;
   }
 </style>

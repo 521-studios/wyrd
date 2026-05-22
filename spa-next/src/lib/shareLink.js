@@ -29,9 +29,6 @@ export function encodeWorkspace({ generator, params, seed, original, pipeline })
     pipeline,
   };
   const json = JSON.stringify(payload);
-  // base64url (URL-safe variant): replace +/= with -_~ so the
-  // encoded string can sit in a URL without escaping. The trailing
-  // `=` padding is dropped (decoder restores it).
   return base64UrlEncode(json);
 }
 
@@ -89,6 +86,8 @@ export function clearShareParam() {
   window.history.replaceState({}, '', url.toString());
 }
 
+// base64url variant: + → -, / → _, trailing = padding stripped. The
+// decoder restores the padding from string length.
 function base64UrlEncode(str) {
   // btoa works on Latin-1; convert to bytes first so unicode (e.g.
   // OE 'hām' macron, Welsh 'llyn') round-trips correctly.
