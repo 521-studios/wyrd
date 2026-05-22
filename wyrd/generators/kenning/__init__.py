@@ -658,7 +658,12 @@ _PRIMARY_OR_SECONDARY = _alt(_GRAMMATICAL_PRIMARY + _GRAMMATICAL_SECONDARY)
 # ' of ' anchor stays \s+ (the 'of' MUST be space-separated) so we
 # don't get false positives like 'past-mistakes-of-the-king'.
 _DERIVATIVE_PATTERN = re.compile(
-    r"^\s*(?:a\s+|the\s+)?"
+    # wyrd-o53o round 7 (Gemini MED): 'an' added to the optional
+    # article prefix. Several primaries start with vowels
+    # (alternative, archaic, obsolete, inflected, imperative,
+    # absolute, aorist) so 'an alternative form of X' would
+    # otherwise miss.
+    r"^\s*(?:a\s+|an\s+|the\s+)?"
     rf"(?:{_PRIMARY})(?:[\s-]+(?:{_PRIMARY_OR_SECONDARY}))*\s+of\b",
     re.IGNORECASE,
 )
