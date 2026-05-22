@@ -850,6 +850,80 @@ def test_rank_siblings_orders_by_stratum_then_signal():
     assert out[1] is celtic
 
 
+# wyrd-o53o + wyrd-aizb: derivative-gloss classifier. Suppresses
+# morphological pointers ('alternative form of X', 'plural of X',
+# 'soft mutation of X') when semantic glosses exist alongside;
+# surfaces them only when they're alone (so the card isn't blank).
+
+def test_is_derivative_gloss_matches_alternative_form():
+    from wyrd.generators.kenning import _is_derivative_gloss
+    assert _is_derivative_gloss("alternative form of homes")
+    assert _is_derivative_gloss("archaic form of má")
+    assert _is_derivative_gloss("obsolete spelling of moing")
+
+
+def test_is_derivative_gloss_matches_inflection_chains():
+    """Compound grammatical chains like 'singular imperative of X' and
+    'third-person singular masculine/neuter accusative of X' both
+    classify as derivative."""
+    from wyrd.generators.kenning import _is_derivative_gloss
+    assert _is_derivative_gloss("singular imperative of sendan")
+    assert _is_derivative_gloss("plural of bord")
+    assert _is_derivative_gloss("inflection of ingān:")
+    assert _is_derivative_gloss(
+        "third-person singular masculine/neuter accusative of for"
+    )
+    assert _is_derivative_gloss("accusative singular indefinite of eykr")
+    assert _is_derivative_gloss("past participle of būan")
+
+
+def test_is_derivative_gloss_matches_welsh_mutations():
+    from wyrd.generators.kenning import _is_derivative_gloss
+    assert _is_derivative_gloss("soft mutation of llys")
+    assert _is_derivative_gloss("nasal mutation of pen")
+
+
+def test_is_derivative_gloss_rejects_semantic_with_of():
+    """Semantic glosses that contain 'of' (descriptions, possessives,
+    genealogy) must NOT classify as derivative."""
+    from wyrd.generators.kenning import _is_derivative_gloss
+    assert not _is_derivative_gloss("Green")
+    assert not _is_derivative_gloss("Village green")
+    assert not _is_derivative_gloss("a stream of running water")
+    assert not _is_derivative_gloss("wife of a thegn")
+    assert not _is_derivative_gloss("son of Tegid")
+    assert not _is_derivative_gloss("piece of land")
+    # 'Form of X' alone is semantic ('Form of an enclosure') — only
+    # 'X form of Y' with a leading grammatical primary classifies.
+    assert not _is_derivative_gloss("Form of an enclosure")
+    # Past as a tense word can't lead alone without 'of' anchor —
+    # 'past mistakes' is a fragment, not a pointer.
+    assert not _is_derivative_gloss("past mistakes")
+
+
+def test_split_senses_for_display_prefers_semantic():
+    """When both semantic + derivative glosses exist, primary returns
+    semantic; derivative returns the suppressed pointers."""
+    from wyrd.generators.kenning import _split_senses_for_display
+    primary, deriv = _split_senses_for_display(
+        ["Green", "Village green", "alternative form of greene"]
+    )
+    assert primary == ["Green", "Village green"]
+    assert deriv == ["alternative form of greene"]
+
+
+def test_split_senses_for_display_falls_back_to_derivative_when_alone():
+    """Single-sibling derivative-only ('-sing- → singular imperative of
+    singan'): primary = the derivative so the card isn't blank;
+    derivative = [] to avoid duplicating the primary list."""
+    from wyrd.generators.kenning import _split_senses_for_display
+    primary, deriv = _split_senses_for_display(
+        ["singular imperative of singan"]
+    )
+    assert primary == ["singular imperative of singan"]
+    assert deriv == []
+
+
 def test_rank_siblings_returns_new_list():
     """Caller mutations on the result must not leak back to the input."""
     from wyrd.generators.kenning import _rank_siblings

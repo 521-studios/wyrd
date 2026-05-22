@@ -102,6 +102,18 @@
     <p class="meanings">{morpheme.meanings.join(', ')}</p>
   {/if}
 
+  {#if morpheme.derivative_meanings?.length}
+    <!-- wyrd-o53o: morphological-derivative glosses (e.g. 'alternative
+         form of X', 'soft mutation of Y') surfaced separately from
+         primary semantic meanings. Dimmed + labeled so the operator
+         sees the data exists but knows it's a pointer, not a definition.
+         Empty / missing field renders nothing (most morphemes). -->
+    <p class="derivative-meanings" title="Morphological pointers (alternative form / plural / mutation / inflection of another lemma) — kept for reference; not the primary meaning.">
+      <span class="derivative-label">related</span>
+      {morpheme.derivative_meanings.join(', ')}
+    </p>
+  {/if}
+
   {#if morpheme.tags?.length}
     <p class="tags">
       {#each morpheme.tags as tag}
@@ -203,6 +215,30 @@
     font-size: 12px;
     color: var(--fg);
     line-height: 1.5;
+  }
+  /* wyrd-o53o: derivative glosses rendered dimmed + italic so the
+     visual hierarchy is clear (primary meanings dominate; pointers
+     are secondary reference). 'related' label sits inline as a
+     monospace tag for a 'metadata-ish' feel. */
+  .derivative-meanings {
+    margin: -4px 0 8px;
+    font-size: 11px;
+    color: var(--muted);
+    font-style: italic;
+    line-height: 1.5;
+  }
+  .derivative-label {
+    display: inline-block;
+    margin-right: 6px;
+    padding: 0 4px;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    font-style: normal;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: var(--bg-elev);
+    border-radius: 2px;
+    color: var(--muted);
   }
   .tags {
     margin: 0 0 12px;

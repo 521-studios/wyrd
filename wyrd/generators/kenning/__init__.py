@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from functools import lru_cache
 from importlib import resources
 from typing import Any
@@ -565,6 +566,146 @@ def _all_senses(meanings: list[Meaning]) -> list[str]:
     return list(dict.fromkeys(sense for m in meanings for sense in m.meanings))
 
 
+# wyrd-o53o + wyrd-aizb: classify gloss strings as 'derivative' vs
+# 'semantic'. Derivative glosses point at another lemma rather than
+# carrying meaning ('alternative form of homes', 'singular imperative
+# of singan', 'plural of bord', 'soft mutation of llys', 'genitive of
+# Albain'). 22.6% of bundle glosses match these patterns; surfacing
+# them as primary meanings in the SPA's morpheme inspector is
+# noise — 'half the lemmas only tell me derivations' (user, 2026-
+# 05-22 QA). Suppress them in display when semantic glosses exist
+# alongside; surface them in a separate field for the SPA to render
+# secondarily if it wants.
+#
+# Patterns chosen to match common morphological-pointer templates
+# WITHOUT matching genuine semantic glosses that happen to use 'of'
+# (e.g. 'wife of X', 'son of X', 'a stream of running water' — none
+# of those start with grammatical terms like 'plural', 'inflection',
+# 'mutation', etc.).
+# Grammatical vocabulary for the derivative-gloss matcher. Split into
+# two tiers:
+#
+#   PRIMARY — must LEAD the derivative chain. These are the words that
+#     unambiguously signal a morphological pointer when they're the
+#     opening grammatical token (alternative/archaic/plural/imperative/
+#     etc.).
+#
+#   SECONDARY — may appear AFTER a primary, but cannot lead alone. These
+#     are nouns describing the KIND of derivation (form, forms,
+#     spelling, tense, mutation, etc.). They appear in compound
+#     templates like 'alternative form of', 'soft mutation of',
+#     'present tense of' but are too generic to lead — e.g. 'Form of
+#     an enclosure' is a SEMANTIC gloss, not a derivative pointer.
+#
+# Hyphenated tokens (third-person) and slash-pairs (masculine/neuter)
+# are both supported in the regex below.
+_GRAMMATICAL_PRIMARY = (
+    # cases
+    "nominative", "accusative", "dative", "genitive", "vocative",
+    "locative", "ablative", "instrumental",
+    # mood / voice
+    "imperative", "subjunctive", "indicative", "optative", "infinitive",
+    "conditional", "active", "passive",
+    # tense / aspect (verb categories, not the noun 'tense')
+    "past", "present", "future", "perfect", "pluperfect",
+    "imperfect", "preterite", "aorist",
+    # Celtic verb forms
+    "conjunct", "absolute", "deuterotonic", "prototonic",
+    # person (both hyphenated 'first-person' and bare 'first' —
+    # the bare forms cover slashed compounds like 'first/third-person'
+    # that appear in the corpus alongside the hyphenated singletons)
+    "first-person", "second-person", "third-person",
+    "first", "second", "third",
+    # number / gender / definiteness
+    "singular", "plural", "dual",
+    "masculine", "feminine", "neuter", "common",
+    "definite", "indefinite",
+    # derivational signals
+    "alternative", "archaic", "obsolete", "diminutive", "augmentative",
+    "comparative", "superlative", "equative",
+    # Welsh mutation classes (must lead 'X mutation of' chains)
+    "soft", "hard", "nasal", "aspirate",
+    # verb-form classifiers usable standalone ('inflection of X',
+    # 'plural of X' — the noun forms double as primaries because
+    # they're context-specific enough)
+    "inflection", "conjugation", "declension", "participle",
+    "gerund", "verbal", "conjugated", "inflected", "declined",
+)
+_GRAMMATICAL_SECONDARY = (
+    # nouns describing the derivation type — only valid AFTER a primary.
+    # 'person' here covers compound forms like 'first/third-person of X'
+    # in case the corpus surfaces 'first person of X' as space-separated
+    # rather than hyphenated (the hyphenated 'first-person' stays in
+    # primary).
+    "form", "forms", "spelling", "tense", "mutation", "person",
+)
+
+
+def _alt(words):
+    """Build a regex alternation of escaped words, optionally
+    slash-paired (e.g. 'masculine/neuter'). Sorts longest-first so a
+    shorter prefix can't silently shadow a longer match in Python's
+    left-to-right alternation (e.g. 'first' would otherwise match
+    before 'first-person' was tried). wyrd-o53o round 2 (Gemini MED)."""
+    inner = "|".join(re.escape(w) for w in sorted(words, key=len, reverse=True))
+    return rf"(?:{inner})(?:/(?:{inner}))*"
+
+
+_PRIMARY = _alt(_GRAMMATICAL_PRIMARY)
+_PRIMARY_OR_SECONDARY = _alt(_GRAMMATICAL_PRIMARY + _GRAMMATICAL_SECONDARY)
+# wyrd-o53o round 2 (Gemini MED): [\s-]+ between tokens so glosses like
+# 'present-tense of X' or 'first-person-singular of X' match. The final
+# ' of ' anchor stays \s+ (the 'of' MUST be space-separated) so we
+# don't get false positives like 'past-mistakes-of-the-king'.
+_DERIVATIVE_PATTERN = re.compile(
+    # wyrd-o53o round 7 (Gemini MED): 'an' added to the optional
+    # article prefix. Several primaries start with vowels
+    # (alternative, archaic, obsolete, inflected, imperative,
+    # absolute, aorist) so 'an alternative form of X' would
+    # otherwise miss.
+    r"^\s*(?:a\s+|an\s+|the\s+)?"
+    rf"(?:{_PRIMARY})(?:[\s-]+(?:{_PRIMARY_OR_SECONDARY}))*\s+of\b",
+    re.IGNORECASE,
+)
+
+
+def _is_derivative_gloss(gloss: str) -> bool:
+    """Return True if the gloss is a morphological pointer at another
+    lemma (e.g. 'alternative form of X', 'plural of X', 'soft mutation
+    of X') rather than a semantic definition."""
+    return bool(_DERIVATIVE_PATTERN.match(gloss))
+
+
+def _partition_senses(senses: list[str]) -> tuple[list[str], list[str]]:
+    """Split a sense list into (semantic, derivative), preserving order
+    within each partition. Use _split_senses_for_display() when you want
+    the user-facing 'semantic or fall-back-to-derivative' policy."""
+    semantic: list[str] = []
+    derivative: list[str] = []
+    for s in senses:
+        if _is_derivative_gloss(s):
+            derivative.append(s)
+        else:
+            semantic.append(s)
+    return semantic, derivative
+
+
+def _split_senses_for_display(senses: list[str]) -> tuple[list[str], list[str]]:
+    """Return (primary_meanings, derivative_meanings) for the SPA
+    inspector's two-section layout. When semantic glosses exist,
+    primary = semantic, derivative = the morphological pointers (the
+    SPA may show these dimmed/secondary). When ONLY derivatives exist
+    (single-sibling derivative-only entries like '-sing- → "singular
+    imperative of singan"'), primary = derivatives so the card isn't
+    blank — better to show a hint at the target lemma than nothing.
+    The derivative list returns [] in that case to avoid duplicating
+    the primary list."""
+    semantic, derivative = _partition_senses(senses)
+    if semantic:
+        return semantic, derivative
+    return derivative, []
+
+
 def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
     """wyrd-ywm9 + wyrd-emlb: filter + rank sibling Meanings under one
     usage bucket so the highest-quality etymon's senses + tags surface
@@ -743,7 +884,14 @@ def _build_explanation_part(chunk, meaning_db: dict[str, list[Meaning]]) -> str:
         fragment = chunk.usage.replace("-", "")
         roots = _all_roots(siblings)
         roots_str = "/".join(roots) if roots else "?"
-        senses = " / ".join(_all_senses(siblings))
+        # wyrd-o53o + wyrd-aizb: prefer semantic senses; only fall
+        # back to derivative pointers ('alternative form of X',
+        # 'plural of X', 'soft mutation of X') when no semantic gloss
+        # exists for any sibling. Pre-fix, derivative glosses
+        # dominated the text explanation; post-fix they only appear
+        # when there's no semantic alternative.
+        primary, _ = _split_senses_for_display(_all_senses(siblings))
+        senses = " / ".join(primary)
         return f'{fragment} "{senses}" ({roots_str})'
     return f"[{chunk}]"
 
@@ -756,12 +904,21 @@ def _build_component_part(chunk, meaning_db: dict[str, list[Meaning]]) -> dict[s
         # orders by signal density (OE > ON > OF > Celtic > …).
         siblings = _rank_siblings(meaning_db.get(chunk.usage, [chunk]))
         tags = list(dict.fromkeys(tag for m in siblings for tag in m.tags))
+        # wyrd-o53o + wyrd-aizb: split semantic vs derivative glosses.
+        # 'meanings' carries the primary set (semantic when any exist;
+        # otherwise the derivatives so the card isn't blank). The
+        # new 'derivative_meanings' field carries the suppressed
+        # morphological pointers — the SPA may show them dimmed /
+        # secondary, or omit them. Empty list when no derivatives
+        # were suppressed (so the SPA can render the absence cleanly).
+        primary, derivative = _split_senses_for_display(_all_senses(siblings))
         return {
             "type": "matched",
             "fragment": chunk.usage.replace("-", ""),
             "usage": chunk.usage,
             "location": chunk.location,
-            "meanings": _all_senses(siblings),
+            "meanings": primary,
+            "derivative_meanings": derivative,
             "tags": tags,
             "roots": _all_roots(siblings),
         }
