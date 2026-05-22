@@ -22,10 +22,22 @@ echo "→ Building SPA (Vite)"
 npm run build
 
 echo "→ Syncing dist/ to s3://$BUCKET/"
-# Two-pass sync: (1) hashed assets with immutable cache, (2)
-# index.html with no-cache. The --exclude/--include flags filter
-# what each pass touches. --delete removes stale files (old build
-# artifacts) so the bucket only carries the current build.
+# Two-step upload (sync + cp, not two sync passes):
+#   1. `aws s3 sync` mirrors the assets tree with --delete to clear
+#      stale prior-deploy artifacts; --exclude index.html so it
+#      doesn't get the immutable cache header by accident.
+#   2. `aws s3 cp` uploads index.html separately with no-cache so
+#      browsers always check for a fresh entry-point.
+#
+# CUTOVER NOTE (wyrd-20pz first deploy): --delete will purge the
+# legacy spa/ paths (app.<sha>.js, style.<sha>.css) that the prior
+# deploys uploaded. Any browser holding a stale index.html that
+# references those paths will 404 on its bundle until the user
+# refreshes. CloudFront /index.html invalidation in the next step
+# minimizes the window; users with a long-lived tab from
+# pre-cutover may need a Ctrl-Shift-R. One-time pain at cutover;
+# steady-state deploys never hit this since the build's hash names
+# rotate.
 aws s3 sync dist/ "s3://$BUCKET/" \
     --delete \
     --exclude "index.html" \
