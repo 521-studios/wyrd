@@ -708,11 +708,19 @@ def _split_senses_for_display(senses: list[str]) -> tuple[list[str], list[str]]:
     return derivative, []
 
 
+@lru_cache(maxsize=4096)
 def _normalize_for_similarity(s: str) -> str:
     """Lowercase + strip dashes + strip whitespace + strip ASCII-fold
     diacritics ('ē' → 'e', 'ā' → 'a'). The bundle's OE lemmas use
     macrons (hȳll, brād) and the modern_usage forms don't, so we
-    fold before comparing surface similarity."""
+    fold before comparing surface similarity.
+
+    wyrd-ubbc round 4 (Gemini MED): @lru_cache because the lexicon
+    is static and the same forms get normalized many times per
+    decomposition (same usages reappear, same source lemmas appear
+    in multiple buckets). 4096 caps memory in pathological corpora;
+    typical bundle has ~10K distinct forms so the cache mostly
+    fills once and stays warm."""
     if not s:
         return ""
     cleaned = s.strip().strip("-").lower()
@@ -743,12 +751,17 @@ def _max_form_similarity(usage_norm: str, m: Meaning) -> float:
         for f in forms:
             if not isinstance(f, str):
                 continue
-            matcher.set_seq2(_normalize_for_similarity(f))
+            f_norm = _normalize_for_similarity(f)
+            # wyrd-ubbc round 4 (Gemini MED): short-circuit on exact
+            # match (the common 'folk-etymology' case) — no need to
+            # construct/configure the matcher when string equality
+            # answers the question.
+            if f_norm == usage_norm:
+                return 1.0
+            matcher.set_seq2(f_norm)
             score = matcher.ratio()
             if score > best:
                 best = score
-                if best == 1.0:
-                    return best
     return best
 
 
@@ -800,6 +813,12 @@ def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
     # etymons are present.
     historical = [m for m in siblings if _roots(m)]
     filtered = historical if historical else list(siblings)
+
+    # wyrd-ubbc round 4 (Gemini MED): early-return when filtering
+    # leaves ≤1 candidate. Skips the similarity computation + sort
+    # for the common case of a single-historical-etymon bucket.
+    if len(filtered) <= 1:
+        return filtered
 
     # Pass 2 + 3: combined sort key. All siblings share the same
     # usage (.usage attribute), so the normalized usage is computed once.
