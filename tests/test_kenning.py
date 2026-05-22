@@ -785,13 +785,21 @@ def test_unknown_generator_is_404():
 
 
 def _make_meaning(usage, sources, meanings=None, tags=None):
+    """Make a Meaning for tests. `sources` accepts a set of lang
+    names (legacy callers; lang → no specific forms) OR a dict of
+    lang → forms-list (needed for tests that exercise the wyrd-ubbc
+    surface-similarity tiebreaker, which inspects source forms)."""
     from wyrd.generators.kenning.runtime.meaning import Meaning
 
+    if isinstance(sources, dict):
+        sources_dict = sources
+    else:
+        sources_dict = {lang: [] for lang in sources}
     return Meaning(
         usage=usage,
         tags=tags or [],
         meanings=meanings or [],
-        sources=set(sources),
+        sources=sources_dict,
     )
 
 
@@ -922,6 +930,69 @@ def test_split_senses_for_display_falls_back_to_derivative_when_alone():
     )
     assert primary == ["singular imperative of singan"]
     assert deriv == []
+
+
+# wyrd-ubbc: surface-form tiebreaker. When stratum-tied siblings
+# are also tied on filter passes, prefer the etymon whose source
+# lemma surface-matches the modern_usage best (difflib ratio). Fixes
+# 'Hill' resolving to OE 'cyln' (kiln) or 'holt' (forest) instead of
+# the obvious 'hyll'.
+
+def test_rank_siblings_prefers_surface_match_within_stratum():
+    """The Hill case: OE 'hyll' beats OE 'cyln' (kiln) on surface
+    similarity to the '-hill' usage even though both are old_english
+    and tied on stratum."""
+    from wyrd.generators.kenning import _rank_siblings
+    cyln = _make_meaning("-hill", {"old_english": ["cyln", "cylnum"]}, ["Kiln", "kiln"])
+    hyll = _make_meaning("-hill", {"old_english": ["hyll", "hyllum"]}, ["Hill", "hill"])
+    out = _rank_siblings([cyln, hyll])
+    assert out[0] is hyll
+    assert out[1] is cyln
+
+
+def test_rank_siblings_surface_match_handles_macrons():
+    """OE lemmas with macrons (brād, dēor) should normalize-strip
+    diacritics before similarity scoring. 'brād' should score same
+    as 'brad' when compared to 'broad', not lower."""
+    from wyrd.generators.kenning import _max_form_similarity, _normalize_for_similarity
+    norm_broad = _normalize_for_similarity("broad")
+    macron_brad = _make_meaning("broad", {"old_english": ["brād"]}, ["Broad"])
+    plain_brad = _make_meaning("broad", {"old_english": ["brad"]}, ["Broad"])
+    # NFD-strip: 'brād' → 'brad'. Both score identically vs 'broad'.
+    assert _max_form_similarity(norm_broad, macron_brad) == _max_form_similarity(
+        norm_broad, plain_brad
+    )
+
+
+def test_rank_siblings_surface_match_higher_for_closer_form():
+    """Bare lexical check: 'hyll' is more similar to 'hill' than
+    'holt' is, so the similarity score is higher for hyll."""
+    from wyrd.generators.kenning import _max_form_similarity, _normalize_for_similarity
+    norm_hill = _normalize_for_similarity("-hill")
+    hyll_m = _make_meaning("-hill", {"old_english": ["hyll"]}, ["Hill"])
+    holt_m = _make_meaning("-hill", {"old_english": ["holt"]}, ["Forest"])
+    cyln_m = _make_meaning("-hill", {"old_english": ["cyln"]}, ["Kiln"])
+    s_hyll = _max_form_similarity(norm_hill, hyll_m)
+    s_holt = _max_form_similarity(norm_hill, holt_m)
+    s_cyln = _max_form_similarity(norm_hill, cyln_m)
+    assert s_hyll > s_holt > s_cyln
+
+
+def test_rank_siblings_surface_match_does_not_override_stratum():
+    """Stratum still wins over surface similarity: an OE etymon with
+    sim=0.5 beats a Celtic etymon with sim=1.0 for the same bucket.
+    Surface match is a within-stratum tiebreaker, not a primary
+    signal (otherwise modern_english homographs would win again)."""
+    from wyrd.generators.kenning import _rank_siblings
+    celtic_exact = _make_meaning(
+        "-hill", {"celtic_mix": ["hill"]}, ["coincidence form"]
+    )
+    oe_low_sim = _make_meaning(
+        "-hill", {"old_english": ["holt"]}, ["Forest", "Grove", "Wood"]
+    )
+    out = _rank_siblings([celtic_exact, oe_low_sim])
+    assert out[0] is oe_low_sim
+    assert out[1] is celtic_exact
 
 
 def test_rank_siblings_returns_new_list():
