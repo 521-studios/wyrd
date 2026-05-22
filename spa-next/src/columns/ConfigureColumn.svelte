@@ -12,6 +12,7 @@
   import { rollCurrent } from '../lib/roll.js';
   import { partitionFields } from '../lib/headlineFields.js';
   import Field from '../components/Field.svelte';
+  import MoodTagComposer from '../components/MoodTagComposer.svelte';
 
   // wyrd-14hn round 2 (frontend LOW): manifest fetch lifted to
   // App.svelte (so it loads regardless of which workspace mounts);
@@ -31,10 +32,38 @@
   let fieldPartition = $derived.by(() => {
     const gen = appState.selectedGenerator;
     if (!gen) return { headline: [], advanced: [] };
-    return partitionFields(gen.name, gen.input_schema);
+    const part = partitionFields(gen.name, gen.input_schema);
+    // wyrd-vslw: when the schema has a mood field with x-pick-from
+    // OR a tags field with items.enum, the MoodTagComposer handles
+    // them via the 'Customize moods & tags' trigger — strip from
+    // both headline and advanced so they don't double-render.
+    const props = gen.input_schema?.properties || {};
+    const moodComposable = !!props.mood?.['x-pick-from'];
+    const tagsComposable = Array.isArray(props.tags?.items?.enum);
+    const drop = new Set();
+    if (moodComposable) drop.add('mood');
+    if (tagsComposable) drop.add('tags');
+    return {
+      headline: part.headline.filter(([k]) => !drop.has(k)),
+      advanced: part.advanced.filter(([k]) => !drop.has(k)),
+      composerVisible: moodComposable || tagsComposable,
+      composerSummary: summarizeComposer(),
+    };
   });
 
+  function summarizeComposer() {
+    const params = appState.currentParams || {};
+    const m = (params.mood || []).length;
+    const t = (params.tags || []).length;
+    if (m === 0 && t === 0) return null;
+    const parts = [];
+    if (m) parts.push(`${m} mood${m === 1 ? '' : 's'}`);
+    if (t) parts.push(`${t} tag${t === 1 ? '' : 's'}`);
+    return parts.join(' · ');
+  }
+
   let showAdvanced = $state(false);
+  let composerOpen = $state(false);
 </script>
 
 <aside class="column">
@@ -61,6 +90,24 @@
     {#each fieldPartition.headline as [key, prop] (key)}
       <Field fieldKey={key} {prop} />
     {/each}
+
+    {#if fieldPartition.composerVisible}
+      <!-- wyrd-vslw: composer trigger. Shows a summary of the
+           current selection so the operator sees state without
+           opening the modal. -->
+      <button
+        class="composer-trigger"
+        type="button"
+        onclick={() => (composerOpen = true)}
+      >
+        <span class="composer-label">Customize moods &amp; tags</span>
+        {#if fieldPartition.composerSummary}
+          <span class="composer-summary">{fieldPartition.composerSummary}</span>
+        {:else}
+          <span class="composer-summary muted">none selected</span>
+        {/if}
+      </button>
+    {/if}
 
     {#if fieldPartition.advanced.length > 0}
       <details class="advanced" bind:open={showAdvanced}>
@@ -98,6 +145,8 @@
   {/if}
 </aside>
 
+<MoodTagComposer bind:open={composerOpen} />
+
 <style>
   aside {
     border-right: 1px solid var(--border);
@@ -131,6 +180,47 @@
   .hint-disclosure[open] summary {
     display: none;
   }
+  /* wyrd-vslw: composer trigger button. Full-width, looks like a
+     field but with a chevron suggesting it opens something. */
+  .composer-trigger {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    margin: 12px 0 16px;
+    padding: 10px 12px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--fg);
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    transition: border-color 120ms ease;
+  }
+  .composer-trigger:hover,
+  .composer-trigger:focus-visible {
+    border-color: var(--accent);
+    outline: none;
+  }
+  .composer-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .composer-summary {
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+  }
+  .composer-summary.muted {
+    color: var(--muted);
+    font-style: italic;
+  }
+
   .advanced {
     margin: 8px 0 16px;
     border-top: 1px solid var(--border);
