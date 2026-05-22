@@ -823,7 +823,10 @@ def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
     # usage (.usage attribute), so the normalized usage is computed
     # once and the SequenceMatcher is constructed once
     # (wyrd-ubbc round 5 Gemini MED) — was per-sibling before.
-    usage_norm = _normalize_for_similarity(siblings[0].usage if siblings else "")
+    # filtered has >= 1 element at this point (single-element early
+    # return above + non-empty-fallback in pass 1) so we can index
+    # directly without guarding (wyrd-ubbc round 6 Gemini MED).
+    usage_norm = _normalize_for_similarity(filtered[0].usage)
     matcher = SequenceMatcher(autojunk=False, a=usage_norm) if usage_norm else None
 
     def _signal(m: Meaning) -> tuple:
