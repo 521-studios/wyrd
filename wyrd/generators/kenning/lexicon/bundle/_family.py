@@ -126,13 +126,21 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
         "member_citations": _fetch_member_citations(db, member_ids),
         "member_attested_years": _fetch_member_attested_years(db, member_ids),
         "glosses": _fetch_member_glosses(db, member_ids),
-        # wyrd-i1s1: union member tags (lemma + inflections + OCR
-        # losers) with cognate-cluster-mate tags so semantic signal
-        # from non-promoted cluster mates (ME / ModE / NF cognates of
-        # a promoted OE root) reaches the bundle subject.
-        "tags": sorted(
-            set(_fetch_member_tags(db, member_ids)) | set(_fetch_cluster_mate_tags(db, root_id))
-        ),
+        # wyrd-c4wd: dropped the cluster-mate tag union (was wyrd-i1s1).
+        # Pre-fix the bundle unioned member tags (lemma + inflections +
+        # OCR losers) with EVERY cognate-cluster mate's tags so semantic
+        # signal from non-promoted cluster mates would 'ride along' on
+        # the promoted root. In practice this manufactured the tag-noise
+        # the user reported (2026-05-22): '-y' (Area/Market/Ward) ended
+        # up tagged 'animal' because some cluster-mate was animal-tagged;
+        # 'Dar-' (Deer/Hind/Stag) ended up tagged 'architecture' /
+        # 'food'. The cluster-mate signal turned out to be mostly noise
+        # against the rando-port bundle's unverified per-entry tags.
+        # Member-only tags are the faithful inventory; future wyrd-c4wd
+        # work may validate them against the meanings themselves
+        # (semantic-similarity audit) but the cluster-mate drop alone
+        # eliminates the bulk of visible mismatches.
+        "tags": sorted(set(_fetch_member_tags(db, member_ids))),
         "reflexes": _fetch_member_reflexes(db, member_ids, reflex_links),
         # wyrd-obpw Phase 3.3: era reflexes for the family root,
         # keyed by target language tag. SPA-side rewinder reads this

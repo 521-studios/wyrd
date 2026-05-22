@@ -76,6 +76,13 @@ _ROOT_CODES = [
     ("greek", "GR"),
 ]
 
+# wyrd-hitl round 3 (Gemini MED): module-level stratum priority map
+# for _rank_siblings. Hoisted out of _rank_siblings (where it was
+# being reconstructed per call) so it's built once at module load.
+# Smaller index = more canonical (OE first); used as -rank in the
+# sort key so OE sorts FIRST.
+_STRATUM_PRIORITY = {src: i for i, (src, _) in enumerate(_ROOT_CODES)}
+
 CULTURES = ["english", "scottish", "welsh", "irish", "breton"]
 
 # D5-2 / wyrd-lyp: which era family the bare-label form of ``--era`` resolves
@@ -558,6 +565,60 @@ def _all_senses(meanings: list[Meaning]) -> list[str]:
     return list(dict.fromkeys(sense for m in meanings for sense in m.meanings))
 
 
+def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
+    """wyrd-ywm9 + wyrd-emlb: filter + rank sibling Meanings under one
+    usage bucket so the highest-quality etymon's senses + tags surface
+    first in the SPA's morpheme inspector.
+
+    Two passes:
+
+    1. FILTER (wyrd-ywm9): when ANY sibling has a historical-stratum
+       etymon (i.e. _roots() returns non-empty — one of OE / ON / OF /
+       Celtic / Latin / Germanic / Greek), drop the siblings with
+       empty _roots(). Those empty-root siblings are modern_english-
+       only homographs that pollute British-place-name etymology
+       (the 'Green- → step/rung from obsolete gree' case). When NO
+       sibling has historical roots (a truly modern morpheme),
+       fall back to the unfiltered list rather than empty.
+
+    2. RANK (wyrd-emlb): sort the survivors by signal density. Older
+       stratum wins first (_ROOT_CODES order: OE > ON > OF > Celtic >
+       …), then richer meaning + tag counts. So 'Green-' picks the
+       OE 'grēne (Green / Village green, 9 tags, attested 1275)' over
+       the Celtic 'grianán (Bright / Shining / Sunny, 1 tag)'.
+
+    The downstream consumers (_all_senses, _all_roots) preserve
+    first-seen order, so the BEST Meaning's data appears first in
+    the union — the rest of the senses still ride along, just lower
+    in the list.
+
+    Always returns a NEW list; safe to call on empty input
+    (returns []) or single-element input (returns a copy).
+    """
+    if len(siblings) <= 1:
+        return list(siblings)
+
+    # Pass 1: filter out modern_english-only siblings when historical
+    # etymons are present. _roots() returns the codes for sources in
+    # _ROOT_CODES; a Meaning whose only source is 'modern_english'
+    # (not in _ROOT_CODES) gets [].
+    historical = [m for m in siblings if _roots(m)]
+    filtered = historical if historical else list(siblings)
+
+    # Pass 2: rank by (stratum priority, meaning count, tag count).
+    # _ROOT_CODES is ordered most-canonical first; a smaller index =
+    # more canonical, so we negate for sort.
+    # _STRATUM_PRIORITY lives at module scope (built once at load).
+    def _signal(m: Meaning) -> tuple:
+        stratum_rank = min(
+            (_STRATUM_PRIORITY[s] for s in m.sources if s in _STRATUM_PRIORITY),
+            default=len(_ROOT_CODES),
+        )
+        return (-stratum_rank, len(m.meanings), len(m.tags))
+
+    return sorted(filtered, key=_signal, reverse=True)
+
+
 # --- compose-time joiner insertion (wyrd-q0g6 Phase 1.5) -----------------
 
 
@@ -676,7 +737,9 @@ def _apply_joiner_insertion(
 
 def _build_explanation_part(chunk, meaning_db: dict[str, list[Meaning]]) -> str:
     if isinstance(chunk, Meaning):
-        siblings = meaning_db.get(chunk.usage, [chunk])
+        # wyrd-ywm9 + wyrd-emlb: rank siblings so the historical
+        # etymon's senses + roots appear first (was: insertion order).
+        siblings = _rank_siblings(meaning_db.get(chunk.usage, [chunk]))
         fragment = chunk.usage.replace("-", "")
         roots = _all_roots(siblings)
         roots_str = "/".join(roots) if roots else "?"
@@ -687,7 +750,11 @@ def _build_explanation_part(chunk, meaning_db: dict[str, list[Meaning]]) -> str:
 
 def _build_component_part(chunk, meaning_db: dict[str, list[Meaning]]) -> dict[str, Any]:
     if isinstance(chunk, Meaning):
-        siblings = meaning_db.get(chunk.usage, [chunk])
+        # wyrd-ywm9 + wyrd-emlb: rank siblings so the historical
+        # etymon dominates the morpheme-card output. Drops modern_
+        # english-only homographs when an older etymon exists, then
+        # orders by signal density (OE > ON > OF > Celtic > …).
+        siblings = _rank_siblings(meaning_db.get(chunk.usage, [chunk]))
         tags = list(dict.fromkeys(tag for m in siblings for tag in m.tags))
         return {
             "type": "matched",
