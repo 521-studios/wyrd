@@ -1212,8 +1212,15 @@ class NewName:
             for e in word:
                 if e is None:
                     continue
-                meanings = self.meaning_db[e]
+                # wyrd-o53o round 4 (Gemini MED): defensive access
+                # matching to_dict()'s pattern. e SHOULD exist (it
+                # came from the generator's pool) but the consistency
+                # win + no-IndexError-on-empty-siblings is worth the
+                # cost of one .get() + one truthy check.
+                meanings = self.meaning_db.get(e, [])
                 ranked = _rank_siblings(meanings)
+                if not ranked:
+                    continue
                 first = ranked[0]
                 primary, derivative = _split_senses_for_display(_all_senses(ranked))
                 out.append(
