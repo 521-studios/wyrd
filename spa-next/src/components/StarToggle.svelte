@@ -42,7 +42,9 @@
     savedStore.add({
       generator,
       params: appState.paramsByGenerator[generator] || {},
-      seed: appState.seed,
+      // wyrd-hia1: lastSeed = the seed that produced this result;
+      // appState.seed is the input (may be blank in random mode).
+      seed: appState.lastSeed,
       original: {
         name: result.result,
         morphemes_by_word: result.morphemes_by_word || [],
