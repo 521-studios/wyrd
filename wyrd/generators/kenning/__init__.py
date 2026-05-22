@@ -728,34 +728,33 @@ def _normalize_for_similarity(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", cleaned) if not unicodedata.combining(c))
 
 
-def _max_form_similarity(usage_norm: str, m: Meaning) -> float:
-    """Highest difflib ratio between the normalized usage and any
-    source-language lemma in this Meaning.
+def _max_form_similarity(matcher: SequenceMatcher, usage_norm: str, m: Meaning) -> float:
+    """Highest difflib ratio between the normalized usage (already
+    pinned as sequence a on `matcher`) and any source-language lemma
+    in this Meaning.
 
     wyrd-ubbc: catches folk-etymology cluster pollution like the
     '-hill' bucket containing OE 'hyll' (highly similar to 'hill'),
-    OE 'holt' (less similar — different vowel+consonants), and OE
-    'cyln' (kiln; even less similar). Pre-fix all three tied on
-    meaning count; the matching one now wins the tiebreaker so
-    the morpheme card shows 'Hill' instead of 'Forest/Grove' or
-    'Kiln'. Empty input returns 0.0 (no match).
+    OE 'holt' (less similar), and OE 'cyln' (kiln; less similar).
+    Pre-fix all three tied on meaning count; surface match now
+    breaks the tie so the morpheme card shows 'Hill' instead of
+    'Forest/Grove' or 'Kiln'.
 
-    wyrd-ubbc round 3 (Gemini MED): SequenceMatcher reused via
-    set_seq2 so usage_norm's autojunk analysis is computed once
-    per call rather than once per form."""
+    Caller responsibilities (wyrd-ubbc round 5 Gemini MED): construct
+    the SequenceMatcher ONCE per ranking with
+    `SequenceMatcher(autojunk=False, a=usage_norm)` and pass it in;
+    pass the matching `usage_norm` so the exact-match shortcut can
+    string-compare without re-fetching from the matcher. This
+    avoids re-preprocessing usage_norm for each sibling in the
+    bucket."""
     if not usage_norm:
         return 0.0
-    matcher = SequenceMatcher(autojunk=False, a=usage_norm)
     best = 0.0
     for forms in m.sources.values():
         for f in forms:
             if not isinstance(f, str):
                 continue
             f_norm = _normalize_for_similarity(f)
-            # wyrd-ubbc round 4 (Gemini MED): short-circuit on exact
-            # match (the common 'folk-etymology' case) — no need to
-            # construct/configure the matcher when string equality
-            # answers the question.
             if f_norm == usage_norm:
                 return 1.0
             matcher.set_seq2(f_norm)
@@ -821,8 +820,11 @@ def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
         return filtered
 
     # Pass 2 + 3: combined sort key. All siblings share the same
-    # usage (.usage attribute), so the normalized usage is computed once.
+    # usage (.usage attribute), so the normalized usage is computed
+    # once and the SequenceMatcher is constructed once
+    # (wyrd-ubbc round 5 Gemini MED) — was per-sibling before.
     usage_norm = _normalize_for_similarity(siblings[0].usage if siblings else "")
+    matcher = SequenceMatcher(autojunk=False, a=usage_norm) if usage_norm else None
 
     def _signal(m: Meaning) -> tuple:
         stratum_rank = min(
@@ -834,7 +836,9 @@ def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
         # still beats a Celtic etymon at the same surface match)
         # but BEFORE meaning/tag counts (so 'hyll' beats 'holt'
         # inside OE for the -hill bucket).
-        surface_similarity = _max_form_similarity(usage_norm, m)
+        surface_similarity = (
+            _max_form_similarity(matcher, usage_norm, m) if matcher else 0.0
+        )
         return (-stratum_rank, surface_similarity, len(m.meanings), len(m.tags))
 
     return sorted(filtered, key=_signal, reverse=True)

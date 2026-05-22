@@ -954,27 +954,31 @@ def test_rank_siblings_surface_match_handles_macrons():
     """OE lemmas with macrons (brād, dēor) should normalize-strip
     diacritics before similarity scoring. 'brād' should score same
     as 'brad' when compared to 'broad', not lower."""
+    from difflib import SequenceMatcher
     from wyrd.generators.kenning import _max_form_similarity, _normalize_for_similarity
     norm_broad = _normalize_for_similarity("broad")
     macron_brad = _make_meaning("broad", {"old_english": ["brād"]}, ["Broad"])
     plain_brad = _make_meaning("broad", {"old_english": ["brad"]}, ["Broad"])
+    matcher = SequenceMatcher(autojunk=False, a=norm_broad)
     # NFD-strip: 'brād' → 'brad'. Both score identically vs 'broad'.
-    assert _max_form_similarity(norm_broad, macron_brad) == _max_form_similarity(
-        norm_broad, plain_brad
+    assert _max_form_similarity(matcher, norm_broad, macron_brad) == _max_form_similarity(
+        matcher, norm_broad, plain_brad
     )
 
 
 def test_rank_siblings_surface_match_higher_for_closer_form():
     """Bare lexical check: 'hyll' is more similar to 'hill' than
     'holt' is, so the similarity score is higher for hyll."""
+    from difflib import SequenceMatcher
     from wyrd.generators.kenning import _max_form_similarity, _normalize_for_similarity
     norm_hill = _normalize_for_similarity("-hill")
+    matcher = SequenceMatcher(autojunk=False, a=norm_hill)
     hyll_m = _make_meaning("-hill", {"old_english": ["hyll"]}, ["Hill"])
     holt_m = _make_meaning("-hill", {"old_english": ["holt"]}, ["Forest"])
     cyln_m = _make_meaning("-hill", {"old_english": ["cyln"]}, ["Kiln"])
-    s_hyll = _max_form_similarity(norm_hill, hyll_m)
-    s_holt = _max_form_similarity(norm_hill, holt_m)
-    s_cyln = _max_form_similarity(norm_hill, cyln_m)
+    s_hyll = _max_form_similarity(matcher, norm_hill, hyll_m)
+    s_holt = _max_form_similarity(matcher, norm_hill, holt_m)
+    s_cyln = _max_form_similarity(matcher, norm_hill, cyln_m)
     assert s_hyll > s_holt > s_cyln
 
 
