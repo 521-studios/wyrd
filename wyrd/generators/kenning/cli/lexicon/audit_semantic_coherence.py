@@ -34,6 +34,8 @@ from __future__ import annotations
 import csv
 import json
 import math
+import os
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -43,7 +45,11 @@ from pathlib import Path
 import click
 
 
-DEFAULT_OLLAMA_URL = "http://10.5.2.31:11434"
+# wyrd-36ez round 2 (Gemini HIGH): default to localhost. The
+# user's macbook Ollama at 10.5.2.31 is opt-in via the existing
+# $WYRD_OLLAMA_URL env var convention (matches the LLM CLIs in
+# this package, e.g. mine_llm.py's --ollama-url flag).
+DEFAULT_OLLAMA_URL = os.environ.get("WYRD_OLLAMA_URL", "http://localhost:11434")
 DEFAULT_MODEL = "nomic-embed-text"
 
 # Source-language priority for picking the 'primary' lemma of a
@@ -68,9 +74,15 @@ def _ollama_embed(base_url: str, model: str, texts: list[str], timeout: float = 
     of dense vectors (one per input, same order).
 
     Ollama's /api/embed accepts a single string or a list. We always
-    send the list shape for consistent response parsing. Fails fast
-    on transport error so the audit doesn't silently emit empty
-    embeddings."""
+    send the list shape for consistent response parsing.
+
+    wyrd-36ez round 2 (Gemini MED): wraps transport errors with
+    operator-actionable messages. The three common failure modes:
+    Ollama not running (URLError), model not pulled (HTTPError 404
+    with 'model not found' body), unexpected response shape
+    (RuntimeError below). Each raises a ClickException so the CLI
+    exits with code 1 + a clear single-line message instead of a
+    Python traceback."""
     url = f"{base_url.rstrip('/')}/api/embed"
     body = json.dumps({"model": model, "input": texts}).encode("utf-8")
     req = urllib.request.Request(
@@ -78,12 +90,30 @@ def _ollama_embed(base_url: str, model: str, texts: list[str], timeout: float = 
         data=body,
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        payload = json.loads(resp.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        body_text = e.read().decode("utf-8", errors="replace") if e.fp else ""
+        # Ollama returns 404 with "model 'X' not found, try pulling it first"
+        # when the model isn't installed.
+        if e.code == 404 and "not found" in body_text.lower():
+            raise click.ClickException(
+                f"Ollama model {model!r} not available at {base_url}. "
+                f"Pull it with: ollama pull {model}"
+            ) from e
+        raise click.ClickException(
+            f"Ollama {url} returned HTTP {e.code}: {body_text[:200]}"
+        ) from e
+    except urllib.error.URLError as e:
+        raise click.ClickException(
+            f"Could not reach Ollama at {base_url}: {e.reason}. "
+            f"Is the service running? Override with --ollama-url or $WYRD_OLLAMA_URL."
+        ) from e
     # Response shape: {"model": ..., "embeddings": [[...], [...], ...]}
     embeddings = payload.get("embeddings")
     if not isinstance(embeddings, list) or len(embeddings) != len(texts):
-        raise RuntimeError(
+        raise click.ClickException(
             f"Ollama embed returned unexpected shape: "
             f"expected {len(texts)} vectors, got "
             f"{len(embeddings) if isinstance(embeddings, list) else type(embeddings)}"
@@ -135,7 +165,10 @@ def _primary_source_lemma(word: dict) -> tuple[str, str] | None:
     "--ollama-url",
     default=DEFAULT_OLLAMA_URL,
     show_default=True,
-    help="Ollama base URL (the user's macbook hosts the wyrd embeddings).",
+    help=(
+        "Ollama base URL. Default is localhost; "
+        "set $WYRD_OLLAMA_URL or pass --ollama-url to point elsewhere."
+    ),
 )
 @click.option(
     "--model",
