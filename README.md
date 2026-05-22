@@ -84,6 +84,6 @@ wyrd/
 ├── cli.py              `wyrd` entry point
 └── generators/
     └── kenning/        Town name generator (ported from Rando)
-spa/                    Static SPA — manifest-driven form renderer
+spa-next/               Svelte 5 + Vite SPA — 3-column generate/inspect/transform
 tests/                  pytest suite
 ```
