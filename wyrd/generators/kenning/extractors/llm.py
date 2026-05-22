@@ -331,12 +331,43 @@ def parse_transport_json(
 
 @dataclass
 class OllamaClient:
-    """Minimal Ollama chat client. No retries, single-shot per call."""
+    """Minimal Ollama chat client. No retries, single-shot per call.
+
+    ``num_ctx`` and ``keep_alive`` are sent explicitly on every request
+    because Ollama's per-model defaults are environment-dependent
+    (Ollama version, env vars, prior requests) and silently drift —
+    wyrd-dyf8 documents a concrete incident where a macbook reboot
+    caused Ollama to reload gemma4:26b at its absolute-max 262K
+    context, halving mining throughput. Sending these values per-
+    request makes the wyrd client immune to that class of config drift.
+    """
 
     base_url: str = DEFAULT_OLLAMA_URL
     model: str = DEFAULT_OLLAMA_MODEL
     timeout_s: float = 120.0
     temperature: float = 0.0
+    # Sized to cover the largest chunk size used by any wyrd CLI:
+    # the single-tier ``mine-toponym-mentions`` defaults to 20000-
+    # char chunks (~5000 tokens); the staged cascade uses 3000-char
+    # chunks (~750 tokens). 16384 gives both surfaces enough room
+    # for the system prompt (~500 tokens) plus a dense response
+    # without truncation. The previous 8192 default was tight for
+    # the single-tier path on dense gazetteer chunks — Gemini
+    # round-3 flagged the risk of response truncation → JSON parse
+    # failure → silent chunk failure. Smaller is faster but risks
+    # truncation; larger wastes KV-cache memory. If a future caller
+    # has a known-smaller chunk size or wants to tune memory, override
+    # at construction.
+    num_ctx: int = 16384
+    # Pin the model in memory across requests so an idle period
+    # between chunks doesn't unload the model — a subsequent chunk
+    # request would then have to reload it from disk (significant
+    # latency for multi-GB models like gemma4:26b), often exceeding
+    # ``timeout_s`` and being recorded as a chunk failure. -1 means
+    # "keep loaded until Ollama restarts" — the right shape for
+    # batch mining where we want the model warm for the duration
+    # of the run.
+    keep_alive: int | str = -1
 
     def chat_json(self, system: str, user: str, schema: dict) -> dict:
         """POST /api/chat with format=schema, return parsed JSON content.
@@ -357,7 +388,14 @@ class OllamaClient:
             # budget on internal chain-of-thought before producing any
             # `content`. We need the structured JSON content immediately.
             "think": False,
-            "options": {"temperature": self.temperature},
+            # keep_alive is a top-level field on /api/chat (NOT inside
+            # options). Misplacing it under options is silently
+            # ignored by the Ollama server.
+            "keep_alive": self.keep_alive,
+            "options": {
+                "temperature": self.temperature,
+                "num_ctx": self.num_ctx,
+            },
         }
         data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(

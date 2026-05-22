@@ -514,48 +514,97 @@ def _run_resume_from_failures(
                 log_warning=warn,
             )
 
-            # Atomic-write append: build the union (existing + new-deduped)
-            # in a .tmp file, then replace the original. A killed process
-            # mid-write leaves the original intact, vs. a direct
-            # ``open("a")`` which could leave a half-written final line
-            # that downstream commands would silently drop or stumble on.
-            # wyrd-srd2 R1 silent-failure-hunter HIGH.
-            tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
-            with tmp_path.open("w", encoding="utf-8") as sink:
-                if out_path.exists():
-                    # Preserve well-formed existing rows verbatim (don't
-                    # re-serialize: stage-specific fields like ``extractor``
-                    # must keep their original value through the cascade).
-                    # DROP malformed rows (non-JSON, non-dict) — without
-                    # this the corruption persists every resume and the
-                    # file's bad-row count grows forever. R3 silent-failure
-                    # MEDIUM. ``_load_existing_mention_keys`` already
-                    # surfaced the malformed_count to the operator; here
-                    # we also remove them.
-                    with out_path.open("r", encoding="utf-8") as src:
-                        for line in src:
-                            stripped = line.rstrip("\n")
-                            if not stripped:
-                                continue
-                            try:
-                                row = json.loads(stripped)
-                            except json.JSONDecodeError:
-                                purged_count += 1
-                                continue
-                            if not isinstance(row, dict):
-                                purged_count += 1
-                                continue
-                            sink.write(stripped + "\n")
-                for m in report.mentions:
-                    key = dedup_key_from_mention(m)
-                    if key in existing_keys:
-                        dup_count += 1
-                        continue
-                    sink.write(line_fn(source_id, m) + "\n")
-                    existing_keys.add(key)
-                    new_count += 1
-            tmp_path.replace(out_path)
-            canonical_completed = True
+            # wyrd-st1r: skip the atomic-write entirely when no
+            # useful output was produced AND at least one chunk
+            # FAILED. Without this guard, a provider that times-out
+            # every chunk (or partial-failures-and-zero-mentions)
+            # produces a 0-byte canonical file at ``out_path``, and
+            # the next --skip-existing run treats it as "done" — the
+            # source is silently lost.
+            #
+            # Concrete 2026-05-22: gemma4 Ollama power loss caused 12
+            # sources to land as 0-byte files mid-corpus. Operators
+            # discovered the gap only on a manual file-size audit.
+            #
+            # Predicate breakdown:
+            # - ``not report.mentions``: no useful output captured
+            #   on this resume. Covers the total-outage case
+            #   (chunks_processed=0) AND the partial-outage case
+            #   (some chunks succeeded but found no mentions while
+            #   others failed) — Gemini R2 P2: the prior narrower
+            #   predicate (``chunks_processed == 0``) missed the
+            #   partial case and produced 0-byte canonicals there.
+            # - ``chunks_failed > 0``: distinguishes "real outage"
+            #   from "source has nothing to mine" (empty body →
+            #   chunk_source_body returns [] → chunks_processed=0
+            #   AND chunks_failed=0). Without this term, an empty
+            #   source body would fire the guard with a "will retry"
+            #   message, creating an infinite retry loop.
+            #
+            # We DON'T gate on out_path.exists() here: if a canonical
+            # file already exists (resume mode is common) and 0 new
+            # mentions captured, skipping the atomic-write preserves
+            # the existing canonical untouched. The else branch's
+            # existing-rows copy path would do a verbatim rewrite —
+            # wasteful I/O that silent-failure-hunter flagged. One
+            # side-effect lost: malformed-row purging (the else
+            # branch drops non-JSON/non-dict rows during the copy).
+            # When the guard fires AND the existing canonical has
+            # malformed rows, those rows persist until a subsequent
+            # successful run does the purge. Deferred cleanup, not
+            # permanent loss.
+            outage_with_no_progress = not report.mentions and report.chunks_failed > 0
+            if outage_with_no_progress:
+                click.echo(
+                    f"  → no canonical file written for {source_id}: "
+                    f"0 mentions captured ({report.chunks_failed} chunks failed); "
+                    f"--skip-existing will retry on the next run",
+                    err=True,
+                )
+                canonical_completed = True  # frees the inprogress unlink
+            else:
+                # Atomic-write append: build the union (existing + new-deduped)
+                # in a .tmp file, then replace the original. A killed process
+                # mid-write leaves the original intact, vs. a direct
+                # ``open("a")`` which could leave a half-written final line
+                # that downstream commands would silently drop or stumble on.
+                # wyrd-srd2 R1 silent-failure-hunter HIGH.
+                tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+                with tmp_path.open("w", encoding="utf-8") as sink:
+                    if out_path.exists():
+                        # Preserve well-formed existing rows verbatim (don't
+                        # re-serialize: stage-specific fields like ``extractor``
+                        # must keep their original value through the cascade).
+                        # DROP malformed rows (non-JSON, non-dict) — without
+                        # this the corruption persists every resume and the
+                        # file's bad-row count grows forever. R3 silent-failure
+                        # MEDIUM. ``_load_existing_mention_keys`` already
+                        # surfaced the malformed_count to the operator; here
+                        # we also remove them.
+                        with out_path.open("r", encoding="utf-8") as src:
+                            for line in src:
+                                stripped = line.rstrip("\n")
+                                if not stripped:
+                                    continue
+                                try:
+                                    row = json.loads(stripped)
+                                except json.JSONDecodeError:
+                                    purged_count += 1
+                                    continue
+                                if not isinstance(row, dict):
+                                    purged_count += 1
+                                    continue
+                                sink.write(stripped + "\n")
+                    for m in report.mentions:
+                        key = dedup_key_from_mention(m)
+                        if key in existing_keys:
+                            dup_count += 1
+                            continue
+                        sink.write(line_fn(source_id, m) + "\n")
+                        existing_keys.add(key)
+                        new_count += 1
+                tmp_path.replace(out_path)
+                canonical_completed = True
         except BaseException:
             # Tell the operator the work is recoverable. The canonical
             # file is still intact (atomic-write contract), and the
@@ -683,13 +732,31 @@ def _run_fresh_mining(
                 log_warning=warn,
             )
 
-            # Atomic write: fresh per-source files use full rewrite.
-            tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
-            with tmp_path.open("w", encoding="utf-8") as sink:
-                for m in report.mentions:
-                    sink.write(line_fn(source_id, m) + "\n")
-            tmp_path.replace(out_path)
-            canonical_completed = True
+            # wyrd-st1r: skip the atomic-write entirely when the
+            # source produced ZERO usable output BECAUSE OF A REAL
+            # OUTAGE. Mirrors the resume-path guard above; see that
+            # location for the full rationale and predicate
+            # breakdown. The fresh path has the same shape: ``--force``
+            # can leave a pre-existing canonical at out_path, and
+            # skipping the atomic-write preserves it intact rather
+            # than destroying good data with a 0-byte write.
+            outage_with_no_progress = not report.mentions and report.chunks_failed > 0
+            if outage_with_no_progress:
+                click.echo(
+                    f"  → no canonical file written for {source_id}: "
+                    f"0 mentions captured ({report.chunks_failed} chunks failed); "
+                    f"--skip-existing will retry on the next run",
+                    err=True,
+                )
+                canonical_completed = True  # frees the inprogress unlink
+            else:
+                # Atomic write: fresh per-source files use full rewrite.
+                tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+                with tmp_path.open("w", encoding="utf-8") as sink:
+                    for m in report.mentions:
+                        sink.write(line_fn(source_id, m) + "\n")
+                tmp_path.replace(out_path)
+                canonical_completed = True
         except BaseException:
             # Tell the operator the work is recoverable BEFORE the
             # exception propagates — otherwise a SIGINT'd run looks
