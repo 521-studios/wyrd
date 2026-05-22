@@ -984,7 +984,13 @@ def test_ollama_chat_json_sends_explicit_num_ctx() -> None:
     assert len(_PayloadCapturingResp.captured) == 1
     payload = _PayloadCapturingResp.captured[0]
     assert "num_ctx" in payload["options"], "num_ctx must be sent on every request"
-    assert payload["options"]["num_ctx"] == 16384
+    # wyrd-qxmr: 8192 is right-sized for the production staged miner
+    # (3000-char chunks ~750 tokens). The single-tier CLI's 20000-
+    # char chunks may need an override (see OllamaClient.num_ctx
+    # docstring). PR #327 originally bumped this to 16384 but
+    # empirical measurement showed 2-3x slower inference with no
+    # production benefit.
+    assert payload["options"]["num_ctx"] == 8192
     # qwen3.5 reasoning-channel guard preserved.
     assert payload.get("think") is False
 
