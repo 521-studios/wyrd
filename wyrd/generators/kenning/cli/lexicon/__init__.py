@@ -27,6 +27,7 @@ import click
 
 from wyrd.generators.kenning.cli.lexicon import (
     audit_etymology_alignment as _audit_etymology_alignment_module,
+    audit_semantic_coherence as _audit_semantic_coherence_module,
 )
 from wyrd.generators.kenning.cli.lexicon import (
     audit_short_quotes as _audit_short_quotes_module,
@@ -182,6 +183,7 @@ def lexicon() -> None:
 # `<name>_module.add_to(lexicon)` call below. The browse sub-group
 # follows the same pattern at the package level (cli/lexicon/browse/).
 _audit_etymology_alignment_module.add_to(lexicon)
+_audit_semantic_coherence_module.add_to(lexicon)
 _audit_short_quotes_module.add_to(lexicon)
 _backfill_fantasy_tags_module.add_to(lexicon)
 _backfill_pages_module.add_to(lexicon)
