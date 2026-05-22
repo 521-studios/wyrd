@@ -3,9 +3,13 @@
 // per-generator workspaces may want to wire their own Roll
 // affordance too. Single source of truth.
 //
-// Calls /api/<gen> with currentParams + seed; writes results into
-// appState; clears the inspector subject (wyrd-yxf6 round 2
-// inline-with-results-assignment fix).
+// wyrd-hia1: do NOT write envelope.seed back to appState.seed.
+// Pre-fix this assignment locked the seed input to whatever value
+// the server picked for the first random-seed roll, so every
+// subsequent roll produced the same name. Now: the seed input
+// stays as the user typed it (blank = random each time); the seed
+// the server actually used lands in appState.lastSeed for display
+// in the result meta + payload capture in save / share / star.
 
 import { appState } from './appState.svelte.js';
 import { rollGenerator } from './api.js';
@@ -22,7 +26,11 @@ export async function rollCurrent() {
     );
     appState.results = envelope.results;
     appState.resultsGenerator = envelope.generator;
-    appState.seed = envelope.seed; // server echoes back the seed used
+    // wyrd-hia1: lastSeed is the seed the server USED (whether the
+    // operator supplied it or it was randomly chosen). seed (the
+    // input) stays as the user typed it — blank for random rolls
+    // so each Roll picks a fresh seed.
+    appState.lastSeed = envelope.seed;
     appState.currentResultIndex = null;
   } catch (err) {
     appState.rollError = err.message;

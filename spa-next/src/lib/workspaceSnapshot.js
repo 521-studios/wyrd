@@ -34,7 +34,11 @@ export function currentWorkspaceSnapshot() {
     // that produced THIS result; selectedGeneratorName may have
     // since changed via the picker without a re-roll.
     params: appState.paramsByGenerator[generator] || {},
-    seed: appState.seed,
+    // wyrd-hia1: lastSeed = the seed the server USED to produce
+    // this result. appState.seed is the input (may be blank for
+    // random-each-roll mode); we want the specific seed so
+    // save/share reproduce THIS exact result.
+    seed: appState.lastSeed,
     original: {
       name: r.result,
       morphemes_by_word: r.morphemes_by_word || [],
