@@ -514,30 +514,38 @@ def _run_resume_from_failures(
                 log_warning=warn,
             )
 
-            # Skip the atomic-write entirely when the source produced
-            # ZERO usable output AND no prior canonical file exists.
-            # Without this guard, a provider outage that times-out
+            # wyrd-st1r: skip the atomic-write entirely when the
+            # source produced ZERO usable output BECAUSE OF A REAL
+            # OUTAGE. Without this guard, a provider that times-out
             # every chunk produces a 0-byte canonical file at
-            # ``out_path``, and the next --skip-existing run treats it
-            # as "done" — the source is silently lost.
-            # wyrd-st1r: concrete failure 2026-05-22, gemma4 Ollama
-            # power loss caused 12 sources to land as 0-byte files
-            # mid-corpus. Operators discovered the gap only on a
-            # manual file-size audit.
+            # ``out_path``, and the next --skip-existing run treats
+            # it as "done" — the source is silently lost.
             #
-            # The guard fires only when (chunks_processed == 0 AND
-            # report.mentions is empty AND out_path doesn't already
-            # exist). If the source partially succeeded
-            # (chunks_processed > 0 even with some failures) we still
-            # write — partial captures are valuable. If a canonical
-            # file already exists from a prior run (operator chose
-            # --force or resume), we preserve it via the
-            # existing-rows copy path below; refusing to merge would
-            # delete a previously-good file.
-            zero_progress_no_history = (
-                report.chunks_processed == 0 and not report.mentions and not out_path.exists()
+            # Concrete 2026-05-22: gemma4 Ollama power loss caused 12
+            # sources to land as 0-byte files mid-corpus. Operators
+            # discovered the gap only on a manual file-size audit.
+            #
+            # Predicate breakdown:
+            # - ``chunks_processed == 0`` AND ``not mentions``: no
+            #   useful output was produced.
+            # - ``chunks_failed > 0``: distinguishes "real outage"
+            #   from "source has nothing to mine" (empty body →
+            #   chunk_source_body returns [] → chunks_processed=0
+            #   AND chunks_failed=0). Without this term, an empty
+            #   source body would fire the guard with a "will retry"
+            #   message, creating an infinite retry loop.
+            #
+            # We DON'T gate on out_path.exists() here: if a canonical
+            # file already exists (resume mode is common) and 0 new
+            # chunks succeeded, skipping the atomic-write preserves
+            # the existing canonical untouched. The else branch's
+            # existing-rows copy path would just rewrite the file
+            # from itself (mtime bump, no content change) — wasteful
+            # I/O that silent-failure-hunter flagged as concerning.
+            outage_with_no_progress = (
+                report.chunks_processed == 0 and report.chunks_failed > 0 and not report.mentions
             )
-            if zero_progress_no_history:
+            if outage_with_no_progress:
                 click.echo(
                     f"  → no canonical file written for {source_id}: "
                     f"0 chunks succeeded ({report.chunks_failed} failed); "
@@ -716,18 +724,17 @@ def _run_fresh_mining(
             )
 
             # wyrd-st1r: skip the atomic-write entirely when the
-            # source produced ZERO usable output. Without this guard,
-            # a provider outage that times-out every chunk produces a
-            # 0-byte canonical file at out_path, and the next
-            # --skip-existing run silently treats the source as
-            # "done". Concrete 2026-05-22 failure: gemma4 Ollama lost
-            # power mid-run; 12 sources landed as 0-byte files and
-            # were skipped on restart until a manual file-size audit
-            # caught them. Fresh-mining mode never has a pre-existing
-            # canonical file (resolve_source_ids gates that off via
-            # --skip-existing upstream), so the guard's predicate is
-            # simpler than the resume path's.
-            if report.chunks_processed == 0 and not report.mentions:
+            # source produced ZERO usable output BECAUSE OF A REAL
+            # OUTAGE. Mirrors the resume-path guard above; see that
+            # location for the full rationale and predicate
+            # breakdown. The fresh path has the same shape: ``--force``
+            # can leave a pre-existing canonical at out_path, and
+            # skipping the atomic-write preserves it intact rather
+            # than destroying good data with a 0-byte write.
+            outage_with_no_progress = (
+                report.chunks_processed == 0 and report.chunks_failed > 0 and not report.mentions
+            )
+            if outage_with_no_progress:
                 click.echo(
                     f"  → no canonical file written for {source_id}: "
                     f"0 chunks succeeded ({report.chunks_failed} failed); "

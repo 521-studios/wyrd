@@ -930,11 +930,14 @@ def test_ollama_chat_json_non_utf8_body_raises_runtimeerror() -> None:
 
 
 class _PayloadCapturingResp:
-    """urlopen-shaped response that captures the request body for assertion.
+    """urlopen-shaped response shell. Returns a fixed body via the
+    context-manager protocol so chat_json's success path completes.
 
-    Captures the literal POST body bytes on construction (passed in via
-    request.data on `urllib.request.urlopen(req)`) into a class-level
-    list so a test can assert what was sent on the wire."""
+    Request-payload capture happens in the standalone
+    :func:`_capture_request_payload` (below) — that function decodes
+    ``req.data`` and stashes it on this class's ``captured`` list
+    before returning an instance of us. Tests then assert against
+    ``_PayloadCapturingResp.captured``."""
 
     captured: list[dict] = []
 
@@ -953,8 +956,8 @@ class _PayloadCapturingResp:
 
 def _capture_request_payload(req, timeout=None):
     """urlopen replacement that decodes the POST body, stashes it on
-    the _PayloadCapturingResp class for assertion, and returns a
-    minimal valid envelope so chat_json's success path completes."""
+    :attr:`_PayloadCapturingResp.captured` for assertion, and returns
+    a minimal valid envelope so chat_json's success path completes."""
     _PayloadCapturingResp.captured.append(json.loads(req.data.decode("utf-8")))
     ok = json.dumps({"message": {"content": "{}"}}).encode("utf-8")
     return _PayloadCapturingResp(ok)
@@ -966,7 +969,14 @@ def test_ollama_chat_json_sends_explicit_num_ctx() -> None:
     max 262K context when the host's env defaults to that — concrete
     2026-05-22 incident where a macbook reboot doubled mining
     chunk-time. Pinning the per-request num_ctx makes the wyrd
-    client immune to that class of config drift."""
+    client immune to that class of config drift.
+
+    Also asserts ``think: False`` is preserved at the payload top
+    level — qwen3.5 and other reasoning models consume the token
+    budget on internal chain-of-thought when think is unset/true,
+    leaving no content in the response. A future refactor that
+    consolidates the payload dict could silently drop this guard;
+    the assertion turns that into a test failure."""
     _PayloadCapturingResp.captured = []
     client = OllamaClient()
     with patch("urllib.request.urlopen", _capture_request_payload):
@@ -975,6 +985,8 @@ def test_ollama_chat_json_sends_explicit_num_ctx() -> None:
     payload = _PayloadCapturingResp.captured[0]
     assert "num_ctx" in payload["options"], "num_ctx must be sent on every request"
     assert payload["options"]["num_ctx"] == 8192
+    # qwen3.5 reasoning-channel guard preserved.
+    assert payload.get("think") is False
 
 
 def test_ollama_chat_json_sends_keep_alive() -> None:
@@ -999,7 +1011,10 @@ def test_ollama_chat_json_sends_keep_alive() -> None:
 def test_ollama_chat_json_respects_custom_num_ctx_and_keep_alive() -> None:
     """Overrides at construction must flow through to the request
     payload — keeps the per-call defaults from becoming a tunnel
-    that ignores caller intent."""
+    that ignores caller intent. Also re-pins the keep_alive
+    placement (top level, NOT under options) on the override path
+    so a future refactor that moved keep_alive into options for
+    overrides specifically would still fail this test."""
     _PayloadCapturingResp.captured = []
     client = OllamaClient(num_ctx=16384, keep_alive=3600)
     with patch("urllib.request.urlopen", _capture_request_payload):
@@ -1007,3 +1022,8 @@ def test_ollama_chat_json_respects_custom_num_ctx_and_keep_alive() -> None:
     payload = _PayloadCapturingResp.captured[0]
     assert payload["options"]["num_ctx"] == 16384
     assert payload["keep_alive"] == 3600
+    # Re-pin top-level placement on the override path (the defaults
+    # test asserts this too; both paths must enforce the structural
+    # contract because Ollama silently ignores keep_alive nested
+    # under options).
+    assert "keep_alive" not in payload["options"]

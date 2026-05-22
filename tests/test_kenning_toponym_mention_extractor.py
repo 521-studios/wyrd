@@ -2329,6 +2329,209 @@ def test_cli_staged_fresh_mining_writes_partial_when_some_chunks_succeed(tmp_pat
     assert {r["form"] for r in rows} == {"Edlingham", "Durham"}
 
 
+def test_cli_staged_fresh_mining_empty_source_does_not_trigger_outage_guard(tmp_path, monkeypatch):
+    """wyrd-st1r predicate refinement: an empty source body produces
+    chunks_processed=0 AND chunks_failed=0 AND no mentions — same
+    surface shape as a 100%-outage run. Without the chunks_failed>0
+    term in the guard predicate, the empty source would hit the
+    "will retry on next run" path, creating an infinite retry loop
+    on every subsequent --skip-existing invocation. This test pins
+    the distinction: empty source writes an empty canonical (source
+    is genuinely done), outage does NOT write (source needs retry)."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    # Whitespace-only body — chunk_source_body returns [] for this,
+    # so no chunks are attempted (chunks_failed stays 0).
+    (sources_dir / "empty.txt").write_text("   \n\n\t  \n", encoding="utf-8")
+    output_dir = tmp_path / "out"
+
+    _stub_anthropic_for_cli(monkeypatch, FakeClient([]))
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "anthropic",
+            "--chunk-size",
+            "5000",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    # Empty source produces an empty canonical file — the source IS
+    # done; no useful work to retry. (Contrast with the outage case,
+    # where chunks_failed>0 leaves no canonical.)
+    canonical = output_dir / "empty.jsonl"
+    assert canonical.exists(), (
+        "empty source body must produce a canonical file (even if "
+        "empty) so --skip-existing doesn't retry it forever"
+    )
+    assert canonical.read_text(encoding="utf-8") == ""
+    # The "will retry" warning must NOT fire for empty sources.
+    assert "will retry on the next run" not in result.output
+
+
+def test_cli_staged_from_failures_skips_atomic_write_when_all_chunks_fail(tmp_path, monkeypatch):
+    """wyrd-st1r resume-path coverage: the guard exists in BOTH
+    _run_fresh_mining AND _run_resume_from_failures. The resume
+    path is the operator's primary recovery surface — they run
+    --from-failures after a provider outage. A future refactor
+    that unifies the two paths could silently regress the resume
+    guard without this test. (test-coverage-reviewer + pr-test-
+    analyzer convergent finding on PR #327 round 1.)
+
+    Scenario: failures.jsonl has 1 record; the retry client raises
+    on every call; assert no canonical written, "no canonical file
+    written" surfaces, inprogress cleaned up."""
+    runner = CliRunner()
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    failures_file = tmp_path / "failures.jsonl"
+    failures_file.write_text(
+        json.dumps(
+            {
+                "source_id": "alpha",
+                "chunk_index": 0,
+                "chunk_body": "Edlingham is in Northumberland.",
+                "error": "RuntimeError: original 503",
+                "extractor": "ollama:gemma4:26b",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    # The retry client raises on the single chunk being retried.
+    _stub_anthropic_for_cli(
+        monkeypatch,
+        FakeClient([RuntimeError("retry also down")]),
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--from-failures",
+            str(failures_file),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "anthropic",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    # No canonical written — operator's next run will retry alpha.
+    canonical = output_dir / "alpha.jsonl"
+    assert not canonical.exists(), (
+        f"resume path produced a canonical despite 0 successful chunks; "
+        f"--skip-existing on a follow-up run would silently skip alpha. "
+        f"file: {canonical}"
+    )
+    assert "no canonical file written" in result.output
+    assert "alpha" in result.output
+    # Inprogress cleaned up — outage_with_no_progress path sets
+    # canonical_completed=True which frees the unlink.
+    inprogress_dir = output_dir / "_inprogress"
+    if inprogress_dir.exists():
+        leftover = list(inprogress_dir.iterdir())
+        assert not leftover, f"inprogress leftover after outage skip: {leftover}"
+
+
+def test_cli_staged_from_failures_preserves_existing_canonical_when_all_chunks_fail(
+    tmp_path, monkeypatch
+):
+    """wyrd-st1r resume-path coverage: when a canonical already
+    exists AND all retried chunks fail, the existing canonical
+    MUST be preserved byte-identical. This is the common operator
+    flow: resume after a partial-success run that left some
+    chunks in failures.jsonl; the retry also fails for those
+    chunks. The prior good data must not be destroyed.
+
+    pr-test-analyzer + silent-failure-hunter both flagged that the
+    no-write skip-write path leaves existing canonicals untouched —
+    test pins that contract."""
+    runner = CliRunner()
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+
+    # Pre-existing canonical with 2 mentions from a prior run.
+    canonical = output_dir / "alpha.jsonl"
+    prior_rows = [
+        {
+            "source_id": "alpha",
+            "form": "Edlingham",
+            "date_year": None,
+            "region_hint": None,
+            "context": "Edlingham is in",
+            "extractor": "ollama:gemma4:26b",
+        },
+        {
+            "source_id": "alpha",
+            "form": "Durham",
+            "date_year": None,
+            "region_hint": None,
+            "context": "Durham is a city",
+            "extractor": "ollama:gemma4:26b",
+        },
+    ]
+    canonical.write_text(
+        "\n".join(json.dumps(r) for r in prior_rows) + "\n",
+        encoding="utf-8",
+    )
+    canonical_before = canonical.read_text(encoding="utf-8")
+
+    failures_file = tmp_path / "failures.jsonl"
+    failures_file.write_text(
+        json.dumps(
+            {
+                "source_id": "alpha",
+                "chunk_index": 5,
+                "chunk_body": "Wear is a river.",
+                "error": "RuntimeError: original 503",
+                "extractor": "ollama:gemma4:26b",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    # Retry also fails.
+    _stub_anthropic_for_cli(
+        monkeypatch,
+        FakeClient([RuntimeError("retry also down")]),
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--from-failures",
+            str(failures_file),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "anthropic",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    # Existing canonical preserved byte-identical — no mtime-only
+    # rewrite, no row-purging side effects.
+    assert canonical.read_text(encoding="utf-8") == canonical_before
+    # CLI surfaces the no-progress skip so operators see the gap.
+    assert "no canonical file written" in result.output
+
+
 def test_cli_staged_capture_failures_writes_chunk_body(tmp_path, monkeypatch):
     """--capture-failures captures every failed chunk including the
     chunk body verbatim — the downstream stage's --from-failures input

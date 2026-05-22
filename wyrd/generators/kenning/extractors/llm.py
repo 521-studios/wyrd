@@ -352,11 +352,14 @@ class OllamaClient:
     # chunks; larger wastes KV-cache memory and slows inference. If a
     # future caller needs a larger window, override at construction.
     num_ctx: int = 8192
-    # Pin the model in memory across requests so a 5-minute lull
-    # between chunks doesn't trigger a 30-60s reload from disk on
-    # every restart. -1 = "keep loaded until Ollama restarts" — the
-    # right shape for batch mining where we want the model warm for
-    # the duration of the run.
+    # Pin the model in memory across requests so an idle period
+    # between chunks doesn't unload the model — a subsequent chunk
+    # request would then have to reload it from disk (significant
+    # latency for multi-GB models like gemma4:26b), often exceeding
+    # ``timeout_s`` and being recorded as a chunk failure. -1 means
+    # "keep loaded until Ollama restarts" — the right shape for
+    # batch mining where we want the model warm for the duration
+    # of the run.
     keep_alive: int | str = -1
 
     def chat_json(self, system: str, user: str, schema: dict) -> dict:
