@@ -346,12 +346,19 @@ class OllamaClient:
     model: str = DEFAULT_OLLAMA_MODEL
     timeout_s: float = 120.0
     temperature: float = 0.0
-    # Right-sized for the toponym-mention extractor's ~750-token
-    # chunks plus the ~500-token system prompt plus headroom for the
-    # JSON response. Smaller would risk truncation on dense gazetteer
-    # chunks; larger wastes KV-cache memory and slows inference. If a
-    # future caller needs a larger window, override at construction.
-    num_ctx: int = 8192
+    # Sized to cover the largest chunk size used by any wyrd CLI:
+    # the single-tier ``mine-toponym-mentions`` defaults to 20000-
+    # char chunks (~5000 tokens); the staged cascade uses 3000-char
+    # chunks (~750 tokens). 16384 gives both surfaces enough room
+    # for the system prompt (~500 tokens) plus a dense response
+    # without truncation. The previous 8192 default was tight for
+    # the single-tier path on dense gazetteer chunks — Gemini
+    # round-3 flagged the risk of response truncation → JSON parse
+    # failure → silent chunk failure. Smaller is faster but risks
+    # truncation; larger wastes KV-cache memory. If a future caller
+    # has a known-smaller chunk size or wants to tune memory, override
+    # at construction.
+    num_ctx: int = 16384
     # Pin the model in memory across requests so an idle period
     # between chunks doesn't unload the model — a subsequent chunk
     # request would then have to reload it from disk (significant

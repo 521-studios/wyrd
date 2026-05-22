@@ -984,7 +984,7 @@ def test_ollama_chat_json_sends_explicit_num_ctx() -> None:
     assert len(_PayloadCapturingResp.captured) == 1
     payload = _PayloadCapturingResp.captured[0]
     assert "num_ctx" in payload["options"], "num_ctx must be sent on every request"
-    assert payload["options"]["num_ctx"] == 8192
+    assert payload["options"]["num_ctx"] == 16384
     # qwen3.5 reasoning-channel guard preserved.
     assert payload.get("think") is False
 
