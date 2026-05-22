@@ -1038,6 +1038,16 @@ class NewName:
         # ride in components() for the SPA's expandable citation box.
         # The CLI human-readable text channel stays scannable instead
         # of a dense citation-laden paragraph.
+        #
+        # wyrd-o53o + wyrd-ywm9: rank siblings and only render the
+        # primary semantic glosses in the per-meaning gloss block.
+        # Pre-fix this concatenated every sibling's glosses verbatim
+        # so the SPA's result-card preview was dominated by
+        # 'alternative form of X' pointers and modern_english homo-
+        # graph noise. Post-fix the preview matches the morpheme
+        # card: top-ranked etymon's semantic glosses only.
+        from wyrd.generators.kenning import _partition_senses, _rank_siblings
+
         results = []
         for wi, word in enumerate(self.name):
             single = len(word) == 1
@@ -1047,8 +1057,25 @@ class NewName:
                 lemma = e.replace("-", "") if single else e
                 label = self._inflection_label_for(wi, ei)
                 head = f"{lemma}@{label}" if label else lemma
-                meanings = [self._find_meaning(m) for m in self.meaning_db[e]]
-                gloss_block = " or ".join(meanings)
+                ranked = _rank_siblings(self.meaning_db.get(e, []))
+                # First pass: do ANY siblings have semantic glosses?
+                # If so, drop derivative-only siblings from the preview.
+                # If all siblings are derivative-only (e.g. -sing-),
+                # render derivatives so the preview isn't blank.
+                any_semantic = any(
+                    _partition_senses(list(m.meanings))[0] for m in ranked
+                )
+                meanings = []
+                for m in ranked:
+                    semantic, derivative = _partition_senses(list(m.meanings))
+                    chosen = semantic if any_semantic else derivative
+                    if not chosen:
+                        # Sibling contributed no glosses for the
+                        # selected partition — drop entirely.
+                        continue
+                    roots = self._roots_str(m)
+                    meanings.append(f"{roots} {', '.join(chosen)}")
+                gloss_block = " or ".join(meanings) if meanings else "(unglossed)"
                 results.append(f"{head} ({gloss_block})")
         return "\n".join(results)
 
@@ -1098,6 +1125,18 @@ class NewName:
         stays available to downstream consumers that need it via
         their own meaning_db lookup using ``usage``.
         """
+        # wyrd-o53o + wyrd-ywm9 + wyrd-emlb: rank siblings (drop
+        # modern_english homographs, prioritize older strata) and
+        # split semantic vs derivative glosses. Lazy-import to avoid
+        # a circular dep with wyrd.generators.kenning.__init__ at
+        # module load — to_dict is called per roll, so the import is
+        # paid once after Python caches sys.modules.
+        from wyrd.generators.kenning import (
+            _all_senses,
+            _rank_siblings,
+            _split_senses_for_display,
+        )
+
         words: list[list[dict]] = []
         for wi, word in enumerate(self.name):
             morphemes: list[dict] = []
@@ -1105,14 +1144,24 @@ class NewName:
                 if e is None:
                     continue
                 meanings_list = self.meaning_db.get(e, [])
-                first = meanings_list[0] if meanings_list else None
+                ranked = _rank_siblings(meanings_list)
+                first = ranked[0] if ranked else None
                 morpheme: dict = {"usage": e}
                 if first is not None:
+                    # Sources stay from the top-ranked sibling (the
+                    # canonical etymon for THIS surface form). Tags
+                    # union across all ranked siblings — same as the
+                    # explainer (wyrd-ywm9). Meanings split into
+                    # primary + derivative for the SPA card layout.
                     morpheme["sources"] = {
                         lang: list(forms) for lang, forms in first.sources.items()
                     }
-                    morpheme["tags"] = list(first.tags)
-                    morpheme["meanings"] = list(first.meanings)
+                    morpheme["tags"] = list(
+                        dict.fromkeys(t for m in ranked for t in m.tags)
+                    )
+                    primary, derivative = _split_senses_for_display(_all_senses(ranked))
+                    morpheme["meanings"] = primary
+                    morpheme["derivative_meanings"] = derivative
                     # wyrd-cp2d round 3: pronunciation + cross-script
                     # renderings (wyrd-ha9q's original_script /
                     # transliteration / english_shaped / IPA) so the
@@ -1121,7 +1170,11 @@ class NewName:
                     # design — only emit the field when the
                     # _collect_renderings dict isn't empty so Latin-
                     # script-only morphemes don't carry a noisy '{}'.
-                    renderings = _collect_renderings(meanings_list)
+                    # wyrd-o53o: renderings drawn from the ranked
+                    # siblings (so dropped modern_english entries
+                    # don't contribute spurious pronunciation /
+                    # transliteration data).
+                    renderings = _collect_renderings(ranked)
                     if renderings:
                         morpheme["renderings"] = renderings
                 # D18 variant / D8 inflection substitute if present
@@ -1140,23 +1193,40 @@ class NewName:
         wyrd-ha9q rendering columns (original_script + transliteration
         + english_shaped + IPA) for non-Latin source-lang morphemes.
         Empty / absent for Latin-script langs and older bundles.
-        Consumed by the SPA's etymological-provenance panel."""
+        Consumed by the SPA's etymological-provenance panel.
+
+        wyrd-o53o + wyrd-ywm9: ranks siblings (drops modern_english
+        homographs, prioritizes older strata) and splits semantic vs
+        derivative glosses, matching to_dict()'s behavior. Pre-fix this
+        method returned first-by-insertion-order; post-fix it returns
+        the canonical etymon."""
+        from wyrd.generators.kenning import (
+            _all_senses,
+            _rank_siblings,
+            _split_senses_for_display,
+        )
+
         out = []
         for word in self.name:
             for e in word:
                 if e is None:
                     continue
                 meanings = self.meaning_db[e]
-                first = meanings[0]
+                ranked = _rank_siblings(meanings)
+                first = ranked[0]
+                primary, derivative = _split_senses_for_display(_all_senses(ranked))
                 out.append(
                     {
                         "usage": e,
                         "location": first.location,
-                        "meanings": list(first.meanings),
-                        "tags": list(first.tags),
+                        "meanings": primary,
+                        "derivative_meanings": derivative,
+                        "tags": list(
+                            dict.fromkeys(t for m in ranked for t in m.tags)
+                        ),
                         "roots": self._roots(first),
-                        "citations": _collect_citations(meanings),
-                        "renderings": _collect_renderings(meanings),
+                        "citations": _collect_citations(ranked),
+                        "renderings": _collect_renderings(ranked),
                     }
                 )
         return out
