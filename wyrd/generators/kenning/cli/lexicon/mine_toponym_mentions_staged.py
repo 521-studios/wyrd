@@ -514,48 +514,80 @@ def _run_resume_from_failures(
                 log_warning=warn,
             )
 
-            # Atomic-write append: build the union (existing + new-deduped)
-            # in a .tmp file, then replace the original. A killed process
-            # mid-write leaves the original intact, vs. a direct
-            # ``open("a")`` which could leave a half-written final line
-            # that downstream commands would silently drop or stumble on.
-            # wyrd-srd2 R1 silent-failure-hunter HIGH.
-            tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
-            with tmp_path.open("w", encoding="utf-8") as sink:
-                if out_path.exists():
-                    # Preserve well-formed existing rows verbatim (don't
-                    # re-serialize: stage-specific fields like ``extractor``
-                    # must keep their original value through the cascade).
-                    # DROP malformed rows (non-JSON, non-dict) — without
-                    # this the corruption persists every resume and the
-                    # file's bad-row count grows forever. R3 silent-failure
-                    # MEDIUM. ``_load_existing_mention_keys`` already
-                    # surfaced the malformed_count to the operator; here
-                    # we also remove them.
-                    with out_path.open("r", encoding="utf-8") as src:
-                        for line in src:
-                            stripped = line.rstrip("\n")
-                            if not stripped:
-                                continue
-                            try:
-                                row = json.loads(stripped)
-                            except json.JSONDecodeError:
-                                purged_count += 1
-                                continue
-                            if not isinstance(row, dict):
-                                purged_count += 1
-                                continue
-                            sink.write(stripped + "\n")
-                for m in report.mentions:
-                    key = dedup_key_from_mention(m)
-                    if key in existing_keys:
-                        dup_count += 1
-                        continue
-                    sink.write(line_fn(source_id, m) + "\n")
-                    existing_keys.add(key)
-                    new_count += 1
-            tmp_path.replace(out_path)
-            canonical_completed = True
+            # Skip the atomic-write entirely when the source produced
+            # ZERO usable output AND no prior canonical file exists.
+            # Without this guard, a provider outage that times-out
+            # every chunk produces a 0-byte canonical file at
+            # ``out_path``, and the next --skip-existing run treats it
+            # as "done" — the source is silently lost.
+            # wyrd-st1r: concrete failure 2026-05-22, gemma4 Ollama
+            # power loss caused 12 sources to land as 0-byte files
+            # mid-corpus. Operators discovered the gap only on a
+            # manual file-size audit.
+            #
+            # The guard fires only when (chunks_processed == 0 AND
+            # report.mentions is empty AND out_path doesn't already
+            # exist). If the source partially succeeded
+            # (chunks_processed > 0 even with some failures) we still
+            # write — partial captures are valuable. If a canonical
+            # file already exists from a prior run (operator chose
+            # --force or resume), we preserve it via the
+            # existing-rows copy path below; refusing to merge would
+            # delete a previously-good file.
+            zero_progress_no_history = (
+                report.chunks_processed == 0 and not report.mentions and not out_path.exists()
+            )
+            if zero_progress_no_history:
+                click.echo(
+                    f"  → no canonical file written for {source_id}: "
+                    f"0 chunks succeeded ({report.chunks_failed} failed); "
+                    f"--skip-existing will retry on the next run",
+                    err=True,
+                )
+                canonical_completed = True  # frees the inprogress unlink
+            else:
+                # Atomic-write append: build the union (existing + new-deduped)
+                # in a .tmp file, then replace the original. A killed process
+                # mid-write leaves the original intact, vs. a direct
+                # ``open("a")`` which could leave a half-written final line
+                # that downstream commands would silently drop or stumble on.
+                # wyrd-srd2 R1 silent-failure-hunter HIGH.
+                tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+                with tmp_path.open("w", encoding="utf-8") as sink:
+                    if out_path.exists():
+                        # Preserve well-formed existing rows verbatim (don't
+                        # re-serialize: stage-specific fields like ``extractor``
+                        # must keep their original value through the cascade).
+                        # DROP malformed rows (non-JSON, non-dict) — without
+                        # this the corruption persists every resume and the
+                        # file's bad-row count grows forever. R3 silent-failure
+                        # MEDIUM. ``_load_existing_mention_keys`` already
+                        # surfaced the malformed_count to the operator; here
+                        # we also remove them.
+                        with out_path.open("r", encoding="utf-8") as src:
+                            for line in src:
+                                stripped = line.rstrip("\n")
+                                if not stripped:
+                                    continue
+                                try:
+                                    row = json.loads(stripped)
+                                except json.JSONDecodeError:
+                                    purged_count += 1
+                                    continue
+                                if not isinstance(row, dict):
+                                    purged_count += 1
+                                    continue
+                                sink.write(stripped + "\n")
+                    for m in report.mentions:
+                        key = dedup_key_from_mention(m)
+                        if key in existing_keys:
+                            dup_count += 1
+                            continue
+                        sink.write(line_fn(source_id, m) + "\n")
+                        existing_keys.add(key)
+                        new_count += 1
+                tmp_path.replace(out_path)
+                canonical_completed = True
         except BaseException:
             # Tell the operator the work is recoverable. The canonical
             # file is still intact (atomic-write contract), and the
@@ -683,13 +715,34 @@ def _run_fresh_mining(
                 log_warning=warn,
             )
 
-            # Atomic write: fresh per-source files use full rewrite.
-            tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
-            with tmp_path.open("w", encoding="utf-8") as sink:
-                for m in report.mentions:
-                    sink.write(line_fn(source_id, m) + "\n")
-            tmp_path.replace(out_path)
-            canonical_completed = True
+            # wyrd-st1r: skip the atomic-write entirely when the
+            # source produced ZERO usable output. Without this guard,
+            # a provider outage that times-out every chunk produces a
+            # 0-byte canonical file at out_path, and the next
+            # --skip-existing run silently treats the source as
+            # "done". Concrete 2026-05-22 failure: gemma4 Ollama lost
+            # power mid-run; 12 sources landed as 0-byte files and
+            # were skipped on restart until a manual file-size audit
+            # caught them. Fresh-mining mode never has a pre-existing
+            # canonical file (resolve_source_ids gates that off via
+            # --skip-existing upstream), so the guard's predicate is
+            # simpler than the resume path's.
+            if report.chunks_processed == 0 and not report.mentions:
+                click.echo(
+                    f"  → no canonical file written for {source_id}: "
+                    f"0 chunks succeeded ({report.chunks_failed} failed); "
+                    f"--skip-existing will retry on the next run",
+                    err=True,
+                )
+                canonical_completed = True  # frees the inprogress unlink
+            else:
+                # Atomic write: fresh per-source files use full rewrite.
+                tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+                with tmp_path.open("w", encoding="utf-8") as sink:
+                    for m in report.mentions:
+                        sink.write(line_fn(source_id, m) + "\n")
+                tmp_path.replace(out_path)
+                canonical_completed = True
         except BaseException:
             # Tell the operator the work is recoverable BEFORE the
             # exception propagates — otherwise a SIGINT'd run looks

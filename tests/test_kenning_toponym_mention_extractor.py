@@ -2215,6 +2215,120 @@ def test_cli_staged_fresh_mining_writes_per_source_with_extractor_tag(tmp_path, 
     assert beta_rows[0]["form"] == "Tyne"
 
 
+def test_cli_staged_fresh_mining_skips_atomic_write_when_all_chunks_fail(tmp_path, monkeypatch):
+    """wyrd-st1r: when every chunk of a source fails (e.g. provider
+    unreachable for the duration), the staged miner must NOT write a
+    0-byte canonical file. Otherwise --skip-existing on the next run
+    treats the source as 'done' and the 0 mentions become the
+    permanent record. Concrete 2026-05-22 failure: gemma4 Ollama lost
+    power mid-run; 12 sources promoted as 0-byte files and were
+    silently skipped on restart until a manual file-size audit caught
+    them.
+
+    The guard fires only when (chunks_processed == 0 AND no pre-
+    existing canonical file). A partial run (some chunks succeeded)
+    still writes — partial captures are valuable. A pre-existing
+    canonical file is preserved via the existing-rows copy path."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    (sources_dir / "alpha.txt").write_text("Edlingham is in Northumberland.", encoding="utf-8")
+    output_dir = tmp_path / "out"
+
+    # FakeClient raises on EVERY chunk → chunks_processed == 0,
+    # report.mentions == [].
+    _stub_anthropic_for_cli(
+        monkeypatch,
+        FakeClient([RuntimeError("provider unreachable")]),
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "anthropic",
+            "--chunk-size",
+            "5000",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    # The canonical file must NOT exist — operator's next
+    # --skip-existing run must re-try this source.
+    canonical = output_dir / "alpha.jsonl"
+    assert not canonical.exists(), (
+        f"canonical file was written despite 0 successful chunks; "
+        f"--skip-existing would silently skip the source on retry. "
+        f"file: {canonical}"
+    )
+
+    # The CLI must surface the skip explicitly so operators see the
+    # gap rather than discovering it on a later file-size audit.
+    assert "no canonical file written" in result.output
+    assert "alpha" in result.output
+
+
+def test_cli_staged_fresh_mining_writes_partial_when_some_chunks_succeed(tmp_path, monkeypatch):
+    """wyrd-st1r positive control: partial-success runs (some chunks
+    landed mentions, some failed) STILL produce a canonical file
+    with the partial captures. The guard from the preceding test
+    must not regress this case — partial mining data is the load-
+    bearing wyrd-w7i3 contract."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    body = (
+        "Edlingham is in Northumberland.\n\n"
+        "Tyne is a river.\n\n"
+        "Durham is a city.\n\n"
+        "Wear is also a river."
+    )
+    (sources_dir / "alpha.txt").write_text(body, encoding="utf-8")
+    output_dir = tmp_path / "out"
+
+    # Mix of success + failure across chunks.
+    _stub_anthropic_for_cli(
+        monkeypatch,
+        FakeClient(
+            [
+                {"mentions": [{"form": "Edlingham", "context": "Edlingham is in"}]},
+                RuntimeError("transient"),
+                {"mentions": [{"form": "Durham", "context": "Durham is a city"}]},
+                RuntimeError("transient"),
+            ]
+        ),
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "anthropic",
+            "--chunk-size",
+            "30",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    canonical = output_dir / "alpha.jsonl"
+    assert canonical.exists()
+    rows = _read_jsonl(canonical)
+    assert len(rows) == 2
+    assert {r["form"] for r in rows} == {"Edlingham", "Durham"}
+
+
 def test_cli_staged_capture_failures_writes_chunk_body(tmp_path, monkeypatch):
     """--capture-failures captures every failed chunk including the
     chunk body verbatim — the downstream stage's --from-failures input
@@ -3044,7 +3158,11 @@ def test_cli_staged_fresh_mining_failure_isolation_across_sources(tmp_path, monk
     """Fresh-mining mode walks N sources. If source A's chunks all fail
     (provider returns errors), source B should still process — failures
     must not abort the whole multi-source run (test-coverage-reviewer
-    R1 HIGH). The chunks_failed count aggregates, but the loop continues."""
+    R1 HIGH). The chunks_failed count aggregates, but the loop continues.
+
+    wyrd-st1r update: alpha now leaves NO canonical file (was: 0-byte
+    file) so the next --skip-existing run retries the failed source.
+    Beta still processes normally — failure isolation is preserved."""
     runner = CliRunner()
     sources_dir = tmp_path / "sources"
     sources_dir.mkdir()
@@ -3079,10 +3197,12 @@ def test_cli_staged_fresh_mining_failure_isolation_across_sources(tmp_path, monk
         ],
     )
     assert result.exit_code == 0, result.output
-    # alpha's output exists but is empty (zero successful mentions).
-    assert (output_dir / "alpha.jsonl").exists()
-    assert (output_dir / "alpha.jsonl").read_text(encoding="utf-8").strip() == ""
-    # beta processed normally.
+    # alpha left no canonical file — --skip-existing on rerun will retry.
+    # The CLI surfaces the skip explicitly to operators.
+    assert not (output_dir / "alpha.jsonl").exists()
+    assert "no canonical file written" in result.output
+    assert "alpha" in result.output
+    # beta processed normally — failure isolation preserved.
     beta = _read_jsonl(output_dir / "beta.jsonl")
     assert {r["form"] for r in beta} == {"Tyne"}
     # The aggregate summary reflects failed=1 + mentions=1.

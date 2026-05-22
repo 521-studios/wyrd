@@ -331,12 +331,33 @@ def parse_transport_json(
 
 @dataclass
 class OllamaClient:
-    """Minimal Ollama chat client. No retries, single-shot per call."""
+    """Minimal Ollama chat client. No retries, single-shot per call.
+
+    ``num_ctx`` and ``keep_alive`` are sent explicitly on every request
+    because Ollama's per-model defaults are environment-dependent
+    (Ollama version, env vars, prior requests) and silently drift —
+    wyrd-dyf8 documents a concrete incident where a macbook reboot
+    caused Ollama to reload gemma4:26b at its absolute-max 262K
+    context, halving mining throughput. Sending these values per-
+    request makes the wyrd client immune to that class of config drift.
+    """
 
     base_url: str = DEFAULT_OLLAMA_URL
     model: str = DEFAULT_OLLAMA_MODEL
     timeout_s: float = 120.0
     temperature: float = 0.0
+    # Right-sized for the toponym-mention extractor's ~750-token
+    # chunks plus the ~500-token system prompt plus headroom for the
+    # JSON response. Smaller would risk truncation on dense gazetteer
+    # chunks; larger wastes KV-cache memory and slows inference. If a
+    # future caller needs a larger window, override at construction.
+    num_ctx: int = 8192
+    # Pin the model in memory across requests so a 5-minute lull
+    # between chunks doesn't trigger a 30-60s reload from disk on
+    # every restart. -1 = "keep loaded until Ollama restarts" — the
+    # right shape for batch mining where we want the model warm for
+    # the duration of the run.
+    keep_alive: int | str = -1
 
     def chat_json(self, system: str, user: str, schema: dict) -> dict:
         """POST /api/chat with format=schema, return parsed JSON content.
@@ -357,7 +378,14 @@ class OllamaClient:
             # budget on internal chain-of-thought before producing any
             # `content`. We need the structured JSON content immediately.
             "think": False,
-            "options": {"temperature": self.temperature},
+            # keep_alive is a top-level field on /api/chat (NOT inside
+            # options). Misplacing it under options is silently
+            # ignored by the Ollama server.
+            "keep_alive": self.keep_alive,
+            "options": {
+                "temperature": self.temperature,
+                "num_ctx": self.num_ctx,
+            },
         }
         data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
