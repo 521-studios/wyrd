@@ -134,6 +134,14 @@ class Kenning(Generator):
                     "type": "array",
                     "items": {"type": "string"},
                     "default": [],
+                    # wyrd-vslw: SPA composer reads x-pick-from to populate
+                    # the catalog pane (no hardcoded mood list in the
+                    # frontend). x-allow-custom signals that operators may
+                    # also submit values outside the picker (the 'harsh:0.5'
+                    # graduated-strength syntax); phase 2 of the composer
+                    # epic surfaces a weight slider that produces those.
+                    "x-pick-from": available_register_effects(),
+                    "x-allow-custom": True,
                     "description": (
                         "D6 stylistic-mood presets (repeatable). Each entry is a "
                         "register-effect name from the bundled catalog "
