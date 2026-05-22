@@ -1058,16 +1058,17 @@ class NewName:
                 label = self._inflection_label_for(wi, ei)
                 head = f"{lemma}@{label}" if label else lemma
                 ranked = _rank_siblings(self.meaning_db.get(e, []))
-                # First pass: do ANY siblings have semantic glosses?
-                # If so, drop derivative-only siblings from the preview.
-                # If all siblings are derivative-only (e.g. -sing-),
-                # render derivatives so the preview isn't blank.
-                any_semantic = any(
-                    _partition_senses(list(m.meanings))[0] for m in ranked
-                )
+                # wyrd-o53o round 3 (Gemini MED): partition once per
+                # sibling rather than twice (any-check + render loop).
+                partitioned = [
+                    (_partition_senses(list(m.meanings)), m) for m in ranked
+                ]
+                # If ANY sibling has semantic glosses, drop derivative-
+                # only siblings from the preview. Otherwise (e.g.
+                # -sing-) render derivatives so the preview isn't blank.
+                any_semantic = any(semantic for (semantic, _), _ in partitioned)
                 meanings = []
-                for m in ranked:
-                    semantic, derivative = _partition_senses(list(m.meanings))
+                for (semantic, derivative), m in partitioned:
                     chosen = semantic if any_semantic else derivative
                     if not chosen:
                         # Sibling contributed no glosses for the
