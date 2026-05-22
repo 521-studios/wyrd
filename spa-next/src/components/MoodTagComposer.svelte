@@ -62,8 +62,14 @@
       // backgrounded page. Re-querying on each Tab event handles
       // dynamic content (chip count changes as user toggles).
       if (e.key !== 'Tab' || !modalEl) return;
+      // wyrd-vslw round 3 (Gemini MED): include <summary> — the
+      // catalog uses <details>/<summary> for the Moods / Tags
+      // section toggles; those are keyboard-focusable and need to
+      // participate in the cycle. Today the close button is first
+      // and Apply is last so the omission was latent, but future
+      // layout shuffles could put a summary at the boundary.
       const focusables = modalEl.querySelectorAll(
-        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
       );
       if (focusables.length === 0) return;
       const first = focusables[0];
