@@ -769,13 +769,15 @@ def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
        the Celtic 'grianán (Bright / Shining / Sunny, 1 tag)'.
 
     3. SURFACE TIEBREAKER (wyrd-ubbc): within a stratum, prefer
-       etymons whose source lemma starts with the same letter as the
-       usage. Catches folk-etymology cluster pollution like the
-       '-hill' bucket containing OE 'cyln' (kiln, c-initial) tied on
-       meaning count with OE 'hyll' (hill, h-initial). Without this,
-       cyln could win the tiebreak and the morpheme card would show
-       'Kiln' for a -hill suffix. The check is bidirectional: a
-       sibling either matches or doesn't, no partial scoring.
+       etymons whose source lemma surface-matches the usage best
+       (continuous similarity via difflib.SequenceMatcher.ratio()
+       after NFD-stripping diacritics). Catches folk-etymology
+       cluster pollution like the '-hill' bucket where OE 'hyll'
+       scores 1.00 (exact after macron-strip), 'holt' 0.50, 'roth'
+       /' cyln' 0.25 — hyll wins the within-stratum sort even
+       though all four tie on meaning count. Without this, 'holt'
+       or 'cyln' could win and the morpheme card would show
+       'Forest' or 'Kiln' for a -hill suffix.
 
     The downstream consumers (_all_senses, _all_roots) preserve
     first-seen order, so the BEST Meaning's data appears first in
