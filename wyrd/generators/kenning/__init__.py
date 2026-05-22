@@ -632,24 +632,34 @@ _GRAMMATICAL_PRIMARY = (
     "gerund", "verbal", "conjugated", "inflected", "declined",
 )
 _GRAMMATICAL_SECONDARY = (
-    # nouns describing the derivation type — only valid AFTER a primary
-    "form", "forms", "spelling", "tense", "mutation",
+    # nouns describing the derivation type — only valid AFTER a primary.
+    # 'person' here covers compound forms like 'first/third-person of X'
+    # in case the corpus surfaces 'first person of X' as space-separated
+    # rather than hyphenated (the hyphenated 'first-person' stays in
+    # primary).
+    "form", "forms", "spelling", "tense", "mutation", "person",
 )
 
 
 def _alt(words):
     """Build a regex alternation of escaped words, optionally
-    slash-paired (e.g. 'masculine/neuter'). Returns a non-capturing
-    group string."""
-    inner = "|".join(re.escape(w) for w in words)
+    slash-paired (e.g. 'masculine/neuter'). Sorts longest-first so a
+    shorter prefix can't silently shadow a longer match in Python's
+    left-to-right alternation (e.g. 'first' would otherwise match
+    before 'first-person' was tried). wyrd-o53o round 2 (Gemini MED)."""
+    inner = "|".join(re.escape(w) for w in sorted(words, key=len, reverse=True))
     return rf"(?:{inner})(?:/(?:{inner}))*"
 
 
 _PRIMARY = _alt(_GRAMMATICAL_PRIMARY)
 _PRIMARY_OR_SECONDARY = _alt(_GRAMMATICAL_PRIMARY + _GRAMMATICAL_SECONDARY)
+# wyrd-o53o round 2 (Gemini MED): [\s-]+ between tokens so glosses like
+# 'present-tense of X' or 'first-person-singular of X' match. The final
+# ' of ' anchor stays \s+ (the 'of' MUST be space-separated) so we
+# don't get false positives like 'past-mistakes-of-the-king'.
 _DERIVATIVE_PATTERN = re.compile(
     r"^\s*(?:a\s+|the\s+)?"
-    rf"(?:{_PRIMARY})(?:\s+(?:{_PRIMARY_OR_SECONDARY}))*\s+of\b",
+    rf"(?:{_PRIMARY})(?:[\s-]+(?:{_PRIMARY_OR_SECONDARY}))*\s+of\b",
     re.IGNORECASE,
 )
 
