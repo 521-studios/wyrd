@@ -18,6 +18,7 @@ permissions:
 env:
   AWS_REGION: us-east-2
   PYTHON_VERSION: "3.12"
+  NODE_VERSION: "24"
   TF_VERSION: "1.9.0"
 
 jobs:
@@ -80,8 +81,16 @@ jobs:
             --architectures arm64
           aws lambda wait function-updated --function-name "$FUNCTION"
 
+      # wyrd-20pz: Vite SPA build needs Node. Sourced from spa-next/
+      # via deploy-spa.sh (npm ci + npm run build + aws s3 sync).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: spa-next/package-lock.json
+
       - name: Upload SPA to S3
-        run: bin/deploy-spa.sh "${{ env.S3_BUCKET }}" "${{ github.sha }}"
+        run: bin/deploy-spa.sh "${{ env.S3_BUCKET }}"
 
       - name: Invalidate CloudFront
         run: bin/invalidate-cloudfront.sh "${{ env.SITE_DOMAIN }}"
@@ -151,8 +160,14 @@ jobs:
             --architectures arm64
           aws lambda wait function-updated --function-name "$FUNCTION"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: spa-next/package-lock.json
+
       - name: Upload SPA to S3
-        run: bin/deploy-spa.sh "${{ env.S3_BUCKET }}" "${{ github.sha }}"
+        run: bin/deploy-spa.sh "${{ env.S3_BUCKET }}"
 
       - name: Invalidate CloudFront
         run: bin/invalidate-cloudfront.sh "${{ env.SITE_DOMAIN }}"

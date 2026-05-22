@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
-from flask import Flask, Response, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request
 
 from wyrd import registry
 from wyrd.envelope import envelope
@@ -13,36 +12,18 @@ from wyrd.seed import resolve_seed, rng_for
 
 MAX_COUNT = 10
 
-_SPA_DIR = Path(__file__).resolve().parent.parent / "spa"
-
 
 def create_app() -> Flask:
     registry.discover()
     app = Flask(__name__)
 
-    if _SPA_DIR.exists():
-        # Dev-only SPA serving. In production CloudFront serves the SPA from S3
-        # and Lambda only handles /api/*. Source spa/index.html uses __SHA__
-        # placeholders for hashed asset names; the deploy.yml templates them at
-        # upload time. Here we substitute "dev" and accept any hash on the way out.
-
-        @app.get("/")
-        def index():
-            text = (_SPA_DIR / "index.html").read_text().replace("__SHA__", "dev")
-            return Response(text, mimetype="text/html")
-
-        @app.get("/<path:filename>")
-        def spa_static(filename: str):
-            target = _SPA_DIR / filename
-            if target.is_file():
-                return send_from_directory(_SPA_DIR, filename)
-            # Strip a hash component: app.dev.js → app.js, style.dev.css → style.css
-            parts = filename.rsplit(".", 2)
-            if len(parts) == 3:
-                unhashed = f"{parts[0]}.{parts[2]}"
-                if (_SPA_DIR / unhashed).is_file():
-                    return send_from_directory(_SPA_DIR, unhashed)
-            return index()
+    # wyrd-20pz: SPA-serving moved out of Flask. Production: CloudFront
+    # serves the SPA from S3; Lambda handles /api/* only. Dev: run
+    # `npm run dev` in spa-next/ for the Vite dev server on :5173,
+    # which proxies /api/* back to this Flask app on :5000. The
+    # previous Flask SPA-serve code lived here pre-Vite when the
+    # SPA was a single bundled file; the Vite-built SPA has hashed-
+    # asset shape that Flask isn't a good fit for.
 
     @app.get("/api/manifest")
     def manifest():

@@ -178,7 +178,7 @@ Beyond coverage existence, the reviewer also flags tests whose behavior is broke
 - Adding tests to legacy uncovered code is genuinely larger than this PR.
 - The change is a config/data file edit with no executable logic.
 - The change is a dependency bump with no source change in this repo.
-- SPA changes (in `spa/`) currently have no test harness — note as a coverage gap but do not block; the SPA is small enough to verify by hand.
+- SPA changes (in `spa-next/`) have svelte-check + manual Playwright e2e but no unit test harness — note significant logic gaps as a coverage call-out; the SPA is small enough that the Playwright e2e + per-PR screenshot review is the working verification.
 
 ---
 
@@ -1897,15 +1897,15 @@ This reviewer applies to:
 
 ## SPA must remain manifest-driven
 
-The SPA at `spa/app.js` builds its form from each generator's `input_schema`. **Do NOT hardcode per-generator UI in the SPA** — adding a new generator on the server should require zero SPA changes. If a generator needs a control the SPA can't render from JSON Schema, extend the schema-to-form renderer generically rather than special-casing the generator.
+The SPA's `ConfigureColumn` / `Field` (in `spa-next/src/`) builds the params form from each generator's `input_schema`. **Do NOT hardcode per-generator UI in the SPA** — adding a new generator on the server should require zero SPA changes. If a generator needs a control the SPA can't render from JSON Schema, extend `Field.svelte` generically rather than special-casing the generator. Per-generator headline-knob curation lives in `lib/headlineFields.js` and is the one allowed place to mention generator names.
 
-## Hashed asset names
+## Vite-built SPA (post-cutover, wyrd-20pz)
 
-`spa/index.html` references `app.__SHA__.js` and `style.__SHA__.css`. The `__SHA__` placeholder is replaced with the commit SHA at deploy time by `bin/deploy-spa.sh`. The dev server (`wyrd/app.py:spa_static`) substitutes "dev" and resolves hashed asset URLs back to source. Don't change the placeholder format without updating both sides.
+`spa-next/` is a Svelte 5 + Vite project. Vite handles its own asset hashing — `npm run build` produces `dist/index.html` referencing `dist/assets/index-<hash>.{js,css}`. `bin/deploy-spa.sh` runs `npm ci && npm run build` and syncs `dist/` to S3 (immutable cache on assets, no-cache on index.html). Dev workflow: `flask --app wyrd.app run` for the API on :5000 + `cd spa-next && npm run dev` for the Vite dev server on :5173 (proxies `/api/*` back to Flask).
 
 ## CloudFront + Lambda Function URL body hash
 
-For POST/PUT requests, the SPA computes `x-amz-content-sha256` of the body and sends it as a header — see `spa/app.js:sha256Hex()`. CloudFront does NOT compute this for OAC-signed Lambda Function URL origins; without the header Lambda rejects with `InvalidSignatureException`. Any new client (CLI, other SPA, third-party) calling the API directly behind CloudFront must do the same.
+For POST/PUT requests, the SPA computes `x-amz-content-sha256` of the body and sends it as a header — see `spa-next/src/lib/api.js:postSignedJson()`. CloudFront does NOT compute this for OAC-signed Lambda Function URL origins; without the header Lambda rejects with `InvalidSignatureException`. Any new client (CLI, other SPA, third-party) calling the API directly behind CloudFront must do the same.
 
 ## Bundled data, not S3
 
