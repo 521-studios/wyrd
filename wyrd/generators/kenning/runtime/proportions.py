@@ -1202,6 +1202,7 @@ class NewName:
         method returned first-by-insertion-order; post-fix it returns
         the canonical etymon."""
         from wyrd.generators.kenning import (
+            _all_roots,
             _all_senses,
             _rank_siblings,
             _split_senses_for_display,
@@ -1232,7 +1233,13 @@ class NewName:
                         "tags": list(
                             dict.fromkeys(t for m in ranked for t in m.tags)
                         ),
-                        "roots": self._roots(first),
+                        # wyrd-o53o round 5 (Gemini MED): union roots
+                        # across ranked siblings to match meanings + tags
+                        # (and the explain endpoint's behavior). Pre-fix
+                        # took first.sources only, so a usage with both
+                        # OE + Celtic etymons surfaced 'EN' but not
+                        # 'CL' in the API summary.
+                        "roots": _all_roots(ranked),
                         "citations": _collect_citations(ranked),
                         "renderings": _collect_renderings(ranked),
                     }
