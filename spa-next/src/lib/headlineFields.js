@@ -7,6 +7,13 @@
 // Generators not in this map show all their params unconditionally
 // (the safe default — small schemas don't benefit from disclosure).
 
+// wyrd-ppk6: keys that should NOT appear in the col 1 form for any
+// generator — handled elsewhere in the UI. Currently just 'seed',
+// which lives in the Header (universal control). Pre-fix, kenning's
+// 'seed' field landed in Advanced because it wasn't in HEADLINE_FIELDS;
+// the duplicate was redundant + confusing.
+export const HIDDEN_FIELDS = new Set(['seed']);
+
 export const HEADLINE_FIELDS = {
   // Kenning's headline knobs: pick a culture, decide how many names,
   // optionally fix the seed, optionally tune the mood. Everything
@@ -31,7 +38,11 @@ export const HEADLINE_FIELDS = {
  * Preserves the schema's property order within each list.
  */
 export function partitionFields(generatorName, schema) {
-  const props = Object.entries(schema?.properties || {});
+  // wyrd-ppk6: HIDDEN_FIELDS drop out entirely before partitioning —
+  // 'seed' lives in the Header, not in either headline or advanced.
+  const props = Object.entries(schema?.properties || {}).filter(
+    ([k]) => !HIDDEN_FIELDS.has(k),
+  );
   const headlineKeys = HEADLINE_FIELDS[generatorName];
   if (!headlineKeys) {
     return { headline: props, advanced: [] };

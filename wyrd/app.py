@@ -8,7 +8,7 @@ from flask import Flask, jsonify, request
 
 from wyrd import registry
 from wyrd.envelope import envelope
-from wyrd.seed import resolve_seed, rng_for
+from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
 
 MAX_COUNT = 10
 
@@ -87,7 +87,12 @@ def _dispatch(generator_name: str, params: dict[str, Any]):
             # Sub-seeds derived deterministically from the top-level seed so that
             # the same (seed, count) pair always reproduces the same set of results.
             seed_rng = rng_for(seed)
-            results = [generator.generate(params, seed_rng.randrange(2**63)) for _ in range(count)]
+            # wyrd-aof8: cap sub-seeds at JS Number safe range so
+            # they round-trip through copy/paste in the SPA.
+            results = [
+                generator.generate(params, seed_rng.randrange(MAX_SAFE_INTEGER + 1))
+                for _ in range(count)
+            ]
     except (ValueError, KeyError) as e:
         return jsonify({"error": "bad_params", "detail": str(e)}), 400
 

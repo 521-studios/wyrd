@@ -14,7 +14,7 @@ from wyrd.generators.kenning import (
     available_tags,
 )
 from wyrd.generators.kenning.registers.effects import available_register_effects
-from wyrd.seed import resolve_seed, rng_for
+from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
 
 _VALID_SCORING_MODES = ("proportions", "vector")
 
@@ -354,7 +354,9 @@ def generate(
         ]
     for _ in range(count):
         try:
-            result = kenning.generate(params, seed_rng.randrange(2**63))
+            # wyrd-aof8: cap sub-seeds at JS Number safe range so
+            # they round-trip through the SPA's copy/paste flow.
+            result = kenning.generate(params, seed_rng.randrange(MAX_SAFE_INTEGER + 1))
         except ValueError as exc:
             # Surface user-input errors (bad --era, etc.) as friendly
             # CLI messages on stderr + exit non-zero, matching the
