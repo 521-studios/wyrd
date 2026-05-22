@@ -12,20 +12,36 @@
   import { appState } from '../lib/appState.svelte.js';
   import SavedList from './SavedList.svelte';
 
-  // Esc closes the drawer; body scroll-lock so the workspace
-  // underneath doesn't scroll when the user tries to scroll the
-  // drawer.
+  let closeBtnEl = $state();
+  let triggerBefore = $state(null);
+
+  // wyrd-8jjx round 2 (Gemini MED): focus management. On open,
+  // stash the previously-focused element + move focus to the
+  // close button so keyboard users land inside the dialog. On
+  // close, return focus to the stash (typically the Header's
+  // 'Saved' button that opened it). Esc handler + body scroll-
+  // lock happen here too.
   $effect(() => {
     if (!appState.savedDrawerOpen) return;
+    triggerBefore = document.activeElement;
     const onKey = (e) => {
       if (e.key === 'Escape') appState.savedDrawerOpen = false;
     };
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    // Move focus into the dialog. queueMicrotask waits one tick
+    // so the drawer markup is in the DOM before we focus.
+    queueMicrotask(() => closeBtnEl?.focus?.());
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
+      // Return focus to the opener. Guard for when the trigger
+      // was removed from the DOM mid-session (rare; defensive).
+      if (triggerBefore && typeof triggerBefore.focus === 'function') {
+        try { triggerBefore.focus(); } catch (e) { /* gone */ }
+      }
+      triggerBefore = null;
     };
   });
 
@@ -53,6 +69,7 @@
     <header>
       <h2>Saved library</h2>
       <button
+        bind:this={closeBtnEl}
         class="close-btn"
         type="button"
         onclick={close}

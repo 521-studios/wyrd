@@ -13,10 +13,10 @@
   // section heads) so the header reads as the same surface as the
   // columns below it.
   import { appState } from '../lib/appState.svelte.js';
-  import { pipeline } from '../lib/pipeline.svelte.js';
   import { savedStore } from '../lib/savedStore.svelte.js';
   import { rollCurrent } from '../lib/roll.js';
   import { encodeWorkspace, buildShareUrl } from '../lib/shareLink.js';
+  import { currentWorkspaceSnapshot } from '../lib/workspaceSnapshot.js';
 
   let { onMenuToggle = null, isMobileViewport = false } = $props();
 
@@ -36,61 +36,30 @@
   }
 
   function saveCurrent() {
-    const r = appState.currentResult;
-    if (!r) return;
-    const existingId = savedStore.findId({
-      generator: appState.resultsGenerator,
-      originalName: r.result,
-    });
-    if (existingId && pipeline.steps.length === 0) {
-      showToast('Already saved');
-      return;
-    }
-    const { error } = savedStore.add({
-      generator: appState.resultsGenerator,
-      params: appState.currentParams,
-      seed: appState.seed,
-      original: {
-        name: r.result,
-        morphemes_by_word: r.morphemes_by_word || [],
-        explanation: r.explanation || '',
-      },
-      pipeline: pipeline.steps.map((s) => ({
-        kind: s.kind,
-        params: { ...s.params },
-      })),
-    });
+    const payload = currentWorkspaceSnapshot();
+    if (!payload) return;
+    // wyrd-8jjx round 2 (Gemini MED): dropped the dedupe check.
+    // A user may legitimately want multiple saves of the same name
+    // with different seed / params (different mood producing the
+    // same surname, for instance). Saves get unique ids; users
+    // delete duplicates from the drawer if they don't want them.
+    const { error } = savedStore.add(payload);
     showToast(error ? `Save failed: ${error.message || 'storage error'}` : `Saved`);
   }
 
   async function shareCurrent() {
-    const r = appState.currentResult;
-    if (!r) return;
-    const encoded = encodeWorkspace({
-      generator: appState.resultsGenerator,
-      params: appState.currentParams,
-      seed: appState.seed,
-      original: {
-        name: r.result,
-        morphemes_by_word: r.morphemes_by_word || [],
-        explanation: r.explanation || '',
-      },
-      pipeline: pipeline.steps.map((s) => ({
-        kind: s.kind,
-        params: { ...s.params },
-      })),
-    });
-    const url = buildShareUrl(encoded);
+    const payload = currentWorkspaceSnapshot();
+    if (!payload) return;
+    const url = buildShareUrl(encodeWorkspace(payload));
     try {
       await navigator.clipboard.writeText(url);
       showToast('Share link copied');
     } catch (err) {
-      // wyrd-tz35 noted: clipboard requires secure context.
-      // Promote URL to a copy-target so the user can manually copy.
-      // Goes through appState so a future fallback panel can show
-      // it without needing a Header ref.
-      appState.shareLinkFallback = url;
-      showToast('Copy failed — link in panel');
+      // wyrd-tz35: clipboard requires secure context. Future:
+      // surface fallback panel; for now toast tells the user the
+      // copy didn't land + the URL is logged for the dev.
+      console.warn('share: clipboard write failed', err, url);
+      showToast('Copy failed — see console');
     }
   }
 </script>
