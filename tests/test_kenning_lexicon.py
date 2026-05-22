@@ -1272,12 +1272,13 @@ def test_seed_against_bundled_meanings(fresh_db: Path) -> None:
         seed_from_meanings(db, data, "rando-port")
         stats = db.stats()
 
-    # Bounds calibrated against the post-wyrd-eni4 bundle (8490
-    # subjects, ~12.9K reflexes, ~14.6K etymons). Floors set at
-    # ~50% of current to catch a meaningful regression (e.g. ingest
-    # silently dropping half the bundle) without re-tuning on every
-    # mining session. Ceilings ~2× to absorb routine growth.
-    assert 6000 < stats["reflex"] < 50000
+    # Bounds re-calibrated 2026-05-22 against the wyrd-hitl bundle
+    # regen (8346 subjects, ~60K reflexes — phonological_vector +
+    # wave2 enriched data inflated reflex counts ~4.6× vs the
+    # post-wyrd-eni4 baseline). Floors at ~50% of current to catch
+    # meaningful regressions; ceilings at ~2× to absorb routine
+    # growth without per-session re-tuning.
+    assert 30000 < stats["reflex"] < 130000
     # Etymons are grouped by (form, language). Pre-wyrd-eni4 the bundle
     # was OE/ON-dominated so etymons < reflexes; post-cluster-expansion
     # each modern_usage maps to many ancestor-language etymons, so the
@@ -15147,11 +15148,18 @@ def test_fetch_cluster_mate_tags_returns_empty_for_no_cognate(fresh_db: Path) ->
     assert result == []
 
 
-def test_gather_family_unions_member_and_cluster_tags(fresh_db: Path) -> None:
-    """End-to-end: _gather_family's "tags" field is the union of
-    member-rollup tags AND cluster-mate tags. Pinned via a family
-    where the root has its own tag AND a cluster mate has a different
-    tag — both surface in the family's tags list."""
+def test_gather_family_uses_member_tags_only(fresh_db: Path) -> None:
+    """wyrd-c4wd: _gather_family's "tags" field is now the MEMBER
+    tags only — the cluster-mate union was producing visible noise
+    (e.g. '-y' tagged 'animal', 'Dar-' (Deer) tagged 'architecture'),
+    so it was dropped in favor of faithful member-only tags.
+
+    Pre-fix this test asserted the union (member + cluster mate);
+    post-fix it asserts member-only. The cluster mate's 'topography'
+    no longer rides along when only the OE root is the family member.
+    Cluster-mate-tag fetching is still tested separately by
+    test_fetch_cluster_mate_tags_* — the helper is intact, just not
+    consulted by the bundle exporter anymore."""
 
     with LexiconDB(fresh_db) as db:
         oe_id = db.upsert_etymon("ceaster", "old-english")
@@ -15165,11 +15173,11 @@ def test_gather_family_unions_member_and_cluster_tags(fresh_db: Path) -> None:
             "INSERT INTO etymon_tag (etymon_id, tag) VALUES (?, ?)", (me_id, "topography")
         )
         db.commit()
-        # _gather_family with member_ids=[oe_id] (just the OE root, no
-        # lemma children). Cluster mate ME 'chestre' is a separate root.
+        # member_ids=[oe_id] → only the OE root's tags. ME cluster mate
+        # 'chestre' is a separate root; its 'topography' tag stays put.
         family = _gather_family(db, oe_id, [oe_id])
     assert family is not None
-    assert family["tags"] == ["architecture", "topography"]
+    assert family["tags"] == ["architecture"]
 
 
 def test_fetch_cluster_mate_tags_includes_same_language_mates(fresh_db: Path) -> None:
