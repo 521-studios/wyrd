@@ -1,38 +1,27 @@
 <script>
-  // wyrd-hcmc: col 1 — generator picker + params form + roll button.
+  // wyrd-hcmc + wyrd-14hn: col 1 — params form ONLY. The picker +
+  // seed + Roll button moved into the Header (wyrd-14hn). This
+  // column now renders the active generator's params form (manifest-
+  // driven) with progressive disclosure: headline knobs visible,
+  // advanced collapsed.
   //
-  // On mount: fetch /api/manifest, populate the generator picker,
-  // default-select the first generator. Per-generator form renders
-  // from input_schema, partitioned into headline + advanced (the
-  // progressive-disclosure design pick from the design session).
-  //
-  // The roll button POSTs to /api/<generator> with currentParams +
-  // seed, writes the response to appState.results.
-  import { onMount } from 'svelte';
+  // Manifest fetch + initial generator selection still happen here
+  // (mounted at app start regardless of which workspace is active),
+  // so this is the de-facto bootstrap surface for appState.manifest.
   import { appState } from '../lib/appState.svelte.js';
-  import { fetchManifest, rollGenerator } from '../lib/api.js';
+  import { rollCurrent } from '../lib/roll.js';
   import { partitionFields } from '../lib/headlineFields.js';
   import Field from '../components/Field.svelte';
 
-  onMount(async () => {
-    try {
-      const manifest = await fetchManifest();
-      appState.manifest = manifest;
-      if (manifest.generators.length > 0 && !appState.selectedGeneratorName) {
-        appState.selectedGeneratorName = manifest.generators[0].name;
-      }
-    } catch (err) {
-      appState.manifestError = err.message;
-    }
-  });
+  // wyrd-14hn round 2 (frontend LOW): manifest fetch lifted to
+  // App.svelte (so it loads regardless of which workspace mounts);
+  // viewport tracking lifted to appState.isMobileViewport.
 
   // wyrd-o7lp (PR #314 Gemini HIGH): init the per-generator params
   // dict via $effect.pre, which runs BEFORE child effects on the
   // same render pass. That means Field components see currentParams
   // populated by their own $effect's first read — no render-before-
   // effect race like the earlier failed attempt with plain $effect.
-  // Pre-fix, the lazy-init lived inside appState.currentParams's
-  // getter (state mutation during render path = Svelte anti-pattern).
   $effect.pre(() => {
     if (appState.selectedGeneratorName) {
       appState.ensureParams(appState.selectedGeneratorName);
@@ -46,31 +35,6 @@
   });
 
   let showAdvanced = $state(false);
-
-  async function roll() {
-    if (!appState.selectedGeneratorName) return;
-    appState.isRolling = true;
-    appState.rollError = null;
-    try {
-      const envelope = await rollGenerator(
-        appState.selectedGeneratorName,
-        appState.currentParams,
-        appState.seed,
-      );
-      appState.results = envelope.results;
-      appState.resultsGenerator = envelope.generator;
-      appState.seed = envelope.seed; // echo back the seed the server used
-      // wyrd-yxf6 round 2: clear the inspector's selection inline
-      // with the results assignment. Pre-fix this lived in an
-      // OutputColumn $effect — fragile if OutputColumn ever
-      // unmounts (mobile drawer per wyrd-jh75 may toggle it).
-      appState.currentResultIndex = null;
-    } catch (err) {
-      appState.rollError = err.message;
-    } finally {
-      appState.isRolling = false;
-    }
-  }
 </script>
 
 <aside class="column">
@@ -80,27 +44,19 @@
     <p class="error">Failed to load generators: {appState.manifestError}</p>
   {:else if !appState.manifest}
     <p class="placeholder">Loading…</p>
-  {:else}
-    <div class="field">
-      <label for="gen-select">Generator</label>
-      <select id="gen-select" bind:value={appState.selectedGeneratorName}>
-        {#each appState.manifest.generators as gen}
-          <option value={gen.name}>{gen.display_name || gen.name}</option>
-        {/each}
-      </select>
-      {#if appState.selectedGenerator?.description}
-        {#if appState.selectedGenerator.description.length > 140}
-          <details class="hint-disclosure">
-            <summary class="hint hint-summary">
-              {appState.selectedGenerator.description.slice(0, 140)}…
-            </summary>
-            <p class="hint">{appState.selectedGenerator.description}</p>
-          </details>
-        {:else}
+  {:else if appState.selectedGenerator}
+    {#if appState.selectedGenerator.description}
+      {#if appState.selectedGenerator.description.length > 140}
+        <details class="hint-disclosure" open>
+          <summary class="hint hint-summary">
+            {appState.selectedGenerator.description.slice(0, 140)}…
+          </summary>
           <p class="hint">{appState.selectedGenerator.description}</p>
-        {/if}
+        </details>
+      {:else}
+        <p class="hint">{appState.selectedGenerator.description}</p>
       {/if}
-    </div>
+    {/if}
 
     {#each fieldPartition.headline as [key, prop] (key)}
       <Field fieldKey={key} {prop} />
@@ -115,19 +71,26 @@
       </details>
     {/if}
 
-    <div class="field">
-      <label for="seed-input">Seed</label>
-      <input
-        id="seed-input"
-        type="number"
-        placeholder="random"
-        bind:value={appState.seed}
-      />
-    </div>
-
-    <button class="roll" onclick={roll} disabled={appState.isRolling}>
-      {appState.isRolling ? 'Rolling…' : 'Roll'}
-    </button>
+    {#if appState.isMobileViewport}
+      <!-- wyrd-14hn: mobile-only seed + Roll. The header hides these
+           at narrow widths; drawer is where mobile users find them. -->
+      <div class="mobile-controls">
+        <label class="seed-row">
+          <span class="seed-label">Seed</span>
+          <input
+            type="number"
+            bind:value={appState.seed}
+            placeholder="random"
+          />
+        </label>
+        <button
+          class="roll-btn-mobile"
+          type="button"
+          onclick={rollCurrent}
+          disabled={appState.isRolling}
+        >{appState.isRolling ? 'Rolling…' : 'Roll'}</button>
+      </div>
+    {/if}
 
     {#if appState.rollError}
       <p class="error">Roll failed: {appState.rollError}</p>
@@ -136,40 +99,27 @@
 </aside>
 
 <style>
-  .field {
-    margin-bottom: 14px;
+  aside {
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 16px 20px;
   }
-  label {
-    display: block;
+  h2 {
     font-size: 11px;
     font-weight: 600;
-    color: var(--fg);
-    margin-bottom: 4px;
-    text-transform: capitalize;
-  }
-  select,
-  input[type='number'] {
-    width: 100%;
-    background: var(--bg-elev);
-    color: var(--fg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 6px 8px;
-    font: inherit;
-  }
-  select:focus,
-  input:focus {
-    outline: 1px solid var(--accent);
-    outline-offset: -1px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-muted);
+    margin: 0 0 16px;
   }
   .hint {
-    margin: 4px 0 0;
+    margin: 0 0 14px;
     font-size: 11px;
     color: var(--fg-muted);
-    line-height: 1.4;
+    line-height: 1.5;
   }
   .hint-disclosure {
-    margin-top: 4px;
+    margin-bottom: 14px;
   }
   .hint-disclosure summary {
     cursor: pointer;
@@ -198,30 +148,9 @@
   }
   .advanced summary::before {
     content: '▸ ';
-    display: inline-block;
-    transition: transform 0.1s;
   }
   .advanced[open] summary::before {
     content: '▾ ';
-  }
-  .roll {
-    width: 100%;
-    background: var(--accent);
-    color: #1a1a1c;
-    border: none;
-    border-radius: 4px;
-    padding: 10px;
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-    margin-top: 8px;
-  }
-  .roll:hover:not(:disabled) {
-    filter: brightness(1.1);
-  }
-  .roll:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
   }
   .error {
     color: #ef6f6c;
@@ -231,5 +160,50 @@
   .placeholder {
     color: var(--fg-muted);
     font-style: italic;
+  }
+  .mobile-controls {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .seed-row {
+    display: block;
+    margin-bottom: 12px;
+  }
+  .seed-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-muted);
+    margin-bottom: 4px;
+  }
+  .seed-row input {
+    width: 100%;
+    background: var(--bg-elev);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px;
+    font: inherit;
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  }
+  .roll-btn-mobile {
+    width: 100%;
+    background: var(--accent);
+    color: #1a1a1c;
+    border: none;
+    border-radius: 4px;
+    padding: 12px;
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+  }
+  .roll-btn-mobile:disabled {
+    opacity: 0.4;
   }
 </style>
