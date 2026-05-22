@@ -76,6 +76,13 @@ _ROOT_CODES = [
     ("greek", "GR"),
 ]
 
+# wyrd-hitl round 3 (Gemini MED): module-level stratum priority map
+# for _rank_siblings. Hoisted out of _rank_siblings (where it was
+# being reconstructed per call) so it's built once at module load.
+# Smaller index = more canonical (OE first); used as -rank in the
+# sort key so OE sorts FIRST.
+_STRATUM_PRIORITY = {src: i for i, (src, _) in enumerate(_ROOT_CODES)}
+
 CULTURES = ["english", "scottish", "welsh", "irish", "breton"]
 
 # D5-2 / wyrd-lyp: which era family the bare-label form of ``--era`` resolves
@@ -599,21 +606,12 @@ def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
     filtered = historical if historical else list(siblings)
 
     # Pass 2: rank by (stratum priority, meaning count, tag count).
-    # _ROOT_CODES is ordered most-canonical first (OE first); a
-    # smaller index = more canonical, so we negate for sort.
-    #
-    # wyrd-hitl round 2 (Gemini MED): precompute the stratum→index
-    # map once instead of linear-scanning _ROOT_CODES inside the key
-    # function for every comparison. Also flips the lookup from
-    # next(...) to min(...) — semantically the same given
-    # _ROOT_CODES is ordered priority-first, but min documents the
-    # 'most canonical source wins' intent for any Meaning with
-    # multiple historical sources.
-    _stratum_priority = {src: i for i, (src, _) in enumerate(_ROOT_CODES)}
-
+    # _ROOT_CODES is ordered most-canonical first; a smaller index =
+    # more canonical, so we negate for sort.
+    # _STRATUM_PRIORITY lives at module scope (built once at load).
     def _signal(m: Meaning) -> tuple:
         stratum_rank = min(
-            (_stratum_priority[s] for s in m.sources if s in _stratum_priority),
+            (_STRATUM_PRIORITY[s] for s in m.sources if s in _STRATUM_PRIORITY),
             default=len(_ROOT_CODES),
         )
         return (-stratum_rank, len(m.meanings), len(m.tags))
