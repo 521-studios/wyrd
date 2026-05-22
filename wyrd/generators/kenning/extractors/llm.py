@@ -346,19 +346,22 @@ class OllamaClient:
     model: str = DEFAULT_OLLAMA_MODEL
     timeout_s: float = 120.0
     temperature: float = 0.0
-    # Sized to cover the largest chunk size used by any wyrd CLI:
-    # the single-tier ``mine-toponym-mentions`` defaults to 20000-
-    # char chunks (~5000 tokens); the staged cascade uses 3000-char
-    # chunks (~750 tokens). 16384 gives both surfaces enough room
-    # for the system prompt (~500 tokens) plus a dense response
-    # without truncation. The previous 8192 default was tight for
-    # the single-tier path on dense gazetteer chunks — Gemini
-    # round-3 flagged the risk of response truncation → JSON parse
-    # failure → silent chunk failure. Smaller is faster but risks
-    # truncation; larger wastes KV-cache memory. If a future caller
-    # has a known-smaller chunk size or wants to tune memory, override
-    # at construction.
-    num_ctx: int = 16384
+    # Right-sized for the production miner (staged cascade), whose
+    # 3000-char chunks (~750 tokens) + ~500-token system prompt +
+    # response stay well under 8K. The single-tier
+    # ``mine-toponym-mentions`` CLI defaults to 20000-char chunks
+    # (~5000 tokens) — dense responses could theoretically truncate
+    # at 8192. That caller can override ``num_ctx`` at construction;
+    # making it CLI-configurable per-caller is a deferred improvement
+    # (see wyrd-qxmr for the empirical trade-off).
+    #
+    # wyrd-qxmr: PR #327 originally bumped this to 16384 to cover
+    # the single-tier hypothetical. Empirical 2026-05-22 measurement
+    # showed that increased gemma4:26b chunk-time from ~33s (8K) to
+    # ~102s (16K) — a 2-3x throughput regression with no production
+    # benefit (the single-tier path isn't used for corpus mining).
+    # 8192 is the right default for the production hot path.
+    num_ctx: int = 8192
     # Pin the model in memory across requests so an idle period
     # between chunks doesn't unload the model — a subsequent chunk
     # request would then have to reload it from disk (significant

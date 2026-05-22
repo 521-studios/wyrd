@@ -783,8 +783,10 @@ def test_unknown_generator_is_404():
 # morpheme inspector. Drops modern_english-only siblings when a
 # historical etymon exists, then orders by stratum + signal density.
 
+
 def _make_meaning(usage, sources, meanings=None, tags=None):
     from wyrd.generators.kenning.runtime.meaning import Meaning
+
     return Meaning(
         usage=usage,
         tags=tags or [],
@@ -795,6 +797,7 @@ def _make_meaning(usage, sources, meanings=None, tags=None):
 
 def test_rank_siblings_empty_and_single():
     from wyrd.generators.kenning import _rank_siblings
+
     assert _rank_siblings([]) == []
     one = _make_meaning("Green-", {"old_english"}, ["Green"])
     out = _rank_siblings([one])
@@ -805,9 +808,8 @@ def test_rank_siblings_drops_modern_english_when_historical_present():
     """The Green- case: modern_english 'gree' (step/rung) shouldn't
     surface when OE 'grēne' (Green / Village green) exists."""
     from wyrd.generators.kenning import _rank_siblings
-    modern = _make_meaning(
-        "Green-", {"modern_english"}, ["step", "to agree"], tags=[]
-    )
+
+    modern = _make_meaning("Green-", {"modern_english"}, ["step", "to agree"], tags=[])
     oe = _make_meaning(
         "Green-",
         {"old_english"},
@@ -822,6 +824,7 @@ def test_rank_siblings_keeps_modern_when_no_historical():
     """When NO sibling has historical roots (genuinely modern morpheme),
     keep the modern_english entry rather than collapsing to []."""
     from wyrd.generators.kenning import _rank_siblings
+
     modern_a = _make_meaning("Foo", {"modern_english"}, ["a"])
     modern_b = _make_meaning("Foo", {"modern_english"}, ["b"])
     out = _rank_siblings([modern_a, modern_b])
@@ -832,6 +835,7 @@ def test_rank_siblings_orders_by_stratum_then_signal():
     """OE > ON > OF > Celtic order — and within same stratum, richer
     meaning + tag counts win."""
     from wyrd.generators.kenning import _rank_siblings
+
     celtic = _make_meaning(
         "Green-", {"celtic_mix"}, ["Bright", "Shining", "Sunny"], tags=["descriptive"]
     )
@@ -849,6 +853,7 @@ def test_rank_siblings_orders_by_stratum_then_signal():
 def test_rank_siblings_returns_new_list():
     """Caller mutations on the result must not leak back to the input."""
     from wyrd.generators.kenning import _rank_siblings
+
     a = _make_meaning("X-", {"old_english"}, ["a"])
     b = _make_meaning("X-", {"old_scandinavian"}, ["b"])
     inp = [a, b]
