@@ -11,7 +11,14 @@
   // needs to react to drawer/sheet open state; if mobile-state ever
   // needs to drive other behavior (deep-link landing rules, etc.)
   // promote to appState.
+  import { onMount } from 'svelte';
   import { appState } from './lib/appState.svelte.js';
+  import { pipeline } from './lib/pipeline.svelte.js';
+  import {
+    decodeWorkspace,
+    readShareParam,
+    clearShareParam,
+  } from './lib/shareLink.js';
   import ConfigureColumn from './columns/ConfigureColumn.svelte';
   import OutputColumn from './columns/OutputColumn.svelte';
   import InspectorColumn from './columns/InspectorColumn.svelte';
@@ -19,6 +26,52 @@
   let col1Open = $state(false);
   let col3Open = $state(false);
   let isMobileViewport = $state(false);
+  let restoreNote = $state('');
+
+  // wyrd-tz35: at boot, check `?s=<encoded>` for a shared workspace.
+  // Decode + restore all 3 columns to that state, then strip the
+  // param so a refresh doesn't re-restore (and local edits aren't
+  // attributed to the share). Restoration logic mirrors
+  // SavedList.load — clear pipeline first, set steps, flag the
+  // InspectorColumn auto-clear to skip.
+  onMount(() => {
+    const encoded = readShareParam();
+    if (!encoded) return;
+    const payload = decodeWorkspace(encoded);
+    if (!payload) {
+      restoreNote = 'Share link was invalid or used an old format.';
+      clearShareParam();
+      setTimeout(() => (restoreNote = ''), 4000);
+      return;
+    }
+    // Deep-clone via JSON round-trip so future workspace edits
+    // don't alias-mutate the decoded payload (same defense as
+    // SavedList.load — see wyrd-34tn round 3 finding).
+    const entry = JSON.parse(JSON.stringify(payload));
+    pipeline.clear();
+    for (const step of entry.pipeline || []) {
+      pipeline.addStep(step.kind, step.params);
+    }
+    appState.isLoadingSavedWorkspace = true;
+    appState.selectedGeneratorName = entry.generator;
+    appState.seed = entry.seed;
+    if (entry.params) {
+      appState.paramsByGenerator[entry.generator] = entry.params;
+    }
+    appState.results = [
+      {
+        result: entry.original.name,
+        morphemes_by_word: entry.original.morphemes_by_word || [],
+        explanation: entry.original.explanation || '',
+        components: [],
+      },
+    ];
+    appState.resultsGenerator = entry.generator;
+    appState.currentResultIndex = 0;
+    restoreNote = `Loaded shared workspace: ${entry.original.name}`;
+    clearShareParam();
+    setTimeout(() => (restoreNote = ''), 4000);
+  });
 
   // wyrd-jh75 round 2 (frontend MED): track viewport size so the
   // auto-open effect only fires on mobile. Resize between mobile
@@ -70,6 +123,10 @@
     col3Open = false;
   }
 </script>
+
+{#if restoreNote}
+  <div class="restore-banner" role="status">{restoreNote}</div>
+{/if}
 
 <div class="layout" class:col1Open class:col3Open>
   <!-- Mobile-only ☰ + ✕ trigger row, hidden on desktop via CSS. -->
@@ -133,6 +190,20 @@
 </div>
 
 <style>
+  .restore-banner {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent);
+    color: #1a1a1c;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
   .layout {
     display: grid;
     grid-template-columns: var(--col-1-width) var(--col-2-width) 1fr;

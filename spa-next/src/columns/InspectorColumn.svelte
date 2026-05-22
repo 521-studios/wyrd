@@ -18,6 +18,7 @@
   import MorphemeCard from '../components/MorphemeCard.svelte';
   import TransformStack from '../components/TransformStack.svelte';
   import SaveWorkspaceButton from '../components/SaveWorkspaceButton.svelte';
+  import ShareWorkspaceButton from '../components/ShareWorkspaceButton.svelte';
 
   let result = $derived(appState.currentResult);
 
@@ -147,6 +148,7 @@
       <h4 class="section-head">Transforms</h4>
       <TransformStack />
       <SaveWorkspaceButton />
+      <ShareWorkspaceButton />
     </section>
   {/if}
 </section>
