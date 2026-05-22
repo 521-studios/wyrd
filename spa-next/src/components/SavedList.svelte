@@ -77,6 +77,10 @@
     ];
     appState.resultsGenerator = entry.generator;
     appState.currentResultIndex = 0;
+    // wyrd-8jjx: close the drawer after restoring so the workspace
+    // is visible immediately. Pre-fix SavedList lived inline in
+    // col 2 — load() didn't need to dismiss anything.
+    appState.savedDrawerOpen = false;
   }
 
   function exportAll() {
@@ -124,8 +128,8 @@
 
 {#if savedStore.entries.length === 0}
   <p class="placeholder">
-    No saves yet. Click the ★ on a result, or use the Save workspace
-    button on the right column.
+    No saves yet. Click the ★ on a result, or tap the + Save button
+    in the header.
   </p>
 {:else}
   <ul class="saved-list">

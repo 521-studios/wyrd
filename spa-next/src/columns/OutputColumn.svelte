@@ -1,19 +1,10 @@
 <script>
-  // wyrd-hcmc + wyrd-34tn: col 2 — toggle between the most recent
-  // roll output and the Saved bookmark library. Each result in the
-  // roll view gets a ★ toggle (StarToggle) for inline save. The
-  // Saved view (SavedList) shows persisted entries; clicking one
-  // rehydrates all 3 columns to that workspace state.
+  // wyrd-hcmc + wyrd-8jjx: col 2 — current roll output. wyrd-8jjx
+  // dropped the Saved view-toggle since the Saved library now opens
+  // as a header-triggered drawer (universal across workspaces).
+  // Star icon on each result stays inline (per-result quick save).
   import { appState } from '../lib/appState.svelte.js';
-  import { savedStore } from '../lib/savedStore.svelte.js';
   import StarToggle from '../components/StarToggle.svelte';
-  import SavedList from '../components/SavedList.svelte';
-
-  // Local-only view toggle. Lives in OutputColumn (not appState)
-  // because no other column needs to react to it; if a future
-  // feature needs to navigate to Saved from elsewhere (e.g., share-
-  // link landing in wyrd-tz35), promote to appState.
-  let view = $state('current'); // 'current' | 'saved'
 
   function selectResult(i) {
     appState.currentResultIndex =
@@ -24,26 +15,7 @@
 <section class="column">
   <h2>Output</h2>
 
-  <div class="view-toggle" role="tablist">
-    <button
-      role="tab"
-      class="toggle-btn"
-      class:active={view === 'current'}
-      aria-selected={view === 'current'}
-      onclick={() => (view = 'current')}
-    >Current roll</button>
-    <button
-      role="tab"
-      class="toggle-btn"
-      class:active={view === 'saved'}
-      aria-selected={view === 'saved'}
-      onclick={() => (view = 'saved')}
-    >Saved ({savedStore.entries.length})</button>
-  </div>
-
-  {#if view === 'saved'}
-    <SavedList />
-  {:else if appState.results.length === 0}
+  {#if appState.results.length === 0}
     <p class="placeholder">
       No rolls yet. Configure a generator on the left + hit Roll.
     </p>
@@ -79,34 +51,6 @@
 </section>
 
 <style>
-  .view-toggle {
-    display: flex;
-    gap: 2px;
-    margin-bottom: 16px;
-    background: var(--bg-elev);
-    border-radius: 4px;
-    padding: 2px;
-  }
-  .toggle-btn {
-    flex: 1;
-    background: transparent;
-    color: var(--fg-muted);
-    border: none;
-    border-radius: 3px;
-    padding: 6px 8px;
-    cursor: pointer;
-    font: inherit;
-    font-size: 12px;
-    font-weight: 600;
-  }
-  .toggle-btn.active {
-    background: var(--bg);
-    color: var(--fg);
-  }
-  .toggle-btn:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: -2px;
-  }
   .meta {
     font-size: 11px;
     color: var(--fg-muted);

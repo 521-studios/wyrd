@@ -22,6 +22,7 @@
   } from './lib/shareLink.js';
   import { workspaceFor } from './lib/workspaces.js';
   import Header from './components/Header.svelte';
+  import SavedDrawer from './components/SavedDrawer.svelte';
 
   let restoreNote = $state('');
   let workspaceRef = $state();
@@ -120,6 +121,7 @@
     isMobileViewport={appState.isMobileViewport}
   />
   <Workspace bind:this={workspaceRef} />
+  <SavedDrawer />
 </div>
 
 <style>
