@@ -36,15 +36,46 @@
   let workingTags = $state([]);
   let triggerBefore = null;
   let firstFocusEl = $state();
+  let modalEl = $state();
 
   $effect(() => {
     if (!open) return;
     triggerBefore = document.activeElement;
-    workingMoods = [...(appState.currentParams.mood || [])];
-    workingTags = [...(appState.currentParams.tags || [])];
+    // wyrd-vslw round 2 (Gemini HIGH): guard currentParams. The
+    // composer trigger only renders when the schema declares mood
+    // or tags, and ConfigureColumn's $effect.pre calls ensureParams
+    // before children mount — but the derived getter still CAN
+    // return null briefly (e.g., manifest race on first paint), so
+    // a defensive fallback to {} keeps the initial read safe.
+    const params = appState.currentParams || {};
+    workingMoods = [...(params.mood || [])];
+    workingTags = [...(params.tags || [])];
 
     const onKey = (e) => {
-      if (e.key === 'Escape') cancel();
+      if (e.key === 'Escape') {
+        cancel();
+        return;
+      }
+      // wyrd-vslw round 2 (Gemini MED): focus trap. Cycle Tab /
+      // Shift+Tab between the modal's first + last focusable
+      // elements so keyboard users can't tab out into the
+      // backgrounded page. Re-querying on each Tab event handles
+      // dynamic content (chip count changes as user toggles).
+      if (e.key !== 'Tab' || !modalEl) return;
+      const focusables = modalEl.querySelectorAll(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || !modalEl.contains(active))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (active === last || !modalEl.contains(active))) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
@@ -79,8 +110,22 @@
   }
 
   function apply() {
-    if (moodSchema) appState.currentParams.mood = [...workingMoods];
-    if (tagSchema) appState.currentParams.tags = [...workingTags];
+    // wyrd-vslw round 2 (Gemini HIGH): guard currentParams during
+    // write. If the params dict somehow isn't initialized (manifest
+    // race, generator changed between trigger click and apply),
+    // ensure via the appState helper before writing.
+    if (appState.selectedGeneratorName) {
+      appState.ensureParams(appState.selectedGeneratorName);
+    }
+    const params = appState.currentParams;
+    if (!params) {
+      // No generator selected — modal shouldn't have been openable
+      // in the first place, but bail rather than crash.
+      open = false;
+      return;
+    }
+    if (moodSchema) params.mood = [...workingMoods];
+    if (tagSchema) params.tags = [...workingTags];
     open = false;
   }
   function cancel() {
@@ -94,6 +139,7 @@
   <div class="backdrop" onclick={cancel}></div>
 
   <div
+    bind:this={modalEl}
     class="modal"
     role="dialog"
     aria-modal="true"
