@@ -1,8 +1,9 @@
 <script>
-  // wyrd-14hn: top-of-page chrome. Lifts the generator picker +
-  // seed + Roll out of col 1 so col 1 becomes generator-specific
-  // only. PR B (wyrd-8jjx) wires Save / Share / Saved into the
-  // .right slot.
+  // wyrd-14hn + wyrd-8jjx: top-of-page chrome. wyrd-14hn lifted
+  // picker + seed + Roll into here; wyrd-8jjx adds Save / Share /
+  // Saved (N) to the .right slot. All universal controls (work
+  // across every workspace) live in the header now; workspace-
+  // specific UI lives in the per-workspace component.
   //
   // Design rationale: dark-minimal + a single distinctive moment.
   // The wynn rune ᚹ (U+16B9, Anglo-Saxon ancestor of W) replaces
@@ -12,9 +13,55 @@
   // section heads) so the header reads as the same surface as the
   // columns below it.
   import { appState } from '../lib/appState.svelte.js';
+  import { savedStore } from '../lib/savedStore.svelte.js';
   import { rollCurrent } from '../lib/roll.js';
+  import { encodeWorkspace, buildShareUrl } from '../lib/shareLink.js';
+  import { currentWorkspaceSnapshot } from '../lib/workspaceSnapshot.js';
 
   let { onMenuToggle = null, isMobileViewport = false } = $props();
+
+  // Save / Share need a current result to operate on. Header
+  // buttons disable when there's nothing to save (no roll done
+  // yet, or no result selected).
+  let canSaveOrShare = $derived(appState.currentResult !== null);
+
+  let savedCount = $derived(savedStore.entries.length);
+
+  let toastNote = $state('');
+  function showToast(msg, ms = 2500) {
+    toastNote = msg;
+    setTimeout(() => {
+      if (toastNote === msg) toastNote = '';
+    }, ms);
+  }
+
+  function saveCurrent() {
+    const payload = currentWorkspaceSnapshot();
+    if (!payload) return;
+    // wyrd-8jjx round 2 (Gemini MED): dropped the dedupe check.
+    // A user may legitimately want multiple saves of the same name
+    // with different seed / params (different mood producing the
+    // same surname, for instance). Saves get unique ids; users
+    // delete duplicates from the drawer if they don't want them.
+    const { error } = savedStore.add(payload);
+    showToast(error ? `Save failed: ${error.message || 'storage error'}` : `Saved`);
+  }
+
+  async function shareCurrent() {
+    const payload = currentWorkspaceSnapshot();
+    if (!payload) return;
+    const url = buildShareUrl(encodeWorkspace(payload));
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('Share link copied');
+    } catch (err) {
+      // wyrd-tz35: clipboard requires secure context. Future:
+      // surface fallback panel; for now toast tells the user the
+      // copy didn't land + the URL is logged for the dev.
+      console.warn('share: clipboard write failed', err, url);
+      showToast('Copy failed — see console');
+    }
+  }
 </script>
 
 <header class="header" class:mobile={isMobileViewport}>
@@ -66,7 +113,45 @@
   </div>
 
   <div class="right">
-    <!-- wyrd-8jjx (PR B) lands Save / Share / Saved (N) here -->
+    <button
+      class="hdr-action"
+      type="button"
+      onclick={saveCurrent}
+      disabled={!canSaveOrShare}
+      title="Save current workspace"
+      aria-label="Save current workspace"
+    >
+      <span class="hdr-icon" aria-hidden="true">+</span>
+      <span class="hdr-label">Save</span>
+    </button>
+    <button
+      class="hdr-action"
+      type="button"
+      onclick={shareCurrent}
+      disabled={!canSaveOrShare}
+      title="Copy share link"
+      aria-label="Copy share link"
+    >
+      <span class="hdr-icon" aria-hidden="true">↗</span>
+      <span class="hdr-label">Share</span>
+    </button>
+    <button
+      class="hdr-action saved"
+      type="button"
+      onclick={() => (appState.savedDrawerOpen = !appState.savedDrawerOpen)}
+      title="Saved library"
+      aria-label="Open saved library"
+      aria-expanded={appState.savedDrawerOpen}
+    >
+      <span class="hdr-icon" aria-hidden="true">☰</span>
+      <span class="hdr-label">Saved</span>
+      {#if savedCount > 0}
+        <span class="hdr-count">{savedCount}</span>
+      {/if}
+    </button>
+    {#if toastNote}
+      <span class="toast" role="status">{toastNote}</span>
+    {/if}
   </div>
 </header>
 
@@ -229,7 +314,69 @@
     display: flex;
     justify-content: flex-end;
     align-items: center;
+    gap: 4px;
+    position: relative; /* anchor the toast */
+  }
+
+  .hdr-action {
+    display: inline-flex;
+    align-items: center;
     gap: 6px;
+    background: transparent;
+    color: var(--fg-muted);
+    border: 1px solid transparent;
+    border-radius: 3px;
+    padding: 6px 10px;
+    height: 32px;
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: color 120ms ease, border-color 120ms ease;
+  }
+  .hdr-action:hover:not(:disabled) {
+    color: var(--fg);
+    border-color: var(--border);
+  }
+  .hdr-action:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .hdr-action:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .hdr-icon {
+    font-size: 14px;
+    line-height: 1;
+    transform: translateY(-1px);
+  }
+  /* .hdr-label: full text on desktop, display:none at mobile (see
+     media query). No desktop rules needed — inherits from button. */
+  .hdr-count {
+    background: var(--accent);
+    color: #1a1a1c;
+    border-radius: 8px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    margin-left: 2px;
+  }
+  .toast {
+    position: absolute;
+    right: 0;
+    top: 36px;
+    background: var(--bg-elev);
+    color: var(--accent);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-style: italic;
+    white-space: nowrap;
+    z-index: 1;
   }
   .menu-btn {
     background: transparent;
@@ -274,6 +421,13 @@
     }
     .rune {
       font-size: 20px;
+    }
+    /* Mobile: hide the text labels; icons-only to fit. */
+    .hdr-label {
+      display: none;
+    }
+    .hdr-action {
+      padding: 6px 8px;
     }
   }
 </style>

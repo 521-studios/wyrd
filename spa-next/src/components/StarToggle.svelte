@@ -33,19 +33,25 @@
       savedStore.remove(id);
       return;
     }
+    // wyrd-8jjx round 2 (Gemini HIGH): pull params from
+    // paramsByGenerator[resultsGenerator] rather than
+    // appState.currentParams (which is keyed by selectedGenerator).
+    // The picker might have changed since the roll; the params
+    // that PRODUCED this result are the ones we need to save.
+    const generator = appState.resultsGenerator;
     savedStore.add({
-      generator: appState.resultsGenerator,
-      params: appState.currentParams,
+      generator,
+      params: appState.paramsByGenerator[generator] || {},
       seed: appState.seed,
       original: {
         name: result.result,
         morphemes_by_word: result.morphemes_by_word || [],
-        // wyrd-34tn round 2 (Gemini MED): preserve etymological
-        // explanation so SavedList load restores the full output card.
+        // wyrd-34tn round 2: preserve etymological explanation so
+        // SavedList load restores the full output card.
         explanation: result.explanation || '',
       },
-      // No pipeline — col 2 saves just the original. Col 3's save
-      // captures the whole workspace including transforms.
+      // No pipeline — the ★ saves just the original. Header's
+      // + Save captures the workspace including transforms.
       pipeline: [],
     });
   }

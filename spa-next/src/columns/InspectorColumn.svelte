@@ -17,8 +17,9 @@
   import { pipeline } from '../lib/pipeline.svelte.js';
   import MorphemeCard from '../components/MorphemeCard.svelte';
   import TransformStack from '../components/TransformStack.svelte';
-  import SaveWorkspaceButton from '../components/SaveWorkspaceButton.svelte';
-  import ShareWorkspaceButton from '../components/ShareWorkspaceButton.svelte';
+  // wyrd-8jjx: SaveWorkspaceButton + ShareWorkspaceButton moved to
+  // the Header (universal across workspaces). Components stay in
+  // the tree for potential reuse but no longer rendered here.
 
   let result = $derived(appState.currentResult);
 
@@ -147,8 +148,6 @@
     <section class="transforms">
       <h4 class="section-head">Transforms</h4>
       <TransformStack />
-      <SaveWorkspaceButton />
-      <ShareWorkspaceButton />
     </section>
   {/if}
 </section>

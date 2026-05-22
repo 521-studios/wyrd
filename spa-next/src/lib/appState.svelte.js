@@ -46,6 +46,14 @@ class AppState {
   // and writes this field; consumers read it reactively.
   isMobileViewport = $state(false);
 
+  // wyrd-8jjx: open state for the Saved library drawer. Header's
+  // 📚 Saved button toggles it; SavedList.load closes it after
+  // restoring a workspace (so the user sees the loaded result
+  // immediately). Universal so future surfaces (Esc handler, share-
+  // link landing, mobile bottom-sheet alternate) all toggle the
+  // same field.
+  savedDrawerOpen = $state(false);
+
   // wyrd-34tn: gate for SavedList load() flow. InspectorColumn's
   // subject-change effect normally clears the pipeline on
   // currentResultIndex change; a load() restores both the result
