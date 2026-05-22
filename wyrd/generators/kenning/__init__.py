@@ -601,10 +601,20 @@ def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
     # Pass 2: rank by (stratum priority, meaning count, tag count).
     # _ROOT_CODES is ordered most-canonical first (OE first); a
     # smaller index = more canonical, so we negate for sort.
+    #
+    # wyrd-hitl round 2 (Gemini MED): precompute the stratum→index
+    # map once instead of linear-scanning _ROOT_CODES inside the key
+    # function for every comparison. Also flips the lookup from
+    # next(...) to min(...) — semantically the same given
+    # _ROOT_CODES is ordered priority-first, but min documents the
+    # 'most canonical source wins' intent for any Meaning with
+    # multiple historical sources.
+    _stratum_priority = {src: i for i, (src, _) in enumerate(_ROOT_CODES)}
+
     def _signal(m: Meaning) -> tuple:
-        stratum_rank = next(
-            (i for i, (src, _) in enumerate(_ROOT_CODES) if src in m.sources),
-            len(_ROOT_CODES),
+        stratum_rank = min(
+            (_stratum_priority[s] for s in m.sources if s in _stratum_priority),
+            default=len(_ROOT_CODES),
         )
         return (-stratum_rank, len(m.meanings), len(m.tags))
 
