@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
+from difflib import SequenceMatcher
 from functools import lru_cache
 from importlib import resources
 from typing import Any
@@ -711,12 +713,11 @@ def _normalize_for_similarity(s: str) -> str:
     diacritics ('ē' → 'e', 'ā' → 'a'). The bundle's OE lemmas use
     macrons (hȳll, brād) and the modern_usage forms don't, so we
     fold before comparing surface similarity."""
-    import unicodedata as _u
     if not s:
         return ""
     cleaned = s.strip().strip("-").lower()
     # NFD splits combined chars; then drop the combining marks.
-    return "".join(c for c in _u.normalize("NFD", cleaned) if not _u.combining(c))
+    return "".join(c for c in unicodedata.normalize("NFD", cleaned) if not unicodedata.combining(c))
 
 
 def _max_form_similarity(usage_norm: str, m: Meaning) -> float:
@@ -729,16 +730,21 @@ def _max_form_similarity(usage_norm: str, m: Meaning) -> float:
     'cyln' (kiln; even less similar). Pre-fix all three tied on
     meaning count; the matching one now wins the tiebreaker so
     the morpheme card shows 'Hill' instead of 'Forest/Grove' or
-    'Kiln'. Empty input returns 0.0 (no match)."""
+    'Kiln'. Empty input returns 0.0 (no match).
+
+    wyrd-ubbc round 3 (Gemini MED): SequenceMatcher reused via
+    set_seq2 so usage_norm's autojunk analysis is computed once
+    per call rather than once per form."""
     if not usage_norm:
         return 0.0
-    from difflib import SequenceMatcher
+    matcher = SequenceMatcher(autojunk=False, a=usage_norm)
     best = 0.0
     for forms in m.sources.values():
         for f in forms:
             if not isinstance(f, str):
                 continue
-            score = SequenceMatcher(None, usage_norm, _normalize_for_similarity(f)).ratio()
+            matcher.set_seq2(_normalize_for_similarity(f))
+            score = matcher.ratio()
             if score > best:
                 best = score
                 if best == 1.0:
