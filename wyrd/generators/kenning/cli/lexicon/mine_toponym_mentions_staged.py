@@ -514,20 +514,26 @@ def _run_resume_from_failures(
                 log_warning=warn,
             )
 
-            # wyrd-st1r: skip the atomic-write entirely when the
-            # source produced ZERO usable output BECAUSE OF A REAL
-            # OUTAGE. Without this guard, a provider that times-out
-            # every chunk produces a 0-byte canonical file at
-            # ``out_path``, and the next --skip-existing run treats
-            # it as "done" — the source is silently lost.
+            # wyrd-st1r: skip the atomic-write entirely when no
+            # useful output was produced AND at least one chunk
+            # FAILED. Without this guard, a provider that times-out
+            # every chunk (or partial-failures-and-zero-mentions)
+            # produces a 0-byte canonical file at ``out_path``, and
+            # the next --skip-existing run treats it as "done" — the
+            # source is silently lost.
             #
             # Concrete 2026-05-22: gemma4 Ollama power loss caused 12
             # sources to land as 0-byte files mid-corpus. Operators
             # discovered the gap only on a manual file-size audit.
             #
             # Predicate breakdown:
-            # - ``chunks_processed == 0`` AND ``not mentions``: no
-            #   useful output was produced.
+            # - ``not report.mentions``: no useful output captured
+            #   on this resume. Covers the total-outage case
+            #   (chunks_processed=0) AND the partial-outage case
+            #   (some chunks succeeded but found no mentions while
+            #   others failed) — Gemini R2 P2: the prior narrower
+            #   predicate (``chunks_processed == 0``) missed the
+            #   partial case and produced 0-byte canonicals there.
             # - ``chunks_failed > 0``: distinguishes "real outage"
             #   from "source has nothing to mine" (empty body →
             #   chunk_source_body returns [] → chunks_processed=0
@@ -537,18 +543,21 @@ def _run_resume_from_failures(
             #
             # We DON'T gate on out_path.exists() here: if a canonical
             # file already exists (resume mode is common) and 0 new
-            # chunks succeeded, skipping the atomic-write preserves
+            # mentions captured, skipping the atomic-write preserves
             # the existing canonical untouched. The else branch's
-            # existing-rows copy path would just rewrite the file
-            # from itself (mtime bump, no content change) — wasteful
-            # I/O that silent-failure-hunter flagged as concerning.
-            outage_with_no_progress = (
-                report.chunks_processed == 0 and report.chunks_failed > 0 and not report.mentions
-            )
+            # existing-rows copy path would do a verbatim rewrite —
+            # wasteful I/O that silent-failure-hunter flagged. One
+            # side-effect lost: malformed-row purging (the else
+            # branch drops non-JSON/non-dict rows during the copy).
+            # When the guard fires AND the existing canonical has
+            # malformed rows, those rows persist until a subsequent
+            # successful run does the purge. Deferred cleanup, not
+            # permanent loss.
+            outage_with_no_progress = not report.mentions and report.chunks_failed > 0
             if outage_with_no_progress:
                 click.echo(
                     f"  → no canonical file written for {source_id}: "
-                    f"0 chunks succeeded ({report.chunks_failed} failed); "
+                    f"0 mentions captured ({report.chunks_failed} chunks failed); "
                     f"--skip-existing will retry on the next run",
                     err=True,
                 )
@@ -731,13 +740,11 @@ def _run_fresh_mining(
             # can leave a pre-existing canonical at out_path, and
             # skipping the atomic-write preserves it intact rather
             # than destroying good data with a 0-byte write.
-            outage_with_no_progress = (
-                report.chunks_processed == 0 and report.chunks_failed > 0 and not report.mentions
-            )
+            outage_with_no_progress = not report.mentions and report.chunks_failed > 0
             if outage_with_no_progress:
                 click.echo(
                     f"  → no canonical file written for {source_id}: "
-                    f"0 chunks succeeded ({report.chunks_failed} failed); "
+                    f"0 mentions captured ({report.chunks_failed} chunks failed); "
                     f"--skip-existing will retry on the next run",
                     err=True,
                 )

@@ -2488,6 +2488,13 @@ def test_cli_staged_from_failures_preserves_existing_canonical_when_all_chunks_f
         encoding="utf-8",
     )
     canonical_before = canonical.read_text(encoding="utf-8")
+    # mtime check pins that the file isn't touched at all — a
+    # rewrite-from-itself in the else branch would produce
+    # byte-identical contents (the verbatim-copy is faithful) but
+    # bump mtime. Without this assertion, a predicate inversion that
+    # accidentally took the else branch would still pass the
+    # byte-equality check. pr-test-analyzer R2 criticality-6 finding.
+    mtime_before_ns = canonical.stat().st_mtime_ns
 
     failures_file = tmp_path / "failures.jsonl"
     failures_file.write_text(
@@ -2525,10 +2532,83 @@ def test_cli_staged_from_failures_preserves_existing_canonical_when_all_chunks_f
     )
     assert result.exit_code == 0, result.output
 
-    # Existing canonical preserved byte-identical — no mtime-only
-    # rewrite, no row-purging side effects.
+    # Existing canonical preserved byte-identical AND mtime-unchanged
+    # — the skip-write path doesn't touch the file at all.
     assert canonical.read_text(encoding="utf-8") == canonical_before
+    assert canonical.stat().st_mtime_ns == mtime_before_ns
     # CLI surfaces the no-progress skip so operators see the gap.
+    assert "no canonical file written" in result.output
+
+
+def test_cli_staged_fresh_mining_partial_outage_with_zero_mentions_skips_write(
+    tmp_path, monkeypatch
+):
+    """wyrd-st1r R2 broadened predicate: when some chunks succeed
+    (chunks_processed > 0) but emit no mentions AND some chunks fail
+    (chunks_failed > 0), the source's net useful output is still
+    zero. The prior (narrower) predicate (`chunks_processed == 0`)
+    missed this case — the atomic-write fired, producing a 0-byte
+    canonical file, and `--skip-existing` on the next run treated
+    the source as done. Gemini R2 P2 + test-coverage-reviewer
+    mutation test convergent finding.
+
+    The broadened predicate is `not mentions AND chunks_failed > 0`,
+    which fires for both total outages (this PR's original target)
+    AND partial outages where mining made some progress but
+    captured nothing usable."""
+    runner = CliRunner()
+    sources_dir = tmp_path / "sources"
+    sources_dir.mkdir()
+    # Multi-paragraph body that chunks into 3.
+    body = (
+        "Edlingham is a place.\n\n"
+        "Some prose with no place names at all.\n\n"
+        "Tyne is a river.\n\n"
+        "Wear is also a river."
+    )
+    (sources_dir / "alpha.txt").write_text(body, encoding="utf-8")
+    output_dir = tmp_path / "out"
+
+    # Chunk 0 returns no mentions (LLM saw the chunk but found none);
+    # chunk 1 raises (failure); chunk 2 returns no mentions; chunk 3
+    # raises. Net: chunks_processed=2, chunks_failed=2, mentions=[].
+    _stub_anthropic_for_cli(
+        monkeypatch,
+        FakeClient(
+            [
+                {"mentions": []},
+                RuntimeError("transient"),
+                {"mentions": []},
+                RuntimeError("transient"),
+            ]
+        ),
+    )
+
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "mine-toponym-mentions-staged",
+            "--sources-dir",
+            str(sources_dir),
+            "--output-dir",
+            str(output_dir),
+            "--provider",
+            "anthropic",
+            "--chunk-size",
+            "25",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+
+    # No canonical written despite chunks_processed > 0 — partial
+    # outage with zero mentions captured is still suspect.
+    canonical = output_dir / "alpha.jsonl"
+    assert not canonical.exists(), (
+        "partial-outage run with zero mentions produced a canonical "
+        "despite some chunks failing; --skip-existing on retry would "
+        "silently skip the source"
+    )
     assert "no canonical file written" in result.output
 
 
