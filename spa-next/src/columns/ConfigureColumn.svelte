@@ -8,38 +8,14 @@
   // Manifest fetch + initial generator selection still happen here
   // (mounted at app start regardless of which workspace is active),
   // so this is the de-facto bootstrap surface for appState.manifest.
-  import { onMount } from 'svelte';
   import { appState } from '../lib/appState.svelte.js';
-  import { fetchManifest } from '../lib/api.js';
   import { rollCurrent } from '../lib/roll.js';
   import { partitionFields } from '../lib/headlineFields.js';
   import Field from '../components/Field.svelte';
 
-  // wyrd-14hn: when the drawer is the active surface (mobile), the
-  // header's seed+Roll cluster is hidden (column space is too
-  // narrow). Render them in the drawer instead so mobile users
-  // have universal-control access without going back to the
-  // header. Tracked locally via matchMedia.
-  let isMobileViewport = $state(false);
-  $effect(() => {
-    const mq = window.matchMedia('(max-width: 899px)');
-    isMobileViewport = mq.matches;
-    const onChange = (e) => (isMobileViewport = e.matches);
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  });
-
-  onMount(async () => {
-    try {
-      const manifest = await fetchManifest();
-      appState.manifest = manifest;
-      if (manifest.generators.length > 0 && !appState.selectedGeneratorName) {
-        appState.selectedGeneratorName = manifest.generators[0].name;
-      }
-    } catch (err) {
-      appState.manifestError = err.message;
-    }
-  });
+  // wyrd-14hn round 2 (frontend LOW): manifest fetch lifted to
+  // App.svelte (so it loads regardless of which workspace mounts);
+  // viewport tracking lifted to appState.isMobileViewport.
 
   // wyrd-o7lp (PR #314 Gemini HIGH): init the per-generator params
   // dict via $effect.pre, which runs BEFORE child effects on the
@@ -95,7 +71,7 @@
       </details>
     {/if}
 
-    {#if isMobileViewport}
+    {#if appState.isMobileViewport}
       <!-- wyrd-14hn: mobile-only seed + Roll. The header hides these
            at narrow widths; drawer is where mobile users find them. -->
       <div class="mobile-controls">

@@ -11,15 +11,15 @@
   //
   // No mobile drawer logic — the 2-column shape collapses to a
   // single stacked layout at narrow widths via CSS.
+  //
+  // wyrd-14hn round 2 (frontend MED): no openMenu() exported.
+  // App.svelte checks `workspaceRef?.openMenu` to decide whether
+  // to render the Header's hamburger — workspaces without a drawer
+  // don't expose the method, and the hamburger doesn't render. Pre-
+  // fix DefaultWorkspace had a no-op openMenu stub which caused
+  // the hamburger to render but tap nothing.
   import ConfigureColumn from '../columns/ConfigureColumn.svelte';
   import OutputColumn from '../columns/OutputColumn.svelte';
-
-  // Stub for the Header's onMenuToggle prop. The default workspace
-  // has no drawer on mobile — the columns just stack — so the
-  // hamburger is hidden by App.svelte when this workspace is
-  // active. Exporting the method keeps the prop contract uniform
-  // across workspaces.
-  export function openMenu() {}
 </script>
 
 <div class="layout">

@@ -39,6 +39,13 @@ class AppState {
   // reactively. Cleared on re-roll via the OutputColumn $effect.
   currentResultIndex = $state(null);
 
+  // wyrd-14hn round 2 (frontend LOW): single matchMedia source of
+  // truth for viewport breakpoint. Pre-fix three components (App,
+  // KenningWorkspace, ConfigureColumn) each ran their own listener
+  // for the same query. App.svelte's onMount registers the listener
+  // and writes this field; consumers read it reactively.
+  isMobileViewport = $state(false);
+
   // wyrd-34tn: gate for SavedList load() flow. InspectorColumn's
   // subject-change effect normally clears the pipeline on
   // currentResultIndex change; a load() restores both the result

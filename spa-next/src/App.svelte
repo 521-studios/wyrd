@@ -14,6 +14,7 @@
   import { onMount } from 'svelte';
   import { appState } from './lib/appState.svelte.js';
   import { pipeline } from './lib/pipeline.svelte.js';
+  import { fetchManifest } from './lib/api.js';
   import {
     decodeWorkspace,
     readShareParam,
@@ -23,19 +24,37 @@
   import Header from './components/Header.svelte';
 
   let restoreNote = $state('');
-  let isMobileViewport = $state(false);
   let workspaceRef = $state();
 
-  // Track viewport so Header can hide the seed/Roll cluster + show
-  // the hamburger at narrow widths. The actual drawer mechanics
-  // live inside each workspace (KenningWorkspace has them; the
-  // default doesn't need them).
+  // wyrd-14hn round 2 (frontend LOW): single matchMedia listener
+  // for the whole app. Writes to appState.isMobileViewport so
+  // KenningWorkspace + ConfigureColumn + Header read the same
+  // source of truth. Pre-fix each ran its own listener.
   $effect(() => {
     const mq = window.matchMedia('(max-width: 899px)');
-    isMobileViewport = mq.matches;
-    const onChange = (e) => (isMobileViewport = e.matches);
+    appState.isMobileViewport = mq.matches;
+    const onChange = (e) => (appState.isMobileViewport = e.matches);
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
+  });
+
+  // wyrd-14hn round 2 (frontend LOW): lift manifest fetch to App
+  // so it's not gated on ConfigureColumn mounting. Pre-fix the
+  // fetch lived in ConfigureColumn.onMount — a future workspace
+  // without ConfigureColumn would never load the manifest. Header
+  // needs manifest.generators for the picker, so the fetch needs
+  // to happen at app boot regardless of which workspace mounts.
+  onMount(async () => {
+    if (appState.manifest) return; // already loaded (HMR)
+    try {
+      const manifest = await fetchManifest();
+      appState.manifest = manifest;
+      if (manifest.generators.length > 0 && !appState.selectedGeneratorName) {
+        appState.selectedGeneratorName = manifest.generators[0].name;
+      }
+    } catch (err) {
+      appState.manifestError = err.message;
+    }
   });
 
   // wyrd-tz35: boot restore for ?s= share-link. Unchanged from
@@ -76,15 +95,19 @@
     setTimeout(() => (restoreNote = ''), 4000);
   });
 
+  // wyrd-14hn round 2 (clarity P3): comment was stale — Svelte 5
+  // uses the variable-as-component syntax (<Workspace />); the
+  // older <svelte:component> is deprecated in v5.
+  //
   // Re-derive the active workspace component when the picker
-  // changes. <svelte:component> mounts the new one + the Header's
-  // hamburger calls workspaceRef.openMenu() so each workspace
-  // controls its own drawer.
+  // changes; <Workspace> mounts the new one. Each workspace that
+  // wants a mobile drawer exposes openMenu() as an instance method;
+  // App reads workspaceRef?.openMenu to gate the hamburger so
+  // workspaces without a drawer (DefaultWorkspace) don't show a
+  // dead button (wyrd-14hn round 2 frontend MED fix).
   let Workspace = $derived(workspaceFor(appState.selectedGeneratorName));
 
-  function openMenu() {
-    workspaceRef?.openMenu?.();
-  }
+  let openMenu = $derived(workspaceRef?.openMenu);
 </script>
 
 {#if restoreNote}
@@ -92,7 +115,10 @@
 {/if}
 
 <div class="app">
-  <Header onMenuToggle={openMenu} {isMobileViewport} />
+  <Header
+    onMenuToggle={openMenu}
+    isMobileViewport={appState.isMobileViewport}
+  />
   <Workspace bind:this={workspaceRef} />
 </div>
 

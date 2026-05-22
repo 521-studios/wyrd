@@ -9,7 +9,6 @@
   // (used to be in App.svelte pre-this-PR). App.svelte now renders
   // Header + the active workspace, leaving layout decisions to
   // the workspace itself.
-  import { onMount } from 'svelte';
   import { appState } from '../lib/appState.svelte.js';
   import ConfigureColumn from '../columns/ConfigureColumn.svelte';
   import OutputColumn from '../columns/OutputColumn.svelte';
@@ -17,27 +16,21 @@
 
   let col1Open = $state(false);
   let col3Open = $state(false);
-  let isMobileViewport = $state(false);
 
-  // Mobile auto-open of col 3 when a result is tapped, and resize-
-  // dismiss of any open drawer/sheet — same logic that lived in
-  // App.svelte pre-wyrd-14hn.
+  // wyrd-14hn round 2 (frontend LOW): viewport tracking lifted to
+  // appState.isMobileViewport (App.svelte owns the matchMedia
+  // listener). Resize from mobile→desktop still needs to dismiss
+  // any open drawer/sheet, but as a reaction to the upstream flag.
   $effect(() => {
-    const mq = window.matchMedia('(max-width: 899px)');
-    isMobileViewport = mq.matches;
-    const onChange = (e) => {
-      isMobileViewport = e.matches;
-      if (!e.matches) {
-        col1Open = false;
-        col3Open = false;
-      }
-    };
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
+    if (!appState.isMobileViewport) {
+      col1Open = false;
+      col3Open = false;
+    }
   });
 
+  // Mobile auto-open of col 3 when a result is tapped.
   $effect(() => {
-    if (isMobileViewport && appState.currentResultIndex !== null) {
+    if (appState.isMobileViewport && appState.currentResultIndex !== null) {
       col3Open = true;
     }
   });
@@ -73,10 +66,10 @@
 <div class="layout" class:col1Open class:col3Open>
   <div
     class="col col-1"
-    role={isMobileViewport ? 'dialog' : undefined}
-    aria-modal={isMobileViewport && col1Open ? 'true' : undefined}
-    aria-label={isMobileViewport ? 'Configure' : undefined}
-    aria-hidden={isMobileViewport && !col1Open ? 'true' : undefined}
+    role={appState.isMobileViewport ? 'dialog' : undefined}
+    aria-modal={appState.isMobileViewport && col1Open ? 'true' : undefined}
+    aria-label={appState.isMobileViewport ? 'Configure' : undefined}
+    aria-hidden={appState.isMobileViewport && !col1Open ? 'true' : undefined}
   >
     <button
       class="close-btn"
@@ -92,10 +85,10 @@
 
   <div
     class="col col-3"
-    role={isMobileViewport ? 'dialog' : undefined}
-    aria-modal={isMobileViewport && col3Open ? 'true' : undefined}
-    aria-label={isMobileViewport ? 'Inspect and Transform' : undefined}
-    aria-hidden={isMobileViewport && !col3Open ? 'true' : undefined}
+    role={appState.isMobileViewport ? 'dialog' : undefined}
+    aria-modal={appState.isMobileViewport && col3Open ? 'true' : undefined}
+    aria-label={appState.isMobileViewport ? 'Inspect and Transform' : undefined}
+    aria-hidden={appState.isMobileViewport && !col3Open ? 'true' : undefined}
   >
     <button
       class="close-btn"
