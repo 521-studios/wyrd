@@ -995,6 +995,36 @@ def test_ollama_chat_json_sends_explicit_num_ctx() -> None:
     assert payload.get("think") is False
 
 
+def test_ollama_chat_json_sends_format_json_string_not_schema_dict() -> None:
+    """wyrd-sj50: every chat_json request must send ``format='json'``
+    (legacy mode) NOT the schema dict. Concrete failure 2026-05-22:
+    Ollama 0.24+ on the macbook hangs indefinitely on chat requests
+    with ``format=<schema dict>`` — probe with the equivalent
+    ``format='json'`` returns in 500ms. The dict-grammar-constrained
+    path is broken upstream; until Ollama fixes it, we must send the
+    legacy string. Caller-side validation in ``_validated_mentions``
+    catches malformed responses anyway, so losing server-side schema
+    enforcement is safe.
+
+    A regression that re-routed schema dicts through ``format`` would
+    silently re-introduce the production hang."""
+    _PayloadCapturingResp.captured = []
+    client = OllamaClient()
+    test_schema = {"type": "object", "properties": {"x": {"type": "string"}}}
+    with patch("urllib.request.urlopen", _capture_request_payload):
+        client.chat_json("sys", "usr", test_schema)
+    payload = _PayloadCapturingResp.captured[0]
+    assert payload["format"] == "json", (
+        f"format must be the literal string 'json' (legacy mode), "
+        f"not a schema dict. Got: {payload['format']!r}. The dict-"
+        f"grammar-constrained path is broken in Ollama 0.24+; see "
+        f"wyrd-sj50."
+    )
+    # The schema parameter was accepted but deliberately discarded —
+    # not in the payload anywhere.
+    assert payload["format"] != test_schema
+
+
 def test_ollama_chat_json_sends_keep_alive() -> None:
     """wyrd-dyf8: every chat_json request must send keep_alive at the
     payload top level (NOT inside options — Ollama silently ignores
