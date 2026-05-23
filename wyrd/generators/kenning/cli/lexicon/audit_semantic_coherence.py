@@ -35,7 +35,6 @@ import csv
 import json
 import math
 import os
-import sys
 import time
 import urllib.error
 import urllib.request
@@ -43,7 +42,6 @@ from collections import defaultdict
 from pathlib import Path
 
 import click
-
 
 # wyrd-36ez round 2 (Gemini HIGH): default to localhost. The
 # user's macbook Ollama at 10.5.2.31 is opt-in via the existing
@@ -180,7 +178,9 @@ def _ollama_embed(
 def _cosine(a: list[float], b: list[float]) -> float:
     """Cosine similarity between two equal-length vectors. Returns
     0.0 on degenerate (zero-norm) inputs to avoid div-by-zero."""
-    dot = sum(x * y for x, y in zip(a, b))
+    # strict=True: vectors should always be same dim; an embedding-
+    # model-side mismatch would be a real bug worth raising on.
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
     na = math.sqrt(sum(x * x for x in a))
     nb = math.sqrt(sum(y * y for y in b))
     if na == 0.0 or nb == 0.0:
@@ -325,7 +325,7 @@ def lexicon_audit_semantic_coherence(
         batch = entities[batch_start : batch_start + batch_size]
         texts = [e["joined"] for e in batch]
         vectors = _ollama_embed(ollama_url, model, texts)
-        for e, v in zip(batch, vectors):
+        for e, v in zip(batch, vectors, strict=True):
             e["vector"] = v
         if batch_start % (batch_size * 10) == 0:
             done = min(batch_start + batch_size, len(entities))
@@ -416,7 +416,7 @@ def lexicon_audit_semantic_coherence(
     )
 
     intra_rows: list[dict] = []
-    for e, (start, length) in zip(multi_gloss, gloss_offsets):
+    for e, (start, length) in zip(multi_gloss, gloss_offsets, strict=True):
         vecs = flat_vectors[start : start + length]
         # Pairwise cosines among this entity's gloss vectors.
         sims = []

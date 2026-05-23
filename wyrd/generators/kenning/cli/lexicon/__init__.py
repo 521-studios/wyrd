@@ -27,8 +27,9 @@ import click
 
 from wyrd.generators.kenning.cli.lexicon import (
     audit_etymology_alignment as _audit_etymology_alignment_module,
+)
+from wyrd.generators.kenning.cli.lexicon import (
     audit_semantic_coherence as _audit_semantic_coherence_module,
-    cleanup_wiktionary_empirical as _cleanup_wiktionary_empirical_module,
 )
 from wyrd.generators.kenning.cli.lexicon import (
     audit_short_quotes as _audit_short_quotes_module,
@@ -53,6 +54,9 @@ from wyrd.generators.kenning.cli.lexicon import (
     canonicalize_toponym_etymology as _canonicalize_toponym_etymology_module,
 )
 from wyrd.generators.kenning.cli.lexicon import classify_stratum as _classify_stratum_module
+from wyrd.generators.kenning.cli.lexicon import (
+    cleanup_wiktionary_empirical as _cleanup_wiktionary_empirical_module,
+)
 from wyrd.generators.kenning.cli.lexicon import clear_enrichment as _clear_enrichment_module
 from wyrd.generators.kenning.cli.lexicon import cluster_cognates as _cluster_cognates_module
 from wyrd.generators.kenning.cli.lexicon import (

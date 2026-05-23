@@ -35,7 +35,6 @@ from pathlib import Path
 
 import click
 
-
 # Modern languages that should NEVER be authoritative etymons for
 # British place names. Historical languages (old-english,
 # old-scandinavian, middle-english, etc.) are kept regardless of
@@ -81,6 +80,7 @@ def lexicon_cleanup_wiktionary_empirical(
     default — pass ``--apply`` to commit.
     """
     import os
+
     from wyrd.generators.kenning import _is_derivative_gloss
     from wyrd.generators.kenning.lexicon.db import LexiconDB
 
