@@ -1060,9 +1060,7 @@ class NewName:
                 ranked = _rank_siblings(self.meaning_db.get(e, []))
                 # wyrd-o53o round 3 (Gemini MED): partition once per
                 # sibling rather than twice (any-check + render loop).
-                partitioned = [
-                    (_partition_senses(list(m.meanings)), m) for m in ranked
-                ]
+                partitioned = [(_partition_senses(list(m.meanings)), m) for m in ranked]
                 # If ANY sibling has semantic glosses, drop derivative-
                 # only siblings from the preview. Otherwise (e.g.
                 # -sing-) render derivatives so the preview isn't blank.
@@ -1157,9 +1155,7 @@ class NewName:
                     morpheme["sources"] = {
                         lang: list(forms) for lang, forms in first.sources.items()
                     }
-                    morpheme["tags"] = list(
-                        dict.fromkeys(t for m in ranked for t in m.tags)
-                    )
+                    morpheme["tags"] = list(dict.fromkeys(t for m in ranked for t in m.tags))
                     primary, derivative = _split_senses_for_display(_all_senses(ranked))
                     morpheme["meanings"] = primary
                     morpheme["derivative_meanings"] = derivative
@@ -1230,9 +1226,7 @@ class NewName:
                         "location": first.location,
                         "meanings": primary,
                         "derivative_meanings": derivative,
-                        "tags": list(
-                            dict.fromkeys(t for m in ranked for t in m.tags)
-                        ),
+                        "tags": list(dict.fromkeys(t for m in ranked for t in m.tags)),
                         # wyrd-o53o round 5 (Gemini MED): union roots
                         # across ranked siblings to match meanings + tags
                         # (and the explain endpoint's behavior). Pre-fix

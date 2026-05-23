@@ -603,35 +603,82 @@ def _all_senses(meanings: list[Meaning]) -> list[str]:
 # are both supported in the regex below.
 _GRAMMATICAL_PRIMARY = (
     # cases
-    "nominative", "accusative", "dative", "genitive", "vocative",
-    "locative", "ablative", "instrumental",
+    "nominative",
+    "accusative",
+    "dative",
+    "genitive",
+    "vocative",
+    "locative",
+    "ablative",
+    "instrumental",
     # mood / voice
-    "imperative", "subjunctive", "indicative", "optative", "infinitive",
-    "conditional", "active", "passive",
+    "imperative",
+    "subjunctive",
+    "indicative",
+    "optative",
+    "infinitive",
+    "conditional",
+    "active",
+    "passive",
     # tense / aspect (verb categories, not the noun 'tense')
-    "past", "present", "future", "perfect", "pluperfect",
-    "imperfect", "preterite", "aorist",
+    "past",
+    "present",
+    "future",
+    "perfect",
+    "pluperfect",
+    "imperfect",
+    "preterite",
+    "aorist",
     # Celtic verb forms
-    "conjunct", "absolute", "deuterotonic", "prototonic",
+    "conjunct",
+    "absolute",
+    "deuterotonic",
+    "prototonic",
     # person (both hyphenated 'first-person' and bare 'first' —
     # the bare forms cover slashed compounds like 'first/third-person'
     # that appear in the corpus alongside the hyphenated singletons)
-    "first-person", "second-person", "third-person",
-    "first", "second", "third",
+    "first-person",
+    "second-person",
+    "third-person",
+    "first",
+    "second",
+    "third",
     # number / gender / definiteness
-    "singular", "plural", "dual",
-    "masculine", "feminine", "neuter", "common",
-    "definite", "indefinite",
+    "singular",
+    "plural",
+    "dual",
+    "masculine",
+    "feminine",
+    "neuter",
+    "common",
+    "definite",
+    "indefinite",
     # derivational signals
-    "alternative", "archaic", "obsolete", "diminutive", "augmentative",
-    "comparative", "superlative", "equative",
+    "alternative",
+    "archaic",
+    "obsolete",
+    "diminutive",
+    "augmentative",
+    "comparative",
+    "superlative",
+    "equative",
     # Welsh mutation classes (must lead 'X mutation of' chains)
-    "soft", "hard", "nasal", "aspirate",
+    "soft",
+    "hard",
+    "nasal",
+    "aspirate",
     # verb-form classifiers usable standalone ('inflection of X',
     # 'plural of X' — the noun forms double as primaries because
     # they're context-specific enough)
-    "inflection", "conjugation", "declension", "participle",
-    "gerund", "verbal", "conjugated", "inflected", "declined",
+    "inflection",
+    "conjugation",
+    "declension",
+    "participle",
+    "gerund",
+    "verbal",
+    "conjugated",
+    "inflected",
+    "declined",
 )
 _GRAMMATICAL_SECONDARY = (
     # nouns describing the derivation type — only valid AFTER a primary.
@@ -639,7 +686,12 @@ _GRAMMATICAL_SECONDARY = (
     # in case the corpus surfaces 'first person of X' as space-separated
     # rather than hyphenated (the hyphenated 'first-person' stays in
     # primary).
-    "form", "forms", "spelling", "tense", "mutation", "person",
+    "form",
+    "forms",
+    "spelling",
+    "tense",
+    "mutation",
+    "person",
 )
 
 
@@ -839,9 +891,7 @@ def _rank_siblings(siblings: list[Meaning]) -> list[Meaning]:
         # still beats a Celtic etymon at the same surface match)
         # but BEFORE meaning/tag counts (so 'hyll' beats 'holt'
         # inside OE for the -hill bucket).
-        surface_similarity = (
-            _max_form_similarity(matcher, usage_norm, m) if matcher else 0.0
-        )
+        surface_similarity = _max_form_similarity(matcher, usage_norm, m) if matcher else 0.0
         return (-stratum_rank, surface_similarity, len(m.meanings), len(m.tags))
 
     return sorted(filtered, key=_signal, reverse=True)

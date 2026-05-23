@@ -91,9 +91,7 @@ def lexicon_cleanup_wiktionary_empirical(
         else:
             db_path = Path.home() / ".wyrd" / "lexicon.db"
         if not db_path.exists():
-            raise click.ClickException(
-                f"Lexicon DB not found at {db_path}. Pass --db to override."
-            )
+            raise click.ClickException(f"Lexicon DB not found at {db_path}. Pass --db to override.")
 
     with LexiconDB(db_path) as db:
         # Find every etymon whose ONLY citation source is
@@ -148,9 +146,7 @@ def lexicon_cleanup_wiktionary_empirical(
             elif language in _MODERN_LANGUAGES:
                 modern_only.append((eid, canonical_form, language, glosses))
 
-        to_delete_ids = {row[0] for row in derivative_only} | {
-            row[0] for row in modern_only
-        }
+        to_delete_ids = {row[0] for row in derivative_only} | {row[0] for row in modern_only}
         click.echo(
             f"  → {len(derivative_only)} derivative-only "
             f"+ {len(modern_only)} modern-english-only "
@@ -204,15 +200,14 @@ def lexicon_cleanup_wiktionary_empirical(
                 chunk,
             )
             db.conn.execute(
-                f"DELETE FROM toponym_etymology_element "
-                f"WHERE etymon_id IN ({placeholders})",
+                f"DELETE FROM toponym_etymology_element WHERE etymon_id IN ({placeholders})",
                 chunk,
             )
-            db.conn.execute(
-                f"DELETE FROM etymon WHERE id IN ({placeholders})", chunk
-            )
+            db.conn.execute(f"DELETE FROM etymon WHERE id IN ({placeholders})", chunk)
         db.commit()
-        click.echo("Done. Re-export the bundle with: wyrd kenning lexicon export-meanings", err=True)
+        click.echo(
+            "Done. Re-export the bundle with: wyrd kenning lexicon export-meanings", err=True
+        )
 
 
 def add_to(parent: click.Group) -> None:
