@@ -545,44 +545,43 @@ def apply_etymon_splits(
         # Move mining evidence from the parent to the primary child so
         # the primary inherits witness count / descent / element refs
         # for bundle promotion. Per D21 evidence is moved, not deleted.
-        # Skip when primary_child_id is None (dry-run, or the parent had
-        # no children resolvable to a row).
-        if primary_child_id is not None:
-            cit_count = db.conn.execute(
-                "SELECT COUNT(*) AS n FROM etymon_citation WHERE etymon_id = ?",
-                (orig_id,),
-            ).fetchone()["n"]
-            descent_count = db.conn.execute(
-                "SELECT COUNT(*) AS n FROM etymon_descent "
-                "WHERE parent_id = ? OR child_id = ?",
-                (orig_id, orig_id),
-            ).fetchone()["n"]
-            element_count = db.conn.execute(
-                "SELECT COUNT(*) AS n FROM toponym_etymology_element "
+        # Counts always run (dry-run shows what would move); writes
+        # only happen when apply=True AND we have a real child id.
+        cit_count = db.conn.execute(
+            "SELECT COUNT(*) AS n FROM etymon_citation WHERE etymon_id = ?",
+            (orig_id,),
+        ).fetchone()["n"]
+        descent_count = db.conn.execute(
+            "SELECT COUNT(*) AS n FROM etymon_descent "
+            "WHERE parent_id = ? OR child_id = ?",
+            (orig_id, orig_id),
+        ).fetchone()["n"]
+        element_count = db.conn.execute(
+            "SELECT COUNT(*) AS n FROM toponym_etymology_element "
+            "WHERE etymon_id = ?",
+            (orig_id,),
+        ).fetchone()["n"]
+        counts["citations_moved"] += cit_count
+        counts["descent_edges_moved"] += descent_count
+        counts["etymology_elements_moved"] += element_count
+        if apply and primary_child_id is not None:
+            db.conn.execute(
+                "UPDATE etymon_citation SET etymon_id = ? WHERE etymon_id = ?",
+                (primary_child_id, orig_id),
+            )
+            db.conn.execute(
+                "UPDATE etymon_descent SET parent_id = ? WHERE parent_id = ?",
+                (primary_child_id, orig_id),
+            )
+            db.conn.execute(
+                "UPDATE etymon_descent SET child_id = ? WHERE child_id = ?",
+                (primary_child_id, orig_id),
+            )
+            db.conn.execute(
+                "UPDATE toponym_etymology_element SET etymon_id = ? "
                 "WHERE etymon_id = ?",
-                (orig_id,),
-            ).fetchone()["n"]
-            counts["citations_moved"] += cit_count
-            counts["descent_edges_moved"] += descent_count
-            counts["etymology_elements_moved"] += element_count
-            if apply:
-                db.conn.execute(
-                    "UPDATE etymon_citation SET etymon_id = ? WHERE etymon_id = ?",
-                    (primary_child_id, orig_id),
-                )
-                db.conn.execute(
-                    "UPDATE etymon_descent SET parent_id = ? WHERE parent_id = ?",
-                    (primary_child_id, orig_id),
-                )
-                db.conn.execute(
-                    "UPDATE etymon_descent SET child_id = ? WHERE child_id = ?",
-                    (primary_child_id, orig_id),
-                )
-                db.conn.execute(
-                    "UPDATE toponym_etymology_element SET etymon_id = ? "
-                    "WHERE etymon_id = ?",
-                    (primary_child_id, orig_id),
-                )
+                (primary_child_id, orig_id),
+            )
 
         if apply:
             # Stamp the parent so reviewers can find post-split parents
