@@ -373,10 +373,23 @@ class OllamaClient:
     keep_alive: int | str = -1
 
     def chat_json(self, system: str, user: str, schema: dict) -> dict:
-        """POST /api/chat with format=schema, return parsed JSON content.
+        """POST /api/chat with format='json', return parsed JSON content.
 
         Raises RuntimeError with a useful message on transport / parse error.
+
+        wyrd-sj50: ``schema`` is accepted for API compatibility but NOT
+        sent to the server. Ollama 0.24+ on the macbook hangs
+        indefinitely when ``format`` is a JSON-Schema dict (probe results
+        2026-05-22: schema-dict request never returns; equivalent
+        ``'format': 'json'`` request returns in 500ms). The legacy 'json'
+        mode tells the model to output JSON without grammar-constrained
+        decoding. Caller-side validation (``_validated_mentions``)
+        rejects malformed responses anyway, so losing server-side schema
+        enforcement is safe. If Ollama fixes the schema-grammar
+        regression upstream, this can revert to ``'format': schema``.
         """
+        # ``schema`` deliberately unused — see docstring (wyrd-sj50).
+        del schema
         url = f"{self.base_url.rstrip('/')}/api/chat"
         payload = {
             "model": self.model,
@@ -385,7 +398,7 @@ class OllamaClient:
                 {"role": "user", "content": user},
             ],
             "stream": False,
-            "format": schema,
+            "format": "json",
             # Qwen3.5 et al. are reasoning models with a separate `thinking`
             # output channel. With think enabled they consume the token
             # budget on internal chain-of-thought before producing any
