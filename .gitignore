@@ -51,3 +51,14 @@ data/mining/phase2_failures/
 # on source completion via recover-inprogress-chunks. Committing
 # these would risk rolling back canonical files (see wyrd-4yze).
 data/mining/phase2/_inprogress/
+
+# Operator scratch space — transitional files, audit CSVs, ad-hoc
+# analyses, anything not intended for commit. Stays out of git so the
+# repo root stays clean.
+scratch/
+
+# Legacy audit-output paths at the repo root — historically created
+# by ad-hoc audit runs (wyrd-36ez). Now live under scratch/ but kept
+# ignored at root in case future tooling drops them here again.
+audit/
+audit-cleaned/

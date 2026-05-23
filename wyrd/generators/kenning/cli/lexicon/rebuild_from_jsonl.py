@@ -151,12 +151,24 @@ def lexicon_rebuild_from_jsonl(
             format_enrichment_run,
             run_full_enrichment,
         )
-        from wyrd.generators.kenning.jsonl.build import collect_curation_overrides
+        from wyrd.generators.kenning.jsonl.build import (
+            collect_curation_overrides,
+            collect_etymon_splits,
+            collect_gloss_suppressions,
+        )
 
         curation_state = collect_curation_overrides(paths)
+        suppression_state = collect_gloss_suppressions(paths)
+        split_state = collect_etymon_splits(paths)
         click.echo("", err=True)
         with LexiconDB(db_path) as db:
-            result = run_full_enrichment(db, apply=True, curation_state=curation_state or None)
+            result = run_full_enrichment(
+                db,
+                apply=True,
+                curation_state=curation_state or None,
+                suppression_state=suppression_state or None,
+                split_state=split_state or None,
+            )
         click.echo(format_enrichment_run(result), err=True)
 
 
