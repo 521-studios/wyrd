@@ -863,8 +863,10 @@ def test_rank_siblings_orders_by_stratum_then_signal():
 # 'soft mutation of X') when semantic glosses exist alongside;
 # surfaces them only when they're alone (so the card isn't blank).
 
+
 def test_is_derivative_gloss_matches_alternative_form():
     from wyrd.generators.kenning import _is_derivative_gloss
+
     assert _is_derivative_gloss("alternative form of homes")
     assert _is_derivative_gloss("archaic form of má")
     assert _is_derivative_gloss("obsolete spelling of moing")
@@ -875,18 +877,18 @@ def test_is_derivative_gloss_matches_inflection_chains():
     'third-person singular masculine/neuter accusative of X' both
     classify as derivative."""
     from wyrd.generators.kenning import _is_derivative_gloss
+
     assert _is_derivative_gloss("singular imperative of sendan")
     assert _is_derivative_gloss("plural of bord")
     assert _is_derivative_gloss("inflection of ingān:")
-    assert _is_derivative_gloss(
-        "third-person singular masculine/neuter accusative of for"
-    )
+    assert _is_derivative_gloss("third-person singular masculine/neuter accusative of for")
     assert _is_derivative_gloss("accusative singular indefinite of eykr")
     assert _is_derivative_gloss("past participle of būan")
 
 
 def test_is_derivative_gloss_matches_welsh_mutations():
     from wyrd.generators.kenning import _is_derivative_gloss
+
     assert _is_derivative_gloss("soft mutation of llys")
     assert _is_derivative_gloss("nasal mutation of pen")
 
@@ -895,6 +897,7 @@ def test_is_derivative_gloss_rejects_semantic_with_of():
     """Semantic glosses that contain 'of' (descriptions, possessives,
     genealogy) must NOT classify as derivative."""
     from wyrd.generators.kenning import _is_derivative_gloss
+
     assert not _is_derivative_gloss("Green")
     assert not _is_derivative_gloss("Village green")
     assert not _is_derivative_gloss("a stream of running water")
@@ -913,6 +916,7 @@ def test_split_senses_for_display_prefers_semantic():
     """When both semantic + derivative glosses exist, primary returns
     semantic; derivative returns the suppressed pointers."""
     from wyrd.generators.kenning import _split_senses_for_display
+
     primary, deriv = _split_senses_for_display(
         ["Green", "Village green", "alternative form of greene"]
     )
@@ -925,9 +929,8 @@ def test_split_senses_for_display_falls_back_to_derivative_when_alone():
     singan'): primary = the derivative so the card isn't blank;
     derivative = [] to avoid duplicating the primary list."""
     from wyrd.generators.kenning import _split_senses_for_display
-    primary, deriv = _split_senses_for_display(
-        ["singular imperative of singan"]
-    )
+
+    primary, deriv = _split_senses_for_display(["singular imperative of singan"])
     assert primary == ["singular imperative of singan"]
     assert deriv == []
 
@@ -938,11 +941,13 @@ def test_split_senses_for_display_falls_back_to_derivative_when_alone():
 # 'Hill' resolving to OE 'cyln' (kiln) or 'holt' (forest) instead of
 # the obvious 'hyll'.
 
+
 def test_rank_siblings_prefers_surface_match_within_stratum():
     """The Hill case: OE 'hyll' beats OE 'cyln' (kiln) on surface
     similarity to the '-hill' usage even though both are old_english
     and tied on stratum."""
     from wyrd.generators.kenning import _rank_siblings
+
     cyln = _make_meaning("-hill", {"old_english": ["cyln", "cylnum"]}, ["Kiln", "kiln"])
     hyll = _make_meaning("-hill", {"old_english": ["hyll", "hyllum"]}, ["Hill", "hill"])
     out = _rank_siblings([cyln, hyll])
@@ -956,6 +961,7 @@ def test_rank_siblings_surface_match_handles_macrons():
     as 'brad' when compared to 'broad', not lower."""
     from difflib import SequenceMatcher
     from wyrd.generators.kenning import _max_form_similarity, _normalize_for_similarity
+
     norm_broad = _normalize_for_similarity("broad")
     macron_brad = _make_meaning("broad", {"old_english": ["brād"]}, ["Broad"])
     plain_brad = _make_meaning("broad", {"old_english": ["brad"]}, ["Broad"])
@@ -971,6 +977,7 @@ def test_rank_siblings_surface_match_higher_for_closer_form():
     'holt' is, so the similarity score is higher for hyll."""
     from difflib import SequenceMatcher
     from wyrd.generators.kenning import _max_form_similarity, _normalize_for_similarity
+
     norm_hill = _normalize_for_similarity("-hill")
     matcher = SequenceMatcher(autojunk=False, a=norm_hill)
     hyll_m = _make_meaning("-hill", {"old_english": ["hyll"]}, ["Hill"])
@@ -988,12 +995,9 @@ def test_rank_siblings_surface_match_does_not_override_stratum():
     Surface match is a within-stratum tiebreaker, not a primary
     signal (otherwise modern_english homographs would win again)."""
     from wyrd.generators.kenning import _rank_siblings
-    celtic_exact = _make_meaning(
-        "-hill", {"celtic_mix": ["hill"]}, ["coincidence form"]
-    )
-    oe_low_sim = _make_meaning(
-        "-hill", {"old_english": ["holt"]}, ["Forest", "Grove", "Wood"]
-    )
+
+    celtic_exact = _make_meaning("-hill", {"celtic_mix": ["hill"]}, ["coincidence form"])
+    oe_low_sim = _make_meaning("-hill", {"old_english": ["holt"]}, ["Forest", "Grove", "Wood"])
     out = _rank_siblings([celtic_exact, oe_low_sim])
     assert out[0] is oe_low_sim
     assert out[1] is celtic_exact

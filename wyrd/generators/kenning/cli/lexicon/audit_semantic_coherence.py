@@ -77,7 +77,9 @@ _PRIMARY_LANG_PRIORITY = (
 )
 
 
-def _ollama_embed(base_url: str, model: str, texts: list[str], timeout: float = 60.0) -> list[list[float]]:
+def _ollama_embed(
+    base_url: str, model: str, texts: list[str], timeout: float = 60.0
+) -> list[list[float]]:
     """POST /api/embed with a batch of input strings. Returns a list
     of dense vectors (one per input, same order).
 
@@ -110,9 +112,7 @@ def _ollama_embed(base_url: str, model: str, texts: list[str], timeout: float = 
                 f"Ollama model {model!r} not available at {base_url}. "
                 f"Pull it with: ollama pull {model}"
             ) from e
-        raise click.ClickException(
-            f"Ollama {url} returned HTTP {e.code}: {body_text[:200]}"
-        ) from e
+        raise click.ClickException(f"Ollama {url} returned HTTP {e.code}: {body_text[:200]}") from e
     except urllib.error.URLError as e:
         raise click.ClickException(
             f"Could not reach Ollama at {base_url}: {e.reason}. "
@@ -168,6 +168,7 @@ def _ollama_embed(base_url: str, model: str, texts: list[str], timeout: float = 
                 n_retry_failed += 1
     if n_retried:
         import sys as _sys
+
         print(
             f"  [embed batch] retried {n_retried} degenerate vectors "
             f"({n_retry_failed} still degenerate after 3 attempts)",
@@ -268,6 +269,7 @@ def lexicon_audit_semantic_coherence(
     """
     if meanings_path is None:
         from importlib import resources
+
         meanings_path = Path(
             str(resources.files("wyrd.generators.kenning.data").joinpath("meanings.json"))
         )
@@ -426,9 +428,7 @@ def lexicon_audit_semantic_coherence(
         # with a DIFFERENT lemma from this entity's. Already-split
         # homonyms show up here; if empty, this entity might be an
         # undetected homonym hiding as polysemy.
-        bucket_mates = [
-            o for o in buckets[e["modern_usage"]] if o is not e
-        ]
+        bucket_mates = [o for o in buckets[e["modern_usage"]] if o is not e]
         same_surface_other_lemmas = sorted(
             {(o["source_lang"], o["source_lemma"]) for o in bucket_mates}
             - {(e["source_lang"], e["source_lemma"])}
