@@ -202,6 +202,8 @@ def _rebuild_lexicon_db(
     from wyrd.generators.kenning.jsonl.build import (
         build_from_jsonl,
         collect_curation_overrides,
+        collect_etymon_splits,
+        collect_gloss_suppressions,
         jsonl_paths_in,
     )
 
@@ -228,8 +230,16 @@ def _rebuild_lexicon_db(
 
     click.echo("L3 enrichment chain...", err=True)
     curation_state = collect_curation_overrides(paths)
+    suppression_state = collect_gloss_suppressions(paths)
+    split_state = collect_etymon_splits(paths)
     with LexiconDB(rebuilt_path) as db:
-        run_full_enrichment(db, apply=True, curation_state=curation_state or None)
+        run_full_enrichment(
+            db,
+            apply=True,
+            curation_state=curation_state or None,
+            suppression_state=suppression_state or None,
+            split_state=split_state or None,
+        )
 
 
 def _assemble_bundle_dict(

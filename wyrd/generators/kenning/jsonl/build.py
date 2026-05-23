@@ -1187,3 +1187,39 @@ def collect_curation_overrides(jsonl_paths: Iterable[Path]) -> dict[str, dict[st
             # not present" by direct key check.
             target.update(payload)
     return merged
+
+
+def collect_gloss_suppressions(jsonl_paths: Iterable[Path]) -> dict[str, dict[str, Any]]:
+    """Scan ``jsonl_paths`` for ``etymon_gloss_suppression`` rows and
+    return the merged ``{etymon_ref: payload}`` state (wyrd-kutx).
+
+    The payload's ``suppressions`` field is the operator's current list
+    of glosses to drop from that etymon. Last-write-wins per ref —
+    re-emit the full list to revise.
+    """
+    from .log import replay_file
+
+    merged: dict[str, dict[str, Any]] = {}
+    for path in sorted(Path(p) for p in jsonl_paths):
+        state = replay_file(path)
+        for ref, payload in state.keyed["etymon_gloss_suppression"].items():
+            merged[ref] = dict(payload)
+    return merged
+
+
+def collect_etymon_splits(jsonl_paths: Iterable[Path]) -> dict[str, dict[str, Any]]:
+    """Scan ``jsonl_paths`` for ``etymon_split`` rows and return the
+    merged ``{etymon_ref: payload}`` state (wyrd-kutx).
+
+    The payload's ``into`` array names the child etymons. Last-write-wins
+    per ref — re-emit the full ``into`` array to revise. Pass
+    ``into: []`` to revert a split.
+    """
+    from .log import replay_file
+
+    merged: dict[str, dict[str, Any]] = {}
+    for path in sorted(Path(p) for p in jsonl_paths):
+        state = replay_file(path)
+        for ref, payload in state.keyed["etymon_split"].items():
+            merged[ref] = dict(payload)
+    return merged

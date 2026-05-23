@@ -61,6 +61,11 @@ LEMMA_METHOD_VERSION = "link-lemmas-v1"
 # operator-curated row by querying ``lemma_method='manual-curation-v1'``.
 CURATION_METHOD_VERSION = "manual-curation-v1"
 
+# wyrd-kutx: operator-driven gloss suppression + etymon-split events
+# carry their own provenance stamps so audit queries can find them.
+GLOSS_SUPPRESSION_METHOD_VERSION = "gloss-suppression-v1"
+ETYMON_SPLIT_METHOD_VERSION = "etymon-split-v1"
+
 
 def _resolve_etymon_id(conn: sqlite3.Connection, ref: str) -> int | None:
     """Resolve ``"<language>:<canonical_form>"`` → etymon.id. Returns
@@ -279,11 +284,367 @@ def format_curation_run(counts: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def apply_gloss_suppressions(
+    db: LexiconDB,
+    suppression_state: dict[str, dict[str, Any]],
+    *,
+    apply: bool = True,
+) -> dict[str, Any]:
+    """Drop operator-listed glosses from etymons (wyrd-kutx).
+
+    ``suppression_state`` is the merged ``{etymon_ref: payload}`` dict
+    from :func:`jsonl.build.collect_gloss_suppressions`. Each payload
+    carries a ``suppressions`` array of ``{gloss, reason?}`` entries;
+    each entry drops the matching ``etymon_gloss`` row.
+
+    Use case: Wiktionary-mined etymons whose entry conflates two senses
+    where only one is used in place-names. OE ``dry`` carries "dry"
+    plus "wizard, sorcerer"; the wizard sense has no toponymy use, so
+    the operator drops that gloss to keep the place-name sense clean.
+
+    Mining evidence is preserved end-to-end — citations, descent edges,
+    and toponym_etymology_element refs all stay attached to the etymon
+    (D21). Only the gloss layer is touched.
+
+    Etymon tags are LEFT ALONE — tags don't track per-gloss provenance
+    in the current schema, so we can't tell which gloss contributed a
+    tag. Operators who need to drop a tag should follow up with a
+    separate event type (deferred).
+
+    Validation always runs; DB writes happen only when ``apply=True``.
+    Returns a counts dict for telemetry.
+    """
+    counts: dict[str, Any] = {
+        "etymons_touched": len(suppression_state),
+        "glosses_dropped": 0,
+        "unresolved_etymon": 0,
+        "unresolved_gloss": 0,
+        "applied": apply,
+        "method_version": GLOSS_SUPPRESSION_METHOD_VERSION,
+    }
+    resolve = _build_ref_resolver(db.conn)
+
+    for etymon_ref, payload in suppression_state.items():
+        etymon_id = resolve(etymon_ref)
+        if etymon_id is None:
+            counts["unresolved_etymon"] += 1
+            continue
+        suppressions = payload.get("suppressions") or []
+        for entry in suppressions:
+            gloss = entry.get("gloss") if isinstance(entry, dict) else None
+            if not gloss:
+                continue
+            row = db.conn.execute(
+                "SELECT 1 FROM etymon_gloss WHERE etymon_id = ? AND gloss = ?",
+                (etymon_id, gloss),
+            ).fetchone()
+            if row is None:
+                counts["unresolved_gloss"] += 1
+                continue
+            counts["glosses_dropped"] += 1
+            if apply:
+                db.conn.execute(
+                    "DELETE FROM etymon_gloss WHERE etymon_id = ? AND gloss = ?",
+                    (etymon_id, gloss),
+                )
+
+    if apply:
+        db.commit()
+    return counts
+
+
+def format_gloss_suppression_run(counts: dict[str, Any]) -> str:
+    """Render :func:`apply_gloss_suppressions` output as markdown."""
+    applied = counts.get("applied", True)
+    verb = "dropped" if applied else "would drop"
+    lines = [
+        "## L3 enrichment: gloss suppressions",
+        "",
+        f"- Method version: `{counts.get('method_version', GLOSS_SUPPRESSION_METHOD_VERSION)}`",
+        f"- Etymons touched: {counts['etymons_touched']}",
+        f"- Glosses {verb}: {counts['glosses_dropped']}",
+    ]
+    if counts.get("unresolved_etymon"):
+        lines.append(f"- Unresolved etymon refs: {counts['unresolved_etymon']}")
+    if counts.get("unresolved_gloss"):
+        lines.append(f"- Glosses not on the named etymon: {counts['unresolved_gloss']}")
+    return "\n".join(lines)
+
+
+def apply_etymon_splits(
+    db: LexiconDB,
+    split_state: dict[str, dict[str, Any]],
+    *,
+    apply: bool = True,
+) -> dict[str, Any]:
+    """Split conflated etymons into distinct child etymons (wyrd-kutx).
+
+    ``split_state`` is the merged ``{etymon_ref: payload}`` dict from
+    :func:`jsonl.build.collect_etymon_splits`. Each payload's ``into``
+    array names the children::
+
+        {
+          "into": [
+            {"suffix": "weir", "glosses": [...], "tags": [...], "primary": true},
+            {"suffix": "year", "glosses": [...], "tags": [...]}
+          ],
+          "reason": "..."
+        }
+
+    For each child, a new etymon row is created with
+    ``canonical_form='<orig>#<suffix>'`` and the same language. The
+    named glosses + tags are REPOINTED from the original to the child
+    (DELETE-then-INSERT).
+
+    Mining evidence (etymon_citation, etymon_descent,
+    toponym_etymology_element) on the parent is MOVED to the
+    ``primary=true`` child wholesale. If no child is flagged primary,
+    the first child in the ``into`` array is used as the default.
+    This lets the primary child inherit the parent's witness count for
+    bundle promotion without operator pre-curation; per-citation
+    reassignment to non-primary children is a follow-on op (deferred).
+
+    Per D21 mining evidence is preserved (moved, not destroyed). The
+    parent's ``notes`` column gets a marker so the parent's emptied
+    state is identifiable post-hoc.
+
+    Empty ``into`` array is a no-op (operator-cleared event).
+
+    Validation always runs; DB writes happen only when ``apply=True``.
+    Returns a counts dict for telemetry.
+    """
+    counts: dict[str, Any] = {
+        "splits_processed": 0,
+        "children_created": 0,
+        "children_already_existed": 0,
+        "glosses_moved": 0,
+        "tags_moved": 0,
+        "glosses_missing": 0,
+        "tags_missing": 0,
+        "citations_moved": 0,
+        "descent_edges_moved": 0,
+        "etymology_elements_moved": 0,
+        "unresolved_etymon": 0,
+        "no_primary_defaulted": 0,
+        "empty_into_skipped": 0,
+        "applied": apply,
+        "method_version": ETYMON_SPLIT_METHOD_VERSION,
+    }
+
+    for etymon_ref, payload in split_state.items():
+        into = payload.get("into") or []
+        if not into:
+            counts["empty_into_skipped"] += 1
+            continue
+
+        # Re-resolve per outer ref so freshly-inserted child etymons
+        # are visible to subsequent collisions / lookups within the same
+        # apply call. Don't cache across the loop.
+        orig_row = db.conn.execute(
+            "SELECT id, canonical_form, language FROM etymon "
+            "WHERE (language || ':' || canonical_form) = ?",
+            (etymon_ref,),
+        ).fetchone()
+        if orig_row is None:
+            counts["unresolved_etymon"] += 1
+            continue
+
+        orig_id = orig_row["id"]
+        orig_form = orig_row["canonical_form"]
+        orig_lang = orig_row["language"]
+        counts["splits_processed"] += 1
+
+        # Pick the primary child up-front so the gloss/tag loop can stash
+        # the chosen primary id for the post-loop evidence move.
+        primary_index: int | None = None
+        for idx, child in enumerate(into):
+            if isinstance(child, dict) and child.get("primary"):
+                primary_index = idx
+                break
+        if primary_index is None:
+            primary_index = 0
+            counts["no_primary_defaulted"] += 1
+        primary_child_id: int | None = None
+
+        for idx, child in enumerate(into):
+            suffix = child.get("suffix") if isinstance(child, dict) else None
+            if not suffix:
+                continue
+            child_form = f"{orig_form}#{suffix}"
+
+            existing = db.conn.execute(
+                "SELECT id FROM etymon WHERE language = ? AND canonical_form = ?",
+                (orig_lang, child_form),
+            ).fetchone()
+            if existing is not None:
+                counts["children_already_existed"] += 1
+                child_id = existing["id"]
+            else:
+                counts["children_created"] += 1
+                if apply:
+                    cur = db.conn.execute(
+                        "INSERT INTO etymon (canonical_form, language, notes) "
+                        "VALUES (?, ?, ?)",
+                        (
+                            child_form,
+                            orig_lang,
+                            f"[wyrd-kutx-split-child of {etymon_ref}]",
+                        ),
+                    )
+                    child_id = cur.lastrowid
+                else:
+                    child_id = None  # dry-run: no row exists yet
+
+            if idx == primary_index:
+                primary_child_id = child_id
+
+            for gloss in child.get("glosses") or []:
+                row = db.conn.execute(
+                    "SELECT 1 FROM etymon_gloss WHERE etymon_id = ? AND gloss = ?",
+                    (orig_id, gloss),
+                ).fetchone()
+                if row is None:
+                    counts["glosses_missing"] += 1
+                    continue
+                counts["glosses_moved"] += 1
+                if apply and child_id is not None:
+                    # DELETE-then-INSERT rather than UPDATE because the
+                    # PRIMARY KEY (etymon_id, gloss) means UPDATE could
+                    # hit a uniqueness conflict if the child already
+                    # carries the same gloss from a previous run.
+                    db.conn.execute(
+                        "DELETE FROM etymon_gloss WHERE etymon_id = ? AND gloss = ?",
+                        (orig_id, gloss),
+                    )
+                    db.conn.execute(
+                        "INSERT OR IGNORE INTO etymon_gloss (etymon_id, gloss) "
+                        "VALUES (?, ?)",
+                        (child_id, gloss),
+                    )
+
+            for tag in child.get("tags") or []:
+                row = db.conn.execute(
+                    "SELECT 1 FROM etymon_tag WHERE etymon_id = ? AND tag = ?",
+                    (orig_id, tag),
+                ).fetchone()
+                if row is None:
+                    counts["tags_missing"] += 1
+                    continue
+                counts["tags_moved"] += 1
+                if apply and child_id is not None:
+                    db.conn.execute(
+                        "DELETE FROM etymon_tag WHERE etymon_id = ? AND tag = ?",
+                        (orig_id, tag),
+                    )
+                    db.conn.execute(
+                        "INSERT OR IGNORE INTO etymon_tag (etymon_id, tag) "
+                        "VALUES (?, ?)",
+                        (child_id, tag),
+                    )
+
+        # Move mining evidence from the parent to the primary child so
+        # the primary inherits witness count / descent / element refs
+        # for bundle promotion. Per D21 evidence is moved, not deleted.
+        # Skip when primary_child_id is None (dry-run, or the parent had
+        # no children resolvable to a row).
+        if primary_child_id is not None:
+            cit_count = db.conn.execute(
+                "SELECT COUNT(*) AS n FROM etymon_citation WHERE etymon_id = ?",
+                (orig_id,),
+            ).fetchone()["n"]
+            descent_count = db.conn.execute(
+                "SELECT COUNT(*) AS n FROM etymon_descent "
+                "WHERE parent_id = ? OR child_id = ?",
+                (orig_id, orig_id),
+            ).fetchone()["n"]
+            element_count = db.conn.execute(
+                "SELECT COUNT(*) AS n FROM toponym_etymology_element "
+                "WHERE etymon_id = ?",
+                (orig_id,),
+            ).fetchone()["n"]
+            counts["citations_moved"] += cit_count
+            counts["descent_edges_moved"] += descent_count
+            counts["etymology_elements_moved"] += element_count
+            if apply:
+                db.conn.execute(
+                    "UPDATE etymon_citation SET etymon_id = ? WHERE etymon_id = ?",
+                    (primary_child_id, orig_id),
+                )
+                db.conn.execute(
+                    "UPDATE etymon_descent SET parent_id = ? WHERE parent_id = ?",
+                    (primary_child_id, orig_id),
+                )
+                db.conn.execute(
+                    "UPDATE etymon_descent SET child_id = ? WHERE child_id = ?",
+                    (primary_child_id, orig_id),
+                )
+                db.conn.execute(
+                    "UPDATE toponym_etymology_element SET etymon_id = ? "
+                    "WHERE etymon_id = ?",
+                    (primary_child_id, orig_id),
+                )
+
+        if apply:
+            # Stamp the parent so reviewers can find post-split parents
+            # in audit queries. Parent ends up drained of evidence after
+            # the move above; bundle export naturally won't promote it.
+            db.conn.execute(
+                "UPDATE etymon SET notes = ? WHERE id = ?",
+                (
+                    f"[wyrd-kutx-split:{len(into)}] (was: {orig_form})",
+                    orig_id,
+                ),
+            )
+
+    if apply:
+        db.commit()
+    return counts
+
+
+def format_etymon_split_run(counts: dict[str, Any]) -> str:
+    """Render :func:`apply_etymon_splits` output as markdown."""
+    applied = counts.get("applied", True)
+    verb_create = "created" if applied else "would create"
+    verb_move = "moved" if applied else "would move"
+    lines = [
+        "## L3 enrichment: etymon splits",
+        "",
+        f"- Method version: `{counts.get('method_version', ETYMON_SPLIT_METHOD_VERSION)}`",
+        f"- Splits processed: {counts['splits_processed']}",
+        f"- Children {verb_create}: {counts['children_created']}",
+        f"- Glosses {verb_move}: {counts['glosses_moved']}",
+        f"- Tags {verb_move}: {counts['tags_moved']}",
+        f"- Citations {verb_move} to primary: {counts.get('citations_moved', 0)}",
+        f"- Descent edges {verb_move} to primary: {counts.get('descent_edges_moved', 0)}",
+        f"- Etymology elements {verb_move} to primary: {counts.get('etymology_elements_moved', 0)}",
+    ]
+    if counts.get("no_primary_defaulted"):
+        lines.append(
+            f"- Splits with no `primary` flag (defaulted to first child): "
+            f"{counts['no_primary_defaulted']}"
+        )
+    if counts.get("children_already_existed"):
+        lines.append(
+            f"- Children that already existed (reused): {counts['children_already_existed']}"
+        )
+    if counts.get("unresolved_etymon"):
+        lines.append(f"- Unresolved parent refs: {counts['unresolved_etymon']}")
+    if counts.get("glosses_missing"):
+        lines.append(f"- Glosses not on parent: {counts['glosses_missing']}")
+    if counts.get("tags_missing"):
+        lines.append(f"- Tags not on parent: {counts['tags_missing']}")
+    if counts.get("empty_into_skipped"):
+        lines.append(f"- Empty splits skipped: {counts['empty_into_skipped']}")
+    return "\n".join(lines)
+
+
 def run_full_enrichment(
     db: LexiconDB,
     *,
     apply: bool = False,
     curation_state: dict[str, dict[str, Any]] | None = None,
+    suppression_state: dict[str, dict[str, Any]] | None = None,
+    split_state: dict[str, dict[str, Any]] | None = None,
     skip_l3_derivations: bool = False,
 ) -> dict[str, Any]:
     """Run the canonical L3 enrichment chain (wyrd-hidb Phase 2).
@@ -344,9 +705,27 @@ def run_full_enrichment(
         # committing — surfaces unresolved refs / self-references early.
         curation_counts = apply_curation_overrides(db, curation_state, apply=apply)
 
+    # wyrd-kutx: gloss suppression + etymon-split passes run AFTER the
+    # curation overrides (so they see the post-curation etymon set) and
+    # BEFORE the L3 derivations (decompose / cluster-cognates / stratum /
+    # english_shaped) so the derivations work against the cleaned-up
+    # gloss + tag inventory.
+    suppression_counts: dict[str, Any] | None = None
+    if suppression_state is not None:
+        suppression_counts = apply_gloss_suppressions(
+            db, suppression_state, apply=apply
+        )
+    split_counts: dict[str, Any] | None = None
+    if split_state is not None:
+        split_counts = apply_etymon_splits(db, split_state, apply=apply)
+
     order: list[str] = ["normalize-ocr", "link-lemmas"]
     if curation_counts is not None:
         order.append("apply-curation")
+    if suppression_counts is not None:
+        order.append("apply-gloss-suppressions")
+    if split_counts is not None:
+        order.append("apply-etymon-splits")
 
     decompose_result: dict[str, Any] | None = None
     cognate_result: dict[str, Any] | None = None
@@ -389,6 +768,8 @@ def run_full_enrichment(
             "sample": lemma_result.get("sample", []),
         },
         "curation": curation_counts,
+        "gloss_suppressions": suppression_counts,
+        "etymon_splits": split_counts,
         "decompose": decompose_result,
         "cognates": cognate_result,
         "stratum": stratum_result,
@@ -598,6 +979,12 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
     if result.get("curation"):
         lines.append("")
         lines.append(format_curation_run(result["curation"]))
+    if result.get("gloss_suppressions"):
+        lines.append("")
+        lines.append(format_gloss_suppression_run(result["gloss_suppressions"]))
+    if result.get("etymon_splits"):
+        lines.append("")
+        lines.append(format_etymon_split_run(result["etymon_splits"]))
     for key, render in _OPTIONAL_SECTIONS:
         payload = result.get(key)
         if payload is None:
