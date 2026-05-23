@@ -22,8 +22,8 @@ The audit produces TWO CSVs:
    already-split polysemy from undetected homonyms — see the
    ticket wyrd-36ez for the layered handling of cases like 'bear'.
 
-Both audits use Ollama embeddings (default: nomic-embed-text on
-the user's macbook 10.5.2.31:11434).
+Both audits use Ollama embeddings (default: mxbai-embed-large at
+localhost; override with --model or WYRD_OLLAMA_URL).
 
 No bundle modification, no auto-split. Report-only; operator
 reviews + makes split decisions.
@@ -50,7 +50,15 @@ import click
 # $WYRD_OLLAMA_URL env var convention (matches the LLM CLIs in
 # this package, e.g. mine_llm.py's --ollama-url flag).
 DEFAULT_OLLAMA_URL = os.environ.get("WYRD_OLLAMA_URL", "http://localhost:11434")
-DEFAULT_MODEL = "nomic-embed-text"
+# wyrd-a106 bug 2026-05-23: nomic-embed-text returns silently-degenerate
+# vectors (norm ~0.05 instead of 1.0) on short single-word inputs even
+# WITH the search_document: task prefix. Worse, it sometimes returns
+# HTTP 500 ('failed to encode response: json: unsupported value: NaN')
+# on certain batches. mxbai-embed-large is robust to short inputs out
+# of the box (Finch/a finch = 0.93, Cold/Cool = 0.70, no prefix needed)
+# and stays stable under sustained batched load. 1024-dim vs 768-dim;
+# slightly heavier but the audit doesn't notice.
+DEFAULT_MODEL = "mxbai-embed-large"
 
 # Source-language priority for picking the 'primary' lemma of a
 # subject when one subject has multiple source langs in its word.
@@ -118,6 +126,53 @@ def _ollama_embed(base_url: str, model: str, texts: list[str], timeout: float = 
             f"expected {len(texts)} vectors, got "
             f"{len(embeddings) if isinstance(embeddings, list) else type(embeddings)}"
         )
+    # wyrd-a106 bug 2026-05-23: mxbai-embed-large under batched load
+    # intermittently returns degenerate vectors (norm ~0.05 instead
+    # of 1.0) for some inputs while others in the same batch come
+    # back clean — looks like a transient model-state issue rather
+    # than malformed input (the SAME text re-embedded standalone
+    # immediately afterward returns a proper unit-norm vector).
+    # Detect + retry the bad inputs ONE AT A TIME so concurrent
+    # load can't recur during the retry.
+    DEGEN_THRESHOLD = 0.5
+    n_retried = 0
+    n_retry_failed = 0
+    for i, v in enumerate(embeddings):
+        norm_sq = sum(x * x for x in v)
+        if norm_sq < DEGEN_THRESHOLD * DEGEN_THRESHOLD:
+            n_retried += 1
+            # Re-embed this single input up to 3 times. If still
+            # degenerate, accept and let cosine flagging surface it.
+            attempts = 0
+            while attempts < 3:
+                attempts += 1
+                retry_body = json.dumps(
+                    {"model": model, "input": [texts[i]], "options": {"num_ctx": 8192}}
+                ).encode("utf-8")
+                retry_req = urllib.request.Request(
+                    url,
+                    data=retry_body,
+                    headers={"Content-Type": "application/json"},
+                )
+                with urllib.request.urlopen(retry_req, timeout=timeout) as retry_resp:
+                    retry_payload = json.loads(retry_resp.read().decode("utf-8"))
+                retry_vecs = retry_payload.get("embeddings") or []
+                if retry_vecs:
+                    new_v = retry_vecs[0]
+                    new_norm_sq = sum(x * x for x in new_v)
+                    if new_norm_sq >= DEGEN_THRESHOLD * DEGEN_THRESHOLD:
+                        embeddings[i] = new_v
+                        break
+            else:
+                # All 3 retries failed
+                n_retry_failed += 1
+    if n_retried:
+        import sys as _sys
+        print(
+            f"  [embed batch] retried {n_retried} degenerate vectors "
+            f"({n_retry_failed} still degenerate after 3 attempts)",
+            file=_sys.stderr,
+        )
     return embeddings
 
 
@@ -174,7 +229,7 @@ def _primary_source_lemma(word: dict) -> tuple[str, str] | None:
     "--model",
     default=DEFAULT_MODEL,
     show_default=True,
-    help="Embedding model (Ollama). nomic-embed-text is fast + accurate for short technical text.",
+    help="Embedding model (Ollama). mxbai-embed-large is robust on short single-word glosses.",
 )
 @click.option(
     "--batch-size",
