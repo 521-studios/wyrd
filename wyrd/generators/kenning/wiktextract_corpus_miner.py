@@ -370,36 +370,46 @@ def _select_canonical_sense(entry: dict[str, Any]) -> tuple[str, list[str]] | No
     """Pick a representative gloss for an entry, plus mapped tags.
 
     Returns ``(gloss, tag_list)`` or ``None`` if the entry has no usable
-    sense (e.g. a redirect-only stub with no resolvable target).
+    sense — and the etymon is then skipped at the caller.
 
-    Skips ``alt-of`` / ``form-of`` redirect senses unless they're the
-    only thing the entry carries — in that case keep the redirect text
-    so the bundle at least gets a placeholder gloss. Future refinement
-    (wyrd-followup) could chase redirects across slices.
+    Skips Wiktionary-tagged redirect senses (``alt-of`` / ``form-of``)
+    AND any sense whose gloss TEXT matches our derivative classifier
+    (catches the ~50% of Wiktionary derivative entries that aren't
+    tag-marked — "inflection of X" / "plural of X" / "soft mutation
+    of X" in prose).
+
+    wyrd-a106 root-cause fix (2026-05-23): pre-fix, when every sense
+    was a redirect, a fallback returned the first redirect anyway
+    ("better than skipping the morpheme entirely"). That fallback was
+    THE root cause of ~7500 garbage entries in the bundle — pure
+    'alternative form of X' / 'plural of X' / Welsh mutations / etc.
+    The fallback is GONE: returning None drops the etymon, which is
+    the correct call. Audit (wyrd-36ez) confirmed every wiktionary-
+    empirical noise entry was a redirect-fallback ingest.
     """
+    # Lazy import to avoid a module-load cycle — wyrd.generators.kenning
+    # imports from this package elsewhere.
+    from wyrd.generators.kenning import _is_derivative_gloss
+
     senses = entry.get("senses") or []
     for sense in senses:
         glosses = sense.get("glosses") or []
         if not glosses:
             continue
         sense_tags = sense.get("tags") or []
-        # Prefer non-redirect senses; a redirect's gloss is always
-        # something like "alternative form of X" which is uninformative
-        # without resolving X.
+        # Wiktionary-tagged redirect.
         if any(t in {"alt-of", "form-of"} for t in sense_tags):
             continue
         gloss = glosses[0].strip()
         if not gloss:
             continue
+        # Gloss-text-level derivative check — catches prose
+        # 'inflection of X' / 'plural of X' / 'soft mutation of X'
+        # even when Wiktionary didn't tag them as alt-of / form-of.
+        if _is_derivative_gloss(gloss):
+            continue
         cats = [c.get("name", "") for c in (sense.get("categories") or [])]
         return gloss, _map_categories_to_tags(cats)
-    # Fallback: take the first gloss even if it's a redirect — better
-    # than skipping the morpheme entirely.
-    for sense in senses:
-        glosses = sense.get("glosses") or []
-        if glosses and glosses[0].strip():
-            cats = [c.get("name", "") for c in (sense.get("categories") or [])]
-            return glosses[0].strip(), _map_categories_to_tags(cats)
     return None
 
 
