@@ -539,6 +539,162 @@ def test_apply_split_defaults_primary_to_first_child(tmp_path: Path):
     db.close()
 
 
+def test_apply_split_jsonl_hand_edit_empty_suffix_counted(tmp_path: Path):
+    """Defense-in-depth: the CLI rejects empty suffix, but a hand-edited
+    JSONL with `suffix: ''` lands here. Counter surfaces the bypass
+    rather than silently skipping."""
+    db_path = _build_db(tmp_path)
+    _add_etymon_with_glosses_and_tags(
+        db_path, "old-english", "gear", ["weir"]
+    )
+    db = LexiconDB(db_path)
+    state = {
+        "old-english:gear": {
+            "into": [
+                {"suffix": "", "glosses": ["weir"], "primary": True},
+                {"suffix": "year", "glosses": ["year"]},
+            ]
+        }
+    }
+    counts = apply_etymon_splits(db, state, apply=True)
+    assert counts["children_skipped_no_suffix"] == 1
+    assert counts["children_created"] == 1  # only the 'year' child
+    db.close()
+
+
+def test_apply_split_jsonl_multi_primary_counted(tmp_path: Path):
+    """Defense-in-depth: CLI rejects two-primary specs, JSONL might
+    not. Applier picks first and surfaces the collapse via counter."""
+    db_path = _build_db(tmp_path)
+    _add_etymon_with_glosses_and_tags(
+        db_path, "old-english", "gear", ["a", "b"]
+    )
+    db = LexiconDB(db_path)
+    state = {
+        "old-english:gear": {
+            "into": [
+                {"suffix": "x", "glosses": ["a"], "primary": True},
+                {"suffix": "y", "glosses": ["b"], "primary": True},
+            ]
+        }
+    }
+    counts = apply_etymon_splits(db, state, apply=True)
+    assert counts["multiple_primary_collapsed"] == 1
+    # First primary still wins.
+    first_id = db.conn.execute(
+        "SELECT id FROM etymon WHERE language = ? AND canonical_form = ?",
+        ("old-english", "gear#x"),
+    ).fetchone()["id"]
+    second_id = db.conn.execute(
+        "SELECT id FROM etymon WHERE language = ? AND canonical_form = ?",
+        ("old-english", "gear#y"),
+    ).fetchone()["id"]
+    assert first_id != second_id
+    db.close()
+
+
+def test_apply_split_parent_not_stamped_when_zero_children_succeed(tmp_path: Path):
+    """If a JSONL hand-edit has all-invalid children (every spec has
+    empty suffix), the parent must NOT be stamped as split — otherwise
+    audit queries find a "split" parent that still has all its glosses
+    and citations attached."""
+    db_path = _build_db(tmp_path)
+    parent_id = _add_etymon_with_glosses_and_tags(
+        db_path, "old-english", "gear", ["weir", "year"]
+    )
+    db = LexiconDB(db_path)
+    state = {
+        "old-english:gear": {
+            "into": [
+                {"suffix": "", "glosses": ["weir"], "primary": True},
+                {"suffix": "", "glosses": ["year"]},
+            ]
+        }
+    }
+    counts = apply_etymon_splits(db, state, apply=True)
+    assert counts["children_skipped_no_suffix"] == 2
+    assert counts["children_created"] == 0
+
+    parent_notes = db.conn.execute(
+        "SELECT notes FROM etymon WHERE id = ?", (parent_id,)
+    ).fetchone()["notes"]
+    assert parent_notes is None or "wyrd-kutx-split" not in (parent_notes or "")
+
+    # Parent still has its glosses (nothing moved).
+    parent_glosses = sorted(
+        row["gloss"]
+        for row in db.conn.execute(
+            "SELECT gloss FROM etymon_gloss WHERE etymon_id = ?", (parent_id,)
+        )
+    )
+    assert parent_glosses == ["weir", "year"]
+    db.close()
+
+
+def test_apply_split_citations_skipped_conflict_counted(tmp_path: Path):
+    """When the primary child already carries a citation matching the
+    parent's UNIQUE (etymon_id, source_id, COALESCE(page,'')) tuple,
+    UPDATE OR IGNORE leaves that row on the parent and the counter
+    surfaces the skip. Avoids the "citations_moved overstates"
+    telemetry bug."""
+    db_path = _build_db(tmp_path)
+    parent_id = _add_etymon_with_glosses_and_tags(
+        db_path, "old-english", "gear", ["weir"]
+    )
+    # Pre-create the primary child carrying a citation that the
+    # parent's same source_id would collide with.
+    conn = sqlite3.connect(db_path)
+    cur = conn.execute(
+        "INSERT INTO etymon (canonical_form, language) VALUES (?, ?)",
+        ("gear#weir", "old-english"),
+    )
+    child_id = cur.lastrowid
+    for source_id in ("colliding-source", "moved-source"):
+        conn.execute(
+            "INSERT OR IGNORE INTO source (id, title) VALUES (?, ?)",
+            (source_id, source_id),
+        )
+    # Parent carries 2 citations; child already carries the
+    # colliding-source citation that would conflict on UNIQUE.
+    conn.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id) VALUES (?, ?)",
+        (parent_id, "colliding-source"),
+    )
+    conn.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id) VALUES (?, ?)",
+        (parent_id, "moved-source"),
+    )
+    conn.execute(
+        "INSERT INTO etymon_citation (etymon_id, source_id) VALUES (?, ?)",
+        (child_id, "colliding-source"),
+    )
+    conn.commit()
+    conn.close()
+
+    db = LexiconDB(db_path)
+    state = {
+        "old-english:gear": {
+            "into": [{"suffix": "weir", "glosses": ["weir"], "primary": True}],
+        }
+    }
+    counts = apply_etymon_splits(db, state, apply=True)
+
+    # 1 citation moved (moved-source), 1 skipped on the conflict.
+    assert counts["citations_moved"] == 1
+    assert counts["citations_skipped_conflict"] == 1
+
+    # Stranded row is still on the parent.
+    parent_cits = sorted(
+        row["source_id"]
+        for row in db.conn.execute(
+            "SELECT source_id FROM etymon_citation WHERE etymon_id = ?",
+            (parent_id,),
+        )
+    )
+    assert parent_cits == ["colliding-source"]
+    db.close()
+
+
 def test_format_etymon_split_run_markdown(tmp_path: Path):
     counts = {
         "splits_processed": 2,

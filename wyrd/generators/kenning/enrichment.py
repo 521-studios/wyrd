@@ -424,6 +424,17 @@ def apply_etymon_splits(
         "citations_moved": 0,
         "descent_edges_moved": 0,
         "etymology_elements_moved": 0,
+        # Rows that OR-IGNORE skipped due to UNIQUE conflicts on the
+        # primary child (re-apply / manual-move scenarios); stay on the
+        # parent until a citation-reassign event handles them.
+        "citations_skipped_conflict": 0,
+        "descent_edges_skipped_conflict": 0,
+        "etymology_elements_skipped_conflict": 0,
+        # Defense-in-depth counters for JSONL events that bypass the
+        # CLI guards (hand-edited files, future emitters). See
+        # ``curate_gloss.py`` for the parallel CLI-side rejections.
+        "children_skipped_no_suffix": 0,
+        "multiple_primary_collapsed": 0,
         "unresolved_etymon": 0,
         "no_primary_defaulted": 0,
         "empty_into_skipped": 0,
@@ -455,8 +466,17 @@ def apply_etymon_splits(
         counts["splits_processed"] += 1
 
         # Pick the primary child up-front so the gloss/tag loop can stash
-        # the chosen primary id for the post-loop evidence move.
+        # the chosen primary id for the post-loop evidence move. The CLI
+        # rejects multi-primary specs, but JSONL hand-edits could slip
+        # through — count the collapse so it's visible in the summary.
         primary_index: int | None = None
+        primary_flags = sum(
+            1
+            for child in into
+            if isinstance(child, dict) and child.get("primary")
+        )
+        if primary_flags > 1:
+            counts["multiple_primary_collapsed"] += 1
         for idx, child in enumerate(into):
             if isinstance(child, dict) and child.get("primary"):
                 primary_index = idx
@@ -469,6 +489,9 @@ def apply_etymon_splits(
         for idx, child in enumerate(into):
             suffix = child.get("suffix") if isinstance(child, dict) else None
             if not suffix:
+                # CLI rejects this, but a hand-edited JSONL could land
+                # here. Count and skip rather than silently passing.
+                counts["children_skipped_no_suffix"] += 1
                 continue
             child_form = f"{orig_form}#{suffix}"
 
@@ -561,44 +584,75 @@ def apply_etymon_splits(
             "WHERE etymon_id = ?",
             (orig_id,),
         ).fetchone()["n"]
-        counts["citations_moved"] += cit_count
-        counts["descent_edges_moved"] += descent_count
-        counts["etymology_elements_moved"] += element_count
+        # Apply path: use UPDATE OR IGNORE to survive UNIQUE conflicts
+        # on a re-apply where the primary child already carries rows
+        # matching one of the parent's. Constraints:
+        #   etymon_citation     UNIQUE (etymon_id, source_id, COALESCE(page,''))
+        #   etymon_descent      UNIQUE (parent_id, child_id, edge_type, source_id)
+        # The OR-IGNORE form skips the colliding row and leaves it on
+        # the parent — operator can re-attribute later. Without IGNORE a
+        # re-run after manual evidence moves would abort mid-loop.
+        #
+        # Count via cur.rowcount AFTER the UPDATE so the summary
+        # reflects what actually moved, not what was eligible. When
+        # IGNORE silently leaves N conflict-rows on the parent, those
+        # land in *_skipped_conflict instead of *_moved.
         if apply and primary_child_id is not None:
-            # UPDATE OR IGNORE: if the primary child already carries a
-            # row matching one of the parent's UNIQUE-constrained rows
-            # (etymon_citation on (etymon_id, source_id, COALESCE(page,''));
-            # etymon_descent on (parent_id, child_id, edge_type, source_id)),
-            # SQLite would raise IntegrityError on a plain UPDATE. The
-            # OR-IGNORE form skips the colliding row and leaves it on the
-            # parent — operator can re-attribute later, but the apply
-            # completes. Without IGNORE a re-run after manual evidence
-            # moves would abort mid-loop.
-            db.conn.execute(
+            cur = db.conn.execute(
                 "UPDATE OR IGNORE etymon_citation SET etymon_id = ? "
                 "WHERE etymon_id = ?",
                 (primary_child_id, orig_id),
             )
-            db.conn.execute(
+            cit_moved = cur.rowcount or 0
+            cur = db.conn.execute(
                 "UPDATE OR IGNORE etymon_descent SET parent_id = ? "
                 "WHERE parent_id = ?",
                 (primary_child_id, orig_id),
             )
-            db.conn.execute(
+            descent_parent_moved = cur.rowcount or 0
+            cur = db.conn.execute(
                 "UPDATE OR IGNORE etymon_descent SET child_id = ? "
                 "WHERE child_id = ?",
                 (primary_child_id, orig_id),
             )
-            db.conn.execute(
+            descent_child_moved = cur.rowcount or 0
+            descent_moved = descent_parent_moved + descent_child_moved
+            cur = db.conn.execute(
                 "UPDATE OR IGNORE toponym_etymology_element "
                 "SET etymon_id = ? WHERE etymon_id = ?",
                 (primary_child_id, orig_id),
             )
+            element_moved = cur.rowcount or 0
+        else:
+            # Dry-run (or no primary): nothing actually moved. Eligible
+            # rows still get counted to the *_eligible_to_move surface so
+            # operators previewing a curation batch see the impact size.
+            cit_moved = cit_count
+            descent_moved = descent_count
+            element_moved = element_count
 
-        if apply:
-            # Stamp the parent so reviewers can find post-split parents
-            # in audit queries. Parent ends up drained of evidence after
-            # the move above; bundle export naturally won't promote it.
+        counts["citations_moved"] += cit_moved
+        counts["descent_edges_moved"] += descent_moved
+        counts["etymology_elements_moved"] += element_moved
+        # Surface the OR-IGNORE gap so operators see when re-apply
+        # leaves rows stranded on the parent (a follow-on indicator that
+        # they need to manually reassign or run a citation-reassign
+        # event that doesn't exist yet).
+        counts["citations_skipped_conflict"] += max(0, cit_count - cit_moved)
+        counts["descent_edges_skipped_conflict"] += max(
+            0, descent_count - descent_moved
+        )
+        counts["etymology_elements_skipped_conflict"] += max(
+            0, element_count - element_moved
+        )
+
+        # Parent stamping: only mark this etymon as split if at least
+        # one child actually produced a usable row. Without this guard a
+        # JSONL hand-edit with all-invalid child specs (empty suffix,
+        # etc.) would silently stamp the parent as 'split' while leaving
+        # it full of glosses, citations, and evidence — an audit-query
+        # trap.
+        if apply and primary_child_id is not None:
             db.conn.execute(
                 "UPDATE etymon SET notes = ? WHERE id = ?",
                 (
@@ -646,6 +700,31 @@ def format_etymon_split_run(counts: dict[str, Any]) -> str:
         lines.append(f"- Tags not on parent: {counts['tags_missing']}")
     if counts.get("empty_into_skipped"):
         lines.append(f"- Empty splits skipped: {counts['empty_into_skipped']}")
+    if counts.get("children_skipped_no_suffix"):
+        lines.append(
+            "- Children skipped (missing/empty `suffix` in JSONL event): "
+            f"{counts['children_skipped_no_suffix']}"
+        )
+    if counts.get("multiple_primary_collapsed"):
+        lines.append(
+            "- Splits with >1 primary flag (collapsed to first; CLI normally "
+            f"rejects this): {counts['multiple_primary_collapsed']}"
+        )
+    if counts.get("citations_skipped_conflict"):
+        lines.append(
+            "- Citations left on parent due to UNIQUE conflict on primary: "
+            f"{counts['citations_skipped_conflict']}"
+        )
+    if counts.get("descent_edges_skipped_conflict"):
+        lines.append(
+            "- Descent edges left on parent due to UNIQUE conflict on primary: "
+            f"{counts['descent_edges_skipped_conflict']}"
+        )
+    if counts.get("etymology_elements_skipped_conflict"):
+        lines.append(
+            "- Etymology elements left on parent due to UNIQUE conflict on primary: "
+            f"{counts['etymology_elements_skipped_conflict']}"
+        )
     return "\n".join(lines)
 
 
