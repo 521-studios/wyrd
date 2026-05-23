@@ -59,19 +59,34 @@ def test_select_canonical_sense_skips_alt_of_redirect() -> None:
     assert gloss == "lord's domain"
 
 
-def test_select_canonical_sense_falls_back_to_redirect_when_only_option() -> None:
-    """If every sense is a redirect, take the first one rather than skipping
-    the entry entirely. A placeholder gloss beats no entry."""
+def test_select_canonical_sense_drops_redirect_only_entries() -> None:
+    """wyrd-a106 (2026-05-23): when every sense is a redirect, skip the
+    etymon entirely. The pre-fix fallback ('better than skipping') was
+    THE root cause of ~7500 garbage entries in the bundle — 'alternative
+    form of X' entries with no resolvable target. Returning None is now
+    the correct behavior; the caller drops the etymon."""
     entry = {
         "word": "demesne",
         "senses": [
             {"glosses": ["alternative form of demaine"], "tags": ["alt-of"]},
         ],
     }
-    result = _select_canonical_sense(entry)
-    assert result is not None
-    gloss, _ = result
-    assert "demaine" in gloss
+    assert _select_canonical_sense(entry) is None
+
+
+def test_select_canonical_sense_drops_prose_derivative_entries() -> None:
+    """wyrd-a106: belt-and-suspenders for redirects that Wiktionary
+    didn't tag with alt-of/form-of but whose gloss text matches the
+    derivative classifier ('inflection of X' / 'plural of Y' / 'soft
+    mutation of Z')."""
+    for gloss in (
+        "inflection of dōn",
+        "plural of bord",
+        "soft mutation of glin",
+        "singular imperative of sendan",
+    ):
+        entry = {"word": "x", "senses": [{"glosses": [gloss], "tags": []}]}
+        assert _select_canonical_sense(entry) is None, f"{gloss!r} should be skipped"
 
 
 def test_select_canonical_sense_returns_none_for_glossless_entry() -> None:
