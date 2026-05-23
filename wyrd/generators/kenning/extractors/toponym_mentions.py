@@ -439,7 +439,27 @@ def _validated_mentions(
         # emitted, but `_coerce_year` below enforces a digit-only
         # regex that drops any surrogate-bearing value to None+clamped
         # — no separate sanitization needed on that path. (wyrd-8wa4.)
-        form = _sanitize_and_count((m.get("form") or "").strip(), counters)
+        # wyrd-2iiy: type-guard each LLM-emitted field before any string
+        # operation. With the wyrd-sj50 switch from format=<schema> to
+        # format='json', the Ollama server no longer constrains output
+        # shape — gemma4 occasionally returns ``form`` (or other fields)
+        # as a dict / list / int. Without these guards, the next
+        # ``.strip()`` AttributeErrors and the whole source aborts mid-
+        # mining. Drop the mention as a hallucination and count it.
+        raw_form = m.get("form")
+        if raw_form is None:
+            # Missing form is a protocol error (not a hallucination) —
+            # don't count, matches the pre-wyrd-2iiy contract that the
+            # empty/None-form test pins.
+            continue
+        if not isinstance(raw_form, str):
+            # Wrong-type form (dict/list/int/bool) is a hallucination
+            # in the wyrd-2iiy sense — the model invented a shape
+            # the schema would have forbidden if grammar-constrained
+            # output were available.
+            counters.hallucinations_dropped += 1
+            continue
+        form = _sanitize_and_count(raw_form.strip(), counters)
         raw_region = m.get("region_hint")
         if isinstance(raw_region, str):
             # Strip before sanitize so the sanitizer operates on a
@@ -448,9 +468,13 @@ def _validated_mentions(
             region_hint: str | None = _sanitize_and_count(raw_region.strip(), counters) or None
         else:
             region_hint = None
-        context = _sanitize_and_count(
-            _WHITESPACE_RUN.sub(" ", (m.get("context") or "")).strip(), counters
-        )
+        raw_context = m.get("context")
+        if not isinstance(raw_context, str):
+            # Non-str context isn't fatal: form is the load-bearing
+            # field. Treat as missing context (empty string) and let
+            # the validator's synthesize-from-chunk path below fill it.
+            raw_context = ""
+        context = _sanitize_and_count(_WHITESPACE_RUN.sub(" ", raw_context).strip(), counters)
         # Validation gates fire AFTER full sanitization above.
         if not form:
             continue

@@ -374,6 +374,61 @@ def test_validated_mentions_skips_non_dict_items():
     assert [m.form for m in out] == ["Edlingham"]
 
 
+@pytest.mark.parametrize(
+    "bad_form",
+    [
+        {"nested": "dict"},  # the exact 2026-05-23 production crash shape
+        ["a", "list"],
+        42,
+        3.14,
+        True,
+    ],
+)
+def test_validated_mentions_drops_mention_with_non_str_form(bad_form):
+    """wyrd-2iiy: under wyrd-sj50's format='json' (no server-side
+    schema enforcement), the LLM occasionally emits non-string types
+    for form. Before this guard, ``.strip()`` AttributeError'd and
+    aborted the entire source mid-mining. Now the mention drops as a
+    hallucination (the model invented a shape the schema would have
+    forbidden) and counts toward the operator-visible total.
+
+    None form is handled separately as a protocol error — see
+    ``test_validated_mentions_drops_empty_form``.
+
+    Parametrized over the types we've seen (dict, list, int, float,
+    bool) plus the exact production crash shape (dict)."""
+    chunk = "Edlingham is a place. Positive control mentioned here."
+    raw = [
+        {"form": bad_form, "context": "x"},
+        {"form": "Edlingham", "context": "positive control"},
+    ]
+    counters = ValidationCounters()
+    out = _validated_mentions(raw, chunk, counters=counters)
+    # Positive control survives; bad-form mention drops as hallucination.
+    assert [m.form for m in out] == ["Edlingham"]
+    assert counters.hallucinations_dropped == 1
+    assert counters.admitted == 1
+
+
+def test_validated_mentions_accepts_mention_with_non_str_context():
+    """wyrd-2iiy: non-str context isn't fatal — form is the load-
+    bearing field. Treat non-str context as missing; let the
+    synthesize-from-chunk fallback fill it. The mention is admitted
+    with a derived context."""
+    chunk = "Edlingham is a homestead in Northumberland."
+    raw = [
+        {"form": "Edlingham", "context": {"shape": "not a string"}},
+    ]
+    counters = ValidationCounters()
+    out = _validated_mentions(raw, chunk, counters=counters)
+    assert len(out) == 1
+    assert out[0].form == "Edlingham"
+    assert counters.admitted == 1
+    # Context was synthesized from the chunk (not the dict).
+    assert "Edlingham" in out[0].context
+    assert out[0].context != "{'shape': 'not a string'}"
+
+
 @pytest.mark.parametrize("sep", ["\n", "\r\n", "\t", "   "])
 def test_validated_mentions_collapses_all_whitespace_in_context(sep):
     """All whitespace flavors (including \\r\\n from Windows-line-ended
