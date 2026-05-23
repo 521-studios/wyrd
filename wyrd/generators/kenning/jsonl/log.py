@@ -68,23 +68,30 @@ from typing import Any
 # auto-clustering passes' lemma_id / merged_into_id / inflection columns.
 # See L2_L3_BOUNDARY.md for the apply-after-enrichment workflow.
 #
-# ``etymon_gloss_suppression`` rows (wyrd-kutx) drop a gloss + its
-# contributing tags from an etymon. ``ref`` is the etymon ref; payload
-# carries a ``suppressions`` array of ``{gloss, reason?}`` entries.
-# Use case: Wiktionary-mined etymons whose entry conflates two senses,
-# only one of which is used in place-names (e.g. OE ``dry`` has
-# "dry" + "wizard, sorcerer"; the latter has zero toponymy use).
+# ``etymon_gloss_suppression`` rows (wyrd-kutx) drop named glosses
+# from an etymon. ``ref`` is the etymon ref; payload carries a
+# ``suppressions`` array of ``{gloss, reason?}`` entries. Per-event
+# semantics are last-write-wins (KEYED_TYPES contract): re-emit the
+# FULL suppressions list to revise, don't append a sibling event for
+# the same ref. Use case: Wiktionary-mined etymons whose entry
+# conflates two senses, only one of which is used in place-names
+# (e.g. OE ``dry`` has "dry" + "wizard, sorcerer"; the latter has
+# zero toponymy use). Tags are NOT touched by this event — they
+# don't carry per-gloss provenance in the current schema.
 #
 # ``etymon_split`` rows (wyrd-kutx) split a conflated etymon into two
 # or more distinct etymons. ``ref`` is the original etymon; payload's
 # ``into`` array names the children (each ``{suffix, glosses, tags?,
-# primary?, reason?}``). Children land as new etymons with refs
-# ``"<original>:<suffix>"`` (e.g. ``"old-english:gear:weir"``).
-# Mining evidence (citations, descent edges, toponym_etymology_element
-# refs) STAYS on the original ref — citation reassignment is a
-# separate follow-on op, and the bundle export prefers the
-# ``primary=true`` child as the default sense for unreassigned
-# evidence. Per D21 the loser's evidence is preserved (not destroyed).
+# primary?, reason?}``). Children land as new etymons whose canonical
+# form is ``"<original-form>#<suffix>"``; the resulting ref is
+# ``"<language>:<original-form>#<suffix>"`` (e.g. ``old-english:gear``
+# splits into ``old-english:gear#weir`` and ``old-english:gear#year``).
+# The named glosses + tags move from the parent to each child; mining
+# evidence (citations, descent edges, toponym_etymology_element refs)
+# moves WHOLESALE to the ``primary=true`` child so the primary inherits
+# the parent's witness count for bundle promotion. Per D21 evidence is
+# preserved (moved, not destroyed). Per-citation reassignment to non-
+# primary children is a deferred follow-on op.
 KEYED_TYPES: frozenset[str] = frozenset(
     {
         "etymon",

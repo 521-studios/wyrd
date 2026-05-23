@@ -7,9 +7,13 @@ assert the SQL state.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 
+from click.testing import CliRunner
+
+from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.enrichment import (
     ETYMON_SPLIT_METHOD_VERSION,
     GLOSS_SUPPRESSION_METHOD_VERSION,
@@ -17,6 +21,7 @@ from wyrd.generators.kenning.enrichment import (
     apply_gloss_suppressions,
     format_etymon_split_run,
     format_gloss_suppression_run,
+    run_full_enrichment,
 )
 from wyrd.generators.kenning.jsonl.build import (
     collect_etymon_splits,
@@ -567,3 +572,287 @@ def test_format_gloss_suppression_run_markdown(tmp_path: Path):
     assert "Etymons touched: 3" in rendered
     assert "Glosses dropped: 5" in rendered
     assert "Unresolved etymon refs: 1" in rendered
+
+
+# ---------------------------------------------------------------------------
+# CLI: lexicon curate-suppress-gloss
+# ---------------------------------------------------------------------------
+
+
+def test_cli_curate_suppress_gloss_appends_event(tmp_path: Path):
+    curation_file = tmp_path / "_curation.jsonl"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "curate-suppress-gloss",
+            "old-english:dry",
+            "wizard, sorcerer",
+            "--reason",
+            "no toponymy use",
+            "--curation-file",
+            str(curation_file),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    lines = curation_file.read_text().splitlines()
+    assert len(lines) == 2  # source + event
+    event = json.loads(lines[1])
+    assert event["_type"] == "etymon_gloss_suppression"
+    assert event["ref"] == "old-english:dry"
+    assert event["suppressions"] == [
+        {"gloss": "wizard, sorcerer", "reason": "no toponymy use"}
+    ]
+
+
+def test_cli_curate_suppress_gloss_creates_source_row_on_first_invocation(
+    tmp_path: Path,
+):
+    curation_file = tmp_path / "_curation.jsonl"
+    CliRunner().invoke(
+        cli_root,
+        [
+            "lexicon",
+            "curate-suppress-gloss",
+            "old-english:dry",
+            "wizard, sorcerer",
+            "--curation-file",
+            str(curation_file),
+        ],
+    )
+    source_row = json.loads(curation_file.read_text().splitlines()[0])
+    assert source_row["_type"] == "source"
+    assert source_row["ref"] == "manual-curation"
+
+
+def test_cli_curate_suppress_gloss_multiple_glosses_one_event(tmp_path: Path):
+    """Passing N glosses in one invocation writes ONE event with N
+    entries — so KEYED_TYPES last-write-wins replay preserves all of
+    them. Catches the regression that motivated collapsing the audit's
+    4 corn events into one."""
+    curation_file = tmp_path / "_curation.jsonl"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "curate-suppress-gloss",
+            "old-english:corn",
+            "Crane",
+            "Heron",
+            "corn",
+            "grain; corn",
+            "--reason",
+            "audit cleanup",
+            "--curation-file",
+            str(curation_file),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    event = json.loads(curation_file.read_text().splitlines()[1])
+    assert len(event["suppressions"]) == 4
+    assert [s["gloss"] for s in event["suppressions"]] == [
+        "Crane",
+        "Heron",
+        "corn",
+        "grain; corn",
+    ]
+
+
+def test_cli_curate_suppress_gloss_appends_without_dupe_source(tmp_path: Path):
+    curation_file = tmp_path / "_curation.jsonl"
+    runner = CliRunner()
+    args = [
+        "lexicon",
+        "curate-suppress-gloss",
+        "old-english:dry",
+        "wizard, sorcerer",
+        "--curation-file",
+        str(curation_file),
+    ]
+    runner.invoke(cli_root, args)
+    runner.invoke(cli_root, args)
+    lines = curation_file.read_text().splitlines()
+    # Source + 2 events; no second source row.
+    assert sum(1 for line in lines if json.loads(line)["_type"] == "source") == 1
+    assert sum(
+        1
+        for line in lines
+        if json.loads(line)["_type"] == "etymon_gloss_suppression"
+    ) == 2
+
+
+# ---------------------------------------------------------------------------
+# CLI: lexicon curate-split-etymon
+# ---------------------------------------------------------------------------
+
+
+def test_cli_curate_split_etymon_appends_event(tmp_path: Path):
+    curation_file = tmp_path / "_curation.jsonl"
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "curate-split-etymon",
+            "old-english:gear",
+            "--into",
+            "suffix=weir|glosses=Weir (fishing enclosure);weir|primary",
+            "--into",
+            "suffix=year|glosses=year",
+            "--reason",
+            "real homograph",
+            "--curation-file",
+            str(curation_file),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    event = json.loads(curation_file.read_text().splitlines()[1])
+    assert event["_type"] == "etymon_split"
+    assert event["ref"] == "old-english:gear"
+    assert event["reason"] == "real homograph"
+    assert event["into"] == [
+        {
+            "suffix": "weir",
+            "glosses": ["Weir (fishing enclosure)", "weir"],
+            "primary": True,
+        },
+        {"suffix": "year", "glosses": ["year"]},
+    ]
+
+
+def test_cli_curate_split_etymon_rejects_unknown_key(tmp_path: Path):
+    """Typo'd --into key (e.g. 'glosess' or 'color') should error
+    rather than silently swallow the operator's intent."""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "curate-split-etymon",
+            "old-english:gear",
+            "--into",
+            "suffix=weir|glosess=oops|primary",
+            "--curation-file",
+            str(tmp_path / "_curation.jsonl"),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "unknown key" in result.output.lower()
+
+
+def test_cli_curate_split_etymon_rejects_empty_suffix(tmp_path: Path):
+    """Empty `suffix=` value used to silently produce a no-op child
+    in the applier. Now caught at the CLI."""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "curate-split-etymon",
+            "old-english:gear",
+            "--into",
+            "suffix=|glosses=foo",
+            "--curation-file",
+            str(tmp_path / "_curation.jsonl"),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "suffix" in result.output.lower()
+
+
+def test_cli_curate_split_etymon_rejects_missing_suffix(tmp_path: Path):
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "curate-split-etymon",
+            "old-english:gear",
+            "--into",
+            "glosses=year",
+            "--curation-file",
+            str(tmp_path / "_curation.jsonl"),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "suffix" in result.output.lower()
+
+
+def test_cli_curate_split_etymon_rejects_multiple_primary(tmp_path: Path):
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "curate-split-etymon",
+            "old-english:gear",
+            "--into",
+            "suffix=weir|glosses=Weir|primary",
+            "--into",
+            "suffix=year|glosses=year|primary",
+            "--curation-file",
+            str(tmp_path / "_curation.jsonl"),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "primary" in result.output.lower()
+
+
+# ---------------------------------------------------------------------------
+# run_full_enrichment plumbing
+# ---------------------------------------------------------------------------
+
+
+def test_run_full_enrichment_threads_suppression_and_split_state(tmp_path: Path):
+    """The new kwargs flow through and the applier outputs appear in
+    the result dict. Also asserts the documented run order:
+    apply-curation → apply-gloss-suppressions → apply-etymon-splits
+    runs before the L3 derivations.
+
+    skip_l3_derivations=True keeps this test fast (the L3 derivations
+    are tested elsewhere)."""
+    db_path = _build_db(tmp_path)
+    _add_etymon_with_glosses_and_tags(
+        db_path, "old-english", "dim", ["a down or hill", "alternative form of dimm"]
+    )
+    _add_etymon_with_glosses_and_tags(
+        db_path, "old-norse", "lum", ["a pool", "loom or ember-goose"]
+    )
+
+    sup_state = {
+        "old-english:dim": {
+            "suppressions": [{"gloss": "alternative form of dimm"}]
+        }
+    }
+    split_state = {
+        "old-norse:lum": {
+            "into": [
+                {"suffix": "pool", "glosses": ["a pool"], "primary": True},
+                {"suffix": "diver", "glosses": ["loom or ember-goose"]},
+            ]
+        }
+    }
+
+    with LexiconDB(db_path) as db:
+        result = run_full_enrichment(
+            db,
+            apply=True,
+            suppression_state=sup_state,
+            split_state=split_state,
+            skip_l3_derivations=True,
+        )
+
+    # Both applier names appear in the canonical order.
+    order = result["order"]
+    assert "apply-gloss-suppressions" in order
+    assert "apply-etymon-splits" in order
+    assert order.index("apply-gloss-suppressions") < order.index(
+        "apply-etymon-splits"
+    ), "suppressions must run before splits (drop dead glosses before moving live ones)"
+
+    # Counts surfaced on the top-level result.
+    assert result["gloss_suppressions"]["glosses_dropped"] == 1
+    assert result["etymon_splits"]["splits_processed"] == 1
+    assert result["etymon_splits"]["children_created"] == 2

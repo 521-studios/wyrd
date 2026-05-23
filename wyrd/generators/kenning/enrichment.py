@@ -565,21 +565,33 @@ def apply_etymon_splits(
         counts["descent_edges_moved"] += descent_count
         counts["etymology_elements_moved"] += element_count
         if apply and primary_child_id is not None:
+            # UPDATE OR IGNORE: if the primary child already carries a
+            # row matching one of the parent's UNIQUE-constrained rows
+            # (etymon_citation on (etymon_id, source_id, COALESCE(page,''));
+            # etymon_descent on (parent_id, child_id, edge_type, source_id)),
+            # SQLite would raise IntegrityError on a plain UPDATE. The
+            # OR-IGNORE form skips the colliding row and leaves it on the
+            # parent — operator can re-attribute later, but the apply
+            # completes. Without IGNORE a re-run after manual evidence
+            # moves would abort mid-loop.
             db.conn.execute(
-                "UPDATE etymon_citation SET etymon_id = ? WHERE etymon_id = ?",
-                (primary_child_id, orig_id),
-            )
-            db.conn.execute(
-                "UPDATE etymon_descent SET parent_id = ? WHERE parent_id = ?",
-                (primary_child_id, orig_id),
-            )
-            db.conn.execute(
-                "UPDATE etymon_descent SET child_id = ? WHERE child_id = ?",
-                (primary_child_id, orig_id),
-            )
-            db.conn.execute(
-                "UPDATE toponym_etymology_element SET etymon_id = ? "
+                "UPDATE OR IGNORE etymon_citation SET etymon_id = ? "
                 "WHERE etymon_id = ?",
+                (primary_child_id, orig_id),
+            )
+            db.conn.execute(
+                "UPDATE OR IGNORE etymon_descent SET parent_id = ? "
+                "WHERE parent_id = ?",
+                (primary_child_id, orig_id),
+            )
+            db.conn.execute(
+                "UPDATE OR IGNORE etymon_descent SET child_id = ? "
+                "WHERE child_id = ?",
+                (primary_child_id, orig_id),
+            )
+            db.conn.execute(
+                "UPDATE OR IGNORE toponym_etymology_element "
+                "SET etymon_id = ? WHERE etymon_id = ?",
                 (primary_child_id, orig_id),
             )
 

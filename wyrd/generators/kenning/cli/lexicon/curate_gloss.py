@@ -131,7 +131,8 @@ def lexicon_curate_split_etymon(
 
     ETYMON_REF is the original etymon. Each --into spec names one
     child via a pipe-delimited string with ``key=value`` fields. The
-    children get refs ``<original>#<suffix>``::
+    children get canonical form ``<original-form>#<suffix>`` and ref
+    ``<language>:<original-form>#<suffix>``::
 
         wyrd kenning lexicon curate-split-etymon old-english:gear \\
             --into 'suffix=weir|glosses=Weir (fishing enclosure)|primary' \\
@@ -139,12 +140,16 @@ def lexicon_curate_split_etymon(
             --reason "real homograph"
 
     Named glosses + tags are repointed from the parent to each child.
-    Mining evidence (citations, descent edges, toponym elements) stays
-    on the parent until explicitly reassigned (separate follow-on op);
-    bundle export prefers the ``primary=true`` child as the default
-    sense for unreassigned evidence.
+    Mining evidence (citations, descent edges, toponym_etymology_element
+    refs) moves WHOLESALE to the ``primary=true`` child so it inherits
+    the parent's witness count for bundle promotion (per D21 evidence is
+    preserved, not destroyed). At most one child may be flagged
+    ``primary``; if none is, the first child in the ``--into`` order
+    becomes the default primary.
     """
+    _ALLOWED_KEYS = {"suffix", "glosses", "tags"}
     into: list[dict] = []
+    seen_primary = False
     for spec in into_specs:
         child: dict = {}
         for part in spec.split("|"):
@@ -155,6 +160,12 @@ def lexicon_curate_split_etymon(
                 key, _, value = part.partition("=")
                 key = key.strip()
                 value = value.strip()
+                if key not in _ALLOWED_KEYS:
+                    raise click.UsageError(
+                        f"--into spec {spec!r}: unknown key {key!r}; "
+                        f"allowed keys: {sorted(_ALLOWED_KEYS)} "
+                        "(plus the bare token 'primary')."
+                    )
                 if key in ("glosses", "tags"):
                     child[key] = [
                         g.strip() for g in value.split(";") if g.strip()
@@ -162,15 +173,22 @@ def lexicon_curate_split_etymon(
                 else:
                     child[key] = value
             elif part == "primary":
+                if seen_primary:
+                    raise click.UsageError(
+                        "More than one --into spec flagged 'primary'; at "
+                        "most one child may be primary."
+                    )
                 child["primary"] = True
+                seen_primary = True
             else:
                 raise click.UsageError(
                     f"--into spec {spec!r}: unrecognized token {part!r}; "
                     "use key=value form or the bare token 'primary'."
                 )
-        if "suffix" not in child:
+        if not child.get("suffix"):
             raise click.UsageError(
-                f"--into spec {spec!r}: missing required ``suffix`` field."
+                f"--into spec {spec!r}: missing or empty required "
+                "``suffix`` field."
             )
         into.append(child)
 
