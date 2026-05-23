@@ -9,3 +9,11 @@
 {"_type": "etymon_gloss_suppression", "ref": "old-english:gen", "suppressions": [{"gloss": "still, yet", "reason": "wyrd-kutx: adverb sense, no place-name use; keep 'hill or mountain'"}]}
 {"_type": "etymon_gloss_suppression", "ref": "old-english:dry", "suppressions": [{"gloss": "wizard, sorcerer", "reason": "wyrd-kutx: modern reader reads 'dry' as dry; the wizard sense would mislead generation output"}]}
 {"_type": "etymon_split", "ref": "old-norse:lum", "into": [{"suffix": "pool", "glosses": ["a pool"], "primary": true}, {"suffix": "diver", "glosses": ["loom or ember-goose"]}], "reason": "wyrd-kutx: real homonym; 'pool' for places, 'loom/ember-goose' is the diving bird (Gavia immer)"}
+{"_type": "etymon_gloss_suppression", "ref": "old-english:ern", "suppressions": [{"gloss": "alternative form of ærn", "reason": "wyrd-kutx: meta-gloss; meaning rides up to ærn via merge"}]}
+{"_type": "etymon_curation", "ref": "old-english:ern", "merged_into_ref": "old-english:ærn", "reason": "wyrd-kutx: ern is a spelling variant of ærn; merge so both surface in the variant pool"}
+{"_type": "etymon_gloss_suppression", "ref": "old-english:fas", "suppressions": [{"gloss": "alternative form of fæs", "reason": "wyrd-kutx: meta-gloss; meaning rides up to fæs via merge"}]}
+{"_type": "etymon_curation", "ref": "old-english:fas", "merged_into_ref": "old-english:fæs", "reason": "wyrd-kutx: fas is a spelling variant of fæs (æ ↔ a OCR drift); merge so both surface in the variant pool"}
+{"_type": "etymon_gloss_suppression", "ref": "old-english:font", "suppressions": [{"gloss": "alternative form of fant", "reason": "wyrd-kutx: meta-gloss; meaning rides up to fant via merge"}]}
+{"_type": "etymon_curation", "ref": "old-english:font", "merged_into_ref": "old-english:fant", "reason": "wyrd-kutx: font is a Latinate-influenced spelling variant of fant; merge so both surface in the variant pool"}
+{"_type": "etymon_gloss_suppression", "ref": "old-english:stubb", "suppressions": [{"gloss": "alternative form of stybb", "reason": "wyrd-kutx: meta-gloss; meaning rides up to stybb via merge"}]}
+{"_type": "etymon_curation", "ref": "old-english:stubb", "merged_into_ref": "old-english:stybb", "reason": "wyrd-kutx: stubb is a spelling variant of stybb; merge so both surface in the variant pool"}
