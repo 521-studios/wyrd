@@ -33,7 +33,6 @@ import pytest
 
 from wyrd.generators.kenning import _load_meanings, _rank_siblings
 
-
 # Each row: (modern_usage, expected_source_lang, expected_source_lemma,
 #           canonical_gloss_substring)
 #

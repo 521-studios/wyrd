@@ -960,6 +960,7 @@ def test_rank_siblings_surface_match_handles_macrons():
     diacritics before similarity scoring. 'brād' should score same
     as 'brad' when compared to 'broad', not lower."""
     from difflib import SequenceMatcher
+
     from wyrd.generators.kenning import _max_form_similarity, _normalize_for_similarity
 
     norm_broad = _normalize_for_similarity("broad")
@@ -976,6 +977,7 @@ def test_rank_siblings_surface_match_higher_for_closer_form():
     """Bare lexical check: 'hyll' is more similar to 'hill' than
     'holt' is, so the similarity score is higher for hyll."""
     from difflib import SequenceMatcher
+
     from wyrd.generators.kenning import _max_form_similarity, _normalize_for_similarity
 
     norm_hill = _normalize_for_similarity("-hill")
