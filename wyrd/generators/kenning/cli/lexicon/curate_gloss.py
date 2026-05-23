@@ -79,9 +79,7 @@ def lexicon_curate_suppress_gloss(
     Mining evidence (citations, descent edges, toponym elements) stays
     attached to the etymon — only the gloss layer is touched.
     """
-    suppressions = [
-        {"gloss": g, **({"reason": reason} if reason else {})} for g in glosses
-    ]
+    suppressions = [{"gloss": g, **({"reason": reason} if reason else {})} for g in glosses]
     payload = {
         "_type": "etymon_gloss_suppression",
         "ref": etymon_ref,
@@ -167,9 +165,7 @@ def lexicon_curate_split_etymon(
                         "(plus the bare token 'primary')."
                     )
                 if key in ("glosses", "tags"):
-                    child[key] = [
-                        g.strip() for g in value.split(";") if g.strip()
-                    ]
+                    child[key] = [g.strip() for g in value.split(";") if g.strip()]
                 else:
                     child[key] = value
             elif part == "primary":
@@ -187,8 +183,7 @@ def lexicon_curate_split_etymon(
                 )
         if not child.get("suffix"):
             raise click.UsageError(
-                f"--into spec {spec!r}: missing or empty required "
-                "``suffix`` field."
+                f"--into spec {spec!r}: missing or empty required ``suffix`` field."
             )
         into.append(child)
 
@@ -201,8 +196,7 @@ def lexicon_curate_split_etymon(
         payload["reason"] = reason
     _append_event(curation_file, payload)
     click.echo(
-        f"Appended split event for `{etymon_ref}` ({len(into)} children) "
-        f"→ {curation_file}",
+        f"Appended split event for `{etymon_ref}` ({len(into)} children) → {curation_file}",
         err=True,
     )
 

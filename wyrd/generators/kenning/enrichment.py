@@ -470,11 +470,7 @@ def apply_etymon_splits(
         # rejects multi-primary specs, but JSONL hand-edits could slip
         # through — count the collapse so it's visible in the summary.
         primary_index: int | None = None
-        primary_flags = sum(
-            1
-            for child in into
-            if isinstance(child, dict) and child.get("primary")
-        )
+        primary_flags = sum(1 for child in into if isinstance(child, dict) and child.get("primary"))
         if primary_flags > 1:
             counts["multiple_primary_collapsed"] += 1
         for idx, child in enumerate(into):
@@ -506,8 +502,7 @@ def apply_etymon_splits(
                 counts["children_created"] += 1
                 if apply:
                     cur = db.conn.execute(
-                        "INSERT INTO etymon (canonical_form, language, notes) "
-                        "VALUES (?, ?, ?)",
+                        "INSERT INTO etymon (canonical_form, language, notes) VALUES (?, ?, ?)",
                         (
                             child_form,
                             orig_lang,
@@ -540,8 +535,7 @@ def apply_etymon_splits(
                         (orig_id, gloss),
                     )
                     db.conn.execute(
-                        "INSERT OR IGNORE INTO etymon_gloss (etymon_id, gloss) "
-                        "VALUES (?, ?)",
+                        "INSERT OR IGNORE INTO etymon_gloss (etymon_id, gloss) VALUES (?, ?)",
                         (child_id, gloss),
                     )
 
@@ -560,8 +554,7 @@ def apply_etymon_splits(
                         (orig_id, tag),
                     )
                     db.conn.execute(
-                        "INSERT OR IGNORE INTO etymon_tag (etymon_id, tag) "
-                        "VALUES (?, ?)",
+                        "INSERT OR IGNORE INTO etymon_tag (etymon_id, tag) VALUES (?, ?)",
                         (child_id, tag),
                     )
 
@@ -575,13 +568,11 @@ def apply_etymon_splits(
             (orig_id,),
         ).fetchone()["n"]
         descent_count = db.conn.execute(
-            "SELECT COUNT(*) AS n FROM etymon_descent "
-            "WHERE parent_id = ? OR child_id = ?",
+            "SELECT COUNT(*) AS n FROM etymon_descent WHERE parent_id = ? OR child_id = ?",
             (orig_id, orig_id),
         ).fetchone()["n"]
         element_count = db.conn.execute(
-            "SELECT COUNT(*) AS n FROM toponym_etymology_element "
-            "WHERE etymon_id = ?",
+            "SELECT COUNT(*) AS n FROM toponym_etymology_element WHERE etymon_id = ?",
             (orig_id,),
         ).fetchone()["n"]
         # Apply path: use UPDATE OR IGNORE to survive UNIQUE conflicts
@@ -599,27 +590,23 @@ def apply_etymon_splits(
         # land in *_skipped_conflict instead of *_moved.
         if apply and primary_child_id is not None:
             cur = db.conn.execute(
-                "UPDATE OR IGNORE etymon_citation SET etymon_id = ? "
-                "WHERE etymon_id = ?",
+                "UPDATE OR IGNORE etymon_citation SET etymon_id = ? WHERE etymon_id = ?",
                 (primary_child_id, orig_id),
             )
             cit_moved = cur.rowcount or 0
             cur = db.conn.execute(
-                "UPDATE OR IGNORE etymon_descent SET parent_id = ? "
-                "WHERE parent_id = ?",
+                "UPDATE OR IGNORE etymon_descent SET parent_id = ? WHERE parent_id = ?",
                 (primary_child_id, orig_id),
             )
             descent_parent_moved = cur.rowcount or 0
             cur = db.conn.execute(
-                "UPDATE OR IGNORE etymon_descent SET child_id = ? "
-                "WHERE child_id = ?",
+                "UPDATE OR IGNORE etymon_descent SET child_id = ? WHERE child_id = ?",
                 (primary_child_id, orig_id),
             )
             descent_child_moved = cur.rowcount or 0
             descent_moved = descent_parent_moved + descent_child_moved
             cur = db.conn.execute(
-                "UPDATE OR IGNORE toponym_etymology_element "
-                "SET etymon_id = ? WHERE etymon_id = ?",
+                "UPDATE OR IGNORE toponym_etymology_element SET etymon_id = ? WHERE etymon_id = ?",
                 (primary_child_id, orig_id),
             )
             element_moved = cur.rowcount or 0
@@ -639,12 +626,8 @@ def apply_etymon_splits(
         # they need to manually reassign or run a citation-reassign
         # event that doesn't exist yet).
         counts["citations_skipped_conflict"] += max(0, cit_count - cit_moved)
-        counts["descent_edges_skipped_conflict"] += max(
-            0, descent_count - descent_moved
-        )
-        counts["etymology_elements_skipped_conflict"] += max(
-            0, element_count - element_moved
-        )
+        counts["descent_edges_skipped_conflict"] += max(0, descent_count - descent_moved)
+        counts["etymology_elements_skipped_conflict"] += max(0, element_count - element_moved)
 
         # Parent stamping: only mark this etymon as split if at least
         # one child actually produced a usable row. Without this guard a
@@ -802,9 +785,7 @@ def run_full_enrichment(
     # gloss + tag inventory.
     suppression_counts: dict[str, Any] | None = None
     if suppression_state is not None:
-        suppression_counts = apply_gloss_suppressions(
-            db, suppression_state, apply=apply
-        )
+        suppression_counts = apply_gloss_suppressions(db, suppression_state, apply=apply)
     split_counts: dict[str, Any] | None = None
     if split_state is not None:
         split_counts = apply_etymon_splits(db, split_state, apply=apply)

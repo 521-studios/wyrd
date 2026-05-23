@@ -89,18 +89,14 @@ def test_collect_suppression_canonical_state_row(tmp_path: Path):
             {
                 "_type": "etymon_gloss_suppression",
                 "ref": "old-english:dry",
-                "suppressions": [
-                    {"gloss": "wizard, sorcerer", "reason": "no toponymy use"}
-                ],
+                "suppressions": [{"gloss": "wizard, sorcerer", "reason": "no toponymy use"}],
             }
         ],
     )
     state = collect_gloss_suppressions([path])
     assert state == {
         "old-english:dry": {
-            "suppressions": [
-                {"gloss": "wizard, sorcerer", "reason": "no toponymy use"}
-            ]
+            "suppressions": [{"gloss": "wizard, sorcerer", "reason": "no toponymy use"}]
         }
     }
 
@@ -112,16 +108,10 @@ def test_collect_suppression_canonical_state_row(tmp_path: Path):
 
 def test_apply_drops_named_gloss_only(tmp_path: Path):
     db_path = _build_db(tmp_path)
-    eid = _add_etymon_with_glosses(
-        db_path, "old-english", "dry", ["dry", "wizard, sorcerer"]
-    )
+    eid = _add_etymon_with_glosses(db_path, "old-english", "dry", ["dry", "wizard, sorcerer"])
 
     db = LexiconDB(db_path)
-    state = {
-        "old-english:dry": {
-            "suppressions": [{"gloss": "wizard, sorcerer", "reason": "test"}]
-        }
-    }
+    state = {"old-english:dry": {"suppressions": [{"gloss": "wizard, sorcerer", "reason": "test"}]}}
     counts = apply_gloss_suppressions(db, state, apply=True)
 
     assert counts["glosses_dropped"] == 1
@@ -131,9 +121,7 @@ def test_apply_drops_named_gloss_only(tmp_path: Path):
 
     remaining = [
         row["gloss"]
-        for row in db.conn.execute(
-            "SELECT gloss FROM etymon_gloss WHERE etymon_id = ?", (eid,)
-        )
+        for row in db.conn.execute("SELECT gloss FROM etymon_gloss WHERE etymon_id = ?", (eid,))
     ]
     assert remaining == ["dry"]
     db.close()
@@ -141,25 +129,17 @@ def test_apply_drops_named_gloss_only(tmp_path: Path):
 
 def test_apply_dry_run_makes_no_changes(tmp_path: Path):
     db_path = _build_db(tmp_path)
-    eid = _add_etymon_with_glosses(
-        db_path, "old-english", "dry", ["dry", "wizard, sorcerer"]
-    )
+    eid = _add_etymon_with_glosses(db_path, "old-english", "dry", ["dry", "wizard, sorcerer"])
 
     db = LexiconDB(db_path)
-    state = {
-        "old-english:dry": {
-            "suppressions": [{"gloss": "wizard, sorcerer"}]
-        }
-    }
+    state = {"old-english:dry": {"suppressions": [{"gloss": "wizard, sorcerer"}]}}
     counts = apply_gloss_suppressions(db, state, apply=False)
     assert counts["glosses_dropped"] == 1
     assert counts["applied"] is False
 
     remaining = sorted(
         row["gloss"]
-        for row in db.conn.execute(
-            "SELECT gloss FROM etymon_gloss WHERE etymon_id = ?", (eid,)
-        )
+        for row in db.conn.execute("SELECT gloss FROM etymon_gloss WHERE etymon_id = ?", (eid,))
     )
     assert remaining == ["dry", "wizard, sorcerer"]
     db.close()
@@ -168,11 +148,7 @@ def test_apply_dry_run_makes_no_changes(tmp_path: Path):
 def test_apply_unresolved_etymon_counted(tmp_path: Path):
     db_path = _build_db(tmp_path)
     db = LexiconDB(db_path)
-    state = {
-        "old-english:nonexistent": {
-            "suppressions": [{"gloss": "x"}]
-        }
-    }
+    state = {"old-english:nonexistent": {"suppressions": [{"gloss": "x"}]}}
     counts = apply_gloss_suppressions(db, state, apply=True)
     assert counts["unresolved_etymon"] == 1
     assert counts["glosses_dropped"] == 0
@@ -184,11 +160,7 @@ def test_apply_unresolved_gloss_counted(tmp_path: Path):
     _add_etymon_with_glosses(db_path, "old-english", "dry", ["dry"])
 
     db = LexiconDB(db_path)
-    state = {
-        "old-english:dry": {
-            "suppressions": [{"gloss": "wizard, sorcerer"}]
-        }
-    }
+    state = {"old-english:dry": {"suppressions": [{"gloss": "wizard, sorcerer"}]}}
     counts = apply_gloss_suppressions(db, state, apply=True)
     assert counts["unresolved_gloss"] == 1
     assert counts["glosses_dropped"] == 0
@@ -292,15 +264,11 @@ def test_apply_split_creates_children_and_moves_glosses(tmp_path: Path):
 
     # Parent has no glosses or tags left.
     parent_glosses = list(
-        db.conn.execute(
-            "SELECT gloss FROM etymon_gloss WHERE etymon_id = ?", (parent_id,)
-        )
+        db.conn.execute("SELECT gloss FROM etymon_gloss WHERE etymon_id = ?", (parent_id,))
     )
     assert parent_glosses == []
     parent_tags = list(
-        db.conn.execute(
-            "SELECT tag FROM etymon_tag WHERE etymon_id = ?", (parent_id,)
-        )
+        db.conn.execute("SELECT tag FROM etymon_tag WHERE etymon_id = ?", (parent_id,))
     )
     assert parent_tags == []
 
@@ -327,9 +295,7 @@ def test_apply_split_creates_children_and_moves_glosses(tmp_path: Path):
     ).fetchone()["id"]
     weir_glosses = [
         row["gloss"]
-        for row in db.conn.execute(
-            "SELECT gloss FROM etymon_gloss WHERE etymon_id = ?", (weir,)
-        )
+        for row in db.conn.execute("SELECT gloss FROM etymon_gloss WHERE etymon_id = ?", (weir,))
     ]
     assert weir_glosses == ["Weir (fishing enclosure)"]
     db.close()
@@ -337,9 +303,7 @@ def test_apply_split_creates_children_and_moves_glosses(tmp_path: Path):
 
 def test_apply_split_dry_run_makes_no_changes(tmp_path: Path):
     db_path = _build_db(tmp_path)
-    parent_id = _add_etymon_with_glosses_and_tags(
-        db_path, "old-english", "gear", ["a", "b"]
-    )
+    parent_id = _add_etymon_with_glosses_and_tags(db_path, "old-english", "gear", ["a", "b"])
 
     db = LexiconDB(db_path)
     state = {
@@ -372,11 +336,7 @@ def test_apply_split_dry_run_makes_no_changes(tmp_path: Path):
 def test_apply_split_unresolved_parent_counted(tmp_path: Path):
     db_path = _build_db(tmp_path)
     db = LexiconDB(db_path)
-    state = {
-        "old-english:nonexistent": {
-            "into": [{"suffix": "x", "glosses": ["x"]}]
-        }
-    }
+    state = {"old-english:nonexistent": {"into": [{"suffix": "x", "glosses": ["x"]}]}}
     counts = apply_etymon_splits(db, state, apply=True)
     assert counts["unresolved_etymon"] == 1
     assert counts["children_created"] == 0
@@ -400,11 +360,7 @@ def test_apply_split_gloss_not_on_parent_counted(tmp_path: Path):
     _add_etymon_with_glosses_and_tags(db_path, "old-english", "gear", ["a"])
 
     db = LexiconDB(db_path)
-    state = {
-        "old-english:gear": {
-            "into": [{"suffix": "x", "glosses": ["a", "ghost"]}]
-        }
-    }
+    state = {"old-english:gear": {"into": [{"suffix": "x", "glosses": ["a", "ghost"]}]}}
     counts = apply_etymon_splits(db, state, apply=True)
     assert counts["glosses_moved"] == 1
     assert counts["glosses_missing"] == 1
@@ -457,9 +413,7 @@ def test_apply_split_moves_citations_to_primary(tmp_path: Path):
     """Citations on the parent migrate to the primary=true child so the
     bundle's witness count survives the split."""
     db_path = _build_db(tmp_path)
-    parent_id = _add_etymon_with_glosses_and_tags(
-        db_path, "old-english", "gear", ["weir", "year"]
-    )
+    parent_id = _add_etymon_with_glosses_and_tags(db_path, "old-english", "gear", ["weir", "year"])
     _add_citation(db_path, parent_id, "mawer-1920")
     _add_citation(db_path, parent_id, "ekwall-1928")
 
@@ -509,9 +463,7 @@ def test_apply_split_moves_citations_to_primary(tmp_path: Path):
 def test_apply_split_defaults_primary_to_first_child(tmp_path: Path):
     """No `primary` flag on any child → first child gets the evidence."""
     db_path = _build_db(tmp_path)
-    parent_id = _add_etymon_with_glosses_and_tags(
-        db_path, "old-english", "gear", ["a", "b"]
-    )
+    parent_id = _add_etymon_with_glosses_and_tags(db_path, "old-english", "gear", ["a", "b"])
     _add_citation(db_path, parent_id, "mawer-1920")
 
     db = LexiconDB(db_path)
@@ -544,9 +496,7 @@ def test_apply_split_jsonl_hand_edit_empty_suffix_counted(tmp_path: Path):
     JSONL with `suffix: ''` lands here. Counter surfaces the bypass
     rather than silently skipping."""
     db_path = _build_db(tmp_path)
-    _add_etymon_with_glosses_and_tags(
-        db_path, "old-english", "gear", ["weir"]
-    )
+    _add_etymon_with_glosses_and_tags(db_path, "old-english", "gear", ["weir"])
     db = LexiconDB(db_path)
     state = {
         "old-english:gear": {
@@ -566,9 +516,7 @@ def test_apply_split_jsonl_multi_primary_counted(tmp_path: Path):
     """Defense-in-depth: CLI rejects two-primary specs, JSONL might
     not. Applier picks first and surfaces the collapse via counter."""
     db_path = _build_db(tmp_path)
-    _add_etymon_with_glosses_and_tags(
-        db_path, "old-english", "gear", ["a", "b"]
-    )
+    _add_etymon_with_glosses_and_tags(db_path, "old-english", "gear", ["a", "b"])
     db = LexiconDB(db_path)
     state = {
         "old-english:gear": {
@@ -599,9 +547,7 @@ def test_apply_split_parent_not_stamped_when_zero_children_succeed(tmp_path: Pat
     audit queries find a "split" parent that still has all its glosses
     and citations attached."""
     db_path = _build_db(tmp_path)
-    parent_id = _add_etymon_with_glosses_and_tags(
-        db_path, "old-english", "gear", ["weir", "year"]
-    )
+    parent_id = _add_etymon_with_glosses_and_tags(db_path, "old-english", "gear", ["weir", "year"])
     db = LexiconDB(db_path)
     state = {
         "old-english:gear": {
@@ -638,9 +584,7 @@ def test_apply_split_citations_skipped_conflict_counted(tmp_path: Path):
     surfaces the skip. Avoids the "citations_moved overstates"
     telemetry bug."""
     db_path = _build_db(tmp_path)
-    parent_id = _add_etymon_with_glosses_and_tags(
-        db_path, "old-english", "gear", ["weir"]
-    )
+    parent_id = _add_etymon_with_glosses_and_tags(db_path, "old-english", "gear", ["weir"])
     # Pre-create the primary child carrying a citation that the
     # parent's same source_id would collide with.
     conn = sqlite3.connect(db_path)
@@ -757,9 +701,7 @@ def test_cli_curate_suppress_gloss_appends_event(tmp_path: Path):
     event = json.loads(lines[1])
     assert event["_type"] == "etymon_gloss_suppression"
     assert event["ref"] == "old-english:dry"
-    assert event["suppressions"] == [
-        {"gloss": "wizard, sorcerer", "reason": "no toponymy use"}
-    ]
+    assert event["suppressions"] == [{"gloss": "wizard, sorcerer", "reason": "no toponymy use"}]
 
 
 def test_cli_curate_suppress_gloss_creates_source_row_on_first_invocation(
@@ -832,11 +774,7 @@ def test_cli_curate_suppress_gloss_appends_without_dupe_source(tmp_path: Path):
     lines = curation_file.read_text().splitlines()
     # Source + 2 events; no second source row.
     assert sum(1 for line in lines if json.loads(line)["_type"] == "source") == 1
-    assert sum(
-        1
-        for line in lines
-        if json.loads(line)["_type"] == "etymon_gloss_suppression"
-    ) == 2
+    assert sum(1 for line in lines if json.loads(line)["_type"] == "etymon_gloss_suppression") == 2
 
 
 # ---------------------------------------------------------------------------
@@ -977,11 +915,7 @@ def test_run_full_enrichment_threads_suppression_and_split_state(tmp_path: Path)
         db_path, "old-norse", "lum", ["a pool", "loom or ember-goose"]
     )
 
-    sup_state = {
-        "old-english:dim": {
-            "suppressions": [{"gloss": "alternative form of dimm"}]
-        }
-    }
+    sup_state = {"old-english:dim": {"suppressions": [{"gloss": "alternative form of dimm"}]}}
     split_state = {
         "old-norse:lum": {
             "into": [
@@ -1004,9 +938,9 @@ def test_run_full_enrichment_threads_suppression_and_split_state(tmp_path: Path)
     order = result["order"]
     assert "apply-gloss-suppressions" in order
     assert "apply-etymon-splits" in order
-    assert order.index("apply-gloss-suppressions") < order.index(
-        "apply-etymon-splits"
-    ), "suppressions must run before splits (drop dead glosses before moving live ones)"
+    assert order.index("apply-gloss-suppressions") < order.index("apply-etymon-splits"), (
+        "suppressions must run before splits (drop dead glosses before moving live ones)"
+    )
 
     # Counts surfaced on the top-level result.
     assert result["gloss_suppressions"]["glosses_dropped"] == 1
