@@ -10,16 +10,65 @@ morpheme entirely" — that was the wrong call); the result was
 ~7500 garbage entries plus ~5500 modern_english homographs polluting
 the bundle.
 
-This cleanup is a ONE-SHOT operator action against the lexicon DB:
-identify wiktionary-empirical-only etymons matching either of:
+WHEN TO USE THIS CLI
+====================
+
+This is a ONE-SHOT remediation for a DB that was polluted BEFORE the
+mine-wiktextract-corpus fix landed. It is NOT part of the regular
+rebuild flow.
+
+The persistent fix is in ``wiktextract_corpus_miner._select_canonical_sense``
+itself — the redirect-keeping fallback was removed + a derivative-
+gloss filter was added, so future ``mine-wiktextract-corpus`` runs
+will skip the noise at ingest time and the DB stays clean.
+
+Use this CLI when:
+
+  * You're on an old branch / DB snapshot from before wyrd-a106 landed
+    (your local ``~/.wyrd/lexicon.db`` still has the ~7500 polluted rows).
+  * Some future ingestion pipeline introduces a similar noise class
+    (caught by ``audit-semantic-coherence``) and a one-shot DELETE is
+    the fastest remediation while the pipeline fix is in flight.
+
+You do NOT need to run this:
+
+  * After a regular ``rebuild-from-jsonl`` — the L2 ``data/mining/<source>.jsonl``
+    files do NOT contain wiktionary-empirical entries (the synthetic
+    source isn't persisted at L2), and ``rebuild-from-jsonl`` does not
+    invoke ``mine-wiktextract-corpus`` automatically. The rebuilt DB
+    starts with zero wiktionary-empirical rows.
+  * After running ``mine-wiktextract-corpus`` with current main code —
+    the fixed miner skips derivative-only entries at ingest, so no
+    cleanup is needed afterward.
+
+LEXICON ARCHITECTURE (for context)
+==================================
+
+L1 raw      — ``~/.wyrd/sources/wiktextract_*.jsonl.zst`` (immutable
+              upstream Wiktionary dumps, pulled from S3).
+L2 per-src  — ``data/mining/<source_id>.jsonl`` (one per scholarly
+              work, committed to git, replayable into the DB).
+SQLite DB   — derived from L1 + L2 via ``rebuild-from-jsonl``.
+bundle      — derived from DB via ``export-meanings``; the SPA
+              reads this, not the DB.
+
+``mine-wiktextract-corpus`` is a SEPARATE operator-initiated step
+that writes synthetic ``wiktionary-empirical``-cited etymons into the
+DB by surface-matching unaccounted place-name fragments against L1.
+
+HEURISTICS
+==========
+
+The cleanup identifies wiktionary-empirical-only etymons matching:
 
   * **derivative-gloss only** — every gloss attached to the etymon
     matches our ``_is_derivative_gloss`` classifier ("alternative
     form of X" / "plural of X" / "soft mutation of X" / ...).
-  * **modern-english / middle-english only** — the etymon's
-    language is modern English (any historical-stratum entry stays;
-    these are modern homographs of place-name fragments and have
-    no place in a HISTORICAL etymological lexicon).
+  * **modern-english only** — the etymon's language is modern English
+    (modern homographs of place-name fragments; no place in a
+    HISTORICAL etymological lexicon). middle-english stays — dry-run
+    review showed legit place-name etymons mixed with noise; pulling
+    wholesale would lose signal.
 
 Etymons cited by ANY OTHER source (real scholarly works, rando-port,
 wiktionary-empirical PLUS another source) are LEFT ALONE. The
