@@ -44,7 +44,7 @@ from typing import Any
 
 import boto3
 from boto3.s3.transfer import TransferConfig
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 
 # Force single-part S3 upload — without this, boto3's upload_file
 # auto-switches to multipart on files larger than ~8MB, and multipart
@@ -348,9 +348,12 @@ def main(argv: list[str] | None = None) -> int:
     # source, etc.) so the operator gets a clean error message instead
     # of a traceback. ValueError = bad --env (or whatever
     # publish_runtime_db raises on input shape); RuntimeError =
-    # collision-overwrite refusal; ClientError = anything boto3 surfaces
-    # from the actual PUTs.
-    except (OSError, ValueError, RuntimeError, ClientError) as exc:
+    # collision-overwrite refusal; ClientError = AWS-service-side
+    # errors; BotoCoreError = client-side config issues (ProfileNotFound,
+    # NoCredentialsError, EndpointConnectionError) — both are common
+    # on local-dev / first-time-setup paths and deserve a clean message
+    # instead of a stack trace.
+    except (OSError, ValueError, RuntimeError, BotoCoreError, ClientError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
