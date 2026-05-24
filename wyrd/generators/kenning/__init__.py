@@ -445,8 +445,20 @@ def _load_culture(culture: str):
     if culture not in CULTURES:
         raise ValueError(f"unknown culture: {culture}; expected one of {CULTURES}")
     meaning_db, tag_db = _load_meanings()
-    with _data_path(f"{culture}_proportions.json").open() as f:
-        proportions = json.load(f)
+    if _runtime_db_enabled():
+        # wyrd-d90t PR 6: SQLite path. Proportions come from the L4
+        # proportions_* tables instead of the bundled JSON sidecar.
+        # Same dict shape as the JSON path → identical load_proportions
+        # behavior → bit-equivalent generator output for a given seed.
+        from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
+        from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+            proportions_dict_for_culture,
+        )
+
+        proportions = proportions_dict_for_culture(get_runtime_db(), culture)
+    else:
+        with _data_path(f"{culture}_proportions.json").open() as f:
+            proportions = json.load(f)
     return load_proportions(proportions, meaning_db, tag_db), tag_db
 
 

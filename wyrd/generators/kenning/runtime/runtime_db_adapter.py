@@ -100,3 +100,97 @@ def _read_fantasy_morphemes(conn: sqlite3.Connection) -> dict[str, dict]:
     contract (the emitter already lowercases on write)."""
     cursor = conn.execute("SELECT usage_key, data FROM fantasy_morpheme ORDER BY usage_key")
     return {key: json.loads(blob) for key, blob in cursor}
+
+
+def proportions_dict_for_culture(conn: sqlite3.Connection, culture: str) -> dict[str, Any]:
+    """Build the per-culture proportions dict that ``load_proportions``
+    consumes from the L4 ``proportions_*`` tables (wyrd-d90t PR 6).
+
+    Output shape matches the JSON sidecar ``<culture>_proportions.json``:
+
+    ::
+
+        {
+            "usages": {usage_key: weight, ...},
+            "single_usages": {usage_key: weight, ...},
+            "structures": [{"proportion": int, "words": [...]}, ...],
+            "tag_marginal": {tag: weight, ...},
+            "tag_cooccurrence": {"tagA|tagB": weight, ...},
+        }
+
+    Why dict-shaped, not SQL-sampled: PR 6's contract is bit-identical
+    generator output for a given seed across both backends. The
+    sampling logic in ``runtime/proportions.py:Generator.select`` runs
+    on these dicts and applies harshness / novelty / keep_keys / etc.
+    in Python; pushing the sampling into SQL would diverge bit-equal
+    output for the same seed. A future PR could introduce a fast-path
+    SQL sampler for the no-filter case (D38.3 sampling pattern) when
+    the bit-equivalence contract relaxes.
+
+    Iteration order matches the cumulative column (ascending) so the
+    rehydrated dict's insertion order is the same order the emitter
+    wrote rows in.
+    """
+    return {
+        "usages": _read_proportions_usage_map(conn, "proportions_usage", culture),
+        "single_usages": _read_proportions_usage_map(conn, "proportions_single_usage", culture),
+        "structures": _read_proportions_structures(conn, culture),
+        "tag_marginal": _read_proportions_tag_marginal(conn, culture),
+        "tag_cooccurrence": _read_proportions_tag_cooccurrence(conn, culture),
+    }
+
+
+# Tables _read_proportions_usage_map is allowed to query. Mirrors
+# runtime_db_export._CUMULATIVE_USAGE_TABLES — the table name is
+# f-string-interpolated into the SELECT, so the whitelist is the
+# load-bearing safety check.
+_USAGE_TABLES = frozenset({"proportions_usage", "proportions_single_usage"})
+
+
+def _read_proportions_usage_map(
+    conn: sqlite3.Connection, table: str, culture: str
+) -> dict[str, int]:
+    """Read ``{usage_key: weight}`` from a cumulative-shaped usage
+    table. Iteration order = cumulative ascending = the same order
+    the emitter wrote in."""
+    if table not in _USAGE_TABLES:
+        raise ValueError(
+            f"_read_proportions_usage_map target {table!r} not in whitelist {sorted(_USAGE_TABLES)}"
+        )
+    cursor = conn.execute(
+        f"SELECT usage_key, weight FROM {table} WHERE culture = ? ORDER BY cumulative",
+        (culture,),
+    )
+    return dict(cursor)
+
+
+def _read_proportions_structures(conn: sqlite3.Connection, culture: str) -> list[dict[str, Any]]:
+    """Read the per-culture ``structures`` list. The emitter stored
+    each row's ``words`` template as a JSON blob; decode here so the
+    consumer sees the same nested-list shape as the source JSON."""
+    cursor = conn.execute(
+        "SELECT template, weight FROM proportions_structure WHERE culture = ? ORDER BY cumulative",
+        (culture,),
+    )
+    return [{"proportion": weight, "words": json.loads(template)} for template, weight in cursor]
+
+
+def _read_proportions_tag_marginal(conn: sqlite3.Connection, culture: str) -> dict[str, int]:
+    cursor = conn.execute(
+        "SELECT tag, weight FROM proportions_tag_marginal WHERE culture = ? ORDER BY tag",
+        (culture,),
+    )
+    return dict(cursor)
+
+
+def _read_proportions_tag_cooccurrence(conn: sqlite3.Connection, culture: str) -> dict[str, int]:
+    """Rebuild the ``tag1|tag2`` pipe-delimited key the JSON sidecar
+    used. The L4 emitter split on the pipe and stored tag1 / tag2 as
+    separate columns; rejoin here so the consumer sees the same key
+    shape as the JSON path."""
+    cursor = conn.execute(
+        "SELECT tag1, tag2, weight FROM proportions_tag_cooccurrence "
+        "WHERE culture = ? ORDER BY tag1, tag2",
+        (culture,),
+    )
+    return {f"{tag1}|{tag2}": weight for tag1, tag2, weight in cursor}
