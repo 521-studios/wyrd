@@ -195,6 +195,21 @@ def _download_with_etag_cache(bucket: str) -> Path | None:
                 f"current.json values must be strings; got key={version_key!r} "
                 f"etag={expected_etag!r}"
             )
+        # Path-traversal guard: expected_etag is interpolated into the
+        # /tmp cache filename. An adversarial S3 (operator with write
+        # access to the bucket) could supply etag='../../etc/passwd'
+        # and trick us into writing outside /tmp. Defense in depth even
+        # though the bucket is terraform-controlled.
+        if (
+            "/" in expected_etag
+            or "\\" in expected_etag
+            or ".." in expected_etag
+            or "\x00" in expected_etag
+        ):
+            raise ValueError(
+                f"current.json etag {expected_etag!r} contains path-traversal "
+                "characters; refusing to use as filename component"
+            )
     except (ClientError, BotoCoreError, KeyError, ValueError, TypeError, OSError):
         # OSError covers stream-read failures that can surface from
         # the StreamingBody.read inside json.load — a half-read

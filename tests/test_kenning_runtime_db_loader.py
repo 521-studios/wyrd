@@ -277,6 +277,22 @@ def test_pointer_missing_required_keys_falls_back_to_bundled_seed(
 # ---------- string-type validation on pointer ----------
 
 
+def test_pointer_etag_with_path_traversal_rejected(
+    _clear_env, fake_s3, monkeypatch
+) -> None:
+    """An adversarial S3 supplying etag='../../etc/passwd' must NOT
+    be allowed to escape /tmp via the cache-filename interpolation.
+    The path-traversal guard catches it; falls back to bundled seed."""
+    pointer = json.dumps({"key": "v/x.db", "etag": "../../etc/passwd"})
+    fake_s3.put_object(Bucket=TEST_BUCKET, Key="current.json", Body=pointer)
+    monkeypatch.setenv(ENV_BUCKET, TEST_BUCKET)
+
+    conn = get_runtime_db()
+    # Fell through to bundled seed (no crash, no escaped write).
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert "meaning" in tables
+
+
 def test_pointer_non_string_key_falls_back_to_bundled_seed(
     _clear_env, fake_s3, monkeypatch
 ) -> None:
