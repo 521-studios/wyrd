@@ -234,14 +234,38 @@ class MeaningGenerator:
         self.load_parts(proportions)
 
     def load_parts(self, proportions, *addkeys):
+        # wyrd-van9: tolerate proportions usages whose key isn't in
+        # meaning_db. This can happen when the bundle and proportions
+        # files are emitted from slightly different lexicon states —
+        # e.g. when a rebuild-proportions run produced matcher tokens
+        # for inflection-shadows that the bundle's later re-emit
+        # dropped. Pre-fix, a single missing key would KeyError out of
+        # the entire MeaningGenerator construction, taking down every
+        # downstream call. Skip + count instead so the bundle pair
+        # self-heals on next re-export and the operator sees the drift
+        # in the warning surface (rather than the runtime crashing).
+        missing_count = 0
         for usage, proportion in proportions.items():
-            meanings = self.meaning_db[usage]
+            meanings = self.meaning_db.get(usage)
+            if meanings is None:
+                missing_count += 1
+                continue
             keys = {m.key() for m in meanings}
             for key in keys:
                 if addkeys:
                     key = tuple(list(key) + list(addkeys))
                 gen = self.generators.setdefault(key, Generator(self.tag_db, {}))
                 gen.add_item(usage, proportion)
+        if missing_count:
+            import sys as _sys
+
+            print(
+                f"  [wyrd-van9] MeaningGenerator: {missing_count} proportions "
+                "usages have no Meaning in the bundle; skipping. Re-emit the "
+                "bundle (and re-rebuild proportions against it) to clear the "
+                "drift.",
+                file=_sys.stderr,
+            )
 
     def keep_keys_for_era(
         self, era_range: tuple[int | None, int | None] | None

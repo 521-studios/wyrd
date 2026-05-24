@@ -50,11 +50,26 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
         "clustering run."
     ),
 )
+@click.option(
+    "--strict",
+    is_flag=True,
+    default=False,
+    help=(
+        "wyrd-van9: exit non-zero when any curation / suppression / split "
+        "event has unresolved refs or other operator-typo signals (missing "
+        "gloss, missing parent, invalid suffix, self-reference). Without "
+        "this flag those signals only surface in the markdown summary, so "
+        "an operator running ``enrich --apply`` in CI / a deploy script "
+        "won't see them fail. Use --strict in those contexts; leave off "
+        "for interactive review."
+    ),
+)
 def lexicon_enrich(
     db_path: Path,
     apply_changes: bool,
     jsonl_dir: Path,
     with_curation: bool,
+    strict: bool,
 ) -> None:
     """Run L3 enrichment passes in canonical order (wyrd-ilam).
 
@@ -101,6 +116,22 @@ def lexicon_enrich(
     click.echo(format_enrichment_run(result), err=True)
     if not apply_changes:
         click.echo("\n(dry-run; pass --apply to commit)", err=True)
+
+    # wyrd-van9: surface unresolved-ref / typo signals on stderr; exit
+    # non-zero under --strict so CI / deploy scripts fail loudly on
+    # operator typos.
+    from wyrd.generators.kenning.enrichment import format_unresolved_warnings
+
+    warnings = format_unresolved_warnings(result)
+    if warnings:
+        click.echo("\n" + warnings, err=True)
+        if strict:
+            raise click.ClickException(
+                "wyrd-van9 --strict: unresolved-ref signals present. "
+                "Review the warnings above; fix the offending events "
+                "(typos in etymon refs, missing gloss text, invalid "
+                "suffix chars) and re-run."
+            )
 
 
 def add_to(parent: click.Group) -> None:

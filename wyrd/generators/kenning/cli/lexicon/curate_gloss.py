@@ -4,9 +4,18 @@ append etymon_gloss_suppression / etymon_split events (wyrd-kutx)."""
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import click
+
+# wyrd-van9: suffix charset constraint for ``curate-split-etymon
+# --into 'suffix=X'``. Locked to ``[a-z0-9_-]+`` so the resulting
+# canonical_form ``<original-form>#<suffix>`` and ref
+# ``<language>:<original-form>#<suffix>`` can't carry ``:`` / ``#`` /
+# whitespace that would corrupt downstream ref parsing. See the
+# applier-side mirror in ``enrichment._SUFFIX_PATTERN``.
+_SUFFIX_PATTERN = re.compile(r"[a-z0-9_-]+")
 
 _CURATION_SOURCE_ROW = {
     "_type": "source",
@@ -181,9 +190,24 @@ def lexicon_curate_split_etymon(
                     f"--into spec {spec!r}: unrecognized token {part!r}; "
                     "use key=value form or the bare token 'primary'."
                 )
-        if not child.get("suffix"):
+        suffix = child.get("suffix")
+        if not suffix:
             raise click.UsageError(
                 f"--into spec {spec!r}: missing or empty required ``suffix`` field."
+            )
+        # wyrd-van9: suffix charset validation. Children land at
+        # canonical form ``<original-form>#<suffix>`` and ref
+        # ``<language>:<original-form>#<suffix>``. A suffix carrying
+        # ``:`` (the ref-grammar separator), ``#`` (the disambiguator),
+        # or whitespace would corrupt downstream ref parsers that
+        # naively split on those. Lock to ``[a-z0-9_-]+`` for human
+        # readability + ref-safety.
+        if not _SUFFIX_PATTERN.fullmatch(suffix):
+            raise click.UsageError(
+                f"--into spec {spec!r}: suffix {suffix!r} contains "
+                "disallowed characters; allowed charset is [a-z0-9_-]+ "
+                "(lowercase alphanumeric, underscore, hyphen). Disambiguators "
+                "like #/: would corrupt downstream ref parsing."
             )
         into.append(child)
 

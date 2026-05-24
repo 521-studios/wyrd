@@ -31,6 +31,7 @@ toponym / descent rows the downstream passes scan.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from typing import Any
 
@@ -65,6 +66,13 @@ CURATION_METHOD_VERSION = "manual-curation-v1"
 # carry their own provenance stamps so audit queries can find them.
 GLOSS_SUPPRESSION_METHOD_VERSION = "gloss-suppression-v1"
 ETYMON_SPLIT_METHOD_VERSION = "etymon-split-v1"
+
+# wyrd-van9: mirrors the CLI's _SUFFIX_PATTERN. The applier defends
+# against hand-edited JSONL events where the suffix isn't in the safe
+# charset (``:``, ``#``, whitespace, etc. would corrupt the resulting
+# ref ``<lang>:<form>#<suffix>``). Children failing the check are
+# counted under ``children_skipped_invalid_suffix`` and skipped.
+_SUFFIX_PATTERN = re.compile(r"[a-z0-9_-]+")
 
 
 def _resolve_etymon_id(conn: sqlite3.Connection, ref: str) -> int | None:
@@ -434,6 +442,7 @@ def apply_etymon_splits(
         # CLI guards (hand-edited files, future emitters). See
         # ``curate_gloss.py`` for the parallel CLI-side rejections.
         "children_skipped_no_suffix": 0,
+        "children_skipped_invalid_suffix": 0,
         "multiple_primary_collapsed": 0,
         "unresolved_etymon": 0,
         "no_primary_defaulted": 0,
@@ -488,6 +497,13 @@ def apply_etymon_splits(
                 # CLI rejects this, but a hand-edited JSONL could land
                 # here. Count and skip rather than silently passing.
                 counts["children_skipped_no_suffix"] += 1
+                continue
+            # wyrd-van9: charset gate mirrors the CLI's _SUFFIX_PATTERN.
+            # Defends against hand-edited JSONL events where the suffix
+            # carries characters that would corrupt the resulting ref
+            # ``<lang>:<form>#<suffix>``.
+            if not _SUFFIX_PATTERN.fullmatch(suffix):
+                counts["children_skipped_invalid_suffix"] += 1
                 continue
             child_form = f"{orig_form}#{suffix}"
 
@@ -683,6 +699,11 @@ def format_etymon_split_run(counts: dict[str, Any]) -> str:
         lines.append(f"- Tags not on parent: {counts['tags_missing']}")
     if counts.get("empty_into_skipped"):
         lines.append(f"- Empty splits skipped: {counts['empty_into_skipped']}")
+    if counts.get("children_skipped_invalid_suffix"):
+        lines.append(
+            "- Children skipped (suffix outside [a-z0-9_-]+ charset): "
+            f"{counts['children_skipped_invalid_suffix']}"
+        )
     if counts.get("children_skipped_no_suffix"):
         lines.append(
             "- Children skipped (missing/empty `suffix` in JSONL event): "
@@ -1062,4 +1083,74 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
             continue
         lines.append("")
         lines.extend(render(payload))
+    return "\n".join(lines)
+
+
+def format_unresolved_warnings(result: dict[str, Any]) -> str:
+    """wyrd-van9: pull the unresolved-ref / typo counters out of the
+    enrichment result + render a stderr warning block when any are
+    non-zero. Empty string when everything resolved cleanly.
+
+    The CLI's ``--strict`` flag uses the non-empty return as a fail
+    signal; without ``--strict`` the warnings still surface on stderr
+    so an interactive operator sees them, but the exit code stays 0.
+    """
+    sections: list[tuple[str, dict[str, int]]] = []
+    curation = result.get("curation")
+    if curation:
+        sections.append(
+            (
+                "curation",
+                {
+                    "unresolved_etymon": curation.get("unresolved_etymon", 0),
+                    "unresolved_lemma_ref": curation.get("unresolved_lemma_ref", 0),
+                    "unresolved_merge_ref": curation.get("unresolved_merge_ref", 0),
+                    "self_reference_lemma": curation.get("self_reference_lemma", 0),
+                    "self_reference_merge": curation.get("self_reference_merge", 0),
+                },
+            )
+        )
+    sup = result.get("gloss_suppressions")
+    if sup:
+        sections.append(
+            (
+                "gloss_suppressions",
+                {
+                    "unresolved_etymon": sup.get("unresolved_etymon", 0),
+                    "unresolved_gloss": sup.get("unresolved_gloss", 0),
+                },
+            )
+        )
+    splits = result.get("etymon_splits")
+    if splits:
+        sections.append(
+            (
+                "etymon_splits",
+                {
+                    "unresolved_etymon": splits.get("unresolved_etymon", 0),
+                    "glosses_missing": splits.get("glosses_missing", 0),
+                    "tags_missing": splits.get("tags_missing", 0),
+                    "children_skipped_no_suffix": splits.get("children_skipped_no_suffix", 0),
+                    "children_skipped_invalid_suffix": splits.get(
+                        "children_skipped_invalid_suffix", 0
+                    ),
+                    "multiple_primary_collapsed": splits.get("multiple_primary_collapsed", 0),
+                },
+            )
+        )
+    flagged: list[tuple[str, str, int]] = []
+    for name, counters in sections:
+        for counter, value in counters.items():
+            if value:
+                flagged.append((name, counter, value))
+    if not flagged:
+        return ""
+    lines = ["## ⚠ Unresolved-ref / typo signals (wyrd-van9)"]
+    lines.append("")
+    lines.append("These signals indicate operator-typo or stale-event")
+    lines.append("conditions that produced silent no-ops during apply.")
+    lines.append("Each line is `<event-type> <counter> <count>`:")
+    lines.append("")
+    for name, counter, value in flagged:
+        lines.append(f"- {name}.{counter}: {value}")
     return "\n".join(lines)
