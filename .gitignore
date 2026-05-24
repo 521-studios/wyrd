@@ -38,6 +38,12 @@ data/mining/os_open_names.jsonl
 # Beads / Dolt files (added by bd init)
 .dolt/
 *.db
+# Exception: the kenning runtime seed DB (wyrd-d90t PR 2) is the one
+# committed binary in this repo — small enough to ship, regenerable
+# via `wyrd kenning lexicon export-runtime-db --dev`. See
+# wyrd/generators/kenning/data/seed-runtime.README.md for the regen
+# story.
+!wyrd/generators/kenning/data/seed-runtime.db
 .beads-credential-key
 
 # Local Claude Code agent state — do not commit
