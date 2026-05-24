@@ -1,5 +1,15 @@
-"""``wyrd kenning lexicon curate-suppress-gloss`` / ``curate-split-etymon`` —
-append etymon_gloss_suppression / etymon_split events (wyrd-kutx)."""
+"""Operator curation event-emitter CLIs — append L2 curation events
+to the durable JSONL store.
+
+Three subcommands, one per operator event type:
+
+- ``curate-suppress-gloss`` → ``etymon_gloss_suppression`` (wyrd-kutx)
+- ``curate-add-gloss`` → ``etymon_gloss_add`` (wyrd-wz82)
+- ``curate-split-etymon`` → ``etymon_split`` (wyrd-kutx)
+
+All three append to the same JSONL (``data/mining/_curation.jsonl``
+by default) so a single L2 replay covers every operator decision.
+"""
 
 from __future__ import annotations
 

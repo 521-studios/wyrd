@@ -262,18 +262,30 @@ def test_run_full_enrichment_threads_addition_state(tmp_path: Path):
     """The new kwarg flows through and the applier output appears in
     the result dict. Also asserts the documented run order:
     apply-gloss-suppressions → apply-gloss-additions → apply-etymon-splits
-    so a single enrich call can both drop a stale gloss and add a new one."""
+    so a single enrich call can both drop a stale gloss and add a new one
+    (relevant if a future operator workflow suppresses an autoharvested
+    sense and re-emits a corrected one in the same JSONL batch)."""
     db_path = _build_db(tmp_path)
     _add_etymon_with_glosses(db_path, "old-english", "finn", ["bright"])
 
+    # Pass an empty-but-present suppression + split state so all three
+    # appliers appear in order — lets us pin relative position, not
+    # just presence.
     addition_state = {"old-english:finn": {"additions": [{"gloss": "personal name"}]}}
+    suppression_state: dict[str, dict] = {}
+    split_state: dict[str, dict] = {}
     with LexiconDB(db_path) as db:
         result = run_full_enrichment(
             db,
             apply=True,
+            suppression_state=suppression_state,
             addition_state=addition_state,
+            split_state=split_state,
             skip_l3_derivations=True,
         )
     order = result["order"]
-    assert "apply-gloss-additions" in order
+    sup_idx = order.index("apply-gloss-suppressions")
+    add_idx = order.index("apply-gloss-additions")
+    split_idx = order.index("apply-etymon-splits")
+    assert sup_idx < add_idx < split_idx
     assert result["gloss_additions"]["glosses_added"] == 1
