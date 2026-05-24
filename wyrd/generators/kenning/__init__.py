@@ -254,10 +254,22 @@ def _runtime_db_enabled() -> bool:
     return os.environ.get(_USE_RUNTIME_DB_ENV, "").lower() in ("1", "true", "yes")
 
 
+@lru_cache(maxsize=1)
 def _runtime_db_bundle_dict() -> dict[str, Any]:
     """Read the L4 runtime DB and shape it into the dict the existing
-    bundle loaders consume. Imported lazily so the loader's module
-    init cost only fires when the flag is on."""
+    bundle loaders consume. Cached at process scope so the three
+    sibling loaders (_load_meanings / _load_canonical_decompositions /
+    _load_fantasy_morphemes) share one SQLite walk + JSON-parse pass
+    rather than each redoing it. Cache invalidates via the coupled
+    clear (search _coupled_cache_clear) so tests stay sane.
+
+    Imported lazily so the loader's module init cost only fires when
+    the flag is on.
+
+    Callers MUST treat the returned dict as read-only — the L4 path
+    in _load_meanings does mutate ``data["subjects"]`` to extend with
+    sidecars, so it copies the subjects list before extending.
+    """
     from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
     from wyrd.generators.kenning.runtime.runtime_db_adapter import (
         bundle_dict_from_runtime_db,
@@ -314,18 +326,18 @@ def _load_meanings():
     manorial = _norman_manorial_subjects()
     # The bundle may be list-shape (legacy) or dict-shape
     # ``{"subjects": [...], "joiners": ..., "canonical_decompositions": ...}``
-    # (wyrd-q0g6 / wyrd-h8k1). Sidecars extend the subjects list either way;
-    # dict-shape callers preserve the bundle keys for downstream loaders
-    # (joiners, canonical_decompositions) to read.
+    # (wyrd-q0g6 / wyrd-h8k1). Build a fresh subjects list with the
+    # sidecars folded in — load_meanings only reads ``subjects`` from
+    # the dict, and passing a fresh dict avoids mutating the cached
+    # _runtime_db_bundle_dict() return value (which feeds the sibling
+    # loaders downstream).
     if isinstance(data, dict):
         subjects = list(data.get("subjects") or [])
-        subjects.extend(sidecar)
-        subjects.extend(manorial)
-        data["subjects"] = subjects
     else:
-        data.extend(sidecar)
-        data.extend(manorial)
-    return load_meanings(data)
+        subjects = list(data)
+    subjects.extend(sidecar)
+    subjects.extend(manorial)
+    return load_meanings({"subjects": subjects})
 
 
 @lru_cache(maxsize=1)
@@ -333,8 +345,16 @@ def _load_joiners() -> dict[str, list[tuple[str, int]]]:
     """Load the bundle's joiner pool. Returns
     ``{lang_field: [(form, weight), ...]}``; empty for legacy
     list-shape bundles."""
-    with _data_path("meanings.json").open() as f:
-        data = json.load(f)
+    if _runtime_db_enabled():
+        # The L4 emit doesn't carry joiners today (they live on a JSON
+        # sidecar in the bundled path). Return empty rather than fall
+        # through to meanings.json — the whole point of the flag is to
+        # bypass the JSON bundle. Folding joiners into the L4 emit is
+        # tracked as a follow-up under the d90t epic.
+        data = _runtime_db_bundle_dict()
+    else:
+        with _data_path("meanings.json").open() as f:
+            data = json.load(f)
     return load_joiners(data)
 
 
@@ -457,6 +477,10 @@ def _coupled_cache_clear() -> None:
     _load_fantasy_morphemes.cache_clear()
     _load_empirical_priors.cache_clear()
     _load_packs.cache_clear()
+    # wyrd-d90t PR 5: the runtime-DB bundle-dict cache feeds all three
+    # bundle loaders above; clearing it here keeps the test-side
+    # invalidation symmetric with the JSON path.
+    _runtime_db_bundle_dict.cache_clear()
 
 
 # mypy flags reassigning a bound method on the lru_cache wrapper as
