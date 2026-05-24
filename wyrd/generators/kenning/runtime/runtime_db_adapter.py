@@ -58,10 +58,14 @@ def _read_subjects(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     resulting Meaning — collapsing multi-entry rows into one-word
     subjects produces identical Meaning objects since the per-word
     iteration is what matters.
+
+    Cursor-iterated rather than ``fetchall()`` so the meaning table's
+    blobs (largest column in the L4) don't all land in memory at once
+    on production-scale bundles.
     """
     subjects: list[dict[str, Any]] = []
-    rows = conn.execute("SELECT data FROM meaning ORDER BY usage_key").fetchall()
-    for (blob,) in rows:
+    cursor = conn.execute("SELECT data FROM meaning ORDER BY usage_key")
+    for (blob,) in cursor:
         payload = json.loads(blob)
         for entry in payload.get("entries") or []:
             word = entry.get("word")
@@ -81,11 +85,12 @@ def _read_subjects(conn: sqlite3.Connection) -> list[dict[str, Any]]:
 def _read_canonical_decompositions(conn: sqlite3.Connection) -> dict[str, dict[str, str]]:
     """Project ``canonical_decomposition`` rows back into the
     ``{toponym_name: {signature, source}}`` map ``load_canonical_decompositions``
-    expects."""
-    rows = conn.execute(
+    expects. Cursor-iterated for the same memory reason as
+    ``_read_subjects``."""
+    cursor = conn.execute(
         "SELECT toponym_name, data FROM canonical_decomposition ORDER BY toponym_name"
-    ).fetchall()
-    return {name: json.loads(blob) for name, blob in rows}
+    )
+    return {name: json.loads(blob) for name, blob in cursor}
 
 
 def _read_fantasy_morphemes(conn: sqlite3.Connection) -> dict[str, dict]:
@@ -93,7 +98,7 @@ def _read_fantasy_morphemes(conn: sqlite3.Connection) -> dict[str, dict]:
     ``{lowercase_input_name: payload}`` map ``load_fantasy_morphemes``
     expects. Keys come back lowercased per the L4 COLLATE NOCASE PK
     contract (the emitter already lowercases on write)."""
-    rows = conn.execute(
+    cursor = conn.execute(
         "SELECT usage_key, data FROM fantasy_morpheme ORDER BY usage_key"
-    ).fetchall()
-    return {key: json.loads(blob) for key, blob in rows}
+    )
+    return {key: json.loads(blob) for key, blob in cursor}

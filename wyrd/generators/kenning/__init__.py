@@ -252,13 +252,13 @@ def _runtime_db_enabled() -> bool:
     value. Evaluated on every cache-miss of the wrapping @lru_cache
     loaders (_load_meanings / _load_canonical_decompositions /
     _load_fantasy_morphemes / _load_joiners) — tests flip the flag via
-    monkeypatch + cache_clear() to force a re-read."""
-    return os.environ.get(_USE_RUNTIME_DB_ENV, "").lower() in (
-        "1",
-        "true",
-        "yes",
-        "on",
-    )
+    monkeypatch + cache_clear() to force a re-read.
+
+    Delegates the truthy-string set to :func:`_coerce_bool` so the
+    env-var grammar stays in lockstep with the SPA's request-side
+    boolean parsing (handles trailing whitespace + 'on' uniformly).
+    """
+    return _coerce_bool(os.environ.get(_USE_RUNTIME_DB_ENV, ""))
 
 
 @lru_cache(maxsize=1)
