@@ -240,11 +240,12 @@ def _bundled_seed_path() -> Path:
     seed = resources.files("wyrd.generators.kenning.data").joinpath("seed-runtime.db")
     # resources.files returns a Traversable; on a normal filesystem
     # install the str() round-trip is fine. Zip-loader installs (where
-    # the package is shipped as a .zip on sys.path) would need
-    # resources.as_file() to materialize the binary on disk. Lambda's
-    # default deployment shape is unzipped, but Lambda Layers + future
-    # zipapp packaging would hit this — filed as a follow-up; see the
-    # wyrd-d90t epic for the open ticket.
+    # the package is shipped as a .zip on sys.path — Lambda Layers,
+    # future zipapp packaging) would need resources.as_file() to
+    # materialize the binary on disk. Lambda's default deployment
+    # shape today is unzipped, so this works in production; filed as
+    # bd ticket wyrd-5kw0 for the as_file() refactor when zip
+    # packaging becomes the path.
     path = Path(str(seed))
     if not path.is_file():
         raise FileNotFoundError(
