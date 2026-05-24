@@ -92,11 +92,23 @@ from typing import Any
 # the parent's witness count for bundle promotion. Per D21 evidence is
 # preserved (moved, not destroyed). Per-citation reassignment to non-
 # primary children is a deferred follow-on op.
+#
+# ``etymon_gloss_add`` rows (wyrd-wz82) add operator-curated glosses to
+# an etymon — the inverse of ``etymon_gloss_suppression``. ``ref`` is
+# the etymon ref; payload carries an ``additions`` array of
+# ``{gloss, reason?}`` entries. Use case: surfacing a sense the
+# auto-mining missed — e.g. OE ``finn`` carries "clear, transparent,
+# bright" + "fin" (with the latter suppressed in wyrd-kutx); but
+# Roberts 1914 Sussex cites it as a personal name ("Finn"), a third
+# sense the bundle has no gloss for. Add-gloss surfaces it without
+# requiring a full lexicon re-mine. Last-write-wins per ref (same
+# kernel contract as the other curation event types).
 KEYED_TYPES: frozenset[str] = frozenset(
     {
         "etymon",
         "etymon_curation",
         "etymon_gloss_suppression",
+        "etymon_gloss_add",
         "etymon_split",
         "toponym",
         "source",
@@ -185,6 +197,7 @@ class ReplayState:
             "etymon",
             "etymon_curation",
             "etymon_gloss_suppression",
+            "etymon_gloss_add",
             "etymon_split",
             "toponym",
             "source",
