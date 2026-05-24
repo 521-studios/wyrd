@@ -32,6 +32,7 @@ from __future__ import annotations
 import logging
 import os
 import sqlite3
+import tempfile
 import threading
 from importlib import resources
 from pathlib import Path
@@ -212,20 +213,21 @@ def _download_with_etag_cache(bucket: str) -> Path | None:
         )
         return cached_path
 
-    # Download to a per-pid .tmp file then atomic-rename into place so
+    # Download to a unique .tmp file then atomic-rename into place so
     # a partial write never produces a half-downloaded file at the
-    # canonical name. PID in the filename ensures two concurrent
-    # workers don't collide on the .tmp write itself — they each get
-    # their own scratch file and race only on the rename (Path.replace
-    # is atomic; whoever loses the rename ends up with byte-equal
-    # output anyway since both downloaded the same etag's content).
-    tmp_download = cached_path.with_suffix(
-        cached_path.suffix + f".{os.getpid()}.tmp"
+    # canonical name. mkstemp gives us a name guaranteed unique across
+    # threads + processes (better than os.getpid(), which would still
+    # collide if two threads of one process raced); Path.replace
+    # atomic-renames on the same filesystem. Whoever loses the
+    # replace race ends up with byte-equal output since both
+    # downloaded the same etag's content.
+    fd, tmp_download_str = tempfile.mkstemp(
+        dir=cached_path.parent, prefix=cached_path.name + ".", suffix=".tmp"
     )
+    os.close(fd)
+    tmp_download = Path(tmp_download_str)
     try:
         s3.download_file(bucket, version_key, str(tmp_download))
-        # Path.replace is atomic across same-filesystem moves; Path.rename
-        # raises on Windows if the target exists.
         tmp_download.replace(cached_path)
     except (ClientError, BotoCoreError, OSError):
         _logger.exception(
@@ -233,7 +235,8 @@ def _download_with_etag_cache(bucket: str) -> Path | None:
             bucket,
             version_key,
         )
-        # Clean up any partial .tmp so it doesn't accumulate.
+        # Clean up the unique .tmp so it doesn't leak under repeated
+        # failures (each retry creates a new mkstemp file).
         tmp_download.unlink(missing_ok=True)
         return None
 
