@@ -34,6 +34,16 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 # through this module path.
 __all__ = ["EMITTER_VERSION", "SCHEMA_VERSION", "lexicon_export_runtime_db"]
 
+# Canonical defaults for the upstream filter flags. Used in BOTH the
+# @click.option ``default=`` declarations AND _reject_non_default_filters_under_dev
+# so the two can't drift — bumping a default here propagates to both
+# sites at once.
+_DEFAULT_MIN_WITNESSES = 3
+_DEFAULT_USE_PRESET = True
+_DEFAULT_INCLUDE_RANDO = True
+_DEFAULT_INCLUDE_WIKTIONARY_EMPIRICAL = True
+_DEFAULT_INCLUDE_WAVE2_ENRICHED = True
+
 
 def _bundled_proportions_dir():
     """Return the bundled proportions directory as a Traversable.
@@ -75,7 +85,7 @@ def _bundled_proportions_dir():
 @click.option(
     "--min-witnesses",
     type=int,
-    default=3,
+    default=_DEFAULT_MIN_WITNESSES,
     show_default=True,
     help="D4 promotion threshold; passed through to export_meanings.",
 )
@@ -89,23 +99,23 @@ def _bundled_proportions_dir():
 @click.option(
     "--preset/--no-preset",
     "use_preset",
-    default=True,
+    default=_DEFAULT_USE_PRESET,
     show_default=True,
     help="Start from RECOMMENDED_LANG_THRESHOLDS (calibrated per language).",
 )
 @click.option(
     "--include-rando/--no-include-rando",
-    default=True,
+    default=_DEFAULT_INCLUDE_RANDO,
     show_default=True,
 )
 @click.option(
     "--include-wiktionary-empirical/--no-include-wiktionary-empirical",
-    default=True,
+    default=_DEFAULT_INCLUDE_WIKTIONARY_EMPIRICAL,
     show_default=True,
 )
 @click.option(
     "--include-wave2-enriched/--no-include-wave2-enriched",
-    default=True,
+    default=_DEFAULT_INCLUDE_WAVE2_ENRICHED,
     show_default=True,
 )
 @click.option(
@@ -250,24 +260,25 @@ def _reject_non_default_filters_under_dev(
     custom --min-witnesses would produce a seed that differs from the
     one in the repo without the operator noticing.
 
-    The canonical defaults match the @click.option ``default=`` values:
-    min_witnesses=3, no lang_threshold overrides, use_preset=True, all
-    three --include-* flags True.
+    The canonical defaults come from the module-level ``_DEFAULT_*``
+    constants — same source the @click.option ``default=`` declarations
+    use, so a future bump to one of those propagates to both sites at
+    once and can't drift.
     """
     offenders: list[str] = []
-    if min_witnesses != 3:
-        offenders.append(f"--min-witnesses={min_witnesses} (canonical: 3)")
+    if min_witnesses != _DEFAULT_MIN_WITNESSES:
+        offenders.append(f"--min-witnesses={min_witnesses} (canonical: {_DEFAULT_MIN_WITNESSES})")
     if lang_threshold_specs:
         offenders.append(f"--lang-threshold {lang_threshold_specs!r} (canonical: none)")
-    if not use_preset:
+    if use_preset != _DEFAULT_USE_PRESET:
         offenders.append("--no-preset (canonical: --preset)")
-    if not include_rando:
+    if include_rando != _DEFAULT_INCLUDE_RANDO:
         offenders.append("--no-include-rando (canonical: --include-rando)")
-    if not include_wiktionary_empirical:
+    if include_wiktionary_empirical != _DEFAULT_INCLUDE_WIKTIONARY_EMPIRICAL:
         offenders.append(
             "--no-include-wiktionary-empirical (canonical: --include-wiktionary-empirical)"
         )
-    if not include_wave2_enriched:
+    if include_wave2_enriched != _DEFAULT_INCLUDE_WAVE2_ENRICHED:
         offenders.append("--no-include-wave2-enriched (canonical: --include-wave2-enriched)")
     if offenders:
         raise click.UsageError(
