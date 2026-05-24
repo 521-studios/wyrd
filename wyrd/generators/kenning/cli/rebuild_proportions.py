@@ -176,7 +176,21 @@ def _encode_structs(struct: Counter) -> list:
     can iterate in slightly different orders if the matcher's
     decomposition outputs change. Sorting by (-proportion, structure
     key) gives a stable canonical order: most-frequent first, with the
-    structure tuple as deterministic tiebreaker."""
+    structure tuple as deterministic tiebreaker.
+
+    wyrd-zzli: drops multi-word structures with any single-word slot
+    that's a bare 'pre' or 'post' morpheme. These templates were
+    causing 'By Green'-style ungrammatical output where the runtime
+    rendered an attachment-only morpheme (``-by``, ``green-``) as a
+    standalone word. 46.7% of English structure weight was in this
+    shape before the filter; corresponding runtime defense in
+    ``proportions.is_structurally_grammatical``. Real qualifier-word
+    two-word names (Bishop's Stortford, Great Yarmouth) survive
+    because their lead morpheme carries the ``name`` flag, which is
+    treated as a distinct position key by ``word_to_key`` and the
+    runtime."""
+    from wyrd.generators.kenning.runtime.proportions import is_structurally_grammatical
+
     sorted_items = sorted(struct.items(), key=lambda item: (-item[1], item[0]))
     return [
         {
@@ -184,6 +198,7 @@ def _encode_structs(struct: Counter) -> list:
             "words": [[_encode_meaning(meaning) for meaning in word] for word in key],
         }
         for key, value in sorted_items
+        if is_structurally_grammatical(key)
     ]
 
 

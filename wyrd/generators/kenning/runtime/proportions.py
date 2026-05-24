@@ -354,6 +354,55 @@ class MeaningGenerator:
         return tuple(bucket.elements)
 
 
+def _is_ungrammatical_word_template(word_key: tuple) -> bool:
+    """wyrd-zzli: a multi-word structure can pick a per-word template
+    where the entire word is a single bare 'pre' or 'post' morpheme
+    (no ``name`` / ``saint`` / ``single`` flag). When the runtime picks
+    that template it draws from the pre/post bucket and renders the
+    chosen morpheme as a STANDALONE word — producing surface output
+    like 'By Green' (-by + green-) where the two attachment-only
+    morphemes have been split across word boundaries.
+
+    A bare pre/post morpheme is designed to ATTACH to another morpheme
+    inside the same word (denoted by leading or trailing dash in the
+    canonical_form). Real two-word British place-names where a single
+    morpheme is the first/second word always involve a 'qualifier word'
+    (Bishop's, Old, Great, Higher) whose lexical entry carries the
+    ``name`` flag — those templates survive this filter as
+    ``(location, 'name')`` tuples.
+
+    A word_key here is a tuple of position tuples; ``key[0]`` is the
+    location label and any subsequent elements are flags (``name``,
+    ``saint``, ``single``). The ``single`` flag is added by
+    ``word_to_key`` for single-element words but doesn't carry
+    grammatical meaning — what matters is whether ``name`` or
+    ``saint`` is present.
+    """
+    if len(word_key) != 1:
+        return False
+    only = word_key[0]
+    if not only:
+        return False
+    location = only[0]
+    if location not in ("pre", "post"):
+        return False
+    flags = set(only[1:])
+    return "name" not in flags and "saint" not in flags
+
+
+def is_structurally_grammatical(struct_key: tuple) -> bool:
+    """wyrd-zzli: predicate for a full structure (tuple of word_keys).
+
+    A single-word structure is always grammatical — its sole word is
+    the entire name. A multi-word structure is grammatical when no
+    word inside it is a bare-pre / bare-post standalone (see
+    :func:`_is_ungrammatical_word_template`).
+    """
+    if len(struct_key) <= 1:
+        return True
+    return not any(_is_ungrammatical_word_template(w) for w in struct_key)
+
+
 class NameGenerator:
     def __init__(
         self,
@@ -365,7 +414,14 @@ class NameGenerator:
     ):
         self.meaning_db = meaning_db
         self.meaning_gen = meaning_gen
-        self.structs = structs
+        # wyrd-zzli: filter out multi-word structures that would produce
+        # ungrammatical 'By Green'-style output (a bare pre or post
+        # morpheme rendered as a standalone word). 46.7% of the English
+        # bundle's structure weight was in this shape pre-fix. The data
+        # fix in rebuild_proportions._encode_structs prevents future
+        # rebuilds from emitting them; this runtime gate defends against
+        # bundles built before that data fix lands.
+        self.structs = {k: v for k, v in structs.items() if is_structurally_grammatical(k)}
         # wyrd-mj2 (D17 β-term per the ticket reframe): tag-level
         # bigram statistics from each culture's place-name corpus.
         # ``tag_cooccurrence`` keys are "left|right" tag pairs; values
