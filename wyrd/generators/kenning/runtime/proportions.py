@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import random
 import re
+import sys
 from functools import lru_cache
 
 from .meaning import _mimic_case
@@ -354,6 +355,61 @@ class MeaningGenerator:
         return tuple(bucket.elements)
 
 
+def _is_ungrammatical_word_template(word_key: tuple) -> bool:
+    """wyrd-zzli: a multi-word structure can pick a per-word template
+    where the entire word is a single bare 'pre' or 'post' morpheme
+    (no ``name`` / ``saint`` / ``single`` flag). When the runtime picks
+    that template it draws from the pre/post bucket and renders the
+    chosen morpheme as a STANDALONE word — producing surface output
+    like 'By Green' (-by + green-) where the two attachment-only
+    morphemes have been split across word boundaries.
+
+    A bare pre/post morpheme is designed to ATTACH to another morpheme
+    inside the same word (denoted by leading or trailing dash in the
+    canonical_form). Real two-word British place-names where a single
+    morpheme is the first/second word always involve a 'qualifier word'
+    (Bishop's, Old, Great, Higher) whose lexical entry carries the
+    ``name`` flag — those templates survive this filter as
+    ``(location, 'name')`` tuples.
+
+    A word_key here is a tuple of position tuples; ``key[0]`` is the
+    location label and any subsequent elements are flags (``name``,
+    ``saint``, ``single``). The ``single`` flag is added by
+    ``word_to_key`` for single-element words but doesn't carry
+    grammatical meaning — what matters is whether ``name`` or
+    ``saint`` is present.
+    """
+    if len(word_key) != 1:
+        return False
+    only = word_key[0]
+    if not only:
+        return False
+    location = only[0]
+    if location not in ("pre", "post", "inner"):
+        # 'inner' added to the filter alongside pre/post (code-reviewer
+        # P3, round 1): inner morphemes have dashes on BOTH sides, so a
+        # standalone bare-inner word is arguably MORE ungrammatical than
+        # the bare-pre/post case. No current bundle has bare-inner
+        # multi-word structures, but cheaper to future-proof than to
+        # re-debug if mining surfaces one later.
+        return False
+    flags = set(only[1:])
+    return "name" not in flags and "saint" not in flags
+
+
+def is_structurally_grammatical(struct_key: tuple) -> bool:
+    """wyrd-zzli: predicate for a full structure (tuple of word_keys).
+
+    A single-word structure is always grammatical — its sole word is
+    the entire name. A multi-word structure is grammatical when no
+    word inside it is a bare-pre / bare-post standalone (see
+    :func:`_is_ungrammatical_word_template`).
+    """
+    if len(struct_key) <= 1:
+        return True
+    return not any(_is_ungrammatical_word_template(w) for w in struct_key)
+
+
 class NameGenerator:
     def __init__(
         self,
@@ -365,7 +421,45 @@ class NameGenerator:
     ):
         self.meaning_db = meaning_db
         self.meaning_gen = meaning_gen
-        self.structs = structs
+        # wyrd-zzli: filter out multi-word structures that would produce
+        # ungrammatical 'By Green'-style output (a bare pre or post
+        # morpheme rendered as a standalone word). 46.7% of the English
+        # bundle's structure weight was in this shape pre-fix. The data
+        # fix in rebuild_proportions._encode_structs prevents future
+        # rebuilds from emitting them; this runtime gate defends against
+        # bundles built before that data fix lands.
+        self.structs = {k: v for k, v in structs.items() if is_structurally_grammatical(k)}
+        # Loud-failure guard (generator-contract-reviewer P2, round 1):
+        # if the filter empties an otherwise-non-empty structs dict, the
+        # legacy select() path would crash deep inside _select_no_tag on
+        # a None struct from weighted_choice(rng, []). Raise here with an
+        # operator-attributable message instead.
+        if structs and not self.structs:
+            raise ValueError(
+                "NameGenerator: every structure was filtered as ungrammatical "
+                "(wyrd-zzli) — bundle has no shipped templates the runtime "
+                "can use. Re-emit the bundle via `wyrd kenning lexicon "
+                "rebuild-proportions` (which also applies the filter at "
+                "emission time)."
+            )
+        # Bit-stability drift warning (generator-contract-reviewer P2,
+        # round 1): when the filter drops something, seeded callers
+        # against the same shipped bundle get different output than they
+        # did pre-fix. Emit one stderr line per construction so operators
+        # see that their bundle is stale rather than discovering the
+        # drift via diverging SPA explainer / share-link output. Silent
+        # when the filter is a no-op (clean bundle).
+        dropped = len(structs) - len(self.structs)
+        if dropped:
+            dropped_weight = sum(structs[k] for k in structs if k not in self.structs)
+            total_weight = sum(structs.values()) or 1
+            print(
+                f"  [wyrd-zzli] NameGenerator: filtered {dropped} ungrammatical "
+                f"structure templates "
+                f"({100 * dropped_weight / total_weight:.1f}% of structure weight); "
+                "re-emit the bundle to clear the drift",
+                file=sys.stderr,
+            )
         # wyrd-mj2 (D17 β-term per the ticket reframe): tag-level
         # bigram statistics from each culture's place-name corpus.
         # ``tag_cooccurrence`` keys are "left|right" tag pairs; values
