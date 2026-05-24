@@ -604,6 +604,13 @@ def select_dev_subset(
         trimmed["words"] = kept_words
         trimmed_subjects.append(trimmed)
 
+    # Sort subjects by a canonical key so two subjects that share a
+    # modern_usage land in the same grouping order in _write_meanings's
+    # per-usage blob. Defensive against future upstream code that might
+    # emit subjects in a non-deterministic order (today's export_meanings
+    # sorts; this guards the contract regardless).
+    trimmed_subjects.sort(key=_subject_sort_key)
+
     # Fantasy + canonical: sort by key so re-runs against the same
     # source pick the same INSERT order across platforms / Python
     # versions, defensive against any future ingester whose dict
@@ -613,6 +620,22 @@ def select_dev_subset(
         dict(sorted(fantasy_morphemes.items())),
         dict(sorted(canonical_decompositions.items())),
         trimmed_proportions,
+    )
+
+
+def _subject_sort_key(subject: dict[str, Any]) -> tuple:
+    """Canonical sort key for a subject. Stable across platforms and
+    upstream-ordering changes — combines sorted modern_usages across
+    words with the subject-level metadata so two distinct subjects
+    that happen to share a modern_usage still order deterministically.
+    """
+    words = subject.get("words") or []
+    usage_tuple = tuple(sorted(w.get("modern_usage", "") for w in words))
+    return (
+        usage_tuple,
+        tuple(subject.get("meaning") or []),
+        subject.get("modifier_type") or "",
+        tuple(sorted(subject.get("modifier_tags") or [])),
     )
 
 
