@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from collections import Counter
 
+import pytest
+
 from wyrd.generators.kenning.cli.rebuild_proportions import _encode_structs
 from wyrd.generators.kenning.runtime.proportions import (
     NameGenerator,
@@ -49,13 +51,6 @@ def test_pre_with_saint_flag_is_grammatical():
     assert _is_ungrammatical_word_template((("pre", "saint"),)) is False
 
 
-def test_inner_single_word_is_grammatical():
-    """'inner' morphemes aren't part of the leading/trailing-dash
-    constraint — let those through. (They're rare as standalone
-    anyway; not the bug shape.)"""
-    assert _is_ungrammatical_word_template((("inner",),)) is False
-
-
 def test_multi_element_word_is_grammatical():
     """A word with multiple morpheme slots (pre + post) is a real
     compound and is always grammatical."""
@@ -67,6 +62,26 @@ def test_pre_with_single_flag_is_still_ungrammatical():
     bucket-keying purposes; that flag doesn't grant grammatical
     standalone-ness — only ``name`` / ``saint`` do."""
     assert _is_ungrammatical_word_template((("pre", "single"),)) is True
+
+
+def test_inner_single_word_is_now_ungrammatical():
+    """Round-2 fix (code-reviewer P3): 'inner' morphemes have dashes
+    on BOTH sides, so a bare-inner standalone word is the same kind
+    of ungrammatical split as bare-pre / bare-post. Adding to the
+    filter is future-proofing — no current bundle has the shape, but
+    if mining surfaces one, the filter catches it."""
+    assert _is_ungrammatical_word_template((("inner",),)) is True
+
+
+def test_inner_with_name_flag_still_grammatical():
+    """name-flagged inner survives like name-flagged pre/post."""
+    assert _is_ungrammatical_word_template((("inner", "name"),)) is False
+
+
+def test_empty_position_tuple_is_grammatical():
+    """Empty inner tuple — defensive guard against malformed inputs.
+    Returns False so the structure isn't dropped on bad shape."""
+    assert _is_ungrammatical_word_template(((),)) is False
 
 
 # ---------------------------------------------------------------------------
@@ -153,6 +168,50 @@ def test_name_generator_passes_grammatical_structs_unchanged():
     }
     name_gen = NameGenerator(meaning_db={}, meaning_gen=None, structs=structs)
     assert name_gen.structs == structs
+
+
+def test_name_generator_raises_when_filter_empties_structs():
+    """Round-2 fix (generator-contract-reviewer P2): if every input
+    struct is filtered as ungrammatical, NameGenerator must fail loudly
+    at init rather than letting the legacy select() path crash deep in
+    weighted_choice on a None struct."""
+    structs = {
+        ((("post",),), (("pre",),)): 475,  # bad shape — would be dropped
+    }
+    with pytest.raises(ValueError, match="wyrd-zzli"):
+        NameGenerator(meaning_db={}, meaning_gen=None, structs=structs)
+
+
+def test_name_generator_empty_input_does_not_raise():
+    """Empty input structs is a different situation from filter-emptied;
+    don't raise on an already-empty dict (some test fixtures pass empty)."""
+    name_gen = NameGenerator(meaning_db={}, meaning_gen=None, structs={})
+    assert name_gen.structs == {}
+
+
+def test_name_generator_warns_on_drop(capsys):
+    """Round-2 fix (generator-contract-reviewer P2): operators need to
+    know the runtime is filtering their bundle so they understand why
+    seeded outputs drift from the pre-fix baseline. Stderr line names
+    the dropped count + percentage so the operator can decide whether
+    to re-emit the bundle."""
+    good_struct = ((("pre",), ("post",)),)
+    bad_struct = ((("post",),), (("pre",),))
+    structs = {good_struct: 100, bad_struct: 475}
+    NameGenerator(meaning_db={}, meaning_gen=None, structs=structs)
+    captured = capsys.readouterr()
+    assert "wyrd-zzli" in captured.err
+    assert "filtered 1" in captured.err
+    # 475 / (100 + 475) = 82.6%
+    assert "82.6%" in captured.err
+
+
+def test_name_generator_silent_when_nothing_dropped(capsys):
+    """Clean bundle — no warning."""
+    structs = {((("pre",), ("post",)),): 100}
+    NameGenerator(meaning_db={}, meaning_gen=None, structs=structs)
+    captured = capsys.readouterr()
+    assert captured.err == ""
 
 
 # ---------------------------------------------------------------------------

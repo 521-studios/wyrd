@@ -12,6 +12,7 @@ from wyrd.generators.kenning import CULTURES
 from wyrd.generators.kenning.cli.utils import _decompose_corpus, _load_meanings_data
 from wyrd.generators.kenning.runtime.meaning import Meaning, load_meanings
 from wyrd.generators.kenning.runtime.name import load_names_with_regions
+from wyrd.generators.kenning.runtime.proportions import is_structurally_grammatical
 
 
 @click.command("rebuild-proportions")
@@ -189,8 +190,6 @@ def _encode_structs(struct: Counter) -> list:
     because their lead morpheme carries the ``name`` flag, which is
     treated as a distinct position key by ``word_to_key`` and the
     runtime."""
-    from wyrd.generators.kenning.runtime.proportions import is_structurally_grammatical
-
     sorted_items = sorted(struct.items(), key=lambda item: (-item[1], item[0]))
     return [
         {

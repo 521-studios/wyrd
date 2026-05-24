@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import random
 import re
+import sys
 from functools import lru_cache
 
 from .meaning import _mimic_case
@@ -384,7 +385,13 @@ def _is_ungrammatical_word_template(word_key: tuple) -> bool:
     if not only:
         return False
     location = only[0]
-    if location not in ("pre", "post"):
+    if location not in ("pre", "post", "inner"):
+        # 'inner' added to the filter alongside pre/post (code-reviewer
+        # P3, round 1): inner morphemes have dashes on BOTH sides, so a
+        # standalone bare-inner word is arguably MORE ungrammatical than
+        # the bare-pre/post case. No current bundle has bare-inner
+        # multi-word structures, but cheaper to future-proof than to
+        # re-debug if mining surfaces one later.
         return False
     flags = set(only[1:])
     return "name" not in flags and "saint" not in flags
@@ -422,6 +429,37 @@ class NameGenerator:
         # rebuilds from emitting them; this runtime gate defends against
         # bundles built before that data fix lands.
         self.structs = {k: v for k, v in structs.items() if is_structurally_grammatical(k)}
+        # Loud-failure guard (generator-contract-reviewer P2, round 1):
+        # if the filter empties an otherwise-non-empty structs dict, the
+        # legacy select() path would crash deep inside _select_no_tag on
+        # a None struct from weighted_choice(rng, []). Raise here with an
+        # operator-attributable message instead.
+        if structs and not self.structs:
+            raise ValueError(
+                "NameGenerator: every structure was filtered as ungrammatical "
+                "(wyrd-zzli) — bundle has no shipped templates the runtime "
+                "can use. Re-emit the bundle via `wyrd kenning lexicon "
+                "rebuild-proportions` (which also applies the filter at "
+                "emission time)."
+            )
+        # Bit-stability drift warning (generator-contract-reviewer P2,
+        # round 1): when the filter drops something, seeded callers
+        # against the same shipped bundle get different output than they
+        # did pre-fix. Emit one stderr line per construction so operators
+        # see that their bundle is stale rather than discovering the
+        # drift via diverging SPA explainer / share-link output. Silent
+        # when the filter is a no-op (clean bundle).
+        dropped = len(structs) - len(self.structs)
+        if dropped:
+            dropped_weight = sum(structs[k] for k in structs if k not in self.structs)
+            total_weight = sum(structs.values()) or 1
+            print(
+                f"  [wyrd-zzli] NameGenerator: filtered {dropped} ungrammatical "
+                f"structure templates "
+                f"({100 * dropped_weight / total_weight:.1f}% of structure weight); "
+                "re-emit the bundle to clear the drift",
+                file=sys.stderr,
+            )
         # wyrd-mj2 (D17 β-term per the ticket reframe): tag-level
         # bigram statistics from each culture's place-name corpus.
         # ``tag_cooccurrence`` keys are "left|right" tag pairs; values
