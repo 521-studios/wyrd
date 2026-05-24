@@ -212,16 +212,21 @@ def _download_with_etag_cache(bucket: str) -> Path | None:
         )
         return cached_path
 
-    # Download to a sibling .tmp file then atomic-rename into place so
+    # Download to a per-pid .tmp file then atomic-rename into place so
     # a partial write never produces a half-downloaded file at the
-    # canonical name. Concurrent workers downloading the same etag
-    # both write to their own .tmp and one wins the rename — the
-    # other's rename will succeed too (replacing the byte-equal
-    # output), which is fine since the bytes are equal.
-    tmp_download = cached_path.with_suffix(cached_path.suffix + ".tmp")
+    # canonical name. PID in the filename ensures two concurrent
+    # workers don't collide on the .tmp write itself — they each get
+    # their own scratch file and race only on the rename (Path.replace
+    # is atomic; whoever loses the rename ends up with byte-equal
+    # output anyway since both downloaded the same etag's content).
+    tmp_download = cached_path.with_suffix(
+        cached_path.suffix + f".{os.getpid()}.tmp"
+    )
     try:
         s3.download_file(bucket, version_key, str(tmp_download))
-        tmp_download.rename(cached_path)
+        # Path.replace is atomic across same-filesystem moves; Path.rename
+        # raises on Windows if the target exists.
+        tmp_download.replace(cached_path)
     except (ClientError, BotoCoreError, OSError):
         _logger.exception(
             "failed to download s3://%s/%s — falling back to bundled seed",
