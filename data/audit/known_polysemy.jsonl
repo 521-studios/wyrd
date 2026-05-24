@@ -1,4 +1,4 @@
-{"_type": "source", "ref": "known-polysemy", "title": "Audit allowlist — confirmed polysemy (wyrd-kutx batch 2D)", "notes": "Entries here are (source_lang, source_lemma) pairs the operator has confirmed are real polysemy — one word with multiple related senses — that the cosine-similarity audit cannot distinguish from undetected homonyms. lexicon audit-semantic-coherence filters intra-entry-suspects rows whose (source_lang, source_lemma) matches an entry here. Add to this file when reviewing a new audit run surfaces a false-positive that future runs would re-flag."}
+{"_type": "source", "ref": "known-polysemy", "title": "Audit allowlist — confirmed polysemy + cluster-acceptable (wyrd-kutx batch 2D + cross-sibling)", "notes": "Operator-maintained allowlist for lexicon audit-semantic-coherence. Two event types ride in this file: known_polysemy filters intra-entry-suspects.csv (one etymon with two glosses the cosine audit sees as distant but the operator has confirmed are related senses of one word); known_cluster_acceptable filters cross-sibling-suspects.csv (two etymons that legitimately share a bundle surface form, like OE 'ost' 'knot in a tree' and OF 'ost' 'army' both contributing to '-ost-' toponyms). Add to this file when reviewing a new audit run surfaces a false-positive that future runs would re-flag."}
 {"_type": "known_polysemy", "source_lang": "celtic_mix", "source_lemma": "draigneach", "reason": "Blackthorn tree | Sloe — one plant; sloe is the fruit of the blackthorn"}
 {"_type": "known_polysemy", "source_lang": "celtic_mix", "source_lemma": "gráig", "reason": "Hamlet | Outlying homestead — synonyms in Irish toponymy"}
 {"_type": "known_polysemy", "source_lang": "old_english", "source_lemma": "merece", "reason": "Smallage | Wild celery — one plant (smallage IS wild celery)"}
@@ -8,3 +8,61 @@
 {"_type": "known_polysemy", "source_lang": "old_scandinavian", "source_lemma": "stokkr", "reason": "Hamlet | Outlying homestead — synonyms (cf. celtic_mix:gráig)"}
 {"_type": "known_polysemy", "source_lang": "old_scandinavian", "source_lemma": "heim", "reason": "home | home, homewards — same word with directional sense"}
 {"_type": "known_polysemy", "source_lang": "celtic_mix", "source_lemma": "moel", "reason": "Welsh 'moel' = bare, bald, bare hill — polysemy of one root ('Middle' gloss in source is a Wiktionary OCR artifact that may also warrant suppression)"}
+{"_type": "known_cluster_acceptable", "source_lang": "celtic_mix", "source_lemma": "stad", "reason": "Stad- cluster: celtic 'stop/halt' vs OE 'stōd' (Foal/Horse/Stud/meadow) — unrelated etymons sharing surface form"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "stōd", "reason": "Stad- cluster: see celtic_mix:stad"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_scandinavian", "source_lemma": "hel", "reason": "-hel- cluster: ON Hel (the underworld goddess) vs celtic 'to send' — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "celtic_mix", "source_lemma": "hel", "reason": "-hel- cluster: see old_scandinavian:hel"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_french", "source_lemma": "ost", "reason": "-ost- cluster: OF ost 'army' vs OE 'knot in a tree' — both real, both productive"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "ost", "reason": "-ost- cluster: see old_french:ost"}
+{"_type": "known_cluster_acceptable", "source_lang": "celtic_mix", "source_lemma": "mban", "reason": "Bean-/-bean- cluster: celtic mban 'Woman' vs OE 'bean' (the legume) — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "bean", "reason": "Bean-/-bean- cluster: see celtic_mix:mban"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "bare", "reason": "Bare- cluster: OE bare 'barley/boar' vs ModE 'unclothed' — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "modern_english", "source_lemma": "bare", "reason": "Bare- cluster: see old_english:bare"}
+{"_type": "known_cluster_acceptable", "source_lang": "modern_english", "source_lemma": "gris", "reason": "Gris- cluster: ModE 'young pig' vs OF 'gray' — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_french", "source_lemma": "gris", "reason": "Gris- cluster: see modern_english:gris"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "Nen", "reason": "-nen- cluster: OE Nen (the river Nene in Northamptonshire) vs celtic 'heaven' — proper noun + common noun"}
+{"_type": "known_cluster_acceptable", "source_lang": "celtic_mix", "source_lemma": "nen", "reason": "-nen- cluster: see old_english:Nen"}
+{"_type": "known_cluster_acceptable", "source_lang": "celtic_mix", "source_lemma": "cuileann", "reason": "Cul- cluster: celtic 'Holly' vs celtic 'cul' (chariot) — different lemmas, same prefix"}
+{"_type": "known_cluster_acceptable", "source_lang": "celtic_mix", "source_lemma": "cul", "reason": "Cul- cluster: see celtic_mix:cuileann"}
+{"_type": "known_cluster_acceptable", "source_lang": "celtic_mix", "source_lemma": "maer", "reason": "Maer- cluster: celtic 'mayor' vs OE 'mere' (pond/pool/boundary) — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "mere", "reason": "Maer- cluster: see celtic_mix:maer"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "gen", "reason": "Gen-/-gen- cluster: OE 'hill or mountain' vs celtic 'smile' — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "celtic_mix", "source_lemma": "gen", "reason": "Gen-/-gen- cluster: see old_english:gen"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "eala", "reason": "-eala- cluster: OE 'oh; hey' (interjection) vs celtic 'swan' — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "celtic_mix", "source_lemma": "eala", "reason": "-eala- cluster: see old_english:eala"}
+{"_type": "known_cluster_acceptable", "source_lang": "celtic_mix", "source_lemma": "guid", "reason": "Guid- cluster: Munster/Ulster form of 'goid' (steal) vs ModE 'guid' (a flower) — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "modern_english", "source_lemma": "guid", "reason": "Guid- cluster: see celtic_mix:guid"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "hold", "reason": "Hold-/-hold- cluster: OE 'dead body; carcass' vs ModE 'gracious' — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "modern_english", "source_lemma": "hold", "reason": "Hold-/-hold- cluster: see old_english:hold"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "scēap", "reason": "Ship- cluster: OE 'sheep' vs OE 'heópe' (rose hip) — same-lang homograph"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "heópe", "reason": "Ship- cluster: see old_english:scēap"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "clara", "reason": "Clare- cluster: OE personal name Clara vs celtic 'cleacán' (plain) — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "celtic_mix", "source_lemma": "cleacán", "reason": "Clare- cluster: see old_english:clara"}
+{"_type": "known_cluster_acceptable", "source_lang": "modern_english", "source_lemma": "alder", "reason": "Alder- cluster: ModE 'leader/ruler' vs OE 'alor' (alder tree) — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "alor", "reason": "Alder- cluster: see modern_english:alder"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_french", "source_lemma": "fou", "reason": "Fou-/-fou- cluster: OF 'beech (tree)' vs ModE 'multicoloured' — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "modern_english", "source_lemma": "fou", "reason": "Fou-/-fou- cluster: see old_french:fou"}
+{"_type": "known_cluster_acceptable", "source_lang": "celtic_mix", "source_lemma": "Anna", "reason": "Anna-/-anna- cluster: celtic Anna (female name from Ancient Greek) vs ON 'anna' (to be able to do) — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_scandinavian", "source_lemma": "anna", "reason": "Anna-/-anna- cluster: see celtic_mix:Anna"}
+{"_type": "known_cluster_acceptable", "source_lang": "celtic_mix", "source_lemma": "maigh", "reason": "Mag- cluster: celtic 'Plain' vs celtic 'maegthe' (Mayweed) — same-lang homograph"}
+{"_type": "known_cluster_acceptable", "source_lang": "celtic_mix", "source_lemma": "maegthe", "reason": "Mag- cluster: see celtic_mix:maigh"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "fin", "reason": "-fin- cluster: OE fin (Woodpecker / alternative form of finn / heap) vs OF 'fine' — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_french", "source_lemma": "fin", "reason": "-fin- cluster: see old_english:fin"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "hos", "reason": "Hos-/-hos- cluster: OE 'escort; company; troop' vs ModE 'hoarse; harsh-sounding' — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "modern_english", "source_lemma": "hos", "reason": "Hos-/-hos- cluster: see old_english:hos"}
+{"_type": "known_cluster_acceptable", "source_lang": "celtic_mix", "source_lemma": "fel", "reason": "Fel- cluster: celtic 'as' (function word) vs OE 'falh' (fallow land) — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "falh", "reason": "Fel- cluster: see celtic_mix:fel"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "bur", "reason": "Bur- cluster: OE bur (private chamber) vs OE burh (fort/stronghold) — same-lang homograph; both real OE place-name elements"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "burh", "reason": "Bur- cluster: see old_english:bur"}
+{"_type": "known_cluster_acceptable", "source_lang": "modern_english", "source_lemma": "wor", "reason": "Wor- cluster: ModE 'the seashore or beach' vs OE wōr (Wood-grouse / swamp) — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "wōr", "reason": "Wor- cluster: see modern_english:wor"}
+{"_type": "known_cluster_acceptable", "source_lang": "modern_english", "source_lemma": "reve", "reason": "Reve-/-reve- cluster: ModE 'reeve or bailiff' vs OF 'reve' (turnip) — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_french", "source_lemma": "reve", "reason": "Reve-/-reve- cluster: see modern_english:reve"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "brig", "reason": "-brig- cluster: OE brig (alternative form of brīw / bridge) vs celtic 'treetop' — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "celtic_mix", "source_lemma": "brig", "reason": "-brig- cluster: see old_english:brig"}
+{"_type": "known_cluster_acceptable", "source_lang": "modern_english", "source_lemma": "pap", "reason": "Pap- cluster: ModE 'gruel or porridge' vs ON 'papi' (hermit/hermitage) — unrelated; ON papi gives 'Papa-' Scottish island names"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_scandinavian", "source_lemma": "papi", "reason": "Pap- cluster: see modern_english:pap"}
+{"_type": "known_cluster_acceptable", "source_lang": "modern_english", "source_lemma": "sker", "reason": "Sker-/-sker- cluster: ModE 'Terror' vs ON 'sker' (reef/rock/stony) — unrelated; ON sker is the productive sense for Scottish coastal place-names"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_scandinavian", "source_lemma": "sker", "reason": "Sker-/-sker- cluster: see modern_english:sker"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_french", "source_lemma": "mer", "reason": "Mer- cluster: OF mer 'sea' vs OE mearth (Martin/Weasel) — unrelated"}
+{"_type": "known_cluster_acceptable", "source_lang": "old_english", "source_lemma": "mearth", "reason": "Mer- cluster: see old_french:mer"}

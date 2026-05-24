@@ -201,31 +201,39 @@ def _primary_source_lemma(word: dict) -> tuple[str, str] | None:
     return None
 
 
-def _load_known_polysemy(path: Path | None) -> frozenset[tuple[str, str]]:
-    """Load the operator-maintained allowlist of (source_lang, source_lemma)
-    pairs that are confirmed real polysemy — one word with multiple
-    related senses — that the cosine-similarity audit cannot tell apart
-    from undetected homonyms.
+def _load_audit_allowlist(path: Path | None, event_type: str) -> frozenset[tuple[str, str]]:
+    """Load an operator-maintained allowlist of (source_lang, source_lemma)
+    pairs filtered by ``_type=<event_type>`` from the shared audit
+    allowlist file. Two event types ride in the same file today:
+
+    - ``known_polysemy`` — confirmed real polysemy (one word with
+      multiple related senses) that the cosine audit can't tell apart
+      from undetected homonyms; filtered out of intra-entry-suspects.
+    - ``known_cluster_acceptable`` — confirmed legitimate cross-language
+      homographs that legitimately share a bundle surface form (e.g.
+      OE ``ost`` 'knot in a tree' and OF ``ost`` 'army' both contribute
+      to ``-ost-`` toponyms); filtered out of cross-sibling-suspects.
 
     Returns an empty frozenset when ``path`` is None, an empty string,
-    a directory, or a nonexistent file (the latter three are operator
-    bypass shapes — empty ``--known-polysemy-file ""`` is the natural
-    "turn this off" gesture). Raises ``click.ClickException`` on
-    malformed JSON or missing-required-field rows — those are operator
-    typos, not bypass intent.
+    a directory, or a nonexistent file (operator bypass shapes — empty
+    ``--known-…-file ""`` is the natural "turn this off" gesture).
+    Raises ``click.ClickException`` on malformed JSON or
+    missing-required-field rows — those are operator typos, not
+    bypass intent.
 
     File format: JSONL. One synthetic ``_type=source`` row at the top
-    (operator note) plus one ``_type=known_polysemy`` row per entry
-    with ``source_lang`` and ``source_lemma`` fields keyed in the
-    BUNDLE form (underscore-joined, e.g. ``old_english`` not the
-    lexicon's ``old-english``). An optional ``reason`` field rides
-    along for audit-log readability; only ``source_lang`` +
-    ``source_lemma`` participate in the filter. Both keys are
-    ``.strip()`` ed on load to guard against trailing whitespace from
-    hand-edited entries.
+    (operator note) plus one ``_type=<event_type>`` row per entry with
+    ``source_lang`` and ``source_lemma`` fields keyed in the BUNDLE
+    form (underscore-joined, e.g. ``old_english`` not the lexicon's
+    ``old-english``). An optional ``reason`` field rides along for
+    audit-log readability; only ``source_lang`` + ``source_lemma``
+    participate in the filter. Both keys are ``.strip()`` ed on load
+    to guard against trailing whitespace from hand-edited entries.
+    Rows of any other ``_type`` are silently skipped so a single file
+    can carry multiple event types without cross-pollination.
     """
     # Operator-bypass shapes: None / empty / "." / nonexistent / dir.
-    # Click parses ``--known-polysemy-file ""`` into ``Path('.')``,
+    # Click parses ``--known-…-file ""`` into ``Path('.')``,
     # which exists as a directory; without this guard the .open() call
     # below would raise IsADirectoryError mid-audit.
     if path is None or str(path) in ("", ".") or not path.exists() or path.is_dir():
@@ -242,37 +250,53 @@ def _load_known_polysemy(path: Path | None) -> frozenset[tuple[str, str]]:
                 raise click.ClickException(
                     f"{path}:{line_no}: malformed JSON in allowlist: {exc}"
                 ) from exc
-            if row.get("_type") != "known_polysemy":
+            if row.get("_type") != event_type:
                 continue
             lang = row.get("source_lang")
             lemma = row.get("source_lemma")
             if not lang or not lemma:
                 raise click.ClickException(
-                    f"{path}:{line_no}: known_polysemy row missing source_lang and/or source_lemma"
+                    f"{path}:{line_no}: {event_type} row missing source_lang and/or source_lemma"
                 )
             entries.add((lang.strip(), lemma.strip()))
     return frozenset(entries)
 
 
-def _apply_polysemy_filter(
-    intra_rows: list[dict],
+def _load_known_polysemy(path: Path | None) -> frozenset[tuple[str, str]]:
+    """Back-compat wrapper around :func:`_load_audit_allowlist` for
+    ``known_polysemy`` rows (intra-entry-suspects filter)."""
+    return _load_audit_allowlist(path, "known_polysemy")
+
+
+def _load_known_cluster_acceptable(path: Path | None) -> frozenset[tuple[str, str]]:
+    """Load the ``known_cluster_acceptable`` allowlist (cross-sibling-
+    suspects filter). See :func:`_load_audit_allowlist`."""
+    return _load_audit_allowlist(path, "known_cluster_acceptable")
+
+
+def _apply_allowlist_filter(
+    rows: list[dict],
     allowlist: frozenset[tuple[str, str]],
 ) -> tuple[list[dict], int]:
     """Drop rows whose (source_lang, source_lemma) is in the allowlist.
 
     Returns ``(kept_rows, dropped_count)``. Both inputs use the BUNDLE
-    underscore-joined form (see ``_load_known_polysemy``). ``.strip()``
-    on both sides defends against hand-edited whitespace drift in the
-    allowlist file or bundle.
+    underscore-joined form (see :func:`_load_audit_allowlist`).
+    ``.strip()`` on both sides defends against hand-edited whitespace
+    drift in the allowlist file or bundle.
     """
     if not allowlist:
-        return intra_rows, 0
+        return rows, 0
     kept = [
-        r
-        for r in intra_rows
-        if (r["source_lang"].strip(), r["source_lemma"].strip()) not in allowlist
+        r for r in rows if (r["source_lang"].strip(), r["source_lemma"].strip()) not in allowlist
     ]
-    return kept, len(intra_rows) - len(kept)
+    return kept, len(rows) - len(kept)
+
+
+# Back-compat alias retained so external test imports from PR #344
+# don't break. New call sites should use the unprefixed
+# ``_apply_allowlist_filter`` since the shape is event-type-agnostic.
+_apply_polysemy_filter = _apply_allowlist_filter
 
 
 @click.command("audit-semantic-coherence")
@@ -340,6 +364,23 @@ def _apply_polysemy_filter(
         "string or a nonexistent path to skip filtering."
     ),
 )
+@click.option(
+    "--known-cluster-acceptable-file",
+    "known_cluster_acceptable_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=Path("data/audit/known_polysemy.jsonl"),
+    show_default=True,
+    help=(
+        "Allowlist of (source_lang, source_lemma) pairs that are confirmed "
+        "legitimate cross-language homographs — two different etymons that "
+        "rightfully share a bundle surface form (e.g. OE ``ost`` 'knot in a "
+        "tree' and OF ``ost`` 'army' both contribute to ``-ost-`` toponyms). "
+        "Filtered out of the cross-sibling-suspects CSV. Defaults to the same "
+        "file as --known-polysemy-file; rows are filtered by ``_type`` so a "
+        "single file can carry both event types. Pass an empty string or a "
+        "nonexistent path to skip filtering."
+    ),
+)
 def lexicon_audit_semantic_coherence(
     meanings_path: Path | None,
     output_dir: Path,
@@ -349,6 +390,7 @@ def lexicon_audit_semantic_coherence(
     limit: int | None,
     top: int,
     known_polysemy_path: Path,
+    known_cluster_acceptable_path: Path,
 ) -> None:
     """Embedding-based audit for bundle cluster pollution + undetected
     homonymy. Produces two suspect CSVs for human review.
@@ -370,6 +412,14 @@ def lexicon_audit_semantic_coherence(
         click.echo(
             f"Loaded {len(known_polysemy)} known-polysemy entries from "
             f"{known_polysemy_path} (filtered out of intra-entry-suspects)",
+            err=True,
+        )
+    known_cluster_acceptable = _load_known_cluster_acceptable(known_cluster_acceptable_path)
+    if known_cluster_acceptable:
+        click.echo(
+            f"Loaded {len(known_cluster_acceptable)} known-cluster-acceptable "
+            f"entries from {known_cluster_acceptable_path} "
+            "(filtered out of cross-sibling-suspects)",
             err=True,
         )
 
@@ -475,13 +525,17 @@ def lexicon_audit_semantic_coherence(
                 }
             )
     cross_rows.sort(key=lambda r: r["avg_cosine_to_mates"])
+    cross_rows, cross_filtered_out = _apply_allowlist_filter(cross_rows, known_cluster_acceptable)
     cross_path = output_dir / "cross-sibling-suspects.csv"
     _write_csv(cross_path, cross_rows[:top])
-    click.echo(
+    cross_msg = (
         f"wrote {len(cross_rows[:top])} suspects to {cross_path} "
-        f"(of {len(cross_rows)} total across {len(multi_buckets)} multi-sibling buckets)",
-        err=True,
+        f"(of {len(cross_rows)} total across {len(multi_buckets)} multi-sibling buckets"
     )
+    if cross_filtered_out:
+        cross_msg += f"; {cross_filtered_out} filtered as known cluster-acceptable"
+    cross_msg += ")"
+    click.echo(cross_msg, err=True)
 
     # === Pass 4: intra-entry coherence (per-gloss embed needed) ==
     multi_gloss = [e for e in entities if len(e["glosses"]) >= 2]
@@ -547,7 +601,7 @@ def lexicon_audit_semantic_coherence(
             }
         )
     intra_rows.sort(key=lambda r: r["avg_intra_pairwise_cosine"])
-    intra_rows, intra_filtered_out = _apply_polysemy_filter(intra_rows, known_polysemy)
+    intra_rows, intra_filtered_out = _apply_allowlist_filter(intra_rows, known_polysemy)
     intra_path = output_dir / "intra-entry-suspects.csv"
     _write_csv(intra_path, intra_rows[:top])
     msg = (

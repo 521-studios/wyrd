@@ -16,7 +16,10 @@ import click
 import pytest
 
 from wyrd.generators.kenning.cli.lexicon.audit_semantic_coherence import (
+    _apply_allowlist_filter,
     _apply_polysemy_filter,
+    _load_audit_allowlist,
+    _load_known_cluster_acceptable,
     _load_known_polysemy,
 )
 
@@ -203,3 +206,95 @@ def test_load_shipped_default_allowlist_parses_cleanly():
     assert ("celtic_mix", "draigneach") in entries
     assert ("celtic_mix", "sceach") in entries
     assert ("old_scandinavian", "stokkr") in entries
+
+
+# ---------------------------------------------------------------------------
+# Cross-sibling event type: _load_known_cluster_acceptable
+# ---------------------------------------------------------------------------
+
+
+def test_load_cluster_acceptable_collects_only_its_event_type(tmp_path: Path):
+    """Same file can carry both event types; the two loaders are
+    typed-filtered and don't cross-pollinate."""
+    path = _write_allowlist(
+        tmp_path,
+        [
+            {
+                "_type": "known_polysemy",
+                "source_lang": "old_english",
+                "source_lemma": "merece",
+            },
+            {
+                "_type": "known_cluster_acceptable",
+                "source_lang": "old_english",
+                "source_lemma": "ost",
+                "reason": "-ost- cluster",
+            },
+            {
+                "_type": "known_cluster_acceptable",
+                "source_lang": "old_french",
+                "source_lemma": "ost",
+                "reason": "-ost- cluster",
+            },
+        ],
+    )
+    assert _load_known_polysemy(path) == frozenset({("old_english", "merece")})
+    assert _load_known_cluster_acceptable(path) == frozenset(
+        {("old_english", "ost"), ("old_french", "ost")}
+    )
+
+
+def test_load_audit_allowlist_arbitrary_event_type(tmp_path: Path):
+    """The generic loader is event-type-parametric — a future event
+    type can ride in the same file without changing the loader."""
+    path = _write_allowlist(
+        tmp_path,
+        [
+            {
+                "_type": "future_event_type",
+                "source_lang": "old_english",
+                "source_lemma": "x",
+            }
+        ],
+    )
+    assert _load_audit_allowlist(path, "future_event_type") == frozenset({("old_english", "x")})
+    # And it does NOT leak into the typed loaders:
+    assert _load_known_polysemy(path) == frozenset()
+    assert _load_known_cluster_acceptable(path) == frozenset()
+
+
+def test_apply_polysemy_filter_back_compat_alias():
+    """PR #344 exposed _apply_polysemy_filter; renamed to
+    _apply_allowlist_filter in this PR. The back-compat alias must
+    still work since external code or tests may import the old name."""
+    rows = [
+        {"source_lang": "old_english", "source_lemma": "ost"},
+        {"source_lang": "celtic_mix", "source_lemma": "stad"},
+    ]
+    allowlist = frozenset({("old_english", "ost")})
+    kept_via_alias, dropped_via_alias = _apply_polysemy_filter(rows, allowlist)
+    kept_via_new, dropped_via_new = _apply_allowlist_filter(rows, allowlist)
+    assert kept_via_alias == kept_via_new
+    assert dropped_via_alias == dropped_via_new
+    assert dropped_via_alias == 1
+
+
+def test_load_shipped_cluster_acceptable_entries_parse_cleanly():
+    """The committed data/audit/known_polysemy.jsonl now carries
+    known_cluster_acceptable rows seeded from the cross-sibling-suspects
+    audit. Pin a count + spot-check headline entries so accidental
+    deletions / data-typos surface in CI."""
+    path = Path(__file__).resolve().parent.parent / "data" / "audit" / "known_polysemy.jsonl"
+    entries = _load_known_cluster_acceptable(path)
+    # Seeded from the cross-sibling walkthrough — bump this assertion
+    # when the operator adds new entries.
+    assert len(entries) >= 50
+    # Spot-check headline clusters (both halves of each cluster present).
+    assert ("celtic_mix", "stad") in entries
+    assert ("old_english", "stōd") in entries
+    assert ("old_french", "ost") in entries
+    assert ("old_english", "ost") in entries
+    assert ("old_scandinavian", "hel") in entries
+    assert ("celtic_mix", "hel") in entries
+    assert ("modern_english", "sker") in entries
+    assert ("old_scandinavian", "sker") in entries
