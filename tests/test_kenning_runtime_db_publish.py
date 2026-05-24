@@ -19,6 +19,7 @@ import datetime as _dt
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import boto3
@@ -28,9 +29,11 @@ from moto import mock_aws
 
 from wyrd.generators.kenning.lexicon.runtime_db_publish import (
     CURRENT_POINTER_KEY,
+    ENV_PROFILES,
     _bucket_for_env,
     _generate_version_key,
     _md5_of_file,
+    _resolve_profile,
     format_summary,
     main,
     publish_runtime_db,
@@ -102,6 +105,44 @@ def test_md5_of_file_matches_known_content(tmp_path: Path) -> None:
     p.write_bytes(b"hello world")
     # md5sum -- known value for "hello world"
     assert _md5_of_file(p) == "5eb63bbbe01eeed093cb22bb8f5acdc3"
+
+
+def test_generate_version_key_normalizes_naive_datetime_to_utc() -> None:
+    """A naive (tzinfo=None) datetime is treated as UTC, not silently
+    stamped with a misleading Z suffix on a non-UTC value."""
+    naive = _dt.datetime(2026, 5, 24, 15, 0, 0)  # no tzinfo
+    assert _generate_version_key(now=naive) == "v/2026-05-24T15-00Z.db"
+
+
+def test_generate_version_key_converts_non_utc_to_utc() -> None:
+    """A tz-aware datetime in a non-UTC zone is converted to UTC
+    before stamping. PST 15:00 → UTC 23:00."""
+    pst = _dt.timezone(_dt.timedelta(hours=-8))
+    moment = _dt.datetime(2026, 5, 24, 15, 0, 0, tzinfo=pst)
+    assert _generate_version_key(now=moment) == "v/2026-05-24T23-00Z.db"
+
+
+def test_resolve_profile_none_uses_env_mapped_default() -> None:
+    """profile=None falls through to ENV_PROFILES[env]."""
+    assert _resolve_profile(None, "staging") == ENV_PROFILES["staging"]
+    assert _resolve_profile(None, "production") == ENV_PROFILES["production"]
+
+
+def test_resolve_profile_empty_string_means_no_profile() -> None:
+    """profile='' is the 'explicit no-profile' sentinel."""
+    assert _resolve_profile("", "staging") == ""
+
+
+def test_resolve_profile_named_passes_through() -> None:
+    """profile='some-name' is returned as-is."""
+    assert _resolve_profile("custom-profile", "staging") == "custom-profile"
+
+
+def test_resolve_profile_unknown_env_returns_empty() -> None:
+    """An env not in ENV_PROFILES + profile=None falls through to the
+    no-profile chain rather than raising. Useful for future envs added
+    to ENV_BUCKETS but not yet ENV_PROFILES."""
+    assert _resolve_profile(None, "nonexistent-env") == ""
 
 
 # ---------- publish_runtime_db: real upload path ----------
@@ -216,9 +257,12 @@ def test_publish_versioned_upload_precedes_pointer(fake_s3, source_db: Path, mon
     pointer to a missing key.
 
     Verify by intercepting put_object and recording call order. The
-    versioned-key PUT goes through upload_file (calls put_object
-    internally on the moto mock), so we hook put_object to track the
-    sequence."""
+    stub below routes upload_file through put_object so a single
+    call-order list captures both PUTs — this test ONLY checks order,
+    NOT upload_file behavior. End-to-end coverage of upload_file
+    (multipart on >8MB files, content-type, etc.) lives in
+    test_publish_uploads_versioned_key_then_pointer where the real
+    moto upload_file path runs."""
     call_order: list[str] = []
     real_put = fake_s3.put_object
 
@@ -323,6 +367,43 @@ def test_main_missing_source_returns_nonzero(tmp_path: Path, capsys) -> None:
     assert "does not exist" in err
 
 
+def test_main_collision_exit_returns_nonzero(fake_s3, source_db: Path, capsys) -> None:
+    """main()'s second except-branch (RuntimeError / ClientError /
+    ValueError) is exercised by inducing a versioned-key collision.
+    Pre-seed S3 with the timestamped key the upload will compute, then
+    run main() and confirm exit=1 + error message reaches stderr."""
+    # Pre-seed so the upload's head_object finds an existing object.
+    # Use a fixed --version-key would be nicer but main() doesn't
+    # surface that; seed the key the wall-clock minute will produce
+    # instead by intercepting _generate_version_key.
+    import wyrd.generators.kenning.lexicon.runtime_db_publish as mod
+
+    fixed_key = "v/2026-05-24T22-22Z.db"
+    fake_s3.put_object(Bucket=TEST_BUCKET, Key=fixed_key, Body=b"prior")
+    # Patch the version-key generator so main() lands on the seeded key.
+    orig = mod._generate_version_key
+    mod._generate_version_key = lambda *, now=None: fixed_key
+    try:
+        rc = main(
+            [
+                "--env",
+                "staging",
+                "--bucket",
+                TEST_BUCKET,
+                "--profile",
+                "",
+                "--source",
+                str(source_db),
+            ]
+        )
+    finally:
+        mod._generate_version_key = orig
+
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert "refusing to overwrite" in err
+
+
 def test_main_unknown_env_rejected_by_argparse(tmp_path: Path, capsys) -> None:
     """argparse choices= rejects bad --env values before our code runs."""
     p = tmp_path / "x.db"
@@ -352,6 +433,11 @@ def test_shell_wrapper_forwards_dry_run(
     worktree_root = script.parent.parent
     env = {
         **os.environ,
+        # WYRD_PYTHON points at the test's known-good python, bypassing
+        # the wrapper's .venv lookup (worktrees don't have their own
+        # .venv — the parent repo's venv was set up before the worktree
+        # was created).
+        "WYRD_PYTHON": sys.executable,
         "PYTHONPATH": str(worktree_root),
         # Bypass any operator SSO that would 401 on import.
         "AWS_ACCESS_KEY_ID": "moto-test",
@@ -370,3 +456,73 @@ def test_shell_wrapper_forwards_dry_run(
     assert result.returncode == 0, result.stderr
     assert "[DRY RUN]" in result.stderr
     assert "521studios-staging-kenning-runtime" in result.stderr
+
+
+def test_shell_wrapper_errors_loudly_when_venv_missing(source_db: Path, tmp_path: Path) -> None:
+    """Without .venv/bin/python AND without WYRD_PYTHON/the opt-in
+    fallback flag, the wrapper must error with a useful message
+    instead of silently calling python3 and producing a confusing
+    ModuleNotFoundError downstream."""
+    script = Path(__file__).resolve().parents[1] / "bin" / "publish-runtime-db.sh"
+
+    # Point REPO_ROOT at a fresh empty tmpdir so .venv/bin/python is
+    # definitively missing. The shell wrapper resolves REPO_ROOT
+    # relative to the script location, so we need to copy the script
+    # into the fake tree to point its lookup at the empty .venv.
+    fake_root = tmp_path / "fake-repo"
+    fake_bin = fake_root / "bin"
+    fake_bin.mkdir(parents=True)
+    fake_script = fake_bin / "publish-runtime-db.sh"
+    fake_script.write_text(script.read_text())
+    fake_script.chmod(0o755)
+
+    env = {**os.environ}
+    env.pop("WYRD_PYTHON", None)
+    env.pop("WYRD_PUBLISH_ALLOW_SYSTEM_PYTHON", None)
+
+    result = subprocess.run(
+        [str(fake_script), "--env", "staging", "--source", str(source_db), "--dry-run"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    assert result.returncode == 1
+    assert ".venv/bin/python is missing" in result.stderr
+    assert "WYRD_PYTHON" in result.stderr
+
+
+def test_shell_wrapper_honors_wyrd_python_override(source_db: Path, tmp_path: Path) -> None:
+    """WYRD_PYTHON lets the operator point the wrapper at a non-default
+    interpreter (CI runners, non-standard installs)."""
+    script = Path(__file__).resolve().parents[1] / "bin" / "publish-runtime-db.sh"
+    worktree_root = script.parent.parent
+
+    env = {
+        **os.environ,
+        "WYRD_PYTHON": sys.executable,  # known-good python with our deps
+        "PYTHONPATH": str(worktree_root),
+        "AWS_ACCESS_KEY_ID": "moto-test",
+        "AWS_SECRET_ACCESS_KEY": "moto-test",
+    }
+    env.pop("AWS_PROFILE", None)
+
+    # Use a fake REPO_ROOT (without .venv) to force the WYRD_PYTHON
+    # branch — otherwise the test would just exercise the normal
+    # .venv-found path.
+    fake_root = tmp_path / "fake-repo"
+    fake_bin = fake_root / "bin"
+    fake_bin.mkdir(parents=True)
+    fake_script = fake_bin / "publish-runtime-db.sh"
+    fake_script.write_text(script.read_text())
+    fake_script.chmod(0o755)
+
+    result = subprocess.run(
+        [str(fake_script), "--env", "staging", "--source", str(source_db), "--dry-run"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "[DRY RUN]" in result.stderr

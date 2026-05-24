@@ -2,9 +2,9 @@
 
 Pushes a built L4 DB (``wyrd kenning lexicon export-runtime-db --output
 runtime.db``) to ``s3://521studios-{env}-kenning-runtime/v/<key>.db``,
-then atomically updates ``current.json`` to point at the new key. The
-runtime loader (PR 4) reads ``current.json`` on cold start and
-downloads the referenced versioned key.
+then updates ``current.json`` to point at the new key. The runtime
+loader reads ``current.json`` on cold start and downloads the
+referenced versioned key.
 
 S3 layout:
 
@@ -21,11 +21,16 @@ Versioned keys give: rollback = re-write current.json to a prior key;
 A/B = staging on v+1 while production stays on v; history queryable
 from S3 ListObjects.
 
-Upload order is load-bearing: write the versioned key FIRST, then
-``current.json``. That way a reader that fetches ``current.json``
-between the two writes never sees it pointing at a key that doesn't
-exist yet. Reverse the order and you get a brief window of broken
-loads on every push.
+Two correctness properties:
+
+* **Upload order matters.** The versioned-key PUT MUST land before the
+  ``current.json`` PUT. Reverse the order and a reader between the two
+  writes sees a pointer to a key that doesn't exist yet.
+* **The pointer flip is atomic at the key level** (S3 PutObject is
+  strongly consistent since Dec 2020 — once it returns, every
+  subsequent GET on that key sees the new value). This is the only
+  atomicity the publish path relies on; nothing requires the
+  versioned-key + pointer pair to flip together.
 """
 
 from __future__ import annotations
@@ -92,10 +97,7 @@ def publish_runtime_db(
         raise FileNotFoundError(f"source L4 DB does not exist: {source}")
 
     resolved_bucket = bucket if bucket is not None else _bucket_for_env(env)
-    # profile=None means "use env-mapped default"; profile="" means
-    # "explicit no profile" (tests + envs where AWS creds come from env
-    # vars rather than a named profile in ~/.aws/config).
-    resolved_profile = profile if profile is not None else ENV_PROFILES.get(env)
+    resolved_profile = _resolve_profile(profile, env)
     resolved_version_key = (
         version_key if version_key is not None else _generate_version_key(now=now)
     )
@@ -113,9 +115,9 @@ def publish_runtime_db(
             "dry_run": True,
         }
 
-    # Truthy resolved_profile → named profile; falsy ("" or None-but-
-    # env-had-no-mapping) → env-variable / instance-role credential
-    # chain.
+    # Named profile when resolved_profile is non-empty; otherwise fall
+    # through to boto3's default credential chain (env vars + IMDS +
+    # ~/.aws/credentials default profile).
     session = boto3.Session(profile_name=resolved_profile) if resolved_profile else boto3.Session()
     s3 = session.client("s3")
 
@@ -142,22 +144,58 @@ def _bucket_for_env(env: str) -> str:
     return ENV_BUCKETS[env]
 
 
+def _resolve_profile(profile: str | None, env: str) -> str:
+    """Tri-state profile resolution:
+
+    * ``profile=None`` (operator didn't pass --profile) → fall through
+      to the env-mapped default (``ENV_PROFILES[env]`` or empty if env
+      has no mapping).
+    * ``profile=""`` → explicit no-profile; the caller wants boto3's
+      default credential chain (env vars, IMDS) instead of any named
+      profile. Used by tests + envs where ~/.aws/config has no entry
+      for the operator.
+    * ``profile="some-name"`` → use that named profile directly.
+
+    Centralizing the convention here keeps the call sites readable and
+    is the natural spot for tests to pin the behavior.
+    """
+    if profile is not None:
+        return profile
+    return ENV_PROFILES.get(env, "")
+
+
 def _generate_version_key(*, now: _dt.datetime | None = None) -> str:
     """``v/<UTC ISO>.db`` — UTC-Z timestamp with minute precision.
 
-    Minute precision is enough to dedupe legitimate same-second re-pushes
-    without producing collisions in normal operation (publish frequency
-    is operator-driven, not bursty), and keeps the key short enough to
-    read in S3 listings.
+    Minute precision is enough to dedupe legitimate same-second
+    re-pushes without producing collisions in normal operation
+    (publish frequency is operator-driven, not bursty), and keeps the
+    key short enough to read in S3 listings.
+
+    Always normalizes ``now`` to UTC before stamping. A test that
+    passes a naive or non-UTC-aware datetime would otherwise produce a
+    misleading ``...Z`` suffix on a non-UTC value.
     """
-    stamp = (now if now is not None else _dt.datetime.now(_dt.UTC)).strftime("%Y-%m-%dT%H-%MZ")
-    return f"v/{stamp}.db"
+    moment = now if now is not None else _dt.datetime.now(_dt.UTC)
+    if moment.tzinfo is None:
+        # Naive datetime — treat as UTC. Most callers in this codebase
+        # use timezone-aware datetimes; this branch protects against
+        # the surprising case.
+        moment = moment.replace(tzinfo=_dt.UTC)
+    else:
+        moment = moment.astimezone(_dt.UTC)
+    return f"v/{moment.strftime('%Y-%m-%dT%H-%MZ')}.db"
 
 
 def _md5_of_file(path: Path) -> str:
-    """Compute the MD5 of a file — used as the ETag in current.json so
-    the runtime loader can short-circuit the GET when its cached file
-    already matches the pointer."""
+    """Compute the MD5 of a file.
+
+    Recorded as the ``etag`` field in current.json. S3 returns the
+    same value as the HTTP ETag for single-part uploads, so a runtime
+    loader can compare its cached file's MD5 against the pointer's
+    etag to decide whether to redownload — that's the intended use,
+    though this module doesn't depend on the consumer side.
+    """
     h = hashlib.md5()
     with path.open("rb") as f:
         for chunk in iter(lambda: f.read(65536), b""):
@@ -227,10 +265,12 @@ def main(argv: list[str] | None = None) -> int:
     """Thin argparse entry point — the bash wrapper at
     ``bin/publish-runtime-db.sh`` calls into here.
 
-    Returns the process exit code (0 = success, 1 = error). Avoids
-    click here because this is operator-side tooling not part of the
-    ``wyrd kenning`` CLI surface; argparse keeps the dependency
-    surface and import cost minimal.
+    Returns the process exit code (0 = success, 1 = error). Uses
+    argparse rather than click because this is operator-side tooling
+    invoked outside the ``wyrd kenning`` CLI surface; keeping it off
+    the click group means the operator can run it from anywhere
+    boto3 is reachable without instantiating the kenning command
+    tree.
     """
     import argparse
 
@@ -256,7 +296,15 @@ def main(argv: list[str] | None = None) -> int:
         help="Path to the built L4 DB file to publish.",
     )
     parser.add_argument("--bucket", default=None, help="Override env-derived bucket.")
-    parser.add_argument("--profile", default=None, help="Override env-derived AWS profile.")
+    parser.add_argument(
+        "--profile",
+        default=None,
+        help=(
+            "Override env-derived AWS profile. Pass an empty string ('') "
+            "to opt into boto3's default credential chain (env vars + "
+            "IMDS) instead of any named profile in ~/.aws/config."
+        ),
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
