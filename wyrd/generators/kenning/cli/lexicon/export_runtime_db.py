@@ -8,6 +8,7 @@ Thin click wrapper around
 from __future__ import annotations
 
 from importlib import resources
+from importlib.resources.abc import Traversable
 from pathlib import Path
 
 import click
@@ -130,7 +131,7 @@ def lexicon_export_runtime_db(
     """
     lang_thresholds = _parse_lang_thresholds(lang_threshold_specs, use_preset=use_preset)
 
-    proportions_source: Path | object = (
+    proportions_source: Path | Traversable = (
         proportions_dir if proportions_dir is not None else _bundled_proportions_dir()
     )
 

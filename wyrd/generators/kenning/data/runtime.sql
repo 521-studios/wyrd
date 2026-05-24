@@ -32,7 +32,11 @@ CREATE INDEX idx_meaning_language ON meaning(primary_language);
 CREATE INDEX idx_meaning_stratum  ON meaning(stratum);
 
 CREATE TABLE fantasy_morpheme (
-    usage_key TEXT PRIMARY KEY,               -- lowercase input_name, COLLATE NOCASE-matched
+    -- COLLATE NOCASE matches the L3 ``fantasy_morpheme.input_name`` contract.
+    -- The emitter lowercases the key but the COLLATE keeps the PK aligned
+    -- semantically so a future case-distinct input is rejected at write time
+    -- rather than silently shadowed.
+    usage_key TEXT PRIMARY KEY COLLATE NOCASE,
     data      BLOB NOT NULL                   -- JSON: full fantasy_morpheme payload
 );
 

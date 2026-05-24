@@ -105,12 +105,24 @@ def write_runtime_db(
 
     conn = sqlite3.connect(str(output_path))
     try:
+        # Build-time emit safety: the DB is committed once at the end and
+        # the file is deleted on any partial failure (the runtime treats
+        # the L4 DB as immutable). Disable journaling + fsync to cut emit
+        # time without sacrificing safety. Cache size is in pages (~10MB
+        # at the default 1KB page size) — plenty for the build's hot set.
+        conn.execute("PRAGMA journal_mode = OFF")
+        conn.execute("PRAGMA synchronous = OFF")
+        conn.execute("PRAGMA cache_size = 10000")
         _init_runtime_schema(conn)
         n_meanings = _write_meanings(conn, subjects)
         n_fantasy = _write_fantasy_morphemes(conn, fantasy_morphemes)
         n_canonical = _write_canonical_decompositions(conn, canonical_decompositions)
         proportion_counts = _write_proportions(conn, proportions_by_culture)
         _write_metadata(conn, source_lexicon_db=source_lexicon_db.resolve())
+        # Populate sqlite_stat tables so the runtime query planner has
+        # accurate index statistics for the sampling queries (the L4 DB
+        # is read-only at runtime; ANALYZE pays off on every cold start).
+        conn.execute("ANALYZE")
         conn.commit()
     finally:
         conn.close()
@@ -369,10 +381,19 @@ def _insert_cumulative(
             rows,
         )
     except sqlite3.IntegrityError as exc:
+        # The PRIMARY KEY is (culture, cumulative); cumulative is strictly
+        # monotonic within a single call and zero/negative weights are
+        # filtered above, so the realistic causes are: (a) _insert_cumulative
+        # being called twice for the same (table, culture) pair in a single
+        # emit (future-refactor regression), or (b) the L4 DB already
+        # holding rows for this (table, culture) at insert time (re-emit
+        # without first deleting the output file).
         raise RuntimeError(
-            f"cumulative insert into {table} for culture {culture!r} hit "
-            f"a constraint violation (likely duplicate cumulative value "
-            f"from a zero-weight that wasn't filtered): {exc}"
+            f"cumulative insert into {table} for culture {culture!r} hit a "
+            f"constraint violation — duplicate (culture, cumulative) row. "
+            f"Check whether {table} was already populated for this culture "
+            f"earlier in the emit, or whether the output DB wasn't truncated "
+            f"before writing: {exc}"
         ) from exc
     return len(rows)
 

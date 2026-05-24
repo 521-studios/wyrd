@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from importlib import resources
 from pathlib import Path
 
 import click
@@ -27,9 +28,11 @@ from wyrd.generators.kenning.cli.lexicon.export_runtime_db import (
 )
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.runtime_db_export import (
+    _insert_cumulative,
     _insert_tag_cooccurrence,
     _pick_primary_language,
     _pick_unanimous_stratum,
+    _strata_for_word,
     _write_canonical_decompositions,
     _write_fantasy_morphemes,
 )
@@ -151,7 +154,10 @@ def test_emit_writes_metadata(tmp_path: Path) -> None:
 
     assert meta["schema_version"] == SCHEMA_VERSION
     assert meta["emitter_version"] == EMITTER_VERSION
-    assert meta["source_lexicon_db"] == str(db_path)
+    # Resolve both sides — macOS tmp_path lives under /var/folders/...
+    # which symlinks to /private/var/...; the emitter calls .resolve()
+    # so the stored value is the realpath, not the as-passed value.
+    assert meta["source_lexicon_db"] == str(db_path.resolve())
     # Timestamp is sensitive to wall-clock; just confirm it's the
     # iso-ish shape and ends with Z.
     assert meta["built_at"].endswith("Z")
@@ -695,3 +701,163 @@ def test_proportions_usage_supports_log_n_sampling(tmp_path: Path) -> None:
 
     assert row_low[0] == "-ham-"
     assert row_high[0] == "-ton-"
+
+
+# ---------- round-2 coverage: round-1-added paths ----------
+
+
+def test_insert_cumulative_rejects_non_whitelisted_table(tmp_path: Path) -> None:
+    """``_CUMULATIVE_USAGE_TABLES`` whitelist is the SQL-injection safety
+    on the f-string-interpolated table name. A caller passing an
+    arbitrary table must hit the whitelist raise BEFORE the INSERT is
+    formatted."""
+    out_path = tmp_path / "runtime.db"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(out_path))
+    try:
+        with pytest.raises(ValueError, match="not in whitelist"):
+            _insert_cumulative(conn, "evil_table; DROP TABLE meaning;--", "english", [])
+    finally:
+        conn.close()
+
+
+def test_insert_cumulative_wraps_integrity_error(tmp_path: Path) -> None:
+    """A duplicate (culture, cumulative) row at insert time should raise
+    a RuntimeError chained from sqlite3.IntegrityError with culture +
+    table context so the operator can locate the offending pair."""
+    out_path = tmp_path / "runtime.db"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(out_path))
+    try:
+        conn.executescript(
+            "CREATE TABLE proportions_usage ("
+            "  culture TEXT NOT NULL, usage_key TEXT NOT NULL, "
+            "  weight INTEGER NOT NULL, cumulative INTEGER NOT NULL, "
+            "  PRIMARY KEY (culture, cumulative));"
+        )
+        # First insert lands fine.
+        _insert_cumulative(conn, "proportions_usage", "english", [("-ham-", 100)])
+        # Second insert with the same culture re-uses cumulative=100 → IntegrityError.
+        with pytest.raises(RuntimeError, match="proportions_usage.*english"):
+            _insert_cumulative(conn, "proportions_usage", "english", [("-ton-", 100)])
+    finally:
+        conn.close()
+
+
+def test_strata_for_word_skips_non_list_and_non_dict() -> None:
+    """``_strata_for_word`` defensive guards: skip non-list values,
+    skip non-dict elements within the list, skip dicts without a
+    truthy ``stratum`` field."""
+    word = {
+        "modern_usage": "-ham-",
+        "old_english_stratum": [
+            {"form": "ham", "stratum": "native-old-english"},
+            "not-a-dict",  # skipped
+            {"form": "heim"},  # no stratum → skipped
+            {"form": "hum", "stratum": ""},  # empty stratum → skipped
+        ],
+        "welsh_stratum": "not-a-list",  # skipped at outer guard
+        "not_a_stratum_key": [{"stratum": "decoy"}],  # wrong suffix
+    }
+    assert list(_strata_for_word(word)) == ["native-old-english"]
+
+
+def test_emit_default_proportions_dir_uses_bundled_resources(tmp_path: Path) -> None:
+    """When --proportions-dir is omitted the CLI falls back to
+    ``_bundled_proportions_dir()`` (a Traversable from
+    importlib.resources). End-to-end smoke: a fresh emit with no
+    explicit proportions dir must still populate the proportions
+    tables from the bundled JSONs."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+
+    runner = CliRunner()
+    # Omit --proportions-dir; the CLI default resolves to the bundled
+    # resource path.
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-runtime-db",
+            "--db",
+            str(db_path),
+            "--output",
+            str(out_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        cultures = {
+            row[0] for row in conn.execute("SELECT DISTINCT culture FROM proportions_usage")
+        }
+    finally:
+        conn.close()
+
+    # Bundled set ships english + scottish + welsh + irish + breton.
+    assert cultures == {"english", "scottish", "welsh", "irish", "breton"}
+
+
+def test_emit_resolves_relative_lexicon_path(tmp_path: Path, monkeypatch) -> None:
+    """``source_lexicon_db.resolve()`` must coerce a relative input
+    path to absolute before stamping bundle_metadata, so deployed L4
+    DBs can be correlated back to their L3 source."""
+    db_dir = tmp_path / "subdir"
+    db_dir.mkdir()
+    db_path = db_dir / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    # Invoke from within db_dir with a bare filename — click resolves it
+    # against cwd, but our explicit Path.resolve() must absolute-ize.
+    monkeypatch.chdir(db_dir)
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-runtime-db",
+            "--db",
+            "lexicon.db",  # relative
+            "--output",
+            str(out_path),
+            "--proportions-dir",
+            str(tmp_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        stored = conn.execute(
+            "SELECT value FROM bundle_metadata WHERE key = 'source_lexicon_db'"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+    assert Path(stored).is_absolute()
+    assert Path(stored).resolve() == db_path.resolve()
+
+
+def test_emit_via_traversable_proportions_dir(tmp_path: Path) -> None:
+    """``_load_proportions`` walks via the Traversable protocol so the
+    bundled-resources default works under any importlib.resources
+    backend including zip loaders. Smoke-test the Traversable path
+    explicitly (the CLI tests cover the default branch end-to-end; this
+    pins the contract at the function level)."""
+    from wyrd.generators.kenning.lexicon.runtime_db_export import _load_proportions
+
+    bundled = resources.files("wyrd.generators.kenning.data")
+    loaded = _load_proportions(bundled)
+    assert set(loaded.keys()) == {"english", "scottish", "welsh", "irish", "breton"}
+    # Each culture's payload must carry the canonical proportions keys
+    # the runtime samples on.
+    for culture, data in loaded.items():
+        assert {"usages", "single_usages", "structures", "tag_marginal", "tag_cooccurrence"} <= set(
+            data.keys()
+        ), f"culture {culture!r} missing keys"
