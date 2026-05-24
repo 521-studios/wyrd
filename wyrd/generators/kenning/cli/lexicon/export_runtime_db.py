@@ -23,6 +23,7 @@ from wyrd.generators.kenning.lexicon import (
     export_meanings,
 )
 from wyrd.generators.kenning.lexicon.runtime_db_export import (
+    DEV_TOP_N_PER_CULTURE,
     EMITTER_VERSION,
     SCHEMA_VERSION,
     write_runtime_db,
@@ -107,6 +108,27 @@ def _bundled_proportions_dir():
     default=True,
     show_default=True,
 )
+@click.option(
+    "--dev",
+    "dev_subset",
+    is_flag=True,
+    default=False,
+    help=(
+        "Emit a committed-seed-shaped subset of the L4: the top N usages "
+        "per culture by weight + all referenced meanings + all fantasy + "
+        "all canonical decompositions, with a fixed built_at sentinel so "
+        "the output is byte-stable. Used to regenerate the bundled "
+        "wyrd/generators/kenning/data/seed-runtime.db."
+    ),
+)
+@click.option(
+    "--dev-top-n",
+    "dev_top_n",
+    type=int,
+    default=DEV_TOP_N_PER_CULTURE,
+    show_default=True,
+    help="Per-culture cap on usages / single_usages in --dev mode.",
+)
 def lexicon_export_runtime_db(
     db_path: Path,
     output_path: Path,
@@ -117,6 +139,8 @@ def lexicon_export_runtime_db(
     include_rando: bool,
     include_wiktionary_empirical: bool,
     include_wave2_enriched: bool,
+    dev_subset: bool,
+    dev_top_n: int,
 ) -> None:
     """Emit the L4 runtime SQLite DB.
 
@@ -154,6 +178,8 @@ def lexicon_export_runtime_db(
         canonical_decompositions=canonical_decompositions,
         proportions_dir=proportions_source,
         source_lexicon_db=db_path,
+        dev_subset=dev_subset,
+        dev_top_n_per_culture=dev_top_n,
     )
 
     proportion_total = (

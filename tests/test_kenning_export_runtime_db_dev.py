@@ -1,0 +1,365 @@
+"""Tests for ``wyrd kenning lexicon export-runtime-db --dev`` (wyrd-d90t PR 2).
+
+PR 2 adds:
+* ``select_dev_subset()`` — deterministic top-N-by-weight slice of the
+  L4 inputs.
+* ``--dev`` CLI flag that runs the slice and pins ``built_at`` to a
+  fixed sentinel for byte-stable output.
+* ``wyrd/generators/kenning/data/seed-runtime.db`` — the committed
+  dev-mode seed; tests in this module verify the file is well-formed
+  and tagged with the current ``SCHEMA_VERSION``.
+
+The "drift detection" claim from the d90t design (PR 2 spec): byte-
+equal re-emit verification against an L3 fixture is not exercised in
+this PR — committing a fixture L3 alongside the seed would double the
+binary footprint without proportional fidelity gain. Schema-version
+drift is caught by the loads-cleanly test below; data drift is left
+to the operator's local ``--dev`` regeneration cycle.
+"""
+
+from __future__ import annotations
+
+import sqlite3
+from importlib import resources
+from pathlib import Path
+
+import pytest
+from click.testing import CliRunner
+
+from wyrd.generators.kenning.cli import cli as cli_root
+from wyrd.generators.kenning.cli.lexicon.export_runtime_db import SCHEMA_VERSION
+from wyrd.generators.kenning.lexicon.runtime_db_export import (
+    DEV_BUILT_AT,
+    _top_n_by_weight,
+    select_dev_subset,
+)
+
+# ---------- select_dev_subset ----------
+
+
+def _subject(usage: str, language: str = "old_english") -> dict:
+    return {
+        "meaning": ["Test"],
+        "modifier_tags": [],
+        "modifier_type": None,
+        "words": [{"modern_usage": usage, language: [usage]}],
+    }
+
+
+def _proportions(usages: dict[str, int], single_usages: dict[str, int] | None = None) -> dict:
+    return {
+        "usages": usages,
+        "single_usages": single_usages or {},
+        "structures": [{"proportion": 1, "words": [[{"location": "pre"}]]}],
+        "tag_marginal": {"water": 1},
+        "tag_cooccurrence": {"water|tree": 1},
+    }
+
+
+def test_top_n_by_weight_orders_weight_desc_then_alpha() -> None:
+    """Tiebreaker on weight ties is alphabetical key, so re-runs against
+    the same dict yield the same top-N regardless of insertion order."""
+    items = {"-zzz": 5, "-aaa": 10, "-bbb": 10, "-ccc": 3}
+    assert _top_n_by_weight(items, 3) == [("-aaa", 10), ("-bbb", 10), ("-zzz", 5)]
+
+
+def test_top_n_by_weight_caps_at_n() -> None:
+    items = {f"-key{i}": i for i in range(20)}
+    out = _top_n_by_weight(items, 5)
+    assert len(out) == 5
+    # Highest weights first: 19, 18, 17, 16, 15
+    assert [w for _, w in out] == [19, 18, 17, 16, 15]
+
+
+def test_select_dev_subset_drops_unreferenced_meanings() -> None:
+    """Any subject whose every word's modern_usage falls outside the
+    per-culture top-N union is dropped entirely from the L4."""
+    subjects = [
+        _subject("-ham-"),  # kept (in top-N below)
+        _subject("-orphan-"),  # dropped (not in any top-N)
+    ]
+    proportions = {
+        "english": _proportions({"-ham-": 100, "-ton-": 50}),
+    }
+    subs_out, _, _, props_out = select_dev_subset(
+        subjects,
+        fantasy_morphemes={},
+        canonical_decompositions={},
+        proportions_by_culture=proportions,
+        top_n_per_culture=2,
+    )
+    assert [s["words"][0]["modern_usage"] for s in subs_out] == ["-ham-"]
+    assert set(props_out["english"]["usages"].keys()) == {"-ham-", "-ton-"}
+
+
+def test_select_dev_subset_keeps_words_whose_usage_appears_in_any_culture() -> None:
+    """A morpheme used by Welsh-only generation should survive the
+    cross-culture union of keep-sets, even though English's top-N
+    doesn't include it."""
+    subjects = [_subject("caer-", "celtic_mix")]
+    proportions = {
+        "english": _proportions({"-ham-": 100}),
+        "welsh": _proportions({"caer-": 50}),
+    }
+    subs_out, _, _, _ = select_dev_subset(
+        subjects,
+        fantasy_morphemes={},
+        canonical_decompositions={},
+        proportions_by_culture=proportions,
+        top_n_per_culture=1,
+    )
+    assert [s["words"][0]["modern_usage"] for s in subs_out] == ["caer-"]
+
+
+def test_select_dev_subset_passes_fantasy_and_canonical_through() -> None:
+    """Fantasy + canonical decompositions aren't trimmed — they're small
+    enough that the seed shouldn't lose coverage of common names."""
+    fantasy = {"harpy": {"input_name": "Harpy"}}
+    canonical = {"Stratford": {"signature": "abc", "source": "scholar"}}
+    _, fantasy_out, canon_out, _ = select_dev_subset(
+        subjects=[],
+        fantasy_morphemes=fantasy,
+        canonical_decompositions=canonical,
+        proportions_by_culture={},
+        top_n_per_culture=1,
+    )
+    assert fantasy_out is fantasy
+    assert canon_out is canonical
+
+
+def test_select_dev_subset_drops_subject_with_no_surviving_words() -> None:
+    """When every word in a subject is filtered out, the whole subject
+    is dropped — keeps the meaning row count tight."""
+    subjects = [
+        {
+            "meaning": ["Test"],
+            "modifier_tags": [],
+            "modifier_type": None,
+            "words": [
+                {"modern_usage": "-out-1", "old_english": ["x"]},
+                {"modern_usage": "-out-2", "old_english": ["y"]},
+            ],
+        }
+    ]
+    proportions = {"english": _proportions({"-ham-": 100})}
+    subs_out, _, _, _ = select_dev_subset(
+        subjects,
+        fantasy_morphemes={},
+        canonical_decompositions={},
+        proportions_by_culture=proportions,
+        top_n_per_culture=10,
+    )
+    assert subs_out == []
+
+
+# ---------- --dev CLI flag ----------
+
+
+def _seed_minimal_lexicon(db_path: Path) -> None:
+    from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
+
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        db.upsert_source(id="skeat-1901", title="Skeat 1901", year=1901)
+        db.commit()
+
+
+def _write_proportions_fixture(directory: Path, culture: str = "english") -> None:
+    import json
+
+    payload = _proportions({"-ham-": 100, "-ton-": 50}, {"-castle": 20})
+    (directory / f"{culture}_proportions.json").write_text(json.dumps(payload))
+
+
+def test_dev_flag_pins_built_at_sentinel(tmp_path: Path) -> None:
+    """--dev replaces the wall-clock built_at with DEV_BUILT_AT so the
+    seed-runtime.db is byte-stable across emits."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-runtime-db",
+            "--dev",
+            "--db",
+            str(db_path),
+            "--proportions-dir",
+            str(tmp_path),
+            "--output",
+            str(out_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        built_at = conn.execute(
+            "SELECT value FROM bundle_metadata WHERE key = 'built_at'"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+    assert built_at == DEV_BUILT_AT
+
+
+def test_dev_flag_produces_byte_stable_output(tmp_path: Path) -> None:
+    """Two --dev emits with identical inputs must produce byte-equal
+    output — the foundation of the seed-runtime.db drift detection."""
+    db_path = tmp_path / "lexicon.db"
+    out1 = tmp_path / "runtime1.db"
+    out2 = tmp_path / "runtime2.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    runner = CliRunner()
+    for out in (out1, out2):
+        result = runner.invoke(
+            cli_root,
+            [
+                "lexicon",
+                "export-runtime-db",
+                "--dev",
+                "--db",
+                str(db_path),
+                "--proportions-dir",
+                str(tmp_path),
+                "--output",
+                str(out),
+            ],
+            catch_exceptions=False,
+        )
+        assert result.exit_code == 0, result.output
+
+    assert out1.read_bytes() == out2.read_bytes()
+
+
+def test_dev_flag_respects_top_n_cap(tmp_path: Path) -> None:
+    """--dev-top-n trims usages per culture; verify a low cap produces
+    a smaller proportions_usage row count."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    # 20 usages, cap to 5 → only 5 rows land per culture.
+    import json
+
+    payload = _proportions({f"-key{i}-": 100 - i for i in range(20)})
+    (tmp_path / "english_proportions.json").write_text(json.dumps(payload))
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-runtime-db",
+            "--dev",
+            "--dev-top-n",
+            "5",
+            "--db",
+            str(db_path),
+            "--proportions-dir",
+            str(tmp_path),
+            "--output",
+            str(out_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        usage_rows = conn.execute(
+            "SELECT COUNT(*) FROM proportions_usage WHERE culture = 'english'"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+    assert usage_rows == 5
+
+
+# ---------- committed seed-runtime.db ----------
+
+
+def _seed_path() -> Path:
+    """Return the on-disk path of the committed seed-runtime.db."""
+    return Path(str(resources.files("wyrd.generators.kenning.data").joinpath("seed-runtime.db")))
+
+
+@pytest.mark.skipif(
+    not _seed_path().is_file(),
+    reason="seed-runtime.db is not present; regenerate via "
+    "`wyrd kenning lexicon export-runtime-db --dev --output "
+    "wyrd/generators/kenning/data/seed-runtime.db`",
+)
+def test_committed_seed_carries_current_schema_version() -> None:
+    """bundle_metadata.schema_version on the committed seed must equal
+    the runtime's SCHEMA_VERSION constant. When the constant bumps
+    (incompatible schema change), the operator must regenerate the
+    seed or this test fails — the drift signal."""
+    conn = sqlite3.connect(str(_seed_path()))
+    try:
+        schema_version = conn.execute(
+            "SELECT value FROM bundle_metadata WHERE key = 'schema_version'"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+    assert schema_version == SCHEMA_VERSION, (
+        f"committed seed-runtime.db is at schema {schema_version!r} but "
+        f"the runtime expects {SCHEMA_VERSION!r}. Regenerate via "
+        "`wyrd kenning lexicon export-runtime-db --dev --output "
+        "wyrd/generators/kenning/data/seed-runtime.db`."
+    )
+
+
+@pytest.mark.skipif(
+    not _seed_path().is_file(),
+    reason="seed-runtime.db is not present",
+)
+def test_committed_seed_carries_dev_built_at() -> None:
+    """The committed seed must have been emitted with --dev (so the
+    fixed sentinel timestamp is present). Catches operator-error where
+    a non-dev emit accidentally clobbered the committed seed."""
+    conn = sqlite3.connect(str(_seed_path()))
+    try:
+        built_at = conn.execute(
+            "SELECT value FROM bundle_metadata WHERE key = 'built_at'"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+    assert built_at == DEV_BUILT_AT, (
+        f"committed seed has built_at={built_at!r}, expected {DEV_BUILT_AT!r}. "
+        "Did the operator regenerate without --dev?"
+    )
+
+
+@pytest.mark.skipif(
+    not _seed_path().is_file(),
+    reason="seed-runtime.db is not present",
+)
+def test_committed_seed_has_data_in_every_l4_table() -> None:
+    """Smoke check: every L4 table the runtime queries should have at
+    least one row in the committed seed, so local dev / unit tests have
+    something to exercise the generator surface against."""
+    conn = sqlite3.connect(str(_seed_path()))
+    try:
+        for table in (
+            "meaning",
+            "fantasy_morpheme",
+            "canonical_decomposition",
+            "proportions_usage",
+            "proportions_single_usage",
+            "proportions_structure",
+            "proportions_tag_marginal",
+            "proportions_tag_cooccurrence",
+        ):
+            count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            assert count > 0, f"committed seed has no rows in {table}"
+    finally:
+        conn.close()
