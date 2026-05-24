@@ -277,9 +277,7 @@ def test_pointer_missing_required_keys_falls_back_to_bundled_seed(
 # ---------- string-type validation on pointer ----------
 
 
-def test_pointer_etag_with_path_traversal_rejected(
-    _clear_env, fake_s3, monkeypatch
-) -> None:
+def test_pointer_etag_with_path_traversal_rejected(_clear_env, fake_s3, monkeypatch) -> None:
     """An adversarial S3 supplying etag='../../etc/passwd' must NOT
     be allowed to escape /tmp via the cache-filename interpolation.
     The path-traversal guard catches it; falls back to bundled seed."""
