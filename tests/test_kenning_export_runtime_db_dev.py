@@ -114,11 +114,16 @@ def test_select_dev_subset_keeps_words_whose_usage_appears_in_any_culture() -> N
     assert [s["words"][0]["modern_usage"] for s in subs_out] == ["caer-"]
 
 
-def test_select_dev_subset_passes_fantasy_and_canonical_through() -> None:
-    """Fantasy + canonical decompositions aren't trimmed — they're small
-    enough that the seed shouldn't lose coverage of common names."""
-    fantasy = {"harpy": {"input_name": "Harpy"}}
-    canonical = {"Stratford": {"signature": "abc", "source": "scholar"}}
+def test_select_dev_subset_passes_fantasy_and_canonical_through_sorted() -> None:
+    """Fantasy + canonical decompositions aren't trimmed (they're small
+    enough that the seed shouldn't lose coverage of common names) but
+    ARE re-sorted by key so the SQL insertion order is byte-stable
+    across operators regardless of source-dict iteration order."""
+    fantasy = {"djinni": {"input_name": "Djinni"}, "harpy": {"input_name": "Harpy"}}
+    canonical = {
+        "Stratford": {"signature": "abc", "source": "scholar"},
+        "Birmingham": {"signature": "def", "source": "scholar"},
+    }
     _, fantasy_out, canon_out, _ = select_dev_subset(
         subjects=[],
         fantasy_morphemes=fantasy,
@@ -126,8 +131,11 @@ def test_select_dev_subset_passes_fantasy_and_canonical_through() -> None:
         proportions_by_culture={},
         top_n_per_culture=1,
     )
-    assert fantasy_out is fantasy
-    assert canon_out is canonical
+    # Same data, sorted keys — pin the deterministic order.
+    assert list(fantasy_out.keys()) == ["djinni", "harpy"]
+    assert list(canon_out.keys()) == ["Birmingham", "Stratford"]
+    assert fantasy_out == fantasy
+    assert canon_out == canonical
 
 
 def test_select_dev_subset_keeps_partial_survivor_words() -> None:

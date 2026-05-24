@@ -568,19 +568,27 @@ def select_dev_subset(
     """
     keep_usage_keys: set[str] = set()
     trimmed_proportions: dict[str, dict[str, Any]] = {}
-    for culture, data in proportions_by_culture.items():
+    # Sort by culture key so the SQL INSERT order is the same across
+    # platforms regardless of the source dict's iteration order.
+    for culture in sorted(proportions_by_culture):
+        data = proportions_by_culture[culture]
         usages = data.get("usages") or {}
         single_usages = data.get("single_usages") or {}
         kept_usages = dict(_top_n_by_weight(usages, top_n_per_culture))
         kept_single = dict(_top_n_by_weight(single_usages, top_n_per_culture))
         keep_usage_keys.update(kept_usages.keys())
         keep_usage_keys.update(kept_single.keys())
+        # Sort tag dicts so re-runs against the same data produce the
+        # same insertion order — defensive against future ingesters that
+        # might emit a different dict order than today's.
         trimmed_proportions[culture] = {
             "usages": kept_usages,
             "single_usages": kept_single,
             "structures": data.get("structures") or [],
-            "tag_marginal": data.get("tag_marginal") or {},
-            "tag_cooccurrence": data.get("tag_cooccurrence") or {},
+            "tag_marginal": dict(sorted((data.get("tag_marginal") or {}).items())),
+            "tag_cooccurrence": dict(
+                sorted((data.get("tag_cooccurrence") or {}).items())
+            ),
         }
 
     trimmed_subjects: list[dict[str, Any]] = []
@@ -596,13 +604,14 @@ def select_dev_subset(
         trimmed["words"] = kept_words
         trimmed_subjects.append(trimmed)
 
-    # Fantasy + canonical pass through unchanged. They're small enough
-    # that subsetting would cost more debuggability than it'd save in
-    # seed bytes.
+    # Fantasy + canonical: sort by key so re-runs against the same
+    # source pick the same INSERT order across platforms / Python
+    # versions, defensive against any future ingester whose dict
+    # iteration order isn't already stable.
     return (
         trimmed_subjects,
-        fantasy_morphemes,
-        canonical_decompositions,
+        dict(sorted(fantasy_morphemes.items())),
+        dict(sorted(canonical_decompositions.items())),
         trimmed_proportions,
     )
 
