@@ -38,7 +38,7 @@ def _reset_caches():
 
 
 @pytest.fixture
-def _proportions_db(tmp_path: Path) -> Path:
+def _proportions_db(tmp_path: Path) -> tuple[Path, Path]:
     """Build a small L4 DB with realistic per-culture proportions data
     so the adapter's round-trip + bit-equivalence tests have something
     non-trivial to chew on."""
@@ -116,7 +116,7 @@ def _proportions_db(tmp_path: Path) -> Path:
 # ---------- adapter shape ----------
 
 
-def test_proportions_dict_has_canonical_keys(_proportions_db: tuple) -> None:
+def test_proportions_dict_has_canonical_keys(_proportions_db: tuple[Path, Path]) -> None:
     """The adapter's output has the 5 keys load_proportions consumes."""
     db_path, _ = _proportions_db
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
@@ -133,7 +133,7 @@ def test_proportions_dict_has_canonical_keys(_proportions_db: tuple) -> None:
     }
 
 
-def test_proportions_dict_matches_source_weights(_proportions_db: tuple) -> None:
+def test_proportions_dict_matches_source_weights(_proportions_db: tuple[Path, Path]) -> None:
     """Round-trip: weights stored in the L4 come back unchanged."""
     db_path, _ = _proportions_db
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
@@ -153,7 +153,7 @@ def test_proportions_dict_matches_source_weights(_proportions_db: tuple) -> None
     assert out["tag_cooccurrence"] == {"water|architecture": 3, "water|tree": 2}
 
 
-def test_proportions_iteration_order_matches_cumulative(_proportions_db: tuple) -> None:
+def test_proportions_iteration_order_matches_cumulative(_proportions_db: tuple[Path, Path]) -> None:
     """usages dict iteration order = cumulative ascending. Tested
     here so a future ORDER BY drift surfaces immediately."""
     db_path, _ = _proportions_db
@@ -167,7 +167,7 @@ def test_proportions_iteration_order_matches_cumulative(_proportions_db: tuple) 
     assert list(out["usages"].keys()) == ["-ham-", "-ton-", "-ford-"]
 
 
-def test_proportions_unknown_culture_returns_empty(_proportions_db: tuple) -> None:
+def test_proportions_unknown_culture_returns_empty(_proportions_db: tuple[Path, Path]) -> None:
     """A culture the L4 doesn't have rows for returns empty dicts —
     consistent with the JSON path returning an empty proportions file."""
     db_path, _ = _proportions_db
@@ -181,7 +181,7 @@ def test_proportions_unknown_culture_returns_empty(_proportions_db: tuple) -> No
 
 
 def test_read_proportions_usage_map_rejects_non_whitelisted_table(
-    _proportions_db: tuple,
+    _proportions_db: tuple[Path, Path],
 ) -> None:
     """Defense-in-depth on the f-string table-name interpolation —
     same shape as runtime_db_export's whitelist."""
@@ -213,7 +213,7 @@ def test_load_culture_flag_off_reads_json_sidecar(monkeypatch) -> None:
     assert name_gen.meaning_db is not None
 
 
-def test_load_culture_flag_on_reads_l4(monkeypatch, _proportions_db: tuple) -> None:
+def test_load_culture_flag_on_reads_l4(monkeypatch, _proportions_db: tuple[Path, Path]) -> None:
     """With the flag on, _load_culture builds the proportions dict
     from the L4 instead of the JSON sidecar. Smoke-test by checking
     a generator can be constructed against the smaller fixture
@@ -233,7 +233,7 @@ def test_load_culture_flag_on_reads_l4(monkeypatch, _proportions_db: tuple) -> N
 # ---------- bit-equivalence ----------
 
 
-def test_bit_equivalent_names_across_backends(monkeypatch, _proportions_db: tuple) -> None:
+def test_bit_equivalent_names_across_backends(monkeypatch, _proportions_db: tuple[Path, Path]) -> None:
     """Same seed → same name across JSON and SQLite backends.
 
     The L4 was built from the fixture proportions_dir; load_proportions
