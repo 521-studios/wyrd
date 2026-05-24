@@ -98,7 +98,5 @@ def _read_fantasy_morphemes(conn: sqlite3.Connection) -> dict[str, dict]:
     ``{lowercase_input_name: payload}`` map ``load_fantasy_morphemes``
     expects. Keys come back lowercased per the L4 COLLATE NOCASE PK
     contract (the emitter already lowercases on write)."""
-    cursor = conn.execute(
-        "SELECT usage_key, data FROM fantasy_morpheme ORDER BY usage_key"
-    )
+    cursor = conn.execute("SELECT usage_key, data FROM fantasy_morpheme ORDER BY usage_key")
     return {key: json.loads(blob) for key, blob in cursor}
