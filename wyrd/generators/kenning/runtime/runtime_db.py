@@ -1,0 +1,317 @@
+"""Runtime SQLite loader for the L4 kenning DB (wyrd-d90t PR 4).
+
+Resolves a sqlite3 connection to the L4 DB on first call, then hands
+out the same connection for the lifetime of the process (warm-Lambda
+reuse). Resolution order:
+
+1. **``WYRD_RUNTIME_DB`` env var** — absolute local path. Local dev /
+   tests bypass S3 entirely by pointing at any ``.db`` file.
+2. **/tmp/wyrd-runtime-<etag>.db cache hit** — if ``WYRD_RUNTIME_DB_BUCKET``
+   is set, fetch the current.json pointer and short-circuit when an
+   etag-named cache file from a prior cold start already exists in
+   /tmp (warm-container reuse where /tmp survives).
+3. **Download from S3** — fetch ``current.json`` to learn the
+   versioned key + etag, download that key to a unique .tmp file via
+   ``tempfile.mkstemp``, atomic-rename into ``wyrd-runtime-<etag>.db``.
+4. **Bundled seed fallback** — when no env var is set AND no S3
+   bucket is configured (or the download fails), fall back to the
+   committed ``wyrd/generators/kenning/data/seed-runtime.db``. Lets
+   tests + offline dev produce names without AWS.
+
+The connection is opened with the ``file:...?mode=ro&immutable=1``
+URI so SQLite knows it can skip locking + WAL setup — both are pure
+overhead on a read-only file the runtime treats as immutable for the
+container's lifetime. ``check_same_thread=False`` lets gunicorn-style
+worker pools share the connection without re-opening per request
+(CPython's sqlite3 module serializes concurrent calls on a per-
+Connection lock; the access pattern here is read-only so workers
+contend on the lock but don't corrupt state).
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import sqlite3
+import tempfile
+import threading
+from importlib import resources
+from pathlib import Path
+
+_logger = logging.getLogger(__name__)
+
+# Cache locations on /tmp — chosen to match Lambda's writable
+# ephemeral storage. The container's lifetime determines how long the
+# cache survives. Cache files are named ``wyrd-runtime-<etag>.db`` so
+# that:
+#   * Existence of the file IS the etag-match check (no side-file
+#     to read first).
+#   * A redownload triggered by a pointer-flip writes a DIFFERENT
+#     filename, so any existing reader's ``immutable=1`` connection
+#     keeps pointing at unchanged bytes — no multi-process race in
+#     WSGI / gunicorn deployments where two workers might overlap
+#     between a redownload and a still-open connection.
+# Trade-off: old etag files accumulate in /tmp. On Lambda /tmp is
+# ephemeral so it's free GC; on long-lived gunicorn the operator
+# would want a periodic cleanup (out of scope for this loader).
+_RUNTIME_DB_TMP_DIR = "/tmp"
+_RUNTIME_DB_FILENAME_TEMPLATE = "wyrd-runtime-{etag}.db"
+
+# Environment variable surface. WYRD_RUNTIME_DB is the operator
+# override; WYRD_RUNTIME_DB_BUCKET names the S3 bucket to fetch from
+# (production sets it via terraform — see infra/). When neither is set
+# the loader falls back to the bundled seed.
+ENV_LOCAL_PATH = "WYRD_RUNTIME_DB"
+ENV_BUCKET = "WYRD_RUNTIME_DB_BUCKET"
+ENV_AWS_PROFILE = "WYRD_RUNTIME_DB_AWS_PROFILE"  # optional; usually unset in Lambda
+
+# Pointer key matches what bin/publish-runtime-db.sh writes.
+_CURRENT_POINTER_KEY = "current.json"
+
+
+# Process-wide cached connection + lock. The lock guards the first-call
+# resolution so concurrent threads (gunicorn workers, async handlers)
+# don't all race to download.
+_conn: sqlite3.Connection | None = None
+_conn_lock = threading.Lock()
+
+
+def get_runtime_db() -> sqlite3.Connection:
+    """Return the process-wide read-only SQLite connection to the L4 DB.
+
+    Lazy + idempotent: first call resolves the DB path (env var → /tmp
+    cache → S3 download → bundled seed), opens a read-only sqlite3
+    connection, and caches it on the module. Every subsequent call —
+    same process or warm-Lambda reuse — returns the cached handle.
+
+    Read-only at the SQLite level via ``file:...?mode=ro&immutable=1``
+    URI; the L4 DB is treated as a build-time artifact for the
+    container's lifetime, and re-emit + re-upload (not in-place edit)
+    is the only update path.
+    """
+    global _conn
+    if _conn is not None:
+        return _conn
+    with _conn_lock:
+        if _conn is not None:
+            return _conn
+        path = _resolve_db_path()
+        _conn = _open_readonly(path)
+    return _conn
+
+
+def reset_runtime_db_cache() -> None:
+    """Drop the cached connection so the next ``get_runtime_db`` call
+    re-resolves the path + reopens. For tests and operator-driven
+    reload (a stat-the-pointer hook in a future PR could rotate
+    connections without restarting the container)."""
+    global _conn
+    with _conn_lock:
+        if _conn is not None:
+            try:
+                _conn.close()
+            except sqlite3.Error:
+                _logger.exception("ignoring close error on cached runtime DB")
+        _conn = None
+
+
+def _resolve_db_path() -> Path:
+    """Pick the L4 DB file the connection should open against.
+
+    The four-step resolution order is documented at module level; this
+    function is the executable copy of that contract. Each branch
+    logs at INFO so Lambda Cloudwatch surfaces which path served the
+    cold start.
+    """
+    env_path = os.environ.get(ENV_LOCAL_PATH)
+    if env_path:
+        path = Path(env_path)
+        if not path.is_file():
+            raise FileNotFoundError(f"{ENV_LOCAL_PATH}={env_path!r} but the file doesn't exist")
+        _logger.info("runtime DB resolved via %s: %s", ENV_LOCAL_PATH, path)
+        return path
+
+    bucket = os.environ.get(ENV_BUCKET)
+    if bucket:
+        downloaded = _download_with_etag_cache(bucket)
+        if downloaded is not None:
+            return downloaded
+        # S3 path was configured but the download failed; fall through
+        # to the bundled seed so the runtime still serves rather than
+        # 500ing — the failure is logged so the operator notices.
+        _logger.warning("runtime DB S3 download failed; falling back to bundled seed")
+
+    seed_path = _bundled_seed_path()
+    _logger.info("runtime DB resolved via bundled seed: %s", seed_path)
+    return seed_path
+
+
+def _download_with_etag_cache(bucket: str) -> Path | None:
+    """Fetch the L4 DB from S3 with etag-named cache short-circuit.
+
+    Returns the path to the cached file on success, or None on any
+    failure (caller falls back to the bundled seed).
+
+    Flow:
+      1. GET current.json — learn the versioned-key + expected etag.
+      2. If the etag-named file ``wyrd-runtime-<etag>.db`` already
+         exists in /tmp, skip the download (the filename IS the
+         cache-hit check now that the etag's encoded in it).
+      3. Otherwise, download the versioned key to a unique mkstemp
+         .tmp file, then atomic-rename into the etag-named path.
+
+    Lazy-imports boto3 so the loader's import cost stays minimal when
+    the deployment doesn't need S3 (tests, bundled-seed-only builds).
+    """
+    try:
+        import json
+
+        import boto3
+        from botocore.exceptions import BotoCoreError, ClientError
+    except ImportError:
+        _logger.warning("boto3 unavailable; S3 runtime DB download skipped")
+        return None
+
+    profile = os.environ.get(ENV_AWS_PROFILE)
+    try:
+        session = boto3.Session(profile_name=profile) if profile else boto3.Session()
+        s3 = session.client("s3")
+
+        pointer_obj = s3.get_object(Bucket=bucket, Key=_CURRENT_POINTER_KEY)
+        # Close the StreamingBody via context manager so the underlying
+        # HTTP connection returns to the pool. TypeError covers the case
+        # where the JSON parses to a non-dict (null / list / scalar) and
+        # the subsequent ["key"] subscript raises rather than KeyError.
+        with pointer_obj["Body"] as stream:
+            pointer = json.load(stream)
+        version_key = pointer["key"]
+        expected_etag = pointer["etag"]
+        # Explicit type check — current.json with numeric / null values
+        # in 'key' or 'etag' would otherwise raise TypeError later in
+        # download_file or the cached-path computation, outside this
+        # except block.
+        if not isinstance(version_key, str) or not isinstance(expected_etag, str):
+            raise TypeError(
+                f"current.json values must be strings; got key={version_key!r} "
+                f"etag={expected_etag!r}"
+            )
+        # Path-traversal guard: expected_etag is interpolated into the
+        # /tmp cache filename. An adversarial S3 (operator with write
+        # access to the bucket) could supply etag='../../etc/passwd'
+        # and trick us into writing outside /tmp. Defense in depth even
+        # though the bucket is terraform-controlled.
+        if (
+            "/" in expected_etag
+            or "\\" in expected_etag
+            or ".." in expected_etag
+            or "\x00" in expected_etag
+        ):
+            raise ValueError(
+                f"current.json etag {expected_etag!r} contains path-traversal "
+                "characters; refusing to use as filename component"
+            )
+    except (ClientError, BotoCoreError, KeyError, ValueError, TypeError, OSError):
+        # OSError covers stream-read failures that can surface from
+        # the StreamingBody.read inside json.load — a half-read
+        # response from S3 shouldn't crash the cold start.
+        _logger.exception(
+            "failed to fetch s3://%s/%s — falling back to bundled seed",
+            bucket,
+            _CURRENT_POINTER_KEY,
+        )
+        return None
+
+    # Cache path includes the etag so concurrent workers reading old
+    # versions don't see their immutable=1 file overwritten by a
+    # parallel pointer-flip.
+    cached_path = Path(_RUNTIME_DB_TMP_DIR) / _RUNTIME_DB_FILENAME_TEMPLATE.format(
+        etag=expected_etag
+    )
+    if cached_path.is_file():
+        _logger.info(
+            "runtime DB cache hit (%s); skipping download",
+            cached_path,
+        )
+        return cached_path
+
+    # Download to a unique .tmp file then atomic-rename into place so
+    # a partial write never produces a half-downloaded file at the
+    # canonical name. mkstemp gives us a name guaranteed unique across
+    # threads + processes (better than os.getpid(), which would still
+    # collide if two threads of one process raced); Path.replace
+    # atomic-renames on the same filesystem. Whoever loses the
+    # replace race ends up with byte-equal output since both
+    # downloaded the same etag's content.
+    fd, tmp_download_str = tempfile.mkstemp(
+        dir=cached_path.parent, prefix=cached_path.name + ".", suffix=".tmp"
+    )
+    os.close(fd)
+    tmp_download = Path(tmp_download_str)
+    try:
+        s3.download_file(bucket, version_key, str(tmp_download))
+        tmp_download.replace(cached_path)
+    except (ClientError, BotoCoreError, OSError):
+        _logger.exception(
+            "failed to download s3://%s/%s — falling back to bundled seed",
+            bucket,
+            version_key,
+        )
+        # Clean up the unique .tmp so it doesn't leak under repeated
+        # failures (each retry creates a new mkstemp file).
+        tmp_download.unlink(missing_ok=True)
+        return None
+
+    _logger.info(
+        "runtime DB downloaded from s3://%s/%s to %s",
+        bucket,
+        version_key,
+        cached_path,
+    )
+    return cached_path
+
+
+def _bundled_seed_path() -> Path:
+    """Return the on-disk path of the committed seed-runtime.db.
+
+    Falls back to the bundled artifact. Raises FileNotFoundError when
+    the seed is missing — the runtime can't do anything without a
+    DB to read.
+    """
+    seed = resources.files("wyrd.generators.kenning.data").joinpath("seed-runtime.db")
+    # resources.files returns a Traversable; on a normal filesystem
+    # install the str() round-trip is fine. Zip-loader installs (where
+    # the package is shipped as a .zip on sys.path — Lambda Layers,
+    # future zipapp packaging) would need resources.as_file() to
+    # materialize the binary on disk. Lambda's default deployment
+    # shape today is unzipped, so this works in production; filed as
+    # bd ticket wyrd-5kw0 for the as_file() refactor when zip
+    # packaging becomes the path.
+    path = Path(str(seed))
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"no runtime DB available: seed at {path} is missing AND no "
+            f"{ENV_LOCAL_PATH} / {ENV_BUCKET} env var is set"
+        )
+    return path
+
+
+def _open_readonly(path: Path) -> sqlite3.Connection:
+    """Open ``path`` as a read-only sqlite3 connection.
+
+    URI flags:
+      * ``mode=ro`` — error on any write attempt; lets SQLite skip
+        WAL setup and acquire a shared (rather than exclusive) lock.
+      * ``immutable=1`` — promises the file won't change on disk for
+        the connection's lifetime. SQLite can drop additional locking
+        + skip per-page checksums.
+
+    ``check_same_thread=False`` lets WSGI worker pools share the
+    connection without per-request reopen. Safe here because the
+    access is read-only and CPython's sqlite3 module wraps each
+    Connection in a per-instance lock that serializes concurrent
+    calls — workers may contend on that lock but won't corrupt state.
+    """
+    # Path.as_uri() handles spaces, '?', '#', and Windows backslashes
+    # correctly; the URI-query flags get appended after.
+    uri = f"{path.absolute().as_uri()}?mode=ro&immutable=1"
+    return sqlite3.connect(uri, uri=True, check_same_thread=False)
