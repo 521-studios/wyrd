@@ -225,23 +225,55 @@ def test_etag_mismatch_redownloads(_clear_env, fake_s3, _tiny_db, monkeypatch) -
     assert cache_etag.read_text() == "fresh-etag"
 
 
-def test_s3_failure_falls_back_to_bundled_seed(_clear_env, monkeypatch) -> None:
+def test_s3_failure_falls_back_to_bundled_seed(_clear_env, fake_s3, monkeypatch) -> None:
     """If WYRD_RUNTIME_DB_BUCKET is set but the S3 call fails (no
-    creds / wrong bucket / network), the loader should fall back to
-    the bundled seed rather than hard-crashing the runtime."""
-    # No moto context = real boto3 trying to hit S3 = will fail since
-    # AWS creds env vars aren't valid for real AWS. The fallback
-    # should kick in.
-    monkeypatch.setenv(ENV_BUCKET, "nonexistent-bucket-3e5q")
-    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "bogus")
-    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "bogus")
-    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
-    monkeypatch.delenv("AWS_PROFILE", raising=False)
-    monkeypatch.setenv("AWS_CONFIG_FILE", "/dev/null")
-    monkeypatch.setenv("AWS_SHARED_CREDENTIALS_FILE", "/dev/null")
+    creds / wrong bucket / corrupt pointer), the loader should fall
+    back to the bundled seed rather than hard-crashing the runtime.
+
+    Uses moto + a nonexistent key in the test bucket to produce a
+    deterministic ClientError without depending on real network
+    behavior. (A previous version of this test relied on
+    nonexistent-bucket-name DNS failures, which is offline-CI hostile
+    + DNS-hang prone.)"""
+    # Bucket exists (fake_s3 created it) but current.json doesn't, so
+    # get_object raises NoSuchKey → ClientError → fallback path.
+    monkeypatch.setenv(ENV_BUCKET, TEST_BUCKET)
 
     conn = get_runtime_db()
-    # Fell back to seed-runtime.db, which has the L4 schema.
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert "meaning" in tables
+
+
+def test_malformed_pointer_falls_back_to_bundled_seed(_clear_env, fake_s3, monkeypatch) -> None:
+    """A current.json that JSON-parses to a non-dict (null, list,
+    scalar) triggers TypeError on the subsequent ['key'] access.
+    Should be caught + fall through to the bundled seed, not crash
+    the runtime."""
+    fake_s3.put_object(
+        Bucket=TEST_BUCKET,
+        Key="current.json",
+        Body=b"null",  # valid JSON, wrong shape
+    )
+    monkeypatch.setenv(ENV_BUCKET, TEST_BUCKET)
+
+    conn = get_runtime_db()
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert "meaning" in tables
+
+
+def test_pointer_missing_required_keys_falls_back_to_bundled_seed(
+    _clear_env, fake_s3, monkeypatch
+) -> None:
+    """A current.json missing the 'key' or 'etag' field triggers
+    KeyError; same fallback path as the malformed-JSON case."""
+    fake_s3.put_object(
+        Bucket=TEST_BUCKET,
+        Key="current.json",
+        Body=b'{"only-key": "value"}',
+    )
+    monkeypatch.setenv(ENV_BUCKET, TEST_BUCKET)
+
+    conn = get_runtime_db()
     tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     assert "meaning" in tables
 

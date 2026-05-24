@@ -22,8 +22,9 @@ URI so SQLite knows it can skip locking + WAL setup — both are pure
 overhead on a read-only file the runtime treats as immutable for the
 container's lifetime. ``check_same_thread=False`` lets gunicorn-style
 worker pools share the connection without re-opening per request
-(SQLite serializes its own reads; the access pattern is read-only so
-there's no contention story to worry about).
+(CPython's sqlite3 module serializes concurrent calls on a per-
+Connection lock; the access pattern here is read-only so workers
+contend on the lock but don't corrupt state).
 """
 
 from __future__ import annotations
@@ -163,10 +164,15 @@ def _download_with_etag_cache(bucket: str) -> Path | None:
         s3 = session.client("s3")
 
         pointer_obj = s3.get_object(Bucket=bucket, Key=_CURRENT_POINTER_KEY)
-        pointer = json.loads(pointer_obj["Body"].read())
+        # Close the StreamingBody via context manager so the underlying
+        # HTTP connection returns to the pool. TypeError covers the case
+        # where the JSON parses to a non-dict (null / list / scalar) and
+        # the subsequent ["key"] subscript raises rather than KeyError.
+        with pointer_obj["Body"] as stream:
+            pointer = json.load(stream)
         version_key = pointer["key"]
         expected_etag = pointer["etag"]
-    except (ClientError, BotoCoreError, KeyError, ValueError):
+    except (ClientError, BotoCoreError, KeyError, ValueError, TypeError):
         _logger.exception(
             "failed to fetch s3://%s/%s — falling back to bundled seed",
             bucket,
@@ -194,7 +200,17 @@ def _download_with_etag_cache(bucket: str) -> Path | None:
         )
         return None
 
-    Path(_RUNTIME_DB_ETAG_PATH).write_text(expected_etag)
+    # Etag-cache write is best-effort: a failure here only means the
+    # NEXT cold start won't get the short-circuit (it'll redownload).
+    # Falling through with the downloaded DB intact is still a valid
+    # serving state — log + continue rather than crash the load.
+    try:
+        Path(_RUNTIME_DB_ETAG_PATH).write_text(expected_etag)
+    except OSError:
+        _logger.exception(
+            "failed to write etag cache at %s; next cold start will re-download",
+            _RUNTIME_DB_ETAG_PATH,
+        )
     _logger.info(
         "runtime DB downloaded from s3://%s/%s to %s",
         bucket,
@@ -223,8 +239,12 @@ def _bundled_seed_path() -> Path:
     """
     seed = resources.files("wyrd.generators.kenning.data").joinpath("seed-runtime.db")
     # resources.files returns a Traversable; on a normal filesystem
-    # install the str() round-trip is fine. Zip-loader installs would
-    # need as_file() — punt until that's a real deployment shape.
+    # install the str() round-trip is fine. Zip-loader installs (where
+    # the package is shipped as a .zip on sys.path) would need
+    # resources.as_file() to materialize the binary on disk. Lambda's
+    # default deployment shape is unzipped, but Lambda Layers + future
+    # zipapp packaging would hit this — filed as a follow-up; see the
+    # wyrd-d90t epic for the open ticket.
     path = Path(str(seed))
     if not path.is_file():
         raise FileNotFoundError(
@@ -246,7 +266,11 @@ def _open_readonly(path: Path) -> sqlite3.Connection:
 
     ``check_same_thread=False`` lets WSGI worker pools share the
     connection without per-request reopen. Safe here because the
-    access is read-only; SQLite serializes its own reads internally.
+    access is read-only and CPython's sqlite3 module wraps each
+    Connection in a per-instance lock that serializes concurrent
+    calls — workers may contend on that lock but won't corrupt state.
     """
-    uri = f"file:{path}?mode=ro&immutable=1"
+    # Path.as_uri() handles spaces, '?', '#', and Windows backslashes
+    # correctly; the URI-query flags get appended after.
+    uri = f"{path.absolute().as_uri()}?mode=ro&immutable=1"
     return sqlite3.connect(uri, uri=True, check_same_thread=False)
