@@ -207,9 +207,12 @@ def _load_known_polysemy(path: Path | None) -> frozenset[tuple[str, str]]:
     related senses — that the cosine-similarity audit cannot tell apart
     from undetected homonyms.
 
-    Returns an empty frozenset when ``path`` is None or the file
-    doesn't exist (loud on parse errors though — a malformed allowlist
-    is an operator bug, not a missing-file issue).
+    Returns an empty frozenset when ``path`` is None, an empty string,
+    a directory, or a nonexistent file (the latter three are operator
+    bypass shapes — empty ``--known-polysemy-file ""`` is the natural
+    "turn this off" gesture). Raises ``click.ClickException`` on
+    malformed JSON or missing-required-field rows — those are operator
+    typos, not bypass intent.
 
     File format: JSONL. One synthetic ``_type=source`` row at the top
     (operator note) plus one ``_type=known_polysemy`` row per entry
@@ -217,9 +220,15 @@ def _load_known_polysemy(path: Path | None) -> frozenset[tuple[str, str]]:
     BUNDLE form (underscore-joined, e.g. ``old_english`` not the
     lexicon's ``old-english``). An optional ``reason`` field rides
     along for audit-log readability; only ``source_lang`` +
-    ``source_lemma`` participate in the filter.
+    ``source_lemma`` participate in the filter. Both keys are
+    ``.strip()`` ed on load to guard against trailing whitespace from
+    hand-edited entries.
     """
-    if path is None or not path.exists():
+    # Operator-bypass shapes: None / empty / "." / nonexistent / dir.
+    # Click parses ``--known-polysemy-file ""`` into ``Path('.')``,
+    # which exists as a directory; without this guard the .open() call
+    # below would raise IsADirectoryError mid-audit.
+    if path is None or str(path) in ("", ".") or not path.exists() or path.is_dir():
         return frozenset()
     entries: set[tuple[str, str]] = set()
     with path.open(encoding="utf-8") as fh:
@@ -241,8 +250,29 @@ def _load_known_polysemy(path: Path | None) -> frozenset[tuple[str, str]]:
                 raise click.ClickException(
                     f"{path}:{line_no}: known_polysemy row missing source_lang and/or source_lemma"
                 )
-            entries.add((lang, lemma))
+            entries.add((lang.strip(), lemma.strip()))
     return frozenset(entries)
+
+
+def _apply_polysemy_filter(
+    intra_rows: list[dict],
+    allowlist: frozenset[tuple[str, str]],
+) -> tuple[list[dict], int]:
+    """Drop rows whose (source_lang, source_lemma) is in the allowlist.
+
+    Returns ``(kept_rows, dropped_count)``. Both inputs use the BUNDLE
+    underscore-joined form (see ``_load_known_polysemy``). ``.strip()``
+    on both sides defends against hand-edited whitespace drift in the
+    allowlist file or bundle.
+    """
+    if not allowlist:
+        return intra_rows, 0
+    kept = [
+        r
+        for r in intra_rows
+        if (r["source_lang"].strip(), r["source_lemma"].strip()) not in allowlist
+    ]
+    return kept, len(intra_rows) - len(kept)
 
 
 @click.command("audit-semantic-coherence")
@@ -306,8 +336,8 @@ def _load_known_polysemy(path: Path | None) -> frozenset[tuple[str, str]]:
         "Allowlist of (source_lang, source_lemma) pairs that are confirmed real "
         "polysemy — one word with multiple related senses — that the cosine "
         "audit cannot tell apart from undetected homonyms. Filtered out of the "
-        "intra-entry-suspects CSV. Operator-maintained JSONL. Pass an empty path "
-        "or a nonexistent file to skip filtering."
+        "intra-entry-suspects CSV. Operator-maintained JSONL. Pass an empty "
+        "string or a nonexistent path to skip filtering."
     ),
 )
 def lexicon_audit_semantic_coherence(
@@ -517,13 +547,7 @@ def lexicon_audit_semantic_coherence(
             }
         )
     intra_rows.sort(key=lambda r: r["avg_intra_pairwise_cosine"])
-    intra_filtered_out = 0
-    if known_polysemy:
-        before = len(intra_rows)
-        intra_rows = [
-            r for r in intra_rows if (r["source_lang"], r["source_lemma"]) not in known_polysemy
-        ]
-        intra_filtered_out = before - len(intra_rows)
+    intra_rows, intra_filtered_out = _apply_polysemy_filter(intra_rows, known_polysemy)
     intra_path = output_dir / "intra-entry-suspects.csv"
     _write_csv(intra_path, intra_rows[:top])
     msg = (

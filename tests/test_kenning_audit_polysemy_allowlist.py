@@ -16,6 +16,7 @@ import click
 import pytest
 
 from wyrd.generators.kenning.cli.lexicon.audit_semantic_coherence import (
+    _apply_polysemy_filter,
     _load_known_polysemy,
 )
 
@@ -115,6 +116,79 @@ def test_load_raises_on_missing_source_lemma(tmp_path: Path):
     )
     with pytest.raises(click.ClickException, match="missing"):
         _load_known_polysemy(path)
+
+
+def test_load_returns_empty_when_path_is_empty_string():
+    """`--known-polysemy-file ""` is the natural operator-bypass gesture;
+    click parses it to Path(".") which exists as a directory. Without
+    this guard the loader would crash with IsADirectoryError mid-audit."""
+    assert _load_known_polysemy(Path("")) == frozenset()
+
+
+def test_load_returns_empty_when_path_is_directory(tmp_path: Path):
+    """Defense in depth — if an operator points the flag at a directory
+    by mistake (e.g. forgot the filename), bail out cleanly rather than
+    raising IsADirectoryError deep inside the audit pass."""
+    sub = tmp_path / "subdir"
+    sub.mkdir()
+    assert _load_known_polysemy(sub) == frozenset()
+
+
+def test_load_strips_whitespace_on_loaded_keys(tmp_path: Path):
+    """Hand-edited entries can pick up trailing whitespace; the loader
+    normalizes so the (source_lang, source_lemma) tuple matches even
+    when the operator pastes with a stray space."""
+    path = _write_allowlist(
+        tmp_path,
+        [
+            {
+                "_type": "known_polysemy",
+                "source_lang": " old_english ",
+                "source_lemma": " merece\t",
+            }
+        ],
+    )
+    assert _load_known_polysemy(path) == frozenset({("old_english", "merece")})
+
+
+# ---------------------------------------------------------------------------
+# _apply_polysemy_filter
+# ---------------------------------------------------------------------------
+
+
+def _row(lang: str, lemma: str, **kwargs):
+    base = {"source_lang": lang, "source_lemma": lemma}
+    base.update(kwargs)
+    return base
+
+
+def test_apply_filter_no_op_when_allowlist_empty():
+    rows = [_row("old_english", "dry"), _row("celtic_mix", "draigneach")]
+    kept, dropped = _apply_polysemy_filter(rows, frozenset())
+    assert kept == rows
+    assert dropped == 0
+
+
+def test_apply_filter_drops_matching_rows_only(tmp_path: Path):
+    rows = [
+        _row("old_english", "merece", n_glosses=2),
+        _row("old_english", "gear", n_glosses=2),
+        _row("celtic_mix", "sceach", n_glosses=2),
+    ]
+    allowlist = frozenset({("old_english", "merece"), ("celtic_mix", "sceach")})
+    kept, dropped = _apply_polysemy_filter(rows, allowlist)
+    assert dropped == 2
+    assert kept == [_row("old_english", "gear", n_glosses=2)]
+
+
+def test_apply_filter_strips_whitespace_on_both_sides():
+    """Both row-side and allowlist-side keys get stripped — defense
+    against whitespace drift in either layer."""
+    rows = [_row("old_english ", " merece"), _row("celtic_mix", "draigneach")]
+    allowlist = frozenset({("old_english", "merece")})
+    kept, dropped = _apply_polysemy_filter(rows, allowlist)
+    assert dropped == 1
+    assert kept == [_row("celtic_mix", "draigneach")]
 
 
 def test_load_shipped_default_allowlist_parses_cleanly():
