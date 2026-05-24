@@ -2344,8 +2344,9 @@ Two design principles divide the L4 tables:
   `proportions_usage`, `proportions_single_usage`,
   `proportions_structure`, `proportions_tag_marginal`,
   `proportions_tag_cooccurrence`. The runtime samples weighted
-  random over the proportions (millions of rows summed) and
-  point-looks-up tag statistics. SQL is the right tool there.
+  random over the proportions (~21K rows across 5 cultures on the
+  current corpus) and point-looks-up tag statistics. SQL is the
+  right tool there.
 
 ### D38.3. Cumulative precomputed at emit time.
 

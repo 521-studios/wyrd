@@ -15,6 +15,7 @@ import json
 import sqlite3
 from pathlib import Path
 
+import click
 import pytest
 from click.testing import CliRunner
 
@@ -22,8 +23,17 @@ from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.cli.lexicon.export_runtime_db import (
     EMITTER_VERSION,
     SCHEMA_VERSION,
+    _parse_lang_thresholds,
 )
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
+from wyrd.generators.kenning.lexicon.runtime_db_export import (
+    _insert_tag_cooccurrence,
+    _pick_primary_language,
+    _pick_unanimous_stratum,
+    _write_canonical_decompositions,
+    _write_fantasy_morphemes,
+    write_runtime_db,
+)
 
 
 # ---------- helpers ----------
@@ -423,6 +433,271 @@ def test_fantasy_morpheme_table_writable(tmp_path: Path) -> None:
 
 
 # ---------- sampling primitive smoke ----------
+
+
+# ---------- _pick_primary_language ----------
+
+
+def test_pick_primary_language_excludes_citations_sibling() -> None:
+    """A word carrying ``celtic_mix_citations: list[str]`` alongside
+    ``celtic_mix: list[str]`` must not double-count the citations
+    sibling. Without the explicit non-language-suffix exclusion the
+    alphabetical tiebreaker would pick ``celtic_mix_citations``."""
+    entries = [
+        {
+            "meaning": [],
+            "modifier_tags": [],
+            "modifier_type": None,
+            "word": {
+                "modern_usage": "-aig",
+                "celtic_mix": ["-aig", "aig"],
+                "celtic_mix_citations": ["src1", "src2"],
+            },
+        }
+    ]
+    assert _pick_primary_language(entries) == "celtic_mix"
+
+
+def test_pick_primary_language_tiebreaks_alphabetically() -> None:
+    """When two languages tie on count, the alphabetically-first key
+    wins (re-emits with identical inputs produce identical rows)."""
+    entries = [
+        {
+            "meaning": [],
+            "modifier_tags": [],
+            "modifier_type": None,
+            "word": {
+                "modern_usage": "ham",
+                "old_norse": ["ham"],
+                "old_english": ["ham"],
+            },
+        }
+    ]
+    assert _pick_primary_language(entries) == "old_english"
+
+
+def test_pick_primary_language_returns_none_for_orphan_reflex() -> None:
+    """Orphan-reflex entries (from ``_orphan_reflex_subjects``) carry
+    only ``modern_usage`` — they're matcher-only and have no etymon-
+    backed language. Returning None lets the schema column stay NULL
+    instead of masking the category with an empty string."""
+    entries = [
+        {
+            "meaning": [],
+            "modifier_tags": [],
+            "modifier_type": None,
+            "word": {"modern_usage": "-abann-"},
+        }
+    ]
+    assert _pick_primary_language(entries) is None
+
+
+# ---------- _pick_unanimous_stratum ----------
+
+
+def test_pick_unanimous_stratum_returns_single_value() -> None:
+    """When every per-form stratum entry agrees, return the value."""
+    entries = [
+        {
+            "word": {
+                "old_english_stratum": [
+                    {"form": "ham", "stratum": "native-old-english"}
+                ]
+            }
+        },
+        {
+            "word": {
+                "old_english_stratum": [
+                    {"form": "ham", "stratum": "native-old-english"}
+                ]
+            }
+        },
+    ]
+    assert _pick_unanimous_stratum(entries) == "native-old-english"
+
+
+def test_pick_unanimous_stratum_returns_none_on_mixed() -> None:
+    """Mixed strata across entries — common for cross-cultural morphemes
+    like Latin loans — yield NULL so the bulk index doesn't lie."""
+    entries = [
+        {"word": {"welsh_stratum": [{"form": "caer", "stratum": "latin-loan"}]}},
+        {"word": {"welsh_stratum": [{"form": "din", "stratum": "native-welsh"}]}},
+    ]
+    assert _pick_unanimous_stratum(entries) is None
+
+
+def test_pick_unanimous_stratum_returns_none_when_absent() -> None:
+    """No stratum data on any entry → NULL (passthrough on the runtime
+    filter per D32)."""
+    entries = [
+        {"word": {"old_english": ["ham"]}},
+        {"word": {"old_english": ["heim"]}},
+    ]
+    assert _pick_unanimous_stratum(entries) is None
+
+
+# ---------- _insert_tag_cooccurrence ----------
+
+
+def test_insert_tag_cooccurrence_raises_on_malformed_key(tmp_path: Path) -> None:
+    """A cooccurrence key without ``|`` is a data bug — raise rather
+    than drop the row silently (D24 observability rule)."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+    # Build the runtime DB normally first so the table exists.
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        with pytest.raises(ValueError, match="missing the 'tag1\\|tag2' separator"):
+            _insert_tag_cooccurrence(conn, "english", {"oops_no_pipe": 1})
+    finally:
+        conn.close()
+
+
+# ---------- _write_fantasy_morphemes / _write_canonical_decompositions ----------
+
+
+def test_write_fantasy_morphemes_inserts_lowercased_key(tmp_path: Path) -> None:
+    """Verify the lowercase-key contract that mirrors the bundle's
+    COLLATE NOCASE semantics."""
+    out_path = tmp_path / "runtime.db"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(out_path))
+    try:
+        # Schema bootstrap: create just the table we're exercising.
+        conn.executescript(
+            "CREATE TABLE fantasy_morpheme (usage_key TEXT PRIMARY KEY, data BLOB NOT NULL);"
+        )
+        n = _write_fantasy_morphemes(
+            conn,
+            {
+                "Harpy": {"input_name": "Harpy", "language": "ancient-greek"},
+                "Djinni": {"input_name": "Djinni", "language": "ar"},
+            },
+        )
+        rows = conn.execute(
+            "SELECT usage_key, data FROM fantasy_morpheme ORDER BY usage_key"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    assert n == 2
+    assert [r[0] for r in rows] == ["djinni", "harpy"]
+    payload = json.loads(rows[0][1])
+    assert payload["language"] == "ar"
+
+
+def test_write_canonical_decompositions_inserts_blob(tmp_path: Path) -> None:
+    """End-to-end emit + read for a populated canonical_decomposition
+    set — the empty case is covered above; this exercises the insert
+    path itself."""
+    out_path = tmp_path / "runtime.db"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(out_path))
+    try:
+        conn.executescript(
+            "CREATE TABLE canonical_decomposition ("
+            "  toponym_name TEXT PRIMARY KEY,"
+            "  data BLOB NOT NULL"
+            ");"
+        )
+        n = _write_canonical_decompositions(
+            conn,
+            {
+                "Stratford": {"signature": "abc123", "source": "scholar"},
+                "Birmingham": {"signature": "def456", "source": "unique-zero"},
+            },
+        )
+        rows = dict(
+            conn.execute(
+                "SELECT toponym_name, data FROM canonical_decomposition"
+            ).fetchall()
+        )
+    finally:
+        conn.close()
+
+    assert n == 2
+    assert json.loads(rows["Stratford"]) == {
+        "signature": "abc123",
+        "source": "scholar",
+    }
+
+
+# ---------- _parse_lang_thresholds ----------
+
+
+def test_parse_lang_thresholds_happy_path() -> None:
+    """Specs override the preset; aliases are normalized."""
+    out = _parse_lang_thresholds(("old_english=2", "celtic_mix=4"), use_preset=False)
+    assert out["old-english"] == 2  # LANGUAGE_FIELDS alias
+    assert out["celtic"] == 4
+
+
+def test_parse_lang_thresholds_no_preset_empties_map() -> None:
+    out = _parse_lang_thresholds((), use_preset=False)
+    assert out == {}
+
+
+def test_parse_lang_thresholds_keeps_preset_when_use_preset() -> None:
+    """The preset (RECOMMENDED_LANG_THRESHOLDS) should be present when
+    no overrides are supplied."""
+    out = _parse_lang_thresholds((), use_preset=True)
+    # Preset is calibrated against corpus availability; OE is the
+    # canonical strict entry.
+    assert "old-english" in out
+
+
+def test_parse_lang_thresholds_rejects_missing_equals() -> None:
+    with pytest.raises(click.BadParameter, match="LANG=N"):
+        _parse_lang_thresholds(("old_english",), use_preset=False)
+
+
+def test_parse_lang_thresholds_rejects_non_integer_n() -> None:
+    with pytest.raises(click.BadParameter, match="must be an integer"):
+        _parse_lang_thresholds(("old_english=two",), use_preset=False)
+
+
+def test_parse_lang_thresholds_rejects_empty_parts() -> None:
+    with pytest.raises(click.BadParameter, match="must be non-empty"):
+        _parse_lang_thresholds(("=3",), use_preset=False)
+
+
+# ---------- proportions_structure PK invariant ----------
+
+
+def test_proportions_structure_uses_composite_pk(tmp_path: Path) -> None:
+    """Per Gemini PR-350 review: proportions_structure must use
+    (culture, cumulative) as PK to match the sampled-table convention
+    on its siblings (proportions_usage / proportions_single_usage)."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        cols = [
+            row[1]
+            for row in conn.execute("PRAGMA table_info(proportions_structure)")
+        ]
+        pk_cols = [
+            row[1]
+            for row in conn.execute("PRAGMA table_info(proportions_structure)")
+            if row[5]
+        ]
+    finally:
+        conn.close()
+
+    assert "id" not in cols, "proportions_structure should not carry a surrogate id"
+    assert sorted(pk_cols) == ["culture", "cumulative"]
+
+
+# ---------- log-n sampling smoke ----------
 
 
 def test_proportions_usage_supports_log_n_sampling(tmp_path: Path) -> None:

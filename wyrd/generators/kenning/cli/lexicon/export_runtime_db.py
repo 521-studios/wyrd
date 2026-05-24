@@ -1,17 +1,17 @@
 """``wyrd kenning lexicon export-runtime-db`` — emit the L4 runtime SQLite DB.
 
-PR 1 of wyrd-d90t. Thin click wrapper around
+Thin click wrapper around
 :func:`wyrd.generators.kenning.lexicon.runtime_db_export.write_runtime_db`
 — see that module for the architecture rationale (D38).
 """
 
 from __future__ import annotations
 
+from importlib import resources
 from pathlib import Path
 
 import click
 
-import wyrd.generators.kenning as _kenning_pkg
 from wyrd.generators.kenning.cli.utils import _DEFAULT_LEXICON_PATH
 from wyrd.generators.kenning.lexicon import (
     LANGUAGE_FIELDS,
@@ -28,16 +28,19 @@ from wyrd.generators.kenning.lexicon.runtime_db_export import (
 )
 from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 
-# Bundled proportions JSONs live next to the kenning package's data/
-# resource directory. Resolved via __file__ so editable installs +
-# in-tree dev pick up worktree edits — importlib.resources returns a
-# MultiplexedPath whose str() is the repr (not a usable filesystem
-# path), so resources.files() isn't what we want here.
-_DEFAULT_PROPORTIONS_DIR = Path(_kenning_pkg.__file__).resolve().parent / "data"
-
 # Re-exports kept for tests that import the schema-version constants
 # through this module path.
 __all__ = ["EMITTER_VERSION", "SCHEMA_VERSION", "lexicon_export_runtime_db"]
+
+
+def _bundled_proportions_dir():
+    """Return the bundled proportions directory as a Traversable.
+
+    Uses importlib.resources so the default keeps working when the
+    package is shipped via a zip-loader. write_runtime_db accepts
+    either Path (operator override) or Traversable (this default).
+    """
+    return resources.files("wyrd.generators.kenning.data")
 
 
 @click.command("export-runtime-db")
@@ -123,13 +126,13 @@ def lexicon_export_runtime_db(
     columns so weighted-random sampling is an O(log n) index seek).
 
     Replaces ``meanings.json`` + 5 ``<culture>_proportions.json`` files
-    in a single artifact downloaded from S3 on Lambda cold start
-    (wyrd-d90t / D38).
+    in a single artifact downloaded from S3 on Lambda cold start (D38).
     """
     lang_thresholds = _parse_lang_thresholds(lang_threshold_specs, use_preset=use_preset)
 
-    if proportions_dir is None:
-        proportions_dir = _DEFAULT_PROPORTIONS_DIR
+    proportions_source: Path | object = (
+        proportions_dir if proportions_dir is not None else _bundled_proportions_dir()
+    )
 
     with LexiconDB(db_path) as db:
         subjects = export_meanings(
@@ -148,7 +151,7 @@ def lexicon_export_runtime_db(
         subjects=subjects,
         fantasy_morphemes=fantasy_morphemes,
         canonical_decompositions=canonical_decompositions,
-        proportions_dir=proportions_dir,
+        proportions_dir=proportions_source,
         source_lexicon_db=db_path,
     )
 

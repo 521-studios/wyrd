@@ -2,8 +2,8 @@
 --
 -- Replaces meanings.json + 5 per-culture proportions JSON files. Lambda
 -- downloads this DB on cold start; warm invocations reuse the SQLite
--- connection. See wyrd/generators/kenning/L2_L3_BOUNDARY.md for the L2/L3
--- layers (this is L4, the runtime artifact).
+-- connection. See L2_L3_BOUNDARY.md for the L2/L3 layers — this is L4,
+-- the runtime artifact, and D38 in DECISIONS.md for the architecture.
 --
 -- Two design principles:
 --   * Blob columns where the row IS the unit of consumption (meaning,
@@ -24,7 +24,7 @@
 
 CREATE TABLE meaning (
     usage_key        TEXT PRIMARY KEY,        -- modern_usage, e.g. '-ham-'
-    primary_language TEXT NOT NULL,           -- 'old-english', 'old-norse', ...
+    primary_language TEXT,                    -- 'old-english', 'old-norse', ...; NULL for orphan-reflex entries
     stratum          TEXT,                    -- nullable; some morphemes lack one
     data             BLOB NOT NULL            -- JSON: full Meaning payload (forms, IPA, vectors)
 );
@@ -36,12 +36,9 @@ CREATE TABLE fantasy_morpheme (
     data      BLOB NOT NULL                   -- JSON: full fantasy_morpheme payload
 );
 
--- canonical_decomposition: culture-agnostic in PR 1 (matches the existing
--- bundle field's flat {toponym_name -> {signature, source}} shape). The
--- d90t design ticket suggested a (toponym_name, culture) PK but the
--- current collector has no culture data to populate it with. See D38
--- "Deferred culture column" for the rationale + what would motivate
--- adding it back.
+-- canonical_decomposition: culture-agnostic — matches the existing bundle
+-- field's flat {toponym_name -> {signature, source}} shape. See D38.4 for
+-- the deferred culture column + what would motivate adding it back.
 CREATE TABLE canonical_decomposition (
     toponym_name TEXT PRIMARY KEY,
     data         BLOB NOT NULL                -- JSON: {"signature": str, "source": str}
@@ -68,14 +65,12 @@ CREATE TABLE proportions_single_usage (
 CREATE INDEX idx_proportions_single_usage_by_key ON proportions_single_usage(culture, usage_key);
 
 CREATE TABLE proportions_structure (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
     culture    TEXT NOT NULL,
     template   BLOB NOT NULL,                 -- JSON: 'words' template (nested list of element dicts)
     weight     INTEGER NOT NULL,
     cumulative INTEGER NOT NULL,
-    UNIQUE (culture, cumulative)
+    PRIMARY KEY (culture, cumulative)
 );
-CREATE INDEX idx_proportions_structure_sample ON proportions_structure(culture, cumulative);
 
 -- Two statistics tables: point lookups, no sampling.
 
