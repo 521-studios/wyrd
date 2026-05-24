@@ -1075,6 +1075,54 @@ dropped 10,187 → 10,168 (-19) — the manorial-shape skips. All 8
 manorial-affix tests pass; all 2,753 tests in the suite pass.
 
 
+### 2026-05-24 — wyrd-zzli (proportions re-emit after structure filter)
+
+Re-ran `rebuild-proportions` for all 5 cultures after the wyrd-zzli
+filter landed in `_encode_structs` (PR #346). The filter drops
+multi-word structures whose word slots are bare pre/post/inner
+morphemes — the source of the user-reported `By Green` /
+`Ton North` / `Ham Bishop`-shape ungrammatical names.
+
+Structure counts collapsed per culture as the bad templates dropped:
+
+| culture  | structures HEAD → NEW | bad-weight HEAD → NEW |
+|----------|----------------------:|----------------------:|
+| english  |             290 → 34 |       46.7% → 0.0%   |
+| scottish |              49 → 16 |       17.9% → 0.0%   |
+| welsh    |              74 → 18 |       31.7% → 0.0%   |
+| irish    |             213 → 31 |       32.3% → 0.0%   |
+| breton   |              13 →  5 |        5.3% → 0.0%   |
+
+The bundle (`meanings.json`) was intentionally NOT re-emitted here —
+the wyrd-ecjp phonological_vector data + wyrd-kutx event effects
+are a separate deploy step. Re-emitting just the proportions keeps
+this PR scoped to the wyrd-zzli structure cleanup.
+
+| culture  | perfect | total  | rate    | Δ pp vs prior (wyrd-j43l) |
+|----------|--------:|-------:|--------:|--------------------------:|
+| english  |   13114 | 17876  | 73.4%   |                      +4.1 |
+| scottish |    1558 |  2321  | 67.1%   |                      +4.5 |
+| welsh    |    1335 |  1916  | 69.7%   |                      +3.7 |
+| irish    |   18065 | 34041  | 53.1%   |                      +4.9 |
+| breton   |     215 |  1208  | 17.8%   |                      +2.7 |
+
+(The perfect-count rate gains come from corpus-quality improvements
+between the wyrd-j43l snapshot and HEAD — primarily the wyrd-kutx
+gloss-suppression / split events landed via PRs #343–346, and the
+wyrd-ecjp phonological vector enrichment. The rate delta is a
+matcher-side effect, not directly from the wyrd-zzli filter, which
+only touches structure templates.)
+
+Net effect on generation: the runtime structure picker now draws
+exclusively from grammatically-consistent templates, so seeded
+output across the entire SPA / Lambda / CLI surface no longer
+produces the wyrd-zzli bug-shape names. Bit-stability with the
+pre-fix output is intentionally broken (seeds map to different
+names now); the wyrd-zzli runtime warning at NameGenerator init
+no longer fires because the bundle's proportions carry no bad
+templates to filter.
+
+
 ## How to record a new snapshot
 
 After a bundle re-emit (`wyrd kenning lexicon export-meanings` →
