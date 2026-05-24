@@ -249,9 +249,16 @@ _USE_RUNTIME_DB_ENV = "WYRD_USE_RUNTIME_DB"
 
 def _runtime_db_enabled() -> bool:
     """True when the WYRD_USE_RUNTIME_DB env var is set to a truthy
-    value. Evaluated at every loader call (not module-import time) so
-    tests can flip the flag via monkeypatch without restarting."""
-    return os.environ.get(_USE_RUNTIME_DB_ENV, "").lower() in ("1", "true", "yes")
+    value. Evaluated on every cache-miss of the wrapping @lru_cache
+    loaders (_load_meanings / _load_canonical_decompositions /
+    _load_fantasy_morphemes / _load_joiners) — tests flip the flag via
+    monkeypatch + cache_clear() to force a re-read."""
+    return os.environ.get(_USE_RUNTIME_DB_ENV, "").lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
 
 @lru_cache(maxsize=1)
