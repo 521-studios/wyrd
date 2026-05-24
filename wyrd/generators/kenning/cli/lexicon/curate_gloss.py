@@ -1,5 +1,15 @@
-"""``wyrd kenning lexicon curate-suppress-gloss`` / ``curate-split-etymon`` —
-append etymon_gloss_suppression / etymon_split events (wyrd-kutx)."""
+"""Operator curation event-emitter CLIs — append L2 curation events
+to the durable JSONL store.
+
+Three subcommands, one per operator event type:
+
+- ``curate-suppress-gloss`` → ``etymon_gloss_suppression`` (wyrd-kutx)
+- ``curate-add-gloss`` → ``etymon_gloss_add`` (wyrd-wz82)
+- ``curate-split-etymon`` → ``etymon_split`` (wyrd-kutx)
+
+All three append to the same JSONL (``data/mining/_curation.jsonl``
+by default) so a single L2 replay covers every operator decision.
+"""
 
 from __future__ import annotations
 
@@ -95,6 +105,61 @@ def lexicon_curate_suppress_gloss(
     _append_event(curation_file, payload)
     click.echo(
         f"Appended gloss-suppression event for `{etymon_ref}` "
+        f"({len(glosses)} gloss(es)) → {curation_file}",
+        err=True,
+    )
+
+
+@click.command("curate-add-gloss")
+@click.argument("etymon_ref")
+@click.argument("glosses", nargs=-1, required=True)
+@click.option(
+    "--reason",
+    default=None,
+    help=(
+        "Operator note shared across all added glosses in this event. "
+        "Recorded for audit; doesn't affect the DB beyond visibility."
+    ),
+)
+@click.option(
+    "--curation-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=Path("data/mining/_curation.jsonl"),
+    show_default=True,
+    help="JSONL file to append the gloss-addition event to.",
+)
+def lexicon_curate_add_gloss(
+    etymon_ref: str,
+    glosses: tuple[str, ...],
+    reason: str | None,
+    curation_file: Path,
+) -> None:
+    """Add operator-curated glosses to an etymon (wyrd-wz82).
+
+    ETYMON_REF is ``<language>:<canonical_form>`` (e.g.
+    ``old-english:finn``). One or more GLOSSES follow.
+
+    Use case: surfacing a sense the auto-mining missed. OE ``finn``
+    carries "clear, transparent, bright" + "fin"; Roberts 1914 Sussex
+    cites it as a personal name, a third sense the bundle has no
+    gloss for. Add it via::
+
+        wyrd kenning lexicon curate-add-gloss old-english:finn \\
+            "personal name" --reason "Roberts 1914 cites for -dene compound"
+
+    Idempotent — re-applying surfaces ``additions_already_present``
+    in the apply summary, not an error. Inverse of
+    ``curate-suppress-gloss``.
+    """
+    additions = [{"gloss": g, **({"reason": reason} if reason else {})} for g in glosses]
+    payload = {
+        "_type": "etymon_gloss_add",
+        "ref": etymon_ref,
+        "additions": additions,
+    }
+    _append_event(curation_file, payload)
+    click.echo(
+        f"Appended gloss-addition event for `{etymon_ref}` "
         f"({len(glosses)} gloss(es)) → {curation_file}",
         err=True,
     )
@@ -224,6 +289,7 @@ def lexicon_curate_split_etymon(
 
 
 def add_to(parent: click.Group) -> None:
-    """Register both subcommands on the parent ``@lexicon`` group."""
+    """Register all three subcommands on the parent ``@lexicon`` group."""
     parent.add_command(lexicon_curate_suppress_gloss)
+    parent.add_command(lexicon_curate_add_gloss)
     parent.add_command(lexicon_curate_split_etymon)

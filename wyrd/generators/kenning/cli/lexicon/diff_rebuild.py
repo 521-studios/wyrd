@@ -96,11 +96,13 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
             from wyrd.generators.kenning.jsonl.build import (
                 collect_curation_overrides,
                 collect_etymon_splits,
+                collect_gloss_additions,
                 collect_gloss_suppressions,
             )
 
             curation = collect_curation_overrides(paths) or None
             suppressions = collect_gloss_suppressions(paths) or None
+            additions = collect_gloss_additions(paths) or None
             splits = collect_etymon_splits(paths) or None
             with LexiconDB(rebuilt_path) as db:
                 run_full_enrichment(
@@ -108,6 +110,7 @@ def lexicon_diff_rebuild(db_path: Path, jsonl_dir: Path, with_enrichment: bool) 
                     apply=True,
                     curation_state=curation,
                     suppression_state=suppressions,
+                    addition_state=additions,
                     split_state=splits,
                 )
 

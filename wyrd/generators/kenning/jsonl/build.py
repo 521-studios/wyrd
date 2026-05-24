@@ -1223,3 +1223,23 @@ def collect_etymon_splits(jsonl_paths: Iterable[Path]) -> dict[str, dict[str, An
         for ref, payload in state.keyed["etymon_split"].items():
             merged[ref] = dict(payload)
     return merged
+
+
+def collect_gloss_additions(jsonl_paths: Iterable[Path]) -> dict[str, dict[str, Any]]:
+    """Scan ``jsonl_paths`` for ``etymon_gloss_add`` rows and return
+    the merged ``{etymon_ref: payload}`` state (wyrd-wz82).
+
+    Mirrors :func:`collect_gloss_suppressions` shape — the payload's
+    ``additions`` array carries ``{gloss, reason?}`` entries the
+    operator wants ADDED to the etymon (inverse of suppression).
+    Last-write-wins per ref — re-emit the full additions list to
+    revise.
+    """
+    from .log import replay_file
+
+    merged: dict[str, dict[str, Any]] = {}
+    for path in sorted(Path(p) for p in jsonl_paths):
+        state = replay_file(path)
+        for ref, payload in state.keyed["etymon_gloss_add"].items():
+            merged[ref] = dict(payload)
+    return merged

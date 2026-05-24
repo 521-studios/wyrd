@@ -94,17 +94,20 @@ def lexicon_enrich(
     from wyrd.generators.kenning.jsonl.build import (
         collect_curation_overrides,
         collect_etymon_splits,
+        collect_gloss_additions,
         collect_gloss_suppressions,
         jsonl_paths_in,
     )
 
     curation_state = None
     suppression_state = None
+    addition_state = None
     split_state = None
     if with_curation:
         paths = list(jsonl_paths_in(jsonl_dir))
         curation_state = collect_curation_overrides(paths) or None
         suppression_state = collect_gloss_suppressions(paths) or None
+        addition_state = collect_gloss_additions(paths) or None
         split_state = collect_etymon_splits(paths) or None
     with LexiconDB(db_path) as db:
         result = run_full_enrichment(
@@ -112,6 +115,7 @@ def lexicon_enrich(
             apply=apply_changes,
             curation_state=curation_state,
             suppression_state=suppression_state,
+            addition_state=addition_state,
             split_state=split_state,
         )
     click.echo(format_enrichment_run(result), err=True)

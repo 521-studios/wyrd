@@ -210,6 +210,12 @@ _ALL_COUNTER_NAMES = [
     ("curation", "self_reference_merge"),
     ("gloss_suppressions", "unresolved_etymon"),
     ("gloss_suppressions", "unresolved_gloss"),
+    # wyrd-wz82: etymon_gloss_add adds one warnings section with a
+    # single counter (add is symmetric to suppress but has no per-gloss
+    # resolution step, since duplicates surface as
+    # ``additions_already_present`` rather than as an unresolved-ref
+    # signal).
+    ("gloss_additions", "unresolved_etymon"),
     ("etymon_splits", "unresolved_etymon"),
     ("etymon_splits", "glosses_missing"),
     ("etymon_splits", "tags_missing"),

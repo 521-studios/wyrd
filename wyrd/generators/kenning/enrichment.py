@@ -65,6 +65,7 @@ CURATION_METHOD_VERSION = "manual-curation-v1"
 # wyrd-kutx: operator-driven gloss suppression + etymon-split events
 # carry their own provenance stamps so audit queries can find them.
 GLOSS_SUPPRESSION_METHOD_VERSION = "gloss-suppression-v1"
+GLOSS_ADD_METHOD_VERSION = "gloss-add-v1"
 ETYMON_SPLIT_METHOD_VERSION = "etymon-split-v1"
 
 # wyrd-van9: single source of truth for the split-suffix charset
@@ -362,6 +363,94 @@ def apply_gloss_suppressions(
     if apply:
         db.commit()
     return counts
+
+
+def apply_gloss_additions(
+    db: LexiconDB,
+    addition_state: dict[str, dict[str, Any]],
+    *,
+    apply: bool = True,
+) -> dict[str, Any]:
+    """Add operator-curated glosses to etymons (wyrd-wz82).
+
+    Inverse of :func:`apply_gloss_suppressions`. ``addition_state`` is
+    the merged ``{etymon_ref: payload}`` dict from
+    :func:`jsonl.build.collect_gloss_additions`. Each payload carries
+    an ``additions`` array of ``{gloss, reason?}`` entries; each entry
+    INSERTs a row into ``etymon_gloss`` (with ``INSERT OR IGNORE`` so
+    re-runs are idempotent — the (etymon_id, gloss) PK absorbs the
+    duplicate).
+
+    Use case: surfacing a sense the auto-mining missed. OE ``finn``
+    carries "clear, transparent, bright" + "fin" today; Roberts 1914
+    Sussex cites it as a personal name, a third sense the bundle has
+    no gloss for. Operator adds "personal name" via this event so the
+    sense is queryable without a full lexicon re-mine.
+
+    Counts that the gloss was a duplicate (already on the etymon)
+    under ``additions_already_present`` rather than as an error — re-
+    running an apply is a normal idempotency case.
+
+    Validation always runs; DB writes happen only when ``apply=True``.
+    Returns a counts dict for telemetry.
+    """
+    counts: dict[str, Any] = {
+        "etymons_touched": len(addition_state),
+        "glosses_added": 0,
+        "additions_already_present": 0,
+        "unresolved_etymon": 0,
+        "applied": apply,
+        "method_version": GLOSS_ADD_METHOD_VERSION,
+    }
+    resolve = _build_ref_resolver(db.conn)
+
+    for etymon_ref, payload in addition_state.items():
+        etymon_id = resolve(etymon_ref)
+        if etymon_id is None:
+            counts["unresolved_etymon"] += 1
+            continue
+        additions = payload.get("additions") or []
+        for entry in additions:
+            gloss = entry.get("gloss") if isinstance(entry, dict) else None
+            if not gloss:
+                continue
+            existing = db.conn.execute(
+                "SELECT 1 FROM etymon_gloss WHERE etymon_id = ? AND gloss = ?",
+                (etymon_id, gloss),
+            ).fetchone()
+            if existing is not None:
+                counts["additions_already_present"] += 1
+                continue
+            counts["glosses_added"] += 1
+            if apply:
+                db.conn.execute(
+                    "INSERT OR IGNORE INTO etymon_gloss (etymon_id, gloss) VALUES (?, ?)",
+                    (etymon_id, gloss),
+                )
+
+    if apply:
+        db.commit()
+    return counts
+
+
+def format_gloss_addition_run(counts: dict[str, Any]) -> str:
+    """Render :func:`apply_gloss_additions` output as markdown."""
+    applied = counts.get("applied", True)
+    verb = "added" if applied else "would add"
+    lines = [
+        "## L3 enrichment: gloss additions",
+        "",
+        f"- Method version: `{counts.get('method_version', GLOSS_ADD_METHOD_VERSION)}`",
+        f"- Etymons touched: {counts['etymons_touched']}",
+        f"- Glosses {verb}: {counts['glosses_added']}",
+    ]
+    if counts.get("additions_already_present"):
+        lines.append(
+            f"- Additions already on etymon (idempotent): {counts['additions_already_present']}"
+        )
+    if counts.get("unresolved_etymon"):
+        lines.append(f"- Unresolved etymon refs: {counts['unresolved_etymon']}")
+    return "\n".join(lines)
 
 
 def format_gloss_suppression_run(counts: dict[str, Any]) -> str:
@@ -741,6 +830,7 @@ def run_full_enrichment(
     apply: bool = False,
     curation_state: dict[str, dict[str, Any]] | None = None,
     suppression_state: dict[str, dict[str, Any]] | None = None,
+    addition_state: dict[str, dict[str, Any]] | None = None,
     split_state: dict[str, dict[str, Any]] | None = None,
     skip_l3_derivations: bool = False,
 ) -> dict[str, Any]:
@@ -810,6 +900,13 @@ def run_full_enrichment(
     suppression_counts: dict[str, Any] | None = None
     if suppression_state is not None:
         suppression_counts = apply_gloss_suppressions(db, suppression_state, apply=apply)
+    # wyrd-wz82: gloss-addition runs AFTER suppression so the operator
+    # can suppress + re-add (or shadow) a gloss in the same enrich call.
+    # Idempotent on re-runs (etymon_gloss has a PK on (etymon_id, gloss)
+    # so duplicates are absorbed as additions_already_present).
+    addition_counts: dict[str, Any] | None = None
+    if addition_state is not None:
+        addition_counts = apply_gloss_additions(db, addition_state, apply=apply)
     split_counts: dict[str, Any] | None = None
     if split_state is not None:
         split_counts = apply_etymon_splits(db, split_state, apply=apply)
@@ -819,6 +916,8 @@ def run_full_enrichment(
         order.append("apply-curation")
     if suppression_counts is not None:
         order.append("apply-gloss-suppressions")
+    if addition_counts is not None:
+        order.append("apply-gloss-additions")
     if split_counts is not None:
         order.append("apply-etymon-splits")
 
@@ -864,6 +963,7 @@ def run_full_enrichment(
         },
         "curation": curation_counts,
         "gloss_suppressions": suppression_counts,
+        "gloss_additions": addition_counts,
         "etymon_splits": split_counts,
         "decompose": decompose_result,
         "cognates": cognate_result,
@@ -1077,6 +1177,9 @@ def format_enrichment_run(result: dict[str, Any]) -> str:
     if result.get("gloss_suppressions"):
         lines.append("")
         lines.append(format_gloss_suppression_run(result["gloss_suppressions"]))
+    if result.get("gloss_additions"):
+        lines.append("")
+        lines.append(format_gloss_addition_run(result["gloss_additions"]))
     if result.get("etymon_splits"):
         lines.append("")
         lines.append(format_etymon_split_run(result["etymon_splits"]))
@@ -1121,6 +1224,16 @@ def format_unresolved_warnings(result: dict[str, Any]) -> str:
                 {
                     "unresolved_etymon": sup.get("unresolved_etymon", 0),
                     "unresolved_gloss": sup.get("unresolved_gloss", 0),
+                },
+            )
+        )
+    addition = result.get("gloss_additions")
+    if addition:
+        sections.append(
+            (
+                "gloss_additions",
+                {
+                    "unresolved_etymon": addition.get("unresolved_etymon", 0),
                 },
             )
         )
