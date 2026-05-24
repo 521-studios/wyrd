@@ -20,7 +20,6 @@ from wyrd.generators.kenning.runtime.runtime_db import (
     ENV_AWS_PROFILE,
     ENV_BUCKET,
     ENV_LOCAL_PATH,
-    _read_cached_etag,
     get_runtime_db,
     reset_runtime_db_cache,
 )
@@ -149,7 +148,7 @@ def test_reset_cache_returns_fresh_connection(_clear_env, _tiny_db, monkeypatch)
 def test_downloads_from_s3_when_bucket_set(_clear_env, fake_s3, _tiny_db, monkeypatch) -> None:
     """With WYRD_RUNTIME_DB_BUCKET set + no env-var local path, the
     loader fetches current.json and downloads the referenced
-    versioned key to /tmp."""
+    versioned key to /tmp under the etag-named filename."""
     # Seed S3 with a versioned key + pointer.
     version_key = "v/2026-05-24T20-30Z.db"
     fake_s3.put_object(Bucket=TEST_BUCKET, Key=version_key, Body=_tiny_db.read_bytes())
@@ -157,72 +156,69 @@ def test_downloads_from_s3_when_bucket_set(_clear_env, fake_s3, _tiny_db, monkey
     fake_s3.put_object(Bucket=TEST_BUCKET, Key="current.json", Body=pointer)
 
     monkeypatch.setenv(ENV_BUCKET, TEST_BUCKET)
-    # Direct /tmp paths into the test's tmp_path so concurrent test
-    # runs don't collide (and don't leave artifacts on the host).
+    # Direct the cache dir into tmp_path so concurrent test runs don't
+    # collide on /tmp.
     cache_dir = Path(_tiny_db).parent
-    monkeypatch.setattr(mod, "_RUNTIME_DB_TMP_PATH", str(cache_dir / "wyrd-cache.db"))
-    monkeypatch.setattr(mod, "_RUNTIME_DB_ETAG_PATH", str(cache_dir / "wyrd-cache.etag"))
+    monkeypatch.setattr(mod, "_RUNTIME_DB_TMP_DIR", str(cache_dir))
 
     conn = get_runtime_db()
     row = conn.execute("SELECT k FROM meaning").fetchone()
     assert row[0] == "hi"
-    # Cache file is what got opened.
-    assert (cache_dir / "wyrd-cache.db").is_file()
-    assert (cache_dir / "wyrd-cache.etag").read_text() == "abc123"
+    # File is named after the etag.
+    assert (cache_dir / "wyrd-runtime-abc123.db").is_file()
 
 
 def test_etag_match_skips_download(_clear_env, fake_s3, _tiny_db, monkeypatch) -> None:
-    """When the cached ETag matches the pointer's etag, no download
-    happens — the loader returns the existing /tmp file. Saves the
-    full GET on every cold start where the container's /tmp survived."""
+    """When the etag-named cache file already exists, no download
+    happens — existence IS the etag-match check now that the filename
+    encodes the etag."""
     version_key = "v/2026-05-24T20-30Z.db"
     fake_s3.put_object(Bucket=TEST_BUCKET, Key=version_key, Body=b"stale-from-s3")
     pointer = json.dumps({"key": version_key, "etag": "cached-etag"})
     fake_s3.put_object(Bucket=TEST_BUCKET, Key="current.json", Body=pointer)
 
     cache_dir = Path(_tiny_db).parent
-    cache_db = cache_dir / "wyrd-cache.db"
-    cache_etag = cache_dir / "wyrd-cache.etag"
-    # Pre-populate the cache with the tiny db + matching etag.
-    cache_db.write_bytes(_tiny_db.read_bytes())
-    cache_etag.write_text("cached-etag")
+    # Pre-populate the etag-named cache file with a valid sqlite DB.
+    (cache_dir / "wyrd-runtime-cached-etag.db").write_bytes(_tiny_db.read_bytes())
 
     monkeypatch.setenv(ENV_BUCKET, TEST_BUCKET)
-    monkeypatch.setattr(mod, "_RUNTIME_DB_TMP_PATH", str(cache_db))
-    monkeypatch.setattr(mod, "_RUNTIME_DB_ETAG_PATH", str(cache_etag))
+    monkeypatch.setattr(mod, "_RUNTIME_DB_TMP_DIR", str(cache_dir))
 
     conn = get_runtime_db()
-    # If we accidentally re-downloaded, the cache would now hold
-    # "stale-from-s3" which isn't a valid sqlite file — connection
-    # would have raised. Since this passes, the etag short-circuit
-    # worked.
+    # If we accidentally re-downloaded, the etag-named file would now
+    # hold "stale-from-s3" which isn't a valid sqlite file. Since the
+    # query succeeds, the short-circuit worked.
     row = conn.execute("SELECT k FROM meaning").fetchone()
     assert row[0] == "hi"
 
 
 def test_etag_mismatch_redownloads(_clear_env, fake_s3, _tiny_db, monkeypatch) -> None:
-    """When the cached ETag differs from the pointer's etag, redownload."""
+    """A new pointer etag should produce a new etag-named cache file —
+    the old one stays untouched (so concurrent readers with
+    immutable=1 connections on it don't see bytes change under
+    them)."""
     version_key = "v/2026-05-24T21-00Z.db"
     fake_s3.put_object(Bucket=TEST_BUCKET, Key=version_key, Body=_tiny_db.read_bytes())
     pointer = json.dumps({"key": version_key, "etag": "fresh-etag"})
     fake_s3.put_object(Bucket=TEST_BUCKET, Key="current.json", Body=pointer)
 
     cache_dir = Path(_tiny_db).parent
-    cache_db = cache_dir / "wyrd-cache.db"
-    cache_etag = cache_dir / "wyrd-cache.etag"
-    # Pre-populate with a stale cache (different etag).
-    cache_db.write_bytes(b"stale bytes that aren't a valid sqlite db")
-    cache_etag.write_text("stale-etag")
+    # Stale cache under a different etag name.
+    stale = cache_dir / "wyrd-runtime-stale-etag.db"
+    stale.write_bytes(b"stale bytes")
 
     monkeypatch.setenv(ENV_BUCKET, TEST_BUCKET)
-    monkeypatch.setattr(mod, "_RUNTIME_DB_TMP_PATH", str(cache_db))
-    monkeypatch.setattr(mod, "_RUNTIME_DB_ETAG_PATH", str(cache_etag))
+    monkeypatch.setattr(mod, "_RUNTIME_DB_TMP_DIR", str(cache_dir))
 
     conn = get_runtime_db()
-    # Successful query proves the stale bytes got replaced.
+    # New download lands under the fresh-etag filename; the stale
+    # file stays untouched (no overwrite, no race for any reader
+    # that had it open).
     row = conn.execute("SELECT k FROM meaning").fetchone()
     assert row[0] == "hi"
-    assert cache_etag.read_text() == "fresh-etag"
+    assert (cache_dir / "wyrd-runtime-fresh-etag.db").is_file()
+    # Stale file untouched — that's the race-avoidance property.
+    assert stale.read_bytes() == b"stale bytes"
 
 
 def test_s3_failure_falls_back_to_bundled_seed(_clear_env, fake_s3, monkeypatch) -> None:
@@ -278,23 +274,23 @@ def test_pointer_missing_required_keys_falls_back_to_bundled_seed(
     assert "meaning" in tables
 
 
-# ---------- _read_cached_etag helper ----------
+# ---------- string-type validation on pointer ----------
 
 
-def test_read_cached_etag_returns_none_when_absent(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(mod, "_RUNTIME_DB_ETAG_PATH", str(tmp_path / "nope.etag"))
-    assert _read_cached_etag() is None
+def test_pointer_non_string_key_falls_back_to_bundled_seed(
+    _clear_env, fake_s3, monkeypatch
+) -> None:
+    """current.json with a numeric 'key' (or 'etag') triggers the
+    explicit string-type check that we added so the failure surfaces
+    in the immediate except block instead of crashing further down
+    in download_file."""
+    fake_s3.put_object(
+        Bucket=TEST_BUCKET,
+        Key="current.json",
+        Body=b'{"key": 42, "etag": "abc"}',
+    )
+    monkeypatch.setenv(ENV_BUCKET, TEST_BUCKET)
 
-
-def test_read_cached_etag_returns_stripped_value(tmp_path, monkeypatch) -> None:
-    etag_file = tmp_path / "etag"
-    etag_file.write_text("  abc123\n")
-    monkeypatch.setattr(mod, "_RUNTIME_DB_ETAG_PATH", str(etag_file))
-    assert _read_cached_etag() == "abc123"
-
-
-def test_read_cached_etag_handles_empty_file(tmp_path, monkeypatch) -> None:
-    etag_file = tmp_path / "etag"
-    etag_file.write_text("")
-    monkeypatch.setattr(mod, "_RUNTIME_DB_ETAG_PATH", str(etag_file))
-    assert _read_cached_etag() is None
+    conn = get_runtime_db()
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert "meaning" in tables

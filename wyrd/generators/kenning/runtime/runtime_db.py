@@ -40,10 +40,20 @@ _logger = logging.getLogger(__name__)
 
 # Cache locations on /tmp — chosen to match Lambda's writable
 # ephemeral storage. The container's lifetime determines how long the
-# cache survives; the ETag check on cold start verifies it's still
-# current before reusing.
-_RUNTIME_DB_TMP_PATH = "/tmp/wyrd-runtime.db"
-_RUNTIME_DB_ETAG_PATH = "/tmp/wyrd-runtime.etag"
+# cache survives. Cache files are named ``wyrd-runtime-<etag>.db`` so
+# that:
+#   * Existence of the file IS the etag-match check (no side-file
+#     to read first).
+#   * A redownload triggered by a pointer-flip writes a DIFFERENT
+#     filename, so any existing reader's ``immutable=1`` connection
+#     keeps pointing at unchanged bytes — no multi-process race in
+#     WSGI / gunicorn deployments where two workers might overlap
+#     between a redownload and a still-open connection.
+# Trade-off: old etag files accumulate in /tmp. On Lambda /tmp is
+# ephemeral so it's free GC; on long-lived gunicorn the operator
+# would want a periodic cleanup (out of scope for this loader).
+_RUNTIME_DB_TMP_DIR = "/tmp"
+_RUNTIME_DB_FILENAME_TEMPLATE = "wyrd-runtime-{etag}.db"
 
 # Environment variable surface. WYRD_RUNTIME_DB is the operator
 # override; WYRD_RUNTIME_DB_BUCKET names the S3 bucket to fetch from
@@ -172,6 +182,15 @@ def _download_with_etag_cache(bucket: str) -> Path | None:
             pointer = json.load(stream)
         version_key = pointer["key"]
         expected_etag = pointer["etag"]
+        # Explicit type check — current.json with numeric / null values
+        # in 'key' or 'etag' would otherwise raise TypeError later in
+        # download_file or the cached-path computation, outside this
+        # except block.
+        if not isinstance(version_key, str) or not isinstance(expected_etag, str):
+            raise TypeError(
+                f"current.json values must be strings; got key={version_key!r} "
+                f"etag={expected_etag!r}"
+            )
     except (ClientError, BotoCoreError, KeyError, ValueError, TypeError):
         _logger.exception(
             "failed to fetch s3://%s/%s — falling back to bundled seed",
@@ -180,37 +199,39 @@ def _download_with_etag_cache(bucket: str) -> Path | None:
         )
         return None
 
-    cached_path = Path(_RUNTIME_DB_TMP_PATH)
-    cached_etag = _read_cached_etag()
-    if cached_path.is_file() and cached_etag == expected_etag:
+    # Cache path includes the etag so concurrent workers reading old
+    # versions don't see their immutable=1 file overwritten by a
+    # parallel pointer-flip.
+    cached_path = Path(_RUNTIME_DB_TMP_DIR) / _RUNTIME_DB_FILENAME_TEMPLATE.format(
+        etag=expected_etag
+    )
+    if cached_path.is_file():
         _logger.info(
-            "runtime DB cache hit (%s, etag=%s); skipping download",
+            "runtime DB cache hit (%s); skipping download",
             cached_path,
-            expected_etag,
         )
         return cached_path
 
+    # Download to a sibling .tmp file then atomic-rename into place so
+    # a partial write never produces a half-downloaded file at the
+    # canonical name. Concurrent workers downloading the same etag
+    # both write to their own .tmp and one wins the rename — the
+    # other's rename will succeed too (replacing the byte-equal
+    # output), which is fine since the bytes are equal.
+    tmp_download = cached_path.with_suffix(cached_path.suffix + ".tmp")
     try:
-        s3.download_file(bucket, version_key, str(cached_path))
-    except (ClientError, BotoCoreError):
+        s3.download_file(bucket, version_key, str(tmp_download))
+        tmp_download.rename(cached_path)
+    except (ClientError, BotoCoreError, OSError):
         _logger.exception(
             "failed to download s3://%s/%s — falling back to bundled seed",
             bucket,
             version_key,
         )
+        # Clean up any partial .tmp so it doesn't accumulate.
+        tmp_download.unlink(missing_ok=True)
         return None
 
-    # Etag-cache write is best-effort: a failure here only means the
-    # NEXT cold start won't get the short-circuit (it'll redownload).
-    # Falling through with the downloaded DB intact is still a valid
-    # serving state — log + continue rather than crash the load.
-    try:
-        Path(_RUNTIME_DB_ETAG_PATH).write_text(expected_etag)
-    except OSError:
-        _logger.exception(
-            "failed to write etag cache at %s; next cold start will re-download",
-            _RUNTIME_DB_ETAG_PATH,
-        )
     _logger.info(
         "runtime DB downloaded from s3://%s/%s to %s",
         bucket,
@@ -218,16 +239,6 @@ def _download_with_etag_cache(bucket: str) -> Path | None:
         cached_path,
     )
     return cached_path
-
-
-def _read_cached_etag() -> str | None:
-    """Return the etag of the currently-cached /tmp DB, or None if no
-    cache exists. Safe against partial-write states — a half-written
-    etag file just produces a cache miss + redownload."""
-    try:
-        return Path(_RUNTIME_DB_ETAG_PATH).read_text().strip() or None
-    except (OSError, UnicodeDecodeError):
-        return None
 
 
 def _bundled_seed_path() -> Path:
