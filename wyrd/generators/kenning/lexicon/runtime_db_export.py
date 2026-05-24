@@ -28,10 +28,11 @@ import datetime as _dt
 import json
 import sqlite3
 from collections import Counter
+from collections.abc import Iterable
 from importlib import resources
 from importlib.resources.abc import Traversable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 # Bumped when the L4 table shape changes incompatibly. The loader rejects
 # DBs whose schema_version row doesn't match the runtime's expected
@@ -74,9 +75,7 @@ _NON_LANGUAGE_SUFFIXES = (
 # Tables whose ``_insert_cumulative`` writes are valid. Validation keeps
 # the f-string-formatted INSERT honest if a future caller refactors and
 # passes an external string by mistake.
-_CUMULATIVE_USAGE_TABLES = frozenset(
-    {"proportions_usage", "proportions_single_usage"}
-)
+_CUMULATIVE_USAGE_TABLES = frozenset({"proportions_usage", "proportions_single_usage"})
 
 
 def write_runtime_db(
@@ -186,8 +185,7 @@ def _write_meanings(conn: sqlite3.Connection, subjects: list[dict[str, Any]]) ->
         rows.append((usage_key, primary_language, stratum, payload.encode("utf-8")))
 
     conn.executemany(
-        "INSERT INTO meaning (usage_key, primary_language, stratum, data) "
-        "VALUES (?, ?, ?, ?)",
+        "INSERT INTO meaning (usage_key, primary_language, stratum, data) VALUES (?, ?, ?, ?)",
         rows,
     )
     return len(rows)
@@ -264,9 +262,7 @@ def _pick_unanimous_stratum(entries: list[dict[str, Any]]) -> str | None:
     return None
 
 
-def _write_fantasy_morphemes(
-    conn: sqlite3.Connection, fantasy_morphemes: dict[str, Any]
-) -> int:
+def _write_fantasy_morphemes(conn: sqlite3.Connection, fantasy_morphemes: dict[str, Any]) -> int:
     """Lowercase the key to match the existing bundle's ``COLLATE NOCASE``
     semantics."""
     rows = [
@@ -453,7 +449,7 @@ def _insert_tag_cooccurrence(
 
 def _write_metadata(conn: sqlite3.Connection, *, source_lexicon_db: Path) -> None:
     """Stamp bundle_metadata operational keys."""
-    built_at = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    built_at = _dt.datetime.now(_dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     conn.executemany(
         "INSERT INTO bundle_metadata (key, value) VALUES (?, ?)",
         [

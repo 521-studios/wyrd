@@ -32,9 +32,7 @@ from wyrd.generators.kenning.lexicon.runtime_db_export import (
     _pick_unanimous_stratum,
     _write_canonical_decompositions,
     _write_fantasy_morphemes,
-    write_runtime_db,
 )
-
 
 # ---------- helpers ----------
 
@@ -68,9 +66,7 @@ def _write_proportions_fixture(directory: Path, culture: str = "english") -> Non
             {"proportion": 70, "words": [[{"location": "pre"}, {"location": "post"}]]},
             {
                 "proportion": 30,
-                "words": [
-                    [{"location": "pre"}, {"location": "inner"}, {"location": "post"}]
-                ],
+                "words": [[{"location": "pre"}, {"location": "inner"}, {"location": "post"}]],
             },
             {"proportion": 0, "words": [[{"location": "pre"}]]},  # skipped
         ],
@@ -118,10 +114,7 @@ def test_emit_creates_l4_schema(tmp_path: Path) -> None:
     conn = sqlite3.connect(str(out_path))
     try:
         tables = {
-            row[0]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            )
+            row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
     finally:
         conn.close()
@@ -274,21 +267,17 @@ def test_proportions_tag_marginal_and_cooccurrence(tmp_path: Path) -> None:
     try:
         marginal = dict(
             conn.execute(
-                "SELECT tag, weight FROM proportions_tag_marginal "
-                "WHERE culture = 'english'"
+                "SELECT tag, weight FROM proportions_tag_marginal WHERE culture = 'english'"
             ).fetchall()
         )
         cooc = conn.execute(
-            "SELECT tag1, tag2, weight FROM proportions_tag_cooccurrence "
-            "WHERE culture = 'english'"
+            "SELECT tag1, tag2, weight FROM proportions_tag_cooccurrence WHERE culture = 'english'"
         ).fetchall()
     finally:
         conn.close()
 
     assert marginal == {"water": 12, "architecture": 8}
-    assert sorted(cooc) == sorted(
-        [("water", "architecture", 3), ("water", "tree", 2)]
-    )
+    assert sorted(cooc) == sorted([("water", "architecture", 3), ("water", "tree", 2)])
 
 
 def test_proportions_skips_missing_cultures(tmp_path: Path) -> None:
@@ -305,10 +294,7 @@ def test_proportions_skips_missing_cultures(tmp_path: Path) -> None:
     conn = sqlite3.connect(str(out_path))
     try:
         cultures = {
-            row[0]
-            for row in conn.execute(
-                "SELECT DISTINCT culture FROM proportions_usage"
-            )
+            row[0] for row in conn.execute("SELECT DISTINCT culture FROM proportions_usage")
         }
     finally:
         conn.close()
@@ -350,9 +336,7 @@ def test_meaning_row_round_trips_subject_payload(tmp_path: Path) -> None:
 
     conn = sqlite3.connect(str(out_path))
     try:
-        rows = conn.execute(
-            "SELECT usage_key, primary_language, data FROM meaning"
-        ).fetchall()
+        rows = conn.execute("SELECT usage_key, primary_language, data FROM meaning").fetchall()
     finally:
         conn.close()
 
@@ -389,19 +373,13 @@ def test_canonical_decomposition_culture_agnostic(tmp_path: Path) -> None:
 
     conn = sqlite3.connect(str(out_path))
     try:
-        cols = [
-            row[1]
-            for row in conn.execute("PRAGMA table_info(canonical_decomposition)")
-        ]
-        rows = conn.execute(
-            "SELECT toponym_name, data FROM canonical_decomposition"
-        ).fetchall()
+        cols = [row[1] for row in conn.execute("PRAGMA table_info(canonical_decomposition)")]
+        rows = conn.execute("SELECT toponym_name, data FROM canonical_decomposition").fetchall()
     finally:
         conn.close()
 
     assert cols == ["toponym_name", "data"], (
-        "canonical_decomposition must be (toponym_name, data) per D38.4 — "
-        "no culture column in PR 1"
+        "canonical_decomposition must be (toponym_name, data) per D38.4 — no culture column in PR 1"
     )
     # Empty L3 → empty table; no rows expected.
     assert rows == []
@@ -423,9 +401,7 @@ def test_fantasy_morpheme_table_writable(tmp_path: Path) -> None:
 
     conn = sqlite3.connect(str(out_path))
     try:
-        rows = conn.execute(
-            "SELECT usage_key, data FROM fantasy_morpheme"
-        ).fetchall()
+        rows = conn.execute("SELECT usage_key, data FROM fantasy_morpheme").fetchall()
     finally:
         conn.close()
 
@@ -498,20 +474,8 @@ def test_pick_primary_language_returns_none_for_orphan_reflex() -> None:
 def test_pick_unanimous_stratum_returns_single_value() -> None:
     """When every per-form stratum entry agrees, return the value."""
     entries = [
-        {
-            "word": {
-                "old_english_stratum": [
-                    {"form": "ham", "stratum": "native-old-english"}
-                ]
-            }
-        },
-        {
-            "word": {
-                "old_english_stratum": [
-                    {"form": "ham", "stratum": "native-old-english"}
-                ]
-            }
-        },
+        {"word": {"old_english_stratum": [{"form": "ham", "stratum": "native-old-english"}]}},
+        {"word": {"old_english_stratum": [{"form": "ham", "stratum": "native-old-english"}]}},
     ]
     assert _pick_unanimous_stratum(entries) == "native-old-english"
 
@@ -612,9 +576,7 @@ def test_write_canonical_decompositions_inserts_blob(tmp_path: Path) -> None:
             },
         )
         rows = dict(
-            conn.execute(
-                "SELECT toponym_name, data FROM canonical_decomposition"
-            ).fetchall()
+            conn.execute("SELECT toponym_name, data FROM canonical_decomposition").fetchall()
         )
     finally:
         conn.close()
@@ -681,14 +643,9 @@ def test_proportions_structure_uses_composite_pk(tmp_path: Path) -> None:
 
     conn = sqlite3.connect(str(out_path))
     try:
-        cols = [
-            row[1]
-            for row in conn.execute("PRAGMA table_info(proportions_structure)")
-        ]
+        cols = [row[1] for row in conn.execute("PRAGMA table_info(proportions_structure)")]
         pk_cols = [
-            row[1]
-            for row in conn.execute("PRAGMA table_info(proportions_structure)")
-            if row[5]
+            row[1] for row in conn.execute("PRAGMA table_info(proportions_structure)") if row[5]
         ]
     finally:
         conn.close()
