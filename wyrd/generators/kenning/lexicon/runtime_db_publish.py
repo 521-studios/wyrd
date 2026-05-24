@@ -11,10 +11,10 @@ S3 layout:
 ::
 
     s3://521studios-{env}-kenning-runtime/
-    ├── current.json                          # {"key": "v/2026-05-24T20Z.db", "etag": "..."}
+    ├── current.json                          # {"key": "v/2026-05-24T20-30Z.db", "etag": "..."}
     └── v/
-        ├── 2026-05-24T20Z.db                 # immutable versioned
-        ├── 2026-05-25T11Z.db
+        ├── 2026-05-24T20-30Z.db              # immutable versioned (UTC, minute precision)
+        ├── 2026-05-25T11-00Z.db
         └── ...
 
 Versioned keys give: rollback = re-write current.json to a prior key;
@@ -321,10 +321,14 @@ def main(argv: list[str] | None = None) -> int:
             profile=args.profile,
             dry_run=args.dry_run,
         )
-    except FileNotFoundError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 1
-    except (ValueError, RuntimeError, ClientError) as exc:
+    # OSError covers FileNotFoundError (missing --source) plus the
+    # broader file-system error class (PermissionError on a read-protected
+    # source, etc.) so the operator gets a clean error message instead
+    # of a traceback. ValueError = bad --env (or whatever
+    # publish_runtime_db raises on input shape); RuntimeError =
+    # collision-overwrite refusal; ClientError = anything boto3 surfaces
+    # from the actual PUTs.
+    except (OSError, ValueError, RuntimeError, ClientError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
