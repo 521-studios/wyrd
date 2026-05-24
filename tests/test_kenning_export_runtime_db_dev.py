@@ -3,18 +3,20 @@
 PR 2 adds:
 * ``select_dev_subset()`` — deterministic top-N-by-weight slice of the
   L4 inputs.
-* ``--dev`` CLI flag that runs the slice and pins ``built_at`` to a
-  fixed sentinel for byte-stable output.
+* ``--dev`` CLI flag that runs the slice, pins ``built_at`` +
+  ``source_lexicon_db`` to fixed sentinels for byte-stable output, and
+  rejects non-default upstream filters that would compromise the seed's
+  reproducibility across operators.
 * ``wyrd/generators/kenning/data/seed-runtime.db`` — the committed
-  dev-mode seed; tests in this module verify the file is well-formed
-  and tagged with the current ``SCHEMA_VERSION``.
+  dev-mode seed; tests in this module verify the schema version + dev
+  sentinels + every-table-has-rows.
 
-The "drift detection" claim from the d90t design (PR 2 spec): byte-
-equal re-emit verification against an L3 fixture is not exercised in
-this PR — committing a fixture L3 alongside the seed would double the
+The full "drift detection" claim from the d90t design (PR 2 spec):
+byte-equal re-emit verification against an L3 fixture is not exercised
+here — committing a fixture L3 alongside the seed would double the
 binary footprint without proportional fidelity gain. Schema-version
-drift is caught by the loads-cleanly test below; data drift is left
-to the operator's local ``--dev`` regeneration cycle.
+drift is caught by ``test_committed_seed_carries_current_schema_version``;
+data drift is left to the operator's local ``--dev`` regeneration cycle.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.cli.lexicon.export_runtime_db import SCHEMA_VERSION
 from wyrd.generators.kenning.lexicon.runtime_db_export import (
     DEV_BUILT_AT,
+    DEV_SOURCE_LEXICON_SENTINEL,
     _top_n_by_weight,
     select_dev_subset,
 )
@@ -125,6 +128,62 @@ def test_select_dev_subset_passes_fantasy_and_canonical_through() -> None:
     )
     assert fantasy_out is fantasy
     assert canon_out is canonical
+
+
+def test_select_dev_subset_keeps_partial_survivor_words() -> None:
+    """A multi-word subject where SOME words pass the keep-set and others
+    don't must keep the surviving words and drop the rejected ones in
+    place — without losing the subject. Catches an in-place-mutation
+    regression that the drop-everything / keep-everything tests wouldn't
+    see."""
+    subjects = [
+        {
+            "meaning": ["Test"],
+            "modifier_tags": [],
+            "modifier_type": None,
+            "words": [
+                {"modern_usage": "-ham-", "old_english": ["ham"]},
+                {"modern_usage": "-orphan-", "old_english": ["orphan"]},
+                {"modern_usage": "-ton-", "old_english": ["ton"]},
+            ],
+        }
+    ]
+    proportions = {"english": _proportions({"-ham-": 100, "-ton-": 50})}
+    subs_out, _, _, _ = select_dev_subset(
+        subjects,
+        fantasy_morphemes={},
+        canonical_decompositions={},
+        proportions_by_culture=proportions,
+        top_n_per_culture=10,
+    )
+    assert len(subs_out) == 1
+    surviving = [w["modern_usage"] for w in subs_out[0]["words"]]
+    assert surviving == ["-ham-", "-ton-"]
+
+
+def test_select_dev_subset_keep_from_single_usages() -> None:
+    """``single_usages`` (single-element place names) must contribute to
+    the keep-set independently — a morpheme that only appears in
+    single_usages should still survive the meaning filter."""
+    subjects = [_subject("-castle")]
+    proportions = {
+        "english": {
+            "usages": {"-other-": 100},
+            "single_usages": {"-castle": 50},
+            "structures": [],
+            "tag_marginal": {},
+            "tag_cooccurrence": {},
+        }
+    }
+    subs_out, _, _, props_out = select_dev_subset(
+        subjects,
+        fantasy_morphemes={},
+        canonical_decompositions={},
+        proportions_by_culture=proportions,
+        top_n_per_culture=5,
+    )
+    assert [s["words"][0]["modern_usage"] for s in subs_out] == ["-castle"]
+    assert "-castle" in props_out["english"]["single_usages"]
 
 
 def test_select_dev_subset_drops_subject_with_no_surviving_words() -> None:
@@ -239,6 +298,102 @@ def test_dev_flag_produces_byte_stable_output(tmp_path: Path) -> None:
     assert out1.read_bytes() == out2.read_bytes()
 
 
+def test_dev_flag_pins_source_lexicon_sentinel(tmp_path: Path) -> None:
+    """--dev replaces the resolved-absolute lexicon path with a sentinel
+    so the seed-runtime.db is byte-stable across operators / CI."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-runtime-db",
+            "--dev",
+            "--db",
+            str(db_path),
+            "--proportions-dir",
+            str(tmp_path),
+            "--output",
+            str(out_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        source = conn.execute(
+            "SELECT value FROM bundle_metadata WHERE key = 'source_lexicon_db'"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+    assert source == DEV_SOURCE_LEXICON_SENTINEL
+
+
+def test_dev_flag_rejects_non_default_filters(tmp_path: Path) -> None:
+    """--dev must hard-fail when combined with any non-default upstream
+    filter — silently honoring a custom --min-witnesses would produce a
+    seed that differs from the committed one without the operator
+    noticing."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-runtime-db",
+            "--dev",
+            "--min-witnesses",
+            "5",  # non-canonical
+            "--db",
+            str(db_path),
+            "--proportions-dir",
+            str(tmp_path),
+            "--output",
+            str(out_path),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--dev requires canonical defaults" in result.output
+    assert "--min-witnesses=5" in result.output
+
+
+def test_dev_flag_rejects_no_include_rando(tmp_path: Path) -> None:
+    """Same guard covers boolean filter overrides — not just numeric."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-runtime-db",
+            "--dev",
+            "--no-include-rando",
+            "--db",
+            str(db_path),
+            "--proportions-dir",
+            str(tmp_path),
+            "--output",
+            str(out_path),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--no-include-rando" in result.output
+
+
 def test_dev_flag_respects_top_n_cap(tmp_path: Path) -> None:
     """--dev-top-n trims usages per culture; verify a low cap produces
     a smaller proportions_usage row count."""
@@ -336,6 +491,29 @@ def test_committed_seed_carries_dev_built_at() -> None:
     assert built_at == DEV_BUILT_AT, (
         f"committed seed has built_at={built_at!r}, expected {DEV_BUILT_AT!r}. "
         "Did the operator regenerate without --dev?"
+    )
+
+
+@pytest.mark.skipif(
+    not _seed_path().is_file(),
+    reason="seed-runtime.db is not present",
+)
+def test_committed_seed_carries_dev_source_sentinel() -> None:
+    """source_lexicon_db on the committed seed must be the dev sentinel
+    (not an operator-specific absolute path). Catches an operator who
+    re-runs without --dev or who somehow lands their local /home/... path
+    in the committed file."""
+    conn = sqlite3.connect(str(_seed_path()))
+    try:
+        source = conn.execute(
+            "SELECT value FROM bundle_metadata WHERE key = 'source_lexicon_db'"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+    assert source == DEV_SOURCE_LEXICON_SENTINEL, (
+        f"committed seed has source_lexicon_db={source!r}, expected "
+        f"{DEV_SOURCE_LEXICON_SENTINEL!r}. Regenerate with --dev."
     )
 
 

@@ -84,6 +84,13 @@ _CUMULATIVE_USAGE_TABLES = frozenset({"proportions_usage", "proportions_single_u
 # for the drift-detection test).
 DEV_BUILT_AT = "1970-01-01T00:00:00Z"
 
+# Sentinel stamped into ``bundle_metadata.source_lexicon_db`` under --dev.
+# The wall-clock path resolves to the operator's local lexicon (~/.wyrd/
+# lexicon.db on one machine, /var/folders/... on another) which would
+# defeat cross-environment byte-stability; the sentinel keeps the dev
+# emit reproducible across operators + CI.
+DEV_SOURCE_LEXICON_SENTINEL = "DEV_SOURCE_LEXICON"
+
 # Default per-culture cap on usages / single_usages in --dev mode. Sized
 # to keep the committed seed-runtime.db under ~5MB while still covering
 # enough of the morpheme inventory for the test suite + local dev to
@@ -156,7 +163,9 @@ def write_runtime_db(
             proportion_counts = _write_proportions(conn, proportions_by_culture)
             _write_metadata(
                 conn,
-                source_lexicon_db=source_lexicon_db.resolve(),
+                source_lexicon_db=(
+                    DEV_SOURCE_LEXICON_SENTINEL if dev_subset else str(source_lexicon_db.resolve())
+                ),
                 built_at=DEV_BUILT_AT if dev_subset else None,
             )
             # Populate sqlite_stat tables so the runtime query planner has
@@ -610,7 +619,7 @@ def _top_n_by_weight(items: dict[str, int], n: int) -> list[tuple[str, int]]:
 def _write_metadata(
     conn: sqlite3.Connection,
     *,
-    source_lexicon_db: Path,
+    source_lexicon_db: str,
     built_at: str | None = None,
 ) -> None:
     """Stamp bundle_metadata operational keys.
@@ -619,6 +628,11 @@ def _write_metadata(
     --dev mode pass the ``DEV_BUILT_AT`` sentinel so the seed-runtime.db
     stays byte-stable across emits — the drift-detection test on the
     committed seed depends on a deterministic timestamp.
+
+    ``source_lexicon_db`` is the resolved absolute path of the L3 source
+    in production emit, or ``DEV_SOURCE_LEXICON_SENTINEL`` in --dev mode
+    (operator-path differences would break cross-environment byte-
+    stability of the committed seed).
     """
     stamp = (
         built_at
@@ -631,6 +645,6 @@ def _write_metadata(
             ("schema_version", SCHEMA_VERSION),
             ("built_at", stamp),
             ("emitter_version", EMITTER_VERSION),
-            ("source_lexicon_db", str(source_lexicon_db)),
+            ("source_lexicon_db", source_lexicon_db),
         ],
     )
