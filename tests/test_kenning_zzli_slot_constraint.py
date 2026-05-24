@@ -189,29 +189,38 @@ def test_name_generator_empty_input_does_not_raise():
     assert name_gen.structs == {}
 
 
-def test_name_generator_warns_on_drop(capsys):
+def test_name_generator_warns_on_drop(caplog):
     """Round-2 fix (generator-contract-reviewer P2): operators need to
     know the runtime is filtering their bundle so they understand why
-    seeded outputs drift from the pre-fix baseline. Stderr line names
-    the dropped count + percentage so the operator can decide whether
-    to re-emit the bundle."""
+    seeded outputs drift from the pre-fix baseline. Warning names the
+    dropped count + percentage so the operator can decide whether to
+    re-emit the bundle. wyrd-van9 moved this from print(file=stderr)
+    to the runtime logger so SPA / Lambda hosts can route it via
+    standard logging config."""
+    import logging
+
     good_struct = ((("pre",), ("post",)),)
     bad_struct = ((("post",),), (("pre",),))
     structs = {good_struct: 100, bad_struct: 475}
-    NameGenerator(meaning_db={}, meaning_gen=None, structs=structs)
-    captured = capsys.readouterr()
-    assert "wyrd-zzli" in captured.err
-    assert "filtered 1" in captured.err
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="wyrd.generators.kenning.runtime.proportions"):
+        NameGenerator(meaning_db={}, meaning_gen=None, structs=structs)
+    log_text = "\n".join(r.getMessage() for r in caplog.records)
+    assert "wyrd-zzli" in log_text
+    assert "filtered 1" in log_text
     # 475 / (100 + 475) = 82.6%
-    assert "82.6%" in captured.err
+    assert "82.6%" in log_text
 
 
-def test_name_generator_silent_when_nothing_dropped(capsys):
+def test_name_generator_silent_when_nothing_dropped(caplog):
     """Clean bundle — no warning."""
+    import logging
+
     structs = {((("pre",), ("post",)),): 100}
-    NameGenerator(meaning_db={}, meaning_gen=None, structs=structs)
-    captured = capsys.readouterr()
-    assert captured.err == ""
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="wyrd.generators.kenning.runtime.proportions"):
+        NameGenerator(meaning_db={}, meaning_gen=None, structs=structs)
+    assert not any("wyrd-zzli" in r.getMessage() for r in caplog.records)
 
 
 # ---------------------------------------------------------------------------
