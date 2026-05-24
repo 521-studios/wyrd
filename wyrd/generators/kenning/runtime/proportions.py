@@ -8,12 +8,19 @@ so generation is reproducible from the seed param.
 
 from __future__ import annotations
 
+import logging
 import random
 import re
-import sys
 from functools import lru_cache
 
 from .meaning import _mimic_case
+
+# wyrd-van9: runtime warnings (drift, stale bundle, missing keys) flow
+# through the logging module per the project's library-code convention
+# — operators / SPA / Lambda hosts can dial them via standard Python
+# logging config rather than munging stderr. See runtime/decomposition.py
+# for the established pattern.
+_logger = logging.getLogger(__name__)
 
 
 class Generator:
@@ -234,14 +241,35 @@ class MeaningGenerator:
         self.load_parts(proportions)
 
     def load_parts(self, proportions, *addkeys):
+        # wyrd-van9: tolerate proportions usages whose key isn't in
+        # meaning_db. This can happen when the bundle and proportions
+        # files are emitted from slightly different lexicon states —
+        # e.g. when a rebuild-proportions run produced matcher tokens
+        # for inflection-shadows that the bundle's later re-emit
+        # dropped. Pre-fix, a single missing key would KeyError out of
+        # the entire MeaningGenerator construction, taking down every
+        # downstream call. Skip + count instead so the bundle pair
+        # self-heals on next re-export and the operator sees the drift
+        # in the warning surface (rather than the runtime crashing).
+        missing_count = 0
         for usage, proportion in proportions.items():
-            meanings = self.meaning_db[usage]
+            meanings = self.meaning_db.get(usage)
+            if meanings is None:
+                missing_count += 1
+                continue
             keys = {m.key() for m in meanings}
             for key in keys:
                 if addkeys:
                     key = tuple(list(key) + list(addkeys))
                 gen = self.generators.setdefault(key, Generator(self.tag_db, {}))
                 gen.add_item(usage, proportion)
+        if missing_count:
+            _logger.warning(
+                "wyrd-van9: MeaningGenerator: %d proportions usages have no "
+                "Meaning in the bundle; skipping. Re-emit the bundle (and "
+                "re-rebuild proportions against it) to clear the drift.",
+                missing_count,
+            )
 
     def keep_keys_for_era(
         self, era_range: tuple[int | None, int | None] | None
@@ -453,12 +481,12 @@ class NameGenerator:
         if dropped:
             dropped_weight = sum(structs[k] for k in structs if k not in self.structs)
             total_weight = sum(structs.values()) or 1
-            print(
-                f"  [wyrd-zzli] NameGenerator: filtered {dropped} ungrammatical "
-                f"structure templates "
-                f"({100 * dropped_weight / total_weight:.1f}% of structure weight); "
-                "re-emit the bundle to clear the drift",
-                file=sys.stderr,
+            _logger.warning(
+                "wyrd-zzli: NameGenerator: filtered %d ungrammatical structure "
+                "templates (%.1f%% of structure weight); re-emit the bundle to "
+                "clear the drift",
+                dropped,
+                100 * dropped_weight / total_weight,
             )
         # wyrd-mj2 (D17 β-term per the ticket reframe): tag-level
         # bigram statistics from each culture's place-name corpus.

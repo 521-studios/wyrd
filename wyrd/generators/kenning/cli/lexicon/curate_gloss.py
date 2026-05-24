@@ -8,6 +8,13 @@ from pathlib import Path
 
 import click
 
+# wyrd-van9: single source of truth for the suffix charset constraint —
+# imported from the applier so a future change can't drift one side
+# without the other. The applier owns the constant because it's the
+# authoritative defense layer (hand-edited JSONL bypasses the CLI but
+# still hits the applier).
+from wyrd.generators.kenning.enrichment import SUFFIX_PATTERN
+
 _CURATION_SOURCE_ROW = {
     "_type": "source",
     "ref": "manual-curation",
@@ -181,9 +188,24 @@ def lexicon_curate_split_etymon(
                     f"--into spec {spec!r}: unrecognized token {part!r}; "
                     "use key=value form or the bare token 'primary'."
                 )
-        if not child.get("suffix"):
+        suffix = child.get("suffix")
+        if not suffix:
             raise click.UsageError(
                 f"--into spec {spec!r}: missing or empty required ``suffix`` field."
+            )
+        # wyrd-van9: suffix charset validation. Children land at
+        # canonical form ``<original-form>#<suffix>`` and ref
+        # ``<language>:<original-form>#<suffix>``. A suffix carrying
+        # ``:`` (the ref-grammar separator), ``#`` (the disambiguator),
+        # or whitespace would corrupt downstream ref parsers that
+        # naively split on those. Lock to ``[a-z0-9_-]+`` for human
+        # readability + ref-safety.
+        if not SUFFIX_PATTERN.fullmatch(suffix):
+            raise click.UsageError(
+                f"--into spec {spec!r}: suffix {suffix!r} contains "
+                "disallowed characters; allowed charset is [a-z0-9_-]+ "
+                "(lowercase alphanumeric, underscore, hyphen). Disambiguators "
+                "like #/: would corrupt downstream ref parsing."
             )
         into.append(child)
 
