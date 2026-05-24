@@ -201,6 +201,80 @@ def _primary_source_lemma(word: dict) -> tuple[str, str] | None:
     return None
 
 
+def _load_known_polysemy(path: Path | None) -> frozenset[tuple[str, str]]:
+    """Load the operator-maintained allowlist of (source_lang, source_lemma)
+    pairs that are confirmed real polysemy — one word with multiple
+    related senses — that the cosine-similarity audit cannot tell apart
+    from undetected homonyms.
+
+    Returns an empty frozenset when ``path`` is None, an empty string,
+    a directory, or a nonexistent file (the latter three are operator
+    bypass shapes — empty ``--known-polysemy-file ""`` is the natural
+    "turn this off" gesture). Raises ``click.ClickException`` on
+    malformed JSON or missing-required-field rows — those are operator
+    typos, not bypass intent.
+
+    File format: JSONL. One synthetic ``_type=source`` row at the top
+    (operator note) plus one ``_type=known_polysemy`` row per entry
+    with ``source_lang`` and ``source_lemma`` fields keyed in the
+    BUNDLE form (underscore-joined, e.g. ``old_english`` not the
+    lexicon's ``old-english``). An optional ``reason`` field rides
+    along for audit-log readability; only ``source_lang`` +
+    ``source_lemma`` participate in the filter. Both keys are
+    ``.strip()`` ed on load to guard against trailing whitespace from
+    hand-edited entries.
+    """
+    # Operator-bypass shapes: None / empty / "." / nonexistent / dir.
+    # Click parses ``--known-polysemy-file ""`` into ``Path('.')``,
+    # which exists as a directory; without this guard the .open() call
+    # below would raise IsADirectoryError mid-audit.
+    if path is None or str(path) in ("", ".") or not path.exists() or path.is_dir():
+        return frozenset()
+    entries: set[tuple[str, str]] = set()
+    with path.open(encoding="utf-8") as fh:
+        for line_no, raw in enumerate(fh, start=1):
+            stripped = raw.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            try:
+                row = json.loads(stripped)
+            except json.JSONDecodeError as exc:
+                raise click.ClickException(
+                    f"{path}:{line_no}: malformed JSON in allowlist: {exc}"
+                ) from exc
+            if row.get("_type") != "known_polysemy":
+                continue
+            lang = row.get("source_lang")
+            lemma = row.get("source_lemma")
+            if not lang or not lemma:
+                raise click.ClickException(
+                    f"{path}:{line_no}: known_polysemy row missing source_lang and/or source_lemma"
+                )
+            entries.add((lang.strip(), lemma.strip()))
+    return frozenset(entries)
+
+
+def _apply_polysemy_filter(
+    intra_rows: list[dict],
+    allowlist: frozenset[tuple[str, str]],
+) -> tuple[list[dict], int]:
+    """Drop rows whose (source_lang, source_lemma) is in the allowlist.
+
+    Returns ``(kept_rows, dropped_count)``. Both inputs use the BUNDLE
+    underscore-joined form (see ``_load_known_polysemy``). ``.strip()``
+    on both sides defends against hand-edited whitespace drift in the
+    allowlist file or bundle.
+    """
+    if not allowlist:
+        return intra_rows, 0
+    kept = [
+        r
+        for r in intra_rows
+        if (r["source_lang"].strip(), r["source_lemma"].strip()) not in allowlist
+    ]
+    return kept, len(intra_rows) - len(kept)
+
+
 @click.command("audit-semantic-coherence")
 @click.option(
     "--meanings",
@@ -252,6 +326,20 @@ def _primary_source_lemma(word: dict) -> tuple[str, str] | None:
     show_default=True,
     help="Rows per output CSV (sorted ascending by similarity — lowest = most suspect).",
 )
+@click.option(
+    "--known-polysemy-file",
+    "known_polysemy_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=Path("data/audit/known_polysemy.jsonl"),
+    show_default=True,
+    help=(
+        "Allowlist of (source_lang, source_lemma) pairs that are confirmed real "
+        "polysemy — one word with multiple related senses — that the cosine "
+        "audit cannot tell apart from undetected homonyms. Filtered out of the "
+        "intra-entry-suspects CSV. Operator-maintained JSONL. Pass an empty "
+        "string or a nonexistent path to skip filtering."
+    ),
+)
 def lexicon_audit_semantic_coherence(
     meanings_path: Path | None,
     output_dir: Path,
@@ -260,6 +348,7 @@ def lexicon_audit_semantic_coherence(
     batch_size: int,
     limit: int | None,
     top: int,
+    known_polysemy_path: Path,
 ) -> None:
     """Embedding-based audit for bundle cluster pollution + undetected
     homonymy. Produces two suspect CSVs for human review.
@@ -275,6 +364,14 @@ def lexicon_audit_semantic_coherence(
         )
 
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    known_polysemy = _load_known_polysemy(known_polysemy_path)
+    if known_polysemy:
+        click.echo(
+            f"Loaded {len(known_polysemy)} known-polysemy entries from "
+            f"{known_polysemy_path} (filtered out of intra-entry-suspects)",
+            err=True,
+        )
 
     click.echo(f"Loading {meanings_path}...", err=True)
     with meanings_path.open() as f:
@@ -450,13 +547,17 @@ def lexicon_audit_semantic_coherence(
             }
         )
     intra_rows.sort(key=lambda r: r["avg_intra_pairwise_cosine"])
+    intra_rows, intra_filtered_out = _apply_polysemy_filter(intra_rows, known_polysemy)
     intra_path = output_dir / "intra-entry-suspects.csv"
     _write_csv(intra_path, intra_rows[:top])
-    click.echo(
+    msg = (
         f"wrote {len(intra_rows[:top])} suspects to {intra_path} "
-        f"(of {len(intra_rows)} multi-gloss entries)",
-        err=True,
+        f"(of {len(intra_rows)} multi-gloss entries"
     )
+    if intra_filtered_out:
+        msg += f"; {intra_filtered_out} filtered as known polysemy"
+    msg += ")"
+    click.echo(msg, err=True)
 
     click.echo(
         "\nReview decision matrix:\n"

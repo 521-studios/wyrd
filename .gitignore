@@ -60,5 +60,7 @@ scratch/
 # Legacy audit-output paths at the repo root — historically created
 # by ad-hoc audit runs (wyrd-36ez). Now live under scratch/ but kept
 # ignored at root in case future tooling drops them here again.
-audit/
-audit-cleaned/
+# Leading slash anchors at repo root so committed paths like
+# data/audit/ (operator-maintained allowlists) are NOT caught.
+/audit/
+/audit-cleaned/
