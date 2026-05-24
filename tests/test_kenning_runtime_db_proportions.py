@@ -233,7 +233,9 @@ def test_load_culture_flag_on_reads_l4(monkeypatch, _proportions_db: tuple[Path,
 # ---------- bit-equivalence ----------
 
 
-def test_bit_equivalent_names_across_backends(monkeypatch, _proportions_db: tuple[Path, Path]) -> None:
+def test_bit_equivalent_names_across_backends(
+    monkeypatch, _proportions_db: tuple[Path, Path]
+) -> None:
     """Same seed → same name across JSON and SQLite backends.
 
     The L4 was built from the fixture proportions_dir; load_proportions
