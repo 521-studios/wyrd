@@ -1,0 +1,893 @@
+"""Tests for ``wyrd kenning lexicon export-runtime-db`` (wyrd-d90t PR 1).
+
+PR 1 ships the L4 runtime DB emitter. These tests round-trip every L4
+table the emitter writes — meanings, fantasy morphemes, canonical
+decompositions, the three sampled proportions tables (usage,
+single_usage, structure), and the two statistics tables
+(tag_marginal, tag_cooccurrence). They confirm the emit shape so
+PRs 4-6 (loader + load_meanings + proportions refactor) have a
+concrete target.
+"""
+
+from __future__ import annotations
+
+import json
+import sqlite3
+from importlib import resources
+from pathlib import Path
+
+import click
+import pytest
+from click.testing import CliRunner
+
+from wyrd.generators.kenning.cli import cli as cli_root
+from wyrd.generators.kenning.cli.lexicon.export_runtime_db import (
+    EMITTER_VERSION,
+    SCHEMA_VERSION,
+    _parse_lang_thresholds,
+)
+from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
+from wyrd.generators.kenning.lexicon.runtime_db_export import (
+    _insert_cumulative,
+    _insert_tag_cooccurrence,
+    _pick_primary_language,
+    _pick_unanimous_stratum,
+    _strata_for_word,
+    _write_canonical_decompositions,
+    _write_fantasy_morphemes,
+)
+
+# ---------- helpers ----------
+
+
+def _seed_minimal_lexicon(db_path: Path) -> None:
+    """Initialize an empty L3 lexicon DB.
+
+    Tests that don't depend on lexicon contents (the emitter still has
+    to produce a valid L4 even with empty inputs) use this directly.
+    Tests that need specific meanings build them via the proportions
+    sidecar fixture below — emitting from a richly-populated L3 DB is
+    covered by integration runs, not unit tests.
+    """
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        db.upsert_source(id="skeat-1901", title="Skeat 1901", year=1901)
+        db.commit()
+
+
+def _write_proportions_fixture(directory: Path, culture: str = "english") -> None:
+    """Write a small-but-shape-correct proportions JSON into ``directory``.
+
+    Single fixture file per culture; the emitter reads it via the
+    ``--proportions-dir`` flag so tests don't have to monkeypatch the
+    bundled data dir.
+    """
+    payload = {
+        "usages": {"-ham-": 100, "-ton-": 50, "-zero-weight": 0},
+        "single_usages": {"-castle": 20, "-bury": 5},
+        "structures": [
+            {"proportion": 70, "words": [[{"location": "pre"}, {"location": "post"}]]},
+            {
+                "proportion": 30,
+                "words": [[{"location": "pre"}, {"location": "inner"}, {"location": "post"}]],
+            },
+            {"proportion": 0, "words": [[{"location": "pre"}]]},  # skipped
+        ],
+        "tag_marginal": {"water": 12, "architecture": 8},
+        "tag_cooccurrence": {"water|architecture": 3, "water|tree": 2},
+    }
+    (directory / f"{culture}_proportions.json").write_text(json.dumps(payload))
+
+
+def _run_emit(
+    *,
+    db_path: Path,
+    out_path: Path,
+    proportions_dir: Path | None = None,
+) -> None:
+    runner = CliRunner()
+    args = [
+        "lexicon",
+        "export-runtime-db",
+        "--db",
+        str(db_path),
+        "--output",
+        str(out_path),
+    ]
+    if proportions_dir is not None:
+        args.extend(["--proportions-dir", str(proportions_dir)])
+    result = runner.invoke(cli_root, args, catch_exceptions=False)
+    assert result.exit_code == 0, result.output
+
+
+# ---------- schema + metadata ----------
+
+
+def test_emit_creates_l4_schema(tmp_path: Path) -> None:
+    """A fresh emit must produce every L4 table + index defined in
+    runtime.sql. Catches accidental schema drift between the .sql
+    resource and the emitter's expectations."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        tables = {
+            row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+    finally:
+        conn.close()
+
+    assert {
+        "meaning",
+        "fantasy_morpheme",
+        "canonical_decomposition",
+        "proportions_usage",
+        "proportions_single_usage",
+        "proportions_structure",
+        "proportions_tag_marginal",
+        "proportions_tag_cooccurrence",
+        "bundle_metadata",
+    } <= tables
+
+
+def test_emit_writes_metadata(tmp_path: Path) -> None:
+    """bundle_metadata must carry schema_version + emitter_version + a
+    built_at timestamp + the source DB path so deployed DBs can be
+    correlated back to their emit source (D38.1)."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        meta = dict(conn.execute("SELECT key, value FROM bundle_metadata").fetchall())
+    finally:
+        conn.close()
+
+    assert meta["schema_version"] == SCHEMA_VERSION
+    assert meta["emitter_version"] == EMITTER_VERSION
+    # Resolve both sides — macOS tmp_path lives under /var/folders/...
+    # which symlinks to /private/var/...; the emitter calls .resolve()
+    # so the stored value is the realpath, not the as-passed value.
+    assert meta["source_lexicon_db"] == str(db_path.resolve())
+    # Timestamp is sensitive to wall-clock; just confirm it's the
+    # iso-ish shape and ends with Z.
+    assert meta["built_at"].endswith("Z")
+    assert "T" in meta["built_at"]
+
+
+def test_emit_overwrites_existing_output(tmp_path: Path) -> None:
+    """Re-emitting onto an existing path replaces the file (the L4 build
+    is whole-DB; re-emit is the only way to update it)."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+    first_size = out_path.stat().st_size
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+    second_size = out_path.stat().st_size
+
+    # Sizes should be roughly equal (timestamps drift) — confirms the
+    # file wasn't appended to, just rewritten.
+    assert abs(first_size - second_size) < 1024
+
+
+# ---------- proportions ----------
+
+
+def test_proportions_usage_cumulative_monotonic(tmp_path: Path) -> None:
+    """Sampled tables carry a precomputed cumulative column for O(log n)
+    weighted-random sampling (D38.3). Verify the cumulative values are
+    monotonically increasing per culture and equal weight-sum."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        rows = conn.execute(
+            "SELECT usage_key, weight, cumulative FROM proportions_usage "
+            "WHERE culture = 'english' ORDER BY cumulative"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    # -zero-weight has weight 0 → dropped (would conflict on cumulative PK).
+    assert [r[0] for r in rows] == ["-ham-", "-ton-"]
+    assert [r[1] for r in rows] == [100, 50]
+    assert [r[2] for r in rows] == [100, 150]
+
+
+def test_proportions_single_usage_emits(tmp_path: Path) -> None:
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        rows = conn.execute(
+            "SELECT usage_key, weight, cumulative FROM proportions_single_usage "
+            "WHERE culture = 'english' ORDER BY cumulative"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    assert [r[0] for r in rows] == ["-castle", "-bury"]
+    assert [r[2] for r in rows] == [20, 25]
+
+
+def test_proportions_structure_stores_template_as_json(tmp_path: Path) -> None:
+    """Structure rows carry the template (the ``words`` list) as a JSON
+    blob; the runtime decodes it after weighted-sampling on cumulative."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        rows = conn.execute(
+            "SELECT template, weight, cumulative FROM proportions_structure "
+            "WHERE culture = 'english' ORDER BY cumulative"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    # 0-weight structure is dropped.
+    assert len(rows) == 2
+    first_template = json.loads(rows[0][0])
+    assert first_template == [[{"location": "pre"}, {"location": "post"}]]
+    assert [r[1] for r in rows] == [70, 30]
+    assert [r[2] for r in rows] == [70, 100]
+
+
+def test_proportions_tag_marginal_and_cooccurrence(tmp_path: Path) -> None:
+    """Statistics tables (point-lookup, no sampling) preserve the
+    underlying tag weights from the source JSON."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        marginal = dict(
+            conn.execute(
+                "SELECT tag, weight FROM proportions_tag_marginal WHERE culture = 'english'"
+            ).fetchall()
+        )
+        cooc = conn.execute(
+            "SELECT tag1, tag2, weight FROM proportions_tag_cooccurrence WHERE culture = 'english'"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    assert marginal == {"water": 12, "architecture": 8}
+    assert sorted(cooc) == sorted([("water", "architecture", 3), ("water", "tree", 2)])
+
+
+def test_proportions_skips_missing_cultures(tmp_path: Path) -> None:
+    """Cultures whose proportions JSON is absent from the proportions-dir
+    are silently skipped — the bundled set is the truth-source."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    # Only ship english; don't write scottish/welsh/irish/breton.
+    _write_proportions_fixture(tmp_path, culture="english")
+
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        cultures = {
+            row[0] for row in conn.execute("SELECT DISTINCT culture FROM proportions_usage")
+        }
+    finally:
+        conn.close()
+
+    assert cultures == {"english"}
+
+
+# ---------- meaning ----------
+
+
+def test_meaning_row_round_trips_subject_payload(tmp_path: Path) -> None:
+    """End-to-end emit + read: a usage-keyed meaning row's data blob
+    decodes back into the {meaning, modifier_tags, modifier_type, word}
+    structure each Meaning ultimately loads from."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    # Inject a meaning into the L3 DB so export_meanings has something to
+    # emit. rando-port-cited etymons bypass the D4 witness threshold via
+    # --include-rando (defaulted on), so a single citation suffices.
+    with LexiconDB(db_path) as db:
+        db.upsert_source(id="rando-port", title="Rando port (seed)")
+        etymon_id = db.upsert_etymon(
+            "ham",
+            "old-english",
+            modifier_type="Topographical",
+            position_pref="post",
+        )
+        db.add_citation(etymon_id, "rando-port")
+        db.conn.execute(
+            "INSERT INTO etymon_gloss (etymon_id, gloss) VALUES (?, ?)",
+            (etymon_id, "home, dwelling"),
+        )
+        db.commit()
+
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        rows = conn.execute("SELECT usage_key, primary_language, data FROM meaning").fetchall()
+    finally:
+        conn.close()
+
+    # At least one row should have landed (the rando-port include path
+    # passes through ham → -ham- as a topographical usage).
+    assert rows, "expected at least one meaning row, got zero"
+    by_usage = {row[0]: row for row in rows}
+    # The exact usage depends on export_meanings's modern_usage projection;
+    # confirm structural invariants on whatever shape it emits.
+    sample_key = next(iter(by_usage))
+    sample = by_usage[sample_key]
+    payload = json.loads(sample[2])
+    assert "entries" in payload and isinstance(payload["entries"], list)
+    entry = payload["entries"][0]
+    assert set(entry) >= {"meaning", "modifier_tags", "modifier_type", "word"}
+    assert entry["word"]["modern_usage"] == sample_key
+
+
+# ---------- canonical_decomposition ----------
+
+
+def test_canonical_decomposition_culture_agnostic(tmp_path: Path) -> None:
+    """Per D38.4 the L4 canonical_decomposition table is culture-agnostic
+    in PR 1: PK is just toponym_name, with the {signature, source} JSON
+    payload in ``data``. Verify the schema matches that contract — and
+    that an emit against an L3 with no canonical picks succeeds with an
+    empty table (the runtime tolerates an empty set)."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        cols = [row[1] for row in conn.execute("PRAGMA table_info(canonical_decomposition)")]
+        rows = conn.execute("SELECT toponym_name, data FROM canonical_decomposition").fetchall()
+    finally:
+        conn.close()
+
+    assert cols == ["toponym_name", "data"], (
+        "canonical_decomposition must be (toponym_name, data) per D38.4 — no culture column in PR 1"
+    )
+    # Empty L3 → empty table; no rows expected.
+    assert rows == []
+
+
+# ---------- fantasy_morpheme ----------
+
+
+def test_fantasy_morpheme_table_writable(tmp_path: Path) -> None:
+    """Empty L3 yields zero fantasy_morpheme rows; the table exists and
+    the emitter doesn't crash on the empty case (the bundled production
+    DB has thousands, but unit tests run on a near-empty DB by design)."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        rows = conn.execute("SELECT usage_key, data FROM fantasy_morpheme").fetchall()
+    finally:
+        conn.close()
+
+    assert rows == []
+
+
+# ---------- sampling primitive smoke ----------
+
+
+# ---------- _pick_primary_language ----------
+
+
+def test_pick_primary_language_excludes_citations_sibling() -> None:
+    """A word carrying ``celtic_mix_citations: list[str]`` alongside
+    ``celtic_mix: list[str]`` must not double-count the citations
+    sibling. Without the explicit non-language-suffix exclusion the
+    alphabetical tiebreaker would pick ``celtic_mix_citations``."""
+    entries = [
+        {
+            "meaning": [],
+            "modifier_tags": [],
+            "modifier_type": None,
+            "word": {
+                "modern_usage": "-aig",
+                "celtic_mix": ["-aig", "aig"],
+                "celtic_mix_citations": ["src1", "src2"],
+            },
+        }
+    ]
+    assert _pick_primary_language(entries) == "celtic_mix"
+
+
+def test_pick_primary_language_tiebreaks_alphabetically() -> None:
+    """When two languages tie on count, the alphabetically-first key
+    wins (re-emits with identical inputs produce identical rows)."""
+    entries = [
+        {
+            "meaning": [],
+            "modifier_tags": [],
+            "modifier_type": None,
+            "word": {
+                "modern_usage": "ham",
+                "old_norse": ["ham"],
+                "old_english": ["ham"],
+            },
+        }
+    ]
+    assert _pick_primary_language(entries) == "old_english"
+
+
+def test_pick_primary_language_returns_none_for_orphan_reflex() -> None:
+    """Orphan-reflex entries (from ``_orphan_reflex_subjects``) carry
+    only ``modern_usage`` — they're matcher-only and have no etymon-
+    backed language. Returning None lets the schema column stay NULL
+    instead of masking the category with an empty string."""
+    entries = [
+        {
+            "meaning": [],
+            "modifier_tags": [],
+            "modifier_type": None,
+            "word": {"modern_usage": "-abann-"},
+        }
+    ]
+    assert _pick_primary_language(entries) is None
+
+
+# ---------- _pick_unanimous_stratum ----------
+
+
+def test_pick_unanimous_stratum_returns_single_value() -> None:
+    """When every per-form stratum entry agrees, return the value."""
+    entries = [
+        {"word": {"old_english_stratum": [{"form": "ham", "stratum": "native-old-english"}]}},
+        {"word": {"old_english_stratum": [{"form": "ham", "stratum": "native-old-english"}]}},
+    ]
+    assert _pick_unanimous_stratum(entries) == "native-old-english"
+
+
+def test_pick_unanimous_stratum_returns_none_on_mixed() -> None:
+    """Mixed strata across entries — common for cross-cultural morphemes
+    like Latin loans — yield NULL so the bulk index doesn't lie."""
+    entries = [
+        {"word": {"welsh_stratum": [{"form": "caer", "stratum": "latin-loan"}]}},
+        {"word": {"welsh_stratum": [{"form": "din", "stratum": "native-welsh"}]}},
+    ]
+    assert _pick_unanimous_stratum(entries) is None
+
+
+def test_pick_unanimous_stratum_returns_none_when_absent() -> None:
+    """No stratum data on any entry → NULL (passthrough on the runtime
+    filter per D32)."""
+    entries = [
+        {"word": {"old_english": ["ham"]}},
+        {"word": {"old_english": ["heim"]}},
+    ]
+    assert _pick_unanimous_stratum(entries) is None
+
+
+# ---------- _insert_tag_cooccurrence ----------
+
+
+def test_insert_tag_cooccurrence_raises_on_malformed_key(tmp_path: Path) -> None:
+    """A cooccurrence key without ``|`` is a data bug — raise rather
+    than drop the row silently (D24 observability rule)."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+    # Build the runtime DB normally first so the table exists.
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        with pytest.raises(ValueError, match="missing the 'tag1\\|tag2' separator"):
+            _insert_tag_cooccurrence(conn, "english", {"oops_no_pipe": 1})
+    finally:
+        conn.close()
+
+
+# ---------- _write_fantasy_morphemes / _write_canonical_decompositions ----------
+
+
+def test_write_fantasy_morphemes_inserts_lowercased_key(tmp_path: Path) -> None:
+    """Verify the lowercase-key contract that mirrors the bundle's
+    COLLATE NOCASE semantics."""
+    out_path = tmp_path / "runtime.db"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(out_path))
+    try:
+        # Schema bootstrap: create just the table we're exercising.
+        conn.executescript(
+            "CREATE TABLE fantasy_morpheme (usage_key TEXT PRIMARY KEY, data BLOB NOT NULL);"
+        )
+        n = _write_fantasy_morphemes(
+            conn,
+            {
+                "Harpy": {"input_name": "Harpy", "language": "ancient-greek"},
+                "Djinni": {"input_name": "Djinni", "language": "ar"},
+            },
+        )
+        rows = conn.execute(
+            "SELECT usage_key, data FROM fantasy_morpheme ORDER BY usage_key"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    assert n == 2
+    assert [r[0] for r in rows] == ["djinni", "harpy"]
+    payload = json.loads(rows[0][1])
+    assert payload["language"] == "ar"
+
+
+def test_write_canonical_decompositions_inserts_blob(tmp_path: Path) -> None:
+    """End-to-end emit + read for a populated canonical_decomposition
+    set — the empty case is covered above; this exercises the insert
+    path itself."""
+    out_path = tmp_path / "runtime.db"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(out_path))
+    try:
+        conn.executescript(
+            "CREATE TABLE canonical_decomposition ("
+            "  toponym_name TEXT PRIMARY KEY,"
+            "  data BLOB NOT NULL"
+            ");"
+        )
+        n = _write_canonical_decompositions(
+            conn,
+            {
+                "Stratford": {"signature": "abc123", "source": "scholar"},
+                "Birmingham": {"signature": "def456", "source": "unique-zero"},
+            },
+        )
+        rows = dict(
+            conn.execute("SELECT toponym_name, data FROM canonical_decomposition").fetchall()
+        )
+    finally:
+        conn.close()
+
+    assert n == 2
+    assert json.loads(rows["Stratford"]) == {
+        "signature": "abc123",
+        "source": "scholar",
+    }
+
+
+# ---------- _parse_lang_thresholds ----------
+
+
+def test_parse_lang_thresholds_happy_path() -> None:
+    """Specs override the preset; aliases are normalized."""
+    out = _parse_lang_thresholds(("old_english=2", "celtic_mix=4"), use_preset=False)
+    assert out["old-english"] == 2  # LANGUAGE_FIELDS alias
+    assert out["celtic"] == 4
+
+
+def test_parse_lang_thresholds_no_preset_empties_map() -> None:
+    out = _parse_lang_thresholds((), use_preset=False)
+    assert out == {}
+
+
+def test_parse_lang_thresholds_keeps_preset_when_use_preset() -> None:
+    """The preset (RECOMMENDED_LANG_THRESHOLDS) should be present when
+    no overrides are supplied."""
+    out = _parse_lang_thresholds((), use_preset=True)
+    # Preset is calibrated against corpus availability; OE is the
+    # canonical strict entry.
+    assert "old-english" in out
+
+
+def test_parse_lang_thresholds_rejects_missing_equals() -> None:
+    with pytest.raises(click.BadParameter, match="LANG=N"):
+        _parse_lang_thresholds(("old_english",), use_preset=False)
+
+
+def test_parse_lang_thresholds_rejects_non_integer_n() -> None:
+    with pytest.raises(click.BadParameter, match="must be an integer"):
+        _parse_lang_thresholds(("old_english=two",), use_preset=False)
+
+
+def test_parse_lang_thresholds_rejects_empty_parts() -> None:
+    with pytest.raises(click.BadParameter, match="must be non-empty"):
+        _parse_lang_thresholds(("=3",), use_preset=False)
+
+
+# ---------- proportions_structure PK invariant ----------
+
+
+def test_proportions_structure_uses_composite_pk(tmp_path: Path) -> None:
+    """Per Gemini PR-350 review: proportions_structure must use
+    (culture, cumulative) as PK to match the sampled-table convention
+    on its siblings (proportions_usage / proportions_single_usage)."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        cols = [row[1] for row in conn.execute("PRAGMA table_info(proportions_structure)")]
+        pk_cols = [
+            row[1] for row in conn.execute("PRAGMA table_info(proportions_structure)") if row[5]
+        ]
+    finally:
+        conn.close()
+
+    assert "id" not in cols, "proportions_structure should not carry a surrogate id"
+    assert sorted(pk_cols) == ["culture", "cumulative"]
+
+
+# ---------- log-n sampling smoke ----------
+
+
+def test_proportions_usage_supports_log_n_sampling(tmp_path: Path) -> None:
+    """The D38.3 sampling pattern (random int + cumulative >= roll) should
+    round-trip a usage_key consistently. Smoke-tests the SQL shape PR 6
+    will refactor the runtime onto."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    _run_emit(db_path=db_path, out_path=out_path, proportions_dir=tmp_path)
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        total = conn.execute(
+            "SELECT MAX(cumulative) FROM proportions_usage WHERE culture = ?",
+            ("english",),
+        ).fetchone()[0]
+        assert total == 150
+
+        # roll=1 → first row (-ham-, cumulative=100)
+        row_low = conn.execute(
+            "SELECT usage_key FROM proportions_usage "
+            "WHERE culture = ? AND cumulative >= ? "
+            "ORDER BY cumulative LIMIT 1",
+            ("english", 1),
+        ).fetchone()
+        # roll=120 → second row (-ton-, cumulative=150)
+        row_high = conn.execute(
+            "SELECT usage_key FROM proportions_usage "
+            "WHERE culture = ? AND cumulative >= ? "
+            "ORDER BY cumulative LIMIT 1",
+            ("english", 120),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    assert row_low[0] == "-ham-"
+    assert row_high[0] == "-ton-"
+
+
+# ---------- round-2 coverage: round-1-added paths ----------
+
+
+def test_insert_cumulative_rejects_non_whitelisted_table(tmp_path: Path) -> None:
+    """``_CUMULATIVE_USAGE_TABLES`` whitelist is the SQL-injection safety
+    on the f-string-interpolated table name. A caller passing an
+    arbitrary table must hit the whitelist raise BEFORE the INSERT is
+    formatted."""
+    out_path = tmp_path / "runtime.db"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(out_path))
+    try:
+        with pytest.raises(ValueError, match="not in whitelist"):
+            _insert_cumulative(conn, "evil_table; DROP TABLE meaning;--", "english", [])
+    finally:
+        conn.close()
+
+
+def test_insert_cumulative_wraps_integrity_error(tmp_path: Path) -> None:
+    """A duplicate (culture, cumulative) row at insert time should raise
+    a RuntimeError chained from sqlite3.IntegrityError with culture +
+    table context so the operator can locate the offending pair."""
+    out_path = tmp_path / "runtime.db"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(out_path))
+    try:
+        conn.executescript(
+            "CREATE TABLE proportions_usage ("
+            "  culture TEXT NOT NULL, usage_key TEXT NOT NULL, "
+            "  weight INTEGER NOT NULL, cumulative INTEGER NOT NULL, "
+            "  PRIMARY KEY (culture, cumulative));"
+        )
+        # First insert lands fine.
+        _insert_cumulative(conn, "proportions_usage", "english", [("-ham-", 100)])
+        # Second insert with the same culture re-uses cumulative=100 → IntegrityError.
+        with pytest.raises(RuntimeError, match="proportions_usage.*english"):
+            _insert_cumulative(conn, "proportions_usage", "english", [("-ton-", 100)])
+    finally:
+        conn.close()
+
+
+def test_strata_for_word_skips_non_list_and_non_dict() -> None:
+    """``_strata_for_word`` defensive guards: skip non-list values,
+    skip non-dict elements within the list, skip dicts without a
+    truthy ``stratum`` field."""
+    word = {
+        "modern_usage": "-ham-",
+        "old_english_stratum": [
+            {"form": "ham", "stratum": "native-old-english"},
+            "not-a-dict",  # skipped
+            {"form": "heim"},  # no stratum → skipped
+            {"form": "hum", "stratum": ""},  # empty stratum → skipped
+        ],
+        "welsh_stratum": "not-a-list",  # skipped at outer guard
+        "not_a_stratum_key": [{"stratum": "decoy"}],  # wrong suffix
+    }
+    assert list(_strata_for_word(word)) == ["native-old-english"]
+
+
+def test_emit_default_proportions_dir_uses_bundled_resources(tmp_path: Path) -> None:
+    """When --proportions-dir is omitted the CLI falls back to
+    ``_bundled_proportions_dir()`` (a Traversable from
+    importlib.resources). End-to-end smoke: a fresh emit with no
+    explicit proportions dir must still populate the proportions
+    tables from the bundled JSONs."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+
+    runner = CliRunner()
+    # Omit --proportions-dir; the CLI default resolves to the bundled
+    # resource path.
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-runtime-db",
+            "--db",
+            str(db_path),
+            "--output",
+            str(out_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        cultures = {
+            row[0] for row in conn.execute("SELECT DISTINCT culture FROM proportions_usage")
+        }
+    finally:
+        conn.close()
+
+    # Bundled set ships english + scottish + welsh + irish + breton.
+    assert cultures == {"english", "scottish", "welsh", "irish", "breton"}
+
+
+def test_emit_resolves_relative_lexicon_path(tmp_path: Path, monkeypatch) -> None:
+    """``source_lexicon_db.resolve()`` must coerce a relative input
+    path to absolute before stamping bundle_metadata, so deployed L4
+    DBs can be correlated back to their L3 source."""
+    db_dir = tmp_path / "subdir"
+    db_dir.mkdir()
+    db_path = db_dir / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    # Invoke from within db_dir with a bare filename — click resolves it
+    # against cwd, but our explicit Path.resolve() must absolute-ize.
+    monkeypatch.chdir(db_dir)
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-runtime-db",
+            "--db",
+            "lexicon.db",  # relative
+            "--output",
+            str(out_path),
+            "--proportions-dir",
+            str(tmp_path),
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+
+    conn = sqlite3.connect(str(out_path))
+    try:
+        stored = conn.execute(
+            "SELECT value FROM bundle_metadata WHERE key = 'source_lexicon_db'"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+    assert Path(stored).is_absolute()
+    assert Path(stored).resolve() == db_path.resolve()
+
+
+def test_emit_unlinks_partial_output_on_failure(tmp_path: Path, monkeypatch) -> None:
+    """A failure mid-emit must remove the partial output file so a
+    subsequent build step never picks up a corrupt L4 DB. Inject a
+    failure by replacing ``_write_proportions`` with a raiser AFTER
+    sqlite3.connect has materialized the file on disk."""
+    from wyrd.generators.kenning.lexicon import runtime_db_export as mod
+
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("simulated mid-emit failure")
+
+    monkeypatch.setattr(mod, "_write_proportions", _boom)
+
+    with pytest.raises(RuntimeError, match="simulated"):
+        mod.write_runtime_db(
+            output_path=out_path,
+            subjects=[],
+            fantasy_morphemes={},
+            canonical_decompositions={},
+            proportions_dir=tmp_path,
+            source_lexicon_db=db_path,
+        )
+
+    assert not out_path.exists(), "partial L4 DB must not be left on disk after a mid-emit failure"
+
+
+def test_emit_via_traversable_proportions_dir(tmp_path: Path) -> None:
+    """``_load_proportions`` walks via the Traversable protocol so the
+    bundled-resources default works under any importlib.resources
+    backend including zip loaders. Smoke-test the Traversable path
+    explicitly (the CLI tests cover the default branch end-to-end; this
+    pins the contract at the function level)."""
+    from wyrd.generators.kenning.lexicon.runtime_db_export import _load_proportions
+
+    bundled = resources.files("wyrd.generators.kenning.data")
+    loaded = _load_proportions(bundled)
+    assert set(loaded.keys()) == {"english", "scottish", "welsh", "irish", "breton"}
+    # Each culture's payload must carry the canonical proportions keys
+    # the runtime samples on.
+    for culture, data in loaded.items():
+        assert {"usages", "single_usages", "structures", "tag_marginal", "tag_cooccurrence"} <= set(
+            data.keys()
+        ), f"culture {culture!r} missing keys"

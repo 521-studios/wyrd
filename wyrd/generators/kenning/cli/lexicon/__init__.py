@@ -85,6 +85,9 @@ from wyrd.generators.kenning.cli.lexicon import era_reflex as _era_reflex_module
 from wyrd.generators.kenning.cli.lexicon import era_timeline as _era_timeline_module
 from wyrd.generators.kenning.cli.lexicon import export_meanings as _export_meanings_module
 from wyrd.generators.kenning.cli.lexicon import (
+    export_runtime_db as _export_runtime_db_module,
+)
+from wyrd.generators.kenning.cli.lexicon import (
     extract_pfsrd2_monsters as _extract_pfsrd2_monsters_module,
 )
 from wyrd.generators.kenning.cli.lexicon import fetch_bulk_sources as _fetch_bulk_sources_module
@@ -224,6 +227,7 @@ _era_coverage_module.add_to(lexicon)
 _era_reflex_module.add_to(lexicon)
 _era_timeline_module.add_to(lexicon)
 _export_meanings_module.add_to(lexicon)
+_export_runtime_db_module.add_to(lexicon)
 _fetch_bulk_sources_module.add_to(lexicon)
 _fuzzy_search_module.add_to(lexicon)
 _ingest_briggs_personal_names_module.add_to(lexicon)

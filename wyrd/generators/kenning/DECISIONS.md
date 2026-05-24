@@ -2303,3 +2303,111 @@ calibration passes that this PR doesn't satisfy:
 
 Filed as a separate operator-driven follow-up under the kq7w epic
 since neither can run autonomously.
+
+## D38. L4 runtime DB: SQLite-on-S3 replaces meanings.json + proportions JSONs (wyrd-d90t, 2026-05-24).
+
+The 2026-05-20 post-wyrd-wz82 bundle re-emit grew `meanings.json`
+from 54MB to 113MB — over GitHub's 100MB push limit. Growth was
+driven by the `*_phonological_vector` fields landing on every
+form (wyrd-kq7w.1 enrichment). The JSON-bundle era for kenning
+runtime data is over; this entry records the L4 architecture that
+replaces it.
+
+### D38.1. Why SQLite-on-S3.
+
+Five options considered, four rejected:
+
+| option | why not |
+|---|---|
+| Keep JSON, use git-lfs | Doesn't fix cold-start parse cost, growing memory footprint, or queryability. Pure size workaround. |
+| SQLite bundled in Lambda container image | Couples data updates to code deploys — the exact problem we're solving. |
+| DynamoDB / NoSQL | Network hop per request, schema gymnastics, $/read; wrong shape for static read-only data. |
+| Aurora / RDS | VPC cold-start penalty, ENI management, ops overhead; overkill for read-only generator data. |
+| EFS mount | Lambda cold-start mount cost, throughput limits, more infra. |
+
+SQLite-on-S3 is the **pfsrd2-data-api pattern** already in
+production at 521 (see top-level CLAUDE.md). Same shop, same
+problem class, working solution. Decouples data lifecycle from
+code lifecycle.
+
+### D38.2. Schema split: blob vs normalized.
+
+Two design principles divide the L4 tables:
+
+* **Blob columns where the row IS the unit of consumption** —
+  `meaning`, `fantasy_morpheme`, `canonical_decomposition`. The
+  runtime always fetches the whole row (one Meaning, one fantasy
+  morpheme, one canonical pick) so there's no payoff to
+  normalizing internal structure. Bonus: schema-stable across
+  future per-form field additions; the blob just gets larger.
+* **Normalized columns where SQL operates on the values** —
+  `proportions_usage`, `proportions_single_usage`,
+  `proportions_structure`, `proportions_tag_marginal`,
+  `proportions_tag_cooccurrence`. The runtime samples weighted
+  random over the proportions (~21K rows across 5 cultures on the
+  current corpus) and point-looks-up tag statistics. SQL is the
+  right tool there.
+
+### D38.3. Cumulative precomputed at emit time.
+
+Each `proportions_*` table that the runtime samples weighted-random
+from carries a `cumulative INTEGER` column with
+`PRIMARY KEY (culture, cumulative)`. Sampling becomes an O(log n)
+index seek:
+
+```python
+total = conn.execute(
+    f"SELECT MAX(cumulative) FROM {table} WHERE culture = ?",
+    (culture,),
+).fetchone()[0]
+roll = rng.randint(1, total)
+row = conn.execute(
+    f"SELECT usage_key FROM {table} "
+    f"WHERE culture = ? AND cumulative >= ? "
+    f"ORDER BY cumulative LIMIT 1",
+    (culture, roll),
+).fetchone()
+```
+
+No data loaded into Python beyond the sampled row. Memory
+footprint is the SQLite page cache for hot pages.
+
+Tradeoff: cumulative columns are fragile to live updates (insert
+in the middle of the distribution breaks the monotonic sequence).
+Acceptable because the L4 DB is read-only at runtime and
+re-emitted whole on each build — no live mutation.
+
+### D38.4. Deferred culture column on `canonical_decomposition`.
+
+The d90t design ticket's schema had
+`canonical_decomposition (toponym_name, culture)` with a culture
+PK column. The current `collect_canonical_decompositions`
+(decomposition_export.py) returns a flat
+`{modern_name: {signature, source}}` map with no culture data —
+and the runtime's `_load_canonical_decompositions()` consumes
+the same shape, culture-agnostic. There's no upstream source of
+"which culture does this canonical belong to" in the L3 DB; the
+`toponym` table has `region` / `country`, not `culture`.
+
+PR 1 drops the culture column rather than emit empty strings:
+`canonical_decomposition (toponym_name PRIMARY KEY, data BLOB)`.
+
+When would adding it back be motivated:
+
+* A toponym with two legitimate canonicals depending on which
+  culture's generator is decomposing — e.g. a Welsh-flavored
+  generator should pick a different parse for an ambiguous name
+  than an English-flavored one. Today the matcher's culture-fed
+  meaning_db handles this by ranking, so canonical-front-loading
+  only needs the signature, not a per-culture branch.
+* A region→culture mapping that lets the build-time projection
+  attribute each canonical to its origin culture and let the
+  runtime restrict its lookups. Would require designing the
+  mapping (regions like Cornwall don't cleanly map to one
+  culture).
+
+Migration path: add culture as a nullable column, then a unique
+`(toponym_name, COALESCE(culture, ''))` index. Existing rows stay
+null (treated as "applies to all cultures"); new culture-tagged
+rows take precedence on conflict via runtime lookup order.
+
