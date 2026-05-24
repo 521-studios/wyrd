@@ -586,9 +586,7 @@ def select_dev_subset(
             "single_usages": kept_single,
             "structures": data.get("structures") or [],
             "tag_marginal": dict(sorted((data.get("tag_marginal") or {}).items())),
-            "tag_cooccurrence": dict(
-                sorted((data.get("tag_cooccurrence") or {}).items())
-            ),
+            "tag_cooccurrence": dict(sorted((data.get("tag_cooccurrence") or {}).items())),
         }
 
     trimmed_subjects: list[dict[str, Any]] = []
