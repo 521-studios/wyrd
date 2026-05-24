@@ -88,6 +88,7 @@ def lexicon_enrich(
     """
     from wyrd.generators.kenning.enrichment import (
         format_enrichment_run,
+        format_unresolved_warnings,
         run_full_enrichment,
     )
     from wyrd.generators.kenning.jsonl.build import (
@@ -120,8 +121,6 @@ def lexicon_enrich(
     # wyrd-van9: surface unresolved-ref / typo signals on stderr; exit
     # non-zero under --strict so CI / deploy scripts fail loudly on
     # operator typos.
-    from wyrd.generators.kenning.enrichment import format_unresolved_warnings
-
     warnings = format_unresolved_warnings(result)
     if warnings:
         click.echo("\n" + warnings, err=True)

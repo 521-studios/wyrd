@@ -67,12 +67,15 @@ CURATION_METHOD_VERSION = "manual-curation-v1"
 GLOSS_SUPPRESSION_METHOD_VERSION = "gloss-suppression-v1"
 ETYMON_SPLIT_METHOD_VERSION = "etymon-split-v1"
 
-# wyrd-van9: mirrors the CLI's _SUFFIX_PATTERN. The applier defends
-# against hand-edited JSONL events where the suffix isn't in the safe
-# charset (``:``, ``#``, whitespace, etc. would corrupt the resulting
-# ref ``<lang>:<form>#<suffix>``). Children failing the check are
-# counted under ``children_skipped_invalid_suffix`` and skipped.
-_SUFFIX_PATTERN = re.compile(r"[a-z0-9_-]+")
+# wyrd-van9: single source of truth for the split-suffix charset
+# constraint. ``curate-split-etymon --into 'suffix=X'`` (CLI) and
+# ``apply_etymon_splits`` (applier) both consult this pattern; the
+# CLI imports it from this module so a charset change can't drift
+# between layers. Locked to ``[a-z0-9_-]+`` so the resulting ref
+# ``<lang>:<form>#<suffix>`` can't carry ``:`` / ``#`` / whitespace
+# that would corrupt downstream ref parsers. Children failing the
+# check are counted under ``children_skipped_invalid_suffix``.
+SUFFIX_PATTERN = re.compile(r"[a-z0-9_-]+")
 
 
 def _resolve_etymon_id(conn: sqlite3.Connection, ref: str) -> int | None:
@@ -502,7 +505,7 @@ def apply_etymon_splits(
             # Defends against hand-edited JSONL events where the suffix
             # carries characters that would corrupt the resulting ref
             # ``<lang>:<form>#<suffix>``.
-            if not _SUFFIX_PATTERN.fullmatch(suffix):
+            if not SUFFIX_PATTERN.fullmatch(suffix):
                 counts["children_skipped_invalid_suffix"] += 1
                 continue
             child_form = f"{orig_form}#{suffix}"

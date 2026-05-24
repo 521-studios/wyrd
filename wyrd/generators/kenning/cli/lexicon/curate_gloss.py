@@ -4,18 +4,16 @@ append etymon_gloss_suppression / etymon_split events (wyrd-kutx)."""
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 
 import click
 
-# wyrd-van9: suffix charset constraint for ``curate-split-etymon
-# --into 'suffix=X'``. Locked to ``[a-z0-9_-]+`` so the resulting
-# canonical_form ``<original-form>#<suffix>`` and ref
-# ``<language>:<original-form>#<suffix>`` can't carry ``:`` / ``#`` /
-# whitespace that would corrupt downstream ref parsing. See the
-# applier-side mirror in ``enrichment._SUFFIX_PATTERN``.
-_SUFFIX_PATTERN = re.compile(r"[a-z0-9_-]+")
+# wyrd-van9: single source of truth for the suffix charset constraint —
+# imported from the applier so a future change can't drift one side
+# without the other. The applier owns the constant because it's the
+# authoritative defense layer (hand-edited JSONL bypasses the CLI but
+# still hits the applier).
+from wyrd.generators.kenning.enrichment import SUFFIX_PATTERN
 
 _CURATION_SOURCE_ROW = {
     "_type": "source",
@@ -202,7 +200,7 @@ def lexicon_curate_split_etymon(
         # or whitespace would corrupt downstream ref parsers that
         # naively split on those. Lock to ``[a-z0-9_-]+`` for human
         # readability + ref-safety.
-        if not _SUFFIX_PATTERN.fullmatch(suffix):
+        if not SUFFIX_PATTERN.fullmatch(suffix):
             raise click.UsageError(
                 f"--into spec {spec!r}: suffix {suffix!r} contains "
                 "disallowed characters; allowed charset is [a-z0-9_-]+ "

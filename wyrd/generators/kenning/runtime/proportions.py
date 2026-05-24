@@ -8,12 +8,19 @@ so generation is reproducible from the seed param.
 
 from __future__ import annotations
 
+import logging
 import random
 import re
-import sys
 from functools import lru_cache
 
 from .meaning import _mimic_case
+
+# wyrd-van9: runtime warnings (drift, stale bundle, missing keys) flow
+# through the logging module per the project's library-code convention
+# — operators / SPA / Lambda hosts can dial them via standard Python
+# logging config rather than munging stderr. See runtime/decomposition.py
+# for the established pattern.
+_logger = logging.getLogger(__name__)
 
 
 class Generator:
@@ -257,14 +264,11 @@ class MeaningGenerator:
                 gen = self.generators.setdefault(key, Generator(self.tag_db, {}))
                 gen.add_item(usage, proportion)
         if missing_count:
-            import sys as _sys
-
-            print(
-                f"  [wyrd-van9] MeaningGenerator: {missing_count} proportions "
-                "usages have no Meaning in the bundle; skipping. Re-emit the "
-                "bundle (and re-rebuild proportions against it) to clear the "
-                "drift.",
-                file=_sys.stderr,
+            _logger.warning(
+                "wyrd-van9: MeaningGenerator: %d proportions usages have no "
+                "Meaning in the bundle; skipping. Re-emit the bundle (and "
+                "re-rebuild proportions against it) to clear the drift.",
+                missing_count,
             )
 
     def keep_keys_for_era(
@@ -477,12 +481,12 @@ class NameGenerator:
         if dropped:
             dropped_weight = sum(structs[k] for k in structs if k not in self.structs)
             total_weight = sum(structs.values()) or 1
-            print(
-                f"  [wyrd-zzli] NameGenerator: filtered {dropped} ungrammatical "
-                f"structure templates "
-                f"({100 * dropped_weight / total_weight:.1f}% of structure weight); "
-                "re-emit the bundle to clear the drift",
-                file=sys.stderr,
+            _logger.warning(
+                "wyrd-zzli: NameGenerator: filtered %d ungrammatical structure "
+                "templates (%.1f%% of structure weight); re-emit the bundle to "
+                "clear the drift",
+                dropped,
+                100 * dropped_weight / total_weight,
             )
         # wyrd-mj2 (D17 β-term per the ticket reframe): tag-level
         # bigram statistics from each culture's place-name corpus.

@@ -18,6 +18,7 @@ import json
 import sqlite3
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
 from wyrd.generators.kenning.cli import cli as cli_root
@@ -201,6 +202,40 @@ def test_format_warnings_surfaces_each_section():
     assert "etymon_splits.children_skipped_invalid_suffix: 1" in text
 
 
+_ALL_COUNTER_NAMES = [
+    ("curation", "unresolved_etymon"),
+    ("curation", "unresolved_lemma_ref"),
+    ("curation", "unresolved_merge_ref"),
+    ("curation", "self_reference_lemma"),
+    ("curation", "self_reference_merge"),
+    ("gloss_suppressions", "unresolved_etymon"),
+    ("gloss_suppressions", "unresolved_gloss"),
+    ("etymon_splits", "unresolved_etymon"),
+    ("etymon_splits", "glosses_missing"),
+    ("etymon_splits", "tags_missing"),
+    ("etymon_splits", "children_skipped_no_suffix"),
+    ("etymon_splits", "children_skipped_invalid_suffix"),
+    ("etymon_splits", "multiple_primary_collapsed"),
+]
+
+
+@pytest.mark.parametrize("section,counter", _ALL_COUNTER_NAMES)
+def test_format_warnings_surfaces_every_counter(section, counter):
+    """Round-2 follow-up (test-coverage P2): the helper iterates 13
+    counters across 3 sections. Pinning each name individually means
+    a typo in any one key (e.g. ``slef_reference_lemma``) is caught
+    rather than silently never firing. The other 12 sections are zero-
+    filled so the formatter sees only this counter as non-zero."""
+    # Build a result dict with every counter zeroed, then set just
+    # the target one to a non-zero value.
+    by_section: dict[str, dict[str, int]] = {}
+    for sec, name in _ALL_COUNTER_NAMES:
+        by_section.setdefault(sec, {})[name] = 0
+    by_section[section][counter] = 7
+    text = format_unresolved_warnings(by_section)
+    assert f"{section}.{counter}: 7" in text
+
+
 def test_format_warnings_skips_absent_sections():
     """When a result dict has no curation / suppression / split sub-
     sections, the formatter doesn't crash and produces no warnings."""
@@ -213,31 +248,74 @@ def test_format_warnings_skips_absent_sections():
 # ---------------------------------------------------------------------------
 
 
-def test_load_parts_skips_missing_keys_does_not_crash(capsys):
+def test_load_parts_skips_missing_keys_does_not_crash(caplog):
     """Pre-fix: load_parts would KeyError on a proportions usage with no
     Meaning in meaning_db, taking down the whole MeaningGenerator. Now
-    it skips + counts + warns on stderr."""
+    it skips + counts + warns via the runtime logger."""
+    import logging
+
     meaning_db = {"-known": []}  # No Meaning entries needed for the count test
     tag_db: dict[str, list[str]] = {}
     proportions = {"-known": 100, "-missing-from-bundle-": 50}
-    # Constructing MeaningGenerator invokes load_parts(proportions)
-    # internally; the missing key shouldn't raise.
-    mg = MeaningGenerator(meaning_db, tag_db, proportions)
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="wyrd.generators.kenning.runtime.proportions"):
+        # Constructing MeaningGenerator invokes load_parts(proportions)
+        # internally; the missing key shouldn't raise.
+        mg = MeaningGenerator(meaning_db, tag_db, proportions)
     assert mg is not None
-    captured = capsys.readouterr()
-    assert "wyrd-van9" in captured.err
-    assert "1 proportions usages" in captured.err
+    log_text = "\n".join(r.getMessage() for r in caplog.records)
+    assert "wyrd-van9" in log_text
+    assert "1 proportions" in log_text
 
 
-def test_load_parts_no_warning_when_all_keys_present(capsys):
+def test_load_parts_no_warning_when_all_keys_present(caplog):
     """Clean pair: every proportions usage has a Meaning → no warning
     fires."""
+    import logging
+
     meaning_db = {"-known": []}
     tag_db: dict[str, list[str]] = {}
     proportions = {"-known": 100}
-    MeaningGenerator(meaning_db, tag_db, proportions)
-    captured = capsys.readouterr()
-    assert "wyrd-van9" not in captured.err
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="wyrd.generators.kenning.runtime.proportions"):
+        MeaningGenerator(meaning_db, tag_db, proportions)
+    assert not any("wyrd-van9" in r.getMessage() for r in caplog.records)
+
+
+def test_load_parts_partial_generators_usable_after_skip():
+    """Round-2 follow-up (test-coverage P2): after a skip, the kept-key
+    path should still produce a usable Generator. Pre-fix the whole
+    MeaningGenerator was unusable on a single missing key; this test
+    pins that we degrade gracefully and known keys keep working.
+
+    Uses the live bundle's load_meanings so the test isn't sensitive
+    to the Meaning() constructor signature. Picks one real usage from
+    the bundle as the 'known' key and a synthetic '-not-in-bundle-'
+    string as the 'missing' key."""
+    from importlib import resources
+
+    from wyrd.generators.kenning.runtime.meaning import load_meanings
+
+    bundle_path = str(resources.files("wyrd.generators.kenning.data").joinpath("meanings.json"))
+    with open(bundle_path) as fh:
+        bundle = json.load(fh)
+    meaning_db, tag_db = load_meanings(bundle)
+    # Pick the first usage in the bundle as the "known" key.
+    known_usage = next(iter(meaning_db))
+    # Mix a real proportions entry with a synthetic missing one.
+    proportions = {known_usage: 100, "-synthetic-not-in-bundle-xyzzy": 50}
+    mg = MeaningGenerator(meaning_db, tag_db, proportions)
+    # The known key produced at least one generator bucket — the skip
+    # didn't destroy the partial state.
+    assert mg.generators, "kept-key generators should be non-empty after skip"
+    # Confirm at least one bucket contains the known usage so a
+    # downstream NameGenerator could draw from it.
+    found = False
+    for gen in mg.generators.values():
+        if known_usage in gen.elements:
+            found = True
+            break
+    assert found, f"known usage {known_usage!r} not in any post-skip bucket"
 
 
 # ---------------------------------------------------------------------------
