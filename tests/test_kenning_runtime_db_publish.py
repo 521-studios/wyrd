@@ -176,6 +176,28 @@ def test_publish_uploads_versioned_key_then_pointer(fake_s3, source_db: Path) ->
     assert "must-revalidate" in pointer.get("CacheControl", "")
 
 
+def test_publish_versioned_etag_matches_local_md5(fake_s3, source_db: Path) -> None:
+    """Pins the single-part-upload contract: S3's ETag on the
+    versioned key must equal the MD5 we recorded in current.json. If
+    upload_file ever multi-parts (because the TransferConfig threshold
+    drifted) the S3 ETag would become a composite '<md5>-<chunks>'
+    string and break the runtime loader's redownload short-circuit."""
+    fixed = _dt.datetime(2026, 5, 24, 20, 30, 0, tzinfo=_dt.UTC)
+    publish_runtime_db(
+        source=source_db,
+        env="staging",
+        bucket=TEST_BUCKET,
+        profile="",
+        now=fixed,
+    )
+    head = fake_s3.head_object(Bucket=TEST_BUCKET, Key="v/2026-05-24T20-30Z.db")
+    s3_etag = head["ETag"].strip('"')
+    assert s3_etag == _md5_of_file(source_db), (
+        f"S3 ETag {s3_etag!r} differs from local MD5; multipart upload "
+        "is leaking through despite the TransferConfig threshold"
+    )
+
+
 def test_publish_refuses_to_overwrite_existing_versioned_key(fake_s3, source_db: Path) -> None:
     """Same-minute double-push collision = operator mistake. Must fail
     loudly rather than silently shadowing the prior push."""

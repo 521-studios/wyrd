@@ -43,7 +43,19 @@ from pathlib import Path
 from typing import Any
 
 import boto3
+from boto3.s3.transfer import TransferConfig
 from botocore.exceptions import ClientError
+
+# Force single-part S3 upload — without this, boto3's upload_file
+# auto-switches to multipart on files larger than ~8MB, and multipart
+# uploads produce a composite ETag (``"<md5>-<chunkcount>"``) rather
+# than the file's raw MD5. That would mean the etag in current.json
+# (computed locally as MD5) wouldn't match the S3 object's HTTP ETag,
+# defeating the runtime loader's "redownload only on mismatch"
+# optimization. 5GB is the S3 hard limit for single-object PutObject;
+# the L4 DB is well under that today (~80MB on full corpus).
+_SINGLE_PART_5GB_THRESHOLD = 5 * 1024 * 1024 * 1024
+_SINGLE_PART_CONFIG = TransferConfig(multipart_threshold=_SINGLE_PART_5GB_THRESHOLD)
 
 # Pattern matches the existing 521 conventions:
 #   * S3 bucket names: 521studios-{env}-kenning-runtime
@@ -190,17 +202,21 @@ def _generate_version_key(*, now: _dt.datetime | None = None) -> str:
 def _md5_of_file(path: Path) -> str:
     """Compute the MD5 of a file.
 
-    Recorded as the ``etag`` field in current.json. S3 returns the
-    same value as the HTTP ETag for single-part uploads, so a runtime
-    loader can compare its cached file's MD5 against the pointer's
-    etag to decide whether to redownload — that's the intended use,
-    though this module doesn't depend on the consumer side.
+    Recorded as the ``etag`` field in current.json. The publish path
+    forces single-part upload via ``TransferConfig`` (see
+    ``_upload_db``) so the S3 ETag matches this MD5 exactly; runtime
+    loaders can use either ``current.json``'s etag or the S3 HEAD
+    ETag interchangeably.
+
+    ``usedforsecurity=False`` keeps the function callable on FIPS-
+    compliant systems — MD5 here is a fingerprint, not a security
+    primitive.
     """
-    h = hashlib.md5()
     with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
+        return hashlib.file_digest(
+            f,
+            lambda: hashlib.md5(usedforsecurity=False),
+        ).hexdigest()
 
 
 def _upload_db(s3, local_path: str, bucket: str, key: str) -> None:
@@ -224,7 +240,13 @@ def _upload_db(s3, local_path: str, bucket: str, key: str) -> None:
             "(operator probably double-pushed within the same minute; wait one "
             "minute and retry to get a fresh version key)"
         )
-    s3.upload_file(local_path, bucket, key, ExtraArgs={"ContentType": "application/x-sqlite3"})
+    s3.upload_file(
+        local_path,
+        bucket,
+        key,
+        ExtraArgs={"ContentType": "application/x-sqlite3"},
+        Config=_SINGLE_PART_CONFIG,
+    )
 
 
 def _upload_pointer(s3, bucket: str, pointer_bytes: bytes) -> None:
