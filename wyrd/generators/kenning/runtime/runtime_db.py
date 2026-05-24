@@ -6,12 +6,13 @@ reuse). Resolution order:
 
 1. **``WYRD_RUNTIME_DB`` env var** — absolute local path. Local dev /
    tests bypass S3 entirely by pointing at any ``.db`` file.
-2. **/tmp/wyrd-runtime.db with cached ETag** — if ``WYRD_RUNTIME_DB_BUCKET``
-   is set, HEAD the current.json pointer (~10ms) and skip the download
-   when the cached ETag still matches. Cold-start fast path on warm
-   container reuse where /tmp survives.
+2. **/tmp/wyrd-runtime-<etag>.db cache hit** — if ``WYRD_RUNTIME_DB_BUCKET``
+   is set, fetch the current.json pointer and short-circuit when an
+   etag-named cache file from a prior cold start already exists in
+   /tmp (warm-container reuse where /tmp survives).
 3. **Download from S3** — fetch ``current.json`` to learn the
-   versioned key, download that key to /tmp, record the new ETag.
+   versioned key + etag, download that key to a unique .tmp file via
+   ``tempfile.mkstemp``, atomic-rename into ``wyrd-runtime-<etag>.db``.
 4. **Bundled seed fallback** — when no env var is set AND no S3
    bucket is configured (or the download fails), fall back to the
    committed ``wyrd/generators/kenning/data/seed-runtime.db``. Lets
@@ -146,16 +147,18 @@ def _resolve_db_path() -> Path:
 
 
 def _download_with_etag_cache(bucket: str) -> Path | None:
-    """Fetch the L4 DB from S3 with HEAD-then-GET ETag short-circuit.
+    """Fetch the L4 DB from S3 with etag-named cache short-circuit.
 
     Returns the path to the cached file on success, or None on any
     failure (caller falls back to the bundled seed).
 
     Flow:
       1. GET current.json — learn the versioned-key + expected etag.
-      2. If /tmp/wyrd-runtime.db exists AND /tmp/wyrd-runtime.etag
-         matches the pointer's etag, skip the download.
-      3. Otherwise, GET the versioned key to /tmp, write the etag.
+      2. If the etag-named file ``wyrd-runtime-<etag>.db`` already
+         exists in /tmp, skip the download (the filename IS the
+         cache-hit check now that the etag's encoded in it).
+      3. Otherwise, download the versioned key to a unique mkstemp
+         .tmp file, then atomic-rename into the etag-named path.
 
     Lazy-imports boto3 so the loader's import cost stays minimal when
     the deployment doesn't need S3 (tests, bundled-seed-only builds).
@@ -192,7 +195,10 @@ def _download_with_etag_cache(bucket: str) -> Path | None:
                 f"current.json values must be strings; got key={version_key!r} "
                 f"etag={expected_etag!r}"
             )
-    except (ClientError, BotoCoreError, KeyError, ValueError, TypeError):
+    except (ClientError, BotoCoreError, KeyError, ValueError, TypeError, OSError):
+        # OSError covers stream-read failures that can surface from
+        # the StreamingBody.read inside json.load — a half-read
+        # response from S3 shouldn't crash the cold start.
         _logger.exception(
             "failed to fetch s3://%s/%s — falling back to bundled seed",
             bucket,
