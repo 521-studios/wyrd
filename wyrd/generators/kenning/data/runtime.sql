@@ -33,9 +33,11 @@ CREATE INDEX idx_meaning_stratum  ON meaning(stratum);
 
 CREATE TABLE fantasy_morpheme (
     -- COLLATE NOCASE matches the L3 ``fantasy_morpheme.input_name`` contract.
-    -- The emitter lowercases the key but the COLLATE keeps the PK aligned
-    -- semantically so a future case-distinct input is rejected at write time
-    -- rather than silently shadowed.
+    -- The emitter lowercases the key, so write-side collisions are already
+    -- caught by a plain case-sensitive PK; the NOCASE collation is for the
+    -- read side — the runtime can look up ``WHERE usage_key = 'Harpy'`` and
+    -- still hit the stored lowercase row, mirroring the L3 COLLATE NOCASE
+    -- semantics that callers already expect.
     usage_key TEXT PRIMARY KEY COLLATE NOCASE,
     data      BLOB NOT NULL                   -- JSON: full fantasy_morpheme payload
 );

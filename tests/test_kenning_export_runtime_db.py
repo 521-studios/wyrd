@@ -844,6 +844,36 @@ def test_emit_resolves_relative_lexicon_path(tmp_path: Path, monkeypatch) -> Non
     assert Path(stored).resolve() == db_path.resolve()
 
 
+def test_emit_unlinks_partial_output_on_failure(tmp_path: Path, monkeypatch) -> None:
+    """A failure mid-emit must remove the partial output file so a
+    subsequent build step never picks up a corrupt L4 DB. Inject a
+    failure by replacing ``_write_proportions`` with a raiser AFTER
+    sqlite3.connect has materialized the file on disk."""
+    from wyrd.generators.kenning.lexicon import runtime_db_export as mod
+
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("simulated mid-emit failure")
+
+    monkeypatch.setattr(mod, "_write_proportions", _boom)
+
+    with pytest.raises(RuntimeError, match="simulated"):
+        mod.write_runtime_db(
+            output_path=out_path,
+            subjects=[],
+            fantasy_morphemes={},
+            canonical_decompositions={},
+            proportions_dir=tmp_path,
+            source_lexicon_db=db_path,
+        )
+
+    assert not out_path.exists(), "partial L4 DB must not be left on disk after a mid-emit failure"
+
+
 def test_emit_via_traversable_proportions_dir(tmp_path: Path) -> None:
     """``_load_proportions`` walks via the Traversable protocol so the
     bundled-resources default works under any importlib.resources

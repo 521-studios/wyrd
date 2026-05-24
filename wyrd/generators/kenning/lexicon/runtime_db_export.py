@@ -103,29 +103,39 @@ def write_runtime_db(
     output_path.unlink(missing_ok=True)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    conn = sqlite3.connect(str(output_path))
     try:
-        # Build-time emit safety: the DB is committed once at the end and
-        # the file is deleted on any partial failure (the runtime treats
-        # the L4 DB as immutable). Disable journaling + fsync to cut emit
-        # time without sacrificing safety. Cache size is in pages (~10MB
-        # at the default 1KB page size) — plenty for the build's hot set.
-        conn.execute("PRAGMA journal_mode = OFF")
-        conn.execute("PRAGMA synchronous = OFF")
-        conn.execute("PRAGMA cache_size = 10000")
-        _init_runtime_schema(conn)
-        n_meanings = _write_meanings(conn, subjects)
-        n_fantasy = _write_fantasy_morphemes(conn, fantasy_morphemes)
-        n_canonical = _write_canonical_decompositions(conn, canonical_decompositions)
-        proportion_counts = _write_proportions(conn, proportions_by_culture)
-        _write_metadata(conn, source_lexicon_db=source_lexicon_db.resolve())
-        # Populate sqlite_stat tables so the runtime query planner has
-        # accurate index statistics for the sampling queries (the L4 DB
-        # is read-only at runtime; ANALYZE pays off on every cold start).
-        conn.execute("ANALYZE")
-        conn.commit()
-    finally:
-        conn.close()
+        conn = sqlite3.connect(str(output_path))
+        try:
+            # Build-time emit perf: the DB is committed once at the end so
+            # journaling and fsync are pure overhead during the write. The
+            # outer try/except below removes any half-written file on
+            # failure, so the runtime never sees a partial commit. Cache
+            # size is in pages (~10MB at the default 1KB page size) —
+            # plenty for the build's hot set.
+            conn.execute("PRAGMA journal_mode = OFF")
+            conn.execute("PRAGMA synchronous = OFF")
+            conn.execute("PRAGMA cache_size = 10000")
+            _init_runtime_schema(conn)
+            n_meanings = _write_meanings(conn, subjects)
+            n_fantasy = _write_fantasy_morphemes(conn, fantasy_morphemes)
+            n_canonical = _write_canonical_decompositions(conn, canonical_decompositions)
+            proportion_counts = _write_proportions(conn, proportions_by_culture)
+            _write_metadata(conn, source_lexicon_db=source_lexicon_db.resolve())
+            # Populate sqlite_stat tables so the runtime query planner has
+            # accurate index statistics for the sampling queries (the L4
+            # DB is read-only at runtime; ANALYZE pays off on every cold
+            # start).
+            conn.execute("ANALYZE")
+            conn.commit()
+        finally:
+            conn.close()
+    except BaseException:
+        # Don't leave a half-written L4 on disk — a subsequent build
+        # step (PR 3 uploader, PR 4 loader) would happily ship a
+        # corrupt DB. missing_ok=True covers the case where the file
+        # was never created (e.g. sqlite3.connect itself raised).
+        output_path.unlink(missing_ok=True)
+        raise
 
     return {
         "meanings": n_meanings,
