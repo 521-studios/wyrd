@@ -23,6 +23,7 @@ from wyrd.generators.kenning.lexicon import (
     export_meanings,
 )
 from wyrd.generators.kenning.lexicon.runtime_db_export import (
+    DEV_TOP_N_PER_CULTURE,
     EMITTER_VERSION,
     SCHEMA_VERSION,
     write_runtime_db,
@@ -32,6 +33,16 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 # Re-exports kept for tests that import the schema-version constants
 # through this module path.
 __all__ = ["EMITTER_VERSION", "SCHEMA_VERSION", "lexicon_export_runtime_db"]
+
+# Canonical defaults for the upstream filter flags. Used in BOTH the
+# @click.option ``default=`` declarations AND _reject_non_default_filters_under_dev
+# so the two can't drift — bumping a default here propagates to both
+# sites at once.
+_DEFAULT_MIN_WITNESSES = 3
+_DEFAULT_USE_PRESET = True
+_DEFAULT_INCLUDE_RANDO = True
+_DEFAULT_INCLUDE_WIKTIONARY_EMPIRICAL = True
+_DEFAULT_INCLUDE_WAVE2_ENRICHED = True
 
 
 def _bundled_proportions_dir():
@@ -74,7 +85,7 @@ def _bundled_proportions_dir():
 @click.option(
     "--min-witnesses",
     type=int,
-    default=3,
+    default=_DEFAULT_MIN_WITNESSES,
     show_default=True,
     help="D4 promotion threshold; passed through to export_meanings.",
 )
@@ -88,24 +99,49 @@ def _bundled_proportions_dir():
 @click.option(
     "--preset/--no-preset",
     "use_preset",
-    default=True,
+    default=_DEFAULT_USE_PRESET,
     show_default=True,
     help="Start from RECOMMENDED_LANG_THRESHOLDS (calibrated per language).",
 )
 @click.option(
     "--include-rando/--no-include-rando",
-    default=True,
+    default=_DEFAULT_INCLUDE_RANDO,
     show_default=True,
 )
 @click.option(
     "--include-wiktionary-empirical/--no-include-wiktionary-empirical",
-    default=True,
+    default=_DEFAULT_INCLUDE_WIKTIONARY_EMPIRICAL,
     show_default=True,
 )
 @click.option(
     "--include-wave2-enriched/--no-include-wave2-enriched",
-    default=True,
+    default=_DEFAULT_INCLUDE_WAVE2_ENRICHED,
     show_default=True,
+)
+@click.option(
+    "--dev",
+    "dev_subset",
+    is_flag=True,
+    default=False,
+    help=(
+        "Emit a committed-seed-shaped subset of the L4 (top N usages per "
+        "culture + referenced meanings + all fantasy + all canonical, with "
+        "fixed built_at + source_lexicon_db sentinels for byte-stability). "
+        "Used to regenerate wyrd/generators/kenning/data/seed-runtime.db. "
+        "All upstream filtering knobs (--min-witnesses, --lang-threshold, "
+        "--include-rando, --include-wiktionary-empirical, "
+        "--include-wave2-enriched) are FORCED to their canonical defaults "
+        "in this mode so the seed is reproducible across operators — the "
+        "CLI errors if you pass non-default values alongside --dev."
+    ),
+)
+@click.option(
+    "--dev-top-n",
+    "dev_top_n",
+    type=int,
+    default=DEV_TOP_N_PER_CULTURE,
+    show_default=True,
+    help="Per-culture cap on usages / single_usages in --dev mode.",
 )
 def lexicon_export_runtime_db(
     db_path: Path,
@@ -117,6 +153,8 @@ def lexicon_export_runtime_db(
     include_rando: bool,
     include_wiktionary_empirical: bool,
     include_wave2_enriched: bool,
+    dev_subset: bool,
+    dev_top_n: int,
 ) -> None:
     """Emit the L4 runtime SQLite DB.
 
@@ -129,6 +167,16 @@ def lexicon_export_runtime_db(
     Replaces ``meanings.json`` + 5 ``<culture>_proportions.json`` files
     in a single artifact downloaded from S3 on Lambda cold start (D38).
     """
+    if dev_subset:
+        _reject_non_default_filters_under_dev(
+            min_witnesses=min_witnesses,
+            lang_threshold_specs=lang_threshold_specs,
+            use_preset=use_preset,
+            include_rando=include_rando,
+            include_wiktionary_empirical=include_wiktionary_empirical,
+            include_wave2_enriched=include_wave2_enriched,
+        )
+
     lang_thresholds = _parse_lang_thresholds(lang_threshold_specs, use_preset=use_preset)
 
     proportions_source: Path | Traversable = (
@@ -154,6 +202,8 @@ def lexicon_export_runtime_db(
         canonical_decompositions=canonical_decompositions,
         proportions_dir=proportions_source,
         source_lexicon_db=db_path,
+        dev_subset=dev_subset,
+        dev_top_n_per_culture=dev_top_n,
     )
 
     proportion_total = (
@@ -193,6 +243,49 @@ def _parse_lang_thresholds(specs: tuple[str, ...], *, use_preset: bool) -> dict[
         lang = LANGUAGE_FIELDS.get(lang, lang)
         lang_thresholds[lang] = n
     return lang_thresholds
+
+
+def _reject_non_default_filters_under_dev(
+    *,
+    min_witnesses: int,
+    lang_threshold_specs: tuple[str, ...],
+    use_preset: bool,
+    include_rando: bool,
+    include_wiktionary_empirical: bool,
+    include_wave2_enriched: bool,
+) -> None:
+    """Hard-fail when --dev is combined with any non-default upstream
+    filter. The committed seed-runtime.db is byte-stable only if every
+    operator runs the same canonical invocation; silently honoring a
+    custom --min-witnesses would produce a seed that differs from the
+    one in the repo without the operator noticing.
+
+    The canonical defaults come from the module-level ``_DEFAULT_*``
+    constants — same source the @click.option ``default=`` declarations
+    use, so a future bump to one of those propagates to both sites at
+    once and can't drift.
+    """
+    offenders: list[str] = []
+    if min_witnesses != _DEFAULT_MIN_WITNESSES:
+        offenders.append(f"--min-witnesses={min_witnesses} (canonical: {_DEFAULT_MIN_WITNESSES})")
+    if lang_threshold_specs:
+        offenders.append(f"--lang-threshold {lang_threshold_specs!r} (canonical: none)")
+    if use_preset != _DEFAULT_USE_PRESET:
+        offenders.append("--no-preset (canonical: --preset)")
+    if include_rando != _DEFAULT_INCLUDE_RANDO:
+        offenders.append("--no-include-rando (canonical: --include-rando)")
+    if include_wiktionary_empirical != _DEFAULT_INCLUDE_WIKTIONARY_EMPIRICAL:
+        offenders.append(
+            "--no-include-wiktionary-empirical (canonical: --include-wiktionary-empirical)"
+        )
+    if include_wave2_enriched != _DEFAULT_INCLUDE_WAVE2_ENRICHED:
+        offenders.append("--no-include-wave2-enriched (canonical: --include-wave2-enriched)")
+    if offenders:
+        raise click.UsageError(
+            "--dev requires canonical defaults on every upstream filter "
+            "(otherwise the committed seed-runtime.db is unreproducible "
+            "across operators). Conflicts:\n  - " + "\n  - ".join(offenders)
+        )
 
 
 def add_to(parent: click.Group) -> None:

@@ -77,6 +77,26 @@ _NON_LANGUAGE_SUFFIXES = (
 # passes an external string by mistake.
 _CUMULATIVE_USAGE_TABLES = frozenset({"proportions_usage", "proportions_single_usage"})
 
+# Fixed timestamp stamped into ``bundle_metadata.built_at`` when --dev is
+# active so the committed seed-runtime.db stays byte-stable across emits.
+# Outside --dev the wall-clock timestamp is used (the production path
+# wants the operational correlation; the dev seed wants byte-equality
+# for the drift-detection test).
+DEV_BUILT_AT = "1970-01-01T00:00:00Z"
+
+# Sentinel stamped into ``bundle_metadata.source_lexicon_db`` under --dev.
+# The wall-clock path resolves to the operator's local lexicon (~/.wyrd/
+# lexicon.db on one machine, /var/folders/... on another) which would
+# defeat cross-environment byte-stability; the sentinel keeps the dev
+# emit reproducible across operators + CI.
+DEV_SOURCE_LEXICON_SENTINEL = "DEV_SOURCE_LEXICON"
+
+# Default per-culture cap on usages / single_usages in --dev mode. Sized
+# to keep the committed seed-runtime.db under ~5MB while still covering
+# enough of the morpheme inventory for the test suite + local dev to
+# exercise the generator surface end-to-end.
+DEV_TOP_N_PER_CULTURE = 200
+
 
 def write_runtime_db(
     *,
@@ -86,6 +106,8 @@ def write_runtime_db(
     canonical_decompositions: dict[str, dict[str, str]],
     proportions_dir: Path | Traversable,
     source_lexicon_db: Path,
+    dev_subset: bool = False,
+    dev_top_n_per_culture: int = DEV_TOP_N_PER_CULTURE,
 ) -> dict[str, int]:
     """Emit the L4 SQLite DB at ``output_path``.
 
@@ -97,8 +119,27 @@ def write_runtime_db(
     (the bundled-data default). The Traversable path lets the default
     work when the package is shipped as a zipapp — relying on
     ``Path(__file__).parent`` would break on zip-loaded packages.
+
+    ``dev_subset`` (PR 2 of wyrd-d90t): when True, run every input
+    through :func:`select_dev_subset` first — keeps the top N usages /
+    single_usages per culture (``dev_top_n_per_culture``) plus only the
+    meanings actually referenced by the kept usages. ``built_at`` is
+    pinned to a fixed sentinel so re-emits with identical inputs
+    produce byte-equal output (drift detection on the committed
+    ``seed-runtime.db``).
     """
     proportions_by_culture = _load_proportions(proportions_dir)
+
+    if dev_subset:
+        subjects, fantasy_morphemes, canonical_decompositions, proportions_by_culture = (
+            select_dev_subset(
+                subjects,
+                fantasy_morphemes,
+                canonical_decompositions,
+                proportions_by_culture,
+                top_n_per_culture=dev_top_n_per_culture,
+            )
+        )
 
     output_path.unlink(missing_ok=True)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -120,7 +161,13 @@ def write_runtime_db(
             n_fantasy = _write_fantasy_morphemes(conn, fantasy_morphemes)
             n_canonical = _write_canonical_decompositions(conn, canonical_decompositions)
             proportion_counts = _write_proportions(conn, proportions_by_culture)
-            _write_metadata(conn, source_lexicon_db=source_lexicon_db.resolve())
+            _write_metadata(
+                conn,
+                source_lexicon_db=(
+                    DEV_SOURCE_LEXICON_SENTINEL if dev_subset else str(source_lexicon_db.resolve())
+                ),
+                built_at=DEV_BUILT_AT if dev_subset else None,
+            )
             # Populate sqlite_stat tables so the runtime query planner has
             # accurate index statistics for the sampling queries (the L4
             # DB is read-only at runtime; ANALYZE pays off on every cold
@@ -478,15 +525,156 @@ def _insert_tag_cooccurrence(
     return len(rows)
 
 
-def _write_metadata(conn: sqlite3.Connection, *, source_lexicon_db: Path) -> None:
-    """Stamp bundle_metadata operational keys."""
-    built_at = _dt.datetime.now(_dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+def select_dev_subset(
+    subjects: list[dict[str, Any]],
+    fantasy_morphemes: dict[str, Any],
+    canonical_decompositions: dict[str, dict[str, str]],
+    proportions_by_culture: dict[str, dict[str, Any]],
+    *,
+    top_n_per_culture: int,
+) -> tuple[
+    list[dict[str, Any]],
+    dict[str, Any],
+    dict[str, dict[str, str]],
+    dict[str, dict[str, Any]],
+]:
+    """Trim the L4 input set down to a deterministic ``--dev`` slice.
+
+    Selection rules — designed so re-running on the same inputs yields
+    byte-equal output (the committed ``seed-runtime.db`` is a fixed
+    artifact of these rules):
+
+    * **Proportions usages / single_usages**: keep the top
+      ``top_n_per_culture`` entries by weight, ties broken alphabetically
+      on the usage_key. Sorted-by-weight order — NOT the source JSON's
+      insertion order — so future re-mining that reshuffles JSON keys
+      doesn't perturb the seed.
+    * **Proportions structures**: kept in full (always ≤50 entries).
+    * **Proportions tag_marginal / tag_cooccurrence**: kept in full
+      (a few hundred rows max; the runtime cohesion path relies on full
+      tag coverage even at low usage counts).
+    * **Meanings (subjects)**: drop any word whose ``modern_usage`` is
+      not in the kept-usage set across all 5 cultures. Drop any subject
+      that has no surviving words after the filter.
+    * **Fantasy morphemes**: kept in full (only ~240 total in the live
+      corpus).
+    * **Canonical decompositions**: kept in full (modest count; the
+      lookup is per-toponym-name and the seed shouldn't lose coverage
+      of common names).
+
+    Returns ``(subjects, fantasy_morphemes, canonical_decompositions,
+    proportions_by_culture)`` in the same shape as the inputs, with
+    each container trimmed per the rules above.
+    """
+    keep_usage_keys: set[str] = set()
+    trimmed_proportions: dict[str, dict[str, Any]] = {}
+    # Sort by culture key so the SQL INSERT order is the same across
+    # platforms regardless of the source dict's iteration order.
+    for culture in sorted(proportions_by_culture):
+        data = proportions_by_culture[culture]
+        usages = data.get("usages") or {}
+        single_usages = data.get("single_usages") or {}
+        kept_usages = dict(_top_n_by_weight(usages, top_n_per_culture))
+        kept_single = dict(_top_n_by_weight(single_usages, top_n_per_culture))
+        keep_usage_keys.update(kept_usages.keys())
+        keep_usage_keys.update(kept_single.keys())
+        # Sort tag dicts so re-runs against the same data produce the
+        # same insertion order — defensive against future ingesters that
+        # might emit a different dict order than today's.
+        trimmed_proportions[culture] = {
+            "usages": kept_usages,
+            "single_usages": kept_single,
+            "structures": data.get("structures") or [],
+            "tag_marginal": dict(sorted((data.get("tag_marginal") or {}).items())),
+            "tag_cooccurrence": dict(sorted((data.get("tag_cooccurrence") or {}).items())),
+        }
+
+    trimmed_subjects: list[dict[str, Any]] = []
+    for subject in subjects:
+        kept_words = [
+            word
+            for word in (subject.get("words") or [])
+            if word.get("modern_usage") in keep_usage_keys
+        ]
+        if not kept_words:
+            continue
+        trimmed = dict(subject)
+        trimmed["words"] = kept_words
+        trimmed_subjects.append(trimmed)
+
+    # Sort subjects by a canonical key so two subjects that share a
+    # modern_usage land in the same grouping order in _write_meanings's
+    # per-usage blob. Defensive against future upstream code that might
+    # emit subjects in a non-deterministic order (today's export_meanings
+    # sorts; this guards the contract regardless).
+    trimmed_subjects.sort(key=_subject_sort_key)
+
+    # Fantasy + canonical: sort by key so re-runs against the same
+    # source pick the same INSERT order across platforms / Python
+    # versions, defensive against any future ingester whose dict
+    # iteration order isn't already stable.
+    return (
+        trimmed_subjects,
+        dict(sorted(fantasy_morphemes.items())),
+        dict(sorted(canonical_decompositions.items())),
+        trimmed_proportions,
+    )
+
+
+def _subject_sort_key(subject: dict[str, Any]) -> tuple:
+    """Canonical sort key for a subject. Stable across platforms and
+    upstream-ordering changes — combines sorted modern_usages across
+    words with the subject-level metadata so two distinct subjects
+    that happen to share a modern_usage still order deterministically.
+    """
+    words = subject.get("words") or []
+    usage_tuple = tuple(sorted(w.get("modern_usage", "") for w in words))
+    return (
+        usage_tuple,
+        tuple(subject.get("meaning") or []),
+        subject.get("modifier_type") or "",
+        tuple(sorted(subject.get("modifier_tags") or [])),
+    )
+
+
+def _top_n_by_weight(items: dict[str, int], n: int) -> list[tuple[str, int]]:
+    """Return the top-N highest-weighted (key, weight) pairs in a stable
+    order: weight descending first, then key ascending for ties. The
+    key-ascending tiebreaker keeps the output bit-stable across re-runs
+    even if the input dict's insertion order changes.
+    """
+    return sorted(items.items(), key=lambda kv: (-kv[1], kv[0]))[:n]
+
+
+def _write_metadata(
+    conn: sqlite3.Connection,
+    *,
+    source_lexicon_db: str,
+    built_at: str | None = None,
+) -> None:
+    """Stamp bundle_metadata operational keys.
+
+    ``built_at=None`` (the default) stamps wall-clock UTC. Callers in
+    --dev mode pass the ``DEV_BUILT_AT`` sentinel so the seed-runtime.db
+    stays byte-stable across emits — the drift-detection test on the
+    committed seed depends on a deterministic timestamp.
+
+    ``source_lexicon_db`` is the resolved absolute path of the L3 source
+    in production emit, or ``DEV_SOURCE_LEXICON_SENTINEL`` in --dev mode
+    (operator-path differences would break cross-environment byte-
+    stability of the committed seed).
+    """
+    stamp = (
+        built_at
+        if built_at is not None
+        else _dt.datetime.now(_dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    )
     conn.executemany(
         "INSERT INTO bundle_metadata (key, value) VALUES (?, ?)",
         [
             ("schema_version", SCHEMA_VERSION),
-            ("built_at", built_at),
+            ("built_at", stamp),
             ("emitter_version", EMITTER_VERSION),
-            ("source_lexicon_db", str(source_lexicon_db)),
+            ("source_lexicon_db", source_lexicon_db),
         ],
     )
