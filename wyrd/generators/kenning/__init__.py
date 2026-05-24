@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import unicodedata
 from difflib import SequenceMatcher
@@ -238,6 +239,33 @@ def _norman_manorial_subjects() -> list[dict[str, Any]]:
     return subjects
 
 
+# wyrd-d90t PR 5: WYRD_USE_RUNTIME_DB=1 flips the bundle loaders
+# (_load_meanings / _load_canonical_decompositions / _load_fantasy_morphemes)
+# from reading meanings.json to reading the L4 runtime SQLite DB.
+# Default off so the legacy JSON path stays bit-stable while the
+# SQLite path bakes; the JSON-files cutover removes the legacy path.
+_USE_RUNTIME_DB_ENV = "WYRD_USE_RUNTIME_DB"
+
+
+def _runtime_db_enabled() -> bool:
+    """True when the WYRD_USE_RUNTIME_DB env var is set to a truthy
+    value. Evaluated at every loader call (not module-import time) so
+    tests can flip the flag via monkeypatch without restarting."""
+    return os.environ.get(_USE_RUNTIME_DB_ENV, "").lower() in ("1", "true", "yes")
+
+
+def _runtime_db_bundle_dict() -> dict[str, Any]:
+    """Read the L4 runtime DB and shape it into the dict the existing
+    bundle loaders consume. Imported lazily so the loader's module
+    init cost only fires when the flag is on."""
+    from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
+    from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+        bundle_dict_from_runtime_db,
+    )
+
+    return bundle_dict_from_runtime_db(get_runtime_db())
+
+
 @lru_cache(maxsize=1)
 def _load_meanings():
     """Load the bundled meanings, extending with anglicized-form sidecars.
@@ -272,8 +300,15 @@ def _load_meanings():
     ``old_french`` is in ``_ROOT_CODES`` so the explainer renders
     the morpheme as "FR" rather than "(?)".
     """
-    with _data_path("meanings.json").open() as f:
-        data = json.load(f)
+    if _runtime_db_enabled():
+        # wyrd-d90t PR 5: SQLite-backed bundle source. Sidecars
+        # (irish_anglicizations, Norman manorial families) still
+        # come from JSON because they're not in the L4 emit today —
+        # folding them into the runtime DB is a follow-up.
+        data = _runtime_db_bundle_dict()
+    else:
+        with _data_path("meanings.json").open() as f:
+            data = json.load(f)
     with _data_path("irish_anglicizations.json").open() as f:
         sidecar = json.load(f)
     manorial = _norman_manorial_subjects()
@@ -309,8 +344,11 @@ def _load_canonical_decompositions() -> dict[str, dict[str, str]]:
     (wyrd-h8k1). Returns ``{modern_name: {"signature", "source"}}``;
     empty for legacy list-shape bundles AND for dict-shape bundles
     that don't carry a ``canonical_decompositions`` field."""
-    with _data_path("meanings.json").open() as f:
-        data = json.load(f)
+    if _runtime_db_enabled():
+        data = _runtime_db_bundle_dict()
+    else:
+        with _data_path("meanings.json").open() as f:
+            data = json.load(f)
     return load_canonical_decompositions(data)
 
 
@@ -321,8 +359,11 @@ def _load_fantasy_morphemes() -> dict[str, dict]:
     canonical_form, english_shaped, glosses, citation, era_reflexes}}``.
     Empty for bundles that pre-date wyrd-vz7f or for DBs whose
     ``fantasy_morpheme`` table is empty."""
-    with _data_path("meanings.json").open() as f:
-        data = json.load(f)
+    if _runtime_db_enabled():
+        data = _runtime_db_bundle_dict()
+    else:
+        with _data_path("meanings.json").open() as f:
+            data = json.load(f)
     return load_fantasy_morphemes(data)
 
 
