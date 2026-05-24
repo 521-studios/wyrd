@@ -1,0 +1,10 @@
+{"_type": "source", "ref": "known-polysemy", "title": "Audit allowlist — confirmed polysemy (wyrd-kutx batch 2D)", "notes": "Entries here are (source_lang, source_lemma) pairs the operator has confirmed are real polysemy — one word with multiple related senses — that the cosine-similarity audit cannot distinguish from undetected homonyms. lexicon audit-semantic-coherence filters intra-entry-suspects rows whose (source_lang, source_lemma) matches an entry here. Add to this file when reviewing a new audit run surfaces a false-positive that future runs would re-flag."}
+{"_type": "known_polysemy", "source_lang": "celtic_mix", "source_lemma": "draigneach", "reason": "Blackthorn tree | Sloe — one plant; sloe is the fruit of the blackthorn"}
+{"_type": "known_polysemy", "source_lang": "celtic_mix", "source_lemma": "gráig", "reason": "Hamlet | Outlying homestead — synonyms in Irish toponymy"}
+{"_type": "known_polysemy", "source_lang": "old_english", "source_lemma": "merece", "reason": "Smallage | Wild celery — one plant (smallage IS wild celery)"}
+{"_type": "known_polysemy", "source_lang": "celtic_mix", "source_lemma": "pett", "reason": "Portion | croft, farm — related land-use senses"}
+{"_type": "known_polysemy", "source_lang": "celtic_mix", "source_lemma": "sceach", "reason": "Hawthorn tree | bush — same plant, generic + specific"}
+{"_type": "known_polysemy", "source_lang": "old_english", "source_lemma": "slōh", "reason": "Blackthorn tree | Sloe — one plant (cf. celtic_mix:draigneach)"}
+{"_type": "known_polysemy", "source_lang": "old_scandinavian", "source_lemma": "stokkr", "reason": "Hamlet | Outlying homestead — synonyms (cf. celtic_mix:gráig)"}
+{"_type": "known_polysemy", "source_lang": "old_scandinavian", "source_lemma": "heim", "reason": "home | home, homewards — same word with directional sense"}
+{"_type": "known_polysemy", "source_lang": "celtic_mix", "source_lemma": "moel", "reason": "Welsh 'moel' = bare, bald, bare hill — polysemy of one root ('Middle' gloss in source is a Wiktionary OCR artifact that may also warrant suppression)"}
