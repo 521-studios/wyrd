@@ -113,8 +113,23 @@ def get_runtime_db() -> sqlite3.Connection:
         if _conn is not None:
             return _conn
         path = _resolve_db_path()
-        _conn = _open_readonly(path)
-        _verify_schema_version(_conn, path)
+        # Assign to a local + verify BEFORE promoting to the module
+        # global. Promoting first would leak the unverified handle on
+        # ``RuntimeDBVersionMismatch``: the exception bubbles, but the
+        # cached ``_conn`` survives + every subsequent call short-
+        # circuits at the top-of-function cache-hit check, silently
+        # bypassing the schema gate for the rest of the container's
+        # lifetime.
+        conn = _open_readonly(path)
+        try:
+            _verify_schema_version(conn, path)
+        except Exception:
+            try:
+                conn.close()
+            except sqlite3.Error:
+                _logger.exception("ignoring close error on rejected runtime DB")
+            raise
+        _conn = conn
     return _conn
 
 

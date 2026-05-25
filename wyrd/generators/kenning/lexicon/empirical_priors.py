@@ -36,6 +36,7 @@ Scope notes (v1):
 from __future__ import annotations
 
 import json
+import sqlite3
 import sys
 from collections import defaultdict
 from collections.abc import Iterable
@@ -644,23 +645,31 @@ def collect_empirical_priors(
     runtime DB rather than relying on a separate ``priors.json`` sidecar.
 
     Returns ``None`` when neither table has any rows (the L3 hasn't run
-    ``mine-empirical-baselines`` yet). Callers should treat ``None`` as
-    "no priors row; runtime falls back to empty ``EmpiricalPriors``".
-    """
-    native_rows = list(
-        db.conn.execute(
-            "SELECT culture, position, tag, era_midpoint, lemma_ref, count "
-            "FROM empirical_priors_native "
-            "ORDER BY culture, position, tag, era_midpoint, lemma_ref"
+    ``mine-empirical-baselines`` yet) OR when the tables don't exist
+    at all (pre-empirical-priors L3 schema — the alembic migration
+    hasn't run yet). Callers treat ``None`` as "no priors; runtime
+    falls back to empty ``EmpiricalPriors``"."""
+    try:
+        native_rows = list(
+            db.conn.execute(
+                "SELECT culture, position, tag, era_midpoint, lemma_ref, count "
+                "FROM empirical_priors_native "
+                "ORDER BY culture, position, tag, era_midpoint, lemma_ref"
+            )
         )
-    )
-    loan_rows = list(
-        db.conn.execute(
-            "SELECT donor, recipient, position, tag, era_midpoint, lemma_ref, count "
-            "FROM empirical_priors_loan "
-            "ORDER BY donor, recipient, position, tag, era_midpoint, lemma_ref"
+        loan_rows = list(
+            db.conn.execute(
+                "SELECT donor, recipient, position, tag, era_midpoint, lemma_ref, count "
+                "FROM empirical_priors_loan "
+                "ORDER BY donor, recipient, position, tag, era_midpoint, lemma_ref"
+            )
         )
-    )
+    except sqlite3.OperationalError:
+        # Pre-priors L3 (alembic migration hasn't run); treat as "no
+        # priors data" rather than crashing the L4 emit. Loud-fail
+        # here would block ``export-runtime-db`` against any L3
+        # snapshotted before the priors tables existed.
+        return None
     if not native_rows and not loan_rows:
         return None
     return {

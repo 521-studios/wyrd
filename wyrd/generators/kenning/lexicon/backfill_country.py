@@ -147,20 +147,37 @@ def _merge_toponym_into(db: LexiconDB, *, from_toponym_id: int, into_toponym_id:
 
     # toponym_decomposition has UNIQUE(toponym_id, decomposition_signature);
     # collapse from-side rows whose signature is already on the target.
-    target_signatures = {
-        row["decomposition_signature"]
+    # When BOTH rows exist with the same signature, promote the
+    # canonical flag (``is_canonical=1`` + ``canonical_source``) from
+    # the from-side to the target row before dropping the from-side.
+    # Otherwise the scholar pick would silently disappear in the merge.
+    target_by_sig: dict[str, dict] = {
+        row["decomposition_signature"]: dict(row)
         for row in db.conn.execute(
-            "SELECT decomposition_signature FROM toponym_decomposition WHERE toponym_id = ?",
+            "SELECT id, decomposition_signature, is_canonical, canonical_source "
+            "FROM toponym_decomposition WHERE toponym_id = ?",
             (into_toponym_id,),
         )
     }
     for row in list(
         db.conn.execute(
-            "SELECT id, decomposition_signature FROM toponym_decomposition WHERE toponym_id = ?",
+            "SELECT id, decomposition_signature, is_canonical, canonical_source "
+            "FROM toponym_decomposition WHERE toponym_id = ?",
             (from_toponym_id,),
         )
     ):
-        if row["decomposition_signature"] in target_signatures:
+        sig = row["decomposition_signature"]
+        if sig in target_by_sig:
+            target_row = target_by_sig[sig]
+            # If from-side has canonical=1 and target has 0, promote
+            # the canonical flag onto the target row. (If both have
+            # canonical=1, the target's pick wins as a tiebreaker.)
+            if row["is_canonical"] and not target_row["is_canonical"]:
+                db.conn.execute(
+                    "UPDATE toponym_decomposition "
+                    "SET is_canonical = 1, canonical_source = ? WHERE id = ?",
+                    (row["canonical_source"], target_row["id"]),
+                )
             db.conn.execute("DELETE FROM toponym_decomposition WHERE id = ?", (row["id"],))
         else:
             db.conn.execute(

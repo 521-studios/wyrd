@@ -5,6 +5,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from click.testing import CliRunner
+
+from wyrd.generators.kenning.cli import cli as cli_root
 from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
 from wyrd.generators.kenning.lexicon.backfill_country import backfill_toponym_country
 from wyrd.generators.kenning.lexicon.ingest import _upsert_toponym
@@ -292,6 +295,59 @@ def test_backfill_merge_preserves_attestations_and_decompositions(tmp_path: Path
     assert decompositions[0]["decomposition_signature"] == "sig-from-side"
 
 
+def test_backfill_merge_promotes_canonical_flag_on_collision(tmp_path: Path):
+    """``toponym_decomposition`` carries ``is_canonical`` +
+    ``canonical_source`` flags. When both rows share the same
+    signature on collision, the from-side's canonical=1 must promote
+    onto the surviving target row before the from-side is dropped.
+    Otherwise the scholar pick silently disappears in the merge."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
+            ("Bath", "England", "Somerset"),
+        )
+        target_id = db.conn.execute("SELECT id FROM toponym WHERE country IS NOT NULL").fetchone()[
+            "id"
+        ]
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, NULL, ?)",
+            ("Bath", "Somerset"),
+        )
+        from_id = db.conn.execute("SELECT id FROM toponym WHERE country IS NULL").fetchone()["id"]
+        # Target side: same signature, NOT canonical.
+        db.conn.execute(
+            "INSERT INTO toponym_decomposition "
+            "(toponym_id, decomposition_signature, morpheme_ids, "
+            "unaccounted_fragments, is_canonical, canonical_source) "
+            "VALUES (?, ?, ?, ?, 0, NULL)",
+            (target_id, "shared-sig", "[]", "[]"),
+        )
+        # From-side: same signature, canonical=1, scholar-sourced.
+        db.conn.execute(
+            "INSERT INTO toponym_decomposition "
+            "(toponym_id, decomposition_signature, morpheme_ids, "
+            "unaccounted_fragments, is_canonical, canonical_source) "
+            "VALUES (?, ?, ?, ?, 1, 'scholar')",
+            (from_id, "shared-sig", "[]", "[]"),
+        )
+        db.commit()
+
+        backfill_toponym_country(db)
+
+        rows = db.conn.execute(
+            "SELECT toponym_id, is_canonical, canonical_source FROM toponym_decomposition"
+        ).fetchall()
+
+    assert len(rows) == 1
+    assert rows[0]["toponym_id"] == target_id
+    # The from-side's canonical flag + source were promoted onto the
+    # surviving target row.
+    assert rows[0]["is_canonical"] == 1
+    assert rows[0]["canonical_source"] == "scholar"
+
+
 def test_backfill_merge_collapses_duplicate_decomposition_signatures(tmp_path: Path):
     """``toponym_decomposition`` has UNIQUE(toponym_id,
     decomposition_signature). When both the from-side and the target
@@ -361,3 +417,79 @@ def test_upsert_toponym_repairs_legacy_null_country_row(tmp_path: Path):
     assert returned_id == legacy_id
     assert len(rows) == 1
     assert rows[0]["country"] == "England"
+
+
+def test_upsert_toponym_legacy_repair_respects_region(tmp_path: Path):
+    """The legacy-repair fallback in ``_upsert_toponym`` MUST gate on
+    region — same modern_name + different region is a different place,
+    not the same row needing country backfilled. A regression that
+    drops the region check would silently merge unrelated places
+    (Yarmouth/Norfolk vs Yarmouth/Suffolk) under one row.
+
+    Pin: the legacy NULL-country row in region=Norfolk must NOT
+    satisfy an ingest call with region=Suffolk."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, NULL, ?)",
+            ("Yarmouth", "Norfolk"),
+        )
+        norfolk_id = db.conn.execute("SELECT id FROM toponym").fetchone()["id"]
+        db.commit()
+        # Cross-region ingest — must create a NEW row, not repair the
+        # Norfolk one.
+        suffolk_id = _upsert_toponym(db, "Yarmouth", region="Suffolk")
+        db.commit()
+        rows = sorted(
+            db.conn.execute("SELECT id, region, country FROM toponym").fetchall(),
+            key=lambda r: r["id"],
+        )
+
+    assert suffolk_id != norfolk_id
+    assert len(rows) == 2
+    # Norfolk row untouched; Suffolk row newly created with derived country.
+    assert (rows[0]["region"], rows[0]["country"]) == ("Norfolk", None)
+    assert (rows[1]["region"], rows[1]["country"]) == ("Suffolk", "England")
+
+
+def test_backfill_toponym_country_cli_smoke(tmp_path: Path):
+    """End-to-end CLI smoke: ``wyrd kenning lexicon backfill-toponym-country
+    --db <path>`` opens the L3, runs the in-place backfill, prints the
+    operator-readable summary, and exits 0. Pins the CLI shim's
+    LexiconDB context-manager wiring + the stderr summary format."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, NULL, ?)",
+            ("Acton", "Cambridgeshire"),
+        )
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, NULL, ?)",
+            ("Mystery", "British Isles"),
+        )
+        db.commit()
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        ["lexicon", "backfill-toponym-country", "--db", str(db_path)],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, result.output
+    # Operator summary lands on stderr in production; CliRunner merges
+    # stderr into ``output`` by default which is fine for shape pinning.
+    assert "backfill-toponym-country:" in result.output
+    assert "inspected=2" in result.output
+    assert "updated=1" in result.output
+    assert "region_unknown=1" in result.output
+    # Side-effect: the Acton row's country is now populated; the
+    # Mystery row stayed NULL.
+    with LexiconDB(db_path) as db:
+        rows = sorted(
+            db.conn.execute("SELECT modern_name, country FROM toponym").fetchall(),
+            key=lambda r: r["modern_name"],
+        )
+    assert (rows[0]["modern_name"], rows[0]["country"]) == ("Acton", "England")
+    assert (rows[1]["modern_name"], rows[1]["country"]) == ("Mystery", None)
