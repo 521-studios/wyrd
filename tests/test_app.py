@@ -1,10 +1,13 @@
-"""Unit tests for wyrd.app helpers (count coercion, query-param flattening)."""
+"""Unit tests for wyrd.app helpers (count coercion, query-param
+flattening, LOG_LEVEL configuration, dispatch trace lines)."""
 
 from __future__ import annotations
 
+import logging
+
 import pytest
 
-from wyrd.app import _coerce_count, _coerce_query_params
+from wyrd.app import _coerce_count, _coerce_query_params, _configure_logging, create_app
 
 
 def test_coerce_count_accepts_int_in_range():
@@ -44,3 +47,119 @@ def test_coerce_query_params_mixed():
         {"culture": ["english"], "tags": ["religion", "tree"], "seed": ["42"]}
     )
     assert out == {"culture": "english", "tags": ["religion", "tree"], "seed": "42"}
+
+
+# --- LOG_LEVEL configuration ----------------------------------------------
+
+
+def test_configure_logging_defaults_to_info(monkeypatch):
+    """Without LOG_LEVEL set, _configure_logging pins both root + wyrd
+    package loggers to INFO. Stagings + prod default cadence."""
+    monkeypatch.delenv("LOG_LEVEL", raising=False)
+    _configure_logging()
+    assert logging.getLogger().level == logging.INFO
+    assert logging.getLogger("wyrd").level == logging.INFO
+
+
+def test_configure_logging_honors_debug_env(monkeypatch):
+    """LOG_LEVEL=DEBUG flips root + wyrd to DEBUG so the per-phase
+    timing logs Kenning.generate emits become visible."""
+    monkeypatch.setenv("LOG_LEVEL", "DEBUG")
+    _configure_logging()
+    assert logging.getLogger().level == logging.DEBUG
+    assert logging.getLogger("wyrd").level == logging.DEBUG
+    # Restore so other tests don't inherit DEBUG cadence.
+    monkeypatch.setenv("LOG_LEVEL", "INFO")
+    _configure_logging()
+
+
+def test_configure_logging_unknown_level_falls_back_to_info(monkeypatch):
+    """Garbage in LOG_LEVEL (typo, empty, etc.) silently falls back to
+    INFO so a misconfigured env var never crashes Lambda init."""
+    monkeypatch.setenv("LOG_LEVEL", "GARBAGE")
+    _configure_logging()
+    assert logging.getLogger().level == logging.INFO
+
+
+def test_configure_logging_strips_whitespace_and_lowercase(monkeypatch):
+    """Operator-supplied LOG_LEVEL is .strip().upper()-normalized so
+    ``debug`` / ``  DEBUG  `` both work."""
+    monkeypatch.setenv("LOG_LEVEL", "  debug  ")
+    _configure_logging()
+    assert logging.getLogger().level == logging.DEBUG
+    monkeypatch.setenv("LOG_LEVEL", "INFO")
+    _configure_logging()
+
+
+# --- dispatch trace lines (request-level timing logs) ---------------------
+
+
+def test_dispatch_emits_ok_info_line_with_timing(caplog):
+    """The INFO summary line per successful /api/<gen> request must
+    carry ``dispatch ok``, the generator name, count, elapsed_ms, the
+    resolved seed, and the operator's param dict — enough to triage
+    a slow path from CloudWatch without a separate trace."""
+    app = create_app()
+    caplog.set_level(logging.INFO, logger="wyrd.app")
+    with app.test_client() as client:
+        response = client.get("/api/kenning?culture=english&count=1&seed=42")
+    assert response.status_code == 200, response.data
+    summary_lines = [rec for rec in caplog.records if "dispatch ok" in rec.getMessage()]
+    assert summary_lines, (
+        f"no dispatch-ok line emitted; got {[r.getMessage() for r in caplog.records]}"
+    )
+    msg = summary_lines[-1].getMessage()
+    assert "generator=kenning" in msg
+    assert "count=1" in msg
+    assert "elapsed_ms=" in msg
+    assert "seed=42" in msg
+    assert "'culture': 'english'" in msg
+
+
+def test_dispatch_emits_bad_params_info_line(caplog):
+    """A ValueError-raising request (e.g. unknown culture) still
+    surfaces a dispatch-trace line — the bad_params variant carries
+    the detail string so CloudWatch shows the operator's exact bad
+    input next to the elapsed time it cost."""
+    app = create_app()
+    caplog.set_level(logging.INFO, logger="wyrd.app")
+    with app.test_client() as client:
+        # 'count' must be 1-10; 11 raises ValueError inside _coerce_count.
+        response = client.get("/api/kenning?culture=english&count=11&seed=42")
+    assert response.status_code == 400
+    error_lines = [rec for rec in caplog.records if "dispatch bad_params" in rec.getMessage()]
+    assert error_lines, "bad_params dispatch line not emitted"
+    msg = error_lines[-1].getMessage()
+    assert "generator=kenning" in msg
+    assert "elapsed_ms=" in msg
+    assert "detail=" in msg
+
+
+def test_dispatch_debug_emits_per_result_breakdown(caplog):
+    """When DEBUG is on, dispatch emits a per_result_ms=[…] line so
+    a slow sub-seed within a count>1 batch can be localized."""
+    app = create_app()
+    caplog.set_level(logging.DEBUG, logger="wyrd.app")
+    with app.test_client() as client:
+        response = client.get("/api/kenning?culture=english&count=3&seed=42")
+    assert response.status_code == 200
+    debug_lines = [rec for rec in caplog.records if "per_result_ms=" in rec.getMessage()]
+    assert debug_lines, "per_result_ms debug line missing under DEBUG"
+
+
+def test_kenning_generate_debug_emits_phase_breakdown(caplog):
+    """Kenning.generate's per-phase load/sample/render timing line
+    fires under DEBUG. Splitting the phases is what tells an operator
+    whether a slow request is cold-start load, sample loop, or
+    rendering work."""
+    app = create_app()
+    caplog.set_level(logging.DEBUG, logger="wyrd.generators.kenning.generators.kenning")
+    with app.test_client() as client:
+        response = client.get("/api/kenning?culture=english&count=1&seed=42")
+    assert response.status_code == 200
+    phase_lines = [rec for rec in caplog.records if "kenning.generate" in rec.getMessage()]
+    assert phase_lines, "kenning.generate phase-timing line missing under DEBUG"
+    msg = phase_lines[-1].getMessage()
+    assert "load_ms=" in msg
+    assert "sample_ms=" in msg
+    assert "render_ms=" in msg

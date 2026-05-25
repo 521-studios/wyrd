@@ -1,0 +1,154 @@
+"""Per-culture proportions construction from decomposed Name lists.
+
+These helpers walk a list of Names that already have ``find_meaning``
+applied (i.e. each Name carries its trie-derived decompositions) and
+emit the per-culture proportions dict the runtime samples from. The
+output shape mirrors the historical ``<culture>_proportions.json``
+sidecars — d90t cutover collapsed those sidecars into either the L4
+emit pipeline (``runtime_db_export._compute_proportions_inline``) or
+the ``wyrd kenning rebuild-proportions`` operator-facing CLI; both call
+into this module so the layering goes ``cli/`` and ``lexicon/`` →
+``lexicon/proportions_builder`` rather than the other way around.
+
+Lives under ``lexicon/`` per the package-boundary rule: it operates on
+domain-modeled data (decomposed Names + Meaning tags) and is shared by
+multiple consumers (CLI + L4 emit). The CLI module retains thin
+adapters re-exporting these names for backward-compatible imports.
+"""
+
+from __future__ import annotations
+
+from collections import Counter
+from typing import Any
+
+from wyrd.generators.kenning.runtime.meaning import Meaning
+from wyrd.generators.kenning.runtime.proportions import is_structurally_grammatical
+
+
+def proportions_from(names) -> dict[str, Any]:
+    """Build the per-culture proportions dict from a list of
+    perfectly-decomposed Names.
+
+    Each Name must have had ``find_meaning(word_db, reduce=True)``
+    called on it; the helpers below pull samples / structure / tag-
+    cooccurrence off the resulting decompositions.
+
+    The returned shape matches the historical
+    ``<culture>_proportions.json`` payload exactly: ``{usages,
+    single_usages, structures, tag_marginal, tag_cooccurrence}`` with
+    ``structures`` already passed through the wyrd-zzli grammatical
+    filter and tag-pair keys serialized as ``"left|right"`` strings.
+    """
+    part_proportions: Counter = Counter()
+    lone_proportions: Counter = Counter()
+    struct_proportions: Counter = Counter()
+    tag_cooccurrence: Counter = Counter()
+    tag_marginal: Counter = Counter()
+    for name in names:
+        for u in name.get_samples():
+            part_proportions[u] += 1
+        for u in name.get_lone_samples():
+            lone_proportions[u] += 1
+        for structure in name.get_structure():
+            struct_proportions[structure] += 1
+        # Tag co-occurrence: ordered consecutive Meaning pairs across the
+        # full name (within-word AND between-word). Each pair contributes
+        # the cartesian product of (left.tags × right.tags) — an etymon
+        # often has several tags (plant, food, tree), and any of them can
+        # legitimately drive co-occurrence.
+        for left_tags, right_tags in ordered_tag_pairs(name):
+            for tl in left_tags:
+                tag_marginal[tl] += 1
+                for tr in right_tags:
+                    tag_cooccurrence[(tl, tr)] += 1
+            for tr in right_tags:
+                tag_marginal[tr] += 1
+    return {
+        "usages": dict(part_proportions),
+        "single_usages": dict(lone_proportions),
+        "structures": encode_structs(struct_proportions),
+        # Serialize tag-pair keys as "left|right" so they survive a JSON
+        # round-trip. Generator side splits on the pipe.
+        "tag_cooccurrence": {f"{a}|{b}": v for (a, b), v in tag_cooccurrence.items()},
+        "tag_marginal": dict(tag_marginal),
+    }
+
+
+def ordered_tag_pairs(name) -> list[tuple[list[str], list[str]]]:
+    """Walk a decomposed Name in order, yielding consecutive (left.tags,
+    right.tags) pairs across the entire name (within and between words).
+
+    For 'Bridgwater Gate' this yields:
+        (Bridg-.tags, -water.tags)   # within word 1
+        (-water.tags, Gate.tags)     # between words
+
+    When a word has multiple equivalent decompositions (e.g. mining
+    surfaced a bare-form synthesized usage that competes with the
+    dashed reflex), prefer the decomp with the most tag-bearing
+    Meanings — that's the one that actually feeds co-occurrence
+    statistics rather than emitting empty () pairs.
+    """
+
+    def _tag_density(word_obj) -> int:
+        if not hasattr(word_obj, "word"):
+            return -1
+        return sum(1 for c in word_obj.word if isinstance(c, Meaning) and c.tags)
+
+    flat_meanings: list[Meaning] = []
+    for word_text in name.name.split(" "):
+        word_options = name.words.get(word_text, [])
+        if not word_options:
+            continue
+        chosen = max(word_options, key=_tag_density)
+        if not hasattr(chosen, "word"):
+            continue
+        for chunk in chosen.word:
+            if isinstance(chunk, Meaning):
+                flat_meanings.append(chunk)
+
+    out: list[tuple[list[str], list[str]]] = []
+    for i in range(len(flat_meanings) - 1):
+        out.append((list(flat_meanings[i].tags), list(flat_meanings[i + 1].tags)))
+    return out
+
+
+def encode_meaning(qualities) -> dict:
+    out: dict = {}
+    for quality in qualities:
+        if quality in ("pre", "post", "inner"):
+            out["location"] = quality
+        else:
+            out[quality] = True
+    return out
+
+
+def encode_structs(struct: Counter) -> list:
+    """Serialize the structure → count map into the proportions-JSON
+    shape, sorted for deterministic output (wyrd-dxu2 review). Counter
+    iteration order is insertion-order, so the underlying corpus walk
+    determines initial order — but two re-runs against the same corpus
+    can iterate in slightly different orders if the matcher's
+    decomposition outputs change. Sorting by (-proportion, structure
+    key) gives a stable canonical order: most-frequent first, with the
+    structure tuple as deterministic tiebreaker.
+
+    wyrd-zzli: drops multi-word structures with any single-word slot
+    that's a bare 'pre' or 'post' morpheme. These templates were
+    causing 'By Green'-style ungrammatical output where the runtime
+    rendered an attachment-only morpheme (``-by``, ``green-``) as a
+    standalone word. 46.7% of English structure weight was in this
+    shape before the filter; corresponding runtime defense in
+    ``proportions.is_structurally_grammatical``. Real qualifier-word
+    two-word names (Bishop's Stortford, Great Yarmouth) survive
+    because their lead morpheme carries the ``name`` flag, which is
+    treated as a distinct position key by ``word_to_key`` and the
+    runtime."""
+    sorted_items = sorted(struct.items(), key=lambda item: (-item[1], item[0]))
+    return [
+        {
+            "proportion": value,
+            "words": [[encode_meaning(meaning) for meaning in word] for word in key],
+        }
+        for key, value in sorted_items
+        if is_structurally_grammatical(key)
+    ]

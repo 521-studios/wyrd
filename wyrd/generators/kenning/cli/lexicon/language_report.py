@@ -157,32 +157,22 @@ def lexicon_language_report(
         from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
         from wyrd.generators.kenning.runtime.runtime_db_adapter import (
             bundle_dict_from_runtime_db,
+            proportions_dict_for_culture,
         )
 
-        bundle = bundle_dict_from_runtime_db(get_runtime_db())
+        runtime_db = get_runtime_db()
+        bundle = bundle_dict_from_runtime_db(runtime_db)
     else:
         bundle = json.loads(bundle_path.read_text())
 
     if proportions_path is None:
-        # English proportions come from the same L4 (proportions_*
-        # tables). Build the dict in-memory so load_reference_tags's
-        # JSON-path expectation stays one branch wide; we write a
-        # temp file rather than divergent in-memory/path codepaths.
-        import tempfile
+        # Fetch English proportions straight from the L4 and hand the
+        # dict to load_reference_tags (no JSON round-trip).
+        proportions_source: dict | Path = proportions_dict_for_culture(runtime_db, "english")
+    else:
+        proportions_source = proportions_path
 
-        from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
-        from wyrd.generators.kenning.runtime.runtime_db_adapter import (
-            proportions_dict_for_culture,
-        )
-
-        proportions_dict = proportions_dict_for_culture(get_runtime_db(), "english")
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False, encoding="utf-8"
-        ) as tmp:
-            json.dump(proportions_dict, tmp)
-            proportions_path = Path(tmp.name)
-
-    reference_tags = load_reference_tags(proportions_path, top_n=top_tags)
+    reference_tags = load_reference_tags(proportions_source, top_n=top_tags)
     languages = list(language_filter) if language_filter else list(DEFAULT_LANGUAGES)
 
     # CLAUDE.md-shape stderr progress for the long modern-english

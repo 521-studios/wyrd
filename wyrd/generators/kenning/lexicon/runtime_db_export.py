@@ -135,7 +135,7 @@ def write_runtime_db(
     ``seed-runtime.db``).
     """
     if proportions_dir is None:
-        proportions_by_culture = _compute_proportions_inline(subjects)
+        proportions_by_culture = _compute_proportions_inline(subjects, canonical_decompositions)
     else:
         proportions_by_culture = _load_proportions(proportions_dir)
 
@@ -229,6 +229,7 @@ def _load_proportions(
 
 def _compute_proportions_inline(
     subjects: list[dict[str, Any]],
+    canonical_decompositions: dict[str, dict[str, str]],
 ) -> dict[str, dict[str, Any]]:
     """Build per-culture proportions on the fly from the subjects we
     just exported + the bundled ``<culture>_place_names.json`` corpus.
@@ -239,11 +240,19 @@ def _compute_proportions_inline(
     at the L3 to produce a fully-populated L4. Operator can still
     supply ``--proportions-dir`` to bypass this with a hand-edited or
     frozen proportions set.
+
+    ``canonical_decompositions`` lets the inline rebuild honor
+    scholar-attributed picks the L3 carries (the ``is_canonical=1`` rows
+    on ``toponym_decomposition``, already projected into the L4 emit by
+    ``collect_canonical_decompositions``). Without it the rebuild would
+    drop to heuristic-only matching, losing the canonical-pick lift
+    that's the load-bearing reason ``decompose_with_canonical`` exists.
+    Names without a canonical entry fall through to the
+    ``find_meaning(reduce=True)`` heuristic path — same shape, just no
+    scholar override.
     """
-    # Local imports avoid pulling the rebuild_proportions / runtime
-    # name-decomposition deps into module init for callers that pass
-    # ``--proportions-dir`` and never need the inline path.
-    from wyrd.generators.kenning.cli.rebuild_proportions import _proportions_from
+    from wyrd.generators.kenning.lexicon.proportions_builder import proportions_from
+    from wyrd.generators.kenning.runtime.decomposition import apply_canonical_to_name
     from wyrd.generators.kenning.runtime.meaning import load_meanings
     from wyrd.generators.kenning.runtime.name import load_names_with_regions
 
@@ -257,16 +266,23 @@ def _compute_proportions_inline(
             continue
         names_data = json.loads(place_names_entry.read_text())
         name_entries = load_names_with_regions(names_data)
-        # decompose each name against the just-built meaning_db; the
-        # caller already gated subjects via export_meanings's witness
-        # promotion, so this rolls in whatever the operator's emit
-        # decided to ship.
         resolved = []
         for name, _region in name_entries:
-            name.find_meaning(word_db, reduce=True)
+            canonical = canonical_decompositions.get(name.name)
+            if canonical:
+                # Populate every alternate (reduce=False) so
+                # apply_canonical_to_name can pick the canonical cell
+                # from the full cross-product. Fall back to the
+                # heuristic on miss — happens when the bundle's
+                # word_db has shifted since the canonical was picked.
+                name.find_meaning(word_db, reduce=False)
+                if not apply_canonical_to_name(name, canonical["signature"]):
+                    name.find_meaning(word_db, reduce=True)
+            else:
+                name.find_meaning(word_db, reduce=True)
             resolved.append(name)
         good_names = [n for n in resolved if n.count_unaccounted() == 0]
-        out[culture] = _proportions_from(good_names)
+        out[culture] = proportions_from(good_names)
     return out
 
 

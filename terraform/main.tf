@@ -110,15 +110,12 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
 }
 
 # Read access to the runtime DB bucket so the Lambda can fetch
-# current.json + the versioned L4 DB on cold start.
+# current.json + the versioned L4 DB on cold start. Object-level only;
+# the loader knows its target key from current.json + doesn't list.
 data "aws_iam_policy_document" "runtime_db_read" {
   statement {
     actions   = ["s3:GetObject", "s3:HeadObject"]
     resources = ["${aws_s3_bucket.runtime_db.arn}/*"]
-  }
-  statement {
-    actions   = ["s3:ListBucket"]
-    resources = [aws_s3_bucket.runtime_db.arn]
   }
 }
 

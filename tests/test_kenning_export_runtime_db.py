@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
+from typing import Any
 
 import click
 import pytest
@@ -797,8 +798,8 @@ def test_emit_default_proportions_dir_computes_inline(tmp_path: Path) -> None:
         # have ~tens of thousands of real toponyms; few of them
         # decompose perfectly against a 1-meaning fixture), which is
         # correct behavior — not a regression. A separate test
-        # (test_inline_rebuild_against_full_lexicon) exercises the
-        # populated case once the fixture is rich enough.
+        # (``test_inline_rebuild_emits_populated_proportions_with_canonical``
+        # below) exercises the populated case against a richer fixture.
         bundle_meta = dict(conn.execute("SELECT key, value FROM bundle_metadata").fetchall())
         for row in conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'proportions_%'"
@@ -808,6 +809,96 @@ def test_emit_default_proportions_dir_computes_inline(tmp_path: Path) -> None:
         conn.close()
     assert bundle_meta.get("schema_version") == "1"
     assert "built_at" in bundle_meta
+
+
+def _three_subject_acton_fixture() -> list[dict[str, Any]]:
+    """Minimal bundle that decomposes the English-corpus toponym
+    ``Acton`` perfectly (``Ac-`` + ``-ton``) plus the standalone
+    ``Bath``. The inline-rebuild tests below all use this fixture to
+    assert non-empty proportions output against the bundled
+    ``english_place_names.json`` corpus."""
+    return [
+        {
+            "meaning": ["Roman bath"],
+            "modifier_tags": ["name"],
+            "modifier_type": None,
+            "words": [{"modern_usage": "Bath", "old_english": ["Baðum"]}],
+        },
+        {
+            "meaning": ["oak"],
+            "modifier_tags": ["plant"],
+            "modifier_type": "Descriptive",
+            "words": [{"modern_usage": "Ac-", "old_english": ["āc"]}],
+        },
+        {
+            "meaning": ["estate"],
+            "modifier_tags": ["settlement"],
+            "modifier_type": "Topographical",
+            "words": [{"modern_usage": "-ton", "old_english": ["tūn"]}],
+        },
+    ]
+
+
+def test_inline_rebuild_emits_populated_proportions_with_canonical() -> None:
+    """The inline-rebuild path must produce non-empty proportions when
+    the fixture meanings + bundled place_names corpus can perfectly
+    decompose at least one name. Directly exercises
+    ``_compute_proportions_inline`` so the assertion pins the
+    function's output dict, not just the presence of well-formed
+    bundle_metadata."""
+    from wyrd.generators.kenning.lexicon.runtime_db_export import (
+        _compute_proportions_inline,
+    )
+
+    # Empty canonical map → every name flows through the heuristic.
+    out = _compute_proportions_inline(_three_subject_acton_fixture(), canonical_decompositions={})
+
+    # Acton perfectly decomposes against the fixture → both Ac- and
+    # -ton end up in the english usages map. Pin both so a regression
+    # that loses either half of the compound surfaces here.
+    assert "english" in out
+    english_usages = out["english"].get("usages", {})
+    assert "Ac-" in english_usages, (
+        f"Ac- missing from english usages; rebuild didn't traverse the corpus. got {sorted(english_usages.keys())[:10]}"
+    )
+    assert "-ton" in english_usages, (
+        f"-ton missing from english usages. got {sorted(english_usages.keys())[:10]}"
+    )
+
+    # And every output dict must carry the five canonical proportions keys.
+    for culture, payload in out.items():
+        assert {"usages", "single_usages", "structures", "tag_marginal", "tag_cooccurrence"} <= set(
+            payload.keys()
+        ), f"culture {culture!r} missing keys: {set(payload.keys())}"
+
+
+def test_inline_rebuild_honors_canonical_decomposition() -> None:
+    """When a canonical_decompositions entry exists for a name in the
+    corpus, ``_compute_proportions_inline`` routes through
+    ``apply_canonical_to_name`` rather than the heuristic. Test the
+    contract negatively: feed a nonsense canonical signature for a
+    name that exists in the corpus + a fixture that DOES decompose it.
+    Without the canonical-miss fallback this would silently drop the
+    name (the canonical narrowing would empty ``name.words``). With
+    the fallback, the heuristic path picks the same decomp it would
+    have picked anyway, so the resulting usages map still contains
+    the morphemes."""
+    from wyrd.generators.kenning.lexicon.runtime_db_export import (
+        _compute_proportions_inline,
+    )
+
+    canonical_decompositions = {
+        "Acton": {"signature": "nonsense-signature-no-cell-will-match", "source": "test"},
+    }
+
+    out = _compute_proportions_inline(_three_subject_acton_fixture(), canonical_decompositions)
+    # Canonical-miss must fall back to the heuristic — Acton still
+    # decomposes via Ac- + -ton and both morphemes still surface.
+    assert out["english"].get("usages", {}).get("Ac-"), (
+        f"canonical-miss didn't fall back to heuristic; "
+        f"got english usages {sorted(out['english'].get('usages', {}).keys())[:10]}"
+    )
+    assert "-ton" in out["english"]["usages"]
 
 
 def test_emit_resolves_relative_lexicon_path(tmp_path: Path, monkeypatch) -> None:
