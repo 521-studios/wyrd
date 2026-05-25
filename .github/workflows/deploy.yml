@@ -69,7 +69,11 @@ jobs:
 
       - name: Terraform apply
         working-directory: terraform
-        run: terraform apply -auto-approve -input=false -var="env=staging"
+        # LOG_LEVEL=DEBUG on staging surfaces the per-request + per-phase
+        # timing logs Kenning.generate emits — left to default INFO on
+        # production. Flip in terraform/variables.tf if staging needs
+        # to go quieter.
+        run: terraform apply -auto-approve -input=false -var="env=staging" -var="log_level=DEBUG"
 
       - name: Update Lambda code
         working-directory: terraform
