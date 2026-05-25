@@ -96,11 +96,15 @@ def backfill_toponym_country(db: LexiconDB) -> BackfillResult:
             # duplicate (UPDATE will fail with UNIQUE constraint;
             # handled by retrying with INSERT OR REPLACE semantics
             # at the row level).
-            _merge_toponym_into(db, source_id=row["id"], target_id=existing["id"])
+            _merge_toponym_into(
+                db,
+                from_toponym_id=row["id"],
+                into_toponym_id=existing["id"],
+            )
             db.conn.execute("DELETE FROM toponym WHERE id = ?", (row["id"],))
             merged += 1
 
-    db.conn.commit()
+    db.commit()
     return BackfillResult(
         inspected=len(candidates),
         updated=updated,
@@ -109,16 +113,20 @@ def backfill_toponym_country(db: LexiconDB) -> BackfillResult:
     )
 
 
-def _merge_toponym_into(db: LexiconDB, *, source_id: int, target_id: int) -> None:
-    """Move every ``toponym_etymology`` row from ``source_id`` to
-    ``target_id``. When a (target_id, source_id) duplicate already
-    exists on the target side, the source-side row is dropped (the
-    target row's etymology is the merge winner — older row wins by id
-    ordering, which is deterministic across re-runs)."""
+def _merge_toponym_into(db: LexiconDB, *, from_toponym_id: int, into_toponym_id: int) -> None:
+    """Move every ``toponym_etymology`` row from ``from_toponym_id`` to
+    ``into_toponym_id``. When a ``(into_toponym_id, source_id)`` row
+    already exists on the target side, the from-side row is dropped
+    (the target row's etymology is the merge winner — older row wins
+    by id ordering, deterministic across re-runs).
+
+    Parameter names avoid the literary ``source_id`` column on
+    ``toponym_etymology`` to keep merge-direction unambiguous —
+    callers always read "merge FROM x INTO y"."""
     rows = list(
         db.conn.execute(
             "SELECT id, source_id FROM toponym_etymology WHERE toponym_id = ?",
-            (source_id,),
+            (from_toponym_id,),
         )
     )
     for row in rows:
@@ -127,17 +135,17 @@ def _merge_toponym_into(db: LexiconDB, *, source_id: int, target_id: int) -> Non
             SELECT 1 FROM toponym_etymology
             WHERE toponym_id = ? AND source_id = ?
             """,
-            (target_id, row["source_id"]),
+            (into_toponym_id, row["source_id"]),
         ).fetchone()
         if target_has is None:
             db.conn.execute(
                 "UPDATE toponym_etymology SET toponym_id = ? WHERE id = ?",
-                (target_id, row["id"]),
+                (into_toponym_id, row["id"]),
             )
         else:
-            # Cascade-drop the source-side etymology + its elements
-            # so the FK constraint is satisfied when we delete the
-            # source toponym row.
+            # Cascade-drop the from-side etymology + its elements so
+            # the FK constraint is satisfied when we delete the
+            # from-side toponym row.
             db.conn.execute(
                 "DELETE FROM toponym_etymology_element WHERE toponym_etymology_id = ?",
                 (row["id"],),
