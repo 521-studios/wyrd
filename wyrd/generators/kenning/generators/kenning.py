@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import time
 from typing import Any
 
 from wyrd.generators.kenning import (
@@ -28,6 +30,8 @@ from wyrd.generators.kenning.lexicon.strata import (
 )
 from wyrd.generators.kenning.registers.effects import available_register_effects
 from wyrd.registry import GenerationResult, Generator
+
+_logger = logging.getLogger(__name__)
 from wyrd.seed import rng_for
 
 
@@ -427,8 +431,19 @@ class Kenning(Generator):
         # no-opping.
         stratum = _resolve_stratum_param(params.get("stratum"), culture)
 
+        # Phase timing: load_culture is lru_cached after first miss, so
+        # this is ~0ms warm and the per-culture bundle parse time on
+        # cold first-touch. Sampling is the per-name work the operator
+        # actually pays for on every call. Emit as DEBUG so prod stays
+        # quiet at default log levels; staging flips LOG_LEVEL=DEBUG to
+        # see the breakdown.
+        _trace = _logger.isEnabledFor(logging.DEBUG)
+        t_load = time.perf_counter()
         name_gen, _ = _load_culture(culture)
+        t_load_ms = (time.perf_counter() - t_load) * 1000
+
         rng = rng_for(seed)
+        t_sample = time.perf_counter()
         if scoring_mode == "vector":
             new_name = _generate_via_vector(
                 name_gen,
@@ -477,6 +492,8 @@ class Kenning(Generator):
                 stratum=stratum,
                 cohesion=cohesion,
             )
+        t_sample_ms = (time.perf_counter() - t_sample) * 1000
+        t_render = time.perf_counter()
         result_str = str(new_name)
         explanation = new_name.description()
         components = new_name.components()
@@ -519,6 +536,20 @@ class Kenning(Generator):
         # Cornlandian' situation where trie re-decomposition picks
         # a different etymological cluster).
         morphemes_by_word = new_name.to_dict()["words"]
+        if _trace:
+            t_render_ms = (time.perf_counter() - t_render) * 1000
+            _logger.debug(
+                "kenning.generate culture=%s mode=%s "
+                "load_ms=%.1f sample_ms=%.1f render_ms=%.1f "
+                "result=%r words=%d",
+                culture,
+                scoring_mode,
+                t_load_ms,
+                t_sample_ms,
+                t_render_ms,
+                result_str,
+                len(morphemes_by_word),
+            )
         return GenerationResult(
             result=result_str,
             explanation=explanation,
