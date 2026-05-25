@@ -41,7 +41,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from wyrd.generators.kenning.era.cells import (
     ERA_CELLS,
@@ -631,6 +631,43 @@ def load_empirical_priors_from_payload(artifact: dict) -> EmpiricalPriors:
         loan_relationship=loan,
         version=version,
     )
+
+
+def collect_empirical_priors(
+    db: LexiconDB,
+    *,
+    version: str = "unversioned",
+) -> dict[str, Any] | None:
+    """Project the L3 ``empirical_priors_native`` + ``empirical_priors_loan``
+    tables into the same payload shape ``dump_empirical_priors_to_json``
+    writes to disk — used by the L4 emit to fold the priors into the
+    runtime DB rather than relying on a separate ``priors.json`` sidecar.
+
+    Returns ``None`` when neither table has any rows (the L3 hasn't run
+    ``mine-empirical-baselines`` yet). Callers should treat ``None`` as
+    "no priors row; runtime falls back to empty ``EmpiricalPriors``".
+    """
+    native_rows = list(
+        db.conn.execute(
+            "SELECT culture, position, tag, era_midpoint, lemma_ref, count "
+            "FROM empirical_priors_native "
+            "ORDER BY culture, position, tag, era_midpoint, lemma_ref"
+        )
+    )
+    loan_rows = list(
+        db.conn.execute(
+            "SELECT donor, recipient, position, tag, era_midpoint, lemma_ref, count "
+            "FROM empirical_priors_loan "
+            "ORDER BY donor, recipient, position, tag, era_midpoint, lemma_ref"
+        )
+    )
+    if not native_rows and not loan_rows:
+        return None
+    return {
+        "version": version,
+        "native": _cell_records(iter(native_rows), _NATIVE_CELL_FIELDS),
+        "loan": _cell_records(iter(loan_rows), _LOAN_CELL_FIELDS),
+    }
 
 
 def dump_empirical_priors_to_json(

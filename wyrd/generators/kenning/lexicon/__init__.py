@@ -76,6 +76,9 @@ from wyrd.generators.kenning.lexicon.db import LexiconDB  # noqa: E402, F401
 from wyrd.generators.kenning.lexicon.decomposition_export import (  # noqa: E402, F401
     collect_canonical_decompositions,
 )
+from wyrd.generators.kenning.lexicon.empirical_priors import (  # noqa: E402, F401
+    collect_empirical_priors,
+)
 from wyrd.generators.kenning.lexicon.enrichment import (  # noqa: E402, F401
     annotate_fragments_with_corpus_evidence,
     clear_enrichment,

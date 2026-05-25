@@ -95,6 +95,22 @@ CREATE TABLE proportions_tag_cooccurrence (
     PRIMARY KEY (culture, tag1, tag2)
 );
 
+-- ===== Empirical priors (vector-scoring baseline) =====
+--
+-- Singleton row: the full priors payload (same shape ``dump_empirical_priors_to_json``
+-- emits, what ``load_empirical_priors_from_payload`` consumes). Stored as one blob
+-- because the runtime always loads the entire EmpiricalPriors object up front
+-- (vector scoring needs the whole cell space available for any sample).
+--
+-- Replaces the previous ``data/priors.json`` sidecar — without this row in the
+-- bundle, ``scoring_mode='vector'`` only produces output when the operator
+-- supplies a non-trivial mood (register weights take over from the baseline).
+-- Folding priors into the L4 lets vector mode work out of the box.
+CREATE TABLE empirical_priors (
+    id   INTEGER PRIMARY KEY CHECK (id = 1),  -- singleton
+    data BLOB NOT NULL                         -- JSON: {version, native: [...], loan: [...]}
+);
+
 -- ===== Operational =====
 
 CREATE TABLE bundle_metadata (

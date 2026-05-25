@@ -37,7 +37,10 @@ from typing import Any
 # Bumped when the L4 table shape changes incompatibly. The loader rejects
 # DBs whose schema_version row doesn't match the runtime's expected
 # version, forcing a re-download.
-SCHEMA_VERSION = "1"
+#
+# v2 (2026-05-25): added empirical_priors singleton blob row so vector-
+# scoring works out of the box without a separate priors.json sidecar.
+SCHEMA_VERSION = "2"
 
 # Stamped into bundle_metadata so operators can correlate a deployed DB
 # back to its emitter source.
@@ -105,6 +108,7 @@ def write_runtime_db(
     fantasy_morphemes: dict[str, Any],
     canonical_decompositions: dict[str, dict[str, str]],
     proportions_dir: Path | Traversable | None,
+    empirical_priors_payload: dict[str, Any] | None = None,
     source_lexicon_db: Path,
     dev_subset: bool = False,
     dev_top_n_per_culture: int = DEV_TOP_N_PER_CULTURE,
@@ -169,6 +173,7 @@ def write_runtime_db(
             n_meanings = _write_meanings(conn, subjects)
             n_fantasy = _write_fantasy_morphemes(conn, fantasy_morphemes)
             n_canonical = _write_canonical_decompositions(conn, canonical_decompositions)
+            n_priors = _write_empirical_priors(conn, empirical_priors_payload)
             proportion_counts = _write_proportions(conn, proportions_by_culture)
             _write_metadata(
                 conn,
@@ -197,6 +202,8 @@ def write_runtime_db(
         "meanings": n_meanings,
         "fantasy_morphemes": n_fantasy,
         "canonical_decompositions": n_canonical,
+        "empirical_priors_native_cells": n_priors.get("native_cells", 0),
+        "empirical_priors_loan_cells": n_priors.get("loan_cells", 0),
         "cultures": len(proportions_by_culture),
         **proportion_counts,
     }
@@ -427,6 +434,29 @@ def _write_canonical_decompositions(
         rows,
     )
     return len(rows)
+
+
+def _write_empirical_priors(
+    conn: sqlite3.Connection, payload: dict[str, Any] | None
+) -> dict[str, int]:
+    """Write the empirical-priors payload as a singleton blob row.
+
+    Accepts ``None`` for emits from an L3 that hasn't run
+    ``mine-empirical-baselines`` — the row is omitted, and the runtime
+    loader falls back to an empty ``EmpiricalPriors`` (vector mode
+    needs a non-trivial register to produce output in that case).
+
+    Returns the per-cell counts the operator-summary line reads."""
+    if payload is None:
+        return {"native_cells": 0, "loan_cells": 0}
+    conn.execute(
+        "INSERT INTO empirical_priors (id, data) VALUES (1, ?)",
+        (json.dumps(payload, ensure_ascii=False).encode("utf-8"),),
+    )
+    return {
+        "native_cells": len(payload.get("native") or []),
+        "loan_cells": len(payload.get("loan") or []),
+    }
 
 
 def _write_proportions(
