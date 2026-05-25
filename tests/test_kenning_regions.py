@@ -1,0 +1,233 @@
+"""Tests for the region → country derivation helper + the ingest-path
++ backfill consumers of it."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
+from wyrd.generators.kenning.lexicon.backfill_country import backfill_toponym_country
+from wyrd.generators.kenning.lexicon.ingest import _upsert_toponym
+from wyrd.generators.kenning.lexicon.regions import country_for_region, known_regions
+
+# --- region → country map ----------------------------------------------------
+
+
+def test_country_for_region_english_counties():
+    """Every English county the Skeat book registry references must
+    map to ``England``."""
+    for region in (
+        "Bedfordshire",
+        "Cambridgeshire",
+        "Lancashire",
+        "Northumberland and Durham",
+        "Suffolk",
+        "Yorkshire",
+        "England",
+        "England (Danelaw)",
+    ):
+        assert country_for_region(region) == "England", region
+
+
+def test_country_for_region_scottish():
+    for region in ("Scotland", "Argyll", "Stirlingshire", "Scottish Highlands and Islands"):
+        assert country_for_region(region) == "Scotland", region
+
+
+def test_country_for_region_welsh():
+    for region in ("Wales", "Wales and Monmouthshire"):
+        assert country_for_region(region) == "Wales", region
+
+
+def test_country_for_region_irish():
+    assert country_for_region("Ireland") == "Ireland"
+
+
+def test_country_for_region_isle_of_man():
+    assert country_for_region("Isle of Man") == "Isle of Man"
+
+
+def test_country_for_region_french():
+    for region in ("France", "Brittany", "Loire-Inférieure (Brittany)"):
+        assert country_for_region(region) == "France", region
+
+
+def test_country_for_region_multi_country_returns_none():
+    """Catch-all regions that span multiple countries deliberately
+    return None — the operator backfills these by hand if/when they
+    decide which country to attribute them to."""
+    for region in ("British Isles", "Europe", "England and Wales"):
+        assert country_for_region(region) is None, region
+
+
+def test_country_for_region_unknown_returns_none():
+    """An unrecognized region returns None — never raises."""
+    assert country_for_region("Some Future Province") is None
+
+
+def test_country_for_region_none_input():
+    """``None`` input is safe — returns ``None`` rather than crashing."""
+    assert country_for_region(None) is None
+
+
+def test_known_regions_covers_all_skeat_book_regions():
+    """Pin: every region referenced by ``_KNOWN_SKEAT_BOOKS`` either
+    maps to a country OR is in the deliberately-omitted multi-country
+    set. Catches the case where a new book is added to the registry
+    with a region the map doesn't cover yet."""
+    from wyrd.generators.kenning.cli.lexicon.build import _KNOWN_SKEAT_BOOKS
+
+    multi_country = {"British Isles", "Europe", "England and Wales"}
+    covered = known_regions()
+    book_regions = {meta["region"] for meta in _KNOWN_SKEAT_BOOKS.values() if meta.get("region")}
+    uncovered = book_regions - covered - multi_country
+    assert not uncovered, (
+        f"_KNOWN_SKEAT_BOOKS references regions not in country_for_region's map "
+        f"(and not in the deliberately-omitted multi-country set): {sorted(uncovered)}"
+    )
+
+
+# --- ingest auto-derives country from region --------------------------------
+
+
+def test_upsert_toponym_derives_country_from_region(tmp_path: Path):
+    """``_upsert_toponym`` with only ``region`` set populates ``country``
+    automatically via the region→country map. Fixes the historical
+    ``country=NULL`` gap that zeroed out the empirical-priors miner."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        toponym_id = _upsert_toponym(db, "Yarmouth", region="Suffolk")
+        db.commit()
+        row = db.conn.execute(
+            "SELECT country, region FROM toponym WHERE id = ?", (toponym_id,)
+        ).fetchone()
+    assert row["country"] == "England"
+    assert row["region"] == "Suffolk"
+
+
+def test_upsert_toponym_explicit_country_overrides_region_derivation(tmp_path: Path):
+    """Caller-supplied ``country`` wins over the region-derived value
+    — e.g. operator manually classifying a multi-country source."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        toponym_id = _upsert_toponym(db, "Cardiff", region="British Isles", country="Wales")
+        db.commit()
+        row = db.conn.execute("SELECT country FROM toponym WHERE id = ?", (toponym_id,)).fetchone()
+    assert row["country"] == "Wales"
+
+
+def test_upsert_toponym_unmappable_region_leaves_country_null(tmp_path: Path):
+    """When the region is in the multi-country / unknown bucket and no
+    explicit country is supplied, ``toponym.country`` stays NULL — the
+    operator-review path picks these up via the backfill helper or by
+    hand."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        toponym_id = _upsert_toponym(db, "Mystery", region="Europe")
+        db.commit()
+        row = db.conn.execute("SELECT country FROM toponym WHERE id = ?", (toponym_id,)).fetchone()
+    assert row["country"] is None
+
+
+def test_upsert_toponym_finds_existing_row_when_country_matches(tmp_path: Path):
+    """Re-running the same ``(modern_name, region)`` on a populated DB
+    returns the existing row's id rather than inserting a duplicate.
+    Critical: the SELECT clause must match on country too, otherwise
+    a second ingest pass would create twin rows (the historical bug
+    that split the gazetteer + parser populations apart)."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        first = _upsert_toponym(db, "Bath", region="Somerset")
+        db.commit()
+        second = _upsert_toponym(db, "Bath", region="Somerset")
+        db.commit()
+    assert first == second
+
+
+# --- backfill_toponym_country -----------------------------------------------
+
+
+def test_backfill_toponym_country_updates_null_rows(tmp_path: Path):
+    """A row with ``country IS NULL`` and a known region gets country
+    populated in place. Idempotent — re-running is a no-op."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, NULL, ?)",
+            ("Acton", "Cambridgeshire"),
+        )
+        db.commit()
+        result = backfill_toponym_country(db)
+        row = db.conn.execute("SELECT country FROM toponym").fetchone()
+    assert result.inspected == 1
+    assert result.updated == 1
+    assert result.merged == 0
+    assert result.region_unknown == 0
+    assert row["country"] == "England"
+
+
+def test_backfill_toponym_country_leaves_unknown_regions(tmp_path: Path):
+    """Multi-country / unknown regions stay NULL after backfill —
+    operator-review territory."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, NULL, ?)",
+            ("X", "British Isles"),
+        )
+        db.commit()
+        result = backfill_toponym_country(db)
+        row = db.conn.execute("SELECT country FROM toponym").fetchone()
+    assert result.region_unknown == 1
+    assert result.updated == 0
+    assert row["country"] is None
+
+
+def test_backfill_toponym_country_merges_when_collision(tmp_path: Path):
+    """When the country-backfilled row would collide with an existing
+    ``(name, country, region)`` row, the dependent ``toponym_etymology``
+    rows move to the existing row and the orphan is dropped. This is
+    the historical-split repair: gazetteer-side row has country set,
+    parser-side has the etymology — backfill merges them."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        # Gazetteer row (country set, no etymology).
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
+            ("Yarmouth", "England", "Suffolk"),
+        )
+        gazetteer_id = db.conn.execute(
+            "SELECT id FROM toponym WHERE country IS NOT NULL"
+        ).fetchone()["id"]
+        # Parser row (country NULL, etymology attached).
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, NULL, ?)",
+            ("Yarmouth", "Suffolk"),
+        )
+        parser_id = db.conn.execute("SELECT id FROM toponym WHERE country IS NULL").fetchone()["id"]
+        # Pre-create a source row so the etymology FK satisfies.
+        db.upsert_source(id="test-source", title="test")
+        db.conn.execute(
+            "INSERT INTO toponym_etymology (toponym_id, source_id, confidence) VALUES (?, ?, ?)",
+            (parser_id, "test-source", "high"),
+        )
+        db.commit()
+
+        result = backfill_toponym_country(db)
+
+        remaining = db.conn.execute("SELECT id FROM toponym").fetchall()
+        ety = db.conn.execute("SELECT toponym_id FROM toponym_etymology").fetchall()
+
+    assert result.merged == 1
+    assert result.updated == 0
+    # Only the gazetteer row survives.
+    assert [row["id"] for row in remaining] == [gazetteer_id]
+    # Etymology FK was moved to the gazetteer row.
+    assert [row["toponym_id"] for row in ety] == [gazetteer_id]
