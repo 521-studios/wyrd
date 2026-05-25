@@ -27,6 +27,31 @@ from dataclasses import dataclass
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 from wyrd.generators.kenning.lexicon.regions import country_for_region
 
+# Priority hierarchy for ``toponym_decomposition.canonical_source`` per
+# ``data/lexicon.sql:418-429`` (which mirrors the rules in
+# ``runtime/decomposition.pick_canonical_decomposition``). Lower index
+# = higher priority. Used by ``_merge_toponym_into`` to pick the
+# winning canonical_source when both sides of a signature collision
+# carry ``is_canonical=1`` with different sources.
+_CANONICAL_SOURCE_PRIORITY = (
+    "scholar",
+    "scholar-disagreement",
+    "unique-zero-unaccounted",
+    "tiebreaker",
+)
+
+
+def _canonical_source_rank(source: str | None) -> int:
+    """Return the priority rank (0 = highest) for a ``canonical_source``
+    value. Unknown / NULL sources rank lowest (after every named
+    source) so a known source always wins against an unknown."""
+    if source is None:
+        return len(_CANONICAL_SOURCE_PRIORITY)
+    try:
+        return _CANONICAL_SOURCE_PRIORITY.index(source)
+    except ValueError:
+        return len(_CANONICAL_SOURCE_PRIORITY)
+
 
 @dataclass
 class BackfillResult:
@@ -169,14 +194,26 @@ def _merge_toponym_into(db: LexiconDB, *, from_toponym_id: int, into_toponym_id:
         sig = row["decomposition_signature"]
         if sig in target_by_sig:
             target_row = target_by_sig[sig]
-            # If from-side has canonical=1 and target has 0, promote
-            # the canonical flag onto the target row. (If both have
-            # canonical=1, the target's pick wins as a tiebreaker.)
-            if row["is_canonical"] and not target_row["is_canonical"]:
+            # Canonical-flag merge: pick the row whose canonical_source
+            # has the higher priority per the schema's hierarchy
+            # (scholar > scholar-disagreement > unique-zero-unaccounted
+            # > tiebreaker; NULL ranks lowest). The surviving row is
+            # the target (id stable, FKs unchanged); when the from-
+            # side wins on priority we UPDATE the target's flags to
+            # match before dropping the from-side. This preserves the
+            # provenance hierarchy through merges — a from-side
+            # ``scholar`` pick never silently demotes to a target's
+            # ``unique-zero-unaccounted`` source.
+            from_canonical = row["is_canonical"] or 0
+            target_canonical = target_row["is_canonical"] or 0
+            from_rank = _canonical_source_rank(row["canonical_source"])
+            target_rank = _canonical_source_rank(target_row["canonical_source"])
+            from_wins = (from_canonical, -from_rank) > (target_canonical, -target_rank)
+            if from_wins:
                 db.conn.execute(
                     "UPDATE toponym_decomposition "
-                    "SET is_canonical = 1, canonical_source = ? WHERE id = ?",
-                    (row["canonical_source"], target_row["id"]),
+                    "SET is_canonical = ?, canonical_source = ? WHERE id = ?",
+                    (from_canonical, row["canonical_source"], target_row["id"]),
                 )
             db.conn.execute("DELETE FROM toponym_decomposition WHERE id = ?", (row["id"],))
         else:

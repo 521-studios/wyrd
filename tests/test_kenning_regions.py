@@ -348,6 +348,112 @@ def test_backfill_merge_promotes_canonical_flag_on_collision(tmp_path: Path):
     assert rows[0]["canonical_source"] == "scholar"
 
 
+def test_backfill_merge_honors_canonical_source_priority(tmp_path: Path):
+    """When BOTH sides carry ``is_canonical=1`` for the same signature,
+    the merge picks the higher-priority ``canonical_source`` per the
+    schema's hierarchy (scholar > scholar-disagreement >
+    unique-zero-unaccounted > tiebreaker, per
+    ``data/lexicon.sql:418-429``). The surviving row is the target by
+    id (FKs stable), but its flags reflect whichever side had the
+    higher-priority source. Pin both directions so a reversed
+    condition wouldn't pass."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
+            ("Bath", "England", "Somerset"),
+        )
+        target_id = db.conn.execute("SELECT id FROM toponym WHERE country IS NOT NULL").fetchone()[
+            "id"
+        ]
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, NULL, ?)",
+            ("Bath", "Somerset"),
+        )
+        from_id = db.conn.execute("SELECT id FROM toponym WHERE country IS NULL").fetchone()["id"]
+        # Target: lower-priority unique-zero-unaccounted. From-side:
+        # higher-priority scholar. From-side WINS on priority — its
+        # source gets promoted onto the target row.
+        db.conn.execute(
+            "INSERT INTO toponym_decomposition "
+            "(toponym_id, decomposition_signature, morpheme_ids, "
+            "unaccounted_fragments, is_canonical, canonical_source) "
+            "VALUES (?, ?, ?, ?, 1, 'unique-zero-unaccounted')",
+            (target_id, "shared-sig", "[]", "[]"),
+        )
+        db.conn.execute(
+            "INSERT INTO toponym_decomposition "
+            "(toponym_id, decomposition_signature, morpheme_ids, "
+            "unaccounted_fragments, is_canonical, canonical_source) "
+            "VALUES (?, ?, ?, ?, 1, 'scholar')",
+            (from_id, "shared-sig", "[]", "[]"),
+        )
+        db.commit()
+
+        backfill_toponym_country(db)
+
+        rows = db.conn.execute(
+            "SELECT toponym_id, is_canonical, canonical_source FROM toponym_decomposition"
+        ).fetchall()
+
+    assert len(rows) == 1
+    assert rows[0]["toponym_id"] == target_id
+    assert rows[0]["is_canonical"] == 1
+    # From-side's higher-priority 'scholar' source promoted; target's
+    # 'unique-zero-unaccounted' demoted.
+    assert rows[0]["canonical_source"] == "scholar"
+
+
+def test_backfill_merge_target_wins_when_priority_equal_or_higher(tmp_path: Path):
+    """Inverse case: target has the higher-priority source (or both
+    are equal). The target's flags stay; from-side is silently
+    dropped. Pin the no-promotion path so a regression wouldn't lower
+    the target's provenance."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
+            ("Bath", "England", "Somerset"),
+        )
+        target_id = db.conn.execute("SELECT id FROM toponym WHERE country IS NOT NULL").fetchone()[
+            "id"
+        ]
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, NULL, ?)",
+            ("Bath", "Somerset"),
+        )
+        from_id = db.conn.execute("SELECT id FROM toponym WHERE country IS NULL").fetchone()["id"]
+        # Target: scholar (highest). From: unique-zero-unaccounted (lower).
+        # Target wins.
+        db.conn.execute(
+            "INSERT INTO toponym_decomposition "
+            "(toponym_id, decomposition_signature, morpheme_ids, "
+            "unaccounted_fragments, is_canonical, canonical_source) "
+            "VALUES (?, ?, ?, ?, 1, 'scholar')",
+            (target_id, "shared-sig", "[]", "[]"),
+        )
+        db.conn.execute(
+            "INSERT INTO toponym_decomposition "
+            "(toponym_id, decomposition_signature, morpheme_ids, "
+            "unaccounted_fragments, is_canonical, canonical_source) "
+            "VALUES (?, ?, ?, ?, 1, 'unique-zero-unaccounted')",
+            (from_id, "shared-sig", "[]", "[]"),
+        )
+        db.commit()
+
+        backfill_toponym_country(db)
+
+        rows = db.conn.execute(
+            "SELECT toponym_id, is_canonical, canonical_source FROM toponym_decomposition"
+        ).fetchall()
+
+    assert len(rows) == 1
+    assert rows[0]["toponym_id"] == target_id
+    assert rows[0]["canonical_source"] == "scholar"
+
+
 def test_backfill_merge_collapses_duplicate_decomposition_signatures(tmp_path: Path):
     """``toponym_decomposition`` has UNIQUE(toponym_id,
     decomposition_signature). When both the from-side and the target

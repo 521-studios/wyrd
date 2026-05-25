@@ -359,3 +359,47 @@ def test_loader_rejects_db_with_wrong_schema_version(_clear_env, tmp_path, monke
     monkeypatch.setenv(ENV_LOCAL_PATH, str(path))
     with pytest.raises(RuntimeDBVersionMismatch, match="schema_version='1'"):
         get_runtime_db()
+
+
+def test_loader_does_not_cache_unverified_connection_on_mismatch(_clear_env, tmp_path, monkeypatch):
+    """Critical: when ``_verify_schema_version`` raises on a fresh
+    open, the loader MUST NOT cache the unverified handle. If it did,
+    the next ``get_runtime_db()`` call would return the cached
+    connection + bypass the schema gate for the rest of the
+    container's lifetime — the schema check would effectively disable
+    itself after one failure.
+
+    Pin: the SECOND call against the same bad DB must also raise.
+    Tests both the wrong-version path AND the missing-table path
+    since both share the same cache-promote contract."""
+    # First: wrong-schema_version path.
+    path = tmp_path / "v1.db"
+    conn = sqlite3.connect(str(path))
+    conn.executescript(
+        "CREATE TABLE meaning(k TEXT);"
+        "CREATE TABLE bundle_metadata(key TEXT PRIMARY KEY, value TEXT);"
+        "INSERT INTO bundle_metadata (key, value) VALUES ('schema_version', '1');"
+    )
+    conn.commit()
+    conn.close()
+    monkeypatch.setenv(ENV_LOCAL_PATH, str(path))
+    with pytest.raises(RuntimeDBVersionMismatch):
+        get_runtime_db()
+    # The cache-leak bug would let this second call return a cached
+    # bad handle. The fix opens-into-local + verifies + closes-on-
+    # fail so the module global never sees the unverified conn.
+    with pytest.raises(RuntimeDBVersionMismatch):
+        get_runtime_db()
+
+    # Second: missing-bundle_metadata path. Same contract.
+    reset_runtime_db_cache()
+    path2 = tmp_path / "nostamp.db"
+    conn = sqlite3.connect(str(path2))
+    conn.executescript("CREATE TABLE meaning(k TEXT);")
+    conn.commit()
+    conn.close()
+    monkeypatch.setenv(ENV_LOCAL_PATH, str(path2))
+    with pytest.raises(RuntimeDBVersionMismatch):
+        get_runtime_db()
+    with pytest.raises(RuntimeDBVersionMismatch):
+        get_runtime_db()

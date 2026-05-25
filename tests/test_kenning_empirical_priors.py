@@ -964,6 +964,34 @@ def test_collect_empirical_priors_tolerates_missing_tables(tmp_path):
         assert collect_empirical_priors(db) is None
 
 
+def test_collect_empirical_priors_tolerates_partial_migration(tmp_path):
+    """Partial-migration corner: ``empirical_priors_native`` exists
+    but ``empirical_priors_loan`` doesn't (or vice versa). A failed /
+    interrupted alembic upgrade could leave the DB in this shape.
+    The try/except wraps BOTH SELECTs so either failure returns None
+    rather than crashing the L4 emit. Pin so a future refactor that
+    narrows the try-block (e.g. wraps the SELECTs individually) still
+    handles the partial-migration case."""
+    from wyrd.generators.kenning.lexicon.empirical_priors import collect_empirical_priors
+
+    db_path = tmp_path / "partial.db"
+    conn = sqlite3.connect(str(db_path))
+    conn.executescript(
+        "CREATE TABLE etymon (id INTEGER PRIMARY KEY);"
+        # Native table exists, loan table is missing.
+        "CREATE TABLE empirical_priors_native ("
+        "  culture TEXT, position TEXT, tag TEXT, era_midpoint INTEGER, "
+        "  lemma_ref TEXT, count INTEGER);"
+    )
+    conn.commit()
+    conn.close()
+
+    with LexiconDB(db_path) as db:
+        # Native is empty + loan is absent — function returns None
+        # without crashing on the loan SELECT.
+        assert collect_empirical_priors(db) is None
+
+
 # ---------- helpers ------------------------------------------------------
 
 
