@@ -40,6 +40,23 @@ from pathlib import Path
 
 _logger = logging.getLogger(__name__)
 
+# Must match ``lexicon.runtime_db_export.SCHEMA_VERSION``. Bumped in
+# lockstep when the L4 table shape changes incompatibly. The schema
+# check on open (see ``_verify_schema_version``) raises a clear
+# operator-facing error when the cached / downloaded DB's stamped
+# version doesn't match — way more discoverable than letting a
+# missing-table OperationalError surface inside a sampling query.
+_EXPECTED_SCHEMA_VERSION = "2"
+
+
+class RuntimeDBVersionMismatch(RuntimeError):
+    """Raised when the resolved L4 DB's ``bundle_metadata.schema_version``
+    doesn't match :data:`_EXPECTED_SCHEMA_VERSION`. Operator action:
+    re-run ``wyrd kenning lexicon export-runtime-db`` + re-publish to
+    S3 / replace the bundled seed so the consumer is on the same
+    schema as the producer."""
+
+
 # Cache locations on /tmp — chosen to match Lambda's writable
 # ephemeral storage. The container's lifetime determines how long the
 # cache survives. Cache files are named ``wyrd-runtime-<etag>.db`` so
@@ -97,7 +114,36 @@ def get_runtime_db() -> sqlite3.Connection:
             return _conn
         path = _resolve_db_path()
         _conn = _open_readonly(path)
+        _verify_schema_version(_conn, path)
     return _conn
+
+
+def _verify_schema_version(conn: sqlite3.Connection, path: Path) -> None:
+    """Read ``bundle_metadata.schema_version`` and raise
+    :class:`RuntimeDBVersionMismatch` if it doesn't match the runtime's
+    expected version. Pre-v2 DBs (no ``bundle_metadata`` table at all)
+    also raise — there's no path forward for a v1 DB once the runtime
+    has moved on.
+
+    Called once per fresh connection (on the cache miss branch of
+    ``get_runtime_db``). Warm calls reuse the verified connection."""
+    try:
+        row = conn.execute(
+            "SELECT value FROM bundle_metadata WHERE key = 'schema_version'"
+        ).fetchone()
+    except sqlite3.OperationalError as exc:
+        raise RuntimeDBVersionMismatch(
+            f"L4 runtime DB at {path} has no bundle_metadata table "
+            f"(pre-v1 schema or corrupt file). Re-emit + re-publish."
+        ) from exc
+    if row is None or row[0] != _EXPECTED_SCHEMA_VERSION:
+        actual = row[0] if row is not None else "(no schema_version row)"
+        raise RuntimeDBVersionMismatch(
+            f"L4 runtime DB at {path} stamped schema_version={actual!r}; "
+            f"runtime expects {_EXPECTED_SCHEMA_VERSION!r}. Re-run "
+            f"``wyrd kenning lexicon export-runtime-db`` against the L3 "
+            f"and re-publish to S3 / replace the bundled seed."
+        )
 
 
 def reset_runtime_db_cache() -> None:

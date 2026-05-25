@@ -39,7 +39,16 @@ def _upsert_toponym(
     unique index. ``country`` defaults to the region-derived value
     from :func:`country_for_region` — callers only need to pass it
     explicitly to override the derivation (or to set country when no
-    region is known)."""
+    region is known).
+
+    Migration-window edge case: when a legacy NULL-country row already
+    exists for (name, region) and the caller now derives a non-null
+    country, the exact SELECT misses (NULL vs derived-value). Instead
+    of letting that create a twin row, opportunistically UPDATE the
+    legacy row in place — same effect as running
+    ``backfill_toponym_country`` against just that row. Idempotent +
+    self-repairing across the migration window.
+    """
     if country is None:
         country = country_for_region(region)
     cur = db.conn.execute(
@@ -54,6 +63,25 @@ def _upsert_toponym(
     row = cur.fetchone()
     if row is not None:
         return row["id"]
+    # Migration-window self-repair: if a legacy NULL-country row exists
+    # for (name, region), and the new caller has derived a non-null
+    # country, backfill the row in place rather than creating a twin.
+    if country is not None:
+        legacy = db.conn.execute(
+            """
+            SELECT id FROM toponym
+            WHERE modern_name = ?
+              AND country IS NULL
+              AND COALESCE(region, '') = COALESCE(?, '')
+            """,
+            (modern_name, region),
+        ).fetchone()
+        if legacy is not None:
+            db.conn.execute(
+                "UPDATE toponym SET country = ? WHERE id = ?",
+                (country, legacy["id"]),
+            )
+            return legacy["id"]
     cur = db.conn.execute(
         "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
         (modern_name, country, region),

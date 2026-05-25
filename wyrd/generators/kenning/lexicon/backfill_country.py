@@ -88,14 +88,14 @@ def backfill_toponym_country(db: LexiconDB) -> BackfillResult:
             )
             updated += 1
         else:
-            # Move dependent toponym_etymology rows to the existing
-            # row, then drop the orphan. The unique index on
-            # toponym_etymology is (toponym_id, source_id) — if both
-            # rows have an etymology from the same source we let
-            # SQLite's INSERT OR IGNORE-equivalent semantics drop the
-            # duplicate (UPDATE will fail with UNIQUE constraint;
-            # handled by retrying with INSERT OR REPLACE semantics
-            # at the row level).
+            # Re-parent every FK-dependent row from the from-side to
+            # the target row before dropping the from-side. Three
+            # tables FK to toponym(id) with ON DELETE CASCADE
+            # (toponym_etymology, toponym_attestation,
+            # toponym_decomposition); ``_merge_toponym_into`` handles
+            # all three. If we DROPPED first, CASCADE would silently
+            # destroy the attestation + decomposition rows — the
+            # decomposition history would just disappear.
             _merge_toponym_into(
                 db,
                 from_toponym_id=row["id"],
@@ -114,43 +114,56 @@ def backfill_toponym_country(db: LexiconDB) -> BackfillResult:
 
 
 def _merge_toponym_into(db: LexiconDB, *, from_toponym_id: int, into_toponym_id: int) -> None:
-    """Move every ``toponym_etymology`` row from ``from_toponym_id`` to
-    ``into_toponym_id``. When a ``(into_toponym_id, source_id)`` row
-    already exists on the target side, the from-side row is dropped
-    (the target row's etymology is the merge winner — older row wins
-    by id ordering, deterministic across re-runs).
+    """Re-parent every FK-dependent row from ``from_toponym_id`` to
+    ``into_toponym_id`` before the from-side ``toponym`` row is dropped.
+
+    Three tables FK to ``toponym(id)`` with ``ON DELETE CASCADE``:
+
+    * ``toponym_etymology`` — no unique constraint on ``toponym_id``;
+      bulk UPDATE re-parents all rows. The dependent
+      ``toponym_etymology_element`` rows ride along automatically
+      because they FK to ``toponym_etymology(id)``, not to
+      ``toponym(id)``.
+    * ``toponym_attestation`` — no unique constraint on ``toponym_id``;
+      bulk UPDATE.
+    * ``toponym_decomposition`` — UNIQUE on
+      ``(toponym_id, decomposition_signature)``. Per-row UPDATE,
+      skipping (and DELETE-ing) any from-side row whose signature is
+      already present on the target side (duplicate decompositions
+      collapse — the target's pick wins, deterministic across re-runs
+      because target rows are by definition older / pre-existing).
 
     Parameter names avoid the literary ``source_id`` column on
     ``toponym_etymology`` to keep merge-direction unambiguous —
     callers always read "merge FROM x INTO y"."""
-    rows = list(
+    db.conn.execute(
+        "UPDATE toponym_etymology SET toponym_id = ? WHERE toponym_id = ?",
+        (into_toponym_id, from_toponym_id),
+    )
+    db.conn.execute(
+        "UPDATE toponym_attestation SET toponym_id = ? WHERE toponym_id = ?",
+        (into_toponym_id, from_toponym_id),
+    )
+
+    # toponym_decomposition has UNIQUE(toponym_id, decomposition_signature);
+    # collapse from-side rows whose signature is already on the target.
+    target_signatures = {
+        row["decomposition_signature"]
+        for row in db.conn.execute(
+            "SELECT decomposition_signature FROM toponym_decomposition WHERE toponym_id = ?",
+            (into_toponym_id,),
+        )
+    }
+    for row in list(
         db.conn.execute(
-            "SELECT id, source_id FROM toponym_etymology WHERE toponym_id = ?",
+            "SELECT id, decomposition_signature FROM toponym_decomposition WHERE toponym_id = ?",
             (from_toponym_id,),
         )
-    )
-    for row in rows:
-        target_has = db.conn.execute(
-            """
-            SELECT 1 FROM toponym_etymology
-            WHERE toponym_id = ? AND source_id = ?
-            """,
-            (into_toponym_id, row["source_id"]),
-        ).fetchone()
-        if target_has is None:
-            db.conn.execute(
-                "UPDATE toponym_etymology SET toponym_id = ? WHERE id = ?",
-                (into_toponym_id, row["id"]),
-            )
+    ):
+        if row["decomposition_signature"] in target_signatures:
+            db.conn.execute("DELETE FROM toponym_decomposition WHERE id = ?", (row["id"],))
         else:
-            # Cascade-drop the from-side etymology + its elements so
-            # the FK constraint is satisfied when we delete the
-            # from-side toponym row.
             db.conn.execute(
-                "DELETE FROM toponym_etymology_element WHERE toponym_etymology_id = ?",
-                (row["id"],),
-            )
-            db.conn.execute(
-                "DELETE FROM toponym_etymology WHERE id = ?",
-                (row["id"],),
+                "UPDATE toponym_decomposition SET toponym_id = ? WHERE id = ?",
+                (into_toponym_id, row["id"]),
             )

@@ -903,9 +903,14 @@ def test_inline_rebuild_honors_canonical_decomposition() -> None:
 
 def test_empirical_priors_round_trip(tmp_path: Path) -> None:
     """The ``empirical_priors`` singleton row carries the priors payload
-    in the same shape ``dump_empirical_priors_to_json`` writes — emit it,
-    read it back via the runtime adapter, and confirm the payload
-    survives the round-trip."""
+    in the same shape ``_cell_records`` produces — flat per-cell record
+    with the cell-field keys at the top level + ``lemmas`` as a dict
+    mapping lemma_ref → count. Emit it, read it back via the runtime
+    adapter, and confirm both the on-disk shape AND the
+    production-loader-acceptance round-trip both succeed."""
+    from wyrd.generators.kenning.lexicon.empirical_priors import (
+        load_empirical_priors_from_payload,
+    )
     from wyrd.generators.kenning.lexicon.runtime_db_export import write_runtime_db
     from wyrd.generators.kenning.runtime.runtime_db_adapter import (
         empirical_priors_payload_from_runtime_db,
@@ -920,13 +925,11 @@ def test_empirical_priors_round_trip(tmp_path: Path) -> None:
         "version": "test-priors",
         "native": [
             {
-                "cell": {
-                    "culture": "english",
-                    "position": "post",
-                    "tag": "settlement",
-                    "era_midpoint": 1100,
-                },
-                "lemmas": [{"lemma_ref": "old-english:tūn", "count": 42}],
+                "culture": "english",
+                "position": "post",
+                "tag": "settlement",
+                "era_midpoint": 1100,
+                "lemmas": {"old-english:tūn": 42},
             }
         ],
         "loan": [],
@@ -946,7 +949,13 @@ def test_empirical_priors_round_trip(tmp_path: Path) -> None:
         readback = empirical_priors_payload_from_runtime_db(conn)
     finally:
         conn.close()
+    # Round-trip through raw JSON serdes.
     assert readback == payload
+    # Round-trip through the production loader (the actual consumer
+    # of this payload). The cell-key tuple is what the runtime keys on.
+    loaded = load_empirical_priors_from_payload(readback)
+    assert loaded.version == "test-priors"
+    assert loaded.native[("english", "post", "settlement", 1100)] == {"old-english:tūn": 42}
 
 
 def test_empirical_priors_missing_row_returns_none(tmp_path: Path) -> None:
@@ -971,32 +980,6 @@ def test_empirical_priors_missing_row_returns_none(tmp_path: Path) -> None:
         proportions_dir=tmp_path,
         source_lexicon_db=db_path,
     )
-
-    conn = sqlite3.connect(f"file:{out_path}?mode=ro", uri=True)
-    try:
-        assert empirical_priors_payload_from_runtime_db(conn) is None
-    finally:
-        conn.close()
-
-
-def test_empirical_priors_missing_table_returns_none(tmp_path: Path) -> None:
-    """A pre-v2-schema L4 (no ``empirical_priors`` table at all) must
-    not crash the adapter — ``empirical_priors_payload_from_runtime_db``
-    swallows the ``OperationalError`` and returns ``None``. Pins the
-    pre-cutover-cache-tolerance contract."""
-    from wyrd.generators.kenning.runtime.runtime_db_adapter import (
-        empirical_priors_payload_from_runtime_db,
-    )
-
-    out_path = tmp_path / "preview.db"
-    conn = sqlite3.connect(str(out_path))
-    try:
-        # Build a minimal valid-but-pre-v2 L4: ``meaning`` table only,
-        # no ``empirical_priors`` table at all.
-        conn.execute("CREATE TABLE meaning (usage_key TEXT PRIMARY KEY, data BLOB)")
-        conn.commit()
-    finally:
-        conn.close()
 
     conn = sqlite3.connect(f"file:{out_path}?mode=ro", uri=True)
     try:

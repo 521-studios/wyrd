@@ -231,3 +231,133 @@ def test_backfill_toponym_country_merges_when_collision(tmp_path: Path):
     assert [row["id"] for row in remaining] == [gazetteer_id]
     # Etymology FK was moved to the gazetteer row.
     assert [row["toponym_id"] for row in ety] == [gazetteer_id]
+
+
+def test_backfill_merge_preserves_attestations_and_decompositions(tmp_path: Path):
+    """Critical: ``_merge_toponym_into`` MUST re-parent every FK
+    dependent before the source row is dropped. ``toponym_attestation``
+    and ``toponym_decomposition`` both FK to ``toponym(id)`` with
+    ``ON DELETE CASCADE`` — if the merge only handled
+    ``toponym_etymology``, the from-side attestations + decompositions
+    would silently disappear when the from-side toponym row is
+    deleted. Pins that they DON'T."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        # Gazetteer row with country set.
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
+            ("Bath", "England", "Somerset"),
+        )
+        gazetteer_id = db.conn.execute(
+            "SELECT id FROM toponym WHERE country IS NOT NULL"
+        ).fetchone()["id"]
+        # Parser row (country NULL) with a full set of FK dependents.
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, NULL, ?)",
+            ("Bath", "Somerset"),
+        )
+        parser_id = db.conn.execute("SELECT id FROM toponym WHERE country IS NULL").fetchone()["id"]
+        db.upsert_source(id="test-src", title="test")
+        # One attestation + one decomposition on the from-side.
+        db.conn.execute(
+            "INSERT INTO toponym_attestation (toponym_id, form, date_year, source_doc) "
+            "VALUES (?, ?, ?, ?)",
+            (parser_id, "Bathe", 1086, "test-src"),
+        )
+        db.conn.execute(
+            "INSERT INTO toponym_decomposition "
+            "(toponym_id, decomposition_signature, morpheme_ids, "
+            "unaccounted_fragments) VALUES (?, ?, ?, ?)",
+            (parser_id, "sig-from-side", "[]", "[]"),
+        )
+        db.commit()
+
+        backfill_toponym_country(db)
+
+        attestations = db.conn.execute(
+            "SELECT toponym_id, form FROM toponym_attestation"
+        ).fetchall()
+        decompositions = db.conn.execute(
+            "SELECT toponym_id, decomposition_signature FROM toponym_decomposition"
+        ).fetchall()
+
+    # Attestation re-parented (not destroyed).
+    assert len(attestations) == 1
+    assert attestations[0]["toponym_id"] == gazetteer_id
+    assert attestations[0]["form"] == "Bathe"
+    # Decomposition re-parented (not destroyed).
+    assert len(decompositions) == 1
+    assert decompositions[0]["toponym_id"] == gazetteer_id
+    assert decompositions[0]["decomposition_signature"] == "sig-from-side"
+
+
+def test_backfill_merge_collapses_duplicate_decomposition_signatures(tmp_path: Path):
+    """``toponym_decomposition`` has UNIQUE(toponym_id,
+    decomposition_signature). When both the from-side and the target
+    side have a row with the SAME signature, the merge must collapse
+    the from-side row (rather than crashing on UNIQUE constraint).
+    Pin the dedup behavior."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
+            ("Bath", "England", "Somerset"),
+        )
+        target_id = db.conn.execute("SELECT id FROM toponym WHERE country IS NOT NULL").fetchone()[
+            "id"
+        ]
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, NULL, ?)",
+            ("Bath", "Somerset"),
+        )
+        from_id = db.conn.execute("SELECT id FROM toponym WHERE country IS NULL").fetchone()["id"]
+        # Same signature on both sides.
+        for tid in (target_id, from_id):
+            db.conn.execute(
+                "INSERT INTO toponym_decomposition "
+                "(toponym_id, decomposition_signature, morpheme_ids, "
+                "unaccounted_fragments) VALUES (?, ?, ?, ?)",
+                (tid, "shared-sig", "[]", "[]"),
+            )
+        db.commit()
+
+        backfill_toponym_country(db)
+
+        rows = db.conn.execute(
+            "SELECT toponym_id, decomposition_signature FROM toponym_decomposition"
+        ).fetchall()
+
+    # Both sides had 'shared-sig'; the from-side row was dropped, the
+    # target keeps its row. Net: 1 row left, attached to target.
+    assert len(rows) == 1
+    assert rows[0]["toponym_id"] == target_id
+    assert rows[0]["decomposition_signature"] == "shared-sig"
+
+
+def test_upsert_toponym_repairs_legacy_null_country_row(tmp_path: Path):
+    """Migration-window self-repair: when an existing legacy row has
+    ``country=NULL`` and the new caller derives a non-null country,
+    ``_upsert_toponym`` updates the legacy row in place rather than
+    creating a twin. Without this, every re-ingest pass against a
+    not-yet-backfilled DB silently doubles up rows."""
+    db_path = tmp_path / "lex.db"
+    init_schema(db_path)
+    with LexiconDB(db_path) as db:
+        # Pre-populate a legacy NULL-country row (the historical shape).
+        db.conn.execute(
+            "INSERT INTO toponym (modern_name, country, region) VALUES (?, NULL, ?)",
+            ("Yarmouth", "Suffolk"),
+        )
+        legacy_id = db.conn.execute("SELECT id FROM toponym").fetchone()["id"]
+        db.commit()
+        # New ingest derives 'England' from 'Suffolk'. Must NOT create
+        # a duplicate; instead, must UPDATE the legacy row in place.
+        returned_id = _upsert_toponym(db, "Yarmouth", region="Suffolk")
+        db.commit()
+        rows = db.conn.execute("SELECT id, country FROM toponym").fetchall()
+
+    assert returned_id == legacy_id
+    assert len(rows) == 1
+    assert rows[0]["country"] == "England"

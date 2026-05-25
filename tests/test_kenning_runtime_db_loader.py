@@ -20,6 +20,7 @@ from wyrd.generators.kenning.runtime.runtime_db import (
     ENV_AWS_PROFILE,
     ENV_BUCKET,
     ENV_LOCAL_PATH,
+    RuntimeDBVersionMismatch,
     get_runtime_db,
     reset_runtime_db_cache,
 )
@@ -48,10 +49,24 @@ def _clear_env(monkeypatch):
 
 @pytest.fixture
 def _tiny_db(tmp_path: Path) -> Path:
-    """A minimal valid sqlite3 DB the loader can open read-only."""
+    """A minimal valid sqlite3 DB the loader can open read-only.
+
+    Includes the ``bundle_metadata`` row that
+    ``_verify_schema_version`` reads on every cache-miss open — the
+    runtime expects every L4 it loads to be stamped with the current
+    ``SCHEMA_VERSION``."""
+    from wyrd.generators.kenning.runtime.runtime_db import _EXPECTED_SCHEMA_VERSION
+
     path = tmp_path / "fixture.db"
     conn = sqlite3.connect(str(path))
-    conn.executescript("CREATE TABLE meaning(k TEXT); INSERT INTO meaning VALUES('hi');")
+    conn.executescript(
+        "CREATE TABLE meaning(k TEXT); INSERT INTO meaning VALUES('hi');"
+        "CREATE TABLE bundle_metadata(key TEXT PRIMARY KEY, value TEXT);"
+    )
+    conn.execute(
+        "INSERT INTO bundle_metadata (key, value) VALUES ('schema_version', ?)",
+        (_EXPECTED_SCHEMA_VERSION,),
+    )
     conn.commit()
     conn.close()
     return path
@@ -308,3 +323,39 @@ def test_pointer_non_string_key_falls_back_to_bundled_seed(
     conn = get_runtime_db()
     tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     assert "meaning" in tables
+
+
+# --- schema_version verification --------------------------------------------
+
+
+def test_loader_rejects_db_missing_bundle_metadata(_clear_env, tmp_path, monkeypatch):
+    """A DB with no ``bundle_metadata`` table at all (corrupt or pre-v1
+    schema) raises ``RuntimeDBVersionMismatch`` on open — way more
+    discoverable than letting a missing-table OperationalError surface
+    inside a sampling query at request time."""
+    path = tmp_path / "nostamp.db"
+    conn = sqlite3.connect(str(path))
+    conn.executescript("CREATE TABLE meaning(k TEXT);")
+    conn.commit()
+    conn.close()
+    monkeypatch.setenv(ENV_LOCAL_PATH, str(path))
+    with pytest.raises(RuntimeDBVersionMismatch, match="no bundle_metadata"):
+        get_runtime_db()
+
+
+def test_loader_rejects_db_with_wrong_schema_version(_clear_env, tmp_path, monkeypatch):
+    """An L4 DB stamped with a non-current schema_version raises so
+    the operator gets a clear "re-publish" error instead of a silent
+    shape mismatch under load."""
+    path = tmp_path / "v1.db"
+    conn = sqlite3.connect(str(path))
+    conn.executescript(
+        "CREATE TABLE meaning(k TEXT);"
+        "CREATE TABLE bundle_metadata(key TEXT PRIMARY KEY, value TEXT);"
+        "INSERT INTO bundle_metadata (key, value) VALUES ('schema_version', '1');"
+    )
+    conn.commit()
+    conn.close()
+    monkeypatch.setenv(ENV_LOCAL_PATH, str(path))
+    with pytest.raises(RuntimeDBVersionMismatch, match="schema_version='1'"):
+        get_runtime_db()
