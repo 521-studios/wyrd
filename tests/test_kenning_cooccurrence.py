@@ -13,16 +13,17 @@ that morpheme-level co-occurrence would be too sparse to learn — e.g.,
 from __future__ import annotations
 
 import json
-from importlib import resources
 
+from wyrd.generators.kenning import _load_meanings
 from wyrd.generators.kenning.cli import _ordered_tag_pairs, _proportions_from
 from wyrd.generators.kenning.runtime.meaning import load_meanings
 from wyrd.generators.kenning.runtime.name import Name
 
 
 def _build_word_db():
-    text = resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
-    word_db, _ = load_meanings(json.loads(text))
+    # Reads the L4 SQLite runtime DB (defaults to the bundled
+    # seed-runtime.db when no env override is set).
+    word_db, _ = _load_meanings()
     return word_db
 
 

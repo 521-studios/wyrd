@@ -118,7 +118,18 @@ def test_manifest_lists_explainer_with_multi_result(client):
 
 def test_explainer_combines_senses_for_one_usage():
     """When a usage has multiple sense entries, the explanation joins them
-    with ' / ' instead of producing N near-duplicate decompositions."""
+    with ' / ' instead of producing N near-duplicate decompositions.
+
+    Requires the full-corpus L4 — the bundled seed-runtime.db is a
+    top-N-per-culture subset that may not include ``-shire``."""
+    import os
+
+    if not (os.environ.get("WYRD_RUNTIME_DB") or os.environ.get("WYRD_RUNTIME_DB_BUCKET")):
+        pytest.skip(
+            "Full-corpus L4 not configured; set WYRD_RUNTIME_DB to run this "
+            "morpheme-specific assertion against the live bundle."
+        )
+
     rs = KenningExplain().generate_all({"name": "Yorkshire"}, 0)
     text = " ".join(r.explanation for r in rs)
     # `-shire` in the bundled meanings DB has two senses; both should appear

@@ -14,3 +14,9 @@ variable "lambda_zip_path" {
   type        = string
   default     = "../function.zip"
 }
+
+variable "log_level" {
+  description = "Python logging level for the Lambda runtime (DEBUG | INFO | WARNING | ERROR)"
+  type        = string
+  default     = "INFO"
+}

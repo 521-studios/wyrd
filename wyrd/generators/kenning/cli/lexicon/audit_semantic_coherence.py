@@ -398,13 +398,6 @@ def lexicon_audit_semantic_coherence(
     See module docstring for design rationale. Report-only — never
     modifies the bundle.
     """
-    if meanings_path is None:
-        from importlib import resources
-
-        meanings_path = Path(
-            str(resources.files("wyrd.generators.kenning.data").joinpath("meanings.json"))
-        )
-
     output_dir.mkdir(parents=True, exist_ok=True)
 
     known_polysemy = _load_known_polysemy(known_polysemy_path)
@@ -423,9 +416,18 @@ def lexicon_audit_semantic_coherence(
             err=True,
         )
 
-    click.echo(f"Loading {meanings_path}...", err=True)
-    with meanings_path.open() as f:
-        bundle = json.load(f)
+    if meanings_path is None:
+        click.echo("Loading bundle from L4 runtime DB...", err=True)
+        from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
+        from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+            bundle_dict_from_runtime_db,
+        )
+
+        bundle = bundle_dict_from_runtime_db(get_runtime_db())
+    else:
+        click.echo(f"Loading {meanings_path}...", err=True)
+        with meanings_path.open() as f:
+            bundle = json.load(f)
     subjects = bundle.get("subjects", [])
     click.echo(f"  {len(subjects)} subjects", err=True)
 

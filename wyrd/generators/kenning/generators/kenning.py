@@ -30,9 +30,9 @@ from wyrd.generators.kenning.lexicon.strata import (
 )
 from wyrd.generators.kenning.registers.effects import available_register_effects
 from wyrd.registry import GenerationResult, Generator
+from wyrd.seed import rng_for
 
 _logger = logging.getLogger(__name__)
-from wyrd.seed import rng_for
 
 
 class Kenning(Generator):

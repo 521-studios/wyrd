@@ -1,14 +1,14 @@
-"""Tests for ``runtime_db_adapter`` (wyrd-d90t PR 5).
+"""Tests for ``runtime_db_adapter`` (wyrd-d90t).
 
 Exercises the L4-DB → bundle-dict adapter end-to-end:
 
 1. The adapter's pure-Python output round-trips through
    ``load_meanings`` / ``load_canonical_decompositions`` /
-   ``load_fantasy_morphemes`` to produce the same shape the JSON
-   bundle would.
-2. The ``WYRD_USE_RUNTIME_DB=1`` env-var flips the per-cache loaders
-   (``_load_meanings`` etc.) from reading meanings.json to reading
-   the L4 runtime DB.
+   ``load_fantasy_morphemes`` to produce the same shape the
+   historical JSON bundle did.
+2. The per-cache loaders (``_load_meanings`` etc.) resolve their
+   data from the SQLite runtime DB end-to-end — the canonical
+   runtime path post-cutover.
 3. The committed seed-runtime.db loads cleanly via the SQLite path —
    the offline / CI default works.
 """
@@ -155,39 +155,25 @@ def test_subjects_have_word_and_metadata(_runtime_db_from_fixture: Path) -> None
     assert "modern_usage" in sample["words"][0]
 
 
-# ---------- feature flag flips _load_meanings ----------
+# ---------- _load_meanings always routes through the L4 ----------
 
 
-def test_runtime_db_flag_off_reads_json_bundle(monkeypatch) -> None:
-    """Default behavior (flag off): _load_meanings reads meanings.json
-    just like before — bit-stable with the legacy path."""
-    monkeypatch.delenv("WYRD_USE_RUNTIME_DB", raising=False)
-    meaning_db, tag_db = kenning_pkg._load_meanings()
-    # The JSON bundle is non-empty; meaning_db has at least the
-    # common '-ham-' usage.
-    assert "-ham-" in meaning_db or len(meaning_db) > 0
-
-
-def test_runtime_db_flag_on_reads_l4(monkeypatch, _runtime_db_from_fixture: Path) -> None:
-    """With WYRD_USE_RUNTIME_DB=1 + WYRD_RUNTIME_DB pointing at the
-    fixture L4, _load_meanings reads from SQLite instead of the
-    bundled JSON. The meaning_db still has the fixture's '-ham-'
-    morpheme (plus the sidecar entries that always fold in)."""
-    monkeypatch.setenv("WYRD_USE_RUNTIME_DB", "1")
+def test_load_meanings_reads_l4_fixture(monkeypatch, _runtime_db_from_fixture: Path) -> None:
+    """With ``WYRD_RUNTIME_DB`` pointed at the fixture L4,
+    ``_load_meanings`` rehydrates the bundle from SQLite. The
+    meaning_db carries the fixture's ``-ham-`` morpheme alongside
+    sidecar entries (irish_anglicizations, Norman manorial families)
+    that always fold in."""
     monkeypatch.setenv("WYRD_RUNTIME_DB", str(_runtime_db_from_fixture))
 
     meaning_db, _tag_db = kenning_pkg._load_meanings()
-    # Fixture lexicon contributed 'ham' (post-modifier → '-ham').
-    # Sidecars (irish_anglicizations, Norman manorial families) also
-    # fold in — those provide additional keys regardless.
     assert any("ham" in usage_key.lower() for usage_key in meaning_db)
 
 
-def test_runtime_db_flag_on_canonical_decompositions(
+def test_load_canonical_decompositions_reads_l4(
     monkeypatch, _runtime_db_from_fixture: Path
 ) -> None:
-    """_load_canonical_decompositions routes through the L4 too."""
-    monkeypatch.setenv("WYRD_USE_RUNTIME_DB", "1")
+    """``_load_canonical_decompositions`` routes through the L4 too."""
     monkeypatch.setenv("WYRD_RUNTIME_DB", str(_runtime_db_from_fixture))
 
     # Fixture L3 has no toponym_decompositions → empty L4 canonical
@@ -196,9 +182,8 @@ def test_runtime_db_flag_on_canonical_decompositions(
     assert isinstance(canonicals, dict)
 
 
-def test_runtime_db_flag_on_fantasy_morphemes(monkeypatch, _runtime_db_from_fixture: Path) -> None:
-    """_load_fantasy_morphemes routes through the L4 too."""
-    monkeypatch.setenv("WYRD_USE_RUNTIME_DB", "1")
+def test_load_fantasy_morphemes_reads_l4(monkeypatch, _runtime_db_from_fixture: Path) -> None:
+    """``_load_fantasy_morphemes`` routes through the L4 too."""
     monkeypatch.setenv("WYRD_RUNTIME_DB", str(_runtime_db_from_fixture))
 
     fantasy = kenning_pkg._load_fantasy_morphemes()
@@ -208,28 +193,24 @@ def test_runtime_db_flag_on_fantasy_morphemes(monkeypatch, _runtime_db_from_fixt
 # ---------- committed seed loads via SQLite path ----------
 
 
-def test_runtime_db_flag_on_uses_committed_seed_by_default(monkeypatch) -> None:
-    """Without WYRD_RUNTIME_DB env override, the loader falls back to
-    the bundled seed-runtime.db. The SQLite path should produce a
-    non-empty meaning_db from that seed — proves the offline CI/dev
-    default works end-to-end."""
-    monkeypatch.setenv("WYRD_USE_RUNTIME_DB", "1")
+def test_load_meanings_uses_committed_seed_by_default(monkeypatch) -> None:
+    """With no env overrides, the loader falls back to the bundled
+    seed-runtime.db. The SQLite path produces a non-empty meaning_db
+    from that seed — proves the offline CI/dev default works
+    end-to-end without any operator-side environment plumbing."""
     monkeypatch.delenv("WYRD_RUNTIME_DB", raising=False)
     monkeypatch.delenv("WYRD_RUNTIME_DB_BUCKET", raising=False)
 
-    meaning_db, tag_db = kenning_pkg._load_meanings()
+    meaning_db, _tag_db = kenning_pkg._load_meanings()
     # Seed has ~1146 meaning rows — should be far more than zero.
     assert len(meaning_db) > 100
 
 
-def test_runtime_db_meaning_objects_have_subject_metadata(
-    monkeypatch, _runtime_db_from_fixture: Path
-) -> None:
+def test_meaning_objects_have_subject_metadata(monkeypatch, _runtime_db_from_fixture: Path) -> None:
     """The synthesized per-entry subjects in the adapter must produce
     Meaning objects with the same subject-level metadata (tags + plain
-    meanings + modifier_type) as the JSON-bundle path. Pins the
+    meanings + modifier_type) the L3-built bundle did. Pins the
     'identical Meaning objects across backends' contract."""
-    monkeypatch.setenv("WYRD_USE_RUNTIME_DB", "1")
     monkeypatch.setenv("WYRD_RUNTIME_DB", str(_runtime_db_from_fixture))
 
     meaning_db, _ = kenning_pkg._load_meanings()

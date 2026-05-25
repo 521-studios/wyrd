@@ -65,8 +65,11 @@ CANONICAL_MORPHEMES = [
 
 @pytest.fixture(scope="module")
 def meaning_db():
-    """Load the bundled meanings.json once for the whole module —
-    it's 67MB so per-test reloading would be wasteful."""
+    """Load the runtime meaning_db once for the whole module.
+    Reads via ``_load_meanings`` which resolves to the L4 SQLite path
+    (defaults to ``seed-runtime.db``; ``WYRD_RUNTIME_DB`` override
+    points at a full-corpus L4 when these regression assertions need
+    the complete morpheme inventory)."""
     db, _ = _load_meanings()
     return db
 

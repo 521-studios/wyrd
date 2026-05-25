@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from importlib import resources
 from pathlib import Path
 
 import click
@@ -152,15 +151,37 @@ def lexicon_language_report(
     )
 
     if bundle_path is None:
-        bundle_path = Path(
-            resources.files("wyrd.generators.kenning.data").joinpath("meanings.json")
-        )
-    if proportions_path is None:
-        proportions_path = Path(
-            resources.files("wyrd.generators.kenning.data").joinpath("english_proportions.json")
+        # d90t cutover: the bundle ships as L4 SQLite, not JSON.
+        # Rehydrate to the bundle-dict shape the rest of the report
+        # consumes (subjects[], joiners, canonical_decompositions).
+        from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
+        from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+            bundle_dict_from_runtime_db,
         )
 
-    bundle = json.loads(bundle_path.read_text())
+        bundle = bundle_dict_from_runtime_db(get_runtime_db())
+    else:
+        bundle = json.loads(bundle_path.read_text())
+
+    if proportions_path is None:
+        # English proportions come from the same L4 (proportions_*
+        # tables). Build the dict in-memory so load_reference_tags's
+        # JSON-path expectation stays one branch wide; we write a
+        # temp file rather than divergent in-memory/path codepaths.
+        import tempfile
+
+        from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
+        from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+            proportions_dict_for_culture,
+        )
+
+        proportions_dict = proportions_dict_for_culture(get_runtime_db(), "english")
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False, encoding="utf-8"
+        ) as tmp:
+            json.dump(proportions_dict, tmp)
+            proportions_path = Path(tmp.name)
+
     reference_tags = load_reference_tags(proportions_path, top_n=top_tags)
     languages = list(language_filter) if language_filter else list(DEFAULT_LANGUAGES)
 

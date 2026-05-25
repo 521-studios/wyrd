@@ -36,7 +36,6 @@ import hashlib
 import itertools
 import json
 import logging
-from importlib import resources
 from typing import TYPE_CHECKING
 
 from wyrd.generators.kenning.lexicon import _LANG_CODE_TO_JSON_FIELD
@@ -687,10 +686,15 @@ def decompose_all(
         }
 
     if word_db is None:
-        bundle_text = (
-            resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
+        # Default source is the L4 runtime DB (d90t cutover). Callers
+        # who want a frozen / hand-edited bundle can pass ``word_db``
+        # built from a different source.
+        from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
+        from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+            bundle_dict_from_runtime_db,
         )
-        word_db, _ = load_meanings(json.loads(bundle_text))
+
+        word_db, _ = load_meanings(bundle_dict_from_runtime_db(get_runtime_db()))
 
     # Iterate the cursor directly instead of fetchall() so the toponym
     # table never has to fit in memory in one shot. populate_and_pick

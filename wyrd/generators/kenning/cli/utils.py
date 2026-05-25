@@ -23,7 +23,6 @@ import sqlite3
 from collections import Counter
 from collections.abc import Iterator
 from contextlib import contextmanager, nullcontext
-from importlib import resources
 from pathlib import Path
 
 import click
@@ -87,12 +86,26 @@ def _select_parser_and_run(
 
 
 def _load_meanings_data(meanings: Path | None) -> dict:
-    """Load meanings.json from an optional override path or the bundled default."""
+    """Build the bundle dict the decompose pipeline consumes.
+
+    With ``meanings`` supplied, reads it as a JSON-encoded bundle (for
+    operators who want to decompose against a frozen / hand-edited
+    bundle). Default ``None`` rehydrates the bundle from the L4
+    runtime DB — d90t cutover moved the canonical bundle storage from
+    on-disk JSON to SQLite, so the default source is now the runtime
+    DB (bundled seed-runtime.db, or whatever ``WYRD_RUNTIME_DB`` /
+    ``WYRD_RUNTIME_DB_BUCKET`` resolves to). To re-emit from L3 the
+    operator pipes through ``wyrd kenning lexicon export-runtime-db``
+    + ``WYRD_RUNTIME_DB`` rather than touching this helper.
+    """
     if meanings is None:
-        text = resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
-    else:
-        text = meanings.read_text()
-    return json.loads(text)
+        from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
+        from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+            bundle_dict_from_runtime_db,
+        )
+
+        return bundle_dict_from_runtime_db(get_runtime_db())
+    return json.loads(meanings.read_text())
 
 
 def _decompose_corpus(
