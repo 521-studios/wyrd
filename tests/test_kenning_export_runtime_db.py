@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from importlib import resources
 from pathlib import Path
+from typing import Any
 
 import click
 import pytest
@@ -762,19 +762,18 @@ def test_strata_for_word_skips_non_list_and_non_dict() -> None:
     assert list(_strata_for_word(word)) == ["native-old-english"]
 
 
-def test_emit_default_proportions_dir_uses_bundled_resources(tmp_path: Path) -> None:
-    """When --proportions-dir is omitted the CLI falls back to
-    ``_bundled_proportions_dir()`` (a Traversable from
-    importlib.resources). End-to-end smoke: a fresh emit with no
-    explicit proportions dir must still populate the proportions
-    tables from the bundled JSONs."""
+def test_emit_default_proportions_dir_computes_inline(tmp_path: Path) -> None:
+    """When ``--proportions-dir`` is omitted the emit rebuilds the
+    proportions inline from the subjects it just exported + the
+    bundled ``<culture>_place_names.json`` corpora. End-to-end smoke:
+    a fresh emit with no explicit proportions dir must still populate
+    the proportions tables for every shipped culture, with no
+    intermediate JSON artifact required."""
     db_path = tmp_path / "lexicon.db"
     out_path = tmp_path / "runtime.db"
     _seed_minimal_lexicon(db_path)
 
     runner = CliRunner()
-    # Omit --proportions-dir; the CLI default resolves to the bundled
-    # resource path.
     result = runner.invoke(
         cli_root,
         [
@@ -791,14 +790,115 @@ def test_emit_default_proportions_dir_uses_bundled_resources(tmp_path: Path) -> 
 
     conn = sqlite3.connect(str(out_path))
     try:
-        cultures = {
-            row[0] for row in conn.execute("SELECT DISTINCT culture FROM proportions_usage")
-        }
+        # The emit must produce a well-formed L4 against a minimal
+        # fixture lexicon — bundle_metadata is populated, the
+        # proportions_* tables exist, and there are no constraint
+        # violations. The proportions rowcounts can be zero against a
+        # tiny fixture (the bundled <culture>_place_names.json corpora
+        # have ~tens of thousands of real toponyms; few of them
+        # decompose perfectly against a 1-meaning fixture), which is
+        # correct behavior — not a regression. A separate test
+        # (``test_inline_rebuild_emits_populated_proportions_with_canonical``
+        # below) exercises the populated case against a richer fixture.
+        bundle_meta = dict(conn.execute("SELECT key, value FROM bundle_metadata").fetchall())
+        for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'proportions_%'"
+        ).fetchall():
+            conn.execute(f"SELECT COUNT(*) FROM {row[0]}").fetchone()
     finally:
         conn.close()
+    assert bundle_meta.get("schema_version") == "1"
+    assert "built_at" in bundle_meta
 
-    # Bundled set ships english + scottish + welsh + irish + breton.
-    assert cultures == {"english", "scottish", "welsh", "irish", "breton"}
+
+def _three_subject_acton_fixture() -> list[dict[str, Any]]:
+    """Minimal bundle that decomposes the English-corpus toponym
+    ``Acton`` perfectly (``Ac-`` + ``-ton``) plus the standalone
+    ``Bath``. The inline-rebuild tests below all use this fixture to
+    assert non-empty proportions output against the bundled
+    ``english_place_names.json`` corpus."""
+    return [
+        {
+            "meaning": ["Roman bath"],
+            "modifier_tags": ["name"],
+            "modifier_type": None,
+            "words": [{"modern_usage": "Bath", "old_english": ["Baðum"]}],
+        },
+        {
+            "meaning": ["oak"],
+            "modifier_tags": ["plant"],
+            "modifier_type": "Descriptive",
+            "words": [{"modern_usage": "Ac-", "old_english": ["āc"]}],
+        },
+        {
+            "meaning": ["estate"],
+            "modifier_tags": ["settlement"],
+            "modifier_type": "Topographical",
+            "words": [{"modern_usage": "-ton", "old_english": ["tūn"]}],
+        },
+    ]
+
+
+def test_inline_rebuild_emits_populated_proportions_with_canonical() -> None:
+    """The inline-rebuild path must produce non-empty proportions when
+    the fixture meanings + bundled place_names corpus can perfectly
+    decompose at least one name. Directly exercises
+    ``_compute_proportions_inline`` so the assertion pins the
+    function's output dict, not just the presence of well-formed
+    bundle_metadata."""
+    from wyrd.generators.kenning.lexicon.runtime_db_export import (
+        _compute_proportions_inline,
+    )
+
+    # Empty canonical map → every name flows through the heuristic.
+    out = _compute_proportions_inline(_three_subject_acton_fixture(), canonical_decompositions={})
+
+    # Acton perfectly decomposes against the fixture → both Ac- and
+    # -ton end up in the english usages map. Pin both so a regression
+    # that loses either half of the compound surfaces here.
+    assert "english" in out
+    english_usages = out["english"].get("usages", {})
+    assert "Ac-" in english_usages, (
+        f"Ac- missing from english usages; rebuild didn't traverse the corpus. got {sorted(english_usages.keys())[:10]}"
+    )
+    assert "-ton" in english_usages, (
+        f"-ton missing from english usages. got {sorted(english_usages.keys())[:10]}"
+    )
+
+    # And every output dict must carry the five canonical proportions keys.
+    for culture, payload in out.items():
+        assert {"usages", "single_usages", "structures", "tag_marginal", "tag_cooccurrence"} <= set(
+            payload.keys()
+        ), f"culture {culture!r} missing keys: {set(payload.keys())}"
+
+
+def test_inline_rebuild_honors_canonical_decomposition() -> None:
+    """When a canonical_decompositions entry exists for a name in the
+    corpus, ``_compute_proportions_inline`` routes through
+    ``apply_canonical_to_name`` rather than the heuristic. Test the
+    contract negatively: feed a nonsense canonical signature for a
+    name that exists in the corpus + a fixture that DOES decompose it.
+    Without the canonical-miss fallback this would silently drop the
+    name (the canonical narrowing would empty ``name.words``). With
+    the fallback, the heuristic path picks the same decomp it would
+    have picked anyway, so the resulting usages map still contains
+    the morphemes."""
+    from wyrd.generators.kenning.lexicon.runtime_db_export import (
+        _compute_proportions_inline,
+    )
+
+    canonical_decompositions = {
+        "Acton": {"signature": "nonsense-signature-no-cell-will-match", "source": "test"},
+    }
+
+    out = _compute_proportions_inline(_three_subject_acton_fixture(), canonical_decompositions)
+    # Canonical-miss must fall back to the heuristic — Acton still
+    # decomposes via Ac- + -ton and both morphemes still surface.
+    assert out["english"].get("usages", {}).get("Ac-"), (
+        f"canonical-miss didn't fall back to heuristic; "
+        f"got english usages {sorted(out['english'].get('usages', {}).keys())[:10]}"
+    )
+    assert "-ton" in out["english"]["usages"]
 
 
 def test_emit_resolves_relative_lexicon_path(tmp_path: Path, monkeypatch) -> None:
@@ -876,17 +976,27 @@ def test_emit_unlinks_partial_output_on_failure(tmp_path: Path, monkeypatch) -> 
 
 def test_emit_via_traversable_proportions_dir(tmp_path: Path) -> None:
     """``_load_proportions`` walks via the Traversable protocol so the
-    bundled-resources default works under any importlib.resources
+    operator-supplied override path works under any importlib.resources
     backend including zip loaders. Smoke-test the Traversable path
-    explicitly (the CLI tests cover the default branch end-to-end; this
-    pins the contract at the function level)."""
+    explicitly by writing a tiny per-culture proportions JSON to a
+    tmpdir and loading it via the Path branch (Path is the simplest
+    Traversable; the contract holds for any Traversable subtype)."""
+    import json as _json
+
     from wyrd.generators.kenning.lexicon.runtime_db_export import _load_proportions
 
-    bundled = resources.files("wyrd.generators.kenning.data")
-    loaded = _load_proportions(bundled)
+    sample = {
+        "usages": {"-ham": 1},
+        "single_usages": {"-ham": 1},
+        "structures": [],
+        "tag_marginal": {},
+        "tag_cooccurrence": {},
+    }
+    for culture in ("english", "scottish", "welsh", "irish", "breton"):
+        (tmp_path / f"{culture}_proportions.json").write_text(_json.dumps(sample))
+
+    loaded = _load_proportions(tmp_path)
     assert set(loaded.keys()) == {"english", "scottish", "welsh", "irish", "breton"}
-    # Each culture's payload must carry the canonical proportions keys
-    # the runtime samples on.
     for culture, data in loaded.items():
         assert {"usages", "single_usages", "structures", "tag_marginal", "tag_cooccurrence"} <= set(
             data.keys()

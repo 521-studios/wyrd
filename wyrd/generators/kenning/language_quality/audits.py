@@ -56,23 +56,31 @@ from .models import (
 
 
 def load_reference_tags(
-    proportions_path: Path | None = None,
+    proportions: Path | dict | None = None,
     *,
     top_n: int = REFERENCE_TAG_COUNT,
 ) -> list[str]:
     """Return the top-``top_n`` tags from English place-name proportions.
 
-    Reads ``english_proportions.json`` and ranks the ``tag_marginal``
-    map. Falls back to ``FALLBACK_REFERENCE_TAGS`` if the file is
-    unreadable or the ``tag_marginal`` field is absent (e.g. legacy
-    proportions snapshot pre-wyrd-mj2)."""
-    if proportions_path is None or not proportions_path.exists():
+    Accepts either a ``Path`` (read JSON from disk) or a ``dict`` (use
+    in-memory; the d90t cutover paths get proportions straight from the
+    L4 runtime DB and avoid a JSON round-trip). Ranks ``tag_marginal``;
+    falls back to ``FALLBACK_REFERENCE_TAGS`` if the source is missing,
+    unreadable, or lacks ``tag_marginal`` (e.g. legacy proportions
+    snapshot pre-wyrd-mj2)."""
+    data: dict | None
+    if proportions is None:
         return list(FALLBACK_REFERENCE_TAGS[:top_n])
-    try:
-        data = json.loads(proportions_path.read_text())
-    except (OSError, json.JSONDecodeError):
-        return list(FALLBACK_REFERENCE_TAGS[:top_n])
-    marginal = data.get("tag_marginal") or {}
+    if isinstance(proportions, dict):
+        data = proportions
+    else:
+        if not proportions.exists():
+            return list(FALLBACK_REFERENCE_TAGS[:top_n])
+        try:
+            data = json.loads(proportions.read_text())
+        except (OSError, json.JSONDecodeError):
+            return list(FALLBACK_REFERENCE_TAGS[:top_n])
+    marginal = (data or {}).get("tag_marginal") or {}
     if not isinstance(marginal, dict) or not marginal:
         return list(FALLBACK_REFERENCE_TAGS[:top_n])
     ranked = sorted(marginal.items(), key=lambda kv: (-kv[1], kv[0]))

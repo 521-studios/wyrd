@@ -7,8 +7,6 @@ Thin click wrapper around
 
 from __future__ import annotations
 
-from importlib import resources
-from importlib.resources.abc import Traversable
 from pathlib import Path
 
 import click
@@ -45,16 +43,6 @@ _DEFAULT_INCLUDE_WIKTIONARY_EMPIRICAL = True
 _DEFAULT_INCLUDE_WAVE2_ENRICHED = True
 
 
-def _bundled_proportions_dir():
-    """Return the bundled proportions directory as a Traversable.
-
-    Uses importlib.resources so the default keeps working when the
-    package is shipped via a zip-loader. write_runtime_db accepts
-    either Path (operator override) or Traversable (this default).
-    """
-    return resources.files("wyrd.generators.kenning.data")
-
-
 @click.command("export-runtime-db")
 @click.option(
     "--db",
@@ -77,9 +65,10 @@ def _bundled_proportions_dir():
     type=click.Path(exists=True, file_okay=False, path_type=Path),
     default=None,
     help=(
-        "Directory containing <culture>_proportions.json files. "
-        "Defaults to the bundled wyrd/generators/kenning/data directory "
-        "(the same files the runtime reads today)."
+        "Directory containing <culture>_proportions.json files (operator "
+        "override). Default behavior rebuilds the proportions inline from "
+        "the L3 lexicon + bundled <culture>_place_names.json corpora, so "
+        "no intermediate JSON artifact is required."
     ),
 )
 @click.option(
@@ -179,10 +168,6 @@ def lexicon_export_runtime_db(
 
     lang_thresholds = _parse_lang_thresholds(lang_threshold_specs, use_preset=use_preset)
 
-    proportions_source: Path | Traversable = (
-        proportions_dir if proportions_dir is not None else _bundled_proportions_dir()
-    )
-
     with LexiconDB(db_path) as db:
         subjects = export_meanings(
             db,
@@ -200,7 +185,7 @@ def lexicon_export_runtime_db(
         subjects=subjects,
         fantasy_morphemes=fantasy_morphemes,
         canonical_decompositions=canonical_decompositions,
-        proportions_dir=proportions_source,
+        proportions_dir=proportions_dir,
         source_lexicon_db=db_path,
         dev_subset=dev_subset,
         dev_top_n_per_culture=dev_top_n,

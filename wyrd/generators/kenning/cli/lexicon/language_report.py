@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from importlib import resources
 from pathlib import Path
 
 import click
@@ -152,16 +151,28 @@ def lexicon_language_report(
     )
 
     if bundle_path is None:
-        bundle_path = Path(
-            resources.files("wyrd.generators.kenning.data").joinpath("meanings.json")
-        )
-    if proportions_path is None:
-        proportions_path = Path(
-            resources.files("wyrd.generators.kenning.data").joinpath("english_proportions.json")
+        # d90t cutover: the bundle ships as L4 SQLite, not JSON.
+        # Rehydrate to the bundle-dict shape the rest of the report
+        # consumes (subjects[], joiners, canonical_decompositions).
+        from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
+        from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+            bundle_dict_from_runtime_db,
+            proportions_dict_for_culture,
         )
 
-    bundle = json.loads(bundle_path.read_text())
-    reference_tags = load_reference_tags(proportions_path, top_n=top_tags)
+        runtime_db = get_runtime_db()
+        bundle = bundle_dict_from_runtime_db(runtime_db)
+    else:
+        bundle = json.loads(bundle_path.read_text())
+
+    if proportions_path is None:
+        # Fetch English proportions straight from the L4 and hand the
+        # dict to load_reference_tags (no JSON round-trip).
+        proportions_source: dict | Path = proportions_dict_for_culture(runtime_db, "english")
+    else:
+        proportions_source = proportions_path
+
+    reference_tags = load_reference_tags(proportions_source, top_n=top_tags)
     languages = list(language_filter) if language_filter else list(DEFAULT_LANGUAGES)
 
     # CLAUDE.md-shape stderr progress for the long modern-english

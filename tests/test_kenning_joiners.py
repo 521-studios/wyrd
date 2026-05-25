@@ -792,10 +792,10 @@ def test_weighted_joiner_choice_falls_back_to_uniform_when_zero_weights() -> Non
     assert result in {"a", "b"}
 
 
-def test_load_joiners_runtime_helper_returns_empty_for_legacy_bundle() -> None:
-    """``_load_joiners`` reads the bundled meanings.json. Today's
-    bundle ships zero joiners (legacy list shape) so the runtime
-    helper returns an empty dict."""
+def test_load_joiners_runtime_helper_returns_empty_for_l4_bundle() -> None:
+    """``_load_joiners`` reads the L4 runtime DB. The L4 schema
+    doesn't carry joiners today, so the runtime helper returns an
+    empty dict."""
     from wyrd.generators.kenning import _load_joiners
 
     _load_joiners.cache_clear()

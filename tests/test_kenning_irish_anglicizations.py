@@ -20,11 +20,27 @@ These tests pin:
 from __future__ import annotations
 
 import json
+import os
 from importlib import resources
+
+import pytest
 
 from wyrd.generators.kenning import _load_meanings
 from wyrd.generators.kenning.runtime.meaning import load_meanings
 from wyrd.generators.kenning.runtime.name import Name, load_names
+
+
+def _require_full_bundle() -> None:
+    """The sidecar tests pin Irish-corpus perfect-decomposition rates
+    that depend on the FULL bundled meaning_db. The seed-runtime.db
+    subset doesn't carry the necessary native-Irish morphemes for the
+    sidecar's anglicized prefixes to compose against, so the assertion
+    floors don't apply. Skip when no full bundle is configured."""
+    if not (os.environ.get("WYRD_RUNTIME_DB") or os.environ.get("WYRD_RUNTIME_DB_BUCKET")):
+        pytest.skip(
+            "Full-corpus L4 not configured; set WYRD_RUNTIME_DB to run the "
+            "Irish anglicization coverage tests."
+        )
 
 
 def test_sidecar_data_file_has_expected_anglicized_prefixes() -> None:
@@ -112,6 +128,7 @@ def test_anglicized_prefix_decomposes_sidecar_dependent_names() -> None:
     composes cleanly with itself; ``Cloon`` exercises the bare
     prefix as a standalone toponym.
     """
+    _require_full_bundle()
     _load_meanings.cache_clear()
     word_db, _ = _load_meanings()
     for name in ("Cloon", "Cloondara", "Ballyknock", "Liscloon", "Kilballyboy"):
@@ -130,6 +147,7 @@ def test_anglicized_inner_position_decomposes_compound_names() -> None:
     component (Clogh + bally + more); a regression that dropped the
     inner-position entries would silently leave that whole class of
     names unaccounted."""
+    _require_full_bundle()
     _load_meanings.cache_clear()
     word_db, _ = _load_meanings()
     n = Name("Cloghballymore")
@@ -148,9 +166,10 @@ def test_sidecar_lifts_irish_corpus_perfect_rate() -> None:
     >= 17.5% so a regression that drops or breaks the sidecar trips,
     while leaving headroom for future Irish mining churn that might
     shift the absolute number."""
-    main_text = (
-        resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
-    )
+    _require_full_bundle()
+    from wyrd.generators.kenning import _runtime_db_bundle_dict
+
+    main = _runtime_db_bundle_dict()
     sidecar_text = (
         resources.files("wyrd.generators.kenning.data")
         .joinpath("irish_anglicizations.json")
@@ -162,10 +181,8 @@ def test_sidecar_lifts_irish_corpus_perfect_rate() -> None:
         .read_text()
     )
 
-    # wyrd-c1vq: main bundle is dict-shape; subjects under 'subjects' key.
-    # Sidecar stays list-shape (its own format, separate from the export bundle).
-    main = json.loads(main_text)
-    main_subjects = main["subjects"] if isinstance(main, dict) else main
+    main_subjects = main.get("subjects") or []
+    # Sidecar stays list-shape (its own format, separate from the L4 emit).
     word_db, _ = load_meanings(main_subjects + json.loads(sidecar_text))
     names = load_names(json.loads(place_names_text))
 

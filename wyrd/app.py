@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import logging
+import os
+import time
 from typing import Any
 
 from flask import Flask, jsonify, request
@@ -12,8 +15,37 @@ from wyrd.seed import MAX_SAFE_INTEGER, resolve_seed, rng_for
 
 MAX_COUNT = 10
 
+_logger = logging.getLogger(__name__)
+
+# Lambda-side logging cadence. Set ``LOG_LEVEL=DEBUG`` in the function
+# config to surface per-request timing + structured pipeline traces
+# (defaults to INFO, which still emits the per-request summary line).
+# wyrd-d90t staging diagnostics: needed visibility into the 10s
+# timeouts that bare-bone REPORT lines weren't explaining.
+_LOG_LEVEL_ENV = "LOG_LEVEL"
+
+
+def _configure_logging() -> None:
+    """Wire the wyrd-package logger level from the LOG_LEVEL env var.
+    Idempotent: re-calling reconfigures without duplicating handlers
+    (Lambda's runtime already installs a handler that forwards to
+    CloudWatch; we only set levels).
+
+    ``LOG_LEVEL`` only affects wyrd's loggers. Root + third-party
+    loggers (botocore, urllib3, s3transfer) stay pinned at WARNING
+    regardless of the env var — staging caught a 10s timeout when
+    LOG_LEVEL=DEBUG let botocore emit hundreds of DEBUG lines per
+    request, burning the full CPU budget on string formatting +
+    CloudWatch I/O for telemetry the operator doesn't need.
+    """
+    raw = os.environ.get(_LOG_LEVEL_ENV, "INFO").upper().strip()
+    level = getattr(logging, raw, logging.INFO)
+    logging.getLogger().setLevel(logging.WARNING)
+    logging.getLogger("wyrd").setLevel(level)
+
 
 def create_app() -> Flask:
+    _configure_logging()
     registry.discover()
     app = Flask(__name__)
 
@@ -71,9 +103,14 @@ def _coerce_query_params(args: dict[str, list[str]]) -> dict[str, Any]:
 def _dispatch(generator_name: str, params: dict[str, Any]):
     generator = registry.get(generator_name)
     if generator is None:
+        _logger.info("dispatch unknown_generator name=%s", generator_name)
         return jsonify({"error": "unknown_generator", "name": generator_name}), 404
 
     seed = resolve_seed(params.pop("seed", None))
+    # Snapshot params before count is popped so the log line carries
+    # the actual operator input shape (count, mode, knobs).
+    param_snapshot = {k: v for k, v in params.items() if k != "seed"}
+    started = time.perf_counter()
 
     try:
         if generator.multi_result:
@@ -82,6 +119,7 @@ def _dispatch(generator_name: str, params: dict[str, Any]):
             # count and per-result sub-seeds don't apply.
             params.pop("count", None)
             results = generator.generate_all(params, seed)
+            count = len(results) if hasattr(results, "__len__") else 1
         else:
             count = _coerce_count(params.pop("count", 5))
             # Sub-seeds derived deterministically from the top-level seed so that
@@ -89,13 +127,41 @@ def _dispatch(generator_name: str, params: dict[str, Any]):
             seed_rng = rng_for(seed)
             # wyrd-aof8: cap sub-seeds at JS Number safe range so
             # they round-trip through copy/paste in the SPA.
-            results = [
-                generator.generate(params, seed_rng.randrange(MAX_SAFE_INTEGER + 1))
-                for _ in range(count)
-            ]
+            slot_times: list[float] = []
+            results = []
+            for _ in range(count):
+                sub_started = time.perf_counter()
+                results.append(generator.generate(params, seed_rng.randrange(MAX_SAFE_INTEGER + 1)))
+                slot_times.append(time.perf_counter() - sub_started)
+            # Per-result timing breakdown helps localize a slow path to
+            # a specific sub-seed (vs an init-time hot spot).
+            if slot_times and _logger.isEnabledFor(logging.DEBUG):
+                slot_ms = [f"{t * 1000:.1f}" for t in slot_times]
+                _logger.debug(
+                    "dispatch generator=%s per_result_ms=[%s]",
+                    generator.name,
+                    ",".join(slot_ms),
+                )
     except (ValueError, KeyError) as e:
+        elapsed_ms = (time.perf_counter() - started) * 1000
+        _logger.info(
+            "dispatch bad_params generator=%s elapsed_ms=%.1f params=%r detail=%s",
+            generator_name,
+            elapsed_ms,
+            param_snapshot,
+            e,
+        )
         return jsonify({"error": "bad_params", "detail": str(e)}), 400
 
+    elapsed_ms = (time.perf_counter() - started) * 1000
+    _logger.info(
+        "dispatch ok generator=%s count=%d elapsed_ms=%.1f seed=%d params=%r",
+        generator.name,
+        count,
+        elapsed_ms,
+        seed,
+        param_snapshot,
+    )
     return jsonify(
         envelope(
             generator=generator.name,

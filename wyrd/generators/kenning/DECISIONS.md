@@ -2304,7 +2304,7 @@ calibration passes that this PR doesn't satisfy:
 Filed as a separate operator-driven follow-up under the kq7w epic
 since neither can run autonomously.
 
-## D38. L4 runtime DB: SQLite-on-S3 replaces meanings.json + proportions JSONs (wyrd-d90t, 2026-05-24).
+## D38. L4 runtime DB: SQLite-on-S3 replaces meanings.json + proportions JSONs (wyrd-d90t, 2026-05-24 / cutover 2026-05-25).
 
 The 2026-05-20 post-wyrd-wz82 bundle re-emit grew `meanings.json`
 from 54MB to 113MB — over GitHub's 100MB push limit. Growth was
@@ -2312,6 +2312,21 @@ driven by the `*_phonological_vector` fields landing on every
 form (wyrd-kq7w.1 enrichment). The JSON-bundle era for kenning
 runtime data is over; this entry records the L4 architecture that
 replaces it.
+
+**Cutover state (2026-05-25):** the runtime reads from L4 only.
+`meanings.json` + the five `<culture>_proportions.json` bundles are
+deleted from the repo. The previous `WYRD_USE_RUNTIME_DB` feature
+flag (PR 5) has been removed — the SQLite path is the only path.
+Loaders resolve the L4 DB via, in order:
+``WYRD_RUNTIME_DB`` env-var (local path override) →
+``WYRD_RUNTIME_DB_BUCKET`` S3 download with ETag-keyed `/tmp` cache
+→ the bundled ``seed-runtime.db`` (offline / CI fallback,
+top-200-per-culture subset). The terraform now provisions the
+per-env runtime DB bucket + Lambda IAM read policy + sets
+``WYRD_RUNTIME_DB_BUCKET`` on the function. The build-time
+``export-runtime-db`` CLI rebuilds per-culture proportions inline
+from L3 + the bundled `<culture>_place_names.json` corpora, so no
+intermediate proportions-JSON artifact exists in the pipeline.
 
 ### D38.1. Why SQLite-on-S3.
 

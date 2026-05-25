@@ -36,14 +36,13 @@ def _clear_trie_cache():
 
 @pytest.fixture(scope="module")
 def bundle_word_db():
-    """Module-scoped: load the bundled meanings.json once and share
-    the resulting word_db across the corpus-smoke tests. Cuts ~5x the
-    load_meanings overhead vs per-test loading on the larger
-    post-wyrd-4hx7 bundle."""
-    meanings = json.loads(
-        resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
-    )
-    word_db, _ = load_meanings(meanings)
+    """Module-scoped: load the runtime word_db once and share it
+    across the corpus-smoke tests. Reads from the L4 SQLite path
+    (defaults to the bundled seed-runtime.db; ``WYRD_RUNTIME_DB``
+    overrides to a full bundle when corpus-quality coverage matters)."""
+    from wyrd.generators.kenning import _load_meanings
+
+    word_db, _ = _load_meanings()
     return word_db
 
 

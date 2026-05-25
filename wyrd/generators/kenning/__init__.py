@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import unicodedata
 from difflib import SequenceMatcher
@@ -239,43 +238,23 @@ def _norman_manorial_subjects() -> list[dict[str, Any]]:
     return subjects
 
 
-# wyrd-d90t PR 5: WYRD_USE_RUNTIME_DB=1 flips the bundle loaders
-# (_load_meanings / _load_canonical_decompositions / _load_fantasy_morphemes)
-# from reading meanings.json to reading the L4 runtime SQLite DB.
-# Default off so the legacy JSON path stays bit-stable while the
-# SQLite path bakes; the JSON-files cutover removes the legacy path.
-_USE_RUNTIME_DB_ENV = "WYRD_USE_RUNTIME_DB"
-
-
-def _runtime_db_enabled() -> bool:
-    """True when the WYRD_USE_RUNTIME_DB env var is set to a truthy
-    value. Evaluated on every cache-miss of the wrapping @lru_cache
-    loaders (_load_meanings / _load_canonical_decompositions /
-    _load_fantasy_morphemes / _load_joiners) — tests flip the flag via
-    monkeypatch + cache_clear() to force a re-read.
-
-    Delegates the truthy-string set to :func:`_coerce_bool` so the
-    env-var grammar stays in lockstep with the SPA's request-side
-    boolean parsing (handles trailing whitespace + 'on' uniformly).
-    """
-    return _coerce_bool(os.environ.get(_USE_RUNTIME_DB_ENV, ""))
-
-
+# wyrd-d90t: kenning runtime reads its bundle from the L4 SQLite DB
+# (resolved by runtime/runtime_db.get_runtime_db — env-var override
+# → S3 ETag cache → S3 download → bundled seed-runtime.db fallback).
+# meanings.json + per-culture proportions JSONs are gone — see D38 in
+# DECISIONS.md for the architecture.
 @lru_cache(maxsize=1)
 def _runtime_db_bundle_dict() -> dict[str, Any]:
-    """Read the L4 runtime DB and shape it into the dict the existing
-    bundle loaders consume. Cached at process scope so the three
-    sibling loaders (_load_meanings / _load_canonical_decompositions /
-    _load_fantasy_morphemes) share one SQLite walk + JSON-parse pass
-    rather than each redoing it. Cache invalidates via the coupled
-    clear (search _coupled_cache_clear) so tests stay sane.
+    """Read the L4 runtime DB and shape it into the dict the
+    ``load_meanings`` / ``load_canonical_decompositions`` /
+    ``load_fantasy_morphemes`` / ``load_joiners`` loaders consume.
+    Process-cached so all four loaders share one SQLite walk + JSON-
+    parse pass; the cache invalidates via the coupled clear (search
+    ``_coupled_cache_clear``) so tests stay sane.
 
-    Imported lazily so the loader's module init cost only fires when
-    the flag is on.
-
-    Callers MUST treat the returned dict as read-only — the L4 path
-    in _load_meanings does mutate ``data["subjects"]`` to extend with
-    sidecars, so it copies the subjects list before extending.
+    Callers MUST treat the returned dict as read-only — the
+    sidecar-folding path in :func:`_load_meanings` builds a fresh
+    ``{"subjects": [...]}`` dict instead of mutating the cached one.
     """
     from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
     from wyrd.generators.kenning.runtime.runtime_db_adapter import (
@@ -319,29 +298,18 @@ def _load_meanings():
     ``old_french`` is in ``_ROOT_CODES`` so the explainer renders
     the morpheme as "FR" rather than "(?)".
     """
-    if _runtime_db_enabled():
-        # wyrd-d90t PR 5: SQLite-backed bundle source. Sidecars
-        # (irish_anglicizations, Norman manorial families) still
-        # come from JSON because they're not in the L4 emit today —
-        # folding them into the runtime DB is a follow-up.
-        data = _runtime_db_bundle_dict()
-    else:
-        with _data_path("meanings.json").open() as f:
-            data = json.load(f)
+    data = _runtime_db_bundle_dict()
     with _data_path("irish_anglicizations.json").open() as f:
         sidecar = json.load(f)
     manorial = _norman_manorial_subjects()
-    # The bundle may be list-shape (legacy) or dict-shape
-    # ``{"subjects": [...], "joiners": ..., "canonical_decompositions": ...}``
-    # (wyrd-q0g6 / wyrd-h8k1). Build a fresh subjects list with the
-    # sidecars folded in — load_meanings only reads ``subjects`` from
-    # the dict, and passing a fresh dict avoids mutating the cached
-    # _runtime_db_bundle_dict() return value (which feeds the sibling
-    # loaders downstream).
-    if isinstance(data, dict):
-        subjects = list(data.get("subjects") or [])
-    else:
-        subjects = list(data)
+    # Build a fresh subjects list with the sidecars folded in —
+    # load_meanings only reads ``subjects`` from the dict, and passing
+    # a fresh dict avoids mutating the cached _runtime_db_bundle_dict()
+    # return value (which feeds the sibling loaders downstream). The
+    # two sidecars (irish_anglicizations + Norman manorial families)
+    # stay as JSON because they're runtime-only convenience tables
+    # that never went through the L3 mining pipeline.
+    subjects = list(data.get("subjects") or [])
     subjects.extend(sidecar)
     subjects.extend(manorial)
     return load_meanings({"subjects": subjects})
@@ -350,48 +318,24 @@ def _load_meanings():
 @lru_cache(maxsize=1)
 def _load_joiners() -> dict[str, list[tuple[str, int]]]:
     """Load the bundle's joiner pool. Returns
-    ``{lang_field: [(form, weight), ...]}``; empty for legacy
-    list-shape bundles."""
-    if _runtime_db_enabled():
-        # The L4 emit doesn't carry joiners today (they live on a JSON
-        # sidecar in the bundled path). Return empty rather than fall
-        # through to meanings.json — the whole point of the flag is to
-        # bypass the JSON bundle. Folding joiners into the L4 emit is
-        # tracked as a follow-up under the d90t epic.
-        data = _runtime_db_bundle_dict()
-    else:
-        with _data_path("meanings.json").open() as f:
-            data = json.load(f)
-    return load_joiners(data)
+    ``{lang_field: [(form, weight), ...]}``; the L4 schema doesn't
+    carry joiners today, so this currently resolves to an empty dict."""
+    return load_joiners(_runtime_db_bundle_dict())
 
 
 @lru_cache(maxsize=1)
 def _load_canonical_decompositions() -> dict[str, dict[str, str]]:
     """Load the bundle's per-toponym canonical decomposition map
-    (wyrd-h8k1). Returns ``{modern_name: {"signature", "source"}}``;
-    empty for legacy list-shape bundles AND for dict-shape bundles
-    that don't carry a ``canonical_decompositions`` field."""
-    if _runtime_db_enabled():
-        data = _runtime_db_bundle_dict()
-    else:
-        with _data_path("meanings.json").open() as f:
-            data = json.load(f)
-    return load_canonical_decompositions(data)
+    (wyrd-h8k1). Returns ``{modern_name: {"signature", "source"}}``."""
+    return load_canonical_decompositions(_runtime_db_bundle_dict())
 
 
 @lru_cache(maxsize=1)
 def _load_fantasy_morphemes() -> dict[str, dict]:
     """wyrd-vz7f: load the bundle's fantasy-creature etymology map.
     Returns ``{lowercase_input_name: {input_name, etymon_id, language,
-    canonical_form, english_shaped, glosses, citation, era_reflexes}}``.
-    Empty for bundles that pre-date wyrd-vz7f or for DBs whose
-    ``fantasy_morpheme`` table is empty."""
-    if _runtime_db_enabled():
-        data = _runtime_db_bundle_dict()
-    else:
-        with _data_path("meanings.json").open() as f:
-            data = json.load(f)
-    return load_fantasy_morphemes(data)
+    canonical_form, english_shaped, glosses, citation, era_reflexes}}``."""
+    return load_fantasy_morphemes(_runtime_db_bundle_dict())
 
 
 @lru_cache(maxsize=1)
@@ -445,20 +389,12 @@ def _load_culture(culture: str):
     if culture not in CULTURES:
         raise ValueError(f"unknown culture: {culture}; expected one of {CULTURES}")
     meaning_db, tag_db = _load_meanings()
-    if _runtime_db_enabled():
-        # wyrd-d90t PR 6: SQLite path. Proportions come from the L4
-        # proportions_* tables instead of the bundled JSON sidecar.
-        # Same dict shape as the JSON path → identical load_proportions
-        # behavior → bit-equivalent generator output for a given seed.
-        from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
-        from wyrd.generators.kenning.runtime.runtime_db_adapter import (
-            proportions_dict_for_culture,
-        )
+    from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
+    from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+        proportions_dict_for_culture,
+    )
 
-        proportions = proportions_dict_for_culture(get_runtime_db(), culture)
-    else:
-        with _data_path(f"{culture}_proportions.json").open() as f:
-            proportions = json.load(f)
+    proportions = proportions_dict_for_culture(get_runtime_db(), culture)
     return load_proportions(proportions, meaning_db, tag_db), tag_db
 
 
@@ -475,19 +411,21 @@ _original_load_meanings_cache_clear = _load_meanings.cache_clear
 
 def _coupled_cache_clear() -> None:
     """Clear all per-bundle caches: ``_load_meanings``,
-    ``_load_culture``, ``_load_joiners``, ``_load_canonical_decompositions``.
+    ``_load_culture``, ``_load_joiners``,
+    ``_load_canonical_decompositions``, ``_load_fantasy_morphemes``,
+    and the shared ``_runtime_db_bundle_dict``.
 
-    These caches form an aggregate over a single ``meanings.json``
-    read: ``_load_culture`` holds a ``NameGenerator`` parameterised on
-    the ``meaning_db`` from ``_load_meanings``; ``_load_joiners`` and
-    ``_load_canonical_decompositions`` read the same bundle file.
+    These caches form an aggregate over one runtime-DB read:
+    ``_load_culture`` holds a ``NameGenerator`` parameterised on
+    the ``meaning_db`` from ``_load_meanings``; the other loaders
+    rehydrate from the same ``_runtime_db_bundle_dict`` snapshot.
     Invalidating one without the others yields a stale view next
     time. Replaces ``_load_meanings.cache_clear`` so the standard
     test-side pattern (``_load_meanings.cache_clear()``) clears all.
 
     The reverse direction (``_load_culture.cache_clear()`` alone) is
     intentionally uncoupled — a caller who only wants to drop the
-    per-culture generator shouldn't pay to re-parse meanings.json.
+    per-culture generator shouldn't pay to re-parse the bundle.
     """
     _original_load_meanings_cache_clear()
     _load_culture.cache_clear()
@@ -496,9 +434,6 @@ def _coupled_cache_clear() -> None:
     _load_fantasy_morphemes.cache_clear()
     _load_empirical_priors.cache_clear()
     _load_packs.cache_clear()
-    # wyrd-d90t PR 5: the runtime-DB bundle-dict cache feeds all three
-    # bundle loaders above; clearing it here keeps the test-side
-    # invalidation symmetric with the JSON path.
     _runtime_db_bundle_dict.cache_clear()
 
 

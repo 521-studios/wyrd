@@ -104,7 +104,7 @@ def write_runtime_db(
     subjects: list[dict[str, Any]],
     fantasy_morphemes: dict[str, Any],
     canonical_decompositions: dict[str, dict[str, str]],
-    proportions_dir: Path | Traversable,
+    proportions_dir: Path | Traversable | None,
     source_lexicon_db: Path,
     dev_subset: bool = False,
     dev_top_n_per_culture: int = DEV_TOP_N_PER_CULTURE,
@@ -114,11 +114,17 @@ def write_runtime_db(
     Overwrites any existing file at the path. Returns a per-section
     rowcount dict suitable for an operator-facing summary line.
 
-    ``proportions_dir`` accepts either a filesystem ``Path`` (CLI
-    operator-supplied override) or an ``importlib.resources.Traversable``
-    (the bundled-data default). The Traversable path lets the default
-    work when the package is shipped as a zipapp — relying on
-    ``Path(__file__).parent`` would break on zip-loaded packages.
+    ``proportions_dir`` controls where per-culture proportions come from:
+
+      * ``None`` (default) — rebuild proportions inline by decomposing the
+        bundled ``<culture>_place_names.json`` corpus against the just-
+        exported ``subjects``. Self-contained: L3 in, L4 out, no
+        intermediate JSON artifact required (d90t cutover state).
+      * ``Path`` — a filesystem directory of ``<culture>_proportions.json``
+        files (operator-supplied override, e.g. for diffing a frozen set
+        against a fresh L3 emit).
+      * ``Traversable`` — same as Path, but resolved from an
+        importlib.resources backend (e.g. a zip-loaded package).
 
     ``dev_subset`` (PR 2 of wyrd-d90t): when True, run every input
     through :func:`select_dev_subset` first — keeps the top N usages /
@@ -128,7 +134,10 @@ def write_runtime_db(
     produce byte-equal output (drift detection on the committed
     ``seed-runtime.db``).
     """
-    proportions_by_culture = _load_proportions(proportions_dir)
+    if proportions_dir is None:
+        proportions_by_culture = _compute_proportions_inline(subjects, canonical_decompositions)
+    else:
+        proportions_by_culture = _load_proportions(proportions_dir)
 
     if dev_subset:
         subjects, fantasy_morphemes, canonical_decompositions, proportions_by_culture = (
@@ -196,17 +205,17 @@ def write_runtime_db(
 def _load_proportions(
     proportions_dir: Path | Traversable,
 ) -> dict[str, dict[str, Any]]:
-    """Read all 5 per-culture proportions JSON files into memory.
+    """Read all 5 per-culture proportions JSON files into memory
+    (operator-supplied override path).
 
-    Cultures whose file is absent are silently skipped — the bundled set
-    is the truth-source; a missing file means that culture isn't shipped
-    from this emit run (covers dev fixtures + future cultures-not-yet-
-    built scenarios alike).
+    Cultures whose file is absent are silently skipped — a missing
+    file means that culture isn't part of this override (covers dev
+    fixtures + partial emits).
 
-    Accepts either a ``Path`` (operator override) or a Traversable
-    (bundled-data default). Iterates via ``joinpath()`` + ``is_file()``
-    — both shapes implement the Traversable protocol — so the default
-    works under any importlib.resources backend including zip loaders.
+    Accepts either a ``Path`` (operator override) or a Traversable.
+    Iterates via ``joinpath()`` + ``is_file()`` — both shapes implement
+    the Traversable protocol — so the source works under any
+    importlib.resources backend including zip loaders.
     """
     out: dict[str, dict[str, Any]] = {}
     for culture in CULTURE_PROPORTIONS:
@@ -215,6 +224,65 @@ def _load_proportions(
             continue
         with entry.open(encoding="utf-8") as f:
             out[culture] = json.load(f)
+    return out
+
+
+def _compute_proportions_inline(
+    subjects: list[dict[str, Any]],
+    canonical_decompositions: dict[str, dict[str, str]],
+) -> dict[str, dict[str, Any]]:
+    """Build per-culture proportions on the fly from the subjects we
+    just exported + the bundled ``<culture>_place_names.json`` corpus.
+
+    The d90t cutover removed the bundled ``<culture>_proportions.json``
+    files; this rebuilds the same data deterministically as part of
+    the emit so an operator only needs to point ``export-runtime-db``
+    at the L3 to produce a fully-populated L4. Operator can still
+    supply ``--proportions-dir`` to bypass this with a hand-edited or
+    frozen proportions set.
+
+    ``canonical_decompositions`` lets the inline rebuild honor
+    scholar-attributed picks the L3 carries (the ``is_canonical=1`` rows
+    on ``toponym_decomposition``, already projected into the L4 emit by
+    ``collect_canonical_decompositions``). Without it the rebuild would
+    drop to heuristic-only matching, losing the canonical-pick lift
+    that's the load-bearing reason ``decompose_with_canonical`` exists.
+    Names without a canonical entry fall through to the
+    ``find_meaning(reduce=True)`` heuristic path — same shape, just no
+    scholar override.
+    """
+    from wyrd.generators.kenning.lexicon.proportions_builder import proportions_from
+    from wyrd.generators.kenning.runtime.decomposition import apply_canonical_to_name
+    from wyrd.generators.kenning.runtime.meaning import load_meanings
+    from wyrd.generators.kenning.runtime.name import load_names_with_regions
+
+    word_db, _ = load_meanings({"subjects": subjects})
+    out: dict[str, dict[str, Any]] = {}
+    for culture in CULTURE_PROPORTIONS:
+        place_names_entry = resources.files("wyrd.generators.kenning.data").joinpath(
+            f"{culture}_place_names.json"
+        )
+        if not place_names_entry.is_file():
+            continue
+        names_data = json.loads(place_names_entry.read_text())
+        name_entries = load_names_with_regions(names_data)
+        resolved = []
+        for name, _region in name_entries:
+            canonical = canonical_decompositions.get(name.name)
+            if canonical:
+                # Populate every alternate (reduce=False) so
+                # apply_canonical_to_name can pick the canonical cell
+                # from the full cross-product. Fall back to the
+                # heuristic on miss — happens when the bundle's
+                # word_db has shifted since the canonical was picked.
+                name.find_meaning(word_db, reduce=False)
+                if not apply_canonical_to_name(name, canonical["signature"]):
+                    name.find_meaning(word_db, reduce=True)
+            else:
+                name.find_meaning(word_db, reduce=True)
+            resolved.append(name)
+        good_names = [n for n in resolved if n.count_unaccounted() == 0]
+        out[culture] = proportions_from(good_names)
     return out
 
 

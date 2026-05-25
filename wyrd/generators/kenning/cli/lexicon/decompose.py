@@ -24,7 +24,7 @@ from wyrd.generators.kenning.runtime.meaning import load_meanings
     "--meanings",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=None,
-    help="Path to meanings.json (defaults to bundled).",
+    help="Path to a meanings.json bundle. Defaults to rehydrating the bundle from the L4 runtime DB.",
 )
 @click.option(
     "--toponym-id",

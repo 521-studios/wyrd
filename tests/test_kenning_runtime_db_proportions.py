@@ -1,14 +1,16 @@
-"""Tests for the per-culture proportions SQLite path (wyrd-d90t PR 6).
+"""Tests for the per-culture proportions SQLite path (wyrd-d90t).
 
 Covers:
 
-1. ``proportions_dict_for_culture`` produces the same shape as the
-   JSON sidecar (round-trip through ``load_proportions`` succeeds).
-2. ``_load_culture`` routes through the L4 when
-   ``WYRD_USE_RUNTIME_DB=1`` is set.
-3. Bit-equivalence: a deterministic seed produces the SAME name
-   across both backends (JSON sidecar vs L4 SQLite) when the L4 was
-   built from the same source data.
+1. ``proportions_dict_for_culture`` produces the same shape the
+   historical JSON sidecar did (round-trip through
+   ``load_proportions`` succeeds).
+2. ``_load_culture`` routes through the L4 end-to-end (no flag —
+   SQLite is the only path).
+3. ``proportions_dict_for_culture`` and the legacy JSON shape are
+   bit-equivalent when the L4 was built from the same fixture data.
+   Confirms the L4 emit preserves the load-bearing surface the
+   ``NameGenerator`` samples from.
 """
 
 from __future__ import annotations
@@ -198,27 +200,13 @@ def test_read_proportions_usage_map_rejects_non_whitelisted_table(
         conn.close()
 
 
-# ---------- _load_culture branching ----------
+# ---------- _load_culture rehydrates the per-culture generator ----------
 
 
-def test_load_culture_flag_off_reads_json_sidecar(monkeypatch) -> None:
-    """Default: _load_culture reads <culture>_proportions.json just
-    like before — bit-stable with the legacy path."""
-    monkeypatch.delenv("WYRD_USE_RUNTIME_DB", raising=False)
-    kenning_pkg._load_culture.cache_clear()
-    name_gen, tag_db = kenning_pkg._load_culture("english")
-    # Sanity: the bundled English proportions has thousands of rows;
-    # tag_db is the second return value from _load_culture.
-    assert len(tag_db) > 0
-    assert name_gen.meaning_db is not None
-
-
-def test_load_culture_flag_on_reads_l4(monkeypatch, _proportions_db: tuple[Path, Path]) -> None:
-    """With the flag on, _load_culture builds the proportions dict
-    from the L4 instead of the JSON sidecar. Smoke-test by checking
-    a generator can be constructed against the smaller fixture
-    English proportions."""
-    monkeypatch.setenv("WYRD_USE_RUNTIME_DB", "1")
+def test_load_culture_reads_l4(monkeypatch, _proportions_db: tuple[Path, Path]) -> None:
+    """``_load_culture`` builds the proportions dict from the L4.
+    Smoke-test by checking a generator can be constructed against
+    the fixture-sized English proportions."""
     db_path, _ = _proportions_db
     monkeypatch.setenv("WYRD_RUNTIME_DB", str(db_path))
     kenning_pkg._load_culture.cache_clear()
@@ -228,6 +216,9 @@ def test_load_culture_flag_on_reads_l4(monkeypatch, _proportions_db: tuple[Path,
     # L4 (3 usages, 2 single_usages, 2 structures).
     assert name_gen is not None
     assert name_gen.meaning_db is not None
+    # tag_db is the second return value from _load_culture; the
+    # fixture lexicon contributes at least a few tag rows.
+    assert isinstance(tag_db, dict)
 
 
 # ---------- bit-equivalence ----------

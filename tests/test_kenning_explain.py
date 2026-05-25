@@ -116,13 +116,35 @@ def test_manifest_lists_explainer_with_multi_result(client):
     assert "kenning-explain" in names
 
 
-def test_explainer_combines_senses_for_one_usage():
-    """When a usage has multiple sense entries, the explanation joins them
-    with ' / ' instead of producing N near-duplicate decompositions."""
-    rs = KenningExplain().generate_all({"name": "Yorkshire"}, 0)
+def test_explainer_combines_senses_for_one_usage(bundle_swapper):
+    """When a usage has multiple sense entries, the explanation joins
+    them with ' / ' instead of producing N near-duplicate
+    decompositions. Uses a 2-subject fixture (``York-`` + multi-sense
+    ``-shire``) so the assertion runs against the seed-runtime.db
+    default in CI — the top-N-per-culture seed doesn't necessarily
+    carry the live bundle's full ``-shire`` polysemy, and we want this
+    rendering contract pinned regardless of which L4 is mounted."""
+    fixture = {
+        "subjects": [
+            {
+                "meaning": ["York"],
+                "modifier_tags": ["name"],
+                "modifier_type": None,
+                "words": [{"modern_usage": "York-", "old_english": ["eofor"]}],
+            },
+            {
+                "meaning": ["District", "Market shire"],
+                "modifier_tags": ["administrative"],
+                "modifier_type": "Administrative",
+                "words": [{"modern_usage": "-shire", "old_english": ["scīr"]}],
+            },
+        ],
+    }
+    with bundle_swapper(fixture):
+        rs = KenningExplain().generate_all({"name": "Yorkshire"}, 0)
     text = " ".join(r.explanation for r in rs)
-    # `-shire` in the bundled meanings DB has two senses; both should appear
-    # together inside one slot rather than each spawning its own reading.
+    # Both senses of -shire must appear together inside one slot rather
+    # than each spawning its own reading.
     assert "District" in text
     assert "Market" in text
 

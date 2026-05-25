@@ -294,18 +294,13 @@ def test_load_parts_partial_generators_usable_after_skip():
     MeaningGenerator was unusable on a single missing key; this test
     pins that we degrade gracefully and known keys keep working.
 
-    Uses the live bundle's load_meanings so the test isn't sensitive
+    Uses the live runtime's _load_meanings so the test isn't sensitive
     to the Meaning() constructor signature. Picks one real usage from
     the bundle as the 'known' key and a synthetic '-not-in-bundle-'
     string as the 'missing' key."""
-    from importlib import resources
+    from wyrd.generators.kenning import _load_meanings
 
-    from wyrd.generators.kenning.runtime.meaning import load_meanings
-
-    bundle_path = str(resources.files("wyrd.generators.kenning.data").joinpath("meanings.json"))
-    with open(bundle_path) as fh:
-        bundle = json.load(fh)
-    meaning_db, tag_db = load_meanings(bundle)
+    meaning_db, tag_db = _load_meanings()
     # Pick the first usage in the bundle as the "known" key.
     known_usage = next(iter(meaning_db))
     # Mix a real proportions entry with a synthetic missing one.

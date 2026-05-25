@@ -158,24 +158,23 @@ def test_manorial_tags_are_excluded_from_user_facing_tag_dropdown() -> None:
 def test_synthesized_manorial_tokens_are_disjoint_from_main_bundle() -> None:
     """Drift guard: the synthesized surname tokens (Mandeville, Lacy,
     Cary, Marshal, Percy, etc.) must not collide with any usage in
-    the main meanings.json or the irish_anglicizations.json
-    sidecar. A future curator who adds 'Marshal' as a generic
-    English topographic morpheme (or whatever) would silently shadow
-    the manorial entry; pinning the disjointness surfaces the
-    collision at curate-time."""
+    the main runtime bundle or the irish_anglicizations.json sidecar.
+    A future curator who adds 'Marshal' as a generic English
+    topographic morpheme (or whatever) would silently shadow the
+    manorial entry; pinning the disjointness surfaces the collision
+    at curate-time."""
     import json
     from importlib import resources
 
-    main = json.loads(
-        resources.files("wyrd.generators.kenning.data").joinpath("meanings.json").read_text()
-    )
+    from wyrd.generators.kenning import _runtime_db_bundle_dict
+
+    main = _runtime_db_bundle_dict()
     sidecar = json.loads(
         resources.files("wyrd.generators.kenning.data")
         .joinpath("irish_anglicizations.json")
         .read_text()
     )
-    # wyrd-c1vq: bundle is dict-shape; subjects under the 'subjects' key.
-    main_subjects = main["subjects"] if isinstance(main, dict) else main
+    main_subjects = main.get("subjects") or []
     sidecar_subjects = sidecar["subjects"] if isinstance(sidecar, dict) else sidecar
     pre_synthesis_usages: set[str] = set()
     for source in (main_subjects, sidecar_subjects):
