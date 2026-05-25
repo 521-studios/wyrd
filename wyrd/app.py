@@ -26,15 +26,21 @@ _LOG_LEVEL_ENV = "LOG_LEVEL"
 
 
 def _configure_logging() -> None:
-    """Wire root + wyrd-package logger levels from the LOG_LEVEL env
-    var. Idempotent: re-calling reconfigures without duplicating
-    handlers (Lambda's runtime already installs a handler that
-    forwards to CloudWatch; we only set levels)."""
+    """Wire the wyrd-package logger level from the LOG_LEVEL env var.
+    Idempotent: re-calling reconfigures without duplicating handlers
+    (Lambda's runtime already installs a handler that forwards to
+    CloudWatch; we only set levels).
+
+    ``LOG_LEVEL`` only affects wyrd's loggers. Root + third-party
+    loggers (botocore, urllib3, s3transfer) stay pinned at WARNING
+    regardless of the env var — staging caught a 10s timeout when
+    LOG_LEVEL=DEBUG let botocore emit hundreds of DEBUG lines per
+    request, burning the full CPU budget on string formatting +
+    CloudWatch I/O for telemetry the operator doesn't need.
+    """
     raw = os.environ.get(_LOG_LEVEL_ENV, "INFO").upper().strip()
     level = getattr(logging, raw, logging.INFO)
-    # Set on root + the wyrd package logger; Lambda's preconfigured
-    # root handler picks up emitted records and ships them to CW.
-    logging.getLogger().setLevel(level)
+    logging.getLogger().setLevel(logging.WARNING)
     logging.getLogger("wyrd").setLevel(level)
 
 

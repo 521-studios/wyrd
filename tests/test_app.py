@@ -52,21 +52,25 @@ def test_coerce_query_params_mixed():
 # --- LOG_LEVEL configuration ----------------------------------------------
 
 
-def test_configure_logging_defaults_to_info(monkeypatch):
-    """Without LOG_LEVEL set, _configure_logging pins both root + wyrd
-    package loggers to INFO. Stagings + prod default cadence."""
+def test_configure_logging_defaults_wyrd_to_info(monkeypatch):
+    """Without LOG_LEVEL set, _configure_logging pins the wyrd
+    package logger to INFO. Root stays at WARNING so botocore /
+    urllib3 / s3transfer's chatty internal DEBUG logs never surface
+    no matter what."""
     monkeypatch.delenv("LOG_LEVEL", raising=False)
     _configure_logging()
-    assert logging.getLogger().level == logging.INFO
+    assert logging.getLogger().level == logging.WARNING
     assert logging.getLogger("wyrd").level == logging.INFO
 
 
-def test_configure_logging_honors_debug_env(monkeypatch):
-    """LOG_LEVEL=DEBUG flips root + wyrd to DEBUG so the per-phase
-    timing logs Kenning.generate emits become visible."""
+def test_configure_logging_honors_debug_env_on_wyrd_only(monkeypatch):
+    """LOG_LEVEL=DEBUG flips wyrd's logger to DEBUG so the per-phase
+    timing logs Kenning.generate emits become visible. Root stays
+    at WARNING — staging hit 10s timeouts when DEBUG also caught
+    botocore's hundreds-of-lines-per-request chatter."""
     monkeypatch.setenv("LOG_LEVEL", "DEBUG")
     _configure_logging()
-    assert logging.getLogger().level == logging.DEBUG
+    assert logging.getLogger().level == logging.WARNING
     assert logging.getLogger("wyrd").level == logging.DEBUG
     # Restore so other tests don't inherit DEBUG cadence.
     monkeypatch.setenv("LOG_LEVEL", "INFO")
@@ -75,10 +79,10 @@ def test_configure_logging_honors_debug_env(monkeypatch):
 
 def test_configure_logging_unknown_level_falls_back_to_info(monkeypatch):
     """Garbage in LOG_LEVEL (typo, empty, etc.) silently falls back to
-    INFO so a misconfigured env var never crashes Lambda init."""
+    INFO on wyrd so a misconfigured env var never crashes Lambda init."""
     monkeypatch.setenv("LOG_LEVEL", "GARBAGE")
     _configure_logging()
-    assert logging.getLogger().level == logging.INFO
+    assert logging.getLogger("wyrd").level == logging.INFO
 
 
 def test_configure_logging_strips_whitespace_and_lowercase(monkeypatch):
@@ -86,7 +90,7 @@ def test_configure_logging_strips_whitespace_and_lowercase(monkeypatch):
     ``debug`` / ``  DEBUG  `` both work."""
     monkeypatch.setenv("LOG_LEVEL", "  debug  ")
     _configure_logging()
-    assert logging.getLogger().level == logging.DEBUG
+    assert logging.getLogger("wyrd").level == logging.DEBUG
     monkeypatch.setenv("LOG_LEVEL", "INFO")
     _configure_logging()
 
