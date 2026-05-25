@@ -152,8 +152,17 @@ resource "aws_lambda_function" "api" {
   handler          = "wyrd.lambda_handler.handler"
   runtime          = "python3.12"
   architectures    = ["arm64"]
-  memory_size      = 512
-  timeout          = 10
+  # 1769MB is the Lambda inflection point where the function gets a
+  # full vCPU (below that, CPU is fractional and scales linearly with
+  # memory). The cold-start bundle-load (SQLite walk → bundle dict →
+  # Meaning objects → NameGenerator) takes ~3.7s on a full vCPU; on
+  # the previous 512MB / ~1/6 vCPU config it ballooned to ~20s and
+  # hit the 10s timeout wall on every cold start. Lazy-loading is the
+  # proper architectural fix (only fetch the morphemes the request
+  # actually samples); until then, the memory bump is what keeps the
+  # generator on the right side of the timeout budget.
+  memory_size      = 1769
+  timeout          = 15
 
   environment {
     variables = {
