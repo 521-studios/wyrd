@@ -273,8 +273,12 @@ def request_signature(request: RequestVector) -> tuple:
     * The gate (culture / era / stratum). Score doesn't read these
       directly, but they're already filtered into the eligibility
       pool, so different gates need different caches.
-    * The register's ``semantic_tags`` + ``phonological`` dicts as
-      frozensets so dict-iteration order doesn't change the key.
+    * The register's three dict axes (``semantic_tags``,
+      ``phonological``, ``position_bias``) as frozensets so dict-
+      iteration order doesn't change the key. All three are read by
+      one of ``phon_score`` / ``sem_score`` / ``pos_score``;
+      omitting any would let cached scores survive a register-axis
+      change.
     * The four ``ScoringWeights`` fields.
     * The ``packs`` tuple (each :class:`PackOverlay` is already a
       hashable frozen dataclass).
@@ -286,6 +290,7 @@ def request_signature(request: RequestVector) -> tuple:
         request.gate.stratum,
         frozenset(request.register.semantic_tags.items()),
         frozenset(request.register.phonological.items()),
+        frozenset(request.register.position_bias.items()),
         request.weights.phon_w,
         request.weights.sem_w,
         request.weights.pos_w,
