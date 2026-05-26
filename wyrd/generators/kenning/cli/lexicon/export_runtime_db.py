@@ -17,6 +17,7 @@ from wyrd.generators.kenning.lexicon import (
     RECOMMENDED_LANG_THRESHOLDS,
     LexiconDB,
     collect_canonical_decompositions,
+    collect_empirical_priors,
     collect_fantasy_morphemes,
     export_meanings,
 )
@@ -179,12 +180,14 @@ def lexicon_export_runtime_db(
         )
         canonical_decompositions = collect_canonical_decompositions(db)
         fantasy_morphemes = collect_fantasy_morphemes(db)
+        empirical_priors_payload = collect_empirical_priors(db, version=EMITTER_VERSION)
 
     counts = write_runtime_db(
         output_path=output_path,
         subjects=subjects,
         fantasy_morphemes=fantasy_morphemes,
         canonical_decompositions=canonical_decompositions,
+        empirical_priors_payload=empirical_priors_payload,
         proportions_dir=proportions_dir,
         source_lexicon_db=db_path,
         dev_subset=dev_subset,

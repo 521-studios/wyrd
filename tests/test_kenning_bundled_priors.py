@@ -1,11 +1,12 @@
 """Tests for the bundled-priors loader + payload parser
-(wyrd-ecjp.10b Phase 7).
+(wyrd-ecjp.10b Phase 7; d90t L4 cutover).
 
-The bundle may ship a priors.json sidecar alongside meanings.json.
-``kenning._load_empirical_priors`` reads it if present, else returns
-an empty EmpiricalPriors so the vector-scoring fallback path stays
-intact (degrades to phon + sem + pos when no baseline data is
-available).
+Pre-cutover the bundle shipped a ``priors.json`` sidecar; post-cutover
+the priors payload lives in the L4 ``empirical_priors`` singleton row.
+``kenning._load_empirical_priors`` reads it via the L4 adapter,
+returning an empty ``EmpiricalPriors`` when the row is absent so the
+vector-scoring fallback path stays intact (degrades to phon + sem +
+pos when no baseline data is available).
 """
 
 from __future__ import annotations
@@ -123,12 +124,15 @@ def test_load_empirical_priors_from_json_matches_payload_path(tmp_path: Path):
 # ---- kenning._load_empirical_priors fallback behavior -------------------
 
 
-def test_load_empirical_priors_reads_bundled_sidecar_when_present(tmp_path: Path, monkeypatch):
-    """Positive-path: when _data_path resolves to a real priors.json
-    on disk, the loader reads + parses it into a populated
-    EmpiricalPriors. Closes the integration-coverage gap from the
-    payload-only + absent-file tests."""
+def test_load_empirical_priors_reads_l4_singleton_when_present(tmp_path: Path, monkeypatch):
+    """Positive-path: when the L4 carries an ``empirical_priors``
+    singleton row, ``_load_empirical_priors`` reads + parses it into
+    a populated ``EmpiricalPriors``. Closes the integration-coverage
+    gap from the payload-only + absent-row tests."""
     import wyrd.generators.kenning as kenning_mod
+    from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
+    from wyrd.generators.kenning.lexicon.runtime_db_export import write_runtime_db
+    from wyrd.generators.kenning.runtime.runtime_db import reset_runtime_db_cache
 
     payload = {
         "version": "test-v1",
@@ -143,15 +147,40 @@ def test_load_empirical_priors_reads_bundled_sidecar_when_present(tmp_path: Path
         ],
         "loan": [],
     }
-    priors_file = tmp_path / "priors.json"
-    priors_file.write_text(json.dumps(payload))
 
-    def fake_data_path(filename: str):
-        if filename == "priors.json":
-            return priors_file
-        return kenning_mod._data_path.__wrapped__(filename)  # type: ignore[attr-defined]
+    lexicon_path = tmp_path / "lexicon.db"
+    init_schema(lexicon_path)
+    with LexiconDB(lexicon_path) as db:
+        db.upsert_source(id="test", title="test")
+        db.commit()
 
-    monkeypatch.setattr(kenning_mod, "_data_path", fake_data_path)
+    out_path = tmp_path / "runtime.db"
+    proportions_dir = tmp_path / "proportions"
+    proportions_dir.mkdir()
+    for culture in ("english", "scottish", "welsh", "irish", "breton"):
+        (proportions_dir / f"{culture}_proportions.json").write_text(
+            json.dumps(
+                {
+                    "usages": {},
+                    "single_usages": {},
+                    "structures": [],
+                    "tag_marginal": {},
+                    "tag_cooccurrence": {},
+                }
+            )
+        )
+    write_runtime_db(
+        output_path=out_path,
+        subjects=[],
+        fantasy_morphemes={},
+        canonical_decompositions={},
+        proportions_dir=proportions_dir,
+        source_lexicon_db=lexicon_path,
+        empirical_priors_payload=payload,
+    )
+
+    monkeypatch.setenv("WYRD_RUNTIME_DB", str(out_path))
+    reset_runtime_db_cache()
     kenning_mod._load_empirical_priors.cache_clear()
     try:
         result = kenning_mod._load_empirical_priors()
@@ -161,33 +190,52 @@ def test_load_empirical_priors_reads_bundled_sidecar_when_present(tmp_path: Path
         assert result.native[key] == {"burh": 100.0}
     finally:
         kenning_mod._load_empirical_priors.cache_clear()
+        reset_runtime_db_cache()
 
 
-def test_load_empirical_priors_returns_empty_when_no_bundled_priors(monkeypatch):
-    """When the bundle has no priors.json, the bundled-priors loader
-    returns an empty EmpiricalPriors. The vector-scoring fallback
-    treats this as 'no baseline axis' and degrades to phon + sem +
-    pos — same as legacy behavior.
-
-    This test asserts the no-file branch by monkey-patching
-    _data_path to return a path that doesn't exist."""
+def test_load_empirical_priors_returns_empty_when_no_l4_row(tmp_path: Path, monkeypatch):
+    """When the L4 has no ``empirical_priors`` row, the loader returns
+    an empty ``EmpiricalPriors``. The vector-scoring fallback treats
+    this as 'no baseline axis' and degrades to phon + sem + pos —
+    same as legacy behavior."""
     import wyrd.generators.kenning as kenning_mod
+    from wyrd.generators.kenning.lexicon import LexiconDB, init_schema
+    from wyrd.generators.kenning.lexicon.runtime_db_export import write_runtime_db
+    from wyrd.generators.kenning.runtime.runtime_db import reset_runtime_db_cache
 
-    # Clear the LRU cache so the monkeypatched _data_path is used
-    kenning_mod._load_empirical_priors.cache_clear()
+    lexicon_path = tmp_path / "lexicon.db"
+    init_schema(lexicon_path)
+    with LexiconDB(lexicon_path) as db:
+        db.upsert_source(id="test", title="test")
+        db.commit()
 
-    class _FakeTraversable:
-        def is_file(self) -> bool:
-            return False
+    out_path = tmp_path / "runtime.db"
+    proportions_dir = tmp_path / "proportions"
+    proportions_dir.mkdir()
+    for culture in ("english", "scottish", "welsh", "irish", "breton"):
+        (proportions_dir / f"{culture}_proportions.json").write_text(
+            json.dumps(
+                {
+                    "usages": {},
+                    "single_usages": {},
+                    "structures": [],
+                    "tag_marginal": {},
+                    "tag_cooccurrence": {},
+                }
+            )
+        )
+    # No empirical_priors_payload → no row written.
+    write_runtime_db(
+        output_path=out_path,
+        subjects=[],
+        fantasy_morphemes={},
+        canonical_decompositions={},
+        proportions_dir=proportions_dir,
+        source_lexicon_db=lexicon_path,
+    )
 
-    def fake_data_path(filename: str):
-        if filename == "priors.json":
-            return _FakeTraversable()
-        return kenning_mod._data_path.__wrapped__(filename)  # type: ignore[attr-defined]
-
-    # Monkeypatch the module-level _data_path so the loader picks up
-    # the fake. Restore after the test via monkeypatch teardown.
-    monkeypatch.setattr(kenning_mod, "_data_path", fake_data_path)
+    monkeypatch.setenv("WYRD_RUNTIME_DB", str(out_path))
+    reset_runtime_db_cache()
     kenning_mod._load_empirical_priors.cache_clear()
     try:
         result = kenning_mod._load_empirical_priors()
@@ -196,3 +244,4 @@ def test_load_empirical_priors_returns_empty_when_no_bundled_priors(monkeypatch)
         assert result.loan_relationship == {}
     finally:
         kenning_mod._load_empirical_priors.cache_clear()
+        reset_runtime_db_cache()

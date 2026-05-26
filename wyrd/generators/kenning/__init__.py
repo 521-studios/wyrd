@@ -340,30 +340,27 @@ def _load_fantasy_morphemes() -> dict[str, dict]:
 
 @lru_cache(maxsize=1)
 def _load_empirical_priors():
-    """wyrd-ecjp.10b: load the bundled empirical priors sidecar
-    (priors.json) if present, else return an empty EmpiricalPriors.
+    """Load the bundled empirical priors from the L4 runtime DB
+    (``empirical_priors`` singleton row, schema v2). Returns an empty
+    ``EmpiricalPriors`` when the row is absent (L3 hadn't run
+    ``mine-empirical-baselines`` at emit time) — vector-scoring path
+    degrades to phon + sem + pos in that case.
 
-    Operator chose sidecar over embedded (max isolation from
-    meanings.json shape changes; matches the dump-empirical-priors
-    output format). The runtime's vector-scoring dispatch uses this
-    as the fallback when --priors-path isn't passed: the bundle
-    ships its own priors, so the baseline axis has data even without
-    an operator-supplied sidecar.
-
-    Empty EmpiricalPriors returned when priors.json is absent
-    (legacy bundles, dev environments that haven't run
-    dump-empirical-priors yet). Vector-scoring path degrades to phon
-    + sem + pos in that case — same fallback as no --priors-path."""
+    Pre-cutover this read ``priors.json`` from the bundled data dir;
+    d90t folded the priors payload into the L4 so vector mode works
+    out of the box without a separate sidecar."""
     from wyrd.generators.kenning.lexicon.empirical_priors import (
         load_empirical_priors_from_payload,
     )
+    from wyrd.generators.kenning.runtime.runtime_db import get_runtime_db
+    from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+        empirical_priors_payload_from_runtime_db,
+    )
     from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
 
-    priors_path = _data_path("priors.json")
-    if not priors_path.is_file():
+    payload = empirical_priors_payload_from_runtime_db(get_runtime_db())
+    if payload is None:
         return EmpiricalPriors()
-    with priors_path.open(encoding="utf-8") as f:
-        payload = json.load(f)
     return load_empirical_priors_from_payload(payload)
 
 

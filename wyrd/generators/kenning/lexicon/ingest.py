@@ -23,27 +23,68 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from wyrd.generators.kenning.lexicon.db import LexiconDB
+from wyrd.generators.kenning.lexicon.regions import country_for_region
 
 if TYPE_CHECKING:
     from wyrd.generators.kenning.parsers.skeat import ParsedEntry
 
 
-def _upsert_toponym(db: LexiconDB, modern_name: str, region: str | None) -> int:
+def _upsert_toponym(
+    db: LexiconDB,
+    modern_name: str,
+    region: str | None,
+    country: str | None = None,
+) -> int:
+    """Upsert a ``toponym`` row keyed on the (name, country, region)
+    unique index. ``country`` defaults to the region-derived value
+    from :func:`country_for_region` — callers only need to pass it
+    explicitly to override the derivation (or to set country when no
+    region is known).
+
+    Migration-window edge case: when a legacy NULL-country row already
+    exists for (name, region) and the caller now derives a non-null
+    country, the exact SELECT misses (NULL vs derived-value). Instead
+    of letting that create a twin row, opportunistically UPDATE the
+    legacy row in place — same effect as running
+    ``backfill_toponym_country`` against just that row. Idempotent +
+    self-repairing across the migration window.
+    """
+    if country is None:
+        country = country_for_region(region)
     cur = db.conn.execute(
         """
         SELECT id FROM toponym
         WHERE modern_name = ?
-          AND COALESCE(country, '') = ''
+          AND COALESCE(country, '') = COALESCE(?, '')
           AND COALESCE(region, '') = COALESCE(?, '')
         """,
-        (modern_name, region),
+        (modern_name, country, region),
     )
     row = cur.fetchone()
     if row is not None:
         return row["id"]
+    # Migration-window self-repair: if a legacy NULL-country row exists
+    # for (name, region), and the new caller has derived a non-null
+    # country, backfill the row in place rather than creating a twin.
+    if country is not None:
+        legacy = db.conn.execute(
+            """
+            SELECT id FROM toponym
+            WHERE modern_name = ?
+              AND country IS NULL
+              AND COALESCE(region, '') = COALESCE(?, '')
+            """,
+            (modern_name, region),
+        ).fetchone()
+        if legacy is not None:
+            db.conn.execute(
+                "UPDATE toponym SET country = ? WHERE id = ?",
+                (country, legacy["id"]),
+            )
+            return legacy["id"]
     cur = db.conn.execute(
-        "INSERT INTO toponym (modern_name, region) VALUES (?, ?)",
-        (modern_name, region),
+        "INSERT INTO toponym (modern_name, country, region) VALUES (?, ?, ?)",
+        (modern_name, country, region),
     )
     return cur.lastrowid
 
@@ -54,11 +95,16 @@ def ingest_parsed_entries(
     source_id: str,
     *,
     region: str | None = None,
+    country: str | None = None,
 ) -> dict[str, int]:
     """Persist ParsedEntry rows from a Skeat-style parser into the DB.
 
     For each entry:
-      - Upsert toponym row (region carries the source's coverage area).
+      - Upsert toponym row (region carries the source's coverage area;
+        country defaults to the region-derived value, so historical
+        callers that only pass ``region`` automatically populate country
+        too — fixes the empirical-priors miner's ``country_unknown``
+        gap that was zeroing out the English baseline).
       - For HIGH/MEDIUM confidence: insert a toponym_etymology row pointing
         at <source_id>, plus one toponym_etymology_element per parsed
         element. Each element's etymon is upserted, glosses/tags attached,
@@ -76,7 +122,7 @@ def ingest_parsed_entries(
         "etymons_touched": 0,
     }
     for entry in parsed_entries:
-        toponym_id = _upsert_toponym(db, entry.toponym, region)
+        toponym_id = _upsert_toponym(db, entry.toponym, region, country)
         counts["toponyms"] += 1
 
         if entry.confidence == "low" or not entry.elements:

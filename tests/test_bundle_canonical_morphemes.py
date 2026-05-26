@@ -82,6 +82,18 @@ def meaning_db():
 def test_canonical_morpheme_top_etymon(
     meaning_db, usage, expected_lang, expected_lemma, expected_gloss_substring
 ):
+    import os
+
+    if not (os.environ.get("WYRD_RUNTIME_DB") or os.environ.get("WYRD_RUNTIME_DB_BUCKET")):
+        # The seed-runtime.db is a top-N-per-culture subset; not every
+        # canonical morpheme survives the cut. Pin this regression
+        # against a full-corpus L4 only.
+        siblings = meaning_db.get(usage)
+        if not siblings:
+            pytest.skip(
+                f"{usage!r} not in seed-runtime.db subset; set WYRD_RUNTIME_DB "
+                f"to a full-corpus L4 to run this assertion."
+            )
     """The top-ranked etymon for each canonical morpheme must match
     the pinned expectations. Pre-fix protections:
 

@@ -8,6 +8,7 @@ against synthetic toponym + etymology + element fixtures.
 from __future__ import annotations
 
 import json
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -941,6 +942,54 @@ def test_cli_dump_empirical_priors(db, tmp_path):
     artifact = json.loads(out.read_text())
     assert artifact["version"] == "cli-test"
     assert len(artifact["native"]) == 1
+
+
+def test_collect_empirical_priors_tolerates_missing_tables(tmp_path):
+    """``collect_empirical_priors`` is called by the L4 emit; it MUST
+    NOT crash when the L3 was snapshotted before the priors tables
+    were added (alembic migration hadn't run). Returns None — the
+    emit then writes no priors row, and the runtime loader degrades
+    to empty ``EmpiricalPriors``."""
+    from wyrd.generators.kenning.lexicon.empirical_priors import collect_empirical_priors
+
+    db_path = tmp_path / "pre_priors_l3.db"
+    # Hand-built minimal L3 WITHOUT the priors tables (mimics a
+    # pre-empirical-priors-migration L3 snapshot).
+    conn = sqlite3.connect(str(db_path))
+    conn.executescript("CREATE TABLE etymon (id INTEGER PRIMARY KEY);")
+    conn.commit()
+    conn.close()
+
+    with LexiconDB(db_path) as db:
+        assert collect_empirical_priors(db) is None
+
+
+def test_collect_empirical_priors_tolerates_partial_migration(tmp_path):
+    """Partial-migration corner: ``empirical_priors_native`` exists
+    but ``empirical_priors_loan`` doesn't (or vice versa). A failed /
+    interrupted alembic upgrade could leave the DB in this shape.
+    The try/except wraps BOTH SELECTs so either failure returns None
+    rather than crashing the L4 emit. Pin so a future refactor that
+    narrows the try-block (e.g. wraps the SELECTs individually) still
+    handles the partial-migration case."""
+    from wyrd.generators.kenning.lexicon.empirical_priors import collect_empirical_priors
+
+    db_path = tmp_path / "partial.db"
+    conn = sqlite3.connect(str(db_path))
+    conn.executescript(
+        "CREATE TABLE etymon (id INTEGER PRIMARY KEY);"
+        # Native table exists, loan table is missing.
+        "CREATE TABLE empirical_priors_native ("
+        "  culture TEXT, position TEXT, tag TEXT, era_midpoint INTEGER, "
+        "  lemma_ref TEXT, count INTEGER);"
+    )
+    conn.commit()
+    conn.close()
+
+    with LexiconDB(db_path) as db:
+        # Native is empty + loan is absent — function returns None
+        # without crashing on the loan SELECT.
+        assert collect_empirical_priors(db) is None
 
 
 # ---------- helpers ------------------------------------------------------

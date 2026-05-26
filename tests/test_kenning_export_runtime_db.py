@@ -807,7 +807,7 @@ def test_emit_default_proportions_dir_computes_inline(tmp_path: Path) -> None:
             conn.execute(f"SELECT COUNT(*) FROM {row[0]}").fetchone()
     finally:
         conn.close()
-    assert bundle_meta.get("schema_version") == "1"
+    assert bundle_meta.get("schema_version") == SCHEMA_VERSION
     assert "built_at" in bundle_meta
 
 
@@ -899,6 +899,93 @@ def test_inline_rebuild_honors_canonical_decomposition() -> None:
         f"got english usages {sorted(out['english'].get('usages', {}).keys())[:10]}"
     )
     assert "-ton" in out["english"]["usages"]
+
+
+def test_empirical_priors_round_trip(tmp_path: Path) -> None:
+    """The ``empirical_priors`` singleton row carries the priors payload
+    in the same shape ``_cell_records`` produces — flat per-cell record
+    with the cell-field keys at the top level + ``lemmas`` as a dict
+    mapping lemma_ref → count. Emit it, read it back via the runtime
+    adapter, and confirm both the on-disk shape AND the
+    production-loader-acceptance round-trip both succeed."""
+    from wyrd.generators.kenning.lexicon.empirical_priors import (
+        load_empirical_priors_from_payload,
+    )
+    from wyrd.generators.kenning.lexicon.runtime_db_export import write_runtime_db
+    from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+        empirical_priors_payload_from_runtime_db,
+    )
+
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    payload = {
+        "version": "test-priors",
+        "native": [
+            {
+                "culture": "english",
+                "position": "post",
+                "tag": "settlement",
+                "era_midpoint": 1100,
+                "lemmas": {"old-english:tūn": 42},
+            }
+        ],
+        "loan": [],
+    }
+    write_runtime_db(
+        output_path=out_path,
+        subjects=[],
+        fantasy_morphemes={},
+        canonical_decompositions={},
+        proportions_dir=tmp_path,
+        source_lexicon_db=db_path,
+        empirical_priors_payload=payload,
+    )
+
+    conn = sqlite3.connect(f"file:{out_path}?mode=ro", uri=True)
+    try:
+        readback = empirical_priors_payload_from_runtime_db(conn)
+    finally:
+        conn.close()
+    # Round-trip through raw JSON serdes.
+    assert readback == payload
+    # Round-trip through the production loader (the actual consumer
+    # of this payload). The cell-key tuple is what the runtime keys on.
+    loaded = load_empirical_priors_from_payload(readback)
+    assert loaded.version == "test-priors"
+    assert loaded.native[("english", "post", "settlement", 1100)] == {"old-english:tūn": 42}
+
+
+def test_empirical_priors_missing_row_returns_none(tmp_path: Path) -> None:
+    """No priors emitted (``empirical_priors_payload=None``) → the
+    adapter returns ``None`` and the runtime loader degrades to an
+    empty ``EmpiricalPriors``. Pins the no-priors fallback contract."""
+    from wyrd.generators.kenning.lexicon.runtime_db_export import write_runtime_db
+    from wyrd.generators.kenning.runtime.runtime_db_adapter import (
+        empirical_priors_payload_from_runtime_db,
+    )
+
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    write_runtime_db(
+        output_path=out_path,
+        subjects=[],
+        fantasy_morphemes={},
+        canonical_decompositions={},
+        proportions_dir=tmp_path,
+        source_lexicon_db=db_path,
+    )
+
+    conn = sqlite3.connect(f"file:{out_path}?mode=ro", uri=True)
+    try:
+        assert empirical_priors_payload_from_runtime_db(conn) is None
+    finally:
+        conn.close()
 
 
 def test_emit_resolves_relative_lexicon_path(tmp_path: Path, monkeypatch) -> None:

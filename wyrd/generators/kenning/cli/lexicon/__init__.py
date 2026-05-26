@@ -39,6 +39,9 @@ from wyrd.generators.kenning.cli.lexicon import (
 )
 from wyrd.generators.kenning.cli.lexicon import backfill_pages as _backfill_pages_module
 from wyrd.generators.kenning.cli.lexicon import (
+    backfill_toponym_country as _backfill_toponym_country_module,
+)
+from wyrd.generators.kenning.cli.lexicon import (
     bridge_celtic_forms as _bridge_celtic_forms_module,
 )
 from wyrd.generators.kenning.cli.lexicon import bridge_language as _bridge_language_module
@@ -197,6 +200,7 @@ _audit_short_quotes_module.add_to(lexicon)
 _cleanup_wiktionary_empirical_module.add_to(lexicon)
 _backfill_fantasy_tags_module.add_to(lexicon)
 _backfill_pages_module.add_to(lexicon)
+_backfill_toponym_country_module.add_to(lexicon)
 _bridge_celtic_forms_module.add_to(lexicon)
 _bridge_language_module.add_to(lexicon)
 _bridge_phonological_oe_module.add_to(lexicon)

@@ -102,6 +102,29 @@ def _read_fantasy_morphemes(conn: sqlite3.Connection) -> dict[str, dict]:
     return {key: json.loads(blob) for key, blob in cursor}
 
 
+def empirical_priors_payload_from_runtime_db(
+    conn: sqlite3.Connection,
+) -> dict[str, Any] | None:
+    """Read the singleton ``empirical_priors`` row + return the parsed
+    payload (same shape ``dump_empirical_priors_to_json`` writes /
+    ``load_empirical_priors_from_payload`` consumes).
+
+    Returns ``None`` when the row is absent — happens when the L3
+    hadn't run ``mine-empirical-baselines`` at emit time. The runtime
+    loader treats ``None`` as "use the empty ``EmpiricalPriors``".
+
+    Schema mismatch (missing table from a pre-v2 DB) doesn't reach
+    this code — ``runtime_db.get_runtime_db`` rejects pre-v2 DBs at
+    connection-open time via
+    :class:`runtime_db.RuntimeDBVersionMismatch`, so any DB this
+    function sees is guaranteed to have the table.
+    """
+    row = conn.execute("SELECT data FROM empirical_priors WHERE id = 1").fetchone()
+    if row is None:
+        return None
+    return json.loads(row[0])
+
+
 def proportions_dict_for_culture(conn: sqlite3.Connection, culture: str) -> dict[str, Any]:
     """Build the per-culture proportions dict that ``load_proportions``
     consumes from the L4 ``proportions_*`` tables (wyrd-d90t PR 6).
