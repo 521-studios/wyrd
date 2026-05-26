@@ -446,9 +446,22 @@ class NameGenerator:
         structs,
         tag_cooccurrence: dict[str, int] | None = None,
         tag_marginal: dict[str, int] | None = None,
+        culture_attested_usages: frozenset[str] | None = None,
     ):
         self.meaning_db = meaning_db
         self.meaning_gen = meaning_gen
+        # Set of usage_keys attested in this culture's corpus (union of
+        # proportions_usage + proportions_single_usage). Used as a
+        # culture filter on the vector path's eligibility pool — without
+        # it, English-culture vector requests pull in Welsh / Persian /
+        # Hebrew morphemes that aren't attested in English place names
+        # (the "culture bleed" issue). ``None`` disables the filter
+        # (legacy back-compat for callers that don't supply it).
+        #
+        # Proportions mode doesn't need this — it samples directly from
+        # the per-culture proportions table, which is already culture-
+        # restricted by construction.
+        self.culture_attested_usages: frozenset[str] | None = culture_attested_usages
         # Cache the vector-path's non-position eligibility pool keyed
         # by (era_min, era_max, stratum, exclude_tags, packs_signature).
         # The dispatch loop calls ``select_via_vector`` once per
@@ -762,6 +775,7 @@ class NameGenerator:
                 exclude_tags=exclude_tags_fz,
                 pack_meaning_dbs=pack_meaning_dbs,
                 packs=request.packs,
+                culture_attested_usages=self.culture_attested_usages,
             )
             self._vector_eligible_cache[cache_key] = non_position_eligible
 
@@ -1628,7 +1642,23 @@ def load_proportions(data, meaning_db, tag_db):
     # bundles without these keys produce a no-op cohesion knob.
     cooccurrence = data.get("tag_cooccurrence", {})
     marginal = data.get("tag_marginal", {})
-    return NameGenerator(meaning_db, mg, struct, cooccurrence, marginal)
+    # Union the two attested-usage sources so the vector path filters
+    # by "anything this culture's corpus attests" rather than
+    # "compound usages only" or "standalone usages only".
+    # ``or None`` collapses an empty union to ``None`` so a degenerate
+    # bundle (a culture whose proportions are both empty) disables the
+    # filter rather than silently emptying the entire native pool —
+    # an empty frozenset is truthy under the downstream
+    # ``is not None`` guard.
+    culture_attested_usages = (frozenset(usages.keys()) | frozenset(single_usages.keys())) or None
+    return NameGenerator(
+        meaning_db,
+        mg,
+        struct,
+        cooccurrence,
+        marginal,
+        culture_attested_usages=culture_attested_usages,
+    )
 
 
 def _blend_uniform(items, novelty: float):
