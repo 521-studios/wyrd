@@ -357,31 +357,69 @@ def select_via_vector_scoring(
     return picked
 
 
+_BUNDLE_FIELD_TO_L3_LANG: dict[str, str] = {
+    # Reverse of ``lexicon.bundle._emit._LANG_CODE_TO_JSON_FIELD``'s
+    # primary L3 → bundle-field mapping. Used by ``_lemma_ref_for`` to
+    # synthesize the ``language:canonical_form`` shape the priors tables
+    # key on (per ``empirical_priors.extract_priors`` —
+    # ``f"{row['language']}:{row['canonical_form']}"``).
+    #
+    # Lossy because multiple L3 langs collapse into one bundle field
+    # (e.g. welsh + irish + old-irish + ... → celtic_mix). We pick the
+    # L3 code that the empirical-priors miner actually emits for the
+    # majority of cells in that bucket:
+    #   * old_english (401 native cells), old_scandinavian (127),
+    #     norman-french (8), modern_english (151) — all dominant
+    #     in the English-recipient priors slice.
+    #   * celtic_mix → "celtic" — matches what the priors miner emits
+    #     for celtic-bucket lemmas under the English-priors slice
+    #     (cross-cultural priors are future Phase-2 work).
+    # Bundle fields whose L3 mapping isn't 1:1-reversible (latin,
+    # germanic, greek, biblical) map to the same name on both sides.
+    "old_english": "old-english",
+    "old_scandinavian": "old-norse",
+    "old_french": "norman-french",
+    "modern_english": "modern-english",
+    "celtic_mix": "celtic",
+    "latin": "latin",
+    "germanic": "germanic",
+    "greek": "greek",
+    "biblical": "biblical",
+}
+
+
 def _lemma_ref_for(meaning: Meaning) -> str:
     """Resolve the ``lemma_ref`` string the priors-baseline lookup
-    keys on.
+    keys on (``f"{l3_language}:{canonical_form}"`` — same shape
+    ``empirical_priors.extract_priors`` emits).
 
-    Round-1 reviewer caught a shape mismatch: the lexicon-side
-    convention (per ``empirical_priors.py:extract_priors``) is
-    ``f"{language}:{canonical_form}"`` (e.g. ``"old-english:wulf"``).
-    Meaning instances don't carry language directly — language is
-    implicit in the bundle subject's lang_field keys (old_english,
-    celtic_mix, etc.). For ecjp.5 v1 we return only the bare usage
-    form (decoration dashes stripped); the baseline-axis lookup
-    therefore MISSES on every priors-table key, contributes 0 to the
-    composition, and the score falls back to phon/sem/pos — same
-    graceful-degrade pattern as a meaning without
-    phonological_vector. Per D36.7's hierarchical fallback the
-    baseline_score then walks the tag-wildcard / all-wildcard cells,
-    surfacing whatever data the priors carry at coarser granularity.
-    Wiring per-meaning ``language`` through Meaning + emitting the
-    full ``language:canonical_form`` form here is wyrd-ecjp.8 / Phase 7
-    territory.
+    Walks ``meaning.sources`` (dict[bundle_lang_field, list[form]])
+    in alphabetical order, picks the first non-empty entry, maps
+    bundle-field → L3 lang via ``_BUNDLE_FIELD_TO_L3_LANG``, and
+    returns ``f"{l3_lang}:{form}"``. The alphabetical walk is
+    deterministic + stable across re-runs; ``old_english`` lands
+    first under it which matches the dominant-English-priors-data
+    we have today.
 
-    Returns the meaning's usage stripped of decoration dashes — so
-    ``"Place-"`` → ``"Place"`` and ``"-shire"`` → ``"shire"``. The
-    bare-usage form is what the priors tables key on.
+    Falls back to the bare-usage form (legacy ecjp.5 v1 behavior) when
+    a meaning has no source-language form at all (synthesized /
+    sidecar meanings without per-language data). The baseline lookup
+    misses on the bare form; scoring degrades to phon/sem/pos per the
+    graceful-degrade contract.
     """
+    for lang_field in sorted(meaning.sources):
+        forms = meaning.sources[lang_field]
+        if not forms:
+            continue
+        l3_lang = _BUNDLE_FIELD_TO_L3_LANG.get(lang_field, lang_field.replace("_", "-"))
+        # forms entries are usually plain strings; tolerate dict-shaped
+        # entries (some bundle schemas wrap forms with metadata) by
+        # picking the canonical-form-ish key.
+        first = forms[0]
+        if isinstance(first, dict):
+            first = first.get("form") or first.get("canonical_form") or ""
+        if first:
+            return f"{l3_lang}:{first}"
     return meaning.usage.replace("-", "")
 
 

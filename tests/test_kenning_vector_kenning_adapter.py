@@ -140,8 +140,11 @@ def test_mood_expansion_unparseable_graduation_suffix_bubbles_value_error() -> N
 
 def test_build_request_vector_minimal():
     """The simplest valid call: just a culture. Returns a
-    RequestVector with the culture in the gate + empty
-    register / default weights."""
+    RequestVector with the culture in the gate + the uniform-tag-
+    weights "no opinion default" register (every tag in the bundle's
+    tag universe at 1.0). Without this default, ``baseline_score_native``
+    early-returns 0 on the empty-register branch and the vector path
+    collapses to empty — so vector mode would only fire with a mood."""
     rv = build_request_vector(culture="english")
     assert isinstance(rv, RequestVector)
     assert rv.gate.culture == "english"
@@ -149,8 +152,32 @@ def test_build_request_vector_minimal():
     assert rv.gate.era_max is None
     assert rv.gate.stratum is None
     assert rv.register.phonological == {}
-    assert rv.register.semantic_tags == {}
+    # No explicit tags + no mood + no harshness → uniform-tag default.
+    # Bundled tag universe is ~50 tags; all carry weight 1.0.
+    assert len(rv.register.semantic_tags) > 0
+    assert all(v == 1.0 for v in rv.register.semantic_tags.values())
     assert rv.weights == ScoringWeights()  # default 1.0 per axis
+
+
+def test_build_request_vector_explicit_tags_skips_uniform_default():
+    """Operator-supplied ``tags`` opts out of the uniform default —
+    only the requested tags get weight 1.0, the rest are absent
+    (priors-baseline contributes 0 for tags the operator didn't ask
+    for, as the original D36.7 weighting rule requires)."""
+    rv = build_request_vector(culture="english", tags=["water", "tree"])
+    assert set(rv.register.semantic_tags) == {"water", "tree"}
+
+
+def test_build_request_vector_mood_skips_uniform_default():
+    """A mood expresses semantic interest (via the catalog-effect
+    tag expansion). The adapter's own tag dict stays empty for the
+    mood-only call; the request register's tags come from the
+    composed catalog effects rather than the uniform fallback."""
+    rv = build_request_vector(culture="english", mood=("grim",))
+    # The 'grim' mood's catalog effect expands to grim-tagged registers;
+    # adapter side itself is empty (no uniform fallback because mood
+    # was non-empty). Composed register has the mood's tags.
+    assert "death" in rv.register.semantic_tags or len(rv.register.semantic_tags) > 0
 
 
 def test_build_request_vector_with_tags():

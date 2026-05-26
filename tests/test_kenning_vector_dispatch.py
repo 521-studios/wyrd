@@ -112,22 +112,29 @@ def test_kenning_scoring_mode_vector_with_priors(tmp_path: Path):
         assert "vector" in str(e).lower()
 
 
-def test_kenning_scoring_mode_vector_raises_on_empty():
-    """When the vector path filters everything (e.g. gate excludes
-    every meaning + no priors + no register weights), the dispatch
-    raises a ValueError with operator-readable diagnostic rather
-    than returning empty silently."""
+def test_kenning_scoring_mode_vector_default_uses_uniform_tag_weights():
+    """Vector mode with no explicit semantic signal (no tags, no
+    mood, no harshness) now falls back to uniform-tag-weights via
+    ``build_request_vector``'s no-opinion-default branch — so the
+    request still expresses semantic interest (1.0 over the full
+    tag universe) and ``baseline_score_native`` returns non-zero
+    for any lemma the priors data covers. Pin that the dispatch
+    produces a name rather than raising the legacy "no eligible
+    name" error.
+
+    Pre-fix contract was: empty register → no eligible name (vector
+    mode only worked with a mood). That was the gate on adopting
+    vector as a default scoring mode; this test pins the new
+    works-by-default contract."""
     k = Kenning()
-    with pytest.raises(ValueError, match=r"vector.*no eligible"):
-        k.generate(
-            {
-                "culture": "english",
-                # Empty tags + zero harshness + no priors + no mood →
-                # vector scoring returns 0 for every lemma → empty pick
-                "scoring_mode": "vector",
-            },
-            seed=42,
-        )
+    result = k.generate(
+        {
+            "culture": "english",
+            "scoring_mode": "vector",
+        },
+        seed=42,
+    )
+    assert result.result, "vector mode default-call must produce a non-empty name"
 
 
 def test_kenning_seed_stable_within_mode():
