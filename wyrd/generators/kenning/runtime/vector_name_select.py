@@ -198,6 +198,70 @@ def _slot_position_label(structural_element: str) -> str:
     return "post"
 
 
+def build_non_position_eligible(
+    meaning_db: dict[str, list[Meaning]],
+    *,
+    gate,
+    exclude_tags: frozenset[str],
+    pack_meaning_dbs: dict[str, dict[str, list[Meaning]]] | None,
+    packs,
+) -> list[Meaning]:
+    """Pre-compute the non-position-filtered eligibility pool.
+
+    Era, stratum, and exclude_tags don't depend on the slot — they
+    apply uniformly across every slot in the structure. Pulling this
+    out into a free function lets the caller cache the result across
+    sub-seeds (the dispatch loop calls
+    :meth:`NameGenerator.select_via_vector` once per sub-seed; without
+    caching, this O(N=64k) scan re-runs every time).
+
+    The cache key on the caller side is
+    ``(id(meaning_db), gate, exclude_tags, id(pack_meaning_dbs))`` —
+    same meaning_db + same filters + same pack overlays → identical
+    output. The list is per-meaning order-stable across re-runs (we
+    walk ``meaning_db.values()`` which is insertion-ordered in Python
+    3.7+), so the caller can re-use the cached list directly in the
+    weighted-sampling loop without re-shuffling.
+    """
+    non_position_eligible: list[Meaning] = []
+    for meanings_for_usage in meaning_db.values():
+        for m in meanings_for_usage:
+            if not _matches_era(m, gate.era_min, gate.era_max):
+                continue
+            if not _matches_stratum(m, gate.stratum):
+                continue
+            if exclude_tags and any(t in exclude_tags for t in m.tags):
+                continue
+            non_position_eligible.append(m)
+
+    # wyrd-ecjp.8: admit pack lemmas alongside native lemmas. Pack-
+    # tag filters (allowed_pack_tags / excluded_pack_tags) gate per-
+    # pack on top of the shared era/stratum/exclude predicates.
+    if pack_meaning_dbs:
+        for pack in packs:
+            pack_db = pack_meaning_dbs.get(pack.pack_name)
+            if pack_db is None:
+                continue
+            for meanings_for_usage in pack_db.values():
+                for m in meanings_for_usage:
+                    if not _matches_era(m, gate.era_min, gate.era_max):
+                        continue
+                    if not _matches_stratum(m, gate.stratum):
+                        continue
+                    if exclude_tags and any(t in exclude_tags for t in m.tags):
+                        continue
+                    if pack.allowed_pack_tags and not any(
+                        t in pack.allowed_pack_tags for t in m.tags
+                    ):
+                        continue
+                    if pack.excluded_pack_tags and any(
+                        t in pack.excluded_pack_tags for t in m.tags
+                    ):
+                        continue
+                    non_position_eligible.append(m)
+    return non_position_eligible
+
+
 def select_via_vector_scoring(
     rng: random.Random,
     meaning_db: dict[str, list[Meaning]],
@@ -210,6 +274,7 @@ def select_via_vector_scoring(
     tag_cooccurrence: dict[str, dict[str, float]] | None = None,
     exclude_tags: frozenset[str] = frozenset(),
     pack_meaning_dbs: dict[str, dict[str, list[Meaning]]] | None = None,
+    non_position_eligible: list[Meaning] | None = None,
 ) -> list[Meaning]:
     """Pick one Meaning per slot in the structure via the D36.2
     composition rule.
@@ -256,57 +321,17 @@ def select_via_vector_scoring(
     prior_tags: set[str] = set()
     gate = request.gate
 
-    # Pre-compute the non-position eligibility pool ONCE — era,
-    # stratum, and exclude_tags don't depend on the slot. Position is
-    # the only per-slot predicate. Round-1 reviewer caught the O(S*N)
-    # redundancy and turned it into O(N + S*P) where P is the
-    # per-slot position-filtered subset (typically ~N/3 for
-    # pre/inner/post-balanced corpora).
-    non_position_eligible: list[Meaning] = []
-    for meanings_for_usage in meaning_db.values():
-        for m in meanings_for_usage:
-            if not _matches_era(m, gate.era_min, gate.era_max):
-                continue
-            if not _matches_stratum(m, gate.stratum):
-                continue
-            if exclude_tags and any(t in exclude_tags for t in m.tags):
-                continue
-            non_position_eligible.append(m)
-
-    # wyrd-ecjp.8: admit pack lemmas alongside native lemmas. Each
-    # declared pack contributes its meaning_db's lemmas, filtered by
-    # the pack's allowed_pack_tags / excluded_pack_tags (gate-level
-    # filter from PackOverlay) AND the gate's era / stratum / exclude
-    # predicates (shared with native). Pack lemmas score via the
-    # baseline_score_pack path inside score(), which uses the pack's
-    # template_donor/template_recipient + pack.weight to compose the
-    # multi-source baseline contribution per D36.4 Option B.
-    if pack_meaning_dbs:
-        for pack in request.packs:
-            pack_db = pack_meaning_dbs.get(pack.pack_name)
-            if pack_db is None:
-                continue
-            for meanings_for_usage in pack_db.values():
-                for m in meanings_for_usage:
-                    if not _matches_era(m, gate.era_min, gate.era_max):
-                        continue
-                    if not _matches_stratum(m, gate.stratum):
-                        continue
-                    if exclude_tags and any(t in exclude_tags for t in m.tags):
-                        continue
-                    # Pack-tag filter: PackOverlay.allowed_pack_tags
-                    # narrows to a subset (e.g. only the 'war' slice
-                    # of the Tatar pack); excluded_pack_tags drops a
-                    # subset (e.g. drop the religious slice).
-                    if pack.allowed_pack_tags and not any(
-                        t in pack.allowed_pack_tags for t in m.tags
-                    ):
-                        continue
-                    if pack.excluded_pack_tags and any(
-                        t in pack.excluded_pack_tags for t in m.tags
-                    ):
-                        continue
-                    non_position_eligible.append(m)
+    # Build the non-position eligibility pool — caller can supply a
+    # pre-built one (cached across sub-seeds) to skip the O(N=64k)
+    # scan on count>1 dispatches.
+    if non_position_eligible is None:
+        non_position_eligible = build_non_position_eligible(
+            meaning_db,
+            gate=gate,
+            exclude_tags=exclude_tags,
+            pack_meaning_dbs=pack_meaning_dbs,
+            packs=request.packs,
+        )
 
     for element in structure:
         # Accept either a structural-element string ("X-"/"-X-"/"-X")

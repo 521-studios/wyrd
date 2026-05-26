@@ -449,6 +449,15 @@ class NameGenerator:
     ):
         self.meaning_db = meaning_db
         self.meaning_gen = meaning_gen
+        # Cache the vector-path's non-position eligibility pool keyed
+        # by (era_min, era_max, stratum, exclude_tags, packs_signature).
+        # The dispatch loop calls ``select_via_vector`` once per
+        # sub-seed; without this cache, the O(N=meaning_db_size) scan
+        # rebuilds on every sub-seed and dominates count=N vector
+        # latency (~300ms per sub-seed × N). With the cache, only the
+        # first sub-seed pays the build; subsequent sub-seeds reuse.
+        # Process-lifetime safe: meaning_db is immutable post-load.
+        self._vector_eligible_cache: dict[tuple, list] = {}
         # wyrd-zzli: filter out multi-word structures that would produce
         # ungrammatical 'By Green'-style output (a bare pre or post
         # morpheme rendered as a standalone word). 46.7% of the English
@@ -690,6 +699,7 @@ class NameGenerator:
         # lazy form keeps the legacy proportions path's cold-start
         # cost flat for callers that never reach scoring_mode='vector'.
         from wyrd.generators.kenning.runtime.vector_name_select import (
+            build_non_position_eligible,
             select_via_vector_scoring,
         )
 
@@ -707,6 +717,34 @@ class NameGenerator:
         # encode/decode round-trip required.
         flat_positions: list[str] = [key[0] for word in struct for key in word]
 
+        # Build (or reuse) the non-position eligibility pool. The
+        # cache key folds every filter that affects pool membership.
+        # Pack-overlay signature uses the ``request.packs`` tuple +
+        # id(pack_meaning_dbs) so the cache invalidates when overlays
+        # change (operator passes a different pack set on a later
+        # request); ``request.packs`` is itself a tuple of frozen
+        # :class:`PackOverlay` dataclasses, hashable + comparable.
+        gate = request.gate
+        exclude_tags_fz = frozenset(exclude_tags)
+        cache_key = (
+            gate.era_min,
+            gate.era_max,
+            gate.stratum,
+            exclude_tags_fz,
+            request.packs,
+            id(pack_meaning_dbs),
+        )
+        non_position_eligible = self._vector_eligible_cache.get(cache_key)
+        if non_position_eligible is None:
+            non_position_eligible = build_non_position_eligible(
+                self.meaning_db,
+                gate=gate,
+                exclude_tags=exclude_tags_fz,
+                pack_meaning_dbs=pack_meaning_dbs,
+                packs=request.packs,
+            )
+            self._vector_eligible_cache[cache_key] = non_position_eligible
+
         picked = select_via_vector_scoring(
             rng,
             self.meaning_db,
@@ -716,8 +754,9 @@ class NameGenerator:
             era_midpoint=era_midpoint,
             cohesion=cohesion,
             tag_cooccurrence=self.tag_cooccurrence or None,
-            exclude_tags=frozenset(exclude_tags),
+            exclude_tags=exclude_tags_fz,
             pack_meaning_dbs=pack_meaning_dbs,
+            non_position_eligible=non_position_eligible,
         )
         # The primitive returns either [] (empty pool / no positive
         # scores) or a list with exactly one Meaning per requested
