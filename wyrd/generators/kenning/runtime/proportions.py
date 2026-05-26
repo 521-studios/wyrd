@@ -1645,7 +1645,12 @@ def load_proportions(data, meaning_db, tag_db):
     # Union the two attested-usage sources so the vector path filters
     # by "anything this culture's corpus attests" rather than
     # "compound usages only" or "standalone usages only".
-    culture_attested_usages = frozenset(usages.keys()) | frozenset(single_usages.keys())
+    # ``or None`` collapses an empty union to ``None`` so a degenerate
+    # bundle (a culture whose proportions are both empty) disables the
+    # filter rather than silently emptying the entire native pool —
+    # an empty frozenset is truthy under the downstream
+    # ``is not None`` guard.
+    culture_attested_usages = (frozenset(usages.keys()) | frozenset(single_usages.keys())) or None
     return NameGenerator(
         meaning_db,
         mg,

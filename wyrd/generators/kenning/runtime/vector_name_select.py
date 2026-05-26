@@ -216,6 +216,15 @@ def build_non_position_eligible(
     :meth:`NameGenerator.select_via_vector` once per sub-seed; without
     caching, this O(N=64k) scan re-runs every time).
 
+    Caller-side cache key for the result:
+    ``(id(meaning_db), gate, exclude_tags, packs, id(pack_meaning_dbs),
+       culture_attested_usages)`` — same meaning_db + same filters +
+    same pack overlays + same culture set → identical output. The list
+    is per-meaning order-stable across re-runs (we walk
+    ``meaning_db.items()`` which is insertion-ordered in Python 3.7+),
+    so the caller can re-use the cached list directly in the
+    weighted-sampling loop without re-shuffling.
+
     ``culture_attested_usages`` is the culture-bleed filter: only
     Meanings whose ``usage`` key appears in this culture's corpus
     (union of ``proportions_usage`` + ``proportions_single_usage`` keys
@@ -224,6 +233,16 @@ def build_non_position_eligible(
     Persian / Hebrew morphemes that aren't attested in English place
     names. ``None`` disables the filter (back-compat for non-
     NameGenerator callers that don't carry per-culture data).
+
+    A consequence — intentional but worth flagging: synthetic plurals
+    (``-X`` → ``-Xs`` for is_name() lemmas) and inflection shadows
+    (``meaning.py:_register_inflection_shadows``) are added to
+    ``meaning_db`` at non-canonical keys that don't appear in the
+    proportions tables. They get filtered out here — same behavior
+    as proportions mode (which only samples from its weight tables,
+    so plurals + shadows are never sampled directly there either).
+    The shadows still surface in the trie matcher for explainer
+    requests; only the GENERATOR pool excludes them.
 
     The filter applies only to the NATIVE pool — pack overlays
     intentionally introduce other-culture flavor (per wyrd-ecjp.11)

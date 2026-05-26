@@ -19,6 +19,7 @@ from wyrd.generators.kenning.runtime.vector_name_select import (
     _matches_position,
     _slot_position_label,
     _weighted_choice,
+    build_non_position_eligible,
     select_via_vector_scoring,
 )
 from wyrd.generators.kenning.vectors.schemas import (
@@ -681,3 +682,64 @@ def test_select_exclude_tags_filters_pre_score():
     )
     assert len(result) == 1
     assert result[0].usage == "Good-"
+
+
+# ---- build_non_position_eligible + culture filter -------------------------
+
+
+def _eligible_meanings(culture_attested=None, exclude_tags=frozenset()):
+    """Tiny meaning_db fixture: ``-ham`` (post, OE) + ``Cardiff`` (pre,
+    Welsh) + ``Bally-`` (pre, anglicized Irish). Used to pin which
+    morphemes the culture filter admits / excludes."""
+    db: dict[str, list[Meaning]] = {
+        "-ham": [_meaning("-ham", tags=["settlement"])],
+        "Cardiff": [_meaning("Cardiff", tags=["name"])],
+        "Bally-": [_meaning("Bally-", tags=["name"])],
+    }
+    gate = EligibilityGate(culture="english")
+    return build_non_position_eligible(
+        db,
+        gate=gate,
+        exclude_tags=exclude_tags,
+        pack_meaning_dbs=None,
+        packs=(),
+        culture_attested_usages=culture_attested,
+    )
+
+
+def test_build_non_position_eligible_filter_admits_only_attested_usages():
+    """``culture_attested_usages`` filter excludes Meanings whose
+    ``usage`` key isn't in the attested set. Only ``-ham`` survives
+    when the attested set names just ``{"-ham"}`` — Cardiff (Welsh)
+    + Bally- (anglicized Irish) get filtered."""
+    pool = _eligible_meanings(culture_attested=frozenset({"-ham"}))
+    assert [m.usage for m in pool] == ["-ham"]
+
+
+def test_build_non_position_eligible_filter_none_disables():
+    """``None`` for the culture filter disables it — all three
+    fixture Meanings pass through. Pins the back-compat default for
+    non-NameGenerator callers."""
+    pool = _eligible_meanings(culture_attested=None)
+    assert sorted(m.usage for m in pool) == ["-ham", "Bally-", "Cardiff"]
+
+
+def test_build_non_position_eligible_empty_filter_empties_pool():
+    """An EMPTY frozenset filter excludes every Meaning. Pins that
+    the ``None`` vs ``frozenset()`` distinction is meaningful so a
+    caller passing an unintentionally-empty filter sees the
+    consequence (vs ``None`` which means "no filter")."""
+    pool = _eligible_meanings(culture_attested=frozenset())
+    assert pool == []
+
+
+def test_build_non_position_eligible_filter_composes_with_exclude_tags():
+    """The culture filter and exclude_tags filter both apply —
+    ``Cardiff`` excluded by culture (not in attested set) AND
+    ``-ham`` excluded by exclude_tags={'settlement'}. Nothing
+    survives both."""
+    pool = _eligible_meanings(
+        culture_attested=frozenset({"-ham"}),
+        exclude_tags=frozenset({"settlement"}),
+    )
+    assert pool == []
