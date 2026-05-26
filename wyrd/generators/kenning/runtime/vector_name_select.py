@@ -365,17 +365,13 @@ _BUNDLE_FIELD_TO_L3_LANG: dict[str, str] = {
     # ``f"{row['language']}:{row['canonical_form']}"``).
     #
     # Lossy because multiple L3 langs collapse into one bundle field
-    # (e.g. welsh + irish + old-irish + ... → celtic_mix). We pick the
-    # L3 code that the empirical-priors miner actually emits for the
-    # majority of cells in that bucket:
-    #   * old_english (401 native cells), old_scandinavian (127),
-    #     norman-french (8), modern_english (151) — all dominant
-    #     in the English-recipient priors slice.
-    #   * celtic_mix → "celtic" — matches what the priors miner emits
-    #     for celtic-bucket lemmas under the English-priors slice
-    #     (cross-cultural priors are future Phase-2 work).
-    # Bundle fields whose L3 mapping isn't 1:1-reversible (latin,
-    # germanic, greek, biblical) map to the same name on both sides.
+    # (e.g. welsh + irish + old-irish + ... → celtic_mix). For each
+    # bucket we pick the representative L3 code that surfaces in the
+    # empirical-priors miner's output, so the baseline lookup hits the
+    # priors data we ship today rather than missing on a code the
+    # priors table doesn't carry.
+    #
+    # Wave-1 (English-corpus dominant):
     "old_english": "old-english",
     "old_scandinavian": "old-norse",
     "old_french": "norman-french",
@@ -385,6 +381,18 @@ _BUNDLE_FIELD_TO_L3_LANG: dict[str, str] = {
     "germanic": "germanic",
     "greek": "greek",
     "biblical": "biblical",
+    # Wave-2 non-Latin buckets (wyrd-vsrn Phase 2c). Use the canonical
+    # wikt language code that ingest routes into the bucket — same
+    # values appear in the L3 ``etymon.language`` column for these
+    # languages, so the priors lookup hits exactly.
+    "hebrew": "he",
+    "arabic": "ar",
+    "persian": "fa",
+    "sanskrit": "sa",
+    "akkadian": "akk",
+    "egyptian": "egy",
+    "aramaic": "arc",
+    "armenian": "axm",
 }
 
 

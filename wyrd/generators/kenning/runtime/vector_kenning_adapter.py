@@ -206,6 +206,15 @@ def build_request_vector(
         * **base** — driven by the loaded priors at request time; the
           adapter doesn't touch it here.
     """
+    # Materialize Iterable inputs UP FRONT — both ``tags`` and ``mood``
+    # are declared ``Iterable[str]``, so generator-typed callers would
+    # otherwise be exhausted by the first walk
+    # (``_mood_specs_to_register_effects`` for ``mood``;
+    # ``dict.fromkeys`` for ``tags``) and the later emptiness check
+    # below would incorrectly fire the uniform-tag fallback.
+    tags = tuple(tags)
+    mood = tuple(mood)
+
     # wyrd-kq7w.3: mood specs resolve to graduated catalog effects
     # that compose component-wise (sum + clamp) into the request
     # register. The adapter's explicit-tags + harshness-scalar knobs
@@ -213,8 +222,6 @@ def build_request_vector(
     # request register is the composition of [adapter, *catalog].
     mood_effects = _mood_specs_to_register_effects(mood)
 
-    tags = tuple(tags)
-    mood = tuple(mood)
     # Default-fill the semantic_tags dict when the operator hasn't
     # expressed any preference (no explicit tags + no mood + no
     # harshness). Without this, ``baseline_score_native`` early-returns

@@ -116,12 +116,73 @@ def test_matches_position_post():
 # ---- _lemma_ref_for -------------------------------------------------------
 
 
-def test_lemma_ref_strips_decoration_dashes():
-    """priors tables key on bare usage forms (no -prefix / -suffix dashes)."""
+def test_lemma_ref_strips_decoration_dashes_on_empty_sources():
+    """Fallback path: when ``meaning.sources`` has no source-language
+    data (e.g. a synthesized / sidecar Meaning), ``_lemma_ref_for``
+    falls back to the bare usage form so the legacy ecjp.5 v1
+    contract is preserved."""
     assert _lemma_ref_for(_meaning("Place-")) == "Place"
     assert _lemma_ref_for(_meaning("-shire")) == "shire"
     assert _lemma_ref_for(_meaning("-inner-")) == "inner"
     assert _lemma_ref_for(_meaning("Bare")) == "Bare"
+
+
+def test_lemma_ref_emits_language_canonical_form_shape():
+    """When ``meaning.sources`` carries the per-language form arrays,
+    ``_lemma_ref_for`` emits the ``language:canonical_form`` shape the
+    priors tables key on (per ``empirical_priors.extract_priors``).
+    Walks ``sources`` alphabetically; picks the first non-empty entry."""
+    m = _meaning("-shire")
+    m.sources = {"old_english": ["scīr", "scir"]}
+    assert _lemma_ref_for(m) == "old-english:scīr"
+
+
+def test_lemma_ref_walks_sources_in_alphabetical_order():
+    """Multi-language Meaning: pick the alphabetically-first
+    non-empty source field. Deterministic across re-runs (sorted
+    keys, not dict-insertion order)."""
+    m = _meaning("River")
+    # old_english would lose to celtic_mix alphabetically; the test
+    # pins that sorting wins.
+    m.sources = {"old_english": ["ēa"], "celtic_mix": ["abona"]}
+    assert _lemma_ref_for(m) == "celtic:abona"
+
+
+def test_lemma_ref_skips_empty_source_lists():
+    """A lang_field with an empty forms list is skipped — walk
+    continues to the next field."""
+    m = _meaning("River")
+    m.sources = {"old_english": [], "celtic_mix": ["abona"]}
+    assert _lemma_ref_for(m) == "celtic:abona"
+
+
+def test_lemma_ref_unknown_lang_field_kebabs_underscore():
+    """A bundle field not in ``_BUNDLE_FIELD_TO_L3_LANG`` falls back
+    to ``snake_case → kebab-case`` conversion. Forward-compat path
+    for bundle fields the runtime hasn't been taught about yet."""
+    m = _meaning("X")
+    m.sources = {"some_new_lang": ["foo"]}
+    assert _lemma_ref_for(m) == "some-new-lang:foo"
+
+
+def test_lemma_ref_maps_wave_two_bundle_fields():
+    """Wave-2 non-Latin buckets (hebrew / arabic / persian / sanskrit /
+    akkadian / egyptian / aramaic / armenian) map to the wikt language
+    codes the L3 ingest carries — so the baseline lookup hits priors
+    data shipped from those languages."""
+    for field, expected_lang in (
+        ("hebrew", "he"),
+        ("arabic", "ar"),
+        ("persian", "fa"),
+        ("sanskrit", "sa"),
+        ("akkadian", "akk"),
+        ("egyptian", "egy"),
+        ("aramaic", "arc"),
+        ("armenian", "axm"),
+    ):
+        m = _meaning("X")
+        m.sources = {field: ["form-x"]}
+        assert _lemma_ref_for(m) == f"{expected_lang}:form-x", field
 
 
 # ---- _cohesion_multiplier -------------------------------------------------

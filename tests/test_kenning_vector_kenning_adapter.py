@@ -172,12 +172,30 @@ def test_build_request_vector_mood_skips_uniform_default():
     """A mood expresses semantic interest (via the catalog-effect
     tag expansion). The adapter's own tag dict stays empty for the
     mood-only call; the request register's tags come from the
-    composed catalog effects rather than the uniform fallback."""
-    rv = build_request_vector(culture="english", mood=("grim",))
-    # The 'grim' mood's catalog effect expands to grim-tagged registers;
-    # adapter side itself is empty (no uniform fallback because mood
-    # was non-empty). Composed register has the mood's tags.
-    assert "death" in rv.register.semantic_tags or len(rv.register.semantic_tags) > 0
+    composed catalog effects rather than the uniform fallback.
+
+    Critical: a list-typed mood AND a generator-typed mood must
+    both produce the same result — the adapter materializes
+    ``Iterable[str]`` inputs up front so a generator-typed mood
+    isn't exhausted by the first walk."""
+
+    def _mood_generator():
+        yield "grim"
+
+    list_rv = build_request_vector(culture="english", mood=["grim"])
+    gen_rv = build_request_vector(culture="english", mood=_mood_generator())
+
+    # Both shapes produce identical semantic_tags. If the generator
+    # case fell through to the uniform-tag-default branch (which would
+    # happen if ``mood`` were walked twice), the list of tags would be
+    # ~50; for a grim-mood request it should be the grim-mood-expanded
+    # set (~6-8 tags), much smaller.
+    assert list_rv.register.semantic_tags == gen_rv.register.semantic_tags
+    # And the grim-mood set should be SMALLER than the uniform-default
+    # universe — that's how we know the uniform-default branch DIDN'T
+    # fire for either shape.
+    uniform_default = build_request_vector(culture="english")
+    assert len(list_rv.register.semantic_tags) < len(uniform_default.register.semantic_tags)
 
 
 def test_build_request_vector_with_tags():
