@@ -140,8 +140,11 @@ def test_mood_expansion_unparseable_graduation_suffix_bubbles_value_error() -> N
 
 def test_build_request_vector_minimal():
     """The simplest valid call: just a culture. Returns a
-    RequestVector with the culture in the gate + empty
-    register / default weights."""
+    RequestVector with the culture in the gate + the uniform-tag-
+    weights "no opinion default" register (every tag in the bundle's
+    tag universe at 1.0). Without this default, ``baseline_score_native``
+    early-returns 0 on the empty-register branch and the vector path
+    collapses to empty — so vector mode would only fire with a mood."""
     rv = build_request_vector(culture="english")
     assert isinstance(rv, RequestVector)
     assert rv.gate.culture == "english"
@@ -149,8 +152,50 @@ def test_build_request_vector_minimal():
     assert rv.gate.era_max is None
     assert rv.gate.stratum is None
     assert rv.register.phonological == {}
-    assert rv.register.semantic_tags == {}
+    # No explicit tags + no mood + no harshness → uniform-tag default.
+    # Bundled tag universe is ~50 tags; all carry weight 1.0.
+    assert len(rv.register.semantic_tags) > 0
+    assert all(v == 1.0 for v in rv.register.semantic_tags.values())
     assert rv.weights == ScoringWeights()  # default 1.0 per axis
+
+
+def test_build_request_vector_explicit_tags_skips_uniform_default():
+    """Operator-supplied ``tags`` opts out of the uniform default —
+    only the requested tags get weight 1.0, the rest are absent
+    (priors-baseline contributes 0 for tags the operator didn't ask
+    for, as the original D36.7 weighting rule requires)."""
+    rv = build_request_vector(culture="english", tags=["water", "tree"])
+    assert set(rv.register.semantic_tags) == {"water", "tree"}
+
+
+def test_build_request_vector_mood_skips_uniform_default():
+    """A mood expresses semantic interest (via the catalog-effect
+    tag expansion). The adapter's own tag dict stays empty for the
+    mood-only call; the request register's tags come from the
+    composed catalog effects rather than the uniform fallback.
+
+    Critical: a list-typed mood AND a generator-typed mood must
+    both produce the same result — the adapter materializes
+    ``Iterable[str]`` inputs up front so a generator-typed mood
+    isn't exhausted by the first walk."""
+
+    def _mood_generator():
+        yield "grim"
+
+    list_rv = build_request_vector(culture="english", mood=["grim"])
+    gen_rv = build_request_vector(culture="english", mood=_mood_generator())
+
+    # Both shapes produce identical semantic_tags. If the generator
+    # case fell through to the uniform-tag-default branch (which would
+    # happen if ``mood`` were walked twice), the list of tags would be
+    # ~50; for a grim-mood request it should be the grim-mood-expanded
+    # set (~6-8 tags), much smaller.
+    assert list_rv.register.semantic_tags == gen_rv.register.semantic_tags
+    # And the grim-mood set should be SMALLER than the uniform-default
+    # universe — that's how we know the uniform-default branch DIDN'T
+    # fire for either shape.
+    uniform_default = build_request_vector(culture="english")
+    assert len(list_rv.register.semantic_tags) < len(uniform_default.register.semantic_tags)
 
 
 def test_build_request_vector_with_tags():

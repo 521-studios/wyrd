@@ -56,6 +56,31 @@ from wyrd.generators.kenning.vectors.schemas import (
 )
 
 
+def _uniform_tag_weights() -> dict[str, float]:
+    """Return a ``{tag: 1.0}`` dict covering every tag the bundled
+    meaning_db carries. Used by :func:`build_request_vector` as the
+    "no-opinion default" register when the operator doesn't supply
+    explicit tags, a mood, or harshness — without it, vector mode
+    would only produce output when the request expressed semantic
+    interest, which collapses the "vector as default scoring mode"
+    use case.
+
+    Lazy + cached: the tag universe is bundle-stable for the
+    container's lifetime, so we compute it once and reuse. Pulled via
+    ``_load_meanings`` (not a freestanding registry) because the
+    bundled ``tag_db`` IS the source of truth for the tag universe."""
+    global _UNIFORM_TAG_WEIGHTS_CACHE
+    if _UNIFORM_TAG_WEIGHTS_CACHE is None:
+        from wyrd.generators.kenning import _load_meanings
+
+        _, tag_db = _load_meanings()
+        _UNIFORM_TAG_WEIGHTS_CACHE = dict.fromkeys(tag_db, 1.0)
+    return dict(_UNIFORM_TAG_WEIGHTS_CACHE)
+
+
+_UNIFORM_TAG_WEIGHTS_CACHE: dict[str, float] | None = None
+
+
 def _harshness_to_phonological(harshness: float) -> dict[str, float]:
     """Translate the D6 harshness scalar (0..1) into a register's
     phonological-weight dict.
@@ -181,6 +206,15 @@ def build_request_vector(
         * **base** — driven by the loaded priors at request time; the
           adapter doesn't touch it here.
     """
+    # Materialize Iterable inputs UP FRONT — both ``tags`` and ``mood``
+    # are declared ``Iterable[str]``, so generator-typed callers would
+    # otherwise be exhausted by the first walk
+    # (``_mood_specs_to_register_effects`` for ``mood``;
+    # ``dict.fromkeys`` for ``tags``) and the later emptiness check
+    # below would incorrectly fire the uniform-tag fallback.
+    tags = tuple(tags)
+    mood = tuple(mood)
+
     # wyrd-kq7w.3: mood specs resolve to graduated catalog effects
     # that compose component-wise (sum + clamp) into the request
     # register. The adapter's explicit-tags + harshness-scalar knobs
@@ -188,10 +222,24 @@ def build_request_vector(
     # request register is the composition of [adapter, *catalog].
     mood_effects = _mood_specs_to_register_effects(mood)
 
+    # Default-fill the semantic_tags dict when the operator hasn't
+    # expressed any preference (no explicit tags + no mood + no
+    # harshness). Without this, ``baseline_score_native`` early-returns
+    # 0 on the empty-register branch and the vector path collapses to
+    # an empty pool — vector mode would only ever fire with a mood.
+    # The default register surfaces empirical popularity as the
+    # composition signal (every tag in the lemma's set gets uniform
+    # 1.0 weight), which IS the sensible "no opinion → match the
+    # corpus" default.
+    if not tags and not mood and harshness == 0.0:
+        semantic_tags = _uniform_tag_weights()
+    else:
+        semantic_tags = dict.fromkeys(tags, 1.0)
+
     adapter_effect = RegisterEffect(
         name="adapter",
         phonological=_harshness_to_phonological(harshness),
-        semantic_tags=dict.fromkeys(tags, 1.0),
+        semantic_tags=semantic_tags,
     )
 
     register = compose_register_effects([adapter_effect, *mood_effects])
