@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+from functools import lru_cache
 from typing import Any
 
 from wyrd.generators.kenning import (
@@ -558,6 +559,26 @@ class Kenning(Generator):
         )
 
 
+@lru_cache(maxsize=8)
+def _load_priors_sidecar_cached(priors_path: str):
+    """Process-wide cached load of an operator-supplied priors
+    sidecar. Keyed by the absolute path string. lru_cache(maxsize=8)
+    caps total memory under a heavy-experimentation workflow that
+    rotates sidecars; oldest unused entry gets evicted on overflow.
+
+    Returns a fresh ``EmpiricalPriors`` per unique path, then reuses
+    that instance forever — so the vector slot-score cache's
+    ``id(priors)`` key is stable across dispatches.
+    """
+    from pathlib import Path
+
+    from wyrd.generators.kenning.lexicon.empirical_priors import (
+        load_empirical_priors_from_json,
+    )
+
+    return load_empirical_priors_from_json(Path(priors_path))
+
+
 def _generate_via_vector(
     name_gen,
     rng,
@@ -583,11 +604,7 @@ def _generate_via_vector(
     Returns a NewName-compatible object or None when the vector
     path's gate / scoring filtered every candidate.
     """
-    from pathlib import Path
 
-    from wyrd.generators.kenning.lexicon.empirical_priors import (
-        load_empirical_priors_from_json,
-    )
     from wyrd.generators.kenning.runtime.vector_kenning_adapter import (
         build_request_vector,
         era_midpoint_from_range,
@@ -666,7 +683,13 @@ def _generate_via_vector(
     )
 
     if priors_path:
-        priors = load_empirical_priors_from_json(Path(priors_path))
+        # Process-cache by ``priors_path`` so repeated dispatches with
+        # the same sidecar reuse one ``EmpiricalPriors`` instance.
+        # Without this, ``id(priors)`` would differ per dispatch + the
+        # vector slot-score cache would miss on every sidecar request
+        # (zero hit rate + FIFO churn against any concurrent bundled-
+        # priors callers in the same warm container).
+        priors = _load_priors_sidecar_cached(str(priors_path))
     else:
         # wyrd-ecjp.10b: fall back to the bundled priors.json sidecar
         # (if shipped) before degrading to empty. Operator who passes

@@ -198,6 +198,148 @@ def _slot_position_label(structural_element: str) -> str:
     return "post"
 
 
+def build_non_position_eligible(
+    meaning_db: dict[str, list[Meaning]],
+    *,
+    gate,
+    exclude_tags: frozenset[str],
+    pack_meaning_dbs: dict[str, dict[str, list[Meaning]]] | None,
+    packs,
+) -> list[Meaning]:
+    """Pre-compute the non-position-filtered eligibility pool.
+
+    Era, stratum, and exclude_tags don't depend on the slot — they
+    apply uniformly across every slot in the structure. Pulling this
+    out into a free function lets the caller cache the result across
+    sub-seeds (the dispatch loop calls
+    :meth:`NameGenerator.select_via_vector` once per sub-seed; without
+    caching, this O(N=64k) scan re-runs every time).
+
+    The cache key on the caller side is
+    ``(id(meaning_db), gate, exclude_tags, id(pack_meaning_dbs))`` —
+    same meaning_db + same filters + same pack overlays → identical
+    output. The list is per-meaning order-stable across re-runs (we
+    walk ``meaning_db.values()`` which is insertion-ordered in Python
+    3.7+), so the caller can re-use the cached list directly in the
+    weighted-sampling loop without re-shuffling.
+    """
+    non_position_eligible: list[Meaning] = []
+    for meanings_for_usage in meaning_db.values():
+        for m in meanings_for_usage:
+            if not _matches_era(m, gate.era_min, gate.era_max):
+                continue
+            if not _matches_stratum(m, gate.stratum):
+                continue
+            if exclude_tags and any(t in exclude_tags for t in m.tags):
+                continue
+            non_position_eligible.append(m)
+
+    # wyrd-ecjp.8: admit pack lemmas alongside native lemmas. Pack-
+    # tag filters (allowed_pack_tags / excluded_pack_tags) gate per-
+    # pack on top of the shared era/stratum/exclude predicates.
+    if pack_meaning_dbs:
+        for pack in packs:
+            pack_db = pack_meaning_dbs.get(pack.pack_name)
+            if pack_db is None:
+                continue
+            for meanings_for_usage in pack_db.values():
+                for m in meanings_for_usage:
+                    if not _matches_era(m, gate.era_min, gate.era_max):
+                        continue
+                    if not _matches_stratum(m, gate.stratum):
+                        continue
+                    if exclude_tags and any(t in exclude_tags for t in m.tags):
+                        continue
+                    if pack.allowed_pack_tags and not any(
+                        t in pack.allowed_pack_tags for t in m.tags
+                    ):
+                        continue
+                    if pack.excluded_pack_tags and any(
+                        t in pack.excluded_pack_tags for t in m.tags
+                    ):
+                        continue
+                    non_position_eligible.append(m)
+    return non_position_eligible
+
+
+def request_signature(request: RequestVector) -> tuple:
+    """Return a hashable signature of the ``RequestVector`` fields
+    that affect ``score()``'s output. Used as a cache key by the
+    slot-scoring path so two distinct ``RequestVector`` instances
+    with identical content hit the same cached weighted list.
+
+    The signature folds:
+
+    * The gate (culture / era / stratum). Score doesn't read these
+      directly, but they're already filtered into the eligibility
+      pool, so different gates need different caches.
+    * The register's three dict axes (``semantic_tags``,
+      ``phonological``, ``position_bias``) as frozensets so dict-
+      iteration order doesn't change the key. All three are read by
+      one of ``phon_score`` / ``sem_score`` / ``pos_score``;
+      omitting any would let cached scores survive a register-axis
+      change.
+    * The four ``ScoringWeights`` fields.
+    * The ``packs`` tuple (each :class:`PackOverlay` is already a
+      hashable frozen dataclass).
+    """
+    return (
+        request.gate.culture,
+        request.gate.era_min,
+        request.gate.era_max,
+        request.gate.stratum,
+        frozenset(request.register.semantic_tags.items()),
+        frozenset(request.register.phonological.items()),
+        frozenset(request.register.position_bias.items()),
+        request.weights.phon_w,
+        request.weights.sem_w,
+        request.weights.pos_w,
+        request.weights.base_w,
+        request.packs,
+    )
+
+
+def build_slot_base_scores(
+    non_position_eligible: list[Meaning],
+    *,
+    slot_position: str,
+    request: RequestVector,
+    priors: EmpiricalPriors,
+    era_midpoint: int,
+) -> list[tuple[Meaning, float]]:
+    """Score every position-eligible meaning against the request +
+    return the ``(meaning, base_score)`` pairs whose score is > 0.
+
+    "Base score" = phon + sem + pos + baseline. It excludes the
+    cohesion-multiplier step (which depends on prior-slot picks +
+    is per-sample). Caching this list across sub-seeds in a
+    count>1 dispatch saves the O(P) score loop per sub-seed —
+    typically the dominant cost in count=N vector latency.
+
+    Hot path: the inner ``score()`` call is unchanged from the
+    legacy inline form, so cached + uncached behavior is identical.
+    """
+    out: list[tuple[Meaning, float]] = []
+    for m in non_position_eligible:
+        if not _matches_position(m, slot_position):
+            continue
+        lemma_ref = _lemma_ref_for(m)
+        lemma_tags = frozenset(m.tags)
+        lemma_phon = m.phonological_vector or _default_empty_phon_vector()
+        bs = score(
+            lemma_ref=lemma_ref,
+            lemma_tags=lemma_tags,
+            lemma_phon=lemma_phon,
+            request=request,
+            slot_position=slot_position,
+            era_midpoint=era_midpoint,
+            priors=priors,
+        )
+        if bs > 0:
+            out.append((m, bs))
+    return out
+
+
 def select_via_vector_scoring(
     rng: random.Random,
     meaning_db: dict[str, list[Meaning]],
@@ -210,6 +352,8 @@ def select_via_vector_scoring(
     tag_cooccurrence: dict[str, dict[str, float]] | None = None,
     exclude_tags: frozenset[str] = frozenset(),
     pack_meaning_dbs: dict[str, dict[str, list[Meaning]]] | None = None,
+    non_position_eligible: list[Meaning] | None = None,
+    slot_base_scores: dict[str, list[tuple[Meaning, float]]] | None = None,
 ) -> list[Meaning]:
     """Pick one Meaning per slot in the structure via the D36.2
     composition rule.
@@ -256,57 +400,17 @@ def select_via_vector_scoring(
     prior_tags: set[str] = set()
     gate = request.gate
 
-    # Pre-compute the non-position eligibility pool ONCE — era,
-    # stratum, and exclude_tags don't depend on the slot. Position is
-    # the only per-slot predicate. Round-1 reviewer caught the O(S*N)
-    # redundancy and turned it into O(N + S*P) where P is the
-    # per-slot position-filtered subset (typically ~N/3 for
-    # pre/inner/post-balanced corpora).
-    non_position_eligible: list[Meaning] = []
-    for meanings_for_usage in meaning_db.values():
-        for m in meanings_for_usage:
-            if not _matches_era(m, gate.era_min, gate.era_max):
-                continue
-            if not _matches_stratum(m, gate.stratum):
-                continue
-            if exclude_tags and any(t in exclude_tags for t in m.tags):
-                continue
-            non_position_eligible.append(m)
-
-    # wyrd-ecjp.8: admit pack lemmas alongside native lemmas. Each
-    # declared pack contributes its meaning_db's lemmas, filtered by
-    # the pack's allowed_pack_tags / excluded_pack_tags (gate-level
-    # filter from PackOverlay) AND the gate's era / stratum / exclude
-    # predicates (shared with native). Pack lemmas score via the
-    # baseline_score_pack path inside score(), which uses the pack's
-    # template_donor/template_recipient + pack.weight to compose the
-    # multi-source baseline contribution per D36.4 Option B.
-    if pack_meaning_dbs:
-        for pack in request.packs:
-            pack_db = pack_meaning_dbs.get(pack.pack_name)
-            if pack_db is None:
-                continue
-            for meanings_for_usage in pack_db.values():
-                for m in meanings_for_usage:
-                    if not _matches_era(m, gate.era_min, gate.era_max):
-                        continue
-                    if not _matches_stratum(m, gate.stratum):
-                        continue
-                    if exclude_tags and any(t in exclude_tags for t in m.tags):
-                        continue
-                    # Pack-tag filter: PackOverlay.allowed_pack_tags
-                    # narrows to a subset (e.g. only the 'war' slice
-                    # of the Tatar pack); excluded_pack_tags drops a
-                    # subset (e.g. drop the religious slice).
-                    if pack.allowed_pack_tags and not any(
-                        t in pack.allowed_pack_tags for t in m.tags
-                    ):
-                        continue
-                    if pack.excluded_pack_tags and any(
-                        t in pack.excluded_pack_tags for t in m.tags
-                    ):
-                        continue
-                    non_position_eligible.append(m)
+    # Build the non-position eligibility pool — caller can supply a
+    # pre-built one (cached across sub-seeds) to skip the O(N=64k)
+    # scan on count>1 dispatches.
+    if non_position_eligible is None:
+        non_position_eligible = build_non_position_eligible(
+            meaning_db,
+            gate=gate,
+            exclude_tags=exclude_tags,
+            pack_meaning_dbs=pack_meaning_dbs,
+            packs=request.packs,
+        )
 
     for element in structure:
         # Accept either a structural-element string ("X-"/"-X-"/"-X")
@@ -318,35 +422,40 @@ def select_via_vector_scoring(
             slot_position = element
         else:
             slot_position = _slot_position_label(element)
-        # Position-gate the pre-filtered pool
-        eligible = [m for m in non_position_eligible if _matches_position(m, slot_position)]
-        if not eligible:
+
+        # Base scores: cached on caller-supplied dict if provided,
+        # else built fresh. The base score is request-deterministic
+        # (no cohesion / no sampling) so sub-seeds in a count>1
+        # dispatch reuse the cached list.
+        if slot_base_scores is not None and slot_position in slot_base_scores:
+            base_scored = slot_base_scores[slot_position]
+        else:
+            base_scored = build_slot_base_scores(
+                non_position_eligible,
+                slot_position=slot_position,
+                request=request,
+                priors=priors,
+                era_midpoint=era_midpoint,
+            )
+            if slot_base_scores is not None:
+                slot_base_scores[slot_position] = base_scored
+        if not base_scored:
             return []
-        # Score: per-meaning canonical composition + cohesion bias
+
+        # Apply per-sample cohesion bias + weighted choice. Cohesion
+        # depends on prior_tags which evolves across slots within a
+        # single name, so it's per-sample and NOT cacheable.
         prior_tags_frozen = frozenset(prior_tags)
         weighted: list[tuple[Meaning, float]] = []
-        for m in eligible:
-            lemma_ref = _lemma_ref_for(m)
-            lemma_tags = frozenset(m.tags)
-            lemma_phon = m.phonological_vector or _default_empty_phon_vector()
-            base_score = score(
-                lemma_ref=lemma_ref,
-                lemma_tags=lemma_tags,
-                lemma_phon=lemma_phon,
-                request=request,
-                slot_position=slot_position,
-                era_midpoint=era_midpoint,
-                priors=priors,
-            )
+        for m, bs in base_scored:
             cohesion_mult = _cohesion_multiplier(
-                lemma_tags, prior_tags_frozen, cohesion, tag_cooccurrence
+                frozenset(m.tags), prior_tags_frozen, cohesion, tag_cooccurrence
             )
-            final_score = base_score * cohesion_mult
+            final_score = bs * cohesion_mult
             if final_score > 0:
                 weighted.append((m, final_score))
         if not weighted:
             return []
-        # Sample: weighted choice
         picked_meaning = _weighted_choice(rng, weighted)
         if picked_meaning is None:
             return []
