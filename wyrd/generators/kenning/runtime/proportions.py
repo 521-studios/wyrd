@@ -458,6 +458,25 @@ class NameGenerator:
         # first sub-seed pays the build; subsequent sub-seeds reuse.
         # Process-lifetime safe: meaning_db is immutable post-load.
         self._vector_eligible_cache: dict[tuple, list] = {}
+        # Cache per-slot ``(meaning, base_score)`` lists keyed by
+        # ``(eligible_cache_key, slot_position, request_signature, era_midpoint, id(priors))``.
+        # Base scores depend only on request + slot_position +
+        # era_midpoint + priors (which are constant across sub-seeds
+        # in one count=N dispatch); only the cohesion-multiplier +
+        # weighted-sample steps vary per sub-seed. Caching the base
+        # scores collapses the O(P) score loop per slot from "every
+        # sub-seed" to "once per (request, slot) pair". Per-dispatch
+        # the inner dict is fresh; across dispatches the outer cache
+        # reuses by request signature so repeated identical requests
+        # hit warm scores.
+        self._vector_slot_score_cache: dict[tuple, dict[str, list]] = {}
+        # Bound the per-slot cache to avoid unbounded growth across a
+        # warm Lambda's lifetime. Distinct request signatures grow
+        # linearly with operator-knob diversity (mood / harshness /
+        # tags / weights / era / stratum / packs). 16 distinct
+        # (request, era_midpoint, priors) tuples covers typical SPA
+        # exploration; older entries get FIFO-evicted on overflow.
+        self._VECTOR_SLOT_CACHE_MAX = 16
         # wyrd-zzli: filter out multi-word structures that would produce
         # ungrammatical 'By Green'-style output (a bare pre or post
         # morpheme rendered as a standalone word). 46.7% of the English
@@ -700,6 +719,7 @@ class NameGenerator:
         # cost flat for callers that never reach scoring_mode='vector'.
         from wyrd.generators.kenning.runtime.vector_name_select import (
             build_non_position_eligible,
+            request_signature,
             select_via_vector_scoring,
         )
 
@@ -745,6 +765,28 @@ class NameGenerator:
             )
             self._vector_eligible_cache[cache_key] = non_position_eligible
 
+        # Per-slot base-score cache: (eligible_cache_key, request,
+        # era_midpoint, priors_id) — sub-seeds within one dispatch
+        # all share the same key + lazy-fill the slot_position →
+        # base_scored map. Bounded FIFO eviction prevents unbounded
+        # growth across warm-Lambda lifetime.
+        slot_cache_key = (
+            cache_key,
+            request_signature(request),
+            era_midpoint,
+            id(priors),
+        )
+        slot_base_scores = self._vector_slot_score_cache.get(slot_cache_key)
+        if slot_base_scores is None:
+            slot_base_scores = {}
+            if len(self._vector_slot_score_cache) >= self._VECTOR_SLOT_CACHE_MAX:
+                # FIFO eviction: drop the oldest entry. dict
+                # iteration order is insertion order in Python 3.7+,
+                # so next(iter(...)) is the oldest key.
+                oldest = next(iter(self._vector_slot_score_cache))
+                del self._vector_slot_score_cache[oldest]
+            self._vector_slot_score_cache[slot_cache_key] = slot_base_scores
+
         picked = select_via_vector_scoring(
             rng,
             self.meaning_db,
@@ -757,6 +799,7 @@ class NameGenerator:
             exclude_tags=exclude_tags_fz,
             pack_meaning_dbs=pack_meaning_dbs,
             non_position_eligible=non_position_eligible,
+            slot_base_scores=slot_base_scores,
         )
         # The primitive returns either [] (empty pool / no positive
         # scores) or a list with exactly one Meaning per requested

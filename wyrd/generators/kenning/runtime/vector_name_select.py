@@ -262,6 +262,79 @@ def build_non_position_eligible(
     return non_position_eligible
 
 
+def request_signature(request: RequestVector) -> tuple:
+    """Return a hashable signature of the ``RequestVector`` fields
+    that affect ``score()``'s output. Used as a cache key by the
+    slot-scoring path so two distinct ``RequestVector`` instances
+    with identical content hit the same cached weighted list.
+
+    The signature folds:
+
+    * The gate (culture / era / stratum). Score doesn't read these
+      directly, but they're already filtered into the eligibility
+      pool, so different gates need different caches.
+    * The register's ``semantic_tags`` + ``phonological`` dicts as
+      frozensets so dict-iteration order doesn't change the key.
+    * The four ``ScoringWeights`` fields.
+    * The ``packs`` tuple (each :class:`PackOverlay` is already a
+      hashable frozen dataclass).
+    """
+    return (
+        request.gate.culture,
+        request.gate.era_min,
+        request.gate.era_max,
+        request.gate.stratum,
+        frozenset(request.register.semantic_tags.items()),
+        frozenset(request.register.phonological.items()),
+        request.weights.phon_w,
+        request.weights.sem_w,
+        request.weights.pos_w,
+        request.weights.base_w,
+        request.packs,
+    )
+
+
+def build_slot_base_scores(
+    non_position_eligible: list[Meaning],
+    *,
+    slot_position: str,
+    request: RequestVector,
+    priors: EmpiricalPriors,
+    era_midpoint: int,
+) -> list[tuple[Meaning, float]]:
+    """Score every position-eligible meaning against the request +
+    return the ``(meaning, base_score)`` pairs whose score is > 0.
+
+    "Base score" = phon + sem + pos + baseline. It excludes the
+    cohesion-multiplier step (which depends on prior-slot picks +
+    is per-sample). Caching this list across sub-seeds in a
+    count>1 dispatch saves the O(P) score loop per sub-seed —
+    typically the dominant cost in count=N vector latency.
+
+    Hot path: the inner ``score()`` call is unchanged from the
+    legacy inline form, so cached + uncached behavior is identical.
+    """
+    out: list[tuple[Meaning, float]] = []
+    for m in non_position_eligible:
+        if not _matches_position(m, slot_position):
+            continue
+        lemma_ref = _lemma_ref_for(m)
+        lemma_tags = frozenset(m.tags)
+        lemma_phon = m.phonological_vector or _default_empty_phon_vector()
+        bs = score(
+            lemma_ref=lemma_ref,
+            lemma_tags=lemma_tags,
+            lemma_phon=lemma_phon,
+            request=request,
+            slot_position=slot_position,
+            era_midpoint=era_midpoint,
+            priors=priors,
+        )
+        if bs > 0:
+            out.append((m, bs))
+    return out
+
+
 def select_via_vector_scoring(
     rng: random.Random,
     meaning_db: dict[str, list[Meaning]],
@@ -275,6 +348,7 @@ def select_via_vector_scoring(
     exclude_tags: frozenset[str] = frozenset(),
     pack_meaning_dbs: dict[str, dict[str, list[Meaning]]] | None = None,
     non_position_eligible: list[Meaning] | None = None,
+    slot_base_scores: dict[str, list[tuple[Meaning, float]]] | None = None,
 ) -> list[Meaning]:
     """Pick one Meaning per slot in the structure via the D36.2
     composition rule.
@@ -343,35 +417,40 @@ def select_via_vector_scoring(
             slot_position = element
         else:
             slot_position = _slot_position_label(element)
-        # Position-gate the pre-filtered pool
-        eligible = [m for m in non_position_eligible if _matches_position(m, slot_position)]
-        if not eligible:
+
+        # Base scores: cached on caller-supplied dict if provided,
+        # else built fresh. The base score is request-deterministic
+        # (no cohesion / no sampling) so sub-seeds in a count>1
+        # dispatch reuse the cached list.
+        if slot_base_scores is not None and slot_position in slot_base_scores:
+            base_scored = slot_base_scores[slot_position]
+        else:
+            base_scored = build_slot_base_scores(
+                non_position_eligible,
+                slot_position=slot_position,
+                request=request,
+                priors=priors,
+                era_midpoint=era_midpoint,
+            )
+            if slot_base_scores is not None:
+                slot_base_scores[slot_position] = base_scored
+        if not base_scored:
             return []
-        # Score: per-meaning canonical composition + cohesion bias
+
+        # Apply per-sample cohesion bias + weighted choice. Cohesion
+        # depends on prior_tags which evolves across slots within a
+        # single name, so it's per-sample and NOT cacheable.
         prior_tags_frozen = frozenset(prior_tags)
         weighted: list[tuple[Meaning, float]] = []
-        for m in eligible:
-            lemma_ref = _lemma_ref_for(m)
-            lemma_tags = frozenset(m.tags)
-            lemma_phon = m.phonological_vector or _default_empty_phon_vector()
-            base_score = score(
-                lemma_ref=lemma_ref,
-                lemma_tags=lemma_tags,
-                lemma_phon=lemma_phon,
-                request=request,
-                slot_position=slot_position,
-                era_midpoint=era_midpoint,
-                priors=priors,
-            )
+        for m, bs in base_scored:
             cohesion_mult = _cohesion_multiplier(
-                lemma_tags, prior_tags_frozen, cohesion, tag_cooccurrence
+                frozenset(m.tags), prior_tags_frozen, cohesion, tag_cooccurrence
             )
-            final_score = base_score * cohesion_mult
+            final_score = bs * cohesion_mult
             if final_score > 0:
                 weighted.append((m, final_score))
         if not weighted:
             return []
-        # Sample: weighted choice
         picked_meaning = _weighted_choice(rng, weighted)
         if picked_meaning is None:
             return []
