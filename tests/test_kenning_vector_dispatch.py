@@ -393,7 +393,7 @@ def test_select_via_vector_retry_exhausts_when_no_qualifier_pool():
     assert result is None
 
 
-def test_select_via_vector_retry_exclues_tried_structs():
+def test_select_via_vector_retry_excludes_tried_structs():
     """wyrd-izcr: after an attempt fails (qualifier pool empty),
     that struct is excluded from subsequent retries. Without
     exclusion, weighted_choice could re-pick the same un-satisfiable
