@@ -13058,3 +13058,20 @@
 {"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Ury", "date_year": null, "region_hint": null, "context": "Ury, 399.", "extractor": "gemini:gemini-2.5-flash"}
 {"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Usson", "date_year": null, "region_hint": null, "context": "Usson. xi. 148. 360.", "extractor": "gemini:gemini-2.5-flash"}
 {"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Uzès", "date_year": null, "region_hint": null, "context": "Uzès, 565.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Domicianus", "date_year": null, "region_hint": null, "context": "Domicianus, 230.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Domitianus", "date_year": null, "region_hint": null, "context": "Domitiana, 375; Domitianus, 128.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Flacianus", "date_year": null, "region_hint": null, "context": "Flacianus, 233.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Flavianus", "date_year": null, "region_hint": null, "context": "Flavianus, 235.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Flavinianus", "date_year": null, "region_hint": null, "context": "Flavinianus, 98, 236.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Geminianus", "date_year": null, "region_hint": null, "context": "Geminianus, 159.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Marciana", "date_year": null, "region_hint": null, "context": "Marciana, 274; Marcianas, 274; Mar- cianum, 275.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Marcianas", "date_year": null, "region_hint": null, "context": "Marciana, 274; Marcianas, 274; Mar- cianum, 275.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Suessiones", "date_year": null, "region_hint": null, "context": "Meldi, sujets des Suessiones rendus indépendants par Auguste. 39.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Senones", "date_year": null, "region_hint": null, "context": "Melodunum, oppidum des Senones, 89.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Aulnay", "date_year": null, "region_hint": null, "context": "Aulnay, 172, * 616, 617.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Avenières (Les", "date_year": null, "region_hint": null, "context": "Avenières (Les , 606.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Brevenne rivière)", "date_year": null, "region_hint": null, "context": "Brevenne rivière), 565.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Chapelle sous Brancion (La)", "date_year": null, "region_hint": null, "context": "Chapelle sous Brancion (La) , 603.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Chaponnière (La)", "date_year": null, "region_hint": null, "context": "Chaponnière (La), 611.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "< rermignac", "date_year": null, "region_hint": null, "context": "< rermignac, 24 \\.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Saint-Julien près Cazillac", "date_year": null, "region_hint": "Cazillac", "context": "Saint-Julien près Cazillac, 446.", "extractor": "gemini:gemini-2.5-flash"}
