@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from wyrd.generators.kenning.generators.kenning import Kenning
-from wyrd.seed import rng_for
+from wyrd.seed import MAX_SAFE_INTEGER, rng_for
 
 
 def test_kenning_scoring_mode_proportions_is_default():
@@ -288,12 +288,14 @@ def test_vector_seed_1170_no_longer_produces_split_affix_port_all():
 
     ``Kenning.generate`` produces one name per seed; the original
     bug surfaced via the CLI's count=N dispatch which derives
-    sub-seeds from the master seed. Replay the same per-sub-seed
-    pattern here so the regression catches the actual buggy slot
+    sub-seeds from the master seed via
+    ``seed_rng.randrange(MAX_SAFE_INTEGER + 1)`` (see
+    ``wyrd.app._dispatch``). Replay the exact same sub-seed
+    sequence here so the regression catches the actual buggy slot
     rather than just seed=1170 itself."""
     k = Kenning()
     master = rng_for(1170)
-    sub_seeds = [master.randint(0, 2**63) for _ in range(10)]
+    sub_seeds = [master.randrange(MAX_SAFE_INTEGER + 1) for _ in range(10)]
     names: list[str] = []
     for sub in sub_seeds:
         result = k.generate(
