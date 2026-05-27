@@ -534,7 +534,16 @@ def _insert_attested_languages(
     vector path's eligibility filter joins against these to admit only
     Meanings whose primary language was actually attested in this
     culture's corpus via that usage."""
-    rows = [(culture, usage_key, lang) for usage_key, langs in attested.items() for lang in langs]
+    # ``sorted(set(...))`` deduplicates + canonicalizes order. The
+    # producer (``proportions_from``) emits sorted-list values from a
+    # set, so dupes can't reach us through the normal pipeline — but
+    # operator-supplied --proportions-dir JSON can carry hand-edited
+    # duplicates, which would otherwise trip the PK INSERT.
+    rows = [
+        (culture, usage_key, lang)
+        for usage_key, langs in attested.items()
+        for lang in sorted(set(langs))
+    ]
     if not rows:
         return 0
     conn.executemany(

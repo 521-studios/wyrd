@@ -508,7 +508,50 @@ def test_inline_canonical_miss_fallback_uses_fresh_name_for_tiebreaker():
     # OE Meaning of Pen- would have been picked too and we'd see
     # both languages in the attestation.
     welsh_attested = out.get("welsh", {}).get("attested_languages", {})
-    if "Pen-" in welsh_attested:
-        assert welsh_attested["Pen-"] == ["celtic_mix"], (
-            f"culture tiebreaker no-op'd in canonical-miss fallback; got {welsh_attested['Pen-']}"
+    # "Penbryn" is in the bundled welsh_place_names.json, so Pen- must
+    # attest. Assert presence loudly — without this, a regression in
+    # the splitter wiring that drops Pen- from the welsh attestation
+    # would silently no-op this test.
+    assert "Pen-" in welsh_attested, (
+        f"Pen- missing from welsh attestation; splitter wiring may be broken. "
+        f"got: {welsh_attested}"
+    )
+    assert welsh_attested["Pen-"] == ["celtic_mix"], (
+        f"culture tiebreaker no-op'd in canonical-miss fallback; got {welsh_attested['Pen-']}"
+    )
+
+
+def test_insert_attested_languages_deduplicates_input_lists():
+    """wyrd-pfoo: ``_insert_attested_languages`` must dedupe duplicate
+    primary_language entries in the input list before INSERT. The
+    proportions_from producer emits unique entries (sorted-list from
+    a set), but operator-supplied --proportions-dir JSON can have
+    hand-edited duplicates. Without dedup the duplicate row would
+    trip the (culture, usage_key, primary_language) PK constraint."""
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(
+        """
+        CREATE TABLE proportions_attested_language (
+            culture TEXT NOT NULL,
+            usage_key TEXT NOT NULL,
+            primary_language TEXT NOT NULL,
+            PRIMARY KEY (culture, usage_key, primary_language)
+        );
+        """
+    )
+    try:
+        n = _insert_attested_languages(
+            conn,
+            "welsh",
+            {"pen-": ["celtic_mix", "celtic_mix", "old_english"]},
         )
+        # Two unique pairs after dedup.
+        assert n == 2
+        rows = conn.execute(
+            "SELECT primary_language FROM proportions_attested_language "
+            "WHERE culture = ? AND usage_key = ? ORDER BY primary_language",
+            ("welsh", "pen-"),
+        ).fetchall()
+        assert rows == [("celtic_mix",), ("old_english",)]
+    finally:
+        conn.close()
