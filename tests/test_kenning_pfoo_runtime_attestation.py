@@ -513,8 +513,7 @@ def test_inline_canonical_miss_fallback_uses_fresh_name_for_tiebreaker():
     # the splitter wiring that drops Pen- from the welsh attestation
     # would silently no-op this test.
     assert "Pen-" in welsh_attested, (
-        f"Pen- missing from welsh attestation; splitter wiring may be broken. "
-        f"got: {welsh_attested}"
+        f"Pen- missing from welsh attestation; splitter wiring may be broken. got: {welsh_attested}"
     )
     assert welsh_attested["Pen-"] == ["celtic_mix"], (
         f"culture tiebreaker no-op'd in canonical-miss fallback; got {welsh_attested['Pen-']}"
