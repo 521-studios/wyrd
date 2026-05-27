@@ -315,7 +315,7 @@ def test_vector_slot_qualifier_cache_separates_qualifier_variants():
     k.generate({"culture": "english", "scoring_mode": "vector"}, seed=1170)
     # Every cached key is a (slot_position, slot_qualifier) tuple.
     _, slot_dict = next(iter(name_gen._vector_slot_score_cache.items()))
-    for key in slot_dict.keys():
+    for key in slot_dict:
         assert isinstance(key, tuple) and len(key) == 2, (
             f"slot_base_scores cache key must be (position, qualifier) tuple: got {key!r}"
         )
