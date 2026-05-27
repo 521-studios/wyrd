@@ -30,7 +30,6 @@ from wyrd.generators.kenning.runtime.vector_name_select import (
 )
 from wyrd.generators.kenning.vectors.schemas import EligibilityGate
 
-
 # ---- L4 write/read round-trip ---------------------------------------------
 
 
