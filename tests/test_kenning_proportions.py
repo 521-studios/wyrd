@@ -1034,7 +1034,9 @@ def test_name_generator_select_drops_out_of_era_morphemes_at_pick_time():
     # struct passes the wyrd-zzli + wyrd-80ib filter; era-range plumbing
     # is the actual test target.
     m_in = Meaning("-in", ["family name"], [], {}, attested_years={"old_english": [("in", 950)]})
-    m_out = Meaning("-out", ["family name"], [], {}, attested_years={"old_english": [("out", 1500)]})
+    m_out = Meaning(
+        "-out", ["family name"], [], {}, attested_years={"old_english": [("out", 1500)]}
+    )
     meaning_db = {"-in": [m_in], "-out": [m_out]}
     proportions = {"-in": 1, "-out": 99}
     mg = MeaningGenerator(meaning_db, {}, proportions)
@@ -1064,8 +1066,12 @@ def test_name_generator_select_era_range_threads_through_positive_tag_path():
     # "family name" tag flips is_name() True so the single-element
     # struct passes the wyrd-zzli + wyrd-80ib filter; era+positive-tag
     # plumbing is the actual test target.
-    m_in = Meaning("-in", ["tree", "family name"], [], {}, attested_years={"old_english": [("in", 950)]})
-    m_out = Meaning("-out", ["tree", "family name"], [], {}, attested_years={"old_english": [("out", 1500)]})
+    m_in = Meaning(
+        "-in", ["tree", "family name"], [], {}, attested_years={"old_english": [("in", 950)]}
+    )
+    m_out = Meaning(
+        "-out", ["tree", "family name"], [], {}, attested_years={"old_english": [("out", 1500)]}
+    )
     meaning_db = {"-in": [m_in], "-out": [m_out]}
     proportions = {"-in": 1, "-out": 99}
     tag_db = {"tree": ["-in", "-out"]}
@@ -1542,8 +1548,12 @@ def test_name_generator_select_stratum_threads_through_positive_tag_path():
     # "family name" tag makes the single-element struct pass the
     # wyrd-zzli + wyrd-80ib filter; stratum+positive-tag plumbing is
     # the test target.
-    m_in = Meaning("-in", ["tree", "family name"], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}})
-    m_out = Meaning("-out", ["tree", "family name"], [], {}, stratum={"celtic_mix": {"din": "latin-loan"}})
+    m_in = Meaning(
+        "-in", ["tree", "family name"], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}}
+    )
+    m_out = Meaning(
+        "-out", ["tree", "family name"], [], {}, stratum={"celtic_mix": {"din": "latin-loan"}}
+    )
     meaning_db = {"-in": [m_in], "-out": [m_out]}
     proportions = {"-in": 1, "-out": 99}
     tag_db = {"tree": ["-in", "-out"]}

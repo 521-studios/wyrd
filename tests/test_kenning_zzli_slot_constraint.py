@@ -352,8 +352,7 @@ def test_encode_structs_preserves_single_word_qualifier_shapes():
     encoded_struct_shapes = [
         tuple(
             tuple(
-                (e["location"], *(k for k, v in e.items() if k != "location" and v))
-                for e in word
+                (e["location"], *(k for k, v in e.items() if k != "location" and v)) for e in word
             )
             for word in s["words"]
         )
