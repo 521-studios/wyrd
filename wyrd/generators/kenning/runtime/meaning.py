@@ -305,12 +305,24 @@ class Meaning:
         attestation emit, and the vector path's per-Meaning eligibility
         filter all key on this value. Walking sources alphabetically
         keeps the choice deterministic across re-runs (sorted, not
-        dict-insertion order)."""
-        sources = self.sources or {}
-        for key in sorted(sources):
-            if sources[key]:
-                return key
-        return None
+        dict-insertion order).
+
+        Cached on first call via the ``_primary_language_cache``
+        attribute. ``sources`` is set once at __init__ and never mutated
+        afterwards, so the cached value stays correct. Hot path: the
+        splitter calls this O(decompositions × morphemes-per-name)
+        times across the per-culture place-name corpus, and the vector
+        path calls it once per pool-eligibility check. ``None`` is a
+        valid cached value (meaning lacks any source-language data), so
+        we use ``hasattr`` rather than a None sentinel."""
+        if not hasattr(self, "_primary_language_cache"):
+            sources = self.sources or {}
+            self._primary_language_cache: str | None = None
+            for key in sorted(sources):
+                if sources[key]:
+                    self._primary_language_cache = key
+                    break
+        return self._primary_language_cache
 
     def is_saint(self):
         return "saint" in self.tags
