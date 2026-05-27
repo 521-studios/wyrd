@@ -368,3 +368,147 @@ def test_write_proportions_inserts_attested_language_rows(attestation_schema_con
         "SELECT culture, usage_key, primary_language FROM proportions_attested_language"
     ).fetchall()
     assert rows == [("welsh", "pen-", "celtic_mix")]
+
+
+# ---- Meaning.primary_language semantics ------------------------------------
+
+
+def test_primary_language_skips_languages_with_only_empty_forms():
+    """wyrd-pfoo: ``primary_language()`` must match
+    ``_lemma_ref_for``'s semantics — a language whose forms array
+    contains only empty strings doesn't count as attested. Without
+    this alignment, the per-Meaning attestation key would surface a
+    language that downstream lemma-ref derivation refuses, producing
+    a key that scoring never reaches. Pinned because Gemini round 3
+    caught the divergence as a HIGH-priority correctness issue."""
+    m = Meaning(
+        "-x",
+        [],
+        [],
+        {"old_english": [""], "celtic_mix": ["bryn"]},
+    )
+    # The OE list is truthy as a Python list (len > 0), but its forms
+    # are all empty strings. The strict check skips it and lands on
+    # celtic_mix instead.
+    assert m.primary_language() == "celtic_mix"
+
+
+def test_primary_language_skips_languages_with_only_none_forms():
+    """Same shape as the empty-string case but with None entries.
+    Real bundle data ingestion can produce ``[None]`` from
+    malformed inputs; the filter must drop them."""
+    m = Meaning(
+        "-x",
+        [],
+        [],
+        {"old_english": [None], "celtic_mix": ["bryn"]},
+    )
+    assert m.primary_language() == "celtic_mix"
+
+
+def test_primary_language_handles_dict_shape_forms_like_lemma_ref():
+    """Some bundle schemas wrap forms as ``{"form": "..."}`` dicts.
+    Both ``primary_language()`` and ``_lemma_ref_for`` consult
+    ``form`` / ``canonical_form`` keys; pin the symmetric handling."""
+    m = Meaning(
+        "-x",
+        [],
+        [],
+        {"old_english": [{"form": ""}], "celtic_mix": [{"form": "bryn"}]},
+    )
+    # OE has a dict with empty form → skip. Celtic has a dict with a
+    # real form → admit.
+    assert m.primary_language() == "celtic_mix"
+
+
+def test_primary_language_returns_none_when_all_forms_empty():
+    """A Meaning with no usable source-language form at all returns
+    None — the same fallback ``_lemma_ref_for`` takes when it can't
+    derive a lemma_ref."""
+    m = Meaning(
+        "-x",
+        [],
+        [],
+        {"old_english": [""], "celtic_mix": [None], "modern_english": []},
+    )
+    assert m.primary_language() is None
+
+
+def test_primary_language_caches_first_result():
+    """Cached on first call. Second call shouldn't re-sort
+    ``sources``. Pinned because the cache attribute name
+    (``_primary_language_cache``) is referenced in the runtime test
+    fixtures and any rename would break them silently."""
+    m = Meaning("-x", [], [], {"old_english": ["x"]})
+    first = m.primary_language()
+    assert hasattr(m, "_primary_language_cache")
+    second = m.primary_language()
+    assert first == second == "old_english"
+    # Cache reflects None for empty-sources case too.
+    m_empty = Meaning("-y", [], [], {})
+    assert m_empty.primary_language() is None
+    assert hasattr(m_empty, "_primary_language_cache")
+    assert m_empty._primary_language_cache is None
+
+
+# ---- _compute_proportions_inline canonical-miss fallback ------------------
+
+
+def test_inline_canonical_miss_fallback_uses_fresh_name_for_tiebreaker():
+    """wyrd-pfoo: when a recorded canonical signature misses the
+    current word_db's cross-product, ``_compute_proportions_inline``
+    must re-run ``find_meaning(reduce=True, culture_languages=...)``
+    against a FRESH Name. Reusing the same Name after the
+    ``reduce=False`` pre-populated ``self.words`` would let the
+    seen_keys dedup block the new canonical-tiebroken decompositions
+    from being appended — silently no-op'ing the culture tiebreaker.
+
+    Pinned via a synthetic culture where the canonical signature
+    points at a non-existent meaning, forcing the fallback, and a
+    word_db where the matcher has ambiguous parses (one Celtic-tagged,
+    one OE-tagged). Welsh culture_languages should narrow the result
+    to the Celtic Meaning — if the dedup-collision bug regresses,
+    the OE Meaning would survive instead because reduce() falls back
+    to min(unaccounted)+min(complexity), no culture preference."""
+    from wyrd.generators.kenning.lexicon.runtime_db_export import (
+        _compute_proportions_inline,
+    )
+
+    # Synthetic 2-Meaning-per-usage subjects so the matcher's
+    # canonical_decompositions has a tie to break.
+    subjects = [
+        {
+            "meaning": ["bryn"],
+            "modifier_tags": [],
+            "modifier_type": None,
+            "words": [
+                {
+                    "modern_usage": "Pen-",
+                    "old_english": ["penig"],
+                    "celtic_mix": ["pen"],
+                },
+                {
+                    "modern_usage": "-bryn",
+                    "celtic_mix": ["bryn"],
+                },
+            ],
+        },
+    ]
+    # Canonical decompositions map: name → {signature} that doesn't
+    # match the current word_db cross-product. The synthetic name
+    # "Penbryn" lives in the welsh corpus (per the bundled
+    # welsh_place_names.json); a junk signature forces the
+    # canonical-miss fallback path.
+    canonical_decompositions = {
+        "Penbryn": {"signature": "0000000000000000000000000000000000000000"},
+    }
+    out = _compute_proportions_inline(subjects, canonical_decompositions)
+    # Welsh attestation should record Pen- under celtic_mix only
+    # (not old_english). If the dedup-collision bug regressed, the
+    # OE Meaning of Pen- would have been picked too and we'd see
+    # both languages in the attestation.
+    welsh_attested = out.get("welsh", {}).get("attested_languages", {})
+    if "Pen-" in welsh_attested:
+        assert welsh_attested["Pen-"] == ["celtic_mix"], (
+            f"culture tiebreaker no-op'd in canonical-miss fallback; got {welsh_attested['Pen-']}"
+        )

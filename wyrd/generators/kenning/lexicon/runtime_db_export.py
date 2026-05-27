@@ -264,7 +264,7 @@ def _compute_proportions_inline(
     )
     from wyrd.generators.kenning.runtime.decomposition import apply_canonical_to_name
     from wyrd.generators.kenning.runtime.meaning import load_meanings
-    from wyrd.generators.kenning.runtime.name import load_names_with_regions
+    from wyrd.generators.kenning.runtime.name import Name, load_names_with_regions
 
     word_db, _ = load_meanings({"subjects": subjects})
     out: dict[str, dict[str, Any]] = {}
@@ -292,6 +292,18 @@ def _compute_proportions_inline(
                 # word_db has shifted since the canonical was picked.
                 name.find_meaning(word_db, reduce=False)
                 if not apply_canonical_to_name(name, canonical["signature"]):
+                    # wyrd-pfoo: the reduce=False call above already
+                    # populated ``name.words`` with every parse.
+                    # ``find_meaning(reduce=True, ...)`` deduplicates
+                    # against the existing entries via seen_keys, so
+                    # the canonical-tiebreaker output (a subset of
+                    # all_decompositions) gets filtered out as
+                    # "already there" before the tiebreaker effect
+                    # can land. Rebuilding from a fresh Name re-runs
+                    # the matcher cleanly — same pattern as
+                    # decomposition.decompose_with_canonical's
+                    # canonical-miss fallback.
+                    name = Name(name.name)
                     name.find_meaning(word_db, reduce=True, culture_languages=culture_languages)
             else:
                 name.find_meaning(word_db, reduce=True, culture_languages=culture_languages)

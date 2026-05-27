@@ -298,29 +298,49 @@ class Meaning:
         return any(tag in ("female name", "male name", "family name") for tag in self.tags)
 
     def primary_language(self) -> str | None:
-        """wyrd-pfoo: the alphabetically-first non-empty source-language
-        bundle field for this Meaning. Used as the per-Meaning identifier
-        across the culture-attestation pipeline — the matcher's
-        culture-aligned tiebreaker, the splitter's per-Meaning
-        attestation emit, and the vector path's per-Meaning eligibility
-        filter all key on this value. Walking sources alphabetically
-        keeps the choice deterministic across re-runs (sorted, not
-        dict-insertion order).
+        """wyrd-pfoo: the alphabetically-first source-language bundle
+        field with at least one non-empty form. Used as the per-Meaning
+        identifier across the culture-attestation pipeline — the
+        matcher's culture-aligned tiebreaker, the splitter's
+        per-Meaning attestation emit, and the vector path's
+        per-Meaning eligibility filter all key on this value. Walking
+        sources alphabetically keeps the choice deterministic across
+        re-runs (sorted, not dict-insertion order).
+
+        The "non-empty form" check matches
+        ``vector_name_select._lemma_ref_for``'s semantics — a language
+        whose forms array contains only empty strings / None / dict
+        entries with no form/canonical_form fields doesn't count as
+        attested. Without this alignment, a Meaning with
+        ``{"old_english": [""]}`` would surface ``"old_english"`` as
+        its primary language through ``primary_language()`` but get
+        skipped by ``_lemma_ref_for``'s lemma-ref derivation —
+        producing a per-Meaning attestation key that doesn't
+        correspond to any usable scoring input downstream.
 
         Cached on first call via the ``_primary_language_cache``
-        attribute. ``sources`` is set once at __init__ and never mutated
-        afterwards, so the cached value stays correct. Hot path: the
-        splitter calls this O(decompositions × morphemes-per-name)
-        times across the per-culture place-name corpus, and the vector
-        path calls it once per pool-eligibility check. ``None`` is a
-        valid cached value (meaning lacks any source-language data), so
-        we use ``hasattr`` rather than a None sentinel."""
+        attribute. ``sources`` is set once at __init__ and never
+        mutated afterwards, so the cached value stays correct. Hot
+        path: the splitter calls this O(decompositions ×
+        morphemes-per-name) times across the per-culture place-name
+        corpus, and the vector path calls it once per pool-eligibility
+        check. ``None`` is a valid cached value (meaning lacks any
+        usable source-language data), so we use ``hasattr`` rather
+        than a None sentinel."""
         if not hasattr(self, "_primary_language_cache"):
             sources = self.sources or {}
             self._primary_language_cache: str | None = None
             for key in sorted(sources):
-                if sources[key]:
-                    self._primary_language_cache = key
+                forms = sources[key]
+                if not forms:
+                    continue
+                for form in forms:
+                    if isinstance(form, dict):
+                        form = form.get("form") or form.get("canonical_form") or ""
+                    if form:
+                        self._primary_language_cache = key
+                        break
+                if self._primary_language_cache is not None:
                     break
         return self._primary_language_cache
 
