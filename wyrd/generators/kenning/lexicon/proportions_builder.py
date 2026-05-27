@@ -132,12 +132,15 @@ def encode_structs(struct: Counter) -> list:
     key) gives a stable canonical order: most-frequent first, with the
     structure tuple as deterministic tiebreaker.
 
-    wyrd-zzli: drops multi-word structures with any single-word slot
-    that's a bare 'pre' or 'post' morpheme. These templates were
-    causing 'By Green'-style ungrammatical output where the runtime
-    rendered an attachment-only morpheme (``-by``, ``green-``) as a
-    standalone word. 46.7% of English structure weight was in this
-    shape before the filter; corresponding runtime defense in
+    wyrd-zzli + wyrd-80ib: drops structures where any word slot is a
+    bare 'pre' / 'post' / 'inner' morpheme with no name/saint flag.
+    Two shapes both trip the filter:
+    - multi-word 'By Green' (zzli): -by + green- split across two
+      word slots; 46.7% of English structure weight pre-fix.
+    - single-word 'Bridge' (80ib): a 1-word structure whose sole
+      word is `-bridge`, rendered alone after dash-strip; 6.7% of
+      English 1-word weight pre-fix.
+    Corresponding runtime defense in
     ``proportions.is_structurally_grammatical``. Real qualifier-word
     two-word names (Bishop's Stortford, Great Yarmouth) survive
     because their lead morpheme carries the ``name`` flag, which is

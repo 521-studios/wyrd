@@ -428,13 +428,16 @@ def _is_ungrammatical_word_template(word_key: tuple) -> bool:
 def is_structurally_grammatical(struct_key: tuple) -> bool:
     """wyrd-zzli: predicate for a full structure (tuple of word_keys).
 
-    A single-word structure is always grammatical — its sole word is
-    the entire name. A multi-word structure is grammatical when no
-    word inside it is a bare-pre / bare-post standalone (see
-    :func:`_is_ungrammatical_word_template`).
+    A structure is grammatical when no word inside it is a bare-pre /
+    bare-post / bare-inner standalone (see
+    :func:`_is_ungrammatical_word_template`). Applies to both multi-
+    word structures (the original `By Green` shape) and single-word
+    structures (wyrd-80ib): a 1-word structure whose sole word is a
+    single bare prefix/suffix renders that morpheme alone with the
+    dash stripped, producing single-word output like `Bridge`,
+    `Green`, `South` from morphemes whose canonical_form is `-bridge`,
+    `-green`, `South-`.
     """
-    if len(struct_key) <= 1:
-        return True
     return not any(_is_ungrammatical_word_template(w) for w in struct_key)
 
 
@@ -490,13 +493,17 @@ class NameGenerator:
         # (request, era_midpoint, priors) tuples covers typical SPA
         # exploration; older entries get FIFO-evicted on overflow.
         self._VECTOR_SLOT_CACHE_MAX = 16
-        # wyrd-zzli: filter out multi-word structures that would produce
-        # ungrammatical 'By Green'-style output (a bare pre or post
-        # morpheme rendered as a standalone word). 46.7% of the English
-        # bundle's structure weight was in this shape pre-fix. The data
-        # fix in rebuild_proportions._encode_structs prevents future
-        # rebuilds from emitting them; this runtime gate defends against
-        # bundles built before that data fix lands.
+        # wyrd-zzli + wyrd-80ib: filter out structures that would render
+        # a bare pre/post/inner morpheme as a standalone word. Two
+        # shapes both fail this predicate:
+        #   - multi-word `By Green` (zzli): -by + green- split across
+        #     two word slots (46.7% of English structure weight pre-fix)
+        #   - single-word `Bridge` (80ib): a 1-word structure whose
+        #     sole word is `-bridge`, rendered alone after dash-strip
+        #     (6.7% of remaining English 1-word weight)
+        # The data fix in rebuild_proportions._encode_structs prevents
+        # future rebuilds from emitting them; this runtime gate defends
+        # against bundles built before that data fix lands.
         self.structs = {k: v for k, v in structs.items() if is_structurally_grammatical(k)}
         # Loud-failure guard (generator-contract-reviewer P2, round 1):
         # if the filter empties an otherwise-non-empty structs dict, the

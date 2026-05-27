@@ -89,12 +89,33 @@ def test_empty_position_tuple_is_grammatical():
 # ---------------------------------------------------------------------------
 
 
-def test_single_word_structure_always_passes():
-    """A 1-word structure renders as 1 surface name — no 'By Green'
-    risk. Even bare pre/post single-word structures pass (they're
-    weird but not the bug shape)."""
-    assert is_structurally_grammatical((((("pre",),)),)) is True
+def test_single_word_compound_structure_passes():
+    """A 1-word structure whose sole word is a real compound
+    (pre+post, pre+inner+post, etc.) is grammatical — that's the
+    normal `Stonebridge` shape."""
     assert is_structurally_grammatical(((("pre",), ("post",)),)) is True
+
+
+def test_single_word_bare_pre_structure_is_ungrammatical():
+    """wyrd-80ib: a 1-word structure whose sole word is a single bare
+    prefix renders the morpheme alone after dash-stripping (`High-` →
+    `High`, `South-` → `South`). Same `_is_ungrammatical_word_template`
+    shape as the multi-word `By Green` bug — just expressed as a 1-word
+    structure where the whole name is the affix."""
+    assert is_structurally_grammatical(((("pre",),),)) is False
+
+
+def test_single_word_bare_post_structure_is_ungrammatical():
+    """wyrd-80ib: same as bare-pre but for suffix-only morphemes
+    (`-bridge` → `Bridge`, `-green` → `Green`)."""
+    assert is_structurally_grammatical(((("post",),),)) is False
+
+
+def test_single_word_bare_pre_with_name_flag_passes():
+    """wyrd-80ib: name-flagged single-word structures survive — the
+    `name` flag is exactly what marks a qualifier word allowed to
+    stand alone (Bishop's, Great, Old)."""
+    assert is_structurally_grammatical(((("pre", "name"),),)) is True
 
 
 def test_post_then_pre_two_word_is_rejected():

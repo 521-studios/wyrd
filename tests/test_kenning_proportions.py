@@ -192,6 +192,14 @@ def _build_minimal_name_generator(meaning_db):
     words) and the (location, "single") key (single-element words). The
     test fixture uses single-element structures so the runtime can resolve
     the bucket via the "single"-suffixed key.
+
+    The fixture structure is a 2-element compound (pre+post), which
+    passes the wyrd-zzli + wyrd-80ib grammaticality filter. These tests
+    only exercise the rendering machinery via direct
+    ``_render_substitutions`` calls — they don't go through the
+    structure-driven dispatch — so the struct doesn't need to match
+    meaning_db; it just needs ONE entry that survives the filter at
+    NameGenerator init.
     """
     from wyrd.generators.kenning.runtime.proportions import (
         MeaningGenerator,
@@ -200,9 +208,15 @@ def _build_minimal_name_generator(meaning_db):
 
     proportions = dict.fromkeys(meaning_db, 1)
     mg = MeaningGenerator(meaning_db, {}, proportions)
+    # Load both bucket flavors so test structs can reference either the
+    # multi-element compound shape ((`pre`,), (`post`,)) — which uses
+    # load_parts(...) without addkey — or the single-element shape
+    # ((location, `single`),) — which uses load_parts(..., "single").
+    # Tests under this helper use the compound shape; single-element
+    # buckets are kept loaded for symmetry with production.
+    mg.load_parts(proportions)
     mg.load_parts(proportions, "single")
-    location = next(iter(meaning_db.values()))[0].location
-    structs = {(((location, "single"),),): 1}
+    structs = {((("pre",), ("post",)),): 1}
     return NameGenerator(meaning_db, mg, structs)
 
 
@@ -281,15 +295,24 @@ def test_select_populates_inflection_labels_at_high_density():
     integration boundary that _render_substitutions tests can't reach
     on their own."""
     from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator, NameGenerator
 
+    # "family name" tag flips is_name() True so the single-element
+    # struct passes the wyrd-zzli + wyrd-80ib filter; inflection-label
+    # plumbing is the actual test target.
     m = Meaning(
         "-cot",
-        [],
+        ["family name"],
         [],
         {"old_english": ["cot", "cotum"]},
         inflections={"old_english": [("cotum", "dative_or_pl")]},
     )
-    name_gen = _build_minimal_name_generator({"-cot": [m]})
+    meaning_db = {"-cot": [m]}
+    proportions = dict.fromkeys(meaning_db, 1)
+    mg = MeaningGenerator(meaning_db, {}, proportions)
+    mg.load_parts(proportions, "single")
+    structs = {(((m.location, "name", "single"),),): 1}
+    name_gen = NameGenerator(meaning_db, mg, structs)
     new_name = name_gen.select(random.Random(0), inflection_density=1.0)
     assert new_name.inflection_labels == [["dative_or_pl"]]
     assert new_name.rendered == [["cotum"]]
@@ -300,16 +323,25 @@ def test_select_default_skips_render_pass_entirely():
     rendered or inflection_labels — they stay None. Cheap fast-path
     confirmation that protects bit-stability."""
     from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import MeaningGenerator, NameGenerator
 
+    # "family name" tag flips is_name() True so the single-element
+    # struct passes the wyrd-zzli + wyrd-80ib filter; default-no-render
+    # fast-path is the actual test target.
     m = Meaning(
         "-cot",
-        [],
+        ["family name"],
         [],
         {"old_english": ["cot"]},
         variants={"old_english": [("kotte", 5)]},
         inflections={"old_english": [("cotum", "dative_or_pl")]},
     )
-    name_gen = _build_minimal_name_generator({"-cot": [m]})
+    meaning_db = {"-cot": [m]}
+    proportions = dict.fromkeys(meaning_db, 1)
+    mg = MeaningGenerator(meaning_db, {}, proportions)
+    mg.load_parts(proportions, "single")
+    structs = {(((m.location, "name", "single"),),): 1}
+    name_gen = NameGenerator(meaning_db, mg, structs)
     new_name = name_gen.select(random.Random(0))
     assert new_name.rendered is None
     assert new_name.inflection_labels is None
@@ -826,15 +858,19 @@ def test_name_generator_select_excludes_fiction_end_to_end():
     from wyrd.generators.kenning.runtime.meaning import Meaning
     from wyrd.generators.kenning.runtime.proportions import MeaningGenerator, NameGenerator
 
-    m = Meaning("-mythron", [], ["constructed"], {"old_english": ["mythron"]})
+    # "family name" tag flips is_name() True so Meaning.key() returns
+    # (location, "name") and the struct's name-flagged single-element
+    # word_key passes the wyrd-zzli + wyrd-80ib grammaticality filter.
+    # Doesn't affect the fiction-exclude behavior being tested.
+    m = Meaning("-mythron", ["family name"], ["constructed"], {"old_english": ["mythron"]})
     meaning_db = {"-mythron": [m]}
     tag_db = {"fiction": ["-mythron"]}
     proportions = {"-mythron": 1}
     mg = MeaningGenerator(meaning_db, tag_db, proportions)
     # Same shape as production load_proportions: single-element words
-    # register usages under (location, "single").
+    # register usages under (location, "name", "single").
     mg.load_parts(proportions, "single")
-    structs = {(((m.location, "single"),),): 1}
+    structs = {(((m.location, "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
 
     # Default mode: fiction excluded → no morpheme in the slot.
@@ -997,13 +1033,16 @@ def test_name_generator_select_drops_out_of_era_morphemes_at_pick_time():
         NameGenerator,
     )
 
-    m_in = Meaning("-in", [], [], {}, attested_years={"old_english": [("in", 950)]})
-    m_out = Meaning("-out", [], [], {}, attested_years={"old_english": [("out", 1500)]})
+    # "family name" tag flips is_name() True so the single-element
+    # struct passes the wyrd-zzli + wyrd-80ib filter; era-range plumbing
+    # is the actual test target.
+    m_in = Meaning("-in", ["family name"], [], {}, attested_years={"old_english": [("in", 950)]})
+    m_out = Meaning("-out", ["family name"], [], {}, attested_years={"old_english": [("out", 1500)]})
     meaning_db = {"-in": [m_in], "-out": [m_out]}
     proportions = {"-in": 1, "-out": 99}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
-    structs = {(((m_in.location, "single"),),): 1}
+    structs = {(((m_in.location, "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     for i in range(50):
         new_name = name_gen.select(random.Random(i), era_range=(800, 1100))
@@ -1025,14 +1064,17 @@ def test_name_generator_select_era_range_threads_through_positive_tag_path():
         NameGenerator,
     )
 
-    m_in = Meaning("-in", ["tree"], [], {}, attested_years={"old_english": [("in", 950)]})
-    m_out = Meaning("-out", ["tree"], [], {}, attested_years={"old_english": [("out", 1500)]})
+    # "family name" tag flips is_name() True so the single-element
+    # struct passes the wyrd-zzli + wyrd-80ib filter; era+positive-tag
+    # plumbing is the actual test target.
+    m_in = Meaning("-in", ["tree", "family name"], [], {}, attested_years={"old_english": [("in", 950)]})
+    m_out = Meaning("-out", ["tree", "family name"], [], {}, attested_years={"old_english": [("out", 1500)]})
     meaning_db = {"-in": [m_in], "-out": [m_out]}
     proportions = {"-in": 1, "-out": 99}
     tag_db = {"tree": ["-in", "-out"]}
     mg = MeaningGenerator(meaning_db, tag_db, proportions)
     mg.load_parts(proportions, "single")
-    structs = {(((m_in.location, "single"),),): 1}
+    structs = {(((m_in.location, "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     for i in range(50):
         new_name = name_gen.select(random.Random(i), "tree", era_range=(800, 1100))
@@ -1050,13 +1092,16 @@ def test_name_generator_select_era_range_none_is_bit_stable():
         NameGenerator,
     )
 
-    m_a = Meaning("-a", [], [], {})
-    m_b = Meaning("-b", [], [], {})
+    # "family name" tag flips is_name() True so the single-element
+    # struct passes the wyrd-zzli + wyrd-80ib filter; era_range=None
+    # bit-stability is the actual test target.
+    m_a = Meaning("-a", ["family name"], [], {})
+    m_b = Meaning("-b", ["family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
     proportions = {"-a": 50, "-b": 50}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
-    structs = {((("post", "single"),),): 1}
+    structs = {((("post", "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     seq_default = [name_gen.select(random.Random(i)).name for i in range(20)]
     seq_explicit_none = [name_gen.select(random.Random(i), era_range=None).name for i in range(20)]
@@ -1086,17 +1131,19 @@ def test_name_generator_select_no_era_matches_pre_pr_weighted_choice():
     )
 
     # Skewed weights so a regression-induced order swap surfaces as a
-    # sequence change rather than a 50/50 noise wash.
-    m_a = Meaning("-a", [], [], {})
-    m_b = Meaning("-b", [], [], {})
+    # sequence change rather than a 50/50 noise wash. "family name" tag
+    # makes the single-element struct pass the wyrd-zzli + wyrd-80ib
+    # filter; weighted_choice bit-stability is the actual test target.
+    m_a = Meaning("-a", ["family name"], [], {})
+    m_b = Meaning("-b", ["family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
     proportions = {"-a": 30, "-b": 70}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
-    structs = {((("post", "single"),),): 1}
+    structs = {((("post", "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
 
-    bucket = mg.generators[("post", "single")]
+    bucket = mg.generators[("post", "name", "single")]
     items = list(bucket.elements.items())
     struct_items = list(structs.items())
 
@@ -1433,13 +1480,15 @@ def test_name_generator_select_drops_out_of_stratum_morphemes_at_pick_time():
         NameGenerator,
     )
 
-    m_in = Meaning("-in", [], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}})
-    m_out = Meaning("-out", [], [], {}, stratum={"celtic_mix": {"din": "latin-loan"}})
+    # "family name" tag makes the single-element struct pass the
+    # wyrd-zzli + wyrd-80ib filter; stratum plumbing is the test target.
+    m_in = Meaning("-in", ["family name"], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}})
+    m_out = Meaning("-out", ["family name"], [], {}, stratum={"celtic_mix": {"din": "latin-loan"}})
     meaning_db = {"-in": [m_in], "-out": [m_out]}
     proportions = {"-in": 1, "-out": 99}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
-    structs = {(((m_in.location, "single"),),): 1}
+    structs = {(((m_in.location, "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     for i in range(50):
         new_name = name_gen.select(random.Random(i), stratum="native-welsh")
@@ -1493,14 +1542,17 @@ def test_name_generator_select_stratum_threads_through_positive_tag_path():
         NameGenerator,
     )
 
-    m_in = Meaning("-in", ["tree"], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}})
-    m_out = Meaning("-out", ["tree"], [], {}, stratum={"celtic_mix": {"din": "latin-loan"}})
+    # "family name" tag makes the single-element struct pass the
+    # wyrd-zzli + wyrd-80ib filter; stratum+positive-tag plumbing is
+    # the test target.
+    m_in = Meaning("-in", ["tree", "family name"], [], {}, stratum={"celtic_mix": {"caer": "native-welsh"}})
+    m_out = Meaning("-out", ["tree", "family name"], [], {}, stratum={"celtic_mix": {"din": "latin-loan"}})
     meaning_db = {"-in": [m_in], "-out": [m_out]}
     proportions = {"-in": 1, "-out": 99}
     tag_db = {"tree": ["-in", "-out"]}
     mg = MeaningGenerator(meaning_db, tag_db, proportions)
     mg.load_parts(proportions, "single")
-    structs = {(((m_in.location, "single"),),): 1}
+    structs = {(((m_in.location, "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     for i in range(50):
         new_name = name_gen.select(random.Random(i), "tree", stratum="native-welsh")
@@ -1549,13 +1601,16 @@ def test_name_generator_select_stratum_none_is_bit_stable():
         NameGenerator,
     )
 
-    m_a = Meaning("-a", [], [], {})
-    m_b = Meaning("-b", [], [], {})
+    # "family name" tag makes the single-element struct pass the
+    # wyrd-zzli + wyrd-80ib filter; stratum=None bit-stability is the
+    # test target.
+    m_a = Meaning("-a", ["family name"], [], {})
+    m_b = Meaning("-b", ["family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
     proportions = {"-a": 50, "-b": 50}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
-    structs = {((("post", "single"),),): 1}
+    structs = {((("post", "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     seq_default = [name_gen.select(random.Random(i)).name for i in range(20)]
     seq_explicit_none = [name_gen.select(random.Random(i), stratum=None).name for i in range(20)]
@@ -1574,9 +1629,12 @@ def test_name_generator_select_era_and_stratum_compose_via_intersection():
         NameGenerator,
     )
 
+    # "family name" tag makes the single-element struct pass the
+    # wyrd-zzli + wyrd-80ib filter; era+stratum intersection is the
+    # test target.
     m_ok = Meaning(
         "-ok",
-        [],
+        ["family name"],
         [],
         {},
         attested_years={"old_english": [("ok", 950)]},
@@ -1584,7 +1642,7 @@ def test_name_generator_select_era_and_stratum_compose_via_intersection():
     )
     m_wrong_stratum = Meaning(
         "-wrong-stratum",
-        [],
+        ["family name"],
         [],
         {},
         attested_years={"old_english": [("ws", 950)]},
@@ -1592,7 +1650,7 @@ def test_name_generator_select_era_and_stratum_compose_via_intersection():
     )
     m_wrong_era = Meaning(
         "-wrong-era",
-        [],
+        ["family name"],
         [],
         {},
         attested_years={"old_english": [("we", 1500)]},
@@ -1606,7 +1664,7 @@ def test_name_generator_select_era_and_stratum_compose_via_intersection():
     proportions = {"-ok": 1, "-wrong-stratum": 99, "-wrong-era": 99}
     mg = MeaningGenerator(meaning_db, {}, proportions)
     mg.load_parts(proportions, "single")
-    structs = {(((m_ok.location, "single"),),): 1}
+    structs = {(((m_ok.location, "name", "single"),),): 1}
     name_gen = NameGenerator(meaning_db, mg, structs)
     for i in range(50):
         new_name = name_gen.select(
@@ -1681,11 +1739,14 @@ def test_name_generator_cohesion_zero_is_bit_stable_with_no_cooccurrence():
     sequence equality across 30 seeds against the no-kwarg call."""
     from wyrd.generators.kenning.runtime.meaning import Meaning
 
-    m_a = Meaning("-a", ["water"], [], {})
-    m_b = Meaning("-b", ["plant"], [], {})
+    # "family name" tag makes the single-element struct pass the
+    # wyrd-zzli + wyrd-80ib filter; cohesion=0 bit-stability is the
+    # test target.
+    m_a = Meaning("-a", ["water", "family name"], [], {})
+    m_b = Meaning("-b", ["plant", "family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
     proportions = {"-a": 50, "-b": 50}
-    structs = {((("post", "single"),),): 1}
+    structs = {((("post", "name", "single"),),): 1}
     name_gen = _build_cohesion_test_generator(
         meaning_db,
         proportions,
@@ -1744,11 +1805,13 @@ def test_name_generator_cohesion_no_cooccurrence_data_is_no_op():
     cohesion=0. Legacy bundles (no co-occurrence keys) ride this path."""
     from wyrd.generators.kenning.runtime.meaning import Meaning
 
-    m_a = Meaning("-a", ["water"], [], {})
-    m_b = Meaning("-b", ["plant"], [], {})
+    # "family name" tag passes the wyrd-zzli + wyrd-80ib filter on
+    # the single-element struct; the no-cooc-data no-op is the actual test.
+    m_a = Meaning("-a", ["water", "family name"], [], {})
+    m_b = Meaning("-b", ["plant", "family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
     proportions = {"-a": 50, "-b": 50}
-    structs = {((("post", "single"),),): 1}
+    structs = {((("post", "name", "single"),),): 1}
     name_gen = _build_cohesion_test_generator(meaning_db, proportions, structs, cooc={}, marg={})
     seq_zero = [name_gen.select(random.Random(i), cohesion=0.0).name for i in range(20)]
     seq_one = [name_gen.select(random.Random(i), cohesion=1.0).name for i in range(20)]
@@ -1762,11 +1825,13 @@ def test_name_generator_cohesion_no_prior_tags_first_slot_unaffected():
     apply the boost to the first pick (zero-divide on mean_raw)."""
     from wyrd.generators.kenning.runtime.meaning import Meaning
 
-    m_a = Meaning("-a", ["water"], [], {})
-    m_b = Meaning("-b", ["plant"], [], {})
+    # "family name" tag passes the wyrd-zzli + wyrd-80ib filter on the
+    # single-element struct; first-slot no-prior-context is the test target.
+    m_a = Meaning("-a", ["water", "family name"], [], {})
+    m_b = Meaning("-b", ["plant", "family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
     proportions = {"-a": 50, "-b": 50}
-    structs = {((("post", "single"),),): 1}
+    structs = {((("post", "name", "single"),),): 1}
     name_gen = _build_cohesion_test_generator(
         meaning_db,
         proportions,
@@ -1787,11 +1852,13 @@ def test_name_generator_cohesion_no_signal_returns_none_boost():
     in end-to-end output."""
     from wyrd.generators.kenning.runtime.meaning import Meaning
 
-    m_a = Meaning("-a", ["plant"], [], {})
-    m_b = Meaning("-b", ["religion"], [], {})
+    # "family name" tag passes the wyrd-zzli + wyrd-80ib filter on the
+    # single-element struct; cohesion no-signal path is the test target.
+    m_a = Meaning("-a", ["plant", "family name"], [], {})
+    m_b = Meaning("-b", ["religion", "family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
     proportions = {"-a": 1, "-b": 1}
-    structs = {((("post", "single"),),): 1}
+    structs = {((("post", "name", "single"),),): 1}
     # marg has 'water' but no co-occurrence between water and any
     # candidate tag → raw scores are all zero → boost is None.
     name_gen = _build_cohesion_test_generator(
@@ -1801,7 +1868,7 @@ def test_name_generator_cohesion_no_signal_returns_none_boost():
         cooc={},
         marg={"water": 100},
     )
-    boost = name_gen._cohesion_boost(("post", "single"), {"water"}, cohesion=1.0)
+    boost = name_gen._cohesion_boost(("post", "name", "single"), {"water"}, cohesion=1.0)
     assert boost is None
 
 
@@ -1811,10 +1878,12 @@ def test_name_generator_cohesion_unknown_bucket_returns_none_boost():
     rather than crashing on an empty candidates iteration."""
     from wyrd.generators.kenning.runtime.meaning import Meaning
 
-    m = Meaning("-a", ["water"], [], {})
+    # "family name" tag passes the wyrd-zzli + wyrd-80ib filter on the
+    # single-element struct; unknown-bucket-returns-None is the test target.
+    m = Meaning("-a", ["water", "family name"], [], {})
     meaning_db = {"-a": [m]}
     proportions = {"-a": 1}
-    structs = {((("post", "single"),),): 1}
+    structs = {((("post", "name", "single"),),): 1}
     name_gen = _build_cohesion_test_generator(
         meaning_db,
         proportions,
@@ -1918,11 +1987,14 @@ def test_name_generator_cohesion_composes_with_novelty():
     Generator.select doesn't disturb the existing novelty path)."""
     from wyrd.generators.kenning.runtime.meaning import Meaning
 
-    m_a = Meaning("-a", ["water"], [], {})
-    m_b = Meaning("-b", ["plant"], [], {})
+    # "family name" tag passes the wyrd-zzli + wyrd-80ib filter on the
+    # single-element struct; cohesion-zero composes-with-novelty is the
+    # test target.
+    m_a = Meaning("-a", ["water", "family name"], [], {})
+    m_b = Meaning("-b", ["plant", "family name"], [], {})
     meaning_db = {"-a": [m_a], "-b": [m_b]}
     proportions = {"-a": 70, "-b": 30}
-    structs = {((("post", "single"),),): 1}
+    structs = {((("post", "name", "single"),),): 1}
     name_gen = _build_cohesion_test_generator(
         meaning_db,
         proportions,
@@ -2160,12 +2232,15 @@ def test_load_proportions_handles_missing_cooccurrence_keys():
     from wyrd.generators.kenning.runtime.meaning import Meaning
     from wyrd.generators.kenning.runtime.proportions import load_proportions
 
+    # name=True on the structure word satisfies the wyrd-zzli +
+    # wyrd-80ib grammaticality filter; the test is about loader plumbing,
+    # not structure validity.
     meaning_db = {"-a": [Meaning("-a", [], [], {})]}
     tag_db = {}
     legacy_data = {
         "usages": {"-a": 1},
         "single_usages": {"-a": 1},
-        "structures": [{"proportion": 1, "words": [[{"location": "post"}]]}],
+        "structures": [{"proportion": 1, "words": [[{"location": "post", "name": True}]]}],
         # No tag_cooccurrence, no tag_marginal — legacy shape.
     }
     name_gen = load_proportions(legacy_data, meaning_db, tag_db)
@@ -2179,12 +2254,15 @@ def test_load_proportions_passes_cooccurrence_keys_through():
     from wyrd.generators.kenning.runtime.meaning import Meaning
     from wyrd.generators.kenning.runtime.proportions import load_proportions
 
+    # name=True on the structure word satisfies the wyrd-zzli +
+    # wyrd-80ib grammaticality filter; the test is about loader plumbing,
+    # not structure validity.
     meaning_db = {"-a": [Meaning("-a", [], [], {})]}
     tag_db = {}
     data = {
         "usages": {"-a": 1},
         "single_usages": {"-a": 1},
-        "structures": [{"proportion": 1, "words": [[{"location": "post"}]]}],
+        "structures": [{"proportion": 1, "words": [[{"location": "post", "name": True}]]}],
         "tag_cooccurrence": {"water|plant": 7},
         "tag_marginal": {"water": 7, "plant": 7},
     }
