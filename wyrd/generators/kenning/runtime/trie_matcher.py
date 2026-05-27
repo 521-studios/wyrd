@@ -474,14 +474,20 @@ def _prefer_culture_aligned(
     """
 
     def alignment_score(decomp: list[Any]) -> int:
+        # Decomposition elements are ``Meaning | str``; only Meanings
+        # carry sources/tags/primary_language. The sources+tags
+        # duck-type check is the str-vs-Meaning discriminator; once
+        # past it the elem IS a Meaning (the matcher emits no other
+        # object kind into decompositions), so primary_language() is
+        # safe to call without further guards.
         score = 0
         for elem in decomp:
-            if hasattr(elem, "sources") and hasattr(elem, "tags"):
-                if not elem.tags:
-                    continue
-                primary = elem.primary_language() if hasattr(elem, "primary_language") else None
-                if primary in culture_languages:
-                    score += 1
+            if not (hasattr(elem, "sources") and hasattr(elem, "tags")):
+                continue
+            if not elem.tags:
+                continue
+            if elem.primary_language() in culture_languages:
+                score += 1
         return score
 
     scores = [(alignment_score(d), d) for d in decompositions]
