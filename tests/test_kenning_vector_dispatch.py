@@ -271,3 +271,49 @@ def test_vector_slot_score_cache_evicts_on_overflow():
     finally:
         name_gen._VECTOR_SLOT_CACHE_MAX = original_max
         name_gen._vector_slot_score_cache.clear()
+
+
+# ---- wyrd-izcr: vector path honors structure qualifier flags ---------------
+
+
+def test_vector_seed_1170_no_longer_produces_split_affix_port_all():
+    """wyrd-izcr regression: pre-fix seed 1170 batch's 6th name was
+    ``Port All`` — Port- + -all rendered as two separate words
+    because the vector path dropped the name/saint flags from
+    qualifier-flagged structures (e.g. [pre+saint, post+name]).
+    Post-fix the same struct triggers the qualifier filter; if
+    saint/name pool is empty under the live request, the
+    NameGenerator retries with a different struct. Pin that the
+    output for this seed is a real compound name, not a split-affix
+    pair."""
+    k = Kenning()
+    result = k.generate(
+        {"culture": "english", "scoring_mode": "vector", "count": 10},
+        seed=1170,
+    )
+    # Extract the 6th name from the multi-result string.
+    names = [line for line in result.result.split("\n") if line and not line.startswith("(")]
+    # Locate the slot that pre-fix produced "Port All". The exact
+    # name post-fix depends on which struct the retry picks, but it
+    # MUST NOT be the buggy "Port All" pair.
+    assert "Port All" not in names, f"Port All bug regressed: {names}"
+
+
+def test_vector_slot_qualifier_cache_separates_qualifier_variants():
+    """wyrd-izcr: the slot-score cache key is now (position,
+    qualifier) so a (pre, "name") slot and a (pre, None) slot
+    populate distinct entries. Without the qualifier in the key the
+    smaller name-filtered list would shadow the larger no-filter
+    list for any later slot that wanted the full pre pool."""
+    name_gen = _reset_vector_caches()
+    k = Kenning()
+    k.generate({"culture": "english", "scoring_mode": "vector", "count": 5}, seed=1170)
+    # Every cached key is a (slot_position, slot_qualifier) tuple.
+    _, slot_dict = next(iter(name_gen._vector_slot_score_cache.items()))
+    for key in slot_dict.keys():
+        assert isinstance(key, tuple) and len(key) == 2, (
+            f"slot_base_scores cache key must be (position, qualifier) tuple: got {key!r}"
+        )
+        position, qualifier = key
+        assert position in ("pre", "inner", "post")
+        assert qualifier in (None, "name", "saint")
