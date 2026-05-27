@@ -166,3 +166,54 @@ def test_find_meaning_runs_full_bundled_corpus_without_crashing(culture, bundle_
         f"({perfect}/{len(names)} = {rate * 100:.2f}%) — likely a matcher "
         f"or bundle regression"
     )
+
+
+# ---------------------------------------------------------------------------
+# wyrd-pfoo: culture_languages plumbing
+# ---------------------------------------------------------------------------
+
+
+def test_find_meaning_forwards_culture_languages_to_matcher(monkeypatch):
+    """``Name.find_meaning`` forwards the new ``culture_languages``
+    kwarg through to ``canonical_decompositions``. Pin the wire so a
+    refactor that drops the forward silently makes the per-culture
+    splitter no-op the tiebreaker."""
+    from wyrd.generators.kenning.runtime import name as name_mod
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    captured: dict = {}
+
+    def fake_canonical(word, trie, *, culture_languages=None):
+        captured["called"] = True
+        captured["culture_languages"] = culture_languages
+        # Return a minimal valid decomposition so find_meaning's
+        # downstream processing doesn't crash.
+        return [[word]]
+
+    monkeypatch.setattr(name_mod, "canonical_decompositions", fake_canonical)
+    word_db = {"Foo-": [Meaning("Foo-", [], [], {"old_english": ["foo"]})]}
+    n = Name("Foo")
+    expected = frozenset({"celtic_mix"})
+    n.find_meaning(word_db, culture_languages=expected)
+    assert captured.get("called") is True
+    assert captured["culture_languages"] == expected
+
+
+def test_find_meaning_default_culture_languages_is_none(monkeypatch):
+    """When the caller doesn't supply ``culture_languages``, the
+    forwarded value is None — the bit-stable path for the explainer /
+    rewind / era-map callers."""
+    from wyrd.generators.kenning.runtime import name as name_mod
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+
+    captured: dict = {}
+
+    def fake_canonical(word, trie, *, culture_languages=None):
+        captured["culture_languages"] = culture_languages
+        return [[word]]
+
+    monkeypatch.setattr(name_mod, "canonical_decompositions", fake_canonical)
+    word_db = {"Foo-": [Meaning("Foo-", [], [], {"old_english": ["foo"]})]}
+    n = Name("Foo")
+    n.find_meaning(word_db)
+    assert captured["culture_languages"] is None

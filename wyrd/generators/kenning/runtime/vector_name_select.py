@@ -206,6 +206,7 @@ def build_non_position_eligible(
     pack_meaning_dbs: dict[str, dict[str, list[Meaning]]] | None,
     packs,
     culture_attested_usages: frozenset[str] | None = None,
+    culture_attested_meanings: dict[str, frozenset[str]] | None = None,
 ) -> list[Meaning]:
     """Pre-compute the non-position-filtered eligibility pool.
 
@@ -218,21 +219,30 @@ def build_non_position_eligible(
 
     Caller-side cache key for the result:
     ``(id(meaning_db), gate, exclude_tags, packs, id(pack_meaning_dbs),
-       culture_attested_usages)`` — same meaning_db + same filters +
-    same pack overlays + same culture set → identical output. The list
-    is per-meaning order-stable across re-runs (we walk
-    ``meaning_db.items()`` which is insertion-ordered in Python 3.7+),
-    so the caller can re-use the cached list directly in the
-    weighted-sampling loop without re-shuffling.
+       culture_attested_usages, id(culture_attested_meanings))`` —
+    same meaning_db + same filters + same pack overlays + same
+    culture sets → identical output. The list is per-meaning
+    order-stable across re-runs (we walk ``meaning_db.items()`` which
+    is insertion-ordered in Python 3.7+), so the caller can re-use
+    the cached list directly in the weighted-sampling loop without
+    re-shuffling.
 
-    ``culture_attested_usages`` is the culture-bleed filter: only
-    Meanings whose ``usage`` key appears in this culture's corpus
-    (union of ``proportions_usage`` + ``proportions_single_usage`` keys
-    per ``load_proportions``) are admitted to the native-pool. Without
-    the filter, English-culture vector requests pull in Welsh /
-    Persian / Hebrew morphemes that aren't attested in English place
-    names. ``None`` disables the filter (back-compat for non-
-    NameGenerator callers that don't carry per-culture data).
+    ``culture_attested_usages`` is the per-usage culture-bleed filter
+    (wyrd-361): only Meanings whose ``usage`` key appears in this
+    culture's corpus are admitted to the native-pool. Without the
+    filter, English-culture vector requests pull in Welsh / Persian /
+    Hebrew morphemes that aren't attested in English place names.
+    ``None`` disables the filter (back-compat for non-NameGenerator
+    callers that don't carry per-culture data).
+
+    ``culture_attested_meanings`` is the per-Meaning narrowing
+    (wyrd-pfoo). For each usage_key, only Meanings whose primary
+    source-language is in the per-usage attested set are admitted.
+    Filters wrong-sense Meanings the per-usage filter let through:
+    Celtic ``-ton``→'tone' (music), ``Saint-``→'greed', ``-bridge``
+    →'card game'. ``None`` disables this narrower filter and falls
+    back to per-usage only (back-compat for legacy bundles built
+    before the per-Meaning attestation pipeline shipped).
 
     A consequence — intentional but worth flagging: synthetic plurals
     (``-X`` → ``-Xs`` for is_name() lemmas) and inflection shadows
@@ -252,7 +262,25 @@ def build_non_position_eligible(
     for usage_key, meanings_for_usage in meaning_db.items():
         if culture_attested_usages is not None and usage_key not in culture_attested_usages:
             continue
+        # wyrd-pfoo: per-Meaning narrowing. When the per-usage filter
+        # admits a usage_key, we further check that each Meaning's
+        # primary language is in the per-usage attested-language set
+        # for this culture. Wrong-sense Meanings (Celtic ``-ton``→
+        # 'tone', etc.) are dropped here even though their usage_key
+        # passed the per-usage filter. When ``culture_attested_meanings``
+        # is None (legacy bundle), the filter doesn't apply. When set
+        # but missing this usage_key (data drift between per-usage and
+        # per-Meaning emit), the filter is skipped for this usage
+        # defensively — admitting all Meanings rather than emptying
+        # the pool.
+        admitted_langs: frozenset[str] | None = None
+        if culture_attested_meanings is not None:
+            admitted_langs = culture_attested_meanings.get(usage_key)
         for m in meanings_for_usage:
+            if admitted_langs:
+                primary = _primary_language_of(m)
+                if primary is None or primary not in admitted_langs:
+                    continue
             if not _matches_era(m, gate.era_min, gate.era_max):
                 continue
             if not _matches_stratum(m, gate.stratum):
@@ -570,6 +598,19 @@ _BUNDLE_FIELD_TO_L3_LANG: dict[str, str] = {
     "aramaic": "arc",
     "armenian": "axm",
 }
+
+
+def _primary_language_of(meaning: Meaning) -> str | None:
+    """wyrd-pfoo: return the meaning's primary source-language bundle
+    field — alphabetically-first non-empty source key. Mirrors
+    ``trie_matcher._primary_language`` and ``proportions_builder._primary_language_for``
+    so the runtime per-Meaning filter and the build-time attestation
+    use the same key convention."""
+    sources = getattr(meaning, "sources", None) or {}
+    for key in sorted(sources):
+        if sources[key]:
+            return key
+    return None
 
 
 def _lemma_ref_for(meaning: Meaning) -> str:

@@ -112,6 +112,8 @@ def _decompose_corpus(
     name_entries: list,
     word_db: dict,
     db_path: Path | None,
+    *,
+    culture_languages: frozenset[str] | None = None,
 ) -> tuple[list, Counter]:
     """Decompose a corpus of Names, honouring canonical picks when a
     lexicon DB path is supplied.
@@ -123,6 +125,12 @@ def _decompose_corpus(
     Bare ``Name`` entries (legacy ``load_names`` callers) are accepted
     too — region defaults to ``None``, and the lookup fallback in
     ``decompose_with_canonical`` handles NULL-region DBs gracefully.
+
+    ``culture_languages`` (wyrd-pfoo) is forwarded to the heuristic
+    matcher path so per-culture splits prefer culture-aligned tagged
+    Meanings on ambiguous decompositions. The canonical-pick path is
+    unaffected — scholar-attested decompositions carry their own
+    correct sense and don't pass through the tiebreaker.
 
     Centralises (a) DB context-manager hygiene via ``nullcontext``,
     (b) the per-name canonical-vs-heuristic branch, (c) the
@@ -142,11 +150,17 @@ def _decompose_corpus(
             else:
                 name, region = entry[0], entry[1]
             if db is not None:
-                resolved, source = decompose_with_canonical(name.name, word_db, db, region=region)
+                resolved, source = decompose_with_canonical(
+                    name.name,
+                    word_db,
+                    db,
+                    region=region,
+                    culture_languages=culture_languages,
+                )
                 canonical_hits[source or "heuristic"] += 1
             else:
                 resolved = name
-                resolved.find_meaning(word_db)
+                resolved.find_meaning(word_db, culture_languages=culture_languages)
             resolved_names.append(resolved)
     return resolved_names, canonical_hits
 

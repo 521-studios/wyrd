@@ -853,6 +853,8 @@ def decompose_with_canonical(
     word_db: dict,
     db: LexiconDB | None,
     region: str | None = None,
+    *,
+    culture_languages: frozenset[str] | None = None,
 ) -> tuple[Name, str | None]:
     """Decompose ``name_str`` honouring the canonical pick when one exists.
 
@@ -863,6 +865,14 @@ def decompose_with_canonical(
     the heuristic when (a) no toponym row exists, (b) no canonical
     was picked, or (c) the canonical signature doesn't match any
     cross-product cell of the current word_db.
+
+    ``culture_languages`` (wyrd-pfoo) is forwarded to the heuristic
+    fallback's ``find_meaning(reduce=True)``. Scholar-canonical picks
+    aren't reshaped by it — those carry their own correct
+    attestation and don't pass through the tiebreaker. Per-culture
+    callers (rebuild-proportions, runtime_db_export) pass the
+    culture's expected-language set to align the heuristic path with
+    that culture's place-name conventions.
 
     Returns ``(name, source)`` where ``source`` is the canonical
     source string (``'scholar'`` / ``'scholar-disagreement'`` /
@@ -889,5 +899,5 @@ def decompose_with_canonical(
             )
             name.reduce()
             return name, None
-    name.find_meaning(word_db, reduce=True)
+    name.find_meaning(word_db, reduce=True, culture_languages=culture_languages)
     return name, None

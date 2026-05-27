@@ -119,7 +119,7 @@ def _proportions_db(tmp_path: Path) -> tuple[Path, Path]:
 
 
 def test_proportions_dict_has_canonical_keys(_proportions_db: tuple[Path, Path]) -> None:
-    """The adapter's output has the 5 keys load_proportions consumes."""
+    """The adapter's output has the keys load_proportions consumes."""
     db_path, _ = _proportions_db
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
@@ -132,6 +132,10 @@ def test_proportions_dict_has_canonical_keys(_proportions_db: tuple[Path, Path])
         "structures",
         "tag_marginal",
         "tag_cooccurrence",
+        # wyrd-pfoo: per-Meaning attestation (per-culture). Empty
+        # dict for fixtures that don't populate the L4 attestation
+        # table; populated dict for fresh emits.
+        "attested_languages",
     }
 
 

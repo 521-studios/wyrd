@@ -162,7 +162,7 @@ class Name:
                 cnt += meaning.count_unaccounted()
         return cnt
 
-    def find_meaning(self, word_db, reduce=True, joiners=None):
+    def find_meaning(self, word_db, reduce=True, joiners=None, *, culture_languages=None):
         """Decompose every word in this place name against ``word_db``
         via the trie matcher.
 
@@ -223,7 +223,9 @@ class Name:
         joiner_forms = _build_joiner_lookup(joiners)
         for word in self.words:
             decompositions = (
-                canonical_decompositions(word, trie) if reduce else all_decompositions(word, trie)
+                canonical_decompositions(word, trie, culture_languages=culture_languages)
+                if reduce
+                else all_decompositions(word, trie)
             )
             if joiner_forms:
                 decompositions = [_consume_joiners(d, joiner_forms) for d in decompositions]
