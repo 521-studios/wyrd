@@ -345,13 +345,22 @@ def build_slot_base_scores(
     typically the dominant cost in count=N vector latency.
 
     ``slot_qualifier`` (wyrd-izcr) restricts the pool by qualifier
-    flag when the structure's word_key carried one — ``"name"``
-    requires :meth:`Meaning.is_name` True (the Bishop's / Great /
-    Old qualifier-word pattern), ``"saint"`` requires
-    :meth:`Meaning.is_saint` True. ``None`` (default) = no qualifier
-    restriction. Mirrors the legacy proportions path's bucket-key
-    distinction between ``(pre, "name", "single")`` and ``(pre,)``;
-    without it, the vector path silently drew bare-affix morphemes
+    flag when the structure's word_key carried one. The predicates
+    mirror :meth:`Meaning.key`'s legacy bucket-assignment logic so
+    vector mode admits the same meanings the proportions path would
+    have admitted to the equivalent ``(location, "name")`` or
+    ``(location, "saint")`` bucket:
+
+    - ``"name"`` → :meth:`Meaning.is_name` (any morpheme tagged
+      ``female name`` / ``male name`` / ``family name``)
+    - ``"saint"`` → dash-stripped lowercased ``usage == "saint"``
+      (the literal ``Saint-`` / ``-Saint`` qualifier morpheme;
+      saint-tagged morphemes like ``Andrew-`` that are ALSO
+      ``is_name()`` True are routed through the ``"name"`` bucket
+      by :meth:`Meaning.key`'s ``if/elif``, not the ``"saint"`` one)
+
+    ``None`` (default) = no qualifier restriction. Without this
+    filter, the vector path silently drew bare-affix morphemes
     into qualifier-flagged slots (e.g. ``Port-`` + ``-all`` filling
     a ``[pre+saint, post+name]`` structure).
 
@@ -364,7 +373,7 @@ def build_slot_base_scores(
             continue
         if slot_qualifier == "name" and not m.is_name():
             continue
-        if slot_qualifier == "saint" and not m.is_saint():
+        if slot_qualifier == "saint" and m.usage.replace("-", "").lower() != "saint":
             continue
         lemma_ref = _lemma_ref_for(m)
         lemma_tags = frozenset(m.tags)
@@ -396,8 +405,7 @@ def select_via_vector_scoring(
     exclude_tags: frozenset[str] = frozenset(),
     pack_meaning_dbs: dict[str, dict[str, list[Meaning]]] | None = None,
     non_position_eligible: list[Meaning] | None = None,
-    slot_base_scores: dict[tuple[str, str | None], list[tuple[Meaning, float]]]
-    | None = None,
+    slot_base_scores: dict[tuple[str, str | None], list[tuple[Meaning, float]]] | None = None,
     slot_qualifiers: list[str | None] | None = None,
 ) -> list[Meaning]:
     """Pick one Meaning per slot in the structure via the D36.2

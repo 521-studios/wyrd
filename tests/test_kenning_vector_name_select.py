@@ -749,9 +749,23 @@ def test_build_non_position_eligible_filter_composes_with_exclude_tags():
 
 
 def _qualifier_test_db():
-    """Two pre-position morphemes: one is name-flagged, one isn't.
-    Used to verify that slot_qualifiers='name' restricts picks to
-    is_name()=True meanings only.
+    """Three pre-position morphemes covering the three slot states
+    the qualifier filter distinguishes:
+
+    - ``Port-`` — bare (no qualifier flag), admitted only when the
+      slot has no qualifier filter
+    - ``Smith-`` — ``is_name()`` True via the ``family name`` tag;
+      admitted only when ``slot_qualifiers=["name"]``
+    - ``Saint-`` — literal "Saint" usage; admitted only when
+      ``slot_qualifiers=["saint"]`` per the legacy
+      :meth:`Meaning.key` bucket-routing rule
+
+    The saint fixture must use the literal ``Saint-`` usage — saint-
+    TAGGED morphemes whose usage isn't literally "Saint" (e.g.
+    Andrew-, Botolph-) are routed through the name bucket in the
+    legacy proportions path because :meth:`Meaning.key` checks
+    is_name() first via if/elif. The vector qualifier filter
+    matches that semantics to stay consistent between scoring modes.
     """
     bare = Meaning(
         usage="Port-",
@@ -768,17 +782,22 @@ def _qualifier_test_db():
         phonological_vector=None,
     )
     saintly = Meaning(
-        usage="Botolph-",
+        usage="Saint-",
         tags=["saint", "urban"],
         meanings=[],
         sources=[],
         phonological_vector=None,
     )
-    return {
-        "Port-": [bare],
-        "Smith-": [family],
-        "Botolph-": [saintly],
-    }, bare, family, saintly
+    return (
+        {
+            "Port-": [bare],
+            "Smith-": [family],
+            "Saint-": [saintly],
+        },
+        bare,
+        family,
+        saintly,
+    )
 
 
 def test_select_slot_qualifier_name_filters_out_bare_morphemes():
@@ -806,10 +825,14 @@ def test_select_slot_qualifier_name_filters_out_bare_morphemes():
     assert all(m is family for m in picks)
 
 
-def test_select_slot_qualifier_saint_filters_out_bare_morphemes():
-    """wyrd-izcr: a slot tagged with the 'saint' qualifier must pick
-    ONLY from is_saint()=True morphemes. Saint-tagging is distinct
-    from name-tagging (some morphemes carry both)."""
+def test_select_slot_qualifier_saint_filters_to_literal_saint_usage():
+    """wyrd-izcr: a slot tagged with the 'saint' qualifier picks
+    ONLY morphemes whose dash-stripped lowercased usage equals
+    "saint" — matching :meth:`Meaning.key`'s legacy bucket-routing
+    rule. Saint-tagged morphemes with non-"saint" usages (Andrew-,
+    Botolph-, etc.) are routed through the name bucket in the
+    legacy path, so the vector qualifier filter mirrors that
+    semantics."""
     db, bare, family, saintly = _qualifier_test_db()
     picks = []
     for seed in range(20):
@@ -846,7 +869,7 @@ def test_select_slot_qualifier_none_admits_all_position_matches():
         seen_usages.add(result[0].usage)
     # Over 60 seeds we should see all 3 pre-morphemes since none is
     # filtered out.
-    assert seen_usages == {"Port-", "Smith-", "Botolph-"}
+    assert seen_usages == {"Port-", "Smith-", "Saint-"}
 
 
 def test_select_slot_qualifier_returns_empty_when_pool_is_empty():
