@@ -297,6 +297,21 @@ class Meaning:
     def is_name(self):
         return any(tag in ("female name", "male name", "family name") for tag in self.tags)
 
+    def primary_language(self) -> str | None:
+        """wyrd-pfoo: the alphabetically-first non-empty source-language
+        bundle field for this Meaning. Used as the per-Meaning identifier
+        across the culture-attestation pipeline — the matcher's
+        culture-aligned tiebreaker, the splitter's per-Meaning
+        attestation emit, and the vector path's per-Meaning eligibility
+        filter all key on this value. Walking sources alphabetically
+        keeps the choice deterministic across re-runs (sorted, not
+        dict-insertion order)."""
+        sources = self.sources or {}
+        for key in sorted(sources):
+            if sources[key]:
+                return key
+        return None
+
     def is_saint(self):
         return "saint" in self.tags
 

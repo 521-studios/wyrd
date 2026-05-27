@@ -267,18 +267,30 @@ def build_non_position_eligible(
         # primary language is in the per-usage attested-language set
         # for this culture. Wrong-sense Meanings (Celtic ``-ton``→
         # 'tone', etc.) are dropped here even though their usage_key
-        # passed the per-usage filter. When ``culture_attested_meanings``
-        # is None (legacy bundle), the filter doesn't apply. When set
-        # but missing this usage_key (data drift between per-usage and
-        # per-Meaning emit), the filter is skipped for this usage
-        # defensively — admitting all Meanings rather than emptying
-        # the pool.
+        # passed the per-usage filter.
+        #
+        # Three states for ``admitted_langs``:
+        #   - ``culture_attested_meanings is None`` → ``admitted_langs``
+        #     stays None → no per-Meaning filter (legacy bundle).
+        #   - usage_key missing from the dict → ``admitted_langs`` is
+        #     None → no per-Meaning filter (defensive admit when the
+        #     per-usage filter admitted this usage but the per-Meaning
+        #     emit didn't carry it; data drift safety).
+        #   - usage_key present (even with an empty frozenset) →
+        #     ``admitted_langs`` is a frozenset → per-Meaning filter
+        #     active. The ``is not None`` check is load-bearing here
+        #     vs a truthiness check: an empty frozenset must NOT be
+        #     conflated with the missing case (the builder doesn't
+        #     emit empty values today, but a future change could, and
+        #     "this usage is attested with no eligible language" is
+        #     semantically different from "this usage has no
+        #     attestation data").
         admitted_langs: frozenset[str] | None = None
         if culture_attested_meanings is not None:
             admitted_langs = culture_attested_meanings.get(usage_key)
         for m in meanings_for_usage:
-            if admitted_langs:
-                primary = _primary_language_of(m)
+            if admitted_langs is not None:
+                primary = m.primary_language()
                 if primary is None or primary not in admitted_langs:
                     continue
             if not _matches_era(m, gate.era_min, gate.era_max):
@@ -598,19 +610,6 @@ _BUNDLE_FIELD_TO_L3_LANG: dict[str, str] = {
     "aramaic": "arc",
     "armenian": "axm",
 }
-
-
-def _primary_language_of(meaning: Meaning) -> str | None:
-    """wyrd-pfoo: return the meaning's primary source-language bundle
-    field — alphabetically-first non-empty source key. Mirrors
-    ``trie_matcher._primary_language`` and ``proportions_builder._primary_language_for``
-    so the runtime per-Meaning filter and the build-time attestation
-    use the same key convention."""
-    sources = getattr(meaning, "sources", None) or {}
-    for key in sorted(sources):
-        if sources[key]:
-            return key
-    return None
 
 
 def _lemma_ref_for(meaning: Meaning) -> str:

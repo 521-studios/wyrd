@@ -292,13 +292,9 @@ def _compute_proportions_inline(
                 # word_db has shifted since the canonical was picked.
                 name.find_meaning(word_db, reduce=False)
                 if not apply_canonical_to_name(name, canonical["signature"]):
-                    name.find_meaning(
-                        word_db, reduce=True, culture_languages=culture_languages
-                    )
+                    name.find_meaning(word_db, reduce=True, culture_languages=culture_languages)
             else:
-                name.find_meaning(
-                    word_db, reduce=True, culture_languages=culture_languages
-                )
+                name.find_meaning(word_db, reduce=True, culture_languages=culture_languages)
             resolved.append(name)
         good_names = [n for n in resolved if n.count_unaccounted() == 0]
         out[culture] = proportions_from(good_names)
@@ -526,11 +522,7 @@ def _insert_attested_languages(
     vector path's eligibility filter joins against these to admit only
     Meanings whose primary language was actually attested in this
     culture's corpus via that usage."""
-    rows = [
-        (culture, usage_key, lang)
-        for usage_key, langs in attested.items()
-        for lang in langs
-    ]
+    rows = [(culture, usage_key, lang) for usage_key, langs in attested.items() for lang in langs]
     if not rows:
         return 0
     conn.executemany(
@@ -719,16 +711,17 @@ def select_dev_subset(
         # Sort tag dicts so re-runs against the same data produce the
         # same insertion order — defensive against future ingesters that
         # might emit a different dict order than today's.
-        # wyrd-pfoo: narrow attested_languages to the kept usage set so
-        # the per-Meaning attestation table stays aligned with the
-        # per-usage proportions tables in --dev mode. Without this the
-        # subset would keep attestation rows for usages the dev seed
-        # dropped from the proportions tables, wasting bytes.
+        # wyrd-pfoo: narrow attested_languages to THIS culture's kept
+        # usage set so the per-Meaning attestation table stays aligned
+        # with this culture's per-usage proportions tables in --dev
+        # mode. Using ``keep_usage_keys`` (the cumulative cross-culture
+        # set) would leak rows: a usage_key kept in culture A's top-N
+        # but absent from culture B's would survive in B's attestation
+        # output. Build a per-culture set instead.
+        culture_keep_keys = set(kept_usages) | set(kept_single)
         raw_attested = data.get("attested_languages") or {}
         trimmed_attested = {
-            k: sorted(raw_attested[k])
-            for k in sorted(raw_attested)
-            if k in keep_usage_keys
+            k: sorted(raw_attested[k]) for k in sorted(raw_attested) if k in culture_keep_keys
         }
         trimmed_proportions[culture] = {
             "usages": kept_usages,

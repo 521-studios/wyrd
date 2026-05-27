@@ -544,6 +544,11 @@ def test_committed_seed_has_data_in_every_l4_table() -> None:
             "proportions_structure",
             "proportions_tag_marginal",
             "proportions_tag_cooccurrence",
+            # wyrd-pfoo: per-Meaning attestation per culture. Empty
+            # would mean the splitter dropped the data on the floor;
+            # populated is the runtime's culture-bleed defence at the
+            # Meaning level.
+            "proportions_attested_language",
         ):
             count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
             assert count > 0, f"committed seed has no rows in {table}"

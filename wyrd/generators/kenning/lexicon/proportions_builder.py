@@ -99,7 +99,7 @@ def proportions_from(names) -> dict[str, Any]:
                 for elem in word.word:
                     if not isinstance(elem, Meaning):
                         continue
-                    primary = _primary_language_for(elem)
+                    primary = elem.primary_language()
                     if primary is None:
                         continue
                     attested_languages.setdefault(elem.usage, set()).add(primary)
@@ -127,20 +127,6 @@ def proportions_from(names) -> dict[str, Any]:
         # deterministic across re-builds (set iteration order isn't).
         "attested_languages": {k: sorted(v) for k, v in attested_languages.items()},
     }
-
-
-def _primary_language_for(meaning: Meaning) -> str | None:
-    """Return the alphabetically-first non-empty source-language field
-    on the Meaning. Mirrors ``trie_matcher._primary_language`` and
-    ``vector_name_select._lemma_ref_for``'s convention so the
-    attestation key matches what the runtime filter looks up at
-    selection time.
-    """
-    sources = getattr(meaning, "sources", None) or {}
-    for key in sorted(sources):
-        if sources[key]:
-            return key
-    return None
 
 
 def ordered_tag_pairs(name) -> list[tuple[list[str], list[str]]]:

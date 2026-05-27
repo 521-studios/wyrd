@@ -479,7 +479,7 @@ def _prefer_culture_aligned(
             if hasattr(elem, "sources") and hasattr(elem, "tags"):
                 if not elem.tags:
                     continue
-                primary = _primary_language(elem)
+                primary = elem.primary_language() if hasattr(elem, "primary_language") else None
                 if primary in culture_languages:
                     score += 1
         return score
@@ -489,21 +489,6 @@ def _prefer_culture_aligned(
     if best == 0:
         return decompositions
     return [d for s, d in scores if s == best]
-
-
-def _primary_language(meaning: Any) -> str | None:
-    """Return the primary source-language bundle-field name for a
-    Meaning — walks ``meaning.sources`` alphabetically and returns
-    the first non-empty key. Mirrors the per-pick primary-language
-    convention used by ``vector_name_select._lemma_ref_for`` so the
-    tiebreaker's alignment view of a Meaning matches what downstream
-    consumers see.
-    """
-    sources = getattr(meaning, "sources", None) or {}
-    for key in sorted(sources):
-        if sources[key]:
-            return key
-    return None
 
 
 def canonical_decomposition(word: str, trie: MorphemeTrie) -> list[Any]:

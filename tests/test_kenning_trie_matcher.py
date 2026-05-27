@@ -671,15 +671,11 @@ def test_canonical_prefers_culture_aligned_tagged_meaning():
     culture hint matches one of them, the matcher prefers the aligned
     one. Welsh + `-ton` → Celtic-tagged Meaning wins over OE-tagged."""
     oe_town = _meaning_tagged("-ton", language="old_english", tags=["architecture", "social"])
-    celtic_settlement = _meaning_tagged(
-        "-ton", language="celtic_mix", tags=["topography"]
-    )
+    celtic_settlement = _meaning_tagged("-ton", language="celtic_mix", tags=["topography"])
     db = {"-ton": [oe_town, celtic_settlement]}
     trie = build_morpheme_trie(db)
 
-    result = canonical_decompositions(
-        "ton", trie, culture_languages=frozenset({"celtic_mix"})
-    )
+    result = canonical_decompositions("ton", trie, culture_languages=frozenset({"celtic_mix"}))
     # The tiebreaker should keep only the Celtic-aligned parse.
     assert len(result) == 1
     assert result[0][0] is celtic_settlement
@@ -696,9 +692,7 @@ def test_canonical_skips_culture_aligned_untagged_meaning():
     db = {"-ton": [oe_town, celtic_tone]}
     trie = build_morpheme_trie(db)
 
-    result = canonical_decompositions(
-        "ton", trie, culture_languages=frozenset({"celtic_mix"})
-    )
+    result = canonical_decompositions("ton", trie, culture_languages=frozenset({"celtic_mix"}))
     # Both Meanings are scored 0 on alignment (Celtic has no tags;
     # OE isn't in {celtic_mix}). Falls back to full list.
     assert len(result) == 2
@@ -709,18 +703,14 @@ def test_canonical_culture_tiebreaker_only_fires_on_score_ties():
     regardless of culture alignment — the new tiebreaker is the third
     discriminator, applied only on ties from (1) and (2)."""
     # Wide Meaning that covers the whole word in one morpheme:
-    full = _meaning_tagged(
-        "compound", language="old_english", tags=["architecture"]
-    )
+    full = _meaning_tagged("compound", language="old_english", tags=["architecture"])
     # Narrow Celtic Meanings that would yield more morphemes:
     com = _meaning_tagged("com-", language="celtic_mix", tags=["topography"])
     pound = _meaning_tagged("-pound", language="celtic_mix", tags=["topography"])
     db = {"compound": [full], "com-": [com], "-pound": [pound]}
     trie = build_morpheme_trie(db)
 
-    result = canonical_decompositions(
-        "compound", trie, culture_languages=frozenset({"celtic_mix"})
-    )
+    result = canonical_decompositions("compound", trie, culture_languages=frozenset({"celtic_mix"}))
     # The 1-morpheme OE parse wins on morpheme_count even though the
     # 2-morpheme Celtic parse would have higher alignment.
     assert len(result) == 1
@@ -742,9 +732,7 @@ def test_canonical_culture_tiebreaker_returns_input_when_no_alignment():
 
     # Welsh culture, none of the OE meanings will align — return all
     # tied parses unchanged.
-    welsh_result = canonical_decompositions(
-        "ab", trie, culture_languages=frozenset({"celtic_mix"})
-    )
+    welsh_result = canonical_decompositions("ab", trie, culture_languages=frozenset({"celtic_mix"}))
     # Same call without the tiebreaker.
     baseline = canonical_decompositions("ab", trie)
     assert welsh_result == baseline
@@ -755,9 +743,7 @@ def test_canonical_culture_tiebreaker_respects_multi_language_culture():
     OE + ON) admit a Meaning whose primary language matches ANY of
     them. Pin so the set-membership semantics aren't accidentally
     narrowed to exact-string comparison."""
-    on_meaning = _meaning_tagged(
-        "-by", language="old_scandinavian", tags=["architecture"]
-    )
+    on_meaning = _meaning_tagged("-by", language="old_scandinavian", tags=["architecture"])
     of_meaning = _meaning_tagged("-by", language="old_french", tags=["architecture"])
     db = {"-by": [on_meaning, of_meaning]}
     trie = build_morpheme_trie(db)

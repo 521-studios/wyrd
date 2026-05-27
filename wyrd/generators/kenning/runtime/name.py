@@ -192,6 +192,21 @@ class Name:
         KenningExplain) that want to inspect alternates the canonical
         score would collapse.
 
+        ``culture_languages`` (wyrd-pfoo, optional) is a frozenset of
+        primary source-language bundle fields the caller wants the
+        matcher to prefer when ambiguous parses tie on the canonical
+        (unaccounted, morpheme_count) score. Forwarded to
+        ``canonical_decompositions`` and consulted only on ties; no
+        effect when ``reduce=False``. ``None`` (default) skips the
+        tiebreaker entirely — the bit-stable path for KenningExplain,
+        KenningRewind, and other consumers that don't carry a culture
+        context. Per-culture callers (rebuild-proportions,
+        runtime_db_export) pass their culture's expected-language set
+        (see ``lexicon.proportions_builder.CULTURE_LANGUAGES``) so the
+        decomposition recorded for that culture prefers culturally-
+        appropriate senses (Welsh ``pen-`` → Celtic 'end/head' over
+        OE 'penny').
+
         Multi-parse semantics: a word with two senses for one surface
         (``-y`` = 'island' OR 'district') or a word the trie matches
         at multiple boundaries surfaces every reading as its own

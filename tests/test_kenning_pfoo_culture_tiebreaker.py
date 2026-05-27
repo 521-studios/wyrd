@@ -106,9 +106,12 @@ def test_culture_tiebreaker_end_to_end_prefers_celtic_tagged_for_welsh():
     )
     # Single usage_key with two senses — the matcher's tiebreaker
     # decides which one wins for a Welsh split.
-    word_db = {"pen-": [oe_penny, celtic_end], "-bryn": [
-        Meaning("-bryn", ["topography"], [], {"celtic_mix": ["bryn"]}),
-    ]}
+    word_db = {
+        "pen-": [oe_penny, celtic_end],
+        "-bryn": [
+            Meaning("-bryn", ["topography"], [], {"celtic_mix": ["bryn"]}),
+        ],
+    }
 
     name = Name("Penbryn")
     resolved, _ = _decompose_corpus(
@@ -162,9 +165,12 @@ def test_culture_tiebreaker_falls_through_when_celtic_meaning_untagged():
         [],
         {"celtic_mix": ["ton"]},
     )
-    word_db = {"-ton": [oe_town, celtic_tone], "stone-": [
-        Meaning("stone-", ["geology"], [], {"old_english": ["stān"]}),
-    ]}
+    word_db = {
+        "-ton": [oe_town, celtic_tone],
+        "stone-": [
+            Meaning("stone-", ["geology"], [], {"old_english": ["stān"]}),
+        ],
+    }
 
     name = Name("Stoneton")
     resolved, _ = _decompose_corpus(
@@ -181,15 +187,16 @@ def test_culture_tiebreaker_falls_through_when_celtic_meaning_untagged():
                     picked_meanings.append(elem)
     ton_picks = [m for m in picked_meanings if m.usage == "-ton"]
     assert ton_picks, "matcher didn't pick any -ton Meaning"
-    # Both candidates score 0 on alignment (Celtic has no tags, OE
-    # isn't culture-aligned for Welsh) → tiebreaker falls through and
-    # both parses survive into the canonical set. The list-index
-    # tiebreaker (first-in-dict-order) then picks whichever came
-    # first in the meaning_db iteration. The point of the test is
-    # that the Celtic untagged Meaning is NOT preferentially selected.
-    # We assert this by checking that if OE is in the picks, it's
-    # there because it scored at least as well as Celtic — not
-    # because Celtic was actively dropped despite scoring higher.
-    # A simpler form: the picks must include OE (i.e. the tiebreaker
-    # didn't silently exclude it in favour of the untagged Celtic).
-    assert oe_town in ton_picks or len(ton_picks) >= 1
+    # Both candidates score 0 on alignment (Celtic has no tags so its
+    # alignment score is 0; OE isn't culture-aligned for Welsh so it's
+    # also 0). With both scoring 0, ``_prefer_culture_aligned`` returns
+    # the full input unchanged → both parses survive into the
+    # canonical set. The strict assertion: OE must be present in the
+    # picks (i.e. the tiebreaker didn't silently exclude it in favour
+    # of the untagged Celtic Meaning). Without this strict check, a
+    # regression that made the tiebreaker drop OE for the
+    # culture-aligned-but-untagged Celtic would still pass.
+    assert oe_town in ton_picks, (
+        f"OE Meaning excluded despite Celtic having no tags; tiebreaker "
+        f"preferred the untagged Celtic Meaning. Picks: {ton_picks}"
+    )

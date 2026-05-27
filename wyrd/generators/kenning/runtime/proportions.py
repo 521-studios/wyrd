@@ -489,9 +489,7 @@ class NameGenerator:
         # values are frozensets of primary-language bundle-field
         # names. ``None`` (legacy bundles built pre-wyrd-pfoo) falls
         # back to the per-usage filter only.
-        self.culture_attested_meanings: dict[str, frozenset[str]] | None = (
-            culture_attested_meanings
-        )
+        self.culture_attested_meanings: dict[str, frozenset[str]] | None = culture_attested_meanings
         # Cache the vector-path's non-position eligibility pool keyed
         # by (era_min, era_max, stratum, exclude_tags, packs_signature).
         # The dispatch loop calls ``select_via_vector`` once per
@@ -1733,9 +1731,9 @@ def load_proportions(data, meaning_db, tag_db):
     # ``attested_languages`` key → None falls back to the per-usage
     # filter only.
     raw_attested = data.get("attested_languages") or {}
-    culture_attested_meanings: dict[str, frozenset[str]] | None = (
-        {k: frozenset(v) for k, v in raw_attested.items()} or None
-    )
+    culture_attested_meanings: dict[str, frozenset[str]] | None = {
+        k: frozenset(v) for k, v in raw_attested.items()
+    } or None
     return NameGenerator(
         meaning_db,
         mg,

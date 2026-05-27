@@ -114,9 +114,9 @@ CREATE TABLE proportions_attested_language (
     primary_language  TEXT NOT NULL,
     PRIMARY KEY (culture, usage_key, primary_language)
 );
-
-CREATE INDEX idx_proportions_attested_language_by_culture
-    ON proportions_attested_language(culture);
+-- No separate index on culture — the composite PK is a B-tree whose
+-- leading column already serves WHERE culture = ? scans (same pattern
+-- as proportions_tag_marginal / proportions_tag_cooccurrence above).
 
 -- ===== Empirical priors (vector-scoring baseline) =====
 --
