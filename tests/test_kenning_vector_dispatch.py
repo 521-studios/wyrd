@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 
 from wyrd.generators.kenning.generators.kenning import Kenning
+from wyrd.seed import MAX_SAFE_INTEGER, rng_for
 
 
 def test_kenning_scoring_mode_proportions_is_default():
@@ -271,3 +272,250 @@ def test_vector_slot_score_cache_evicts_on_overflow():
     finally:
         name_gen._VECTOR_SLOT_CACHE_MAX = original_max
         name_gen._vector_slot_score_cache.clear()
+
+
+# ---- wyrd-izcr: vector path honors structure qualifier flags ---------------
+
+
+def test_vector_seed_1170_no_longer_produces_split_affix_port_all():
+    """wyrd-izcr regression: pre-fix seed 1170 produced ``Port All``
+    at sub-seed 5 — Port- + -all rendered as two separate words
+    because the vector path dropped the name/saint flags from
+    qualifier-flagged structures (e.g. [pre+saint, post+name]).
+    Post-fix the same struct triggers the qualifier filter; if
+    the saint/name pool is empty under the live request, the
+    NameGenerator retries with a different struct.
+
+    ``Kenning.generate`` produces one name per seed; the original
+    bug surfaced via the CLI's count=N dispatch which derives
+    sub-seeds from the master seed via
+    ``seed_rng.randrange(MAX_SAFE_INTEGER + 1)`` (see
+    ``wyrd.app._dispatch``). Replay the exact same sub-seed
+    sequence here so the regression catches the actual buggy slot
+    rather than just seed=1170 itself."""
+    k = Kenning()
+    master = rng_for(1170)
+    sub_seeds = [master.randrange(MAX_SAFE_INTEGER + 1) for _ in range(10)]
+    names: list[str] = []
+    for sub in sub_seeds:
+        result = k.generate(
+            {"culture": "english", "scoring_mode": "vector"},
+            seed=sub,
+        )
+        names.append(result.result)
+    assert "Port All" not in names, f"Port All bug regressed: {names}"
+
+
+def test_vector_slot_qualifier_cache_separates_qualifier_variants():
+    """wyrd-izcr: the slot-score cache key is now (position,
+    qualifier) so a (pre, "name") slot and a (pre, None) slot
+    populate distinct entries. Without the qualifier in the key the
+    smaller name-filtered list would shadow the larger no-filter
+    list for any later slot that wanted the full pre pool."""
+    name_gen = _reset_vector_caches()
+    k = Kenning()
+    k.generate({"culture": "english", "scoring_mode": "vector"}, seed=1170)
+    # Every cached key is a (slot_position, slot_qualifier) tuple.
+    _, slot_dict = next(iter(name_gen._vector_slot_score_cache.items()))
+    for key in slot_dict:
+        assert isinstance(key, tuple) and len(key) == 2, (
+            f"slot_base_scores cache key must be (position, qualifier) tuple: got {key!r}"
+        )
+        position, qualifier = key
+        assert position in ("pre", "inner", "post")
+        assert qualifier in (None, "name", "saint")
+
+
+def _build_synthetic_vector_name_gen(structs: dict, meaning_db: dict):
+    """Build a NameGenerator with synthetic data for direct
+    select_via_vector testing — bypasses the live bundle so the
+    retry loop, qualifier filter, and exhaust path can be exercised
+    deterministically."""
+    from wyrd.generators.kenning.runtime.proportions import (
+        MeaningGenerator,
+        NameGenerator,
+    )
+
+    proportions = dict.fromkeys(meaning_db, 1)
+    mg = MeaningGenerator(meaning_db, {}, proportions)
+    mg.load_parts(proportions, "single")
+    return NameGenerator(meaning_db, mg, structs)
+
+
+def _vector_request(culture: str = "english"):
+    """Build a RequestVector that produces non-zero scores against
+    a synthetic Meaning tagged 'urban' — so eligibility, not
+    scoring, determines whether the dispatch picks a meaning."""
+    from wyrd.generators.kenning.vectors.schemas import (
+        EligibilityGate,
+        RegisterEffect,
+        RequestVector,
+        ScoringWeights,
+    )
+
+    return RequestVector(
+        gate=EligibilityGate(culture=culture),
+        register=RegisterEffect(name="test", semantic_tags={"urban": 1.0}),
+        weights=ScoringWeights(),
+    )
+
+
+def test_select_via_vector_retry_exhausts_when_no_qualifier_pool():
+    """wyrd-izcr: when every struct in the pool requires a qualifier
+    slot but the meaning_db has zero qualifier-flagged morphemes,
+    NameGenerator.select_via_vector exhausts the retry budget and
+    returns None — caller (Kenning.generate) then raises the
+    operator-visible ValueError."""
+    import random
+
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    # meaning_db has only bare morphemes — no is_name() True, no
+    # literal Saint- usage. Any qualifier-flagged struct slot is
+    # unsatisfiable.
+    db = {
+        "Port-": [Meaning(usage="Port-", tags=["urban"], meanings=[], sources=[])],
+        "-all": [Meaning(usage="-all", tags=["urban"], meanings=[], sources=[])],
+    }
+    # Two structs, both with qualifier-flagged slots — exactly the
+    # shape that produced "Port All" pre-fix.
+    structs = {
+        ((("pre", "saint", "single"),), (("post", "name", "single"),)): 4,
+        ((("pre", "saint", "single"),), (("pre", "name", "single"),)): 11,
+    }
+    name_gen = _build_synthetic_vector_name_gen(structs, db)
+    result = name_gen.select_via_vector(
+        random.Random(0),
+        request=_vector_request(),
+        priors=EmpiricalPriors(),
+    )
+    assert result is None
+
+
+def test_select_via_vector_retry_excludes_tried_structs():
+    """wyrd-izcr: after an attempt fails (qualifier pool empty),
+    that struct is excluded from subsequent retries. Without
+    exclusion, weighted_choice could re-pick the same un-satisfiable
+    struct and burn the retry budget without exploring alternatives.
+    Pin via a synthetic 2-struct pool where one is unsatisfiable
+    and one is — the satisfiable struct MUST be picked within the
+    retry budget regardless of initial weighted-choice outcome."""
+    import random
+
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    # One usable bare morpheme + one name-flagged morpheme.
+    smith = Meaning(usage="Smith-", tags=["family name", "urban"], meanings=[], sources=[])
+    bare = Meaning(usage="Port-", tags=["urban"], meanings=[], sources=[])
+    end = Meaning(usage="-end", tags=["urban"], meanings=[], sources=[])
+    db = {"Smith-": [smith], "Port-": [bare], "-end": [end]}
+    # Heavy weight on the unsatisfiable struct so it dominates the
+    # initial pick; the satisfiable compound struct survives only
+    # via retry-with-exclusion.
+    unsatisfiable = ((("pre", "saint", "single"),), (("pre", "name", "single"),))
+    satisfiable = ((("pre",), ("post",)),)
+    structs = {unsatisfiable: 999, satisfiable: 1}
+    name_gen = _build_synthetic_vector_name_gen(structs, db)
+    result = name_gen.select_via_vector(
+        random.Random(0),
+        request=_vector_request(),
+        priors=EmpiricalPriors(),
+    )
+    # Must succeed: retry should drop the unsatisfiable struct and
+    # land on the compound one.
+    assert result is not None
+
+
+def test_select_via_vector_retry_limit_bounds_attempts(monkeypatch):
+    """wyrd-izcr: _VECTOR_STRUCT_RETRY_LIMIT bounds the retry budget.
+    Pin the constant by counting weighted_choice calls when every
+    struct is unsatisfiable — should be at most the limit."""
+    import random
+
+    from wyrd.generators.kenning.runtime import proportions as proportions_mod
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    db = {"-all": [Meaning(usage="-all", tags=["urban"], meanings=[], sources=[])]}
+    structs = {
+        ((("pre", "saint", "single"),), (("post", "name", "single"),)): 4,
+        ((("pre", "saint", "single"),), (("pre", "name", "single"),)): 11,
+    }
+    name_gen = _build_synthetic_vector_name_gen(structs, db)
+
+    call_count = 0
+    real_weighted_choice = proportions_mod.weighted_choice
+
+    def counting_weighted_choice(rng, items):
+        nonlocal call_count
+        call_count += 1
+        return real_weighted_choice(rng, items)
+
+    monkeypatch.setattr(proportions_mod, "weighted_choice", counting_weighted_choice)
+    # Force the limit down so the test can pin the exact bound without
+    # depending on how many structs survive exclusion.
+    monkeypatch.setattr(proportions_mod, "_VECTOR_STRUCT_RETRY_LIMIT", 3)
+
+    result = name_gen.select_via_vector(
+        random.Random(0),
+        request=_vector_request(),
+        priors=EmpiricalPriors(),
+    )
+    assert result is None
+    # Each retry consumes one weighted_choice; after the per-struct
+    # exclusion drains the 2-element pool, the retry loop's
+    # ``if not remaining: return None`` exits early — so at most 2
+    # weighted_choice calls were issued, less than the limit of 3.
+    assert call_count <= 3
+
+
+def test_select_via_vector_saint_filter_matches_legacy_literal_usage_only():
+    """wyrd-izcr: saint-qualifier filter uses the legacy literal
+    usage check (Meaning.usage.replace("-", "").lower() == "saint"),
+    NOT m.is_saint() (the tag check). Andrew- is saint-tagged but
+    its usage is "Andrew-", not "Saint-". Legacy bucket-keying
+    routes it through (pre, "name") via Meaning.key()'s if/elif
+    precedence; the vector qualifier filter must do the same to
+    avoid behavioral divergence between modes."""
+    import random
+
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.vectors.schemas import EmpiricalPriors
+
+    # Andrew- is saint-tagged but is also is_name() True (male
+    # name) — legacy routes it to the name bucket, not saint.
+    andrew = Meaning(
+        usage="Andrew-",
+        tags=["male name", "saint", "urban"],
+        meanings=[],
+        sources=[],
+    )
+    # Literal Saint- — the only morpheme that fills the saint slot
+    # in legacy mode.
+    saint_literal = Meaning(
+        usage="Saint-",
+        tags=["saint", "urban"],
+        meanings=[],
+        sources=[],
+    )
+    db = {"Andrew-": [andrew], "Saint-": [saint_literal]}
+    # Saint-flagged single-element 1-word struct.
+    structs = {((("pre", "saint", "single"),),): 1}
+    name_gen = _build_synthetic_vector_name_gen(structs, db)
+    # Over many seeds, only Saint- should ever fill the saint slot
+    # — never Andrew-. NewName.name is list-of-words; the slot
+    # struct is a 1-word 1-element compound so name[0][0] is the
+    # picked morpheme's usage.
+    picked: set[str] = set()
+    for seed in range(20):
+        result = name_gen.select_via_vector(
+            random.Random(seed),
+            request=_vector_request(),
+            priors=EmpiricalPriors(),
+        )
+        if result is None:
+            continue
+        picked.add(result.name[0][0])
+    assert picked == {"Saint-"}, f"saint slot admitted non-literal usage: {picked}"

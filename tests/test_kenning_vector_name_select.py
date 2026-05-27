@@ -743,3 +743,188 @@ def test_build_non_position_eligible_filter_composes_with_exclude_tags():
         exclude_tags=frozenset({"settlement"}),
     )
     assert pool == []
+
+
+# ---- wyrd-izcr: slot_qualifiers honors name/saint flags -------------------
+
+
+def _qualifier_test_db():
+    """Three pre-position morphemes covering the three slot states
+    the qualifier filter distinguishes:
+
+    - ``Port-`` — bare (no qualifier flag), admitted only when the
+      slot has no qualifier filter
+    - ``Smith-`` — ``is_name()`` True via the ``family name`` tag;
+      admitted only when ``slot_qualifiers=["name"]``
+    - ``Saint-`` — literal "Saint" usage; admitted only when
+      ``slot_qualifiers=["saint"]`` per the legacy
+      :meth:`Meaning.key` bucket-routing rule
+
+    The saint fixture must use the literal ``Saint-`` usage — saint-
+    TAGGED morphemes whose usage isn't literally "Saint" (e.g.
+    Andrew-, Botolph-) are routed through the name bucket in the
+    legacy proportions path because :meth:`Meaning.key` checks
+    is_name() first via if/elif. The vector qualifier filter
+    matches that semantics to stay consistent between scoring modes.
+    """
+    bare = Meaning(
+        usage="Port-",
+        tags=["urban"],
+        meanings=[],
+        sources=[],
+        phonological_vector=None,
+    )
+    family = Meaning(
+        usage="Smith-",
+        tags=["family name", "urban"],
+        meanings=[],
+        sources=[],
+        phonological_vector=None,
+    )
+    saintly = Meaning(
+        usage="Saint-",
+        tags=["saint", "urban"],
+        meanings=[],
+        sources=[],
+        phonological_vector=None,
+    )
+    return (
+        {
+            "Port-": [bare],
+            "Smith-": [family],
+            "Saint-": [saintly],
+        },
+        bare,
+        family,
+        saintly,
+    )
+
+
+def test_select_slot_qualifier_name_filters_out_bare_morphemes():
+    """wyrd-izcr: a slot tagged with the 'name' qualifier (from a
+    structure like ``[[pre+name], ...]``) must pick ONLY from
+    is_name()=True morphemes. Pre-fix the vector path lost the flag
+    during flattening and would draw bare pre-morphemes into name-
+    flagged slots."""
+    db, bare, family, saintly = _qualifier_test_db()
+    picks = []
+    for seed in range(20):
+        result = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["pre"],
+            request=_request(),
+            priors=EmpiricalPriors(),
+            slot_qualifiers=["name"],
+        )
+        assert len(result) == 1
+        picks.append(result[0])
+    # Every pick should be the family-name-tagged morpheme — bare
+    # and saint-only morphemes are filtered out by the 'name'
+    # qualifier.
+    assert all(m is family for m in picks)
+
+
+def test_select_slot_qualifier_saint_filters_to_literal_saint_usage():
+    """wyrd-izcr: a slot tagged with the 'saint' qualifier picks
+    ONLY morphemes whose dash-stripped lowercased usage equals
+    "saint" — matching :meth:`Meaning.key`'s legacy bucket-routing
+    rule. Saint-tagged morphemes with non-"saint" usages (Andrew-,
+    Botolph-, etc.) are routed through the name bucket in the
+    legacy path, so the vector qualifier filter mirrors that
+    semantics."""
+    db, bare, family, saintly = _qualifier_test_db()
+    picks = []
+    for seed in range(20):
+        result = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["pre"],
+            request=_request(),
+            priors=EmpiricalPriors(),
+            slot_qualifiers=["saint"],
+        )
+        assert len(result) == 1
+        picks.append(result[0])
+    assert all(m is saintly for m in picks)
+
+
+def test_select_slot_qualifier_none_admits_all_position_matches():
+    """wyrd-izcr: when ``slot_qualifiers`` is None or the slot's entry
+    is None, no qualifier filter applies — every position-matching
+    morpheme is eligible. Preserves the legacy bare-position
+    behavior for compound-internal slots."""
+    db, bare, family, saintly = _qualifier_test_db()
+    seen_usages: set[str] = set()
+    for seed in range(60):
+        result = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["pre"],
+            request=_request(),
+            priors=EmpiricalPriors(),
+            slot_qualifiers=[None],
+        )
+        assert len(result) == 1
+        seen_usages.add(result[0].usage)
+    # Over 60 seeds we should see all 3 pre-morphemes since none is
+    # filtered out.
+    assert seen_usages == {"Port-", "Smith-", "Saint-"}
+
+
+def test_select_slot_qualifier_returns_empty_when_pool_is_empty():
+    """wyrd-izcr: when no morpheme satisfies the qualifier, return
+    empty list. Caller decides whether to retry with a different
+    struct (the NameGenerator.select_via_vector wrapper does)."""
+    bare = Meaning(
+        usage="Port-",
+        tags=["urban"],
+        meanings=[],
+        sources=[],
+        phonological_vector=None,
+    )
+    db = {"Port-": [bare]}
+    result = select_via_vector_scoring(
+        random.Random(0),
+        db,
+        structure=["pre"],
+        request=_request(),
+        priors=EmpiricalPriors(),
+        slot_qualifiers=["name"],
+    )
+    assert result == []
+
+
+def test_select_slot_qualifier_cache_key_distinguishes_qualifier_variants():
+    """wyrd-izcr: the same position label with different qualifier
+    flags must populate distinct cache entries — otherwise a
+    ``(pre, "name")`` slot's filtered base_scored would be served
+    to a ``(pre, None)`` lookup later in the same dispatch."""
+    db, bare, family, saintly = _qualifier_test_db()
+    slot_base_scores: dict = {}
+    # First call with qualifier=name fills cache[(pre, "name")].
+    select_via_vector_scoring(
+        random.Random(0),
+        db,
+        structure=["pre"],
+        request=_request(),
+        priors=EmpiricalPriors(),
+        slot_qualifiers=["name"],
+        slot_base_scores=slot_base_scores,
+    )
+    # Second call with no qualifier fills cache[(pre, None)] —
+    # MUST be a separate entry with a larger eligible pool.
+    select_via_vector_scoring(
+        random.Random(0),
+        db,
+        structure=["pre"],
+        request=_request(),
+        priors=EmpiricalPriors(),
+        slot_qualifiers=[None],
+        slot_base_scores=slot_base_scores,
+    )
+    # Two distinct cache keys, two distinct base-scored lists.
+    assert ("pre", "name") in slot_base_scores
+    assert ("pre", None) in slot_base_scores
+    assert len(slot_base_scores[("pre", "name")]) == 1  # family only
+    assert len(slot_base_scores[("pre", None)]) == 3  # all 3 pre-morphemes

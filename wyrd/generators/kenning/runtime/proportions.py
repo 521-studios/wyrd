@@ -22,6 +22,12 @@ from .meaning import _mimic_case
 # for the established pattern.
 _logger = logging.getLogger(__name__)
 
+# wyrd-izcr: max struct re-picks in ``NameGenerator.select_via_vector``
+# when a qualifier-flagged slot's pool is empty (saint/name slot with
+# no eligible morpheme under the current gate). RNG advances across
+# attempts so each retry picks a different struct deterministically.
+_VECTOR_STRUCT_RETRY_LIMIT = 5
+
 
 class Generator:
     def __init__(self, tag_db, elements):
@@ -483,8 +489,9 @@ class NameGenerator:
         # Process-lifetime safe: meaning_db is immutable post-load.
         self._vector_eligible_cache: dict[tuple, list] = {}
         # Cache per-slot ``(meaning, base_score)`` lists keyed by
-        # ``(eligible_cache_key, slot_position, request_signature, era_midpoint, id(priors))``.
-        # Base scores depend only on request + slot_position +
+        # ``(eligible_cache_key, slot_position, slot_qualifier,
+        # request_signature, era_midpoint, id(priors))``. Base scores
+        # depend only on request + (slot_position, slot_qualifier) +
         # era_midpoint + priors (which are constant across sub-seeds
         # in one count=N dispatch); only the cohesion-multiplier +
         # weighted-sample steps vary per sub-seed. Caching the base
@@ -492,8 +499,11 @@ class NameGenerator:
         # sub-seed" to "once per (request, slot) pair". Per-dispatch
         # the inner dict is fresh; across dispatches the outer cache
         # reuses by request signature so repeated identical requests
-        # hit warm scores.
-        self._vector_slot_score_cache: dict[tuple, dict[str, list]] = {}
+        # hit warm scores. wyrd-izcr widened the inner key from
+        # ``slot_position`` to ``(slot_position, slot_qualifier)``
+        # so a single dispatch can mix ``(pre, None)`` and
+        # ``(pre, "name")`` slots without one shadowing the other.
+        self._vector_slot_score_cache: dict[tuple, dict[tuple[str, str | None], list]] = {}
         # Bound the per-slot cache to avoid unbounded growth across a
         # warm Lambda's lifetime. Distinct request signatures grow
         # linearly with operator-knob diversity (mood / harshness /
@@ -753,18 +763,6 @@ class NameGenerator:
         )
 
         items = list(self.structs.items())
-        struct = weighted_choice(rng, items)
-        if struct is None:
-            return None
-
-        # Flatten the struct into a list of position labels for the
-        # primitive. The struct shape is tuple-of-words, each word
-        # is tuple-of-keys, each key is a feature-tuple (e.g.
-        # ("pre", "single"), ("post", "name")) — the first element is
-        # the position label per ``word_to_key`` in this module.
-        # The primitive accepts bare position labels directly, so no
-        # encode/decode round-trip required.
-        flat_positions: list[str] = [key[0] for word in struct for key in word]
 
         # Build (or reuse) the non-position eligibility pool. The
         # cache key folds every filter that affects pool membership.
@@ -817,24 +815,71 @@ class NameGenerator:
                 del self._vector_slot_score_cache[oldest]
             self._vector_slot_score_cache[slot_cache_key] = slot_base_scores
 
-        picked = select_via_vector_scoring(
-            rng,
-            self.meaning_db,
-            structure=flat_positions,
-            request=request,
-            priors=priors,
-            era_midpoint=era_midpoint,
-            cohesion=cohesion,
-            tag_cooccurrence=self.tag_cooccurrence or None,
-            exclude_tags=exclude_tags_fz,
-            pack_meaning_dbs=pack_meaning_dbs,
-            non_position_eligible=non_position_eligible,
-            slot_base_scores=slot_base_scores,
-        )
-        # The primitive returns either [] (empty pool / no positive
-        # scores) or a list with exactly one Meaning per requested
-        # slot — never a partial. The empty check is sufficient.
-        if not picked:
+        # wyrd-izcr: pick a struct, flatten to positions + qualifier
+        # flags, attempt the per-slot score+sample. On failure (empty
+        # qualifier-restricted pool or all-zero scores in a qualifier
+        # slot), retry with a DIFFERENT struct — failed candidates
+        # are excluded from the next draw so retries can't converge
+        # on the same un-satisfiable struct. Bounded so a
+        # pathologically restrictive gate doesn't burn time.
+        # Pre-fix the vector path silently filled qualifier slots
+        # with non-qualifier morphemes; now correctly fails and
+        # retries to find a struct whose qualifier slots are
+        # satisfiable.
+        struct = None
+        picked: list = []
+        tried: set = set()
+        for _attempt in range(_VECTOR_STRUCT_RETRY_LIMIT):
+            remaining = [it for it in items if it[0] not in tried]
+            if not remaining:
+                # Exhausted the structure pool entirely.
+                return None
+            candidate_struct = weighted_choice(rng, remaining)
+            if candidate_struct is None:
+                return None
+            tried.add(candidate_struct)
+            # Flatten the candidate's word_keys into bare position
+            # labels + parallel qualifier list. The struct shape is
+            # tuple-of-words, each word is tuple-of-keys, each key is
+            # a feature-tuple (e.g. ("pre", "single"), ("post",
+            # "name")) — the first element is the position label per
+            # ``word_to_key`` in this module; subsequent elements are
+            # flags (``name`` / ``saint`` / ``single``). The vector
+            # primitive applies the position+qualifier filter when
+            # building per-slot base scores so a qualifier-required
+            # slot only picks from name/saint-flagged morphemes.
+            candidate_positions: list[str] = []
+            candidate_qualifiers: list[str | None] = []
+            for word in candidate_struct:
+                for key in word:
+                    candidate_positions.append(key[0])
+                    if "name" in key:
+                        candidate_qualifiers.append("name")
+                    elif "saint" in key:
+                        candidate_qualifiers.append("saint")
+                    else:
+                        candidate_qualifiers.append(None)
+            picked = select_via_vector_scoring(
+                rng,
+                self.meaning_db,
+                structure=candidate_positions,
+                request=request,
+                priors=priors,
+                era_midpoint=era_midpoint,
+                cohesion=cohesion,
+                tag_cooccurrence=self.tag_cooccurrence or None,
+                exclude_tags=exclude_tags_fz,
+                pack_meaning_dbs=pack_meaning_dbs,
+                non_position_eligible=non_position_eligible,
+                slot_base_scores=slot_base_scores,
+                slot_qualifiers=candidate_qualifiers,
+            )
+            if picked:
+                struct = candidate_struct
+                break
+        else:
+            # All retries exhausted — pool is too restrictive for any
+            # tried struct's slot constraints to be satisfied.
             return None
 
         # Reconstruct the words list-of-lists from the flat picks,
