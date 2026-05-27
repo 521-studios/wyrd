@@ -180,6 +180,52 @@ def test_name_generator_drops_ungrammatical_structs_on_load():
     assert name_gen.structs[good_struct] == 100
 
 
+def test_name_generator_drops_single_word_bare_structs_on_load():
+    """wyrd-80ib end-to-end at the NameGenerator boundary: stale
+    bundles carrying single-word `[post]` / `[pre]` templates get
+    dropped at __init__, alongside the multi-word zzli shape pinned
+    above. Mirrors the actual english bundle weights: 364 for
+    bare-post 1-word, 202 for bare-pre 1-word (6.7% combined of
+    English 1-word weight pre-fix)."""
+    good_struct = (((("pre",), ("post",)),),)  # 1 word, pre+post
+    bad_single_post = ((("post",),),)  # wyrd-80ib bug shape: lone -bridge
+    bad_single_pre = ((("pre",),),)  # wyrd-80ib bug shape: lone High-
+    structs = {
+        good_struct: 100,
+        bad_single_post: 364,
+        bad_single_pre: 202,
+    }
+    name_gen = NameGenerator(
+        meaning_db={},
+        meaning_gen=None,
+        structs=structs,
+    )
+    assert good_struct in name_gen.structs
+    assert bad_single_post not in name_gen.structs
+    assert bad_single_pre not in name_gen.structs
+    assert name_gen.structs[good_struct] == 100
+
+
+def test_name_generator_warns_on_single_word_bare_drop(caplog):
+    """wyrd-80ib drift-warning path is shape-agnostic — it fires for
+    the single-word bug just like the multi-word zzli case. Operators
+    running a stale bundle see the runtime is filtering their data
+    even when the dropped shape is the newer 80ib one."""
+    import logging
+
+    good_struct = ((("pre",), ("post",)),)
+    bad_struct = ((("post",),),)  # wyrd-80ib single-word bare-post
+    structs = {good_struct: 100, bad_struct: 364}
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="wyrd.generators.kenning.runtime.proportions"):
+        NameGenerator(meaning_db={}, meaning_gen=None, structs=structs)
+    log_text = "\n".join(r.getMessage() for r in caplog.records)
+    assert "wyrd-zzli" in log_text
+    assert "filtered 1" in log_text
+    # 364 / (100 + 364) = 78.4%
+    assert "78.4%" in log_text
+
+
 def test_name_generator_passes_grammatical_structs_unchanged():
     """No-op when all structs are grammatical — bit-stable for clean
     bundles."""
@@ -261,6 +307,61 @@ def test_encode_structs_drops_ungrammatical():
     ]
     assert (("pre", "post"),) in encoded_word_shapes
     assert (("post",), ("pre",)) not in encoded_word_shapes
+
+
+def test_encode_structs_drops_single_word_bare_shapes():
+    """wyrd-80ib rebuild-side defense: emission filters the same
+    single-word bare-pre / bare-post shapes that the NameGenerator
+    runtime gate catches. Without this, a fresh re-emit could
+    re-ship the bug-shape templates and rely on the runtime to
+    paper over them."""
+    good_key = ((("pre",), ("post",)),)  # 1-word compound
+    bad_single_post = ((("post",),),)  # 1-word bare-post (e.g. emits 'Bridge')
+    bad_single_pre = ((("pre",),),)  # 1-word bare-pre (e.g. emits 'High')
+    counter = Counter(
+        {
+            good_key: 100,
+            bad_single_post: 364,
+            bad_single_pre: 202,
+        }
+    )
+    encoded = _encode_structs(counter)
+    encoded_word_shapes = [
+        tuple(tuple(e["location"] for e in word) for word in s["words"]) for s in encoded
+    ]
+    assert (("pre", "post"),) in encoded_word_shapes
+    assert (("post",),) not in encoded_word_shapes
+    assert (("pre",),) not in encoded_word_shapes
+
+
+def test_encode_structs_preserves_single_word_qualifier_shapes():
+    """wyrd-80ib doesn't sweep up legitimate single-word qualifier
+    structures — a 1-word slot whose sole element carries the
+    `name` or `saint` flag is grammatical and survives the filter."""
+    name_flagged = ((("pre", "name"),),)  # e.g. lone "Bishop's"
+    saint_flagged = ((("pre", "saint"),),)  # e.g. lone "Saint"
+    bad_bare = ((("pre",),),)  # bug shape — should drop
+    counter = Counter(
+        {
+            name_flagged: 10,
+            saint_flagged: 5,
+            bad_bare: 200,
+        }
+    )
+    encoded = _encode_structs(counter)
+    encoded_struct_shapes = [
+        tuple(
+            tuple(
+                (e["location"], *(k for k, v in e.items() if k != "location" and v))
+                for e in word
+            )
+            for word in s["words"]
+        )
+        for s in encoded
+    ]
+    assert ((("pre", "name"),),) in encoded_struct_shapes
+    assert ((("pre", "saint"),),) in encoded_struct_shapes
+    assert ((("pre",),),) not in encoded_struct_shapes
 
 
 def test_encode_structs_preserves_qualifier_word_shapes():

@@ -384,21 +384,29 @@ class MeaningGenerator:
 
 
 def _is_ungrammatical_word_template(word_key: tuple) -> bool:
-    """wyrd-zzli: a multi-word structure can pick a per-word template
-    where the entire word is a single bare 'pre' or 'post' morpheme
-    (no ``name`` / ``saint`` / ``single`` flag). When the runtime picks
-    that template it draws from the pre/post bucket and renders the
-    chosen morpheme as a STANDALONE word — producing surface output
-    like 'By Green' (-by + green-) where the two attachment-only
-    morphemes have been split across word boundaries.
+    """wyrd-zzli + wyrd-80ib: returns True when a word slot is a single
+    bare 'pre' / 'post' / 'inner' morpheme with no ``name`` / ``saint``
+    qualifier. The runtime renders such a slot as a standalone word
+    with the dash stripped — producing two distinct bug shapes
+    depending on the enclosing structure:
+
+    - Multi-word `By Green` (wyrd-zzli): a 2-word structure where each
+      word is a bare attachment morpheme (-by + green-). The two
+      attachment-only morphemes get split across word boundaries.
+    - Single-word `Bridge` (wyrd-80ib): a 1-word structure whose sole
+      word is a bare attachment morpheme (-bridge). The morpheme
+      renders alone with the dash stripped.
+
+    Both shapes share this predicate; the caller
+    :func:`is_structurally_grammatical` applies it to every word in
+    the structure regardless of how many words the structure has.
 
     A bare pre/post morpheme is designed to ATTACH to another morpheme
     inside the same word (denoted by leading or trailing dash in the
-    canonical_form). Real two-word British place-names where a single
-    morpheme is the first/second word always involve a 'qualifier word'
-    (Bishop's, Old, Great, Higher) whose lexical entry carries the
-    ``name`` flag — those templates survive this filter as
-    ``(location, 'name')`` tuples.
+    canonical_form). Real qualifier-word place-names — Bishop's
+    Stortford, Great Yarmouth, Saint Botolph — survive because the
+    qualifier word's lexical entry carries the ``name`` or ``saint``
+    flag, which is treated as a distinct position key.
 
     A word_key here is a tuple of position tuples; ``key[0]`` is the
     location label and any subsequent elements are flags (``name``,
@@ -433,10 +441,10 @@ def is_structurally_grammatical(struct_key: tuple) -> bool:
     :func:`_is_ungrammatical_word_template`). Applies to both multi-
     word structures (the original `By Green` shape) and single-word
     structures (wyrd-80ib): a 1-word structure whose sole word is a
-    single bare prefix/suffix renders that morpheme alone with the
-    dash stripped, producing single-word output like `Bridge`,
-    `Green`, `South` from morphemes whose canonical_form is `-bridge`,
-    `-green`, `South-`.
+    bare attachment morpheme renders that morpheme alone with the
+    dash stripped, producing single-word output like `Bridge` /
+    `Green` (from suffix-only morphemes `-bridge` / `-green`) or
+    `South` / `High` (from prefix-only morphemes `South-` / `High-`).
     """
     return not any(_is_ungrammatical_word_template(w) for w in struct_key)
 
@@ -497,13 +505,14 @@ class NameGenerator:
         # a bare pre/post/inner morpheme as a standalone word. Two
         # shapes both fail this predicate:
         #   - multi-word `By Green` (zzli): -by + green- split across
-        #     two word slots (46.7% of English structure weight pre-fix)
+        #     two word slots; 46.7% of English structure weight pre-fix
         #   - single-word `Bridge` (80ib): a 1-word structure whose
-        #     sole word is `-bridge`, rendered alone after dash-strip
-        #     (6.7% of remaining English 1-word weight)
-        # The data fix in rebuild_proportions._encode_structs prevents
-        # future rebuilds from emitting them; this runtime gate defends
-        # against bundles built before that data fix lands.
+        #     sole word is `-bridge`, rendered alone after dash-strip;
+        #     6.7% of English 1-word structure weight pre-fix
+        # The data fix in :func:`lexicon.proportions_builder.encode_structs`
+        # (re-exported as ``_encode_structs`` from ``cli.rebuild_proportions``)
+        # prevents future rebuilds from emitting them; this runtime gate
+        # defends against bundles built before that data fix lands.
         self.structs = {k: v for k, v in structs.items() if is_structurally_grammatical(k)}
         # Loud-failure guard (generator-contract-reviewer P2, round 1):
         # if the filter empties an otherwise-non-empty structs dict, the

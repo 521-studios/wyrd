@@ -186,20 +186,24 @@ def test_meaning_generator_select_threads_harshness():
 def _build_minimal_name_generator(meaning_db):
     """Build a NameGenerator with a single trivial structure for tests.
 
-    Uses only one usage from meaning_db so the structure walk is
-    deterministic. Mirrors the production load_proportions() shape: every
-    usage is registered both with its bare location key (multi-element
-    words) and the (location, "single") key (single-element words). The
-    test fixture uses single-element structures so the runtime can resolve
-    the bucket via the "single"-suffixed key.
+    The fixture structure is a 1-word compound `((("pre",), ("post",)),)`
+    — one word with two element slots — which passes the wyrd-zzli +
+    wyrd-80ib grammaticality filter (multi-element words don't trip
+    :func:`_is_ungrammatical_word_template`). The tests using this
+    helper exercise the rendering machinery via direct
+    ``_render_substitutions`` calls and never run the
+    structure-driven dispatch, so the struct doesn't need to match
+    ``meaning_db`` — it just needs ONE entry that survives the
+    filter at NameGenerator init.
 
-    The fixture structure is a 2-element compound (pre+post), which
-    passes the wyrd-zzli + wyrd-80ib grammaticality filter. These tests
-    only exercise the rendering machinery via direct
-    ``_render_substitutions`` calls — they don't go through the
-    structure-driven dispatch — so the struct doesn't need to match
-    meaning_db; it just needs ONE entry that survives the filter at
-    NameGenerator init.
+    MeaningGenerator.__init__ already calls ``load_parts(proportions)``
+    so the bare-location bucket is populated by construction. The
+    additional ``load_parts(proportions, "single")`` call here populates
+    the ``(location, "single")`` bucket flavor for symmetry with the
+    production loader (which also calls both forms). Tests under this
+    helper that need single-element-word resolution should switch to
+    an inline NameGenerator construction with a name-flagged single-
+    element struct (see ``test_select_populates_inflection_labels_at_high_density``).
     """
     from wyrd.generators.kenning.runtime.proportions import (
         MeaningGenerator,
@@ -208,13 +212,6 @@ def _build_minimal_name_generator(meaning_db):
 
     proportions = dict.fromkeys(meaning_db, 1)
     mg = MeaningGenerator(meaning_db, {}, proportions)
-    # Load both bucket flavors so test structs can reference either the
-    # multi-element compound shape ((`pre`,), (`post`,)) — which uses
-    # load_parts(...) without addkey — or the single-element shape
-    # ((location, `single`),) — which uses load_parts(..., "single").
-    # Tests under this helper use the compound shape; single-element
-    # buckets are kept loaded for symmetry with production.
-    mg.load_parts(proportions)
     mg.load_parts(proportions, "single")
     structs = {((("pre",), ("post",)),): 1}
     return NameGenerator(meaning_db, mg, structs)
