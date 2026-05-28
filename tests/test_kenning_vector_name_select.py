@@ -1087,8 +1087,8 @@ def test_frequency_weighted_pool_distinguishes_single_vs_multi_bucket():
     buckets and the per-usage frequency distributions diverge."""
     db, common, rare = _freq_test_db()
     usage_frequency_by_bucket = {
-        ("pre",): {"Common-": 1.0, "Rare-": 0.0},          # multi: common only
-        ("pre", "single"): {"Common-": 0.0, "Rare-": 1.0}, # single: rare only
+        ("pre",): {"Common-": 1.0, "Rare-": 0.0},  # multi: common only
+        ("pre", "single"): {"Common-": 0.0, "Rare-": 1.0},  # single: rare only
     }
     # Multi-element-word slot → ("pre",) bucket → Common- only.
     multi_meanings = set()

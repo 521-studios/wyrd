@@ -440,16 +440,16 @@ def _resolve_slot_usage_frequency(
 ) -> dict[str, float] | None:
     """Three-state lookup for the wyrd-bol9 frequency layer:
 
-      * ``usage_frequency_by_bucket is None`` — caller opted out of
-        frequency weighting (legacy / non-NameGenerator callers).
-        Returns ``None`` so :func:`build_slot_base_scores` falls
-        back to its pre-bol9 unweighted-pool behavior.
-      * map present + bucket key present — returns the bucket's
-        per-usage frequency dict for this slot.
-      * map present + bucket key MISSING (or no slot bucket key
-        supplied) — returns ``{}`` so every Meaning looks up to 0
-        and is filtered. Matches proportions: a bucket with no rows
-        is unreachable. NOT a fall-through to the ``None`` branch.
+    * ``usage_frequency_by_bucket is None`` — caller opted out of
+      frequency weighting (legacy / non-NameGenerator callers).
+      Returns ``None`` so :func:`build_slot_base_scores` falls
+      back to its pre-bol9 unweighted-pool behavior.
+    * map present + bucket key present — returns the bucket's
+      per-usage frequency dict for this slot.
+    * map present + bucket key MISSING (or no slot bucket key
+      supplied) — returns ``{}`` so every Meaning looks up to 0
+      and is filtered. Matches proportions: a bucket with no rows
+      is unreachable. NOT a fall-through to the ``None`` branch.
     """
     if usage_frequency_by_bucket is None:
         return None
@@ -623,9 +623,7 @@ def select_via_vector_scoring(
         # candidate_positions, so a length mismatch is a programming
         # error that should surface as IndexError rather than
         # silently coerce to None.
-        slot_bucket_key = (
-            slot_bucket_keys[slot_index] if slot_bucket_keys is not None else None
-        )
+        slot_bucket_key = slot_bucket_keys[slot_index] if slot_bucket_keys is not None else None
         cache_key = (slot_position, slot_qualifier, slot_bucket_key)
 
         # Base scores: cached on caller-supplied dict if provided,

@@ -590,9 +590,9 @@ class NameGenerator:
         # proportions' per-usage weighted sampling while preserving
         # vector's per-Meaning composition. Bucket-key shape and the
         # lookup contract live on ``_build_usage_frequency_by_bucket``.
-        self.usage_frequency_by_bucket: dict[
-            tuple, dict[str, float]
-        ] = self._build_usage_frequency_by_bucket()
+        self.usage_frequency_by_bucket: dict[tuple, dict[str, float]] = (
+            self._build_usage_frequency_by_bucket()
+        )
 
     def _build_usage_frequency_by_bucket(self) -> dict[tuple, dict[str, float]]:
         """Snapshot ``meaning_gen.generators``'s per-bucket
