@@ -222,7 +222,7 @@ def test_post_vector_with_spa_default_params_returns_a_name(culture):
         )
     assert response.status_code == 200, (
         f"vector dispatch regressed for culture={culture!r}: "
-        f"HTTP {response.status_code} → {response.get_json()}"
+        f"HTTP {response.status_code} → {response.get_data(as_text=True)[:500]}"
     )
     body = response.get_json()
     results = body.get("results", [])
