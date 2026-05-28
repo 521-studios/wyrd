@@ -562,35 +562,49 @@ def _corpus_depth(conn: sqlite3.Connection, language: str, threshold: int) -> di
         (language,),
     ).fetchone()[0]
     # wyrd-6n2x: bypass the ``etymon_consensus`` view to query lemma
-    # heads directly. Pre-fix the report selected from the view
-    # unfiltered, with two consequences:
+    # heads directly. The original report selected from the view with
+    # no eligibility filter and no per-language scoping:
     #
-    # 1. The denominator was the full 1.26M-row view (every wiktextract
-    #    etymon for modern-english), not the generator-eligible pool —
-    #    so ``avg_witnesses`` collapsed to ~0.0 (modern-english: 409
+    # 1. The denominator was the full view rowset (~1.26M rows for
+    #    modern-english, one per ``(lemma_id, canonical_form,
+    #    language)`` group) — not the generator-eligible lemma pool.
+    #    ``avg_witnesses`` collapsed to ~0.0 (modern-english: 409
     #    total witnesses / 1.26M rows → 0.0003 → round to 0.0).
-    # 2. The view's ``language`` column is SQLite's arbitrary pick from
-    #    the GROUP BY rollup, so cross-language lemma groups (e.g. an
-    #    OE inflection of a Latin lemma) get attributed to whichever
-    #    language SQLite happened to pick — over-counting some
-    #    languages and under-counting others.
+    # 2. The view's per-language attribution emits one row PER
+    #    LANGUAGE PARTICIPATING in a lemma group — so an OE
+    #    inflection of a Latin lemma produces both a (Latin, …) and
+    #    an (OE, …) view row, and the same lemma's witnesses get
+    #    apportioned across both rows. The dashboard's per-language
+    #    denominator (``eligible_lemmas``) is heads-only; the
+    #    view-based avg uses a different cardinality, so they
+    #    weren't comparable.
     #
-    # Querying lemma heads directly fixes both: the WHERE filters to
-    # ``language = ?`` + ``lemma_id IS NULL`` (only lemma heads, in
-    # this language), and the per-lemma witness count rolls up via a
-    # subquery over the lemma's own citations + its inflection-child
-    # citations. Same roll-up semantic as the view, but the per-
-    # language attribution is the lemma-head's language (operator-
-    # intuitive). Performance jumps 4-100× on the live DB because
-    # SQLite can push the language filter through to an indexed
-    # column instead of materializing the full view rollup first.
+    # The lemma-head query attributes one row per (lemma_head,
+    # head's language), then rolls up citations from three places
+    # the view's ``etymon_consensus`` walks via
+    # ``COALESCE(e.merged_into_id, e.lemma_id)``:
+    #
+    # * the lemma head itself
+    # * inflection children (etymon.lemma_id = head.id)
+    # * OCR-merge / bridge losers (etymon.merged_into_id = head.id)
+    #
+    # Per D22 there are no 2-deep merge chains, so one hop is
+    # complete. ``UNION ALL`` (not ``OR``) lets SQLite push each
+    # branch through ``idx_etymon_citation_unique`` instead of full-
+    # scanning ``etymon_citation`` per outer row — 4-100× faster
+    # than the view-based query on the live DB.
     consensus_rows = conn.execute(
         """
         SELECT
           (SELECT COUNT(DISTINCT c.source_id)
              FROM etymon_citation c
-            WHERE c.etymon_id = e.id
-               OR c.etymon_id IN (SELECT id FROM etymon WHERE lemma_id = e.id)
+            WHERE c.etymon_id IN (
+                    SELECT e.id
+                    UNION ALL
+                    SELECT id FROM etymon WHERE lemma_id = e.id
+                    UNION ALL
+                    SELECT id FROM etymon WHERE merged_into_id = e.id
+                  )
           ) AS witnesses
           FROM etymon e
           JOIN eligible_etymon ee ON ee.id = e.id

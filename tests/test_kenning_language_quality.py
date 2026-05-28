@@ -1429,6 +1429,65 @@ def test_scorecard_promotion_eligible_filters_to_eligible_pool() -> None:
     )
 
 
+def test_scorecard_witness_rollup_includes_lemma_descendants() -> None:
+    """wyrd-6n2x: the per-lemma witness count must roll up citations
+    from both edges the ``etymon_consensus`` view walks via
+    ``COALESCE(e.merged_into_id, e.lemma_id)``: inflection children
+    (``etymon.lemma_id = head.id``) AND OCR-merge / bridge losers
+    (``etymon.merged_into_id = head.id``). Pre-fix the lemma-head
+    query only counted the head's own citations, dropping both
+    rollup branches — a regression hidden by the baseline fixture
+    (no inflection or merge-loser has its own citations there).
+
+    Fixture extension:
+      - 2 citations on ``hamum`` (id=6, lemma_id=2 → ham) exercise
+        the inflection-child branch.
+      - A new merge-loser ``caut`` (id=400, merged_into_id=1 → cot)
+        with 1 citation exercises the merge-loser branch. Loser is
+        excluded from ``eligible_etymon`` (D22: merge losers aren't
+        generator-eligible) so it doesn't appear as its own
+        scorecard row.
+
+    Expected rollup post-fix:
+      - cot: 3 own (skeat/mawer/charles) + 1 loser (charles already
+        in set) → still 3 distinct sources, promotion-eligible ≥3
+      - ham: 1 own (skeat) + 2 inflection-child (mawer/charles) → 3
+        distinct sources, promotion-eligible ≥3
+      - tun: 2 own (skeat/mawer) → 2 distinct sources
+      → avg = (3+3+2)/3 = 2.667, promotion_eligible = 2."""
+    conn = _build_fixture_db()
+    bundle = _fixture_bundle()
+    conn.executescript(
+        """
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (6, 'mawer_1920');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (6, 'charles_1992');
+        INSERT INTO etymon(id, canonical_form, language, merged_into_id)
+          VALUES (400, 'caut', 'old-english', 1);
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (400, 'charles_1992');
+        """
+    )
+    populate_eligible_etymon_table(conn)
+    conn.execute("DELETE FROM eligible_etymon WHERE id = 400")
+    conn.commit()
+
+    card = compute_scorecard(
+        conn,
+        "old-english",
+        bundle,
+        list(FALLBACK_REFERENCE_TAGS[:5]),
+    )
+    # Both branches contribute distinct citations. Dropping either
+    # OR-branch fails: without inflection-child rollup ham stays at
+    # 1 witness (avg drops to (3+1+2)/3 = 2.0, promotion at 1);
+    # without merge-loser rollup cot still has 3 own citations so
+    # its count is unchanged here but the merge-loser path would
+    # break for any lemma where the loser carries DISTINCT sources.
+    assert abs(card.avg_witnesses - 2.667) < 1e-3, (
+        f"witness rollup should sum cot=3, ham=3, tun=2 → 2.667; got {card.avg_witnesses}"
+    )
+    assert card.promotion_eligible == 2
+
+
 def test_scorecard_welsh_sparse_terminus_forward() -> None:
     """Welsh in the fixture has just the cognate mate row — exercises
     the sparse path. Welsh chain marks it as terminus-forward (no
