@@ -9274,6 +9274,78 @@ def test_export_meanings_empty_lang_thresholds_falls_back_to_uniform(
     assert subjects == []
 
 
+def test_export_meanings_surfaces_cognate_cluster_modern_forms(fresh_db: Path) -> None:
+    """wyrd-nxhh: the bundle's per-language sibling arrays must carry
+    cognate-cluster mates from end-state target languages, not just
+    the family's direct-member forms. Pre-fix, ``forms_by_lang`` came
+    from ``_build_forms_by_lang`` (root + inflection children + OCR
+    losers only) — cluster mates only reached the bundle via the
+    separate ``era_reflexes`` field, which only the KenningRewind
+    era-progression generator reads. The main kenning generator's
+    per-language source siblings never saw modern surfaces like
+    chester / -cester / -caster, so it could only generate OE-shape
+    names (Winceaster) instead of the modern surfaces (Winchester).
+
+    Fixture: OE ``ceaster`` lemma with 2 scholar citations + a
+    modern-english cluster mate ``-chester``. Post-fix the family
+    subject's modern_english array contains the cluster mate."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b"):
+            db.upsert_source(id=src, title=src)
+        ceaster = db.upsert_etymon("ceaster", "old-english", modifier_type="Habitative")
+        db.add_gloss(ceaster, "fortified place")
+        db.add_tag(ceaster, "architecture")
+        db.add_citation(ceaster, "a")
+        db.add_citation(ceaster, "b")
+        # Modern-english cluster mate. Cognate IDs are arbitrary unique
+        # integers; matching wyrd-nxhh's cluster 3617 use case where
+        # ceaster + -chester / -cester / -caster live together.
+        chester = db.upsert_etymon("-chester", "modern-english")
+        db.conn.execute(
+            "UPDATE etymon SET cognate_id = ? WHERE id IN (?, ?)",
+            (ceaster, ceaster, chester),
+        )
+        db.commit()
+        subjects = export_meanings(db, include_rando=False)
+    assert len(subjects) == 1
+    subj = subjects[0]
+    assert subj["meaning"] == ["fortified place"]
+    word = subj["words"][0]
+    # OE form still present (the direct family member).
+    assert word.get("old_english") == ["ceaster"]
+    # NEW: modern-english cluster mate is carried as a per-language sibling.
+    assert word.get("modern_english") == ["-chester"], (
+        f"forms_by_lang should include cluster mate's modern-english surface; "
+        f"got modern_english={word.get('modern_english')!r}"
+    )
+
+
+def test_export_meanings_no_cognate_cluster_leaves_forms_by_lang_unchanged(
+    fresh_db: Path,
+) -> None:
+    """wyrd-nxhh: when a promoted family has no cognate_id and no
+    direct-descent edges, the merge is a no-op — the family's
+    per-language sibling arrays carry only its direct-member forms.
+    Pins that the new merge doesn't perturb the common case
+    (families without cluster data, which today is the majority)."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b"):
+            db.upsert_source(id=src, title=src)
+        # No cognate_id set; no descent edges.
+        ham = db.upsert_etymon("ham", "old-english")
+        db.add_gloss(ham, "homestead")
+        db.add_citation(ham, "a")
+        db.add_citation(ham, "b")
+        db.commit()
+        subjects = export_meanings(db, include_rando=False)
+    assert len(subjects) == 1
+    word = subjects[0]["words"][0]
+    assert word.get("old_english") == ["ham"]
+    # No middle_english / modern_english siblings — pin the no-op.
+    assert "middle_english" not in word
+    assert "modern_english" not in word
+
+
 def test_export_meanings_rando_min_corroborators_zero_admits_pure_rando(
     fresh_db: Path,
 ) -> None:

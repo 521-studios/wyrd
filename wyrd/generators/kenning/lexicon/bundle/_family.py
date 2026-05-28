@@ -106,13 +106,29 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
 
     reflex_links = _fetch_member_reflex_links(db, member_ids)
 
+    era_reflexes = _fetch_root_era_reflexes(db, root_id, root_row["language"])
+    forms_by_lang = _build_forms_by_lang(root_row, member_rows)
+    # wyrd-nxhh: merge cognate-cluster / direct-descent surfaces from
+    # the era_reflexes layer into ``forms_by_lang`` so the bundle's
+    # per-language sibling arrays carry them alongside the family's
+    # direct member forms. Pre-fix the modern surfaces only landed in
+    # the ``era_reflexes`` field (consumed by KenningRewind for era
+    # progression); the main kenning generator reads forms_by_lang via
+    # the per-language source siblings (modern_english / middle_english
+    # / etc.), so chester / -cester / -caster never reached the
+    # generator even though ceaster was promoted and its cluster
+    # carried them. Merging here makes the cluster surfaces sampleable
+    # without disturbing the era_reflexes field (still emitted separately
+    # for the rewinder's progression path).
+    _merge_era_reflexes_into_forms_by_lang(forms_by_lang, era_reflexes)
+
     return {
         "root_id": root_id,
         "root_canonical_form": root_row["canonical_form"],
         "root_language": root_row["language"],
         "modifier_type": root_row["modifier_type"],
         "position_pref": root_row["position_pref"],
-        "forms_by_lang": _build_forms_by_lang(root_row, member_rows),
+        "forms_by_lang": forms_by_lang,
         "member_form_by_id": member_form_by_id,
         "member_descendants": _compute_member_descendants(member_rows),
         "member_variants": _fetch_member_variants(db, member_ids, canonical_forms_lower),
@@ -145,8 +161,37 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
         # wyrd-obpw Phase 3.3: era reflexes for the family root,
         # keyed by target language tag. SPA-side rewinder reads this
         # at runtime from the bundle (Lambda has no lexicon DB).
-        "era_reflexes": _fetch_root_era_reflexes(db, root_id, root_row["language"]),
+        "era_reflexes": era_reflexes,
     }
+
+
+def _merge_era_reflexes_into_forms_by_lang(
+    forms_by_lang: dict[str, list[str]],
+    era_reflexes: dict[str, list[dict[str, str]]],
+) -> None:
+    """wyrd-nxhh: in-place merge of era_reflex surface forms into
+    ``forms_by_lang`` so cognate-cluster / direct-descent surfaces
+    join the per-language sibling arrays the main kenning generator
+    reads.
+
+    Each ``era_reflexes`` entry is a target-language → list of
+    ``{form, source}`` dicts from ``_fetch_root_era_reflexes``. We
+    union the forms into ``forms_by_lang[target_language]`` while
+    preserving insertion order (existing direct-member forms first,
+    then cluster surfaces) and dropping exact duplicates.
+
+    No-op for empty ``era_reflexes`` (proto-languages or roots whose
+    cluster has no target-language mates), which is the common path
+    for non-English-family families today.
+    """
+    for target_language, entries in era_reflexes.items():
+        bucket = forms_by_lang.setdefault(target_language, [])
+        existing = set(bucket)
+        for entry in entries:
+            form = entry["form"]
+            if form not in existing:
+                bucket.append(form)
+                existing.add(form)
 
 
 def _fetch_root_era_reflexes(
