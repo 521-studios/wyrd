@@ -1125,15 +1125,18 @@ def test_frequency_weighted_pool_distinguishes_single_vs_multi_bucket():
     )
 
 
-def test_frequency_weighted_pool_admits_zero_score_usages_uniformly_within():
+def test_frequency_weighted_pool_admits_zero_score_usages():
     """wyrd-bol9: when every Meaning of a usage scores 0 (untagged-
     only usages, common in Celtic corpora where Celtic morphemes
-    haven't been tag-enriched), the usage stays pickable — frequency
-    distributes uniformly across the usage's Meanings rather than
-    being filtered out. Without this fallback, vector mode would
-    silently drop ~30pp of Celtic content vs proportions for Welsh /
-    Irish / Breton (was empirically the dominant remaining gap in
-    the wyrd-bol9 pre-merge validation)."""
+    haven't been tag-enriched), the usage stays pickable rather than
+    being filtered as an empty pool. Without this admit-by-frequency
+    fallback, vector mode silently drops ~30pp of Celtic content vs
+    proportions for Welsh / Irish / Breton (was empirically the
+    dominant remaining gap in the wyrd-bol9 pre-merge validation).
+    The sibling
+    :func:`test_frequency_weighted_pool_zero_score_fallback_within_usage_is_uniform`
+    covers the within-usage uniform-distribution property; this test
+    covers the admit-at-all property in isolation."""
     untagged_pre = Meaning(
         usage="Quiet-",
         tags=[],  # no tags → sem_score 0 against any request

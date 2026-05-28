@@ -366,15 +366,16 @@ def build_slot_base_scores(
     a ``[pre+saint, post+name]`` structure).
 
     ``slot_usage_frequency`` (wyrd-bol9) is the per-usage empirical
-    frequency lookup for this slot's ``(location, qualifier)``
-    bucket — the same per-culture proportions data the legacy path
-    samples from. When present, the final weight becomes
-    ``base_score * frequency[m.usage]``, recovering the empirical-
-    frequency pool shape proportions mode carries by construction.
-    Meanings whose usage is missing or carries frequency 0 in this
-    bucket are filtered (they wouldn't have been sampled in
-    proportions mode either). ``None`` (legacy / non-NameGenerator
-    callers) keeps the unweighted-pool behavior bit-stable.
+    frequency lookup for this slot's bucket — the same per-culture
+    proportions data the legacy path samples from. When present,
+    the final per-Meaning weight is composed via
+    :func:`_apply_per_usage_frequency` (per-usage normalization, not
+    a flat ``base_score * frequency`` multiplication — see that
+    helper's docstring for the exact formula). Meanings whose usage
+    is missing or carries frequency 0 in this bucket are filtered
+    (they wouldn't have been sampled in proportions mode either).
+    ``None`` (legacy / non-NameGenerator callers) keeps the
+    unweighted-pool behavior bit-stable.
 
     Hot path: the inner ``score()`` call is unchanged from the
     legacy inline form, so cached + uncached behavior is identical.
