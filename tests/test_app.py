@@ -8,6 +8,7 @@ import logging
 import pytest
 
 from wyrd.app import _coerce_count, _coerce_query_params, _configure_logging, create_app
+from wyrd.generators.kenning import CULTURES
 
 
 def test_coerce_count_accepts_int_in_range():
@@ -167,3 +168,65 @@ def test_kenning_generate_debug_emits_phase_breakdown(caplog):
     assert "load_ms=" in msg
     assert "sample_ms=" in msg
     assert "render_ms=" in msg
+
+
+# --- wyrd-t70w regression: SPA-shape vector dispatch ----------------------
+
+
+# Mirrors Field.svelte's default-initialization logic in spa-next/src/
+# components/Field.svelte (the ``$effect`` guarded by ``params[fieldKey]
+# === undefined``): every schema field gets a default value, and fields
+# with no schema default whose type isn't array/boolean fall back to
+# ``''`` (empty string). For ``scoring_weights`` (type=object) and
+# ``priors_path`` (type=string, no default) that means the SPA POSTs
+# them as empty strings, not null/missing/{}.
+_SPA_DEFAULT_PARAMS = {
+    "tags": [],
+    "count": 1,
+    "spelling_variety": 0.0,
+    "novelty": 0.0,
+    "inflection_density": 0.0,
+    "mood": [],
+    "include_fiction": False,
+    "harshness": 0.0,
+    "era": "",
+    "cohesion": 0.0,
+    "stratum": "",
+    "manorial_affix": 0.0,
+    "joiner_density": 0.0,
+    "scoring_mode": "vector",
+    "priors_path": "",
+    "scoring_weights": "",
+    "packs": [],
+    "seed": 42,
+}
+
+
+@pytest.mark.parametrize("culture", sorted(CULTURES))
+def test_post_vector_with_spa_default_params_returns_a_name(culture):
+    """wyrd-t70w regression: a POST to ``/api/kenning`` carrying the
+    exact param shape Field.svelte produces for ``scoring_mode=vector``
+    must return HTTP 200 with at least one rendered name across every
+    shipped culture. Specifically: ``scoring_weights=''`` (text-input
+    default for the type=object schema field) and ``priors_path=''``
+    (text-input default) must NOT cause the vector dispatch to fall
+    through to "no eligible name". The original ticket described an
+    HTTP 400 with that message; the dispatch was hardened in #359
+    (lemma_ref + uniform-tag default) so this test pins the working
+    contract."""
+    app = create_app()
+    with app.test_client() as client:
+        response = client.post(
+            "/api/kenning",
+            json={**_SPA_DEFAULT_PARAMS, "culture": culture},
+        )
+    assert response.status_code == 200, (
+        f"vector dispatch regressed for culture={culture!r}: "
+        f"HTTP {response.status_code} → {response.get_data(as_text=True)[:500]}"
+    )
+    body = response.get_json()
+    results = body.get("results", [])
+    assert results, f"empty results for culture={culture!r}: {body}"
+    assert results[0].get("result"), (
+        f"missing 'result' string for culture={culture!r}: {results[0]}"
+    )
