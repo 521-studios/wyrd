@@ -853,6 +853,8 @@ def decompose_with_canonical(
     word_db: dict,
     db: LexiconDB | None,
     region: str | None = None,
+    *,
+    culture_languages: frozenset[str] | None = None,
 ) -> tuple[Name, str | None]:
     """Decompose ``name_str`` honouring the canonical pick when one exists.
 
@@ -863,6 +865,17 @@ def decompose_with_canonical(
     the heuristic when (a) no toponym row exists, (b) no canonical
     was picked, or (c) the canonical signature doesn't match any
     cross-product cell of the current word_db.
+
+    ``culture_languages`` (wyrd-pfoo) is forwarded to every heuristic
+    ``find_meaning(reduce=True)`` invocation — the no-db path AND the
+    canonical-miss fallback (when a recorded canonical signature
+    doesn't match any current cross-product cell). Scholar-canonical
+    picks that DO match aren't reshaped by the tiebreaker — those
+    carry their own correct attestation and short-circuit before any
+    reduce. Per-culture callers (rebuild-proportions,
+    runtime_db_export) pass the culture's expected-language set to
+    align the heuristic paths with that culture's place-name
+    conventions.
 
     Returns ``(name, source)`` where ``source`` is the canonical
     source string (``'scholar'`` / ``'scholar-disagreement'`` /
@@ -877,17 +890,19 @@ def decompose_with_canonical(
             name.find_meaning(word_db, reduce=False)
             if apply_canonical_to_name(name, signature):
                 return name, source
-            # Canonical recorded but signature doesn't match any cell —
-            # word_db drifted. The reduce=False alternates are already
-            # populated; ``Name.reduce()`` filters them down to the
-            # heuristic pick (lowest unaccounted, then min-complexity)
-            # without a second matcher pass.
+            # Canonical recorded but signature doesn't match any cell
+            # — word_db drifted. wyrd-pfoo: re-run reduce=True with
+            # ``culture_languages`` so the heuristic fallback applies
+            # the culture-aligned tiebreaker, consistent with the
+            # no-db heuristic path below. The reduce=False alternates
+            # populated above get overwritten on the second call.
             _logger.debug(
                 "Canonical signature %s for %r missed cross-product; falling back to heuristic.",
                 signature,
                 name_str,
             )
-            name.reduce()
+            name = Name(name_str)
+            name.find_meaning(word_db, reduce=True, culture_languages=culture_languages)
             return name, None
-    name.find_meaning(word_db, reduce=True)
+    name.find_meaning(word_db, reduce=True, culture_languages=culture_languages)
     return name, None

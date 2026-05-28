@@ -95,6 +95,29 @@ CREATE TABLE proportions_tag_cooccurrence (
     PRIMARY KEY (culture, tag1, tag2)
 );
 
+-- wyrd-pfoo: per-Meaning attestation per culture. Records which
+-- (usage_key, primary_language) Meanings the matcher actually used
+-- when decomposing this culture's place names. The runtime vector
+-- path consumes this to filter its eligibility pool at the Meaning
+-- level — preventing wrong-sense picks (Celtic ``-ton``→"tone",
+-- ``Saint-``→"greed", ``-bridge``→"card game") that the prior
+-- per-usage filter admitted as collateral damage.
+--
+-- A Meaning passes the runtime filter iff
+-- ``(culture, meaning.usage, meaning.primary_language) ∈`` this
+-- table. Multiple rows per (culture, usage_key) when the matcher
+-- attested the usage via multiple language senses in the same
+-- culture's corpus.
+CREATE TABLE proportions_attested_language (
+    culture           TEXT NOT NULL,
+    usage_key         TEXT NOT NULL,
+    primary_language  TEXT NOT NULL,
+    PRIMARY KEY (culture, usage_key, primary_language)
+);
+-- No separate index on culture — the composite PK is a B-tree whose
+-- leading column already serves WHERE culture = ? scans (same pattern
+-- as proportions_tag_marginal / proportions_tag_cooccurrence above).
+
 -- ===== Empirical priors (vector-scoring baseline) =====
 --
 -- Singleton row: the full priors payload (same shape ``dump_empirical_priors_to_json``

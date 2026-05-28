@@ -162,7 +162,7 @@ class Name:
                 cnt += meaning.count_unaccounted()
         return cnt
 
-    def find_meaning(self, word_db, reduce=True, joiners=None):
+    def find_meaning(self, word_db, reduce=True, joiners=None, *, culture_languages=None):
         """Decompose every word in this place name against ``word_db``
         via the trie matcher.
 
@@ -191,6 +191,21 @@ class Name:
         every parse the trie produces — useful to callers (e.g.
         KenningExplain) that want to inspect alternates the canonical
         score would collapse.
+
+        ``culture_languages`` (wyrd-pfoo, optional) is a frozenset of
+        primary source-language bundle fields the caller wants the
+        matcher to prefer when ambiguous parses tie on the canonical
+        (unaccounted, morpheme_count) score. Forwarded to
+        ``canonical_decompositions`` and consulted only on ties; no
+        effect when ``reduce=False``. ``None`` (default) skips the
+        tiebreaker entirely — the bit-stable path for KenningExplain,
+        KenningRewind, and other consumers that don't carry a culture
+        context. Per-culture callers (rebuild-proportions,
+        runtime_db_export) pass their culture's expected-language set
+        (see ``lexicon.proportions_builder.CULTURE_LANGUAGES``) so the
+        decomposition recorded for that culture prefers culturally-
+        appropriate senses (Welsh ``pen-`` → Celtic 'end/head' over
+        OE 'penny').
 
         Multi-parse semantics: a word with two senses for one surface
         (``-y`` = 'island' OR 'district') or a word the trie matches
@@ -223,7 +238,9 @@ class Name:
         joiner_forms = _build_joiner_lookup(joiners)
         for word in self.words:
             decompositions = (
-                canonical_decompositions(word, trie) if reduce else all_decompositions(word, trie)
+                canonical_decompositions(word, trie, culture_languages=culture_languages)
+                if reduce
+                else all_decompositions(word, trie)
             )
             if joiner_forms:
                 decompositions = [_consume_joiners(d, joiner_forms) for d in decompositions]

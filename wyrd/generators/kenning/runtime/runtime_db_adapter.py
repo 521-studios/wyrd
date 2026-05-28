@@ -160,7 +160,31 @@ def proportions_dict_for_culture(conn: sqlite3.Connection, culture: str) -> dict
         "structures": _read_proportions_structures(conn, culture),
         "tag_marginal": _read_proportions_tag_marginal(conn, culture),
         "tag_cooccurrence": _read_proportions_tag_cooccurrence(conn, culture),
+        "attested_languages": _read_proportions_attested_languages(conn, culture),
     }
+
+
+def _read_proportions_attested_languages(
+    conn: sqlite3.Connection, culture: str
+) -> dict[str, list[str]]:
+    """wyrd-pfoo: read the per-culture per-Meaning attestation map.
+    Returns ``{usage_key: [primary_language, ...]}`` so the runtime
+    vector filter can narrow eligibility from the per-usage set to
+    the per-(usage, primary_language) set. Empty dict for legacy L4
+    DBs built before the table existed (defensive against re-import
+    of old runtime DBs)."""
+    try:
+        cursor = conn.execute(
+            "SELECT usage_key, primary_language FROM proportions_attested_language "
+            "WHERE culture = ? ORDER BY usage_key, primary_language",
+            (culture,),
+        )
+    except sqlite3.OperationalError:
+        return {}
+    out: dict[str, list[str]] = {}
+    for usage_key, lang in cursor:
+        out.setdefault(usage_key, []).append(lang)
+    return out
 
 
 # Tables _read_proportions_usage_map is allowed to query. Mirrors

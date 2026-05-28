@@ -24,6 +24,31 @@ from typing import Any
 from wyrd.generators.kenning.runtime.meaning import Meaning
 from wyrd.generators.kenning.runtime.proportions import is_structurally_grammatical
 
+# wyrd-pfoo: per-culture preferred-language sets for the matcher's
+# culture-aligned tiebreaker. When ``canonical_decompositions`` has
+# multiple parses tied on (unaccounted, morpheme_count), it prefers
+# parses whose Meanings are primary-language matched to the requested
+# culture AND carry ≥1 tag. The "≥1 tag" gate filters Wiktionary
+# nonsense-senses (Celtic ``-ton`` → "tone", ``Saint-`` → "greed",
+# ``-bridge`` → card game) which empirically have empty tag lists
+# (0/19 nonsense Celtic Meanings carry tags in the live Welsh-attested
+# pool); see scratch/vector-validation/check-tag-density.py.
+#
+# Cultures missing from this map fall back to no tiebreaker (existing
+# matcher behaviour) — the safe default for pack-overlay and future
+# cultures that haven't been classified yet.
+#
+# Hand-curated. Each culture's language set tracks what its
+# place_names.json corpus is empirically composed of (per the lang-mix
+# analysis in scratch/vector-validation/check-pool-skew.py).
+CULTURE_LANGUAGES: dict[str, frozenset[str]] = {
+    "english": frozenset({"old_english", "modern_english", "old_scandinavian", "old_french"}),
+    "scottish": frozenset({"celtic_mix", "old_english", "old_scandinavian"}),
+    "welsh": frozenset({"celtic_mix"}),
+    "irish": frozenset({"celtic_mix"}),
+    "breton": frozenset({"celtic_mix", "old_french"}),
+}
+
 
 def proportions_from(names) -> dict[str, Any]:
     """Build the per-culture proportions dict from a list of
@@ -35,15 +60,27 @@ def proportions_from(names) -> dict[str, Any]:
 
     The returned shape matches the historical
     ``<culture>_proportions.json`` payload exactly: ``{usages,
-    single_usages, structures, tag_marginal, tag_cooccurrence}`` with
-    ``structures`` already passed through the wyrd-zzli grammatical
-    filter and tag-pair keys serialized as ``"left|right"`` strings.
+    single_usages, structures, tag_marginal, tag_cooccurrence,
+    attested_languages}`` with ``structures`` already passed through
+    the wyrd-zzli grammatical filter and tag-pair keys serialized as
+    ``"left|right"`` strings.
+
+    ``attested_languages`` (wyrd-pfoo) is the per-Meaning attestation
+    half of the culture filter: for each usage_key, the set of primary
+    source-languages of the specific Meanings the matcher used when
+    decomposing this culture's place names. The runtime vector path
+    consumes this to narrow its eligibility pool from the per-usage
+    set to a per-(usage, primary_language) set — closing the
+    wrong-sense leakage where ``-ton``'s Welsh Meaning ('tone', music)
+    or ``Saint-``'s Celtic Meaning ('greed') could otherwise be picked
+    for slots a Welsh culture filter admitted at the usage level.
     """
     part_proportions: Counter = Counter()
     lone_proportions: Counter = Counter()
     struct_proportions: Counter = Counter()
     tag_cooccurrence: Counter = Counter()
     tag_marginal: Counter = Counter()
+    attested_languages: dict[str, set[str]] = {}
     for name in names:
         for u in name.get_samples():
             part_proportions[u] += 1
@@ -51,6 +88,21 @@ def proportions_from(names) -> dict[str, Any]:
             lone_proportions[u] += 1
         for structure in name.get_structure():
             struct_proportions[structure] += 1
+        # wyrd-pfoo: per-Meaning attestation. Walk the picked Meanings
+        # for this name and record which (usage, primary_language)
+        # pairs appeared. The downstream filter is per-(usage, primary
+        # language), so collisions where two Meanings share both
+        # admit both — over-admitting one extra Meaning per collision
+        # is a deliberate tradeoff against shipping per-Meaning UIDs.
+        for word_list in name.words.values():
+            for word in word_list:
+                for elem in word.word:
+                    if not isinstance(elem, Meaning):
+                        continue
+                    primary = elem.primary_language()
+                    if primary is None:
+                        continue
+                    attested_languages.setdefault(elem.usage, set()).add(primary)
         # Tag co-occurrence: ordered consecutive Meaning pairs across the
         # full name (within-word AND between-word). Each pair contributes
         # the cartesian product of (left.tags × right.tags) — an etymon
@@ -71,6 +123,9 @@ def proportions_from(names) -> dict[str, Any]:
         # round-trip. Generator side splits on the pipe.
         "tag_cooccurrence": {f"{a}|{b}": v for (a, b), v in tag_cooccurrence.items()},
         "tag_marginal": dict(tag_marginal),
+        # wyrd-pfoo: sorted-list values so the JSON round-trip is
+        # deterministic across re-builds (set iteration order isn't).
+        "attested_languages": {k: sorted(v) for k, v in attested_languages.items()},
     }
 
 

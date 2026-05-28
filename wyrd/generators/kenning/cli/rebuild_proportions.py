@@ -85,7 +85,19 @@ def rebuild_proportions(
     name_entries = load_names_with_regions(names_data)
     word_db, _ = load_meanings(meanings_data)
 
-    resolved_names, canonical_hits = _decompose_corpus(name_entries, word_db, db_path)
+    # wyrd-pfoo: thread the culture's expected-language set through to
+    # the matcher's tiebreaker so per-culture splits prefer culture-
+    # aligned tagged Meanings on ambiguous decompositions. Cultures
+    # missing from CULTURE_LANGUAGES (custom corpus / future culture)
+    # get None → matcher falls back to pre-PR bit-stable behaviour.
+    from wyrd.generators.kenning.lexicon.proportions_builder import CULTURE_LANGUAGES
+
+    resolved_names, canonical_hits = _decompose_corpus(
+        name_entries,
+        word_db,
+        db_path,
+        culture_languages=CULTURE_LANGUAGES.get(culture),
+    )
     good_names = [n for n in resolved_names if n.count_unaccounted() == 0]
     word_names = sum(1 for n in resolved_names if n.has_name())
     word_saints = sum(1 for n in resolved_names if n.has_saint())

@@ -258,10 +258,13 @@ def _compute_proportions_inline(
     ``find_meaning(reduce=True)`` heuristic path — same shape, just no
     scholar override.
     """
-    from wyrd.generators.kenning.lexicon.proportions_builder import proportions_from
+    from wyrd.generators.kenning.lexicon.proportions_builder import (
+        CULTURE_LANGUAGES,
+        proportions_from,
+    )
     from wyrd.generators.kenning.runtime.decomposition import apply_canonical_to_name
     from wyrd.generators.kenning.runtime.meaning import load_meanings
-    from wyrd.generators.kenning.runtime.name import load_names_with_regions
+    from wyrd.generators.kenning.runtime.name import Name, load_names_with_regions
 
     word_db, _ = load_meanings({"subjects": subjects})
     out: dict[str, dict[str, Any]] = {}
@@ -273,6 +276,11 @@ def _compute_proportions_inline(
             continue
         names_data = json.loads(place_names_entry.read_text())
         name_entries = load_names_with_regions(names_data)
+        # wyrd-pfoo: thread the culture's expected-language set into
+        # heuristic matcher fallbacks (canonical-pick path bypasses
+        # the tiebreaker; only the reduce=True heuristic branch
+        # consults it).
+        culture_languages = CULTURE_LANGUAGES.get(culture)
         resolved = []
         for name, _region in name_entries:
             canonical = canonical_decompositions.get(name.name)
@@ -284,9 +292,21 @@ def _compute_proportions_inline(
                 # word_db has shifted since the canonical was picked.
                 name.find_meaning(word_db, reduce=False)
                 if not apply_canonical_to_name(name, canonical["signature"]):
-                    name.find_meaning(word_db, reduce=True)
+                    # wyrd-pfoo: the reduce=False call above already
+                    # populated ``name.words`` with every parse.
+                    # ``find_meaning(reduce=True, ...)`` deduplicates
+                    # against the existing entries via seen_keys, so
+                    # the canonical-tiebreaker output (a subset of
+                    # all_decompositions) gets filtered out as
+                    # "already there" before the tiebreaker effect
+                    # can land. Rebuilding from a fresh Name re-runs
+                    # the matcher cleanly — same pattern as
+                    # decomposition.decompose_with_canonical's
+                    # canonical-miss fallback.
+                    name = Name(name.name)
+                    name.find_meaning(word_db, reduce=True, culture_languages=culture_languages)
             else:
-                name.find_meaning(word_db, reduce=True)
+                name.find_meaning(word_db, reduce=True, culture_languages=culture_languages)
             resolved.append(name)
         good_names = [n for n in resolved if n.count_unaccounted() == 0]
         out[culture] = proportions_from(good_names)
@@ -498,7 +518,40 @@ def _write_proportions(
         counts["proportions_tag_cooccurrence"] += _insert_tag_cooccurrence(
             conn, culture, data.get("tag_cooccurrence") or {}
         )
+        counts["proportions_attested_language"] += _insert_attested_languages(
+            conn, culture, data.get("attested_languages") or {}
+        )
     return dict(counts)
+
+
+def _insert_attested_languages(
+    conn: sqlite3.Connection,
+    culture: str,
+    attested: dict[str, list[str]],
+) -> int:
+    """wyrd-pfoo: write per-culture per-Meaning attestation rows. One
+    row per (culture, usage_key, primary_language) triple. The runtime
+    vector path's eligibility filter joins against these to admit only
+    Meanings whose primary language was actually attested in this
+    culture's corpus via that usage."""
+    # ``sorted(set(...))`` deduplicates + canonicalizes order. The
+    # producer (``proportions_from``) emits sorted-list values from a
+    # set, so dupes can't reach us through the normal pipeline — but
+    # operator-supplied --proportions-dir JSON can carry hand-edited
+    # duplicates, which would otherwise trip the PK INSERT.
+    rows = [
+        (culture, usage_key, lang)
+        for usage_key, langs in attested.items()
+        for lang in sorted(set(langs))
+    ]
+    if not rows:
+        return 0
+    conn.executemany(
+        "INSERT INTO proportions_attested_language "
+        "(culture, usage_key, primary_language) VALUES (?, ?, ?)",
+        rows,
+    )
+    return len(rows)
 
 
 def _insert_cumulative(
@@ -679,12 +732,25 @@ def select_dev_subset(
         # Sort tag dicts so re-runs against the same data produce the
         # same insertion order — defensive against future ingesters that
         # might emit a different dict order than today's.
+        # wyrd-pfoo: narrow attested_languages to THIS culture's kept
+        # usage set so the per-Meaning attestation table stays aligned
+        # with this culture's per-usage proportions tables in --dev
+        # mode. Using ``keep_usage_keys`` (the cumulative cross-culture
+        # set) would leak rows: a usage_key kept in culture A's top-N
+        # but absent from culture B's would survive in B's attestation
+        # output. Build a per-culture set instead.
+        culture_keep_keys = set(kept_usages) | set(kept_single)
+        raw_attested = data.get("attested_languages") or {}
+        trimmed_attested = {
+            k: sorted(raw_attested[k]) for k in sorted(raw_attested) if k in culture_keep_keys
+        }
         trimmed_proportions[culture] = {
             "usages": kept_usages,
             "single_usages": kept_single,
             "structures": data.get("structures") or [],
             "tag_marginal": dict(sorted((data.get("tag_marginal") or {}).items())),
             "tag_cooccurrence": dict(sorted((data.get("tag_cooccurrence") or {}).items())),
+            "attested_languages": trimmed_attested,
         }
 
     trimmed_subjects: list[dict[str, Any]] = []

@@ -464,6 +464,7 @@ class NameGenerator:
         tag_cooccurrence: dict[str, int] | None = None,
         tag_marginal: dict[str, int] | None = None,
         culture_attested_usages: frozenset[str] | None = None,
+        culture_attested_meanings: dict[str, frozenset[str]] | None = None,
     ):
         self.meaning_db = meaning_db
         self.meaning_gen = meaning_gen
@@ -479,6 +480,16 @@ class NameGenerator:
         # the per-culture proportions table, which is already culture-
         # restricted by construction.
         self.culture_attested_usages: frozenset[str] | None = culture_attested_usages
+        # wyrd-pfoo: per-Meaning attestation per culture. The vector
+        # path's eligibility filter narrows from "usage attested in
+        # this culture" to "(usage, primary_language) attested in this
+        # culture" — preventing wrong-sense picks like Celtic
+        # ``-ton``→'tone' or ``Saint-``→'greed' that the per-usage
+        # filter admitted as collateral damage. Keys are usage_keys;
+        # values are frozensets of primary-language bundle-field
+        # names. ``None`` (legacy bundles built pre-wyrd-pfoo) falls
+        # back to the per-usage filter only.
+        self.culture_attested_meanings: dict[str, frozenset[str]] | None = culture_attested_meanings
         # Cache the vector-path's non-position eligibility pool keyed
         # by (era_min, era_max, stratum, exclude_tags, packs_signature).
         # The dispatch loop calls ``select_via_vector`` once per
@@ -790,6 +801,7 @@ class NameGenerator:
                 pack_meaning_dbs=pack_meaning_dbs,
                 packs=request.packs,
                 culture_attested_usages=self.culture_attested_usages,
+                culture_attested_meanings=self.culture_attested_meanings,
             )
             self._vector_eligible_cache[cache_key] = non_position_eligible
 
@@ -1712,6 +1724,16 @@ def load_proportions(data, meaning_db, tag_db):
     # an empty frozenset is truthy under the downstream
     # ``is not None`` guard.
     culture_attested_usages = (frozenset(usages.keys()) | frozenset(single_usages.keys())) or None
+    # wyrd-pfoo: per-Meaning attestation per culture. Bundle ships
+    # this as ``{usage_key: [primary_language, ...]}``; we frozenset
+    # the per-usage language sets so the runtime filter does cheap
+    # ``in`` lookups. Legacy bundles built pre-wyrd-pfoo carry no
+    # ``attested_languages`` key → None falls back to the per-usage
+    # filter only.
+    raw_attested = data.get("attested_languages") or {}
+    culture_attested_meanings: dict[str, frozenset[str]] | None = {
+        k: frozenset(v) for k, v in raw_attested.items()
+    } or None
     return NameGenerator(
         meaning_db,
         mg,
@@ -1719,6 +1741,7 @@ def load_proportions(data, meaning_db, tag_db):
         cooccurrence,
         marginal,
         culture_attested_usages=culture_attested_usages,
+        culture_attested_meanings=culture_attested_meanings,
     )
 
 

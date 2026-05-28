@@ -346,7 +346,12 @@ def _compact_unaccounted(decomposition: list[Any]) -> list[Any]:
     return out
 
 
-def canonical_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
+def canonical_decompositions(
+    word: str,
+    trie: MorphemeTrie,
+    *,
+    culture_languages: frozenset[str] | None = None,
+) -> list[list[Any]]:
     """Return every decomposition tied for 'best' under the canonical
     score. Multiple ties are common when an etymon has multiple senses
     sharing one surface form (-y → 'island' OR 'district') or when the
@@ -364,6 +369,15 @@ def canonical_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
     2. Total morpheme count (fewer is better — Occam preference;
        'Bridg + water' beats 'B + r + i + d + g + water' when the
        lone-letter morphemes happen to also match).
+    3. wyrd-pfoo: when ``culture_languages`` is supplied, parses tied
+       on (1) + (2) are further reduced by preferring those with the
+       most Meanings whose primary language is in ``culture_languages``
+       AND who carry ≥1 tag (filters Wiktionary grammatical / modern
+       homonyms that carry no place-name semantic tags — Celtic
+       ``-ton`` → 'tone', ``Saint-`` → 'greed', etc.). When
+       ``culture_languages`` is None (default), the tiebreaker is
+       skipped — bit-stable with the pre-PR matcher for the explainer
+       / rewind / era-map paths.
 
     Empty input returns ``[[]]``. A word with no matches at all
     returns ``[[word]]``.
@@ -435,7 +449,52 @@ def canonical_decompositions(word: str, trie: MorphemeTrie) -> list[list[Any]]:
         return cache[pos]
 
     _, decompositions = walk_best(0)
-    return [_compact_unaccounted(d) for d in decompositions]
+    decompositions = [_compact_unaccounted(d) for d in decompositions]
+    if culture_languages and len(decompositions) > 1:
+        decompositions = _prefer_culture_aligned(decompositions, culture_languages)
+    return decompositions
+
+
+def _prefer_culture_aligned(
+    decompositions: list[list[Any]],
+    culture_languages: frozenset[str],
+) -> list[list[Any]]:
+    """wyrd-pfoo tiebreaker: from a list of decompositions already
+    tied on (unaccounted, morpheme_count), prefer those whose Meanings
+    are primary-language matched to ``culture_languages`` AND carry
+    ≥1 tag. The ≥1 tag gate filters Wiktionary nonsense-senses (Celtic
+    ``-ton`` → 'tone', ``Saint-`` → 'greed', ``-bridge`` → card game,
+    etc.) which empirically all carry empty tag lists.
+
+    Returns the subset of input decompositions tied at the max
+    alignment score. If the max is 0 (no aligned-and-tagged Meanings
+    in any parse — common when only one language is represented), the
+    full input list is returned unchanged so the existing list-index
+    tiebreaker still applies downstream.
+    """
+
+    def alignment_score(decomp: list[Any]) -> int:
+        # Decomposition elements are ``Meaning | str``; only Meanings
+        # carry sources/tags/primary_language. The sources+tags
+        # duck-type check is the str-vs-Meaning discriminator; once
+        # past it the elem IS a Meaning (the matcher emits no other
+        # object kind into decompositions), so primary_language() is
+        # safe to call without further guards.
+        score = 0
+        for elem in decomp:
+            if not (hasattr(elem, "sources") and hasattr(elem, "tags")):
+                continue
+            if not elem.tags:
+                continue
+            if elem.primary_language() in culture_languages:
+                score += 1
+        return score
+
+    scores = [(alignment_score(d), d) for d in decompositions]
+    best = max(s for s, _ in scores)
+    if best == 0:
+        return decompositions
+    return [d for s, d in scores if s == best]
 
 
 def canonical_decomposition(word: str, trie: MorphemeTrie) -> list[Any]:
