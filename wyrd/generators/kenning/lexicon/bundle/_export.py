@@ -353,7 +353,14 @@ def _families_with_corroborators(
             member_to_root[member_id] = root_id
     if not member_to_root:
         return set()
-    sources_by_root: dict[int, set[str]] = {}
+    # Pre-populate every rando root with an empty source set so the
+    # docstring contract holds for ``min_corroborators == 0`` (every
+    # set has ≥ 0 elements → trivially admit all). Without this, a
+    # rando root that turns out to have zero non-rando citations gets
+    # dropped from ``sources_by_root`` and excluded from the result —
+    # contract-violating even though the sole production caller
+    # currently short-circuits before reaching the 0 case.
+    sources_by_root: dict[int, set[str]] = {root_id: set() for root_id in rando_root_ids}
     member_ids = list(member_to_root)
     # SQLite's compile-time parameter cap is 999 by default; chunk so
     # we never approach it regardless of corpus size.
@@ -367,7 +374,7 @@ def _families_with_corroborators(
             chunk,
         ):
             root_id = member_to_root[row["etymon_id"]]
-            sources_by_root.setdefault(root_id, set()).add(row["source_id"])
+            sources_by_root[root_id].add(row["source_id"])
     return {
         root_id for root_id, sources in sources_by_root.items() if len(sources) >= min_corroborators
     }

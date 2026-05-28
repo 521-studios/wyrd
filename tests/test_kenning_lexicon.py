@@ -9392,6 +9392,51 @@ def test_export_meanings_rando_min_corroborators_rolls_inflection_child_citation
     assert subjects[0]["meaning"] == ["homestead"]
 
 
+def test_families_with_corroborators_zero_admits_all_rando_roots() -> None:
+    """wyrd-fssn round 2 (Gemini P2): the helper's docstring contract
+    says "at least ``min_corroborators`` distinct non-rando-port
+    citation sources" — at ``min_corroborators=0`` every set trivially
+    satisfies ``≥ 0``, so every rando root must be admitted.
+
+    The production caller short-circuits before reaching the helper
+    when ``rando_min_corroborators <= 0`` (so this case wouldn't surface
+    via ``export_meanings``), but the helper still needs to honor its
+    documented contract when called directly. Tested here with a
+    rando-only lemma (zero non-rando citations) at
+    ``min_corroborators=0`` — pre-Gemini-P2 the helper would have
+    silently dropped it from the result; post-fix it's admitted."""
+    from wyrd.generators.kenning.lexicon.bundle._export import (
+        _families_with_corroborators,
+    )
+
+    # Use the live LexiconDB shape via a minimal sqlite3 connection so
+    # we don't need fresh_db's autogen — the helper only reads
+    # etymon_citation, which we synthesize directly.
+    import sqlite3
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript("CREATE TABLE etymon_citation (etymon_id INTEGER, source_id TEXT);")
+
+    class _DBStub:
+        def __init__(self, conn: sqlite3.Connection) -> None:
+            self.conn = conn
+
+    db_stub = _DBStub(conn)
+    rando_root_ids = {1, 2}
+    members_by_root = {1: [1], 2: [2]}
+    # NO citations in etymon_citation. At min_corroborators=0 both
+    # roots admit (contract: every set ≥ 0); at min_corroborators=1
+    # neither does.
+    result_zero = _families_with_corroborators(db_stub, rando_root_ids, members_by_root, 0)
+    assert result_zero == {1, 2}, (
+        f"min_corroborators=0 should admit all rando roots regardless of "
+        f"citation count; got {result_zero}"
+    )
+    result_one = _families_with_corroborators(db_stub, rando_root_ids, members_by_root, 1)
+    assert result_one == set()
+
+
 def test_export_meanings_rando_min_corroborators_no_op_when_include_rando_false(
     fresh_db: Path,
 ) -> None:
