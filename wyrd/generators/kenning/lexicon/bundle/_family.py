@@ -108,18 +108,13 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
 
     era_reflexes = _fetch_root_era_reflexes(db, root_id, root_row["language"])
     forms_by_lang = _build_forms_by_lang(root_row, member_rows)
-    # wyrd-nxhh: merge cognate-cluster / direct-descent surfaces from
-    # the era_reflexes layer into ``forms_by_lang`` so the bundle's
-    # per-language sibling arrays carry them alongside the family's
-    # direct member forms. Pre-fix the modern surfaces only landed in
-    # the ``era_reflexes`` field (consumed by KenningRewind for era
-    # progression); the main kenning generator reads forms_by_lang via
-    # the per-language source siblings (modern_english / middle_english
-    # / etc.), so chester / -cester / -caster never reached the
-    # generator even though ceaster was promoted and its cluster
-    # carried them. Merging here makes the cluster surfaces sampleable
-    # without disturbing the era_reflexes field (still emitted separately
-    # for the rewinder's progression path).
+    # wyrd-nxhh: pre-fix the modern surfaces only landed in
+    # ``era_reflexes`` (consumed by KenningRewind for era progression).
+    # The main kenning generator reads forms_by_lang via per-language
+    # source siblings (modern_english / middle_english / etc.), so
+    # chester / -cester / -caster never reached it even though ceaster
+    # was promoted and its cluster carried them. Merge here makes the
+    # cluster surfaces sampleable; era_reflexes stays emitted unchanged.
     _merge_era_reflexes_into_forms_by_lang(forms_by_lang, era_reflexes)
 
     return {
@@ -165,30 +160,50 @@ def _gather_family(db: LexiconDB, root_id: int, member_ids: list[int]) -> dict[s
     }
 
 
+# Tiers 1-3 of ``etymon_era_reflexes`` are attested (cluster mate,
+# descent edge, period-form projection); Tier 4 (``phonology-rule:v1``)
+# is rule-derived with no mining evidence. The bundle's
+# ``era_reflexes`` field preserves ``source`` so KenningRewind can
+# render Tier-4 forms differently. The main generator has no such
+# differentiation — it samples forms_by_lang uniformly — so we exclude
+# Tier 4 from the merge to preserve the "attested only" contract the
+# generator's source array had pre-wyrd-nxhh.
+_ATTESTED_ERA_REFLEX_SOURCES: frozenset[str] = frozenset({"cluster", "descent", "period-form"})
+
+
 def _merge_era_reflexes_into_forms_by_lang(
     forms_by_lang: dict[str, list[str]],
     era_reflexes: dict[str, list[dict[str, str]]],
 ) -> None:
-    """wyrd-nxhh: in-place merge of era_reflex surface forms into
-    ``forms_by_lang`` so cognate-cluster / direct-descent surfaces
+    """wyrd-nxhh: in-place merge of attested era_reflex surface forms
+    into ``forms_by_lang`` so cognate-cluster / direct-descent surfaces
     join the per-language sibling arrays the main kenning generator
     reads.
 
     Each ``era_reflexes`` entry is a target-language → list of
     ``{form, source}`` dicts from ``_fetch_root_era_reflexes``. We
-    union the forms into ``forms_by_lang[target_language]`` while
-    preserving insertion order (existing direct-member forms first,
-    then cluster surfaces) and dropping exact duplicates.
+    filter to ``source in _ATTESTED_ERA_REFLEX_SOURCES`` (Tiers 1-3 —
+    excluding Tier-4 phonology-rule forms), then union the surviving
+    forms into ``forms_by_lang[target_language]`` preserving insertion
+    order and dropping exact duplicates.
+
+    A target language whose era_reflex entries are all Tier-4 produces
+    no bucket — we don't want to manufacture an empty ``modern_english:
+    []`` sibling in the bundle when nothing attested survives the filter.
 
     No-op for empty ``era_reflexes`` (proto-languages or roots whose
     cluster has no target-language mates), which is the common path
     for non-English-family families today.
     """
     for target_language, entries in era_reflexes.items():
+        attested = [
+            entry["form"] for entry in entries if entry["source"] in _ATTESTED_ERA_REFLEX_SOURCES
+        ]
+        if not attested:
+            continue
         bucket = forms_by_lang.setdefault(target_language, [])
         existing = set(bucket)
-        for entry in entries:
-            form = entry["form"]
+        for form in attested:
             if form not in existing:
                 bucket.append(form)
                 existing.add(form)
