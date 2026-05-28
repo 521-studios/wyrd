@@ -899,10 +899,13 @@ def test_select_slot_qualifier_cache_key_distinguishes_qualifier_variants():
     """wyrd-izcr: the same position label with different qualifier
     flags must populate distinct cache entries — otherwise a
     ``(pre, "name")`` slot's filtered base_scored would be served
-    to a ``(pre, None)`` lookup later in the same dispatch."""
+    to a ``(pre, None)`` lookup later in the same dispatch. wyrd-bol9
+    extended the key to a 3-tuple
+    ``(slot_position, slot_qualifier, slot_bucket_key)``; with no
+    slot_bucket_keys supplied here, the bucket-key slot is None."""
     db, bare, family, saintly = _qualifier_test_db()
     slot_base_scores: dict = {}
-    # First call with qualifier=name fills cache[(pre, "name")].
+    # First call with qualifier=name fills cache[(pre, "name", None)].
     select_via_vector_scoring(
         random.Random(0),
         db,
@@ -912,7 +915,7 @@ def test_select_slot_qualifier_cache_key_distinguishes_qualifier_variants():
         slot_qualifiers=["name"],
         slot_base_scores=slot_base_scores,
     )
-    # Second call with no qualifier fills cache[(pre, None)] —
+    # Second call with no qualifier fills cache[(pre, None, None)] —
     # MUST be a separate entry with a larger eligible pool.
     select_via_vector_scoring(
         random.Random(0),
@@ -924,7 +927,302 @@ def test_select_slot_qualifier_cache_key_distinguishes_qualifier_variants():
         slot_base_scores=slot_base_scores,
     )
     # Two distinct cache keys, two distinct base-scored lists.
-    assert ("pre", "name") in slot_base_scores
-    assert ("pre", None) in slot_base_scores
-    assert len(slot_base_scores[("pre", "name")]) == 1  # family only
-    assert len(slot_base_scores[("pre", None)]) == 3  # all 3 pre-morphemes
+    assert ("pre", "name", None) in slot_base_scores
+    assert ("pre", None, None) in slot_base_scores
+    assert len(slot_base_scores[("pre", "name", None)]) == 1  # family only
+    assert len(slot_base_scores[("pre", None, None)]) == 3  # all 3 pre-morphemes
+
+
+# ---- wyrd-bol9: frequency-weighted pool ----------------------------------
+
+
+def _freq_test_db():
+    """Two equally-tagged pre-position morphemes. With identical tag
+    sets + no phon vectors, their D36.2 vector scores are equal —
+    weighted_choice over the two would be 50/50 under uniform-pool
+    sampling. The frequency multiplier is the ONLY differentiator
+    under the no-mood / no-priors default request, so a non-uniform
+    frequency map flows directly through to pick share."""
+    common = Meaning(
+        usage="Common-",
+        tags=["urban"],
+        meanings=[],
+        sources=[],
+        phonological_vector=None,
+    )
+    rare = Meaning(
+        usage="Rare-",
+        tags=["urban"],
+        meanings=[],
+        sources=[],
+        phonological_vector=None,
+    )
+    return ({"Common-": [common], "Rare-": [rare]}, common, rare)
+
+
+def test_frequency_weighted_pool_biases_pick_toward_frequent_usage():
+    """When two equally-scored Meanings share a slot, the one with
+    higher per-bucket frequency in the proportions map wins
+    proportionally — proving the wyrd-bol9 weighting reaches the
+    weighted_choice step."""
+    db, common, rare = _freq_test_db()
+    usage_frequency_by_bucket = {
+        ("pre",): {"Common-": 9.0, "Rare-": 1.0},
+    }
+    # Run many sub-seeds; ratio should track frequency.
+    common_wins = 0
+    rare_wins = 0
+    for seed in range(200):
+        picks = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["pre"],
+            request=_request(),
+            priors=EmpiricalPriors(),
+            slot_bucket_keys=[("pre",)],
+            usage_frequency_by_bucket=usage_frequency_by_bucket,
+        )
+        if not picks:
+            continue
+        if picks[0] is common:
+            common_wins += 1
+        elif picks[0] is rare:
+            rare_wins += 1
+    # 9:1 split with small N — assert direction + roughly the right
+    # ratio (allow loose binomial slop).
+    total = common_wins + rare_wins
+    assert total > 150
+    assert common_wins > rare_wins * 4, (
+        f"freq-weighted pool failed to bias toward frequent usage: "
+        f"common={common_wins} rare={rare_wins}"
+    )
+
+
+def test_frequency_weighted_pool_zero_frequency_filters_usage():
+    """A usage with frequency 0 in the slot's bucket is dropped from
+    the pool entirely — matches proportions mode, where a usage
+    absent from the bucket is unreachable by sampling."""
+    db, common, rare = _freq_test_db()
+    usage_frequency_by_bucket = {
+        ("pre",): {"Common-": 1.0},  # Rare- absent → effectively 0
+    }
+    rare_wins = 0
+    for seed in range(50):
+        picks = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["pre"],
+            request=_request(),
+            priors=EmpiricalPriors(),
+            slot_bucket_keys=[("pre",)],
+            usage_frequency_by_bucket=usage_frequency_by_bucket,
+        )
+        if picks and picks[0] is rare:
+            rare_wins += 1
+    assert rare_wins == 0
+
+
+def test_frequency_weighted_pool_none_lookup_keeps_uniform_behavior():
+    """``usage_frequency_by_bucket=None`` (the back-compat default
+    for non-NameGenerator callers) preserves the pre-bol9 unweighted-
+    pool behavior — both equally-scored Meanings stay sampleable,
+    neither is filtered."""
+    db, common, rare = _freq_test_db()
+    common_wins = 0
+    rare_wins = 0
+    for seed in range(50):
+        picks = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["pre"],
+            request=_request(),
+            priors=EmpiricalPriors(),
+            usage_frequency_by_bucket=None,
+        )
+        if not picks:
+            continue
+        if picks[0] is common:
+            common_wins += 1
+        elif picks[0] is rare:
+            rare_wins += 1
+    # Both should be reachable; rough balance (no bias either way).
+    assert common_wins > 0
+    assert rare_wins > 0
+
+
+def test_frequency_weighted_pool_missing_bucket_key_filters_all():
+    """A slot whose bucket key isn't in the frequency map gets an
+    empty per-slot lookup → every Meaning in the pool is filtered
+    (treated as freq=0). This is the correct behavior: if the
+    proportions map doesn't carry weight for this slot shape,
+    neither should the vector pool."""
+    db, common, rare = _freq_test_db()
+    usage_frequency_by_bucket = {
+        # Map present, but ("pre",) — what this slot's bucket-key
+        # resolves to — is NOT in it. Caller's bug; we filter as if
+        # the slot has no proportions data.
+        ("post",): {"Common-": 1.0, "Rare-": 1.0},
+    }
+    any_picks = 0
+    for seed in range(50):
+        picks = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["pre"],
+            request=_request(),
+            priors=EmpiricalPriors(),
+            slot_bucket_keys=[("pre",)],
+            usage_frequency_by_bucket=usage_frequency_by_bucket,
+        )
+        if picks:
+            any_picks += 1
+    assert any_picks == 0
+
+
+def test_frequency_weighted_pool_distinguishes_single_vs_multi_bucket():
+    """wyrd-bol9: the bucket-key threading must keep
+    ``("pre",)`` (multi-element word) and ``("pre", "single")``
+    (single-element word) distinct so they consult their own
+    per-bucket frequencies — proportions treats them as separate
+    buckets and the per-usage frequency distributions diverge."""
+    db, common, rare = _freq_test_db()
+    usage_frequency_by_bucket = {
+        ("pre",): {"Common-": 1.0, "Rare-": 0.0},  # multi: common only
+        ("pre", "single"): {"Common-": 0.0, "Rare-": 1.0},  # single: rare only
+    }
+    # Multi-element-word slot → ("pre",) bucket → Common- only.
+    multi_meanings = set()
+    for seed in range(20):
+        picks = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["pre"],
+            request=_request(),
+            priors=EmpiricalPriors(),
+            slot_bucket_keys=[("pre",)],
+            usage_frequency_by_bucket=usage_frequency_by_bucket,
+        )
+        if picks:
+            multi_meanings.add(picks[0])
+    assert multi_meanings == {common}, (
+        f"multi-element bucket should admit Common- only: {multi_meanings}"
+    )
+    single_meanings = set()
+    for seed in range(20):
+        picks = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["pre"],
+            request=_request(),
+            priors=EmpiricalPriors(),
+            slot_bucket_keys=[("pre", "single")],
+            usage_frequency_by_bucket=usage_frequency_by_bucket,
+        )
+        if picks:
+            single_meanings.add(picks[0])
+    assert single_meanings == {rare}, (
+        f"single-element bucket should admit Rare- only: {single_meanings}"
+    )
+
+
+def test_frequency_weighted_pool_admits_zero_score_usages():
+    """wyrd-bol9: when every Meaning of a usage scores 0 (untagged-
+    only usages, common in Celtic corpora where Celtic morphemes
+    haven't been tag-enriched), the usage stays pickable rather than
+    being filtered as an empty pool. Without this admit-by-frequency
+    fallback, vector mode silently drops ~30pp of Celtic content vs
+    proportions for Welsh / Irish / Breton (was empirically the
+    dominant remaining gap in the wyrd-bol9 pre-merge validation).
+    The sibling
+    :func:`test_frequency_weighted_pool_zero_score_fallback_within_usage_is_uniform`
+    covers the within-usage uniform-distribution property; this test
+    covers the admit-at-all property in isolation."""
+    untagged_pre = Meaning(
+        usage="Quiet-",
+        tags=[],  # no tags → sem_score 0 against any request
+        meanings=[],
+        sources=[],
+        phonological_vector=None,
+    )
+    untagged_post = Meaning(
+        usage="-quiet",
+        tags=[],
+        meanings=[],
+        sources=[],
+        phonological_vector=None,
+    )
+    db = {"Quiet-": [untagged_pre], "-quiet": [untagged_post]}
+    usage_frequency_by_bucket = {
+        ("pre",): {"Quiet-": 5.0},
+        ("post",): {"-quiet": 5.0},
+    }
+    # Pre-fix the usage would have been filtered (all scores 0 →
+    # score_sum 0 → continue), producing an empty pool and failing
+    # the pick. Post-fix the usage is admitted via frequency.
+    pre_picked = 0
+    post_picked = 0
+    for seed in range(20):
+        picks = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["pre", "post"],
+            request=_request(),
+            priors=EmpiricalPriors(),
+            slot_bucket_keys=[("pre",), ("post",)],
+            usage_frequency_by_bucket=usage_frequency_by_bucket,
+        )
+        if picks:
+            assert picks[0] is untagged_pre
+            assert picks[1] is untagged_post
+            pre_picked += 1
+            post_picked += 1
+    assert pre_picked == 20
+    assert post_picked == 20
+
+
+def test_frequency_weighted_pool_zero_score_fallback_within_usage_is_uniform():
+    """When all Meanings of a usage tie at score 0, freq distributes
+    uniformly across them (rather than concentrating on one
+    arbitrarily). The picked Meaning identity within usage doesn't
+    affect lang-mix output downstream — NewName resolves the full
+    Meaning list per usage — but the within-usage distribution
+    should be even so a downstream consumer relying on the picked
+    Meaning identity doesn't see a deterministic bias."""
+    untagged_a = Meaning(
+        usage="Quiet-",
+        tags=[],
+        meanings=[],
+        sources=[],
+        phonological_vector=None,
+    )
+    untagged_b = Meaning(
+        usage="Quiet-",
+        tags=[],
+        meanings=[],
+        sources=[],
+        phonological_vector=None,
+    )
+    db = {"Quiet-": [untagged_a, untagged_b]}
+    usage_frequency_by_bucket = {("pre",): {"Quiet-": 5.0}}
+    a_wins = 0
+    b_wins = 0
+    for seed in range(200):
+        picks = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["pre"],
+            request=_request(),
+            priors=EmpiricalPriors(),
+            slot_bucket_keys=[("pre",)],
+            usage_frequency_by_bucket=usage_frequency_by_bucket,
+        )
+        if not picks:
+            continue
+        if picks[0] is untagged_a:
+            a_wins += 1
+        elif picks[0] is untagged_b:
+            b_wins += 1
+    # Both reachable + roughly balanced (binomial slop OK).
+    assert a_wins > 60
+    assert b_wins > 60
+    assert a_wins + b_wins == 200

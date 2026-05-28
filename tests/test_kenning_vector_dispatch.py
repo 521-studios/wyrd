@@ -307,23 +307,33 @@ def test_vector_seed_1170_no_longer_produces_split_affix_port_all():
 
 
 def test_vector_slot_qualifier_cache_separates_qualifier_variants():
-    """wyrd-izcr: the slot-score cache key is now (position,
-    qualifier) so a (pre, "name") slot and a (pre, None) slot
-    populate distinct entries. Without the qualifier in the key the
-    smaller name-filtered list would shadow the larger no-filter
-    list for any later slot that wanted the full pre pool."""
+    """wyrd-izcr: the slot-score cache key includes the qualifier so
+    a (pre, "name") slot and a (pre, None) slot populate distinct
+    entries. wyrd-bol9 widened the key to also include the full
+    bucket-key tuple so single-element / multi-element bucket
+    variants stay distinct under the empirical-frequency layer.
+    Without the bucket key, two slots sharing (position, qualifier)
+    but different bucket frequencies would shadow each other's
+    cached score lists."""
     name_gen = _reset_vector_caches()
     k = Kenning()
     k.generate({"culture": "english", "scoring_mode": "vector"}, seed=1170)
-    # Every cached key is a (slot_position, slot_qualifier) tuple.
+    # Every cached key is now a (slot_position, slot_qualifier,
+    # slot_bucket_key) 3-tuple; pre-bol9 it was a 2-tuple.
     _, slot_dict = next(iter(name_gen._vector_slot_score_cache.items()))
     for key in slot_dict:
-        assert isinstance(key, tuple) and len(key) == 2, (
-            f"slot_base_scores cache key must be (position, qualifier) tuple: got {key!r}"
+        assert isinstance(key, tuple) and len(key) == 3, (
+            f"slot_base_scores cache key must be (position, qualifier, "
+            f"bucket_key) 3-tuple: got {key!r}"
         )
-        position, qualifier = key
+        position, qualifier, bucket_key = key
         assert position in ("pre", "inner", "post")
         assert qualifier in (None, "name", "saint")
+        # bucket_key is a tuple matching meaning_gen.generators keys
+        # (e.g. ("pre",), ("pre", "single"), ("post", "name",
+        # "single")) — or None for callers that don't supply
+        # slot_bucket_keys.
+        assert bucket_key is None or isinstance(bucket_key, tuple)
 
 
 def _build_synthetic_vector_name_gen(structs: dict, meaning_db: dict):
@@ -519,3 +529,66 @@ def test_select_via_vector_saint_filter_matches_legacy_literal_usage_only():
             continue
         picked.add(result.name[0][0])
     assert picked == {"Saint-"}, f"saint slot admitted non-literal usage: {picked}"
+
+
+# ---- wyrd-bol9: NameGenerator usage_frequency_by_bucket build -------------
+
+
+def test_name_generator_usage_frequency_by_bucket_snapshots_generators():
+    """wyrd-bol9: NameGenerator._build_usage_frequency_by_bucket
+    snapshots MeaningGenerator's per-bucket weight tables into a
+    flat ``bucket_key → {usage: frequency}`` map. Single-element and
+    multi-element bucket variants land at DISTINCT keys (``("pre",)``
+    vs ``("pre", "single")``) so the vector path can consult them
+    separately — proportions samples them as separate buckets and
+    the per-usage frequency distributions can diverge."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import (
+        MeaningGenerator,
+        NameGenerator,
+    )
+
+    common = Meaning(usage="Common-", tags=["urban"], meanings=[], sources=[])
+    rare = Meaning(usage="Rare-", tags=["urban"], meanings=[], sources=[])
+    meaning_db = {"Common-": [common], "Rare-": [rare]}
+
+    multi_word_proportions = {"Common-": 6, "Rare-": 2}
+    single_word_proportions = {"Common-": 3, "Rare-": 1}
+    mg = MeaningGenerator(meaning_db, {}, multi_word_proportions)
+    mg.load_parts(single_word_proportions, "single")
+    # 2-element compound word — passes is_structurally_grammatical
+    # (single-element bare-pre/post/inner words get filtered).
+    structs = {((("pre",), ("post",)),): 1}
+
+    name_gen = NameGenerator(meaning_db, mg, structs)
+    assert name_gen.usage_frequency_by_bucket[("pre",)] == {"Common-": 6, "Rare-": 2}
+    assert name_gen.usage_frequency_by_bucket[("pre", "single")] == {
+        "Common-": 3,
+        "Rare-": 1,
+    }
+
+
+def test_name_generator_usage_frequency_by_bucket_separates_qualifier_buckets():
+    """Qualifier-flagged buckets land at distinct lookup keys —
+    ``("pre", "name")`` and ``("pre",)`` must NOT collapse into each
+    other, even though both contain pre-position morphemes."""
+    from wyrd.generators.kenning.runtime.meaning import Meaning
+    from wyrd.generators.kenning.runtime.proportions import (
+        MeaningGenerator,
+        NameGenerator,
+    )
+
+    bare = Meaning(usage="Port-", tags=["urban"], meanings=[], sources=[])
+    family = Meaning(
+        usage="Smith-",
+        tags=["family name", "urban"],
+        meanings=[],
+        sources=[],
+    )
+    meaning_db = {"Port-": [bare], "Smith-": [family]}
+    mg = MeaningGenerator(meaning_db, {}, {"Port-": 5, "Smith-": 3})
+    structs = {((("pre",), ("post",)),): 1}
+
+    name_gen = NameGenerator(meaning_db, mg, structs)
+    assert name_gen.usage_frequency_by_bucket[("pre",)] == {"Port-": 5}
+    assert name_gen.usage_frequency_by_bucket[("pre", "name")] == {"Smith-": 3}
