@@ -561,8 +561,25 @@ def _corpus_depth(conn: sqlite3.Connection, language: str, threshold: int) -> di
         """,
         (language,),
     ).fetchone()[0]
+    # wyrd-6n2x: filter consensus rows to the generator-eligible
+    # lemma pool. The unfiltered query counts every row in the
+    # ``etymon_consensus`` view — which for modern-english is the
+    # full 1.26M-row wiktextract corpus — and drives ``avg_witnesses``
+    # to ~0.0 (e.g. modern-english: 409 total witnesses / 1.26M rows
+    # → 0.0003 → round to 0.0). The surrounding ``eligible_etymons``
+    # and ``eligible_lemmas`` counts already use the eligibility scope;
+    # the corpus-depth metric is incoherent if avg_witnesses and
+    # promotion_eligible use a different denominator. ``lemma_id``
+    # is the etymon ID for the lemma row (etymon_consensus is keyed
+    # per-lemma); joining ``eligible_etymon`` on that ID restricts
+    # the rollup to lemmas the generator can actually use.
     consensus_rows = conn.execute(
-        "SELECT witnesses FROM etymon_consensus WHERE language = ?",
+        """
+        SELECT ec.witnesses
+          FROM etymon_consensus ec
+          JOIN eligible_etymon ee ON ee.id = ec.lemma_id
+         WHERE ec.language = ?
+        """,
         (language,),
     ).fetchall()
     if consensus_rows:
