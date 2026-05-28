@@ -38,9 +38,10 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
 @click.option(
     "--min-witnesses",
     type=int,
-    default=3,
+    default=2,
     show_default=True,
-    help="Promote etymons with this many distinct scholar witnesses (D4). "
+    help="Promote etymons with this many distinct scholar witnesses (D4; "
+    "uniform ≥2 per wyrd-fssn 2026-05-28, was 3 in the bootstrap era). "
     "Used as the fallback for languages not covered by --lang-threshold or the preset.",
 )
 @click.option(
@@ -65,6 +66,22 @@ from wyrd.generators.kenning.paths import LEXICON_DB_DEFAULT_DISPLAY
     default=True,
     show_default=True,
     help="Include rando-port-cited families regardless of witness count (D4 legacy).",
+)
+@click.option(
+    "--rando-min-corroborators",
+    type=int,
+    default=0,
+    show_default=True,
+    help=(
+        "wyrd-fssn: minimum number of distinct non-rando-port citation "
+        "sources a rando-port-cited family must have to be admitted via "
+        "the rando-port path. 0 (default) = current behavior — every "
+        "rando-port-cited family is admitted. 1 = require at least one "
+        "scholar / mining / wiktionary-empirical citation alongside the "
+        "rando-port seed. Flip to 1 once mining corroboration catches up "
+        "and pure-rando lemmas can be allowed to drop without bundle "
+        "coverage regression. No-op when --no-include-rando is set."
+    ),
 )
 @click.option(
     "--include-wiktionary-empirical/--no-include-wiktionary-empirical",
@@ -105,6 +122,7 @@ def lexicon_export_meanings(
     lang_threshold_specs: tuple[str, ...],
     use_preset: bool,
     include_rando: bool,
+    rando_min_corroborators: int,
     include_wiktionary_empirical: bool,
     include_wave2_enriched: bool,
     joiners_path: Path | None,
@@ -117,9 +135,10 @@ def lexicon_export_meanings(
     lemma's language form list rather than appearing as separate subjects.
 
     Per-language witness thresholds are calibrated against corpus availability:
-    well-mined languages (old-english) gate at 3 witnesses to keep Tier-1
-    extraction noise out, while corpus-thin languages (old-norse, latin) gate
-    at 2. See RECOMMENDED_LANG_THRESHOLDS in lexicon.py for rationale.
+    every language gates at 2 witnesses today (uniform per wyrd-fssn,
+    2026-05-28; OE relaxed from 3 to 2 in the same change). See
+    ``RECOMMENDED_LANG_THRESHOLDS`` in ``lexicon/bundle/_export.py`` for the
+    full rationale plus the rando-port corroborator policy.
     """
     lang_thresholds = _parse_lang_thresholds(lang_threshold_specs, use_preset=use_preset)
     with LexiconDB(db_path) as db:
@@ -128,6 +147,7 @@ def lexicon_export_meanings(
             min_witnesses=min_witnesses,
             lang_thresholds=lang_thresholds,
             include_rando=include_rando,
+            rando_min_corroborators=rando_min_corroborators,
             include_wiktionary_empirical=include_wiktionary_empirical,
             include_wave2_enriched=include_wave2_enriched,
         )
