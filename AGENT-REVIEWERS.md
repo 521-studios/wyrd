@@ -1,3 +1,17 @@
+# About this file
+
+This file configures the `pr-review-loop` skill — the PR review feedback loop
+that monitors CI, fetches review-bot comments, and spawns per-PR reviewer
+agents. It's consumed when that skill runs against a PR in this repo; it has
+no effect outside that flow. If your task isn't reviewing a PR or iterating on
+PR feedback, you don't need to read this file.
+
+- `# Configuration` — JSON block controlling which baked-in defaults are disabled and how the independent-validator pipeline runs.
+- `# Agents` — one H2 per reviewer this repo spawns. Each body points at `.reviewers/<name>.md` (the full spec the spawned Task reads). The main loop does not read those specs; the spawned reviewers do.
+- `# Guidelines` / `# Context` — repo-wide notes passed to the main review loop as ambient context (per-reviewer file scopes, severity convention, output format, etc.).
+
+---
+
 # Configuration
 
 ```json
