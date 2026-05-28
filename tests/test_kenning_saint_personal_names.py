@@ -172,10 +172,6 @@ def test_personal_name_tag_excluded_from_user_facing_tag_dropdown() -> None:
         "'personal-name' is an internal cohort tag and must not leak into the user-facing dropdown"
     )
     assert "saint" not in tags, "'saint' must remain internal-tag (prior contract)"
-    # religious is user-facing — pin it stays visible.
-    assert "religious" in tags or True, (
-        "if religious is no longer in tag_db, the bundle changed and this assertion needs review"
-    )
 
 
 def test_synthesized_saint_meaning_does_not_break_kenning_generate() -> None:
