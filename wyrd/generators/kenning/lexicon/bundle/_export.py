@@ -41,12 +41,12 @@ from wyrd.generators.kenning.lexicon.db import LexiconDB
 # extraction noise — defensible at the time, but the cost was ~360 OE
 # lemmas at exactly 2 witnesses (per the 2026-05-28 audit) that the
 # dashboard's K-row audit confirms are mostly genuine cites. With the
-# rando-port admit path still at ≥0 (path 2), tightening OE alone never
-# offered the precision benefit it claimed — most marginal-OE-quality
-# lemmas reach the bundle via the rando-port path anyway. Lifting OE to
-# uniform ≥2 closes the asymmetry. The orthogonal lever for tightening
-# bundle provenance is ``rando_min_corroborators`` (path 2), filed in
-# the same ticket.
+# rando-port admit path admitting every rando-cited family unconditionally
+# by default (path 2), tightening OE alone never offered the precision
+# benefit it claimed — most marginal-OE-quality lemmas reach the bundle
+# via the rando-port path anyway. Lifting OE to uniform ≥2 closes the
+# asymmetry. The orthogonal lever for tightening bundle provenance is
+# ``rando_min_corroborators`` (path 2), filed in the same ticket.
 #
 # Per-language reads (post wyrd-fssn):
 #   old-english     : 2 — was 3 pre-fssn; see policy comment above.
@@ -88,11 +88,7 @@ def export_meanings(
     (a) any etymon in the family is cited by 'rando-port' AND
         ``include_rando`` is true AND the family has at least
         ``rando_min_corroborators`` distinct non-rando citation sources
-        (legacy seed; defaults to 0 corroborators = current behavior
-        admitting every rando-cited family. wyrd-fssn added the
-        corroborators knob as a forward-flippable lever — when ready to
-        retire the bulk-rando admit, raise to 1 to require any other
-        source to have cited the lemma), OR
+        (legacy seed), OR
     (b) the family's witness count (``etymon_consensus.witnesses``) is at
         least the threshold for that family's language (uniform ≥2 per
         wyrd-fssn; per-language map preserved for future tuning), OR
@@ -108,6 +104,13 @@ def export_meanings(
         them — without (d) the bundle's user-visible multi-script rendering
         siblings (``<lang>_english_shaped``, ``<lang>_transliteration``)
         have nowhere to land).
+
+    ``rando_min_corroborators`` defaults to 0 — admit every rando-cited
+    family, matching the pre-wyrd-fssn semantic. The knob is a
+    forward-flippable lever: once continued mining gives the bulk of
+    rando lemmas at least one corroborating citation, the operator
+    raises it to 1 to retire the pure-rando tail without touching
+    the code path.
 
     The threshold per language is taken from ``lang_thresholds`` (defaults to
     ``RECOMMENDED_LANG_THRESHOLDS``); languages absent from the map use
@@ -335,31 +338,36 @@ def _families_with_corroborators(
     ``min_corroborators`` distinct non-rando-port citation sources
     (any family member counted, mirroring the ``etymon_consensus``
     rollup so an inflection child's citation corroborates the lemma
-    head).
+    head and an OCR-merge loser's citation corroborates the winner).
 
-    One bulk SELECT pulls every non-rando citation (etymon_id,
-    source_id); the per-family fold runs in Python — same shape as
-    ``_build_family_rollup``. Avoids per-family JOIN cost on the
-    ~76k-citation table.
+    The per-family fold runs in Python — same shape as
+    ``_build_family_rollup``. Citations are pulled in chunked
+    ``etymon_id IN (...)`` batches to keep the query selective on
+    just the rando-family member rows; bulk-SELECTing every non-
+    rando citation in the corpus would scan ~80k rows the rollup
+    doesn't need.
     """
-    rando_member_ids: set[int] = set()
-    for root_id in rando_root_ids:
-        for member_id in members_by_root.get(root_id, [root_id]):
-            rando_member_ids.add(member_id)
-    if not rando_member_ids:
-        return set()
     member_to_root: dict[int, int] = {}
     for root_id in rando_root_ids:
         for member_id in members_by_root.get(root_id, [root_id]):
             member_to_root[member_id] = root_id
+    if not member_to_root:
+        return set()
     sources_by_root: dict[int, set[str]] = {}
-    for row in db.conn.execute(
-        "SELECT etymon_id, source_id FROM etymon_citation WHERE source_id != 'rando-port'"
-    ):
-        root_id = member_to_root.get(row["etymon_id"])
-        if root_id is None:
-            continue
-        sources_by_root.setdefault(root_id, set()).add(row["source_id"])
+    member_ids = list(member_to_root)
+    # SQLite's compile-time parameter cap is 999 by default; chunk so
+    # we never approach it regardless of corpus size.
+    chunk_size = 900
+    for start in range(0, len(member_ids), chunk_size):
+        chunk = member_ids[start : start + chunk_size]
+        placeholders = ",".join("?" * len(chunk))
+        for row in db.conn.execute(
+            f"SELECT etymon_id, source_id FROM etymon_citation "
+            f"WHERE source_id != 'rando-port' AND etymon_id IN ({placeholders})",
+            chunk,
+        ):
+            root_id = member_to_root[row["etymon_id"]]
+            sources_by_root.setdefault(root_id, set()).add(row["source_id"])
     return {
         root_id for root_id, sources in sources_by_root.items() if len(sources) >= min_corroborators
     }

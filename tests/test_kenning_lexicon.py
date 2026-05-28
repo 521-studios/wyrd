@@ -9322,6 +9322,76 @@ def test_export_meanings_rando_min_corroborators_one_drops_pure_rando(
     )
 
 
+def test_export_meanings_rando_min_corroborators_counts_wiktionary_empirical(
+    fresh_db: Path,
+) -> None:
+    """wyrd-fssn: the rando-corroborator gate's "non-rando" filter is
+    literal — wiktionary-empirical citations count as corroborators.
+    Path (c) already independently admits any wiktionary-empirical-cited
+    family regardless of the rando knob, but the corroborator gate is
+    written as ``source_id != 'rando-port'`` not ``source_id NOT IN
+    ('rando-port', 'wiktionary-empirical')`` so a wiktionary-empirical
+    co-citation on a rando lemma also satisfies path (a)'s ≥1
+    corroborator requirement. Pin the policy: empirical citations
+    corroborate rando admit."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        db.upsert_source(id="wiktionary-empirical", title="wikt-empirical")
+        ham = db.upsert_etymon("ham", "old-english")
+        db.add_gloss(ham, "homestead")
+        db.add_citation(ham, "rando-port")
+        db.add_citation(ham, "wiktionary-empirical")
+        db.commit()
+        # Disable path (c) so we observe path (a) in isolation —
+        # otherwise the empirical citation would short-circuit admit
+        # via (c) regardless of the corroborator gate.
+        subjects = export_meanings(
+            db,
+            lang_thresholds={},
+            min_witnesses=99,
+            rando_min_corroborators=1,
+            include_wiktionary_empirical=False,
+        )
+    assert len(subjects) == 1
+    assert subjects[0]["meaning"] == ["homestead"]
+
+
+def test_export_meanings_rando_min_corroborators_rolls_inflection_child_citation(
+    fresh_db: Path,
+) -> None:
+    """wyrd-fssn: docstring claims the corroborator rollup follows
+    ``_build_family_rollup`` — an inflection child's citation
+    corroborates the lemma head. Pin the structural claim with a
+    fixture where the rando-cited LEMMA has no direct non-rando
+    citation but its INFLECTED CHILD does."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        db.upsert_source(id="scholar_a", title="scholar a")
+        ham = db.upsert_etymon("ham", "old-english")
+        db.add_gloss(ham, "homestead")
+        db.add_citation(ham, "rando-port")
+        # Inflected child of ham — cited by scholar (not rando).
+        hamum = db.upsert_etymon("hamum", "old-english")
+        db.conn.execute(
+            "UPDATE etymon SET lemma_id = ?, inflection = 'dative_pl', "
+            "lemma_method = 'link-lemmas-v1' WHERE id = ?",
+            (ham, hamum),
+        )
+        db.add_citation(hamum, "scholar_a")
+        db.commit()
+        subjects = export_meanings(
+            db,
+            lang_thresholds={},
+            min_witnesses=99,
+            rando_min_corroborators=1,
+        )
+    # The rando-rooted family is corroborated via its inflection
+    # child's scholar citation. Without family rollup the lemma head
+    # would have 0 corroborators and drop.
+    assert len(subjects) == 1
+    assert subjects[0]["meaning"] == ["homestead"]
+
+
 def test_export_meanings_rando_min_corroborators_no_op_when_include_rando_false(
     fresh_db: Path,
 ) -> None:

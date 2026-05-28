@@ -402,6 +402,38 @@ def test_dev_flag_rejects_no_include_rando(tmp_path: Path) -> None:
     assert "--no-include-rando" in result.output
 
 
+def test_dev_flag_rejects_rando_min_corroborators(tmp_path: Path) -> None:
+    """wyrd-fssn: --rando-min-corroborators is a new upstream filter on
+    the rando-port admit path; the --dev guard must reject non-default
+    values for it the same way it rejects the other filter overrides
+    (so the committed seed-runtime.db stays byte-stable across
+    operators regardless of which fssn-era flag they touch)."""
+    db_path = tmp_path / "lexicon.db"
+    out_path = tmp_path / "runtime.db"
+    _seed_minimal_lexicon(db_path)
+    _write_proportions_fixture(tmp_path)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli_root,
+        [
+            "lexicon",
+            "export-runtime-db",
+            "--dev",
+            "--rando-min-corroborators",
+            "1",
+            "--db",
+            str(db_path),
+            "--proportions-dir",
+            str(tmp_path),
+            "--output",
+            str(out_path),
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--rando-min-corroborators" in result.output
+
+
 def test_dev_flag_respects_top_n_cap(tmp_path: Path) -> None:
     """--dev-top-n trims usages per culture; verify a low cap produces
     a smaller proportions_usage row count."""
