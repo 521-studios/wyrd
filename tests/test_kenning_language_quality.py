@@ -1295,6 +1295,9 @@ def test_scorecard_old_english_full_metrics() -> None:
     assert card.total_lemmas == 3  # cot, ham, tun (inflected ones excluded)
     assert card.promotion_threshold == 3  # OE entry in RECOMMENDED_LANG_THRESHOLDS
     assert card.promotion_eligible == 1  # only cot family hits ≥3 witnesses
+    # wyrd-6n2x: eligible-pool avg over the 3 OE lemmas = (3+1+2)/3 = 2.0.
+    # Pinning here catches future regressions on the canonical fixture.
+    assert card.avg_witnesses == 2.0
     # bundle: old_english sibling, two words.
     assert card.bundle_sibling == "old_english"
     assert card.bundle_word_count == 2
@@ -1342,48 +1345,33 @@ def test_scorecard_old_english_full_metrics() -> None:
 
 
 def test_scorecard_avg_witnesses_filters_to_eligible_pool() -> None:
-    """wyrd-6n2x regression: avg_witnesses must divide by the eligible-
-    lemma count, not the raw etymon_consensus row count. Pre-fix the
-    metric collapsed to ~0.0 for languages with large ineligible tails
-    (modern-english: 409 total witnesses / 1.26M raw rows → 0.0003 →
-    rounded to 0.0). Surrounding metrics (eligible_etymons,
-    promotion_eligible) all use the eligible-pool scope; this one was
-    incoherent against them.
+    """wyrd-6n2x regression for ``avg_witnesses``: the metric must
+    divide by the eligible-lemma count, not the raw etymon_consensus
+    row count. Pre-fix the metric collapsed to ~0.0 for languages
+    with large ineligible tails (modern-english: 409 total witnesses
+    / 1.26M raw rows → 0.0003 → rounded to 0.0). Surrounding metrics
+    (eligible_etymons, promotion_eligible) all use the eligible-pool
+    scope; this one was incoherent against them.
 
-    Repro the asymmetry by adding an ineligible OE lemma (`pollen`
-    with 0 witnesses) and EXCLUDING it from `eligible_etymon`. Pre-fix
-    avg_witnesses would be (3+1+2+0)/4 = 1.5; post-fix it's
-    (3+1+2)/3 = 2.0 because the ineligible row is filtered.
-    promotion_eligible is unchanged in this case (none of the new
-    rows meet ≥3) but the tightened scope also prevents ineligible
-    rows from accidentally crossing the threshold."""
+    Fixture: inject an ineligible OE lemma (`pollen`, 0 witnesses)
+    and EXCLUDE it from ``eligible_etymon``. Pre-fix
+    ``avg_witnesses`` = (3+1+2+0)/4 = 1.5; post-fix = (3+1+2)/3 = 2.0.
+    The sibling
+    :func:`test_scorecard_promotion_eligible_filters_to_eligible_pool`
+    covers the matching tightening of ``promotion_eligible`` against
+    a cited-but-ineligible row (which this fixture can't, because
+    pollen has 0 witnesses)."""
     conn = _build_fixture_db()
     bundle = _fixture_bundle()
-    # Inject an ineligible OE lemma — modeled on the modern-english
-    # tail of wiktextract-mined senses with no citations and no
-    # corpus presence. canonical_form must be a real-ish OE root so
-    # it surfaces in etymon_consensus alongside cot/ham/tun.
     conn.executescript(
         """
         INSERT INTO etymon(id, canonical_form, language)
           VALUES (300, 'pollen', 'old-english');
         """
     )
-    # Manually populate eligible_etymon with ONLY the three citation-
-    # path OE lemmas + their inflections + the welsh cognate + ME
-    # children — same shape `populate_eligible_etymon_table` would
-    # produce for the fixture, but explicitly excluding etymon 300.
     populate_eligible_etymon_table(conn)
     conn.execute("DELETE FROM eligible_etymon WHERE id = 300")
     conn.commit()
-    # Confirm the ineligible row IS in etymon_consensus (the bug
-    # surface) but NOT in eligible_etymon (the filter we expect to
-    # apply).
-    consensus_languages = conn.execute(
-        "SELECT canonical_form, witnesses FROM etymon_consensus "
-        "WHERE language = 'old-english' ORDER BY canonical_form"
-    ).fetchall()
-    assert ("pollen", 0) in [tuple(r) for r in consensus_languages]
     assert conn.execute("SELECT 1 FROM eligible_etymon WHERE id = 300").fetchone() is None
 
     card = compute_scorecard(
@@ -1392,19 +1380,53 @@ def test_scorecard_avg_witnesses_filters_to_eligible_pool() -> None:
         bundle,
         list(FALLBACK_REFERENCE_TAGS[:5]),
     )
-    # Pre-fix would have averaged 4 rows (cot=3, ham=1, tun=2,
-    # pollen=0) → (3+1+2+0)/4 = 1.5. Post-fix averages 3 rows
-    # (cot=3, ham=1, tun=2) → 2.0.
     assert card.avg_witnesses == 2.0, (
         f"avg_witnesses should average over the eligible-lemma pool "
         f"(2.0), not the raw etymon_consensus rows (1.5 with pollen "
         f"in pool); got {card.avg_witnesses}"
     )
-    # Promotion-eligible count is unchanged here (none of the rows
-    # cross ≥3 except cot) but it now consistently rejects ineligible
-    # rows even if they had citations — same scope guarantee as
-    # avg_witnesses.
-    assert card.promotion_eligible == 1
+
+
+def test_scorecard_promotion_eligible_filters_to_eligible_pool() -> None:
+    """wyrd-6n2x regression for ``promotion_eligible``: the count
+    must reject an ineligible row even if it has enough citations to
+    cross the threshold. The fix's SQL JOIN tightens both
+    ``avg_witnesses`` AND ``promotion_eligible`` — this test pins
+    the latter half against a scenario the
+    ``test_scorecard_avg_witnesses_*`` fixture can't exercise (its
+    ineligible row has 0 witnesses, so it can't cross any threshold
+    regardless of the JOIN).
+
+    Fixture: inject an ineligible OE lemma `pollen` cited by all
+    three sources (witnesses = 3, would cross OE's ≥3 threshold).
+    Pre-fix ``promotion_eligible`` = 2 (cot + pollen); post-fix = 1
+    (only cot — pollen is ineligible)."""
+    conn = _build_fixture_db()
+    bundle = _fixture_bundle()
+    conn.executescript(
+        """
+        INSERT INTO etymon(id, canonical_form, language)
+          VALUES (300, 'pollen', 'old-english');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (300, 'skeat_1901');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (300, 'mawer_1920');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (300, 'charles_1992');
+        """
+    )
+    populate_eligible_etymon_table(conn)
+    conn.execute("DELETE FROM eligible_etymon WHERE id = 300")
+    conn.commit()
+
+    card = compute_scorecard(
+        conn,
+        "old-english",
+        bundle,
+        list(FALLBACK_REFERENCE_TAGS[:5]),
+    )
+    assert card.promotion_eligible == 1, (
+        f"promotion_eligible should reject ineligible pollen (3 "
+        f"citations would cross ≥3 threshold pre-fix); got "
+        f"{card.promotion_eligible}"
+    )
 
 
 def test_scorecard_welsh_sparse_terminus_forward() -> None:

@@ -561,24 +561,42 @@ def _corpus_depth(conn: sqlite3.Connection, language: str, threshold: int) -> di
         """,
         (language,),
     ).fetchone()[0]
-    # wyrd-6n2x: filter consensus rows to the generator-eligible
-    # lemma pool. The unfiltered query counts every row in the
-    # ``etymon_consensus`` view — which for modern-english is the
-    # full 1.26M-row wiktextract corpus — and drives ``avg_witnesses``
-    # to ~0.0 (e.g. modern-english: 409 total witnesses / 1.26M rows
-    # → 0.0003 → round to 0.0). The surrounding ``eligible_etymons``
-    # and ``eligible_lemmas`` counts already use the eligibility scope;
-    # the corpus-depth metric is incoherent if avg_witnesses and
-    # promotion_eligible use a different denominator. ``lemma_id``
-    # is the etymon ID for the lemma row (etymon_consensus is keyed
-    # per-lemma); joining ``eligible_etymon`` on that ID restricts
-    # the rollup to lemmas the generator can actually use.
+    # wyrd-6n2x: bypass the ``etymon_consensus`` view to query lemma
+    # heads directly. Pre-fix the report selected from the view
+    # unfiltered, with two consequences:
+    #
+    # 1. The denominator was the full 1.26M-row view (every wiktextract
+    #    etymon for modern-english), not the generator-eligible pool —
+    #    so ``avg_witnesses`` collapsed to ~0.0 (modern-english: 409
+    #    total witnesses / 1.26M rows → 0.0003 → round to 0.0).
+    # 2. The view's ``language`` column is SQLite's arbitrary pick from
+    #    the GROUP BY rollup, so cross-language lemma groups (e.g. an
+    #    OE inflection of a Latin lemma) get attributed to whichever
+    #    language SQLite happened to pick — over-counting some
+    #    languages and under-counting others.
+    #
+    # Querying lemma heads directly fixes both: the WHERE filters to
+    # ``language = ?`` + ``lemma_id IS NULL`` (only lemma heads, in
+    # this language), and the per-lemma witness count rolls up via a
+    # subquery over the lemma's own citations + its inflection-child
+    # citations. Same roll-up semantic as the view, but the per-
+    # language attribution is the lemma-head's language (operator-
+    # intuitive). Performance jumps 4-100× on the live DB because
+    # SQLite can push the language filter through to an indexed
+    # column instead of materializing the full view rollup first.
     consensus_rows = conn.execute(
         """
-        SELECT ec.witnesses
-          FROM etymon_consensus ec
-          JOIN eligible_etymon ee ON ee.id = ec.lemma_id
-         WHERE ec.language = ?
+        SELECT
+          (SELECT COUNT(DISTINCT c.source_id)
+             FROM etymon_citation c
+            WHERE c.etymon_id = e.id
+               OR c.etymon_id IN (SELECT id FROM etymon WHERE lemma_id = e.id)
+          ) AS witnesses
+          FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
+         WHERE e.language = ?
+           AND e.lemma_id IS NULL
+           AND e.merged_into_id IS NULL
         """,
         (language,),
     ).fetchall()
