@@ -1,17 +1,3 @@
-# About this file
-
-This file configures the `pr-review-loop` skill — the PR review feedback loop
-that monitors CI, fetches review-bot comments, and spawns per-PR reviewer
-agents. It's consumed when that skill runs against a PR in this repo; it has
-no effect outside that flow. If your task isn't reviewing a PR or iterating on
-PR feedback, you don't need to read this file.
-
-- `# Configuration` — JSON block controlling which baked-in defaults are disabled and how the independent-validator pipeline runs.
-- `# Agents` — one H2 per reviewer this repo spawns. Each body points at `.reviewers/<name>.md` (the full spec the spawned Task reads). The main loop does not read those specs; the spawned reviewers do.
-- `# Guidelines` / `# Context` — repo-wide notes passed to the main review loop as ambient context (per-reviewer file scopes, severity convention, output format, etc.).
-
----
-
 # Configuration
 
 ```json
@@ -40,12 +26,15 @@ PR feedback, you don't need to read this file.
 
 # Agents
 
-Each H2 below names a reviewer; its body points at the full specification under
-`.reviewers/`. The `pr-review-loop` skill passes the body to the spawned Task as
-its focus instructions — the Task reads the linked file as its complete review
-specification.
+Each H2 below names a reviewer. The one-line summary tells the main loop **what
+the reviewer checks and when to spawn it** — use it to decide whether the PR
+diff is in scope. The body points at `.reviewers/<name>.md`, which the spawned
+Task reads as its complete specification.
 
 ## test-coverage-reviewer
+
+**What it checks:** every PR-touched function has a test that exercises it; flags missing tests for new branches/exceptions, weak mocking (patch point-of-definition, mocking third parties), tests that don't assert, `@pytest.mark.skip` without `reason=`.
+**When to spawn:** PR modifies any `*.py` outside `tests/` (and ideally also when `tests/**/*.py` changes — to lint the new tests themselves).
 
 Read `.reviewers/test-coverage-reviewer.md` and follow it as your complete review specification.
 
@@ -53,11 +42,17 @@ Read `.reviewers/test-coverage-reviewer.md` and follow it as your complete revie
 
 ## error-handling-reviewer
 
+**What it checks:** silent exception swallows, `return` inside `finally`, generic `except Exception` without re-raise, bare `except:`, missing `raise ... from`, `assert` used for runtime validation.
+**When to spawn:** PR touches production `*.py` (skip if changes are docs / configs / tests only).
+
 Read `.reviewers/error-handling-reviewer.md` and follow it as your complete review specification.
 
 ---
 
 ## logging-reviewer
+
+**What it checks:** sensitive data interpolated into log calls, `logger.error` inside `except` without `exc_info`, `logging.basicConfig` from library code, eager debug formatting in hot paths; for CLIs also default level / verbosity flag / stdout-vs-stderr discipline.
+**When to spawn:** PR touches `*.py` that uses `logger.`, `logging.`, or `print(` for diagnostic output. Skip if the diff is data files / tests only.
 
 Read `.reviewers/logging-reviewer.md` and follow it as your complete review specification.
 
@@ -65,11 +60,17 @@ Read `.reviewers/logging-reviewer.md` and follow it as your complete review spec
 
 ## complexity-reviewer
 
+**What it checks:** McCabe complexity > 10 (hard floor), one-screen rule, nesting depth, parameter count > 5, class size > 20 public methods, nested ternaries, redundant single-call wrappers, generic identifiers in long functions.
+**When to spawn:** PR touches production `*.py` (skip `tests/`). Skip if the diff is data / docs / SQL / config only.
+
 Read `.reviewers/complexity-reviewer.md` and follow it as your complete review specification.
 
 ---
 
 ## concurrency-reviewer
+
+**What it checks:** any new `threading.Lock`/`RLock`/shared mutable global (P1 by default), CPU-bound work in `ThreadPoolExecutor`, fire-and-forget `asyncio.create_task`, `asyncio.gather` exception handling, blocking calls in `async def`, missing async timeouts, daemon threads that write data.
+**When to spawn:** PR diff imports or modifies code using `threading`, `multiprocessing`, `asyncio`, `concurrent.futures`, or `queue`. Skip otherwise — this reviewer has nothing to say about purely synchronous code.
 
 Read `.reviewers/concurrency-reviewer.md` and follow it as your complete review specification.
 
@@ -77,11 +78,17 @@ Read `.reviewers/concurrency-reviewer.md` and follow it as your complete review 
 
 ## seed-reproducibility-reviewer
 
+**What it checks:** wyrd's `(generator, params, seed) → same output` contract — direct `random.*` use, `secrets`/`os.urandom` outside `resolve_seed`, multi-result generators that don't derive sub-seeds deterministically.
+**When to spawn:** PR touches `wyrd/**/*.py` that calls into RNG or generator code. Skip for terraform, docs, tests-only, or non-`wyrd/` changes.
+
 Read `.reviewers/seed-reproducibility-reviewer.md` and follow it as your complete review specification.
 
 ---
 
 ## generator-contract-reviewer
+
+**What it checks:** new/modified `Generator` subclasses implement the ABC (`name`/`display_name`/`description`/`input_schema()`/`generate()`), self-register, expose a CLI subcommand with defaults matching `input_schema`, and don't perform unbounded I/O.
+**When to spawn:** PR touches `wyrd/generators/**/*.py` — especially under a new or recently-added generator subpackage. Skip otherwise.
 
 Read `.reviewers/generator-contract-reviewer.md` and follow it as your complete review specification.
 
@@ -89,11 +96,17 @@ Read `.reviewers/generator-contract-reviewer.md` and follow it as your complete 
 
 ## resource-leak-reviewer
 
+**What it checks:** `open()` / `subprocess.Popen` / DB connections / HTTP responses without context managers, unbounded `lru_cache` on external key spaces, long-lived module-level caches without eviction, `aiohttp.ClientSession` per request, manual `try/finally` where `ExitStack` would do.
+**When to spawn:** PR touches `*.py` that allocates fds, sockets, connections, subprocesses, or long-lived caches. Skip if the diff is pure logic / tests / docs.
+
 Read `.reviewers/resource-leak-reviewer.md` and follow it as your complete review specification.
 
 ---
 
 ## external-process-reviewer
+
+**What it checks:** missing `timeout=` on `subprocess.run`, `shell=True` with non-literal input (P1 command injection), `Popen` without context manager, no stderr capture on failure, missing `cwd=`, no differentiation between timeout / exit code / missing binary.
+**When to spawn:** PR diff imports or uses `subprocess`, `os.system`, or `shutil.which`. Skip otherwise.
 
 Read `.reviewers/external-process-reviewer.md` and follow it as your complete review specification.
 
@@ -101,11 +114,17 @@ Read `.reviewers/external-process-reviewer.md` and follow it as your complete re
 
 ## db-reconstructibility-reviewer
 
+**What it checks:** the lexicon DB at `~/.wyrd/lexicon.db` must be reconstructible from JSONL artifacts under `data/mining/` without re-running expensive mining (LLM/OCR/Ollama). Flags new `INSERT INTO` paths, new ingester/mining CLIs, or new tables that don't emit JSONL or aren't replayable by `rebuild-from-jsonl`.
+**When to spawn:** PR touches `wyrd/generators/kenning/**/*.py` and the diff includes new schema, new ingester, new `mine-*`/`ingest-*` CLI, or `INSERT INTO` against the lexicon DB. Skip for read-only paths (queries, reports, browse, generation).
+
 Read `.reviewers/db-reconstructibility-reviewer.md` and follow it as your complete review specification.
 
 ---
 
 ## dead-code-reviewer
+
+**What it checks:** unused module-level functions/classes/constants, unused `__init__.py` re-exports, unused conftest fixtures, commented-out code, partial refactors leaving the old name, stale `__all__` entries, `if False:` / `if True:` branches, `pass`-only stubs.
+**When to spawn:** PR touches `*.py`, especially when it removes call sites, renames functions, or extracts/moves code. Skip for pure additive changes with no refactor surface.
 
 Read `.reviewers/dead-code-reviewer.md` and follow it as your complete review specification.
 
@@ -113,11 +132,17 @@ Read `.reviewers/dead-code-reviewer.md` and follow it as your complete review sp
 
 ## fixture-data-reviewer
 
+**What it checks:** tests must not depend on `~/.wyrd/lexicon.db`, the live `meanings.json` bundle, or `~/.wyrd/sources/` wiktextract slices — CI doesn't have any of these. Flags references to `_DEFAULT_LEXICON_PATH`, `MANIFEST_PATH`, etc., that don't go through the conftest autouse isolation fixtures.
+**When to spawn:** PR touches `tests/**/*.py` OR modifies data shapes (schema, manifest, JSONL row types) that test fixtures might mirror. Skip if no test files changed and no data shape moved.
+
 Read `.reviewers/fixture-data-reviewer.md` and follow it as your complete review specification.
 
 ---
 
 ## import-reviewer
+
+**What it checks:** function-level imports without a documented exception, `from X import *`, import-order violations (only when ruff `I` isn't running in CI), relative imports past package boundaries.
+**When to spawn:** PR touches `*.py`. Skip for non-Python diffs.
 
 Read `.reviewers/import-reviewer.md` and follow it as your complete review specification.
 
@@ -125,11 +150,17 @@ Read `.reviewers/import-reviewer.md` and follow it as your complete review speci
 
 ## importlib-resources-reviewer
 
+**What it checks:** package data files loaded via `Path(__file__).parent` or `__file__.parents[N]` instead of `importlib.resources` — fragile under module moves and broken in Lambda zips / frozen builds.
+**When to spawn:** PR touches `*.py` inside a packaged module (under `wyrd/`) that loads bundled data files. Skip for tests, ad-hoc scripts, and CLI shims.
+
 Read `.reviewers/importlib-resources-reviewer.md` and follow it as your complete review specification.
 
 ---
 
 ## dataclass-decorator-reviewer
+
+**What it checks:** classes that use `dataclasses.field(default_factory=...)` or `field(default=...)` without a `@dataclass` decorator — a P1 correctness bug that passes type checkers and surfaces at first instance use.
+**When to spawn:** PR touches `*.py` that imports from `dataclasses` or calls `field(`. Especially relevant for extraction PRs that move classes between files. Skip otherwise.
 
 Read `.reviewers/dataclass-decorator-reviewer.md` and follow it as your complete review specification.
 
@@ -137,17 +168,26 @@ Read `.reviewers/dataclass-decorator-reviewer.md` and follow it as your complete
 
 ## typing-consistency-reviewer
 
+**What it checks:** files that have opted into type annotations — flags `# type: ignore` without code+reason, half-typed signatures, `Any` as an escape hatch, `cast` used to silence errors, mixed `Optional[X]` and `X | None` within a file, completely-unannotated functions in an otherwise-typed file.
+**When to spawn:** PR touches `*.py` files that already use any annotations. Skip for files with zero annotations (untyped is a valid choice — out of scope).
+
 Read `.reviewers/typing-consistency-reviewer.md` and follow it as your complete review specification.
 
 ---
 
 ## terraform-reviewer
 
+**What it checks:** this repo's terraform stays in the `apps` layer — must NOT own CloudFront distributions, public ACM certs, public DNS records, CloudFront Functions, or foundational shared resources (VPC, subnets, ECS cluster). Must NOT read from `infra-frontend` remote state or hardcode account IDs.
+**When to spawn:** PR touches `terraform/**/*.tf`. Skip otherwise.
+
 Read `.reviewers/terraform-reviewer.md` and follow it as your complete review specification.
 
 ---
 
 ## clarity-reviewer
+
+**What it checks:** terseness/structure of markdown docs (verbose phrasings, walls of text, missing TL;DR, missing examples, heading inflation) AND Python docstrings/comments (restate-the-signature docstrings, WHAT-not-WHY comments, stale comments, docstring claims that don't match the code's tables/symbols/regex counts).
+**When to spawn:** PR touches `*.md`, OR modifies docstrings/comments in `*.py`. Skip for pure-code diffs that don't add or change comments.
 
 Read `.reviewers/clarity-reviewer.md` and follow it as your complete review specification.
 
