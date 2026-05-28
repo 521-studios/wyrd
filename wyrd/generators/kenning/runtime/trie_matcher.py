@@ -143,7 +143,7 @@ def _is_phonogram_only_collision(meanings: list[Any]) -> bool:
     source (or when no source info is present at all — empty-sources
     test fixtures and legacy bundles default to KEEP)."""
     for m in meanings:
-        sources = getattr(m, "sources", None) or {}
+        sources = getattr(m, "sources", None)
         if not sources or not sources.keys() <= _PHONOGRAM_TRANSLITERATION_LANGS:
             return False
     return True
