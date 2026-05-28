@@ -9405,6 +9405,8 @@ def test_families_with_corroborators_zero_admits_all_rando_roots() -> None:
     rando-only lemma (zero non-rando citations) at
     ``min_corroborators=0`` — pre-Gemini-P2 the helper would have
     silently dropped it from the result; post-fix it's admitted."""
+    import sqlite3
+
     from wyrd.generators.kenning.lexicon.bundle._export import (
         _families_with_corroborators,
     )
@@ -9412,8 +9414,6 @@ def test_families_with_corroborators_zero_admits_all_rando_roots() -> None:
     # Use the live LexiconDB shape via a minimal sqlite3 connection so
     # we don't need fresh_db's autogen — the helper only reads
     # etymon_citation, which we synthesize directly.
-    import sqlite3
-
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
     conn.executescript("CREATE TABLE etymon_citation (etymon_id INTEGER, source_id TEXT);")
