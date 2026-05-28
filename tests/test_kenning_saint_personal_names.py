@@ -163,9 +163,7 @@ def test_personal_name_tag_excluded_from_user_facing_tag_dropdown() -> None:
     ``saint`` was already in ``_INTERNAL_TAGS`` from prior work, but
     ``personal-name`` is new and needs explicit exclusion from
     ``available_tags()`` so the SPA's tag-filter dropdown doesn't
-    surface it as a user-pickable theme. ``religious`` stays user-
-    facing — it's a legitimate theme alongside ``architecture`` /
-    ``topographical``."""
+    surface it as a user-pickable theme."""
     _clear_saint_caches()
     tags = available_tags()
     assert "personal-name" not in tags, (
@@ -199,7 +197,11 @@ def test_synthesized_saint_meaning_does_not_break_kenning_generate() -> None:
     for config in knob_configs:
         for s in range(20):
             result = gen.generate(config, seed=s)
-            words = result.result.split()
+            # Split on whitespace AND hyphen so a leak into a compound
+            # ('John-tun' / 'Mary-stead') surfaces — splitting only on
+            # whitespace would make 'John not in [\"John-tun\"]' pass
+            # because the string-membership check compares whole tokens.
+            words = result.result.replace("-", " ").split()
             for token in saint_tokens:
                 assert token not in words, (
                     f"config={config} seed={s}: base name {result.result!r} "
