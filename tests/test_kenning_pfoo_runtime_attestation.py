@@ -475,11 +475,17 @@ def test_inline_canonical_miss_fallback_uses_fresh_name_for_tiebreaker():
     )
 
     # Synthetic 2-Meaning-per-usage subjects so the matcher's
-    # canonical_decompositions has a tie to break.
+    # canonical_decompositions has a tie to break. ``modifier_tags``
+    # MUST be non-empty: the wyrd-pfoo tiebreaker's ≥1-tag gate
+    # filters Meanings with empty tags down to alignment score 0,
+    # which makes the tiebreaker fall through (returns the full
+    # tied set unchanged) — defeating the test's purpose. With a
+    # real tag the tiebreaker actively prefers the culture-aligned
+    # parse over the OE one, which is what this test pins.
     subjects = [
         {
             "meaning": ["bryn"],
-            "modifier_tags": [],
+            "modifier_tags": ["topography"],
             "modifier_type": None,
             "words": [
                 {
