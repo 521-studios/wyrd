@@ -334,10 +334,12 @@ class Meaning:
                 forms = sources[key]
                 if not forms:
                     continue
-                for form in forms:
-                    if isinstance(form, dict):
-                        form = form.get("form") or form.get("canonical_form") or ""
-                    if form:
+                for form_entry in forms:
+                    if isinstance(form_entry, dict):
+                        form_str = form_entry.get("form") or form_entry.get("canonical_form") or ""
+                    else:
+                        form_str = form_entry
+                    if form_str:
                         self._primary_language_cache = key
                         break
                 if self._primary_language_cache is not None:
