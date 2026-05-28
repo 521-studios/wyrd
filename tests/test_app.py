@@ -8,6 +8,7 @@ import logging
 import pytest
 
 from wyrd.app import _coerce_count, _coerce_query_params, _configure_logging, create_app
+from wyrd.generators.kenning import CULTURES
 
 
 def test_coerce_count_accepts_int_in_range():
@@ -173,12 +174,12 @@ def test_kenning_generate_debug_emits_phase_breakdown(caplog):
 
 
 # Mirrors Field.svelte's default-initialization logic in spa-next/src/
-# components/Field.svelte (around lines 38-47): every schema field gets
-# a default value, and fields with no schema default whose type isn't
-# array/boolean fall back to ``''`` (empty string). For
-# ``scoring_weights`` (type=object) and ``priors_path`` (type=string,
-# no default) that means the SPA POSTs them as empty strings, not
-# null/missing/{}.
+# components/Field.svelte (the ``$effect`` guarded by ``params[fieldKey]
+# === undefined``): every schema field gets a default value, and fields
+# with no schema default whose type isn't array/boolean fall back to
+# ``''`` (empty string). For ``scoring_weights`` (type=object) and
+# ``priors_path`` (type=string, no default) that means the SPA POSTs
+# them as empty strings, not null/missing/{}.
 _SPA_DEFAULT_PARAMS = {
     "tags": [],
     "count": 1,
@@ -201,7 +202,7 @@ _SPA_DEFAULT_PARAMS = {
 }
 
 
-@pytest.mark.parametrize("culture", ["english", "scottish", "welsh", "irish", "breton"])
+@pytest.mark.parametrize("culture", sorted(CULTURES))
 def test_post_vector_with_spa_default_params_returns_a_name(culture):
     """wyrd-t70w regression: a POST to ``/api/kenning`` carrying the
     exact param shape Field.svelte produces for ``scoring_mode=vector``
@@ -226,4 +227,6 @@ def test_post_vector_with_spa_default_params_returns_a_name(culture):
     body = response.get_json()
     results = body.get("results", [])
     assert results, f"empty results for culture={culture!r}: {body}"
-    assert results[0]["result"], f"missing 'result' string for culture={culture!r}: {results[0]}"
+    assert results[0].get("result"), (
+        f"missing 'result' string for culture={culture!r}: {results[0]}"
+    )
