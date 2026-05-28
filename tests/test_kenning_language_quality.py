@@ -1295,6 +1295,9 @@ def test_scorecard_old_english_full_metrics() -> None:
     assert card.total_lemmas == 3  # cot, ham, tun (inflected ones excluded)
     assert card.promotion_threshold == 3  # OE entry in RECOMMENDED_LANG_THRESHOLDS
     assert card.promotion_eligible == 1  # only cot family hits ≥3 witnesses
+    # wyrd-6n2x: eligible-pool avg over the 3 OE lemmas = (3+1+2)/3 = 2.0.
+    # Pinning here catches future regressions on the canonical fixture.
+    assert card.avg_witnesses == 2.0
     # bundle: old_english sibling, two words.
     assert card.bundle_sibling == "old_english"
     assert card.bundle_word_count == 2
@@ -1339,6 +1342,150 @@ def test_scorecard_old_english_full_metrics() -> None:
     # tagged architecture (cot subject) and topography (tun subject)
     # both have an old_english word. So 2 of 5 reference tags hit.
     assert abs(card.bundle_tag_hit_rate - 0.4) < 1e-6
+
+
+def test_scorecard_avg_witnesses_filters_to_eligible_pool() -> None:
+    """wyrd-6n2x regression for ``avg_witnesses``: the metric must
+    divide by the eligible-lemma count, not the raw etymon_consensus
+    row count. Pre-fix the metric collapsed to ~0.0 for languages
+    with large ineligible tails (modern-english: 409 total witnesses
+    / 1.26M raw rows → 0.0003 → rounded to 0.0). Surrounding metrics
+    (eligible_etymons, promotion_eligible) all use the eligible-pool
+    scope; this one was incoherent against them.
+
+    Fixture: inject an ineligible OE lemma (`pollen`, 0 witnesses)
+    and EXCLUDE it from ``eligible_etymon``. Pre-fix
+    ``avg_witnesses`` = (3+1+2+0)/4 = 1.5; post-fix = (3+1+2)/3 = 2.0.
+    The sibling
+    :func:`test_scorecard_promotion_eligible_filters_to_eligible_pool`
+    covers the matching tightening of ``promotion_eligible`` against
+    a cited-but-ineligible row (which this fixture can't, because
+    pollen has 0 witnesses)."""
+    conn = _build_fixture_db()
+    bundle = _fixture_bundle()
+    conn.executescript(
+        """
+        INSERT INTO etymon(id, canonical_form, language)
+          VALUES (300, 'pollen', 'old-english');
+        """
+    )
+    populate_eligible_etymon_table(conn)
+    conn.execute("DELETE FROM eligible_etymon WHERE id = 300")
+    conn.commit()
+    assert conn.execute("SELECT 1 FROM eligible_etymon WHERE id = 300").fetchone() is None
+
+    card = compute_scorecard(
+        conn,
+        "old-english",
+        bundle,
+        list(FALLBACK_REFERENCE_TAGS[:5]),
+    )
+    assert card.avg_witnesses == 2.0, (
+        f"avg_witnesses should average over the eligible-lemma pool "
+        f"(2.0), not the raw etymon_consensus rows (1.5 with pollen "
+        f"in pool); got {card.avg_witnesses}"
+    )
+
+
+def test_scorecard_promotion_eligible_filters_to_eligible_pool() -> None:
+    """wyrd-6n2x regression for ``promotion_eligible``: the count
+    must reject an ineligible row even if it has enough citations to
+    cross the threshold. The fix's SQL JOIN tightens both
+    ``avg_witnesses`` AND ``promotion_eligible`` — this test pins
+    the latter half against a scenario the
+    ``test_scorecard_avg_witnesses_*`` fixture can't exercise (its
+    ineligible row has 0 witnesses, so it can't cross any threshold
+    regardless of the JOIN).
+
+    Fixture: inject an ineligible OE lemma `pollen` cited by all
+    three sources (witnesses = 3, would cross OE's ≥3 threshold).
+    Pre-fix ``promotion_eligible`` = 2 (cot + pollen); post-fix = 1
+    (only cot — pollen is ineligible)."""
+    conn = _build_fixture_db()
+    bundle = _fixture_bundle()
+    conn.executescript(
+        """
+        INSERT INTO etymon(id, canonical_form, language)
+          VALUES (300, 'pollen', 'old-english');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (300, 'skeat_1901');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (300, 'mawer_1920');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (300, 'charles_1992');
+        """
+    )
+    populate_eligible_etymon_table(conn)
+    conn.execute("DELETE FROM eligible_etymon WHERE id = 300")
+    conn.commit()
+
+    card = compute_scorecard(
+        conn,
+        "old-english",
+        bundle,
+        list(FALLBACK_REFERENCE_TAGS[:5]),
+    )
+    assert card.promotion_eligible == 1, (
+        f"promotion_eligible should reject ineligible pollen (3 "
+        f"citations would cross ≥3 threshold pre-fix); got "
+        f"{card.promotion_eligible}"
+    )
+
+
+def test_scorecard_witness_rollup_includes_lemma_descendants() -> None:
+    """wyrd-6n2x: the per-lemma witness count must roll up citations
+    from both edges the ``etymon_consensus`` view walks via
+    ``COALESCE(e.merged_into_id, e.lemma_id)``: inflection children
+    (``etymon.lemma_id = head.id``) AND OCR-merge / bridge losers
+    (``etymon.merged_into_id = head.id``). Pre-fix the lemma-head
+    query only counted the head's own citations, dropping both
+    rollup branches — a regression hidden by the baseline fixture
+    (no inflection or merge-loser has its own citations there).
+
+    Fixture extension:
+      - 2 citations on ``hamum`` (id=6, lemma_id=2 → ham) exercise
+        the inflection-child branch.
+      - A new merge-loser ``caut`` (id=400, merged_into_id=1 → cot)
+        with 1 citation exercises the merge-loser branch. Loser is
+        excluded from ``eligible_etymon`` (D22: merge losers aren't
+        generator-eligible) so it doesn't appear as its own
+        scorecard row.
+
+    Expected rollup post-fix:
+      - cot: 3 own (skeat/mawer/charles) + 1 loser (charles already
+        in set) → still 3 distinct sources, promotion-eligible ≥3
+      - ham: 1 own (skeat) + 2 inflection-child (mawer/charles) → 3
+        distinct sources, promotion-eligible ≥3
+      - tun: 2 own (skeat/mawer) → 2 distinct sources
+      → avg = (3+3+2)/3 = 2.667, promotion_eligible = 2."""
+    conn = _build_fixture_db()
+    bundle = _fixture_bundle()
+    conn.executescript(
+        """
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (6, 'mawer_1920');
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (6, 'charles_1992');
+        INSERT INTO etymon(id, canonical_form, language, merged_into_id)
+          VALUES (400, 'caut', 'old-english', 1);
+        INSERT INTO etymon_citation(etymon_id, source_id) VALUES (400, 'charles_1992');
+        """
+    )
+    populate_eligible_etymon_table(conn)
+    conn.execute("DELETE FROM eligible_etymon WHERE id = 400")
+    conn.commit()
+
+    card = compute_scorecard(
+        conn,
+        "old-english",
+        bundle,
+        list(FALLBACK_REFERENCE_TAGS[:5]),
+    )
+    # Both branches contribute distinct citations. Dropping either
+    # OR-branch fails: without inflection-child rollup ham stays at
+    # 1 witness (avg drops to (3+1+2)/3 = 2.0, promotion at 1);
+    # without merge-loser rollup cot still has 3 own citations so
+    # its count is unchanged here but the merge-loser path would
+    # break for any lemma where the loser carries DISTINCT sources.
+    assert abs(card.avg_witnesses - 2.667) < 1e-3, (
+        f"witness rollup should sum cot=3, ham=3, tun=2 → 2.667; got {card.avg_witnesses}"
+    )
+    assert card.promotion_eligible == 2
 
 
 def test_scorecard_welsh_sparse_terminus_forward() -> None:

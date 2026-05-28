@@ -561,8 +561,57 @@ def _corpus_depth(conn: sqlite3.Connection, language: str, threshold: int) -> di
         """,
         (language,),
     ).fetchone()[0]
+    # wyrd-6n2x: bypass the ``etymon_consensus`` view to query lemma
+    # heads directly. The original report selected from the view with
+    # no eligibility filter and no per-language scoping:
+    #
+    # 1. The denominator was the full view rowset (~1.26M rows for
+    #    modern-english, one per ``(lemma_id, canonical_form,
+    #    language)`` group) — not the generator-eligible lemma pool.
+    #    ``avg_witnesses`` collapsed to ~0.0 (modern-english: 409
+    #    total witnesses / 1.26M rows → 0.0003 → round to 0.0).
+    # 2. The view's per-language attribution emits one row PER
+    #    LANGUAGE PARTICIPATING in a lemma group — so an OE
+    #    inflection of a Latin lemma produces both a (Latin, …) and
+    #    an (OE, …) view row, and the same lemma's witnesses get
+    #    apportioned across both rows. The dashboard's per-language
+    #    denominator (``eligible_lemmas``) is heads-only; the
+    #    view-based avg uses a different cardinality, so they
+    #    weren't comparable.
+    #
+    # The lemma-head query attributes one row per (lemma_head,
+    # head's language), then rolls up citations from three places
+    # the view's ``etymon_consensus`` walks via
+    # ``COALESCE(e.merged_into_id, e.lemma_id)``:
+    #
+    # * the lemma head itself
+    # * inflection children (etymon.lemma_id = head.id)
+    # * OCR-merge / bridge losers (etymon.merged_into_id = head.id)
+    #
+    # Per D22 there are no 2-deep merge chains, so one hop is
+    # complete. ``UNION ALL`` (not ``OR``) lets SQLite push each
+    # branch through ``idx_etymon_citation_unique`` instead of full-
+    # scanning ``etymon_citation`` per outer row — 4-100× faster
+    # than the view-based query on the live DB.
     consensus_rows = conn.execute(
-        "SELECT witnesses FROM etymon_consensus WHERE language = ?",
+        """
+        SELECT
+          (SELECT COUNT(DISTINCT c.source_id)
+             FROM etymon_citation c
+            WHERE c.etymon_id IN (
+                    SELECT e.id
+                    UNION ALL
+                    SELECT id FROM etymon WHERE lemma_id = e.id
+                    UNION ALL
+                    SELECT id FROM etymon WHERE merged_into_id = e.id
+                  )
+          ) AS witnesses
+          FROM etymon e
+          JOIN eligible_etymon ee ON ee.id = e.id
+         WHERE e.language = ?
+           AND e.lemma_id IS NULL
+           AND e.merged_into_id IS NULL
+        """,
         (language,),
     ).fetchall()
     if consensus_rows:
