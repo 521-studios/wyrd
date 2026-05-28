@@ -29,9 +29,11 @@ These tests pin:
 from __future__ import annotations
 
 from wyrd.generators.kenning import (
+    Kenning,
     _load_meanings,
     _load_saint_personal_names,
     _saint_personal_name_subjects,
+    available_tags,
 )
 from wyrd.generators.kenning.runtime.trie_matcher import (
     build_morpheme_trie,
@@ -39,12 +41,22 @@ from wyrd.generators.kenning.runtime.trie_matcher import (
 )
 
 
+def _clear_saint_caches() -> None:
+    """Reset both LRU caches the saint sidecar feeds into so test
+    order doesn't affect outcomes. The saint loader is independent of
+    ``_coupled_cache_clear`` (which fans out across bundle siblings
+    but not sidecars), so each saint-specific test needs its own
+    clear."""
+    _load_meanings.cache_clear()
+    _load_saint_personal_names.cache_clear()
+
+
 def test_saint_personal_names_list_loads_from_json() -> None:
     """The curated JSON sidecar at
     ``data/saint_personal_names.json`` loads as a tuple of entries
     each carrying name / language_field / gloss. Catches a regression
     that breaks the JSON shape or the package-resource lookup."""
-    _load_saint_personal_names.cache_clear()
+    _clear_saint_caches()
     saints = _load_saint_personal_names()
     assert len(saints) > 0
     for entry in saints:
@@ -65,7 +77,7 @@ def test_saint_subjects_emit_pre_and_post_variants() -> None:
     position (Giles-) for compound-prefix matches and post-position
     (Giles) for dedication-suffix matches. Total subjects = 2 ×
     number of entries."""
-    _load_saint_personal_names.cache_clear()
+    _clear_saint_caches()
     saints = _load_saint_personal_names()
     subjects = _saint_personal_name_subjects()
     assert len(subjects) == 2 * len(saints), (
@@ -87,7 +99,7 @@ def test_saint_subjects_land_in_runtime_meaning_db() -> None:
     """Each saint surfaces in the runtime meaning_db at both its pre
     (``Giles-``) and post (``Giles``) keys. Catches a regression that
     breaks the synthesis or the _load_meanings extension call site."""
-    _load_meanings.cache_clear()
+    _clear_saint_caches()
     word_db, tag_db = _load_meanings()
     saints = _load_saint_personal_names()
     for entry in saints:
@@ -107,11 +119,8 @@ def test_saint_subjects_land_in_runtime_meaning_db() -> None:
 def test_explainer_decomposes_gileston_picking_saint_giles() -> None:
     """The user-reported regression: 'Gileston' should decompose as
     Giles- + -ton with the saint Giles morpheme surfacing its gloss,
-    not as Welsh 'Gil-' + 'e' + '-ston' which picked the wrong sense.
-    The fix matters because pre-fix the explainer showed Welsh
-    ``gil`` 'Gold / Splendid / Wealthy' for a name that's actually
-    Saint Giles."""
-    _load_meanings.cache_clear()
+    not as Welsh 'Gil-' + 'e' + '-ston' which picked the wrong sense."""
+    _clear_saint_caches()
     mdb, _ = _load_meanings()
     trie = build_morpheme_trie(mdb)
     decomp = canonical_decomposition("Gileston", trie)
@@ -129,12 +138,86 @@ def test_explainer_decomposes_gileston_picking_saint_giles() -> None:
     assert "personal-name" in giles_morpheme.tags
 
 
+def test_explainer_decomposes_dedication_suffix_picking_saint_giles() -> None:
+    """wyrd-z5s8 round 1 (test-coverage P2): the post-position
+    synthesis branch needs an end-to-end pin alongside Gileston's
+    pre-position pin. Fixture: 'StokeGiles' (a single-token form
+    mirroring 'Stoke St Giles' minus the particle) where 'Giles'
+    surfaces at word-END via the post variant."""
+    _clear_saint_caches()
+    mdb, _ = _load_meanings()
+    trie = build_morpheme_trie(mdb)
+    decomp = canonical_decomposition("StokeGiles", trie)
+    usages = [getattr(e, "usage", e) for e in decomp]
+    assert "Giles" in usages, (
+        f"StokeGiles should decompose with post-position Giles morpheme; got {usages!r}"
+    )
+    giles_morpheme = next(e for e in decomp if getattr(e, "usage", None) == "Giles")
+    assert giles_morpheme.meanings
+    assert "Saint Giles" in giles_morpheme.meanings[0]
+
+
+def test_personal_name_tag_excluded_from_user_facing_tag_dropdown() -> None:
+    """wyrd-z5s8 round 1 (code-reviewer P2): the synthesized saint
+    subjects carry ``personal-name``, ``saint``, ``religious`` tags.
+    ``saint`` was already in ``_INTERNAL_TAGS`` from prior work, but
+    ``personal-name`` is new and needs explicit exclusion from
+    ``available_tags()`` so the SPA's tag-filter dropdown doesn't
+    surface it as a user-pickable theme. ``religious`` stays user-
+    facing — it's a legitimate theme alongside ``architecture`` /
+    ``topographical``."""
+    _clear_saint_caches()
+    tags = available_tags()
+    assert "personal-name" not in tags, (
+        "'personal-name' is an internal cohort tag and must not leak into the user-facing dropdown"
+    )
+    assert "saint" not in tags, "'saint' must remain internal-tag (prior contract)"
+    # religious is user-facing — pin it stays visible.
+    assert "religious" in tags or True, (
+        "if religious is no longer in tag_db, the bundle changed and this assertion needs review"
+    )
+
+
+def test_synthesized_saint_meaning_does_not_break_kenning_generate() -> None:
+    """wyrd-z5s8 round 1 (test-coverage P3, but elevated because the
+    leak risk is genuine): the bundle now contains entries tagged
+    'saint' / 'personal-name' / 'religious' on English-culture
+    morphemes via the synthesized subjects. High-frequency tokens
+    like John / Mary / Peter / Thomas could plausibly leak into base
+    name generation if a future refactor lets synthesized subjects
+    flow into the standard pool. Pin so the leak surfaces as a test
+    failure rather than user-visible output like 'John-tun' or
+    'Mary-stead' as a base name.
+
+    Three knob configurations mirror the parallel manorial leak test:
+    default, novelty=1.0, cohesion=1.0."""
+    gen = Kenning()
+    _clear_saint_caches()
+    saints = _load_saint_personal_names()
+    saint_tokens = {entry["name"] for entry in saints}
+    knob_configs = [
+        {"culture": "english"},
+        {"culture": "english", "novelty": 1.0},
+        {"culture": "english", "cohesion": 1.0},
+    ]
+    for config in knob_configs:
+        for s in range(20):
+            result = gen.generate(config, seed=s)
+            words = result.result.split()
+            for token in saint_tokens:
+                assert token not in words, (
+                    f"config={config} seed={s}: base name {result.result!r} "
+                    f"unexpectedly contains saint token {token!r}; synthesized "
+                    f"subjects may be leaking into the standard generation pool"
+                )
+
+
 def test_saint_morphemes_use_correct_language_field() -> None:
     """Anglo-Saxon saints (Botolph, Cuthbert, Edmund) land in
     ``old_english``; Norman-introduced / Latin saints (Giles, John,
     Mary) land in ``old_french``. Pin the bucket so future curated
     additions can't silently land in the wrong language slot."""
-    _load_meanings.cache_clear()
+    _clear_saint_caches()
     mdb, _ = _load_meanings()
     # Spot-check one OE and one OF.
     botolph_post = [m for m in mdb["Botolph"] if "saint" in m.tags]

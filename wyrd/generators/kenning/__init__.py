@@ -170,6 +170,7 @@ _INTERNAL_TAGS = {
     "saint",
     "manorial",
     "norman",
+    "personal-name",
     _FICTION_TAG,
 }
 
@@ -221,7 +222,7 @@ def _load_saint_personal_names() -> tuple[dict[str, str], ...]:
     (Beorma's → Birmingham). The current list focuses on saints, where
     the modern surface remains transparent (Giles, Botolph, Edmund).
     Anglo-Saxon personal names embedded in -ingaham toponyms are a
-    future enrichment (wyrd-frpd-adjacent ticket).
+    future enrichment.
     """
     with _data_path("saint_personal_names.json").open() as f:
         return tuple(json.load(f))
@@ -247,19 +248,14 @@ def _saint_personal_name_subjects() -> list[dict[str, Any]]:
     saints = _load_saint_personal_names()
     subjects: list[dict[str, Any]] = []
     for entry in saints:
-        name = entry["name"]
-        # Last whitespace-split token, mirroring the manorial pattern
-        # — keeps multi-word names (none today, but defensive against
-        # future "Mary Magdalene" style entries) on the surname token.
-        token = name.split()[-1]
+        token = entry["name"]
         # wyrd-z5s8: emit BOTH pre-position (``Giles-``) and post-
         # position (``Giles``) variants so saints match at both ends
         # of toponym compounds. Pre handles the compound-prefix case
-        # (Gileston = Giles + ton, Edmondton = Edmund + ton, Petersfield
-        # = Peter's-field), post handles the dedication-suffix case
-        # (Bury St Edmunds, St Giles). Inner (``-Giles-``) is omitted
-        # — saint names embedded INSIDE a word are vanishingly rare in
-        # English toponymy.
+        # (Gileston = Giles + ton, Petersfield = Peter's + field), post
+        # handles the dedication-suffix case (Bury St Edmunds, St
+        # Giles). Inner (``-Giles-``) is omitted — saint names embedded
+        # INSIDE a word are vanishingly rare in English toponymy.
         for surface_usage in (f"{token}-", token):
             subjects.append(
                 {
