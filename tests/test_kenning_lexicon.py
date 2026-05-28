@@ -9274,6 +9274,141 @@ def test_export_meanings_empty_lang_thresholds_falls_back_to_uniform(
     assert subjects == []
 
 
+def test_export_meanings_surfaces_cognate_cluster_modern_forms(fresh_db: Path) -> None:
+    """wyrd-nxhh: cognate-cluster mates from end-state target languages
+    appear in the family subject's per-language sibling arrays (not
+    only in the separate era_reflexes field).
+
+    Fixture: OE ``ceaster`` (2 citations, promotable) cognate-linked
+    to modern-english ``-chester``. Post-fix ``modern_english`` carries
+    ``-chester``."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b"):
+            db.upsert_source(id=src, title=src)
+        ceaster = db.upsert_etymon("ceaster", "old-english", modifier_type="Habitative")
+        db.add_gloss(ceaster, "fortified place")
+        db.add_tag(ceaster, "architecture")
+        db.add_citation(ceaster, "a")
+        db.add_citation(ceaster, "b")
+        chester = db.upsert_etymon("-chester", "modern-english")
+        db.conn.execute(
+            "UPDATE etymon SET cognate_id = ? WHERE id IN (?, ?)",
+            (ceaster, ceaster, chester),
+        )
+        db.commit()
+        subjects = export_meanings(db, include_rando=False)
+    assert len(subjects) == 1
+    word = subjects[0]["words"][0]
+    assert word.get("old_english") == ["ceaster"]
+    assert word.get("modern_english") == ["-chester"], (
+        f"forms_by_lang should include cluster mate's modern-english surface; "
+        f"got modern_english={word.get('modern_english')!r}"
+    )
+
+
+def test_export_meanings_surfaces_descent_edge_modern_forms(fresh_db: Path) -> None:
+    """wyrd-nxhh round 1 (test-coverage P2): the Tier-2 descent path
+    (no cognate_id, but an etymon_descent edge to a modern-english
+    child) must also surface in forms_by_lang. Without this pin a
+    refactor that drops Tier 2 from _fetch_root_era_reflexes would
+    pass the cluster test but break descent-only families."""
+    with LexiconDB(fresh_db) as db:
+        for src in ("a", "b"):
+            db.upsert_source(id=src, title=src)
+        burg = db.upsert_etymon("burg", "old-english", modifier_type="Habitative")
+        db.add_gloss(burg, "fortified town")
+        db.add_citation(burg, "a")
+        db.add_citation(burg, "b")
+        borough = db.upsert_etymon("-borough", "modern-english")
+        # Tier 2: direct inheritance edge, no cognate_id on either end.
+        db.conn.execute(
+            "INSERT INTO etymon_descent "
+            "(parent_id, child_id, edge_type, source_id, confidence) "
+            "VALUES (?, ?, 'inheritance', 'a', 'high')",
+            (burg, borough),
+        )
+        db.commit()
+        subjects = export_meanings(db, include_rando=False)
+    assert len(subjects) == 1
+    word = subjects[0]["words"][0]
+    assert word.get("old_english") == ["burg"]
+    assert word.get("modern_english") == ["-borough"], (
+        f"Tier-2 descent edge should surface modern-english child in forms_by_lang; "
+        f"got modern_english={word.get('modern_english')!r}"
+    )
+
+
+def test_merge_era_reflexes_excludes_phonology_rule_tier() -> None:
+    """wyrd-nxhh round 1 (code-reviewer P2): the merge filters to
+    attested sources (cluster / descent / period-form) and drops
+    Tier-4 phonology-rule forms. The main generator samples
+    forms_by_lang uniformly with no source-quality differentiation,
+    so admitting inferred forms would let it emit them as if they
+    were attested."""
+    from wyrd.generators.kenning.lexicon.bundle._family import (
+        _merge_era_reflexes_into_forms_by_lang,
+    )
+
+    forms_by_lang: dict[str, list[str]] = {}
+    era_reflexes = {
+        "modern-english": [
+            {"form": "chester", "source": "cluster"},
+            {"form": "casterton", "source": "phonology-rule:v1"},
+            {"form": "Manchester", "source": "descent"},
+            {"form": "ceaster1500", "source": "period-form"},
+        ],
+        "middle-english": [{"form": "Cestre", "source": "cluster"}],
+        "tier4-only-lang": [{"form": "X", "source": "phonology-rule:v1"}],
+    }
+    _merge_era_reflexes_into_forms_by_lang(forms_by_lang, era_reflexes)
+    assert forms_by_lang == {
+        "modern-english": ["chester", "Manchester", "ceaster1500"],
+        "middle-english": ["Cestre"],
+    }, (
+        f"merge must filter phonology-rule:v1 forms and not create empty buckets "
+        f"for Tier-4-only languages; got {forms_by_lang!r}"
+    )
+
+
+def test_merge_era_reflexes_dedupes_against_existing_forms() -> None:
+    """wyrd-nxhh round 1 (test-coverage P2): the merge's dedup guard
+    drops forms already in the direct-member bucket. Without it a
+    family where both the direct rollup AND the cognate cluster
+    contributed the same modern surface would ship a duplicated form
+    in the bundle silently."""
+    from wyrd.generators.kenning.lexicon.bundle._family import (
+        _merge_era_reflexes_into_forms_by_lang,
+    )
+
+    forms_by_lang = {"modern-english": ["-chester"]}
+    era_reflexes = {
+        "modern-english": [
+            {"form": "-chester", "source": "cluster"},  # dup of existing
+            {"form": "-cester", "source": "cluster"},  # new
+        ],
+    }
+    _merge_era_reflexes_into_forms_by_lang(forms_by_lang, era_reflexes)
+    assert forms_by_lang == {"modern-english": ["-chester", "-cester"]}, (
+        f"merge must dedup against pre-existing forms and preserve direct-member-first "
+        f"ordering; got {forms_by_lang!r}"
+    )
+
+
+def test_merge_era_reflexes_empty_input_is_noop() -> None:
+    """wyrd-nxhh round 1 (code-reviewer P2 ≡ fragile-fixture fix):
+    direct-helper no-op pin replaces the earlier end-to-end fixture
+    (a fresh OE etymon with no cluster / no descent) that silently
+    depended on Tier-4 phonology-rule returning None. Future
+    phonology-layer changes don't affect this assertion."""
+    from wyrd.generators.kenning.lexicon.bundle._family import (
+        _merge_era_reflexes_into_forms_by_lang,
+    )
+
+    forms_by_lang = {"old-english": ["ham"]}
+    _merge_era_reflexes_into_forms_by_lang(forms_by_lang, {})
+    assert forms_by_lang == {"old-english": ["ham"]}
+
+
 def test_export_meanings_rando_min_corroborators_zero_admits_pure_rando(
     fresh_db: Path,
 ) -> None:
