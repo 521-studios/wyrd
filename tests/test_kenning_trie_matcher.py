@@ -96,17 +96,63 @@ def test_build_trie_skips_single_char_phonogram_only_morphemes():
 def test_build_trie_keeps_single_char_english_morphemes():
     """wyrd-m2ym (filter symmetry): single-char English suffix
     morphemes like ``-y`` ('island' / 'district') survive the filter
-    because their Meaning carries an English-family source. The
-    location-marker dashes constrain the trie matcher to word-final
-    matching for ``-y``, so the collision risk is limited even before
-    the filter — but more importantly the filter only fires when
-    sources are EXCLUSIVELY phonogram-transliteration languages."""
+    because their Meaning carries an English-family source — the rule
+    fires only when sources are EXCLUSIVELY phonogram-transliteration
+    languages."""
     db = {
         "-y": [_english_meaning("-y")],
         "ham": [_meaning("ham")],
     }
     trie = build_morpheme_trie(db)
     assert trie.morpheme_count == 2
+
+
+def test_build_trie_keeps_multichar_phonogram_only_morphemes():
+    """wyrd-m2ym (filter scope): the filter fires ONLY on single-char
+    surfaces — multi-char phonogram-only morphemes (e.g. Egyptian
+    ``ankh``) pass through unchanged because they don't trigger the
+    collision-with-random-positions problem the filter exists to fix."""
+    db = {
+        "ankh": [Meaning("ankh", [], [], {"egyptian": ["X"]})],
+    }
+    trie = build_morpheme_trie(db)
+    assert trie.morpheme_count == 1
+
+
+@pytest.mark.parametrize(
+    "sources_list, expected",
+    [
+        # Empty meanings list → vacuously True (unreachable from
+        # build_morpheme_trie's gate, but pin the contract).
+        ([], True),
+        # No sources info at all → KEEP (legacy / test fixtures).
+        ([{}], False),
+        # All-Egyptian → SKIP.
+        ([{"egyptian": ["X"]}], True),
+        # All-Akkadian → SKIP.
+        ([{"akkadian": ["X"]}], True),
+        # All-Sumerian (forward-defensive entry) → SKIP.
+        ([{"sumerian": ["X"]}], True),
+        # Mixed phonogram + English → KEEP.
+        ([{"egyptian": ["X"], "modern_english": ["s"]}], False),
+        # Two meanings, one phonogram-only, one mixed → KEEP.
+        ([{"egyptian": ["X"]}, {"egyptian": ["X"], "modern_english": ["s"]}], False),
+        # Two meanings, both phonogram-only → SKIP.
+        ([{"egyptian": ["X"]}, {"akkadian": ["Y"]}], True),
+    ],
+)
+def test_is_phonogram_only_collision_contract(sources_list, expected):
+    """wyrd-m2ym (direct-helper contract): the
+    ``_is_phonogram_only_collision`` helper's full truth table.
+    Documents the contract independent of trie-build coupling so the
+    live-data 'X of Y filtered' figure in the PR body is reproducible
+    from unit tests."""
+    from wyrd.generators.kenning.runtime.trie_matcher import (
+        _is_phonogram_only_collision,
+    )
+
+    meanings = [Meaning("X", [], [], sources) for sources in sources_list]
+    assert _is_phonogram_only_collision(meanings) is expected
 
 
 def test_build_trie_keeps_single_char_non_latin_surfaces():

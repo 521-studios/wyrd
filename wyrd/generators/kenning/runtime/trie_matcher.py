@@ -119,13 +119,19 @@ class MorphemeTrie:
 
 # wyrd-m2ym: source-language families whose writing systems use signs
 # that transliterate to single ASCII Latin letters (Egyptian hieroglyph
-# phonograms s/t/n/m/h/j/p/w/z; Akkadian / Sumerian cuneiform u/ī etc.).
-# Single-char transliterations from these languages collide with
-# arbitrary letter positions in English target words, manufacturing
-# phantom attributions like 'Clifts' → 'Clift + s [Egyptian]'. The
-# data is correct upstream (those phonograms ARE single consonants
-# per wave-2 wiktextract mining); the runtime trie just can't usefully
-# match transliterations against Latin-script targets.
+# phonograms s/t/n/m/h/j/p/w/z; Akkadian cuneiform u/ī etc.). Single-
+# char transliterations from these languages collide with arbitrary
+# letter positions in English target words, manufacturing phantom
+# attributions like 'Clifts' → 'Clift + s [Egyptian]'. The data is
+# correct upstream (those phonograms ARE single consonants per wave-2
+# wiktextract mining); the runtime trie just can't usefully match
+# transliterations against Latin-script targets.
+#
+# 'sumerian' is a forward-defensive entry — the current bundle
+# emitter (_emit.py) collapses Sumerian (sux) into the 'akkadian'
+# bucket so production Meaning.sources never carries a 'sumerian' key
+# today. Keeping the entry costs nothing and survives a future bundle
+# split that emits Sumerian under its own tag.
 _PHONOGRAM_TRANSLITERATION_LANGS: frozenset[str] = frozenset({"egyptian", "akkadian", "sumerian"})
 
 
@@ -138,9 +144,7 @@ def _is_phonogram_only_collision(meanings: list[Any]) -> bool:
     test fixtures and legacy bundles default to KEEP)."""
     for m in meanings:
         sources = getattr(m, "sources", None) or {}
-        if not sources:
-            return False
-        if any(lang not in _PHONOGRAM_TRANSLITERATION_LANGS for lang in sources):
+        if not sources or not sources.keys() <= _PHONOGRAM_TRANSLITERATION_LANGS:
             return False
     return True
 
