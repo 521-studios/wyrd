@@ -1293,8 +1293,10 @@ def test_scorecard_old_english_full_metrics() -> None:
     assert card.language == "old-english"
     assert card.total_etymons == 6  # cot, ham, tun + 3 inflected children
     assert card.total_lemmas == 3  # cot, ham, tun (inflected ones excluded)
-    assert card.promotion_threshold == 3  # OE entry in RECOMMENDED_LANG_THRESHOLDS
-    assert card.promotion_eligible == 1  # only cot family hits ≥3 witnesses
+    # wyrd-fssn: OE preset is ≥2 (was ≥3). cot=3 + tun=2 both promote
+    # under the uniform-≥2 policy; ham=1 stays under-threshold.
+    assert card.promotion_threshold == 2
+    assert card.promotion_eligible == 2  # cot + tun cross ≥2 witnesses
     # wyrd-6n2x: eligible-pool avg over the 3 OE lemmas = (3+1+2)/3 = 2.0.
     # Pinning here catches future regressions on the canonical fixture.
     assert card.avg_witnesses == 2.0
@@ -1422,9 +1424,12 @@ def test_scorecard_promotion_eligible_filters_to_eligible_pool() -> None:
         bundle,
         list(FALLBACK_REFERENCE_TAGS[:5]),
     )
-    assert card.promotion_eligible == 1, (
+    # wyrd-fssn: OE threshold relaxed to ≥2; cot=3 + tun=2 promote,
+    # pollen still excluded (would have promoted at 3 pre-fix on the
+    # ineligible path).
+    assert card.promotion_eligible == 2, (
         f"promotion_eligible should reject ineligible pollen (3 "
-        f"citations would cross ≥3 threshold pre-fix); got "
+        f"citations would cross ≥2 threshold pre-fix); got "
         f"{card.promotion_eligible}"
     )
 
@@ -1485,7 +1490,9 @@ def test_scorecard_witness_rollup_includes_lemma_descendants() -> None:
     assert abs(card.avg_witnesses - 2.667) < 1e-3, (
         f"witness rollup should sum cot=3, ham=3, tun=2 → 2.667; got {card.avg_witnesses}"
     )
-    assert card.promotion_eligible == 2
+    # wyrd-fssn: OE threshold ≥2; all three (cot=3, ham=3 via rollup,
+    # tun=2) cross the bar.
+    assert card.promotion_eligible == 3
 
 
 def test_scorecard_welsh_sparse_terminus_forward() -> None:
@@ -1647,7 +1654,7 @@ def test_report_to_json_round_trips_through_load() -> None:
     assert data["schema_version"] == "1.0"
     assert data["bundle_total_words"] == 4
     assert data["languages"][0]["language"] == "old-english"
-    assert data["languages"][0]["promotion_threshold"] == 3
+    assert data["languages"][0]["promotion_threshold"] == 2
     # Both tag-coverage maps must round-trip as dicts.
     assert isinstance(data["languages"][0]["lexicon_tag_coverage"], dict)
     assert isinstance(data["languages"][0]["bundle_tag_coverage"], dict)

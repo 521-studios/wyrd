@@ -9145,8 +9145,14 @@ def test_lexicon_export_meanings_cli_no_include_wiktionary_empirical_flag(
     assert "eglwys" not in result.output
 
 
-def test_export_meanings_promotes_at_three_witnesses(fresh_db: Path) -> None:
-    """A family with no rando-port citation needs ≥ min_witnesses to export."""
+def test_export_meanings_promotes_at_witness_threshold(fresh_db: Path) -> None:
+    """A family with no rando-port citation needs ≥ min_witnesses to export.
+
+    wyrd-fssn note: the explicit ``min_witnesses=3`` arg here keeps this
+    test pinning the gate semantics regardless of the default-default.
+    The default-default itself dropped from 3 to 2 in wyrd-fssn; see
+    :func:`test_export_meanings_default_uses_recommended_preset` for the
+    default-shift coverage."""
     with LexiconDB(fresh_db) as db:
         for src in ("a", "b", "c"):
             db.upsert_source(id=src, title=src)
@@ -9157,11 +9163,15 @@ def test_export_meanings_promotes_at_three_witnesses(fresh_db: Path) -> None:
         db.add_citation(ham_id, "b")
         db.commit()
 
-        two_witnesses = export_meanings(db, include_rando=False, min_witnesses=3)
+        two_witnesses = export_meanings(
+            db, include_rando=False, min_witnesses=3, lang_thresholds={}
+        )
 
         db.add_citation(ham_id, "c")
         db.commit()
-        three_witnesses = export_meanings(db, include_rando=False, min_witnesses=3)
+        three_witnesses = export_meanings(
+            db, include_rando=False, min_witnesses=3, lang_thresholds={}
+        )
 
     assert two_witnesses == []
     assert len(three_witnesses) == 1
@@ -9221,24 +9231,28 @@ def test_export_meanings_per_language_thresholds_apply(fresh_db: Path) -> None:
 
 
 def test_export_meanings_default_uses_recommended_preset(fresh_db: Path) -> None:
-    """Calling export_meanings() without ``lang_thresholds`` applies the
-    RECOMMENDED_LANG_THRESHOLDS preset, so OE gates at 3 and ON gates at 2."""
-    assert RECOMMENDED_LANG_THRESHOLDS["old-english"] == 3
+    """Calling ``export_meanings()`` without ``lang_thresholds`` applies the
+    ``RECOMMENDED_LANG_THRESHOLDS`` preset, which gates every language at
+    ≥2 witnesses (uniform per wyrd-fssn 2026-05-28; OE relaxed from 3
+    to 2 in the same change). At 2 witnesses an OE etymon promotes."""
+    assert RECOMMENDED_LANG_THRESHOLDS["old-english"] == 2
     assert RECOMMENDED_LANG_THRESHOLDS["old-norse"] == 2
 
     with LexiconDB(fresh_db) as db:
         for src in ("a", "b"):
             db.upsert_source(id=src, title=src)
-        on = db.upsert_etymon("fell", "old-norse")
-        db.add_gloss(on, "mountain")
-        db.add_citation(on, "a")
-        db.add_citation(on, "b")
+        oe = db.upsert_etymon("ham", "old-english")
+        db.add_gloss(oe, "homestead")
+        db.add_citation(oe, "a")
+        db.add_citation(oe, "b")
         db.commit()
-        # No lang_thresholds passed → preset applies → ON at 2 witnesses promotes.
+        # No lang_thresholds passed → preset applies → OE at 2 witnesses
+        # promotes (this would NOT have happened pre-wyrd-fssn when the
+        # OE preset entry was 3).
         subjects = export_meanings(db, include_rando=False)
 
     assert len(subjects) == 1
-    assert subjects[0]["meaning"] == ["mountain"]
+    assert subjects[0]["meaning"] == ["homestead"]
 
 
 def test_export_meanings_empty_lang_thresholds_falls_back_to_uniform(
@@ -9258,6 +9272,198 @@ def test_export_meanings_empty_lang_thresholds_falls_back_to_uniform(
         # and applies min_witnesses=3 uniformly → not promoted.
         subjects = export_meanings(db, include_rando=False, min_witnesses=3, lang_thresholds={})
     assert subjects == []
+
+
+def test_export_meanings_rando_min_corroborators_zero_admits_pure_rando(
+    fresh_db: Path,
+) -> None:
+    """wyrd-fssn: ``rando_min_corroborators=0`` (default) reproduces the
+    pre-fssn rando-port-admit semantic — every rando-cited family lands
+    in the bundle regardless of corroborating sources."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        ham = db.upsert_etymon("ham", "old-english")
+        db.add_gloss(ham, "homestead")
+        db.add_citation(ham, "rando-port")
+        db.commit()
+        # No corroborators at all; default 0 still admits.
+        subjects = export_meanings(db, lang_thresholds={}, min_witnesses=99)
+    assert len(subjects) == 1
+    assert subjects[0]["meaning"] == ["homestead"]
+
+
+def test_export_meanings_rando_min_corroborators_one_drops_pure_rando(
+    fresh_db: Path,
+) -> None:
+    """wyrd-fssn: ``rando_min_corroborators=1`` quarantines pure-rando
+    lemmas (no other source has cited them) while keeping rando+1
+    families. This is the forward-flippable retirement lever — flip
+    once mining corroboration catches up, drop the pure-rando tail."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        db.upsert_source(id="scholar_a", title="scholar a")
+        pure = db.upsert_etymon("pollen", "old-english")
+        db.add_gloss(pure, "pollen")
+        db.add_citation(pure, "rando-port")
+        corroborated = db.upsert_etymon("ham", "old-english")
+        db.add_gloss(corroborated, "homestead")
+        db.add_citation(corroborated, "rando-port")
+        db.add_citation(corroborated, "scholar_a")
+        db.commit()
+        subjects = export_meanings(
+            db,
+            lang_thresholds={},
+            min_witnesses=99,
+            rando_min_corroborators=1,
+        )
+    glosses = sorted(s["meaning"][0] for s in subjects)
+    assert glosses == ["homestead"], (
+        f"corroborated rando lemma should remain; pure-rando should drop. got {glosses}"
+    )
+
+
+def test_export_meanings_rando_min_corroborators_counts_wiktionary_empirical(
+    fresh_db: Path,
+) -> None:
+    """wyrd-fssn: the rando-corroborator gate's "non-rando" filter is
+    literal — wiktionary-empirical citations count as corroborators.
+    Path (c) already independently admits any wiktionary-empirical-cited
+    family regardless of the rando knob, but the corroborator gate is
+    written as ``source_id != 'rando-port'`` not ``source_id NOT IN
+    ('rando-port', 'wiktionary-empirical')`` so a wiktionary-empirical
+    co-citation on a rando lemma also satisfies path (a)'s ≥1
+    corroborator requirement. Pin the policy: empirical citations
+    corroborate rando admit."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        db.upsert_source(id="wiktionary-empirical", title="wikt-empirical")
+        ham = db.upsert_etymon("ham", "old-english")
+        db.add_gloss(ham, "homestead")
+        db.add_citation(ham, "rando-port")
+        db.add_citation(ham, "wiktionary-empirical")
+        db.commit()
+        # Disable path (c) so we observe path (a) in isolation —
+        # otherwise the empirical citation would short-circuit admit
+        # via (c) regardless of the corroborator gate.
+        subjects = export_meanings(
+            db,
+            lang_thresholds={},
+            min_witnesses=99,
+            rando_min_corroborators=1,
+            include_wiktionary_empirical=False,
+        )
+    assert len(subjects) == 1
+    assert subjects[0]["meaning"] == ["homestead"]
+
+
+def test_export_meanings_rando_min_corroborators_rolls_inflection_child_citation(
+    fresh_db: Path,
+) -> None:
+    """wyrd-fssn: docstring claims the corroborator rollup follows
+    ``_build_family_rollup`` — an inflection child's citation
+    corroborates the lemma head. Pin the structural claim with a
+    fixture where the rando-cited LEMMA has no direct non-rando
+    citation but its INFLECTED CHILD does."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        db.upsert_source(id="scholar_a", title="scholar a")
+        ham = db.upsert_etymon("ham", "old-english")
+        db.add_gloss(ham, "homestead")
+        db.add_citation(ham, "rando-port")
+        # Inflected child of ham — cited by scholar (not rando).
+        hamum = db.upsert_etymon("hamum", "old-english")
+        db.conn.execute(
+            "UPDATE etymon SET lemma_id = ?, inflection = 'dative_pl', "
+            "lemma_method = 'link-lemmas-v1' WHERE id = ?",
+            (ham, hamum),
+        )
+        db.add_citation(hamum, "scholar_a")
+        db.commit()
+        subjects = export_meanings(
+            db,
+            lang_thresholds={},
+            min_witnesses=99,
+            rando_min_corroborators=1,
+        )
+    # The rando-rooted family is corroborated via its inflection
+    # child's scholar citation. Without family rollup the lemma head
+    # would have 0 corroborators and drop.
+    assert len(subjects) == 1
+    assert subjects[0]["meaning"] == ["homestead"]
+
+
+def test_families_with_corroborators_zero_admits_all_rando_roots() -> None:
+    """wyrd-fssn round 2 (Gemini P2): the helper's docstring contract
+    says "at least ``min_corroborators`` distinct non-rando-port
+    citation sources" — at ``min_corroborators=0`` every set trivially
+    satisfies ``≥ 0``, so every rando root must be admitted.
+
+    The production caller short-circuits before reaching the helper
+    when ``rando_min_corroborators <= 0`` (so this case wouldn't surface
+    via ``export_meanings``), but the helper still needs to honor its
+    documented contract when called directly. Tested here with a
+    rando-only lemma (zero non-rando citations) at
+    ``min_corroborators=0`` — pre-Gemini-P2 the helper would have
+    silently dropped it from the result; post-fix it's admitted."""
+    import sqlite3
+
+    from wyrd.generators.kenning.lexicon.bundle._export import (
+        _families_with_corroborators,
+    )
+
+    # Use the live LexiconDB shape via a minimal sqlite3 connection so
+    # we don't need fresh_db's autogen — the helper only reads
+    # etymon_citation, which we synthesize directly.
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.executescript("CREATE TABLE etymon_citation (etymon_id INTEGER, source_id TEXT);")
+
+    class _DBStub:
+        def __init__(self, conn: sqlite3.Connection) -> None:
+            self.conn = conn
+
+    db_stub = _DBStub(conn)
+    rando_root_ids = {1, 2}
+    members_by_root = {1: [1], 2: [2]}
+    # NO citations in etymon_citation. At min_corroborators=0 both
+    # roots admit (contract: every set ≥ 0); at min_corroborators=1
+    # neither does.
+    result_zero = _families_with_corroborators(db_stub, rando_root_ids, members_by_root, 0)
+    assert result_zero == {1, 2}, (
+        f"min_corroborators=0 should admit all rando roots regardless of "
+        f"citation count; got {result_zero}"
+    )
+    result_one = _families_with_corroborators(db_stub, rando_root_ids, members_by_root, 1)
+    assert result_one == set()
+
+
+def test_export_meanings_rando_min_corroborators_no_op_when_include_rando_false(
+    fresh_db: Path,
+) -> None:
+    """wyrd-fssn: ``rando_min_corroborators`` is a knob ON the rando-port
+    admit path. With ``include_rando=False`` the whole path is skipped
+    regardless of the corroborator setting — the two flags are orthogonal,
+    so flipping ``rando_min_corroborators`` from 0 to 1 with
+    ``include_rando=False`` must produce identical output."""
+    with LexiconDB(fresh_db) as db:
+        db.upsert_source(id="rando-port", title="rando")
+        db.upsert_source(id="scholar_a", title="scholar a")
+        # Pure-rando lemma: only path 2 could admit it.
+        pure = db.upsert_etymon("pollen", "old-english")
+        db.add_gloss(pure, "pollen")
+        db.add_citation(pure, "rando-port")
+        db.commit()
+        baseline = export_meanings(
+            db,
+            include_rando=False,
+            rando_min_corroborators=0,
+        )
+        tightened = export_meanings(
+            db,
+            include_rando=False,
+            rando_min_corroborators=1,
+        )
+    assert baseline == [] == tightened
 
 
 def test_export_meanings_rolls_inflected_variants_into_lemma(fresh_db: Path) -> None:

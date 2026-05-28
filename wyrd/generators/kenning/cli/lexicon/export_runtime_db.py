@@ -37,9 +37,10 @@ __all__ = ["EMITTER_VERSION", "SCHEMA_VERSION", "lexicon_export_runtime_db"]
 # @click.option ``default=`` declarations AND _reject_non_default_filters_under_dev
 # so the two can't drift — bumping a default here propagates to both
 # sites at once.
-_DEFAULT_MIN_WITNESSES = 3
+_DEFAULT_MIN_WITNESSES = 2
 _DEFAULT_USE_PRESET = True
 _DEFAULT_INCLUDE_RANDO = True
+_DEFAULT_RANDO_MIN_CORROBORATORS = 0
 _DEFAULT_INCLUDE_WIKTIONARY_EMPIRICAL = True
 _DEFAULT_INCLUDE_WAVE2_ENRICHED = True
 
@@ -99,6 +100,17 @@ _DEFAULT_INCLUDE_WAVE2_ENRICHED = True
     show_default=True,
 )
 @click.option(
+    "--rando-min-corroborators",
+    type=int,
+    default=_DEFAULT_RANDO_MIN_CORROBORATORS,
+    show_default=True,
+    help=(
+        "wyrd-fssn: minimum non-rando-port citation sources a rando-cited "
+        "family must have to be admitted via the rando-port path. 0 = "
+        "current behavior."
+    ),
+)
+@click.option(
     "--include-wiktionary-empirical/--no-include-wiktionary-empirical",
     default=_DEFAULT_INCLUDE_WIKTIONARY_EMPIRICAL,
     show_default=True,
@@ -141,6 +153,7 @@ def lexicon_export_runtime_db(
     lang_threshold_specs: tuple[str, ...],
     use_preset: bool,
     include_rando: bool,
+    rando_min_corroborators: int,
     include_wiktionary_empirical: bool,
     include_wave2_enriched: bool,
     dev_subset: bool,
@@ -163,6 +176,7 @@ def lexicon_export_runtime_db(
             lang_threshold_specs=lang_threshold_specs,
             use_preset=use_preset,
             include_rando=include_rando,
+            rando_min_corroborators=rando_min_corroborators,
             include_wiktionary_empirical=include_wiktionary_empirical,
             include_wave2_enriched=include_wave2_enriched,
         )
@@ -175,6 +189,7 @@ def lexicon_export_runtime_db(
             min_witnesses=min_witnesses,
             lang_thresholds=lang_thresholds,
             include_rando=include_rando,
+            rando_min_corroborators=rando_min_corroborators,
             include_wiktionary_empirical=include_wiktionary_empirical,
             include_wave2_enriched=include_wave2_enriched,
         )
@@ -239,6 +254,7 @@ def _reject_non_default_filters_under_dev(
     lang_threshold_specs: tuple[str, ...],
     use_preset: bool,
     include_rando: bool,
+    rando_min_corroborators: int,
     include_wiktionary_empirical: bool,
     include_wave2_enriched: bool,
 ) -> None:
@@ -262,6 +278,11 @@ def _reject_non_default_filters_under_dev(
         offenders.append("--no-preset (canonical: --preset)")
     if include_rando != _DEFAULT_INCLUDE_RANDO:
         offenders.append("--no-include-rando (canonical: --include-rando)")
+    if rando_min_corroborators != _DEFAULT_RANDO_MIN_CORROBORATORS:
+        offenders.append(
+            f"--rando-min-corroborators={rando_min_corroborators} "
+            f"(canonical: {_DEFAULT_RANDO_MIN_CORROBORATORS})"
+        )
     if include_wiktionary_empirical != _DEFAULT_INCLUDE_WIKTIONARY_EMPIRICAL:
         offenders.append(
             "--no-include-wiktionary-empirical (canonical: --include-wiktionary-empirical)"

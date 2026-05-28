@@ -32,26 +32,36 @@ from wyrd.generators.kenning.lexicon.bundle._subject import (
 from wyrd.generators.kenning.lexicon.db import LexiconDB
 
 # Per-language witness thresholds calibrated against corpus availability and
-# spot-checked quality at w=2 (analysis 2026-05-02). Languages absent from
-# this map fall back to the global ``min_witnesses``. Rationale per language:
-#   old-english : 3 — well-mined (32 sources); strict gate keeps Tier-1
-#                     prose-extraction noise out (~20% noise at w=2).
-#   celtic      : 2 — Qwen weak on Celtic per D13; corpus structurally
-#                     thinner per yield. Quality at w=2 ~90% clean.
-#   old-norse   : 2 — only one ON-focused dictionary in the corpus; w=3
-#                     filters out 93% of ON purely on corpus thinness.
+# spot-checked quality at w=2 (analysis 2026-05-02; OE relaxed to 2 in
+# wyrd-fssn 2026-05-28). Languages absent from this map fall back to the
+# global ``min_witnesses`` (also 2 since wyrd-fssn).
+#
+# Policy (wyrd-fssn, 2026-05-28): uniform ≥2 for net-new mining lemmas
+# (path 1). The earlier OE=3 was a precision filter against Tier-1 prose-
+# extraction noise — defensible at the time, but the cost was ~360 OE
+# lemmas at exactly 2 witnesses (per the 2026-05-28 audit) that the
+# dashboard's K-row audit confirms are mostly genuine cites. With the
+# rando-port admit path admitting every rando-cited family unconditionally
+# by default (path 2), tightening OE alone never offered the precision
+# benefit it claimed — most marginal-OE-quality lemmas reach the bundle
+# via the rando-port path anyway. Lifting OE to uniform ≥2 closes the
+# asymmetry. The orthogonal lever for tightening bundle provenance is
+# ``rando_min_corroborators`` (path 2), filed in the same ticket.
+#
+# Per-language reads (post wyrd-fssn):
+#   old-english     : 2 — was 3 pre-fssn; see policy comment above.
+#   celtic          : 2 — Qwen weak on Celtic per D13; w=2 ~90% clean.
+#   old-norse       : 2 — only one ON-focused dictionary; w=3 over-filters.
 #   modern-english,
 #   norman-french,
 #   latin,
-#   biblical    : 2 — small populations at w≥2 (≤20 each); spot-check 100%
-#                     clean. The cost of admitting them is negligible and
-#                     the gain (modern English placename elements like mill,
-#                     stone, head; NF castle, monte; Latin ecclesia,
-#                     ceaster) is meaningful for generation breadth.
-#   germanic, greek: nothing reaches w≥2 in the current corpus, so the
+#   biblical        : 2 — small w≥2 populations (≤20 each), spot-check 100%
+#                         clean. Meaningful gain (mill, stone, head, castle,
+#                         monte, ecclesia, ceaster).
+#   germanic, greek : nothing reaches w≥2 in the current corpus, so the
 #                     threshold is moot — they ride the rando-port path only.
 RECOMMENDED_LANG_THRESHOLDS: dict[str, int] = {
-    "old-english": 3,
+    "old-english": 2,
     "celtic": 2,
     "old-norse": 2,
     "modern-english": 2,
@@ -64,19 +74,24 @@ RECOMMENDED_LANG_THRESHOLDS: dict[str, int] = {
 def export_meanings(
     db: LexiconDB,
     *,
-    min_witnesses: int = 3,
+    min_witnesses: int = 2,
     lang_thresholds: dict[str, int] | None = None,
     include_rando: bool = True,
+    rando_min_corroborators: int = 0,
     include_wiktionary_empirical: bool = True,
     include_wave2_enriched: bool = True,
 ) -> list[dict[str, Any]]:
     """Walk the lexicon and emit a meanings.json structure.
 
-    Promotion rule (D4): a family root is included if any of:
-    (a) any etymon in the family is cited by 'rando-port' AND ``include_rando``
-        is true (legacy seed kept until corroborated), OR
+    Promotion rule (D4, refined by wyrd-fssn 2026-05-28): a family root is
+    included if any of:
+    (a) any etymon in the family is cited by 'rando-port' AND
+        ``include_rando`` is true AND the family has at least
+        ``rando_min_corroborators`` distinct non-rando citation sources
+        (legacy seed), OR
     (b) the family's witness count (``etymon_consensus.witnesses``) is at
-        least the threshold for that family's language, OR
+        least the threshold for that family's language (uniform ≥2 per
+        wyrd-fssn; per-language map preserved for future tuning), OR
     (c) any etymon in the family is cited by 'wiktionary-empirical' AND
         ``include_wiktionary_empirical`` is true (empirical class — wyrd-4hx7
         corpus-mining headwords matched against unaccounted-fragment misses;
@@ -89,6 +104,13 @@ def export_meanings(
         them — without (d) the bundle's user-visible multi-script rendering
         siblings (``<lang>_english_shaped``, ``<lang>_transliteration``)
         have nowhere to land).
+
+    ``rando_min_corroborators`` defaults to 0 — admit every rando-cited
+    family, matching the pre-wyrd-fssn semantic. The knob is a
+    forward-flippable lever: once continued mining gives the bulk of
+    rando lemmas at least one corroborating citation, the operator
+    raises it to 1 to retire the pure-rando tail without touching
+    the code path.
 
     The threshold per language is taken from ``lang_thresholds`` (defaults to
     ``RECOMMENDED_LANG_THRESHOLDS``); languages absent from the map use
@@ -115,6 +137,7 @@ def export_meanings(
         min_witnesses=min_witnesses,
         lang_thresholds=lang_thresholds,
         include_rando=include_rando,
+        rando_min_corroborators=rando_min_corroborators,
         include_wiktionary_empirical=include_wiktionary_empirical,
         include_wave2_enriched=include_wave2_enriched,
     )
@@ -155,6 +178,7 @@ def _collect_families(
     min_witnesses: int,
     lang_thresholds: dict[str, int],
     include_rando: bool,
+    rando_min_corroborators: int = 0,
     include_wiktionary_empirical: bool = True,
     include_wave2_enriched: bool = True,
 ) -> list[dict[str, Any]]:
@@ -179,9 +203,11 @@ def _collect_families(
         lang_thresholds=lang_thresholds,
         min_witnesses=min_witnesses,
         include_rando=include_rando,
+        rando_min_corroborators=rando_min_corroborators,
         include_wiktionary_empirical=include_wiktionary_empirical,
         include_wave2_enriched=include_wave2_enriched,
         root_of=root_of,
+        members_by_root=members_by_root,
     )
     return _iterate_families_with_progress(db, root_ids, members_by_root)
 
@@ -228,9 +254,11 @@ def _select_promoted_root_ids(
     lang_thresholds: dict[str, int],
     min_witnesses: int,
     include_rando: bool,
+    rando_min_corroborators: int = 0,
     include_wiktionary_empirical: bool,
     include_wave2_enriched: bool,
     root_of: Callable[[int], int],
+    members_by_root: dict[int, list[int]] | None = None,
 ) -> list[int]:
     """Promoted root_ids come from four sources:
 
@@ -253,10 +281,29 @@ def _select_promoted_root_ids(
     ):
         promoted.add(row["root_id"])
     if include_rando:
+        rando_root_ids: set[int] = set()
         for row in db.conn.execute(
             "SELECT etymon_id FROM etymon_citation WHERE source_id = 'rando-port'"
         ):
-            promoted.add(root_of(row["etymon_id"]))
+            rando_root_ids.add(root_of(row["etymon_id"]))
+        if rando_min_corroborators <= 0 or members_by_root is None:
+            # wyrd-fssn: default path = current behavior; admit every
+            # rando-cited family regardless of corroboration. Also the
+            # back-compat path for callers that don't supply
+            # ``members_by_root`` — corroboration counting needs the
+            # family rollup, so without it we can't gate per-family.
+            promoted.update(rando_root_ids)
+        else:
+            # wyrd-fssn: per-family corroborator gate. Count distinct
+            # non-rando-port citation sources across every family member,
+            # admit only when count >= rando_min_corroborators. Roll up
+            # at the family level (not per-etymon) so an inflection
+            # child's citation corroborates the lemma head, matching
+            # how ``etymon_consensus`` already rolls.
+            corroborated = _families_with_corroborators(
+                db, rando_root_ids, members_by_root, rando_min_corroborators
+            )
+            promoted.update(corroborated)
     if include_wiktionary_empirical:
         for row in db.conn.execute(
             "SELECT etymon_id FROM etymon_citation WHERE source_id = 'wiktionary-empirical'"
@@ -279,6 +326,58 @@ def _select_promoted_root_ids(
         for row in db.conn.execute("SELECT id FROM etymon WHERE english_shaped IS NOT NULL"):
             promoted.add(root_of(row["id"]))
     return sorted(promoted)
+
+
+def _families_with_corroborators(
+    db: LexiconDB,
+    rando_root_ids: set[int],
+    members_by_root: dict[int, list[int]],
+    min_corroborators: int,
+) -> set[int]:
+    """wyrd-fssn: subset of ``rando_root_ids`` whose family has at least
+    ``min_corroborators`` distinct non-rando-port citation sources
+    (any family member counted, mirroring the ``etymon_consensus``
+    rollup so an inflection child's citation corroborates the lemma
+    head and an OCR-merge loser's citation corroborates the winner).
+
+    The per-family fold runs in Python — same shape as
+    ``_build_family_rollup``. Citations are pulled in chunked
+    ``etymon_id IN (...)`` batches to keep the query selective on
+    just the rando-family member rows; bulk-SELECTing every non-
+    rando citation in the corpus would scan ~80k rows the rollup
+    doesn't need.
+    """
+    member_to_root: dict[int, int] = {}
+    for root_id in rando_root_ids:
+        for member_id in members_by_root.get(root_id, [root_id]):
+            member_to_root[member_id] = root_id
+    if not member_to_root:
+        return set()
+    # Pre-populate every rando root with an empty source set so the
+    # docstring contract holds for ``min_corroborators == 0`` (every
+    # set has ≥ 0 elements → trivially admit all). Without this, a
+    # rando root that turns out to have zero non-rando citations gets
+    # dropped from ``sources_by_root`` and excluded from the result —
+    # contract-violating even though the sole production caller
+    # currently short-circuits before reaching the 0 case.
+    sources_by_root: dict[int, set[str]] = {root_id: set() for root_id in rando_root_ids}
+    member_ids = list(member_to_root)
+    # SQLite's compile-time parameter cap is 999 by default; chunk so
+    # we never approach it regardless of corpus size.
+    chunk_size = 900
+    for start in range(0, len(member_ids), chunk_size):
+        chunk = member_ids[start : start + chunk_size]
+        placeholders = ",".join("?" * len(chunk))
+        for row in db.conn.execute(
+            f"SELECT etymon_id, source_id FROM etymon_citation "
+            f"WHERE source_id != 'rando-port' AND etymon_id IN ({placeholders})",
+            chunk,
+        ):
+            root_id = member_to_root[row["etymon_id"]]
+            sources_by_root[root_id].add(row["source_id"])
+    return {
+        root_id for root_id, sources in sources_by_root.items() if len(sources) >= min_corroborators
+    }
 
 
 def _iterate_families_with_progress(
