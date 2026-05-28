@@ -490,25 +490,25 @@ class NameGenerator:
         self._vector_eligible_cache: dict[tuple, list] = {}
         # Cache per-slot ``(meaning, base_score)`` lists keyed by
         # ``(eligible_cache_key, slot_position, slot_qualifier,
-        # request_signature, era_midpoint, id(priors))``. Base scores
-        # depend only on request + (slot_position, slot_qualifier) +
-        # era_midpoint + priors (which are constant across sub-seeds
-        # in one count=N dispatch); only the cohesion-multiplier +
+        # slot_bucket_key, request_signature, era_midpoint,
+        # id(priors))``. Base scores depend only on request +
+        # (slot_position, slot_qualifier, slot_bucket_key) +
+        # era_midpoint + priors (all constant across sub-seeds in
+        # one count=N dispatch); only the cohesion-multiplier +
         # weighted-sample steps vary per sub-seed. Caching the base
         # scores collapses the O(P) score loop per slot from "every
         # sub-seed" to "once per (request, slot) pair". Per-dispatch
         # the inner dict is fresh; across dispatches the outer cache
         # reuses by request signature so repeated identical requests
-        # hit warm scores. wyrd-izcr widened the inner key from
-        # ``slot_position`` to ``(slot_position, slot_qualifier)``
-        # so a single dispatch can mix ``(pre, None)`` and
-        # ``(pre, "name")`` slots without one shadowing the other.
-        # wyrd-bol9 widened the inner key from (slot_position,
-        # slot_qualifier) to (slot_position, slot_qualifier,
-        # slot_bucket_key) — single-element / multi-element bucket
-        # variants of the same (position, qualifier) now multiply by
-        # different per-bucket empirical frequencies, so they need
-        # distinct cached score lists.
+        # hit warm scores.
+        #
+        # Inner-key history: wyrd-izcr extended ``slot_position`` to
+        # ``(slot_position, slot_qualifier)`` so one dispatch could
+        # mix ``(pre, None)`` and ``(pre, "name")`` slots without
+        # shadowing. wyrd-bol9 added ``slot_bucket_key`` so single-
+        # element and multi-element bucket variants of the same
+        # (position, qualifier) — which multiply by different per-
+        # bucket empirical frequencies — get distinct cached lists.
         self._vector_slot_score_cache: dict[tuple, dict[tuple, list]] = {}
         # Bound the per-slot cache to avoid unbounded growth across a
         # warm Lambda's lifetime. Distinct request signatures grow
@@ -572,15 +572,15 @@ class NameGenerator:
         self.tag_cooccurrence = tag_cooccurrence or {}
         self.tag_marginal = tag_marginal or {}
         # wyrd-bol9: per-bucket empirical-frequency lookup for the
-        # vector path. Pre-fix, vector mode sampled each Meaning with
-        # weight = D36.2 score(lemma) regardless of how often the
-        # underlying USAGE actually appears in this culture's corpus.
-        # That made vector's per-slot pool uniformly-distributed across
-        # culture-attested usages — losing the empirical-frequency
-        # signal proportions mode carries via the per-bucket
-        # proportions tables. Welsh / Irish / Breton names came out
-        # OE-dominated (63-65% vs proportions' 33-34%) because the
-        # OE-heavy attested pool dominated under uniform sampling.
+        # vector path. Pre-fix, vector mode sampled each Meaning by
+        # D36.2 score(lemma) regardless of how often the underlying
+        # USAGE actually appeared in this culture's corpus. The pool
+        # was uniformly distributed across culture-attested usages —
+        # losing the empirical-frequency signal proportions mode
+        # carries via its per-bucket weight tables. Welsh / Irish /
+        # Breton names came out 25-35pp more OE-dominated than
+        # proportions because the OE-heavy attested pool dominated
+        # under uniform sampling.
         #
         # Frequency-weighted pool restoration: each Meaning's vector
         # score is composed with its USAGE's per-bucket frequency
@@ -588,16 +588,8 @@ class NameGenerator:
         # from. Within a usage's Meanings, D36.2 score discriminates;
         # across usages, frequency drives pick-share — matching
         # proportions' per-usage weighted sampling while preserving
-        # vector's per-Meaning composition.
-        #
-        # Bucket-key shape mirrors ``meaning_gen.generators`` exactly:
-        # ``(location, *flags)`` where flags include ``name`` /
-        # ``saint`` (from ``Meaning.key()``) and ``single`` (added by
-        # ``load_parts`` for single-word bucket variants). The vector
-        # dispatch threads the original word_key per slot so single-
-        # word and multi-word bucket variants stay distinct —
-        # proportions samples them separately + the frequency
-        # distributions differ.
+        # vector's per-Meaning composition. Bucket-key shape and the
+        # lookup contract live on ``_build_usage_frequency_by_bucket``.
         self.usage_frequency_by_bucket: dict[
             tuple, dict[str, float]
         ] = self._build_usage_frequency_by_bucket()

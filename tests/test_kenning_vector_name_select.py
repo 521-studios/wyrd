@@ -1091,23 +1091,6 @@ def test_frequency_weighted_pool_distinguishes_single_vs_multi_bucket():
         ("pre", "single"): {"Common-": 0.0, "Rare-": 1.0}, # single: rare only
     }
     # Multi-element-word slot → ("pre",) bucket → Common- only.
-    multi_picks = {
-        type(picks[0]).__qualname__
-        for seed in range(20)
-        if (
-            picks := select_via_vector_scoring(
-                random.Random(seed),
-                db,
-                structure=["pre"],
-                request=_request(),
-                priors=EmpiricalPriors(),
-                slot_bucket_keys=[("pre",)],
-                usage_frequency_by_bucket=usage_frequency_by_bucket,
-            )
-        )
-    }
-    # Should only ever pick Common- (Meaning class identity gives
-    # nothing; check by reference).
     multi_meanings = set()
     for seed in range(20):
         picks = select_via_vector_scoring(
@@ -1140,3 +1123,103 @@ def test_frequency_weighted_pool_distinguishes_single_vs_multi_bucket():
     assert single_meanings == {rare}, (
         f"single-element bucket should admit Rare- only: {single_meanings}"
     )
+
+
+def test_frequency_weighted_pool_admits_zero_score_usages_uniformly_within():
+    """wyrd-bol9: when every Meaning of a usage scores 0 (untagged-
+    only usages, common in Celtic corpora where Celtic morphemes
+    haven't been tag-enriched), the usage stays pickable — frequency
+    distributes uniformly across the usage's Meanings rather than
+    being filtered out. Without this fallback, vector mode would
+    silently drop ~30pp of Celtic content vs proportions for Welsh /
+    Irish / Breton (was empirically the dominant remaining gap in
+    the wyrd-bol9 pre-merge validation)."""
+    untagged_pre = Meaning(
+        usage="Quiet-",
+        tags=[],  # no tags → sem_score 0 against any request
+        meanings=[],
+        sources=[],
+        phonological_vector=None,
+    )
+    untagged_post = Meaning(
+        usage="-quiet",
+        tags=[],
+        meanings=[],
+        sources=[],
+        phonological_vector=None,
+    )
+    db = {"Quiet-": [untagged_pre], "-quiet": [untagged_post]}
+    usage_frequency_by_bucket = {
+        ("pre",): {"Quiet-": 5.0},
+        ("post",): {"-quiet": 5.0},
+    }
+    # Pre-fix the usage would have been filtered (all scores 0 →
+    # score_sum 0 → continue), producing an empty pool and failing
+    # the pick. Post-fix the usage is admitted via frequency.
+    pre_picked = 0
+    post_picked = 0
+    for seed in range(20):
+        picks = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["pre", "post"],
+            request=_request(),
+            priors=EmpiricalPriors(),
+            slot_bucket_keys=[("pre",), ("post",)],
+            usage_frequency_by_bucket=usage_frequency_by_bucket,
+        )
+        if picks:
+            assert picks[0] is untagged_pre
+            assert picks[1] is untagged_post
+            pre_picked += 1
+            post_picked += 1
+    assert pre_picked == 20
+    assert post_picked == 20
+
+
+def test_frequency_weighted_pool_zero_score_fallback_within_usage_is_uniform():
+    """When all Meanings of a usage tie at score 0, freq distributes
+    uniformly across them (rather than concentrating on one
+    arbitrarily). The picked Meaning identity within usage doesn't
+    affect lang-mix output downstream — NewName resolves the full
+    Meaning list per usage — but the within-usage distribution
+    should be even so a downstream consumer relying on the picked
+    Meaning identity doesn't see a deterministic bias."""
+    untagged_a = Meaning(
+        usage="Quiet-",
+        tags=[],
+        meanings=[],
+        sources=[],
+        phonological_vector=None,
+    )
+    untagged_b = Meaning(
+        usage="Quiet-",
+        tags=[],
+        meanings=[],
+        sources=[],
+        phonological_vector=None,
+    )
+    db = {"Quiet-": [untagged_a, untagged_b]}
+    usage_frequency_by_bucket = {("pre",): {"Quiet-": 5.0}}
+    a_wins = 0
+    b_wins = 0
+    for seed in range(200):
+        picks = select_via_vector_scoring(
+            random.Random(seed),
+            db,
+            structure=["pre"],
+            request=_request(),
+            priors=EmpiricalPriors(),
+            slot_bucket_keys=[("pre",)],
+            usage_frequency_by_bucket=usage_frequency_by_bucket,
+        )
+        if not picks:
+            continue
+        if picks[0] is untagged_a:
+            a_wins += 1
+        elif picks[0] is untagged_b:
+            b_wins += 1
+    # Both reachable + roughly balanced (binomial slop OK).
+    assert a_wins > 60
+    assert b_wins > 60
+    assert a_wins + b_wins == 200

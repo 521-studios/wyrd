@@ -429,41 +429,83 @@ def build_slot_base_scores(
             continue
         eligible_by_usage.setdefault(m.usage, []).append((m, bs))
 
-    out: list[tuple[Meaning, float]] = []
     if slot_usage_frequency is None:
-        # No frequency layer — preserve pre-bol9 unweighted-pool
-        # behavior: only Meanings with strictly positive scores pass
-        # (``weighted_choice`` skips weight 0 anyway, but the explicit
-        # filter keeps the diagnostic cleaner). Sub-seeds in count>1
-        # dispatches reuse this list via slot_base_scores cache.
-        for items in eligible_by_usage.values():
-            for m, s in items:
-                if s > 0:
-                    out.append((m, s))
-        return out
+        return _emit_unweighted(eligible_by_usage)
+    return _apply_per_usage_frequency(eligible_by_usage, slot_usage_frequency)
 
+
+def _resolve_slot_usage_frequency(
+    usage_frequency_by_bucket: dict[tuple, dict[str, float]] | None,
+    slot_bucket_key: tuple | None,
+) -> dict[str, float] | None:
+    """Three-state lookup for the wyrd-bol9 frequency layer:
+
+      * ``usage_frequency_by_bucket is None`` — caller opted out of
+        frequency weighting (legacy / non-NameGenerator callers).
+        Returns ``None`` so :func:`build_slot_base_scores` falls
+        back to its pre-bol9 unweighted-pool behavior.
+      * map present + bucket key present — returns the bucket's
+        per-usage frequency dict for this slot.
+      * map present + bucket key MISSING (or no slot bucket key
+        supplied) — returns ``{}`` so every Meaning looks up to 0
+        and is filtered. Matches proportions: a bucket with no rows
+        is unreachable. NOT a fall-through to the ``None`` branch.
+    """
+    if usage_frequency_by_bucket is None:
+        return None
+    if slot_bucket_key is None:
+        return {}
+    return usage_frequency_by_bucket.get(slot_bucket_key, {})
+
+
+def _emit_unweighted(
+    eligible_by_usage: dict[str, list[tuple[Meaning, float]]],
+) -> list[tuple[Meaning, float]]:
+    """Flatten the per-usage-grouped pool back to a flat
+    ``(meaning, score)`` list, dropping strictly-zero scores
+    (matches pre-bol9 behavior for callers that opted out of the
+    frequency layer). ``weighted_choice`` skips weight 0 anyway, but
+    the explicit filter keeps the diagnostic cleaner."""
+    out: list[tuple[Meaning, float]] = []
+    for items in eligible_by_usage.values():
+        for m, s in items:
+            if s > 0:
+                out.append((m, s))
+    return out
+
+
+def _apply_per_usage_frequency(
+    eligible_by_usage: dict[str, list[tuple[Meaning, float]]],
+    slot_usage_frequency: dict[str, float],
+) -> list[tuple[Meaning, float]]:
+    """Compose the bucket's per-usage empirical frequency with each
+    Meaning's vector score (wyrd-bol9 frequency-weighted pool).
+
+    Per-usage normalization: each Meaning's weight is
+    ``freq[usage] × (score[meaning] / score_sum[usage])``. Cross-
+    usage weights sum to ``freq[usage]`` (matches proportions'
+    per-usage weighted sampling); within-usage relative weight
+    follows the D36.2 score ratio (preserves per-Meaning
+    discrimination).
+
+    When all surviving Meanings of a usage tie at score 0 (untagged-
+    only usages, common in Celtic corpora), distribute ``freq``
+    uniformly within the usage so the usage stays pickable. The
+    specific Meaning picked doesn't affect lang-mix output —
+    ``NewName`` resolves the full Meaning list per usage downstream
+    regardless of which Meaning was picked.
+    """
+    out: list[tuple[Meaning, float]] = []
     for usage, items in eligible_by_usage.items():
         freq = slot_usage_frequency.get(usage, 0.0)
         if freq <= 0:
             continue
         score_sum = sum(s for _, s in items)
         if score_sum > 0:
-            # Per-usage normalization: each Meaning's weight is
-            # freq[usage] × (score[meaning] / score_sum[usage]).
-            # Within-usage relative ordering = D36.2 score ratio
-            # (preserves per-Meaning discrimination); cross-usage
-            # weights sum to freq[usage] (matches proportions'
-            # per-usage weighted sampling).
             for m, s in items:
                 if s > 0:
                     out.append((m, freq * s / score_sum))
         else:
-            # All surviving Meanings tied at 0. Usage admitted via
-            # frequency; distribute uniformly within usage so the
-            # picked Meaning is well-defined (NewName resolves the
-            # full Meaning list per usage downstream regardless of
-            # which specific Meaning was picked, so the uniform
-            # within-usage choice doesn't affect lang-mix output).
             per_meaning = freq / len(items)
             for m, _ in items:
                 out.append((m, per_meaning))
@@ -575,11 +617,14 @@ def select_via_vector_scoring(
         # picks. When the caller doesn't supply slot_bucket_keys
         # (legacy / non-NameGenerator callers), bucket_key is None
         # and the 3-tuple collapses to the prior 2-tuple semantics
-        # at the trailing None slot.
+        # at the trailing None slot. Mirrors the slot_qualifiers
+        # lockstep assumption above — sole caller (select_via_vector)
+        # builds slot_bucket_keys in the same loop that builds
+        # candidate_positions, so a length mismatch is a programming
+        # error that should surface as IndexError rather than
+        # silently coerce to None.
         slot_bucket_key = (
-            slot_bucket_keys[slot_index]
-            if slot_bucket_keys is not None and slot_index < len(slot_bucket_keys)
-            else None
+            slot_bucket_keys[slot_index] if slot_bucket_keys is not None else None
         )
         cache_key = (slot_position, slot_qualifier, slot_bucket_key)
 
@@ -590,35 +635,6 @@ def select_via_vector_scoring(
         if slot_base_scores is not None and cache_key in slot_base_scores:
             base_scored = slot_base_scores[cache_key]
         else:
-            # wyrd-bol9: lift per-bucket empirical-frequency lookup
-            # before scoring so the cache key sees the frequency-
-            # weighted values. The per-NameGenerator frequency map
-            # is constant across sub-seeds in one dispatch, so
-            # caching multiplied scores stays safe.
-            #
-            # Three-state contract for the frequency layer:
-            #   * ``usage_frequency_by_bucket is None`` — caller
-            #     opted out of frequency weighting entirely (legacy /
-            #     non-NameGenerator callers). Pre-bol9 unweighted-pool
-            #     behavior. Pass ``None`` downstream.
-            #   * map present + bucket key present — apply the
-            #     bucket's per-usage frequencies as multipliers.
-            #   * map present + bucket key MISSING (or no bucket key
-            #     supplied for this slot) — caller has frequency data
-            #     but no entries for this slot's bucket shape. Pass
-            #     an empty dict so every Meaning looks up to 0 and is
-            #     filtered (matches proportions: a bucket with no
-            #     rows is unreachable). NOT a fall-through to the
-            #     None branch.
-            slot_usage_frequency: dict[str, float] | None
-            if usage_frequency_by_bucket is None:
-                slot_usage_frequency = None
-            elif slot_bucket_key is None:
-                slot_usage_frequency = {}
-            else:
-                slot_usage_frequency = usage_frequency_by_bucket.get(
-                    slot_bucket_key, {}
-                )
             base_scored = build_slot_base_scores(
                 non_position_eligible,
                 slot_position=slot_position,
@@ -626,7 +642,9 @@ def select_via_vector_scoring(
                 priors=priors,
                 era_midpoint=era_midpoint,
                 slot_qualifier=slot_qualifier,
-                slot_usage_frequency=slot_usage_frequency,
+                slot_usage_frequency=_resolve_slot_usage_frequency(
+                    usage_frequency_by_bucket, slot_bucket_key
+                ),
             )
             if slot_base_scores is not None:
                 slot_base_scores[cache_key] = base_scored
