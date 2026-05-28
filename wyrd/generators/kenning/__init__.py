@@ -203,6 +203,80 @@ def _load_norman_manorial_families() -> tuple[str, ...]:
         return tuple(json.load(f))
 
 
+@lru_cache(maxsize=1)
+def _load_saint_personal_names() -> tuple[dict[str, str], ...]:
+    """Curated tuple of saint / personal-name entries used to flesh out
+    the empty-gloss morphemes the L3 mining pipeline leaves bare
+    (wyrd-z5s8).
+
+    Each entry has ``name`` (canonical form), ``language_field``
+    (bundle slot — old_english for OE saints / Anglo-Saxon names,
+    old_french for Norman-introduced saints + later French
+    dedications), and ``gloss`` (a one-line provenance string the
+    explainer surfaces in place of an empty meaning array).
+
+    Personal names show up in two ways in English toponymy: as saint
+    dedications (St Botolph's → Boston; St Giles → Gileston) and as
+    Anglo-Saxon personal names embedded via the ``-ing`` patronymic
+    (Beorma's → Birmingham). The current list focuses on saints, where
+    the modern surface remains transparent (Giles, Botolph, Edmund).
+    Anglo-Saxon personal names embedded in -ingaham toponyms are a
+    future enrichment (wyrd-frpd-adjacent ticket).
+    """
+    with _data_path("saint_personal_names.json").open() as f:
+        return tuple(json.load(f))
+
+
+def _saint_personal_name_subjects() -> list[dict[str, Any]]:
+    """Synthesize meaning-db subjects for the curated saint /
+    personal-name list (wyrd-z5s8). Mirrors ``_norman_manorial_subjects``:
+    each entry becomes a Meaning the matcher can resolve when the
+    explainer is fed a toponym carrying the saint's name. Pre-fix the
+    morpheme either landed in the bundle with empty gloss or didn't
+    surface at all, so the explainer fell through to whatever
+    shorter / lower-precision match the trie found ('Gileston' →
+    'Gil + e + ston' picking Welsh ``gil`` 'splendid' over the actual
+    Saint Giles).
+
+    The synthesized subject carries ``personal-name``, ``saint``, and
+    ``religious`` tags so the explainer / SPA can surface the
+    provenance, plus ``modifier_type='Religious'`` to fit the existing
+    taxonomy (matches the ``church`` / ``abbey`` / ``cross`` /
+    ``minster`` cohort).
+    """
+    saints = _load_saint_personal_names()
+    subjects: list[dict[str, Any]] = []
+    for entry in saints:
+        name = entry["name"]
+        # Last whitespace-split token, mirroring the manorial pattern
+        # — keeps multi-word names (none today, but defensive against
+        # future "Mary Magdalene" style entries) on the surname token.
+        token = name.split()[-1]
+        # wyrd-z5s8: emit BOTH pre-position (``Giles-``) and post-
+        # position (``Giles``) variants so saints match at both ends
+        # of toponym compounds. Pre handles the compound-prefix case
+        # (Gileston = Giles + ton, Edmondton = Edmund + ton, Petersfield
+        # = Peter's-field), post handles the dedication-suffix case
+        # (Bury St Edmunds, St Giles). Inner (``-Giles-``) is omitted
+        # — saint names embedded INSIDE a word are vanishingly rare in
+        # English toponymy.
+        for surface_usage in (f"{token}-", token):
+            subjects.append(
+                {
+                    "meaning": [entry["gloss"]],
+                    "modifier_tags": ["personal-name", "saint", "religious"],
+                    "modifier_type": "Religious",
+                    "words": [
+                        {
+                            "modern_usage": surface_usage,
+                            entry["language_field"]: [token.lower()],
+                        }
+                    ],
+                }
+            )
+    return subjects
+
+
 def _norman_manorial_subjects() -> list[dict[str, Any]]:
     """Synthesize meaning-db subjects for the Norman manorial families
     (wyrd-8s71). Generation appends the family name as a post-base
@@ -302,16 +376,18 @@ def _load_meanings():
     with _data_path("irish_anglicizations.json").open() as f:
         sidecar = json.load(f)
     manorial = _norman_manorial_subjects()
+    saints = _saint_personal_name_subjects()
     # Build a fresh subjects list with the sidecars folded in —
     # load_meanings only reads ``subjects`` from the dict, and passing
     # a fresh dict avoids mutating the cached _runtime_db_bundle_dict()
     # return value (which feeds the sibling loaders downstream). The
-    # two sidecars (irish_anglicizations + Norman manorial families)
-    # stay as JSON because they're runtime-only convenience tables
-    # that never went through the L3 mining pipeline.
+    # three sidecars (irish_anglicizations + Norman manorial families
+    # + saint personal names) stay as JSON because they're runtime-only
+    # convenience tables that never went through the L3 mining pipeline.
     subjects = list(data.get("subjects") or [])
     subjects.extend(sidecar)
     subjects.extend(manorial)
+    subjects.extend(saints)
     return load_meanings({"subjects": subjects})
 
 

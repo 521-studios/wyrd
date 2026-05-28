@@ -1,0 +1,127 @@
+[
+  {
+    "name": "Giles",
+    "language_field": "old_french",
+    "gloss": "Saint Giles (Aegidius) — Provençal hermit saint, popular Norman dedication"
+  },
+  {
+    "name": "Botolph",
+    "language_field": "old_english",
+    "gloss": "Saint Botolph — 7th-c. East Anglian abbot, namesake of Boston"
+  },
+  {
+    "name": "Cuthbert",
+    "language_field": "old_english",
+    "gloss": "Saint Cuthbert — Northumbrian bishop, Lindisfarne / Durham dedications"
+  },
+  {
+    "name": "Bede",
+    "language_field": "old_english",
+    "gloss": "Saint Bede — Northumbrian monk, Jarrow / Wearmouth dedications"
+  },
+  {
+    "name": "Aidan",
+    "language_field": "old_english",
+    "gloss": "Saint Aidan — Lindisfarne founder, Irish missionary to Northumbria"
+  },
+  {
+    "name": "Wilfrid",
+    "language_field": "old_english",
+    "gloss": "Saint Wilfrid — 7th-c. Northumbrian bishop, Ripon / Hexham dedications"
+  },
+  {
+    "name": "Werburgh",
+    "language_field": "old_english",
+    "gloss": "Saint Werburgh — Mercian abbess, Chester dedication"
+  },
+  {
+    "name": "Edmund",
+    "language_field": "old_english",
+    "gloss": "Saint Edmund — East Anglian king-martyr (d. 869), Bury St Edmunds"
+  },
+  {
+    "name": "Edward",
+    "language_field": "old_english",
+    "gloss": "Saint Edward the Confessor — late OE king, Westminster patron"
+  },
+  {
+    "name": "Etheldreda",
+    "language_field": "old_english",
+    "gloss": "Saint Etheldreda (Audrey) — 7th-c. East Anglian princess-abbess, Ely founder"
+  },
+  {
+    "name": "Hilda",
+    "language_field": "old_english",
+    "gloss": "Saint Hilda — Whitby founder, presided over Synod of Whitby (664)"
+  },
+  {
+    "name": "Oswald",
+    "language_field": "old_english",
+    "gloss": "Saint Oswald — Northumbrian king-martyr (d. 642), widespread Mercian / Scots dedications"
+  },
+  {
+    "name": "John",
+    "language_field": "old_french",
+    "gloss": "Saint John — Baptist or Evangelist, ubiquitous English dedication"
+  },
+  {
+    "name": "Mary",
+    "language_field": "old_french",
+    "gloss": "Saint Mary the Virgin — most common English ecclesiastical dedication"
+  },
+  {
+    "name": "Peter",
+    "language_field": "old_french",
+    "gloss": "Saint Peter — apostle, second-most-common English dedication"
+  },
+  {
+    "name": "Paul",
+    "language_field": "old_french",
+    "gloss": "Saint Paul — apostle, frequent paired with Peter in dedications"
+  },
+  {
+    "name": "Andrew",
+    "language_field": "old_french",
+    "gloss": "Saint Andrew — apostle, Scottish national patron, common English dedication"
+  },
+  {
+    "name": "Michael",
+    "language_field": "old_french",
+    "gloss": "Saint Michael — archangel, hilltop and high-place dedications"
+  },
+  {
+    "name": "George",
+    "language_field": "old_french",
+    "gloss": "Saint George — patron of England post-Crusades, frequent later dedication"
+  },
+  {
+    "name": "Bartholomew",
+    "language_field": "old_french",
+    "gloss": "Saint Bartholomew — apostle, London Smithfield + scattered dedications"
+  },
+  {
+    "name": "Thomas",
+    "language_field": "old_french",
+    "gloss": "Saint Thomas (Becket) — Canterbury archbishop, popular post-1170 dedication"
+  },
+  {
+    "name": "Margaret",
+    "language_field": "old_french",
+    "gloss": "Saint Margaret of Antioch — virgin-martyr, popular medieval dedication"
+  },
+  {
+    "name": "Augustine",
+    "language_field": "old_french",
+    "gloss": "Saint Augustine of Canterbury — Roman missionary (597), founder of Anglo-Saxon Church"
+  },
+  {
+    "name": "Lawrence",
+    "language_field": "old_french",
+    "gloss": "Saint Lawrence — Roman deacon-martyr, widespread medieval dedication"
+  },
+  {
+    "name": "Nicholas",
+    "language_field": "old_french",
+    "gloss": "Saint Nicholas of Myra — bishop, popular sailor / market dedications"
+  }
+]
