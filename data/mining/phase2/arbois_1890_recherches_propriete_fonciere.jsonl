@@ -13075,3 +13075,5 @@
 {"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Chaponnière (La)", "date_year": null, "region_hint": null, "context": "Chaponnière (La), 611.", "extractor": "gemini:gemini-2.5-flash"}
 {"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "< rermignac", "date_year": null, "region_hint": null, "context": "< rermignac, 24 \\.", "extractor": "gemini:gemini-2.5-flash"}
 {"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Saint-Julien près Cazillac", "date_year": null, "region_hint": "Cazillac", "context": "Saint-Julien près Cazillac, 446.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Catuellatjni", "date_year": null, "region_hint": "Lingones", "context": "Catuellatjni , sujets des Lingones , 29 n. ; — rendus indépendants par Auguste, 39; — 404, 569. Voyez Ca-tuvellauni.", "extractor": "gemini:gemini-2.5-flash"}
+{"source_id": "arbois_1890_recherches_propriete_fonciere", "form": "Caucinoiolum", "date_year": null, "region_hint": null, "context": "Caucinogilo pour Caucinoiolum,", "extractor": "gemini:gemini-2.5-flash"}
