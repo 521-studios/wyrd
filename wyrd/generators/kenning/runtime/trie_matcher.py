@@ -117,6 +117,38 @@ class MorphemeTrie:
     morpheme_count: int = 0
 
 
+# wyrd-m2ym: source-language families whose writing systems use signs
+# that transliterate to single ASCII Latin letters (Egyptian hieroglyph
+# phonograms s/t/n/m/h/j/p/w/z; Akkadian cuneiform u/ī etc.). Single-
+# char transliterations from these languages collide with arbitrary
+# letter positions in English target words, manufacturing phantom
+# attributions like 'Clifts' → 'Clift + s [Egyptian]'. The data is
+# correct upstream (those phonograms ARE single consonants per wave-2
+# wiktextract mining); the runtime trie just can't usefully match
+# transliterations against Latin-script targets.
+#
+# 'sumerian' is a forward-defensive entry — the current bundle
+# emitter (_emit.py) collapses Sumerian (sux) into the 'akkadian'
+# bucket so production Meaning.sources never carries a 'sumerian' key
+# today. Keeping the entry costs nothing and survives a future bundle
+# split that emits Sumerian under its own tag.
+_PHONOGRAM_TRANSLITERATION_LANGS: frozenset[str] = frozenset({"egyptian", "akkadian", "sumerian"})
+
+
+def _is_phonogram_only_collision(meanings: list[Any]) -> bool:
+    """All meanings at this surface have sources EXCLUSIVELY in the
+    phonogram-transliteration languages — no English-family or other
+    Latin-script-target source claims the surface. We keep the surface
+    in the trie whenever at least one Meaning has a non-phonogram
+    source (or when no source info is present at all — empty-sources
+    test fixtures and legacy bundles default to KEEP)."""
+    for m in meanings:
+        sources = getattr(m, "sources", None)
+        if not sources or not sources.keys() <= _PHONOGRAM_TRANSLITERATION_LANGS:
+            return False
+    return True
+
+
 def build_morpheme_trie(meaning_db: dict[str, list[Any]]) -> MorphemeTrie:
     """Build a MorphemeTrie from a meaning_db (the runtime's
     ``dict[usage, list[Meaning]]`` index). Each Meaning's surface form
@@ -126,6 +158,12 @@ def build_morpheme_trie(meaning_db: dict[str, list[Any]]) -> MorphemeTrie:
 
     Empty surface forms are skipped (would otherwise cause empty-edge
     cycles in the segmentation DAG).
+
+    Single-character bare-ASCII-Latin surfaces from phonogram-
+    transliteration languages (Egyptian / Akkadian / Sumerian) are
+    skipped (wyrd-m2ym) — see ``_is_phonogram_only_collision`` for the
+    exact filter. Single-char English suffixes like ``-y`` survive
+    because their Meaning carries an English-family source.
 
     Determinism: iteration order of ``meaning_db.items()`` is
     preserved through to the order of terminals at each accepting
@@ -140,6 +178,13 @@ def build_morpheme_trie(meaning_db: dict[str, list[Any]]) -> MorphemeTrie:
             continue
         surface = usage.lower().replace("-", "")
         if not surface:
+            continue
+        if (
+            len(surface) == 1
+            and surface.isascii()
+            and surface.isalpha()
+            and _is_phonogram_only_collision(meanings)
+        ):
             continue
         node = trie.forward
         for ch in surface:

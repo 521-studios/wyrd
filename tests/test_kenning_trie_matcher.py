@@ -55,6 +55,159 @@ def test_build_trie_skips_empty_surface_form():
     assert decomp[0].usage == "ham"
 
 
+def _egyptian_meaning(usage: str) -> Meaning:
+    """Builds a Meaning whose only source is the egyptian language
+    field — pins the trie's phonogram-transliteration filter."""
+    return Meaning(usage, [], [], {"egyptian": ["X"]})
+
+
+def _english_meaning(usage: str) -> Meaning:
+    """Builds a Meaning with an English-family source so the filter
+    keeps it even at single-char surface (the ``-y`` = 'island' case)."""
+    return Meaning(usage, [], [], {"modern_english": ["y"]})
+
+
+def test_build_trie_skips_single_char_phonogram_only_morphemes():
+    """wyrd-m2ym: single-char ASCII surfaces whose meanings carry
+    EXCLUSIVELY phonogram-transliteration sources (egyptian / akkadian
+    / sumerian) are skipped at trie-build. The Meaning records remain
+    in meaning_db (other consumers — KenningRewind, future explainer-
+    tag inventory — can still see them); only the trie matcher
+    filters. Egyptian ``s`` and Akkadian ``u`` are the canonical
+    collision case."""
+    db = {
+        "s": [_egyptian_meaning("s")],
+        "u": [Meaning("u", [], [], {"akkadian": ["X"]})],
+        "ham": [_meaning("ham")],  # legacy empty-sources fixture — KEEP
+    }
+    trie = build_morpheme_trie(db)
+    # 's' and 'u' filtered; 'ham' kept.
+    assert trie.morpheme_count == 1
+    # The filtered surfaces don't decompose against themselves anymore:
+    # 's' alone returns one decomposition of the raw string (unaccounted).
+    decomp = canonical_decomposition("s", trie)
+    assert decomp == ["s"]
+    # 'ham' still decomposes via the trie.
+    decomp = canonical_decomposition("ham", trie)
+    assert len(decomp) == 1
+    assert getattr(decomp[0], "usage", None) == "ham"
+
+
+def test_build_trie_keeps_single_char_english_morphemes():
+    """wyrd-m2ym (filter symmetry): single-char English suffix
+    morphemes like ``-y`` ('island' / 'district') survive the filter
+    because their Meaning carries an English-family source — the rule
+    fires only when sources are EXCLUSIVELY phonogram-transliteration
+    languages."""
+    db = {
+        "-y": [_english_meaning("-y")],
+        "ham": [_meaning("ham")],
+    }
+    trie = build_morpheme_trie(db)
+    assert trie.morpheme_count == 2
+
+
+def test_build_trie_keeps_multichar_phonogram_only_morphemes():
+    """wyrd-m2ym (filter scope): the filter fires ONLY on single-char
+    surfaces — multi-char phonogram-only morphemes (e.g. Egyptian
+    ``ankh``) pass through unchanged because they don't trigger the
+    collision-with-random-positions problem the filter exists to fix."""
+    db = {
+        "ankh": [Meaning("ankh", [], [], {"egyptian": ["X"]})],
+    }
+    trie = build_morpheme_trie(db)
+    assert trie.morpheme_count == 1
+
+
+@pytest.mark.parametrize(
+    "sources_list, expected",
+    [
+        # Empty meanings list → vacuously True (unreachable from
+        # build_morpheme_trie's gate, but pin the contract).
+        ([], True),
+        # No sources info at all → KEEP (legacy / test fixtures).
+        ([{}], False),
+        # All-Egyptian → SKIP.
+        ([{"egyptian": ["X"]}], True),
+        # All-Akkadian → SKIP.
+        ([{"akkadian": ["X"]}], True),
+        # All-Sumerian (forward-defensive entry) → SKIP.
+        ([{"sumerian": ["X"]}], True),
+        # Mixed phonogram + English → KEEP.
+        ([{"egyptian": ["X"], "modern_english": ["s"]}], False),
+        # Two meanings, one phonogram-only, one mixed → KEEP.
+        ([{"egyptian": ["X"]}, {"egyptian": ["X"], "modern_english": ["s"]}], False),
+        # Two meanings, both phonogram-only → SKIP.
+        ([{"egyptian": ["X"]}, {"akkadian": ["Y"]}], True),
+    ],
+)
+def test_is_phonogram_only_collision_contract(sources_list, expected):
+    """wyrd-m2ym (direct-helper contract): the
+    ``_is_phonogram_only_collision`` helper's full truth table.
+    Documents the contract independent of trie-build coupling so the
+    live-data 'X of Y filtered' figure in the PR body is reproducible
+    from unit tests."""
+    from wyrd.generators.kenning.runtime.trie_matcher import (
+        _is_phonogram_only_collision,
+    )
+
+    meanings = [Meaning("X", [], [], sources) for sources in sources_list]
+    assert _is_phonogram_only_collision(meanings) is expected
+
+
+def test_build_trie_keeps_single_char_non_latin_surfaces():
+    """wyrd-m2ym: single-char NON-ASCII surfaces (Akkadian ī with
+    macron, Sanskrit Devanagari) survive the filter — the
+    ``.isascii()`` guard means non-Latin codepoints don't trigger the
+    skip. Non-Latin surfaces don't collide with English target words
+    so the filter rationale doesn't apply."""
+    db = {
+        "ī": [Meaning("ī", [], [], {"akkadian": ["X"]})],
+        "अ": [Meaning("अ", [], [], {"sanskrit": ["X"]})],
+        "ham": [_meaning("ham")],
+    }
+    trie = build_morpheme_trie(db)
+    assert trie.morpheme_count == 3
+
+
+def test_build_trie_keeps_mixed_source_single_char_morpheme():
+    """wyrd-m2ym (filter precision): when a single-char surface's
+    Meaning carries BOTH a phonogram source AND a non-phonogram source
+    (e.g. an Egyptian phonogram borrowed into English usage), the
+    filter keeps it — the rule is 'pure phonogram only', not
+    'phonogram present'. Avoids dropping legitimate borrowings."""
+    db = {
+        "s": [Meaning("s", [], [], {"egyptian": ["X"], "modern_english": ["s"]})],
+    }
+    trie = build_morpheme_trie(db)
+    assert trie.morpheme_count == 1
+
+
+def test_canonical_decomposition_clifts_no_phantom_phonogram_attribution():
+    """wyrd-m2ym end-to-end: the user-reported regression — ``Clifts``
+    decomposed as ``Clift + s`` where the ``s`` was a phantom Egyptian
+    phonogram. Post-fix the canonical parse is ``Clift`` + unaccounted
+    ``s`` (the actual English plural marker, which the explainer
+    leaves unattributed rather than over-attributing to a phonogram
+    transliteration)."""
+    db = {
+        # 'Clift-' as a pre-position morpheme so it matches at word
+        # start; mirrors how the real bundle stores word-initial
+        # morphemes like 'Bridg-'.
+        "Clift-": [_meaning("Clift-")],
+        "s": [_egyptian_meaning("s")],  # would have collided pre-fix
+    }
+    trie = build_morpheme_trie(db)
+    decomp = canonical_decomposition("Clifts", trie)
+    usages = [getattr(e, "usage", e) for e in decomp]
+    assert usages == ["Clift-", "s"]
+    # The trailing 's' must surface as raw string (unaccounted), NOT
+    # as the Egyptian Meaning that ended up here pre-fix.
+    assert not isinstance(decomp[-1], Meaning), (
+        f"trailing 's' must surface as unaccounted string, not a Meaning; got {decomp[-1]!r}"
+    )
+
+
 # --- all_decompositions: single-path matches -------------------------------
 
 
