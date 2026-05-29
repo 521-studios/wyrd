@@ -71,3 +71,25 @@ report.txt · stats.txt · enrichment_status.txt · era_coverage.txt ·
 language_report.{md,json} · empirical_priors.json · rando_port_readiness.txt ·
 meanings_after.json (101 MB) ·
 drift_{english,scottish,welsh,irish,breton}.{md,json} · rebuild.log.
+
+## ✅ wyrd-36ez semantic audit — de-pollution VERIFIED (2026-05-29)
+
+Re-ran `audit-semantic-coherence` on the cleaned bundle (mxbai-embed-large @
+localhost, 24,557 subjects). Output: `audit/cross-sibling-suspects.csv` +
+`audit/intra-entry-suspects.csv` (top 200 each).
+
+**Result: every top suspect is a LEGITIMATE homonym, not pollution** — the
+exact wyrd-smtc success condition ("once clean, the audit surfaces only real
+homonyms hiding as polysemy"):
+
+- cross-sibling: `sea` (modern-english "salt water" vs celtic "yes"-copula),
+  `ham` (modern-english "pasture" vs old_french "Homs/village").
+- intra-entry: `ric` ("stream" vs "king"), `wer` ("weir" vs "man"), `gear`
+  ("weir" vs "year"), `mag` ("maiden" vs "kinsman"), `Gip` ("given name" vs
+  "broad"), `rigg` ("stormy wind" vs "ridge").
+
+ZERO "alternative form of X" / "plural of Y" / function-word entries in the
+top suspects — the POS filter (#378 wyrd-33cv) + cleanup (−12,410) + the
+redirect/derivative filter (a106) removed the noise the epic measured. The
+remaining suspects are real homonyms for hand-resolution under wyrd-sfdj
+(semantic-coherence split tool), NOT pollution. **wyrd-smtc closed.**

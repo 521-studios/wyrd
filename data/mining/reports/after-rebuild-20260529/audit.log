@@ -1,0 +1,55 @@
+Loaded 9 known-polysemy entries from data/audit/known_polysemy.jsonl (filtered out of intra-entry-suspects)
+Loaded 58 known-cluster-acceptable entries from data/audit/known_polysemy.jsonl (filtered out of cross-sibling-suspects)
+Loading data/mining/reports/after-rebuild-20260529/meanings_after.json...
+  24557 subjects
+  9423 audit entities (subject × word)
+Embedding 9423 entity gloss lists via mxbai-embed-large @ http://localhost:11434...
+  [64/9423]  10.5 entities/s
+  [704/9423]  17.4 entities/s
+  [1344/9423]  18.1 entities/s
+  [1984/9423]  18.3 entities/s
+=== wyrd-36ez audit RE-RUN (post-crash) 06:31UTC ===
+Loaded 9 known-polysemy entries from data/audit/known_polysemy.jsonl (filtered out of intra-entry-suspects)
+Loaded 58 known-cluster-acceptable entries from data/audit/known_polysemy.jsonl (filtered out of cross-sibling-suspects)
+Loading data/mining/reports/after-rebuild-20260529/meanings_after.json...
+  24557 subjects
+  9423 audit entities (subject × word)
+Embedding 9423 entity gloss lists via mxbai-embed-large @ http://localhost:11434...
+  [64/9423]  10.6 entities/s
+  [704/9423]  17.5 entities/s
+  [1344/9423]  18.2 entities/s
+  [1984/9423]  18.4 entities/s
+  [2624/9423]  18.8 entities/s
+  [3264/9423]  19.3 entities/s
+  [3904/9423]  19.6 entities/s
+  [4544/9423]  19.9 entities/s
+  [5184/9423]  20.1 entities/s
+  [5824/9423]  20.2 entities/s
+  [6464/9423]  20.4 entities/s
+  [7104/9423]  20.6 entities/s
+  [7744/9423]  20.6 entities/s
+  [8384/9423]  20.6 entities/s
+  [9024/9423]  20.6 entities/s
+  done in 457.1s (20.6 entities/s)
+1144 multi-sibling buckets (out of 7932 total)
+wrote 200 suspects to data/mining/reports/after-rebuild-20260529/audit/cross-sibling-suspects.csv (of 2577 total across 1144 multi-sibling buckets; 58 filtered as known cluster-acceptable)
+Embedding per-gloss vectors for 2171 multi-gloss entities...
+  [64/7290]  21.5 glosses/s
+  [704/7290]  20.8 glosses/s
+  [1344/7290]  22.3 glosses/s
+  [1984/7290]  22.3 glosses/s
+  [2624/7290]  22.3 glosses/s
+  [3264/7290]  22.3 glosses/s
+  [3904/7290]  22.8 glosses/s
+  [4544/7290]  23.0 glosses/s
+  [5184/7290]  23.4 glosses/s
+  [5824/7290]  23.7 glosses/s
+  [6464/7290]  23.7 glosses/s
+  [7104/7290]  23.7 glosses/s
+  done in 307.7s
+wrote 200 suspects to data/mining/reports/after-rebuild-20260529/audit/intra-entry-suspects.csv (of 2162 multi-gloss entries; 9 filtered as known polysemy)
+
+Review decision matrix:
+  intra low + has_other_lemmas=True   → polysemy within already-split homonym; LEAVE
+  intra low + has_other_lemmas=False  → likely missing homonym; SPLIT
+  cross low + has_other_lemmas any    → likely cluster pollution; REVIEW

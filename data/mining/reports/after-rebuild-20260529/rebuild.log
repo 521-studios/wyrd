@@ -5865,3 +5865,4 @@ drift-report (culture=breton, count=1000, seed=0, priors=yes)...
   wrote: data/mining/reports/after-rebuild-20260529/drift_breton.json
 drift breton json: 0
 === after-reports done 06:08UTC ===
+=== wyrd-36ez semantic-coherence audit on cleaned bundle 06:23UTC ===

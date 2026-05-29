@@ -1,0 +1,201 @@
+modern_usage,subject_idx,source_lang,source_lemma,glosses,n_bucket_mates,avg_cosine_to_mates,min_cosine_to_mate,max_cosine_to_mate,other_bucket_lemmas
+-sea-,184,modern_english,sea,A large body of salt water. | sea,1,0.3406,0.3406,0.3406,celtic_mix:sea
+-sea-,4236,celtic_mix,sea,yes (to copula questions),1,0.3406,0.3406,0.3406,modern_english:sea
+-sea,184,modern_english,sea,A large body of salt water. | sea,1,0.3406,0.3406,0.3406,celtic_mix:sea
+-sea,4236,celtic_mix,sea,yes (to copula questions),1,0.3406,0.3406,0.3406,modern_english:sea
+Sea-,184,modern_english,sea,A large body of salt water. | sea,1,0.3406,0.3406,0.3406,celtic_mix:sea
+Sea-,4236,celtic_mix,sea,yes (to copula questions),1,0.3406,0.3406,0.3406,modern_english:sea
+-ham-,407,modern_english,ham,An enclosed pasture.,1,0.3472,0.3472,0.3472,old_french:ham
+-ham-,710,old_french,ham,Homs | village,1,0.3472,0.3472,0.3472,modern_english:ham
+-ham,407,modern_english,ham,An enclosed pasture.,1,0.3472,0.3472,0.3472,old_french:ham
+-ham,710,old_french,ham,Homs | village,1,0.3472,0.3472,0.3472,modern_english:ham
+Ham-,407,modern_english,ham,An enclosed pasture.,1,0.3472,0.3472,0.3472,old_french:ham
+Ham-,710,old_french,ham,Homs | village,1,0.3472,0.3472,0.3472,modern_english:ham
+-lac-,1627,old_french,lac,"body of water, lake",1,0.3563,0.3563,0.3563,celtic_mix:lac
+-lac-,4122,celtic_mix,lac,"weak, feeble",1,0.3563,0.3563,0.3563,old_french:lac
+Lac-,1627,old_french,lac,"body of water, lake",1,0.3563,0.3563,0.3563,celtic_mix:lac
+Lac-,4122,celtic_mix,lac,"weak, feeble",1,0.3563,0.3563,0.3563,old_french:lac
+Bran-,976,modern_english,bran,The ground husk of wheat,2,0.3604,0.3185,0.4024,celtic_mix:bran
+-martin-,794,modern_english,martin,"Many of the various passerine birds of the family Hirundinidae, which also includes swallows, that catch insects whilst flying.",2,0.3634,0.3528,0.3739,modern_english:Martin; old_french:Martin
+-martin,794,modern_english,martin,"Many of the various passerine birds of the family Hirundinidae, which also includes swallows, that catch insects whilst flying.",2,0.3634,0.3528,0.3739,modern_english:Martin; old_french:Martin
+Martin-,794,modern_english,martin,"Many of the various passerine birds of the family Hirundinidae, which also includes swallows, that catch insects whilst flying.",2,0.3634,0.3528,0.3739,modern_english:Martin; old_french:Martin
+-mell-,2030,celtic_mix,mell,"destruction, confusion",1,0.3683,0.3683,0.3683,
+-mell-,3269,celtic_mix,mell,"pleasant, delightful",1,0.3683,0.3683,0.3683,
+-mell,2030,celtic_mix,mell,"destruction, confusion",1,0.3683,0.3683,0.3683,
+-mell,3269,celtic_mix,mell,"pleasant, delightful",1,0.3683,0.3683,0.3683,
+-hen-,2569,modern_english,hen,"hen, chicken",2,0.3717,0.3502,0.3931,celtic_mix:hen
+-hen,2569,modern_english,hen,"hen, chicken",2,0.3717,0.3502,0.3931,celtic_mix:hen
+Hen-,2569,modern_english,hen,"hen, chicken",2,0.3717,0.3502,0.3931,celtic_mix:hen
+Moll-,1182,old_english,Moll,a male given name | barley,1,0.3735,0.3735,0.3735,celtic_mix:moll
+Moll-,2543,celtic_mix,moll,"heap; large amount, large number",1,0.3735,0.3735,0.3735,old_english:Moll
+-sel-,2680,old_scandinavian,sel,"hut on a shieling | hut, shieling | shed on a mountain pasture",3,0.3762,0.3657,0.382,celtic_mix:sel; modern_english:sel; old_french:sel
+-sel,2680,old_scandinavian,sel,"hut on a shieling | hut, shieling | shed on a mountain pasture",3,0.3762,0.3657,0.382,celtic_mix:sel; modern_english:sel; old_french:sel
+Sel-,2680,old_scandinavian,sel,"hut on a shieling | hut, shieling | shed on a mountain pasture",3,0.3762,0.3657,0.382,celtic_mix:sel; modern_english:sel; old_french:sel
+-fille-,321,modern_english,fille,A sufficient amount; the state of satiation.,1,0.379,0.379,0.379,old_french:fille
+-fille-,1997,old_french,fille,daughter (female child),1,0.379,0.379,0.379,modern_english:fille
+Fille-,321,modern_english,fille,A sufficient amount; the state of satiation.,1,0.379,0.379,0.379,old_french:fille
+Fille-,1997,old_french,fille,daughter (female child),1,0.379,0.379,0.379,modern_english:fille
+-lind-,1104,celtic_mix,lind,"a body of water: pool, lake",2,0.386,0.3775,0.3945,old_english:lind; old_scandinavian:lind
+Lind-,1104,celtic_mix,lind,"a body of water: pool, lake",2,0.386,0.3775,0.3945,old_english:lind; old_scandinavian:lind
+-gram,2426,celtic_mix,gram,gram (unit of mass),2,0.3866,0.3596,0.4137,modern_english:gram; old_english:gram
+-hyl-,346,modern_english,hyl,"A unit of mass that is accelerated at a rate of 1 meter per second squared (1 m/s²) by a force of 1 kilogram-force, equivalent to 9.80665 kilograms. | hill",1,0.3906,0.3906,0.3906,
+-hyl-,3005,modern_english,hyl,"mound, bank, hillock",1,0.3906,0.3906,0.3906,
+Mat-,2933,celtic_mix,mat,mat (flat piece of coarse material used for wiping one’s feet or as a decorative or protective floor covering),3,0.3933,0.3455,0.4427,modern_english:mat; old_french:mat
+-bas-,3517,celtic_mix,bas,sea bass,4,0.3964,0.3319,0.445,modern_english:bas; old_french:bas
+Bas-,3517,celtic_mix,bas,sea bass,4,0.3964,0.3319,0.445,modern_english:bas; old_french:bas
+-toll-,3229,celtic_mix,toll,"pierced, leaky",2,0.397,0.3746,0.4194,modern_english:toll; old_english:toll
+-mad-,786,modern_english,mad,"Mad, insane, deranged; not of sound mind.",1,0.3972,0.3972,0.3972,celtic_mix:mad
+-mad-,2410,celtic_mix,mad,good,1,0.3972,0.3972,0.3972,modern_english:mad
+-scot-,911,celtic_mix,Scot,"Scot, Irishman",2,0.3972,0.3909,0.4036,modern_english:scot; old_english:scot
+Scot-,911,celtic_mix,Scot,"Scot, Irishman",2,0.3972,0.3909,0.4036,modern_english:scot; old_english:scot
+-cur-,2578,celtic_mix,cur,"hero, warrior",1,0.3975,0.3975,0.3975,
+-cur-,3261,celtic_mix,cur,"planting, tillage",1,0.3975,0.3975,0.3975,
+-cur,2578,celtic_mix,cur,"hero, warrior",1,0.3975,0.3975,0.3975,
+-cur,3261,celtic_mix,cur,"planting, tillage",1,0.3975,0.3975,0.3975,
+Cur-,2578,celtic_mix,cur,"hero, warrior",1,0.3975,0.3975,0.3975,
+Cur-,3261,celtic_mix,cur,"planting, tillage",1,0.3975,0.3975,0.3975,
+-aiden-,1018,modern_english,aiden,To aid.,1,0.398,0.398,0.398,celtic_mix:Aiden
+-aiden-,1200,celtic_mix,Aiden,a male given name from Old Irish áed (“fire”),1,0.398,0.398,0.398,modern_english:aiden
+-mol-,3536,celtic_mix,mol,shaft of a mill,2,0.3986,0.3757,0.4214,
+Mol-,3536,celtic_mix,mol,shaft of a mill,2,0.3986,0.3757,0.4214,
+-bran-,976,modern_english,bran,The ground husk of wheat,1,0.4024,0.4024,0.4024,celtic_mix:bran
+-bran-,3379,celtic_mix,bran,raven,1,0.4024,0.4024,0.4024,modern_english:bran
+Mell-,3269,celtic_mix,mell,"pleasant, delightful",2,0.4038,0.3683,0.4392,
+-eng-,984,celtic_mix,eng,The name of the Latin script letter Ng/ng.,1,0.4056,0.4056,0.4056,old_scandinavian:eng
+-eng-,2940,old_scandinavian,eng,meadow,1,0.4056,0.4056,0.4056,celtic_mix:eng
+Eng-,984,celtic_mix,eng,The name of the Latin script letter Ng/ng.,1,0.4056,0.4056,0.4056,old_scandinavian:eng
+Eng-,2940,old_scandinavian,eng,meadow,1,0.4056,0.4056,0.4056,celtic_mix:eng
+-sol-,960,modern_english,sol,"The brightest and warmest celestial body, considered to be a planet in the Ptolemic system; the Sun (the center of our solar system).",2,0.4062,0.3452,0.4672,old_english:sol; old_french:sol
+Sol-,960,modern_english,sol,"The brightest and warmest celestial body, considered to be a planet in the Ptolemic system; the Sun (the center of our solar system).",2,0.4062,0.3452,0.4672,old_english:sol; old_french:sol
+-mere-,3001,old_french,mere,mother (female family member),2,0.4062,0.3566,0.4559,modern_english:mere; old_english:mere
+-mere,3001,old_french,mere,mother (female family member),2,0.4062,0.3566,0.4559,modern_english:mere; old_english:mere
+Mere-,3001,old_french,mere,mother (female family member),2,0.4062,0.3566,0.4559,modern_english:mere; old_english:mere
+-egle-,2580,old_english,egle,hideous; loathsome; hateful; horrid; troublesome; grievous; painful,2,0.4062,0.391,0.4213,modern_english:egle; old_french:egle
+Egle-,2580,old_english,egle,hideous; loathsome; hateful; horrid; troublesome; grievous; painful,2,0.4062,0.391,0.4213,modern_english:egle; old_french:egle
+-edda-,1179,old_english,Edda,a male given name,1,0.4067,0.4067,0.4067,old_scandinavian:edda
+-edda-,2447,old_scandinavian,edda,great-grandmother,1,0.4067,0.4067,0.4067,old_english:Edda
+-edda,1179,old_english,Edda,a male given name,1,0.4067,0.4067,0.4067,old_scandinavian:edda
+-edda,2447,old_scandinavian,edda,great-grandmother,1,0.4067,0.4067,0.4067,old_english:Edda
+mor,2992,old_scandinavian,mor,moor | slaughter,1,0.409,0.409,0.409,celtic_mix:mor
+mor,5055,celtic_mix,mor,Salt water | Sea | big | great | sea,1,0.409,0.409,0.409,old_scandinavian:mor
+-les-,2201,modern_english,les,false; lying; deceptive,1,0.4097,0.4097,0.4097,celtic_mix:les
+-les-,2761,celtic_mix,les,lace (light fabric patterned with holes),1,0.4097,0.4097,0.4097,modern_english:les
+-les,2201,modern_english,les,false; lying; deceptive,1,0.4097,0.4097,0.4097,celtic_mix:les
+-les,2761,celtic_mix,les,lace (light fabric patterned with holes),1,0.4097,0.4097,0.4097,modern_english:les
+-cen-,517,old_english,cen,Cena | of Cenas | torch,1,0.4115,0.4115,0.4115,celtic_mix:cen
+-cen-,3513,celtic_mix,cen,"scurf, dandruff",1,0.4115,0.4115,0.4115,old_english:cen
+-hors-,2359,old_french,hors,from; out (of),2,0.4116,0.3849,0.4383,modern_english:hors; old_english:hors
+Hors-,2359,old_french,hors,from; out (of),2,0.4116,0.3849,0.4383,modern_english:hors; old_english:hors
+Mag-,1247,celtic_mix,mag,"a plain, field",1,0.4133,0.4133,0.4133,
+Mag-,2363,celtic_mix,mag,fry (young fish),1,0.4133,0.4133,0.4133,
+-tyn,3852,celtic_mix,tyn,"tight, taut",1,0.4137,0.4137,0.4137,modern_english:tyn
+-tyn,3860,modern_english,tyn,tin (metal),1,0.4137,0.4137,0.4137,celtic_mix:tyn
+Tyn-,3852,celtic_mix,tyn,"tight, taut",1,0.4137,0.4137,0.4137,modern_english:tyn
+Tyn-,3860,modern_english,tyn,tin (metal),1,0.4137,0.4137,0.4137,celtic_mix:tyn
+-ore-,210,old_english,ore,"A mine, place in which ore is dug | bank",2,0.4138,0.4132,0.4144,modern_english:ore; old_french:ore
+-ore,210,old_english,ore,"A mine, place in which ore is dug | bank",2,0.4138,0.4132,0.4144,modern_english:ore; old_french:ore
+Ore-,210,old_english,ore,"A mine, place in which ore is dug | bank",2,0.4138,0.4132,0.4144,modern_english:ore; old_french:ore
+Mari-,1141,celtic_mix,Mari,"a female given name, equivalent to English Mary",1,0.4142,0.4142,0.4142,old_french:mari
+Mari-,2678,old_french,mari,husband,1,0.4142,0.4142,0.4142,celtic_mix:Mari
+-desert,998,modern_english,desert,The situation of deserving something.,1,0.4146,0.4146,0.4146,old_french:desert
+-desert,2023,old_french,desert,desert (desolate terrain),1,0.4146,0.4146,0.4146,modern_english:desert
+for,478,old_english,for,Boar | Hog | Pig | Pig sty,1,0.415,0.415,0.415,celtic_mix:for
+for,2330,celtic_mix,for,"forward, exposed | over, on",1,0.415,0.415,0.415,old_english:for
+-mana-,735,celtic_mix,Mana,Isle of Man (an island of the British Isles),1,0.4154,0.4154,0.4154,celtic_mix:mana
+-mana-,3301,celtic_mix,mana,"portent, sign",1,0.4154,0.4154,0.4154,celtic_mix:Mana
+-mana,735,celtic_mix,Mana,Isle of Man (an island of the British Isles),1,0.4154,0.4154,0.4154,celtic_mix:mana
+-mana,3301,celtic_mix,mana,"portent, sign",1,0.4154,0.4154,0.4154,celtic_mix:Mana
+Mana-,735,celtic_mix,Mana,Isle of Man (an island of the British Isles),1,0.4154,0.4154,0.4154,celtic_mix:mana
+Mana-,3301,celtic_mix,mana,"portent, sign",1,0.4154,0.4154,0.4154,celtic_mix:Mana
+-roc,3383,celtic_mix,roc,ray (fish),1,0.4161,0.4161,0.4161,old_french:roc
+-roc,3446,old_french,roc,rook,1,0.4161,0.4161,0.4161,celtic_mix:roc
+-albe-,1382,old_english,albe,an alb (type of priest vestment),1,0.4174,0.4174,0.4174,old_french:albe
+-albe-,2000,old_french,albe,dawn (sunrise; start of the day),1,0.4174,0.4174,0.4174,old_english:albe
+Albe-,1382,old_english,albe,an alb (type of priest vestment),1,0.4174,0.4174,0.4174,old_french:albe
+Albe-,2000,old_french,albe,dawn (sunrise; start of the day),1,0.4174,0.4174,0.4174,old_english:albe
+-cent-,745,old_english,Cent,Kent (a historic region of Britain),1,0.4208,0.4208,0.4208,old_french:cent
+-cent-,3119,old_french,cent,one hundred,1,0.4208,0.4208,0.4208,old_english:Cent
+-cent,745,old_english,Cent,Kent (a historic region of Britain),1,0.4208,0.4208,0.4208,old_french:cent
+-cent,3119,old_french,cent,one hundred,1,0.4208,0.4208,0.4208,old_english:Cent
+-halt-,767,modern_english,halt,"Limping, lame, crippled.",1,0.4223,0.4223,0.4223,old_french:halt
+-halt-,2586,old_french,halt,high; elevated,1,0.4223,0.4223,0.4223,modern_english:halt
+Halt-,767,modern_english,halt,"Limping, lame, crippled.",1,0.4223,0.4223,0.4223,old_french:halt
+Halt-,2586,old_french,halt,high; elevated,1,0.4223,0.4223,0.4223,modern_english:halt
+Mell-,2030,celtic_mix,mell,"destruction, confusion",2,0.4238,0.3683,0.4792,
+-real-,3386,modern_english,real,"real, true, factual",1,0.4252,0.4252,0.4252,old_french:real
+-real-,3471,old_french,real,royal; alternative form of roial,1,0.4252,0.4252,0.4252,modern_english:real
+-real,3386,modern_english,real,"real, true, factual",1,0.4252,0.4252,0.4252,old_french:real
+-real,3471,old_french,real,royal; alternative form of roial,1,0.4252,0.4252,0.4252,modern_english:real
+-aile-,1841,celtic_mix,aile,clamp (pile of agricultural produce such as root vegetables or silage stored under a layer of earth or an airtight sheet),3,0.4253,0.4131,0.4456,old_french:aile
+-aile,1841,celtic_mix,aile,clamp (pile of agricultural produce such as root vegetables or silage stored under a layer of earth or an airtight sheet),3,0.4253,0.4131,0.4456,old_french:aile
+-mire,801,modern_english,mire,Marshy or swampy land; a mire or peat.,1,0.4258,0.4258,0.4258,celtic_mix:mire
+-mire,3359,celtic_mix,mire,"quickness, rapidity",1,0.4258,0.4258,0.4258,modern_english:mire
+-hund-,3119,modern_english,hund,one hundred,1,0.4266,0.4266,0.4266,old_english:hund
+-hund-,4400,old_english,hund,Dog | Hound | dog,1,0.4266,0.4266,0.4266,modern_english:hund
+Hund-,3119,modern_english,hund,one hundred,1,0.4266,0.4266,0.4266,old_english:hund
+Hund-,4400,old_english,hund,Dog | Hound | dog,1,0.4266,0.4266,0.4266,modern_english:hund
+-cote-,99,modern_english,cote,"A coat, especially if worn as an undergarment.",1,0.4273,0.4273,0.4273,
+-cote-,110,modern_english,cote,A cottage or hut.,1,0.4273,0.4273,0.4273,
+-cote,99,modern_english,cote,"A coat, especially if worn as an undergarment.",1,0.4273,0.4273,0.4273,
+-cote,110,modern_english,cote,A cottage or hut.,1,0.4273,0.4273,0.4273,
+Cote-,99,modern_english,cote,"A coat, especially if worn as an undergarment.",1,0.4273,0.4273,0.4273,
+Cote-,110,modern_english,cote,A cottage or hut.,1,0.4273,0.4273,0.4273,
+-dam-,1988,modern_english,dam,dam (structure to block water),2,0.4278,0.4278,0.4278,celtic_mix:dam
+-dam,1988,modern_english,dam,dam (structure to block water),2,0.4278,0.4278,0.4278,celtic_mix:dam
+Dam-,1988,modern_english,dam,dam (structure to block water),2,0.4278,0.4278,0.4278,celtic_mix:dam
+-col-,1757,modern_english,col,"cabbage, kale, colewort",5,0.4283,0.3587,0.4852,celtic_mix:col; old_french:col
+Col-,1757,modern_english,col,"cabbage, kale, colewort",5,0.4283,0.3587,0.4852,celtic_mix:col; old_french:col
+Tan-,3856,celtic_mix,tan,time,2,0.4285,0.4003,0.4568,modern_english:tan; old_french:tan
+-tor,1749,celtic_mix,tor,"bush, shrub; clump, tuft",1,0.4294,0.4294,0.4294,old_french:tor
+-tor,4000,old_french,tor,tower,1,0.4294,0.4294,0.4294,celtic_mix:tor
+-ore-,3088,modern_english,ore,oar (lever for propelling a boat),2,0.4302,0.4132,0.4472,old_english:ore; old_french:ore
+-ore,3088,modern_english,ore,oar (lever for propelling a boat),2,0.4302,0.4132,0.4472,old_english:ore; old_french:ore
+Ore-,3088,modern_english,ore,oar (lever for propelling a boat),2,0.4302,0.4132,0.4472,old_english:ore; old_french:ore
+-tit-,1014,celtic_mix,Tit,Titus,1,0.4302,0.4302,0.4302,celtic_mix:tit
+-tit-,3899,celtic_mix,tit,"to fall, drop, come down",1,0.4302,0.4302,0.4302,celtic_mix:Tit
+Tit-,1014,celtic_mix,Tit,Titus,1,0.4302,0.4302,0.4302,celtic_mix:tit
+Tit-,3899,celtic_mix,tit,"to fall, drop, come down",1,0.4302,0.4302,0.4302,celtic_mix:Tit
+-ros-,262,celtic_mix,ros,A promontory.,2,0.4304,0.429,0.4318,
+-ros,262,celtic_mix,ros,A promontory.,2,0.4304,0.429,0.4318,
+Ros-,262,celtic_mix,ros,A promontory.,2,0.4304,0.429,0.4318,
+-ore-,3078,old_french,ore,now,2,0.4308,0.4144,0.4472,modern_english:ore; old_english:ore
+-ore,3078,old_french,ore,now,2,0.4308,0.4144,0.4472,modern_english:ore; old_english:ore
+Ore-,3078,old_french,ore,now,2,0.4308,0.4144,0.4472,modern_english:ore; old_english:ore
+-grind-,975,modern_english,grind,The function of chewing.,1,0.4312,0.4312,0.4312,old_scandinavian:grind
+-grind-,1148,old_scandinavian,grind,a gate made of spars or bars,1,0.4312,0.4312,0.4312,modern_english:grind
+Grind-,975,modern_english,grind,The function of chewing.,1,0.4312,0.4312,0.4312,old_scandinavian:grind
+Grind-,1148,old_scandinavian,grind,a gate made of spars or bars,1,0.4312,0.4312,0.4312,modern_english:grind
+-pan-,854,modern_english,Pan,Pan (Greek god),1,0.4321,0.4321,0.4321,old_french:pan
+-pan-,1586,old_french,pan,bit; piece; part,1,0.4321,0.4321,0.4321,modern_english:Pan
+Pan-,854,modern_english,Pan,Pan (Greek god),1,0.4321,0.4321,0.4321,old_french:pan
+Pan-,1586,old_french,pan,bit; piece; part,1,0.4321,0.4321,0.4321,modern_english:Pan
+-sol-,1361,old_french,sol,alone,2,0.4326,0.3452,0.52,modern_english:sol; old_english:sol
+Sol-,1361,old_french,sol,alone,2,0.4326,0.3452,0.52,modern_english:sol; old_english:sol
+Cop-,3668,celtic_mix,cop,spider,1,0.4327,0.4327,0.4327,modern_english:cop
+Cop-,3750,modern_english,cop,summit (of a mountain or hill),1,0.4327,0.4327,0.4327,celtic_mix:cop
+-sien,3310,old_english,sien,"power of sight, vision",1,0.433,0.433,0.433,old_french:sien
+-sien,3833,old_french,sien,third-person singular possessive pronoun,1,0.433,0.433,0.433,old_english:sien
+-ben-,1788,celtic_mix,ben,"cart, wagon",2,0.4334,0.418,0.4488,old_scandinavian:ben
+Ben-,1788,celtic_mix,ben,"cart, wagon",2,0.4334,0.418,0.4488,old_scandinavian:ben
+-mart-,795,celtic_mix,Mart,March,1,0.4335,0.4335,0.4335,celtic_mix:mart
+-mart-,2557,celtic_mix,mart,heifer or bullock carcass,1,0.4335,0.4335,0.4335,celtic_mix:Mart
+-mart,795,celtic_mix,Mart,March,1,0.4335,0.4335,0.4335,celtic_mix:mart
+-mart,2557,celtic_mix,mart,heifer or bullock carcass,1,0.4335,0.4335,0.4335,celtic_mix:Mart
+Mart-,795,celtic_mix,Mart,March,1,0.4335,0.4335,0.4335,celtic_mix:mart
+Mart-,2557,celtic_mix,mart,heifer or bullock carcass,1,0.4335,0.4335,0.4335,celtic_mix:Mart
+-scot-,3195,modern_english,scot,payment,2,0.4337,0.3909,0.4765,celtic_mix:Scot; old_english:scot
+Scot-,3195,modern_english,scot,payment,2,0.4337,0.3909,0.4765,celtic_mix:Scot; old_english:scot
+-eli-,1179,old_english,Eli,a male given name,1,0.4342,0.4342,0.4342,celtic_mix:eli
+-eli-,3108,celtic_mix,eli,"ointment, balm, lotion",1,0.4342,0.4342,0.4342,old_english:Eli
+Eli-,1179,old_english,Eli,a male given name,1,0.4342,0.4342,0.4342,celtic_mix:eli
+Eli-,3108,celtic_mix,eli,"ointment, balm, lotion",1,0.4342,0.4342,0.4342,old_english:Eli
+-mol-,3887,celtic_mix,mol,"to commend, nominate, propose, praise, recommend, suggest",2,0.4351,0.3757,0.4944,
+Mol-,3887,celtic_mix,mol,"to commend, nominate, propose, praise, recommend, suggest",2,0.4351,0.3757,0.4944,
+-ing,53,old_english,-ing,"""at the"" | ""of the"" | Dairy farm | Herd farm | Possessive indication | Settlement | a water-meadow | descendants | descendants of | dwellers in | enclosure; place characterized by | family, descendants | grassland | having to do with | home of the sons of | meadow | meadow, pasture | meadow, water meadow, ing | of, belonging to | patronymic suffix | people | people of | place of the sons of | place of, associated with | son of | sons | sons (or family, or tribe) | sons of | sons of, home of | sons of, tribe of | sons of; or water-meadow | sons or family | stream | water-meadow",1,0.4354,0.4354,0.4354,celtic_mix:ing
+-ing,1400,celtic_mix,ing,"anguish, angst",1,0.4354,0.4354,0.4354,old_english:-ing
+-wer-,1225,modern_english,wer,"a man, a husband",1,0.4357,0.4357,0.4357,old_english:wer
+-wer-,4616,old_english,wer,Weir (fishing enclosure) | man,1,0.4357,0.4357,0.4357,modern_english:wer
+-wer,1225,modern_english,wer,"a man, a husband",1,0.4357,0.4357,0.4357,old_english:wer
+-wer,4616,old_english,wer,Weir (fishing enclosure) | man,1,0.4357,0.4357,0.4357,modern_english:wer
+Wer-,1225,modern_english,wer,"a man, a husband",1,0.4357,0.4357,0.4357,old_english:wer
+Wer-,4616,old_english,wer,Weir (fishing enclosure) | man,1,0.4357,0.4357,0.4357,modern_english:wer

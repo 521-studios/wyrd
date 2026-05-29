@@ -1,0 +1,201 @@
+modern_usage,subject_idx,source_lang,source_lemma,glosses,n_glosses,avg_intra_pairwise_cosine,min_intra_pairwise_cosine,same_surface_other_lemmas,has_other_lemmas
+Gip-,1222,old_english,Gip,"a male given name. | wide, spacious, broad",2,0.3665,0.3665,,False
+cyrtla,553,old_english,cyrtla,Cyrtla | man (from his dress),2,0.3749,0.3749,,False
+-rigg-,318,modern_english,rigg,"A strong, stormy wind (now chiefly in the phrase ""Michaelmas riggs""). | ridge",2,0.3754,0.3754,,False
+-rigg,318,modern_english,rigg,"A strong, stormy wind (now chiefly in the phrase ""Michaelmas riggs""). | ridge",2,0.3754,0.3754,,False
+mag,1310,old_english,mag,"a woman, maiden | son, descendant, kinsman",2,0.3778,0.3778,,False
+ric,1711,germanic,ric,"brook, ditch, stream | king, master",2,0.3841,0.3841,,False
+-wer-,4616,old_english,wer,Weir (fishing enclosure) | man,2,0.3885,0.3885,modern_english:wer,True
+-wer,4616,old_english,wer,Weir (fishing enclosure) | man,2,0.3885,0.3885,modern_english:wer,True
+Wer-,4616,old_english,wer,Weir (fishing enclosure) | man,2,0.3885,0.3885,modern_english:wer,True
+-gear-,4617,old_english,gear,Weir (fishing enclosure) | year,2,0.3886,0.3886,,False
+-gear,4617,old_english,gear,Weir (fishing enclosure) | year,2,0.3886,0.3886,,False
+blīþe,2954,old_english,blīþe,"merry, pleasant | river name",2,0.397,0.397,,False
+-tate-,839,modern_english,tate,"Of video games, a vertical mode. | a measure of land (about 60 acres)",2,0.4001,0.4001,,False
+-tate,839,modern_english,tate,"Of video games, a vertical mode. | a measure of land (about 60 acres)",2,0.4001,0.4001,,False
+Tate-,839,modern_english,tate,"Of video games, a vertical mode. | a measure of land (about 60 acres)",2,0.4001,0.4001,,False
+-fallow-,669,modern_english,fallow,Ground ploughed and harrowed but left unseeded for one year. | dull-coloured yellow or yellowish,2,0.4018,0.4018,,False
+Fallow-,669,modern_english,fallow,Ground ploughed and harrowed but left unseeded for one year. | dull-coloured yellow or yellowish,2,0.4018,0.4018,,False
+-clyd-,534,celtic_mix,clyd,"Clydach (a village in Llanelly community, Monmouthshire, Wales) (OS grid ref SO2312). | sheltered",2,0.4041,0.4041,,False
+-clydach,534,celtic_mix,Clydach,"Clydach (a village in Llanelly community, Monmouthshire, Wales) (OS grid ref SO2312). | sheltered",2,0.4041,0.4041,,False
+Clyd-,534,celtic_mix,clyd,"Clydach (a village in Llanelly community, Monmouthshire, Wales) (OS grid ref SO2312). | sheltered",2,0.4041,0.4041,,False
+Clydach-,534,celtic_mix,Clydach,"Clydach (a village in Llanelly community, Monmouthshire, Wales) (OS grid ref SO2312). | sheltered",2,0.4041,0.4041,,False
+-ford-,195,modern_english,ford,"A location where a stream is shallow and the bottom has good footing, making it possible to cross from one side to the other with no bridge, by walking, riding, or driving through the water; a crossing. | ford",2,0.4069,0.4069,old_english:ford,True
+-ford,195,modern_english,ford,"A location where a stream is shallow and the bottom has good footing, making it possible to cross from one side to the other with no bridge, by walking, riding, or driving through the water; a crossing. | ford",2,0.4069,0.4069,old_english:ford,True
+Ford-,195,modern_english,ford,"A location where a stream is shallow and the bottom has good footing, making it possible to cross from one side to the other with no bridge, by walking, riding, or driving through the water; a crossing. | ford",2,0.4069,0.4069,old_english:ford,True
+-low-,919,modern_english,low,"Situated close to, or even below, the ground or another normal reference plane; not high or lofty. | river name",2,0.4103,0.4103,,False
+-low,919,modern_english,low,"Situated close to, or even below, the ground or another normal reference plane; not high or lofty. | river name",2,0.4103,0.4103,,False
+Low-,919,modern_english,low,"Situated close to, or even below, the ground or another normal reference plane; not high or lofty. | river name",2,0.4103,0.4103,,False
+-wode,785,modern_english,wode,"Mad, angry, crazy, insane, possessed, rabid, furious, frantic. | wood",2,0.4127,0.4127,,False
+-law-,959,modern_english,law,"The body of binding rules and regulations, customs, and standards established in a community by its legislative and judicial authorities. | hill",2,0.4147,0.4147,,False
+-law,959,modern_english,law,"The body of binding rules and regulations, customs, and standards established in a community by its legislative and judicial authorities. | hill",2,0.4147,0.4147,,False
+Law-,959,modern_english,law,"The body of binding rules and regulations, customs, and standards established in a community by its legislative and judicial authorities. | hill",2,0.4147,0.4147,,False
+-harper,158,modern_english,harper,"A harpist, especially one who plays a traditional harp without pedals. | harper",2,0.4178,0.4178,old_french:harper,True
+Harper-,158,modern_english,harper,"A harpist, especially one who plays a traditional harp without pedals. | harper",2,0.4178,0.4178,old_french:harper,True
+-crane-,425,modern_english,crane,"Any bird of the family Gruidae, large birds with long legs and a long neck which is extended during flight. | Crane (surname)",2,0.424,0.424,,False
+wifel,4613,old_english,wifel,Weevil | Wifel,2,0.4249,0.4249,,False
+-bolt-,59,modern_english,bolt,"A (usually) metal fastener consisting of a cylindrical body that is threaded, with a larger head on one end. It can be inserted into an unthreaded hole up to the head, with a nut then threaded on the other end; a heavy machine screw. | nickname",2,0.425,0.425,old_english:bolt,True
+Bolt-,59,modern_english,bolt,"A (usually) metal fastener consisting of a cylindrical body that is threaded, with a larger head on one end. It can be inserted into an unthreaded hole up to the head, with a nut then threaded on the other end; a heavy machine screw. | nickname",2,0.425,0.425,old_english:bolt,True
+-henry,726,modern_english,henry,"In the International System of Units, the derived unit of electrical inductance; the inductance induced in a circuit by a rate of change of current of one ampere per second and a resulting electromotive force of one volt. Symbol: H | personal name",2,0.4261,0.4261,,False
+þrop,674,old_english,þrop,Hamlet | Outlying homestead,2,0.4294,0.4294,,False
+Coppe-,302,modern_english,coppe,A spider. | hill-top,2,0.4299,0.4299,,False
+-lep-,65,modern_english,lep,A basket; a bucket. | to leap,2,0.4303,0.4303,,False
+-lepen-,65,modern_english,lepen,A basket; a bucket. | to leap,2,0.4303,0.4303,,False
+-lepen,65,modern_english,lepen,A basket; a bucket. | to leap,2,0.4303,0.4303,,False
+Lep-,65,modern_english,lep,A basket; a bucket. | to leap,2,0.4303,0.4303,,False
+-lēas,2198,old_english,-lēas,false | meadow-land,2,0.431,0.431,,False
+badh,2075,celtic_mix,badh,"drown, submerge | haugh",2,0.4317,0.4317,,False
+-dry-,2078,old_english,dry,"dry | wizard, sorcerer",2,0.4342,0.4342,,False
+-dry,2078,old_english,dry,"dry | wizard, sorcerer",2,0.4342,0.4342,,False
+Dry-,2078,old_english,dry,"dry | wizard, sorcerer",2,0.4342,0.4342,,False
+-brook-,1022,modern_english,brook,To bear; endure; support; put up with; tolerate. | brook,2,0.4345,0.4345,,False
+-brook,1022,modern_english,brook,To bear; endure; support; put up with; tolerate. | brook,2,0.4345,0.4345,,False
+Brook-,1022,modern_english,brook,To bear; endure; support; put up with; tolerate. | brook,2,0.4345,0.4345,,False
+tota,3218,old_english,tota,"personal name | spy, look-out man",2,0.4362,0.4362,,False
+-ange-,2435,old_english,ange,"grass-land | narrow, confined, tight",2,0.4365,0.4365,modern_english:ange,True
+-ange,2435,old_english,ange,"grass-land | narrow, confined, tight",2,0.4365,0.4365,modern_english:ange,True
+Ange-,2435,old_english,ange,"grass-land | narrow, confined, tight",2,0.4365,0.4365,modern_english:ange,True
+hicca,696,old_english,hicca,Hicca's | personal name,2,0.4366,0.4366,,False
+rach,2391,celtic_mix,rach,"girth, sanctuary | on a hill",2,0.4392,0.4392,,False
+-corn-,4629,old_english,corn,"corn, a grain or seed | personal name",2,0.4396,0.4396,celtic_mix:corn; modern_english:corn; old_french:corn,True
+-corn,4629,old_english,corn,"corn, a grain or seed | personal name",2,0.4396,0.4396,celtic_mix:corn; modern_english:corn; old_french:corn,True
+Corn-,4629,old_english,corn,"corn, a grain or seed | personal name",2,0.4396,0.4396,celtic_mix:corn; modern_english:corn; old_french:corn,True
+Fink-,104,modern_english,fink,A contemptible person. | finch,2,0.4437,0.4437,,False
+sal,1701,celtic_mix,sal,"brine, salt water, brackish water | sallow (willow tree)",2,0.4441,0.4441,,False
+col-,124,modern_english,col-,A dip on a mountain ridge between two peaks. | coal (from surface coal-working),2,0.4446,0.4446,,False
+-bell-,235,modern_english,bell,"A percussive instrument made of metal or other hard material, typically but not always in the shape of an inverted cup with a flared rim, which resonates when struck. | a personal name",2,0.4466,0.4466,,False
+-bell,235,modern_english,bell,"A percussive instrument made of metal or other hard material, typically but not always in the shape of an inverted cup with a flared rim, which resonates when struck. | a personal name",2,0.4466,0.4466,,False
+Bell-,235,modern_english,bell,"A percussive instrument made of metal or other hard material, typically but not always in the shape of an inverted cup with a flared rim, which resonates when struck. | a personal name",2,0.4466,0.4466,,False
+-enn-,2312,old_scandinavian,enn,"forehead | yet, still",2,0.4467,0.4467,,False
+-enni-,2312,old_scandinavian,enni,"forehead | yet, still",2,0.4467,0.4467,,False
+-enn,2312,old_scandinavian,enn,"forehead | yet, still",2,0.4467,0.4467,,False
+Enn-,2312,old_scandinavian,enn,"forehead | yet, still",2,0.4467,0.4467,,False
+Enni-,2312,old_scandinavian,enni,"forehead | yet, still",2,0.4467,0.4467,,False
+-ull-,3033,old_scandinavian,ull,name of ancient Scandinavian god | wool,2,0.4475,0.4475,,False
+-ull,3033,old_scandinavian,ull,name of ancient Scandinavian god | wool,2,0.4475,0.4475,,False
+Ull-,3033,old_scandinavian,ull,name of ancient Scandinavian god | wool,2,0.4475,0.4475,,False
+-carl-,276,modern_english,carl,"A rude, rustic man; a churl. | personal name",2,0.4489,0.4489,old_english:carl,True
+Carl-,276,modern_english,carl,"A rude, rustic man; a churl. | personal name",2,0.4489,0.4489,old_english:carl,True
+-fit-,2942,old_scandinavian,fit,meadow | webbed foot (of swimming birds),2,0.4498,0.4498,,False
+Fit-,2942,old_scandinavian,fit,meadow | webbed foot (of swimming birds),2,0.4498,0.4498,,False
+-lot-,186,modern_english,lot,A large quantity or number; a great deal. | allotment for grazing on a fell,2,0.4504,0.4504,celtic_mix:lot,True
+-lot,186,modern_english,lot,A large quantity or number; a great deal. | allotment for grazing on a fell,2,0.4504,0.4504,celtic_mix:lot,True
+Lot-,186,modern_english,lot,A large quantity or number; a great deal. | allotment for grazing on a fell,2,0.4504,0.4504,celtic_mix:lot,True
+-erd-,635,modern_english,erd,"Formed from clay, as in pottery. | One's homeland or native residence.",2,0.4504,0.4504,,False
+-erden-,635,modern_english,erden,"Formed from clay, as in pottery. | One's homeland or native residence.",2,0.4504,0.4504,,False
+-erden,635,modern_english,erden,"Formed from clay, as in pottery. | One's homeland or native residence.",2,0.4504,0.4504,,False
+Erd-,635,modern_english,erd,"Formed from clay, as in pottery. | One's homeland or native residence.",2,0.4504,0.4504,,False
+cilda,3220,old_english,cilda,personal name | young men,2,0.4507,0.4507,,False
+stir,3219,old_english,stir,"personal name | strong, powerful",2,0.4535,0.4535,,False
+-band-,1255,old_scandinavian,band,"a ridge of a hill; a long ridge-like hill | band, tie | the act of binding or settling",3,0.4536,0.3823,modern_english:band,True
+-band,1255,old_scandinavian,band,"a ridge of a hill; a long ridge-like hill | band, tie | the act of binding or settling",3,0.4536,0.3823,modern_english:band,True
+Band-,1255,old_scandinavian,band,"a ridge of a hill; a long ridge-like hill | band, tie | the act of binding or settling",3,0.4536,0.3823,modern_english:band,True
+-hild-,698,old_english,hild,"Hild's | battle, war",2,0.4542,0.4542,,False
+-hild,698,old_english,hild,"Hild's | battle, war",2,0.4542,0.4542,,False
+Hild-,698,old_english,hild,"Hild's | battle, war",2,0.4542,0.4542,,False
+-heri-,1966,old_scandinavian,heri,"crowd, multitude; host (as in a host of men) | hare",2,0.4543,0.4543,,False
+-herr-,1966,old_scandinavian,herr,"crowd, multitude; host (as in a host of men) | hare",2,0.4543,0.4543,,False
+Heri-,1966,old_scandinavian,heri,"crowd, multitude; host (as in a host of men) | hare",2,0.4543,0.4543,,False
+Herr-,1966,old_scandinavian,herr,"crowd, multitude; host (as in a host of men) | hare",2,0.4543,0.4543,,False
+hāl,2493,old_english,hāl,"hall | sound, healthy, intact",2,0.4543,0.4543,,False
+-bolt-,1641,old_english,bolt,"bolt | house, dwelling, village",2,0.4559,0.4559,modern_english:bolt,True
+Bolt-,1641,old_english,bolt,"bolt | house, dwelling, village",2,0.4559,0.4559,modern_english:bolt,True
+-hale-,928,modern_english,hale,"Sound, entire, healthy; robust, not impaired. | nook",2,0.4564,0.4564,,False
+-hale,928,modern_english,hale,"Sound, entire, healthy; robust, not impaired. | nook",2,0.4564,0.4564,,False
+Hale-,928,modern_english,hale,"Sound, entire, healthy; robust, not impaired. | nook",2,0.4564,0.4564,,False
+-gen-,2597,old_english,gen,"hill or mountain | still, yet",2,0.4573,0.4573,celtic_mix:gen,True
+-gen,2597,old_english,gen,"hill or mountain | still, yet",2,0.4573,0.4573,,False
+Gen-,2597,old_english,gen,"hill or mountain | still, yet",2,0.4573,0.4573,celtic_mix:gen,True
+-aldr-,1342,old_scandinavian,aldr,"age, lifetime | never",2,0.4579,0.4579,,False
+-aldri-,1342,old_scandinavian,aldri,"age, lifetime | never",2,0.4579,0.4579,,False
+Aldr-,1342,old_scandinavian,aldr,"age, lifetime | never",2,0.4579,0.4579,,False
+Aldri-,1342,old_scandinavian,aldri,"age, lifetime | never",2,0.4579,0.4579,,False
+-finn-,1850,old_english,finn,"clear, transparent, bright | fin | personal name",3,0.4584,0.3778,celtic_mix:finn,True
+Finn-,1850,old_english,finn,"clear, transparent, bright | fin | personal name",3,0.4584,0.3778,celtic_mix:finn,True
+-camp-,1768,old_english,camp,"camping-ground | combat, battle, warfare",2,0.46,0.46,,False
+-camp,1768,old_english,camp,"camping-ground | combat, battle, warfare",2,0.46,0.46,,False
+Camp-,1768,old_english,camp,"camping-ground | combat, battle, warfare",2,0.46,0.46,celtic_mix:camp,True
+-wig-,2684,old_english,wig,"idol | war, battle",2,0.46,0.46,celtic_mix:wig,True
+Wig-,2684,old_english,wig,"idol | war, battle",2,0.46,0.46,,False
+Cipp-,1274,old_english,cipp,a small piece of wood; a shaving; chip | name,2,0.461,0.461,,False
+wār,2097,old_english,wār,"dwellers, people | seaweed",2,0.462,0.462,,False
+bill,4964,old_english,bill,Hill with a pointed ridge or spur | Hillspur- | alternative form of bil | sword,4,0.4631,0.364,,False
+nan,2770,celtic_mix,nan,lamb | of the,2,0.4634,0.4634,,False
+fin,1092,old_english,fin,Woodpecker | alternative form of finn | heap,3,0.4659,0.4222,,False
+dale,2697,old_english,dale,inflection of deal: | valley,2,0.4665,0.4665,old_scandinavian:dale,True
+-hyl-,346,modern_english,hyl,"A unit of mass that is accelerated at a rate of 1 meter per second squared (1 m/s²) by a force of 1 kilogram-force, equivalent to 9.80665 kilograms. | hill",2,0.4671,0.4671,,False
+sord,3347,celtic_mix,sord,pure | spring well,2,0.4677,0.4677,,False
+-worth-,677,modern_english,worth,Having a value of; proper to be exchanged for. | enclosure,2,0.4685,0.4685,,False
+-worth,677,modern_english,worth,Having a value of; proper to be exchanged for. | enclosure,2,0.4685,0.4685,,False
+Worth-,677,modern_english,worth,Having a value of; proper to be exchanged for. | enclosure,2,0.4685,0.4685,,False
+mæl,751,old_english,mæl,Knoll | Multi-colored,2,0.4687,0.4687,,False
+gcorr,4370,celtic_mix,gcorr,Crane | Heron | sand-eels,3,0.4717,0.3865,,False
+inse,4892,celtic_mix,inse,"Dry patch of ground in a marsh | Island | inch | meadow, haugh",4,0.4729,0.3806,,False
+-ladies-,416,modern_english,ladies,An initial hand consisting of a pair of queens. | the Virgin Mary,2,0.4737,0.4737,,False
+earda,586,old_english,earda,Earda's | personal name,2,0.4746,0.4746,,False
+-hollow-,294,modern_english,hollow,A small valley between mountains. | hollow,2,0.4758,0.4758,,False
+-hollow,294,modern_english,hollow,A small valley between mountains. | hollow,2,0.4758,0.4758,,False
+Hollow-,294,modern_english,hollow,A small valley between mountains. | hollow,2,0.4758,0.4758,,False
+-som-,1347,old_english,som,"agreement, concord | houses",2,0.4759,0.4759,,False
+-som,1347,old_english,som,"agreement, concord | houses",2,0.4759,0.4759,,False
+Som-,1347,old_english,som,"agreement, concord | houses",2,0.4759,0.4759,,False
+cara,4615,celtic_mix,cara,Weir (fishing enclosure) | fort,2,0.4771,0.4771,,False
+Milk-,359,modern_english,milk,"A white liquid produced by the mammary glands of female mammals to nourish their young. From certain animals, especially cows, it is also called dairy milk and is a common food for humans as a beverage or used to produce various dairy products such as butter, cheese, and yogurt. | rich pasturage",2,0.4775,0.4775,,False
+mar,1325,old_scandinavian,mar,"accusative/dative singular of marr | horse, steed | sea, lake",3,0.4777,0.4561,,False
+Dene,4063,old_english,Dene,valley | woody dene or dingle,2,0.478,0.478,,False
+hang,3599,old_english,hang,"sloping or hanging | spring, well",2,0.4789,0.4789,,False
+billing,4814,old_english,billing,Billa's sons | Billing's | Hill,3,0.48,0.4495,,False
+bec,1541,old_english,bec,beech | inflection of bōc: | stream,3,0.4804,0.4577,,False
+meen,1632,celtic_mix,meen,bog | mountain meadow,2,0.4809,0.4809,,False
+-elles-,2132,old_english,elles,"else, otherwise, in another manner | personal name",2,0.481,0.481,modern_english:elles,True
+Elles-,2132,old_english,elles,"else, otherwise, in another manner | personal name",2,0.481,0.481,modern_english:elles,True
+-gar-,3221,old_english,gar,"personal name element | spear, arrow, dart",2,0.4817,0.4817,celtic_mix:gar,True
+-gar,3221,old_english,gar,"personal name element | spear, arrow, dart",2,0.4817,0.4817,celtic_mix:gar; celtic_mix:garr,True
+Gar-,3221,old_english,gar,"personal name element | spear, arrow, dart",2,0.4817,0.4817,celtic_mix:gar,True
+bron,2969,celtic_mix,bron,millstone | pointed or breast-shaped hill,2,0.4818,0.4818,,False
+-ber-,1496,old_scandinavian,ber,bare | berry,2,0.4826,0.4826,,False
+-berr-,1496,old_scandinavian,berr,bare | berry,2,0.4826,0.4826,celtic_mix:berr,True
+-ber,1496,old_scandinavian,ber,bare | berry,2,0.4826,0.4826,,False
+Ber-,1496,old_scandinavian,ber,bare | berry,2,0.4826,0.4826,,False
+Berr-,1496,old_scandinavian,berr,bare | berry,2,0.4826,0.4826,celtic_mix:berr,True
+sætr,856,old_scandinavian,sætr,Pasture | shieling,2,0.4837,0.4837,,False
+Monke-,213,modern_english,monke,A monkey or ape. | monks,2,0.4839,0.4839,,False
+cifa,524,old_english,cifa,Cifa | personal name,2,0.4849,0.4849,,False
+gafol,4565,old_english,gafol,"Rent | Tax | Tribute | a fork, a forked opening",4,0.4852,0.3735,,False
+grean,2443,celtic_mix,grean,gravel; gravelly bed of a stream | grey,2,0.4856,0.4856,,False
+-bod-,1121,old_english,bod,"a command, mandate, precept, order; bidding | ground, foundation | personal name",3,0.4865,0.4445,celtic_mix:bod,True
+Bod-,1121,old_english,bod,"a command, mandate, precept, order; bidding | ground, foundation | personal name",3,0.4865,0.4445,celtic_mix:bod,True
+-myn-,2741,celtic_mix,myn,kid (young goat) | monk,2,0.4865,0.4865,,False
+-mynach,2741,celtic_mix,mynach,kid (young goat) | monk,2,0.4865,0.4865,,False
+Myn-,2741,celtic_mix,myn,kid (young goat) | monk,2,0.4865,0.4865,,False
+Mynach-,2741,celtic_mix,mynach,kid (young goat) | monk,2,0.4865,0.4865,,False
+clerc,4595,old_english,clerc,"Student | clergyman, clerk",2,0.4866,0.4866,,False
+-stock-,312,modern_english,stock,A store or supply. | tree-trunk,2,0.487,0.487,,False
+-stock,312,modern_english,stock,A store or supply. | tree-trunk,2,0.487,0.487,,False
+Stock-,312,modern_english,stock,A store or supply. | tree-trunk,2,0.487,0.487,,False
+ana,423,old_english,ana,Anne (Name) | Lonely | single | sole,4,0.488,0.3701,,False
+Moll-,1182,old_english,Moll,a male given name | barley,2,0.4882,0.4882,celtic_mix:moll,True
+wor,1091,old_english,wor,Wood-grouse | swamp,2,0.4888,0.4888,,False
+-ley-,437,modern_english,ley,Arable land used temporarily for hay or grazing. | clearing,2,0.489,0.489,,False
+-ley,437,modern_english,ley,Arable land used temporarily for hay or grazing. | clearing,2,0.489,0.489,,False
+Ley-,437,modern_english,ley,Arable land used temporarily for hay or grazing. | clearing,2,0.489,0.489,,False
+-roose,897,modern_english,roose,Roose | To flatter or praise.,2,0.4894,0.4894,,False
+Roose-,897,modern_english,roose,Roose | To flatter or praise.,2,0.4894,0.4894,,False
+-ore-,210,old_english,ore,"A mine, place in which ore is dug | bank",2,0.4897,0.4897,modern_english:ore; old_french:ore,True
+-ore,210,old_english,ore,"A mine, place in which ore is dug | bank",2,0.4897,0.4897,modern_english:ore; old_french:ore,True
+Ore-,210,old_english,ore,"A mine, place in which ore is dug | bank",2,0.4897,0.4897,modern_english:ore; old_french:ore,True
+frogga,4456,old_english,frogga,Frog | alternative form of frocga,2,0.4897,0.4897,,False
+-wang-,1143,old_english,wang,"a flat surface: plain, field, ground | assembly place",2,0.4899,0.4899,,False
+-wang,1143,old_english,wang,"a flat surface: plain, field, ground | assembly place",2,0.4899,0.4899,,False
+Wang-,1143,old_english,wang,"a flat surface: plain, field, ground | assembly place",2,0.4899,0.4899,,False
+-lec-,2866,old_english,lec,"look, regard | to drip, to flow slowly",2,0.4899,0.4899,,False
+Lec-,2866,old_english,lec,"look, regard | to drip, to flow slowly",2,0.4899,0.4899,,False
+-sac-,63,modern_english,sac,A bag or pouch inside a plant or animal that typically contains a fluid. | oak,2,0.49,0.49,celtic_mix:sac; old_french:sac,True
+Sac-,63,modern_english,sac,A bag or pouch inside a plant or animal that typically contains a fluid. | oak,2,0.49,0.49,celtic_mix:sac; old_french:sac,True
+leg,463,old_english,leg,Becon fire | Fire | alternative form of līeġ | an island; elevated piece of land surrounded by marsh or flooded depressions | clearing | elevated ground in a marsh,6,0.49,0.3401,,False
+bhràghaid,4644,celtic_mix,bhràghaid,Brea | Upland,2,0.49,0.49,,False
+-ton-,433,modern_english,ton,"Any of various units of mass, originally notionally equal to the contents of a tun | farm",2,0.4914,0.4914,celtic_mix:ton,True
+-ton,433,modern_english,ton,"Any of various units of mass, originally notionally equal to the contents of a tun | farm",2,0.4914,0.4914,celtic_mix:ton,True
+Ton-,433,modern_english,ton,"Any of various units of mass, originally notionally equal to the contents of a tun | farm",2,0.4914,0.4914,celtic_mix:ton,True
+-blak-,728,modern_english,blak,Indigenous (Aboriginal and Torres Strait Islander). | black,2,0.4915,0.4915,,False
+Blak-,728,modern_english,blak,Indigenous (Aboriginal and Torres Strait Islander). | black,2,0.4915,0.4915,,False
