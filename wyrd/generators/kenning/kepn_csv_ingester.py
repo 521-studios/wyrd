@@ -259,7 +259,7 @@ def load_name_index(briggs_jsonl: Path) -> dict[str, tuple[str, str]]:
                 continue
             if row.get("_type") != "etymon":
                 continue
-            if not any(t in ("male name", "female name") for t in row.get("tags", [])):
+            if not any(t in ("male name", "female name") for t in (row.get("tags") or [])):
                 continue
             cf = row.get("canonical_form")
             lang = row.get("language", "old-english")
