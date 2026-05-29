@@ -759,61 +759,11 @@ CREATE INDEX idx_priors_loan_lemma
   ON empirical_priors_loan(lemma_ref);
 
 
--- wyrd-uzoh: Briggs EPNS personal-names-index ingest.
---
--- ``personal_name`` carries one row per unique PN headform (diacritics
--- preserved verbatim; ``normalized_form`` is the diacritic-folded ASCII
--- spelling for lookup). ``ascharter_refs`` and ``language_hints`` are
--- stored as JSON arrays for forward compatibility with additional
--- citation-source providers.
---
--- ``personal_name_toponym_attestation`` is the (PN × toponym × county)
--- relation. ``attested_variant`` captures the PN's surface form as it
--- appears IN the toponym when Briggs's "X in Y" syntax exposes it.
--- The COALESCE-padded UNIQUE index makes re-ingest idempotent.
-CREATE TABLE personal_name (
-  id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  headform        TEXT NOT NULL,
-  normalized_form TEXT NOT NULL,
-  language_hints  TEXT,
-  is_feminine     INTEGER NOT NULL DEFAULT 0,
-  pase_count      INTEGER,
-  has_dlv         INTEGER NOT NULL DEFAULT 0,
-  ascharter_refs  TEXT,
-  source_doc      TEXT NOT NULL,
-  raw_entry       TEXT
-);
-CREATE UNIQUE INDEX idx_personal_name_headform_source
-  ON personal_name(headform, source_doc);
-CREATE INDEX idx_personal_name_normalized
-  ON personal_name(normalized_form);
-
-CREATE TABLE personal_name_toponym_attestation (
-  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-  personal_name_id   INTEGER NOT NULL
-                     REFERENCES personal_name(id) ON DELETE CASCADE,
-  toponym_form       TEXT NOT NULL,
-  attested_variant   TEXT,
-  county_code        TEXT NOT NULL,
-  county_canonical   TEXT NOT NULL,
-  date_qualifier     TEXT,
-  is_uncertain       INTEGER NOT NULL DEFAULT 0,
-  is_serious_doubt   INTEGER NOT NULL DEFAULT 0,
-  source_doc         TEXT NOT NULL,
-  raw_text           TEXT
-);
-CREATE UNIQUE INDEX idx_pn_toponym_dedup
-  ON personal_name_toponym_attestation(
-    personal_name_id,
-    toponym_form,
-    county_code,
-    COALESCE(attested_variant, ''),
-    COALESCE(date_qualifier, '')
-  );
-CREATE INDEX idx_pn_toponym_form
-  ON personal_name_toponym_attestation(toponym_form, county_canonical);
-CREATE INDEX idx_pn_toponym_personal_name
-  ON personal_name_toponym_attestation(personal_name_id);
+-- wyrd-2b50: Briggs personal names are now ingested into the standard
+-- ``etymon`` schema (etymon + male/female-name tag + multi-source
+-- citations via the cited_source path), so the bespoke ``personal_name``
+-- and ``personal_name_toponym_attestation`` tables (wyrd-uzoh) were
+-- dropped. See migration 0014_drop_personal_name_tables.
 
 
 -- wyrd-ami / wyrd-rrse: fantasy_morpheme records (name, description) →

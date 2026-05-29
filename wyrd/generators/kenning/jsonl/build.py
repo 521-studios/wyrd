@@ -421,10 +421,18 @@ def _insert_citation_rows(
     source_id: str,
     rows: list[dict[str, Any]],
     etymon_id_by_ref: dict[str, int],
+    known_source_ids: set[str],
     counts: dict[str, Any],
 ) -> None:
-    """Insert ``citation`` rows for one source. Unknown ``etymon_ref``
-    → counted in ``citation_orphans`` and skipped (wyrd-lene)."""
+    """Insert ``citation`` rows. Default attribution is the file's
+    ``source_id``; a row may override it with an explicit ``source_id``
+    naming a ``cited_source`` the file registered (wyrd-2b50 — lets one
+    file record attestations from sources it cites on behalf of, without
+    a separate JSONL per source). Unknown ``etymon_ref`` → counted in
+    ``citation_orphans`` and skipped (wyrd-lene). An override ``source_id``
+    that no file registered → counted in ``citation_source_orphans`` and
+    skipped, rather than silently swallowed by the FK + INSERT OR IGNORE
+    (wyrd-2b50)."""
     for row in rows:
         eref = row["etymon_ref"]
         eid = etymon_id_by_ref.get(eref)
@@ -433,7 +441,18 @@ def _insert_citation_rows(
             if len(counts["citation_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
                 counts["citation_orphan_refs"].append(eref)
             continue
-        _insert_citation(conn, eid, source_id, row)
+        # Resolve attribution: an explicit per-row source_id (wyrd-2b50)
+        # else the file's primary source. ``.get(k, default)`` keys on
+        # key-ABSENCE, not falsiness (unlike ``or``), so a present-but-
+        # empty source_id is kept verbatim and then surfaces as an orphan
+        # below rather than silently falling back to the file source.
+        cite_source = row.get("source_id", source_id)
+        if cite_source not in known_source_ids:
+            counts["citation_source_orphans"] += 1
+            if len(counts["citation_source_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
+                counts["citation_source_orphan_refs"].append(f"{eref} → {cite_source!r}")
+            continue
+        _insert_citation(conn, eid, cite_source, row)
         counts["citation"] += 1
 
 
@@ -640,134 +659,6 @@ def _insert_fantasy_morpheme_rows(
             counts["fantasy_morpheme"] += 1
 
 
-# wyrd-11zh: Briggs personal-name insert columns. The ``id`` column
-# is omitted — SQLite allocates it via AUTOINCREMENT, and
-# ``_insert_personal_name`` recovers the value via the post-insert
-# lookup against the UNIQUE(headform, source_doc) index. All other
-# columns map 1:1 from the JSONL payload.
-_PERSONAL_NAME_INSERT_COLUMNS: tuple[str, ...] = (
-    "headform",
-    "normalized_form",
-    "language_hints",
-    "is_feminine",
-    "pase_count",
-    "has_dlv",
-    "ascharter_refs",
-    "source_doc",
-    "raw_entry",
-)
-
-
-def _insert_personal_name(conn: sqlite3.Connection, payload: dict[str, Any]) -> int | None:
-    """INSERT OR IGNORE one ``personal_name`` row (wyrd-11zh). Returns
-    the row id on success — either freshly-allocated (cur.lastrowid) or
-    looked up via the UNIQUE(headform, source_doc) index on conflict.
-
-    Returns None if the payload is malformed (missing headform or
-    source_doc); the caller's orphan counter handles the gap.
-    """
-    headform = payload.get("headform")
-    source_doc = payload.get("source_doc")
-    if not headform or not source_doc:
-        return None
-    cols = [c for c in _PERSONAL_NAME_INSERT_COLUMNS if c in payload]
-    vals = [payload[c] for c in cols]
-    placeholders = ", ".join("?" * len(cols))
-    cur = conn.execute(
-        f"INSERT OR IGNORE INTO personal_name ({', '.join(cols)}) VALUES ({placeholders})",
-        tuple(vals),
-    )
-    if cur.rowcount > 0:
-        return int(cur.lastrowid)
-    # INSERT OR IGNORE hit the UNIQUE(headform, source_doc); look up.
-    row = conn.execute(
-        "SELECT id FROM personal_name WHERE headform = ? AND source_doc = ?",
-        (headform, source_doc),
-    ).fetchone()
-    return int(row[0]) if row is not None else None
-
-
-def _insert_personal_name_toponym_attestation(
-    conn: sqlite3.Connection,
-    personal_name_id: int,
-    row: dict[str, Any],
-) -> None:
-    """INSERT OR IGNORE one ``personal_name_toponym_attestation`` row
-    (wyrd-11zh). The COALESCE-padded UNIQUE index absorbs duplicates so
-    re-running rebuild on an already-populated DB is a no-op."""
-    conn.execute(
-        """INSERT OR IGNORE INTO personal_name_toponym_attestation
-           (personal_name_id, toponym_form, attested_variant, county_code,
-            county_canonical, date_qualifier, is_uncertain, is_serious_doubt,
-            source_doc, raw_text)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (
-            personal_name_id,
-            row["toponym_form"],
-            row.get("attested_variant"),
-            row["county_code"],
-            row.get("county_canonical", ""),
-            row.get("date_qualifier"),
-            1 if row.get("is_uncertain") else 0,
-            1 if row.get("is_serious_doubt") else 0,
-            row.get("source_doc", ""),
-            row.get("raw_text"),
-        ),
-    )
-
-
-def _insert_personal_name_rows(
-    conn: sqlite3.Connection,
-    rows: dict[str, dict[str, Any]],
-    counts: dict[str, Any],
-) -> dict[str, int]:
-    """Insert every ``personal_name`` row from the replayed keyed-state.
-    Returns headform → id lookup map for the attestation pass."""
-    pn_id_by_headform: dict[str, int] = {}
-    for headform, payload in rows.items():
-        # The ref IS the headform; carry it into the payload so the
-        # insert helper has the natural key without depending on the
-        # caller to set it.
-        merged = dict(payload)
-        merged.setdefault("headform", headform)
-        pn_id = _insert_personal_name(conn, merged)
-        if pn_id is None:
-            counts["personal_name_orphans"] += 1
-            if len(counts["personal_name_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
-                counts["personal_name_orphan_refs"].append(headform)
-            continue
-        pn_id_by_headform[headform] = pn_id
-        counts["personal_name"] += 1
-    return pn_id_by_headform
-
-
-def _insert_personal_name_attestation_rows(
-    conn: sqlite3.Connection,
-    rows: list[dict[str, Any]],
-    pn_id_by_headform: dict[str, int],
-    counts: dict[str, Any],
-) -> None:
-    """Insert ``personal_name_toponym_attestation`` rows for one file
-    (wyrd-11zh). Unknown ``personal_name_ref`` → counted in
-    ``personal_name_attestation_orphans`` + skipped, same orphan
-    pattern as the other fact-row helpers."""
-    for row in rows:
-        pn_ref = row.get("personal_name_ref")
-        if pn_ref is None:
-            counts["personal_name_attestation_orphans"] += 1
-            if len(counts["personal_name_attestation_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
-                counts["personal_name_attestation_orphan_refs"].append("(missing ref)")
-            continue
-        pn_id = pn_id_by_headform.get(pn_ref)
-        if pn_id is None:
-            counts["personal_name_attestation_orphans"] += 1
-            if len(counts["personal_name_attestation_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
-                counts["personal_name_attestation_orphan_refs"].append(pn_ref)
-            continue
-        _insert_personal_name_toponym_attestation(conn, pn_id, row)
-        counts["personal_name_toponym_attestation"] += 1
-
-
 def _extract_source_id(path: Path, state: ReplayState) -> str:
     """Validate the contract: exactly one ``source`` row per file.
     Returns its ref (= the source_id)."""
@@ -827,17 +718,12 @@ def build_from_jsonl(
         "fantasy_morpheme": 0,
         "fantasy_morpheme_orphans": 0,
         "fantasy_morpheme_orphan_refs": [],
-        # wyrd-11zh: Briggs personal-names ingest round-trip.
-        # ``personal_name_orphans`` counts dropped PN rows (missing
-        # headform / source_doc); ``personal_name_attestation_orphans``
-        # counts attestation rows whose ``personal_name_ref`` doesn't
-        # resolve in the rebuilt PN table.
-        "personal_name": 0,
-        "personal_name_orphans": 0,
-        "personal_name_orphan_refs": [],
-        "personal_name_toponym_attestation": 0,
-        "personal_name_attestation_orphans": 0,
-        "personal_name_attestation_orphan_refs": [],
+        # wyrd-2b50: a citation row whose (explicit or file-default)
+        # source_id names a source no file registered. etymon_citation
+        # .source_id FKs source(id), so such a row would be silently
+        # swallowed by INSERT OR IGNORE; count + skip it visibly instead.
+        "citation_source_orphans": 0,
+        "citation_source_orphan_refs": [],
     }
 
     # ----- Pass 1: replay every file, accumulate merged state.
@@ -855,9 +741,21 @@ def build_from_jsonl(
             _merge_toponym(merged_toponyms.setdefault(ref, {}), payload)
 
     # ----- Pass 2: insert sources, etymons, toponyms; build FK maps.
+    known_source_ids: set[str] = set()
     for _path, source_id, state in file_states:
         _upsert_source(conn, source_id, state.keyed["source"][source_id])
         counts["source"] += 1
+        known_source_ids.add(source_id)
+        # wyrd-2b50: register secondary sources this file cites on behalf
+        # of (e.g. Briggs indexes PASE/DLV/Anglo-Saxon-charter attestations
+        # we have never ingested directly). etymon_citation.source_id is an
+        # FK to source(id), so each must exist before pass 3 inserts the
+        # citations that target it. _upsert_source uses INSERT OR REPLACE,
+        # so re-declaring the same cited_source across files is idempotent.
+        for cited_id, cited_payload in state.keyed.get("cited_source", {}).items():
+            _upsert_source(conn, cited_id, cited_payload)
+            counts["source"] += 1
+            known_source_ids.add(cited_id)
 
     etymon_id_by_ref: dict[str, int] = {}
     for ref, payload in merged_etymons.items():
@@ -875,11 +773,11 @@ def build_from_jsonl(
     # ----- Pass 3: source-attributed list rows.
     #
     # Per-row-type helpers carry the orphan-skip + dedup semantics; this
-    # loop is the per-source dispatch. personal_name rows are inserted
-    # per-file BEFORE the attestation rows so the FK lookup map is
-    # populated in scope.
+    # loop is the per-source dispatch.
     for _path, source_id, state in file_states:
-        _insert_citation_rows(conn, source_id, state.lists["citation"], etymon_id_by_ref, counts)
+        _insert_citation_rows(
+            conn, source_id, state.lists["citation"], etymon_id_by_ref, known_source_ids, counts
+        )
         _insert_descent_rows(
             conn, source_id, state.lists["etymon_descent"], etymon_id_by_ref, counts
         )
@@ -895,18 +793,6 @@ def build_from_jsonl(
         _insert_attestation_rows(conn, state.lists["attestation"], toponym_id_by_ref, counts)
         _insert_fantasy_morpheme_rows(
             conn, state.lists["fantasy_morpheme"], etymon_id_by_ref, counts
-        )
-        # wyrd-11zh: Briggs personal-names. Per-file scope (FK lookup
-        # map is per-source since (headform, source_doc) is the
-        # natural key); attestation rows reference PNs by headform.
-        pn_id_by_headform = _insert_personal_name_rows(
-            conn, state.keyed.get("personal_name", {}), counts
-        )
-        _insert_personal_name_attestation_rows(
-            conn,
-            state.lists.get("personal_name_toponym_attestation", []),
-            pn_id_by_headform,
-            counts,
         )
 
     conn.commit()
@@ -1064,9 +950,6 @@ DIFF_REBUILD_TABLES: tuple[str, ...] = (
     "toponym_attestation",
     "toponym_etymology",
     "toponym_etymology_element",
-    # wyrd-11zh: Briggs PN ingest round-trip.
-    "personal_name",
-    "personal_name_toponym_attestation",
 )
 
 

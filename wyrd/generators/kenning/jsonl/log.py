@@ -112,15 +112,19 @@ KEYED_TYPES: frozenset[str] = frozenset(
         "etymon_split",
         "toponym",
         "source",
-        # wyrd-11zh: Briggs EPNS personal-names index. ``ref`` is the
-        # PN headform (e.g. ``"Ēadwulf"``). Payload carries PASE count,
-        # DLV/ASCh refs, language hints, feminine marker. Briggs
-        # convention: each Briggs JSONL emits one ``source`` row plus
-        # one ``personal_name`` row per unique headform. The kernel
-        # itself imposes no per-file count contract on this type —
-        # future PN-index sources from other scholars may interleave
-        # events differently.
-        "personal_name",
+        # wyrd-2b50: secondary sources a file cites ON BEHALF OF. ``ref``
+        # is the source_id (e.g. ``"pase"``, ``"dlv"``,
+        # ``"anglo_saxon_charters"``); payload carries title/notes like a
+        # ``source`` row. Distinct from ``source`` (of which each file has
+        # exactly one — its PRIMARY) so a single L2 file can register the
+        # other scholarly references it attests without fabricating a
+        # separate JSONL per source. Build pass 2 upserts each into the
+        # ``source`` table; ``citation`` rows then target them via an
+        # explicit ``source_id``. This is the general "a source adds
+        # citations for sources it has consumed" path — Briggs is the
+        # first consumer (it indexes PASE / DLV / Anglo-Saxon-charter
+        # attestations we have never ingested directly).
+        "cited_source",
     }
 )
 
@@ -136,11 +140,6 @@ LIST_TYPES: frozenset[str] = frozenset(
         "etymon_descent",
         "mining_run",
         "fantasy_morpheme",
-        # wyrd-11zh: one row per (PN, toponym, county) occurrence from
-        # Briggs. FKs to ``personal_name`` via ``personal_name_ref`` (=
-        # the PN's headform). Same shape as ``attestation`` — append-
-        # only fact rows, no event semantics.
-        "personal_name_toponym_attestation",
     }
 )
 
@@ -201,7 +200,7 @@ class ReplayState:
             "etymon_split",
             "toponym",
             "source",
-            "personal_name",
+            "cited_source",
         ):
             entries = self.keyed.get(_type, {})
             for ref in sorted(entries):
@@ -215,7 +214,6 @@ class ReplayState:
             "etymon_descent",
             "mining_run",
             "fantasy_morpheme",
-            "personal_name_toponym_attestation",
         ):
             for fact in self.lists.get(_type, []):
                 row = {"_type": _type}
