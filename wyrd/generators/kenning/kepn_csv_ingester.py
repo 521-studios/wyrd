@@ -393,7 +393,13 @@ def emit_kepn_jsonl(
                 # the names we can extract stay in the pn_slots − pn_extracted
                 # gap rather than being silently counted as resolved.
                 cands = extract_personal_names(etym)
-                for cand in cands[:pn_count]:
+                for i in range(pn_count):
+                    if i >= len(cands):
+                        # a slot with no prose candidate to resolve — mark it
+                        # unresolved rather than silently ignoring it.
+                        unresolved_names.append("(unextracted personal name)")
+                        continue
+                    cand = cands[i]
                     stats.pn_extracted += 1
                     matched, tier = match_name(cand, name_index)
                     if tier == "t1":
@@ -412,8 +418,6 @@ def emit_kepn_jsonl(
                         ordered_refs.append(ref)
                     else:
                         unresolved_names.append(cand)
-                if not cands:
-                    unresolved_names.append("(unextracted personal name)")
 
             notes_parts = []
             # Greedy: capture the WHOLE leading quoted gloss. A non-greedy /

@@ -336,3 +336,29 @@ def test_cli_dir_mode_ingests_each_county(tmp_path):
     region = db.conn.execute("SELECT region FROM toponym WHERE modern_name='Ayston'").fetchone()
     assert region and region[0] == "Rutland"
     db.close()
+
+
+def test_personal_name_slot_without_prose_candidate_is_marked_unresolved(tmp_path):
+    # 2 name slots but only 1 possessive in the prose → the extra slot must be
+    # explicitly marked unresolved, not silently ignored (Gemini round-2).
+    idx = load_name_index(_briggs_fixture(tmp_path / "briggs.jsonl"))
+    csv = _write_csv(
+        tmp_path / "shire.csv",
+        [
+            (
+                "Gapton",
+                "'Earda's farmstead'.",
+                "Personal name (Old English) Old English - Personal name; "
+                "Personal name (Old English) Old English - Personal name; "
+                "tūn Old English - A farmstead.",
+                "DEPN",
+            )
+        ],
+    )
+    out = tmp_path / "kepn.jsonl"
+    stats = emit_kepn_jsonl(csv, out, county="Shire", name_index=idx)
+    assert stats.pn_slots == 2 and stats.pn_extracted == 1 and stats.pn_match_t1 == 1
+    db, _ = _build(tmp_path, _briggs_fixture(tmp_path / "briggs.jsonl"), out)
+    note = db.conn.execute("SELECT notes FROM toponym_etymology").fetchone()[0]
+    assert "(unextracted personal name)" in note
+    db.close()
