@@ -32,6 +32,7 @@ from wyrd.generators.kenning.briggs_personal_names_ingester import (
     _normalize_form,
     _parse_attestations,
     _parse_entry,
+    _resolve_pn_language,
     _split_pages,
     _strip_uncertainty,
     emit_briggs_jsonl,
@@ -70,6 +71,40 @@ def test_normalize_form_maps_germanic_letters_via_fold() -> None:
 def test_normalize_form_lowercases_and_strips() -> None:
     assert _normalize_form("  Æthelred  ") == "aethelred"
     assert _normalize_form("EADGAR") == "eadgar"
+
+
+# ---------------------------------------------------------------------
+# _resolve_pn_language: Briggs hint → canonical etymon language (wyrd-2b50)
+# ---------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("hint", "language"),
+    [
+        ("OE", "old-english"),
+        ("ME", "middle-english"),
+        ("OFr", "old-french"),
+        ("ON", "old-norse"),
+        ("ODan", "old-norse"),
+        ("Bib", "biblical"),
+    ],
+)
+def test_resolve_pn_language_maps_each_hint(hint: str, language: str) -> None:
+    """Each recognized Briggs hint maps to the canonical etymon language
+    so a name corroborates an existing same-form etymon in that language."""
+    assert _resolve_pn_language([hint]) == language
+
+
+def test_resolve_pn_language_first_recognized_hint_wins() -> None:
+    """``(Bib, OE)`` resolves to the first recognized hint (biblical)."""
+    assert _resolve_pn_language(["Bib", "OE"]) == "biblical"
+
+
+def test_resolve_pn_language_defaults_to_old_english() -> None:
+    """No hint, or an unrecognized hint, falls back to the old-english
+    substrate default."""
+    assert _resolve_pn_language([]) == "old-english"
+    assert _resolve_pn_language(["Xx"]) == "old-english"
 
 
 # ---------------------------------------------------------------------
@@ -770,11 +805,12 @@ def test_emit_briggs_jsonl_threads_stats_through_parse_pipeline(
 def test_emit_briggs_jsonl_dedupes_repeated_headform_first_wins(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Two entries sharing a headform emit only ONE personal_name row — the
-    first (richer) one — while BOTH entries' attestations still emit. Pins
-    the ``seen_headforms`` first-wins invariant in ``emit_briggs_jsonl``: a
-    switch to last-wins or per-entry emit would silently corrupt PN metadata
-    and duplicate rows on rebuild."""
+    """Two entries sharing a headform emit only ONE etymon row — the
+    first (richer) one. Pins the ``seen_headforms`` first-wins invariant
+    in ``emit_briggs_jsonl``: a switch to last-wins or per-entry emit
+    would silently corrupt the name metadata and duplicate etymons on
+    rebuild. (wyrd-2b50: the name→toponym attestations themselves are no
+    longer emitted; the PASE citation's context is the first-wins proof.)"""
     src = tmp_path / "briggs.txt"
     # Same headform "Aba" in two entries; first carries PASE1, second PASE9.
     src.write_text("—A—\nAba PASE1 Foo (Bk).\nAba PASE9 Bar (D).\n", encoding="utf-8")
@@ -785,10 +821,15 @@ def test_emit_briggs_jsonl_dedupes_repeated_headform_first_wins(
     aba_etymons = [r for r in rows if r.get("_type") == "etymon" and r["canonical_form"] == "Aba"]
     assert len(aba_etymons) == 1  # deduped to a single etymon
     # First-wins: the PASE citation reflects the first entry (PASE1), not
-    # the later PASE9.
-    pase_cites = [r for r in rows if r.get("_type") == "citation" and r.get("source_id") == "pase"]
-    assert any("count 1" in (r.get("context_snippet") or "") for r in pase_cites)
-    assert not any("count 9" in (r.get("context_snippet") or "") for r in pase_cites)
+    # the later PASE9. Match the full snippet so "count 1" can't alias a
+    # future "count 19".
+    pase_snippets = {
+        r.get("context_snippet")
+        for r in rows
+        if r.get("_type") == "citation" and r.get("source_id") == "pase"
+    }
+    assert "PASE attestation count 1" in pase_snippets
+    assert "PASE attestation count 9" not in pase_snippets
 
 
 def test_emit_briggs_jsonl_truncates_on_rerun(

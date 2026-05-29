@@ -200,7 +200,7 @@ class ReplayState:
             "etymon_split",
             "toponym",
             "source",
-            "personal_name",
+            "cited_source",
         ):
             entries = self.keyed.get(_type, {})
             for ref in sorted(entries):
@@ -214,7 +214,6 @@ class ReplayState:
             "etymon_descent",
             "mining_run",
             "fantasy_morpheme",
-            "personal_name_toponym_attestation",
         ):
             for fact in self.lists.get(_type, []):
                 row = {"_type": _type}

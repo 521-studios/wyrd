@@ -419,6 +419,64 @@ def test_build_inserts_citation_with_source_fk(tmp_path: Path):
     assert (c["source_id"], c["page"]) == ("skeat", "15")
 
 
+def test_build_cited_source_registers_and_attributes_citations(tmp_path: Path):
+    """wyrd-2b50: a file declares a secondary source via ``cited_source``
+    and a ``citation`` row attributes itself to it with an explicit
+    ``source_id``. The secondary source is registered in ``source`` and
+    the citation lands against it; a citation with no ``source_id`` falls
+    back to the file's primary source. This is the 'one source cites on
+    behalf of others' path (no separate JSONL per source)."""
+    _write_jsonl(
+        tmp_path,
+        "primary",
+        [
+            {"_type": "source", "ref": "primary", "title": "Primary"},
+            {"_type": "cited_source", "ref": "secondary", "title": "Secondary"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:x",
+                "language": "old-english",
+                "canonical_form": "x",
+            },
+            {"_type": "citation", "etymon_ref": "old-english:x"},  # → primary
+            {"_type": "citation", "etymon_ref": "old-english:x", "source_id": "secondary"},
+        ],
+    )
+    conn = _build_fixture_db()
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    registered = {r["id"] for r in conn.execute("SELECT id FROM source")}
+    assert {"primary", "secondary"} <= registered
+    attributed = {r["source_id"] for r in conn.execute("SELECT source_id FROM etymon_citation")}
+    assert attributed == {"primary", "secondary"}
+    assert counts["citation_source_orphans"] == 0
+
+
+def test_build_unregistered_citation_source_is_counted_not_swallowed(tmp_path: Path):
+    """wyrd-2b50: a citation whose explicit ``source_id`` names a source
+    no file registered is counted in ``citation_source_orphans`` and
+    skipped — not silently dropped by the FK + INSERT OR IGNORE (which
+    would also have falsely incremented the citation count)."""
+    _write_jsonl(
+        tmp_path,
+        "primary",
+        [
+            {"_type": "source", "ref": "primary", "title": "Primary"},
+            {
+                "_type": "etymon",
+                "ref": "old-english:x",
+                "language": "old-english",
+                "canonical_form": "x",
+            },
+            {"_type": "citation", "etymon_ref": "old-english:x", "source_id": "never-declared"},
+        ],
+    )
+    conn = _build_fixture_db()
+    counts = build_from_jsonl(conn, jsonl_paths_in(tmp_path))
+    assert counts["citation"] == 0
+    assert counts["citation_source_orphans"] == 1
+    assert conn.execute("SELECT COUNT(*) FROM etymon_citation").fetchone()[0] == 0
+
+
 def test_build_inserts_descent_with_resolved_fks(tmp_path: Path):
     _write_jsonl(
         tmp_path,
@@ -793,6 +851,8 @@ def _empty_counts() -> dict:
         "citation": 0,
         "citation_orphans": 0,
         "citation_orphan_refs": [],
+        "citation_source_orphans": 0,
+        "citation_source_orphan_refs": [],
         "etymon_descent": 0,
         "etymon_descent_orphans": 0,
         "etymon_descent_orphan_refs": [],
@@ -833,7 +893,7 @@ def test_insert_citation_rows_skips_unknown_etymon_ref():
         {"etymon_ref": "old-english:cot", "page": "15"},
         {"etymon_ref": "old-english:ghost", "page": "99"},
     ]
-    _insert_citation_rows(conn, "skeat", rows, {"old-english:cot": cot_id}, counts)
+    _insert_citation_rows(conn, "skeat", rows, {"old-english:cot": cot_id}, {"skeat"}, counts)
     assert counts["citation"] == 1
     assert counts["citation_orphans"] == 1
     assert counts["citation_orphan_refs"] == ["old-english:ghost"]

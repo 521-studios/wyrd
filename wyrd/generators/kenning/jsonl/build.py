@@ -421,6 +421,7 @@ def _insert_citation_rows(
     source_id: str,
     rows: list[dict[str, Any]],
     etymon_id_by_ref: dict[str, int],
+    known_source_ids: set[str],
     counts: dict[str, Any],
 ) -> None:
     """Insert ``citation`` rows. Default attribution is the file's
@@ -428,7 +429,10 @@ def _insert_citation_rows(
     naming a ``cited_source`` the file registered (wyrd-2b50 — lets one
     file record attestations from sources it cites on behalf of, without
     a separate JSONL per source). Unknown ``etymon_ref`` → counted in
-    ``citation_orphans`` and skipped (wyrd-lene)."""
+    ``citation_orphans`` and skipped (wyrd-lene). An override ``source_id``
+    that no file registered → counted in ``citation_source_orphans`` and
+    skipped, rather than silently swallowed by the FK + INSERT OR IGNORE
+    (wyrd-2b50)."""
     for row in rows:
         eref = row["etymon_ref"]
         eid = etymon_id_by_ref.get(eref)
@@ -437,7 +441,18 @@ def _insert_citation_rows(
             if len(counts["citation_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
                 counts["citation_orphan_refs"].append(eref)
             continue
-        _insert_citation(conn, eid, row.get("source_id") or source_id, row)
+        # Resolve attribution: an explicit per-row source_id (wyrd-2b50)
+        # else the file's primary source. ``.get(k, default)`` keys on
+        # key-ABSENCE, not falsiness (unlike ``or``), so a present-but-
+        # empty source_id is kept verbatim and then surfaces as an orphan
+        # below rather than silently falling back to the file source.
+        cite_source = row.get("source_id", source_id)
+        if cite_source not in known_source_ids:
+            counts["citation_source_orphans"] += 1
+            if len(counts["citation_source_orphan_refs"]) < ORPHAN_SAMPLE_LIMIT:
+                counts["citation_source_orphan_refs"].append(f"{eref} → {cite_source!r}")
+            continue
+        _insert_citation(conn, eid, cite_source, row)
         counts["citation"] += 1
 
 
@@ -703,6 +718,12 @@ def build_from_jsonl(
         "fantasy_morpheme": 0,
         "fantasy_morpheme_orphans": 0,
         "fantasy_morpheme_orphan_refs": [],
+        # wyrd-2b50: a citation row whose (explicit or file-default)
+        # source_id names a source no file registered. etymon_citation
+        # .source_id FKs source(id), so such a row would be silently
+        # swallowed by INSERT OR IGNORE; count + skip it visibly instead.
+        "citation_source_orphans": 0,
+        "citation_source_orphan_refs": [],
     }
 
     # ----- Pass 1: replay every file, accumulate merged state.
@@ -720,18 +741,21 @@ def build_from_jsonl(
             _merge_toponym(merged_toponyms.setdefault(ref, {}), payload)
 
     # ----- Pass 2: insert sources, etymons, toponyms; build FK maps.
+    known_source_ids: set[str] = set()
     for _path, source_id, state in file_states:
         _upsert_source(conn, source_id, state.keyed["source"][source_id])
         counts["source"] += 1
+        known_source_ids.add(source_id)
         # wyrd-2b50: register secondary sources this file cites on behalf
         # of (e.g. Briggs indexes PASE/DLV/Anglo-Saxon-charter attestations
         # we have never ingested directly). etymon_citation.source_id is an
         # FK to source(id), so each must exist before pass 3 inserts the
-        # citations that target it. INSERT OR IGNORE in _upsert_source makes
-        # re-declaration across files a no-op.
+        # citations that target it. _upsert_source uses INSERT OR REPLACE,
+        # so re-declaring the same cited_source across files is idempotent.
         for cited_id, cited_payload in state.keyed.get("cited_source", {}).items():
             _upsert_source(conn, cited_id, cited_payload)
             counts["source"] += 1
+            known_source_ids.add(cited_id)
 
     etymon_id_by_ref: dict[str, int] = {}
     for ref, payload in merged_etymons.items():
@@ -751,7 +775,9 @@ def build_from_jsonl(
     # Per-row-type helpers carry the orphan-skip + dedup semantics; this
     # loop is the per-source dispatch.
     for _path, source_id, state in file_states:
-        _insert_citation_rows(conn, source_id, state.lists["citation"], etymon_id_by_ref, counts)
+        _insert_citation_rows(
+            conn, source_id, state.lists["citation"], etymon_id_by_ref, known_source_ids, counts
+        )
         _insert_descent_rows(
             conn, source_id, state.lists["etymon_descent"], etymon_id_by_ref, counts
         )

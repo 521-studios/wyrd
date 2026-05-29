@@ -191,9 +191,10 @@ class AttestationRecord:
     ``county_canonical`` is exposed as a property derived from
     ``county_code`` against ``COUNTY_CODE_TO_NAME`` so the two fields
     can't drift apart. Unknown county codes return an empty string
-    instead of raising — the ingester counts and drops those rows
-    via the ``attestations_unknown_county`` counter, which keeps the
-    schema-validation seam in one place.
+    instead of raising. (wyrd-2b50: name→toponym attestations are no
+    longer emitted at all — they bump ``attestations_dropped`` — so the
+    record now only feeds the parser-side counters; the county lookup
+    is retained for those visibility counters.)
 
     The ``is_serious_doubt`` flag implies ``is_uncertain`` (``??`` is
     a strict refinement of ``?``); ``__post_init__`` enforces this.
