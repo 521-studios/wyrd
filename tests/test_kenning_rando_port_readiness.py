@@ -315,6 +315,103 @@ def test_load_bundle_reads_json(tmp_path: Path):
     assert out == {"subjects": []}
 
 
+def test_scholar_only_pct_matches_direct_ratio():
+    """wyrd-w1ak: scholar_only_pct is scholar_attested / total, NOT
+    (scholar + empirical) / total. Visibility metric — surfaces how
+    much of a language's coverage rests on scholarly sources alone
+    vs the empirical-mining wedge."""
+    lc = LanguageCriterion(
+        language="old_french",
+        total_subjects=548,
+        scholar_attested=16,
+        empirical_only=505,
+        rando_only=0,
+        uncited=27,
+    )
+    # Old French operator-lexicon snapshot (2026-05-29): 2.9% scholar-
+    # only vs 95.1% combined coverage. The combined view says C1 is
+    # fine; the scholar-only view tells the truer story about
+    # pipeline dependence.
+    assert lc.scholar_only_pct == pytest.approx(100.0 * 16 / 548)
+    assert lc.coverage_pct == pytest.approx(100.0 * (16 + 505) / 548)
+
+
+def test_scholar_only_pct_zero_subjects_returns_zero():
+    """Defensive division: a language with zero bundle subjects gets
+    a 0.0 scholar-only fraction (consistent with coverage_pct's
+    zero-subjects return)."""
+    lc = LanguageCriterion(
+        language="proto-germanic",
+        total_subjects=0,
+        scholar_attested=0,
+        empirical_only=0,
+        rando_only=0,
+        uncited=0,
+    )
+    assert lc.scholar_only_pct == 0.0
+
+
+def test_scholar_only_pct_does_not_change_c1_verdict():
+    """wyrd-w1ak invariance: adding the scholar_only column is a
+    visibility change, not a gate change. C1 still uses the combined
+    (scholar + empirical) ratio. Pin so a future refactor that
+    accidentally re-routes passes_coverage through scholar_only_pct
+    fails fast."""
+    lc = LanguageCriterion(
+        language="old_french",
+        total_subjects=100,
+        scholar_attested=3,  # 3% scholar-only — below any reasonable threshold
+        empirical_only=95,  # but combined 98% — clears C1
+        rando_only=0,
+        uncited=2,
+    )
+    assert lc.scholar_only_pct == pytest.approx(3.0)
+    assert lc.coverage_pct == pytest.approx(98.0)
+    assert lc.passes_coverage(0.80), (
+        "C1 must remain driven by combined coverage; scholar_only_pct is a "
+        "visibility metric, not a gate"
+    )
+
+
+def test_format_readiness_includes_scholar_only_column():
+    """wyrd-w1ak: the markdown table renders a 'Scholar only' column
+    alongside 'Coverage'. Test asserts the header is present plus a
+    rendered percentage row matches the property."""
+    report = ReadinessReport(
+        coverage_threshold=0.80,
+        per_language=(
+            LanguageCriterion(
+                language="old_french",
+                total_subjects=548,
+                scholar_attested=16,
+                empirical_only=505,
+                rando_only=0,
+                uncited=27,
+            ),
+        ),
+    )
+    out = format_readiness(report)
+    assert "| Scholar only |" in out, (
+        f"markdown table must include 'Scholar only' column header; got:\n{out}"
+    )
+    # The rendered value matches the property to one decimal.
+    assert "| 2.9% | 95.1% |" in out, (
+        f"row must render scholar_only_pct (2.9%) before coverage_pct (95.1%); got:\n{out}"
+    )
+
+
+def test_format_readiness_documents_scholar_only_column():
+    """wyrd-w1ak: criterion-definitions section explains the column
+    is visibility-only (NOT a gate)."""
+    report = ReadinessReport(coverage_threshold=0.80, per_language=())
+    out = format_readiness(report)
+    assert "Scholar only" in out
+    assert "visibility" in out, (
+        "the docstring must call out that this is a visibility metric, "
+        f"not a gate change; got:\n{out}"
+    )
+
+
 def test_format_readiness_pass_marker():
     """Passing report includes the PASS verdict."""
     report = ReadinessReport(coverage_threshold=0.80, per_language=())
