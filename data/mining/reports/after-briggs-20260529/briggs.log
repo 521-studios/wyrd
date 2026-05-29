@@ -1,0 +1,908 @@
+=== briggs additive ingest (no wipe) 06:47UTC ===
+Ingesting Briggs personal-names index from /home/devon/521Studios/wyrd-source-staging/briggs_2024_personal_names_index.txt
+  → JSONL artifact: /tmp/briggs_regen.jsonl
+  → DB:             /home/devon/.wyrd/lexicon.db  (source_doc = briggs_2024_personal_names_index)
+  [250] pn_emitted=215 att_emitted=403 att_unknown_county=0 (0.000s/entry)
+  [500] pn_emitted=432 att_emitted=673 att_unknown_county=1 (0.000s/entry)
+  [750] pn_emitted=653 att_emitted=891 att_unknown_county=1 (0.000s/entry)
+  [1000] pn_emitted=894 att_emitted=1169 att_unknown_county=1 (0.000s/entry)
+  [1250] pn_emitted=1101 att_emitted=1578 att_unknown_county=1 (0.000s/entry)
+  [1500] pn_emitted=1315 att_emitted=2012 att_unknown_county=1 (0.000s/entry)
+  [1750] pn_emitted=1515 att_emitted=2452 att_unknown_county=1 (0.000s/entry)
+  [2000] pn_emitted=1746 att_emitted=2883 att_unknown_county=1 (0.000s/entry)
+  [2250] pn_emitted=1895 att_emitted=3339 att_unknown_county=1 (0.000s/entry)
+  [2500] pn_emitted=2100 att_emitted=3722 att_unknown_county=1 (0.000s/entry)
+  [2750] pn_emitted=2314 att_emitted=4260 att_unknown_county=5 (0.000s/entry)
+  [3000] pn_emitted=2454 att_emitted=4659 att_unknown_county=6 (0.000s/entry)
+  [3250] pn_emitted=2642 att_emitted=5047 att_unknown_county=6 (0.000s/entry)
+  [3500] pn_emitted=2840 att_emitted=5542 att_unknown_county=7 (0.000s/entry)
+  [3750] pn_emitted=3070 att_emitted=5801 att_unknown_county=10 (0.000s/entry)
+  [4000] pn_emitted=3285 att_emitted=6022 att_unknown_county=10 (0.000s/entry)
+  [4250] pn_emitted=3463 att_emitted=6275 att_unknown_county=10 (0.000s/entry)
+  [4500] pn_emitted=3704 att_emitted=6497 att_unknown_county=12 (0.000s/entry)
+  [4750] pn_emitted=3893 att_emitted=6774 att_unknown_county=12 (0.000s/entry)
+  [5000] pn_emitted=4082 att_emitted=7128 att_unknown_county=12 (0.000s/entry)
+  [5250] pn_emitted=4267 att_emitted=7465 att_unknown_county=12 (0.000s/entry)
+  [5500] pn_emitted=4506 att_emitted=7763 att_unknown_county=12 (0.000s/entry)
+  [5750] pn_emitted=4662 att_emitted=8264 att_unknown_county=12 (0.000s/entry)
+  [6000] pn_emitted=4888 att_emitted=8668 att_unknown_county=12 (0.000s/entry)
+  [6250] pn_emitted=5120 att_emitted=8939 att_unknown_county=12 (0.000s/entry)
+  [6500] pn_emitted=5353 att_emitted=9375 att_unknown_county=12 (0.000s/entry)
+  [6750] pn_emitted=5552 att_emitted=9687 att_unknown_county=13 (0.000s/entry)
+  [7000] pn_emitted=5733 att_emitted=10111 att_unknown_county=13 (0.000s/entry)
+  [7250] pn_emitted=5939 att_emitted=10402 att_unknown_county=13 (0.000s/entry)
+  [7500] pn_emitted=6157 att_emitted=10640 att_unknown_county=13 (0.000s/entry)
+  [7750] pn_emitted=6367 att_emitted=10998 att_unknown_county=13 (0.000s/entry)
+  [8000] pn_emitted=6573 att_emitted=11453 att_unknown_county=13 (0.000s/entry)
+  [8250] pn_emitted=6781 att_emitted=11756 att_unknown_county=13 (0.000s/entry)
+  [8500] pn_emitted=7003 att_emitted=11990 att_unknown_county=13 (0.000s/entry)
+  [8750] pn_emitted=7247 att_emitted=12256 att_unknown_county=13 (0.000s/entry)
+  [9000] pn_emitted=7471 att_emitted=12556 att_unknown_county=14 (0.000s/entry)
+  [9250] pn_emitted=7688 att_emitted=12823 att_unknown_county=14 (0.000s/entry)
+  [9500] pn_emitted=7913 att_emitted=13051 att_unknown_county=14 (0.000s/entry)
+  [9750] pn_emitted=8133 att_emitted=13336 att_unknown_county=14 (0.000s/entry)
+  [10000] pn_emitted=8306 att_emitted=13657 att_unknown_county=14 (0.000s/entry)
+  [10250] pn_emitted=8469 att_emitted=13880 att_unknown_county=14 (0.000s/entry)
+  [10500] pn_emitted=8601 att_emitted=14306 att_unknown_county=14 (0.000s/entry)
+  [10750] pn_emitted=8770 att_emitted=14670 att_unknown_county=14 (0.000s/entry)
+  [10929] pn_emitted=8881 att_emitted=15057 att_unknown_county=14 (0.000s/entry)
+
+Done in 10.3s. entries=10929 pn_emitted=8881 pn_inserted_in_db=8881 att_emitted=15057 att_inserted_in_db=15057 att_unknown_county=14
+Silent-skip counters: entries_unparsed=332 att_groups_no_county=1858 att_groups_lang_only=0 entries_no_atts=5089 entries_citation_only=3960 pn_lookup_failed=0
+  JSONL artifact: /tmp/briggs_regen.jsonl
+=== after-briggs export-runtime-db 06:48UTC ===
+  collect_families 1083/54198 (2.0%) elapsed=3s eta=167s (317 roots/s)
+  collect_families 2166/54198 (4.0%) elapsed=7s eta=164s (317 roots/s)
+  collect_families 3249/54198 (6.0%) elapsed=10s eta=160s (318 roots/s)
+  collect_families 4332/54198 (8.0%) elapsed=14s eta=157s (317 roots/s)
+  collect_families 5415/54198 (10.0%) elapsed=17s eta=153s (318 roots/s)
+  collect_families 6498/54198 (12.0%) elapsed=20s eta=150s (318 roots/s)
+  collect_families 7581/54198 (14.0%) elapsed=24s eta=147s (318 roots/s)
+  collect_families 8664/54198 (16.0%) elapsed=27s eta=143s (318 roots/s)
+  collect_families 9747/54198 (18.0%) elapsed=31s eta=140s (318 roots/s)
+  collect_families 10830/54198 (20.0%) elapsed=34s eta=136s (318 roots/s)
+  collect_families 11913/54198 (22.0%) elapsed=37s eta=133s (318 roots/s)
+  collect_families 12996/54198 (24.0%) elapsed=41s eta=130s (318 roots/s)
+  collect_families 14079/54198 (26.0%) elapsed=44s eta=126s (318 roots/s)
+  collect_families 15162/54198 (28.0%) elapsed=48s eta=123s (318 roots/s)
+  collect_families 16245/54198 (30.0%) elapsed=51s eta=119s (318 roots/s)
+  collect_families 17328/54198 (32.0%) elapsed=54s eta=116s (318 roots/s)
+  collect_families 18411/54198 (34.0%) elapsed=58s eta=113s (318 roots/s)
+  collect_families 19494/54198 (36.0%) elapsed=62s eta=110s (315 roots/s)
+  collect_families 20577/54198 (38.0%) elapsed=66s eta=107s (314 roots/s)
+  collect_families 21660/54198 (40.0%) elapsed=69s eta=104s (314 roots/s)
+  collect_families 22743/54198 (42.0%) elapsed=72s eta=100s (314 roots/s)
+  collect_families 23826/54198 (44.0%) elapsed=76s eta=97s (314 roots/s)
+  collect_families 24909/54198 (46.0%) elapsed=79s eta=93s (314 roots/s)
+  collect_families 25992/54198 (48.0%) elapsed=83s eta=90s (314 roots/s)
+  collect_families 27075/54198 (50.0%) elapsed=86s eta=86s (314 roots/s)
+  collect_families 28158/54198 (52.0%) elapsed=90s eta=83s (315 roots/s)
+  collect_families 29241/54198 (54.0%) elapsed=93s eta=79s (315 roots/s)
+  collect_families 30324/54198 (56.0%) elapsed=96s eta=76s (315 roots/s)
+  collect_families 31407/54198 (57.9%) elapsed=100s eta=72s (315 roots/s)
+  collect_families 32490/54198 (59.9%) elapsed=103s eta=69s (315 roots/s)
+  collect_families 33573/54198 (61.9%) elapsed=107s eta=65s (315 roots/s)
+  collect_families 34656/54198 (63.9%) elapsed=110s eta=62s (315 roots/s)
+  collect_families 35739/54198 (65.9%) elapsed=114s eta=59s (314 roots/s)
+  collect_families 36822/54198 (67.9%) elapsed=117s eta=55s (314 roots/s)
+  collect_families 37905/54198 (69.9%) elapsed=121s eta=52s (313 roots/s)
+  collect_families 38988/54198 (71.9%) elapsed=124s eta=49s (313 roots/s)
+  collect_families 40071/54198 (73.9%) elapsed=128s eta=45s (314 roots/s)
+  collect_families 41154/54198 (75.9%) elapsed=131s eta=42s (314 roots/s)
+  collect_families 42237/54198 (77.9%) elapsed=135s eta=38s (314 roots/s)
+  collect_families 43320/54198 (79.9%) elapsed=138s eta=35s (314 roots/s)
+  collect_families 44403/54198 (81.9%) elapsed=141s eta=31s (314 roots/s)
+  collect_families 45486/54198 (83.9%) elapsed=145s eta=28s (314 roots/s)
+  collect_families 46569/54198 (85.9%) elapsed=148s eta=24s (314 roots/s)
+  collect_families 47652/54198 (87.9%) elapsed=152s eta=21s (314 roots/s)
+  collect_families 48735/54198 (89.9%) elapsed=155s eta=17s (314 roots/s)
+  collect_families 49818/54198 (91.9%) elapsed=158s eta=14s (314 roots/s)
+  collect_families 50901/54198 (93.9%) elapsed=162s eta=10s (315 roots/s)
+  collect_families 51984/54198 (95.9%) elapsed=165s eta=7s (315 roots/s)
+  collect_families 53067/54198 (97.9%) elapsed=169s eta=4s (315 roots/s)
+  collect_families 54150/54198 (99.9%) elapsed=172s eta=0s (315 roots/s)
+  collect_families 54198/54198 (100.0%) elapsed=172s eta=0s (315 roots/s)
+Cross-product cap (256) reached for toponym 'Abbeystead' — capped per-word options (was [437], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Acton Burnell' — capped per-word options (was [31, 49], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Aldingbourne' — capped per-word options (was [888], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Aldington' — capped per-word options (was [518], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Alfriston' — capped per-word options (was [271], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Algarkirk' — capped per-word options (was [302], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Alkington' — capped per-word options (was [452], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Allerston' — capped per-word options (was [656], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Allestree' — capped per-word options (was [832], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Allington' — capped per-word options (was [842], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Alston Sutton' — capped per-word options (was [38, 47], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Alstonefield' — capped per-word options (was [834], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Alton Barnes' — capped per-word options (was [42, 88], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Alverstone' — capped per-word options (was [688], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Amington' — capped per-word options (was [604], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Angerton' — capped per-word options (was [1251], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Ardington' — capped per-word options (was [1178], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Arkendale' — capped per-word options (was [778], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Arleston' — capped per-word options (was [302], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Arlingham' — capped per-word options (was [262], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Arlington' — capped per-word options (was [898], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Arminghall' — capped per-word options (was [900], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Arrington' — capped per-word options (was [1514], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Ashby Magna' — capped per-word options (was [18, 81], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Ashendon' — capped per-word options (was [284], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Ashingdon' — capped per-word options (was [315], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Ashington' — capped per-word options (was [632], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Ashperton' — capped per-word options (was [480], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Ashwellthorpe' — capped per-word options (was [1100], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Askerswell' — capped per-word options (was [639], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Assington' — capped per-word options (was [466], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Aston Botterell' — capped per-word options (was [41, 338], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Aston Fields' — capped per-word options (was [41, 14], now [18, 14]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Aston Sandford' — capped per-word options (was [41, 101], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Aston Somerville' — capped per-word options (was [41, 158], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Aston Upthorpe' — capped per-word options (was [41, 31], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Aston by Sutton' — capped per-word options (was [41, 3, 47], now [9, 3, 9]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Aylestone' — capped per-word options (was [756], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Balderton' — capped per-word options (was [467], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Ballingdon' — capped per-word options (was [889], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Ballingham' — capped per-word options (was [521], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Balterley' — capped per-word options (was [680], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Barford Saint John' — capped per-word options (was [89, 52, 6], now [6, 7, 6]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Barford Saint Michael' — capped per-word options (was [89, 52, 15], now [6, 6, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Barlestone' — capped per-word options (was [1244], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Barmston' — capped per-word options (was [330], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Barnsley' — capped per-word options (was [273], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Barnston' — capped per-word options (was [549], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Barrington' — capped per-word options (was [3167], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Barrow upon Soar' — capped per-word options (was [36, 7, 7], now [6, 6, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Barton on Sea' — capped per-word options (was [118, 3, 8], now [10, 3, 8]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bassingfield' — capped per-word options (was [990], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bassingham' — capped per-word options (was [449], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bassingthorpe' — capped per-word options (was [2750], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Beanthwaite' — capped per-word options (was [1648], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Beckingham' — capped per-word options (was [386], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Beckington' — capped per-word options (was [1308], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Beddington' — capped per-word options (was [1037], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bedhampton' — capped per-word options (was [368], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bedlington' — capped per-word options (was [939], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bedminster' — capped per-word options (was [1076], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Beeston Saint Andrew' — capped per-word options (was [106, 52, 44], now [6, 6, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Beeston Saint Lawrence' — capped per-word options (was [106, 52, 114], now [6, 6, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bellingham' — capped per-word options (was [527], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Belmesthorpe' — capped per-word options (was [778], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Belstone' — capped per-word options (was [260], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Benenden' — capped per-word options (was [736], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Beningbrough' — capped per-word options (was [1522], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Benington' — capped per-word options (was [1332], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bermondsey' — capped per-word options (was [476], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Berrington' — capped per-word options (was [2523], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Beverston' — capped per-word options (was [392], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bishop Burton' — capped per-word options (was [7, 47], now [7, 36]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bishop Norton' — capped per-word options (was [7, 115], now [7, 36]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bishopstone' — capped per-word options (was [260], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Black Torrington' — capped per-word options (was [8, 4414], now [8, 32]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Boddington' — capped per-word options (was [1025], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bonnington' — capped per-word options (was [3054], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Boylestone' — capped per-word options (was [799], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bradbourne' — capped per-word options (was [264], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bradenham' — capped per-word options (was [285], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bradfield Saint Clare' — capped per-word options (was [74, 52, 20], now [6, 6, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bradford on Avon' — capped per-word options (was [91, 3, 12], now [9, 3, 9]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bradley Green' — capped per-word options (was [75, 80], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bradstone' — capped per-word options (was [536], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bridge Sollers' — capped per-word options (was [51, 45], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Brimington' — capped per-word options (was [1597], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Brinsworth' — capped per-word options (was [412], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Brokenborough' — capped per-word options (was [798], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Broughton Astley' — capped per-word options (was [227, 76], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Buckhorn Weston' — capped per-word options (was [31, 57], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Buckland Dinham' — capped per-word options (was [35, 26], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Buckland Newton' — capped per-word options (was [35, 117], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Buckland Saint Mary' — capped per-word options (was [35, 52, 29], now [6, 6, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Buckland in the Moor' — capped per-word options (was [35, 5, 6, 6], now [4, 4, 4, 4]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Buckminster' — capped per-word options (was [862], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Burgh Castle' — capped per-word options (was [11, 48], now [11, 23]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Burlingham' — capped per-word options (was [271], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Burmington' — capped per-word options (was [882], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Burnaston' — capped per-word options (was [514], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Burneston' — capped per-word options (was [596], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Burnham Thorpe' — capped per-word options (was [49, 25], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Burrington' — capped per-word options (was [1262], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Burton Bradstock' — capped per-word options (was [47, 139], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Burton Lazars' — capped per-word options (was [47, 24], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Burton Overy' — capped per-word options (was [47, 17], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Burton on the Wolds' — capped per-word options (was [47, 3, 6, 9], now [4, 3, 4, 5]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Callington' — capped per-word options (was [1095], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Camberwell' — capped per-word options (was [504], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Cambridge' — capped per-word options (was [348], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Camden Town' — capped per-word options (was [60, 21], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Camerton' — capped per-word options (was [455], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Cammeringham' — capped per-word options (was [2736], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Car Colston' — capped per-word options (was [9, 146], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Carburton' — capped per-word options (was [396], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Cardington' — capped per-word options (was [1991], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Carhampton' — capped per-word options (was [683], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Carleton' — capped per-word options (was [359], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Carnforth' — capped per-word options (was [625], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Carsington' — capped per-word options (was [1732], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Castle Acre' — capped per-word options (was [48, 11], now [23, 11]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Castle Ashby' — capped per-word options (was [48, 18], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Castle Combe' — capped per-word options (was [48, 11], now [23, 11]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Castle Hill' — capped per-word options (was [48, 7], now [36, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Castlethorpe' — capped per-word options (was [1439], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Castleton' — capped per-word options (was [746], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Childerley' — capped per-word options (was [304], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Chillesford' — capped per-word options (was [392], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Chillingham' — capped per-word options (was [426], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Chillington' — capped per-word options (was [1457], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Christleton' — capped per-word options (was [610], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Church Broughton' — capped per-word options (was [9, 227], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Church Laneham' — capped per-word options (was [9, 76], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Churchstanton' — capped per-word options (was [4296], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Cold Ashton' — capped per-word options (was [11, 61], now [11, 23]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Cold Aston' — capped per-word options (was [11, 41], now [11, 23]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Cold Newton' — capped per-word options (was [11, 117], now [11, 23]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Cold Norton' — capped per-word options (was [11, 115], now [11, 23]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Cold Overton' — capped per-word options (was [11, 99], now [11, 23]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Coldridge' — capped per-word options (was [303], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Colemere' — capped per-word options (was [307], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Colemore' — capped per-word options (was [356], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Collierley' — capped per-word options (was [912], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Collingbourne Kingston' — capped per-word options (was [4368, 286], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Collingham' — capped per-word options (was [743], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Collington' — capped per-word options (was [2548], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Colston Bassett' — capped per-word options (was [146, 267], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Combe Martin' — capped per-word options (was [11, 224], now [11, 23]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Combe Raleigh' — capped per-word options (was [11, 33], now [11, 23]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Comberton' — capped per-word options (was [344], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Coney Weston' — capped per-word options (was [42, 57], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Congerstone' — capped per-word options (was [4034], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Congleton' — capped per-word options (was [447], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Conington' — capped per-word options (was [882], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Corby Glen' — capped per-word options (was [25, 19], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Corhampton' — capped per-word options (was [500], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Corringham' — capped per-word options (was [744], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Corton Denham' — capped per-word options (was [93, 32], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Culmington' — capped per-word options (was [1640], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Culverthorpe' — capped per-word options (was [925], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Dallington' — capped per-word options (was [1807], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Danthorpe' — capped per-word options (was [348], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Denstone' — capped per-word options (was [414], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Derrington' — capped per-word options (was [2031], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Dersingham' — capped per-word options (was [321], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Down Saint Mary' — capped per-word options (was [10, 52, 29], now [6, 6, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Downham Market' — capped per-word options (was [40, 141], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Downinney' — capped per-word options (was [866], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Dunbridge' — capped per-word options (was [271], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Dunkerton' — capped per-word options (was [698], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Dunstone' — capped per-word options (was [264], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Dunterton' — capped per-word options (was [1073], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Dunton Bassett' — capped per-word options (was [81, 267], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Durrington' — capped per-word options (was [1262], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Anstey' — capped per-word options (was [29, 225], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Barming' — capped per-word options (was [29, 189], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Beckham' — capped per-word options (was [29, 34], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Bradenham' — capped per-word options (was [29, 285], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Brent' — capped per-word options (was [29, 71], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Buckland' — capped per-word options (was [29, 35], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Dean' — capped per-word options (was [29, 20], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Down' — capped per-word options (was [29, 10], now [25, 10]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Farleigh' — capped per-word options (was [29, 54], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Garston' — capped per-word options (was [29, 336], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Halton' — capped per-word options (was [29, 63], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Harling' — capped per-word options (was [29, 114], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Horsley' — capped per-word options (was [29, 52], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Kirkby' — capped per-word options (was [29, 26], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Langton' — capped per-word options (was [29, 254], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Malling' — capped per-word options (was [29, 160], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Marden' — capped per-word options (was [29, 127], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Mersea' — capped per-word options (was [29, 43], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Molesey' — capped per-word options (was [29, 82], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Newton' — capped per-word options (was [29, 117], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Norton' — capped per-word options (was [29, 115], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Orchard' — capped per-word options (was [29, 48], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Somerton' — capped per-word options (was [29, 191], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Stoke' — capped per-word options (was [29, 13], now [19, 13]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Stour' — capped per-word options (was [29, 11], now [23, 11]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Sutton' — capped per-word options (was [29, 47], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Torrington' — capped per-word options (was [29, 4414], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Walton' — capped per-word options (was [29, 71], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Wellow' — capped per-word options (was [29, 31], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Wittering' — capped per-word options (was [29, 1113], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'East Worlington' — capped per-word options (was [29, 994], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Eastbourne' — capped per-word options (was [672], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Eastbridge' — capped per-word options (was [1372], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Eastburn' — capped per-word options (was [308], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Eastbury' — capped per-word options (was [284], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Eastgate' — capped per-word options (was [868], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Eastling' — capped per-word options (was [476], now [256]) so all combos stay full-length.
+/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/name.py:243: DecompositionTruncatedWarning: all_decompositions on 'Eastrington' (len=11) hit the per-position cap of 10000; returned list is a deterministic but non-exhaustive subset. Use canonical_decompositions for memory-bounded best-parse enumeration, or raise the cap if exhaustiveness matters here.
+  else all_decompositions(word, trie)
+Cross-product cap (256) reached for toponym 'Eastrington' — capped per-word options (was [10000], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Eastwell' — capped per-word options (was [280], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Edwardstone' — capped per-word options (was [1319], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Elkington' — capped per-word options (was [789], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Ellesmere' — capped per-word options (was [372], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Ellingham' — capped per-word options (was [258], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Ellington' — capped per-word options (was [884], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Elloughton' — capped per-word options (was [605], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Elmley Castle' — capped per-word options (was [40, 48], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Elmstone' — capped per-word options (was [311], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Elterwater' — capped per-word options (was [2412], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Enstone' — capped per-word options (was [370], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Essington' — capped per-word options (was [340], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Faringdon' — capped per-word options (was [730], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Farleton' — capped per-word options (was [287], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Farlington' — capped per-word options (was [1919], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Farnsfield' — capped per-word options (was [417], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Farringdon' — capped per-word options (was [1619], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Fernhurst' — capped per-word options (was [500], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Field Dalling' — capped per-word options (was [11, 140], now [11, 23]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Fordingbridge' — capped per-word options (was [7007], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Fordington' — capped per-word options (was [2004], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Forest Hill' — capped per-word options (was [87, 7], now [36, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Forthampton' — capped per-word options (was [1960], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Garforth' — capped per-word options (was [310], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Garmondsway' — capped per-word options (was [1525], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Garsington' — capped per-word options (was [3122], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Garstang' — capped per-word options (was [1344], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Garston' — capped per-word options (was [336], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Garthorpe' — capped per-word options (was [440], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Garton on the Wolds' — capped per-word options (was [228, 3, 6, 9], now [4, 3, 4, 5]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Gate Burton' — capped per-word options (was [33, 47], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Gilling East' — capped per-word options (was [83, 29], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Gillingham' — capped per-word options (was [316], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Gilmorton' — capped per-word options (was [327], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Glastonbury' — capped per-word options (was [2804], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Greenbank' — capped per-word options (was [1073], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Greenfield' — capped per-word options (was [779], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Greenford' — capped per-word options (was [913], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Greenham' — capped per-word options (was [295], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Greenhead' — capped per-word options (was [340], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Greenhill' — capped per-word options (was [431], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Greenway' — capped per-word options (was [430], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Guilden Sutton' — capped per-word options (was [57, 47], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Halberton' — capped per-word options (was [366], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Halesowen' — capped per-word options (was [308], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Halesworth' — capped per-word options (was [282], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Hallington' — capped per-word options (was [1317], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Halvergate' — capped per-word options (was [563], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Hampton Bishop' — capped per-word options (was [84, 7], now [36, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Harborough Magna' — capped per-word options (was [101, 81], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Harbridge' — capped per-word options (was [322], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Hardingstone' — capped per-word options (was [5205], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Hardington' — capped per-word options (was [1697], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Harlesden' — capped per-word options (was [282], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Harleston' — capped per-word options (was [509], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Harlestone' — capped per-word options (was [1180], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Harlington' — capped per-word options (was [1501], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Harmondsworth' — capped per-word options (was [1829], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Harmston' — capped per-word options (was [298], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Harperley' — capped per-word options (was [480], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Harrington' — capped per-word options (was [2285], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Harringworth' — capped per-word options (was [2447], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Harrow on the Hill' — capped per-word options (was [27, 3, 6, 7], now [4, 3, 4, 5]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Hartford' — capped per-word options (was [285], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Harting' — capped per-word options (was [272], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Hartland' — capped per-word options (was [262], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Hayling Island' — capped per-word options (was [102, 12], now [21, 12]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Headington' — capped per-word options (was [1260], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Heath and Reach' — capped per-word options (was [19, 7, 20], now [6, 6, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Heckington' — capped per-word options (was [677], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Henstridge' — capped per-word options (was [1344], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'High Littleton' — capped per-word options (was [5, 528], now [5, 51]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'High Newton' — capped per-word options (was [5, 117], now [5, 51]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Higher Whitley' — capped per-word options (was [33, 42], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Hillhampton' — capped per-word options (was [498], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Hillingdon' — capped per-word options (was [548], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Hillington' — capped per-word options (was [1094], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Holcombe Burnell' — capped per-word options (was [46, 49], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Hollingbourne' — capped per-word options (was [2376], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Hollingdon' — capped per-word options (was [693], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Hollington' — capped per-word options (was [1386], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Hollingworth' — capped per-word options (was [1487], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Holmesfield' — capped per-word options (was [257], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Holystone' — capped per-word options (was [499], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Hope Mansell' — capped per-word options (was [9, 166], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Horringer' — capped per-word options (was [474], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Horsington' — capped per-word options (was [842], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Horton Kirby' — capped per-word options (was [34, 12], now [21, 12]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Hurst Wickham' — capped per-word options (was [21, 19], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Kensington' — capped per-word options (was [1563], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Killington' — capped per-word options (was [966], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Killingworth' — capped per-word options (was [1038], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Kilmington' — capped per-word options (was [757], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym "King's Somborne" — capped per-word options (was [15, 42], now [15, 17]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Kingerby' — capped per-word options (was [261], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Kingskerswell' — capped per-word options (was [4018], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Kingston' — capped per-word options (was [286], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Kingstone' — capped per-word options (was [679], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Kingthorpe' — capped per-word options (was [375], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Kington Magna' — capped per-word options (was [212, 81], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Kington Saint Michael' — capped per-word options (was [212, 52, 15], now [6, 6, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Kingweston' — capped per-word options (was [948], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Kirk Langley' — capped per-word options (was [9, 156], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Kirkby Green' — capped per-word options (was [26, 80], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Kirmington' — capped per-word options (was [884], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Kirton in Lindsey' — capped per-word options (was [44, 5, 110], now [7, 5, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Kynaston' — capped per-word options (was [496], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Lancaster' — capped per-word options (was [1029], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Langney' — capped per-word options (was [342], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Langridge' — capped per-word options (was [488], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Langstone' — capped per-word options (was [774], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Lea Marston' — capped per-word options (was [6, 312], now [6, 42]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Letcombe Bassett' — capped per-word options (was [70, 267], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Letheringham' — capped per-word options (was [2932], now [256]) so all combos stay full-length.
+/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/name.py:243: DecompositionTruncatedWarning: all_decompositions on 'Letheringsett' (len=13) hit the per-position cap of 10000; returned list is a deterministic but non-exhaustive subset. Use canonical_decompositions for memory-bounded best-parse enumeration, or raise the cap if exhaustiveness matters here.
+  else all_decompositions(word, trie)
+Cross-product cap (256) reached for toponym 'Letheringsett' — capped per-word options (was [10000], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Linstead Magna' — capped per-word options (was [152, 81], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Linstead Parva' — capped per-word options (was [152, 11], now [23, 11]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Lissington' — capped per-word options (was [466], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Lisson Grove' — capped per-word options (was [17, 18], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Amwell' — capped per-word options (was [34, 28], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Baldon' — capped per-word options (was [34, 39], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Barford' — capped per-word options (was [34, 89], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Barrington' — capped per-word options (was [34, 3167], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Bedwyn' — capped per-word options (was [34, 46], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Bowden' — capped per-word options (was [34, 22], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Bradley' — capped per-word options (was [34, 75], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Bromley' — capped per-word options (was [34, 42], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Broughton' — capped per-word options (was [34, 227], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Bytham' — capped per-word options (was [34, 40], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Comberton' — capped per-word options (was [34, 344], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Dalby' — capped per-word options (was [34, 20], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Downham' — capped per-word options (was [34, 40], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Eccleston' — capped per-word options (was [34, 182], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Ellingham' — capped per-word options (was [34, 258], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Haywood' — capped per-word options (was [34, 26], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Heath' — capped per-word options (was [34, 19], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Hereford' — capped per-word options (was [34, 170], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Horwood' — capped per-word options (was [34, 11], now [23, 11]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Linford' — capped per-word options (was [34, 84], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Longstone' — capped per-word options (was [34, 1118], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Marlow' — capped per-word options (was [34, 49], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Melton' — capped per-word options (was [34, 76], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Ness' — capped per-word options (was [34, 8], now [32, 8]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Ponton' — capped per-word options (was [34, 78], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Somborne' — capped per-word options (was [34, 42], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Somerford' — capped per-word options (was [34, 145], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Sutton' — capped per-word options (was [34, 47], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Thorpe' — capped per-word options (was [34, 25], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Torrington' — capped per-word options (was [34, 4414], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Waldingfield' — capped per-word options (was [34, 747], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Walsingham' — capped per-word options (was [34, 198], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Warley' — capped per-word options (was [34, 51], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Wenham' — capped per-word options (was [34, 32], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Witley' — capped per-word options (was [34, 42], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Little Wolford' — capped per-word options (was [34, 39], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Littleborough' — capped per-word options (was [462], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Littlebourne' — capped per-word options (was [792], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Littlecote' — capped per-word options (was [508], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Littlecott' — capped per-word options (was [540], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Littlehampton' — capped per-word options (was [2756], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Littleport' — capped per-word options (was [576], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Littlethorpe' — capped per-word options (was [1017], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Littleton' — capped per-word options (was [528], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Littleworth' — capped per-word options (was [609], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Lockerley' — capped per-word options (was [588], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Lockington' — capped per-word options (was [1534], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Long Ashton' — capped per-word options (was [30, 61], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Long Buckby' — capped per-word options (was [30, 10], now [25, 10]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Long Marston' — capped per-word options (was [30, 312], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Long Melford' — capped per-word options (was [30, 67], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Long Sutton' — capped per-word options (was [30, 47], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Longborough' — capped per-word options (was [364], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Longden' — capped per-word options (was [265], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Longdendale' — capped per-word options (was [3310], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Longford' — capped per-word options (was [288], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Longney' — capped per-word options (was [494], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Longport' — capped per-word options (was [364], now [256]) so all combos stay full-length.
+/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/name.py:243: DecompositionTruncatedWarning: all_decompositions on 'Longstanton' (len=11) hit the per-position cap of 10000; returned list is a deterministic but non-exhaustive subset. Use canonical_decompositions for memory-bounded best-parse enumeration, or raise the cap if exhaustiveness matters here.
+  else all_decompositions(word, trie)
+Cross-product cap (256) reached for toponym 'Longstanton' — capped per-word options (was [10000], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Longstock' — capped per-word options (was [314], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Longstone' — capped per-word options (was [1118], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Longtown' — capped per-word options (was [520], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Longworth' — capped per-word options (was [392], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Lothersdale' — capped per-word options (was [1365], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Lower Dean' — capped per-word options (was [33, 20], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Lower Farringdon' — capped per-word options (was [33, 1619], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Lower Stondon' — capped per-word options (was [33, 129], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Lower Swell' — capped per-word options (was [33, 14], now [18, 14]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Lower Welson' — capped per-word options (was [33, 46], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Lower Westmancote' — capped per-word options (was [33, 2664], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Lower Whitley' — capped per-word options (was [33, 42], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Lower Wolverton' — capped per-word options (was [33, 357], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Mablethorpe' — capped per-word options (was [486], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Madingley' — capped per-word options (was [668], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Mainsforth' — capped per-word options (was [588], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Malmesbury' — capped per-word options (was [272], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Manaton' — capped per-word options (was [590], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Mansfield' — capped per-word options (was [262], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Manston' — capped per-word options (was [357], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Manthorpe' — capped per-word options (was [460], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Manton' — capped per-word options (was [257], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Maperton' — capped per-word options (was [461], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Marhamchurch' — capped per-word options (was [360], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Market Overton' — capped per-word options (was [141, 99], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Market Weston' — capped per-word options (was [141, 57], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Marlesford' — capped per-word options (was [671], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Marlingford' — capped per-word options (was [2057], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Marsh Baldon' — capped per-word options (was [25, 39], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Marshborough' — capped per-word options (was [507], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Marston' — capped per-word options (was [312], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Marston Green' — capped per-word options (was [312, 80], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Marston Magna' — capped per-word options (was [312, 81], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Marsworth' — capped per-word options (was [392], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Meltonby' — capped per-word options (was [257], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Mercaston' — capped per-word options (was [595], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Merrington' — capped per-word options (was [2047], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Merstone' — capped per-word options (was [313], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Middle Aston' — capped per-word options (was [9, 41], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Middle Littleton' — capped per-word options (was [9, 528], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Middlestone' — capped per-word options (was [587], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Milborne Port' — capped per-word options (was [84, 20], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Milborne Saint Andrew' — capped per-word options (was [84, 52, 44], now [6, 6, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Mildenhall' — capped per-word options (was [296], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Milford on Sea' — capped per-word options (was [52, 3, 8], now [10, 3, 8]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Millington' — capped per-word options (was [1526], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Milton on Stour' — capped per-word options (was [62, 3, 11], now [9, 3, 9]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Milverton' — capped per-word options (was [322], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Molescroft' — capped per-word options (was [262], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Moor Monkton' — capped per-word options (was [6, 117], now [6, 42]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Nether Alderley' — capped per-word options (was [170, 146], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Nether Broughton' — capped per-word options (was [170, 227], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Nether Burrow' — capped per-word options (was [170, 16], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Nether Stowey' — capped per-word options (was [170, 53], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Nether Whitacre' — capped per-word options (was [170, 51], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Netheravon' — capped per-word options (was [1833], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Netherbury' — capped per-word options (was [1602], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Netherfield' — capped per-word options (was [1353], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Netherton' — capped per-word options (was [2196], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newbridge' — capped per-word options (was [418], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newcastle' — capped per-word options (was [399], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newenden' — capped per-word options (was [862], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newington' — capped per-word options (was [1262], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newmarket' — capped per-word options (was [1105], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newstead' — capped per-word options (was [267], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newton Burgoland' — capped per-word options (was [117, 177], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newton Grange' — capped per-word options (was [117, 197], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newton Hall' — capped per-word options (was [117, 8], now [32, 8]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newton Longville' — capped per-word options (was [117, 313], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Normanby' — capped per-word options (was [551], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Normanton' — capped per-word options (was [2473], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Normanton on Soar' — capped per-word options (was [2473, 3, 7], now [12, 3, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Barrow' — capped per-word options (was [27, 36], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Bradon' — capped per-word options (was [27, 45], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Burlingham' — capped per-word options (was [27, 271], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Cliffe' — capped per-word options (was [27, 10], now [25, 10]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Dalton' — capped per-word options (was [27, 88], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Elkington' — capped per-word options (was [27, 789], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Elmham' — capped per-word options (was [27, 20], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Killingholme' — capped per-word options (was [27, 1096], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Kilworth' — capped per-word options (was [27, 45], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Littleton' — capped per-word options (was [27, 528], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Marden' — capped per-word options (was [27, 127], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Newton' — capped per-word options (was [27, 117], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Reston' — capped per-word options (was [27, 94], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Somercotes' — capped per-word options (was [27, 253], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Stoke' — capped per-word options (was [27, 13], now [19, 13]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Stoneham' — capped per-word options (was [27, 173], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Willingham' — capped per-word options (was [27, 242], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'North Witham' — capped per-word options (was [27, 30], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Northbourne' — capped per-word options (was [976], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Northenden' — capped per-word options (was [2946], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Northey Island' — capped per-word options (was [182, 12], now [21, 12]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Northleach' — capped per-word options (was [340], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Norton Bridge' — capped per-word options (was [115, 51], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Norton Canes' — capped per-word options (was [115, 37], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Norton Canon' — capped per-word options (was [115, 40], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Norton Lindsey' — capped per-word options (was [115, 110], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Old Basford' — capped per-word options (was [3, 94], now [3, 85]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Old Malden' — capped per-word options (was [3, 87], now [3, 85]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Old Milverton' — capped per-word options (was [3, 322], now [3, 85]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Old Warden' — capped per-word options (was [3, 97], now [3, 85]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Orchardleigh' — capped per-word options (was [286], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Otterbourne' — capped per-word options (was [962], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Otterburn' — capped per-word options (was [442], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Otterden' — capped per-word options (was [474], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Otterhampton' — capped per-word options (was [3337], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Otterton' — capped per-word options (was [589], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Out Newton' — capped per-word options (was [5, 117], now [5, 51]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Over Whitacre' — capped per-word options (was [7, 51], now [7, 36]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Pencarrow' — capped per-word options (was [288], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Peterborough' — capped per-word options (was [604], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Peterchurch' — capped per-word options (was [409], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Pitminster' — capped per-word options (was [1181], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Pontesbury' — capped per-word options (was [356], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Portington' — capped per-word options (was [1904], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Portlemouth' — capped per-word options (was [308], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Rainton' — capped per-word options (was [316], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Redbridge' — capped per-word options (was [349], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Redlingfield' — capped per-word options (was [797], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Reymerston' — capped per-word options (was [2116], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Ringland' — capped per-word options (was [345], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Ringlestone' — capped per-word options (was [4640], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Ringmore' — capped per-word options (was [513], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Ringstead' — capped per-word options (was [513], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Rochester' — capped per-word options (was [617], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Rockingham' — capped per-word options (was [427], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Rodington' — capped per-word options (was [616], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Rolleston' — capped per-word options (was [415], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Rollestone' — capped per-word options (was [970], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Rosliston' — capped per-word options (was [322], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Rosthwaite' — capped per-word options (was [636], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Saint Buryan' — capped per-word options (was [52, 87], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Saint Lawrence' — capped per-word options (was [52, 114], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym "Saint Martin's" — capped per-word options (was [52, 182], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym "Saint Peter's" — capped per-word options (was [52, 43], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Saintbury' — capped per-word options (was [538], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Sandridge' — capped per-word options (was [279], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Sandringham' — capped per-word options (was [1421], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Skellingthorpe' — capped per-word options (was [4325], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Sollers Hope' — capped per-word options (was [45, 9], now [28, 9]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Somerleyton' — capped per-word options (was [1769], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'South Barrow' — capped per-word options (was [9, 36], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'South Bradon' — capped per-word options (was [9, 45], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'South Brent' — capped per-word options (was [9, 71], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'South Burlingham' — capped per-word options (was [9, 271], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'South Dalton' — capped per-word options (was [9, 88], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'South Elkington' — capped per-word options (was [9, 789], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'South Killingholme' — capped per-word options (was [9, 1096], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'South Kilworth' — capped per-word options (was [9, 45], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'South Littleton' — capped per-word options (was [9, 528], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'South Newington' — capped per-word options (was [9, 1262], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'South Newton' — capped per-word options (was [9, 117], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'South Normanton' — capped per-word options (was [9, 2473], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'South Somercotes' — capped per-word options (was [9, 253], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'South Weston' — capped per-word options (was [9, 57], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'South Willingham' — capped per-word options (was [9, 242], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'South Witham' — capped per-word options (was [9, 30], now [9, 28]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Springfield' — capped per-word options (was [423], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Springthorpe' — capped per-word options (was [1175], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanbridge' — capped per-word options (was [1825], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanbury' — capped per-word options (was [382], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Standerwick' — capped per-word options (was [960], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanford' — capped per-word options (was [405], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanford Bishop' — capped per-word options (was [405, 7], now [36, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanford in the Vale' — capped per-word options (was [405, 5, 6, 11], now [4, 4, 4, 4]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanford on Soar' — capped per-word options (was [405, 3, 7], now [12, 3, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanley' — capped per-word options (was [270], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanmore' — capped per-word options (was [627], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanstead' — capped per-word options (was [782], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanton' — capped per-word options (was [538], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanton Long' — capped per-word options (was [538, 30], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanton Saint John' — capped per-word options (was [538, 52, 6], now [6, 7, 6]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanton by Bridge' — capped per-word options (was [538, 3, 51], now [9, 3, 9]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanton by Dale' — capped per-word options (was [538, 3, 17], now [9, 3, 9]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanton in Peak' — capped per-word options (was [538, 5, 7], now [7, 5, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stantonbury' — capped per-word options (was [6102], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanwell' — capped per-word options (was [329], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stinsford' — capped per-word options (was [332], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stoke Canon' — capped per-word options (was [13, 40], now [13, 19]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stoke Holy Cross' — capped per-word options (was [13, 9, 16], now [6, 6, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stoke Newington' — capped per-word options (was [13, 1262], now [13, 19]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stoke Orchard' — capped per-word options (was [13, 48], now [13, 19]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stoke Rochford' — capped per-word options (was [13, 90], now [13, 19]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stoke Saint Mary' — capped per-word options (was [13, 52, 29], now [6, 6, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stoke Saint Milborough' — capped per-word options (was [13, 52, 56], now [6, 6, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Ston Easton' — capped per-word options (was [19, 127], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stonehouse' — capped per-word options (was [350], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stoneleigh' — capped per-word options (was [384], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stonesfield' — capped per-word options (was [741], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stoneton' — capped per-word options (was [668], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stoney Stanton' — capped per-word options (was [126, 538], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stonton Wyville' — capped per-word options (was [276, 24], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stourbridge' — capped per-word options (was [492], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stowmarket' — capped per-word options (was [824], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Streetly' — capped per-word options (was [288], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stringston' — capped per-word options (was [2234], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Sutton Bassett' — capped per-word options (was [47, 267], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Sutton Green' — capped per-word options (was [47, 80], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Sutton Saint Michael' — capped per-word options (was [47, 52, 15], now [6, 6, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Sutton on the Hill' — capped per-word options (was [47, 3, 6, 7], now [4, 3, 4, 5]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Tallington' — capped per-word options (was [3547], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Temple Normanton' — capped per-word options (was [30, 2473], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Templecombe' — capped per-word options (was [320], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Theberton' — capped per-word options (was [532], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thornborough' — capped per-word options (was [590], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thornbury' — capped per-word options (was [418], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thorncombe' — capped per-word options (was [370], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thorndon' — capped per-word options (was [259], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thornford' — capped per-word options (was [447], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thornham Magna' — capped per-word options (was [156, 81], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thornham Parva' — capped per-word options (was [156, 11], now [23, 11]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thornholme' — capped per-word options (was [555], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thornley' — capped per-word options (was [296], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thornsett' — capped per-word options (was [1180], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thornton' — capped per-word options (was [571], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thornton Dale' — capped per-word options (was [571, 17], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thorpe Acre' — capped per-word options (was [25, 11], now [23, 11]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thorpe Langton' — capped per-word options (was [25, 254], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thorpe Parva' — capped per-word options (was [25, 11], now [23, 11]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thorpe Saint Andrew' — capped per-word options (was [25, 52, 44], now [6, 6, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thorpe Saint Peter' — capped per-word options (was [25, 52, 53], now [6, 6, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thorpe by Water' — capped per-word options (was [25, 3, 40], now [9, 3, 9]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thorpe on the Hill' — capped per-word options (was [25, 3, 6, 7], now [4, 3, 4, 5]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Tilehurst' — capped per-word options (was [302], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Timberland' — capped per-word options (was [362], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Tiverton' — capped per-word options (was [437], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Tonbridge' — capped per-word options (was [764], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Tredington' — capped per-word options (was [4238], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Tregony' — capped per-word options (was [324], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Tremore' — capped per-word options (was [370], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Trenant' — capped per-word options (was [1666], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Treswell' — capped per-word options (was [266], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Treyford' — capped per-word options (was [594], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Upper Arley' — capped per-word options (was [16, 34], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Upper Broughton' — capped per-word options (was [16, 227], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Upper Dean' — capped per-word options (was [16, 20], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Upper Farringdon' — capped per-word options (was [16, 1619], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Upper Stondon' — capped per-word options (was [16, 129], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Upper Welson' — capped per-word options (was [16, 46], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Upper Wolverton' — capped per-word options (was [16, 357], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Upperthorpe' — capped per-word options (was [417], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Upton Magna' — capped per-word options (was [19, 81], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Upton Warren' — capped per-word options (was [19, 92], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Walberton' — capped per-word options (was [446], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Walderton' — capped per-word options (was [512], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Walhampton' — capped per-word options (was [332], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Walkeringham' — capped per-word options (was [1947], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Walkington' — capped per-word options (was [999], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wallingford' — capped per-word options (was [1232], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wallington' — capped per-word options (was [1569], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Waltham Saint Lawrence' — capped per-word options (was [63, 52, 114], now [6, 6, 7]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Waltham on the Wolds' — capped per-word options (was [63, 3, 6, 9], now [4, 3, 4, 5]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Walton on the Wolds' — capped per-word options (was [71, 3, 6, 9], now [4, 3, 4, 5]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Warlingham' — capped per-word options (was [421], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Warmington' — capped per-word options (was [2158], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Warminster' — capped per-word options (was [1831], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Warrington' — capped per-word options (was [2369], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Water Newton' — capped per-word options (was [40, 117], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wateringbury' — capped per-word options (was [4572], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Waterperry' — capped per-word options (was [992], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Waterstock' — capped per-word options (was [503], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Waterton' — capped per-word options (was [471], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wellesbourne' — capped per-word options (was [864], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wellingborough' — capped per-word options (was [1820], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wellingham' — capped per-word options (was [530], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wellingore' — capped per-word options (was [1479], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wellington' — capped per-word options (was [1823], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wenhaston' — capped per-word options (was [289], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Ashby' — capped per-word options (was [17, 18], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Ashton' — capped per-word options (was [17, 61], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Ayton' — capped per-word options (was [17, 58], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Beckham' — capped per-word options (was [17, 34], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Bradenham' — capped per-word options (was [17, 285], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Bradford' — capped per-word options (was [17, 91], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Bradley' — capped per-word options (was [17, 75], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Buckland' — capped per-word options (was [17, 35], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Burton' — capped per-word options (was [17, 47], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Dean' — capped per-word options (was [17, 20], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Derby' — capped per-word options (was [17, 18], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Farleigh' — capped per-word options (was [17, 54], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Halton' — capped per-word options (was [17, 63], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Horsley' — capped per-word options (was [17, 52], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Marden' — capped per-word options (was [17, 127], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Melton' — capped per-word options (was [17, 76], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Mersea' — capped per-word options (was [17, 43], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Molesey' — capped per-word options (was [17, 82], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Newton' — capped per-word options (was [17, 117], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Overton' — capped per-word options (was [17, 99], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Somerton' — capped per-word options (was [17, 191], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Thorney' — capped per-word options (was [17, 255], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Torrington' — capped per-word options (was [17, 4414], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Walton' — capped per-word options (was [17, 71], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Wickham' — capped per-word options (was [17, 19], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Wittering' — capped per-word options (was [17, 1113], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'West Wycombe' — capped per-word options (was [17, 24], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Westbourne' — capped per-word options (was [312], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Westcott Barton' — capped per-word options (was [158, 118], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Westerfield' — capped per-word options (was [540], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Westgate' — capped per-word options (was [405], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Westleton' — capped per-word options (was [418], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Westmancote' — capped per-word options (was [2664], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Westminster' — capped per-word options (was [3024], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Weston Colville' — capped per-word options (was [57, 97], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Weston Green' — capped per-word options (was [57, 80], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Weston Longville' — capped per-word options (was [57, 313], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Weston Patrick' — capped per-word options (was [57, 60], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Westoning' — capped per-word options (was [606], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Weybridge' — capped per-word options (was [345], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'White Waltham' — capped per-word options (was [13, 63], now [13, 19]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Whitestone' — capped per-word options (was [609], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wickersley' — capped per-word options (was [287], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wickham Market' — capped per-word options (was [19, 141], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Willersley' — capped per-word options (was [287], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Williamthorpe' — capped per-word options (was [447], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Willingdon' — capped per-word options (was [415], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Willington' — capped per-word options (was [828], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Willoughton' — capped per-word options (was [506], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wilmington' — capped per-word options (was [507], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wincanton' — capped per-word options (was [1045], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Windermere' — capped per-word options (was [802], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Winestead' — capped per-word options (was [284], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wingerworth' — capped per-word options (was [1323], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Winstanley' — capped per-word options (was [1615], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Winstone' — capped per-word options (was [264], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Winterborne Kingston' — capped per-word options (was [1596, 286], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Winterborne Whitechurch' — capped per-word options (was [1596, 116], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Winterbourne' — capped per-word options (was [1828], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Winterbourne Bassett' — capped per-word options (was [1828, 267], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Winterbourne Stoke' — capped per-word options (was [1828, 13], now [19, 13]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Winterburn' — capped per-word options (was [836], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Winteringham' — capped per-word options (was [4446], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Winterton' — capped per-word options (was [1117], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Witham on the Hill' — capped per-word options (was [30, 3, 6, 7], now [4, 3, 4, 5]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Withernsea' — capped per-word options (was [1170], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wolstanton' — capped per-word options (was [1611], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wolvercote' — capped per-word options (was [306], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wolverhampton' — capped per-word options (was [1909], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wolverton' — capped per-word options (was [357], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wood Dalling' — capped per-word options (was [5, 140], now [5, 51]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wood Enderby' — capped per-word options (was [5, 132], now [5, 51]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wood Norton' — capped per-word options (was [5, 115], now [5, 51]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Woodcote Green' — capped per-word options (was [48, 80], now [16, 16]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Woodmancote' — capped per-word options (was [950], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Woodmancott' — capped per-word options (was [948], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Woodnewton' — capped per-word options (was [548], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Worlingham' — capped per-word options (was [290], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Worlington' — capped per-word options (was [994], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Worlingworth' — capped per-word options (was [1065], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wormingford' — capped per-word options (was [990], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Worminghall' — capped per-word options (was [750], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wymington' — capped per-word options (was [632], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Grangemouth' — capped per-word options (was [1501], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Inveraray' — capped per-word options (was [580], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Inverlochy' — capped per-word options (was [658], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Kingston' — capped per-word options (was [286], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newbridge' — capped per-word options (was [418], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newmarket' — capped per-word options (was [1105], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newstead' — capped per-word options (was [267], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Springfield' — capped per-word options (was [423], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanley' — capped per-word options (was [270], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stenhousemuir' — capped per-word options (was [1800], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stonehouse' — capped per-word options (was [350], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thornton' — capped per-word options (was [571], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Aston Park' — capped per-word options (was [41, 12], now [21, 12]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Bryngwyn' — capped per-word options (was [420], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Castleton' — capped per-word options (was [746], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Greenfield' — capped per-word options (was [779], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Greenhill' — capped per-word options (was [431], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Greenway' — capped per-word options (was [430], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Langstone' — capped per-word options (was [774], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newbridge' — capped per-word options (was [418], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newcastle' — capped per-word options (was [399], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Springfield' — capped per-word options (was [423], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Thornton' — capped per-word options (was [571], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Treharris' — capped per-word options (was [450], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Treherbert' — capped per-word options (was [2358], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Waterston' — capped per-word options (was [814], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Cardington' — capped per-word options (was [1991], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Castleore' — capped per-word options (was [505], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Clashbane' — capped per-word options (was [274], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Clonbunny' — capped per-word options (was [567], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Derryowen' — capped per-word options (was [406], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Eastwell' — capped per-word options (was [280], now [256]) so all combos stay full-length.
+/home/devon/521Studios/wyrd/wyrd/generators/kenning/runtime/name.py:243: DecompositionTruncatedWarning: all_decompositions on 'Gortacarnan' (len=11) hit the per-position cap of 10000; returned list is a deterministic but non-exhaustive subset. Use canonical_decompositions for memory-bounded best-parse enumeration, or raise the cap if exhaustiveness matters here.
+  else all_decompositions(word, trie)
+Cross-product cap (256) reached for toponym 'Gortacarnan' — capped per-word options (was [10000], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Greenfield' — capped per-word options (was [779], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Greenhill' — capped per-word options (was [431], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Greenridge' — capped per-word options (was [1768], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Killaghaduff' — capped per-word options (was [264], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Kingston' — capped per-word options (was [286], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Littleton' — capped per-word options (was [528], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Longford' — capped per-word options (was [288], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Longstone' — capped per-word options (was [1118], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Longtown' — capped per-word options (was [520], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Lurganbane' — capped per-word options (was [1274], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Milverton' — capped per-word options (was [322], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newbridge' — capped per-word options (was [418], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newcastle' — capped per-word options (was [399], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Newmarket' — capped per-word options (was [1105], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Northbrook' — capped per-word options (was [410], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Springfield' — capped per-word options (was [423], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stanney' — capped per-word options (was [731], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Stonehouse' — capped per-word options (was [350], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Warrington' — capped per-word options (was [2369], now [256]) so all combos stay full-length.
+Cross-product cap (256) reached for toponym 'Wellington' — capped per-word options (was [1823], now [256]) so all combos stay full-length.
+Wrote L4 DB to wyrd/generators/kenning/data/seed-runtime.db: 74501 meaning rows, 6 fantasy morphemes, 3154 canonical decompositions, 31817 proportion rows across 5 cultures.
