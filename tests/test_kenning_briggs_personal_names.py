@@ -6,10 +6,10 @@ Covers:
 - Column reconstruction: ``_split_pages``, ``_column_reconstruct``.
 - Entry parsing: ``_entry_blocks``, ``_parse_entry``,
   ``_parse_attestations``.
-- Schema: UNIQUE indexes + cascade delete via ``personal_name`` /
-  ``personal_name_toponym_attestation``.
-- End-to-end ingest: fresh DB + fixture .txt → expected row counts;
-  idempotent re-run produces zero net inserts.
+- End-to-end ingest (wyrd-2b50): fresh DB + fixture .txt → standard
+  etymon rows + male/female-name tags + multi-source citations (Briggs
+  primary + PASE/DLV/charter via the cited_source path); idempotent
+  re-run produces zero net inserts.
 """
 
 from __future__ import annotations
@@ -507,64 +507,62 @@ def test_parse_briggs_index_yields_expected_entries(
     assert abba.attestations[0].toponym_form == "Abbey"
 
 
-def test_emit_briggs_jsonl_drops_unknown_county_attestations(
+def test_emit_briggs_jsonl_emits_standard_etymon_and_citation_rows(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """``Brett (Zz)`` is yielded by the parser but NOT emitted to JSONL
-    — the emit-side filter keeps the rebuild path from materializing
-    unknown-county rows. Counter bumps for visibility."""
+    """wyrd-2b50: the emit produces STANDARD etymon / citation /
+    cited_source rows the normal build pipeline handles — not the
+    bespoke personal_name row types. Name→toponym attestations are not
+    emitted (no standard row type); they bump attestations_dropped."""
     src = _write_fixture(tmp_path / "briggs.txt", monkeypatch)
     out = tmp_path / "briggs.jsonl"
     stats = emit_briggs_jsonl(src, out)
-    assert stats.attestations_unknown_county == 1
-    # No attestation row carries Brett as toponym_form (Brett is the
-    # unknown-county entry the emit filter drops). The Brand entry's
-    # raw_entry payload retains the original text — that's a PN-side
-    # provenance field, not an attestation, so we scope this check to
-    # attestation events only.
-    att_topo_forms = {
-        parsed["toponym_form"]
-        for line in out.read_text(encoding="utf-8").splitlines()
-        if (parsed := json.loads(line)).get("_type") == "personal_name_toponym_attestation"
-    }
-    assert "Brett" not in att_topo_forms
-    assert "Brandford" in att_topo_forms
+    rows = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines()]
+    types = {r["_type"] for r in rows}
+    assert {"etymon", "citation", "cited_source"} <= types
+    assert "personal_name" not in types
+    assert "personal_name_toponym_attestation" not in types
+    # The secondary scholarly sources Briggs attests are registered.
+    cited = {r["ref"] for r in rows if r["_type"] == "cited_source"}
+    assert cited == {"pase", "dlv", "anglo_saxon_charters"}
+    assert stats.pn_rows_emitted == 7
+    assert stats.attestations_dropped > 0
 
 
-def test_ingest_briggs_index_populates_personal_name_and_attestation_rows(
+def test_ingest_briggs_index_populates_etymon_and_citation_rows(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Fresh DB → fixture in → expected row counts.
+    """wyrd-2b50: fresh DB → fixture → name etymons + male/female-name
+    tags + multi-source citations (Briggs primary + PASE/DLV via the
+    cited_source path).
 
-    The fixture exercises: bracket-variant expansion (Ab(b)a → 2 rows),
-    DLV-only entry (Aalfra, no attestations), fem-marker (Abarhilda),
-    "X in Y" extraction (Aelfeh in Aughton), diacritic-bearing headform
-    (Ælfheah → normalized 'aelfheah'), unknown-county filter (Brett(Zz)
-    dropped)."""
+    Fixture names: Aalfra (DLV-only), Aba+Abba (bracket-expanded, PASE1),
+    Abel (PASE2, hint (Bib,OE) → first hint Bib → biblical), Abarhilda
+    (fem PASE3), Ælfheah (PASE4, diacritic headform preserved), Brand
+    (fem, hint OE)."""
     src = _write_fixture(tmp_path / "briggs.txt", monkeypatch)
     jsonl = tmp_path / "briggs.jsonl"
     with LexiconDB(fresh_db_for(tmp_path)) as db:
         stats = ingest_briggs_index(db, src, jsonl_path=jsonl)
-        pns = list(
-            db.conn.execute(
-                "SELECT headform, normalized_form, is_feminine, pase_count, "
-                "       has_dlv, source_doc "
-                "  FROM personal_name ORDER BY headform"
+        etymons = {
+            row["canonical_form"]: row["language"]
+            for row in db.conn.execute("SELECT canonical_form, language FROM etymon")
+        }
+        tags = {
+            (row["canonical_form"], row["tag"])
+            for row in db.conn.execute(
+                "SELECT e.canonical_form, t.tag FROM etymon e "
+                "JOIN etymon_tag t ON t.etymon_id = e.id"
             )
-        )
-        atts = list(
-            db.conn.execute(
-                "SELECT pn.headform, a.toponym_form, a.attested_variant, "
-                "       a.county_code, a.county_canonical, a.date_qualifier, "
-                "       a.is_uncertain, a.is_serious_doubt "
-                "  FROM personal_name_toponym_attestation a "
-                "  JOIN personal_name pn ON pn.id = a.personal_name_id "
-                " ORDER BY pn.headform, a.toponym_form"
+        }
+        cites = {
+            (row["canonical_form"], row["source_id"])
+            for row in db.conn.execute(
+                "SELECT e.canonical_form, c.source_id FROM etymon e "
+                "JOIN etymon_citation c ON c.etymon_id = e.id"
             )
-        )
-    # 7 PN rows: Aalfra + Aba + Abba (bracket-expanded) + Abel + Abarhilda
-    # + Ælfheah + Brand.
-    assert {row["headform"] for row in pns} == {
+        }
+    assert set(etymons) == {
         "Aalfra",
         "Aba",
         "Abba",
@@ -575,109 +573,54 @@ def test_ingest_briggs_index_populates_personal_name_and_attestation_rows(
     }
     assert stats.pn_rows_emitted == 7
 
-    # Diacritic-fold pin: Ælfheah → aelfheah.
-    aelfheah = next(row for row in pns if row["headform"] == "Ælfheah")
-    assert aelfheah["normalized_form"] == "aelfheah"
+    # Language resolution: Abel's first hint (Bib) → biblical; unhinted
+    # names default to old-english (the diacritic headform is preserved).
+    assert etymons["Abel"] == "biblical"
+    assert etymons["Aalfra"] == "old-english"
+    assert "Ælfheah" in etymons
 
-    # PASE counts + DLV markers.
-    aalfra = next(row for row in pns if row["headform"] == "Aalfra")
-    assert aalfra["has_dlv"] == 1 and aalfra["pase_count"] is None
-    abarhilda = next(row for row in pns if row["headform"] == "Abarhilda")
-    assert abarhilda["is_feminine"] == 1 and abarhilda["pase_count"] == 3
-    brand = next(row for row in pns if row["headform"] == "Brand")
-    assert brand["is_feminine"] == 1
+    # Feminine names tagged 'female name'; the rest 'male name'.
+    assert ("Abarhilda", "female name") in tags
+    assert ("Brand", "female name") in tags
+    assert ("Aalfra", "male name") in tags
 
-    # Attestation counts:
-    # - Aba(Bk), Abba(Bk) — 2 from bracket-clone
-    # - Abel: Ablishmare (with 'in Benson' + 1601 date), Abelhall
-    # - Ælfheah: Aughton (with 'Aelfeh' attested_variant)
-    # - Brand: Brandford (D); Brett(Zz) dropped at emit
-    # Total = 2 + 2 + 1 + 1 = 6
-    assert stats.attestation_rows_emitted == 6
-    assert stats.attestations_unknown_county == 1
-    assert len(atts) == 6
-
-    # "Ablishmare 1601 in Benson" pins both attested_variant and date.
-    abel_in_benson = next(
-        row for row in atts if row["headform"] == "Abel" and row["toponym_form"] == "Benson"
-    )
-    assert abel_in_benson["attested_variant"] == "Ablishmare"
-    assert abel_in_benson["date_qualifier"] == "1601"
-
-    # "Aelfeh in Aughton" pins the no-date X-in-Y branch.
-    aelfeh = next(row for row in atts if row["headform"] == "Ælfheah")
-    assert aelfeh["toponym_form"] == "Aughton"
-    assert aelfeh["attested_variant"] == "Aelfeh"
-    assert aelfeh["date_qualifier"] is None
-
-    # "??Brandford" pins the serious-doubt + uncertain pair.
-    brandford = next(row for row in atts if row["headform"] == "Brand")
-    assert brandford["is_uncertain"] == 1 and brandford["is_serious_doubt"] == 1
+    # Every name carries the Briggs primary citation.
+    assert all((name, "briggs_2024_personal_names_index") in cites for name in etymons)
+    # Secondary-source citations from the references Briggs records:
+    # Aalfra is in DLV; Abarhilda is in PASE.
+    assert ("Aalfra", "dlv") in cites
+    assert ("Abarhilda", "pase") in cites
+    # Brand has neither → Briggs-only (single witness).
+    assert {src_id for name, src_id in cites if name == "Brand"} == {
+        "briggs_2024_personal_names_index"
+    }
 
 
 def test_ingest_briggs_index_is_idempotent_on_re_run(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Re-running on a populated DB inserts zero net new rows. Pins the
-    UNIQUE(headform, source_doc) and COALESCE-padded attestation dedup."""
+    """Re-running the additive ingest on a populated DB inserts zero net
+    new rows. Pins etymon UNIQUE(canonical_form, language) merge-on-
+    conflict + etymon_citation UNIQUE(etymon_id, source_id, page) dedup
+    (wyrd-2b50)."""
     src = _write_fixture(tmp_path / "briggs.txt", monkeypatch)
     db_path = fresh_db_for(tmp_path)
     jsonl = tmp_path / "briggs.jsonl"
     with LexiconDB(db_path) as db:
         first = ingest_briggs_index(db, src, jsonl_path=jsonl)
-        pn_count_after_first = db.conn.execute(
-            "SELECT COUNT(*) AS c FROM personal_name"
-        ).fetchone()["c"]
-        att_count_after_first = db.conn.execute(
-            "SELECT COUNT(*) AS c FROM personal_name_toponym_attestation"
-        ).fetchone()["c"]
+        etymon_after_first = db.conn.execute("SELECT COUNT(*) AS c FROM etymon").fetchone()["c"]
+        cite_after_first = db.conn.execute("SELECT COUNT(*) AS c FROM etymon_citation").fetchone()[
+            "c"
+        ]
     with LexiconDB(db_path) as db:
         ingest_briggs_index(db, src, jsonl_path=jsonl)
-        pn_count_after_second = db.conn.execute(
-            "SELECT COUNT(*) AS c FROM personal_name"
-        ).fetchone()["c"]
-        att_count_after_second = db.conn.execute(
-            "SELECT COUNT(*) AS c FROM personal_name_toponym_attestation"
-        ).fetchone()["c"]
-    # personal_names_inserted counts every row that ran through
-    # _insert_personal_name (INSERT OR IGNORE + SELECT-back), so it
-    # equals the input row count regardless of dedup. The row-count
-    # delta below is the actual idempotency proof.
-    assert first.personal_names_inserted > 0
-    assert pn_count_after_first == pn_count_after_second
-    assert att_count_after_first == att_count_after_second
-
-
-def test_personal_name_cascade_delete_removes_attestations(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """``personal_name_toponym_attestation`` has ON DELETE CASCADE on
-    its FK to ``personal_name``. Pins the schema declaration against
-    a future migration that drops the cascade."""
-    src = _write_fixture(tmp_path / "briggs.txt", monkeypatch)
-    db_path = fresh_db_for(tmp_path)
-    jsonl = tmp_path / "briggs.jsonl"
-    with LexiconDB(db_path) as db:
-        ingest_briggs_index(db, src, jsonl_path=jsonl)
-        # SQLite requires PRAGMA foreign_keys = ON for cascades to fire.
-        db.conn.execute("PRAGMA foreign_keys = ON")
-        abel_id = db.conn.execute(
-            "SELECT id FROM personal_name WHERE headform = 'Abel'"
-        ).fetchone()["id"]
-        before = db.conn.execute(
-            "SELECT COUNT(*) AS c FROM personal_name_toponym_attestation "
-            "WHERE personal_name_id = ?",
-            (abel_id,),
-        ).fetchone()["c"]
-        db.conn.execute("DELETE FROM personal_name WHERE id = ?", (abel_id,))
-        db.commit()
-        after = db.conn.execute(
-            "SELECT COUNT(*) AS c FROM personal_name_toponym_attestation "
-            "WHERE personal_name_id = ?",
-            (abel_id,),
-        ).fetchone()["c"]
-    assert before >= 2
-    assert after == 0
+        etymon_after_second = db.conn.execute("SELECT COUNT(*) AS c FROM etymon").fetchone()["c"]
+        cite_after_second = db.conn.execute("SELECT COUNT(*) AS c FROM etymon_citation").fetchone()[
+            "c"
+        ]
+    assert first.etymons_inserted > 0
+    assert etymon_after_first == etymon_after_second
+    assert cite_after_first == cite_after_second
 
 
 def test_emit_briggs_jsonl_writes_source_doc_anchor(
@@ -839,13 +782,13 @@ def test_emit_briggs_jsonl_dedupes_repeated_headform_first_wins(
     out = tmp_path / "briggs.jsonl"
     emit_briggs_jsonl(src, out)
     rows = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines()]
-    aba_pn = [r for r in rows if r.get("_type") == "personal_name" and r["headform"] == "Aba"]
-    assert len(aba_pn) == 1  # deduped to a single PN row
-    assert aba_pn[0]["pase_count"] == 1  # first wins (PASE1), not the later PASE9
-    att_toponyms = {
-        r["toponym_form"] for r in rows if r.get("_type") == "personal_name_toponym_attestation"
-    }
-    assert {"Foo", "Bar"} <= att_toponyms  # both entries' attestations still emit
+    aba_etymons = [r for r in rows if r.get("_type") == "etymon" and r["canonical_form"] == "Aba"]
+    assert len(aba_etymons) == 1  # deduped to a single etymon
+    # First-wins: the PASE citation reflects the first entry (PASE1), not
+    # the later PASE9.
+    pase_cites = [r for r in rows if r.get("_type") == "citation" and r.get("source_id") == "pase"]
+    assert any("count 1" in (r.get("context_snippet") or "") for r in pase_cites)
+    assert not any("count 9" in (r.get("context_snippet") or "") for r in pase_cites)
 
 
 def test_emit_briggs_jsonl_truncates_on_rerun(
@@ -889,25 +832,26 @@ def test_parse_attestations_regnal_year_date_qualifiers(body: str, expected_date
     assert atts[0].toponym_form == body.split()[0]
 
 
-def test_emit_briggs_jsonl_serializes_ascharter_refs(
+def test_emit_briggs_jsonl_emits_charter_citation_for_ascharter_refs(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """An entry carrying an ASCh charter reference round-trips the
-    ``ascharter_refs`` list into the personal_name JSONL row as a
-    JSON-encoded payload (the emit-side counterpart to the parse-side
-    ``test_parse_entry_ascharter_refs_accumulate``)."""
+    """wyrd-2b50: an entry with an ASCh charter reference emits an
+    Anglo-Saxon-charters citation whose context carries the ref — the
+    emit-side counterpart to the parse-side
+    ``test_parse_entry_ascharter_refs_accumulate``."""
     src = tmp_path / "briggs.txt"
     src.write_text("—A—\nAetheric ASCh7–8.72 Aetherstone (O).\n", encoding="utf-8")
     monkeypatch.setattr(briggs, "INDEX_FIRST_LINE_NUM", 0)
     out = tmp_path / "briggs.jsonl"
     emit_briggs_jsonl(src, out)
-    pn_rows = [
-        parsed
-        for line in out.read_text(encoding="utf-8").splitlines()
-        if (parsed := json.loads(line)).get("_type") == "personal_name"
+    rows = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines()]
+    charter_cites = [
+        r
+        for r in rows
+        if r.get("_type") == "citation" and r.get("source_id") == "anglo_saxon_charters"
     ]
-    aetheric = next(r for r in pn_rows if r["headform"] == "Aetheric")
-    assert json.loads(aetheric["ascharter_refs"]) == ["ASCh7–8.72"]
+    assert len(charter_cites) == 1
+    assert "ASCh7–8.72" in charter_cites[0]["context_snippet"]
 
 
 # ---------------------------------------------------------------------
@@ -992,17 +936,15 @@ def test_cli_ingest_briggs_personal_names_end_to_end(
     assert jsonl.exists()
 
     with LexiconDB(db_path) as db:
-        pn = db.conn.execute("SELECT COUNT(*) AS c FROM personal_name").fetchone()["c"]
-        att = db.conn.execute(
-            "SELECT COUNT(*) AS c FROM personal_name_toponym_attestation"
-        ).fetchone()["c"]
-    assert pn == 7
-    assert att == 6
+        ety = db.conn.execute("SELECT COUNT(*) AS c FROM etymon").fetchone()["c"]
+        cit = db.conn.execute("SELECT COUNT(*) AS c FROM etymon_citation").fetchone()["c"]
+    assert ety == 7
+    assert cit >= 7  # >= one Briggs citation per name, plus PASE/DLV/charter secondaries
 
     # All operator-facing output is emitted with err=True.
     err = result.stderr
     assert "Done in" in err
-    assert "pn_emitted=7" in err
+    assert "etymons_emitted=7" in err
     assert "Silent-skip counters:" in err
     assert f"JSONL artifact: {jsonl}" in err
 
@@ -1020,17 +962,13 @@ def test_cli_ingest_briggs_personal_names_is_idempotent(
     first = CliRunner().invoke(lexicon_ingest_briggs_personal_names, args, catch_exceptions=False)
     assert first.exit_code == 0
     with LexiconDB(db_path) as db:
-        pn1 = db.conn.execute("SELECT COUNT(*) AS c FROM personal_name").fetchone()["c"]
-        att1 = db.conn.execute(
-            "SELECT COUNT(*) AS c FROM personal_name_toponym_attestation"
-        ).fetchone()["c"]
+        ety1 = db.conn.execute("SELECT COUNT(*) AS c FROM etymon").fetchone()["c"]
+        cit1 = db.conn.execute("SELECT COUNT(*) AS c FROM etymon_citation").fetchone()["c"]
 
     second = CliRunner().invoke(lexicon_ingest_briggs_personal_names, args, catch_exceptions=False)
     assert second.exit_code == 0
     with LexiconDB(db_path) as db:
-        pn2 = db.conn.execute("SELECT COUNT(*) AS c FROM personal_name").fetchone()["c"]
-        att2 = db.conn.execute(
-            "SELECT COUNT(*) AS c FROM personal_name_toponym_attestation"
-        ).fetchone()["c"]
+        ety2 = db.conn.execute("SELECT COUNT(*) AS c FROM etymon").fetchone()["c"]
+        cit2 = db.conn.execute("SELECT COUNT(*) AS c FROM etymon_citation").fetchone()["c"]
 
-    assert (pn1, att1) == (pn2, att2)
+    assert (ety1, cit1) == (ety2, cit2)

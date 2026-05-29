@@ -149,12 +149,14 @@ def test_init_schema_creates_tables(fresh_db: Path) -> None:
         # complete INSERT-target list is grep-able via
         # ``grep -n "_insert_" wyrd/generators/kenning/jsonl/build.py``.
         "fantasy_morpheme",
-        "personal_name",
-        "personal_name_toponym_attestation",
         "etymon_descent",
         "mining_run",
     }
     assert expected.issubset(tables)
+    # wyrd-2b50: personal_name / personal_name_toponym_attestation were
+    # dropped (Briggs names now live in the standard etymon schema).
+    assert "personal_name" not in tables
+    assert "personal_name_toponym_attestation" not in tables
 
 
 def test_lexicon_db_opens_in_wal_mode(fresh_db: Path) -> None:
@@ -328,8 +330,8 @@ def test_init_schema_stamps_alembic_version_at_head(fresh_db: Path) -> None:
         row = conn.execute("SELECT version_num FROM alembic_version").fetchone()
     assert row is not None, "alembic_version row missing"
     # Head revision id per the wyrd-67fv layered migrations.
-    assert row[0] == "0013_etymology_element_confidence", (
-        f"expected head '0013_etymology_element_confidence', got {row[0]!r}"
+    assert row[0] == "0014_drop_personal_name_tables", (
+        f"expected head '0014_drop_personal_name_tables', got {row[0]!r}"
     )
 
 
@@ -1110,7 +1112,7 @@ def test_upgrade_head_is_idempotent(fresh_db: Path) -> None:
 
     with sqlite3.connect(fresh_db) as conn:
         version = conn.execute("SELECT version_num FROM alembic_version").fetchone()
-    assert version[0] == "0013_etymology_element_confidence"
+    assert version[0] == "0014_drop_personal_name_tables"
 
 
 def test_idx_attestation_unique_dedups_null_year_and_source(fresh_db: Path) -> None:
