@@ -88,12 +88,13 @@ def test_slot_position_inner_for_both_dashes():
     assert _slot_position_label("-inner-") == "inner"
 
 
-def test_slot_position_post_for_bare_element():
-    # Bare nominal matches Meaning._set_location's "no-dashes → post"
-    # convention. Round-1 reviewer caught the previous "bare → inner"
-    # behavior would yield an empty eligible pool for bare structural
-    # elements.
-    assert _slot_position_label("Bare") == "post"
+def test_slot_position_bare_for_bare_element():
+    # wyrd-vpri: a no-dash structural element resolves to its own
+    # 'bare' label (was 'post' pre-fix), mirroring the updated
+    # Meaning._set_location. A bare slot now matches only bare-location
+    # meanings via _matches_position, so suffix keys ('-shire'=post) no
+    # longer fill single bare-word slots.
+    assert _slot_position_label("Bare") == "bare"
 
 
 # ---- _matches_position ----------------------------------------------------

@@ -257,12 +257,28 @@ class Meaning:
         self._set_location()
 
     def _set_location(self):
+        # wyrd-vpri: dash-shape → position. A BARE usage (no dashes) is
+        # its OWN location, distinct from 'post'. Pre-fix bare keys fell
+        # through to the 'post' else-branch, so a bare standalone word
+        # (e.g. 'beck') and a suffix-only morpheme (e.g. '-beck') were
+        # indistinguishable — the proportions grammaticality guard
+        # (_is_ungrammatical_word_template) couldn't tell a legitimate
+        # single bare word from a suffix-only morpheme rendered alone
+        # (the '-park' → "Park" standalone), and the vector-mode slot
+        # filter matched suffix keys into single-word slots. A distinct
+        # 'bare' location fixes both: bare is valid at any position
+        # (trie _location_allows falls through to permissive True) and
+        # single-word slots encode ('bare',) so suffix keys no longer
+        # fill them. NOTE: keep in lockstep with
+        # vector_name_select._slot_position_label, which mirrors this map.
         if self.usage.startswith("-") and self.usage.endswith("-"):
             self.location = "inner"
         elif self.usage.endswith("-"):
             self.location = "pre"
-        else:
+        elif self.usage.startswith("-"):
             self.location = "post"
+        else:
+            self.location = "bare"
 
     def __str__(self):
         return self.usage.lower().replace("-", "")

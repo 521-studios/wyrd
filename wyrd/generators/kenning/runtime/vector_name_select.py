@@ -179,13 +179,17 @@ def _slot_position_label(structural_element: str) -> str:
     * ``"-inner-"`` (both dashes) → ``"inner"``
     * ``"Place-"`` (trailing dash only) → ``"pre"``
     * ``"-shire"`` (leading dash only) → ``"post"``
-    * ``"Bare"`` (no dashes) → ``"post"``
+    * ``"Bare"`` (no dashes) → ``"bare"``
 
-    Round-1 reviewer caught: an earlier draft treated bare elements
-    as ``"inner"``, but Meaning maps no-dashes usage to ``post``, so
-    bare structural elements would yield an empty eligible pool
-    (no meaning matches an ``"inner"`` slot against a bare element).
-    Fixed to mirror Meaning's exact convention.
+    wyrd-vpri: bare (no-dashes) maps to its own ``"bare"`` label, NOT
+    ``"post"``. Pre-fix this returned ``"post"`` for bare elements so
+    they'd match the (then bare==post) Meaning convention — but that's
+    exactly the conflation that let suffix-only keys ('-park' → post)
+    fill single bare-word slots. Now ``_set_location`` gives bare keys
+    location ``"bare"``, so a bare slot must resolve to ``"bare"`` to
+    match them via ``_matches_position`` (exact equality) — and a
+    genuine suffix slot ('post') no longer matches bare keys. Must stay
+    in lockstep with ``Meaning._set_location``.
     """
     s = structural_element.strip()
     has_leading = s.startswith("-")
@@ -194,8 +198,10 @@ def _slot_position_label(structural_element: str) -> str:
         return "inner"
     if has_trailing:
         return "pre"
-    # leading-only OR no-dashes → "post" (matches Meaning._set_location)
-    return "post"
+    if has_leading:
+        return "post"
+    # no-dashes → "bare" (matches Meaning._set_location)
+    return "bare"
 
 
 def build_non_position_eligible(
@@ -631,11 +637,12 @@ def select_via_vector_scoring(
     structure_list = list(structure)
     for slot_index, element in enumerate(structure_list):
         # Accept either a structural-element string ("X-"/"-X-"/"-X")
-        # the heuristic decodes, or a bare position label ("pre"/
-        # "inner"/"post") — caller's choice. Bare labels skip the
+        # the heuristic decodes, or a position label ("pre"/"inner"/
+        # "post"/"bare") — caller's choice. Position labels skip the
         # encode/decode round-trip the legacy struct walker uses to
-        # synthesize a string from its key tuples.
-        if element in ("pre", "inner", "post"):
+        # synthesize a string from its key tuples. ("bare" added in
+        # wyrd-vpri for no-dash single-word slots.)
+        if element in ("pre", "inner", "post", "bare"):
             slot_position = element
         else:
             slot_position = _slot_position_label(element)
