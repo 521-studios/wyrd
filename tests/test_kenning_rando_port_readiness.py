@@ -328,10 +328,9 @@ def test_scholar_only_pct_matches_direct_ratio():
         rando_only=0,
         uncited=27,
     )
-    # Old French operator-lexicon snapshot (2026-05-29): 2.9% scholar-
-    # only vs 95.1% combined coverage. The combined view says C1 is
-    # fine; the scholar-only view tells the truer story about
-    # pipeline dependence.
+    # Fixture shape mirrors the Old French operator-lexicon profile
+    # where empirical does most of the work: clears C1 via combined
+    # coverage even though scholar-only share is small.
     assert lc.scholar_only_pct == pytest.approx(100.0 * 16 / 548)
     assert lc.coverage_pct == pytest.approx(100.0 * (16 + 505) / 548)
 

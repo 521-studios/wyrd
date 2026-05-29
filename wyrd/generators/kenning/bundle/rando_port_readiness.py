@@ -87,8 +87,7 @@ class LanguageCriterion:
         C1 verdict math is unchanged — still uses ``coverage_pct``
         (scholar + empirical). This is a visibility metric, not a gate
         change. A language can clear C1 cleanly while scholar_only_pct
-        sits low (e.g. old_french 95.1% C1 / 2.9% scholar-only post-
-        2026-05-29 audit) because empirical is doing most of the work.
+        sits low because empirical is doing most of the work.
         """
         if self.total_subjects == 0:
             return 0.0
@@ -215,8 +214,7 @@ def format_readiness(report: ReadinessReport) -> str:
         "- **Scholar only** (visibility, not a gate) — scholar-attested "
         "share of bundle subjects (excluding the empirical wedge). "
         "Surfaces how much of a language's coverage rests on the "
-        "wiktionary-empirical pipeline vs the named bibliographic "
-        "sources. C1 verdict math is unchanged."
+        "wiktionary-empirical pipeline vs the named bibliographic sources."
     )
     lines.append("")
     if not report.overall_passes:
