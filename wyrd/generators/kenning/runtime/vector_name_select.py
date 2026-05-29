@@ -69,8 +69,12 @@ def _default_empty_phon_vector() -> PhonologicalVector:
 
 def _matches_position(meaning: Meaning, slot_position: str) -> bool:
     """Position-gate predicate. The slot's position label is one of
-    ``pre`` / ``inner`` / ``post`` (matches Meaning.location). A
-    meaning eligible for a slot must have a matching location.
+    ``pre`` / ``inner`` / ``post`` / ``bare`` (matches Meaning.location;
+    ``bare`` added in wyrd-vpri for no-dash single-word keys). A
+    meaning eligible for a slot must have a matching location — exact
+    equality, so a ``bare`` slot accepts only bare keys and a ``post``
+    slot only suffix keys (the separation that stops suffix keys
+    filling single-word slots).
 
     The legacy path filters at the per-structure / per-bucket level;
     here we do the same check explicitly on the meaning's location
