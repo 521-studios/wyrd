@@ -391,10 +391,16 @@ class MeaningGenerator:
 
 def _is_ungrammatical_word_template(word_key: tuple) -> bool:
     """wyrd-zzli + wyrd-80ib: returns True when a word slot is a single
-    bare 'pre' / 'post' / 'inner' morpheme with no ``name`` / ``saint``
-    qualifier. The runtime renders such a slot as a standalone word
-    with the dash stripped — producing two distinct bug shapes
-    depending on the enclosing structure:
+    standalone 'pre' / 'post' / 'inner' (attachment) morpheme with no
+    ``name`` / ``saint`` qualifier. The runtime renders such a slot as a
+    standalone word with the dash stripped — producing two distinct bug
+    shapes depending on the enclosing structure:
+
+    NB (wyrd-vpri): "standalone" here is the bug; do NOT confuse it with
+    the ``bare`` LOCATION. A no-dash key has location ``bare`` (∉
+    pre/post/inner), so a single bare-LOCATION word is grammatical and
+    kept — only the dash-marked attachment morphemes (pre/post/inner)
+    are ungrammatical standing alone.
 
     - Multi-word `By Green` (wyrd-zzli): a 2-word structure where each
       word is a bare attachment morpheme (-by + green-). The two

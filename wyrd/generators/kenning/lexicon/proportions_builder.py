@@ -170,7 +170,12 @@ def ordered_tag_pairs(name) -> list[tuple[list[str], list[str]]]:
 def encode_meaning(qualities) -> dict:
     out: dict = {}
     for quality in qualities:
-        if quality in ("pre", "post", "inner"):
+        # wyrd-vpri: 'bare' is a location (the no-dash single-word
+        # position), not a flag. Without it here, a bare quality would
+        # fall to the flag branch (out['bare']=True) and leave no
+        # 'location' key — then word_to_key's element['location']
+        # lookup KeyErrors. Keep in sync with Meaning._set_location.
+        if quality in ("pre", "post", "inner", "bare"):
             out["location"] = quality
         else:
             out[quality] = True

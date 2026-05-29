@@ -24,8 +24,12 @@ def test_location_inner_when_dashes_on_both_sides():
     assert make_meaning("-by-").location == "inner"
 
 
-def test_location_post_when_no_dash():
-    assert make_meaning("ham").location == "post"
+def test_location_bare_when_no_dash():
+    # wyrd-vpri: a no-dash usage is its own 'bare' location (was 'post'
+    # pre-fix — the conflation that let suffix keys fill single-word
+    # slots). 'bare' is valid at any position; single-word slots encode
+    # ('bare',) so suffix keys ('-park'=post) no longer match them.
+    assert make_meaning("ham").location == "bare"
 
 
 def test_test_pre_returns_meaning_then_remainder():
@@ -92,7 +96,7 @@ def test_key_with_name_tag():
 def test_key_with_saint_usage():
     # Saint key path triggers when usage text matches "saint" exactly
     # (with dashes stripped, lowercase) — separate from is_name().
-    assert make_meaning("saint", tags=[]).key() == ("post", "saint")
+    assert make_meaning("saint", tags=[]).key() == ("bare", "saint")
 
 
 def test_load_meanings_indexes_by_usage_and_tag():

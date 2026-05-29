@@ -148,8 +148,18 @@ def normalize_ocr_form(form: str) -> str:
 def position_from_usage(modern_usage: str) -> str:
     """Derive a reflex position from the dash markers on a modern_usage string.
 
-    Mirrors Meaning._set_location: starts and ends with '-' → inner,
-    ends with '-' → pre, otherwise post.
+    Starts and ends with '-' → inner, ends with '-' → pre, otherwise
+    post.
+
+    NB (wyrd-vpri): this INTENTIONALLY diverges from
+    ``Meaning._set_location``, which now maps a no-dash usage to the
+    distinct ``bare`` location. This function feeds the reflex
+    ``position`` DB column, whose CHECK constraint is only
+    ('pre','post','inner') — there is no 'bare' position there — and
+    the value is consumed solely as an ORDER BY sort key, never as a
+    runtime eligibility gate (the runtime re-derives location from the
+    dashed surface form). So no-dash → 'post' is the correct DB-side
+    mapping; don't "fix" it to 'bare' or the constraint rejects it.
     """
     if modern_usage.startswith("-") and modern_usage.endswith("-"):
         return "inner"

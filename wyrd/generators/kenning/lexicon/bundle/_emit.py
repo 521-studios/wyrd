@@ -258,8 +258,9 @@ def _synthesize_modern_usage(family: dict[str, Any]) -> str:
     """Derive a modern_usage for a family that has no linked reflex.
 
     Uses ``position_pref`` to choose pre/post/inner dash markers; defaults
-    to no-dash (the runtime treats undecorated usage as a post-suffix
-    via Meaning._set_location).
+    to no-dash (the runtime treats undecorated usage as the ``bare``
+    location via Meaning._set_location — wyrd-vpri; valid at any
+    single-token position, distinct from a 'post' suffix).
     """
     form = family["root_canonical_form"]
     position = family.get("position_pref")
