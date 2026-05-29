@@ -136,7 +136,9 @@ def lexicon_ingest_kepn(
                 f"names: extracted={stats.pn_extracted}/{stats.pn_slots} "
                 f"T1={stats.pn_match_t1} T2={stats.pn_match_t2} miss={stats.pn_miss} | "
                 f"quarantined={stats.whitelist_quarantined} "
-                f"unmapped_lang={stats.unmapped_lang_slots}",
+                f"unmapped_lang={stats.unmapped_lang_slots} "
+                f"dropped_gloss_cont={stats.dropped_gloss_continuations} "
+                f"skipped_empty={stats.skipped_empty_places}",
                 err=True,
             )
             if stats.unmapped_lang_slots:

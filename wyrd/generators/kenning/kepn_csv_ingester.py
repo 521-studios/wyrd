@@ -165,6 +165,8 @@ class KepnStats:
     quarantine_sample: list[str] = field(default_factory=list)
     unmapped_lang_slots: int = 0
     unmapped_lang_sample: list[str] = field(default_factory=list)
+    dropped_gloss_continuations: int = 0
+    skipped_empty_places: int = 0
     # personal-name resolution
     pn_slots: int = 0
     pn_extracted: int = 0
@@ -204,28 +206,45 @@ def parse_derivation(deriv: str, stats: KepnStats | None = None) -> list[_Elemen
         pre = chunk.split(" - ", 1)[0].strip()
         m = _LANGRE.search(pre)
         if not m:
-            # gloss continuation → re-join onto the previous element
-            if elements and elements[-1].gloss is not None:
+            # No known language label at the end of the pre-gloss text.
+            # Distinguish a genuine gloss continuation (an internal "; " inside
+            # a gloss) from an element in an UNMAPPED language: the latter looks
+            # like "form Xxx - gloss" — it has a " - " AND a trailing
+            # capitalized token. Count those (and DON'T absorb them into the
+            # previous gloss, which would corrupt it) — the defensive guard if
+            # KEPN adds a 9th language or an abbrev we haven't mapped. A real
+            # gloss continuation has no trailing-capital "lang - " shape.
+            if " - " in chunk and re.search(r"[A-Z][a-zA-Z]*\Z", pre) and stats is not None:
+                stats.unmapped_lang_slots += 1
+                if len(stats.unmapped_lang_sample) < 10:
+                    stats.unmapped_lang_sample.append(chunk[:60])
+            elif elements and elements[-1].gloss is not None:
                 elements[-1].gloss += "; " + chunk
+            elif stats is not None:
+                # genuine continuation with no prior element/gloss to attach
+                # to — count rather than drop silently (D24).
+                stats.dropped_gloss_continuations += 1
             continue
         label = m.group(0)
         form = _nfc(pre[: m.start()].strip())
         gloss = chunk.split(" - ", 1)[1].strip() if " - " in chunk else None
         is_pn = bool(_PERSONAL_NAME_RE.match(form))
-        lang = _LANG_MAP.get(label, "")
-        if not lang and not is_pn and stats is not None:
-            stats.unmapped_lang_slots += 1
-            if len(stats.unmapped_lang_sample) < 10:
-                stats.unmapped_lang_sample.append(chunk[:60])
-        elements.append(_Element(form, lang, gloss, is_pn, label))
+        # label is guaranteed in _LANG_MAP (_LANGRE is built from its keys).
+        elements.append(_Element(form, _LANG_MAP[label], gloss, is_pn, label))
     return elements
 
 
+def extract_personal_names(etymology: str) -> list[str]:
+    """All possessive-form personal names in the Etymology prose, in order
+    (``'Dudda's and Cyni's farm'`` → ``['Dudda', 'Cyni']``)."""
+    return list(_POSSESSIVE_RE.findall(etymology or ""))
+
+
 def extract_personal_name(etymology: str) -> str | None:
-    """Pull the specific personal name out of the Etymology prose via the
-    leading possessive (``'Earda's wood'`` → ``Earda``). None if absent."""
-    m = _POSSESSIVE_RE.search(etymology or "")
-    return m.group(1) if m else None
+    """First possessive personal name in the prose (``'Earda's wood'`` →
+    ``Earda``); None if absent."""
+    names = extract_personal_names(etymology)
+    return names[0] if names else None
 
 
 def load_name_index(briggs_jsonl: Path) -> dict[str, tuple[str, str]]:
@@ -302,7 +321,7 @@ def emit_kepn_jsonl(
     Returns telemetry incl. the personal-name match/miss report."""
     stats = KepnStats(county=county, jsonl_path=jsonl_path)
 
-    # ref → {form, lang, gloss, referenced(bool), sample_ref_title, tags}
+    # ref → {form, lang, gloss, referenced(bool), ref_title, tags}
     etymons: dict[str, dict] = {}
     # ordered place records for emit
     places: list[dict] = []
@@ -342,17 +361,18 @@ def emit_kepn_jsonl(
             deriv = row.get("Derivation") or ""
             ref_title = (row.get("ReferenceTitle") or "").strip()
             if not place:
+                stats.skipped_empty_places += 1
                 continue
             stats.places += 1
             referenced = bool(ref_title)
             elements = parse_derivation(deriv, stats)
             ordered_refs: list[str] = []
             unresolved_names: list[str] = []
-            pn_seen = False
+            pn_count = 0
             for el in elements:
                 if el.is_personal_name:
-                    pn_seen = True
-                    continue  # resolved below from prose, once per place
+                    pn_count += 1  # resolved below from prose
+                    continue
                 if not el.form or not el.lang:
                     continue
                 if element_whitelist is not None and _nfc(el.form) not in element_whitelist:
@@ -365,10 +385,15 @@ def emit_kepn_jsonl(
                 _note_etymon(ref, el.form, el.lang, el.gloss, referenced, ref_title, [])
                 ordered_refs.append(ref)
 
-            if pn_seen:
-                stats.pn_slots += 1
-                cand = extract_personal_name(etym)
-                if cand:
+            if pn_count:
+                # Count every personal-name slot (not once per place) so the
+                # match/miss measure is accurate on multi-name compounds.
+                stats.pn_slots += pn_count
+                # Align prose possessives to slots (usually 1:1). Slots beyond
+                # the names we can extract stay in the pn_slots − pn_extracted
+                # gap rather than being silently counted as resolved.
+                cands = extract_personal_names(etym)
+                for cand in cands[:pn_count]:
                     stats.pn_extracted += 1
                     matched, tier = match_name(cand, name_index)
                     if tier == "t1":
@@ -387,11 +412,14 @@ def emit_kepn_jsonl(
                         ordered_refs.append(ref)
                     else:
                         unresolved_names.append(cand)
-                else:
+                if not cands:
                     unresolved_names.append("(unextracted personal name)")
 
             notes_parts = []
-            quoted = re.search(r"'([^']+)'", etym)
+            # Greedy: capture the WHOLE leading quoted gloss. A non-greedy /
+            # negated-class match stops at the apostrophe inside a possessive
+            # ("'Earda's wood'" → "Earda"), truncating the note.
+            quoted = re.search(r"'(.+)'", etym)
             if quoted:
                 notes_parts.append(quoted.group(1).strip())
             if unresolved_names:

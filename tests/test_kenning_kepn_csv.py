@@ -8,9 +8,11 @@ from wyrd.generators.kenning.jsonl.build import build_from_jsonl
 from wyrd.generators.kenning.kepn_csv_ingester import (
     EXTERNAL_SOURCE_ID,
     SOURCE_ID,
+    KepnStats,
     county_from_filename,
     emit_kepn_jsonl,
     extract_personal_name,
+    extract_personal_names,
     fold_name,
     load_name_index,
     match_name,
@@ -239,4 +241,98 @@ def test_whitelist_quarantines_unknown_form(tmp_path):
         db.conn.execute("SELECT COUNT(*) FROM etymon WHERE canonical_form='xyzzy'").fetchone()[0]
         == 0
     )
+    db.close()
+
+
+# ---------------------------------------------------------------------------
+# review-round-1 regressions (PR #381)
+# ---------------------------------------------------------------------------
+
+
+def test_note_captures_full_gloss_not_truncated_at_possessive(tmp_path):
+    # regression: a negated-class match stopped at the apostrophe in "Earda's"
+    # and truncated the note to "Earda". Greedy must keep the whole gloss.
+    idx = load_name_index(_briggs_fixture(tmp_path / "briggs.jsonl"))
+    csv = _write_csv(
+        tmp_path / "shire.csv",
+        [
+            (
+                "Ardeley",
+                "'Earda's wood/clearing'. Extra prose.",
+                "lēah Old English - A clearing; Personal name (Old English) Old English - Personal name",
+                "DEPN",
+            )
+        ],
+    )
+    out = tmp_path / "kepn.jsonl"
+    emit_kepn_jsonl(csv, out, county="Shire", name_index=idx)
+    db, _ = _build(tmp_path, _briggs_fixture(tmp_path / "briggs.jsonl"), out)
+    note = db.conn.execute("SELECT notes FROM toponym_etymology").fetchone()[0]
+    assert "Earda's wood/clearing" in note  # full gloss, not just "Earda"
+    db.close()
+
+
+def test_unmapped_language_slot_is_counted_not_dropped(tmp_path):
+    stats = KepnStats()
+    els = parse_derivation("flib Klingon - A made-up tongue.", stats)
+    # unknown language ("Klingon") → counted for investigation, and NOT
+    # emitted as an etymon (we can't assign it a language) — never silent.
+    assert stats.unmapped_lang_slots == 1
+    assert els == []
+
+
+def test_leading_gloss_continuation_is_counted(tmp_path):
+    stats = KepnStats()
+    # a continuation chunk with no prior element to attach to
+    parse_derivation("an orphaned gloss fragment; tūn Old English - A farmstead.", stats)
+    assert stats.dropped_gloss_continuations == 1
+
+
+def test_multiple_personal_name_slots_counted_per_slot(tmp_path):
+    idx = load_name_index(_briggs_fixture(tmp_path / "briggs.jsonl"))
+    csv = _write_csv(
+        tmp_path / "shire.csv",
+        [
+            (
+                "Doubleton",
+                "'Earda's and Æþelstan's farmstead'.",
+                "Personal name (Old English) Old English - Personal name; "
+                "Personal name (Old English) Old English - Personal name; "
+                "tūn Old English - A farmstead.",
+                "DEPN",
+            )
+        ],
+    )
+    out = tmp_path / "kepn.jsonl"
+    stats = emit_kepn_jsonl(csv, out, county="Shire", name_index=idx)
+    assert stats.pn_slots == 2  # counted per slot, not once per place
+    assert extract_personal_names("'Earda's and Æþelstan's farmstead'.") == ["Earda", "Æþelstan"]
+    assert stats.pn_extracted == 2 and stats.pn_match_t1 == 2
+
+
+def test_cli_dir_mode_ingests_each_county(tmp_path):
+    from click.testing import CliRunner
+
+    from wyrd.generators.kenning.cli.lexicon.ingest_kepn import lexicon_ingest_kepn
+
+    briggs = _briggs_fixture(tmp_path / "briggs.jsonl")
+    dbp = tmp_path / "lex.db"
+    init_schema(dbp)
+    cdir = tmp_path / "kepn"
+    cdir.mkdir()
+    _write_csv(
+        cdir / "rutland.csv",
+        [("Ayston", "'Ash farm'.", "æsc Old English - Ash; tūn Old English - Farm.", "")],
+    )
+    runner = CliRunner()
+    with runner.isolated_filesystem():  # dir-mode writes data/mining/*.jsonl relative to cwd
+        res = runner.invoke(
+            lexicon_ingest_kepn,
+            [str(cdir), "--db", str(dbp), "--briggs-jsonl", str(briggs)],
+        )
+    assert res.exit_code == 0, res.output
+    # county derived from filename → region stamped
+    db = LexiconDB(dbp)
+    region = db.conn.execute("SELECT region FROM toponym WHERE modern_name='Ayston'").fetchone()
+    assert region and region[0] == "Rutland"
     db.close()
