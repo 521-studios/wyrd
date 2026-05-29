@@ -94,6 +94,58 @@ def test_select_canonical_sense_returns_none_for_glossless_entry() -> None:
     assert _select_canonical_sense(entry) is None
 
 
+@pytest.mark.parametrize("pos", ["prep", "postp", "conj", "pron", "particle", "det", "article"])
+def test_select_canonical_sense_skips_function_word_pos(pos: str) -> None:
+    """wyrd-33cv: function-word entries (preposition / conjunction /
+    pronoun / particle / determiner / article / postposition) are
+    skipped at ingest — they never carry toponymic meaning, so a
+    surface match against an unaccounted place-name fragment is noise.
+    The POS gate fires BEFORE sense inspection, so even a perfectly
+    good content gloss on a function-word entry is dropped."""
+    entry = {
+        "word": "by",
+        "pos": pos,
+        "senses": [{"glosses": ["a clean content-looking gloss"], "tags": []}],
+    }
+    assert _select_canonical_sense(entry) is None, f"pos={pos!r} should be skipped"
+
+
+@pytest.mark.parametrize("pos", ["noun", "verb", "adj", "adv", "name", "num", "suffix"])
+def test_select_canonical_sense_keeps_content_word_pos(pos: str) -> None:
+    """wyrd-33cv: content POS pass through unchanged — the POS gate
+    only denies the function-word set, it doesn't allowlist."""
+    entry = {"word": "tun", "pos": pos, "senses": [{"glosses": ["enclosure, farmstead"]}]}
+    result = _select_canonical_sense(entry)
+    assert result is not None, f"pos={pos!r} should be kept"
+    gloss, _tags = result
+    assert gloss == "enclosure, farmstead"
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        {"word": "tun", "senses": [{"glosses": ["enclosure, farmstead"]}]},  # absent
+        {"word": "tun", "pos": "", "senses": [{"glosses": ["enclosure, farmstead"]}]},  # empty
+        {
+            "word": "tun",
+            "pos": "  ",
+            "senses": [{"glosses": ["enclosure, farmstead"]}],
+        },  # whitespace
+    ],
+    ids=["absent", "empty", "whitespace"],
+)
+def test_select_canonical_sense_keeps_entry_with_missing_pos(entry: dict) -> None:
+    """wyrd-33cv: a missing/empty/whitespace pos is NOT treated as a
+    function word — the gate is ``(entry.get("pos") or "").strip() in
+    _FUNCTION_WORD_POS``, so absent → '', empty → '', whitespace →
+    '' after strip, none of which are in the denylist. Denylist, not
+    allowlist: entries lacking a usable pos still get their gloss
+    selected."""
+    result = _select_canonical_sense(entry)
+    assert result is not None
+    assert result[0] == "enclosure, farmstead"
+
+
 def test_select_canonical_sense_maps_categories_to_tags() -> None:
     entry = {
         "word": "eglwys",
