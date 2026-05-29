@@ -276,6 +276,73 @@ def _saint_personal_name_subjects() -> list[dict[str, Any]]:
     return subjects
 
 
+@lru_cache(maxsize=1)
+def _load_curated_senses() -> tuple[dict[str, Any], ...]:
+    """Curated common-noun place-name senses the L3 mining pipeline
+    missed or couldn't promote (wyrd-v4rc).
+
+    Distinct from the saint / manorial sidecars (which carry personal
+    names): this holds ordinary toponymic vocabulary whose etymon
+    exists in the lexicon DB but has no glossed, citable home — so it
+    never reaches the bundle through the normal promotion paths. The
+    seed case is extractive ``mine`` (Old French ``mine`` ← Gaulish,
+    cognate cluster *mēy(H)nis): the DB carries the whole Celtic /
+    Romance cluster but every member is gloss-less, and the only
+    glossed modern-english ``mine`` etymon is the unrelated possessive
+    pronoun (PIE *men-). Curation can't mint a new etymon + citation,
+    so the sense is injected here as a runtime convenience subject.
+
+    Each entry: ``name`` (surface form), ``language_field`` (bundle
+    slot), ``gloss``, ``tags`` (user-facing theme tags — these are NOT
+    internal-cohort tags, so the sense shows up as a normal morpheme),
+    and ``modifier_type``.
+
+    ``language_field`` should name the sense's actual historical
+    stratum (``old_french`` for extractive mine, not ``modern_english``):
+    ``_rank_siblings`` drops modern-english-only homographs when a
+    historical etymon shares the surface, so a ``modern_english`` slot
+    would be silently filtered out of the explainer whenever an older
+    etymon (e.g. OE ``mine`` 'a slope') exists at the same surface.
+    Slotting by true origin keeps the curated sense visible AND ranks
+    it correctly by stratum next to its homographs.
+    """
+    with _data_path("curated_senses.json").open(encoding="utf-8") as f:
+        return tuple(json.load(f))
+
+
+def _curated_sense_subjects() -> list[dict[str, Any]]:
+    """Synthesize meaning-db subjects for the curated common-noun
+    senses (wyrd-v4rc). Mirrors ``_saint_personal_name_subjects`` —
+    each entry becomes a Meaning the matcher resolves when a toponym
+    carries the surface.
+
+    Emits BOTH pre-position (``mine-``) and post-position (``mine``)
+    variants so the sense matches at either end of a compound
+    (``Minehead`` = mine + head; a trailing ``-mine``). Inner is
+    omitted — a common noun embedded strictly inside a longer word is
+    rare and would over-match.
+    """
+    senses = _load_curated_senses()
+    subjects: list[dict[str, Any]] = []
+    for entry in senses:
+        token = entry["name"]
+        for surface_usage in (f"{token}-", token):
+            subjects.append(
+                {
+                    "meaning": [entry["gloss"]],
+                    "modifier_tags": list(entry.get("tags") or []),
+                    "modifier_type": entry["modifier_type"],
+                    "words": [
+                        {
+                            "modern_usage": surface_usage,
+                            entry["language_field"]: [token.lower()],
+                        }
+                    ],
+                }
+            )
+    return subjects
+
+
 def _norman_manorial_subjects() -> list[dict[str, Any]]:
     """Synthesize meaning-db subjects for the Norman manorial families
     (wyrd-8s71). Generation appends the family name as a post-base
@@ -376,17 +443,20 @@ def _load_meanings():
         sidecar = json.load(f)
     manorial = _norman_manorial_subjects()
     saints = _saint_personal_name_subjects()
+    curated_senses = _curated_sense_subjects()
     # Build a fresh subjects list with the sidecars folded in —
     # load_meanings only reads ``subjects`` from the dict, and passing
     # a fresh dict avoids mutating the cached _runtime_db_bundle_dict()
     # return value (which feeds the sibling loaders downstream). The
-    # three sidecars (irish_anglicizations + Norman manorial families
-    # + saint personal names) stay as JSON because they're runtime-only
-    # convenience tables that never went through the L3 mining pipeline.
+    # four sidecars (irish_anglicizations + Norman manorial families
+    # + saint personal names + curated common-noun senses) stay as
+    # JSON because they're runtime-only convenience tables that never
+    # went through the L3 mining pipeline.
     subjects = list(data.get("subjects") or [])
     subjects.extend(sidecar)
     subjects.extend(manorial)
     subjects.extend(saints)
+    subjects.extend(curated_senses)
     return load_meanings({"subjects": subjects})
 
 
